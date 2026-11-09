@@ -21,8 +21,8 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_divider, settings_error_banner, settings_field_label,
     settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
-    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
-    settings_page_heading_with_help, settings_row_with_flexible_control,
+    settings_help_button_with_locale as settings_help_button, settings_hover_help_label,
+    settings_muted_text_style, settings_page_heading_with_help, settings_row_with_flexible_control,
     settings_segment_button_style, settings_select, settings_tab_button, settings_tab_row,
     settings_text_input,
 };
@@ -82,25 +82,35 @@ fn field_row<'a>(
 }
 
 fn text_row<'a>(
+    i18n: I18n,
+    theme: &iced::Theme,
     label: &'static str,
-    description: &'static str,
-    placeholder: &'static str,
+    help: impl Into<std::borrow::Cow<'a, str>>,
+    hint: &'static str,
     value: &'a str,
     on_input: impl Fn(String) -> Message + 'a,
 ) -> Element<'a, Message> {
-    field_row(
+    settings_flexible_row_with_help(
+        i18n,
+        theme,
         label,
-        description,
-        settings_text_input(placeholder, value).on_input(on_input).width(Length::Fill),
+        help,
+        CONTROL_WIDTH,
+        column![
+            settings_text_input("", value).on_input(on_input).width(Length::Fill),
+            text(hint).size(13).style(settings_muted_text_style),
+        ]
+        .spacing(6),
     )
+    .into()
 }
 
 #[allow(clippy::too_many_arguments)]
 fn list_editor<'a>(
     locale: vw_config_types::ui::DesktopLocale,
     kind: AutonomyListKind,
-    label: &'static str,
-    description: &'static str,
+    label: Element<'a, Message>,
+    hint: Option<&'static str>,
     items: &'a [String],
     draft: &'a str,
     pending_remove_index: Option<usize>,
@@ -194,19 +204,12 @@ fn list_editor<'a>(
     .max_height(LIST_EDITOR_MAX_HEIGHT)
     .width(Length::Fill);
 
-    column![
-        column![
-            settings_field_label(label),
-            text(description).size(13).style(settings_muted_text_style),
-        ]
-        .spacing(6),
-        control,
-        item_list,
-    ]
-    .spacing(10)
-    .padding([14, 0])
-    .width(Length::Fill)
-    .into()
+    let mut heading = column![label].spacing(6);
+    if let Some(hint) = hint {
+        heading = heading.push(text(hint).size(13).style(settings_muted_text_style));
+    }
+
+    column![heading, control, item_list].spacing(10).padding([14, 0]).width(Length::Fill).into()
 }
 
 fn bool_row<'a>(
@@ -235,9 +238,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let level_row = || {
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("级别"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("决定代理默认可执行的动作范围。"),
+        settings_flexible_row_with_help(
+            i18n,
+            theme,
+            i18n.__("级别"),
+            i18n.__("决定代理默认可执行的动作范围。"),
+            CONTROL_WIDTH,
             row![
                 segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("只读"),
@@ -347,10 +353,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let redirect_row = || {
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("重定向策略"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制 shell 命令中的输出重定向如何处理。"),
+        settings_flexible_row_with_help(
+            i18n,
+            theme,
+            i18n.__("重定向策略"),
+            i18n.__("控制 shell 命令中的输出重定向如何处理。"),
+            CONTROL_WIDTH,
             row![
                 segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("阻断"),
@@ -387,10 +395,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mode_row = || {
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("自然语言审批"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("控制非 CLI 场景下自然语言请求的执行方式。"),
+        settings_flexible_row_with_help(
+            i18n,
+            theme,
+            i18n.__("自然语言审批"),
+            i18n.__("控制非 CLI 场景下自然语言请求的执行方式。"),
+            CONTROL_WIDTH,
             row![
                 segment_button(
                     crate::app::i18n::I18n::new(app.desktop_locale).__("禁用"),
@@ -429,12 +439,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     };
 
+    let list_help = |label, help| {
+        let label = i18n.__(label);
+        settings_hover_help_label(i18n, theme, label, settings_field_label(label), i18n.__(help))
+            .wrap()
+            .into()
+    };
+    let tool_picker_help = "在下拉列表中选择工具，再点击添加。";
+
     let allowed_commands_row = || {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::AllowedCommands,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("允许命令"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("Shell 白名单，每次添加一个命令。"),
+            list_help("允许命令", "Shell 白名单，每次添加一个命令。"),
+            None,
             &s.allowed_commands,
             s.list_editor.draft(AutonomyListKind::AllowedCommands),
             s.list_editor.pending_remove_index(AutonomyListKind::AllowedCommands),
@@ -446,9 +464,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::ForbiddenPaths,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("禁止路径"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("限制代理访问这些路径，即使在工作区外也保持拒绝。"),
+            settings_field_label(i18n.__("禁止路径")).into(),
+            Some(i18n.__("限制代理访问这些路径，即使在工作区外也保持拒绝。")),
             &s.forbidden_paths,
             s.list_editor.draft(AutonomyListKind::ForbiddenPaths),
             s.list_editor.pending_remove_index(AutonomyListKind::ForbiddenPaths),
@@ -460,9 +477,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::ShellEnvPassthrough,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("环境变量透传"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("允许透传到 shell 的环境变量名，每次添加一个。"),
+            list_help("环境变量透传", "允许透传到 shell 的环境变量名，每次添加一个。"),
+            None,
             &s.shell_env_passthrough,
             s.list_editor.draft(AutonomyListKind::ShellEnvPassthrough),
             s.list_editor.pending_remove_index(AutonomyListKind::ShellEnvPassthrough),
@@ -474,9 +490,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::AutoApprove,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("自动审批"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("从现有工具中选择无需额外审批即可执行的工具。"),
+            list_help("自动审批", tool_picker_help),
+            Some(i18n.__("这些工具无需额外审批即可执行。")),
             &s.auto_approve,
             s.list_editor.draft(AutonomyListKind::AutoApprove),
             s.list_editor.pending_remove_index(AutonomyListKind::AutoApprove),
@@ -488,9 +503,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::AlwaysAsk,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("始终询问"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("从现有工具中选择始终要求确认的工具。"),
+            list_help("始终询问", tool_picker_help),
+            Some(i18n.__("这些工具始终要求确认。")),
             &s.always_ask,
             s.list_editor.draft(AutonomyListKind::AlwaysAsk),
             s.list_editor.pending_remove_index(AutonomyListKind::AlwaysAsk),
@@ -502,9 +516,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::AllowedRoots,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("允许根目录"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("额外允许访问的目录，每次添加一个。"),
+            list_help("允许根目录", "额外允许访问的目录，每次添加一个。"),
+            None,
             &s.allowed_roots,
             s.list_editor.draft(AutonomyListKind::AllowedRoots),
             s.list_editor.pending_remove_index(AutonomyListKind::AllowedRoots),
@@ -516,9 +529,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         list_editor(
             app.desktop_locale,
             AutonomyListKind::NonCliExcludedTools,
-            crate::app::i18n::I18n::new(app.desktop_locale).__("非 CLI 排除工具"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("从现有工具中选择在非 CLI 通道里默认禁用的工具。"),
+            list_help("非 CLI 排除工具", tool_picker_help),
+            Some(i18n.__("这些工具在非 CLI 通道中默认禁用。")),
             &s.non_cli_excluded_tools,
             s.list_editor.draft(AutonomyListKind::NonCliExcludedTools),
             s.list_editor.pending_remove_index(AutonomyListKind::NonCliExcludedTools),
@@ -528,10 +540,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let approvers_row = || {
         text_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("审批人列表"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("格式为 channel:user，支持逗号或换行分隔。"),
-            "telegram:alice, *:bob",
+            i18n,
+            theme,
+            i18n.__("审批人列表"),
+            format!(
+                "{}\ntelegram:alice, *:bob",
+                i18n.__("格式为 channel:user，支持逗号或换行分隔。")
+            ),
+            i18n.__("按通道填写用户"),
             &s.non_cli_approval_approvers_input,
             |v| {
                 Message::Settings(message::SettingsMessage::AutonomyNonCliApprovalApproversChanged(
@@ -543,10 +559,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mode_by_channel_row = || {
         text_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按通道模式"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("格式为 channel:mode；列表字段支持逗号或换行分隔。"),
-            "telegram:direct, discord:request_confirm",
+            i18n,
+            theme,
+            i18n.__("按通道模式"),
+            format!(
+                "{}\ntelegram:direct, discord:request_confirm",
+                i18n.__("格式为 channel:mode；列表字段支持逗号或换行分隔。")
+            ),
+            i18n.__("按通道填写模式"),
             &s.non_cli_natural_language_approval_mode_by_channel_input,
             |v| {
                 Message::Settings(

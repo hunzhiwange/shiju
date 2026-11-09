@@ -554,8 +554,8 @@ async fn ui_refresh_22_tool_menu_hover_scroll_and_add_keep_original_ids() {
         list_editor(
             locale,
             kind,
-            "自动审批",
-            "选择要自动审批的工具。",
+            settings_field_label("自动审批").into(),
+            Some("这些工具无需额外审批即可执行。"),
             &saved,
             draft,
             None,
@@ -740,6 +740,321 @@ fn assert_help_menu(
     }
 }
 
+fn assert_gap_11_help(
+    app: &App,
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    size: Size<u32>,
+    title: &str,
+    old_description: &str,
+    body: &str,
+) {
+    let positions = geometry(ui, renderer);
+    assert!(
+        positions.labels.iter().all(|(label, _)| label != old_description),
+        "{title}: static explanation is visible before opening help"
+    );
+    let bounds = positions.label(title);
+    let prefix = format!("gap-11-{:?}-{}-{title}", app.desktop_locale, size.width);
+    let theme = &app.app_theme;
+    let cursor = mouse::Cursor::Unavailable;
+    let idle = capture(ui, renderer, theme, size, &format!("{prefix}-idle"), cursor);
+    let icon = [
+        iced::Point::new(bounds.x + bounds.width + 15.0, bounds.center_y()),
+        // The shared help label can wrap its icon below long labels.
+        iced::Point::new(bounds.x + 11.0, bounds.y + bounds.height + 15.0),
+    ]
+    .into_iter()
+    .find(|&icon| {
+        let hover = mouse::Cursor::Available(icon);
+        assert!(
+            send(
+                ui,
+                renderer,
+                hover,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: icon })]
+            )
+            .is_empty()
+        );
+        idle != capture(ui, renderer, theme, size, &format!("{prefix}-hover"), hover)
+    })
+    .unwrap_or_else(|| panic!("{title}: hover help did not render at {bounds:?}"));
+    assert!(click(ui, renderer, icon).is_empty());
+    assert!(idle != capture(ui, renderer, theme, size, &format!("{prefix}-pinned"), cursor));
+    assert_eq!(geometry(ui, renderer).inputs, positions.inputs);
+
+    let side = if icon.x < size.width as f32 / 2.0 { 29.0 } else { -29.0 };
+    let point = iced::Point::new(icon.x + side, icon.y + 5.0);
+    assert!(
+        send(
+            ui,
+            renderer,
+            mouse::Cursor::Available(point),
+            &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))]
+        )
+        .is_empty()
+    );
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    let menu_height = 6.0 + 5.0 * item_height;
+    let top = if point.y + menu_height > size.height as f32 {
+        (point.y - menu_height).max(0.0)
+    } else {
+        point.y
+    };
+    let item = iced::Point::new(
+        point.x.min(size.width as f32 - 140.0) + 24.0,
+        top + 3.0 + item_height * 0.5,
+    );
+    let messages = click(ui, renderer, item);
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == body),
+        "{title}: unexpected help text: {messages:?}"
+    );
+
+    assert!(send(ui, renderer, cursor, &[key(iced::keyboard::key::Named::Escape)]).is_empty());
+    assert!(idle == capture(ui, renderer, theme, size, &format!("{prefix}-closed"), cursor));
+}
+
+const GAP_11_LOCALE_THEMES: [(DesktopLocale, Theme); 3] = [
+    (DesktopLocale::SimplifiedChinese, Theme::Light),
+    (DesktopLocale::TraditionalChinese, Theme::Dark),
+    (DesktopLocale::English, Theme::Dark),
+];
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_11_permissions_explanations() {
+    if !isolated("settings_help_gap_11_permissions_explanations") {
+        return;
+    }
+    let mut app = fixture();
+    app.autonomy_settings.active_tab = AutonomySettingsTab::Permissions;
+    app.autonomy_settings.require_approval_for_medium_risk = false;
+    app.autonomy_settings.block_high_risk_commands = false;
+    let mut renderer = renderer().await;
+    for (locale, theme) in GAP_11_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 1100);
+            let mut ui = scene(view(&app), &mut renderer, size);
+            for (title, description) in [
+                ("重定向策略", "控制 shell 命令中的输出重定向如何处理。"),
+                ("级别", "决定代理默认可执行的动作范围。"),
+                ("自然语言审批", "控制非 CLI 场景下自然语言请求的执行方式。"),
+            ] {
+                assert_gap_11_help(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t(title),
+                    t(description),
+                    t(description),
+                );
+            }
+            let positions = geometry(&mut ui, &renderer);
+            for hint in [
+                "对中风险动作触发审批，而不是直接执行。",
+                "对高风险命令直接阻断，不进入执行链路。",
+                "仅允许在工作区路径内操作，除非显式加入 allowed_roots。",
+            ] {
+                positions.label(t(hint));
+            }
+            for (label, level) in [
+                ("只读", AutonomyLevel::ReadOnly),
+                ("监督", AutonomyLevel::Supervised),
+                ("完全", AutonomyLevel::Full),
+            ] {
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, positions.label(t(label)).center()).as_slice(),
+                    [Message::Settings(message::SettingsMessage::AutonomyLevelChanged(value))]
+                        if *value == level
+                ));
+            }
+            use crate::app::message::SettingsMessage;
+            let mut click_label =
+                |label| click(&mut ui, &mut renderer, positions.label(t(label)).center());
+            assert!(matches!(
+                click_label("中风险需审批").as_slice(),
+                [Message::Settings(SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(
+                    true
+                ))]
+            ));
+            assert!(matches!(
+                click_label("阻断高风险").as_slice(),
+                [Message::Settings(SettingsMessage::AutonomyBlockHighRiskCommandsToggled(true))]
+            ));
+            assert!(matches!(
+                click_label("移除").as_slice(),
+                [Message::Settings(SettingsMessage::AutonomyShellRedirectPolicyChanged(
+                    ShellRedirectPolicy::Strip
+                ))]
+            ));
+            assert!(matches!(
+                click_label("请求确认").as_slice(),
+                [Message::Settings(
+                    SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeChanged(
+                        NonCliNaturalLanguageApprovalMode::RequestConfirm
+                    )
+                )]
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_11_list_editor_explanations() {
+    if !isolated("settings_help_gap_11_list_editor_explanations") {
+        return;
+    }
+    let mut app = fixture();
+    app.autonomy_settings.active_tab = AutonomySettingsTab::ToolsAndPaths;
+    let kind = AutonomyListKind::AllowedCommands;
+    app.autonomy_settings.list_editor.set_draft(kind, "fixture-command".into());
+    app.autonomy_settings.list_editor.request_remove(kind, 0);
+    let mut renderer = renderer().await;
+    for (locale, theme) in GAP_11_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 1300);
+            let mut ui = scene(view(&app), &mut renderer, size);
+            for (title, old_description, help) in [
+                (
+                    "允许命令",
+                    "Shell 白名单，每次添加一个命令。",
+                    "Shell 白名单，每次添加一个命令。",
+                ),
+                (
+                    "环境变量透传",
+                    "允许透传到 shell 的环境变量名，每次添加一个。",
+                    "允许透传到 shell 的环境变量名，每次添加一个。",
+                ),
+                (
+                    "允许根目录",
+                    "额外允许访问的目录，每次添加一个。",
+                    "额外允许访问的目录，每次添加一个。",
+                ),
+                (
+                    "自动审批",
+                    "从现有工具中选择无需额外审批即可执行的工具。",
+                    "在下拉列表中选择工具，再点击添加。",
+                ),
+                (
+                    "始终询问",
+                    "从现有工具中选择始终要求确认的工具。",
+                    "在下拉列表中选择工具，再点击添加。",
+                ),
+            ] {
+                assert_gap_11_help(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t(title),
+                    t(old_description),
+                    t(help),
+                );
+            }
+            let positions = geometry(&mut ui, &renderer);
+            for hint in [
+                "确认删除该列表项？",
+                "限制代理访问这些路径，即使在工作区外也保持拒绝。",
+                "这些工具无需额外审批即可执行。",
+                "这些工具始终要求确认。",
+            ] {
+                positions.label(t(hint));
+            }
+            assert!(matches!(
+                click(&mut ui, &mut renderer, positions.label(t("添加")).center()).as_slice(),
+                [Message::Settings(message::SettingsMessage::AutonomyListAdd(
+                    AutonomyListKind::AllowedCommands
+                ))]
+            ));
+            assert!(matches!(
+                click(&mut ui, &mut renderer, positions.label(t("确认删除")).center()).as_slice(),
+                [Message::Settings(message::SettingsMessage::AutonomyListRemoveConfirmed(
+                    AutonomyListKind::AllowedCommands,
+                    0
+                ))]
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_11_channel_formats() {
+    if !isolated("settings_help_gap_11_channel_formats") {
+        return;
+    }
+    let mut app = fixture();
+    app.autonomy_settings.active_tab = AutonomySettingsTab::NonCli;
+    app.autonomy_settings.non_cli_approval_approvers_input = "fixture-channel:private-user".into();
+    app.autonomy_settings.non_cli_natural_language_approval_mode_by_channel_input =
+        "fixture-channel:disabled".into();
+    app.autonomy_settings.save_error = Some("fixture channel validation error".into());
+    let mut renderer = renderer().await;
+    for (locale, theme) in GAP_11_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 1000);
+            let mut ui = scene(view(&app), &mut renderer, size);
+            assert_gap_11_help(
+                &app,
+                &mut ui,
+                &mut renderer,
+                size,
+                t("非 CLI 排除工具"),
+                t("从现有工具中选择在非 CLI 通道里默认禁用的工具。"),
+                t("在下拉列表中选择工具，再点击添加。"),
+            );
+            for (title, description, example) in [
+                (
+                    "审批人列表",
+                    "格式为 channel:user，支持逗号或换行分隔。",
+                    "telegram:alice, *:bob",
+                ),
+                (
+                    "按通道模式",
+                    "格式为 channel:mode；列表字段支持逗号或换行分隔。",
+                    "telegram:direct, discord:request_confirm",
+                ),
+            ] {
+                assert_gap_11_help(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t(title),
+                    t(description),
+                    &format!("{}\n{example}", t(description)),
+                );
+            }
+            let positions = geometry(&mut ui, &renderer);
+            for hint in ["这些工具在非 CLI 通道中默认禁用。", "按通道填写用户", "按通道填写模式"]
+            {
+                positions.label(t(hint));
+            }
+            positions.label("fixture channel validation error");
+            let input = positions.input("fixture-channel:disabled").center();
+            assert!(click(&mut ui, &mut renderer, input).is_empty());
+            assert!(matches!(
+                send(
+                    &mut ui, &mut renderer, mouse::Cursor::Available(input),
+                    &[key(iced::keyboard::key::Named::Backspace)]
+                ).as_slice(),
+                [Message::Settings(message::SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(value))]
+                    if value.len() + 1 == "fixture-channel:disabled".len()
+            ));
+        }
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_14_renders_contextual_help() {
     use crate::app::i18n::I18n;
@@ -787,17 +1102,12 @@ async fn help_rollout_14_renders_contextual_help() {
             ),
             (
                 AutonomySettingsTab::ToolsAndPaths,
-                &[
-                    "确认删除该列表项？",
-                    "取消",
-                    "确认删除",
-                    "从现有工具中选择无需额外审批即可执行的工具。",
-                ][..],
+                &["确认删除该列表项？", "取消", "确认删除", "这些工具无需额外审批即可执行。"][..],
                 &[("工具与路径", 1, "为 shell 命令、路径访问和自动审批设置边界。")][..],
             ),
             (
                 AutonomySettingsTab::NonCli,
-                &["格式为 channel:user，支持逗号或换行分隔。"][..],
+                &["按通道填写用户"][..],
                 &[("非 CLI 暴露", 0, "控制外部通道中的工具暴露与审批人。")][..],
             ),
         ] {

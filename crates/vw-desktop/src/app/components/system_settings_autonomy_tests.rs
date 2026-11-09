@@ -34,14 +34,20 @@ fn field_row_builds_populated_and_empty_content() {
 
 #[test]
 fn text_row_builds_populated_and_empty_values() {
+    let i18n = I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
     keep_element(text_row(
+        i18n,
+        &iced::Theme::Light,
         "允许命令",
         "Shell 白名单。",
         "git, cargo",
         "git\ncargo",
         |_| Message::GatewayHealthTick,
     ));
-    keep_element(text_row("", "", "", "", |_| Message::GatewayHealthTick));
+
+    keep_element(text_row(i18n, &iced::Theme::Light, "", "", "", "", |_| {
+        Message::GatewayHealthTick
+    }));
 }
 
 #[test]
@@ -150,8 +156,8 @@ fn list_editor_renders_one_row_per_saved_item() {
     let element = list_editor(
         vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         AutonomyListKind::AllowedCommands,
-        "允许命令",
-        "说明",
+        settings_field_label("允许命令").into(),
+        Some("说明"),
         &items,
         "",
         None,

@@ -11,7 +11,7 @@ use crate::app::components::chat_panel::tools::{
     ToolVisual, ToolVisualState, tool_inline_summary_unbounded, tool_input, tool_name_from_raw,
     tool_status, tool_verb, tool_visual_state,
 };
-use crate::app::components::status_animation::spinner_frame;
+use crate::app::components::status_animation::activity_spinner;
 use crate::app::models::{ChatMessage, ChatRole};
 use crate::app::{App, Message};
 
@@ -271,10 +271,6 @@ pub(crate) fn compact_activity_geometry(_frame: usize) -> (f32, f32) {
     (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE)
 }
 
-pub(crate) fn compact_activity_glyph(frame: usize) -> &'static str {
-    spinner_frame(frame)
-}
-
 pub(crate) fn compact_running_activity_indicator<'a>(frame: usize) -> Element<'a, Message> {
     compact_activity_indicator(tool_visual_state("running"), frame)
 }
@@ -282,12 +278,8 @@ pub(crate) fn compact_running_activity_indicator<'a>(frame: usize) -> Element<'a
 fn compact_activity_indicator<'a>(visual: ToolVisual, frame: usize) -> Element<'a, Message> {
     let (slot_size, icon_size) = compact_activity_geometry(frame);
     let indicator: Element<'a, Message> = if visual.is_animated {
-        text(compact_activity_glyph(frame))
-            .size(icon_size)
-            .line_height(iced::widget::text::LineHeight::Relative(1.0))
-            .style(move |theme: &Theme| iced::widget::text::Style {
-                color: Some(visual.color(theme)),
-            })
+        activity_spinner(frame, icon_size)
+            .style(move |theme: &Theme, _status| svg::Style { color: Some(visual.color(theme)) })
             .into()
     } else {
         icon_svg(visual.icon)

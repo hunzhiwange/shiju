@@ -1,7 +1,6 @@
 use super::global_status::{
-    COMPACT_ACTIVITY_ICON_SIZE, COMPACT_ACTIVITY_SLOT_SIZE, chat_global_status,
-    chat_global_status_view, compact_activity_geometry, compact_activity_glyph, format_elapsed,
-    think_pulse_color, think_pulse_geometry, think_pulse_glyph, think_pulse_size, tokens_label,
+    chat_global_status, chat_global_status_view, format_elapsed, think_pulse_color,
+    think_pulse_geometry, think_pulse_glyph, think_pulse_size, tokens_label,
 };
 use crate::app::App;
 use crate::app::models::{ChatMessage, ChatRole, TokenUsage};
@@ -113,16 +112,6 @@ fn format_elapsed_switches_to_minutes_after_a_minute() {
 }
 
 #[test]
-fn global_status_indicator_uses_shared_spinner_frames() {
-    for frame in 0..24 {
-        assert_eq!(
-            compact_activity_glyph(frame),
-            crate::app::components::status_animation::spinner_frame(frame)
-        );
-    }
-}
-
-#[test]
 fn thinking_pulse_cycles_original_shapes_and_breathes_more_slowly() {
     assert_eq!(think_pulse_glyph(0), "✳");
     assert_eq!(think_pulse_glyph(11), "✳");
@@ -173,8 +162,17 @@ async fn thinking_pulse_shapes_all_animation_frames_with_fixed_layout() {
     }
 }
 
-#[test]
-fn global_status_indicator_keeps_fixed_geometry_across_frames() {
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn global_status_spinner_rotates_at_text_height() {
+    use super::global_status::COMPACT_ACTIVITY_SLOT_SIZE;
+    use crate::app::components::status_animation::STATUS_SPINNER_FRAMES;
+    use iced::advanced::{mouse, renderer::Renderer as _, renderer::Style};
+    use iced::{Rectangle, Theme};
+
+    let mut renderer = iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
     app.current_session_runtime_mut().is_requesting = true;
     app.chat.push(assistant(
@@ -182,14 +180,52 @@ fn global_status_indicator_keeps_fixed_geometry_across_frames() {
     ));
     app.usage = TokenUsage { input_tokens: 1200, output_tokens: 34, ..Default::default() };
 
-    for frame in 0..30 {
-        app.status_animation_frame = frame;
-        std::hint::black_box(chat_global_status_view(&app));
-        assert_eq!(
-            compact_activity_geometry(frame),
-            (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE),
-            "frame {frame}"
-        );
+    let viewport = Rectangle::with_size(Size::new(400.0, 60.0));
+    let limits = layout::Limits::new(Size::ZERO, viewport.size());
+    let image_size = Size::new(800, 120);
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut spinner_top = f32::INFINITY;
+        let mut spinner_bottom = f32::NEG_INFINITY;
+        for frame in 0..STATUS_SPINNER_FRAMES.len() {
+            app.status_animation_frame = frame;
+            let mut element = chat_global_status_view(&app);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            let layout = Layout::new(&node);
+            let row = layout.children().next().expect("status row");
+            let mut children = row.children();
+            let indicator = children.next().expect("spinner slot");
+            let detail = children.next().expect("status text").bounds();
+            let slot_size = COMPACT_ACTIVITY_SLOT_SIZE;
+            assert_eq!(indicator.bounds().size(), Size::new(slot_size, slot_size));
+
+            renderer.reset(viewport);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &Style::default(),
+                layout,
+                mouse::Cursor::Unavailable,
+                &viewport,
+            );
+            let pixels = renderer.screenshot(image_size, 2.0, theme.palette().background);
+            let background = &pixels[pixels.len() - 4..];
+            let slot_width = slot_size as usize * 2 * 4;
+            let mut spinner_rows = pixels
+                .chunks_exact(image_size.width as usize * 4)
+                .enumerate()
+                .filter(|(_, row)| row[..slot_width].chunks_exact(4).any(|px| px != background))
+                .map(|(y, _)| y);
+            let first = spinner_rows.next().expect("spinner frame should be visible");
+            let last = spinner_rows.next_back().unwrap_or(first);
+            let text_center = detail.y + detail.height / 2.0;
+            spinner_top = spinner_top.min((first as f32 + 0.5) / 2.0 - text_center);
+            spinner_bottom = spinner_bottom.max((last as f32 + 0.5) / 2.0 - text_center);
+        }
+        // The full animation rotates around the text center.
+        let offset = (spinner_top + spinner_bottom) / 2.0;
+        assert!(offset.abs() <= 0.5, "theme {theme:?}, spinner offset {offset}");
     }
 }
 

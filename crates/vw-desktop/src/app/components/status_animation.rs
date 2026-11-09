@@ -41,12 +41,13 @@ static SPINNER_ICONS: LazyLock<[svg::Handle; STATUS_SPINNER_FRAMES.len()]> = Laz
     })
 });
 
-/// 绘制会话运行动画，使点阵中心与行中心对齐，不受字体基线影响。
+/// 绘制运行动画，使点阵中心与行中心对齐，不受字体基线影响。
+pub(crate) fn activity_spinner(frame: usize, size: f32) -> Svg<'static> {
+    svg(SPINNER_ICONS[frame % SPINNER_ICONS.len()].clone()).width(size * 0.7).height(size)
+}
+
 pub(crate) fn session_spinner(frame: usize, size: f32, color: Color) -> Svg<'static> {
-    svg(SPINNER_ICONS[frame % SPINNER_ICONS.len()].clone())
-        .width(size * 0.7)
-        .height(size)
-        .style(move |_, _| svg::Style { color: Some(color) })
+    activity_spinner(frame, size).style(move |_, _| svg::Style { color: Some(color) })
 }
 
 /// 绘制颜色随会话状态变化的圆点。

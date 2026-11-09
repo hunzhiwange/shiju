@@ -1,5 +1,7 @@
 //! Scoped authorization center and temporary management connection form.
 
+use super::apps_usage_cards::{self, Cards, Scope};
+
 mod account_action_modal;
 mod binding_modal;
 #[cfg(test)]
@@ -25,7 +27,8 @@ use vw_gateway_client::vw_api_types::agent_apps_auth::{
     AuthAccount, AuthCredentialState, AuthRegion, AuthService,
 };
 
-pub(crate) fn view(state: &State) -> Element<'_, Message> {
+pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
+    let state = &app.agent_apps_auth;
     if let Some(binding) = &state.binding {
         return container(settings_page_heading(
             service_name(binding.service),
@@ -92,13 +95,22 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
     } else if state.pending.is_some() {
         text("正在读取授权账号…").style(settings_muted_text_style).into()
     } else if let Some(rows) = &state.rows {
+        let usage_scope = apps_usage_cards::current_scope(app, true);
         scrollable(
             container(
                 column(
                     rows.iter()
                         .filter(|row| Some(row.service) == state.focused_service)
                         .chain(rows.iter().filter(|row| Some(row.service) != state.focused_service))
-                        .map(|row| service_card(row, configured, state.rows_generation())),
+                        .map(|row| {
+                            service_card(
+                                row,
+                                configured,
+                                state.rows_generation(),
+                                &state.usage,
+                                usage_scope.as_ref(),
+                            )
+                        }),
                 )
                 .spacing(10),
             )
@@ -135,11 +147,13 @@ fn service_name(service: AuthService) -> &'static str {
     }
 }
 
-fn service_card(
-    row: &ServiceAccounts,
+fn service_card<'a>(
+    row: &'a ServiceAccounts,
     configured: bool,
     rows_generation: u64,
-) -> Element<'_, Message> {
+    usage: &'a Cards,
+    usage_scope: Option<&Scope>,
+) -> Element<'a, Message> {
     let mut card = column![text(service_name(row.service)).size(17)].spacing(6);
     match &row.accounts {
         Ok(accounts) if accounts.is_empty() => {
@@ -164,6 +178,16 @@ fn service_card(
                 .spacing(5);
                 if configured {
                     summary = summary.push(account_actions(account, rows_generation));
+                    if account.credential_state == AuthCredentialState::Ready
+                        && apps_usage_cards::binding_app(row.service).is_some()
+                    {
+                        summary = summary.push(apps_usage_cards::account_view(
+                            usage_scope,
+                            usage,
+                            row.service,
+                            &account.account_id,
+                        ));
+                    }
                 }
                 card = card.push(summary);
             }

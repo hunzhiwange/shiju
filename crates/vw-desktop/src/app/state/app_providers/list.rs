@@ -38,6 +38,8 @@ pub(crate) struct ListState {
     pub new_draft:
         Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
     pub error: Option<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub usage: crate::app::components::apps_usage_cards::Cards,
 }
 #[derive(Clone, Debug)]
 pub(crate) struct Editor {
@@ -55,6 +57,8 @@ impl ListState {
         self.generation = self.generation.wrapping_add(1);
         self.scope = Some(scope);
         self.snapshot = None;
+        #[cfg(not(target_arch = "wasm32"))]
+        self.usage.clear();
         self.editor = None;
         self.form = None;
         self.desktop = None;

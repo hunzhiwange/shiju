@@ -59,6 +59,7 @@ pub(crate) struct State {
     pub scope: Option<Scope>,
     pub pending: Option<u64>,
     pub rows: Option<Vec<ServiceAccounts>>,
+    pub usage: crate::app::components::apps_usage_cards::Cards,
     pub loopback: bool,
     pub form: Option<Connection>,
     pub connection: Option<Connection>,
@@ -87,6 +88,7 @@ impl State {
         if self.scope.as_ref() != Some(&scope) {
             self.scope = Some(scope);
             self.rows = None;
+            self.usage.clear();
             self.pending = None;
             self.form = None;
             self.connection = None;
@@ -102,6 +104,7 @@ impl State {
     }
 
     pub fn begin(&mut self) -> u64 {
+        self.usage.clear();
         self.generation = self.generation.wrapping_add(1);
         self.pending = Some(self.generation);
         self.rows = None;

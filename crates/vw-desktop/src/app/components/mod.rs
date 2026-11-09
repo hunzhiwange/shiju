@@ -430,3 +430,5 @@ pub(crate) mod system_settings_auth;
 mod system_settings_auth_tests;
 
 pub(crate) mod app_providers;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod apps_usage_cards;

@@ -817,3 +817,22 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 差异检查 | `git diff --cached --check`（限定任务文件） | 退出 0。 |
 
 各阶段结束后释放本任务的槽位锁，保留构建缓存。
+
+## 任务 49 展示供应商额度卡片
+
+应用设置的供应商行和授权中心的账号行使用同一套额度卡片。桌面按当前项目和执行主机读取绑定，供应商与绑定账号在相同授权范围内以同一个应用、供应商、账号和查询种类读取网关快照。无绑定的供应商使用供应商凭据选择器。卡片按需读取，显示空快照、查询来源、额度摘要和刷新失败，并在后台操作结束后重读权威快照。每项请求携带作用域和代次，过期响应不能替换新账号或新作用域的数据。 [上游供应商入口](../../../../crates/vw-agent-apps/upstream/src/components/providers/ProviderCard.tsx#L529) · [上游 Codex 账号卡片](../../../../crates/vw-agent-apps/upstream/src/components/CodexOauthAccountQuota.tsx#L20) · [上游通用订阅页脚](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L231) · [桌面 SDK 连线](../../../../crates/vw-desktop/src/app/components/apps_usage_cards.rs) · [卡片组件](../../../../crates/vw-desktop/src/app/components/apps_usage_cards/view.rs)
+
+当前网关发布 General 脚本和托管 Codex 的结果。其余类别按网关响应显示空快照或不支持刷新。桌面复用现有权限边界，绑定账号的额度请求使用相同主机与主体的管理连接。展开明细与实时账号事件另有任务，真实账号和窗口渲染留待 macOS 验收。 [刷新入口](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_refresh.rs#L116) · [快照入口](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/usage_read.rs#L119)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-desktop` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-desktop usage_usage_cards_ -- --nocapture` | 退出 101，执行 0 项。已注册的 `usage_usage_cards_returns_expected_result` 和 `usage_usage_cards_rejects_invalid_input` 因缺少选择器和状态类型报 E0422、E0425、E0433。 |
+| 网关前置复核 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 0，4 项通过。使用真实 Router 和受控 HTTP/HTTPS，覆盖 General、托管 Codex、授权及版本变化。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步任务文件。 |
+| 实现后 | `cargo test -p vw-desktop usage_usage_cards_ -- --nocapture` | 退出 0，4 项通过，0 项失败。真实 SDK 发送本机 HTTP 请求，覆盖两处入口同选择器、旧请求失效、空快照刷新及不支持状态。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 提交差异 | `git diff --cached --check` | 退出 0，仅暂存本任务文件及设置导航的本任务差异。 |
+
+本机 HTTP 用例只验证桌面与 SDK 的行为，网关前置复核另验证实际 Router。各阶段结束后释放槽位锁并保留构建缓存。 [独立行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_cards_tests.rs)

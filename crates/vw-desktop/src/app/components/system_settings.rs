@@ -404,7 +404,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale),
         ),
         #[cfg(not(target_arch = "wasm32"))]
-        SystemTab::Auth => super::system_settings_auth::view(&app.agent_apps_auth),
+        SystemTab::Auth => super::system_settings_auth::view(app),
         SystemTab::General => crate::app::components::system_settings_general::view(app),
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
@@ -621,14 +621,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
             &app.app_theme,
             dialog,
         );
-        dialog = super::app_providers::list::overlay(
-            &app.app_providers,
-            super::app_providers::list::Help::new(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                &app.app_theme,
-            ),
-            dialog,
+        let provider_help = super::app_providers::list::Help::new(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &app.app_theme,
         );
+        #[cfg(not(target_arch = "wasm32"))]
+        let provider_help = provider_help.with_usage(app);
+        dialog = super::app_providers::list::overlay(&app.app_providers, provider_help, dialog);
     }
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);

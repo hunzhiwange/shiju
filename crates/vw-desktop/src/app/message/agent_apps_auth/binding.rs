@@ -263,6 +263,8 @@ pub(super) fn update(app: &mut App, event: Event, endpoint: GatewayEndpoint) -> 
             match result {
                 Ok(()) => {
                     state.binding = None;
+                    state.usage.clear();
+                    app.app_providers.usage.clear();
                     let refresh = state.rows.is_none();
                     let toast = app.show_success_toast("已保存供应商授权账号");
                     return if refresh {

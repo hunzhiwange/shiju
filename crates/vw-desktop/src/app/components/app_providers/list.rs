@@ -21,11 +21,24 @@ use vw_gateway_client::vw_api_types::{
 pub(crate) struct Help<'a> {
     i18n: I18n,
     theme: &'a Theme,
+    #[cfg(not(target_arch = "wasm32"))]
+    usage_app: Option<&'a crate::app::App>,
 }
 
 impl<'a> Help<'a> {
     pub(crate) fn new(i18n: I18n, theme: &'a Theme) -> Self {
-        Self { i18n, theme }
+        Self {
+            i18n,
+            theme,
+            #[cfg(not(target_arch = "wasm32"))]
+            usage_app: None,
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn with_usage(mut self, app: &'a crate::app::App) -> Self {
+        self.usage_app = Some(app);
+        self
     }
 
     #[cfg(test)]
@@ -163,6 +176,10 @@ pub(crate) fn overlay<'a>(
             body = body
                 .push(settings_panel(text("没有已保存的供应商").style(settings_muted_text_style)));
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        let usage_scope = help
+            .usage_app
+            .and_then(|app| super::super::apps_usage_cards::current_scope(app, false));
         for entry in rows {
             let p = state.presentation(&entry.provider.id);
             let member = if scope.app == AppId::Agy {
@@ -306,6 +323,15 @@ pub(crate) fn overlay<'a>(
             .spacing(8);
             if let Some(notes) = p.notes.filter(|notes| !notes.is_empty()) {
                 details = details.push(text(notes).size(13).style(settings_muted_text_style));
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if help.usage_app.is_some() {
+                details = details.push(super::super::apps_usage_cards::provider_view(
+                    usage_scope.as_ref(),
+                    &state.usage,
+                    scope.app,
+                    id,
+                ));
             }
             body =
                 body.push(settings_panel(details.push(actions.align_y(Alignment::Center).wrap())));

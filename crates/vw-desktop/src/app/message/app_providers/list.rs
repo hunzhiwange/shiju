@@ -38,6 +38,8 @@ use vw_gateway_client::vw_api_types::{
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
+    #[cfg(not(target_arch = "wasm32"))]
+    Usage(crate::app::components::apps_usage_cards::Event),
     Desktop(super::desktop::Event),
     Endpoints(super::endpoints::Event),
     Icons(super::icons::Event),
@@ -166,6 +168,10 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        #[cfg(not(target_arch = "wasm32"))]
+        ListMessage::Usage(event) => {
+            return crate::app::components::apps_usage_cards::update(app, event);
+        }
         ListMessage::Icons(event) => return super::icons::update(app, event),
         ListMessage::Universal(event) => return super::universal::update(app, event),
         ListMessage::Env(event) => return super::env::update(app, event),

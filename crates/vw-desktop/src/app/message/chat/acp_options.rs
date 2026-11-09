@@ -209,7 +209,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         );
                     }
                     if runtime.is_requesting
-                        || !runtime.acp_options.connected
+                        || matches!(&selection.kind, AcpOptionKind::Mode)
                         || !runtime.acp_options.options.iter().any(|option| {
                             option.kind == selection.kind
                                 && option.choices.iter().any(|choice| choice.id == selection.value)

@@ -695,6 +695,35 @@ async fn ui_refresh_42_acp_permission_modes_reflect_grant_and_readback() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ui_refresh_42_acp_effort_is_editable_between_turns() {
+    if !isolated("ui_refresh_42_acp_effort_is_editable_between_turns") {
+        return;
+    }
+    let mut app = fixture();
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_options_open = true;
+    runtime.acp_options.connected = false;
+    runtime.acp_options.options[0].kind = AcpOptionKind::Config { id: "reasoning_effort".into() };
+
+    let mut renderer = renderer().await;
+    let base = container(Space::new()).width(Length::Fill).height(Length::Fill).into();
+    let mut ui = scene(with_modal(&app, base), &mut renderer, Size::new(520, 560));
+    let body = bounds(&mut ui, &renderer).scrolls[0].1;
+    scroll(&mut ui, &mut renderer, body.center(), -1500.0);
+    let layout = bounds(&mut ui, &renderer);
+    let choice = label(&layout, "待選選項").center() - layout.scrolls[0].2;
+    assert!(body.contains(choice));
+    let mut messages = click(&mut ui, &mut renderer, choice);
+    assert_eq!(messages.len(), 1);
+    let Message::Chat(message @ ChatMessage::AcpOptionSelected(_)) = messages.remove(0) else {
+        panic!("expected an ACP option selection");
+    };
+    drop(ui);
+    let _ = chat::update(&mut app, message);
+    assert!(app.current_session_runtime().acp_options_pending);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn help_rollout_09_session_model_source_keeps_status_visible() {
     if !isolated("help_rollout_09_session_model_source_keeps_status_visible") {
         return;

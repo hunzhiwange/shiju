@@ -24,17 +24,16 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         container(source_controls(app)).padding(12).width(Length::Fill).style(settings_panel_style),
     ]
     .spacing(12);
-    let options = runtime
-        .acp_options
-        .options
-        .iter()
-        .filter(|option| runtime.acp_options.connected && option.kind != AcpOptionKind::Mode);
-    if !runtime.acp_options.connected {
-        fields = fields
-            .push(text("连接会话后可读取后端支持的选项").size(13).style(settings_muted_text_style));
-    } else if options.clone().next().is_none() {
-        fields = fields
-            .push(text("后端未提供可调整的会话选项").size(13).style(settings_muted_text_style));
+    // Managed sessions can expose saved reasoning options between connections.
+    let options =
+        runtime.acp_options.options.iter().filter(|option| option.kind != AcpOptionKind::Mode);
+    if options.clone().next().is_none() {
+        let hint = if runtime.acp_options.connected {
+            "后端未提供可调整的会话选项"
+        } else {
+            "连接会话后可读取后端支持的选项"
+        };
+        fields = fields.push(text(hint).size(13).style(settings_muted_text_style));
     }
     for option in options {
         let model_locked = option.kind == AcpOptionKind::Model

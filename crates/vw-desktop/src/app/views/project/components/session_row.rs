@@ -6,7 +6,7 @@ use chrono::{Local, TimeZone};
 use iced::widget::tooltip::{Position, Tooltip};
 use iced::widget::{Space, button, column, container, hover, row, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
-use vw_shared::session::info::Info;
+use vw_shared::session::info::{Info, TimeInfo};
 
 use crate::app::components::status_animation::{session_running_dot, session_spinner};
 use crate::app::components::system_settings_common::{
@@ -42,6 +42,7 @@ pub(in crate::app::views::project) struct SessionRowDetails {
     project_id: String,
     created: u64,
     changes: Option<(i64, i64)>,
+    pub pending: bool,
 }
 
 impl SessionRowDetails {
@@ -54,8 +55,39 @@ impl SessionRowDetails {
             project_id: session.project_id.clone(),
             created: session.time.created,
             changes: session.summary.as_ref().map(|summary| (summary.additions, summary.deletions)),
+            pending: session.is_first_response_pending(),
         }
     }
+}
+
+/// Build sidebar-only rows for local drafts whose first request is in flight.
+pub(in crate::app::views::project) fn running_draft_sessions(
+    app: &App,
+) -> impl Iterator<Item = (&str, Info)> {
+    let title = I18n::new(app.desktop_locale).__("新会话");
+    app.session_runtime_states.iter().filter_map(move |(id, runtime)| {
+        let draft = runtime.draft.as_ref()?;
+        if !runtime.is_requesting {
+            return None;
+        }
+        let started = runtime.request_started_ms;
+        let mut info = Info {
+            id: id.clone(),
+            slug: String::new(),
+            project_id: String::new(),
+            directory: draft.directory.clone(),
+            parent_id: None,
+            summary: None,
+            share: None,
+            title: title.to_owned(),
+            version: String::new(),
+            time: TimeInfo { created: started, updated: started, compacting: None, archived: None },
+            permission: None,
+            revert: None,
+        };
+        info.mark_first_response_pending();
+        Some((draft.project_path.as_str(), info))
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -260,8 +292,7 @@ pub(in crate::app::views::project) fn session_row(
         crate::app::i18n::other::session_title(app, id, &details.title)
     };
     let key = (details.project_id.clone(), id.to_owned());
-    let pinned = app.session_ui_projection.pinned.contains(&key);
-    let action_width = 2.0 * ACTION_SIZE + ACTION_GAP;
+    let pinned = !details.pending && app.session_ui_projection.pinned.contains(&key);
     let mut content =
         row![].spacing(4).width(Length::Fill).height(Length::Fill).align_y(Alignment::Center);
     if pinned {
@@ -276,8 +307,10 @@ pub(in crate::app::views::project) fn session_row(
         .push(SingleLineLabel::new(title.clone(), 13.0).font(iced::Font {
             weight: if active { iced::font::Weight::Bold } else { iced::font::Weight::Medium },
             ..Default::default()
-        }))
-        .push(Space::new().width(action_width));
+        }));
+    if !details.pending {
+        content = content.push(Space::new().width(2.0 * ACTION_SIZE + ACTION_GAP));
+    }
     let mut right_padding = ROW_PADDING;
     if status != SessionRowStatus::Idle {
         content = content.push(status_icon(id, status, app.status_animation_frame));
@@ -289,7 +322,7 @@ pub(in crate::app::views::project) fn session_row(
         .padding([0.0, ROW_PADDING])
         .on_press(open)
         .style(move |theme, status| session_row_button_style(theme, active, status));
-    if app.session_menu_id.is_some() {
+    if details.pending || app.session_menu_id.is_some() {
         return base.into();
     }
     let pin_message = Message::Project(ProjectMessage::SessionPinPressed(key.0, key.1, !pinned));

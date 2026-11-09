@@ -202,6 +202,17 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         }
     }
 
+    if let Some(runtime) = app.session_runtime_states.get(&id)
+        && runtime.is_requesting
+        && let Some(draft) = &runtime.draft
+        && draft.directory == path
+    {
+        if app.active_session_id.as_deref() == Some(id.as_str()) {
+            return iced::Task::none();
+        }
+        return open_project_session(app, draft.project_path.clone(), id, None);
+    }
+
     let from_project = app.project_path.clone();
     let from_session = app.active_session_id.clone();
     iced::Task::perform(

@@ -81,6 +81,52 @@ fn child_session(id: &str, parent_id: &str, title: &str, directory: &str, update
 }
 
 #[test]
+fn work_sidebar_shows_running_draft_until_history_is_available() {
+    let mut app = App::new().0;
+    let path = "/workspace/project";
+    let directory = "/workspace/worktree";
+    let id = "first-response";
+    app.recent_projects = vec![path.into()];
+    app.project_path = Some(path.into());
+    app.work_expanded_spaces.insert(path.into());
+    let runtime = app.get_session_runtime_mut(id);
+    runtime.draft = Some(crate::app::state::SessionDraft {
+        project_path: path.into(),
+        directory: directory.into(),
+        history_len: 0,
+    });
+    assert!(work_sidebar::model(&app).tasks.is_empty());
+
+    let runtime = app.get_session_runtime_mut(id);
+    runtime.is_requesting = true;
+    runtime.request_started_ms = 10;
+    let running = work_sidebar::model(&app);
+    assert_eq!(running.task_total, 1);
+    assert_eq!(running.tasks[0].id, id);
+    assert!(running.tasks[0].details.pending);
+    assert_eq!(
+        running.tasks[0].status,
+        super::super::components::SessionRowStatus::Running
+    );
+    assert_eq!(running.spaces[0].sessions[0].id, id);
+    assert!(matches!(
+        &running.tasks[0].message,
+        Message::Project(ProjectMessage::OpenProjectSessionPressed(path, _)) if path == directory
+    ));
+    assert!(app.project_sessions.is_empty());
+
+    app.get_session_runtime_mut(id).is_requesting = false;
+    assert!(work_sidebar::model(&app).tasks.is_empty());
+
+    app.get_session_runtime_mut(id).is_requesting = true;
+    app.project_sessions.insert(path.into(), vec![session(id, "Generated title", directory, 20)]);
+    let published = work_sidebar::model(&app);
+    assert_eq!(published.task_total, 1);
+    assert_eq!(published.tasks[0].id, id);
+    assert!(!published.tasks[0].details.pending);
+}
+
+#[test]
 fn work_sidebar_hides_archived_task_and_shows_restored_task() {
     let mut app = App::new().0;
     let path = "/workspace/archive";

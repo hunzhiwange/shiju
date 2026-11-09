@@ -23,7 +23,7 @@ use super::super::styles::{is_dark_theme, tooltip_bubble};
 use super::super::utils::mix_color;
 use super::new_session::new_session_button;
 use super::projects_list::title_tooltip;
-use super::session_row::{SessionRowDetails, SessionRowStatus, session_row};
+use super::session_row::{SessionRowDetails, SessionRowStatus, running_draft_sessions, session_row};
 
 fn icon_action_button_style(
     theme: &Theme,
@@ -504,6 +504,9 @@ fn session_tree_row(
             id.clone(),
         )),
     );
+    if s.is_first_response_pending() {
+        return session_button;
+    }
     let id_for_right_click = std::rc::Rc::new(id.clone());
     let right_click = Element::new(RightClickArea::new(
         session_button,
@@ -559,6 +562,26 @@ pub fn session_items_list<'a>(
     is_loading: bool,
 ) -> Element<'a, Message> {
     let mut session_items = column![].spacing(5);
+    let pinned = &app.session_ui_projection.pinned;
+    let mut drafts = running_draft_sessions(app)
+        .filter(|(project_path, draft)| {
+            *project_path == path
+                && !sessions.into_iter().flatten().any(|session| {
+                    session.id == draft.id
+                        && session.is_user_navigable()
+                        && session.time.archived.is_none()
+                })
+        })
+        .map(|(_, draft)| draft)
+        .collect::<Vec<_>>();
+    drafts.sort_unstable_by(|left, right| compare_session_recency(&left, &right, pinned));
+    for session in &drafts {
+        session_items = session_items.push(session_tree_row(
+            app,
+            SessionTreeRow { session },
+            project_title,
+        ));
+    }
 
     if is_loading {
         session_items = session_items.push(
@@ -576,7 +599,7 @@ pub fn session_items_list<'a>(
                 session_items.push(session_tree_row(app, tree_row, project_title));
         }
 
-        if total_visible == 0 {
+        if total_visible == 0 && drafts.is_empty() {
             session_items = session_items.push(
                 container(
                     text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有会话")).size(12),

@@ -24,7 +24,8 @@ use crate::app::state::{
 use crate::app::{App, Message};
 
 use super::super::components::{
-    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, session_row,
+    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu,
+    running_draft_sessions, session_row,
 };
 
 mod rail;
@@ -164,15 +165,20 @@ pub(super) fn compare_sessions(
 ) -> std::cmp::Ordering {
     let left_pinned = pinned.contains(&(left.1.project_id.clone(), left.1.id.clone()));
     let right_pinned = pinned.contains(&(right.1.project_id.clone(), right.1.id.clone()));
-    right_pinned.cmp(&left_pinned).then_with(|| {
-        right
-            .1
-            .time
-            .updated
-            .cmp(&left.1.time.updated)
-            .then_with(|| left.1.id.cmp(&right.1.id))
-            .then_with(|| left.0.cmp(right.0))
-    })
+    right
+        .1
+        .is_first_response_pending()
+        .cmp(&left.1.is_first_response_pending())
+        .then_with(|| right_pinned.cmp(&left_pinned))
+        .then_with(|| {
+            right
+                .1
+                .time
+                .updated
+                .cmp(&left.1.time.updated)
+                .then_with(|| left.1.id.cmp(&right.1.id))
+                .then_with(|| left.0.cmp(right.0))
+        })
 }
 
 fn sort_and_truncate_sessions(
@@ -229,24 +235,31 @@ pub(super) fn cached_model(app: &App) -> std::sync::Arc<WorkSidebarModel> {
 
 pub(super) fn model(app: &App) -> WorkSidebarModel {
     let pinned = &app.session_ui_projection.pinned;
+    let mut drafts_by_project = std::collections::HashMap::<_, Vec<_>>::new();
+    for (path, draft) in running_draft_sessions(app) {
+        drafts_by_project.entry(path).or_default().push(draft);
+    }
     // Share the filtered projection between the task and space tabs. Building
     // both independently repeats all parent lookups and runtime filters.
     let mut sessions_by_project = std::collections::HashMap::new();
     let mut task_sessions = Vec::new();
     for path in app.recent_projects.iter().filter(|path| project_matches_filter(app, path)) {
-        let sessions = collect_top_level_sessions(
+        let mut sessions = collect_top_level_sessions(
             app.project_sessions
                 .get(path)
                 .into_iter()
                 .flatten()
                 .map(|session| (path.as_str(), session)),
-        )
-        .into_iter()
-        .filter(|(_, session)| {
+        );
+        for draft in drafts_by_project.get(path.as_str()).into_iter().flatten() {
+            if !sessions.iter().any(|(_, session)| session.id == draft.id) {
+                sessions.push((path, draft));
+            }
+        }
+        sessions.retain(|(_, session)| {
             session_matches_status_filter(app, &session.id)
                 && session_matches_time_filter(app, session.time.updated)
-        })
-        .collect::<Vec<_>>();
+        });
         task_sessions.extend(sessions.iter().copied());
         sessions_by_project.insert(path.as_str(), sessions);
     }
@@ -968,6 +981,9 @@ pub(super) fn task_session_context_menu(
 
 fn task_button(app: &App, task: &WorkTaskItem) -> Element<'static, Message> {
     let content = session_row(app, &task.id, &task.details, task.status, task.message.clone());
+    if task.details.pending {
+        return content;
+    }
     task_session_context_menu(app, task.id.clone(), content)
 }
 

@@ -16,6 +16,7 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
         project_id: "project".into(),
         created: 0,
         changes: None,
+        pending: false,
     };
     let size = Size::new(360.0, 40.0);
     for theme in [Theme::Light, Theme::Dark] {
@@ -23,8 +24,8 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await
                 .unwrap();
-        let mut draw = |details: &SessionRowDetails| {
-            let mut element = session_row(&app, id, details, SessionRowStatus::Idle, Message::None);
+        let mut draw = |details: &SessionRowDetails, status| {
+            let mut element = session_row(&app, id, details, status, Message::None);
             let mut tree = Tree::new(element.as_widget());
             let node = element.as_widget_mut().layout(
                 &mut tree,
@@ -42,10 +43,15 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
             );
             renderer.screenshot(Size::new(360, 40), 1.0, theme.palette().background)
         };
+        details.pending = true;
+        details.title = "新会话".into();
+        let running = draw(&details, SessionRowStatus::Running);
+        details.pending = false;
         details.title.clear();
-        let preview = draw(&details);
+        let preview = draw(&details, SessionRowStatus::Idle);
         details.title = "服务端标题".into();
-        let title = draw(&details);
+        let title = draw(&details, SessionRowStatus::Idle);
+        assert_ne!(running, preview);
         assert_ne!(preview, title);
     }
 }

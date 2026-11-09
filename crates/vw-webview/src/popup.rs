@@ -8,7 +8,8 @@ use std::rc::Rc;
 use tao::event_loop::EventLoopProxy;
 use wry::{NewWindowFeatures, NewWindowResponse, WebView, WebViewBuilder};
 
-use crate::{UserEvent, append_log, is_page_link_url};
+use crate::external_protocol::{ExternalProtocols, Navigation, navigation};
+use crate::{UserEvent, append_log};
 
 #[cfg(target_os = "macos")]
 #[path = "popup/macos.rs"]
@@ -23,7 +24,7 @@ mod platform;
 
 struct Popup {
     // Drop the WebView while its native host is still alive.
-    _webview: WebView,
+    webview: WebView,
     _host: platform::Host,
 }
 
@@ -31,6 +32,7 @@ pub(crate) struct PopupWindows {
     windows: RefCell<HashMap<u64, Popup>>,
     next_id: Cell<u64>,
     proxy: EventLoopProxy<UserEvent>,
+    external: ExternalProtocols,
     log_path: PathBuf,
     #[cfg(windows)]
     owner: platform::Owner,
@@ -40,12 +42,14 @@ impl PopupWindows {
     pub(crate) fn new(
         proxy: EventLoopProxy<UserEvent>,
         log_path: PathBuf,
+        external: ExternalProtocols,
         #[cfg(windows)] owner: &tao::window::Window,
     ) -> Rc<Self> {
         Rc::new(Self {
             windows: RefCell::default(),
             next_id: Cell::new(0),
             proxy,
+            external,
             log_path,
             #[cfg(windows)]
             owner: platform::Owner::new(owner),
@@ -55,21 +59,40 @@ impl PopupWindows {
     pub(crate) fn with_handler<'a>(
         self: &Rc<Self>,
         builder: WebViewBuilder<'a>,
+        popup: Option<u64>,
+        local_site: bool,
     ) -> WebViewBuilder<'a> {
-        let windows = Rc::downgrade(self);
-        builder.with_new_window_req_handler(move |url, features| {
-            if !allows_navigation(&url) {
-                return NewWindowResponse::Deny;
-            }
-            let Some(windows) = windows.upgrade() else {
-                return NewWindowResponse::Deny;
-            };
-            windows.open(features).unwrap_or_else(|_| {
-                // Native errors can include request data. Keep URLs and credentials out of logs.
-                append_log(&windows.log_path, "WebView could not create a popup window.");
-                NewWindowResponse::Deny
+        let navigation_windows = Rc::downgrade(self);
+        let popup_windows = Rc::downgrade(self);
+        builder
+            .with_navigation_handler(move |url| match navigation(&url, local_site) {
+                Navigation::InWebView => true,
+                Navigation::External(target) => {
+                    if let Some(windows) = navigation_windows.upgrade() {
+                        windows.external.request(target, popup, &windows.proxy);
+                    }
+                    false
+                }
+                Navigation::Blocked => false,
             })
-        })
+            .with_new_window_req_handler(move |url, features| {
+                let Some(windows) = popup_windows.upgrade() else {
+                    return NewWindowResponse::Deny;
+                };
+                match navigation(&url, false) {
+                    Navigation::InWebView => {}
+                    Navigation::External(target) => {
+                        windows.external.request(target, popup, &windows.proxy);
+                        return NewWindowResponse::Deny;
+                    }
+                    Navigation::Blocked => return NewWindowResponse::Deny,
+                }
+                windows.open(features).unwrap_or_else(|_| {
+                    // Native errors can include request data. Keep URLs and credentials out of logs.
+                    append_log(&windows.log_path, "WebView could not create a popup window.");
+                    NewWindowResponse::Deny
+                })
+            })
     }
 
     fn open(self: &Rc<Self>, features: NewWindowFeatures) -> wry::Result<NewWindowResponse> {
@@ -83,10 +106,9 @@ impl PopupWindows {
         // The browser still owns the navigation. Creating this view with a URL
         // would race the pending request and discard its method and body.
         let builder = self.with_handler(
-            WebViewBuilder::new()
-                .with_clipboard(true)
-                .with_accept_first_mouse(true)
-                .with_navigation_handler(|url| allows_navigation(&url)),
+            WebViewBuilder::new().with_clipboard(true).with_accept_first_mouse(true),
+            Some(id),
+            false,
         );
         let (webview, host) = platform::Host::build(
             builder,
@@ -97,9 +119,28 @@ impl PopupWindows {
             #[cfg(windows)]
             self.owner,
         )?;
+        #[cfg(windows)]
+        crate::external_protocol::block_native_external_launches(&webview, false)?;
         let response = platform::response(&webview);
-        self.windows.borrow_mut().insert(id, Popup { _webview: webview, _host: host });
+        self.windows.borrow_mut().insert(id, Popup { webview, _host: host });
         Ok(response)
+    }
+
+    pub(crate) fn show_external_confirmation(
+        &self,
+        id: u64,
+        target: crate::external_protocol::ExternalTarget,
+        confirmation: crate::external_protocol::Confirmation,
+    ) {
+        // On Windows the dialog pumps messages. Never hold a borrow across it.
+        let parent = self
+            .windows
+            .borrow()
+            .get(&id)
+            .and_then(|popup| crate::external_protocol::dialog_parent(&popup.webview));
+        if let Some(parent) = parent {
+            crate::external_protocol::show_confirmation(parent, target, confirmation);
+        }
     }
 
     pub(crate) fn close(&self, id: u64) {
@@ -107,10 +148,6 @@ impl PopupWindows {
         let closed = self.windows.borrow_mut().remove(&id);
         drop(closed);
     }
-}
-
-fn allows_navigation(url: &str) -> bool {
-    url == "about:blank" || is_page_link_url(url)
 }
 
 #[cfg(unix)]

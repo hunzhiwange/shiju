@@ -6,6 +6,8 @@
 
 #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 mod edit_menu;
+#[cfg(not(target_arch = "wasm32"))]
+mod external_protocol;
 #[cfg(all(not(any(target_arch = "wasm32", coverage)), target_os = "macos"))]
 mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
@@ -48,6 +50,8 @@ enum UserEvent {
     OpenUrl(String),
     PopupClosed(u64),
     OpenExternal(String),
+    #[cfg(not(coverage))]
+    ConfirmExternal,
     NavigationChanged(String),
     ToolbarReady,
     ClearBrowser,
@@ -759,14 +763,21 @@ fn build_init_script(
 
 #[cfg(not(any(target_arch = "wasm32", coverage)))]
 fn main() {
+    #[cfg(all(unix, not(target_os = "macos")))]
+    use gtk::prelude::*;
     use std::env;
     use std::io::{self, BufRead};
     use std::thread;
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoopBuilder};
+    #[cfg(all(unix, not(target_os = "macos")))]
+    use tao::platform::unix::WindowExtUnix;
     use tao::window::WindowBuilder;
     use wry::{WebContext, WebViewBuilder};
+    #[cfg(all(unix, not(target_os = "macos")))]
+    use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
+    use crate::external_protocol::{ExternalProtocols, ExternalTarget};
     use crate::toolbar::{
         ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
         window_regions,
@@ -882,10 +893,13 @@ fn main() {
     let (toolbar_region, content_region) =
         window_regions(logical_size.width, logical_size.height, independent_mode);
 
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let gtk_container = window.default_vbox();
+
     let toolbar_webview = if let Some(region) = toolbar_region {
         let toolbar_proxy = proxy.clone();
         let toolbar_ready_proxy = proxy.clone();
-        let toolbar = match WebViewBuilder::new()
+        let toolbar_builder = WebViewBuilder::new()
             .with_html(if options.shiju_app_set_cookie_stdin {
                 toolbar_html()
                     .replace("type=\"text\"", "type=\"text\" readonly")
@@ -913,9 +927,23 @@ fn main() {
                     ToolbarAction::Clear => UserEvent::ClearBrowser,
                 };
                 let _ = toolbar_proxy.send_event(event);
-            })
-            .build_as_child(&window)
-        {
+            });
+
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let toolbar_result =
+            gtk_container.ok_or(wry::Error::UnsupportedWindowHandle).and_then(|container| {
+                // GTK must manage input focus for both views. Wrapping independent
+                // X11 child windows leaves the address bar without keyboard input.
+                let toolbar = toolbar_builder.build_gtk(container)?;
+                let native = toolbar.webview();
+                native.set_size_request(-1, region.height as i32);
+                container.set_child_packing(&native, false, true, 0, gtk::PackType::Start);
+                Ok(toolbar)
+            });
+        #[cfg(not(all(unix, not(target_os = "macos"))))]
+        let toolbar_result = toolbar_builder.build_as_child(&window);
+
+        let toolbar = match toolbar_result {
             Ok(toolbar) => toolbar,
             Err(error) => {
                 let msg = format!("WebView toolbar build error: {error:?}\nLog: {log_path:?}");
@@ -962,13 +990,15 @@ fn main() {
         builder = popup::with_downloads(builder, &log_path);
     }
 
+    let external = ExternalProtocols::default();
     let popups = popup::PopupWindows::new(
-        proxy,
+        proxy.clone(),
         log_path.clone(),
+        external.clone(),
         #[cfg(windows)]
         &window,
     );
-    builder = popups.with_handler(builder);
+    builder = popups.with_handler(builder, None, local_root.is_some());
 
     if let Some(root) = local_root.clone() {
         builder = builder.with_custom_protocol("vibe".into(), move |_webview_id, request| {
@@ -980,6 +1010,15 @@ fn main() {
         builder = builder.with_bounds(content_region.to_wry_rect());
     }
 
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let webview_result = if independent_mode {
+        gtk_container
+            .ok_or(wry::Error::UnsupportedWindowHandle)
+            .and_then(|container| builder.build_gtk(container))
+    } else {
+        builder.build(&window)
+    };
+    #[cfg(not(all(unix, not(target_os = "macos"))))]
     let webview_result =
         if independent_mode { builder.build_as_child(&window) } else { builder.build(&window) };
     let webview = match webview_result {
@@ -993,6 +1032,12 @@ fn main() {
             return;
         }
     };
+
+    #[cfg(windows)]
+    if external_protocol::block_native_external_launches(&webview, local_root.is_some()).is_err() {
+        show_error_dialog("VibeWindow WebView", "无法安装外部协议保护。");
+        return;
+    }
 
     #[cfg(target_os = "macos")]
     let attachment_delegate = macos_downloads::enable_attachments(&webview);
@@ -1047,12 +1092,37 @@ fn main() {
                 if is_safe_navigation_url(&u) {
                     browser_cleared = false;
                     let _ = webview.load_url(&u);
+                } else if let Some(target) = ExternalTarget::parse(&u) {
+                    external.request(target, None, &proxy);
+                    if let Some(toolbar) = toolbar_webview.as_ref()
+                        && let Ok(script) = toolbar_address_script(&current_url)
+                    {
+                        let _ = toolbar.evaluate_script(&script);
+                    }
                 }
             }
             Event::UserEvent(UserEvent::PopupClosed(id)) => popups.close(id),
             Event::UserEvent(UserEvent::OpenExternal(u)) => {
                 if is_safe_navigation_url(&u) {
-                    let _ = open::that(u);
+                    if open::that(u).is_err() {
+                        external_protocol::show_browser_open_error(&window);
+                    }
+                } else if let Some(target) = ExternalTarget::parse(&u) {
+                    external.request(target, None, &proxy);
+                    if let Some(toolbar) = toolbar_webview.as_ref()
+                        && let Ok(script) = toolbar_address_script(&current_url)
+                    {
+                        let _ = toolbar.evaluate_script(&script);
+                    }
+                }
+            }
+            Event::UserEvent(UserEvent::ConfirmExternal) => {
+                if let Some((target, popup, confirmation)) = external.take() {
+                    if let Some(id) = popup {
+                        popups.show_external_confirmation(id, target, confirmation);
+                    } else if let Some(parent) = external_protocol::main_dialog_parent(&window) {
+                        external_protocol::show_confirmation(parent, target, confirmation);
+                    }
                 }
             }
             Event::UserEvent(UserEvent::NavigationChanged(u)) => {

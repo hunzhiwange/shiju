@@ -202,22 +202,29 @@ fn toolbar_url(value: &serde_json::Value) -> Option<String> {
 }
 
 fn normalize_toolbar_url(input: &str) -> Option<String> {
-    let trimmed = input.trim().trim_matches(['`', '"', '\'']).trim();
-    if trimmed.is_empty()
-        || trimmed.chars().any(|character| character.is_whitespace() || character.is_control())
-    {
+    if input.chars().any(char::is_control) {
         return None;
+    }
+    let trimmed = input.trim().trim_matches(['`', '"', '\'']).trim();
+    if trimmed.is_empty() || trimmed.chars().any(char::is_whitespace) {
+        return None;
+    }
+    if crate::is_safe_navigation_url(trimmed) {
+        return Some(trimmed.to_owned());
     }
 
-    let target =
-        if trimmed.contains("://") { trimmed.to_string() } else { format!("https://{trimmed}") };
-    let (scheme, remainder) = target.split_once("://")?;
-    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
-        return None;
+    // Preserve host:port shorthand while treating actual URI schemes as
+    // explicit. A rejected scheme must never be rewritten as an HTTPS host.
+    let host_port = trimmed.split_once(':').is_some_and(|(host, rest)| {
+        let port = rest.split(['/', '?', '#']).next().unwrap_or_default();
+        (host == "localhost" || host.contains('.')) && port.parse::<u16>().is_ok()
+    });
+    if trimmed.contains(':') && !host_port && !trimmed.starts_with('[') {
+        return crate::external_protocol::ExternalTarget::parse(trimmed)
+            .map(|_| trimmed.to_owned());
     }
-    let authority =
-        remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
-    authority.rsplit('@').next().is_some_and(|host| !host.is_empty()).then_some(target)
+    let target = format!("https://{trimmed}");
+    url::Url::parse(&target).ok()?.has_host().then_some(target)
 }
 
 pub(crate) fn window_regions(

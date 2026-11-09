@@ -1,4 +1,7 @@
-"""Exercise native popup requests against a local HTTP server in a desktop session."""
+"""Exercise native popup requests against a local HTTP server in a desktop session.
+
+The Linux protocol case uses xdotool for input and xprop to check dialog ownership.
+"""
 
 import hashlib
 import os
@@ -105,9 +108,9 @@ class WebViewPopups(unittest.TestCase):
             check=True, timeout=5,
         )
 
-    def launch(self, path):
+    def launch(self, path, mode="embedded"):
         process = subprocess.Popen(
-            [self.helper, self.origin + path, "--mode=embedded", f"--title={self.window_title}"],
+            [self.helper, self.origin + path, f"--mode={mode}", f"--title={self.window_title}"],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             env=self.env,
@@ -121,6 +124,8 @@ class WebViewPopups(unittest.TestCase):
 
     @staticmethod
     def stop(process):
+        if process.stdin.closed:
+            return
         with process.stdin:
             if process.poll() is None:
                 try:
@@ -198,6 +203,117 @@ class WebViewPopups(unittest.TestCase):
         self.action_page("/start", "<a href='/same-page'>Link</a>", "document.links[0].click()")
         self.launch("/start")
         self.assertEqual(self.request("/same-page")[0], "GET")
+
+    def visible_window(self, title):
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            search = subprocess.run(
+                ["xdotool", "search", "--onlyvisible", "--name", f"^{title}$"],
+                text=True, capture_output=True, timeout=2,
+            )
+            if search.returncode == 0:
+                return search.stdout.splitlines()[-1]
+            time.sleep(0.05)
+        self.fail(f"Window did not appear: {title}")
+
+    @staticmethod
+    def send_keys(window, *keys):
+        subprocess.run(["xdotool", "windowfocus", window, "key", *keys], check=True, timeout=5)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Requires GTK, GIO and X11 input")
+    def test_external_protocol_requires_confirmation_and_uses_registered_handler(self):
+        scheme = f"shiju-protocol-{uuid4().hex}"
+        unknown = f"shiju-missing-{uuid4().hex}"
+        target = f"{scheme}://local/synthetic?number=42"
+        home = Path(self.env["HOME"])
+        capture = home / "received.txt"
+        receiver = home / "receive.py"
+        receiver.write_text(
+            "import sys\nwith open(sys.argv[1], 'a') as out:\n    print(sys.argv[2], file=out)\n"
+        )
+        applications = Path(self.env["XDG_DATA_HOME"]) / "applications"
+        applications.mkdir(parents=True)
+        desktop = "shiju-protocol-test.desktop"
+        (applications / desktop).write_text(
+            f"[Desktop Entry]\nName=ShiJu protocol test\nType=Application\nNoDisplay=true\n"
+            f"Exec=/usr/bin/python3 {receiver} {capture} %u\nMimeType=x-scheme-handler/{scheme};\n"
+        )
+        (Path(self.env["XDG_CONFIG_HOME"]) / "mimeapps.list").write_text(
+            f"[Default Applications]\nx-scheme-handler/{scheme}={desktop};\n"
+        )
+
+        def link(path, href, extra=""):
+            self.action_page(
+                path, f"<a href='{href}' {extra}>Open</a>",
+                "document.links[0].click(); document.links[0].click()",
+            )
+
+        def confirmation(parent_title):
+            owner = self.visible_window(parent_title)
+            dialog = self.visible_window("打开外部应用")
+            transient = subprocess.check_output(["xprop", "-id", dialog, "WM_TRANSIENT_FOR"],
+                                                text=True, timeout=5)
+            self.assertEqual(int(transient.split()[-1], 16), int(owner))
+            return dialog
+
+        # Same-view links do not launch until the host receives approval.
+        link("/cancel", target)
+        process = self.launch("/cancel")
+        dialog = confirmation(self.window_title)
+        self.assertFalse(capture.exists())
+        self.send_keys(dialog, "Escape")
+        self.assertFalse(capture.exists())
+        self.assertIsNone(process.poll())
+        self.stop(process)
+
+        # A target=_blank link remains associated with the opener. Two requests
+        # during the same confirmation must launch the registered handler once.
+        link("/new-window", target, "target='_blank'")
+        process = self.launch("/new-window")
+        dialog = confirmation(self.window_title)
+        self.assertFalse(capture.exists())
+        self.send_keys(dialog, "Tab", "Return")
+        deadline = time.monotonic() + 5
+        while not capture.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(capture.exists(), "The registered app did not receive the URL")
+        time.sleep(0.3)
+        self.assertEqual(capture.read_text().splitlines(), [target])
+        self.stop(process)
+
+        # Enter and the globe button on the trusted toolbar share the same gate.
+        self.action_page("/toolbar", "", "")
+        process = self.launch("/toolbar", mode="window")
+        window = self.visible_window(self.window_title)
+        for keys in [("Return",), ("Tab", "Tab", "Return")]:
+            subprocess.run(
+                ["xdotool", "windowfocus", window, "mousemove", "--window", window, "180", "20",
+                 "click", "1", "key", "ctrl+a", "type", "--clearmodifiers", target],
+                check=True, timeout=5,
+            )
+            subprocess.run(["xdotool", "key", *keys], check=True, timeout=5)
+            dialog = confirmation(self.window_title)
+            self.send_keys(dialog, "Escape")
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline and subprocess.run(
+                ["xdotool", "search", "--onlyvisible", "--name", "^打开外部应用$"],
+                stdout=subprocess.DEVNULL, timeout=2,
+            ).returncode == 0:
+                time.sleep(0.05)
+            self.assertLess(time.monotonic(), deadline, "confirmation did not close")
+        self.stop(process)
+
+        # An already open popup owns its own dialog, including failure feedback.
+        link("/opener", "/child", "target='_blank'")
+        link("/child", f"{unknown}:synthetic")
+        self.launch("/opener")
+        self.request("/child-ready")
+        self.click("Vibe Window WebView")
+        dialog = confirmation("Vibe Window WebView")
+        self.send_keys(dialog, "Tab", "Return")
+        failure = self.visible_window("无法打开外部应用")
+        self.send_keys(failure, "Return")
+        self.assertEqual(capture.read_text().splitlines(), [target])
 
     def assert_download(self, payload):
         deadline = time.monotonic() + 12

@@ -55,7 +55,7 @@ impl Host {
                 CW_USEDEFAULT,
                 width,
                 height,
-                None,
+                Some(owner.0),
                 None,
                 None,
                 None,

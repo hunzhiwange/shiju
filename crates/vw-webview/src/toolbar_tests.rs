@@ -60,11 +60,26 @@ fn toolbar_ipc_accepts_controls_and_safe_urls() {
         Some(ToolbarAction::OpenExternal("HTTPS://example.com/path?q=1".to_string()))
     );
 
+    assert_eq!(
+        parse_toolbar_ipc_message(r#"{"type":"navigate","url":"localhost:8443/home"}"#),
+        Some(ToolbarAction::Navigate("https://localhost:8443/home".into()))
+    );
+    assert_eq!(
+        parse_toolbar_ipc_message(r#"{"type":"navigate","url":"mailto:a@example.test"}"#),
+        Some(ToolbarAction::Navigate("mailto:a@example.test".into()))
+    );
+    assert_eq!(
+        parse_toolbar_ipc_message(r#"{"type":"open_external","url":"tel:+15550101000"}"#),
+        Some(ToolbarAction::OpenExternal("tel:+15550101000".into()))
+    );
+
     for message in [
         r#"{"type":"navigate","url":"javascript:alert(1)"}"#,
         r#"{"type":"navigate","url":"file:///tmp/private"}"#,
         r#"{"type":"navigate","url":"https://example.com/a b"}"#,
         r#"{"type":"open_external","url":"data:text/html,unsafe"}"#,
+        r#"{"type":"open_external","url":"ms-settings:privacy"}"#,
+        r#"{"type":"navigate","url":"mailto:a@example.test?subject=%0Ahidden"}"#,
         r#"{"type":"unknown"}"#,
         "not-json",
     ] {

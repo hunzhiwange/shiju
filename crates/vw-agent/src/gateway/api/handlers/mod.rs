@@ -269,6 +269,9 @@ mod agent_apps_auth_remove;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_remove_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_security_tests;
+
 mod agent_apps_auth_start;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_start_tests;

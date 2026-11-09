@@ -234,7 +234,7 @@ fn permission_modal_queue_uses_first_position_when_current_request_is_missing() 
 }
 
 #[tokio::test]
-async fn permission_modal_open_and_close_preserve_scroll_position() {
+async fn permission_and_question_modals_preserve_scroll_position() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::widget::{Operation, operation};
     use iced::widget::{Id, Space, scrollable};
@@ -267,20 +267,16 @@ async fn permission_modal_open_and_close_preserve_scroll_position() {
 
     let mut app = App::new().0;
     let id = Id::unique();
-    let base = || {
-        scrollable(Space::new().width(Length::Fill).height(1600)).id(id.clone()).into()
+    let view = |app: &App| {
+        let base = scrollable(Space::new().width(Length::Fill).height(1600)).id(id.clone()).into();
+        with_permission_modal(app, super::super::with_question_modal(app, base))
     };
     let bounds = Size::new(1000.0, 700.0);
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("headless renderer");
-    let mut ui = UserInterface::build(
-        with_permission_modal(&app, base()),
-        bounds,
-        Cache::new(),
-        &mut renderer,
-    );
+    let mut ui = UserInterface::build(view(&app), bounds, Cache::new(), &mut renderer);
     ui.operate(
         &mut renderer,
         &mut operation::scrollable::scroll_to(
@@ -292,26 +288,32 @@ async fn permission_modal_open_and_close_preserve_scroll_position() {
     ui.operate(&mut renderer, &mut position);
     assert_eq!(position.y, Some(200.0));
 
-    app.permission_modal_request = Some(request("perm-1"));
-    let mut ui = UserInterface::build(
-        with_permission_modal(&app, base()),
-        bounds,
-        ui.into_cache(),
-        &mut renderer,
-    );
-    position.y = None;
-    ui.operate(&mut renderer, &mut position);
-    assert_eq!(position.y, None, "the modal isolates the background");
-
-    app.permission_modal_request = None;
-    let mut ui = UserInterface::build(
-        with_permission_modal(&app, base()),
-        bounds,
-        ui.into_cache(),
-        &mut renderer,
-    );
-    ui.operate(&mut renderer, &mut position);
-    assert_eq!(position.y, Some(200.0));
+    let question = vw_shared::question::Request {
+        id: "question-1".into(),
+        session_id: "session-1".into(),
+        questions: vec![vw_shared::question::Info {
+            header: "Confirm choice".into(),
+            question: "Which option should I use?".into(),
+            options: Vec::new(),
+            multiple: None,
+            custom: Some(true),
+        }],
+        tool: None,
+        mcp_form: None,
+    };
+    for (permission, question, expected_y) in [
+        (Some(request("perm-1")), None, None),
+        (None, None, Some(200.0)),
+        (None, Some(question), None),
+        (None, None, Some(200.0)),
+    ] {
+        app.permission_modal_request = permission;
+        app.question_modal_request = question;
+        ui = UserInterface::build(view(&app), bounds, ui.into_cache(), &mut renderer);
+        position.y = None;
+        ui.operate(&mut renderer, &mut position);
+        assert_eq!(position.y, expected_y);
+    }
 }
 
 #[test]

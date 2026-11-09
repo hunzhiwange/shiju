@@ -44,7 +44,7 @@ fn request(questions: Vec<vw_shared::question::Info>) -> vw_shared::question::Re
 }
 
 #[test]
-fn without_request_returns_root_content() {
+fn without_request_builds_base_layer() {
     let (app, _) = crate::app::App::new();
     let root = text("root").into();
 

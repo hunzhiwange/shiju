@@ -99,7 +99,7 @@ fn question_option_button_style(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(crate) fn with_question_modal<'a>(
     app: &App,
-    mut root_content: Element<'a, Message>,
+    root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if let Some(req) = app.question_modal_request.clone() {
         use crate::app::components::system_settings_common::{
@@ -248,10 +248,11 @@ pub(crate) fn with_question_modal<'a>(
             .width(464)
             .max_height(580);
 
-        root_content = settings_modal_overlay(Some(root_content), cancel_message, dialog);
+        settings_modal_overlay(Some(root_content), cancel_message, dialog)
+    } else {
+        // Keep the base at the same widget-tree position as in settings_modal_overlay.
+        iced::widget::stack![root_content].into()
     }
-
-    root_content
 }
 #[cfg(test)]
 #[path = "question_modal_tests.rs"]

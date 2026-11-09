@@ -698,3 +698,20 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 用例以脱敏的查询合同数据验证纯投影，真实账号验收归任务 56。限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。
+
+## 任务 43 投影余额与失败状态
+
+`balance_line` 保留原始有符号金额。零和负余额为危险状态，正余额保持正常。只有剩余金额已知且总额为正数时才生成进度条，显示范围为 0% 至 100%。`script_package_lines` 按原顺序保留各套餐，已过期的套餐单独标记并携带安全原因，有效套餐继续显示金额或其他可用明细。 [上游余额和失败规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L352-L419) · [上游套餐投影](../../../../crates/vw-agent-apps/upstream/src/components/UsageFooter.tsx#L55-L95) · [上游明细展示](../../../../crates/vw-agent-apps/upstream/src/components/quota/QuotaBreakdown.tsx#L90-L116) · [Rust 投影](../../../../crates/vw-agent-apps/src/usage/presentation/balance.rs)
+
+`query_status` 分开保留凭据状态、安全说明和类型化查询错误。缓存回退沿用原成功时间，同时暴露本次错误及陈旧标记。`recharge_detail_url` 仅接受带主机的绝对 HTTPS 链接，拒绝用户信息、控制字符及浏览器可自动修正的斜线形式。 [上游查询失败及重试测试](../../../../crates/vw-agent-apps/upstream/tests/components/QuotaLines.test.tsx#L97-L129) · [上游充值入口](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/dsh_account.rs#L188-L201)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。两阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_presentation_balance_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_presentation_balance_returns_expected_result` 和 `usage_presentation_balance_rejects_invalid_input` 的模块因缺少 `super::balance` 按预期报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步本任务文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_presentation_balance_ -- --nocapture` | 退出 0，4 项通过，0 项失败。覆盖负值、未知总额、过期和有效套餐并存、缓存陈旧、凭据过期以及链接校验。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+独立用例使用脱敏合同数据，覆盖范围为纯投影。限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/presentation/balance_tests.rs)

@@ -896,3 +896,23 @@ Rust 验证在隔离源码副本执行。网关测试与 Clippy 的副本带上�
 | 提交差异 | `git diff --cached --check` | 退出 0。 |
 
 验证使用隔离源码副本，并带入共享工作区已有的 `postgres_tests.rs` 参数修正。测试链接时出现 macOS 的 DWARF unwind 大小告警。验证覆盖夹具和无窗口布局，真实账号与 macOS 窗口留待后续验收。槽位锁已释放，编译缓存保留。 [桌面行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_script_tests.rs) · [网关行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script_tests.rs)
+
+## 任务 53 联动账号与刷新事件
+
+授权中心通过已有网关 SDK 提交项目与执行主机范围内的批量额度刷新。网关负责逐项鉴权、查询与快照发布。桌面从终态的逐项结果读取权威快照，保留成功项并显示失败项及安全提示。授权中心和供应商卡片在网关、租户、项目、主机、主体令牌及查询选择一致时联动。重开供应商列表时先核对当前绑定，再读取关联快照。切绑、作用域变化和迟到的读取结果受代次及选择检查约束。 [上游按账号共享查询](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L132) · [上游账号行](../../../../crates/vw-agent-apps/upstream/src/components/settings/auth/AccountQuota.tsx#L309) · [上游批量入口](../../../../crates/vw-agent-apps/upstream/src/components/settings/auth/RefreshAllQuotaButton.tsx#L36) · [桌面卡片](../../../../crates/vw-desktop/src/app/components/apps_usage_cards.rs) · [桌面批量入口](../../../../crates/vw-desktop/src/app/components/apps_usage_cards/batch.rs)
+
+单项和批量刷新复用同一操作状态读取。事件流断开时，在 90 秒状态等待期限内按原操作 ID 恢复读取，随后重读快照。桌面仅在用户点击刷新时提交一次网关操作。 [事件恢复](../../../../crates/vw-desktop/src/app/message/settings/apps_usage_events.rs) · [断连和作用域夹具](../../../../crates/vw-desktop/src/app/message/settings/apps_usage_events_tests.rs) · [卡片联动与部分失败展示测试](../../../../crates/vw-desktop/src/app/components/apps_usage_cards_tests.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-desktop` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-desktop usage_usage_events_ -- --nocapture` | 退出 101，有效测试 0。`usage_usage_events_returns_expected_result` 和 `usage_usage_events_rejects_invalid_input` 因缺少事件模块报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 桌面聚焦 | `cargo test -p vw-desktop usage_usage_events_ -- --nocapture` | 退出 0，3 项通过，失败 0。覆盖批量逐项结果、两次断连后的快照重读、跨作用域拒绝和迟到读取。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 卡片回归 | `cargo test -p vw-desktop usage_usage_cards_ -- --nocapture` | 退出 0，4 项通过，失败 0。 |
+| 网关回归 | `cargo test -p vw-agent usage_usage_refresh_ -- --nocapture` | 退出 0，4 项通过，失败 0。覆盖真实 Router 的逐项结果、授权和托管凭据。 |
+| 提交差异 | `git diff --cached --check` | 退出 0。 |
+
+验证在隔离源码副本执行，沿用共享工作区已有的 `postgres_tests.rs` 参数修正。链接时有 macOS DWARF unwind 大小告警。验证使用本机 HTTP 夹具，真实账号及实际窗口由后续任务验收。槽位锁已释放，编译缓存保留。

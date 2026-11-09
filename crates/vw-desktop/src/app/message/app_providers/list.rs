@@ -222,6 +222,10 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                 if let Some(e) = app.app_providers.error.clone() {
                     return app.show_error_toast(e);
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                return crate::app::components::apps_usage_cards::read_linked_providers(
+                    app, scope.app,
+                );
             }
         }
         ListMessage::HermesMember { id, add } => {

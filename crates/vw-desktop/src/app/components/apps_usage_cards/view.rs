@@ -39,7 +39,8 @@ pub(crate) fn account_view<'a>(
 fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<'a, Message> {
     let entry =
         cards.entries.get(&target).filter(|_| scope.is_some() && cards.scope.as_ref() == scope);
-    let busy = entry.is_some_and(|entry| entry.refreshing);
+    let busy = entry.is_some_and(|entry| entry.refreshing.is_some())
+        || scope.is_some_and(|scope| cards.batch_pending(scope));
     let request = |label: &'static str, event, enabled: bool| {
         button(text(label).size(13))
             .padding([6, 10])
@@ -82,10 +83,10 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                 if matches!(target, Target::Account(..)) {
                     body = body.push(
                         row![
-                            text(entry.provider.as_str()).size(13),
+                            text(entry.provider()).size(13),
                             request(
                                 "刷新额度",
-                                Event::Refresh(target.clone(), entry.provider.clone()),
+                                Event::Refresh(target.clone(), entry.provider().to_owned()),
                                 !busy
                             ),
                         ]
@@ -105,10 +106,10 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                     body = body.push(apps_usage_details::view(
                         snapshot,
                         &now,
-                        card.expanded.contains(&entry.provider),
+                        card.expanded.contains(entry.provider()),
                         message(ListMessage::Usage(Event::ToggleDetails(
                             target.clone(),
-                            entry.provider.clone(),
+                            entry.provider().to_owned(),
                         ))),
                     ));
                 }

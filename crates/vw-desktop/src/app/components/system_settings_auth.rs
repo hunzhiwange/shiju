@@ -47,6 +47,8 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
         } else {
             "刷新"
         };
+    let usage_scope = apps_usage_cards::current_scope(app, true);
+    let batch_pending = usage_scope.as_ref().is_some_and(|scope| state.usage.batch_pending(scope));
     let actions = row![
         button(text("管理连接"))
             .style(rounded_action_btn_style)
@@ -56,8 +58,21 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
             .style(rounded_action_btn_style)
             .padding([6, 12])
             .on_press_maybe((configured && idle).then(|| message(Event::Refresh))),
+        button(text(if batch_pending { "正在刷新额度…" } else { "刷新全部额度" }))
+            .style(rounded_action_btn_style)
+            .padding([6, 12])
+            .on_press_maybe(
+                (state.loopback
+                    && configured
+                    && idle
+                    && state.rows.is_some()
+                    && usage_scope.is_some()
+                    && !batch_pending)
+                    .then(|| apps_usage_cards::message_event(apps_usage_cards::Event::RefreshAll))
+            ),
     ]
-    .spacing(8);
+    .spacing(8)
+    .wrap();
 
     let mut heading = column![
         settings_page_heading("授权中心", "查看当前公司在授权执行主机上的账号状态。"),
@@ -95,22 +110,37 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
     } else if state.pending.is_some() {
         text("正在读取授权账号…").style(settings_muted_text_style).into()
     } else if let Some(rows) = &state.rows {
-        let usage_scope = apps_usage_cards::current_scope(app, true);
+        let report =
+            usage_scope.as_ref().map_or_else(Vec::new, |scope| state.usage.batch_lines(scope));
         scrollable(
             container(
                 column(
-                    rows.iter()
-                        .filter(|row| Some(row.service) == state.focused_service)
-                        .chain(rows.iter().filter(|row| Some(row.service) != state.focused_service))
-                        .map(|row| {
-                            service_card(
-                                row,
-                                configured,
-                                state.rows_generation(),
-                                &state.usage,
-                                usage_scope.as_ref(),
-                            )
-                        }),
+                    report
+                        .into_iter()
+                        .map(|line| {
+                            text(line)
+                                .size(13)
+                                .style(settings_muted_text_style)
+                                .wrapping(text::Wrapping::WordOrGlyph)
+                                .into()
+                        })
+                        .chain(
+                            rows.iter()
+                                .filter(|row| Some(row.service) == state.focused_service)
+                                .chain(
+                                    rows.iter()
+                                        .filter(|row| Some(row.service) != state.focused_service),
+                                )
+                                .map(|row| {
+                                    service_card(
+                                        row,
+                                        configured,
+                                        state.rows_generation(),
+                                        &state.usage,
+                                        usage_scope.as_ref(),
+                                    )
+                                }),
+                        ),
                 )
                 .spacing(10),
             )

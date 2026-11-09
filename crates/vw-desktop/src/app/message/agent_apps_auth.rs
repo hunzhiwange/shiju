@@ -209,6 +209,7 @@ pub(in crate::app) fn update_at(
                     })
                 {
                     state.connection = state.form.take();
+                    state.usage.clear();
                     state.rows = None;
                     state.pending = None;
                     return binding::update(app, Event::LoadBinding(generation), endpoint);

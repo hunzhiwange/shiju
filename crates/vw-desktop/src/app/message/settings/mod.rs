@@ -4,6 +4,10 @@ mod acp;
 pub(in crate::app) mod agents;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod apps_usage_events;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod apps_usage_events_tests;
 mod autonomy;
 mod browser;
 mod channels;

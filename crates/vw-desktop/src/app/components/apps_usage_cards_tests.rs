@@ -33,13 +33,16 @@ fn context() -> QueryContext {
     }
 }
 
-fn gateway() -> (TcpListener, GatewayClient) {
+pub(in crate::app) fn gateway() -> (TcpListener, GatewayClient) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
     (listener, GatewayClient::new(endpoint).unwrap())
 }
 
-fn request(listener: &TcpListener, expected: &str) -> (TcpStream, String, String) {
+pub(in crate::app) fn request(
+    listener: &TcpListener,
+    expected: &str,
+) -> (TcpStream, String, String) {
     let (mut stream, _) = listener.accept().unwrap();
     stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let mut header = Vec::new();
@@ -63,7 +66,7 @@ fn request(listener: &TcpListener, expected: &str) -> (TcpStream, String, String
     (stream, header, String::from_utf8(body).unwrap())
 }
 
-fn respond(stream: &mut TcpStream, status: &str, body: &str) {
+pub(in crate::app) fn respond(stream: &mut TcpStream, status: &str, body: &str) {
     write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
 }
 
@@ -106,7 +109,8 @@ async fn usage_usage_cards_returns_expected_result() {
     )
     .await
     .unwrap();
-    assert_eq!(provider, account);
+    assert!(provider[0].matches(&account[0]));
+    assert_eq!(provider[0].snapshot, account[0].snapshot);
     assert_eq!(view::summary(&account[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
     server.join().unwrap();
 }
@@ -201,4 +205,72 @@ async fn usage_usage_cards_distinguishes_unsupported_refresh_from_empty_snapshot
     assert_eq!(result[0].refresh_failure, Some(Failure::Unsupported));
     assert_eq!(view::summary(&result[0].snapshot), ["暂无额度快照"]);
     server.join().unwrap();
+}
+
+#[test]
+fn usage_usage_events_updates_only_linked_card_snapshots() {
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 1);
+    let scope = Scope {
+        endpoint: AuthScope::from(&endpoint),
+        project: "project-a".into(),
+        host: "local".into(),
+        provider_generation: 0,
+        catalog_generation: 0,
+        auth_generation: 1,
+    };
+    let mut account_cards = Cards::default();
+    account_cards.select_scope(&scope);
+    let mut provider_cards = Cards::default();
+    let provider_scope = Scope { provider_generation: 2, ..scope.clone() };
+    provider_cards.select_scope(&provider_scope);
+
+    let provider = Target::Provider(AppId::Codex, "provider-a".into());
+    let account = Target::Account(AuthService::CodexOauth, "account-a".into());
+    let other_account = Target::Account(AuthService::CodexOauth, "account-b".into());
+    let selection = UsageSnapshotQuery {
+        project_id: scope.project.clone(),
+        target_host_id: scope.host.clone(),
+        app_id: AppId::Codex,
+        provider_id: "provider-a".into(),
+        account_id: Some("account-a".into()),
+        kind: Some(UsageQueryKind::OfficialSubscription),
+    };
+    let empty =
+        CardSnapshot::new(selection.clone(), Ok(serde_json::from_str(EMPTY).unwrap()), None);
+    for (cards, target) in [(&mut account_cards, &account), (&mut provider_cards, &provider)] {
+        let ticket = cards.begin(target.clone());
+        assert!(cards.finish(target, ticket, Ok(vec![empty.clone()])));
+    }
+    let rebound = CardSnapshot::new(
+        UsageSnapshotQuery { account_id: Some("account-b".into()), ..selection.clone() },
+        Ok(serde_json::from_str(EMPTY).unwrap()),
+        None,
+    );
+    let other_ticket = account_cards.begin(other_account.clone());
+    assert!(account_cards.finish(&other_account, other_ticket, Ok(vec![rebound])));
+
+    let updated = CardSnapshot::new(selection, Ok(serde_json::from_str(SNAPSHOT).unwrap()), None);
+    let pending = provider_cards.begin(provider.clone());
+    let changed_scope = Scope { provider_generation: 3, ..provider_scope.clone() };
+    provider_cards.apply_updates(&changed_scope, std::slice::from_ref(&updated));
+    assert_eq!(provider_cards.entries[&provider].pending, Some(pending));
+
+    account_cards.apply_updates(&scope, std::slice::from_ref(&updated));
+    provider_cards.apply_updates(&provider_scope, std::slice::from_ref(&updated));
+    assert!(!provider_cards.finish(&provider, pending, Ok(vec![empty])));
+    for (cards, target) in [(&account_cards, &account), (&provider_cards, &provider)] {
+        let items = cards.entries[target].result.as_ref().unwrap().as_ref().unwrap();
+        assert_eq!(view::summary(&items[0].snapshot), ["官方额度", "Pro", "5 小时 · 剩余 75%"]);
+    }
+    let items = account_cards.entries[&other_account].result.as_ref().unwrap().as_ref().unwrap();
+    assert_eq!(view::summary(&items[0].snapshot), ["暂无额度快照"]);
+
+    let mut failed = items[0].clone();
+    failed.refresh_failure = Some(Failure::Reauth);
+    account_cards.batch_result = Some(Ok(vec![updated, failed]));
+    assert_eq!(
+        account_cards.batch_lines(&scope),
+        ["额度刷新 · 1 项成功，1 项未完成", "Codex / provider-a / account-b · 账号需要重新授权"]
+    );
+    assert!(account_cards.batch_lines(&changed_scope).is_empty());
 }

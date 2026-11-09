@@ -5,6 +5,7 @@ Only the external model is simulated. The production Rust entry, relay, ACP
 transport and installed Copilot binary are exercised by the shared runner.
 """
 import json
+import os
 from pathlib import Path
 import sys
 import shutil
@@ -94,30 +95,65 @@ class CopilotFixture(ModelFixture):
         self.server.RequestHandlerClass = Handler
 
 
-def locate_copilot(entry, env):
-    # 1.0.105 prints a trailing period; the generic version regex rejects it.
-    command = shutil.which('copilot', path=env.get('PATH'))
-    if not command:
-        raise runner.Unavailable('real Copilot CLI is not installed')
+def locate_copilot(entry, env, mode):
     release = entry['distribution']['release']
+    if mode == 'session-model':
+        config = os.environ.get('VIBEWINDOW_CONFIG_DIR')
+        data = Path(config) if config else Path.home() / '.local/share/shiju'
+        managed = data / 'acp-runtime' / f'copilot-{release}-model-source-v1/node_modules/.bin/copilot'
+        if not managed.is_file():
+            raise runner.Unavailable('reviewed Copilot model-source runtime is not installed')
+        command = runner.copilot_native_executable(managed, release, env)
+    else:
+        command = shutil.which('copilot', path=env.get('PATH'))
+        if not command:
+            raise runner.Unavailable('real Copilot CLI is not installed')
+    # 1.0.105 prints a trailing period; the generic version regex rejects it.
     probe = subprocess.run([command, '--version'], env=env, capture_output=True, timeout=20)
-    if probe.returncode or probe.stdout.decode().splitlines()[0] != 'GitHub Copilot CLI ' + release + '.':
+    if probe.returncode or probe.stdout.decode().splitlines()[:1] != ['GitHub Copilot CLI ' + release + '.']:
         raise runner.VersionMismatch('installed Copilot version differs from manifest')
     if entry['underlying'] != {'kind': 'same_distribution', 'release': release}:
         raise runner.Unavailable('unverified Copilot distribution')
     return {'command': str(Path(command).absolute()), 'args': entry['acp_launch'][1:], 'env': {}}
 
 
+def configure_effort_fixture(fixture):
+    fixture.models = ('acp-fixture-primary',)
+    fixture.chat_effort_probe = 'copilot'
+
+
+def effort_successful(evidence, flow):
+    requests = evidence['requests']
+    # The Rust checkpoints each require a new request and the fixture reply.
+    # Three ordered rows therefore prove one request for each completed turn.
+    return (all(flow[key] for key in runner.EFFORT_CHECKPOINTS)
+            and evidence['errors'] == 0
+            and all(row['authenticated'] and row['route'] == '/v1/chat/completions'
+                    and row['model'] == 'acp-fixture-primary' and not row['auxiliary']
+                    for row in requests)
+            and [row['reasoning_effort'] for row in requests] == [None, 'low', 'high'])
+
+
 if __name__ == '__main__':
-    runner.locate = locate_copilot
-    runner.ModelFixture = CopilotFixture
-    base_successful = runner.successful
-    runner.successful = lambda evidence, flow: base_successful(evidence, flow) and any(
-        row.get('auxiliary') is True for row in evidence.get('requests', []))
-    result = runner.main()
-    output = Path(sys.argv[sys.argv.index('--output') + 1])
-    report = json.loads(output.read_text())
+    args = runner.parse_args()
+    runner.locate = lambda entry, env: locate_copilot(entry, env, args.mode)
+    if args.effort_check:
+        runner.EFFORT_CHECKS[('copilot', 'session-model')] = {
+            'test': 'acp_model_source_copilot_effort_real_cli',
+            'configure_fixture': configure_effort_fixture,
+            'checkpoints': runner.EFFORT_CHECKPOINTS,
+            'successful': effort_successful,
+        }
+    else:
+        runner.ModelFixture = CopilotFixture
+        base_successful = runner.successful
+        runner.successful = lambda evidence, flow: base_successful(evidence, flow) and any(
+            row.get('auxiliary') is True for row in evidence.get('requests', []))
+    result = runner.run(args)
+    if args.effort_check:
+        raise SystemExit(result)
+    report = json.loads(args.output.read_text())
     report['auxiliary_verified'] = any(row.get('auxiliary') is True
         for row in report.get('requests', {}).get('requests', []))
-    output.write_text(json.dumps(report, indent=2) + '\n')
+    args.output.write_text(json.dumps(report, indent=2) + '\n')
     raise SystemExit(result)

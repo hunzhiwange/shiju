@@ -3,15 +3,20 @@ use crate::model_relay::RelayIdentity;
 
 #[test]
 fn acp_model_source_copilot_private_byok_launch_and_revocation() {
-    verify_private_byok_launch(false);
+    verify_private_byok_launch(false, false);
 }
 
 #[test]
 fn acp_model_source_copilot_reasoning_capability_preserves_native_model_routing() {
-    verify_private_byok_launch(true);
+    verify_private_byok_launch(true, false);
 }
 
-fn verify_private_byok_launch(reasoning: bool) {
+#[test]
+fn acp_model_source_copilot_selected_effort_preserves_bound_model() {
+    verify_private_byok_launch(true, true);
+}
+
+fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
     let config = crate::config::schema::AcpAgentConfig {
         command: "copilot".into(),
         args: vec!["--acp".into(), "--stdio".into()],
@@ -22,7 +27,7 @@ fn verify_private_byok_launch(reasoning: bool) {
         RelayIdentity {
             tenant: crate::session::ui_store::current_tenant_scope(),
             project: "p".into(),
-            session: format!("copilot-reasoning-{reasoning}"),
+            session: format!("copilot-reasoning-{reasoning}-{declared_effort}"),
             provider: "provider".into(),
             model: "chosen".into(),
             generation: 0,
@@ -32,6 +37,12 @@ fn verify_private_byok_launch(reasoning: bool) {
     profile.model_supports_tool_call = true;
     profile.model_supports_temperature = true;
     profile.model_supports_reasoning = reasoning;
+    if declared_effort {
+        profile.model_reasoning_options =
+            Some(vec![vw_shared::provider::reasoning::ReasoningOption::Effort {
+                values: ["low", "high", "none", "unsupported", "high"].map(str::to_owned).to_vec(),
+            }]);
+    }
     profile.model_api = Some(crate::provider::provider::ApiInfo {
         id: "chosen".into(),
         adapter: "openai-compatible".into(),
@@ -46,6 +57,13 @@ fn verify_private_byok_launch(reasoning: bool) {
     assert_eq!(providers["providers"][0]["baseUrl"], "http://127.0.0.1:12345/v1");
     assert_eq!(providers["providers"][0]["apiKey"], profile.binding.bearer_token());
     assert_eq!(providers["models"][0]["wireModel"], "chosen");
+    let levels = &providers["models"][0]["capabilities"]["supports"]["reasoning_effort"];
+    if declared_effort {
+        assert_eq!(levels, &serde_json::json!(["low", "high"]));
+    } else {
+        assert!(levels.is_null());
+    }
+    assert_eq!(profile.config().args, ["--acp", "--stdio", "--no-auto-update"]);
     assert_eq!(env["COPILOT_OFFLINE"], "true");
     assert!(!profile.config().args.iter().any(|a| a.contains(profile.binding.bearer_token())));
     let directory = profile.directory().to_path_buf();

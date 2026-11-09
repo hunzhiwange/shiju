@@ -25,7 +25,7 @@ TESTS = {"session-model": "acp_model_source_real_cli_session_model",
 
 def configure_opencode_effort_fixture(fixture):
     fixture.models = ("gpt-5.1",)
-    fixture.chat_effort_probe = True
+    fixture.chat_effort_probe = "opencode"
 
 
 def opencode_effort_successful(evidence, flow):
@@ -497,7 +497,7 @@ def run(args):
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))
             diagnostic_path = root / "diagnostics.json"
-            if args.agent in ("claude", "kiro", "openclaw", "pi"):
+            if args.agent in ("claude", "copilot", "kiro", "openclaw", "pi"):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
@@ -561,7 +561,7 @@ def run(args):
     return 0 if report["passed"] else 1
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", required=True)
     parser.add_argument("--mode", required=True, choices=tuple(TESTS))
@@ -571,7 +571,11 @@ def main():
                         help="owned loopback upstream (the only supported upstream)")
     parser.add_argument("--effort-check", action="store_true",
                         help="verify native reasoning effort for the selected agent and source")
-    return run(parser.parse_args())
+    return parser.parse_args()
+
+
+def main():
+    return run(parse_args())
 
 
 if __name__ == "__main__":

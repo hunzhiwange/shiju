@@ -30,7 +30,7 @@ class ModelFixture:
         self.auxiliary_profile = "general-purpose"
         self.auxiliary_model = "haiku"
         self.delay_next_request = False
-        self.chat_effort_probe = False
+        self.chat_effort_probe = None
         self.messages_effort_probe = False
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
@@ -187,10 +187,11 @@ class ModelFixture:
                                   "auxiliary": pi_summary or any("AUXILIARY_CHILD" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user")
                                   and (fixture.auxiliary_profile != "openclaw" or not any("AUXILIARY_PROBE" in json.dumps(m.get("content")) for m in messages if m.get("role") == "user"))}
                         if fixture.chat_effort_probe:
-                            user = next(m for m in reversed(messages) if m.get("role") == "user")
-                            content = json.dumps(user.get("content"))
-                            record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
-                                                   if tools and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
+                            if fixture.chat_effort_probe == "opencode":
+                                user = next(m for m in reversed(messages) if m.get("role") == "user")
+                                content = json.dumps(user.get("content"))
+                                record["turn"] = next((tag for tag in ("DEFAULT", "A", "B")
+                                                       if tools and json.dumps("ACP_EFFORT_" + tag) in content), "auxiliary")
                             effort = body.get("reasoning_effort")
                             record["reasoning_effort"] = (effort if effort in ("low", "high")
                                                           else "other" if "reasoning_effort" in body else None)

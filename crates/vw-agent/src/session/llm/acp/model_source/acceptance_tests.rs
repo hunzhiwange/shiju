@@ -258,6 +258,7 @@ async fn run(mode: &str) {
         };
     let opencode_effort = agent == "opencode" && input["effort_check"] == true;
     let claude_effort = agent == "claude" && input["effort_check"] == true;
+    let copilot_effort = agent == "copilot" && input["effort_check"] == true;
     let primary_key = if claude_effort { "claude-opus-4-6" } else { "acp-fixture-primary" };
     let mut primary = json!({
         "id":"acp-fixture-primary","status":"active","tool_call":true,
@@ -266,6 +267,8 @@ async fn run(mode: &str) {
     if opencode_effort {
         primary["id"] = json!("gpt-5.1");
         primary["reasoning"] = json!(true);
+    }
+    if opencode_effort || copilot_effort {
         primary["reasoning_options"] = json!([{"type":"effort","values":["low","high","unknown"]}]);
     }
     if claude_effort {
@@ -299,7 +302,7 @@ async fn run(mode: &str) {
         assert!(resolved_launch.command == expected_launch.command
             && resolved_launch.args == expected_launch.args,
             "production did not select the pinned real CLI override");
-        if opencode_effort || claude_effort {
+        if opencode_effort || claude_effort || copilot_effort {
             effort_run(&input, &model, &info).await;
             return;
         }
@@ -442,7 +445,8 @@ async fn effort_run(input: &Value, model: &provider::Model, info: &provider::Inf
             && anchor.model.model.as_deref() == Some(model.id.as_str())
             && anchor.model.source == vw_api_types::acp_model_source::AcpModelSource::SessionModel,
     );
-    let kind = AcpOptionKind::Config { id: "effort".into() };
+    let id = if agent == "copilot" { "reasoning_effort" } else { "effort" };
+    let kind = AcpOptionKind::Config { id: id.into() };
     let effort = options.options.iter().find(|option| option.kind == kind);
     check(
         "advertised",
@@ -518,6 +522,12 @@ async fn acp_model_source_opencode_effort_real_cli() {
 #[tokio::test]
 #[ignore = "requires the pinned Claude Code CLI and an owned offline Messages fixture"]
 async fn acp_model_source_claude_effort_real_cli() {
+    run("session-model").await;
+}
+
+#[tokio::test]
+#[ignore = "requires the pinned Copilot CLI and an owned offline Chat fixture"]
+async fn acp_model_source_copilot_effort_real_cli() {
     run("session-model").await;
 }
 

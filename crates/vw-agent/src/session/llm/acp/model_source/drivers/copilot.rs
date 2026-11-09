@@ -1,5 +1,7 @@
 use super::AcpLaunchProfile;
+use serde_json::json;
 use std::collections::HashMap;
+use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
 
 pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     let url = reqwest::Url::parse(endpoint)?;
@@ -64,11 +66,27 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
     // a model capability, not a request to convert or enable reasoning; the relay
     // validates the actual request parameters against the selected model.
     let model = &profile.model_alias;
-    let content = serde_json::to_vec(&serde_json::json!({
+    let mut native_model = json!({"id": model, "provider": "vibewindow", "wireModel": model,
+        "maxOutputTokens": profile.model_output_limit});
+    let provider = &profile.binding.identity.provider;
+    if profile.model_supports_reasoning
+        && let Some(declared) = profile.model_reasoning_options.as_deref()
+        && crate::model_relay::chat_url(api).is_ok()
+        && reasoning_profile(&api.id, &api.adapter, provider, &api.url).format
+            == ReasoningFormat::OpenAi
+    {
+        let mut levels =
+            reasoning_levels(&api.id, &api.adapter, provider, &api.url, Some(declared));
+        // Copilot 1.0.105 omits the Chat field for "none", leaving the upstream default.
+        levels.retain(|level| level != "none");
+        if !levels.is_empty() {
+            native_model["capabilities"] = json!({"supports": {"reasoning_effort": levels}});
+        }
+    }
+    let content = serde_json::to_vec(&json!({
         "providers": [{"name": "vibewindow", "type": provider_type, "baseUrl": base_url,
             "apiKey": profile.binding.bearer_token(), "wireApi": "completions"}],
-        "models": [{"id": model, "provider": "vibewindow", "wireModel": model,
-            "maxOutputTokens": profile.model_output_limit}]
+        "models": [native_model]
     }))?;
     let directory = profile.directory().to_string_lossy().into_owned();
     profile.overlay_environment(HashMap::from([

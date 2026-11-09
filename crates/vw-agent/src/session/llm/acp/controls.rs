@@ -14,7 +14,7 @@ pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOptio
 
 fn managed_effort_id(agent: &str) -> Option<&'static str> {
     match agent {
-        "codex" => Some("reasoning_effort"),
+        "codex" | "copilot" => Some("reasoning_effort"),
         "opencode" | "claude" => Some("effort"),
         _ => None,
     }

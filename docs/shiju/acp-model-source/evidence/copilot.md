@@ -40,3 +40,13 @@ python3 docs/vibewindow/acp-model-source/evidence/copilot/verify.py --agent copi
 共享 registry、能力发布和公共 manifest 未修改，留任务 33 集成；本文件不将单平台 Chat 证据扩大为跨平台/全协议承诺。
 
 配置契约参考：[GitHub 官方 BYOK 文档](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-llm-models)；以本任务固定版本实测为准。
+
+## 客户端 Chat 动态档位（2026-11-10）
+
+在 Darwin arm64 上，Copilot 1.0.105 从私有 `providers.json` 的 `models[].capabilities.supports.reasoning_effort` 读取模型声明的档位，并公布 ACP `reasoning_effort` 选项（`thought_level` 类别）。只为显式声明档位且支持推理的原生 OpenAI Chat 模型写入该列表。原生探针确认 `minimal`、`low`、`medium`、`high`、`xhigh` 和 `max` 原样到达 Chat；选择 `none` 会省略字段并交由上游取默认值，因此不开放该值。[GitHub 官方模型能力配置](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference#supported-model-features)
+
+桌面可在首次成功请求后读取原生选项，使用 `session/set_config_option` 动态切换。进程回收后，由同一会话历史恢复并重放已选值。固定版启动时的 `--effort=low` 和 `--effort=high` 在原生探针中被 BYOK 首次请求拒绝。未显式设档的对照请求省略 `reasoning_effort`，尽管原生选项可将列表首项显示为当前值。
+
+生产验收入口 `copilot/verify.py --effort-check` 使用仓库审查并校验摘要的托管运行时。旧脚本直接选择全局 npm 入口，当前生产启动在握手前拒绝该产物。`cli-local` 回归仍使用 PATH 上的固定版原生 CLI。
+
+生产验收从同一原生会话发出三个经过认证的 `POST /v1/chat/completions` 请求，模型均为 `acp-fixture-primary`。默认请求省略 `reasoning_effort`，随后两次请求分别发送 `"low"` 和 `"high"`。三轮均收到夹具回复，未声明的 `medium` 被拒绝，已确认值保持为 `high`。脱敏请求投影写入 `target/acp-effort-evidence/copilot.json`。

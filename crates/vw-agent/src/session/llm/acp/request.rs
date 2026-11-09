@@ -772,6 +772,10 @@ pub(crate) async fn do_stream_request_acp(
                 "codex" => super::model_source::drivers::codex::uses_native_responses(api),
                 "opencode" => crate::model_relay::chat_url(api).is_ok(),
                 "claude" => api.adapter == "anthropic",
+                "copilot" => {
+                    profile.model_reasoning_options.is_some()
+                        && crate::model_relay::chat_url(api).is_ok()
+                }
                 _ => false,
             })
         {

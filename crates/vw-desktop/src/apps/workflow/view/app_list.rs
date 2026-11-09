@@ -6,6 +6,7 @@ use crate::app::components::system_settings_common::{
 };
 use chrono::{Local, TimeZone};
 use iced::widget::{column, row};
+use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;
 
 const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 44.0;
 const SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT: f32 = 20.0;
@@ -252,7 +253,11 @@ fn build_saved_app_card(
             row![open_area, actions].spacing(8).align_y(Alignment::Start),
             saved_app_uuid_row(i18n, app.uuid.as_str(), copied),
             row![
-                saved_app_tag(i18n.__("内部应用")),
+                saved_app_tag(if is_builtin_workflow_uuid(&app.uuid) {
+                    i18n.__("内置")
+                } else {
+                    i18n.__("内部应用")
+                }),
                 saved_app_tag(i18n.__("工作流")),
                 if opening {
                     saved_app_tag(i18n.__("打开中"))
@@ -310,31 +315,19 @@ fn build_saved_app_actions_menu(
         false,
     );
 
-    let builtin = uuid == state::video_edit::TEMPLATE_ID;
-    let delete_message = if builtin {
-        Some(WorkflowMessage::OpenVideoTemplate)
-    } else {
-        (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid))
-    };
-    let delete_item = build_saved_app_action_item(
-        Icon::Trash,
-        if builtin {
-            "模板设置 / YAML"
-        } else if deleting {
-            i18n.__("删除中")
-        } else {
-            i18n.__("删除")
-        },
-        delete_message,
-        !builtin,
-    );
+    let mut items = column![run_item].spacing(4).width(Length::Fill);
+    if !is_builtin_workflow_uuid(&uuid) {
+        items = items.push(build_saved_app_action_item(
+            Icon::Trash,
+            if deleting { i18n.__("删除中") } else { i18n.__("删除") },
+            (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid)),
+            true,
+        ));
+    }
 
     PointBelowOverlay::new(
         trigger,
-        container(column![run_item, delete_item].spacing(4).width(Length::Fill))
-            .width(Length::Fixed(142.0))
-            .padding(6)
-            .style(saved_app_actions_menu_style),
+        container(items).width(Length::Fixed(142.0)).padding(6).style(saved_app_actions_menu_style),
     )
     .show(actions_open)
     .anchor(Point::new(-108.0, 30.0))

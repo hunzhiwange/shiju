@@ -7,8 +7,8 @@ use vw_api_types::{
 
 pub use super::store::WorkflowStoreError;
 use crate::global_database::GlobalDatabase;
+pub use vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID;
 
-pub const VIDEO_EDIT_TEMPLATE_UUID: &str = "16cbb033-b312-48b6-9bfc-91c87391b167";
 pub const VIDEO_EDIT_TEMPLATE_NAME: &str = "通用云端视频剪辑";
 
 /// 随程序分发的初始资源；通过 Extension 注入应用路由，也供原生入口使用。

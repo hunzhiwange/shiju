@@ -1,10 +1,17 @@
 //! Workflow 运行相关共享 DTO。
 //!
-//! 本模块只定义跨网关边界传输的数据结构，不承载执行逻辑。
+//! 本模块定义跨网关边界传输的数据结构与共享的工作流标识。
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+
+pub const VIDEO_EDIT_TEMPLATE_UUID: &str = "16cbb033-b312-48b6-9bfc-91c87391b167";
+
+/// 按程序保留的 UUID 识别内置工作流。
+pub fn is_builtin_workflow_uuid(uuid: &str) -> bool {
+    matches!(uuid, VIDEO_EDIT_TEMPLATE_UUID)
+}
 
 fn default_workflow_max_steps() -> u32 {
     200

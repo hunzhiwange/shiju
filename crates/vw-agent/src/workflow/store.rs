@@ -7,6 +7,7 @@ use uuid::Uuid;
 use vw_api_types::TenantScope;
 use vw_api_types::workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
+    is_builtin_workflow_uuid,
 };
 
 mod error;
@@ -208,10 +209,8 @@ fn delete_record_blocking(
     uuid: &str,
 ) -> Result<WorkflowRecordDeleteResponse, WorkflowStoreError> {
     validate_uuid(uuid)?;
-    if uuid == super::templates::VIDEO_EDIT_TEMPLATE_UUID {
-        return Err(WorkflowStoreError::bad_request(
-            "系统入口模板不可删除；请编辑或明确确认后恢复默认",
-        ));
+    if is_builtin_workflow_uuid(uuid) {
+        return Err(WorkflowStoreError::bad_request("内置工作流不可删除"));
     }
     let changed = match database.provider() {
         DatabaseProvider::Sqlite => {
@@ -340,7 +339,7 @@ fn database_error(error: anyhow::Error) -> WorkflowStoreError {
 mod store_tests;
 
 fn reject_system_template_write(uuid: &str) -> Result<(), WorkflowStoreError> {
-    if uuid == super::templates::VIDEO_EDIT_TEMPLATE_UUID {
+    if is_builtin_workflow_uuid(uuid) {
         return Err(WorkflowStoreError::bad_request("系统入口模板必须使用带版本校验的更新操作"));
     }
     Ok(())

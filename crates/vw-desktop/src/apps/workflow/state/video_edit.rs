@@ -2,7 +2,7 @@
 use iced::widget::text_editor;
 use vw_gateway_client::vw_api_types::{TenantScope, workflow::WorkflowRecord};
 
-pub const TEMPLATE_ID: &str = "16cbb033-b312-48b6-9bfc-91c87391b167";
+pub use vw_gateway_client::vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID as TEMPLATE_ID;
 
 #[derive(Debug, Default)]
 pub struct VideoEditUiState {

@@ -1,6 +1,7 @@
 //! 工作流应用级消息处理，负责应用元数据编辑和工作流文件生命周期操作。
 
 use super::*;
+use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;
 
 /// 构建或更新 handle 相关行为。
 ///
@@ -77,8 +78,8 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             Task::none()
         }
         WorkflowMessage::RequestDeleteSavedApp(uuid) => {
-            if uuid == super::video_edit::TEMPLATE_ID {
-                return Some(app.show_error_toast("内置剪辑模板不能删除，请使用恢复默认"));
+            if is_builtin_workflow_uuid(&uuid) {
+                return Some(app.show_error_toast("内置工作流不可删除"));
             }
             app.workflow_state.open_saved_app_delete_confirm(uuid);
             Task::none()
@@ -88,8 +89,8 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             Task::none()
         }
         WorkflowMessage::DeleteSavedApp(uuid) => {
-            if uuid == super::video_edit::TEMPLATE_ID {
-                return Some(app.show_error_toast("内置剪辑模板不能删除"));
+            if is_builtin_workflow_uuid(&uuid) {
+                return Some(app.show_error_toast("内置工作流不可删除"));
             }
             app.workflow_state.begin_saved_app_delete(uuid.clone());
             delete_saved_app_task(uuid)

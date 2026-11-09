@@ -2,6 +2,7 @@
 
 pub mod kimi;
 pub mod minimax;
+pub mod opencode_go;
 pub mod volcengine;
 pub mod volcengine_sign;
 pub mod zenmux;

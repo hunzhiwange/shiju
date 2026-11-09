@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use chrono::DateTime;
 use reqwest::{
-    Client, ClientBuilder, RequestBuilder, StatusCode,
+    Client, ClientBuilder, RequestBuilder, Response, StatusCode,
     header::{ACCEPT_LANGUAGE, AUTHORIZATION, CONTENT_TYPE, HeaderName, HeaderValue},
     redirect::Policy,
 };
@@ -263,9 +263,14 @@ pub(in crate::usage) async fn get_json<T: DeserializeOwned>(
 pub(super) async fn read_json<T: DeserializeOwned>(
     request: RequestBuilder,
 ) -> Result<T, UsageQueryErrorCode> {
-    use UsageQueryErrorCode::*;
+    let response = request.send().await.map_err(transport_error)?;
+    read_json_response(response).await
+}
 
-    let mut response = request.send().await.map_err(transport_error)?;
+pub(super) async fn read_json_response<T: DeserializeOwned>(
+    mut response: Response,
+) -> Result<T, UsageQueryErrorCode> {
+    use UsageQueryErrorCode::*;
 
     match response.status() {
         status if status.is_success() => {}

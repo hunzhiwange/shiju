@@ -359,3 +359,20 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 本任务用例为 `usage_coding_volcengine_returns_expected_result`、`usage_coding_volcengine_rejects_invalid_input`、`usage_coding_volcengine_falls_back_and_preserves_window_times` 和 `usage_coding_volcengine_distinguishes_empty_plans_from_transport_failure`。夹具核对实际 HTTP POST 路径、签名头、请求顺序、脱敏错误和时间解析。真实账号验收留待任务 56。各阶段释放槽位锁并保留缓存，限定提交范围的差异检查退出 0。
+
+## 任务 24 OpenCode Go 套餐查询
+
+`query_opencode_go` 复用已交付的能力识别规则，接受 `/inference/go` 和 `/zen/go` 两类推理入口。两类入口均以 Bearer 凭据访问固定的 `GET https://opencode.ai/zen/go/v1/usage`，按量 Zen 直接返回 `Unsupported`。HTTP 401 标记凭据失效，403 返回缺少套餐的业务错误。读取 JSON 复用已有的响应大小限制和 HTTP 错误分类。 [上游 TS 规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L71-L82) · [上游查询](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L889-L962) · [适配器](../../../../crates/vw-agent-apps/src/usage/coding/opencode_go.rs#L28) · [共用响应读取](../../../../crates/vw-agent-apps/src/usage/coding/zhipu.rs#L270)
+
+依次保留 5 小时、周、月三个美元额度窗口和上游报告的使用百分比。接口只返回百分比，金额字段留空。有效的 ISO 8601 重置时间原样保留，零使用量时忽略占位时间。单个畸形窗口不影响其他有效窗口，没有可识别窗口时返回 `InvalidResponse`。 [上游解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L842-L887) · [上游窗口夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L2378-L2441) · [本机 HTTP 夹具](../../../../crates/vw-agent-apps/src/usage/coding/opencode_go_tests.rs#L73)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。基于批次 23 提交 `95691bebd` 在隔离源码副本验证，全仓检查沿用工作区已有的 `postgres_tests.rs` 第三参数修正。两阶段均动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_opencode_go_ -- --nocapture` | 退出 101，执行 0 项。测试模块报 E0432，缺少 `super::opencode_go`。 |
+| 格式化 | `cargo fmt --all` | 退出 0，仅同步本任务的四个 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_opencode_go_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+四项测试覆盖两类入口的实际 HTTP 方法、路径与请求头，按量 Zen 和无效凭据的拒绝，401 与 403 的区分，以及缺失窗口和占位时间。真实账号验收留待任务 56。各阶段释放槽位锁并保留缓存，提交范围差异检查退出 0。

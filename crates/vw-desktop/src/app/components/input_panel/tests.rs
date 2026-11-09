@@ -523,3 +523,13 @@ fn agent_unified_selection_prompt_preserves_existing_draft() {
     assert_eq!(app.current_session_runtime().input_editor.text(), "我的草稿");
     assert!(app.chat.is_empty());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn acp_effort_entry_follows_verified_session_choices() {
+    super::acp_options::ui_refresh_42_tests::verify_effort_entry(concat!(
+        module_path!(),
+        "::acp_effort_entry_follows_verified_session_choices"
+    ))
+    .await;
+}

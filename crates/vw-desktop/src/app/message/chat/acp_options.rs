@@ -191,6 +191,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let directory = super::stream::session_directory_for_save(app, &session_id);
             let runtime = app.get_session_runtime_mut(&session_id);
             if runtime.acp_agent.is_none()
+                || runtime.is_requesting
                 || runtime.acp_options_pending
                 || runtime.acp_source_pending.is_some()
             {
@@ -208,8 +209,7 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                             vec![],
                         );
                     }
-                    if runtime.is_requesting
-                        || matches!(&selection.kind, AcpOptionKind::Mode)
+                    if matches!(&selection.kind, AcpOptionKind::Mode)
                         || !runtime.acp_options.options.iter().any(|option| {
                             option.kind == selection.kind
                                 && option.choices.iter().any(|choice| choice.id == selection.value)

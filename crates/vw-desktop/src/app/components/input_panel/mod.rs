@@ -527,6 +527,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
+    let acp_btn = app.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));
     let reasoning_btn = if selected_acp_agent.is_some() {
         None
     } else {
@@ -584,7 +585,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         Some(agent_tab_btn),
         tools_tab_btn,
         Some(skills_tab_btn),
-        None,
+        acp_btn,
         reasoning_btn,
         permission_btn,
         workflow_btn,

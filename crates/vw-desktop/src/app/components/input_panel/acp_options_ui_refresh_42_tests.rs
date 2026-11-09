@@ -23,6 +23,7 @@ use vw_gateway_client::vw_api_types::acp_model_source::{
 };
 use vw_gateway_client::vw_api_types::acp_session::{
     AcpAccessStatus, AcpAccessSupport, AcpChoice, AcpOptionKind, AcpSessionOption,
+    AcpSessionSelection,
 };
 
 type Ui<'a> = UserInterface<'a, Message, Theme, Renderer>;
@@ -31,6 +32,10 @@ const CONFIG_ID: &str = "fixture/backend-option";
 const NEXT_VALUE: &str = "fixture/backend-value-2";
 
 fn isolated(test: &str) -> bool {
+    isolated_exact(&format!("{}::{test}", module_path!()))
+}
+
+fn isolated_exact(test: &str) -> bool {
     const CHILD: &str = "SHIJU_UI_REFRESH_42_CHILD";
     if std::env::var_os(CHILD).is_some() {
         return true;
@@ -46,9 +51,9 @@ fn isolated(test: &str) -> bool {
         serde_json::to_vec(&config).unwrap(),
     )
     .unwrap();
-    let test = format!("{}::{test}", module_path!().split_once("::").unwrap().1);
+    let (_, test) = test.split_once("::").unwrap();
     let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", &test])
+        .args(["--exact", test])
         .env(CHILD, "1")
         .env("VIBEWINDOW_CONFIG_DIR", home.path())
         .env("VIBEWINDOW_WORKSPACE", home.path())
@@ -825,4 +830,94 @@ async fn help_rollout_09_session_model_source_keeps_status_visible() {
         drop(locked);
         app.current_session_runtime_mut().draft = draft;
     }
+}
+
+pub(in crate::app::components::input_panel) async fn verify_effort_entry(test: &str) {
+    if !isolated_exact(test) {
+        return;
+    }
+    let mut app = fixture();
+    let runtime = app.current_session_runtime_mut();
+    runtime.draft = None;
+    runtime.acp_agent = Some("copilot".into());
+    let kind = AcpOptionKind::Config { id: "reasoning_effort".into() };
+    runtime.acp_options.options[0].kind = kind.clone();
+    let mut renderer = renderer().await;
+    let size = Size::new(1120, 700);
+    let panel = || container(Space::new()).width(Length::Fill).height(Length::Fill).into();
+    {
+        let mut ui = scene(super::super::view(&app), &mut renderer, size);
+        // The input panel's drag wrapper forwards clicks but does not expose widget bounds.
+        let entry = (65..180).step_by(5).any(|y| {
+            (220..370).step_by(10).any(|x| {
+                click(&mut ui, &mut renderer, Point::new(x as f32, y as f32))
+                    .iter()
+                    .any(|message| matches!(message, Message::Chat(ChatMessage::AcpOptionsOpen)))
+            })
+        });
+        assert!(entry, "main input panel has no ACP options entry");
+    }
+    let _ = chat::update(&mut app, ChatMessage::AcpOptionsOpen);
+    assert!(app.current_session_runtime().acp_options_open);
+
+    let selection = |value: &str| {
+        ChatMessage::AcpOptionSelected(AcpSessionSelection {
+            kind: kind.clone(),
+            value: value.into(),
+        })
+    };
+    let options = app.current_session_runtime().acp_options;
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpOptionsLoaded { session_id: "fixture-a".into(), result: Ok(options) },
+    );
+    let _ = chat::update(&mut app, selection("not-advertised"));
+    assert!(!app.current_session_runtime().acp_options_pending);
+    app.current_session_runtime_mut().is_requesting = true;
+    let _ = chat::update(&mut app, selection(NEXT_VALUE));
+    assert!(!app.current_session_runtime().acp_options_pending);
+    app.current_session_runtime_mut().is_requesting = false;
+    {
+        let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
+        let body = bounds(&mut ui, &renderer).scrolls[0].1;
+        scroll(&mut ui, &mut renderer, body.center(), -1500.0);
+        let layout = bounds(&mut ui, &renderer);
+        let offset = layout.scrolls[0].2;
+        for (name, value) in [("✓ 當前選項", "fixture/backend-value-1"), ("待選選項", NEXT_VALUE)]
+        {
+            let choice = label(&layout, name).center() - offset;
+            assert!(matches!(
+                click(&mut ui, &mut renderer, choice).as_slice(),
+                [Message::Chat(ChatMessage::AcpOptionSelected(selection))] if selection.value == value
+            ));
+        }
+    }
+    let _ = chat::update(&mut app, selection(NEXT_VALUE));
+    assert!(app.current_session_runtime().acp_options_pending);
+    {
+        let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
+        let body = bounds(&mut ui, &renderer).scrolls[0].1;
+        scroll(&mut ui, &mut renderer, body.center(), -1500.0);
+        let layout = bounds(&mut ui, &renderer);
+        let choice = label(&layout, "待選選項").center() - layout.scrolls[0].2;
+        assert!(click(&mut ui, &mut renderer, choice).is_empty());
+    }
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpOptionsLoaded {
+            session_id: "fixture-a".into(),
+            result: Err("fixture rejection".into()),
+        },
+    );
+    assert!(!app.current_session_runtime().acp_options_pending);
+    assert_eq!(
+        app.current_session_runtime().acp_options.options[0].current,
+        "fixture/backend-value-1"
+    );
+    assert_eq!(app.active_toast.as_ref().unwrap().message, "fixture rejection");
+    let mut ui = scene(with_modal(&app, panel()), &mut renderer, size);
+    assert!(matches!(
+        key(&mut ui, &mut renderer, Point::ORIGIN, Key::Named(Named::Escape), None).as_slice(),
+        [Message::Chat(ChatMessage::AcpOptionsClose)]
+    ));
 }

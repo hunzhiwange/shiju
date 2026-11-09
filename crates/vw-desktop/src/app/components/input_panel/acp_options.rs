@@ -1,8 +1,8 @@
 //! Backend-advertised session options, using the shared settings modal controls.
 use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_close_button, settings_field_label,
-    settings_hover_help_label, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_panel_style,
+    settings_hover_help_label, settings_modal_header, settings_modal_layout_with_scroll_id,
+    settings_modal_overlay_with_escape, settings_muted_text_style, settings_panel_style,
 };
 use crate::app::{App, Message, i18n::I18n, message::ChatMessage};
 use iced::widget::{Space, button as action, column, container, row, text};
@@ -10,6 +10,29 @@ use iced::{Alignment, Element, Length, Theme};
 
 use super::styles::selectable_list_button_style;
 use vw_gateway_client::vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+
+pub(crate) const OPTIONS_SCROLL: &str = "acp_session_options_scroll";
+
+pub(super) fn entry<'a>(
+    app: &'a App,
+    runtime: Option<&crate::app::state::SessionRuntimeState>,
+) -> Option<Element<'a, Message>> {
+    let runtime =
+        runtime.filter(|runtime| runtime.acp_agent.is_some() && runtime.draft.is_none())?;
+    let i18n = I18n::new(app.desktop_locale);
+    Some(
+        action(text(i18n.__("ACP 选项")).size(13))
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                (!runtime.is_requesting
+                    && !runtime.acp_options_pending
+                    && runtime.acp_source_pending.is_none())
+                .then_some(Message::Chat(ChatMessage::AcpOptionsOpen)),
+            )
+            .into(),
+    )
+}
 
 pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let Some(runtime) =
@@ -28,21 +51,36 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let options =
         runtime.acp_options.options.iter().filter(|option| option.kind != AcpOptionKind::Mode);
     if options.clone().next().is_none() {
-        let hint = if runtime.acp_options.connected {
-            "后端未提供可调整的会话选项"
+        let hint = if runtime.acp_options.connected || app.current_session_has_started() {
+            "当前会话没有可调整的选项"
         } else {
             "连接会话后可读取后端支持的选项"
         };
         fields = fields.push(text(hint).size(13).style(settings_muted_text_style));
     }
+    let can_select = !runtime.acp_options_pending
+        && !runtime.is_requesting
+        && runtime.acp_source_pending.is_none();
     for option in options {
         let model_locked = option.kind == AcpOptionKind::Model
             || matches!(&option.kind, AcpOptionKind::Config { id } if id == "model");
+        // Copilot may display the first level before an explicit selection has been saved.
+        let can_confirm_current = runtime.acp_agent.as_deref() == Some("copilot")
+            && runtime.acp_options.acp_model_source
+                == vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel
+            && matches!(&option.kind, AcpOptionKind::Config { id } if id == "reasoning_effort");
         let mut choices = column![settings_field_label(&option.name)].spacing(6);
+        if can_confirm_current {
+            choices = choices.push(
+                text(i18n.__("选择档位后将在下一轮生效")).size(12).style(settings_muted_text_style),
+            );
+        }
         for choice in &option.choices {
             let selected = option.current == choice.id;
             let control = action(
-                text(format!("{}{}", if selected { "✓ " } else { "" }, choice.name)).size(14),
+                text(format!("{}{}", if selected { "✓ " } else { "" }, choice.name))
+                    .size(14)
+                    .wrapping(text::Wrapping::WordOrGlyph),
             )
             .width(Length::Fill)
             .padding([8, 12])
@@ -54,16 +92,12 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
                 style
             })
             .on_press_maybe(
-                (!model_locked
-                    && !selected
-                    && !runtime.acp_options_pending
-                    && !runtime.is_requesting)
-                    .then(|| {
-                        Message::Chat(ChatMessage::AcpOptionSelected(AcpSessionSelection {
-                            kind: option.kind.clone(),
-                            value: choice.id.clone(),
-                        }))
-                    }),
+                (can_select && !model_locked && (!selected || can_confirm_current)).then(|| {
+                    Message::Chat(ChatMessage::AcpOptionSelected(AcpSessionSelection {
+                        kind: option.kind.clone(),
+                        value: choice.id.clone(),
+                    }))
+                }),
             );
             choices = choices.push(super::session_lock_tooltip(control, i18n, model_locked));
         }
@@ -82,10 +116,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         action(text(if runtime.acp_options_pending { "处理中…" } else { "刷新" }))
             .padding([8, 16])
             .style(rounded_action_btn_style)
-            .on_press_maybe(
-                (!runtime.acp_options_pending)
-                    .then_some(Message::Chat(ChatMessage::AcpOptionsOpen))
-            ),
+            .on_press_maybe(can_select.then_some(Message::Chat(ChatMessage::AcpOptionsOpen))),
         Space::new().width(Length::Fill),
         action(text("关闭"))
             .padding([8, 16])
@@ -94,13 +125,18 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     ]
     .spacing(8)
     .align_y(Alignment::Center);
-    let card = settings_modal_layout(header, fields, Some(footer.into()))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .max_width(520)
-        .max_height(560);
+    let card = settings_modal_layout_with_scroll_id(
+        header,
+        fields,
+        Some(footer.into()),
+        Some(OPTIONS_SCROLL),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .max_width(520)
+    .max_height(560);
     let card = container(card).padding(12).center_x(Length::Fill).center_y(Length::Fill);
-    settings_modal_overlay(Some(base), close, card)
+    settings_modal_overlay_with_escape(base, close, card)
 }
 
 pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
@@ -255,4 +291,4 @@ fn access_status(app: &App) -> Element<'_, Message> {
 
 #[cfg(test)]
 #[path = "acp_options_ui_refresh_42_tests.rs"]
-mod ui_refresh_42_tests;
+pub(super) mod ui_refresh_42_tests;

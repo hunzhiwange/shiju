@@ -77,6 +77,21 @@ Completions。Chat 路径转换流式事件、命名空间函数和 `apply_patch
 并保留工具调用与结果的关联。Chat 路径关闭 Responses 托管网页搜索，拒绝加密推理
 和服务端历史引用。原生 Responses 路径使用供应商自身的能力。
 
+## 客户端模型推理档位
+
+适用平台为 Darwin arm64。表中四组均使用固定 CLI、托管客户端模型和本机回环上游。桌面在已启动会话的输入栏打开「ACP 选项」，按执行主机返回的档位和当前值显示。会话忙碌或选档请求未结束时禁用编辑。托管进程在轮次结束后释放时，已保存的选项仍可读取，修改值随下一轮恢复到原生会话。
+
+| 智能体与固定版本 | 同一模型及协议 | 可用控制时机 | 两次出站字段 |
+| --- | --- | --- | --- |
+| Codex ACP `2.5.0` / Codex `0.165.0`，审查补丁版 | GPT-5.5（夹具标识 `acp-fixture-primary`），`/v1/responses` | 首轮成功后在同一会话设档，恢复时重放 | `reasoning.effort` 为 `low`、`high` |
+| OpenCode `1.19.5`，审查运行时 | `gpt-5.1`，`/v1/chat/completions` | 首轮成功后在同一会话设档 | `reasoning_effort` 为 `low`、`high` |
+| Claude Code ACP `0.31.0` / SDK `0.2.119` / Claude Code `2.1.119`，审查运行时 | `claude-opus-4-6`，`/v1/messages` | 首轮成功后在同一会话设档 | `output_config.effort` 为 `low`、`high`，两轮均为 adaptive thinking |
+| GitHub Copilot `1.0.105`，审查运行时 | 模型声明支持 OpenAI Chat 推理档位（夹具标识 `acp-fixture-primary`），`/v1/chat/completions` | BYOK 首轮成功后在同一会话设档。默认显示值也可点击确认 | `reasoning_effort` 为 `low`、`high` |
+
+Codex Chat、Claude Chat 和 Copilot Messages 尚无本表所示的客户端档位验收。Claude ACP `0.26.0` 未公布动态 effort。Copilot 的 BYOK 首轮启动参数未通过验证，桌面在会话启动后提供动态选档。OpenCode 与 Copilot 的默认对照请求省略档位字段。模型未公布的档位由后端拒绝。
+
+固定版本、控制契约与离线运行命令见 [Codex](evidence/codex.md)、[OpenCode](evidence/opencode.md)、[Claude Code](evidence/claude.md)及 [GitHub Copilot](evidence/copilot.md)。
+
 ## 后续对比方法
 
 1. 核对生产[能力表与证据版本](../../../crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs)

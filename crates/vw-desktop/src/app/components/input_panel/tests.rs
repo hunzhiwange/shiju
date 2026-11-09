@@ -112,9 +112,18 @@ fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
 
 #[test]
 fn optional_selector_buttons_reflect_app_state() {
-    let app = crate::app::App::new().0;
-    let _ = session_tool_tab_buttons(&app);
+    let mut app = crate::app::App::new().0;
+    app.current_session_runtime_mut().acp_agent = None;
+    assert!(session_tool_tab_buttons(&app).1.is_some());
     assert!(reasoning_effort_selector(&app, None, None).is_none());
+    app.current_session_runtime_mut().tool_selector.toggle_manual_tool("read");
+    assert!(selected_context_summary(&app).is_some());
+
+    for backend in ["claude-code", "codex"] {
+        app.current_session_runtime_mut().acp_agent = Some(backend.into());
+        assert!(session_tool_tab_buttons(&app).1.is_none());
+        assert!(selected_context_summary(&app).is_none());
+    }
 }
 
 #[test]

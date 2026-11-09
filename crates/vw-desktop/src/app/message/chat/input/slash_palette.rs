@@ -255,16 +255,19 @@ pub(crate) fn collect_slash_palette_candidates(app: &App) -> SlashPaletteCandida
         .collect();
 
     let runtime = app.current_session_runtime();
-    let tools = app
-        .session_tool_inventory(&runtime)
-        .base_tools
-        .into_iter()
-        .filter(|tool_id| !tool_id.trim().is_empty())
-        .map(|tool_id| {
-            let label = tool_display_name(&tool_id);
-            SlashPaletteCandidate { id: tool_id, label, description: None }
-        })
-        .collect();
+    let tools = if runtime.acp_agent.is_none() {
+        app.session_tool_inventory(&runtime)
+            .base_tools
+            .into_iter()
+            .filter(|tool_id| !tool_id.trim().is_empty())
+            .map(|tool_id| {
+                let label = tool_display_name(&tool_id);
+                SlashPaletteCandidate { id: tool_id, label, description: None }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let mcps = mcp_candidates_from_editor(&app.mcp_settings.editor.text())
         .into_iter()

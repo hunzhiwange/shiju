@@ -248,15 +248,20 @@ pub(super) fn skill_scope_button(
 pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let runtime = app.current_session_runtime();
-    let mut manual_tools = app
-        .session_tool_inventory(&runtime)
-        .base_tools
-        .into_iter()
-        .filter_map(|tool| {
-            let trimmed = tool.trim();
-            (!trimmed.is_empty()).then(|| trimmed.to_string())
-        })
-        .collect::<Vec<_>>();
+    let show_tools = runtime.acp_agent.is_none();
+    let active_tab = runtime.visible_session_tool_selector_tab();
+    let mut manual_tools = if show_tools {
+        app.session_tool_inventory(&runtime)
+            .base_tools
+            .into_iter()
+            .filter_map(|tool| {
+                let trimmed = tool.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     manual_tools.sort();
     manual_tools.dedup();
     let query = runtime.tool_selector.query().to_string();
@@ -286,7 +291,16 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         app.skills_settings.catalog.iter().filter(|skill| skill.installed && skill.enabled).count();
     let selected_tool_count = runtime.tool_selector.selected_manual_tools().len();
     let selected_skill_count = runtime.tool_selector.selected_manual_skills().len();
-    let summary = if manual_tools.is_empty() && app.agents_settings.available_tools.is_empty() {
+    let summary = if !show_tools {
+        i18n.format(
+            "可切换 %u 个智能体；可选 %u 个技能；已选 %u 个技能。",
+            &[
+                available_agents.len().into(),
+                usable_skill_count.into(),
+                selected_skill_count.into(),
+            ],
+        )
+    } else if manual_tools.is_empty() && app.agents_settings.available_tools.is_empty() {
         i18n.format(
             "可切换 %u 个智能体；工具清单等待网关返回；已选 %u 个技能。",
             &[available_agents.len().into(), selected_skill_count.into()],
@@ -309,7 +323,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         )
     }
     .expect("valid selector summary template");
-    let scope_hint = match runtime.tool_selector.active_tab() {
+    let scope_hint = match active_tab {
         SessionToolSelectorTab::Agent => crate::app::i18n::I18n::new(app.desktop_locale)
             .__("智能体决定本会话运行引擎与默认配置，开始后不可切换。"),
         SessionToolSelectorTab::Tools => crate::app::i18n::I18n::new(app.desktop_locale)
@@ -318,39 +332,34 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
             .__("技能不受代理工具范围限制，可在需要时动态读取。"),
     };
 
-    let tabs = row![
-        tab_button(
-            i18n,
-            SessionToolSelectorTab::Agent,
-            runtime.tool_selector.active_tab() == SessionToolSelectorTab::Agent,
-        ),
-        tab_button(
+    let mut tabs = row![tab_button(
+        i18n,
+        SessionToolSelectorTab::Agent,
+        active_tab == SessionToolSelectorTab::Agent,
+    )];
+    if show_tools {
+        tabs = tabs.push(tab_button(
             i18n,
             SessionToolSelectorTab::Tools,
-            runtime.tool_selector.active_tab() == SessionToolSelectorTab::Tools,
-        ),
-        tab_button(
+            active_tab == SessionToolSelectorTab::Tools,
+        ));
+    }
+    let tabs = tabs
+        .push(tab_button(
             i18n,
             SessionToolSelectorTab::Skills,
-            runtime.tool_selector.active_tab() == SessionToolSelectorTab::Skills,
-        )
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center);
+            active_tab == SessionToolSelectorTab::Skills,
+        ))
+        .spacing(6)
+        .align_y(Alignment::Center);
 
-    let body: Element<'_, Message> = match runtime.tool_selector.active_tab() {
+    let body: Element<'_, Message> = match active_tab {
         SessionToolSelectorTab::Agent => {
             let mut list = column![].spacing(6);
             let mut has_agents = false;
             for entry in available_agents {
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
-                let allowlist_text = if entry.allowed_tools.is_empty() {
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("未包含工具").to_string()
-                } else {
-                    i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
-                        .expect("valid tool scope template")
-                };
                 let engine = match &entry.runtime {
                     vw_config_types::agent::AgentRuntime::Native => "识矩原生".to_string(),
                     vw_config_types::agent::AgentRuntime::Acp { backend } => format!(
@@ -363,9 +372,17 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                     ),
                 };
                 let subtitle = if entry.model.trim().is_empty() {
-                    engine.clone()
-                } else {
+                    engine
+                } else if show_tools {
+                    let allowlist_text = if entry.allowed_tools.is_empty() {
+                        i18n.__("未包含工具").to_string()
+                    } else {
+                        i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
+                            .expect("valid tool scope template")
+                    };
                     format!("{} / {} / {}", engine, entry.model, allowlist_text)
+                } else {
+                    format!("{} / {}", engine, entry.model)
                 };
                 let check: Element<'_, Message> = if selected {
                     icon_svg(Icon::Check)

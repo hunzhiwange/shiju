@@ -1365,7 +1365,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::OpenSessionToolSelectorTab(tab) => {
             let same_tab_open = app.show_session_tool_selector_popover
-                && app.current_session_runtime().tool_selector.active_tab() == tab;
+                && app.current_session_runtime().visible_session_tool_selector_tab() == tab;
             {
                 let runtime = app.current_session_runtime_mut();
                 runtime.tool_selector.select_tab(tab);

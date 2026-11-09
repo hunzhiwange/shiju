@@ -226,6 +226,23 @@ fn selector_popover_renders_default_agent_tab() {
 }
 
 #[test]
+fn selector_popover_hides_tools_when_acp_session_has_stale_tools_tab() {
+    let mut app = App::new().0;
+    app.agents_settings.available_tools = vec!["read".into()];
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("codex".into());
+    runtime.tool_selector.select_tab(SessionToolSelectorTab::Tools);
+
+    let popover = session_tool_selector_popover(&app);
+    let tree = Tree::new(popover.as_widget());
+    assert_eq!(tree.children[3].children.len(), 2);
+    assert_eq!(
+        app.current_session_runtime().visible_session_tool_selector_tab(),
+        SessionToolSelectorTab::Agent,
+    );
+}
+
+#[test]
 fn selector_popover_renders_empty_and_filtered_agent_states() {
     let mut app = App::new().0;
     app.agents_settings.entries.clear();

@@ -2637,6 +2637,7 @@
   "已编辑": "Edited",
   "搜索当前列表": "Search current list",
   "暂无技能介绍": "No skill description",
+  "可切换 %u 个智能体；可选 %u 个技能；已选 %u 个技能。": "%u agents available. %u skills available, %u selected.",
   "可切换 %u 个代理；工具清单等待网关返回；已选 %u 个技能。": "%u agents available; waiting for gateway tools; %u skills selected.",
   "可切换 %u 个代理；当前代理未包含已注册工具；可选 %u 个技能。": "%u agents available; the current agent includes no registered tools; %u skills available.",
   "可切换 %u 个代理；可选 %u 个工具 / %u 个技能；已选 %u 个工具 / %u 个技能。": "%u agents available; %u tools / %u skills available; %u tools / %u skills selected.",

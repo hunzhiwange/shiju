@@ -655,6 +655,15 @@ impl Default for SessionRuntimeState {
 }
 
 impl SessionRuntimeState {
+    pub(crate) fn visible_session_tool_selector_tab(&self) -> SessionToolSelectorTab {
+        match self.tool_selector.active_tab() {
+            SessionToolSelectorTab::Tools if self.acp_agent.is_some() => {
+                SessionToolSelectorTab::Agent
+            }
+            tab => tab,
+        }
+    }
+
     /// 创建具有指定模型配置的会话运行时状态
     ///
     /// # 参数

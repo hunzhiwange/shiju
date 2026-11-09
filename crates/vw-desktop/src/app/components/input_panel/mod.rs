@@ -167,7 +167,7 @@ pub(super) fn session_tool_tab_button<'a>(
     tab: crate::app::state::SessionToolSelectorTab,
 ) -> Element<'a, Message> {
     let runtime = app.current_session_runtime();
-    let active_tab = runtime.tool_selector.active_tab();
+    let active_tab = runtime.visible_session_tool_selector_tab();
     let popover_open = app.show_session_tool_selector_popover;
     let highlight = (popover_open && active_tab == tab)
         || match tab {
@@ -235,10 +235,14 @@ pub(super) fn session_tool_tab_button<'a>(
 
 pub(super) fn session_tool_tab_buttons<'a>(
     app: &'a App,
-) -> (Element<'a, Message>, Element<'a, Message>, Element<'a, Message>) {
+) -> (Element<'a, Message>, Option<Element<'a, Message>>, Element<'a, Message>) {
+    let show_tools =
+        app.current_session_runtime_ref().is_none_or(|runtime| runtime.acp_agent.is_none());
     (
         session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Agent),
-        session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Tools),
+        show_tools.then(|| {
+            session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Tools)
+        }),
         session_tool_tab_button(app, crate::app::state::SessionToolSelectorTab::Skills),
     )
 }
@@ -351,13 +355,17 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
     let Some(runtime) = app.current_session_runtime_ref() else {
         return None;
     };
-
-    let selected_tools = runtime.tool_selector.selected_manual_tools();
-    let selected_skills = runtime.tool_selector.selected_manual_skills();
-    let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();
     if !runtime.tool_selector.has_manual_context_selection() {
         return None;
     }
+
+    let selected_tools = if runtime.acp_agent.is_none() {
+        runtime.tool_selector.selected_manual_tools()
+    } else {
+        Vec::new()
+    };
+    let selected_skills = runtime.tool_selector.selected_manual_skills();
+    let selected_shiju_skills = runtime.tool_selector.selected_shiju_skills();
 
     let tool_names = selected_tools
         .iter()
@@ -410,7 +418,7 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
         );
     }
 
-    Some(lines.join("  /  "))
+    (!lines.is_empty()).then(|| lines.join("  /  "))
 }
 
 /// 构建并渲染输入面板的完整UI视图
@@ -562,7 +570,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 组装底部控制栏（包含模型选择、使用量、附件、任务池、取消、发送按钮）
     let bottom_bar = bottom_bar(
         Some(agent_tab_btn),
-        Some(tools_tab_btn),
+        tools_tab_btn,
         Some(skills_tab_btn),
         None,
         reasoning_btn,

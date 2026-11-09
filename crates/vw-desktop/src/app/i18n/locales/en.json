@@ -2856,6 +2856,8 @@
   "在访达中显示": "Show in Finder",
   "移除项目": "Remove project",
   "编辑项目": "Edit project",
+  "项目地址": "Project path",
+  "项目根目录的路径，仅供查看。": "The project's root directory. This path is read-only.",
   "MCP 应用加载或通信失败，请重试": "MCP app failed to load or communicate; try again",
   "输入窗口: %d / %u": "Input window: %d / %u",
   "搜索文件 / 项目 / 历史会话": "Search files / projects / conversation history",

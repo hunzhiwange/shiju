@@ -48,7 +48,7 @@ fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message
 
 /// 模块内可见函数，执行 general_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
+pub(super) fn general_tab<'a>(app: &'a App, path: &'a str) -> Element<'a, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let name_input =
         settings_text_input(i18n.__("项目名称"), &app.project_edit_name).on_input(|value| {
@@ -216,7 +216,19 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     .align_y(iced::Alignment::Center),
             ]
             .spacing(14)
-        )
+        ),
+        settings_panel(
+            column![
+                settings_field_label(i18n.__("项目地址")),
+                text(i18n.__("项目根目录的路径，仅供查看。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                text(path)
+                    .size(13)
+                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+            ]
+            .spacing(6)
+        ),
     ]
     .spacing(12)
     .into()

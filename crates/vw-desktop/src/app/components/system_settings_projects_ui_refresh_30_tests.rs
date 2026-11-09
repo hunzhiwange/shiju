@@ -355,11 +355,19 @@ async fn ui_refresh_30_layout_and_interaction() {
             assert_centered(cancel, save);
             let viewport = positions.scroll[0].0;
             assert!(viewport.y > positions.label(i18n.__("基础信息")).center_y());
-            let path = positions.label(PATH);
-            assert!(path.x >= viewport.x + 7.0);
-            assert!(path.x + path.width <= viewport.x + viewport.width - 7.0);
             assert!(viewport.y + viewport.height < save.y);
+            let path_label = i18n.__("项目地址");
+            let path_description = i18n.__("项目根目录的路径，仅供查看。");
+            for value in [path_label, path_description, PATH] {
+                let count = positions.labels.iter().filter(|(label, _)| label == value).count();
+                assert_eq!(count, usize::from(tab == ProjectEditTab::General), "{tab:?}: {value}");
+            }
             if tab == ProjectEditTab::General {
+                let path = positions.label(PATH);
+                assert!(path.x >= viewport.x + 7.0);
+                assert!(path.x + path.width <= viewport.x + viewport.width - 7.0);
+                assert!(positions.label(path_label).y < positions.label(path_description).y);
+                assert!(positions.label(path_description).y < path.y);
                 let name = positions.input(NAME);
                 assert_visible_in_project_body(&mut ui, &mut renderer, viewport, name);
             }
@@ -390,7 +398,11 @@ async fn ui_refresh_30_layout_and_interaction() {
                 let translation = after.scroll[0].1.y;
                 assert!(translation > 0.0);
                 // Iced rounds the scroll offset to whole pixels.
-                assert!(path.y + path.height - translation <= viewport.y + viewport.height + 1.0);
+                let last_field = positions.label(i18n.__("合并锁超时(秒)"));
+                assert!(
+                    last_field.y + last_field.height - translation
+                        <= viewport.y + viewport.height + 1.0
+                );
                 assert_eq!(after.label(i18n.__("编辑项目")), header);
                 assert_eq!(after.label(i18n.__("保存")), save);
                 assert_eq!(after.label(i18n.__("取消")), cancel);
@@ -802,7 +814,6 @@ async fn help_rollout_21_renders_contextual_help() {
             let mut ui = scene(app.view(), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
             let viewport = positions.scroll[0].0;
-            positions.label(PATH);
             let mut targets = vec![(title, description)];
             if tab == ProjectEditTab::Launch {
                 targets.push(("工作区启动脚本", "在创建工作区后执行，可填写多行命令。"));

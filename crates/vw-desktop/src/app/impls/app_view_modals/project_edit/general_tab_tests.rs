@@ -81,7 +81,7 @@ fn general_tab_builds_with_default_text_preview() {
     app.project_edit_icon = String::new();
     app.project_edit_icon_color = "#60a5fa".to_string();
 
-    let element = general_tab(&app);
+    let element = general_tab(&app, "/fixture/project");
 
     std::hint::black_box(element);
 }
@@ -93,7 +93,7 @@ fn general_tab_builds_with_icon_text_preview_and_color_fallbacks() {
     app.project_edit_icon = "  Zed  ".to_string();
     app.project_edit_icon_color = "bad-color".to_string();
 
-    let element = general_tab(&app);
+    let element = general_tab(&app, "/fixture/project");
 
     std::hint::black_box(element);
 }
@@ -110,7 +110,7 @@ fn general_tab_builds_image_preview_and_hover_clear_overlay() {
     app.project_edit_icon_hovered = true;
     app.project_edit_icon_color = "rgb(96, 165, 250)".to_string();
 
-    let element = general_tab(&app);
+    let element = general_tab(&app, "/fixture/project");
 
     std::hint::black_box(element);
     let _ = std::fs::remove_file(path);
@@ -127,7 +127,7 @@ fn general_tab_builds_unhovered_image_preview_without_clear_overlay() {
     app.project_edit_icon = path.to_string_lossy().into_owned();
     app.project_edit_icon_hovered = false;
 
-    let element = general_tab(&app);
+    let element = general_tab(&app, "/fixture/project");
 
     std::hint::black_box(element);
     let _ = std::fs::remove_file(path);

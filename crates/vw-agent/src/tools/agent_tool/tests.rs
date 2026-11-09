@@ -46,6 +46,26 @@ async fn load_session(directory: String, session_id: String) -> crate::session::
     .expect("session should persist")
 }
 
+async fn assert_child_publication(directory: &str, child: &str, published: bool) {
+    let info = load_session(directory.to_owned(), child.to_owned()).await;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let listed = crate::session::ui_store::load_agent_sessions_scoped_for_tenant(
+        &tenant,
+        Some(&info.project_id),
+    );
+    assert!(info.is_agent_tool());
+    assert_eq!(info.is_first_response_pending(), !published, "child title: {:?}", info.title);
+    assert_eq!(
+        crate::session::ui_store::has_committed_first_response(&tenant, &info.project_id, child)
+            .unwrap(),
+        published,
+    );
+    assert_eq!(listed.iter().filter(|session| session.id == child).count(), usize::from(published));
+    if !published {
+        assert!(info.title.is_empty());
+    }
+}
+
 fn build_tool_with_agents(agents: HashMap<String, DelegateAgentConfig>) -> AgentTool {
     AgentTool::new(agents, None, std::path::PathBuf::new())
 }
@@ -328,7 +348,7 @@ async fn launch_without_parent_does_not_report_running_child() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn run_waits_for_persistent_child_session() {
+async fn child_first_response_run_waits_for_persistent_child_session() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
@@ -339,7 +359,7 @@ async fn run_waits_for_persistent_child_session() {
     let coordinator = crate::session::child_agent::coordinator::ChildAgentCoordinator::new(8);
     let release_rx = Arc::new(tokio::sync::Mutex::new(Some(release_rx)));
     let started_tx = Arc::new(std::sync::Mutex::new(Some(started_tx)));
-    let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
+    let tool = build_persistent_tool(parent.id.clone(), directory.clone(), move |request| {
         let release_rx = release_rx.clone();
         let started_tx = started_tx.clone();
         let completed = completed_in_executor.clone();
@@ -349,7 +369,7 @@ async fn run_waits_for_persistent_child_session() {
                 .expect("started lock")
                 .take()
                 .expect("one child")
-                .send(())
+                .send(request.session_id.unwrap().0)
                 .expect("executor should start");
             release_rx
                 .lock()
@@ -371,7 +391,8 @@ async fn run_waits_for_persistent_child_session() {
     let task = tokio::spawn(async move {
         tool.execute(json!({"action": "run", "agent": "writer", "prompt": "inspect"})).await
     });
-    started_rx.await.expect("AgentTool should start child stream");
+    let running_child = started_rx.await.expect("AgentTool should start child stream");
+    assert_child_publication(&directory, &running_child, false).await;
     assert!(!task.is_finished(), "AgentTool must wait for child completion");
     release_tx.send(()).expect("release child executor");
     let result = task.await.expect("launch task should join").expect("launch should return");
@@ -384,6 +405,8 @@ async fn run_waits_for_persistent_child_session() {
     assert_eq!(body["terminal_state"], "succeeded");
     assert_eq!(body["output"], "child completed");
     let child_session_id = body["child_session_id"].as_str().expect("child session ID");
+    assert_eq!(child_session_id, running_child);
+    assert_child_publication(&directory, child_session_id, true).await;
     let snapshots = coordinator
         .snapshots(&parent.id, &[child_session_id.to_string()])
         .expect("foreground child should be tracked");
@@ -542,7 +565,7 @@ fn forced_child_request_model_overrides_parent_selection() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn launch_returns_running_before_child_completes_and_wait_observes_completion() {
+async fn child_first_response_launch_returns_running_and_wait_observes_publication() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
@@ -568,7 +591,7 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
     let controller = AgentTool::new(
         HashMap::from([("writer".to_string(), DelegateAgentConfig::default())]),
         Some(parent.id.clone()),
-        directory.into(),
+        directory.clone().into(),
     )
     .with_coordinator(coordinator);
 
@@ -592,7 +615,9 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
         .await
         .expect("background child should start");
 
-    release.notify_waiters();
+    assert_eq!(launch_body["task"], "inspect in background");
+    assert_child_publication(&directory, &child_session_id, false).await;
+    release.notify_one();
     let waited = controller
         .execute(json!({
             "action": "wait",
@@ -608,6 +633,8 @@ async fn launch_returns_running_before_child_completes_and_wait_observes_complet
     assert_eq!(wait_body["timed_out"], false);
     assert_eq!(wait_body["tasks"][0]["state"], "succeeded");
     assert_eq!(wait_body["tasks"][0]["output"], "background complete");
+    assert_child_publication(&directory, &child_session_id, true).await;
+    controller.coordinator.cancel(&parent.id, &child_session_id).unwrap();
 }
 
 #[tokio::test]
@@ -1276,7 +1303,7 @@ fn agcollab_execution_guard_drop_releases_and_cancels_task() {
 }
 
 #[tokio::test]
-async fn agcollab_parent_abort_cancels_background_execution() {
+async fn child_first_response_parent_abort_keeps_child_pending() {
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
@@ -1294,8 +1321,9 @@ async fn agcollab_parent_abort_cancels_background_execution() {
         })
     });
     let abort = tokio_util::sync::CancellationToken::new();
-    let context =
-        Arc::new(ToolUseContext::new(&parent.id, Some(directory)).with_abort_token(abort.clone()));
+    let context = Arc::new(
+        ToolUseContext::new(&parent.id, Some(directory.clone())).with_abort_token(abort.clone()),
+    );
     let launched = scope_tool_use_context(
         context,
         tool.execute(json!({"action":"launch", "agent":"writer", "prompt":"background abort"})),
@@ -1309,50 +1337,185 @@ async fn agcollab_parent_abort_cancels_background_execution() {
     let waited = tool.execute(json!({"action":"wait", "timeout_ms":10000})).await.unwrap();
     let body: Value = serde_json::from_str(&waited.output).unwrap();
     assert_eq!(body["tasks"][0]["state"], "cancelled");
+    assert_child_publication(
+        &directory,
+        body["tasks"][0]["child_session_id"].as_str().unwrap(),
+        false,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn agcollab_followup_background_runtime_reuses_child() {
+async fn child_first_response_followup_publishes_failed_launch_on_same_id() {
+    let tenant = vw_api_types::id::TenantScope::new("test-platform", "agent-tool").unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    crate::project::from_directory(&tenant, workspace.path()).await.unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant, async {
+        let directory = workspace.path().to_string_lossy().to_string();
+        let parent = create_parent(directory.clone()).await;
+        let count = Arc::new(AtomicUsize::new(0));
+        let observed = count.clone();
+        let second_started = Arc::new(tokio::sync::Notify::new());
+        let notify = second_started.clone();
+        let tool =
+            Arc::new(build_persistent_tool(parent.id.clone(), directory.clone(), move |request| {
+                let observed = observed.clone();
+                let notify = notify.clone();
+                Box::pin(async move {
+                    let turn = observed.fetch_add(1, Ordering::SeqCst) + 1;
+                    assert_eq!(request.model.as_deref(), Some("test-provider/test-model"));
+                    assert_eq!(request.allowed_tools, Some(Vec::new()));
+                    if turn == 1 {
+                        return Err(crate::gateway::ApiError::internal("first request failed"));
+                    }
+                    assert_eq!(
+                        request.messages.last().unwrap()["content"],
+                        format!("attempt {turn}")
+                    );
+                    notify.notify_one();
+                    Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                        output: format!("result {turn}"),
+                        message_id: None,
+                        parent_message_id: None,
+                    })
+                })
+            }));
+        let context = Arc::new(
+            ToolUseContext::new(&parent.id, Some(directory.clone()))
+                .with_provider("test-provider")
+                .with_model("test-model"),
+        );
+        let launched = scope_tool_use_context(
+            context.clone(),
+            tool.execute(json!({"action":"launch","agent":"writer","prompt":"first"})),
+        )
+        .await
+        .unwrap();
+        let body: Value = serde_json::from_str(&launched.output).unwrap();
+        let child = body["child_session_id"].as_str().unwrap().to_string();
+        let first = tool
+            .coordinator
+            .wait(
+                &parent.id,
+                std::slice::from_ref(&child),
+                WaitCondition::All,
+                Duration::from_secs(10),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            first.tasks[0].state,
+            crate::session::child_agent::coordinator::ChildAgentTaskState::Failed
+        );
+        assert_child_publication(&directory, &child, false).await;
+        let followup_tool = tool.clone();
+        let followup_child = child.clone();
+        let followed = crate::project::instance::provide(directory.clone(), None, move || {
+            Box::pin(async move {
+                scope_tool_use_context(
+                context,
+                followup_tool.execute(
+                    json!({"action":"followup_task","target":followup_child,"message":"attempt 2"}),
+                ),
+            )
+            .await
+            })
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(followed.success);
+        tokio::time::timeout(Duration::from_secs(10), second_started.notified()).await.unwrap();
+        let outcome = tool
+            .coordinator
+            .wait(
+                &parent.id,
+                std::slice::from_ref(&child),
+                WaitCondition::All,
+                Duration::from_secs(10),
+            )
+            .await
+            .unwrap();
+        assert!(!outcome.timed_out);
+        assert_eq!(outcome.tasks[0].turn, 2);
+        assert_eq!(outcome.tasks[0].output.as_deref(), Some("result 2"));
+        assert_eq!(count.load(Ordering::SeqCst), 2);
+        assert_child_publication(&directory, &child, true).await;
+        let published = load_session(directory, child.clone()).await;
+        assert_eq!(published.title, "attempt 2");
+        assert!(
+            crate::session::ui_store::load_agent_session_scoped_for_tenant(
+                &vw_api_types::id::TenantScope::default(),
+                &child,
+                Some(&published.project_id),
+            )
+            .is_none()
+        );
+        tool.coordinator.cancel(&parent.id, &child).unwrap();
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn child_first_response_nested_publication_leaves_parent_pending() {
     let workspace = tempfile::tempdir().unwrap();
     let directory = workspace.path().to_string_lossy().to_string();
-    let parent = create_parent(directory.clone()).await;
-    let count = Arc::new(AtomicUsize::new(0));
-    let observed = count.clone();
-    let second_started = Arc::new(tokio::sync::Notify::new());
-    let notify = second_started.clone();
-    let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
-        let observed = observed.clone();
-        let notify = notify.clone();
+    let root = create_parent(directory.clone()).await;
+    let coordinator = ChildAgentCoordinator::new(8);
+    let nested_coordinator = coordinator.clone();
+    let nested_directory = directory.clone();
+    let tool = build_persistent_tool(root.id.clone(), directory.clone(), move |request| {
+        let directory = nested_directory.clone();
+        let coordinator = nested_coordinator.clone();
         Box::pin(async move {
-            let turn = observed.fetch_add(1, Ordering::SeqCst) + 1;
-            if turn == 2 {
-                notify.notify_one();
-            }
+            let parent = request.session_id.unwrap().0;
+            let nested = build_persistent_tool(parent.clone(), directory.clone(), |_| {
+                Box::pin(async {
+                    Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                        output: "nested result".into(),
+                        message_id: None,
+                        parent_message_id: None,
+                    })
+                })
+            })
+            .with_coordinator(coordinator);
+            let result = nested
+                .execute(json!({"action":"run","agent":"writer","prompt":"nested task"}))
+                .await
+                .unwrap();
+            assert!(result.success);
+            let result: Value = serde_json::from_str(&result.output).unwrap();
+            let child = result["child_session_id"].as_str().unwrap();
+            assert_child_publication(&directory, child, true).await;
+            let child = load_session(directory.clone(), child.into()).await;
+            assert_eq!(child.parent_id.as_deref(), Some(parent.as_str()));
+            assert_eq!(child.title, "nested task");
+            assert_child_publication(&directory, &parent, false).await;
             Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
-                output: format!("result {turn}"),
+                output: "parent result".into(),
                 message_id: None,
                 parent_message_id: None,
             })
         })
-    });
-    let launched =
-        tool.execute(json!({"action":"launch","agent":"writer","prompt":"first"})).await.unwrap();
-    let body: Value = serde_json::from_str(&launched.output).unwrap();
-    let child = body["child_session_id"].as_str().unwrap().to_string();
-    tool.coordinator
-        .wait(&parent.id, std::slice::from_ref(&child), WaitCondition::All, Duration::from_secs(10))
+    })
+    .with_coordinator(coordinator);
+    let result = tool
+        .execute(json!({"action":"run","agent":"writer","prompt":"parent task"}))
         .await
         .unwrap();
-    tool.coordinator.followup_task(&parent.id, &child, "second".into()).unwrap();
-    tokio::time::timeout(Duration::from_secs(10), second_started.notified()).await.unwrap();
-    let outcome = tool
-        .coordinator
-        .wait(&parent.id, std::slice::from_ref(&child), WaitCondition::All, Duration::from_secs(10))
-        .await
-        .unwrap();
-    assert!(!outcome.timed_out);
-    assert_eq!(outcome.tasks[0].turn, 2);
-    assert_eq!(outcome.tasks[0].output.as_deref(), Some("result 2"));
-    assert_eq!(count.load(Ordering::SeqCst), 2);
-    tool.coordinator.cancel(&parent.id, &child).unwrap();
+    assert!(result.success);
+    let result: Value = serde_json::from_str(&result.output).unwrap();
+    let parent = result["child_session_id"].as_str().unwrap();
+    assert_child_publication(&directory, parent, true).await;
+    assert_eq!(load_session(directory.clone(), parent.into()).await.title, "parent task");
+    assert_eq!(load_session(directory.clone(), root.id.clone()).await.title, root.title);
+
+    let fork = crate::project::instance::provide(directory, None, move || {
+        Box::pin(async move { crate::session::session::fork(&root.id, None).await })
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(!fork.is_agent_tool());
+    assert!(!fork.is_first_response_pending());
 }

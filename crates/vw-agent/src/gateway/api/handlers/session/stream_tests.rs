@@ -164,7 +164,9 @@ fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
         let tenant = crate::session::ui_store::current_tenant_scope();
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
-                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+                Box::pin(async move {
+                    start_gateway_chat_stream(tenant, directory, request, None).await
+                })
             })
             .await
             .unwrap();
@@ -1481,7 +1483,7 @@ async fn gateway_first_turn_registers_parent_before_thread_tool_use() {
     let directory_for_stream = directory.clone();
     let receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
         Box::pin(async move {
-            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request).await
+            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request, None).await
         })
     })
     .await
@@ -1993,7 +1995,9 @@ fn agcollab_delivery_reaches_next_model_request() {
         let tenant = crate::session::ui_store::current_tenant_scope();
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
-                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+                Box::pin(async move {
+                    start_gateway_chat_stream(tenant, directory, request, None).await
+                })
             })
             .await
             .unwrap();
@@ -2348,7 +2352,9 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
         let tenant = crate::session::ui_store::current_tenant_scope();
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
-                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+                Box::pin(async move {
+                    start_gateway_chat_stream(tenant, directory, request, None).await
+                })
             })
             .await
             .unwrap();
@@ -2497,7 +2503,9 @@ fn agent_session_identity_survives_profile_edits() {
         let tenant = crate::session::ui_store::current_tenant_scope();
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
-                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+                Box::pin(async move {
+                    start_gateway_chat_stream(tenant, directory, request, None).await
+                })
             })
             .await
             .unwrap();

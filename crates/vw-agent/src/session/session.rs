@@ -392,7 +392,18 @@ pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn reserve_next(input: CreateInput) -> Result<Info, Error> {
-    let info = new_info(input)?;
+    reserve_info(new_info(input)?).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn reserve_child_agent(input: CreateInput) -> Result<Info, Error> {
+    let mut info = new_info(input)?;
+    info.mark_agent_tool();
+    reserve_info(info).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn reserve_info(info: Info) -> Result<Info, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     Ok(crate::global_database::run_isolated(move || {
         crate::session::ui_store::reserve_pending_session(&tenant, &info)

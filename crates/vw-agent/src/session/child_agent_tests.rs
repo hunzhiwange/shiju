@@ -235,7 +235,7 @@ async fn child_agent_run_creates_persistent_child_and_waits() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
+async fn child_first_response_gateway_loads_workspace_agents_and_publishes() {
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let agents_path = workspace.path().join("AGENTS.md");
@@ -330,6 +330,7 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
     let observed = Arc::new(Mutex::new(Vec::new()));
     let observed_in_executor = Arc::clone(&observed);
     let collector_directory = directory.clone();
+    let collector_directory_for_assertion = directory.clone();
     let result = run_with_stream_executor(
         ChildAgentRunInput {
             parent_session_id: parent.id,
@@ -344,6 +345,10 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
             trusted_user_selected_skills: Vec::new(),
         },
         move |request| async move {
+            let child = request.session_id.as_ref().unwrap().0.clone();
+            let (info, _) = load_child(collector_directory.clone(), child).await;
+            assert!(info.is_first_response_pending(), "child title: {:?}", info.title);
+            assert!(info.title.is_empty());
             collect_gateway_chat_stream_with_observer(collector_directory, request, |payload| {
                 observed_in_executor
                     .lock()
@@ -358,6 +363,12 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
 
     assert_eq!(result.terminal_state, ChildAgentTerminalState::Succeeded, "{result:?}");
     server.join().expect("test provider should stop");
+    let (info, messages) =
+        load_child(collector_directory_for_assertion, result.child_session_id).await;
+    assert!(!info.is_first_response_pending());
+    assert!(info.is_agent_tool());
+    assert_eq!(info.title, "complete the delegated task");
+    assert_eq!(messages.len(), 2, "gateway messages must not be written twice");
     let expected_path = agents_path.to_string_lossy().to_string();
     let observed = observed.lock().expect("observed gateway payloads lock");
     let context_loaded = observed

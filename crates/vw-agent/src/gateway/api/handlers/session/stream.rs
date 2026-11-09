@@ -1047,11 +1047,18 @@ async fn start_gateway_chat_stream(
     tenant: TenantScope,
     dir: String,
     body: GatewayChatStreamRequest,
+    abort_token: Option<tokio_util::sync::CancellationToken>,
 ) -> Result<UnboundedReceiver<Value>, ApiError> {
     let (tx, rx) = mpsc::unbounded_channel::<Value>();
-    start_gateway_chat_producer(tenant, dir, body, None, None, None, move |payload, _terminal| {
-        tx.send(payload).is_ok()
-    })
+    start_gateway_chat_producer(
+        tenant,
+        dir,
+        body,
+        None,
+        abort_token,
+        None,
+        move |payload, _terminal| tx.send(payload).is_ok(),
+    )
     .await?;
     Ok(rx)
 }
@@ -1355,6 +1362,7 @@ async fn start_gateway_chat_producer(
             };
             let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
+            let publication_cancellation = abort_token.clone();
             let turn = agent_session::ui_store::with_tenant_scope_sync(tenant.clone(), || {
                 let start = || {
                     let recorder = Arc::clone(&patch_recorder);
@@ -1596,6 +1604,9 @@ async fn start_gateway_chat_producer(
                                         .expect("persistent streams preallocate message ids");
                                     let eligible = !resume_history_only
                                         && !query.trim().is_empty()
+                                        && publication_cancellation
+                                            .as_ref()
+                                            .is_none_or(|token| !token.is_cancelled())
                                         && trajectory_recorder.final_step_has_text
                                         && trajectory_recorder.steps.iter().all(|step| {
                                             step.tool_timings
@@ -1802,8 +1813,13 @@ pub(crate) async fn collect_gateway_chat_stream_with_observer(
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
     let tenant = crate::session::ui_store::current_tenant_scope();
+    let cancellation = tokio_util::sync::CancellationToken::new();
+    // AgentTool can drop the collector on stop while the gateway producer is still active.
+    let _cancel_on_drop = cancellation.clone().drop_guard();
     let rx = with_tenant_instance(tenant.clone(), dir.clone(), move || {
-        Box::pin(async move { start_gateway_chat_stream(tenant, dir, body).await })
+        Box::pin(
+            async move { start_gateway_chat_stream(tenant, dir, body, Some(cancellation)).await },
+        )
     })
     .await?;
     collect_gateway_chat_stream_payloads(rx, observe_payload).await
@@ -2092,6 +2108,35 @@ pub(crate) async fn persist_child_agent_turn(
     )
     .await
     .map(|(assistant_id, user_id, _)| (assistant_id, user_id))
+}
+
+/// Commit a turn returned by an executor that does not write a gateway trajectory.
+pub(crate) fn commit_collected_child_agent_turn(
+    session_id: &str,
+    prompt: &str,
+    output: &str,
+    (assistant_id, user_id): (String, String),
+) -> anyhow::Result<()> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project = instance::project().ok_or_else(|| anyhow::anyhow!("child project is missing"))?;
+    let recorder = StreamTrajectoryRecorder::new(assistant_id.clone());
+    let ids = StreamTurnMessageIds::new(assistant_id, user_id);
+    let now = agent_session::session::now_ms();
+    let preview = agent_session::title::first_response_source(prompt);
+    commit_stream_session_trajectory(
+        &tenant,
+        Some(&project.id),
+        session_id,
+        prompt,
+        output,
+        None,
+        &ids,
+        &recorder,
+        now,
+        now,
+        Some(&preview),
+    )?;
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2413,7 +2458,12 @@ fn commit_stream_session_trajectory(
             .ok_or_else(|| anyhow::anyhow!("stream session reservation is missing"))?;
     if info.is_first_response_pending()
         && let Some(preview) = first_response_preview
+        && (!info.is_agent_tool()
+            || !agent_session::child_agent::child_agent_handoff_from_output(assistant_text)
+                .is_empty())
     {
+        let task_title = (info.is_agent_tool() && !preview.is_empty())
+            .then(|| agent_session::child_agent::task_summary(preview));
         let published = crate::session::ui_store::commit_first_response(
             tenant,
             project_id,
@@ -2422,14 +2472,14 @@ fn commit_stream_session_trajectory(
                 raw_artifacts: claims.raw_artifacts(),
                 expected_finished_steps: claims.expected_steps(),
                 preview: Some(preview),
-                task_title: None,
+                task_title: task_title.as_deref(),
             },
         )?;
         if !published {
             anyhow::bail!("session changed while committing its first response");
         }
         raw_commit::acknowledge(&claims);
-        return Ok((!preview.is_empty()).then(|| preview.to_owned()));
+        return Ok((!preview.is_empty() && task_title.is_none()).then(|| preview.to_owned()));
     }
 
     info.time.updated = info.time.updated.max(session.updated_ms);

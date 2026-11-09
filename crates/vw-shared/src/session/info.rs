@@ -3,6 +3,7 @@ use crate::snapshot::FileDiff;
 use serde::{Deserialize, Serialize};
 
 const PENDING_FIRST_RESPONSE_SLUG_PREFIX: &str = "pending-first-response:";
+const AGENT_TOOL_SLUG_PREFIX: &str = "agent-tool:";
 const PLAN_RUN_SLUG_PREFIX: &str = "plan-run:";
 const VISIBLE_TASK_SLUG_PREFIX: &str = "visible-task:";
 
@@ -92,6 +93,18 @@ impl Info {
         if self.is_first_response_pending() {
             self.slug.drain(..PENDING_FIRST_RESPONSE_SLUG_PREFIX.len());
         }
+    }
+
+    /// Record that the runtime created this session for AgentTool delegation.
+    pub fn mark_agent_tool(&mut self) {
+        if !self.is_agent_tool() {
+            let source_offset = self.slug.len() - self.source_slug().len();
+            self.slug.insert_str(source_offset, AGENT_TOOL_SLUG_PREFIX);
+        }
+    }
+
+    pub fn is_agent_tool(&self) -> bool {
+        self.source_slug().starts_with(AGENT_TOOL_SLUG_PREFIX)
     }
 
     /// 将普通 slug 编码为可持久化的 plan-run 会话标记。

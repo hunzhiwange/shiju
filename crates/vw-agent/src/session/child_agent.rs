@@ -1,7 +1,7 @@
 //! 持久化子会话执行入口。
 //!
-//! 每次执行都会先创建带父会话 ID 的真实 Session，再同步等待现有 Gateway stream
-//! 收集路径结束。流执行失败属于子会话终态，不会抹掉已经创建的子 Session。
+//! 执行前为父子关系预留稳定会话 ID。首轮有效回复落盘后提交会话，
+//! 失败和取消仍保留原 ID 及运行诊断。
 
 use std::collections::HashSet;
 use std::future::Future;
@@ -14,7 +14,8 @@ use vw_api_types::id::SessionId;
 use crate::app::agent::project;
 use crate::gateway::ApiError;
 use crate::gateway::api::handlers::session::stream::{
-    GatewayChatStreamCollected, collect_gateway_chat_stream, persist_child_agent_turn,
+    GatewayChatStreamCollected, collect_gateway_chat_stream, commit_collected_child_agent_turn,
+    persist_child_agent_turn,
 };
 use vw_config_types::agent::DelegateCapabilityPolicy;
 
@@ -147,6 +148,13 @@ pub(crate) async fn session_depth(directory: String, session_id: String) -> Resu
     })
     .await
     .context("initialize child agent project context")?
+}
+
+pub(crate) fn task_summary(prompt: &str) -> String {
+    const MAX_CHARS: usize = 160;
+    let mut chars = prompt.chars();
+    let summary = chars.by_ref().take(MAX_CHARS).collect::<String>();
+    if chars.next().is_some() { format!("{summary}…") } else { summary }
 }
 
 fn validate_input(input: &ChildAgentRunInput) -> Result<()> {
@@ -316,9 +324,19 @@ async fn ensure_turn_history(
     match stored.len().saturating_sub(baseline) {
         0 => {
             let assistant_text = output.or(error).unwrap_or_default();
-            persist_child_agent_turn(child_session_id, prompt, assistant_text, agent_key, error)
-                .await
-                .map_err(|persist_error| anyhow::anyhow!(persist_error.to_string()))?;
+            let ids = persist_child_agent_turn(
+                child_session_id,
+                prompt,
+                assistant_text,
+                agent_key,
+                error,
+            )
+            .await
+            .map_err(|persist_error| anyhow::anyhow!(persist_error.to_string()))?;
+            if let Some(output) = output {
+                commit_collected_child_agent_turn(child_session_id, prompt, output, ids)
+                    .context("commit collected child agent response")?;
+            }
             Ok(())
         }
         1 => bail!("child agent session history is incomplete after stream execution"),
@@ -439,7 +457,7 @@ pub(crate) async fn create_with_fork(
                 ForkTurns::None => Vec::new(),
             };
             let inherited_rules = parent.permission.clone().unwrap_or_default();
-            let child = session::create_next(session::CreateInput {
+            let child = session::reserve_child_agent(session::CreateInput {
                 parent_id: Some(parent_session_id),
                 title: None,
                 directory,
@@ -673,8 +691,15 @@ where
                 Some(context) => crate::tools::scope_tool_use_context(context, execution).await,
                 None => execution.await,
             };
+            let execution_result = execution_result.and_then(|collected| {
+                let handoff = child_agent_handoff_from_output(&collected.output);
+                if handoff.is_empty() {
+                    return Err(ApiError::internal("child agent returned no final answer"));
+                }
+                Ok((collected, handoff))
+            });
             let result = match execution_result {
-                Ok(collected) => {
+                Ok((collected, handoff)) => {
                     ensure_turn_history(
                         &child_session_id,
                         &prompt,
@@ -684,7 +709,6 @@ where
                         baseline,
                     )
                     .await?;
-                    let handoff = child_agent_handoff_from_output(&collected.output);
                     ChildAgentRunResult {
                         child_session_id,
                         terminal_state: ChildAgentTerminalState::Succeeded,

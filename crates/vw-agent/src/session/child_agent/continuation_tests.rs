@@ -31,7 +31,7 @@ fn agcollab_followup_rejects_missing_runtime() {
 }
 
 #[tokio::test]
-async fn agcollab_followup_preserves_persistent_history() {
+async fn child_first_response_continuation_preserves_published_title_and_history() {
     use crate::app::agent::project;
     use crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected;
     use crate::session::child_agent::{self, ChildAgentRunInput};
@@ -90,10 +90,15 @@ async fn agcollab_followup_preserves_persistent_history() {
     })
     .await
     .unwrap();
-    let count = project::instance::provide(path, None, move || {
-        Box::pin(async move { message::messages(&id, None).await.unwrap().len() })
+    let (info, count) = project::instance::provide(path, None, move || {
+        Box::pin(async move {
+            (session::get(&id).await.unwrap(), message::messages(&id, None).await.unwrap().len())
+        })
     })
     .await
     .unwrap();
     assert_eq!(count, 4);
+    assert!(info.is_agent_tool());
+    assert!(!info.is_first_response_pending());
+    assert_eq!(info.title, "first");
 }

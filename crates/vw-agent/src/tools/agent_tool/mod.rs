@@ -1,6 +1,6 @@
 //! 统一的 agent 调用工具。
 //!
-//! `AgentTool` 为每次 launch 创建并等待持久化子会话，让上层只暴露一个稳定工具入口。
+//! `AgentTool` 先预留子会话，再按 run 或 launch 的契约执行委派任务。
 
 use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult, ToolSpec};
 use crate::app::agent::agent;
@@ -238,6 +238,7 @@ impl AgentTool {
         let parent_abort = current_tool_use_context()
             .and_then(|context| context.abort_token().cloned())
             .unwrap_or_default();
+        let tenant = crate::session::ui_store::current_tenant_scope();
         let thread_parent_session_id = parent_session_id.clone();
         let thread_child_session_id = child_session_id.clone();
 
@@ -249,7 +250,7 @@ impl AgentTool {
                     .enable_all()
                     .build()
                     .expect("failed to build child agent runtime");
-                runtime.block_on(async move {
+                runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async move {
                     loop {
                     let _ =
                         coordinator.mark_running(&thread_parent_session_id, &thread_child_session_id);
@@ -289,7 +290,9 @@ impl AgentTool {
                                     None, Some(result.error.unwrap_or_else(|| "child agent execution failed".to_string())),
                                 );
                             }
-                            ChildAgentTerminalState::Cancelled => {}
+                            ChildAgentTerminalState::Cancelled => {
+                                let _ = coordinator.cancel(&thread_parent_session_id, &thread_child_session_id);
+                            }
                         },
                         Err(error) => {
                             let _ = coordinator.mark_failed(
@@ -316,7 +319,7 @@ impl AgentTool {
                         result = coordinator.resume_execution(&thread_child_session_id) => if result.is_err() { break; },
                     }
                     }
-                });
+                }));
             });
 
         if let Err(error) = spawned {
@@ -456,13 +459,6 @@ impl AgentTool {
         args.get("prompt").and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty())
     }
 
-    fn task_summary(prompt: &str) -> String {
-        const MAX_CHARS: usize = 160;
-        let mut chars = prompt.chars();
-        let summary = chars.by_ref().take(MAX_CHARS).collect::<String>();
-        if chars.next().is_some() { format!("{summary}…") } else { summary }
-    }
-
     async fn prepare_child_run(
         &self,
         args: &Value,
@@ -485,7 +481,7 @@ impl AgentTool {
         };
         let max_depth = usize::try_from(agent_config.max_depth).unwrap_or(usize::MAX);
         let parent_session_id = self.parent_session_id()?;
-        let task = Self::task_summary(prompt);
+        let task = child_agent::task_summary(prompt);
         if let Some(ancestor) = self.coordinator.matching_ancestor_task(parent_session_id, &task)? {
             return Ok(Err(ToolResult {
                 success: false,

@@ -201,6 +201,19 @@ pub(crate) fn hand_off(
     }
 }
 
+#[cfg(all(not(coverage), unix))]
+pub(crate) use platform::Parent;
+
+#[cfg(all(not(coverage), unix))]
+pub(crate) fn confirm_mcp_form(parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
+    parent.show(
+        "提交 MCP 表单",
+        &format!("是否向 {origin} 发送表单数据？提交后将显示隔离的响应页面。"),
+        true,
+        done,
+    );
+}
+
 #[cfg(not(coverage))]
 pub(crate) fn dialog_parent(webview: &wry::WebView) -> Option<platform::Parent> {
     platform::Parent::from_webview(webview)

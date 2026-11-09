@@ -423,11 +423,6 @@ mod widgets_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_app_panel;
 
-#[cfg(test)]
-mod system_settings_agent_apps_tests;
-
-mod system_settings_agent_apps;
-
 pub(crate) mod system_settings_apps;
 
 pub(crate) mod app_providers;

@@ -724,7 +724,6 @@ pub enum GeneralSettingsMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
-    AgentApps(super::AgentAppsMessage),
     AppsCatalog(super::AppsCatalogMessage),
     AppProviders(crate::app::message::app_providers::list::ListMessage),
     AppProviderEdit(crate::app::message::app_providers::edit::EditMessage),

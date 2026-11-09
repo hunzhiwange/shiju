@@ -1096,7 +1096,6 @@ impl App {
                 save_error: None,
             },
 
-            agent_apps: super::state::AgentAppsState::default(),
             apps_catalog: super::state::AppsCatalogState::default(),
             app_providers: Default::default(),
             gateway_client_settings: super::state::GatewayClientSettingsState {

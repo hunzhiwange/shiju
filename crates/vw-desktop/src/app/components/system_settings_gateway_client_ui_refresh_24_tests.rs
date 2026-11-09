@@ -1,17 +1,12 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 use super::super::system_settings_gateway_client as gateway;
-use super::*;
-use crate::app::{App, state::GatewayClientServerDraft};
-use vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry;
-
-#[path = "system_settings_agent_apps/ui_refresh_24_rename_tests.rs"]
-mod rename_tests;
+use super::{SystemTab, settings_content};
+use crate::app::{App, Message, message::SettingsMessage, state::GatewayClientServerDraft};
 use iced::advanced::{
     clipboard,
     renderer::{Headless, Style},
 };
-use iced::{Event, Font, Renderer, Size, Theme, mouse};
+use iced::widget::container;
+use iced::{Element, Event, Font, Length, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
@@ -116,17 +111,6 @@ fn capture(
     pixels
 }
 
-fn snapshot(
-    view: Element<'_, Message>,
-    renderer: &mut Renderer,
-    theme: &Theme,
-    size: Size<u32>,
-    name: &str,
-) {
-    let mut ui = scene(view, renderer, size);
-    capture(&mut ui, renderer, theme, size, name, mouse::Cursor::Unavailable);
-}
-
 fn key(name: iced::keyboard::key::Named) -> Event {
     use iced::keyboard::{self, Key};
     let key = Key::Named(name);
@@ -147,7 +131,6 @@ fn key(name: iced::keyboard::key::Named) -> Event {
 struct Geometry {
     labels: Vec<(String, iced::Rectangle)>,
     inputs: Vec<(String, iced::Rectangle)>,
-    scroll: Option<(iced::Rectangle, iced::Vector)>,
 }
 
 impl iced::advanced::widget::Operation for Geometry {
@@ -171,16 +154,6 @@ impl iced::advanced::widget::Operation for Geometry {
         state: &mut dyn iced::advanced::widget::operation::TextInput,
     ) {
         self.inputs.push((state.text().into(), bounds));
-    }
-    fn scrollable(
-        &mut self,
-        _: Option<&iced::advanced::widget::Id>,
-        bounds: iced::Rectangle,
-        _: iced::Rectangle,
-        translation: iced::Vector,
-        _: &mut dyn iced::advanced::widget::operation::Scrollable,
-    ) {
-        self.scroll = Some((bounds, translation));
     }
 }
 
@@ -222,7 +195,6 @@ fn click(ui: &mut Ui<'_>, renderer: &mut Renderer, point: iced::Point) -> Vec<Me
 
 const HOST: &str = "fixture.gateway.invalid";
 const SECRET: &str = "fictional-skey";
-const NAME: &str = "工作图标 · 測試 · Icon";
 
 fn fixture() -> App {
     assert_eq!(crate::app::config::gateway_client_endpoint().normalized_host(), "[");
@@ -244,12 +216,6 @@ fn fixture() -> App {
         company_id: s.company_id_input.clone(),
         skey: s.skey_input.clone(),
     }];
-    app.agent_apps.icons.push(CustomIconEntry {
-        id: "icon-fixture".into(),
-        name: NAME.into(),
-        data: String::new(),
-        created_at: 0,
-    });
     app
 }
 
@@ -302,6 +268,12 @@ async fn ui_refresh_24_layout_and_interaction() {
     ] {
         app.desktop_locale = locale;
         let size = Size::new(width, 1140);
+        let mut ui = scene(settings_content(&app, SystemTab::GatewayClient), &mut renderer, size);
+        let page = geometry(&mut ui, &renderer);
+        page.label(tr(locale, "客户端网关"));
+        assert!(!page.labels.iter().any(|(label, _)| label == "我的图标"));
+        drop(ui);
+
         let mut ui = scene(gateway::view(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         let host = positions.input(HOST);
@@ -558,41 +530,6 @@ async fn help_rollout_19_renders_contextual_help() {
             settings.edit(HOST).as_slice(),
             [Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HostChanged(host)))]
                 if host == "fixture.gateway.invali"
-        ));
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn help_rollout_19_icon_library() {
-    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::{
-        MODES, Scene,
-    };
-
-    if !isolated("help_rollout_19_icon_library") {
-        return;
-    }
-    let mut renderer = renderer().await;
-    let mut app = fixture();
-    let error = "Fixture: icon service unavailable";
-    app.agent_apps.error = Some(error.into());
-    for (locale, theme) in MODES {
-        app.desktop_locale = locale;
-        app.app_theme = theme;
-        let i18n = I18n::new(locale);
-        let mut settings = Scene::new(
-            &app,
-            &mut renderer,
-            "gateway-icons",
-            view(&app.agent_apps, i18n, &app.app_theme),
-        );
-        settings.label(error);
-        let description = i18n.__("读取当前网关与公司的图标库");
-        let help = settings.help(i18n.__("我的图标"), description);
-        settings.actions(help, description);
-        let retry = settings.label("重试").center();
-        assert!(matches!(
-            settings.click(retry).as_slice(),
-            [Message::Settings(SettingsMessage::AgentApps(AgentAppsMessage::Refresh))]
         ));
     }
 }

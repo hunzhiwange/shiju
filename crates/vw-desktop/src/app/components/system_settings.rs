@@ -189,9 +189,7 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::Runtime => &["runtime", "native", "docker", "wasm", "运行时"],
         SystemTab::Autonomy => &["autonomy", "agent run", "自治"],
         SystemTab::Security => &["security", "policy", "安全"],
-        SystemTab::GatewayClient => {
-            &["gateway client", "connection", "客户端", "我的图标", "图标库"]
-        }
+        SystemTab::GatewayClient => &["gateway client", "connection", "客户端"],
         SystemTab::Gateway => &["gateway server", "api", "服务端"],
         SystemTab::Observability => &["observability", "log", "monitor", "OTel", "trace"],
         SystemTab::Proxy => &["proxy", "代理", "HTTP", "HTTPS", "ALL_PROXY", "NO_PROXY"],
@@ -408,16 +406,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
-        SystemTab::GatewayClient => column![
-            super::system_settings_agent_apps::view(
-                &app.agent_apps,
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                &app.app_theme,
-            ),
-            crate::app::components::system_settings_gateway_client::view(app),
-        ]
-        .spacing(16)
-        .into(),
+        SystemTab::GatewayClient => crate::app::components::system_settings_gateway_client::view(app),
         SystemTab::Gateway => crate::app::components::system_settings_gateway::view(app),
         SystemTab::Observability => {
             crate::app::components::system_settings_observability::view(app)
@@ -622,12 +611,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     if app.system_settings_tab == SystemTab::GatewayClient {
         dialog = crate::app::components::system_settings_gateway_client::view_overlays(app, dialog);
-        dialog = super::system_settings_agent_apps::view_overlays(
-            &app.agent_apps,
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            &app.app_theme,
-            dialog,
-        );
     }
 
     if app.system_settings_tab == SystemTab::Gateway {
@@ -669,3 +652,7 @@ pub(crate) fn traverse_select_focus(reverse: bool) -> iced::Task<Message> {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "system_settings_ui_refresh_04_tests.rs"]
 mod ui_refresh_04_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "system_settings_gateway_client_ui_refresh_24_tests.rs"]
+mod gateway_client_ui_refresh_24_tests;

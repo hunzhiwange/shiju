@@ -263,6 +263,7 @@ fn credit_balance(credits: &Value) -> Result<(UsageWallet, f64), UsageQueryError
             used: None,
             granted: None,
             topped_up: None,
+            detail_url: None,
         },
         f64::from(finite(pool_remaining)?),
     ))

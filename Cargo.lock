@@ -12303,6 +12303,7 @@ dependencies = [
 name = "vw-api-types"
 version = "0.6.0"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
  "url",

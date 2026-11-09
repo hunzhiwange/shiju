@@ -70,6 +70,9 @@ async fn usage_balances_deepseek_returns_expected_result() {
     assert_eq!(amounts(usd), (Some(2.5), Some(1.25), Some(1.25)));
     assert_eq!(eur.currency, "EUR");
     assert_eq!(amounts(eur), (Some(0.0), None, None));
+    for wallet in [cny, usd, eur] {
+        assert_eq!(wallet.detail_url.as_deref(), Some("https://platform.deepseek.com/usage"));
+    }
 }
 
 #[tokio::test]

@@ -77,6 +77,7 @@ async fn query_at(
         remaining: Some(remaining),
         granted: None,
         topped_up: None,
+        detail_url: None,
     })
 }
 

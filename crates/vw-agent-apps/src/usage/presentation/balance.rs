@@ -1,4 +1,4 @@
-use reqwest::Url;
+pub use vw_api_types::apps_usage::recharge_detail_url;
 use vw_api_types::{
     TimestampMs,
     apps_usage::{
@@ -86,19 +86,4 @@ pub fn query_status(result: &UsageCacheResult) -> QueryStatusLine<'_> {
         credential_state: latest.credential_state,
         credential_message: latest.credential_message.as_deref(),
     }
-}
-
-/// Validate a recharge or wallet details link before offering it to the user.
-pub fn recharge_detail_url(raw: &str) -> Option<Url> {
-    let (scheme, location) = raw.split_once("://")?;
-    let authority = location.split(['/', '?', '#']).next()?;
-    if !scheme.eq_ignore_ascii_case("https")
-        || authority.is_empty()
-        || authority.contains('@')
-        || raw.contains('\\')
-        || raw.chars().any(|character| character.is_control() || character.is_whitespace())
-    {
-        return None;
-    }
-    Url::parse(raw).ok().filter(|url| url.host_str().is_some())
 }

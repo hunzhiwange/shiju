@@ -3,6 +3,9 @@
 use crate::TimestampMs;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use url::Url;
+
+pub mod presentation;
 
 /// 查询值允许负数和零；缺失值由外层 Option 表达。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -168,6 +171,9 @@ pub struct UsageWallet {
     pub used: Option<UsageNumber>,
     pub granted: Option<UsageNumber>,
     pub topped_up: Option<UsageNumber>,
+    /// Public wallet details page supplied by the native adapter. Never includes credentials.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail_url: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -206,4 +212,19 @@ pub enum UsageQueryErrorCode {
     UpstreamUnavailable,
     UpstreamRejected,
     InvalidResponse,
+}
+
+/// Validate a recharge or wallet details link before offering it to the user.
+pub fn recharge_detail_url(raw: &str) -> Option<Url> {
+    let (scheme, location) = raw.split_once("://")?;
+    let authority = location.split(['/', '?', '#']).next()?;
+    if !scheme.eq_ignore_ascii_case("https")
+        || authority.is_empty()
+        || authority.contains('@')
+        || raw.contains('\\')
+        || raw.chars().any(|character| character.is_control() || character.is_whitespace())
+    {
+        return None;
+    }
+    Url::parse(raw).ok().filter(|url| url.host_str().is_some())
 }

@@ -99,6 +99,7 @@ async fn query_at(
         used: None,
         granted: balance.balance,
         topped_up: balance.charge_balance,
+        detail_url: None,
     })
 }
 

@@ -88,6 +88,7 @@ async fn query_at(
                 used: None,
                 granted: wallet.granted_balance,
                 topped_up: wallet.topped_up_balance,
+                detail_url: Some("https://platform.deepseek.com/usage".into()),
             })
         })
         .collect::<Result<_, _>>()?;

@@ -1,6 +1,9 @@
 //! Shared snapshot and manual refresh for supplier and bound-account cards.
 
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use iced::Task;
 use vw_gateway_client::{
@@ -36,6 +39,7 @@ pub enum Target {
 pub enum Event {
     Read(Target),
     Refresh(Target, String),
+    ToggleDetails(Target, String),
     Finished(Target, Scope, u64, CardResult),
 }
 
@@ -98,6 +102,7 @@ struct Entry {
     pending: Option<u64>,
     refreshing: bool,
     result: Option<CardResult>,
+    expanded: HashSet<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -127,9 +132,19 @@ impl Cards {
         }
         entry.pending = None;
         entry.refreshing = false;
+        entry.expanded.retain(|provider| has_snapshot(&result, provider));
         entry.result = Some(result);
         true
     }
+}
+
+fn has_snapshot(result: &CardResult, provider: &str) -> bool {
+    result.as_ref().is_ok_and(|entries| {
+        entries.iter().any(|entry| {
+            entry.provider == provider
+                && entry.snapshot.as_ref().is_ok_and(|response| response.snapshot.is_some())
+        })
+    })
 }
 
 pub(crate) fn binding_service(app: AppId) -> Option<AuthService> {
@@ -344,22 +359,21 @@ fn scope(app: &App, endpoint: &GatewayEndpoint, account: bool) -> Option<Scope> 
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
-    let (target, refresh, completed) = match event {
-        Event::Read(target) => (target, None, None),
-        Event::Refresh(target, provider) => (target, Some(provider), None),
-        Event::Finished(target, scope, ticket, result) => {
-            (target, None, Some((scope, ticket, result)))
-        }
+    let target = match &event {
+        Event::Read(target)
+        | Event::Refresh(target, _)
+        | Event::ToggleDetails(target, _)
+        | Event::Finished(target, ..) => target,
     };
     let is_account = matches!(target, Target::Account(..));
     let expected_tab = if is_account { SystemTab::Auth } else { SystemTab::Apps };
-    if completed.is_none() && (!app.show_system_settings || app.system_settings_tab != expected_tab)
-    {
+    let completed = matches!(event, Event::Finished(..));
+    if !completed && (!app.show_system_settings || app.system_settings_tab != expected_tab) {
         return Task::none();
     }
     let endpoint = crate::app::gateway_client_endpoint();
     let Some(scope) = scope(app, &endpoint, is_account) else {
-        return if completed.is_none() {
+        return if matches!(event, Event::Read(_) | Event::Refresh(..)) {
             app.show_error_toast("请先选择项目并连接执行主机")
         } else {
             Task::none()
@@ -372,7 +386,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             && connection.valid()
             && connection.host.trim() == scope.host
     });
-    let (cards, token) = match &target {
+    let (cards, token) = match target {
         Target::Provider(app_id, id) => {
             if app.app_providers.scope.as_ref().is_none_or(|scope| scope.app != *app_id)
                 || !app.app_providers.snapshot.as_ref().is_some_and(|snapshot| {
@@ -401,12 +415,28 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             (&mut auth.usage, connection.token.trim())
         }
     };
-    if let Some((expected, ticket, result)) = completed {
-        if scope == expected && cards.scope.as_ref() == Some(&scope) {
-            cards.finish(&target, ticket, result);
+    let (target, refresh) = match event {
+        Event::Read(target) => (target, None),
+        Event::Refresh(target, provider) => (target, Some(provider)),
+        Event::Finished(target, expected, ticket, result) => {
+            if scope == expected && cards.scope.as_ref() == Some(&scope) {
+                cards.finish(&target, ticket, result);
+            }
+            return Task::none();
         }
-        return Task::none();
-    }
+        Event::ToggleDetails(target, provider) => {
+            if cards.scope.as_ref() == Some(&scope)
+                && let Some(entry) = cards.entries.get_mut(&target)
+                && entry.result.as_ref().is_some_and(|result| has_snapshot(result, &provider))
+            {
+                if entry.expanded.remove(&provider) {
+                    return Task::none();
+                }
+                entry.expanded.insert(provider);
+            }
+            return Task::none();
+        }
+    };
     if token.is_empty() {
         return app.show_error_toast("请先连接执行主机");
     }

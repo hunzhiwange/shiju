@@ -390,6 +390,7 @@ impl ProxyResponse {
             used: None,
             granted: None,
             topped_up: None,
+            detail_url: None,
         });
         let limit = config.on_demand_cap.map(Cents::usd);
         let used = config.on_demand_used.map(Cents::usd);

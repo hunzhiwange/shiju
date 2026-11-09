@@ -73,6 +73,7 @@ async fn query_at(
         // The balance endpoint has no gift amount. Its credit limit is a borrowing limit.
         granted: None,
         topped_up: balance.cash_balance.map(BalanceAmount::in_usd).transpose()?,
+        detail_url: None,
     })
 }
 

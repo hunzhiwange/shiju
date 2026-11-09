@@ -1,3 +1,4 @@
+use chrono::Local;
 use iced::{
     Alignment, Element,
     widget::{button, column, row, text},
@@ -12,8 +13,9 @@ use vw_gateway_client::vw_api_types::{
 };
 
 use super::{Cards, Event, Failure, ListMessage, Message, Scope, Target, message};
-use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style,
+use crate::app::components::{
+    apps_usage_details,
+    system_settings_common::{rounded_action_btn_style, settings_muted_text_style},
 };
 
 pub(crate) fn provider_view<'a>(
@@ -57,10 +59,13 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
         body =
             body.push(line(if busy { "正在刷新额度…" } else { "正在读取额度…" }));
     }
-    match entry.and_then(|entry| entry.result.as_ref()) {
-        Some(Err(error)) => body = body.push(line(error.label())),
-        Some(Ok(entries)) if entries.is_empty() => body = body.push(line("此账号暂无绑定供应商")),
-        Some(Ok(entries)) => {
+    match entry.and_then(|entry| entry.result.as_ref().map(|result| (entry, result))) {
+        Some((_, Err(error))) => body = body.push(line(error.label())),
+        Some((_, Ok(entries))) if entries.is_empty() => {
+            body = body.push(line("此账号暂无绑定供应商"))
+        }
+        Some((card, Ok(entries))) => {
+            let now = Local::now();
             for entry in entries {
                 if matches!(target, Target::Account(..)) {
                     body = body.push(
@@ -81,6 +86,19 @@ fn view<'a>(scope: Option<&Scope>, cards: &'a Cards, target: Target) -> Element<
                 }
                 for value in summary(&entry.snapshot) {
                     body = body.push(line(value));
+                }
+                if let Ok(response) = &entry.snapshot
+                    && let Some(snapshot) = &response.snapshot
+                {
+                    body = body.push(apps_usage_details::view(
+                        snapshot,
+                        &now,
+                        card.expanded.contains(&entry.provider),
+                        message(ListMessage::Usage(Event::ToggleDetails(
+                            target.clone(),
+                            entry.provider.clone(),
+                        ))),
+                    ));
                 }
             }
         }

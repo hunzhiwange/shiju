@@ -667,7 +667,7 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 
 ## 任务 41 投影多窗口展示
 
-`tier_lines` 使用现有 `UsageQuotaWindow`，保留原窗口和重置时间，按已知窗口从短到长稳定排序，未知窗口排在最后。排序也识别原生适配器的 AGY 周档。已用和剩余模式同时切换数值和进度条，警示始终依据四舍五入后的剩余比例。20% 正常，1% 至 19% 警示，0% 与超额显示用尽。缺少利用率时沿用查询合同的未知状态，百分比、进度条和警示均为空。 [上游窗口顺序与百分比](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L64-L159) · [上游调用方](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L141-L167) · [Rust 投影](../../../../crates/vw-agent-apps/src/usage/presentation/tiers.rs#L34)
+`tier_lines` 使用现有 `UsageQuotaWindow`，保留原窗口和重置时间，按已知窗口从短到长稳定排序，未知窗口排在最后。排序也识别原生适配器的 AGY 周档。已用和剩余模式同时切换数值和进度条，警示始终依据四舍五入后的剩余比例。20% 正常，1% 至 19% 警示，0% 与超额显示用尽。缺少利用率时沿用查询合同的未知状态，百分比、进度条和警示均为空。 [上游窗口顺序与百分比](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L64-L159) · [上游调用方](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L141-L167) · [Rust 投影](../../../../crates/vw-api-types/src/apps_usage/presentation/tiers.rs#L34)
 
 `tier_card_rows` 最多输出两行。超过两档时，最短窗口单占首行，其余选剩余最少的两档并按窗口时长合并到第二行。剩余比例相同则优先保留排序靠前的窗口，同一时长保持输入顺序。 [上游卡片规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L421-L456) · [上游用例](../../../../crates/vw-agent-apps/upstream/tests/components/quotaRules.test.ts#L45-L212) · [独立 Rust 用例](../../../../crates/vw-agent-apps/src/usage/presentation/tiers_tests.rs)
 
@@ -684,7 +684,7 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 
 ## 任务 42 投影 Credits 与重置明细
 
-`reset_credits_line` 按调用方传入的当前时间过滤已到期重置，按该时区的日历日期分组。各组保留次数及最早到期时刻，缺失或无法解析的日期归为最后一组。摘要和各组在距最早到期不足 72 小时时提示，恰好 72 小时时保持正常。没有可用重置时隐藏摘要。 [上游重置摘要及分组](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L182-L257) · [上游分组规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L320-L350) · [Rust 投影](../../../../crates/vw-agent-apps/src/usage/presentation/credits.rs)
+`reset_credits_line` 按调用方传入的当前时间过滤已到期重置，按该时区的日历日期分组。各组保留次数及最早到期时刻，缺失或无法解析的日期归为最后一组。摘要和各组在距最早到期不足 72 小时时提示，恰好 72 小时时保持正常。没有可用重置时隐藏摘要。 [上游重置摘要及分组](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L182-L257) · [上游分组规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L320-L350) · [Rust 投影](../../../../crates/vw-api-types/src/apps_usage/presentation/credits.rs)
 
 `credits_line` 保留原始正数 Credits 数量，并用独立的 `CreditsUsdEstimate` 表达展示估算。沿用来源快照的每 Credit 0.04 美元折算规则，四舍五入到整美元，舍入为零时显示「低于 1 美元」的估算状态。客户端负责本地化数字和文案，估算字段与账单及钱包金额分开。 [上游折算](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L260-L306) · [上游调用方](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L174-L203) · [独立 Rust 用例](../../../../crates/vw-agent-apps/src/usage/presentation/credits_tests.rs)
 
@@ -836,3 +836,24 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 提交差异 | `git diff --cached --check` | 退出 0，仅暂存本任务文件及设置导航的本任务差异。 |
 
 本机 HTTP 用例只验证桌面与 SDK 的行为，网关前置复核另验证实际 Router。各阶段结束后释放槽位锁并保留构建缓存。 [独立行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_cards_tests.rs)
+
+## 任务 50 展示额度展开明细
+
+供应商与绑定账号的额度卡片通过 `Event::ToggleDetails` 按当前选择和供应商展开快照。详情使用本地时区显示查询、刷新失败和窗口重置时间。各窗口沿用既有顺序规则，可用重置按到期日合并并排除已过期条目。余额按币种保留剩余金额、赠金与充值，零与缺失分别呈现。来源标签区分官方额度、供应商查询、脚本、估算及账单。Credits 的美元换算单独标为估算。 [上游额度列](../../../../crates/vw-agent-apps/upstream/src/components/quota/QuotaLines.tsx#L216) · [上游下拉明细](../../../../crates/vw-agent-apps/upstream/src/components/quota/QuotaBreakdown.tsx#L24) · [桌面详情](../../../../crates/vw-desktop/src/app/components/apps_usage_details.rs) · [卡片状态](../../../../crates/vw-desktop/src/app/components/apps_usage_cards.rs)
+
+`UsageWallet::detail_url` 是向后兼容的可选字段。DeepSeek 原生适配器提供固定的官方用量页面。桌面仅为供应商余额提供通过 `recharge_detail_url` 校验的 HTTPS 链接，同地址只显示一个按钮，点击才发送 `OpenUrlExternal`。余额和链接经无窗口夹具验证，当前网关发布 General 与托管 Codex 快照。真实账号、系统浏览器和 macOS 窗口留待后续验收。 [上游官方用量入口](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/dsh_account.rs#L194) · [原生余额适配器](../../../../crates/vw-agent-apps/src/usage/balances/deepseek.rs) · [DTO 与链接校验](../../../../crates/vw-api-types/src/apps_usage.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-desktop` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。阶段结束后释放锁并保留缓存。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-desktop usage_usage_details_ -- --nocapture` | 退出 101，执行 0 项。`usage_usage_details_returns_expected_result` 和 `usage_usage_details_rejects_invalid_input` 引用尚未实现的模块，报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本执行，仅同步任务文件。 |
+| 实现后 | `cargo test -p vw-desktop usage_usage_details_ -- --nocapture` | 退出 0，2 项通过，0 项失败。Iced 无窗口用例覆盖展开与点击事件、多窗口、分组、来源时间、余额及非法链接。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 共享显示规则回归 | `cargo test -p vw-agent-apps usage_presentation_ -- --nocapture` | 退出 0，10 项通过，0 项失败。 |
+| DeepSeek 余额回归 | `cargo test -p vw-agent-apps usage_balances_deepseek_ -- --nocapture` | 退出 0，4 项通过，0 项失败。通过本机 HTTP 检查请求与余额结果中的固定公开链接。 |
+| 卡片回归 | `cargo test -p vw-desktop usage_usage_cards_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 提交差异 | `git diff --cached --check` | 退出 0，仅暂存任务 50 变更。 |
+
+桌面测试链接器报告紧凑展开表的 `__eh_frame` 大小告警，测试照常完成。 [独立行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_details_tests.rs)

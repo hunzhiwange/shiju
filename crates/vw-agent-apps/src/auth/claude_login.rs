@@ -53,10 +53,28 @@ pub enum ClaudeLoginError {
 
 /// A host-private process handle. Dropping it requests cancellation.
 pub struct ClaudeLogin {
-    url: String,
     stop: oneshot::Sender<()>,
-    paste: mpsc::Sender<PasteCommand>,
+    paste: ClaudePaste,
     done: oneshot::Receiver<Result<(), ClaudeLoginError>>,
+}
+
+/// Sensitive input bound to the CLI's own callback and stdin.
+#[derive(Clone)]
+pub struct ClaudePaste {
+    url: String,
+    sender: mpsc::Sender<PasteCommand>,
+}
+
+impl ClaudePaste {
+    pub async fn submit(&self, raw: &str) -> Result<(), ClaudeLoginError> {
+        let input = Paste::parse(raw, &self.url).ok_or(ClaudeLoginError::InvalidPaste)?;
+        let (reply, delivered) = oneshot::channel();
+        self.sender
+            .send(PasteCommand { input, reply })
+            .await
+            .map_err(|_| ClaudeLoginError::Inactive)?;
+        delivered.await.map_err(|_| ClaudeLoginError::Inactive)?
+    }
 }
 
 impl ClaudeLogin {
@@ -165,7 +183,7 @@ impl ClaudeLogin {
         });
 
         match ready.await {
-            Ok(url) => Ok(Self { url, stop, paste, done }),
+            Ok(url) => Ok(Self { stop, paste: ClaudePaste { url, sender: paste }, done }),
             Err(_) => {
                 let result = (&mut done).await.map_err(|_| ClaudeLoginError::Unavailable)?;
                 Err(result.err().unwrap_or(ClaudeLoginError::LinkUnavailable))
@@ -174,24 +192,36 @@ impl ClaudeLogin {
     }
 
     pub fn authorization_url(&self) -> &str {
-        &self.url
+        &self.paste.url
     }
 
     /// Deliver sensitive input to this login's CLI. Success acknowledges delivery.
     pub async fn submit_paste(&self, raw: &str) -> Result<(), ClaudeLoginError> {
-        let input = Paste::parse(raw, &self.url).ok_or(ClaudeLoginError::InvalidPaste)?;
-        let (reply, delivered) = oneshot::channel();
-        self.paste
-            .send(PasteCommand { input, reply })
-            .await
-            .map_err(|_| ClaudeLoginError::Inactive)?;
-        delivered.await.map_err(|_| ClaudeLoginError::Inactive)?
+        self.paste.submit(raw).await
+    }
+
+    pub fn paste_handle(&self) -> ClaudePaste {
+        self.paste.clone()
+    }
+
+    /// Keep the process handle until either exit or a scoped cancellation.
+    pub async fn wait_until_cancelled(
+        mut self,
+        cancelled: oneshot::Receiver<()>,
+    ) -> Result<(), ClaudeLoginError> {
+        tokio::select! {
+            result = &mut self.done => result.map_err(|_| ClaudeLoginError::Unavailable)?,
+            _ = cancelled => {
+                self.cancel().await?;
+                Err(ClaudeLoginError::Cancelled)
+            }
+        }
     }
 
     /// Wait until the CLI exits and its process and transient files have been cleaned up.
     pub async fn wait(self) -> Result<(), ClaudeLoginError> {
         // Keep both supervisor channels open while waiting.
-        let Self { stop: _stop, paste: _paste, done, .. } = self;
+        let Self { stop: _stop, paste: _paste, done } = self;
         done.await.map_err(|_| ClaudeLoginError::Unavailable)?
     }
 

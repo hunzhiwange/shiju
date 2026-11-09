@@ -36,6 +36,11 @@ struct Grant {
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
+    auth_flow_start: Vec<AuthService>,
+    /// Explicit deployment assertion for direct, same-host browser clients.
+    #[serde(default)]
+    auth_browser_local: bool,
+    #[serde(default)]
     launch: bool,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
@@ -55,6 +60,7 @@ pub(super) struct Authorization {
     pub principal: String,
     pub identities: Vec<IdentityPermit>,
     native_slots: Vec<(AuthService, bool)>,
+    pub(super) auth_browser_local: bool,
 }
 impl Authorization {
     pub(super) fn native_login_owner(&self, service: AuthService) -> Option<bool> {
@@ -90,6 +96,8 @@ pub(super) struct Host {
     pub applications: PathBuf,
     #[serde(default)]
     pub credential_root: Option<PathBuf>,
+    #[serde(default)]
+    pub github_enterprise_authorities: Vec<String>,
     #[serde(default)]
     native_login_owners: Vec<NativeLoginOwner>,
     #[serde(default)]
@@ -173,6 +181,7 @@ enum Capability {
     ProviderConfigRead,
     ProviderConfigWrite,
     AuthAccountRead { service: AuthService, bindings: bool },
+    AuthFlowStart(AuthService),
 }
 
 pub(super) fn authorize_auth_account_read(
@@ -191,6 +200,16 @@ pub(super) fn authorize_auth_account_read(
         None,
         Capability::AuthAccountRead { service, bindings },
     )
+}
+
+pub(super) fn authorize_auth_flow_start(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: AuthService,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::AuthFlowStart(service))
 }
 
 fn authorize_scoped(
@@ -246,6 +265,7 @@ fn authorize_scoped(
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
                     Capability::ProviderConfigWrite => g.provider_config_write,
+                    Capability::AuthFlowStart(service) => g.auth_flow_start.contains(&service),
                     Capability::AuthAccountRead { service, bindings } => {
                         g.auth_account_read.contains(&service)
                             && (!bindings || g.provider_config_read)
@@ -256,6 +276,7 @@ fn authorize_scoped(
     if grants.is_empty() {
         return Err(StatusCode::FORBIDDEN);
     }
+    let auth_browser_local = grants.iter().any(|grant| grant.auth_browser_local);
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let native_slots = policy
         .hosts
@@ -277,7 +298,13 @@ fn authorize_scoped(
     if matches!(host.binding, Binding::Remote) {
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
-    Ok(Authorization { host, principal: principal.id.clone(), identities, native_slots })
+    Ok(Authorization {
+        host,
+        principal: principal.id.clone(),
+        identities,
+        native_slots,
+        auth_browser_local,
+    })
 }
 
 fn load(path: &Path) -> Result<Policy, ()> {

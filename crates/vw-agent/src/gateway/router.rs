@@ -99,13 +99,16 @@ use crate::app::agent::gateway::middleware::tenant_scope_middleware;
 /// 每个子模块负责定义自己的路径前缀和具体路由处理器。
 /// 合并顺序不影响路由匹配逻辑，但建议按功能域组织。
 pub(crate) fn build_router(cors_whitelist: Vec<String>) -> Router {
+    build_router_with_auth(cors_whitelist, management_auth_router())
+}
+
+pub(super) fn management_auth_router() -> Router {
     use crate::app::agent::flag;
-    let auth = handlers::agent_apps_auth_read::router(
+    handlers::agent_apps_auth_read::router(
         flag::VIBEWINDOW_SERVER_PASSWORD.as_deref(),
         flag::VIBEWINDOW_SERVER_USERNAME.as_deref().unwrap_or("vibewindow"),
         std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(Into::into),
-    );
-    build_router_with_auth(cors_whitelist, auth)
+    )
 }
 
 pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) -> Router {

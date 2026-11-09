@@ -55,7 +55,7 @@ fn cli_entries<'a>(
 
 /// Resolve the path-default CLI without a version subprocess or ambient PATH.
 #[cfg(target_os = "macos")]
-pub(crate) fn locate_cli(app: AppId, env: &LocalReadEnvironment) -> io::Result<PathBuf> {
+pub fn locate_cli(app: AppId, env: &LocalReadEnvironment) -> io::Result<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
 
     validate_roots(env)?;

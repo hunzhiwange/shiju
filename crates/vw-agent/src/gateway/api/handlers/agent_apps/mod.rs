@@ -173,6 +173,49 @@ pub(super) fn authorize_auth_account_read(
     })
 }
 
+pub(super) struct AuthStartHost {
+    pub id: String,
+    pub principal: String,
+    pub credential_root: std::path::PathBuf,
+    pub browser_local: bool,
+    pub github_enterprise_authorities: Vec<String>,
+    #[cfg(target_os = "macos")]
+    pub environment: vw_agent_apps::apps::discovery::read::LocalReadEnvironment,
+}
+
+pub(super) fn authorize_auth_flow_start(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+) -> Result<AuthStartHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    use vw_api_types::agent_apps_auth::AuthService;
+
+    let authorized = access::authorize_auth_flow_start(path, headers, tenant, target, service)?;
+    if matches!(service, AuthService::AgyOauth | AuthService::DshAccount)
+        && !(path.is_some() && authorized.native_login_owner(service) == Some(true))
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let host = authorized.host;
+    Ok(AuthStartHost {
+        #[cfg(target_os = "macos")]
+        environment: vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
+            host_id: host.id.clone(),
+            home: host.home,
+            search_paths: host.search_paths,
+            applications: host.applications,
+        },
+        id: host.id,
+        principal: authorized.principal,
+        credential_root: host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
+        browser_local: authorized.auth_browser_local,
+        github_enterprise_authorities: host.github_enterprise_authorities,
+    })
+}
+
 mod lifecycle;
 #[cfg(all(test, unix))]
 mod lifecycle_tests;

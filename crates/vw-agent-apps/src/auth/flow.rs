@@ -432,6 +432,21 @@ impl AuthFlows {
         Ok(self.find(scope, flow_id)?.state_at(clock)?.0.snapshot.clone())
     }
 
+    /// Gate an operation that can only reach the live attempt.
+    pub fn require_pending(
+        &self,
+        scope: AuthAccountScope<'_>,
+        flow_id: &AuthFlowId,
+        clock: impl FnOnce() -> Instant,
+    ) -> Result<(), AuthErrorCode> {
+        let record = self.find(scope, flow_id)?;
+        let (state, _) = record.state_at(clock)?;
+        if state.cancelling || !matches!(state.snapshot, AuthFlow::Pending { .. }) {
+            return Err(AuthErrorCode::Conflict);
+        }
+        Ok(())
+    }
+
     /// Invalidate the attempt before teardown and report cancellation only
     /// after local cleanup succeeds. A failed teardown leaves the attempt
     /// ineligible for completion and allows cancellation to be retried.

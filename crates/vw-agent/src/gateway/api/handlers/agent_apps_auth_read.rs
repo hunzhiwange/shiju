@@ -38,7 +38,7 @@ use vw_api_types::{
 };
 
 #[derive(Clone)]
-struct PolicyFile(Option<PathBuf>);
+pub(super) struct PolicyFile(pub(super) Option<PathBuf>);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -76,6 +76,7 @@ pub(crate) fn router(
     policy: Option<PathBuf>,
 ) -> Router {
     Router::new()
+        .merge(super::agent_apps_auth_start::routes())
         .route("/v1/agent-apps/auth/accounts", get(read).layer(Extension(Resource::Accounts)))
         .route("/v1/agent-apps/auth/status", get(read).layer(Extension(Resource::Status)))
         .route("/v1/agent-apps/auth/bindings", get(read).layer(Extension(Resource::Bindings)))

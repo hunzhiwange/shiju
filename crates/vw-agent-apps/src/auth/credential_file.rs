@@ -406,6 +406,36 @@ impl CredentialFileStore {
         self.lease(tenant, host, AppId::Claude, id, true)?.register_claude_directory()
     }
 
+    /// Remove a newly allocated Claude login directory before its account is published.
+    /// The caller must have confirmed that this ID has no published metadata.
+    #[cfg(target_os = "macos")]
+    pub fn discard_unpublished_claude(
+        &self,
+        scope: AuthAccountScope<'_>,
+        id: &str,
+        keychain: &dyn super::claude_keychain::ClaudeKeychain,
+    ) -> Result<(), vw_api_types::agent_apps_auth::AuthErrorCode> {
+        use crate::providers::claude_login::LoginMaterial;
+        use sha2::{Digest, Sha256};
+        use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+        scope.validate()?;
+        if scope.service != AuthService::ClaudeOfficial {
+            return Err(AuthErrorCode::Unsupported);
+        }
+        let storage = |_| AuthErrorCode::StorageUnavailable;
+        let owner = self.for_owner(scope.principal).map_err(storage)?;
+        let lease =
+            owner.lease(scope.tenant, scope.host, AppId::Claude, id, false).map_err(storage)?;
+        let AccountCredential::ClaudeDirectory(directory) = lease.read().map_err(storage)? else {
+            return Err(AuthErrorCode::StorageUnavailable);
+        };
+        let material = LoginMaterial::from_account(directory.path(), keychain)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let identity = material.identity().map_err(|_| AuthErrorCode::IdentityMismatch)?;
+        let hash = identity.map_or([0; 32], |identity| Sha256::digest(identity.as_bytes()).into());
+        lease.remove_claude(keychain, hash)
+    }
+
     /// Observe managed material without acquiring a write lease or adopting a native login.
     pub fn read_managed_account(
         &self,

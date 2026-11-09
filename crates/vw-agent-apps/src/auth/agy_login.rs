@@ -60,6 +60,18 @@ impl AgyLogin {
         Self::start_with_lifetime(flows, scope, request, browser_on_execution_host, LOGIN_LIFETIME)
     }
 
+    /// Bind the shared keychain user to the authorized host before opening the listener.
+    pub fn start_on_host(
+        flows: &AuthFlows,
+        scope: AuthAccountScope<'_>,
+        request: AuthStartRequest,
+        browser_on_execution_host: bool,
+        native: super::agy_account::AgyNativeTarget<'_>,
+    ) -> Result<Self, AuthErrorCode> {
+        super::agy_account::native_home(scope, native)?;
+        Self::start(flows, scope, request, browser_on_execution_host)
+    }
+
     pub(super) fn start_with_lifetime(
         flows: &AuthFlows,
         scope: AuthAccountScope<'_>,

@@ -255,6 +255,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         // Model providers validate client payload and context sizes.
         .layer(DefaultBodyLimit::disable())
         .layer(from_fn(request_timeout_middleware))
+        .merge(super::router::management_auth_router())
         .layer(cors);
 
     tokio::select! {

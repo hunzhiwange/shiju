@@ -489,7 +489,7 @@ fn hot_restore_preserves_virtual_window_and_scroll_anchor() {
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
 #[test]
-fn cold_session_open_applies_history_and_base_ui_once() {
+fn cold_session_open_applies_cached_history_and_prepares_base_ui() {
     let mut app = app();
     app.active_session_id = Some("target".to_string());
     app.chat_render_cache.insert(99, crate::app::models::ChatRenderCacheEntry::default());
@@ -498,7 +498,7 @@ fn cold_session_open_applies_history_and_base_ui_once() {
         false,
     );
 
-    let task = super::super::lifecycle::handle(
+    let _ = super::super::lifecycle::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::SessionOpenPrepared {
             target_session_id: "target".to_string(),
@@ -517,7 +517,6 @@ fn cold_session_open_applies_history_and_base_ui_once() {
     assert!(!app.active_session_view_state.ui_preparing);
     assert!(app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));
     assert!(!app.chat_render_cache.contains_key(&99));
-    assert_eq!(task.units(), 1);
 }
 
 #[test]

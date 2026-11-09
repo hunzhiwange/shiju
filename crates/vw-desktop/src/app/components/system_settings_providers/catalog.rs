@@ -17,9 +17,10 @@ use crate::app::state::{ModelCatalogEntry, ProviderSummary, is_shiju_official_pr
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
-    button, checkbox, column, container, row, scrollable, text, text::Wrapping, text_input,
+    button, checkbox, column, container, responsive, row, scrollable, text, text::Wrapping,
+    text_input,
 };
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Element, Length, Theme};
 use std::collections::BTreeMap;
 use vw_config_types::ui::DesktopLocale;
 
@@ -206,11 +207,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 pub(crate) fn deployments<'a>(
     form: &'a crate::app::state::app_providers::model_catalog::CatalogForm,
     generation: u64,
+    i18n: I18n,
+    theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     use crate::app::components::system_settings_common::{
-        settings_checkbox_style, settings_field_label, settings_modal_layout,
-        settings_responsive_row, settings_value_badge,
+        settings_checkbox_style, settings_field_label, settings_flexible_row_with_help,
+        settings_modal_layout, settings_responsive_row, settings_value_badge,
     };
     use crate::app::message::settings::providers::catalog_api::{Event, message};
 
@@ -263,17 +266,52 @@ pub(crate) fn deployments<'a>(
         }
     });
     let has_model = form.edit_id.is_some() || !form.manual_id.trim().is_empty();
-    let alias = settings_responsive_row(
-        "显示别名",
-        "别名仅用于显示，发送请求时使用原始模型 ID。",
-        move || {
-            settings_text_input("可留空", &form.alias).on_input_maybe(
-                (editable && has_model).then_some(|value| message(Event::Alias(value))),
+    let alias_label = i18n.__("显示别名");
+    let alias_help = i18n.__("别名仅用于显示，发送请求时使用原始模型 ID。");
+    let alias_theme = theme.clone();
+    let alias = responsive(move |size| {
+        let input = settings_text_input("可留空", &form.alias).on_input_maybe(
+            (editable && has_model).then_some(|value| message(Event::Alias(value))),
+        );
+        if size.width >= 600.0 {
+            settings_flexible_row_with_help(
+                i18n,
+                &alias_theme,
+                alias_label,
+                alias_help,
+                460.0,
+                input,
             )
-        },
-    );
+            .padding([6, 0])
+            .into()
+        } else {
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    &alias_theme,
+                    alias_label,
+                    settings_field_label(alias_label),
+                    alias_help,
+                )
+                .wrap(),
+                input,
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+            .into()
+        }
+    })
+    .height(Length::Shrink);
+    let endpoint_label = i18n.__("目标部署端点");
     let mut fields = column![
-        settings_field_label("目标部署端点"),
+        settings_hover_help_label(
+            i18n,
+            theme,
+            endpoint_label,
+            settings_field_label(endpoint_label),
+            i18n.__("选择下方预设端点，也可以直接输入。"),
+        )
+        .wrap(),
         settings_control_with_hint(
             row![
                 endpoint,
@@ -291,7 +329,7 @@ pub(crate) fn deployments<'a>(
             ]
             .align_y(Alignment::Center)
             .spacing(8),
-            "选择下方预设端点，也可以直接输入。切换端点会清空当前草稿与已选模型。"
+            i18n.__("切换端点会清空当前草稿与已选模型。"),
         ),
         id,
         alias,
@@ -317,7 +355,7 @@ pub(crate) fn deployments<'a>(
     }
     let mut body = column![settings_group_card(container(fields).padding([12, 0]))].spacing(10);
 
-    body = body.push(discovery::view(form));
+    body = body.push(discovery::view(form, i18n, theme));
 
     if let Some(notice) = &form.notice {
         body = body.push(settings_error_banner(notice.as_str()));

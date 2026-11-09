@@ -31,17 +31,21 @@ pub(super) fn fields<'a>(
         .group("OpenCode 原生供应商节点", "仅编辑单个节点的 JSON，可用注释。保存时由执行端校验。");
     let mut fields = column![].spacing(10);
     if create {
-        fields = fields.push(settings_control_with_hint(
-            checkbox(v2)
-                .label("使用 V2 原生节点（providers）")
-                .style(settings_checkbox_style)
-                .on_toggle_maybe(enabled.then_some(move |value| event(Field::V2(value)))),
-            if v2 {
-                "V2 节点使用 package、settings 与 models。"
-            } else {
-                "V1 节点使用 npm、options 与 models。"
-            },
-        ));
+        fields = fields
+            .push(help.field(
+                "节点格式",
+                if v2 {
+                    "V2 节点使用 package、settings 与 models。"
+                } else {
+                    "V1 节点使用 npm、options 与 models。"
+                },
+            ))
+            .push(
+                checkbox(v2)
+                    .label("使用 V2 原生节点（providers）")
+                    .style(settings_checkbox_style)
+                    .on_toggle_maybe(enabled.then_some(move |value| event(Field::V2(value)))),
+            );
     } else {
         fields = fields.push(settings_control_with_hint(
             settings_value_badge(if v2 { "V2 · providers" } else { "V1 · provider" }),

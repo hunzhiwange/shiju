@@ -621,3 +621,63 @@ async fn help_rollout_06_renders_claude_family() {
         );
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_16_opencode_format_and_protected_values() {
+    use super::super::desktop::ui_refresh_12_tests::Scene as HelpScene;
+    use crate::app::i18n::I18n;
+    use events::opencode::Field;
+    use vw_config_types::ui::DesktopLocale;
+
+    let mut renderer = renderer().await;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        for (theme, width) in [(Theme::Light, 860), (Theme::Dark, 420)] {
+            for (format, badge, description) in [
+                (OpenCodeFormat::V1, "V1 · provider", "V1 节点使用 npm、options 与 models。"),
+                (OpenCodeFormat::V2, "V2 · providers", "V2 节点使用 package、settings 与 models。"),
+            ] {
+                let mut form = fixture(AppId::OpenCode, Mode::Create);
+                form.opencode.as_mut().unwrap().format = format;
+                let help = Help::new(i18n, &theme);
+                let size = Size::new(width, 920);
+                let mut scene =
+                    HelpScene::new(edit::overlay(&form, help, base()), &mut renderer, size);
+                scene.assert_body(
+                    &renderer,
+                    &[description, i18n.__(description)],
+                    &["使用 V2 原生节点（providers）"],
+                );
+                scene.assert_help_copy(
+                    &mut renderer,
+                    &theme,
+                    i18n.__("节点格式"),
+                    i18n.__(description),
+                );
+                let v2 = format == OpenCodeFormat::V2;
+                assert!(matches!(
+                    scene.click_label(&mut renderer, "使用 V2 原生节点（providers）").as_slice(),
+                    [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::OpenCode(Field::V2(checked))))] if *checked != v2
+                ));
+
+                let mut form = fixture(AppId::OpenCode, Mode::Update);
+                form.opencode.as_mut().unwrap().format = format;
+                let mut scene =
+                    HelpScene::new(edit::overlay(&form, help, base()), &mut renderer, size);
+                scene.assert_body(
+                    &renderer,
+                    &[description, i18n.__(description), i18n.__("节点格式")],
+                    &[badge, "保留原位的「[保留执行端值]」可沿用受保护的配置。"],
+                );
+                assert!(matches!(
+                    scene.press(&mut renderer, &[2, 0]).as_slice(),
+                    [Message::Settings(SettingsMessage::AppProviderEdit(EditMessage::Cancel))]
+                ));
+            }
+        }
+    }
+}

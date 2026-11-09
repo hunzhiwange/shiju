@@ -51,14 +51,18 @@ async fn renderer() -> Renderer {
         .expect("tiny-skia renderer")
 }
 
-struct Scene<'a> {
+pub(in crate::app::components::app_providers) struct Scene<'a> {
     ui: UserInterface<'a, Message, Theme, Renderer>,
     layout: layout::Node,
     size: Size<u32>,
 }
 
 impl<'a> Scene<'a> {
-    fn new(mut element: Element<'a, Message>, renderer: &mut Renderer, size: Size<u32>) -> Self {
+    pub(in crate::app::components::app_providers) fn new(
+        mut element: Element<'a, Message>,
+        renderer: &mut Renderer,
+        size: Size<u32>,
+    ) -> Self {
         let viewport = Size::new(size.width as f32, size.height as f32);
         let mut tree = Tree::new(element.as_widget());
         let layout = element.as_widget_mut().layout(
@@ -108,7 +112,11 @@ impl<'a> Scene<'a> {
         )
     }
 
-    fn press(&mut self, renderer: &mut Renderer, path: &[usize]) -> Vec<Message> {
+    pub(in crate::app::components::app_providers) fn press(
+        &mut self,
+        renderer: &mut Renderer,
+        path: &[usize],
+    ) -> Vec<Message> {
         self.click(renderer, self.modal(path).center())
     }
 
@@ -796,5 +804,261 @@ fn help_icons(layout: Layout<'_>, icons: &mut Vec<Rectangle>) {
     }
     for child in layout.children() {
         help_icons(child, icons);
+    }
+}
+
+#[derive(Default)]
+struct BodyText(Vec<(String, Rectangle)>);
+
+impl Operation for BodyText {
+    fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation)) {
+        operate(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle, value: &str) {
+        self.0.push((value.to_owned(), bounds));
+    }
+}
+
+impl Scene<'_> {
+    pub(in crate::app::components::app_providers) fn assert_body(
+        &mut self,
+        renderer: &Renderer,
+        hidden: &[&str],
+        visible: &[&str],
+    ) {
+        let mut body = BodyText::default();
+        self.ui.operate(renderer, &mut body);
+        for phrase in hidden {
+            assert!(
+                !body.0.iter().any(|(text, _)| text.contains(phrase)),
+                "still in body: {phrase}"
+            );
+        }
+        for phrase in visible {
+            assert!(body.0.iter().any(|(text, _)| text == phrase), "missing from body: {phrase}");
+        }
+    }
+
+    pub(in crate::app::components::app_providers) fn click_label(
+        &mut self,
+        renderer: &mut Renderer,
+        label: &str,
+    ) -> Vec<Message> {
+        let bounds = self.text_bounds(renderer, label);
+        let point = visible_icon(self, renderer, bounds);
+        self.click(renderer, point)
+    }
+
+    fn text_bounds(&mut self, renderer: &Renderer, label: &str) -> Rectangle {
+        let mut body = BodyText::default();
+        self.ui.operate(renderer, &mut body);
+        body.0
+            .into_iter()
+            .find(|(text, _)| text == label)
+            .unwrap_or_else(|| panic!("missing {label}"))
+            .1
+    }
+
+    pub(in crate::app::components::app_providers) fn assert_help_copy(
+        &mut self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        label: &str,
+        description: &str,
+    ) {
+        let bounds = self.text_bounds(renderer, label);
+        let mut icons = Vec::new();
+        help_icons(Layout::new(&self.layout), &mut icons);
+        let icon = icons
+            .into_iter()
+            .find(|icon| {
+                (icon.center_y() - bounds.center_y()).abs() < 1.0
+                    && (icon.x - bounds.x - bounds.width - 4.0).abs() < 1.0
+            })
+            .unwrap_or_else(|| panic!("missing help icon for {label}: {bounds:?}"));
+        let point = visible_icon(self, renderer, icon);
+        let cursor = mouse::Cursor::Available(point);
+        let idle = self.capture(renderer, theme, mouse::Cursor::Unavailable, "");
+        assert!(
+            self.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+                cursor
+            )
+            .is_empty()
+        );
+        assert!(
+            idle != self.capture(renderer, theme, cursor, ""),
+            "help for {label} renders on hover"
+        );
+        assert!(self.click(renderer, point).is_empty());
+        assert!(
+            self.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::CursorLeft)],
+                mouse::Cursor::Unavailable
+            )
+            .is_empty()
+        );
+        assert!(
+            idle != self.capture(renderer, theme, mouse::Cursor::Unavailable, ""),
+            "help for {label} stays pinned"
+        );
+
+        let right = point.x + icon.width / 2.0 + 4.0;
+        let left = point.x - icon.width / 2.0 - 4.0;
+        let right_space = self.size.width as f32 - right;
+        let card_x = if right_space >= 300.0 || right_space >= left {
+            right
+        } else {
+            (left - 300.0).max(0.0)
+        };
+        let card = Point::new(card_x + 12.5, point.y + 5.0);
+        assert!(
+            self.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                mouse::Cursor::Available(card)
+            )
+            .is_empty()
+        );
+        let row_height =
+            f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+        let copy = Point::new(card.x + 24.0, card.y + 3.0 + row_height * 0.5);
+        let messages = self.click(renderer, copy);
+        assert!(
+            matches!(messages.as_slice(), [Message::CopyCode(value)] if value == description),
+            "{label}: {messages:?}"
+        );
+        assert!(self.send(renderer, &[key(Named::Escape)], mouse::Cursor::Unavailable).is_empty());
+        assert!(
+            idle == self.capture(renderer, theme, mouse::Cursor::Unavailable, ""),
+            "Esc dismisses help for {label}"
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_16_catalog_alias_endpoint_and_discovery() {
+    use crate::app::message::settings::providers::{catalog_api::Event as CatalogEvent, discovery};
+    use crate::app::state::app_providers::model_catalog::{
+        CatalogContext, CatalogForm, DiscoveryPhase,
+    };
+    use vw_gateway_client::vw_api_types::model_catalog::{
+        ModelCatalogEntry, ModelCatalogProject, ModelCatalogReadResponse,
+        ScopedModelCatalogIdentity,
+    };
+
+    let mut renderer = renderer().await;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        for (theme, width) in [(Theme::Light, 860), (Theme::Dark, 420)] {
+            for editing in [false, true] {
+                let mut state = list_fixture(AppId::OpenCode);
+                let mut form = CatalogForm::new(
+                    CatalogContext {
+                        scope: state.scope.clone().unwrap(),
+                        project: ModelCatalogProject {
+                            project_id: "fixture-project".into(),
+                            directory: "/fixture/project".into(),
+                        },
+                        access_generation: 0,
+                    },
+                    "fixture-id".into(),
+                );
+                form.endpoint = "https://example.invalid/v1".into();
+                let identity = ScopedModelCatalogIdentity {
+                    scope: Default::default(),
+                    deployment: form.deployment(),
+                    model_id: "fixture-saved-model".into(),
+                };
+                form.catalog = Some(ModelCatalogReadResponse {
+                    revision: "fixture-revision".into(),
+                    default_model_id: None,
+                    items: vec![ModelCatalogEntry {
+                        identity: identity.clone(),
+                        display_alias: Some("Fixture alias".into()),
+                        metadata: Default::default(),
+                    }],
+                    next_cursor: None,
+                });
+                if editing {
+                    form.edit_model(identity.model_id.clone());
+                } else {
+                    form.manual_id = "fixture-new-model".into();
+                }
+                form.discovery.results = vec![ScopedModelCatalogIdentity {
+                    model_id: "fixture-model".into(),
+                    ..identity
+                }]
+                .into();
+                form.discovery.phase = DiscoveryPhase::Completed(form.discovery.results.clone());
+                form.discovery.results_run = 7;
+                state.model_catalog = Some(form);
+
+                let mut scene = Scene::new(
+                    list::overlay(&state, Help::new(i18n, &theme), base()),
+                    &mut renderer,
+                    Size::new(width, 920),
+                );
+                let help = [
+                    ("显示别名", "别名仅用于显示，发送请求时使用原始模型 ID。"),
+                    ("目标部署端点", "选择下方预设端点，也可以直接输入。"),
+                    ("发现模型", "使用执行主机上已保存的供应商配置或 CLI。"),
+                ];
+                for (label, copy) in help {
+                    scene.assert_body(&renderer, &[copy, i18n.__(copy)], &[i18n.__(label)]);
+                }
+                scene.assert_body(
+                    &renderer,
+                    &[],
+                    &[
+                        i18n.__("切换端点会清空当前草稿与已选模型。"),
+                        i18n.__("勾选结果后可保存到此部署。"),
+                        "发现已完成。",
+                        "fixture-model",
+                    ],
+                );
+                for (label, copy) in help {
+                    scene.assert_help_copy(&mut renderer, &theme, i18n.__(label), i18n.__(copy));
+                }
+                assert!(matches!(
+                    scene.click_label(&mut renderer, "刷新已保存模型").as_slice(),
+                    [Message::Settings(SettingsMessage::AppProviders(ListMessage::ModelCatalog(
+                        CatalogEvent::LoadCatalog
+                    )))]
+                ));
+                assert!(matches!(
+                    scene.click_label(&mut renderer, "fixture-model").as_slice(),
+                    [Message::Settings(SettingsMessage::AppProviders(ListMessage::ModelCatalog(
+                        CatalogEvent::Discovery(discovery::Event::Toggle {
+                            run: 7,
+                            index: 0,
+                            checked: true
+                        })
+                    )))]
+                ));
+                let action = if editing { "取消编辑" } else { "编辑" };
+                assert!(matches!(
+                    (editing, scene.click_label(&mut renderer, action).as_slice()),
+                    (
+                        true,
+                        [Message::Settings(SettingsMessage::AppProviders(
+                            ListMessage::ModelCatalog(CatalogEvent::CancelEdit)
+                        ))]
+                    ) | (
+                        false,
+                        [Message::Settings(SettingsMessage::AppProviders(
+                            ListMessage::ModelCatalog(CatalogEvent::EditModel { .. })
+                        ))]
+                    )
+                ));
+            }
+        }
     }
 }

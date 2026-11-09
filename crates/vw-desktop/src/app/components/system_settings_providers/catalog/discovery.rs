@@ -5,8 +5,9 @@ use crate::app::{
     components::system_settings_common::{
         primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
         settings_error_banner, settings_field_label, settings_group_card,
-        settings_muted_text_style,
+        settings_hover_help_label, settings_muted_text_style,
     },
+    i18n::I18n,
     message::settings::providers::{
         catalog_api::{self, Event as CatalogEvent},
         discovery::{self, Event},
@@ -14,7 +15,7 @@ use crate::app::{
     state::app_providers::model_catalog::{CatalogForm, DiscoveryPhase},
 };
 use iced::{
-    Element,
+    Element, Theme,
     widget::{button, checkbox, column, container, row, text, text::Wrapping},
 };
 use vw_gateway_client::vw_api_types::model_catalog::{ModelDiscoveryFailure, ModelDiscoveryMethod};
@@ -23,7 +24,7 @@ fn message(event: Event) -> Message {
     catalog_api::message(CatalogEvent::Discovery(event))
 }
 
-pub(super) fn view(form: &CatalogForm) -> Element<'_, Message> {
+pub(super) fn view<'a>(form: &'a CatalogForm, i18n: I18n, theme: &Theme) -> Element<'a, Message> {
     use DiscoveryPhase::*;
 
     let phase = &form.discovery.phase;
@@ -55,9 +56,17 @@ pub(super) fn view(form: &CatalogForm) -> Element<'_, Message> {
             );
         }
     }
+    let label = i18n.__("发现模型");
     let mut content = column![
-        settings_field_label("发现模型"),
-        text("使用执行主机上已保存的供应商配置或 CLI。勾选结果后可保存到此部署。")
+        settings_hover_help_label(
+            i18n,
+            theme,
+            label,
+            settings_field_label(label),
+            i18n.__("使用执行主机上已保存的供应商配置或 CLI。"),
+        )
+        .wrap(),
+        text(i18n.__("勾选结果后可保存到此部署。"))
             .size(13)
             .wrapping(Wrapping::WordOrGlyph)
             .style(settings_muted_text_style),

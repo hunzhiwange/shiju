@@ -360,6 +360,8 @@ pub(crate) fn overlay<'a>(
         return crate::app::components::system_settings_providers::catalog::deployments(
             form,
             state.generation,
+            help.i18n,
+            help.theme,
             list,
         );
     }

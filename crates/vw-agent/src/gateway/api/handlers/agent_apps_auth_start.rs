@@ -46,6 +46,8 @@ mod native;
 #[derive(Default)]
 pub(super) struct Runtime {
     pub(super) flows: AuthFlows,
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) codex_device_oauth: Option<SocketAddr>,
     kimi: OnceLock<Result<KimiDeviceAuth, AuthErrorCode>>,
     #[cfg(target_os = "macos")]
     claude: native::ClaudeAttempts,
@@ -232,6 +234,12 @@ async fn run(
             .await;
         }
         (AuthService::CodexOauth, AuthLoginMethod::DeviceCode) => {
+            #[cfg(all(test, target_os = "macos"))]
+            let adapter = match runtime.codex_device_oauth {
+                Some(address) => CodexDeviceAuth::with_loopback_oauth(address),
+                None => CodexDeviceAuth::new(),
+            }?;
+            #[cfg(not(all(test, target_os = "macos")))]
             let adapter = CodexDeviceAuth::new()?;
             let flow = adapter.start(flows, scope, input).await?;
             drive(flows, scope, flow.response.clone(), reply, || {

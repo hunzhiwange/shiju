@@ -7,11 +7,12 @@ use super::{
 };
 use crate::providers::{codex_login_material::parse_codex_jwt_claims, validate_identity};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use reqwest::{Client, Request, Response, StatusCode};
+use reqwest::{Client, Request, Response, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
+    net::SocketAddr,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -34,6 +35,7 @@ const REDIRECT_URI: &str = "https://auth.openai.com/deviceauth/callback";
 
 pub struct CodexDeviceAuth {
     client: Client,
+    loopback_origin: Option<Url>,
 }
 
 /// The response is safe to return to the caller. The OAuth grant stays on the host.
@@ -84,7 +86,31 @@ enum Exchange {
 
 impl CodexDeviceAuth {
     pub fn new() -> Result<Self, AuthErrorCode> {
-        Ok(Self { client: oauth_client()? })
+        Ok(Self { client: oauth_client()?, loopback_origin: None })
+    }
+
+    /// Redirect outbound OAuth requests to an isolated loopback fixture.
+    #[doc(hidden)]
+    pub fn with_loopback_oauth(address: SocketAddr) -> Result<Self, AuthErrorCode> {
+        if !address.ip().is_loopback() || address.port() == 0 {
+            return Err(AuthErrorCode::InvalidInput);
+        }
+        let origin =
+            Url::parse(&format!("http://{address}")).map_err(|_| AuthErrorCode::InvalidInput)?;
+        let client = oauth_client_builder()
+            .no_proxy()
+            .build()
+            .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+        Ok(Self { client, loopback_origin: Some(origin) })
+    }
+
+    fn route_oauth(&self, request: &mut Request) {
+        if let Some(origin) = &self.loopback_origin {
+            let mut url = origin.clone();
+            url.set_path(request.url().path());
+            url.set_query(request.url().query());
+            *request.url_mut() = url;
+        }
     }
 
     pub async fn start(
@@ -93,7 +119,7 @@ impl CodexDeviceAuth {
         scope: AuthAccountScope<'_>,
         request: AuthStartRequest,
     ) -> Result<CodexDeviceStart, AuthErrorCode> {
-        self.start_with(flows, scope, request, |_| {}).await
+        self.start_with(flows, scope, request, |outbound| self.route_oauth(outbound)).await
     }
 
     pub(super) async fn start_with(
@@ -185,7 +211,15 @@ impl CodexDeviceAuth {
             &AccountCredential,
         ) -> Result<(), AuthErrorCode>,
     ) -> Result<AuthFlow, AuthErrorCode> {
-        self.poll_with(flows, scope, started, Instant::now, |_| {}, persist).await
+        self.poll_with(
+            flows,
+            scope,
+            started,
+            Instant::now,
+            |outbound| self.route_oauth(outbound),
+            persist,
+        )
+        .await
     }
 
     pub(super) async fn poll_with(
@@ -305,12 +339,14 @@ pub(super) fn validate_start(
 }
 
 pub(super) fn oauth_client() -> Result<Client, AuthErrorCode> {
+    oauth_client_builder().build().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
+}
+
+fn oauth_client_builder() -> reqwest::ClientBuilder {
     Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(30))
         .user_agent(USER_AGENT)
-        .build()
-        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)
 }
 
 pub(super) async fn exchange_code(

@@ -257,6 +257,9 @@ mod agent_apps_auth_default;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_default_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_integration_tests;
+
 mod agent_apps_auth_logout;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_logout_tests;

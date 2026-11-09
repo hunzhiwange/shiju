@@ -27,6 +27,7 @@ fn sandbox_auto_allow_rejects_excluded_commands() {
 fn sandbox_auto_allow_allows_expression_interpreters() {
     let allow = SandboxAutoAllow::default();
     assert!(allow.should_auto_allow(&parse_command("python3 -c 'print(1)'"), true));
+    assert!(allow.should_auto_allow(&parse_command("python3 -I -c 'print(1)'"), true));
     assert!(allow.should_auto_allow(&parse_command("node -e 'console.log(1)'"), true));
 }
 
@@ -43,5 +44,6 @@ fn sandbox_auto_allow_rejects_interpreter_script_files() {
     let allow = SandboxAutoAllow::default();
 
     assert!(!allow.should_auto_allow(&parse_command("python3 script.py"), true));
+    assert!(!allow.should_auto_allow(&parse_command("python3 -I script.py"), true));
     assert!(!allow.should_auto_allow(&parse_command("node script.js"), true));
 }

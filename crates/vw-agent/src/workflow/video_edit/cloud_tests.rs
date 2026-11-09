@@ -104,6 +104,8 @@ fn request(name: &str, inputs: Value) -> WorkflowToolRequest {
 #[tokio::test]
 async fn video_edit_cloud_transport_discovers_current_instance_and_full_private_receipt() {
     let (dir, ctx, skill) = fixture("ok");
+    std::fs::write(dir.path().join("json.py"), "raise RuntimeError('workspace module imported')")
+        .unwrap();
     let provider = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
         .await
         .unwrap();

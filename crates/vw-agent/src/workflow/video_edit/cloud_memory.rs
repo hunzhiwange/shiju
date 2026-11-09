@@ -99,7 +99,7 @@ impl ShijuCloudVideoToolProvider {
         request["cwd"] = json!(self.hub_root);
         request["occ"] = json!(self.occ);
         let command = format!(
-            "python3 -c {} {}",
+            "python3 -I -c {} {}",
             shell_words::quote(MEMORY_PROCESS),
             shell_words::quote(socket.to_str().context("socket path encoding")?)
         );

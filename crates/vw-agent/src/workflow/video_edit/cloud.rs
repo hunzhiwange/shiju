@@ -39,7 +39,7 @@ os_error = None
 if key_present:
     with open(p.parent / 'stdout', 'wb') as out, open(p.parent / 'stderr', 'wb') as err:
         try:
-            code = subprocess.run(r['argv'], cwd=r['cwd'], env=e, stdin=subprocess.DEVNULL, stdout=out, stderr=err).returncode
+            code = subprocess.run(r['argv'], cwd=r['cwd'], env=e, input=b'', stdout=out, stderr=err).returncode
         except OSError as error:
             code = 2
             os_error = error.errno
@@ -298,8 +298,9 @@ impl ShijuCloudVideoToolProvider {
             .map_err(|_| "云端传输编码失败")?,
         )?;
         let manifest = dir.join("request.json");
+        // The helper imports standard modules while running in the user's workspace.
         let command = format!(
-            "python3 -c {} {}",
+            "python3 -I -c {} {}",
             shell_words::quote(CAPTURE),
             shell_words::quote(manifest.to_str().ok_or("调用路径不是 UTF-8")?)
         );
@@ -322,8 +323,17 @@ impl ShijuCloudVideoToolProvider {
             )?;
         }
         process.terminal = true;
-        if result["state"] != "exited" || result["exit_code"] != 0 {
-            return Err("原生传输未正常结束".into());
+        match (result["state"].as_str(), result["exit_code"].as_i64()) {
+            (Some("exited"), Some(0)) => {}
+            (Some("cancelled"), _) => return Err("cancelled".into()),
+            (Some("timed_out"), _) => return Err("原生云端传输超时".into()),
+            (Some("exited"), Some(126 | 127)) => {
+                return Err("无法启动原生云端传输所需的 Python 3".into());
+            }
+            (Some("exited"), Some(code)) => {
+                return Err(format!("原生云端传输进程失败（退出码 {code}）"));
+            }
+            _ => return Err("原生传输未正常结束".into()),
         }
         let status: Value = serde_json::from_str(&read_receipt(&dir.join("exit.json"))?)
             .map_err(|_| "调用器退出回执无效")?;

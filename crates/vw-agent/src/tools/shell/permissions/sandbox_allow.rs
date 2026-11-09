@@ -68,7 +68,9 @@ fn command_args(cmd: &ParsedCommand) -> Vec<&str> {
 
 fn matches_interpreter_expression(cmd: &ParsedCommand) -> bool {
     match command_name(cmd) {
-        Some("python3" | "python") => matches!(command_args(cmd).as_slice(), ["-c", ..]),
+        Some("python3" | "python") => {
+            matches!(command_args(cmd).as_slice(), ["-c", ..] | ["-I", "-c", ..])
+        }
         Some("node" | "ruby") => matches!(command_args(cmd).as_slice(), ["-e", ..]),
         _ => false,
     }

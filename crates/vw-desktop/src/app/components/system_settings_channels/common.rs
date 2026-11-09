@@ -16,6 +16,7 @@ use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
+use std::borrow::Cow;
 use vw_config_types::channels::{GroupReplyConfig, LarkReceiveMode, QQReceiveMode};
 use vw_config_types::ui::DesktopLocale;
 
@@ -285,8 +286,10 @@ pub(super) fn text_row_with_key<'a>(
             .text_editors
             .get(&key)
             .expect("multiline channel editor should be initialized");
+        let locale = app.desktop_locale;
+        let wildcard = placeholder == "逗号或换行分隔，支持 *";
         let editor = settings_text_editor(editor)
-            .placeholder(tr(app.desktop_locale, multiline_placeholder(placeholder)))
+            .placeholder(if wildcard { "" } else { tr(locale, multiline_placeholder(placeholder)) })
             .on_action(move |action| {
                 Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(
                     key.clone(),
@@ -294,20 +297,25 @@ pub(super) fn text_row_with_key<'a>(
                 )))
             })
             .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT));
-        let editor: Element<'a, Message> = if placeholder == "逗号或换行分隔，支持 *" {
+        let (label, editor): (Element<'a, Message>, Element<'a, Message>) = if wildcard {
+            let help = settings_hover_help_label(
+                I18n::new(locale),
+                &app.app_theme,
+                display_label,
+                settings_field_label(display_label),
+                tr(locale, multiline_placeholder(placeholder)),
+            )
+            .wrap();
             let hint = if label == "group_reply.allowed_sender_ids" {
-                "填写 * 表示允许所有发送者，推荐使用。"
+                "* 表示允许所有发送者。"
             } else {
-                "填写 * 表示允许所有用户，推荐使用。"
+                "* 表示允许所有用户。"
             };
-            settings_control_with_hint(editor, tr(app.desktop_locale, hint))
+            (help.into(), settings_control_with_hint(editor, tr(locale, hint)))
         } else {
-            editor.into()
+            (settings_field_label(display_label).into(), editor.into())
         };
-        return column![settings_field_label(display_label), editor]
-            .spacing(6)
-            .width(Length::Fill)
-            .into();
+        return column![label, editor].spacing(6).width(Length::Fill).into();
     }
 
     let value = input_value(app, &key, value);
@@ -396,18 +404,46 @@ pub(super) fn number_row<'a>(
 }
 
 pub(super) fn number_row_with_hint<'a>(
-    locale: DesktopLocale,
+    app: &'a App,
     label: &'static str,
     value: u32,
     min: u32,
     max: u32,
-    suffix: &'static str,
     key: &'static str,
-    hint: &'static str,
+    (description, hint): (&'static str, &'static str),
 ) -> Element<'a, Message> {
-    settings_responsive_row(tr(locale, localized_label(label)), hint, move || {
-        number_control(value, min, max, suffix, key.to_string())
+    let locale = app.desktop_locale;
+    let i18n = I18n::new(locale);
+    let theme = &app.app_theme;
+    let label = tr(locale, localized_label(label));
+    let description = tr(locale, description);
+    let hint = tr(locale, hint);
+    responsive(move |size| {
+        let control =
+            settings_control_with_hint(number_control(value, min, max, "", key.into()), hint);
+        if size.width >= 600.0 {
+            settings_flexible_row_with_help(i18n, theme, label, description, 460.0, control)
+                .padding([6, 0])
+                .into()
+        } else {
+            column![
+                settings_hover_help_label(
+                    i18n,
+                    theme,
+                    label,
+                    settings_field_label(label),
+                    description
+                )
+                .wrap(),
+                control,
+            ]
+            .spacing(6)
+            .width(Length::Fill)
+            .into()
+        }
     })
+    .height(Length::Shrink)
+    .into()
 }
 
 pub(super) fn number_row_with_key<'a>(
@@ -565,22 +601,12 @@ pub(super) fn panel<'a>(
     enabled: bool,
     body: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let heading = settings_group_heading_with_help(
-        I18n::new(app.desktop_locale),
-        &app.app_theme,
-        title,
-        description,
-    );
-    panel_with_heading(app, id, heading, enabled, body)
-}
-
-pub(super) fn panel_with_heading<'a>(
-    app: &'a App,
-    id: &'static str,
-    heading: Element<'a, Message>,
-    enabled: bool,
-    body: Element<'a, Message>,
-) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
+    let mut help = Cow::Borrowed(description);
+    if !enabled {
+        help = Cow::Owned(format!("{help}\n\n{}", tr(locale, "启用后显示该通道的详细配置表单。")));
+    }
+    let heading = settings_group_heading_with_help(I18n::new(locale), &app.app_theme, title, help);
     let header = row![
         container(heading).width(Length::Fill),
         checkbox(enabled)
@@ -611,12 +637,7 @@ pub(super) fn panel_with_heading<'a>(
         }
         content.push(body)
     } else {
-        column![
-            header,
-            settings_divider(),
-            hint_row(tr(app.desktop_locale, "启用后显示该通道的详细配置表单。"))
-        ]
-        .spacing(12)
+        column![header]
     };
 
     settings_group_card(container(content).padding([16, 0])).into()

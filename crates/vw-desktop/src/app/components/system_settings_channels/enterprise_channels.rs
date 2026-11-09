@@ -16,10 +16,9 @@ use iced::{Element, Length};
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
-    bool_row, default_project_selector, group_reply_mode_value, instance_title_row,
+    bool_row, default_project_selector, group_reply_mode_value, hint_row, instance_title_row,
     lark_receive_mode_value, number_row, number_row_with_hint, number_row_with_key, panel,
-    panel_with_heading, pick_row, pick_row_with_key, qq_receive_mode_value, text_row,
-    text_row_with_key,
+    pick_row, pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
 
 fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
@@ -333,17 +332,13 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
                 "feishu.receive_mode",
             ))
             .push(number_row_with_hint(
-                app.desktop_locale,
+                app,
                 "port",
                 cfg.port.unwrap_or(3000) as u32,
                 1,
                 u16::MAX as u32,
-                "",
                 "feishu.port",
-                tr(
-                    app.desktop_locale,
-                    "Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。",
-                ),
+                ("WebSocket 模式会忽略端口。", "Webhook 模式需要公网 HTTPS 入口。"),
             ))
             .push(number_row(
                 app.desktop_locale,
@@ -512,7 +507,11 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let enabled = s.dingtalk.is_some() || !s.dingtalk_instances.is_empty();
-    let mut body = column![qr_authorization(app, "dingtalk")].spacing(12);
+    let mut body = column![
+        hint_row(tr(app.desktop_locale, "白名单为空时拒绝所有用户。")),
+        qr_authorization(app, "dingtalk")
+    ]
+    .spacing(12);
 
     if let Some(cfg) = s.dingtalk.as_ref() {
         body = body
@@ -599,16 +598,11 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("dingtalk", tr(app.desktop_locale, "新增钉钉实例")));
 
-    panel_with_heading(
+    panel(
         app,
         "dingtalk",
-        settings_group_heading(
-            tr(app.desktop_locale, "钉钉"),
-            tr(
-                app.desktop_locale,
-                "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
-            ),
-        ),
+        tr(app.desktop_locale, "钉钉"),
+        tr(app.desktop_locale, "钉钉 Stream 模式鉴权。"),
         enabled,
         body.into(),
     )

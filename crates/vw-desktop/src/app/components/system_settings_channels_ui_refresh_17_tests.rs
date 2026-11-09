@@ -1021,10 +1021,6 @@ async fn help_rollout_11_renders_contextual_help() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     const ERROR: &str = "Fixture channel validation error";
-    const FEISHU_PORT_CONDITION: &str =
-        "Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。";
-    const DINGTALK_ALLOWLIST: &str =
-        "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。";
     const WORKING_PROJECT_HELP: &str =
         "从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。";
     app.channels_settings.save_error = Some(ERROR.into());
@@ -1113,7 +1109,7 @@ async fn help_rollout_11_renders_contextual_help() {
                 );
                 let positions = geometry(&mut ui, &renderer);
                 positions.input(&"•".repeat("fixture-secret".len()));
-                let condition = positions.label(tr(locale, FEISHU_PORT_CONDITION));
+                let condition = positions.label(tr(locale, HELP_GAP_06_PORT_HINT));
                 assert!(condition.y + condition.height < size.height as f32);
                 let qr = positions.label(tr(locale, "获取二维码")).center();
                 assert!(matches!(
@@ -1127,7 +1123,8 @@ async fn help_rollout_11_renders_contextual_help() {
         app.channels_settings.active_tab = ChannelsSettingsTab::DingTalk;
         let mut ui = scene(view(&app), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
-        positions.label(tr(locale, DINGTALK_ALLOWLIST));
+        positions.label(tr(locale, HELP_GAP_06_EMPTY));
+        positions.label(tr(locale, HELP_GAP_06_USERS));
         positions.label(tr(locale, "使用手机端扫描二维码；授权成功后请明确保存。"));
     }
 }
@@ -1170,4 +1167,309 @@ fn assert_channel_help_menu(
         send(ui, renderer, mouse::Cursor::Unavailable, &[key(iced::keyboard::key::Named::Escape)])
             .is_empty()
     );
+}
+
+const HELP_GAP_06_PORT_HELP: &str = "WebSocket 模式会忽略端口。";
+const HELP_GAP_06_PORT_HINT: &str = "Webhook 模式需要公网 HTTPS 入口。";
+const HELP_GAP_06_STREAM: &str = "钉钉 Stream 模式鉴权。";
+const HELP_GAP_06_EMPTY: &str = "白名单为空时拒绝所有用户。";
+const HELP_GAP_06_USERS: &str = "* 表示允许所有用户。";
+const HELP_GAP_06_SENDERS: &str = "* 表示允许所有发送者。";
+const HELP_GAP_06_FORMAT: &str = "每行一个，亦支持逗号分隔，可使用 *";
+const HELP_GAP_06_DISABLED: &str = "启用后显示该通道的详细配置表单。";
+
+fn help_gap_06_contexts() -> [(u32, Theme, DesktopLocale); 3] {
+    [
+        (420, Theme::Light, DesktopLocale::SimplifiedChinese),
+        (960, Theme::Dark, DesktopLocale::TraditionalChinese),
+        (420, Theme::Dark, DesktopLocale::English),
+    ]
+}
+
+fn assert_channel_text_absent(
+    positions: &Geometry,
+    locale: DesktopLocale,
+    explanations: &[&'static str],
+) {
+    for explanation in explanations {
+        let localized = tr(locale, explanation);
+        assert!(
+            positions.labels.iter().all(|(label, _)| !label.contains(localized)),
+            "{locale:?}: {localized} is visible in the closed form"
+        );
+    }
+}
+
+fn assert_help_gap_06_card(
+    ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+    renderer: &mut Renderer,
+    (size, theme, locale): (Size<u32>, &Theme, DesktopLocale),
+    title: &'static str,
+    description: &str,
+) {
+    let label = geometry(ui, renderer)
+        .labels
+        .iter()
+        .rev()
+        .find(|(label, _)| label == tr(locale, title))
+        .unwrap_or_else(|| panic!("missing help title {title}"))
+        .1;
+    let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+    let render = |ui: &mut UserInterface<'_, Message, Theme, Renderer>,
+                  renderer: &mut Renderer,
+                  phase,
+                  cursor| {
+        screenshot(ui, renderer, theme, size, &format!("gap-06-{locale:?}-{title}-{phase}"), cursor)
+    };
+    let away = mouse::Cursor::Unavailable;
+    let idle = render(ui, renderer, "idle", away);
+    let cursor = mouse::Cursor::Available(icon);
+    assert!(
+        send(ui, renderer, cursor, &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    assert!(idle != render(ui, renderer, "hover", cursor), "{locale:?}: {title} hover");
+    assert!(click(ui, renderer, icon).is_empty());
+    let pinned = render(ui, renderer, "pinned", away);
+    assert!(idle != pinned, "{locale:?}: {title} pinned");
+    let left = icon.x - 15.0;
+    let right = icon.x + 15.0;
+    let right_space = size.width as f32 - right;
+    let width = 300.0_f32.min(left.max(right_space));
+    let x = if right_space >= width { right } else { left - width };
+    let card = iced::Point::new(x + 22.0, icon.y + 5.0);
+    let menu = Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right));
+    let escape = key(iced::keyboard::key::Named::Escape);
+    assert!(
+        send(ui, renderer, mouse::Cursor::Available(card), std::slice::from_ref(&menu)).is_empty()
+    );
+    assert!(pinned != render(ui, renderer, "menu", away));
+    assert!(send(ui, renderer, away, std::slice::from_ref(&escape)).is_empty());
+    assert!(pinned == render(ui, renderer, "menu-closed", away));
+    assert!(send(ui, renderer, mouse::Cursor::Available(card), &[menu]).is_empty());
+    let item_height =
+        f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into())) + 10.0;
+    let messages = click(
+        ui,
+        renderer,
+        iced::Point::new(
+            card.x.min(size.width as f32 - 140.0) + 25.0,
+            card.y + 3.0 + item_height / 2.0,
+        ),
+    );
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == description),
+        "{locale:?}: {title} help copy: {messages:?}"
+    );
+    assert!(send(ui, renderer, away, &[escape]).is_empty());
+    assert!(idle == render(ui, renderer, "closed", away));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_feishu_modes_keep_port_and_qr_controls() {
+    if !isolated("settings_help_gap_06_feishu_modes_keep_port_and_qr_controls") {
+        return;
+    }
+    use iced::keyboard::key::Named;
+    use vw_config_types::channels::LarkReceiveMode;
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        app.channels_settings.active_tab = ChannelsSettingsTab::Feishu;
+        for mode in [LarkReceiveMode::Webhook, LarkReceiveMode::Websocket] {
+            let cfg = app.channels_settings.feishu.as_mut().unwrap();
+            cfg.receive_mode = mode;
+            cfg.port = Some(4321);
+            let size = Size::new(width, 2000);
+            let mut ui = scene(view(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            assert_channel_text_absent(
+                &positions,
+                locale,
+                &[
+                    "Webhook 模式需要公网 HTTPS 入口；WebSocket 模式会忽略 port。",
+                    HELP_GAP_06_PORT_HELP,
+                ],
+            );
+            let hint = positions.label(tr(locale, HELP_GAP_06_PORT_HINT));
+            let port = positions.input("4321").center();
+            assert!(hint.y + hint.height < size.height as f32);
+            assert!((hint.center_y() - port.y).abs() < 65.0);
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "端口",
+                tr(locale, HELP_GAP_06_PORT_HELP),
+            );
+            assert!(click(&mut ui, &mut renderer, port).is_empty());
+            assert!(matches!(
+                send(&mut ui, &mut renderer, mouse::Cursor::Available(port), &[key(Named::Backspace)]).as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::NumberChanged(key, 432)))]
+                    if key == "feishu.port"
+            ));
+            positions.label(tr(locale, "使用手机端扫描二维码；授权成功后请明确保存。"));
+            assert!(matches!(
+                click(&mut ui, &mut renderer, positions.label(tr(locale, "获取二维码")).center()).as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::QrRequested(id)))]
+                    if id == "feishu"
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_dingtalk_keeps_allowlist_consequences() {
+    if !isolated("settings_help_gap_06_dingtalk_keeps_allowlist_consequences") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        for named in [false, true] {
+            app.channels_settings.dingtalk_instances.clear();
+            update(&mut app, ChannelsMessage::EnabledToggled("dingtalk".into(), true));
+            if named {
+                update(&mut app, ChannelsMessage::InstanceAdded("dingtalk".into()));
+                app.channels_settings.dingtalk = None;
+                app.channels_settings.dingtalk_instances[0].id = "ops".into();
+                app.channels_settings.refresh_text_inputs();
+            }
+            let size = Size::new(width, 1700);
+            let mut ui = scene(view(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            assert_channel_text_absent(
+                &positions,
+                locale,
+                &[
+                    "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
+                    HELP_GAP_06_STREAM,
+                    "填写 * 表示允许所有用户，推荐使用。",
+                    HELP_GAP_06_FORMAT,
+                ],
+            );
+            positions.label(tr(locale, HELP_GAP_06_EMPTY));
+            positions.label(tr(locale, HELP_GAP_06_USERS));
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "钉钉",
+                tr(locale, HELP_GAP_06_STREAM),
+            );
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                (size, &theme, locale),
+                "允许用户",
+                tr(locale, HELP_GAP_06_FORMAT),
+            );
+            let editor = positions.focusable.iter().find(|bounds| bounds.height == 92.0).unwrap();
+            assert!(editor.width >= width as f32 - 150.0);
+            click(&mut ui, &mut renderer, editor.center());
+            let field =
+                if named { "dingtalk_instances.0.allowed_users" } else { "dingtalk.allowed_users" };
+            assert!(matches!(
+                send(&mut ui, &mut renderer, mouse::Cursor::Available(editor.center()), &[commit("*")]).as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(key, iced::widget::text_editor::Action::Edit(_))))]
+                    if key == field
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_06_ordinary_and_wildcard_lists_and_disabled_form() {
+    if !isolated("settings_help_gap_06_ordinary_and_wildcard_lists_and_disabled_form") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    for (width, theme, locale) in help_gap_06_contexts() {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        let size = Size::new(width, 1700);
+        let context = (size, &theme, locale);
+        {
+            let mut ui = scene(extended_channels::email_panel(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            assert_channel_text_absent(
+                &positions,
+                locale,
+                &[HELP_GAP_06_SENDERS, HELP_GAP_06_FORMAT],
+            );
+            let label = positions.label(tr(locale, "允许发送者"));
+            let icon = iced::Point::new(label.x + label.width + 15.0, label.center_y());
+            let idle = screenshot(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                "gap-06-email-list",
+                mouse::Cursor::Unavailable,
+            );
+            assert!(click(&mut ui, &mut renderer, icon).is_empty());
+            assert!(
+                idle == screenshot(
+                    &mut ui,
+                    &mut renderer,
+                    &theme,
+                    size,
+                    "gap-06-email-no-help",
+                    mouse::Cursor::Unavailable
+                )
+            );
+            let editor = positions.focusable.iter().find(|bounds| bounds.height == 92.0).unwrap();
+            click(&mut ui, &mut renderer, editor.center());
+            assert!(matches!(
+                send(&mut ui, &mut renderer, mouse::Cursor::Available(editor.center()), &[commit("fixture@example.invalid")]).as_slice(),
+                [Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(key, iced::widget::text_editor::Action::Edit(_))))]
+                    if key == "email.allowed_senders"
+            ));
+        }
+        {
+            let mut ui = scene(enterprise_channels::lark_panel(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            assert_channel_text_absent(
+                &positions,
+                locale,
+                &["填写 * 表示允许所有发送者，推荐使用。", HELP_GAP_06_FORMAT],
+            );
+            positions.label(tr(locale, HELP_GAP_06_SENDERS));
+            assert_help_gap_06_card(
+                &mut ui,
+                &mut renderer,
+                context,
+                "允许发送者 ID",
+                tr(locale, HELP_GAP_06_FORMAT),
+            );
+        }
+
+        update(&mut app, ChannelsMessage::EnabledToggled("email".into(), false));
+        let mut ui = scene(view(&app), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        assert_channel_text_absent(&positions, locale, &[HELP_GAP_06_DISABLED, "允许发送者"]);
+        drop(ui);
+        let expected = format!(
+            "{}\n\n{}",
+            tr(locale, "IMAP / SMTP 收发邮件配置。"),
+            tr(locale, HELP_GAP_06_DISABLED)
+        );
+        // The panel title follows the tab label in the complete view.
+        let mut ui = scene(extended_channels::email_panel(&app), &mut renderer, size);
+        assert_help_gap_06_card(&mut ui, &mut renderer, context, "Email", &expected);
+        let enabled = geometry(&mut ui, &renderer).label(tr(locale, "启用")).center();
+        assert!(matches!(
+            click(&mut ui, &mut renderer, enabled).as_slice(),
+            [Message::Settings(SettingsMessage::Channels(ChannelsMessage::EnabledToggled(id, true)))]
+                if id == "email"
+        ));
+        drop(ui);
+        update(&mut app, ChannelsMessage::EnabledToggled("email".into(), true));
+    }
 }

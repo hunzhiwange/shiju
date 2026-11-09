@@ -725,13 +725,13 @@ fn assert_help_frames(
     name: &str,
     title: &str,
     description: &str,
-) {
+) -> iced::Point {
     let positions = geometry(ui, renderer);
     assert!(
         positions.labels.iter().all(|(text, _)| text != description),
         "{title}: static explanation is still inline"
     );
-    let label = positions.label(title);
+    let label = positions.labels.iter().rfind(|(value, _)| value == title).unwrap().1;
     let away = mouse::Cursor::Unavailable;
     let idle = capture(ui, renderer, theme, size, &format!("{name}-idle"), away);
     let icon = [
@@ -765,4 +765,94 @@ fn assert_help_frames(
         capture(ui, renderer, theme, size, &format!("{name}-closed"), away) == idle,
         "{title}: Escape must restore the initial frame"
     );
+    icon
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_08_gateway_listener_and_skey_help() {
+    use crate::app::components::system_settings::{self, SystemTab};
+    use crate::app::components::system_settings_proxy::system_settings_proxy_tests::rollout::MODES;
+
+    if !isolated("settings_help_gap_08_gateway_listener_and_skey_help") {
+        return;
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Gateway;
+    for ((locale, theme), width) in MODES.into_iter().zip([420, 720, 420]) {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        app.gateway_settings.active_tab = GatewaySettingsTab::Config;
+        let t = |key| connection_text(locale, key);
+        let size = Size::new(width, 1650);
+        for host in ["127.0.0.1", "fixture.example.invalid"] {
+            app.gateway_settings.host_input = host.into();
+            let mut ui = scene(system_settings::view(&app), &mut renderer, size);
+            assert_help_frames(
+                &mut ui,
+                &mut renderer,
+                &app.app_theme,
+                size,
+                "gap-08-listener",
+                t("监听地址"),
+                t("控制网关监听 host / port。默认仅绑定回环地址，避免意外暴露到公网。"),
+            );
+            let positions = geometry(&mut ui, &renderer);
+            positions.input(host);
+            positions.label(t("若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。"));
+            positions.label(t("仅在你完全信任前置代理时开启 forwarded headers。"));
+        }
+
+        app.gateway_settings.active_tab = GatewaySettingsTab::Skeys;
+        let raw_key = "fixture-one-time-skey";
+        app.gateway_settings.last_created_skey = Some(raw_key.into());
+        let mut skeys = scene(system_settings::view(&app), &mut renderer, size);
+        let storage =
+            t("维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。");
+        let icon = assert_help_frames(
+            &mut skeys,
+            &mut renderer,
+            &app.app_theme,
+            size,
+            "gap-08-skeys",
+            t("skey 管理"),
+            storage,
+        );
+        if locale == DesktopLocale::English {
+            assert!(click(&mut skeys, &mut renderer, icon).is_empty());
+            let body = iced::Point::new(icon.x + 29.0, icon.y + 5.0);
+            assert!(
+                send(
+                    &mut skeys,
+                    &mut renderer,
+                    mouse::Cursor::Available(body),
+                    &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+                )
+                .is_empty()
+            );
+            assert!(matches!(
+                click(&mut skeys, &mut renderer, body + iced::Vector::new(24.0, 16.0)).as_slice(),
+                [Message::CopyCode(value)] if value == storage
+            ));
+            assert!(
+                send(
+                    &mut skeys,
+                    &mut renderer,
+                    mouse::Cursor::Unavailable,
+                    &[key(iced::keyboard::key::Named::Escape)],
+                )
+                .is_empty()
+            );
+        }
+        let positions = geometry(&mut skeys, &renderer);
+        positions.label(raw_key);
+        positions.label(t("仅展示一次，请立即复制。"));
+        let copy = positions.label(t("复制")).center();
+        assert!(matches!(
+            click(&mut skeys, &mut renderer, copy).as_slice(),
+            [Message::Settings(SettingsMessage::Gateway(GatewayMessage::CopyLastCreatedSkey))]
+        ));
+    }
 }

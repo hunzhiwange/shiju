@@ -5,9 +5,9 @@
 
 use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_divider, settings_flexible_row_with_help,
-    settings_group_card, settings_group_heading, settings_group_heading_with_help,
-    settings_muted_text_style, settings_page_heading, settings_row_with_flexible_control,
-    settings_select, settings_text_input,
+    settings_group_card, settings_group_heading_with_help, settings_muted_text_style,
+    settings_page_heading_with_help, settings_row_with_flexible_control, settings_select,
+    settings_text_input,
 };
 use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::message::settings::{SettingsMessage, TunnelMessage};
@@ -138,16 +138,20 @@ fn bool_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
-    column![
-        settings_page_heading(
-            tr(app.desktop_locale, "隧道配置"),
-            tr(app.desktop_locale, "配置网关的暴露方式与 provider 细节。修改后需重启网关生效。"),
-        ),
-        content(app),
-    ]
-    .spacing(16)
-    .width(Length::Fill)
-    .into()
+    let mut page = column![settings_page_heading_with_help(
+        I18n::new(app.desktop_locale),
+        &app.app_theme,
+        tr(app.desktop_locale, "隧道配置"),
+        tr(app.desktop_locale, "配置网关的暴露方式与 provider 细节。"),
+    )];
+    if app.tunnel_settings.provider != "tailscale" {
+        page = page.push(
+            text(tr(app.desktop_locale, "保存配置后重启网关。"))
+                .size(13)
+                .style(settings_muted_text_style),
+        );
+    }
+    page.push(content(app)).spacing(16).width(Length::Fill).into()
 }
 
 pub(super) fn content(app: &App) -> Element<'_, Message> {
@@ -192,9 +196,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         "tailscale" => column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                &app.app_theme,
                 "Tailscale",
-                tr(app.desktop_locale, "配置 tailscale serve 或 funnel，将网关发布到 tailnet 或公网。保存后需重启网关生效。"),
+                tr(app.desktop_locale, "配置 tailscale serve 或 funnel，将网关发布到 tailnet 或公网。"),
             ),
             settings_group_card(
                 column![
@@ -215,12 +221,21 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                         tailscale_hostname_changed,
                     ),
                     settings_divider(),
-                    field_row(
+                    settings_flexible_row_with_help(
+                        i18n,
+                        &app.app_theme,
                         tr(app.desktop_locale, "访问方式"),
-                        tr(app.desktop_locale, "serve 仅 tailnet 内可访问，funnel 才会暴露到公网。访问地址以启动日志为准，通常不要使用本地监听端口。"),
-                        text(tr(app.desktop_locale, "保存配置后重启网关。公网 funnel 常见入口是 https://<主机名>/，tailnet-only 常见入口是 https://<主机名>:8443/。"))
-                            .size(12)
-                            .style(settings_muted_text_style),
+                        tr(app.desktop_locale, "公网 funnel 常见入口是 https://<主机名>/，tailnet-only 常见入口是 https://<主机名>:8443/。"),
+                        360.0,
+                        column![
+                            text(tr(app.desktop_locale, "serve 仅 tailnet 内可访问，funnel 才会暴露到公网。访问地址以启动日志为准，通常不要使用本地监听端口。"))
+                                .size(13)
+                                .style(settings_muted_text_style),
+                            text(tr(app.desktop_locale, "保存配置后重启网关。"))
+                                .size(12)
+                                .style(settings_muted_text_style),
+                        ]
+                        .spacing(6),
                     ),
                 ]
                 .spacing(0)

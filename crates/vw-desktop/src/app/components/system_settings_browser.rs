@@ -138,12 +138,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let allowed_domains_row = field_row(
         app,
         i18n.__("允许域名"),
-        i18n.__("限定浏览器工具可以访问的站点范围。"),
+        i18n.__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org"),
         settings_control_with_hint(
             settings_text_editor(&s.allowed_domains_editor)
-                .placeholder(
-                    i18n.__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org"),
-                )
+                .placeholder(i18n.__("允许域名"))
                 .on_action(|action| {
                     Message::Settings(SettingsMessage::Browser(
                         BrowserMessage::AllowedDomainsEditorAction(action),
@@ -200,14 +198,20 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     })
     .width(Length::Fill);
 
+    let backend_control: Element<'_, Message> = match s.backend.as_str() {
+        "native" => {
+            settings_control_with_hint(backend_pick, i18n.__("原生浏览器需要可用的 WebDriver。"))
+        }
+        "computer_use" => {
+            settings_control_with_hint(backend_pick, i18n.__("系统控制需要 sidecar。"))
+        }
+        _ => backend_pick.into(),
+    };
     let backend_row = field_row(
         app,
         i18n.__("后端实现"),
-        i18n.__("选择浏览器工具背后的执行能力。"),
-        settings_control_with_hint(
-            backend_pick,
-            i18n.__("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。"),
-        ),
+        i18n.__("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。"),
+        backend_control,
     );
 
     let native_section = column![

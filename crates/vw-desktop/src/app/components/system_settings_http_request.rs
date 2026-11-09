@@ -7,9 +7,9 @@ use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading,
-    settings_group_heading_with_help, settings_muted_text_style, settings_page_heading_with_help,
-    settings_text_input, settings_value_badge,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_muted_text_style, settings_page_heading_with_help, settings_text_input,
+    settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::i18n::settings_extensions::{domain_label, text as tr};
@@ -154,15 +154,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let max_response_size_row = number_row(
         app,
         tr(app.desktop_locale, "响应大小上限"),
-        tr(app.desktop_locale, "限制单次请求可读取的最大响应体大小。"),
+        tr(app.desktop_locale, "较大的响应会增加内存占用与模型上下文成本。"),
         s.max_response_size,
         0,
         u32::MAX,
         tr(app.desktop_locale, "字节"),
-        Some(tr(
-            app.desktop_locale,
-            "`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。",
-        )),
+        Some(tr(app.desktop_locale, "`0` 表示不限制响应体大小。")),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(
                 HttpRequestMessage::MaxResponseSizeChanged(value),
@@ -173,12 +170,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let timeout_secs_row = number_row(
         app,
         tr(app.desktop_locale, "超时时间"),
-        tr(app.desktop_locale, "单次请求的超时时间。"),
+        tr(app.desktop_locale, "`0` 会在运行时回退到安全默认值 30 秒。"),
         s.timeout_secs,
         0,
         86_400,
         tr(app.desktop_locale, "秒"),
-        Some(tr(app.desktop_locale, "`0` 会在运行时回退到安全默认值 30 秒。")),
+        None,
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
                 value,
@@ -202,17 +199,14 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let add_domain_row = field_row(
         app,
         tr(app.desktop_locale, "新增域名"),
-        tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
+        tr(app.desktop_locale, "支持精确域名、子域模式或 *。例如：example.com 或 *.example.org。"),
         settings_control_with_hint(
             row![
-                settings_text_input(
-                    tr(app.desktop_locale, "例如：example.com 或 *.example.org 或 *"),
-                    &s.new_allowed_domain_input
-                )
-                .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
-                    HttpRequestMessage::NewAllowedDomainChanged(value),
-                )))
-                .width(Length::Fill),
+                settings_text_input(tr(app.desktop_locale, "域名"), &s.new_allowed_domain_input)
+                    .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
+                        HttpRequestMessage::NewAllowedDomainChanged(value),
+                    )))
+                    .width(Length::Fill),
                 button(text(tr(app.desktop_locale, "添加")).size(SETTINGS_CONTROL_TEXT_SIZE))
                     .padding([8, 14])
                     .on_press(Message::Settings(SettingsMessage::HttpRequest(
@@ -222,7 +216,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             ]
             .spacing(10)
             .align_y(Alignment::Center),
-            tr(app.desktop_locale, "支持精确域名和子域模式。默认的 `*` 允许所有公网域名。"),
+            tr(app.desktop_locale, "默认的 `*` 允许所有公网域名。"),
         ),
     );
     let mut allowed_domains = column![add_domain_row, settings_divider()];
@@ -289,7 +283,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             settings_divider(),
             user_agent_row,
         ]),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            &app.app_theme,
             tr(app.desktop_locale, "允许域名"),
             tr(
                 app.desktop_locale,

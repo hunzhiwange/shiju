@@ -649,9 +649,9 @@ async fn help_rollout_16_renders_contextual_help() {
         for (title, description) in [
             ("基础行为", "控制开关与默认搜索后端。"),
             ("Brave Search", "配置专用密钥、备用密钥和兼容接口地址。"),
-            ("Brave 密钥", "仅 provider=brave 时生效。"),
+            ("Brave 密钥", "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。"),
             ("搜索后端", "选择网页搜索使用的后端。"),
-            ("结果数量", "最终会限制在 1-10 之间。"),
+            ("结果数量", "仅接受正整数；最终会限制在 1-10 之间。"),
         ] {
             assert_help_frame(
                 &app,
@@ -663,7 +663,6 @@ async fn help_rollout_16_renders_contextual_help() {
             );
         }
         let positions = geometry(&mut ui, &renderer);
-        positions.label(t("仅接受正整数；最终会限制在 1-10 之间。"));
         positions.input("8");
         assert!(matches!(
             shorten(&mut ui, &mut renderer, positions.input(&masked(API_KEY))).as_slice(),
@@ -767,8 +766,8 @@ async fn help_rollout_16_http_preserves_permissions_and_errors() {
         for label in [
             "fixture request error",
             t("当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。"),
-            t("支持精确域名和子域模式。默认的 `*` 允许所有公网域名。"),
-            t("`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。"),
+            t("默认的 `*` 允许所有公网域名。"),
+            t("`0` 表示不限制响应体大小。"),
         ] {
             assert_fits(positions.label(label), size);
         }
@@ -778,8 +777,8 @@ async fn help_rollout_16_http_preserves_permissions_and_errors() {
                 "基础行为",
                 "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。",
             ),
-            ("超时时间", "单次请求的超时时间。"),
-            ("新增域名", "支持精确域名、子域模式或 *。"),
+            ("超时时间", "`0` 会在运行时回退到安全默认值 30 秒。"),
+            ("新增域名", "支持精确域名、子域模式或 *。例如：example.com 或 *.example.org。"),
             ("User-Agent", "请求默认携带的 User-Agent。"),
         ] {
             let translated = (t(title), t(description));
@@ -835,7 +834,10 @@ async fn help_rollout_16_browser_preserves_native_and_sidecar_controls() {
         }
         for (title, description) in [
             ("基础行为", "域名范围、窗口行为与运行后端。"),
-            ("后端实现", "选择浏览器工具背后的执行能力。"),
+            (
+                "后端实现",
+                "默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。",
+            ),
             ("Rust Native 后端", "当后端为 native 时，使用 WebDriver 驱动浏览器自动化。"),
             ("WebDriver 地址", "连接本地或远程 WebDriver 服务。"),
             ("系统级控制", "配置本地 sidecar 端点，用于鼠标、键盘、截图等系统级浏览器操作。"),
@@ -869,5 +871,214 @@ async fn help_rollout_16_browser_preserves_native_and_sidecar_controls() {
             "browser-standalone",
             (i18n.__("浏览器配置"), i18n.__("配置允许站点、打开方式与浏览器自动化后端。")),
         );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_08_brave_credentials_and_result_range() {
+    if !isolated("settings_help_gap_08_brave_credentials_and_result_range") {
+        return;
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.system_settings_tab = SystemTab::WebSearch;
+    for ((locale, theme), width) in HELP_LAYOUTS.into_iter().zip([420, 720, 420]) {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| tr(locale, key);
+        let size = Size::new(width, 1400);
+        let mut ui = scene(page(&app), &mut renderer, size);
+        for (title, body) in [
+            ("Brave 密钥", "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。"),
+            ("接口地址", "留空时使用默认接口；适合代理层或自托管兼容端点。"),
+            ("结果数量", "仅接受正整数；最终会限制在 1-10 之间。"),
+        ] {
+            let icon = assert_help_frame(
+                &app,
+                &mut ui,
+                &mut renderer,
+                size,
+                "gap-08-brave",
+                (t(title), t(body)),
+            );
+            if locale == DesktopLocale::English && title == "Brave 密钥" {
+                assert_help_actions(&mut ui, &mut renderer, icon, t(body));
+            }
+        }
+        let positions = geometry(&mut ui, &renderer);
+        let brave_key = "fixture-brave-key";
+        assert!(!positions.inputs.iter().any(|(value, _)| value == brave_key));
+        assert!(matches!(
+            shorten(&mut ui, &mut renderer, positions.input(&masked(brave_key))).as_slice(),
+            [Message::Settings(SettingsMessage::WebSearch(Search::BraveApiKeyChanged(value)))]
+                if value == "fixture-brave-ke"
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_08_http_limits_and_permissions() {
+    if !isolated("settings_help_gap_08_http_limits_and_permissions") {
+        return;
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.system_settings_tab = SystemTab::HttpRequest;
+    app.http_request_settings.timeout_secs = 0;
+    app.http_request_settings.max_response_size = 0;
+    app.http_request_settings.allowed_domains.clear();
+    for ((locale, theme), width) in HELP_LAYOUTS.into_iter().zip([420, 720, 420]) {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| tr(locale, key);
+        let size = Size::new(width, 1000);
+        let mut ui = scene(page(&app), &mut renderer, size);
+        for (title, body) in [
+            ("超时时间", "`0` 会在运行时回退到安全默认值 30 秒。"),
+            ("响应大小上限", "较大的响应会增加内存占用与模型上下文成本。"),
+            ("新增域名", "支持精确域名、子域模式或 *。例如：example.com 或 *.example.org。"),
+        ] {
+            assert_help_frame(
+                &app,
+                &mut ui,
+                &mut renderer,
+                size,
+                "gap-08-http",
+                (t(title), t(body)),
+            );
+        }
+        let positions = geometry(&mut ui, &renderer);
+        for label in [
+            "`0` 表示不限制响应体大小。",
+            "默认的 `*` 允许所有公网域名。",
+            "当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。",
+        ] {
+            assert_fits(positions.label(t(label)), size);
+        }
+        assert_eq!(positions.inputs.iter().filter(|(value, _)| value == "0").count(), 2);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, positions.label(t("添加")).center()).as_slice(),
+            [Message::Settings(SettingsMessage::HttpRequest(Http::AddAllowedDomain))]
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_08_browser_backend_and_domain_help() {
+    if !isolated("settings_help_gap_08_browser_backend_and_domain_help") {
+        return;
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.system_settings_tab = SystemTab::Browser;
+    for ((locale, theme), width) in HELP_LAYOUTS.into_iter().zip([420, 720, 420]) {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let i18n = crate::app::i18n::I18n::new(locale);
+        for (backend, dependency) in [
+            ("native", "原生浏览器需要可用的 WebDriver。"),
+            ("computer_use", "系统控制需要 sidecar。"),
+            ("agent_browser", ""),
+        ] {
+            app.browser_settings.backend = backend.into();
+            let size = Size::new(width, 1900);
+            let mut ui = scene(page(&app), &mut renderer, size);
+            for (title, body) in [
+                (
+                    "后端实现",
+                    "默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。",
+                ),
+                ("允许域名", "每行一个域名，或使用逗号分隔，例: example.com\n*.example.org"),
+            ] {
+                assert_help_frame(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    "gap-08-browser",
+                    (i18n.__(title), i18n.__(body)),
+                );
+            }
+            let positions = geometry(&mut ui, &renderer);
+            if !dependency.is_empty() {
+                assert_fits(positions.label(i18n.__(dependency)), size);
+            }
+            assert_fits(
+                positions.label(i18n.__("默认的 `*` 允许所有公网域名。列表为空时拒绝所有站点。")),
+                size,
+            );
+            assert_fits(
+                positions.label(i18n.__("当前运行时完整支持 default；其余选项会先写入配置。")),
+                size,
+            );
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_08_tunnel_examples_and_restart() {
+    use super::super::system_settings_tunnel;
+    use crate::app::message::settings::TunnelMessage;
+
+    if !isolated("settings_help_gap_08_tunnel_examples_and_restart") {
+        return;
+    }
+
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.system_settings_tab = SystemTab::Tunnel;
+    app.tunnel_settings.provider = "tailscale".into();
+    app.tunnel_settings.tailscale_hostname = "fixture.example.invalid".into();
+    for ((locale, theme), width) in HELP_LAYOUTS.into_iter().zip([420, 720, 420]) {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| tr(locale, key);
+        for funnel in [false, true] {
+            app.tunnel_settings.tailscale_funnel = funnel;
+            let size = Size::new(width, 960);
+            let mut ui = scene(page(&app), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            let old = t(
+                "保存配置后重启网关。公网 funnel 常见入口是 https://<主机名>/，tailnet-only 常见入口是 https://<主机名>:8443/。",
+            );
+            assert!(
+                positions.labels.iter().all(|(label, _)| label != old),
+                "Tailscale URLs are still inline"
+            );
+            assert_help_frame(
+                &app,
+                &mut ui,
+                &mut renderer,
+                size,
+                "gap-08-tunnel",
+                (
+                    t("访问方式"),
+                    t(
+                        "公网 funnel 常见入口是 https://<主机名>/，tailnet-only 常见入口是 https://<主机名>:8443/。",
+                    ),
+                ),
+            );
+            assert_fits(positions.label(t("保存配置后重启网关。")), size);
+            assert_fits(positions.label(t("serve 仅 tailnet 内可访问，funnel 才会暴露到公网。访问地址以启动日志为准，通常不要使用本地监听端口。")), size);
+            assert!(matches!(
+                click(&mut ui, &mut renderer, positions.label(t("启用 funnel（关闭时使用 serve）")).center()).as_slice(),
+                [Message::Settings(SettingsMessage::Tunnel(TunnelMessage::TailscaleFunnelToggled(value)))]
+                    if *value != funnel
+            ));
+        }
+        let size = Size::new(width, 960);
+        let mut ui = scene(scroll_frame(system_settings_tunnel::view(&app)), &mut renderer, size);
+        assert_help_frame(
+            &app,
+            &mut ui,
+            &mut renderer,
+            size,
+            "gap-08-tunnel-standalone",
+            (t("隧道配置"), t("配置网关的暴露方式与 provider 细节。")),
+        );
+        assert_fits(geometry(&mut ui, &renderer).label(t("保存配置后重启网关。")), size);
     }
 }

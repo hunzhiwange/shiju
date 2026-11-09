@@ -206,21 +206,18 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 .push(field_row(
                     app,
                     tr(app.desktop_locale, "Brave 密钥"),
-                    tr(app.desktop_locale, "仅 provider=brave 时生效。"),
-                    settings_control_with_hint(
-                        settings_text_input("Brave Search API Key", &s.brave_api_key_input)
-                            .secure(true)
-                            .on_input(|value| {
-                                Message::Settings(SettingsMessage::WebSearch(
-                                    WebSearchMessage::BraveApiKeyChanged(value),
-                                ))
-                            })
-                            .width(Length::Fill),
-                        tr(
-                            app.desktop_locale,
-                            "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。",
-                        ),
+                    tr(
+                        app.desktop_locale,
+                        "Brave 优先使用 `brave_api_key`；留空时会回退到 `api_key`。",
                     ),
+                    settings_text_input("Brave Search API Key", &s.brave_api_key_input)
+                        .secure(true)
+                        .on_input(|value| {
+                            Message::Settings(SettingsMessage::WebSearch(
+                                WebSearchMessage::BraveApiKeyChanged(value),
+                            ))
+                        })
+                        .width(Length::Fill),
                 ))
                 .push(settings_divider());
         }
@@ -242,13 +239,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         }
 
         if shows_api_url(&s.provider) {
-            fields = fields.push(settings_divider()).push(text_row_with_hint(
+            fields = fields.push(settings_divider()).push(text_row(
                 app,
                 tr(app.desktop_locale, "接口地址"),
-                tr(app.desktop_locale, "可选，自定义兼容接口地址。"),
+                tr(app.desktop_locale, "留空时使用默认接口；适合代理层或自托管兼容端点。"),
                 tr(app.desktop_locale, "可选，自定义搜索服务接口地址"),
                 &s.api_url_input,
-                tr(app.desktop_locale, "留空时使用默认接口；适合代理层或自托管兼容端点。"),
                 |value| {
                     Message::Settings(SettingsMessage::WebSearch(WebSearchMessage::ApiUrlChanged(
                         value,
@@ -285,13 +281,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     ))
     .push(settings_group_card(
         column![
-            text_row_with_hint(
+            text_row(
                 app,
                 tr(app.desktop_locale, "结果数量"),
-                tr(app.desktop_locale, "最终会限制在 1-10 之间。"),
-                "1-10",
-                &s.max_results_input,
                 tr(app.desktop_locale, "仅接受正整数；最终会限制在 1-10 之间。"),
+                "",
+                &s.max_results_input,
                 |value| {
                     Message::Settings(SettingsMessage::WebSearch(
                         WebSearchMessage::MaxResultsChanged(value),

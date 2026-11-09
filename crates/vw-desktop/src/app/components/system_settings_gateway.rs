@@ -10,11 +10,11 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_close_button, settings_control_with_hint, settings_divider,
     settings_error_banner, settings_field_label, settings_flexible_row_with_help,
-    settings_group_card, settings_group_heading, settings_group_heading_with_help,
-    settings_help_button_with_locale, settings_hover_help_label, settings_modal_card_style,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_page_heading_with_help, settings_row_with_flexible_control,
-    settings_tab_button, settings_tab_row, settings_text_input, settings_value_badge,
+    settings_group_card, settings_group_heading_with_help, settings_help_button_with_locale,
+    settings_hover_help_label, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
+    settings_page_heading_with_help, settings_row_with_flexible_control, settings_tab_button,
+    settings_tab_row, settings_text_input, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
@@ -904,7 +904,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             )
         ),
         service_controls_content(app),
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "监听地址"),
             connection_text(
                 app.desktop_locale,
@@ -974,7 +976,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .into();
 
     let skeys_content: Element<'_, Message> = column![
-        settings_group_heading(
+        settings_group_heading_with_help(
+            i18n,
+            theme,
             connection_text(app.desktop_locale, "skey 管理"),
             connection_text(
                 app.desktop_locale,

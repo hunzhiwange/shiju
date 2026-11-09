@@ -1,5 +1,6 @@
 //! A session owns each isolated application process and revokes it on disposal.
 use crate::app::mcp_app_bridge::McpAppProcess;
+use crate::app::mcp_app_download::select_destination;
 use anyhow::{Result, bail};
 use serde_json::Value;
 use std::{
@@ -113,6 +114,7 @@ impl McpAppPanel {
                                     == rfd::MessageDialogResult::Yes
                             },
                             open_system_browser,
+                            select_destination,
                             || cancelled.load(Ordering::Acquire),
                         );
                         let stop = async {

@@ -13,6 +13,10 @@ fn policy() -> McpAppNetworkPolicy {
     McpAppNetworkPolicy::parse(Some(&json!({"redirectDomains":[ORIGIN]}))).unwrap()
 }
 
+async fn unexpected_download(_: DownloadPrompt) -> Option<std::path::PathBuf> {
+    panic!("unexpected save dialog")
+}
+
 fn initialize() -> Value {
     json!({"jsonrpc":"2.0","id":"init","method":"ui/initialize"})
 }
@@ -49,6 +53,7 @@ impl Fixture {
             McpAppBridge::new("session".into(), "server".into(), "null".into(), BTreeSet::new())
                 .unwrap();
         bridge.redirect_domains = policy.redirect_domains;
+        bridge.resource_domains = policy.resource_domains;
         Self {
             process: McpAppProcess {
                 child,
@@ -115,6 +120,7 @@ async fn mcp_app_open_link_dispatches_after_confirmation() {
                 opened.push(url.to_owned());
                 true
             },
+            unexpected_download,
             || false,
         )
         .await
@@ -161,6 +167,7 @@ async fn mcp_app_open_link_rejects_forged_and_unapproved_requests() {
             "binding",
             |_| async { panic!("no confirmation") },
             |_| panic!("no open"),
+            unexpected_download,
             || false,
         )
         .await
@@ -194,6 +201,7 @@ async fn mcp_app_open_link_revokes_approval_on_close() {
                     true
                 },
                 |_| panic!("a revoked request must not open"),
+                unexpected_download,
                 || cancelled.get(),
             )
             .await
@@ -215,6 +223,7 @@ async fn mcp_app_open_link_capability_requires_a_bound_policy() {
             "binding",
             |_| async { panic!("no confirmation") },
             |_| panic!("no open"),
+            unexpected_download,
             || false,
         )
         .await
@@ -348,6 +357,7 @@ async fn mcp_app_open_link_real_helper_roundtrip() {
                         opened.push(url.to_owned());
                         true
                     },
+                    unexpected_download,
                     || false,
                 )
                 .await
@@ -366,4 +376,174 @@ async fn mcp_app_open_link_real_helper_roundtrip() {
             "arguments":{"confirmed":true,"cancelled":true}
         })
     );
+}
+
+#[cfg(unix)]
+fn download_request(id: u32, content: Value) -> Value {
+    json!({"jsonrpc":"2.0","id":id,"method":"ui/download-file","params":{"contents":[content]}})
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mcp_app_download_rejects_unsupported_content_with_rpc_error() {
+    let mut fixture = Fixture::new(McpAppNetworkPolicy::default());
+    fixture.handshake();
+    fixture.send("null", download_request(1, json!({"type":"image","data":"AA=="})));
+    fixture
+        .process
+        .poll_gateway(
+            &client(1),
+            "binding",
+            |_| async { panic!("download must not prompt to open a link") },
+            |_| panic!("download must not open a link"),
+            unexpected_download,
+            || false,
+        )
+        .await
+        .unwrap();
+    let replies = fixture.replies();
+    assert_eq!(replies[0]["result"]["protocolVersion"], "2026-01-26");
+    assert_eq!(replies[0]["result"]["hostCapabilities"]["downloadFile"], json!({}));
+    assert_eq!(replies[1]["id"], 1);
+    assert_eq!(replies[1]["error"]["code"], -32000);
+    assert_eq!(replies[1]["error"]["message"], "Unsupported download content type");
+}
+
+#[cfg(unix)]
+fn inline_download(id: u32, uri: &str, text: &str) -> Value {
+    download_request(id, json!({"type":"resource","resource":{"uri":uri,"text":text}}))
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mcp_app_download_confirms_then_saves_chosen_path_and_rejects_replay() {
+    let mut fixture = Fixture::new(McpAppNetworkPolicy::default());
+    let directory = tempfile::tempdir().unwrap();
+    let target = directory.path().join("chosen.txt");
+    let text = "识矩\r\n";
+    let request = inline_download(1, "file:///ignored/path/report.txt", text);
+    fixture.send("null", request.clone());
+    fixture.handshake();
+    fixture.send("https://untrusted.example", request.clone());
+    fixture.send("null", request.clone());
+    fixture.send("null", request);
+    let mut prompts = 0;
+
+    fixture
+        .process
+        .poll_gateway(
+            &client(1),
+            "binding",
+            |_| async { panic!("unexpected link") },
+            |_| panic!("unexpected link"),
+            |prompt| {
+                prompts += 1;
+                assert_eq!(prompt.filename, "report.txt");
+                assert!(prompt.origin.is_none());
+                assert_eq!(directory.path().read_dir().unwrap().count(), 0);
+                ready(Some(target.clone()))
+            },
+            || false,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(prompts, 1);
+    assert_eq!(std::fs::read(&target).unwrap(), text.as_bytes());
+    assert_eq!(directory.path().read_dir().unwrap().count(), 1);
+    let replies = fixture.replies();
+    assert_eq!(replies[0]["error"]["message"], "MCP app is not ready");
+    assert_eq!(replies[2]["error"]["code"], -32600);
+    assert_eq!(replies[3], json!({"jsonrpc":"2.0","id":1,"result":{}}));
+    assert_eq!(replies[4]["error"]["message"], "Duplicate download request");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mcp_app_download_cancellation_and_oversize_leave_no_file() {
+    let mut fixture = Fixture::new(McpAppNetworkPolicy::default());
+    let directory = tempfile::tempdir().unwrap();
+    let filename = "mcp-download-cancelled.txt";
+    let target = directory.path().join(filename);
+    fixture.handshake();
+    fixture.send("null", inline_download(1, "file:///ignored/report.txt", &"x".repeat(524_289)));
+    fixture.send("null", inline_download(2, &format!("file://{}", target.display()), "contents"));
+    let mut prompts = 0;
+    fixture
+        .process
+        .poll_gateway(
+            &client(1),
+            "binding",
+            |_| async { panic!("unexpected link") },
+            |_| panic!("unexpected link"),
+            |prompt| {
+                assert_eq!(prompt.filename, filename);
+                prompts += 1;
+                ready(None)
+            },
+            || false,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(prompts, 1);
+    assert_eq!(directory.path().read_dir().unwrap().count(), 0);
+    let replies = fixture.replies();
+    assert_eq!(replies[1]["error"]["message"], "Inline download exceeds size limit");
+    assert_eq!(replies[2]["error"]["message"], "Download cancelled by user");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mcp_app_download_revoked_session_discards_dialog_result() {
+    for closes_panel in [false, true] {
+        let mut fixture = Fixture::new(McpAppNetworkPolicy::default());
+        fixture.handshake();
+        fixture.send("null", inline_download(1, "file:///report.txt", "contents"));
+        let directory = tempfile::tempdir().unwrap();
+        let document = fixture.process.document_active.clone();
+        let cancelled = std::cell::Cell::new(false);
+        let mut prompts = 0;
+        fixture
+            .process
+            .poll_gateway(
+                &client(1),
+                "binding",
+                |_| async { panic!("unexpected link") },
+                |_| panic!("unexpected link"),
+                |_| {
+                    prompts += 1;
+                    if closes_panel {
+                        cancelled.set(true);
+                    } else {
+                        document.store(false, Ordering::Release);
+                    }
+                    ready(Some(directory.path().join("discarded")))
+                },
+                || cancelled.get(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(prompts, 1);
+        assert_eq!(directory.path().read_dir().unwrap().count(), 0);
+        assert_eq!(fixture.replies().len(), 1);
+    }
+}
+
+#[test]
+fn mcp_app_download_capability_requires_a_host_handler() {
+    let mut bridge =
+        McpAppBridge::new("session".into(), "server".into(), "null".into(), BTreeSet::new())
+            .unwrap();
+    let reply = bridge
+        .receive(
+            "session",
+            "server",
+            "null",
+            &initialize().to_string(),
+            |_, _, _, _| unreachable!(),
+        )
+        .unwrap();
+    assert!(reply["result"]["hostCapabilities"].get("downloadFile").is_none());
 }

@@ -1,4 +1,5 @@
 //! MCP Apps RPC admission. Identity comes from the host, never from page parameters.
+use super::mcp_app_download::{Download, DownloadPrompt};
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use std::{
@@ -17,7 +18,9 @@ pub struct McpAppBridge {
     origin: String,
     tools: BTreeSet<String>,
     redirect_domains: Vec<String>,
+    resource_domains: Vec<String>,
     recent_links: VecDeque<Value>,
+    recent_downloads: VecDeque<Value>,
     initialized: bool,
     ready: bool,
     closed: bool,
@@ -26,9 +29,10 @@ pub struct McpAppBridge {
 enum Admission {
     Reply(Value),
     OpenLink { id: Value, url: reqwest::Url },
+    Download { id: Value, download: Download },
 }
 
-fn link_error(id: Value, message: &str) -> Value {
+fn action_error(id: Value, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":-32000,"message":message}})
 }
 
@@ -41,15 +45,15 @@ fn resolve_link(
 ) -> Value {
     // Check the clock even if a late approval won the timeout's final poll.
     if tokio::time::Instant::now() >= deadline || approved.is_none() {
-        return link_error(id, "External link confirmation expired");
+        return action_error(id, "External link confirmation expired");
     }
     if approved == Some(false) {
-        return link_error(id, "External link opening denied by user");
+        return action_error(id, "External link opening denied by user");
     }
     if open(url) {
         json!({"jsonrpc":"2.0","id":id,"result":{}})
     } else {
-        link_error(id, "System browser could not open external link")
+        action_error(id, "System browser could not open external link")
     }
 }
 
@@ -91,7 +95,9 @@ impl McpAppBridge {
             origin,
             tools,
             redirect_domains: Vec::new(),
+            resource_domains: Vec::new(),
             recent_links: VecDeque::new(),
+            recent_downloads: VecDeque::new(),
             initialized: false,
             ready: false,
             closed: false,
@@ -112,7 +118,9 @@ impl McpAppBridge {
     {
         match self.admit(session, server, origin, message, false, execute)? {
             Admission::Reply(response) => Ok(response),
-            Admission::OpenLink { .. } => unreachable!("no link handler"),
+            Admission::OpenLink { .. } | Admission::Download { .. } => {
+                unreachable!("no host action handlers")
+            }
         }
     }
 
@@ -122,7 +130,7 @@ impl McpAppBridge {
         server: &str,
         origin: &str,
         message: &str,
-        handles_links: bool,
+        handles_host_actions: bool,
         mut execute: F,
     ) -> Result<Admission>
     where
@@ -158,15 +166,17 @@ impl McpAppBridge {
                     bail!("app already initialized");
                 }
                 self.initialized = true;
-                let capabilities = if handles_links && !self.redirect_domains.is_empty() {
-                    json!({"openLinks":{}})
-                } else {
-                    json!({})
-                };
+                let mut capabilities = json!({});
+                if handles_host_actions {
+                    capabilities["downloadFile"] = json!({});
+                    if !self.redirect_domains.is_empty() {
+                        capabilities["openLinks"] = json!({});
+                    }
+                }
                 json!({"protocolVersion":"2026-01-26","hostInfo":{"name":"ShiJu","version":env!("CARGO_PKG_VERSION")},"hostCapabilities":capabilities,"hostContext":{"platform":"desktop"}})
             }
-            "ui/open-link" if handles_links => {
-                let denied = |id, reason| Ok(Admission::Reply(link_error(id, reason)));
+            "ui/open-link" if handles_host_actions => {
+                let denied = |id, reason| Ok(Admission::Reply(action_error(id, reason)));
                 if !self.ready {
                     return denied(id, "MCP app is not ready");
                 }
@@ -185,6 +195,24 @@ impl McpAppBridge {
                 }
                 self.recent_links.push_back(id.clone());
                 return Ok(Admission::OpenLink { id, url });
+            }
+            "ui/download-file" if handles_host_actions => {
+                let denied = |id, reason| Ok(Admission::Reply(action_error(id, reason)));
+                if !self.ready {
+                    return denied(id, "MCP app is not ready");
+                }
+                if self.recent_downloads.contains(&id) {
+                    return denied(id, "Duplicate download request");
+                }
+                let download = match Download::parse(&request["params"], &self.resource_domains) {
+                    Ok(download) => download,
+                    Err(reason) => return denied(id, reason),
+                };
+                if self.recent_downloads.len() == 32 {
+                    self.recent_downloads.pop_front();
+                }
+                self.recent_downloads.push_back(id.clone());
+                return Ok(Admission::Download { id, download });
             }
             "tools/call" => {
                 if !self.ready {
@@ -207,6 +235,7 @@ impl McpAppBridge {
         self.closed = true;
         self.tools.clear();
         self.recent_links.clear();
+        self.recent_downloads.clear();
     }
 }
 
@@ -259,6 +288,7 @@ impl McpAppProcess {
         }
         let mut bridge = McpAppBridge::new(session.clone(), server.clone(), "null".into(), tools)?;
         bridge.redirect_domains.clone_from(&csp.redirect_domains);
+        bridge.resource_domains.clone_from(&csp.resource_domains);
         let mut child = std::process::Command::new(helper)
             .arg("--mcp-app-stdin")
             .stdin(std::process::Stdio::piped())
@@ -340,17 +370,19 @@ impl McpAppProcess {
         Ok(count)
     }
 
-    /// Route tool calls through the session binding and external links through host confirmation.
-    pub async fn poll_gateway<F>(
+    /// Route tool calls through the session binding and user-facing actions through host dialogs.
+    pub(crate) async fn poll_gateway<F, D>(
         &mut self,
         client: &vw_gateway_client::GatewayClient,
         binding: &str,
         mut confirm: impl FnMut(String) -> F,
         mut open: impl FnMut(&str) -> bool,
+        mut choose_path: impl FnMut(DownloadPrompt) -> D,
         cancelled: impl Fn() -> bool,
     ) -> Result<usize>
     where
         F: std::future::Future<Output = bool>,
+        D: std::future::Future<Output = Option<std::path::PathBuf>>,
     {
         use std::io::Write;
         let mut count = 0;
@@ -404,6 +436,25 @@ impl McpAppProcess {
                         break;
                     }
                     resolve_link(id, url.as_str(), deadline, decision.ok(), &mut open)
+                }
+                (Ok(Admission::Download { id, download }), _) => {
+                    let active = || self.document_active.load(Ordering::Acquire) && !cancelled();
+                    let revoked = async {
+                        while active() {
+                            tokio::time::sleep(Duration::from_millis(25)).await;
+                        }
+                    };
+                    let result = tokio::select! {
+                        () = revoked => break,
+                        result = download.save(&mut choose_path, active) => result,
+                    };
+                    if !active() || !self.is_running() {
+                        break;
+                    }
+                    match result {
+                        Ok(()) => json!({"jsonrpc":"2.0","id":id,"result":{}}),
+                        Err(reason) => action_error(id, reason),
+                    }
                 }
                 (Err(_), _) => {
                     json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":-32600,"message":"MCP app request denied"}})

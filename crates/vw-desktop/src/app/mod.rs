@@ -196,3 +196,4 @@ pub(crate) mod mcp_form;
 
 /// MCP Apps host identity and RPC boundary.
 pub mod mcp_app_bridge;
+mod mcp_app_download;

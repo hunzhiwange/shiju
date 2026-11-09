@@ -9,8 +9,9 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Padding, Theme
 use crate::app::Message;
 use crate::app::components::animated_text::neutral_sweep_text_color;
 use crate::app::components::chat_panel::tool_text_support::chat_text_line_height;
+use crate::app::components::status_animation::activity_spinner;
 
-use super::super::global_status::{COMPACT_ACTIVITY_TEXT_SIZE, compact_running_activity_indicator};
+use super::super::global_status::COMPACT_ACTIVITY_TEXT_SIZE;
 use super::super::utils::chat_secondary_text_color;
 
 pub(super) const MESSAGE_TEXT_SIZE: f32 = 15.0;
@@ -221,9 +222,9 @@ pub(super) fn thinking_status_text<'a>(
     animation_frame: usize,
 ) -> Element<'a, Message> {
     let char_count = label.chars().count().max(1);
-    let mut content = row![compact_running_activity_indicator(animation_frame)]
-        .spacing(4)
-        .align_y(Alignment::Center);
+    let spinner = activity_spinner(animation_frame, THINK_STATUS_TEXT_SIZE)
+        .style(|theme: &Theme, _status| svg::Style { color: Some(think_block_text_color(theme)) });
+    let mut content = row![spinner].spacing(4).align_y(Alignment::Center);
 
     for (char_idx, character) in label.chars().enumerate() {
         content = content.push(text(character.to_string()).size(THINK_STATUS_TEXT_SIZE).style(

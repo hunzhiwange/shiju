@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 
 use iced::widget::canvas::{Frame, Geometry, Program, Text as CanvasText};
-use iced::widget::{Space, button, canvas, column, container, mouse_area, row, text};
+use iced::widget::{Space, button, canvas, column, container, mouse_area, row, svg, text};
 use iced::{Alignment, Color, Element, Length, Theme};
 use std::collections::HashSet;
 
@@ -20,7 +20,9 @@ use crate::app::components::chat_panel::tool_text_support::{chat_text_font, tool
 use crate::app::components::chat_panel::utils::{
     chat_secondary_subtle_text_color, chat_secondary_text_color, icon_svg, truncate_chars,
 };
-use crate::app::components::status_animation::{EXPLORE_SUMMARY_FLIP_DURATION_MS, spinner_frame};
+use crate::app::components::status_animation::{
+    EXPLORE_SUMMARY_FLIP_DURATION_MS, activity_spinner,
+};
 use crate::app::{App, Message, message};
 
 use super::tool_meta::tool_header_label;
@@ -226,11 +228,10 @@ fn running_explore_title<'a>(
     animation_frame: usize,
 ) -> Element<'a, Message> {
     let char_count = title.chars().count().max(1);
-    let mut content = row![text(spinner_frame(animation_frame)).size(13).style(|theme: &Theme| {
-        iced::widget::text::Style { color: Some(chat_secondary_text_color(theme)) }
-    })]
-    .spacing(4)
-    .align_y(Alignment::Center);
+    let spinner = activity_spinner(animation_frame, 13.0).style(|theme: &Theme, _status| {
+        svg::Style { color: Some(chat_secondary_text_color(theme)) }
+    });
+    let mut content = row![spinner].spacing(4).align_y(Alignment::Center);
 
     for (char_idx, character) in title.chars().enumerate() {
         content = content.push(text(character.to_string()).size(13).font(chat_text_font()).style(

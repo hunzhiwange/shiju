@@ -140,13 +140,49 @@ fn thinking_status_text_builds_for_non_empty_label() {
     let _ = thinking_status_text("思考中", 9999, 1);
 }
 
-#[test]
-fn thinking_status_uses_shared_compact_activity_treatment() {
-    for frame in 0..24 {
-        let _ = thinking_status_text("思考中", 9999, frame);
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn thinking_status_spinner_matches_title_height_and_center() {
+    use iced::advanced::renderer::{Headless, Renderer as _, Style};
+    use iced::advanced::{Layout, layout, mouse, widget::Tree};
+    use iced::{Font, Pixels, Rectangle, Size};
+
+    let mut renderer = iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("tiny-skia headless renderer should be available");
+    let viewport = Rectangle::with_size(Size::new(120.0, 24.0));
+    let limits = layout::Limits::new(Size::ZERO, viewport.size());
+    for (frame, theme) in [(0, Theme::Light), (5, Theme::Dark)] {
+        let mut title = thinking_status_text("思考中", 9999, frame);
+        let mut tree = Tree::new(title.as_widget());
+        let node = title.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let layout = Layout::new(&node);
+        let mut children = layout.children();
+        let spinner = children.next().expect("spinner").bounds();
+        let label = children.next().expect("first title character").bounds();
+        assert_eq!(spinner.height, THINK_STATUS_TEXT_SIZE);
+        assert!((spinner.center_y() - label.center_y()).abs() < 0.01);
+
+        renderer.reset(viewport);
+        title.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            layout,
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(120, 24), 1.0, theme.palette().background);
+        let background = &pixels[pixels.len() - 4..];
+        let spinner_width = spinner.width.ceil() as usize * 4;
+        assert!(
+            pixels.chunks_exact(120 * 4).any(|row| {
+                row[..spinner_width].chunks_exact(4).any(|pixel| pixel != background)
+            }),
+            "spinner should render in {theme:?}"
+        );
     }
-    assert_eq!(THINK_STATUS_TEXT_SIZE, 12.0);
-    assert_eq!(THINK_META_TEXT_SIZE, 12.0);
 }
 
 #[test]

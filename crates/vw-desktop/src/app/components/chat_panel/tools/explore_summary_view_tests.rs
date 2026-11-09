@@ -310,18 +310,62 @@ fn tool_explore_summary_view_with_no_explore_tool_kind() {
     keep_element(view.unwrap());
 }
 
-#[test]
-fn tool_explore_summary_view_with_force_running_no_items() {
-    let app = test_app();
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn tool_explore_summary_spinner_centers_on_the_running_title() {
+    use iced::advanced::renderer::{Headless, Renderer as _, Style};
+    use iced::advanced::{Layout, layout, mouse, widget::Tree};
+    use iced::{Font, Pixels, Rectangle, Size, Theme};
+
+    let mut renderer = iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+        .await
+        .expect("tiny-skia headless renderer should be available");
+    let mut app = test_app();
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
     let items = vec![ExploreItem {
         tool_idx: 1,
         raw: r#"tool read
 {"call_id":"call-r","input":"{}","status":"completed"}"#
             .to_string(),
     }];
-    let view = tool_explore_summary_view(&app, 0, 0, &items, true, false);
-    assert!(view.is_some());
-    keep_element(view.unwrap());
+    let mut view =
+        tool_explore_summary_view(&app, 0, 0, &items, true, false).expect("forced running summary");
+    let viewport = Rectangle::with_size(Size::new(320.0, 40.0));
+    let limits = layout::Limits::new(Size::ZERO, viewport.size());
+    let mut tree = Tree::new(view.as_widget());
+    let node = view.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let layout = Layout::new(&node);
+    let content = layout.children().next().expect("summary content");
+    let header = content.children().next().expect("summary header");
+    let row = header.children().next().expect("header row");
+    let title = row.children().next().expect("running title");
+    let mut children = title.children();
+    let spinner = children.next().expect("spinner").bounds();
+    let label = children.next().expect("first title character").bounds();
+    assert_eq!(spinner.height, 13.0);
+    assert!((spinner.center_y() - label.center_y()).abs() < 0.01);
+
+    for theme in [Theme::Light, Theme::Dark] {
+        renderer.reset(viewport);
+        view.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            layout,
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(320, 40), 1.0, theme.palette().background);
+        let background = &pixels[pixels.len() - 4..];
+        let spinner_width = spinner.width.ceil() as usize * 4;
+        assert!(
+            pixels.chunks_exact(320 * 4).any(|row| {
+                row[..spinner_width].chunks_exact(4).any(|pixel| pixel != background)
+            }),
+            "spinner should render in {theme:?}"
+        );
+    }
 }
 
 #[test]

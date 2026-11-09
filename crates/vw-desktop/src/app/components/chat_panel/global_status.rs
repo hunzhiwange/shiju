@@ -271,10 +271,6 @@ pub(crate) fn compact_activity_geometry(_frame: usize) -> (f32, f32) {
     (COMPACT_ACTIVITY_SLOT_SIZE, COMPACT_ACTIVITY_ICON_SIZE)
 }
 
-pub(crate) fn compact_running_activity_indicator<'a>(frame: usize) -> Element<'a, Message> {
-    compact_activity_indicator(tool_visual_state("running"), frame)
-}
-
 fn compact_activity_indicator<'a>(visual: ToolVisual, frame: usize) -> Element<'a, Message> {
     let (slot_size, icon_size) = compact_activity_geometry(frame);
     let indicator: Element<'a, Message> = if visual.is_animated {

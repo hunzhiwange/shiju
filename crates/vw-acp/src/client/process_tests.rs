@@ -550,3 +550,26 @@ fn acp_full_access_opencode_desktop_requires_current_grant() {
 
     assert_eq!(AcpClient::new("opencode", config).launch_args().unwrap(), ["acp"]);
 }
+
+#[test]
+fn acp_full_access_unconfined_desktop_adapters_require_current_grant() {
+    use crate::PermissionMode;
+
+    for backend in ["hermes", "kilocode", "openclaw", "pi"] {
+        let config = AcpAgentConfig { command: backend.into(), ..Default::default() };
+        let workspace = unique_test_path("unconfined-workspace");
+        for (mode, grant, allowed) in [
+            (PermissionMode::ApproveReads, false, false),
+            (PermissionMode::ApproveAll, true, true),
+            (PermissionMode::ApproveAll, false, false),
+            (PermissionMode::DenyAll, true, false),
+        ] {
+            let client = AcpClient::new(backend, config.clone())
+                .with_desktop_workspace(Some(workspace.clone()))
+                .with_permission_mode(mode)
+                .with_full_access(grant);
+            assert_eq!(client.launch_args().is_ok(), allowed, "{backend} {mode:?} grant={grant}");
+        }
+        assert!(AcpClient::new(backend, config).launch_args().is_ok());
+    }
+}

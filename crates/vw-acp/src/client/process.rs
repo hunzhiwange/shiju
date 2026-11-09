@@ -6,6 +6,23 @@
 use super::*;
 
 impl AcpClient {
+    /// Reject desktop routes whose native tools can execute outside client approval.
+    pub fn ensure_desktop_native_access(
+        agent_name: &str,
+        unrestricted: bool,
+    ) -> Result<(), AcpError> {
+        let backend = crate::agent_registry::desktop_permission_agent(agent_name);
+        if !unrestricted
+            && let Some(backend @ ("hermes" | "kilocode" | "openclaw" | "opencode" | "pi")) =
+                backend
+        {
+            return Err(AcpError::Initialize(format!(
+                "{backend} approval mode cannot constrain native tools; a current full access grant is required"
+            )));
+        }
+        Ok(())
+    }
+
     /// 启动 ACP 代理子进程并返回进程句柄。
     ///
     /// 该函数会合并配置环境变量和认证环境变量，创建可管控的 stdin/stdout/stderr
@@ -129,11 +146,8 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
-        if self.agent_name == "opencode" && self.desktop_workspace.is_some() && !unrestricted {
-            return Err(AcpError::Initialize(
-                "OpenCode approval mode cannot constrain native tools; a current full access grant is required"
-                    .into(),
-            ));
+        if self.desktop_workspace.is_some() {
+            Self::ensure_desktop_native_access(&self.agent_name, unrestricted)?;
         }
         if self.agent_name == "copilot" {
             crate::access_policy::copilot::validate_launch(&self.config.args, unrestricted)?;

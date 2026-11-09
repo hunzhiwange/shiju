@@ -67,21 +67,19 @@ impl AcpClient {
         // Auto ignores NeverAllow user rules. Keep native denies and let the
         // current host permission mode resolve individual ACP approval requests.
         let desired = RESTRICTED_MODE;
+        if config_mode.or(legacy_mode) == Some(desired)
+            && legacy_mode.is_none_or(|mode| mode == desired)
+        {
+            return Ok(());
+        }
         if !has_config_mode {
             return self.confirmed_mode_control(conn, session_id, desired).await;
         }
         let response = self.confirmed_config_control(conn, session_id, "mode", desired).await?;
-        let previous_settings: Vec<_> = options
-            .unwrap_or_default()
-            .iter()
-            .filter(|option| option.id.0.as_ref() != "mode")
-            .collect();
-        let current_settings: Vec<_> = response
-            .config_options
-            .iter()
-            .filter(|option| option.id.0.as_ref() != "mode")
-            .collect();
-        if previous_settings != current_settings {
+        if !crate::access_policy::goose::same_selected_settings(
+            options.unwrap_or_default(),
+            &response.config_options,
+        ) {
             return self.block_goose_access(session_id, "Goose permission control changed provider, model or thinking configuration; refusing to prompt");
         }
         Ok(())

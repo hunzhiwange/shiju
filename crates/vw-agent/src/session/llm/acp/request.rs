@@ -177,6 +177,11 @@ pub(crate) async fn do_stream_request_acp(
     .await?;
     if let Some((root, full_grant)) = desktop_access {
         super::session::bind_desktop_access(&mut parsed_options, root, full_grant);
+        vw_acp::AcpClient::ensure_desktop_native_access(
+            &acp_agent_name,
+            parsed_options.full_access,
+        )
+        .map_err(to_api_error)?;
     }
     parsed_options.runtime_identity = Some(scoped_session.clone());
     parsed_options.skill_view = super::skill_mounts::MountedSkills::prepare(

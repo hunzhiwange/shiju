@@ -34,3 +34,28 @@ pub(crate) fn advertises_mode(options: Option<&[SessionConfigOption]>, value: &s
         })
     })
 }
+
+/// Goose refreshes available model choices when it changes mode.
+pub(crate) fn same_selected_settings(
+    previous: &[SessionConfigOption],
+    current: &[SessionConfigOption],
+) -> bool {
+    let mut previous = previous.iter().filter(|option| option.id.0.as_ref() != "mode");
+    let current = current.iter().filter(|option| option.id.0.as_ref() != "mode");
+    previous.clone().count() == current.clone().count()
+        && previous.all(|before| {
+            current.clone().any(|after| {
+                before.id == after.id
+                    && match (&before.kind, &after.kind) {
+                        (SessionConfigKind::Select(before), SessionConfigKind::Select(after)) => {
+                            before.current_value == after.current_value
+                        }
+                        (before, after) => before == after,
+                    }
+            })
+        })
+}
+
+#[cfg(test)]
+#[path = "goose_tests.rs"]
+mod tests;

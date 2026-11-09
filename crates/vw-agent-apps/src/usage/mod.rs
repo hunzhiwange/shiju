@@ -7,6 +7,7 @@ pub mod cache;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod coding;
 pub mod detect;
+pub mod presentation;
 pub mod scripts;
 #[cfg(target_os = "macos")]
 pub mod subscriptions;

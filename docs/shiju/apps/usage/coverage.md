@@ -664,3 +664,20 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 测试通过真实供应商 Router 和租户中间件写入隔离 SQLite，使用真实 QuickJS 和本机 HTTP Router 核对 GET 路径、Bearer、成功解析和 429。用例验证 59 秒与 60 秒边界、定时与批量共用在途查询、逐项失败、禁用、间隔为零和撤销。撤销测试在上游等待响应时改写管理员策略，验证网关取消执行并丢弃结果。真实账号验收留待后续批次。限定提交范围的差异检查退出 0。
+
+## 任务 41 投影多窗口展示
+
+`tier_lines` 使用现有 `UsageQuotaWindow`，保留原窗口和重置时间，按已知窗口从短到长稳定排序，未知窗口排在最后。排序也识别原生适配器的 AGY 周档。已用和剩余模式同时切换数值和进度条，警示始终依据四舍五入后的剩余比例。20% 正常，1% 至 19% 警示，0% 与超额显示用尽。缺少利用率时沿用查询合同的未知状态，百分比、进度条和警示均为空。 [上游窗口顺序与百分比](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L64-L159) · [上游调用方](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L141-L167) · [Rust 投影](../../../../crates/vw-agent-apps/src/usage/presentation/tiers.rs#L34)
+
+`tier_card_rows` 最多输出两行。超过两档时，最短窗口单占首行，其余选剩余最少的两档并按窗口时长合并到第二行。剩余比例相同则优先保留排序靠前的窗口，同一时长保持输入顺序。 [上游卡片规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L421-L456) · [上游用例](../../../../crates/vw-agent-apps/upstream/tests/components/quotaRules.test.ts#L45-L212) · [独立 Rust 用例](../../../../crates/vw-agent-apps/src/usage/presentation/tiers_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_presentation_tiers_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_presentation_tiers_returns_expected_result` 和 `usage_presentation_tiers_rejects_invalid_input` 的模块因缺少 `super::tiers` 按预期报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本执行，仅同步任务 41 的文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_presentation_tiers_ -- --nocapture` | 退出 0，3 项通过，0 项失败。覆盖显示切换、警示边界、用尽、未知比例及卡片合并。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。

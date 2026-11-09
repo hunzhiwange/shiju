@@ -115,7 +115,9 @@ impl<'a> Scene<'a> {
         );
         self.ui.draw(renderer, theme, &Style { text_color: theme.palette().text }, cursor);
         let pixels = renderer.screenshot(self.size, 1.0, theme.palette().background);
-        if let Some(directory) = std::env::var_os("SHIJU_SETTINGS_PREVIEW_DIR") {
+        if let Some(directory) =
+            std::env::var_os("SHIJU_SETTINGS_PREVIEW_DIR").filter(|_| !name.is_empty())
+        {
             image::save_buffer(
                 std::path::PathBuf::from(directory).join(format!("{name}.png")),
                 &pixels,
@@ -132,6 +134,396 @@ impl<'a> Scene<'a> {
 fn screenshot(app: &App, renderer: &mut Renderer, theme: &Theme, size: Size<u32>, name: &str) {
     let mut scene = Scene::new(view(app), renderer, size);
     scene.capture(renderer, theme, mouse::Cursor::Unavailable, name);
+}
+
+fn settings_view(app: &App) -> Element<'_, Message> {
+    crate::app::components::system_settings::view(app)
+}
+
+#[derive(Default)]
+struct SettingsText(Vec<String>);
+
+impl Operation for SettingsText {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, value: &str) {
+        self.0.push(value.to_owned());
+    }
+}
+
+impl Scene<'_> {
+    fn assert_body_text(&mut self, renderer: &Renderer, value: &str, visible: bool) {
+        let mut text = SettingsText::default();
+        self.ui.operate(renderer, &mut text);
+        assert_eq!(
+            text.0.iter().any(|item| item.contains(value)),
+            visible,
+            "body visibility for {value:?}"
+        );
+    }
+
+    fn assert_migrated_help(
+        &mut self,
+        renderer: &mut Renderer,
+        theme: &Theme,
+        trigger_path: &[usize],
+        expected: &[&str],
+    ) {
+        for text in expected {
+            self.assert_body_text(renderer, text, false);
+        }
+        let icon = self.bounds(trigger_path);
+        assert_eq!(icon.size(), Size::new(22.0, 22.0));
+        let point = icon.center();
+        let idle = self.capture(renderer, theme, mouse::Cursor::Unavailable, "");
+        assert!(
+            self.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+                cursor(icon),
+            )
+            .is_empty()
+        );
+        assert!(self.capture(renderer, theme, cursor(icon), "") != idle);
+        assert!(self.click(renderer, point).is_empty());
+        assert!(
+            self.send(
+                renderer,
+                &[Event::Mouse(mouse::Event::CursorLeft)],
+                mouse::Cursor::Unavailable
+            )
+            .is_empty()
+        );
+
+        // Help cards open on the side with enough space, up to 300px wide.
+        let right = icon.x + icon.width + 4.0;
+        let left_space = icon.x - 4.0;
+        let right_space = self.size.width as f32 - right;
+        let width = 300.0_f32.min(left_space.max(right_space));
+        let x = if right_space >= width { right } else { left_space - width };
+        let start = Point::new(x + 12.5, icon.y + 15.0);
+        let end = Point::new(x + width - 1.0, icon.y + 200.0);
+        for (point, event) in [
+            (start, mouse::Event::ButtonPressed(mouse::Button::Left)),
+            (end, mouse::Event::CursorMoved { position: end }),
+            (end, mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ] {
+            assert!(
+                self.send(renderer, &[Event::Mouse(event)], mouse::Cursor::Available(point))
+                    .is_empty()
+            );
+        }
+        let copy = Key::Character("c".into());
+        let copied = self.send(
+            renderer,
+            &[Event::Keyboard(keyboard::Event::KeyPressed {
+                key: copy.clone(),
+                modified_key: copy,
+                physical_key: keyboard::key::Physical::Code(keyboard::key::Code::KeyC),
+                location: keyboard::Location::Standard,
+                modifiers: if cfg!(target_os = "macos") {
+                    keyboard::Modifiers::LOGO
+                } else {
+                    keyboard::Modifiers::CTRL
+                },
+                text: None,
+                repeat: false,
+            })],
+            mouse::Cursor::Unavailable,
+        );
+        assert!(
+            matches!(copied.as_slice(), [Message::CopyCode(value)] if expected.iter().all(|text| value.contains(text))),
+            "localized help must be readable and selectable: {copied:?}"
+        );
+        assert!(self.send(renderer, &[key(Named::Escape)], mouse::Cursor::Unavailable).is_empty());
+    }
+}
+
+fn settings_help_fixture() -> App {
+    use crate::app::components::system_settings::SystemTab;
+
+    let mut app = fixture();
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Providers;
+    app
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_03_provider_id_and_account_auth() {
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+
+    let mut renderer = renderer().await;
+    let mut app = settings_help_fixture();
+    for (locale, theme) in [
+        (DesktopLocale::English, Theme::Light),
+        (DesktopLocale::SimplifiedChinese, Theme::Dark),
+        (DesktopLocale::TraditionalChinese, Theme::Light),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        for width in [420, 960] {
+            let size = Size::new(width, 620);
+            for editing in [false, true] {
+                app.provider_settings.custom_editing_provider_id =
+                    editing.then(|| "fixture".into());
+                let description = if editing {
+                    "作为配置中的稳定标识，编辑模式下保持只读。"
+                } else {
+                    "作为配置中的稳定标识，只允许小写字母、数字、连字符或下划线。"
+                };
+                let mut scene = Scene::new(settings_view(&app), &mut renderer, size);
+                scene.assert_body_text(&renderer, tr(locale, description), false);
+                let icon =
+                    if width == 420 { group(&[0, 0, 0, 1]) } else { group(&[0, 0, 0, 0, 1]) };
+                let mut expected = vec![tr(locale, description)];
+                if !editing {
+                    expected.push(tr(locale, "例如 myprovider。"));
+                }
+                scene.assert_migrated_help(&mut renderer, &theme, &icon, &expected);
+                if editing {
+                    scene.assert_body_text(&renderer, "fixture", true);
+                } else {
+                    scene.assert_body_text(
+                        &renderer,
+                        tr(locale, "小写字母、数字、下划线或连字符。"),
+                        true,
+                    );
+                }
+                if width == 420 {
+                    let id = if editing { scalar_control(0, &[]) } else { scalar_control(0, &[0]) };
+                    let id = scene.bounds(&id);
+                    let changes = scene.edit(&mut renderer, id, "-new");
+                    if editing {
+                        assert!(changes.is_empty());
+                    } else {
+                        assert!(matches!(
+                            changes.as_slice(),
+                            [Message::Settings(SettingsMessage::CustomProviderIdChanged(value))] if value == "fixture-new"
+                        ));
+                    }
+                }
+            }
+
+            app.provider_settings.custom.provider_id = "shiju".into();
+            app.provider_settings.custom_provider_tab = CustomProviderTab::Authentication;
+            let mut scene = Scene::new(settings_view(&app), &mut renderer, size);
+            let icon = if width == 420 { group(&[0, 0, 0, 1]) } else { group(&[0, 0, 0, 0, 1]) };
+            scene.assert_migrated_help(
+                &mut renderer,
+                &theme,
+                &icon,
+                &[tr(locale, "登录识矩账户后自动配置模型，无需填写模型密钥。")],
+            );
+            scene.assert_body_text(&renderer, tr(locale, "密钥由账户管理，不显示明文"), true);
+            scene.assert_body_text(&renderer, "API Key", false);
+            drop(scene);
+            app.provider_settings.custom.provider_id = "fixture".into();
+            app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_03_model_limits_and_modalities() {
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+
+    let mut renderer = renderer().await;
+    let mut app = settings_help_fixture();
+    apply(&mut app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(Some(0)))]);
+    for (locale, theme) in [
+        (DesktopLocale::English, Theme::Dark),
+        (DesktopLocale::SimplifiedChinese, Theme::Light),
+        (DesktopLocale::TraditionalChinese, Theme::Dark),
+    ] {
+        app.desktop_locale = locale;
+        app.app_theme = theme.clone();
+        for width in [420, 960] {
+            let size = Size::new(width, 620);
+            for (index, tab) in [
+                CustomProviderModelTab::Limits,
+                CustomProviderModelTab::Capabilities,
+                CustomProviderModelTab::Info,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let mut scene = Scene::new(settings_view(&app), &mut renderer, size);
+                let target = scene.bounds(&modal(&[0, 1, (index + 1) % 3]));
+                let messages = scene.click(&mut renderer, target.center());
+                assert!(matches!(
+                    messages.as_slice(),
+                    [Message::Settings(SettingsMessage::CustomProviderModelTabSelected(value))] if *value == tab
+                ));
+                drop(scene);
+                apply(&mut app, messages);
+                let mut scene = Scene::new(settings_view(&app), &mut renderer, size);
+                match tab {
+                    CustomProviderModelTab::Limits => {
+                        scene.assert_migrated_help(
+                            &mut renderer,
+                            &theme,
+                            &modal(&[1, 0, 0, 0, 1]),
+                            &[tr(
+                                locale,
+                                "空值明确表示沿用内置基线或安全默认值，数值单位为 token。",
+                            )],
+                        );
+                        for (field, label, description, example) in [
+                            (
+                                0,
+                                "上下文限制（token）",
+                                "总上下文窗口；留空时沿用内置基线或安全默认值。",
+                                "例如 200000。",
+                            ),
+                            (
+                                2,
+                                "最大输入（token）",
+                                "最大输入窗口；留空时沿用内置基线或安全默认值。",
+                                "例如 200000。",
+                            ),
+                            (
+                                4,
+                                "最大输出（token）",
+                                "最大输出窗口；0 可表示该模型不产生文本输出。",
+                                "例如 4096。",
+                            ),
+                        ] {
+                            let icon = if width == 420 {
+                                group(&[field, 0, 0, 1])
+                            } else {
+                                group(&[field, 0, 0, 0, 1])
+                            };
+                            scene.assert_body_text(&renderer, tr(locale, label), true);
+                            scene.assert_migrated_help(
+                                &mut renderer,
+                                &theme,
+                                &icon,
+                                &[tr(locale, description), tr(locale, example)],
+                            );
+                        }
+                    }
+                    CustomProviderModelTab::Capabilities => {
+                        for (field, description) in [
+                            (0, "选择 provider 接受的输入类型；留空时按文本模型默认值处理。"),
+                            (2, "选择 provider 返回的输出类型；留空时按文本模型默认值处理。"),
+                        ] {
+                            let icon = group(&[2, field, 0, 0, 1]);
+                            scene.assert_migrated_help(
+                                &mut renderer,
+                                &theme,
+                                &icon,
+                                &[tr(locale, description)],
+                            );
+                        }
+                    }
+                    CustomProviderModelTab::Info => {
+                        let save = scene.bounds(&modal(&[2, 2]));
+                        assert!(matches!(
+                            scene.click(&mut renderer, save.center()).as_slice(),
+                            [Message::Settings(SettingsMessage::CustomProviderModelModalSave)]
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn settings_help_gap_03_preserves_masks_and_validation() {
+    use crate::app::i18n::settings_models::connection_text::text as tr;
+
+    let mut renderer = renderer().await;
+    let mut app = settings_help_fixture();
+    let size = Size::new(420, 620);
+    app.provider_settings.custom_provider_tab = CustomProviderTab::Authentication;
+    let frame = |app: &App, renderer: &mut Renderer| {
+        Scene::new(settings_view(app), renderer, size).capture(
+            renderer,
+            &app.app_theme,
+            mouse::Cursor::Unavailable,
+            "",
+        )
+    };
+    let masked = frame(&app, &mut renderer);
+    app.provider_settings.custom.api_key = "zz-fixture".into();
+    assert!(frame(&app, &mut renderer) == masked, "same length keys draw the same mask");
+    app.provider_settings.custom.api_key.push('x');
+    assert!(frame(&app, &mut renderer) != masked, "the input draws the longer mask");
+
+    app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
+    app.provider_settings.custom.provider_id = "INVALID".into();
+    let mut provider = Scene::new(settings_view(&app), &mut renderer, size);
+    let save = provider.bounds(&modal(&[2, 2])).center();
+    let messages = provider.click(&mut renderer, save);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderSave)]
+    ));
+    drop(provider);
+    apply(&mut app, messages);
+    let mut provider = Scene::new(settings_view(&app), &mut renderer, size);
+    provider.assert_body_text(
+        &renderer,
+        tr(app.desktop_locale, "提供商 ID 仅支持小写字母、数字、连字符或下划线"),
+        true,
+    );
+    provider.capture(&mut renderer, &app.app_theme, mouse::Cursor::Unavailable, "");
+    drop(provider);
+
+    app.provider_settings.custom.provider_id = "fixture".into();
+    apply(&mut app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(Some(0)))]);
+    apply(
+        &mut app,
+        vec![Message::Settings(SettingsMessage::CustomProviderModelTabSelected(
+            CustomProviderModelTab::Limits,
+        ))],
+    );
+    let mut model = Scene::new(settings_view(&app), &mut renderer, size);
+    let input = model.bounds(&scalar_control(2, &[]));
+    let input_changed = model.edit(&mut renderer, input, "0");
+    let output = model.bounds(&scalar_control(4, &[]));
+    let output_changed = model.edit(&mut renderer, output, "0");
+    assert!(matches!(
+        input_changed.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderModelModalInputLimitChanged(value))]
+            if value == "0"
+    ));
+    assert!(matches!(
+        output_changed.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderModelModalOutputLimitChanged(value))]
+            if value == "0"
+    ));
+    let save = model.bounds(&modal(&[2, 2])).center();
+    let messages = model.click(&mut renderer, save);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderModelModalSave)]
+    ));
+    drop(model);
+    apply(&mut app, input_changed);
+    apply(&mut app, output_changed);
+    apply(&mut app, messages);
+    assert!(app.provider_settings.custom_model_modal.is_some());
+    let mut model = Scene::new(settings_view(&app), &mut renderer, size);
+    model.assert_body_text(&renderer, "input limit must be a positive integer", true);
+    let input = model.bounds(&scalar_control(2, &[]));
+    assert!(model.click(&mut renderer, input.center()).is_empty());
+    let clear = model.send(&mut renderer, &[key(Named::End), key(Named::Backspace)], cursor(input));
+    assert!(matches!(
+        clear.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderModelModalInputLimitChanged(value))]
+            if value.is_empty()
+    ));
+    let save = model.bounds(&modal(&[2, 2])).center();
+    let messages = model.click(&mut renderer, save);
+    drop(model);
+    apply(&mut app, clear);
+    apply(&mut app, messages);
+    assert!(app.provider_settings.custom_model_modal.is_none());
+    assert_eq!(app.provider_settings.custom.models[0].output_limit, "0");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -218,10 +610,10 @@ async fn help_rollout_02_dismisses_menu_before_card_and_keeps_modal_actions() {
     use crate::app::message::ViewMessage;
 
     let mut renderer = renderer().await;
-    let mut app = fixture();
+    let mut app = settings_help_fixture();
     app.app_theme = Theme::Light;
     apply(&mut app, vec![Message::Settings(SettingsMessage::CustomProviderModelOpen(Some(0)))]);
-    let mut scene = narrow(&app, &mut renderer);
+    let mut scene = Scene::new(settings_view(&app), &mut renderer, Size::new(420, 620));
     let icon = scene.bounds(&group(&[0, 0, 0, 1]));
     let idle = scene.capture(
         &mut renderer,
@@ -330,6 +722,17 @@ async fn help_rollout_02_dismisses_menu_before_card_and_keeps_modal_actions() {
     apply(&mut app, messages);
     assert!(app.provider_settings.custom_model_modal.is_none());
     assert!(app.provider_settings.custom_provider_modal_open);
+
+    let mut parent = Scene::new(settings_view(&app), &mut renderer, Size::new(420, 620));
+    let cancel = parent.bounds(&modal(&[2, 1])).center();
+    let messages = parent.click(&mut renderer, cancel);
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Settings(SettingsMessage::CustomProviderClose)]
+    ));
+    drop(parent);
+    apply(&mut app, messages);
+    assert!(!app.provider_settings.custom_provider_modal_open);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -455,18 +858,18 @@ async fn ui_refresh_09_layout_and_interaction() {
     app.desktop_locale = DesktopLocale::English;
     app.provider_settings.custom_provider_tab = CustomProviderTab::Authentication;
     let mut scene = narrow(&app, &mut renderer);
-    let api_key = scene.bounds(&scalar_control(0, &[]));
-    let value = scene.bounds(&scalar_control(0, &[0]));
+    let api_key = scene.bounds(&scalar_control(0, &[0]));
+    let optional = scene.bounds(&scalar_control(0, &[1]));
     assert!(api_key.width >= 280.0, "the input needs the full field width at 420 px");
-    assert!((api_key.center().y - value.center().y).abs() < 0.5);
+    assert!(optional.y >= api_key.y + api_key.height, "the hint stays below the input");
     assert!(matches!(
         scene.edit(&mut renderer, api_key, "-edited").as_slice(),
         [Message::Settings(SettingsMessage::CustomProviderApiKeyChanged(key))]
             if key == "sk-fixture-edited"
     ));
-    let name = scene.bounds(&control(2, &[1, 0]));
-    let value = scene.bounds(&control(2, &[1, 1]));
-    let remove = scene.bounds(&control(2, &[1, 2]));
+    let name = scene.bounds(&scalar_control(2, &[1, 0]));
+    let value = scene.bounds(&scalar_control(2, &[1, 1]));
+    let remove = scene.bounds(&scalar_control(2, &[1, 2]));
     assert!(name.width > 110.0 && value.width > 110.0);
     assert!((name.center().y - remove.center().y).abs() < 0.5);
     assert!(matches!(
@@ -515,7 +918,7 @@ async fn ui_refresh_09_layout_and_interaction() {
 
     app.provider_settings.custom_provider_tab = CustomProviderTab::Basic;
     let mut scene = narrow(&app, &mut renderer);
-    let id = scene.bounds(&scalar_control(0, &[]));
+    let id = scene.bounds(&scalar_control(0, &[0]));
     assert!(matches!(
         scene.edit(&mut renderer, id, "-new").as_slice(),
         [Message::Settings(SettingsMessage::CustomProviderIdChanged(id))] if id == "fixture-new"
@@ -553,7 +956,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
 
     app.provider_settings.custom_models_discovering = true;
     let mut scene = narrow(&app, &mut renderer);
-    let discover = scene.bounds(&control(0, &[1]));
+    let discover = scene.bounds(&scalar_control(0, &[1]));
     let save = scene.bounds(&modal(&[2, 2]));
     for button in [discover, save] {
         assert!(scene.click(&mut renderer, button.center()).is_empty());
@@ -562,14 +965,14 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
     drop(scene);
     app.provider_settings.custom_models_discovering = false;
     let mut scene = narrow(&app, &mut renderer);
-    let discover = scene.bounds(&control(0, &[1]));
+    let discover = scene.bounds(&scalar_control(0, &[1]));
     assert!(matches!(
         scene.click(&mut renderer, discover.center()).as_slice(),
         [Message::Settings(SettingsMessage::CustomProviderModelsDiscover)]
     ));
-    let add = scene.bounds(&control(0, &[2]));
+    let add = scene.bounds(&scalar_control(0, &[2]));
     let edit = scene.bounds(&group(&[4, 0, 2]));
-    let filter = scene.bounds(&control(2, &[2]));
+    let filter = scene.bounds(&scalar_control(2, &[2]));
     let filtered = scene.click(&mut renderer, filter.center());
     assert!(matches!(
         filtered.as_slice(),
@@ -662,7 +1065,7 @@ async fn ui_refresh_09_preserves_values_and_disabled_states() {
         messages.as_slice(),
         [Message::Settings(SettingsMessage::CustomProviderModelModalReasoningChanged(false))]
     ));
-    let image = scene.bounds(&group(&[2, 0, 0, 1, 0, 1]));
+    let image = scene.bounds(&group(&[2, 0, 0, 1, 1]));
     let modalities = scene.click(&mut renderer, image.center());
     assert!(matches!(
         modalities.as_slice(),
@@ -765,10 +1168,6 @@ fn modal(path: &[usize]) -> Vec<usize> {
 
 fn group(path: &[usize]) -> Vec<usize> {
     modal(&[&[1, 0, 0, 1, 0][..], path].concat())
-}
-
-fn control(field: usize, path: &[usize]) -> Vec<usize> {
-    group(&[&[field, 0, 1, 0][..], path].concat())
 }
 
 fn scalar_control(field: usize, path: &[usize]) -> Vec<usize> {

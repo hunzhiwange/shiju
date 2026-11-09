@@ -5,11 +5,10 @@
 
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_control_with_hint, settings_divider, settings_error_banner,
-    settings_field_label, settings_flexible_row_with_help, settings_group_card,
-    settings_group_heading, settings_group_heading_with_help, settings_hover_help_label,
-    settings_modal_card_style, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_responsive_row, settings_segment_button_style,
+    settings_close_button, settings_divider, settings_error_banner, settings_field_label,
+    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
+    settings_hover_help_label, settings_modal_card_style, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_segment_button_style,
     settings_tab_button, settings_tab_row, settings_text_input,
 };
 use crate::app::i18n::I18n;
@@ -19,6 +18,7 @@ use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
 use iced::widget::{Space, button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Background, Element, Length, Theme};
+use std::borrow::Cow;
 
 const MODALITIES: [&str; 5] = ["text", "image", "audio", "video", "pdf"];
 
@@ -43,14 +43,6 @@ pub(super) fn custom_segment_style(
     style
 }
 
-pub(super) fn field_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    control: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
-    stacked_field_row(settings_field_label(label), settings_control_with_hint(control, description))
-}
-
 pub(super) fn stacked_field_row<'a>(
     label: impl Into<Element<'a, Message>>,
     control: impl Into<Element<'a, Message>>,
@@ -61,22 +53,10 @@ pub(super) fn stacked_field_row<'a>(
         .into()
 }
 
-pub(super) fn text_row<'a>(
-    label: &'a str,
-    description: &'a str,
-    placeholder: &'a str,
-    value: &'a str,
-    on_input: impl Fn(String) -> Message + Clone + 'a,
-) -> Element<'a, Message> {
-    settings_responsive_row(label, description, move || {
-        settings_text_input(placeholder, value).on_input(on_input.clone()).width(Length::Fill)
-    })
-}
-
 fn text_row_with_help<'a>(
     app: &'a App,
     label: &'a str,
-    description: &'a str,
+    description: impl Into<Cow<'a, str>>,
     placeholder: &'a str,
     value: &'a str,
     on_input: fn(String) -> SettingsMessage,
@@ -91,7 +71,7 @@ fn text_row_with_help<'a>(
 pub(super) fn responsive_field_with_help<'a, Control>(
     app: &'a App,
     label: &'a str,
-    description: &'a str,
+    description: impl Into<Cow<'a, str>>,
     control: impl Fn() -> Control + 'a,
 ) -> Element<'a, Message>
 where
@@ -99,10 +79,11 @@ where
 {
     let i18n = I18n::new(app.desktop_locale);
     let theme = &app.app_theme;
+    let description = description.into();
     responsive(move |size| {
         let control = control().into();
         if size.width >= 600.0 {
-            settings_flexible_row_with_help(i18n, theme, label, description, 460.0, control)
+            settings_flexible_row_with_help(i18n, theme, label, description.clone(), 460.0, control)
                 .padding([6, 0])
                 .into()
         } else {
@@ -112,7 +93,7 @@ where
                     theme,
                     label,
                     settings_field_label(label),
-                    description
+                    description.clone()
                 )
                 .wrap(),
                 control,
@@ -216,38 +197,38 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             SettingsMessage::CustomProviderModelModalFamilyChanged,
         );
 
-        let context_limit_row = text_row(
+        let empty_limit = connection_text(app.desktop_locale, "留空使用默认值");
+        let input_example = connection_text(app.desktop_locale, "例如 200000。");
+        let output_example = connection_text(app.desktop_locale, "例如 4096。");
+        let context_description =
+            connection_text(app.desktop_locale, "总上下文窗口；留空时沿用内置基线或安全默认值。");
+        let input_description =
+            connection_text(app.desktop_locale, "最大输入窗口；留空时沿用内置基线或安全默认值。");
+        let output_description =
+            connection_text(app.desktop_locale, "最大输出窗口；0 可表示该模型不产生文本输出。");
+        let context_limit_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "上下文限制（token）"),
-            connection_text(app.desktop_locale, "总上下文窗口；留空时沿用内置基线或安全默认值。"),
-            connection_text(app.desktop_locale, "例如 200000，留空使用默认值"),
+            format!("{context_description} {input_example}"),
+            empty_limit,
             &mm.context_limit,
-            |v| {
-                Message::Settings(
-                    message::SettingsMessage::CustomProviderModelModalContextLimitChanged(v),
-                )
-            },
+            SettingsMessage::CustomProviderModelModalContextLimitChanged,
         );
-        let input_limit_row = text_row(
+        let input_limit_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "最大输入（token）"),
-            connection_text(app.desktop_locale, "最大输入窗口；留空时沿用内置基线或安全默认值。"),
-            connection_text(app.desktop_locale, "例如 200000，留空使用默认值"),
+            format!("{input_description} {input_example}"),
+            empty_limit,
             &mm.input_limit,
-            |v| {
-                Message::Settings(
-                    message::SettingsMessage::CustomProviderModelModalInputLimitChanged(v),
-                )
-            },
+            SettingsMessage::CustomProviderModelModalInputLimitChanged,
         );
-        let output_limit_row = text_row(
+        let output_limit_row = text_row_with_help(
+            app,
             connection_text(app.desktop_locale, "最大输出（token）"),
-            connection_text(app.desktop_locale, "最大输出窗口；0 可表示该模型不产生文本输出。"),
-            connection_text(app.desktop_locale, "例如 4096，留空使用默认值"),
+            format!("{output_description} {output_example}"),
+            empty_limit,
             &mm.output_limit,
-            |v| {
-                Message::Settings(
-                    message::SettingsMessage::CustomProviderModelModalOutputLimitChanged(v),
-                )
-            },
+            SettingsMessage::CustomProviderModelModalOutputLimitChanged,
         );
 
         let reasoning = capability_checkbox(
@@ -320,19 +301,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 )
             },
         );
-        let capabilities_label = connection_text(app.desktop_locale, "能力");
-        let capabilities_row = stacked_field_row(
+        let field_help = |label, description| {
+            let label = connection_text(app.desktop_locale, label);
             settings_hover_help_label(
                 i18n,
                 theme,
-                capabilities_label,
-                settings_field_label(capabilities_label),
-                connection_text(
-                    app.desktop_locale,
-                    "未显式设置时沿用基线；新模型默认支持文本和工具调用。",
-                ),
+                label,
+                settings_field_label(label),
+                connection_text(app.desktop_locale, description),
             )
-            .wrap(),
+            .wrap()
+        };
+        let capabilities_row = stacked_field_row(
+            field_help("能力", "未显式设置时沿用基线；新模型默认支持文本和工具调用。"),
             row![reasoning, tool_call, temperature, attachment, interleaved]
                 .spacing(14)
                 .align_y(Alignment::Center)
@@ -392,19 +373,17 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 .into()
         });
         let modalities_row = column![
-            field_row(
-                connection_text(app.desktop_locale, "输入模态"),
-                connection_text(
-                    app.desktop_locale,
+            stacked_field_row(
+                field_help(
+                    "输入模态",
                     "选择 provider 接受的输入类型；留空时按文本模型默认值处理。"
                 ),
                 row(input_modality_checks).spacing(12).align_y(Alignment::Center).wrap(),
             ),
             settings_divider(),
-            field_row(
-                connection_text(app.desktop_locale, "输出模态"),
-                connection_text(
-                    app.desktop_locale,
+            stacked_field_row(
+                field_help(
+                    "输出模态",
                     "选择 provider 返回的输出类型；留空时按文本模型默认值处理。"
                 ),
                 row(output_modality_checks).spacing(12).align_y(Alignment::Center).wrap(),
@@ -429,7 +408,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ]
         .spacing(16);
         let limits_tab = column![
-            settings_group_heading(
+            settings_group_heading_with_help(
+                i18n,
+                theme,
                 connection_text(app.desktop_locale, "限制"),
                 connection_text(
                     app.desktop_locale,

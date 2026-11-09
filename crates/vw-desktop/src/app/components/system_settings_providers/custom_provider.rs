@@ -13,15 +13,14 @@
 
 use super::custom_model_modal::{
     custom_modal_card_style, custom_segment_style, responsive_field_with_help, stacked_field_row,
-    text_row,
 };
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     icon_btn, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_divider, settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading_with_help, settings_hover_help_label, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay, settings_muted_text_style,
-    settings_responsive_row, settings_tab_button, settings_tab_row, settings_text_input,
+    settings_control_with_hint, settings_divider, settings_error_banner, settings_field_label,
+    settings_group_card, settings_group_heading_with_help, settings_hover_help_label,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay,
+    settings_muted_text_style, settings_tab_button, settings_tab_row, settings_text_input,
     settings_toggle, settings_value_badge,
 };
 use crate::app::i18n::I18n;
@@ -123,25 +122,39 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 .wrap()
         };
 
+        let provider_id_label = connection_text(locale, "提供商 ID");
         let provider_id_row = if is_editing {
-            settings_responsive_row(
-                connection_text(app.desktop_locale, "提供商 ID"),
-                connection_text(app.desktop_locale, "作为配置中的稳定标识，编辑模式下保持只读。"),
+            responsive_field_with_help(
+                app,
+                provider_id_label,
+                connection_text(locale, "作为配置中的稳定标识，编辑模式下保持只读。"),
                 || {
                     container(settings_value_badge(s.custom.provider_id.as_str()))
                         .width(Length::Fill)
                 },
             )
         } else {
-            text_row(
-                connection_text(app.desktop_locale, "提供商 ID"),
-                connection_text(
-                    app.desktop_locale,
-                    "作为配置中的稳定标识，只允许小写字母、数字、连字符或下划线。",
-                ),
-                "myprovider",
-                &s.custom.provider_id,
-                |v| Message::Settings(message::SettingsMessage::CustomProviderIdChanged(v)),
+            let description = connection_text(
+                locale,
+                "作为配置中的稳定标识，只允许小写字母、数字、连字符或下划线。",
+            );
+            let example = connection_text(locale, "例如 myprovider。");
+            responsive_field_with_help(
+                app,
+                provider_id_label,
+                format!("{description} {example}"),
+                move || {
+                    settings_control_with_hint(
+                        settings_text_input("", &s.custom.provider_id)
+                            .on_input(|value| {
+                                Message::Settings(
+                                    message::SettingsMessage::CustomProviderIdChanged(value),
+                                )
+                            })
+                            .width(Length::Fill),
+                        connection_text(locale, "小写字母、数字、下划线或连字符。"),
+                    )
+                },
             )
         };
 
@@ -178,7 +191,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let api_key_row = if crate::app::state::is_shiju_official_provider_id(&s.custom.provider_id)
         {
-            settings_responsive_row(
+            responsive_field_with_help(
+                app,
                 connection_text(app.desktop_locale, "账户自动授权"),
                 connection_text(
                     app.desktop_locale,

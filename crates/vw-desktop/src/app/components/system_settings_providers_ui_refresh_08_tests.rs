@@ -130,7 +130,7 @@ async fn help_rollout_05_renders_contextual_help() {
         app.provider_settings.custom.base_url = "https://private-fixture.invalid/v1".into();
         app.provider_settings.custom.api_key = "secret-fixture".into();
         for (tab, count) in [
-            (CustomProviderTab::Basic, 4),
+            (CustomProviderTab::Basic, 5),
             (CustomProviderTab::Authentication, 4),
             (CustomProviderTab::Models, 4),
         ] {
@@ -151,7 +151,7 @@ async fn help_rollout_05_renders_contextual_help() {
             &mut renderer,
             &theme,
             Size::new(420, 620),
-            4,
+            5,
             &format!("edit-{mode}"),
         );
         app.provider_settings.custom_editing_provider_id = None;

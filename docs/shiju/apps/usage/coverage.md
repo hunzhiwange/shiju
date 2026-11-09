@@ -318,3 +318,23 @@
 | 本包检查 | `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` | 槽位 2 退出 0。 |
 
 仅审查并暂存本任务的适配器、模块注册、独立测试和覆盖记录，`git diff --cached --check` 退出 0。各阶段均释放所持槽位锁，保留编译缓存。HTTP 证据来自本机夹具，真实账号验收见任务 56。
+
+## 任务 22 火山方舟请求签名
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 启用规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L103-L113) · [AK/SK 分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1883-L1894) | 签名入口接收执行端解析出的账号 AK/SK。凭据缺失或无法安全写入鉴权头时返回 `CredentialUnavailable`，非法动作或区域配置返回 `MissingConfiguration`。错误不携带输入，鉴权头标记为敏感。 |
+| [签名与请求构造](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1342-L1473) · [固定时间夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L2983-L3028) | `sign_volcengine_request` 构造固定控制面地址的 POST，查询按 Action、Region、Version 顺序排列，签名和请求共用查询与请求体字节。固定时间夹具核对完整 Authorization、请求日期和 SHA-256，预期签名按上游规则用 Python 标准库独立计算。额外夹具覆盖保留字符、UTF-8、非空请求体与脱敏错误。 |
+
+[签名入口](../../../../crates/vw-agent-apps/src/usage/coding/volcengine_sign.rs#L21) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/volcengine_sign_tests.rs#L12)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。使用批次 21 提交 `b1eb7d5a0` 的隔离源码副本。两阶段分别动态领取槽位 2，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 两阶段均退出 0，仅同步本任务的 Rust 文件。 |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_volcengine_sign_ -- --nocapture` | 退出 101，执行 0 项。三个用例所在模块报 E0432，无法导入尚未实现的 `super::volcengine_sign`。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_volcengine_sign_ -- --nocapture` | 退出 0，3 项通过，0 项失败。用例为 `usage_coding_volcengine_sign_returns_expected_result`、`usage_coding_volcengine_sign_binds_encoded_query_and_payload` 和 `usage_coding_volcengine_sign_rejects_invalid_input`。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。隔离副本同步了共享工作区已有的 `postgres_tests.rs` 第三参数修正，以通过基线测试编译。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。两阶段均释放槽位锁并保留缓存。夹具验证签名与请求构造，真实账号验收见任务 56。

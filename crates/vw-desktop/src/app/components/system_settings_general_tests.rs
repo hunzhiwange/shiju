@@ -875,7 +875,7 @@ mod tab_appearance {
                 "theme-basics-zh-dark",
                 "名称",
                 "显示在画廊与主题选择中。",
-                "名称必填；新建时标识由名称生成。",
+                "名称必填。",
             ),
             (
                 ThemeEditorTab::Palette,

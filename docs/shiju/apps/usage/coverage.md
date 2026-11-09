@@ -150,3 +150,24 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 源码副本退出 101，`vw-agent/src/session/store/postgres_tests.rs:81` 的 `load_session_meta` 缺少 `include_pending` 参数（E0061）。共享工作区重跑退出 101，`vw-desktop/src/app/message/chat/stream/permissions.rs:240` 缺少 `session_set_full_access` 方法，`vw-agent/src/gateway/api/handlers/session/ui_ops.rs:110` 等调用处缺少 `GatewaySessionUiSummary.full_access` 字段（E0599、E0609、E0560）。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
+
+## 任务 14 OpenRouter 余额
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [余额查询与解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L288-L362) · [余额分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L554-L572) · [OpenRouter Credits API](https://openrouter.ai/docs/api/api-reference/credits/get-credits) | `query_openrouter` 使用经执行主机授权的管理密钥请求固定的 `GET https://openrouter.ai/api/v1/credits`，禁用重定向。401 和 403 归为上游鉴权拒绝。 |
+| [上游行为测试](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L580-L639) · [余额模板识别](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L184-L200) · [余额模板调用](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L622-L627) | 接受有 `data` 包装和无包装的响应，以及有限数字和数字字符串。保留美元总额、已用额和两者之差，包括零和负余额。缺失、无效金额及非有限差值返回 `InvalidResponse`。独立测试通过本地 HTTP 服务检查请求路径、请求头、金额边界及上游错误分类。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/openrouter.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/openrouter_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段均领取槽位 2，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。格式化、聚焦测试和本包 Clippy 在批次 13 提交 `36270520f` 的独立源码副本执行。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_openrouter_ -- --nocapture` | 退出 101，执行 0 项。独立用例 `usage_balances_openrouter_returns_expected_result`、`usage_balances_openrouter_rejects_invalid_input` 和 `usage_balances_openrouter_classifies_upstream_rejections` 引用待实现符号，触发 E0432。 |
+| 格式化 | `cargo fmt --all` | 两次退出 0，仅将本批三个 Rust 文件同步到共享工作区。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_openrouter_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 本包检查 | `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。

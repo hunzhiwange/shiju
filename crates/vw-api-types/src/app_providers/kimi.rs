@@ -69,6 +69,9 @@ concealed!(KimiFormWrite);
 pub struct KimiFormView {
     pub fields: super::basic::ProviderBasic,
     pub config: Option<KimiFormConfig>,
+    /// Region of a saved official connection eligible for account binding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_region: Option<crate::agent_apps_auth::AuthRegion>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

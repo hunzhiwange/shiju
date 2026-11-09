@@ -1172,6 +1172,8 @@ impl App {
             || self.system_settings_tab != crate::app::components::system_settings::SystemTab::Auth
         {
             self.agent_apps_auth.login = None;
+            self.agent_apps_auth.binding = None;
+            self.agent_apps_auth.focused_service = None;
         }
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }

@@ -5,6 +5,7 @@ use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike, value};
 use vw_api_types::{
     agent_apps::AppId,
+    agent_apps_auth::AuthErrorCode,
     app_providers::{codex_catalog::*, create::ProviderSecretWrite},
     model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
@@ -163,7 +164,8 @@ pub fn view(
             }),
         })
     });
-    Ok(CodexFormView { fields, config })
+    let can_bind = official_binding_model(row).is_ok();
+    Ok(CodexFormView { fields, config, can_bind })
 }
 
 pub fn prepare(id: &str, request: &CodexFormWrite, before: Option<&Value>) -> Result<CodexProfile> {
@@ -246,4 +248,44 @@ pub fn models(
             })
             .collect(),
     })
+}
+
+/// Validate the saved card used by the managed account transaction.
+pub fn official_binding_model(row: &Value) -> std::result::Result<Option<String>, AuthErrorCode> {
+    let profile: CodexProfile =
+        serde_json::from_value(row.get("codex").cloned().ok_or(AuthErrorCode::Unsupported)?)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+    let config: toml::Table = profile.config.parse().map_err(|_| AuthErrorCode::Unsupported)?;
+    if profile.api_key.is_some()
+        || config.get("model_provider").is_some_and(|value| value.as_str() != Some("openai"))
+        || config
+            .get("cli_auth_credentials_store")
+            .is_some_and(|value| value.as_str() != Some("file"))
+        || config.keys().any(|key| {
+            !matches!(key.as_str(), "model" | "model_provider" | "cli_auth_credentials_store")
+        })
+        || row.get("modelCatalogRevision").is_some_and(|value| !value.is_null())
+        || row.get("requestOptions").is_some_and(|value| !value.is_null())
+        || row.pointer("/meta/authBinding").is_some()
+        || row.pointer("/meta/codexAccountId").is_some()
+        || row.pointer("/meta/liveConfigManaged").is_some_and(|value| value == true)
+        || row.get("settingsConfig") != Some(&settings(&profile))
+    {
+        return Err(AuthErrorCode::Unsupported);
+    }
+    config
+        .get("model")
+        .map(|model| {
+            model
+                .as_str()
+                .filter(|model| {
+                    !model.is_empty()
+                        && model.len() <= 256
+                        && !model.starts_with('-')
+                        && !model.chars().any(char::is_control)
+                })
+                .map(str::to_owned)
+                .ok_or(AuthErrorCode::Unsupported)
+        })
+        .transpose()
 }

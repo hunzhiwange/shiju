@@ -8,10 +8,9 @@ use vw_agent_apps::auth::{
     codex_device::managed_identity, credential_file::AccountCredential,
     credential_lease::CredentialLease,
 };
-use vw_api_types::{
-    agent_apps_auth::{AuthErrorCode, AuthService},
-    app_providers::codex_catalog::CodexProfile,
-};
+use vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService};
+
+use vw_agent_apps::providers::codex_catalog::form::official_binding_model;
 
 const FIELD: &str = "managedCodexLogin";
 
@@ -41,7 +40,7 @@ impl AppProviderStore {
             .ok_or(AuthErrorCode::NotFound)?;
         let mut row: Value =
             serde_json::from_str(&raw).map_err(|_| AuthErrorCode::StorageUnavailable)?;
-        official(&row)?;
+        official_binding_model(&row)?;
         let current = account(&row, scope)?.map(|(id, _)| id);
         if current.as_deref() == account_id {
             return Ok(());
@@ -138,7 +137,7 @@ pub(super) fn account(
     if binding.host != scope.host || binding.principal != scope.principal {
         return Err(AuthErrorCode::Forbidden);
     }
-    Ok(Some((binding.account_id, official(row)?)))
+    Ok(Some((binding.account_id, official_binding_model(row)?)))
 }
 
 pub(super) fn saved_reference(row: &Value) -> Option<&Value> {
@@ -147,7 +146,7 @@ pub(super) fn saved_reference(row: &Value) -> Option<&Value> {
 
 pub(super) fn preserve_reference(reference: Option<Value>, row: &mut Value) -> Result<(), String> {
     if let Some(reference) = reference {
-        official(row).map_err(
+        official_binding_model(row).map_err(
             |_| "Codex managed binding must be removed before replacing the official profile",
         )?;
         row[FIELD] = reference;
@@ -163,46 +162,6 @@ fn binding(row: &Value) -> Result<Option<CodexBinding>, AuthErrorCode> {
     row.get(FIELD)
         .map(|raw| {
             serde_json::from_value(raw.clone()).map_err(|_| AuthErrorCode::StorageUnavailable)
-        })
-        .transpose()
-}
-
-fn official(row: &Value) -> Result<Option<String>, AuthErrorCode> {
-    let profile: CodexProfile =
-        serde_json::from_value(row.get("codex").cloned().ok_or(AuthErrorCode::Unsupported)?)
-            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
-    let config: toml::Table = profile.config.parse().map_err(|_| AuthErrorCode::Unsupported)?;
-    if profile.api_key.is_some()
-        || config.get("model_provider").is_some_and(|value| value.as_str() != Some("openai"))
-        || config
-            .get("cli_auth_credentials_store")
-            .is_some_and(|value| value.as_str() != Some("file"))
-        || config.keys().any(|key| {
-            !matches!(key.as_str(), "model" | "model_provider" | "cli_auth_credentials_store")
-        })
-        || row.get("modelCatalogRevision").is_some_and(|value| !value.is_null())
-        || row.get("requestOptions").is_some_and(|value| !value.is_null())
-        || row.pointer("/meta/authBinding").is_some()
-        || row.pointer("/meta/codexAccountId").is_some()
-        || row.pointer("/meta/liveConfigManaged").is_some_and(|value| value == true)
-        || row.get("settingsConfig")
-            != Some(&vw_agent_apps::providers::codex_catalog::settings(&profile))
-    {
-        return Err(AuthErrorCode::Unsupported);
-    }
-    config
-        .get("model")
-        .map(|model| {
-            model
-                .as_str()
-                .filter(|model| {
-                    !model.is_empty()
-                        && model.len() <= 256
-                        && !model.starts_with('-')
-                        && !model.chars().any(char::is_control)
-                })
-                .map(str::to_owned)
-                .ok_or(AuthErrorCode::Unsupported)
         })
         .transpose()
 }

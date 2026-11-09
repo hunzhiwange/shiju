@@ -391,7 +391,12 @@ pub(crate) fn overlay<'a>(
         return super::desktop::overlay(form, help, list);
     }
     if let Some(form) = &state.form {
-        return super::edit::overlay(form, help, list);
+        #[cfg(not(target_arch = "wasm32"))]
+        let binding =
+            crate::app::message::agent_apps_auth::binding::entry(form, scope.app, state.generation);
+        #[cfg(target_arch = "wasm32")]
+        let binding = None;
+        return super::edit::overlay_with_binding(form, help, list, binding);
     }
     let Some(form) = &state.editor else {
         return list;

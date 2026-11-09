@@ -9,10 +9,20 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, checkbox, column, container, row, text, text_input},
 };
+#[cfg(test)]
 pub(crate) fn overlay<'a>(
     form: &'a EditForm,
     help: Help<'_>,
     base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    overlay_with_binding(form, help, base, None)
+}
+
+pub(super) fn overlay_with_binding<'a>(
+    form: &'a EditForm,
+    help: Help<'_>,
+    base: Element<'a, Message>,
+    binding: Option<Message>,
 ) -> Element<'a, Message> {
     let title = match form.mode {
         Mode::Create => "新增供应商",
@@ -90,7 +100,7 @@ pub(crate) fn overlay<'a>(
             fields = fields.push(super::kimi::fields(form, draft, help));
         } else if form.kimi_config_unavailable {
             fields = fields.push(
-                text("此档案的 Kimi 节点不可编辑，可修改基础资料。官方授权暂不可用。")
+                text("此档案的 Kimi 节点不可编辑，可修改基础资料。")
                     .style(settings_muted_text_style),
             );
         } else if let Some(draft) = &form.mcode {
@@ -180,6 +190,18 @@ pub(crate) fn overlay<'a>(
             }
             fields = fields.push(text("凭据").size(17)).push(settings_panel(credentials));
         }
+    }
+    if let Some(binding) = binding {
+        fields = fields.push(settings_panel(
+            column![
+                settings_field_label("授权账号"),
+                button(text("选择授权账号"))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press(binding),
+            ]
+            .spacing(8),
+        ));
     }
     let enabled = !form.saving
         && (delete

@@ -40,7 +40,16 @@ fn catalog_view(row: &Value) -> Result<KimiFormView, WriteError> {
             })
             .transpose()?
     };
-    Ok(KimiFormView { fields, config })
+    #[cfg(target_os = "macos")]
+    let auth_region = row
+        .pointer("/kimi/declaration/provider")
+        .filter(|provider| {
+            !managed(row) && row.pointer("/settingsConfig/provider") == Some(*provider)
+        })
+        .and_then(crate::auth::kimi_account::binding_region);
+    #[cfg(not(target_os = "macos"))]
+    let auth_region = None;
+    Ok(KimiFormView { fields, config, auth_region })
 }
 
 fn catalog_prepare(

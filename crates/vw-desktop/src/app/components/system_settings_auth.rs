@@ -1,5 +1,8 @@
 //! Scoped authorization center and temporary management connection form.
 
+mod binding_modal;
+#[cfg(test)]
+mod binding_modal_tests;
 mod login_modal;
 #[cfg(test)]
 pub(in crate::app) mod login_modal_tests;
@@ -22,6 +25,16 @@ use vw_gateway_client::vw_api_types::agent_apps_auth::{
 };
 
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
+    if let Some(binding) = &state.binding {
+        return container(settings_page_heading(
+            service_name(binding.service),
+            "在授权中心为供应商选择当前执行主机上的授权账号。",
+        ))
+        .padding([0, 7])
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+    }
     let configured = state.connection.is_some();
     let refresh_label =
         if state.rows.as_ref().is_some_and(|rows| rows.iter().any(|row| row.accounts.is_err())) {
@@ -79,9 +92,17 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
         text("正在读取授权账号…").style(settings_muted_text_style).into()
     } else if let Some(rows) = &state.rows {
         scrollable(
-            container(column(rows.iter().map(|row| service_card(row, configured))).spacing(10))
-                .padding([0, 7])
-                .width(Length::Fill),
+            container(
+                column(
+                    rows.iter()
+                        .filter(|row| Some(row.service) == state.focused_service)
+                        .chain(rows.iter().filter(|row| Some(row.service) != state.focused_service))
+                        .map(|row| service_card(row, configured)),
+                )
+                .spacing(10),
+            )
+            .padding([0, 7])
+            .width(Length::Fill),
         )
         .direction(scrollable::Direction::Vertical(
             scrollable::Scrollbar::new().width(4).scroller_width(4),
@@ -180,7 +201,19 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
     if let Some(login) = &state.login {
         return login_modal::overlay(login, base);
     }
-    let Some(form) = &state.form else { return base };
+    let Some(form) = &state.form else {
+        return if let Some(binding) = &state.binding {
+            binding_modal::overlay(binding, base)
+        } else {
+            base
+        };
+    };
+    let pinned = state.binding.is_some();
+    let host = settings_text_input("网关登记的主机标识", &form.host)
+        .on_input_maybe((!pinned).then_some(|value| message(Event::Host(value))));
+    let token = settings_text_input("具备所需授权权限的主机主体令牌", &form.token)
+        .secure(true)
+        .on_input_maybe((!pinned).then_some(|value| message(Event::Token(value))));
     let close = message(Event::Close);
     let Some(scope) = &state.scope else { return base };
     let body = column![
@@ -191,8 +224,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
             .size(13)
             .style(settings_muted_text_style),
         settings_field_label("执行主机"),
-        settings_text_input("网关登记的主机标识", &form.host)
-            .on_input(|value| message(Event::Host(value))),
+        host,
         settings_field_label("管理用户名"),
         settings_text_input("管理用户名", &form.username)
             .on_input(|value| message(Event::Username(value))),
@@ -201,9 +233,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
             .secure(true)
             .on_input(|value| message(Event::Password(value))),
         settings_field_label("主体令牌"),
-        settings_text_input("具备所需授权权限的主机主体令牌", &form.token)
-            .secure(true)
-            .on_input(|value| message(Event::Token(value))),
+        token,
     ]
     .spacing(8);
     let footer = row![

@@ -199,3 +199,31 @@ fn cc04_kimi_input_and_external_file_conflicts_do_not_publish() {
     assert_eq!(std::fs::read(path).unwrap(), b"{\"external\":true}");
     assert!(tx.state(AppId::Kimi).unwrap().mode.is_none());
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn kimi_binding_form_projects_only_the_compatible_region() {
+    use vw_api_types::agent_apps_auth::AuthRegion;
+    for (api, oauth_host, expected) in [
+        ("https://api.kimi.com/coding/v1", "https://auth.kimi.com", AuthRegion::MainlandCn),
+        ("https://api.kimi.ai/coding/v1", "https://auth.kimi.ai", AuthRegion::Global),
+    ] {
+        let provider = json!({
+            "type": "kimi",
+            "base_url": api,
+            "oauth": {"storage": "file", "key": "oauth/fixture-private-slot", "oauth_host": oauth_host}
+        });
+        let mut row = json!({
+            "name": "官方供应商",
+            "kimi": {"name": "官方供应商", "declaration": {"provider": provider}},
+            "settingsConfig": {"provider": provider}
+        });
+        let view = form::view(Some(&row), None).unwrap();
+        assert_eq!(view.auth_region, Some(expected));
+        assert!(view.config.is_none());
+        assert!(!serde_json::to_string(&view).unwrap().contains("fixture-private-slot"));
+
+        row["settingsConfig"]["provider"]["base_url"] = json!("https://changed.invalid");
+        assert_eq!(form::view(Some(&row), None).unwrap().auth_region, None);
+    }
+}

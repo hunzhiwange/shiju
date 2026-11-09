@@ -61,6 +61,8 @@ pub struct CodexFormView {
     pub fields: super::basic::ProviderBasic,
     /// None means that only basic metadata can be edited.
     pub config: Option<CodexFormConfig>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub can_bind: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

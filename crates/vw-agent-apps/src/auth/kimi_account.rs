@@ -474,6 +474,12 @@ fn select_model(
     Ok((slot.into(), doc.to_string().into_bytes()))
 }
 
+pub(crate) fn binding_region(provider: &Value) -> Option<AuthRegion> {
+    [AuthRegion::MainlandCn, AuthRegion::Global]
+        .into_iter()
+        .find(|&region| oauth_slot(provider, region).is_ok())
+}
+
 fn oauth_slot(provider: &Value, region: AuthRegion) -> Result<&str, AuthErrorCode> {
     if !kimi::official(provider) {
         return Err(AuthErrorCode::Unsupported);

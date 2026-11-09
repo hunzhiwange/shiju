@@ -611,6 +611,10 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                     form.codex =
                         view.config.map(crate::app::state::app_providers::codex::Draft::from_view);
                     form.codex_config_unavailable = form.codex.is_none();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        form.codex_can_bind = view.can_bind;
+                    }
                     app.app_providers.form = Some(form);
                 }
                 Err(error) => return app.show_error_toast(error),
@@ -701,6 +705,10 @@ pub(crate) fn update(app: &mut App, event: EditMessage) -> Task<Message> {
                         crate::app::state::app_providers::kimi::Draft::from_view(config, member)
                     });
                     form.kimi_config_unavailable = form.kimi.is_none();
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        form.kimi_auth_region = view.auth_region;
+                    }
                     app.app_providers.form = Some(form);
                 }
                 Err(error) => return app.show_error_toast(error),

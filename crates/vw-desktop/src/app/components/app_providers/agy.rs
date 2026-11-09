@@ -26,7 +26,7 @@ pub(super) fn fields<'a>(
             .on_input_maybe(enabled.then_some(move |s| message(EditMessage::Agy(event(s)))))
     };
     let mut fields = column![
-        text("全局切换、live 成员操作、官方授权和模型发现暂不可用。")
+        text("全局切换、live 成员操作和模型发现暂不可用。")
             .size(12)
             .style(settings_muted_text_style),
         column![

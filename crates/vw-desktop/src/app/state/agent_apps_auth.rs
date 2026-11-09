@@ -63,6 +63,9 @@ pub(crate) struct State {
     pub form: Option<Connection>,
     pub connection: Option<Connection>,
     pub login: Option<Login>,
+    pub binding: Option<Binding>,
+    pub focused_service: Option<AuthService>,
+    pub binding_generation: u64,
     pub copy_login_link: bool,
     login_generation: u64,
     generation: u64,
@@ -86,6 +89,8 @@ impl State {
             self.form = None;
             self.connection = None;
             self.login = None;
+            self.binding = None;
+            self.focused_service = None;
         }
     }
 
@@ -218,4 +223,21 @@ impl State {
     pub fn is_latest_login_update(&self, scope: &Scope, generation: u64) -> bool {
         self.scope.as_ref() == Some(scope) && self.login_generation == generation
     }
+}
+
+pub(crate) struct Binding {
+    pub generation: u64,
+    pub provider_generation: u64,
+    pub catalog_generation: u64,
+    pub provider_id: String,
+    pub provider_name: String,
+    pub host: String,
+    pub service: AuthService,
+    pub region: Option<AuthRegion>,
+    pub accounts: Vec<AuthAccount>,
+    pub connected: bool,
+    pub selected: Option<String>,
+    pub loading: bool,
+    pub saving: bool,
+    pub error: Option<&'static str>,
 }

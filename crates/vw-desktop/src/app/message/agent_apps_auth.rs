@@ -1,5 +1,6 @@
 //! Authorization center requests through the scoped management SDK.
 
+pub(in crate::app) mod binding;
 #[path = "agent_apps_auth_browser.rs"]
 pub(in crate::app) mod browser;
 #[cfg(test)]
@@ -17,7 +18,7 @@ use browser::LinkAction;
 use iced::Task;
 use vw_gateway_client::{
     AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayClient,
-    vw_api_types::agent_apps_auth::{AuthErrorCode, AuthService},
+    vw_api_types::agent_apps_auth::{AuthAccount, AuthErrorCode, AuthService},
 };
 
 pub(crate) const SERVICES: [AuthService; 7] = [
@@ -32,6 +33,13 @@ pub(crate) const SERVICES: [AuthService; 7] = [
 
 #[derive(Clone)]
 pub enum Event {
+    OpenBinding { provider_id: String, provider_generation: u64 },
+    LoadBinding(u64),
+    BindingLoaded(u64, Result<Vec<AuthAccount>, &'static str>),
+    SelectBinding(u64, String),
+    SaveBinding(u64),
+    BindingSaved(u64, Result<(), &'static str>),
+    CloseBinding(u64),
     Open,
     Close,
     Host(String),
@@ -64,10 +72,31 @@ pub(crate) fn message(event: Event) -> Message {
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let endpoint = crate::app::gateway_client_endpoint();
+    update_at(app, event, endpoint)
+}
+
+pub(in crate::app) fn update_at(
+    app: &mut App,
+    event: Event,
+    endpoint: vw_gateway_client::GatewayEndpoint,
+) -> Task<Message> {
     let scope = Scope::from(&endpoint);
     let visible = app.show_system_settings && app.system_settings_tab == SystemTab::Auth;
     let state = &mut app.agent_apps_auth;
     state.select_endpoint(&endpoint);
+
+    if matches!(
+        event,
+        Event::OpenBinding { .. }
+            | Event::LoadBinding(_)
+            | Event::BindingLoaded(..)
+            | Event::SelectBinding(..)
+            | Event::SaveBinding(_)
+            | Event::BindingSaved(..)
+            | Event::CloseBinding(_)
+    ) {
+        return binding::update(app, event, endpoint);
+    }
 
     if let Event::Loaded { scope: loaded_scope, generation, rows } = event {
         let failed = rows.iter().all(|row| row.accounts.is_err());
@@ -93,8 +122,19 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
 
     match event {
+        Event::OpenBinding { .. }
+        | Event::LoadBinding(_)
+        | Event::BindingLoaded(..)
+        | Event::SelectBinding(..)
+        | Event::SaveBinding(_)
+        | Event::BindingSaved(..)
+        | Event::CloseBinding(_) => unreachable!("binding events handled above"),
         Event::Open => {
-            if state.pending.is_none() && state.form.is_none() && state.login.is_none() {
+            if visible
+                && (state.pending.is_none() || state.binding.is_some())
+                && state.form.is_none()
+                && state.login.is_none()
+            {
                 let mut form = state.connection.clone().unwrap_or_else(|| Connection {
                     username: "vibewindow".into(),
                     ..Connection::default()
@@ -108,12 +148,18 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     form.host.clone_from(&catalog.host);
                     form.token.clone_from(&catalog.token);
                 }
+                if let Some(binding) = &state.binding {
+                    form.host.clone_from(&binding.host);
+                    form.token.clone_from(&catalog.token);
+                }
                 state.form = Some(form);
             }
         }
         Event::Close => state.form = None,
         Event::Host(value) => {
-            if let Some(form) = &mut state.form {
+            if state.binding.is_none()
+                && let Some(form) = &mut state.form
+            {
                 form.host = value;
             }
         }
@@ -128,11 +174,32 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Token(value) => {
-            if let Some(form) = &mut state.form {
+            if state.binding.is_none()
+                && let Some(form) = &mut state.form
+            {
                 form.token = value;
             }
         }
         Event::Connect | Event::Refresh => {
+            if !visible {
+                return Task::none();
+            }
+            if let Some(binding) = &state.binding {
+                let generation = binding.generation;
+                if matches!(event, Event::Connect)
+                    && !binding.loading
+                    && !binding.saving
+                    && state.form.as_ref().is_some_and(|form| {
+                        binding::connection_matches(binding, form, &app.apps_catalog.token)
+                    })
+                {
+                    state.connection = state.form.take();
+                    state.rows = None;
+                    state.pending = None;
+                    return binding::update(app, Event::LoadBinding(generation), endpoint);
+                }
+                return Task::none();
+            }
             if state.pending.is_some() {
                 return Task::none();
             }
@@ -162,7 +229,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             );
         }
         Event::StartLogin(_) | Event::RetryLogin => {
-            if !visible || state.form.is_some() || state.pending.is_some() {
+            if !visible
+                || state.form.is_some()
+                || state.pending.is_some()
+                || state.binding.is_some()
+            {
                 return Task::none();
             }
             let target = match (&state.login, event) {

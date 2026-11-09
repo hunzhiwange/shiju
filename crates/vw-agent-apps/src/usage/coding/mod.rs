@@ -2,3 +2,4 @@
 
 pub mod kimi;
 pub mod zhipu;
+pub mod zhipu_team;

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use chrono::DateTime;
 use reqwest::{
-    Client, ClientBuilder, StatusCode,
+    Client, ClientBuilder, RequestBuilder, StatusCode,
     header::{ACCEPT_LANGUAGE, AUTHORIZATION, CONTENT_TYPE, HeaderName, HeaderValue},
     redirect::Policy,
 };
@@ -21,7 +21,8 @@ use vw_provider_resolver::remote_models::is_real_bearer;
 
 use crate::{providers::validation::header_value, usage::detect::CodingPlanProvider};
 
-const PLAN_PATH: &str = "/api/monitor/usage/quota/limit";
+pub(super) const CN_ORIGIN: &str = "https://open.bigmodel.cn";
+pub(super) const PLAN_PATH: &str = "/api/monitor/usage/quota/limit";
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
 /// Queries a personal plan using credentials resolved on the authorized execution host.
@@ -39,7 +40,7 @@ pub(in crate::usage) fn personal_origin(
     provider: CodingPlanProvider,
 ) -> Result<&'static str, UsageQueryErrorCode> {
     match provider {
-        CodingPlanProvider::ZhipuCn => Ok("https://open.bigmodel.cn"),
+        CodingPlanProvider::ZhipuCn => Ok(CN_ORIGIN),
         CodingPlanProvider::ZhipuGlobal => Ok("https://api.z.ai"),
         _ => Err(UsageQueryErrorCode::Unsupported),
     }
@@ -67,9 +68,6 @@ async fn query_at(
     queried_at: TimestampMs,
     correlation_id: &str,
 ) -> Option<UsageQueryResult> {
-    use UsageCredentialState::*;
-    use UsageQueryErrorCode::*;
-
     let request = origin.and_then(|origin| {
         let authorization = authorization(api_key)?;
         let client = builder.build().map_err(transport_error)?;
@@ -86,6 +84,18 @@ async fn query_at(
         }
         Err(code) => (None, Err(code)),
     };
+    Some(plan_result("zhipu", queried_at, correlation_id, result))
+}
+
+pub(super) fn plan_result(
+    provider_id: &str,
+    queried_at: Option<TimestampMs>,
+    correlation_id: &str,
+    result: Result<Vec<UsageQuotaWindow>, UsageQueryErrorCode>,
+) -> UsageQueryResult {
+    use UsageCredentialState::*;
+    use UsageQueryErrorCode::*;
+
     let (credential_state, credential_message, outcome) = match result {
         Ok(windows) => {
             (Valid, None, UsageQueryOutcome::Success { data: UsageQueryData::CodingPlan(windows) })
@@ -94,6 +104,9 @@ async fn query_at(
             let (state, message) = match code {
                 UpstreamUnauthorized => (Expired, "Zhipu rejected the credential"),
                 CredentialUnavailable => (NotFound, "Zhipu credential is unavailable"),
+                MissingConfiguration => {
+                    (NotFound, "Zhipu team requires a valid organization and project ID")
+                }
                 _ => (Valid, "Zhipu Coding Plan query failed"),
             };
             let credential_message = (state != Valid).then(|| message.into());
@@ -108,13 +121,13 @@ async fn query_at(
             (state, credential_message, outcome)
         }
     };
-    Some(UsageQueryResult {
-        source: UsageSource::Provider("zhipu".into()),
+    UsageQueryResult {
+        source: UsageSource::Provider(provider_id.into()),
         queried_at,
         credential_state,
         credential_message,
         outcome,
-    })
+    }
 }
 
 pub(in crate::usage) async fn query_personal_plan(
@@ -122,21 +135,13 @@ pub(in crate::usage) async fn query_personal_plan(
     origin: &str,
     authorization: &HeaderValue,
 ) -> Result<Option<Value>, UsageQueryErrorCode> {
-    use UsageQueryErrorCode::*;
-
     match get_json(client, origin, PLAN_PATH, CONTENT_TYPE, authorization).await? {
         PlanResponse { success: false, code: Some(500), msg: Some(ref msg), data: None }
             if is_no_plan_message(msg) =>
         {
             Ok(None)
         }
-        PlanResponse { success: false, .. } => Err(UpstreamRejected),
-        PlanResponse { success: true, data: Some(data), .. }
-            if data.get("limits").is_some_and(Value::is_array) =>
-        {
-            Ok(Some(data))
-        }
-        _ => Err(InvalidResponse),
+        response => response.into_data().map(Some),
     }
 }
 
@@ -154,7 +159,7 @@ struct QuotaLimit {
     next_reset_time: Option<i64>,
 }
 
-fn parse_windows(data: Value) -> Result<Vec<UsageQuotaWindow>, UsageQueryErrorCode> {
+pub(super) fn parse_windows(data: Value) -> Result<Vec<UsageQuotaWindow>, UsageQueryErrorCode> {
     use UsageQueryErrorCode::InvalidResponse;
 
     let PlanData { level, limits } = serde_json::from_value(data).map_err(|_| InvalidResponse)?;
@@ -206,11 +211,27 @@ fn parse_windows(data: Value) -> Result<Vec<UsageQuotaWindow>, UsageQueryErrorCo
 }
 
 #[derive(Deserialize)]
-struct PlanResponse {
+pub(super) struct PlanResponse {
     success: bool,
     code: Option<u32>,
     msg: Option<String>,
     data: Option<Value>,
+}
+
+impl PlanResponse {
+    pub(super) fn into_data(self) -> Result<Value, UsageQueryErrorCode> {
+        use UsageQueryErrorCode::*;
+
+        match self {
+            Self { success: false, .. } => Err(UpstreamRejected),
+            Self { success: true, data: Some(data), .. }
+                if data.get("limits").is_some_and(Value::is_array) =>
+            {
+                Ok(data)
+            }
+            _ => Err(InvalidResponse),
+        }
+    }
 }
 
 fn is_no_plan_message(message: &str) -> bool {
@@ -231,16 +252,20 @@ pub(in crate::usage) async fn get_json<T: DeserializeOwned>(
     json_header: HeaderName,
     authorization: &HeaderValue,
 ) -> Result<T, UsageQueryErrorCode> {
-    use UsageQueryErrorCode::*;
-
-    let mut response = client
+    let request = client
         .get(format!("{origin}{path}"))
         .header(AUTHORIZATION, authorization.clone())
         .header(json_header, "application/json")
-        .header(ACCEPT_LANGUAGE, "en-US,en")
-        .send()
-        .await
-        .map_err(transport_error)?;
+        .header(ACCEPT_LANGUAGE, "en-US,en");
+    read_json(request).await
+}
+
+pub(super) async fn read_json<T: DeserializeOwned>(
+    request: RequestBuilder,
+) -> Result<T, UsageQueryErrorCode> {
+    use UsageQueryErrorCode::*;
+
+    let mut response = request.send().await.map_err(transport_error)?;
 
     match response.status() {
         status if status.is_success() => {}

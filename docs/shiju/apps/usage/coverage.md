@@ -253,3 +253,26 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 56。
+
+## 任务 19 智谱团队套餐
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [TS 显式团队配置](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L35-L50) · [Rust 分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1858-L1877) | `query_zhipu_team` 仅接受显式团队检测产生的 `CodingPlanProvider::ZhipuTeam`。`ZhipuTeamCredentials` 缺组织或项目、字段为空或请求头非法时，在发请求前返回 `MissingConfiguration`。密钥缺失或非法返回 `CredentialUnavailable`。 |
+| [团队 HTTP 请求](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1747-L1814) · [请求与凭据夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L3270-L3369) | 对国内官方额度端点发送 GET，携带 `type=2`、原样鉴权头和团队组织、项目请求头。复用智谱 HTTP 错误分类、响应校验和窗口解析。无套餐响应返回 `UpstreamRejected`，结果保持团队来源；鉴权拒绝标记凭据过期。 |
+
+[团队适配器](../../../../crates/vw-agent-apps/src/usage/coding/zhipu_team.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/coding/zhipu_team_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前动态领取槽位 2，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。实现后动态领取槽位 1，`CARGO_TARGET_DIR` 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与对应目标目录一致。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_zhipu_team_ -- --nocapture` | 退出 101，执行 0 项。`usage_coding_zhipu_team_returns_expected_result` 和 `usage_coding_zhipu_team_rejects_invalid_input` 所在模块因团队适配器尚未实现报 E0432。 |
+| 格式化 | `cargo fmt --all` | 在隔离源码副本执行，退出 0。同步本任务的 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_zhipu_team_ -- --nocapture` | 退出 0，3 项通过，0 项失败。成功夹具核对方法、路径、请求头和双窗口；失败夹具核对发送前拒绝、无套餐和鉴权失败。 |
+| 套餐回归 | `cargo test -p vw-agent-apps usage_coding_zhipu_ -- --nocapture` | 退出 0，7 项通过，0 项失败，含 3 项团队用例。 |
+| 余额回归 | `cargo test -p vw-agent-apps usage_balances_zhipu_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 检测回归 | `cargo test -p vw-agent-apps usage_detect_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。HTTP 证据来自本地夹具，真实账号验收见任务 56。

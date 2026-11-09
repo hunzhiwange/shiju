@@ -11,7 +11,7 @@ from queue import Empty, Queue
 import subprocess
 import sys
 import tempfile
-from threading import Thread
+from threading import Event, Thread
 import time
 import unittest
 from uuid import uuid4
@@ -30,6 +30,7 @@ class WebViewPopups(unittest.TestCase):
         self.window_title = f"shiju-popup-test-{uuid4().hex}"
         self.requests = Queue()
         self.routes = {}
+        self.clicks = {}
         self.download_name = f"shiju-popup-{uuid4().hex}.bin"
         self.download_dir = Path.home() / "Downloads"
         if os.name != "nt":
@@ -50,6 +51,7 @@ class WebViewPopups(unittest.TestCase):
 
         requests = self.requests
         routes = self.routes
+        clicks = self.clicks
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_):
@@ -63,7 +65,11 @@ class WebViewPopups(unittest.TestCase):
 
             def respond(self):
                 body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-                requests.put((self.path, self.command, self.headers, body))
+                clicked = clicks.get(self.path)
+                if clicked is None:
+                    requests.put((self.path, self.command, self.headers, body))
+                else:
+                    clicked.set()
                 content, headers = routes.get(self.path, (b"", {}))
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(content)))
@@ -89,24 +95,30 @@ class WebViewPopups(unittest.TestCase):
     def action_page(self, path, html, action, **headers):
         if self.linux:
             # WebKitGTK expects a real user gesture before opening a popup.
+            self.clicks[path + "-clicked"] = Event()
             html += ('<button id="run" style="position:fixed;inset:0;width:100%;height:100%">'
                      'Run</button><script>'
-                     f'document.querySelector("#run").onclick = () => {{ {action} }};'
+                     'document.querySelector("#run").addEventListener("click", () => {'
+                     f'navigator.sendBeacon("{path}-clicked"); {action}'
+                     '}, {once: true});'
                      f'fetch("{path}-ready");</script>')
         else:
             html += f"<script>{action}</script>"
         self.page(path, html, **headers)
 
-    def click(self, title):
-        window = subprocess.check_output(
-            ["xdotool", "search", "--onlyvisible", "--name", f"^{title}$"],
-            text=True, timeout=5,
-        ).splitlines()[-1]
-        subprocess.run(
-            ["xdotool", "windowraise", window, "windowfocus", "--sync", window, "mousemove",
-             "--window", window, "100", "100", "sleep", "0.1", "click", "1"],
-            check=True, timeout=5,
-        )
+    def click(self, title, path):
+        window = self.visible_window(title)
+        clicked = self.clicks[path + "-clicked"]
+        # Retry missed X11 input. The page runs its action at most once.
+        for _ in range(5):
+            subprocess.run(
+                ["xdotool", "windowraise", window, "windowfocus", "--sync", window, "mousemove",
+                 "--window", window, "100", "100", "sleep", "0.1", "click", "1"],
+                check=True, timeout=5,
+            )
+            if clicked.wait(timeout=1):
+                return
+        self.fail(f"WebView did not receive the click on {path}")
 
     def launch(self, path, mode="embedded"):
         process = subprocess.Popen(
@@ -119,7 +131,7 @@ class WebViewPopups(unittest.TestCase):
         self.addCleanup(self.stop, process)
         if self.linux:
             self.request(path + "-ready")
-            self.click(self.window_title)
+            self.click(self.window_title, path)
         return process
 
     @staticmethod
@@ -311,7 +323,7 @@ class WebViewPopups(unittest.TestCase):
         link("/child", f"{unknown}:synthetic")
         self.launch("/opener")
         self.request("/child-ready")
-        self.click("Vibe Window WebView")
+        self.click("Vibe Window WebView", "/child")
         dialog = confirmation("Vibe Window WebView")
         self.send_keys(dialog, "Tab", "Return")
         failure = self.visible_window("无法打开外部应用")
@@ -363,7 +375,7 @@ class WebViewPopups(unittest.TestCase):
         self.launch("/start")
         if self.linux:
             self.request("/popup-ready")
-            self.click("Vibe Window WebView")
+            self.click("Vibe Window WebView", "/popup")
         else:
             self.request("/popup")
         self.assert_download(b"generated")

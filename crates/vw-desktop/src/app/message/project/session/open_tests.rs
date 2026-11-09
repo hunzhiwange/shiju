@@ -934,7 +934,7 @@ fn child_session_navigation_resolution_rejects_internal_and_stale_results() {
         generation,
         from_project: Some(path.into()),
         from_session: Some("parent".into()),
-        info: Some(Box::new(info)),
+        destination: Some((path.into(), Box::new(info))),
     };
 
     let _ = super::handle(&mut app, reply(info.clone(), generation));

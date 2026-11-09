@@ -1611,6 +1611,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                 }),
                             )
                             .await?;
+                        let project_path =
+                            crate::app::message::project::helpers::gateway_session_project_path(
+                                &client, &info,
+                            )
+                            .await?;
                         let prepared =
                             crate::app::message::project::helpers::prepare_gateway_session_open(
                                 &client,
@@ -1619,7 +1624,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                                 show_reasoning_summary,
                             )
                             .await?;
-                        Ok(Box::new(ForkSessionLoaded { info, prepared }))
+                        Ok(Box::new(ForkSessionLoaded { info, project_path, prepared }))
                     }
                     .await;
                     ChatMessage::ForkSessionFinished { anchor, target, result }
@@ -1638,7 +1643,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             use crate::app::state::ToastKind;
-            let ForkSessionLoaded { info, prepared } = match result {
+            let ForkSessionLoaded { info, project_path, prepared } = match result {
                 Ok(loaded) => *loaded,
                 Err(error) => {
                     return app.show_localized_toast(
@@ -1649,15 +1654,18 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
             };
             let id = info.id.clone();
-            let directory = info.directory.clone();
+            let project_path = app
+                .project_path
+                .clone()
+                .filter(|_| app.project_id.as_deref() == Some(info.project_id.as_str()))
+                .unwrap_or(project_path);
             let open = crate::app::message::project::open_project_session(
                 app,
-                directory,
+                project_path,
                 id,
+                Some(info),
                 Some(prepared),
             );
-            // Opening a different directory clears the current session list.
-            crate::app::message::project::cache_external_session(app, info);
             app.current_session_runtime_mut().input_editor =
                 iced::widget::text_editor::Content::with_text(&dialog.prompt);
             app.input_text = dialog.prompt;

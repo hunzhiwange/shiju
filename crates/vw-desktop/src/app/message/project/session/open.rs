@@ -5,6 +5,7 @@
 use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
+    gateway_session_project_path, list_gateway_project_sessions,
     load_prepared_session_open_from_gateway_task, load_project_worktree_picker_options,
     prepare_session_ui_task,
 };
@@ -67,8 +68,9 @@ pub(crate) fn open_session_draft(
 
 pub(crate) fn open_project_session(
     app: &mut App,
-    resolved_path: String,
+    project_path: String,
     id: String,
+    info: Option<Info>,
     prepared: Option<crate::app::session::PreparedSessionOpen>,
 ) -> iced::Task<Message> {
     app.session_view_cache.navigation_generation += 1;
@@ -80,10 +82,17 @@ pub(crate) fn open_project_session(
     app.session_menu_anchor = None;
     app.stash_active_session_view();
 
-    let open_task = if app.project_path.as_ref() == Some(&resolved_path) {
+    let open_task = if app.project_path.as_ref() == Some(&project_path) {
         iced::Task::none()
     } else {
-        app.open_project(resolved_path.clone())
+        app.open_project(project_path.clone())
+    };
+    let directory = if let Some(info) = info {
+        let directory = info.directory.clone();
+        super::lifecycle::cache_project_session(app, project_path, info);
+        directory
+    } else {
+        project_path
     };
 
     app.prepare_historical_session_model(&id);
@@ -155,7 +164,7 @@ pub(crate) fn open_project_session(
             app,
             ProjectMessage::SessionOpenPrepared {
                 target_session_id: id,
-                project_path: resolved_path,
+                project_path: directory,
                 open_generation,
                 source: super::super::PreparedSessionOpenSource::RemoteHistory,
                 result: Ok(prepared),
@@ -164,7 +173,7 @@ pub(crate) fn open_project_session(
         .unwrap_or_else(iced::Task::none)
     } else if !has_requesting_cache {
         load_prepared_session_open_from_gateway_task(
-            resolved_path.clone(),
+            directory,
             id.clone(),
             open_generation,
             app.dialogue_flow_show_reasoning_summary,
@@ -188,17 +197,33 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         return iced::Task::none();
     }
 
-    if let Some(info) = app
+    let cached = app
         .sessions
         .iter()
         .chain(app.project_sessions.values().flatten())
         .find(|info| info.id == id)
-    {
+        .cloned();
+    if let Some(info) = cached.as_ref() {
         if !info.is_user_navigable() {
             return iced::Task::none();
         }
         if !info.directory.trim().is_empty() {
-            return open_project_session(app, info.directory.clone(), id, None);
+            let project_path = app
+                .project_path
+                .as_ref()
+                .filter(|path| {
+                    *path == &info.directory
+                        || app.project_id.as_deref() == Some(info.project_id.as_str())
+                })
+                .or_else(|| {
+                    app.project_sessions.iter().find_map(|(path, sessions)| {
+                        (path != &info.directory && sessions.iter().any(|s| s.id == id))
+                            .then_some(path)
+                    })
+                });
+            if let Some(project_path) = project_path.cloned() {
+                return open_project_session(app, project_path, id, cached, None);
+            }
         }
     }
 
@@ -210,7 +235,7 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         if app.active_session_id.as_deref() == Some(id.as_str()) {
             return iced::Task::none();
         }
-        return open_project_session(app, draft.project_path.clone(), id, None);
+        return open_project_session(app, draft.project_path.clone(), id, None, None);
     }
 
     let from_project = app.project_path.clone();
@@ -219,16 +244,22 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         async move {
             let client = crate::app::gateway_client().ok()?;
             let directory = (!path.trim().is_empty()).then_some(path.as_str());
-            let info = client.session_get::<Info>(&id, directory).await.ok()?;
-            (info.id == id && info.is_user_navigable() && !info.directory.trim().is_empty())
-                .then(|| Box::new(info))
+            let info = match cached.filter(|info| !info.directory.trim().is_empty()) {
+                Some(info) => info,
+                None => client.session_get::<Info>(&id, directory).await.ok()?,
+            };
+            if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() {
+                return None;
+            }
+            let project_path = gateway_session_project_path(&client, &info).await.ok()?;
+            Some((project_path, Box::new(info)))
         },
-        move |info| {
+        move |destination| {
             Message::Project(ProjectMessage::SessionNavigationResolved {
                 generation,
                 from_project: from_project.clone(),
                 from_session: from_session.clone(),
-                info,
+                destination,
             })
         },
     )
@@ -263,18 +294,16 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             generation,
             from_project,
             from_session,
-            info,
+            destination,
         } => {
-            let task = if let Some(info) = info
+            let task = if let Some((project_path, info)) = destination
                 && generation == app.session_view_cache.navigation_generation
                 && from_project == app.project_path
                 && from_session == app.active_session_id
                 && info.is_user_navigable()
                 && !info.directory.trim().is_empty()
             {
-                let task = open_project_session(app, info.directory.clone(), info.id.clone(), None);
-                super::lifecycle::cache_external_session(app, *info);
-                task
+                open_project_session(app, project_path, info.id.clone(), Some(*info), None)
             } else {
                 iced::Task::none()
             };
@@ -296,11 +325,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        client
-                            .session_list::<Vec<vw_shared::session::info::Info>>(Some(
-                                &project_path_clone,
-                            ))
-                            .await
+                        list_gateway_project_sessions(&client, &project_path_clone).await
                     },
                     |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
                 ));
@@ -504,11 +529,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::perform(
                 async move {
                     let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    client
-                        .session_list::<Vec<vw_shared::session::info::Info>>(Some(
-                            &project_path_clone,
-                        ))
-                        .await
+                    list_gateway_project_sessions(&client, &project_path_clone).await
                 },
                 |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(project_path, res)),
             ))

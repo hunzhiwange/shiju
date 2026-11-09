@@ -183,6 +183,19 @@ async fn session_fork_before_turn_keeps_only_complete_earlier_turns() {
                     std::fs::read(FsPath::new(&forked.directory).join("tracked.txt")).unwrap(),
                     std::fs::read(repo.path().join("tracked.txt")).unwrap()
                 );
+                let (status, body) = request(
+                    Method::GET,
+                    &format!("/session?projectID={}", source.project_id),
+                    &source.directory,
+                    Value::Null,
+                )
+                .await;
+                assert_eq!(status, StatusCode::OK, "{body}");
+                let sessions: Vec<agent_session::session::Info> =
+                    serde_json::from_value(body).unwrap();
+                assert!(sessions.iter().all(|info| info.project_id == source.project_id));
+                assert!(sessions.iter().any(|info| info.id == source.id));
+                assert!(sessions.iter().any(|info| info.id == forked.id));
             }
             let messages = history(&forked).await;
             assert_eq!(messages.len(), count);

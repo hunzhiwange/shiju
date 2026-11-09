@@ -430,6 +430,14 @@ async fn serve_fork_gateway(
             ("POST", "/v1/session/source/fork") => {
                 ("200 OK", serde_json::to_value(session_info(branch_id, branch_directory)).unwrap())
             }
+            ("GET", "/v1/projects/project-fixture") => (
+                "200 OK",
+                json!({"project": {
+                    "id": "project-fixture", "name": "Source", "directory": "/fixture/source",
+                    "display_path": "/fixture/source", "status": "ready", "created_at_ms": 1,
+                    "updated_at_ms": 2, "git": {"is_repo": true, "has_uncommitted_changes": false}
+                }}),
+            ),
             ("GET", "/v1/session/first/ui/summary") => (
                 "200 OK",
                 json!({"id": "first", "title": "Fork", "updated_ms": 2, "message_count": 0, "call_count": 0}),
@@ -628,6 +636,9 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
         );
 
         if !reject {
+            let project = requests.try_recv().unwrap();
+            assert_eq!(project.method, "GET");
+            assert_eq!(project.path, "/v1/projects/project-fixture");
             assert_fork_readback(&mut requests, id, directory);
         }
         assert!(requests.try_recv().is_err());
@@ -648,9 +659,14 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             );
         } else {
             assert_eq!(app.active_session_id.as_deref(), Some(id));
-            assert_eq!(app.project_path.as_deref(), Some(directory));
+            assert_eq!(app.project_path.as_deref(), Some("/fixture/source"));
+            assert_eq!(app.known_session_directory(id).as_deref(), Some(directory));
             assert!(app.sessions.iter().any(|info| info.id == id));
-            assert!(app.project_sessions[directory].iter().any(|info| info.id == id));
+            assert!(app.project_sessions["/fixture/source"].iter().any(|info| info.id == id));
+            if target == ForkSessionTarget::NewWorktree {
+                assert!(!app.recent_projects.iter().any(|path| path == directory));
+                assert!(!app.project_sessions.contains_key(directory));
+            }
             assert_eq!(app.current_session_runtime().input_editor.text(), prompt);
             if id == "first" {
                 assert!(app.chat.is_empty());
@@ -680,6 +696,7 @@ async fn fork_desktop_clicks_send_frozen_turn_and_open_gateway_history() {
             };
             let _ = project::update(&mut app, loaded);
             assert_fork_readback(&mut requests, id, directory);
+            assert_eq!(app.project_path.as_deref(), Some("/fixture/source"));
             if id == "first" {
                 assert!(app.chat.is_empty());
             } else {

@@ -70,14 +70,21 @@ pub(super) async fn ui_session_list(
     _headers: HeaderMap,
 ) -> Result<Json<Vec<agent_session::session::Info>>, ApiError> {
     let tenant = ui_store::current_tenant_scope();
-    let UiSessionListQuery { directory, roots, start, search, limit } = query;
+    let UiSessionListQuery { directory, project_id, roots, start, search, limit } = query;
     let directory = directory.filter(|d| !d.trim().is_empty());
     let term = search.map(|s| s.to_ascii_lowercase());
     let limit = limit.unwrap_or(usize::MAX);
 
-    let mut sessions = ui_store::with_tenant_scope(tenant, agent_session::session::list_all())
-        .await
-        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let mut sessions = if let Some(project_id) = project_id {
+        if project_id.as_ref().trim().is_empty() {
+            return Err(ApiError::bad_request("projectID cannot be blank"));
+        }
+        ui_store::with_tenant_scope(tenant, agent_session::session::list_for_project(project_id.0))
+            .await
+    } else {
+        ui_store::with_tenant_scope(tenant, agent_session::session::list_all()).await
+    }
+    .map_err(|e| ApiError::bad_request(e.to_string()))?;
 
     if let Some(directory) = directory.as_deref() {
         sessions.retain(|s| s.directory == directory);

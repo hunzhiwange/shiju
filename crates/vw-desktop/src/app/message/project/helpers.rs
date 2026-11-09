@@ -640,13 +640,47 @@ pub(crate) async fn load_gateway_recent_projects()
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
 pub(crate) async fn resolve_gateway_project(project_path: &str) -> Result<ProjectDto, String> {
-    gateway_client()?
+    resolve_gateway_project_with_client(&gateway_client()?, project_path, true).await
+}
+
+async fn resolve_gateway_project_with_client(
+    client: &vw_gateway_client::GatewayClient,
+    project_path: &str,
+    create_if_missing: bool,
+) -> Result<ProjectDto, String> {
+    client
         .project_resolve(
-            &crate::app::session_gateway::active_tenant_scope(),
-            &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing: true },
+            client.endpoint().tenant_scope(),
+            &ResolveProjectRequest { directory: project_path.to_string(), create_if_missing },
         )
         .await
         .map(|response| response.project)
+}
+
+pub(crate) async fn list_gateway_project_sessions(
+    client: &vw_gateway_client::GatewayClient,
+    project_path: &str,
+) -> Result<Vec<vw_shared::session::info::Info>, String> {
+    let Ok(project) = resolve_gateway_project_with_client(client, project_path, false).await else {
+        return client.session_list(Some(project_path)).await;
+    };
+    let mut sessions: Vec<vw_shared::session::info::Info> =
+        client.session_list_for_project(&project.id).await?;
+    // Older gateways may ignore the project query parameter.
+    sessions.retain(|info| info.project_id == project.id.0);
+    Ok(sessions)
+}
+
+pub(crate) async fn gateway_session_project_path(
+    client: &vw_gateway_client::GatewayClient,
+    info: &vw_shared::session::info::Info,
+) -> Result<String, String> {
+    let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(
+        client.endpoint().tenant_scope().clone(),
+        info.project_id.as_str().into(),
+    )
+    .map_err(|error| error.to_string())?;
+    client.project_get(&scope).await.map(|response| response.project.directory)
 }
 
 /// load_project_info_task 处理当前模块对应的消息或状态转换。

@@ -217,6 +217,7 @@ async fn gateway_first_response_create_without_title_reserves_an_unpublished_ses
     let Json(sessions) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some(created.directory.clone()),
+            project_id: None,
             roots: None,
             start: None,
             search: None,
@@ -257,6 +258,7 @@ async fn ui_session_list_respects_updated_boundary_and_zero_limit() {
     let Json(at_boundary) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some(project_path.to_string_lossy().to_string()),
+            project_id: None,
             roots: None,
             start: Some(created.time.updated),
             search: Some("BOUNDARY".to_string()),
@@ -274,6 +276,7 @@ async fn ui_session_list_respects_updated_boundary_and_zero_limit() {
     let Json(after_boundary) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some(project_path.to_string_lossy().to_string()),
+            project_id: None,
             roots: None,
             start: Some(created.time.updated.saturating_add(1)),
             search: None,
@@ -288,6 +291,7 @@ async fn ui_session_list_respects_updated_boundary_and_zero_limit() {
     let Json(zero_limited) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some(project_path.to_string_lossy().to_string()),
+            project_id: None,
             roots: None,
             start: None,
             search: None,
@@ -514,6 +518,7 @@ async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {
     let Json(listed) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some(project_a_path.to_string_lossy().to_string()),
+            project_id: None,
             roots: Some(true),
             start: Some(0),
             search: Some("alpha".to_string()),
@@ -528,6 +533,7 @@ async fn session_ops_cover_lifecycle_filters_and_instance_boundaries() {
     let Json(limited) = ui_session_list(
         Query(UiSessionListQuery {
             directory: Some("  ".to_string()),
+            project_id: None,
             roots: None,
             start: None,
             search: None,

@@ -221,6 +221,7 @@ pub(crate) struct ForkSessionDialog {
 #[derive(Debug, Clone)]
 pub struct ForkSessionLoaded {
     pub(crate) info: vw_shared::session::info::Info,
+    pub(crate) project_path: String,
     pub(crate) prepared: crate::app::session::PreparedSessionOpen,
 }
 

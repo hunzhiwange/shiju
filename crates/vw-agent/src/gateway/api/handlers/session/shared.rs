@@ -75,6 +75,9 @@ pub(super) fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap)
 pub(super) struct UiSessionListQuery {
     /// 可选目录过滤。
     pub(super) directory: Option<String>,
+    /// 可选项目过滤，涵盖项目的全部工作树。
+    #[serde(rename = "projectID")]
+    pub(super) project_id: Option<vw_api_types::id::ProjectId>,
     /// 是否只返回根会话。
     pub(super) roots: Option<bool>,
     /// 只返回更新时间不早于该时间戳的会话。

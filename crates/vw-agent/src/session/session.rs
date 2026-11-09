@@ -560,6 +560,10 @@ pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info,
 /// - `Err(Error)`: 读取失败
 pub async fn list() -> Result<Vec<Info>, Error> {
     let project_id = project_id()?;
+    list_for_project(project_id).await
+}
+
+pub(crate) async fn list_for_project(project_id: String) -> Result<Vec<Info>, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let mut out = crate::global_database::run_isolated(move || {
         crate::session::ui_store::load_agent_sessions_scoped_for_tenant(&tenant, Some(&project_id))

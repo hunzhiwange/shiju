@@ -73,7 +73,7 @@ pub enum ProjectMessage {
         generation: u64,
         from_project: Option<String>,
         from_session: Option<String>,
-        info: Option<Box<vw_shared::session::info::Info>>,
+        destination: Option<(String, Box<vw_shared::session::info::Info>)>,
     },
     RecentHovered(Option<String>),
     CodeProjectsMenuChanged(bool),

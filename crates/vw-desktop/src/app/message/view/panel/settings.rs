@@ -95,11 +95,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 let sessions = Task::perform(
                     async move {
                         let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        client
-                            .session_list::<Vec<vw_shared::session::info::Info>>(Some(
-                                &project_path_clone,
-                            ))
-                            .await
+                        crate::app::message::project::helpers::list_gateway_project_sessions(
+                            &client,
+                            &project_path_clone,
+                        )
+                        .await
                     },
                     |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
                 );

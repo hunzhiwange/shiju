@@ -322,10 +322,11 @@ impl App {
                     .collect::<std::collections::HashMap<_, _>>();
 
                 let sessions = if let Some(p) = path_clone {
-                    client
-                        .session_list::<Vec<vw_shared::session::info::Info>>(Some(&p))
-                        .await
-                        .map_err(anyhow::Error::msg)?
+                    crate::app::message::project::helpers::list_gateway_project_sessions(
+                        &client, &p,
+                    )
+                    .await
+                    .map_err(anyhow::Error::msg)?
                 } else {
                     client
                         .session_list::<Vec<vw_shared::session::info::Info>>(None)

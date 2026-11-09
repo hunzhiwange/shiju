@@ -224,8 +224,7 @@ async fn ui_refresh_22_layout_and_interaction() {
     );
     let mut narrow = scene(system_settings::view(&app), &mut renderer, Size::new(640, 800));
     let positions = geometry(&mut narrow, &renderer);
-    let hint =
-        positions.label("Choose automatic detection, forced activation or forced deactivation.");
+    let hint = positions.label("Force disable prevents selecting other backends.");
     assert!(
         hint.height <= 85.0,
         "narrow layout should fit the policy hint in five lines: {hint:?}"
@@ -244,16 +243,8 @@ async fn ui_refresh_22_layout_and_interaction() {
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let mut ui = scene(security::view(&app), &mut renderer, Size::new(640, 1100));
     let positions = geometry(&mut ui, &renderer);
-    positions.assert_centered(
-        positions.focusable[0],
-        "沙箱启用",
-        "选择自动检测、强制启用或强制禁用沙箱。",
-    );
-    positions.assert_centered(
-        positions.focusable[1],
-        "沙箱后端",
-        "根据启用策略收窄可选值，避免互相矛盾的配置。",
-    );
+    positions.assert_centered(positions.focusable[0], "沙箱启用");
+    positions.assert_centered(positions.focusable[1], "沙箱后端");
     drop(ui);
     app.security_settings.active_tab = SecuritySettingsTab::Audit;
     let mut ui = scene(security::view(&app), &mut renderer, Size::new(640, 620));
@@ -336,9 +327,8 @@ impl Geometry {
             .1
     }
 
-    fn assert_centered(&self, control: iced::Rectangle, label: &str, hint: &str) {
-        let hint = self.label(hint);
-        let center = (self.label(label).y + hint.y + hint.height) / 2.0;
+    fn assert_centered(&self, control: iced::Rectangle, label: &str) {
+        let center = self.label(label).center_y();
         assert!((control.center_y() - center).abs() < 0.5, "{label}: {control:?}, center={center}");
     }
 }
@@ -740,7 +730,7 @@ fn assert_help_menu(
     }
 }
 
-fn assert_gap_11_help(
+fn assert_help_card(
     app: &App,
     ui: &mut Ui<'_>,
     renderer: &mut Renderer,
@@ -755,7 +745,7 @@ fn assert_gap_11_help(
         "{title}: static explanation is visible before opening help"
     );
     let bounds = positions.label(title);
-    let prefix = format!("gap-11-{:?}-{}-{title}", app.desktop_locale, size.width);
+    let prefix = format!("settings-help-{:?}-{}-{title}", app.desktop_locale, size.width);
     let theme = &app.app_theme;
     let cursor = mouse::Cursor::Unavailable;
     let idle = capture(ui, renderer, theme, size, &format!("{prefix}-idle"), cursor);
@@ -780,7 +770,8 @@ fn assert_gap_11_help(
     })
     .unwrap_or_else(|| panic!("{title}: hover help did not render at {bounds:?}"));
     assert!(click(ui, renderer, icon).is_empty());
-    assert!(idle != capture(ui, renderer, theme, size, &format!("{prefix}-pinned"), cursor));
+    let pinned = capture(ui, renderer, theme, size, &format!("{prefix}-pinned"), cursor);
+    assert!(idle != pinned);
     assert_eq!(geometry(ui, renderer).inputs, positions.inputs);
 
     let side = if icon.x < size.width as f32 / 2.0 { 29.0 } else { -29.0 };
@@ -812,11 +803,40 @@ fn assert_gap_11_help(
         "{title}: unexpected help text: {messages:?}"
     );
 
-    assert!(send(ui, renderer, cursor, &[key(iced::keyboard::key::Named::Escape)]).is_empty());
-    assert!(idle == capture(ui, renderer, theme, size, &format!("{prefix}-closed"), cursor));
+    let escape = key(iced::keyboard::key::Named::Escape);
+    if title == "Sandbox backend" {
+        let open_menu = |ui: &mut Ui<'_>, renderer: &mut Renderer| {
+            assert!(
+                send(
+                    ui,
+                    renderer,
+                    mouse::Cursor::Available(point),
+                    &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))]
+                )
+                .is_empty()
+            );
+        };
+        open_menu(ui, renderer);
+        assert!(send(ui, renderer, cursor, std::slice::from_ref(&escape)).is_empty());
+        assert!(
+            pinned == capture(ui, renderer, theme, size, &format!("{prefix}-menu-closed"), cursor)
+        );
+        open_menu(ui, renderer);
+        let search_item = iced::Point::new(item.x, item.y + 3.0 * item_height);
+        let expected = format!("https://www.google.com/search?q={}", urlencoding::encode(body));
+        assert!(matches!(
+            click(ui, renderer, search_item).as_slice(),
+            [Message::View(crate::app::message::ViewMessage::OpenUrlExternal(url))] if url == &expected
+        ));
+    }
+    assert!(send(ui, renderer, cursor, &[escape]).is_empty());
+    assert!(
+        idle == capture(ui, renderer, theme, size, &format!("{prefix}-closed"), cursor),
+        "{prefix}: Escape must restore the initial frame"
+    );
 }
 
-const GAP_11_LOCALE_THEMES: [(DesktopLocale, Theme); 3] = [
+const HELP_LOCALE_THEMES: [(DesktopLocale, Theme); 3] = [
     (DesktopLocale::SimplifiedChinese, Theme::Light),
     (DesktopLocale::TraditionalChinese, Theme::Dark),
     (DesktopLocale::English, Theme::Dark),
@@ -832,7 +852,7 @@ async fn settings_help_gap_11_permissions_explanations() {
     app.autonomy_settings.require_approval_for_medium_risk = false;
     app.autonomy_settings.block_high_risk_commands = false;
     let mut renderer = renderer().await;
-    for (locale, theme) in GAP_11_LOCALE_THEMES {
+    for (locale, theme) in HELP_LOCALE_THEMES {
         app.desktop_locale = locale;
         app.app_theme = theme;
         let t = |key| I18n::new(locale).__(key);
@@ -844,7 +864,7 @@ async fn settings_help_gap_11_permissions_explanations() {
                 ("级别", "决定代理默认可执行的动作范围。"),
                 ("自然语言审批", "控制非 CLI 场景下自然语言请求的执行方式。"),
             ] {
-                assert_gap_11_help(
+                assert_help_card(
                     &app,
                     &mut ui,
                     &mut renderer,
@@ -915,7 +935,7 @@ async fn settings_help_gap_11_list_editor_explanations() {
     app.autonomy_settings.list_editor.set_draft(kind, "fixture-command".into());
     app.autonomy_settings.list_editor.request_remove(kind, 0);
     let mut renderer = renderer().await;
-    for (locale, theme) in GAP_11_LOCALE_THEMES {
+    for (locale, theme) in HELP_LOCALE_THEMES {
         app.desktop_locale = locale;
         app.app_theme = theme;
         let t = |key| I18n::new(locale).__(key);
@@ -949,7 +969,7 @@ async fn settings_help_gap_11_list_editor_explanations() {
                     "在下拉列表中选择工具，再点击添加。",
                 ),
             ] {
-                assert_gap_11_help(
+                assert_help_card(
                     &app,
                     &mut ui,
                     &mut renderer,
@@ -997,14 +1017,14 @@ async fn settings_help_gap_11_channel_formats() {
         "fixture-channel:disabled".into();
     app.autonomy_settings.save_error = Some("fixture channel validation error".into());
     let mut renderer = renderer().await;
-    for (locale, theme) in GAP_11_LOCALE_THEMES {
+    for (locale, theme) in HELP_LOCALE_THEMES {
         app.desktop_locale = locale;
         app.app_theme = theme;
         let t = |key| I18n::new(locale).__(key);
         for width in [420, 760] {
             let size = Size::new(width, 1000);
             let mut ui = scene(view(&app), &mut renderer, size);
-            assert_gap_11_help(
+            assert_help_card(
                 &app,
                 &mut ui,
                 &mut renderer,
@@ -1025,7 +1045,7 @@ async fn settings_help_gap_11_channel_formats() {
                     "telegram:direct, discord:request_confirm",
                 ),
             ] {
-                assert_gap_11_help(
+                assert_help_card(
                     &app,
                     &mut ui,
                     &mut renderer,
@@ -1149,9 +1169,9 @@ async fn help_rollout_14_security_renders_contextual_help() {
             (
                 SecuritySettingsTab::Bash,
                 &[
-                    "优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。",
-                    "统一控制命令、路径、风险、重定向与 Shell 语法审计；完全访问始终绕过。",
-                    "关闭后保留各单项值，但命令、路径、风险和重定向策略均不生效。",
+                    "完全访问始终绕过 Bash 安全检查。",
+                    "命令、路径、风险和重定向策略当前不生效。",
+                    "Shell 语法检测当前不生效。",
                     "已保存，当前不生效",
                 ][..],
                 &[
@@ -1163,7 +1183,7 @@ async fn help_rollout_14_security_renders_contextual_help() {
             (
                 SecuritySettingsTab::SandboxAndResources,
                 &[
-                    "选择自动检测、强制启用或强制禁用沙箱。",
+                    "强制禁用时无法选择其他后端。",
                     "不使用任何沙箱。仅在你明确接受更低隔离级别时使用。",
                 ][..],
                 &[
@@ -1181,14 +1201,11 @@ async fn help_rollout_14_security_renders_contextual_help() {
             ),
             (
                 SecuritySettingsTab::OtpAndEstop,
-                &[
-                    "启用敏感动作的二次验证。",
-                    "支持 totp、pairing、cli-prompt。",
-                    "从 E-Stop 恢复时要求额外 OTP 验证。",
-                ][..],
+                &["启用敏感动作的二次验证。", "从 E-Stop 恢复时要求额外 OTP 验证。"][..],
                 &[
                     ("紧急停止", 0, "配置 E-Stop 状态与恢复要求。"),
                     ("E-Stop 状态文件", 0, "指定紧急停止状态文件位置。"),
+                    ("OTP 方法", 0, "支持 totp、pairing、cli-prompt。"),
                 ][..],
             ),
             (
@@ -1221,6 +1238,287 @@ async fn help_rollout_14_security_renders_contextual_help() {
                 &persistent,
                 &help,
             );
+        }
+    }
+}
+
+fn assert_sandbox_backend_menu(ui: &mut Ui<'_>, renderer: &mut Renderer, last: &str) {
+    use crate::app::message::SettingsMessage;
+    use iced::keyboard::key::Named;
+
+    let backend = geometry(ui, renderer).focusable[1].center();
+    assert!(click(ui, renderer, backend).is_empty());
+    let cursor = mouse::Cursor::Unavailable;
+    assert!(send(ui, renderer, cursor, &[key(Named::End)]).is_empty());
+    assert!(matches!(
+        send(ui, renderer, cursor, &[key(Named::Enter)]).as_slice(),
+        [Message::Settings(SettingsMessage::SecuritySandboxBackendChanged(value))] if value == last
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_12_sandbox_modes() {
+    use crate::app::components::system_settings_security as security;
+    use crate::app::message::SettingsMessage;
+    use crate::app::state::{SecurityListKind, SecuritySettingsTab};
+
+    if !isolated("settings_help_gap_12_sandbox_modes") {
+        return;
+    }
+    let mut app = fixture();
+    let s = &mut app.security_settings;
+    s.active_tab = SecuritySettingsTab::SandboxAndResources;
+    s.resources_max_memory_mb = 512;
+    s.resources_max_cpu_time_seconds = 60;
+    s.list_editor.set_draft(SecurityListKind::SandboxFirejailArgs, "--private".into());
+    s.save_error = Some("fixture sandbox validation error".into());
+    let mut renderer = renderer().await;
+    for (locale, theme) in HELP_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 1050);
+            for (mode, backend, description) in [
+                (
+                    "auto",
+                    "auto",
+                    "由运行时自动选择可用的最优沙箱实现；无法确定时会回退到安全允许的路径。",
+                ),
+                ("true", "firejail", "使用 Firejail 进行沙箱隔离，可额外传入命令行参数定制策略。"),
+            ] {
+                app.security_settings.sandbox_enabled_input = mode.into();
+                app.security_settings.sandbox_backend_input = backend.into();
+                let mut ui = scene(security::view(&app), &mut renderer, size);
+                assert_help_card(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t("沙箱后端"),
+                    t(description),
+                    t(description),
+                );
+                let positions = geometry(&mut ui, &renderer);
+                positions.label("512 MB");
+                positions.label("60 s");
+                positions.label("fixture sandbox validation error");
+                if backend == "firejail" {
+                    positions.label(t("强制启用时必须使用沙箱。"));
+                    assert_help_card(
+                        &app,
+                        &mut ui,
+                        &mut renderer,
+                        size,
+                        t("Firejail 参数"),
+                        t("仅在使用 Firejail 后端时生效，每次添加一个参数。"),
+                        t("每次添加一个参数。"),
+                    );
+                    positions.label(t("仅在使用 Firejail 后端时生效。"));
+                    assert!(matches!(
+                        click(&mut ui, &mut renderer, positions.label(t("添加")).center())
+                            .as_slice(),
+                        [Message::Settings(SettingsMessage::SecurityListAdd(
+                            SecurityListKind::SandboxFirejailArgs
+                        ))]
+                    ));
+                }
+                assert_help_card(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t("最大内存"),
+                    t("限制执行进程可使用的最大内存。"),
+                    t("限制执行进程可使用的最大内存。"),
+                );
+                assert_sandbox_backend_menu(
+                    &mut ui,
+                    &mut renderer,
+                    if mode == "auto" { "none" } else { "docker" },
+                );
+            }
+
+            for mode in ["auto", "false"] {
+                app.security_settings.sandbox_enabled_input = mode.into();
+                app.security_settings.sandbox_backend_input = "none".into();
+                let mut ui = scene(security::view(&app), &mut renderer, size);
+                let positions = geometry(&mut ui, &renderer);
+                positions.label(t("不使用任何沙箱。仅在你明确接受更低隔离级别时使用。"));
+                assert!(positions.labels.iter().all(|(label, _)| label != t("Firejail 参数")));
+                let description = t("根据启用策略收窄可选值，避免互相矛盾的配置。");
+                assert_help_card(
+                    &app,
+                    &mut ui,
+                    &mut renderer,
+                    size,
+                    t("沙箱后端"),
+                    description,
+                    description,
+                );
+                if mode == "false" {
+                    positions.label(t("强制禁用时无法选择其他后端。"));
+                    assert_sandbox_backend_menu(&mut ui, &mut renderer, "none");
+                }
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_12_bash_inactive_checks() {
+    use crate::app::components::system_settings_security as security;
+    use crate::app::message::SettingsMessage;
+    use crate::app::state::SecuritySettingsTab;
+
+    if !isolated("settings_help_gap_12_bash_inactive_checks") {
+        return;
+    }
+    let mut app = fixture();
+    app.security_settings.active_tab = SecuritySettingsTab::Bash;
+    app.security_settings.bash.enabled = false;
+    app.security_settings.bash.policy.enabled = true;
+    app.security_settings.bash.validators.enabled = true;
+    let mut renderer = renderer().await;
+    for (locale, theme) in HELP_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 2250);
+            let mut ui = scene(security::view(&app), &mut renderer, size);
+            let priority =
+                t("优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。");
+            assert_help_card(
+                &app,
+                &mut ui,
+                &mut renderer,
+                size,
+                t("Bash 安全检查"),
+                priority,
+                priority,
+            );
+            let positions = geometry(&mut ui, &renderer);
+            positions.label(t("完全访问始终绕过 Bash 安全检查。"));
+            positions.label(t("命令、路径、风险和重定向策略当前不生效。"));
+            positions.label(t("Shell 语法检测当前不生效。"));
+            let disabled: Vec<_> = positions
+                .labels
+                .iter()
+                .filter(|(label, _)| label == t("已保存，当前不生效"))
+                .collect();
+            assert_eq!(disabled.len(), 30, "both groups and all child checks are inactive");
+            for (_, bounds) in disabled {
+                assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
+            }
+            assert!(matches!(
+                click(&mut ui, &mut renderer, positions.label(t("开启")).center()).as_slice(),
+                [Message::Settings(SettingsMessage::SecurityBashSecurityEnabledToggled(true))]
+            ));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_12_audit_otp_and_syscall_help() {
+    use crate::app::components::system_settings_security as security;
+    use crate::app::message::SettingsMessage;
+    use crate::app::state::{SecurityListKind, SecuritySettingsTab};
+
+    if !isolated("settings_help_gap_12_audit_otp_and_syscall_help") {
+        return;
+    }
+    let mut app = fixture();
+    let s = &mut app.security_settings;
+    s.audit_log_path = "fixtures/安全审计.log".into();
+    s.audit_max_size_mb = 123;
+    s.otp_gated_actions = vec!["fixture-action".into()];
+    s.list_editor.request_remove(SecurityListKind::OtpGatedActions, 0);
+    s.list_editor.set_draft(SecurityListKind::SyscallAnomalyBaselineSyscalls, "openat".into());
+    let mut renderer = renderer().await;
+    for (locale, theme) in HELP_LOCALE_THEMES {
+        app.desktop_locale = locale;
+        app.app_theme = theme;
+        let t = |key| I18n::new(locale).__(key);
+        for width in [420, 760] {
+            let size = Size::new(width, 1480);
+            for (tab, fields) in [
+                (
+                    SecuritySettingsTab::Audit,
+                    &[
+                        ("审计日志路径", "指定审计日志文件的写入位置。"),
+                        ("审计大小上限", "限制单个审计日志文件的最大大小。"),
+                    ][..],
+                ),
+                (
+                    SecuritySettingsTab::OtpAndEstop,
+                    &[
+                        ("OTP 动作白名单", "需要 OTP 验证的敏感动作，每次添加一个。"),
+                        ("OTP 域名规则", "需要 OTP 验证的网络域名规则，每次添加一个。"),
+                        ("OTP 域名分类", "按域名分类启用 OTP 门控，每次添加一个分类。"),
+                    ][..],
+                ),
+                (
+                    SecuritySettingsTab::Syscall,
+                    &[("系统调用基线", "允许的系统调用白名单基线，每次添加一个。")][..],
+                ),
+                (SecuritySettingsTab::Guard, &[("语义阈值", "语义防护的触发阈值。")][..]),
+            ] {
+                app.security_settings.active_tab = tab;
+                let mut ui = scene(security::view(&app), &mut renderer, size);
+                for &(title, description) in fields {
+                    assert_help_card(
+                        &app,
+                        &mut ui,
+                        &mut renderer,
+                        size,
+                        t(title),
+                        t(description),
+                        t(description),
+                    );
+                }
+                let positions = geometry(&mut ui, &renderer);
+                match tab {
+                    SecuritySettingsTab::Audit => {
+                        positions.input("fixtures/安全审计.log");
+                        positions.label("123 MB");
+                        positions.label(t("记录安全相关动作和事件。"));
+                    }
+                    SecuritySettingsTab::OtpAndEstop => {
+                        positions.label(t("启用敏感动作的二次验证。"));
+                        positions.label(t("从 E-Stop 恢复时要求额外 OTP 验证。"));
+                        positions.label(t("确认删除该列表项？"));
+                        assert!(matches!(
+                            click(&mut ui, &mut renderer, positions.label(t("确认删除")).center())
+                                .as_slice(),
+                            [Message::Settings(SettingsMessage::SecurityListRemoveConfirmed(
+                                SecurityListKind::OtpGatedActions,
+                                0
+                            ))]
+                        ));
+                    }
+                    SecuritySettingsTab::Syscall => {
+                        let input = positions.input("openat").center();
+                        assert!(click(&mut ui, &mut renderer, input).is_empty());
+                        assert!(matches!(
+                            send(
+                                &mut ui,
+                                &mut renderer,
+                                mouse::Cursor::Available(input),
+                                &[key(iced::keyboard::key::Named::Enter)]
+                            )
+                            .as_slice(),
+                            [Message::Settings(SettingsMessage::SecurityListAdd(
+                                SecurityListKind::SyscallAnomalyBaselineSyscalls
+                            ))]
+                        ));
+                    }
+                    SecuritySettingsTab::Guard => {
+                        positions.label(t("启用语义层面的注入攻击检测。"));
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 }

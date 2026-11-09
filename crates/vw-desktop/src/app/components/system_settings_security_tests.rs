@@ -152,6 +152,7 @@ fn common_rows_accept_security_controls() {
             Message::GatewayHealthTick
         });
     let numeric: Element<'_, Message> = slider_row(
+        &app,
         "最大内存",
         "限制执行进程可使用的最大内存。",
         slider(32.0..=65_536.0, 512.0, |_| Message::GatewayHealthTick),
@@ -251,8 +252,9 @@ fn view_builds_each_security_tab_and_unicode_list_items() {
 fn list_editor_builds_bounded_scrolling_saved_items() {
     let items = vec!["read".to_string(), "write".to_string(), "中文调用".to_string()];
 
+    let app = test_app();
     keep_element(list_editor(
-        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        &app,
         SecurityListKind::SyscallAnomalyBaselineSyscalls,
         "系统调用基线",
         "说明",

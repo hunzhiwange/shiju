@@ -2,7 +2,7 @@
 
 批次：【批次 2】依赖批次 1
 
-状态：已阻塞
+状态：已完成，待回归
 
 目的：逐项实现并证明已注册 ACP 后端遵守两档权限契约，记录可验证的回退和无法验证的边界。
 
@@ -92,3 +92,27 @@
 | `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/matrix.json` | 1 | 10 条真实通过，29 条缺固定运行时，5 条生产不支持。并行宿主夹具通过 |
 | `cargo clippy -p vw-acp --all-targets --all-features -- -D warnings` | 0 | ACP 定向检查通过 |
 | `cargo clippy --all-targets --all-features -- -D warnings` | 101 | 无关的 `vw-desktop/src/app/message/project/helpers.rs:668` 调用 `session_list_for_project` 触发 E0599 |
+
+### 固定运行时补验
+
+- `39f18f856` 修复 npm 11 从暂存目录外执行时生成错误锁文件路径的问题。CodeBuddy、iFlow、Kilocode、OpenClaw、Pi、Qwen、Snow 的固定 npm 包由仓库安装器核对摘要并在独立临时目录安装。Hermes、Vibe 使用已核验的 wheel 和仓库补丁，Goose 核对官方源码和补丁后构建，Kiro 和 Kimi 核对官方固定版产物。验收仅使用回环模型和临时配置，未使用真实账号凭据。
+- `5c633a07e` 收紧 Hermes、Kilocode、OpenClaw、Pi 的桌面原生执行路径。实测发现审批档及撤销后仍存在原生命令或文件副作用，两种来源现均在模型调用前拒绝未授权路径。Goose 保持原生 `approve`，允许切换时刷新候选列表，继续核验实际选择的模型、供应商和思考配置。
+- 夹具处理 Kiro 回环控制面、Qwen 覆盖前读取、Snow 的工具名审批、Copilot 的原生 Bash 与 CodeBuddy 的辅助模型绑定。iFlow 和 Gemini 在完全访问档仍保持原生越界写入限制。OpenClaw 的部分工具 ID 由适配器重写，证据使用五个模型工具请求和实际文件状态。
+- 五个外部行均为 Darwin arm64 原生路径。Auggie 0.36.0 和 Qoder 1.1.82 已核验 npm 包摘要，分别缺离线模型注入和有权账号。Droid 1.3.0 已核验官方 SHA-256，`initialize` 成功，`session/new` 返回登录错误 `-32000`，回环模型请求为零。Cursor 2026.10.22-27dcf5f 的固定包 GET 403。Trae 0.121.3 的固定包 HEAD 200，缺可核验摘要与离线配方。获取方式与配置入口见[逐后端覆盖](../../docs/shiju/acp-model-source/approval-coverage.md)。
+
+本轮实际槽位为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` 至 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。槽位 1 用于 Goose 构建和 CodeBuddy、Copilot 定向复验，槽位 2 用于启动守卫红测和最终网关矩阵，槽位 3 用于 Rust 验证与 Clippy，槽位 4 仅用于旧网关报文诊断。两个 Cargo 目录变量均指向各自的槽位绝对路径。
+
+| 命令 | 槽位 | 退出码 | 有效证据 |
+| --- | --- | --- | --- |
+| `cargo fmt --all` | 3 | 0 | 在隔离源码快照格式化，仅采用本任务文件的格式差异 |
+| `cargo test -p vw-acp --lib acp_full_access_unconfined_desktop_adapters_require_current_grant -- --test-threads=1` | 2 | 101 | 红测复现 Kilocode 在未授权时被允许 |
+| `cargo test -p vw-acp --lib acp_full_access_ -- --test-threads=1` | 3 | 0 | 86 项通过，含启动守卫和 Goose 配置检查 |
+| `cargo test -p vw-acp --lib acp_desktop_approval_backend_matrix -- --test-threads=1` | 3 | 0 | 1 项通过，覆盖 22 个注册后端 |
+| `cargo build -p vw-cli --bin shiju` | 2 | 0 | 默认 features 的隔离验收网关构建成功 |
+| `cargo clippy -p vw-acp --all-targets --all-features -- -D warnings` | 3 | 0 | ACP 定向检查通过 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 3 | 0 | 全量 Clippy 通过 |
+| `python3 -m unittest discover -s scripts -p acp_approval_model_tests.py` | — | 0 | 6 项通过 |
+| `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/matrix-final.json` | 2 | 1 | 34 条真实通过，5 条生产不支持，5 条外部阻塞。宿主夹具拒绝六次跨工作区和六次重复答复 |
+| `python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/round3-goose-exact.json --agent goose` | 1 | 1 | 收紧固定版版本比较后 Goose 两条来源再次通过。定向模式不计为全矩阵通过 |
+
+完整证据核对后已归档至 `target/acp-approval-evidence/matrix.json`。本会话的槽位锁均已释放。待上述五条路径具备外部条件后补跑。

@@ -68,21 +68,29 @@ pub(super) fn frequency_form<'a>(
         }
         choices = choices.push(buttons);
     }
-    let mut form =
-        column![field_row_with_help(app, "执行频率", "选择常用频率，或使用高级表达式。", choices)];
+    let mut form = column![field_row_with_help(
+        app,
+        "执行频率",
+        i18n.__("选择常用频率，或使用高级表达式。"),
+        choices
+    )];
     if frequency == CronFrequency::Advanced {
         return form
             .push(field_row_with_help(
                 app,
                 "Cron 表达式",
-                "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。",
+                format!(
+                    "{}\n{}",
+                    i18n.__(
+                        "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。"
+                    ),
+                    i18n.__("示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。"),
+                ),
                 column![
                     text_field(i18n.__("例如 0 9 * * MON-FRI"), &draft.schedule, move |v| {
                         Message::Settings(changed(v))
                     }),
-                    text(i18n.__("示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。"))
-                        .size(11)
-                        .style(settings_muted_text_style),
+                    text(i18n.__("UTC · 5 或 6 个字段")).size(11).style(settings_muted_text_style),
                 ]
                 .spacing(8),
             ))
@@ -167,6 +175,6 @@ pub(super) fn frequency_form<'a>(
         CronFrequency::Monthly => "时间使用 UTC；当月没有所选日期时跳过该月。",
         _ => "时间使用 UTC（北京时间为 UTC + 8 小时）。",
     };
-    form = form.push(field_row_with_help(app, "执行时间", note, controls.wrap()));
+    form = form.push(field_row_with_help(app, "执行时间", i18n.__(note), controls.wrap()));
     form.into()
 }

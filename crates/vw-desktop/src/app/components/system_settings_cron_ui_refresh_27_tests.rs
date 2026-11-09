@@ -727,28 +727,7 @@ fn assert_schedule_help(
     );
     let bounds = positions.labels.iter().rfind(|(label, _)| label == title).unwrap().1;
     let icon = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
-    let icon = if let Some((viewport, mut translation)) = positions.scroll {
-        if !viewport.contains(icon - translation) {
-            let offset = icon.y - translation.y - viewport.center_y();
-            assert!(
-                send(
-                    ui,
-                    renderer,
-                    at(viewport.center()),
-                    &[Event::Mouse(mouse::Event::WheelScrolled {
-                        delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -offset },
-                    })],
-                )
-                .is_empty()
-            );
-            translation = geometry(ui, renderer).scroll.unwrap().1;
-        }
-        let visible_icon = icon - translation;
-        assert!(viewport.contains(visible_icon), "{entry}: {title} is clipped at {visible_icon:?}");
-        visible_icon
-    } else {
-        icon
-    };
+    let icon = reveal_form_point(ui, renderer, icon);
     let prefix = format!("rollout-15-{entry}-{:?}-{title}", app.desktop_locale);
     let theme = &app.app_theme;
     let away = mouse::Cursor::Unavailable;
@@ -765,7 +744,13 @@ fn assert_schedule_help(
 
     if entry == "heartbeat" && keys.0 == "间隔分钟" && app.desktop_locale == DesktopLocale::English
     {
-        assert_interval_help_actions(ui, renderer, icon, explanation);
+        assert_interval_help_actions(
+            ui,
+            renderer,
+            Point::new(icon.x + 29.0, icon.y + 5.0),
+            size,
+            explanation,
+        );
     }
 
     assert!(key_at(ui, renderer, Named::Escape).is_empty(), "{entry}: Escape closed the parent");
@@ -776,25 +761,13 @@ fn assert_schedule_help(
 fn assert_interval_help_actions(
     ui: &mut Ui<'_>,
     renderer: &mut Renderer,
-    icon: Point,
+    body: Point,
+    size: Size<u32>,
     explanation: &str,
 ) {
-    let body = Point::new(icon.x + 29.0, icon.y + 5.0);
-    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
-    let item_height = f32::from(line_height) + 10.0;
     let search = format!("https://www.google.com/search?q={}", urlencoding::encode(explanation));
     for index in [0, 3] {
-        assert!(
-            send(
-                ui,
-                renderer,
-                at(body),
-                &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
-            )
-            .is_empty()
-        );
-        let item = Point::new(body.x + 24.0, body.y + 3.0 + item_height * (index as f32 + 0.5));
-        let messages = click(ui, renderer, item);
+        let messages = help_menu_action(ui, renderer, body, size, index);
         assert!(
             match (index, messages.as_slice()) {
                 (0, [Message::CopyCode(value)]) => value == explanation,
@@ -858,17 +831,14 @@ async fn help_rollout_15_renders_contextual_help() {
         let positions = geometry(&mut ui, &renderer);
         assert_fits(positions.label(error), size);
         assert!(positions.input(expression).width > 0.0);
-        positions.label(tr.__("示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。"));
+        positions.label(tr.__(CRON_FORMAT));
         assert_schedule_help(
             &app,
             &mut ui,
             &mut renderer,
             size,
             "cron-edit",
-            (
-                "Cron 表达式",
-                "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。",
-            ),
+            ("Cron 表达式", WORKDAY_EXAMPLE),
         );
         for (label, expected) in [
             ("保存", SettingsMessage::CronJobEditSave),
@@ -980,6 +950,379 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
                     [Message::Settings(SettingsMessage::SchedulerEnabledToggled(true))]
                 ));
             }
+        }
+    }
+}
+
+const JOB_TYPE_HELP: &str = "Shell 执行命令，Agent 执行提示词任务。";
+const FALLBACK_HELP: &str = "主模型失败后依次尝试，使用逗号或换行分隔。";
+const WORKDAY_EXAMPLE: &str = "示例：0 9 * * MON-FRI 表示工作日 UTC 09:00 执行。";
+const CRON_FORMAT: &str = "UTC · 5 或 6 个字段";
+const CRON_FORMAT_HELP: &str =
+    "按 UTC 执行。5 字段依次为分、时、日、月、星期；6 字段在最前面增加秒。";
+
+fn reveal_form_point(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) -> Point {
+    let Some((viewport, mut translation)) = geometry(ui, renderer).scroll else {
+        return point;
+    };
+    if !viewport.contains(point - translation) {
+        let offset = point.y - translation.y - viewport.center_y();
+        assert!(
+            send(
+                ui,
+                renderer,
+                at(viewport.center()),
+                &[Event::Mouse(mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -offset },
+                })],
+            )
+            .is_empty()
+        );
+        translation = geometry(ui, renderer).scroll.unwrap().1;
+    }
+    let visible = point - translation;
+    assert!(viewport.contains(visible), "{point:?} is clipped at {visible:?}");
+    visible
+}
+
+fn help_menu_action(
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    body: Point,
+    size: Size<u32>,
+    index: usize,
+) -> Vec<Message> {
+    assert!(
+        send(
+            ui,
+            renderer,
+            at(body),
+            &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right))],
+        )
+        .is_empty()
+    );
+    let line_height = iced::advanced::text::LineHeight::default().to_absolute(12.0.into());
+    let item_height = f32::from(line_height) + 10.0;
+    // The context menu flips above the pointer when it reaches the bottom of the window.
+    let menu_height = 6.0 + 5.0 * item_height;
+    let top = if body.y + menu_height > size.height as f32 {
+        (body.y - menu_height).max(0.0)
+    } else {
+        body.y
+    };
+    let left = body.x.min(size.width as f32 - 140.0);
+    let item = Point::new(left + 24.0, top + 3.0 + item_height * (index as f32 + 0.5));
+    click(ui, renderer, item)
+}
+
+fn gap_10_fixture(editing: bool) -> App {
+    let mut app = fixture();
+    app.cron_settings.jobs_loading = false;
+    app.cron_settings.save_error = Some("Fixture schedule error".into());
+    if editing {
+        app.cron_settings.active_tab = CronSettingsTab::Jobs;
+        app.cron_settings.jobs = vec![super::system_settings_cron_tests::job(JOB_ID)];
+        app.cron_settings.editing_job_id = Some(JOB_ID.into());
+    } else {
+        app.cron_settings.active_tab = CronSettingsTab::Add;
+    }
+    app
+}
+
+fn gap_10_view(app: &App) -> Element<'_, Message> {
+    use iced::widget::scrollable::{Direction, Scrollbar};
+
+    let view = view(app);
+    if app.cron_settings.active_tab == CronSettingsTab::Add {
+        frame(
+            iced::widget::scrollable(container(view).padding([0, 7]))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+                .height(Length::Fill)
+                .into(),
+        )
+    } else {
+        view_overlays(app, frame(view))
+    }
+}
+
+fn gap_10_draft(app: &mut App, editing: bool) -> &mut crate::app::state::CronJobDraft {
+    if editing { &mut app.cron_settings.edit_draft } else { &mut app.cron_settings.add_draft }
+}
+
+fn assert_body_hides(ui: &mut Ui<'_>, renderer: &Renderer, explanation: &str) {
+    assert!(
+        geometry(ui, renderer).labels.iter().all(|(label, _)| label != explanation),
+        "static explanation is still shown in the form: {explanation}"
+    );
+}
+
+fn assert_gap_10_help(
+    app: &App,
+    ui: &mut Ui<'_>,
+    renderer: &mut Renderer,
+    size: Size<u32>,
+    keys: (&str, &str),
+) {
+    let tr = I18n::new(app.desktop_locale);
+    let (title, explanation) = (tr.__(keys.0), tr.__(keys.1));
+    assert_body_hides(ui, renderer, explanation);
+    let bounds = geometry(ui, renderer).labels.iter().rfind(|(label, _)| label == title).unwrap().1;
+    let icon = reveal_form_point(
+        ui,
+        renderer,
+        Point::new(bounds.x + bounds.width + 15.0, bounds.center_y()),
+    );
+    let tag = format!("gap-10-{:?}-{}-{title}", app.desktop_locale, size.width);
+    let idle = capture(
+        ui,
+        renderer,
+        &app.app_theme,
+        size,
+        &format!("{tag}-idle"),
+        mouse::Cursor::Unavailable,
+    );
+    assert!(
+        send(ui, renderer, at(icon), &[Event::Mouse(mouse::Event::CursorMoved { position: icon })])
+            .is_empty()
+    );
+    let hover = capture(ui, renderer, &app.app_theme, size, &format!("{tag}-hover"), at(icon));
+    assert!(idle != hover, "{title}: hover did not render");
+    assert!(click(ui, renderer, icon).is_empty());
+    let pinned = capture(
+        ui,
+        renderer,
+        &app.app_theme,
+        size,
+        &format!("{tag}-pinned"),
+        mouse::Cursor::Unavailable,
+    );
+    assert!(idle != pinned, "{title}: the help card did not stay open");
+    // The card opens on the side with enough room for the 300px panel.
+    let side = if icon.x < size.width as f32 / 2.0 { 29.0 } else { -29.0 };
+    let body = Point::new(icon.x + side, icon.y + 5.0);
+    let expected = if keys.1 == WORKDAY_EXAMPLE {
+        format!("{}\n{}", tr.__(CRON_FORMAT_HELP), explanation)
+    } else {
+        explanation.to_owned()
+    };
+    let messages = help_menu_action(ui, renderer, body, size, 0);
+    assert!(
+        matches!(messages.as_slice(), [Message::CopyCode(value)] if value == &expected),
+        "{title}: the card did not expose its localized explanation: {messages:?}"
+    );
+    assert!(key_at(ui, renderer, Named::Escape).is_empty(), "{title}: Escape closed the parent");
+    let closed = capture(
+        ui,
+        renderer,
+        &app.app_theme,
+        size,
+        &format!("{tag}-closed"),
+        mouse::Cursor::Unavailable,
+    );
+    assert!(idle == closed, "{title}: Escape did not dismiss the help card");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_10_add_shell_hides_task_type_explanation() {
+    if !isolated("settings_help_gap_10_add_shell_hides_task_type_explanation") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = gap_10_fixture(false);
+    app.desktop_locale = DesktopLocale::TraditionalChinese;
+    app.app_theme = Theme::Dark;
+    app.cron_settings.add_draft.job_type = CronAddJobType::Shell;
+    app.cron_settings.add_draft.project_path = PROJECT.into();
+    let tr = I18n::new(app.desktop_locale);
+    let size = Size::new(420, 740);
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    for help in [
+        ("任务类型", JOB_TYPE_HELP),
+        ("任务名称", "可选，便于在列表中识别。"),
+        ("项目路径", "可手工输入项目目录；留空使用默认工作区。"),
+        ("执行命令", "按安全策略执行的 Shell 命令。"),
+        ("执行后删除", "适合指定时间的一次性任务。"),
+        ("结果投递", "将任务执行结果投递到配置好的通道。"),
+    ] {
+        assert_gap_10_help(&app, &mut ui, &mut renderer, size, help);
+    }
+    let positions = geometry(&mut ui, &renderer);
+    for label in [
+        "Fixture schedule error",
+        tr.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
+        tr.__("运行成功后删除任务"),
+    ] {
+        assert!(positions.label(label).width > 0.0);
+    }
+
+    let project = positions.input(PROJECT);
+    let project_picker = positions
+        .focusables
+        .iter()
+        .rev()
+        .find(|bounds| bounds.x == project.x && bounds.y < project.y)
+        .unwrap();
+    let trigger = reveal_form_point(&mut ui, &mut renderer, project_picker.center());
+    assert!(click(&mut ui, &mut renderer, trigger).is_empty());
+    assert!(key_at(&mut ui, &mut renderer, Named::Home).is_empty());
+    assert!(matches!(
+        key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
+        [Message::Settings(SettingsMessage::CronAddProjectPathChanged(value))] if value.is_empty()
+    ));
+
+    let point = reveal_form_point(&mut ui, &mut renderer, project.center());
+    assert!(click(&mut ui, &mut renderer, point).is_empty());
+    assert!(key_at(&mut ui, &mut renderer, Named::End).is_empty());
+    assert!(matches!(
+        key_at(&mut ui, &mut renderer, Named::Backspace).as_slice(),
+        [Message::Settings(SettingsMessage::CronAddProjectPathChanged(value))]
+            if value == &PROJECT[..PROJECT.len() - 1]
+    ));
+    let submit = positions.labels.iter().rfind(|(label, _)| label == tr.__("新增任务")).unwrap().1;
+    let submit = reveal_form_point(&mut ui, &mut renderer, submit.center());
+    assert!(matches!(
+        click(&mut ui, &mut renderer, submit).as_slice(),
+        [Message::Settings(SettingsMessage::CronAddSubmit)]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_10_edit_agent_hides_fallback_explanation() {
+    if !isolated("settings_help_gap_10_edit_agent_hides_fallback_explanation") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = gap_10_fixture(true);
+    app.desktop_locale = DesktopLocale::English;
+    app.app_theme = Theme::Light;
+    app.cron_settings.edit_draft.job_type = CronAddJobType::Agent;
+    let tr = I18n::new(app.desktop_locale);
+    let size = Size::new(640, 700);
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    for help in [
+        ("回退模型", FALLBACK_HELP),
+        ("委托代理", "默认使用 Main，套用代理配置中的 provider、模型和温度。"),
+        ("ACP 智能体", "默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
+        ("Agent 提示词", "创建 Agent 类型定时任务。"),
+        ("模型提供商", "与智能体配置中的模型选择一致。"),
+        ("模型下拉", "从当前提供商的模型列表选择，会写入 provider/model。"),
+        ("模型手工输入", "可选，留空使用代理或全局默认模型。"),
+        ("唤醒", "保留唤醒标记，供桌面侧识别需要关注的任务。"),
+    ] {
+        assert_gap_10_help(&app, &mut ui, &mut renderer, size, help);
+    }
+    let positions = geometry(&mut ui, &renderer);
+    for label in [
+        "Fixture schedule error",
+        tr.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
+        tr.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
+    ] {
+        assert!(positions.label(label).width > 0.0);
+    }
+    assert!(positions.labels.iter().all(|(label, _)| label != tr.__("投递目标")));
+    let toggle =
+        reveal_form_point(&mut ui, &mut renderer, positions.label(tr.__("开启结果投递")).center());
+    assert!(matches!(
+        click(&mut ui, &mut renderer, toggle).as_slice(),
+        [Message::Settings(SettingsMessage::CronJobEditDeliveryEnabledToggled(true))]
+    ));
+    drop(ui);
+
+    let draft = &mut app.cron_settings.edit_draft;
+    draft.delivery_enabled = true;
+    draft.delivery_channel = "fixture-channel".into();
+    draft.delivery_to = "fixture-recipient".into();
+    let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+    assert_gap_10_help(
+        &app,
+        &mut ui,
+        &mut renderer,
+        size,
+        ("投递通道", "例如 telegram、discord、slack、mattermost、email。"),
+    );
+    assert_body_hides(&mut ui, &renderer, tr.__("开启后投递失败不会把任务标记为失败。"));
+    let positions = geometry(&mut ui, &renderer);
+    assert!(positions.label(tr.__("通道内的目标 ID、地址或频道。")).width > 0.0);
+    assert!(positions.input("fixture-recipient").width > 0.0);
+    let toggle = reveal_form_point(
+        &mut ui,
+        &mut renderer,
+        positions.label(tr.__("投递失败不影响任务状态")).center(),
+    );
+    assert!(matches!(
+        click(&mut ui, &mut renderer, toggle).as_slice(),
+        [Message::Settings(SettingsMessage::CronJobEditDeliveryBestEffortToggled(false))]
+    ));
+    for (key, action) in
+        [("保存", SettingsMessage::CronJobEditSave), ("取消", SettingsMessage::CronJobEditCanceled)]
+    {
+        let bounds = geometry(&mut ui, &renderer).label(tr.__(key));
+        assert_fits(bounds, size);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, bounds.center()).as_slice(),
+            [Message::Settings(actual)] if std::mem::discriminant(actual) == std::mem::discriminant(&action)
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn settings_help_gap_10_advanced_hides_workday_example() {
+    if !isolated("settings_help_gap_10_advanced_hides_workday_example") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let size = Size::new(420, 740);
+    for editing in [false, true] {
+        let mut app = gap_10_fixture(editing);
+        app.desktop_locale = DesktopLocale::SimplifiedChinese;
+        app.app_theme = if editing { Theme::Dark } else { Theme::Light };
+        let tr = I18n::new(app.desktop_locale);
+        for (kind, label, help, input) in [
+            (CronAddScheduleKind::Cron, "Cron 表达式", WORKDAY_EXAMPLE, "0 9 * * MON-FRI"),
+            (
+                CronAddScheduleKind::At,
+                "指定时间",
+                "RFC3339 时间，例如 2026-06-04T09:00:00Z。",
+                "2026-06-04T09:00:00Z",
+            ),
+            (CronAddScheduleKind::Every, "固定间隔", "按毫秒数循环触发。", "60000"),
+        ] {
+            let draft = gap_10_draft(&mut app, editing);
+            draft.schedule_kind = kind;
+            draft.frequency = crate::app::state::CronFrequency::Advanced;
+            match kind {
+                CronAddScheduleKind::Cron => draft.schedule = input.into(),
+                CronAddScheduleKind::At => draft.at = input.into(),
+                CronAddScheduleKind::Every => draft.every_ms = input.into(),
+            }
+            let mut ui = scene(gap_10_view(&app), &mut renderer, size);
+            assert_gap_10_help(&app, &mut ui, &mut renderer, size, (label, help));
+            let positions = geometry(&mut ui, &renderer);
+            match kind {
+                CronAddScheduleKind::Cron => {
+                    assert!(positions.label(tr.__(CRON_FORMAT)).width > 0.0)
+                }
+                CronAddScheduleKind::At => {
+                    assert!(positions.label(tr.__("RFC3339 时间")).width > 0.0)
+                }
+                CronAddScheduleKind::Every => {}
+            }
+            let point = reveal_form_point(&mut ui, &mut renderer, positions.input(input).center());
+            assert!(click(&mut ui, &mut renderer, point).is_empty());
+            assert!(key_at(&mut ui, &mut renderer, Named::End).is_empty());
+            let messages = key_at(&mut ui, &mut renderer, Named::Backspace);
+            assert!(
+                matches!((editing, kind, messages.as_slice()),
+                    (false, CronAddScheduleKind::Cron, [Message::Settings(SettingsMessage::CronAddScheduleChanged(value))])
+                    | (true, CronAddScheduleKind::Cron, [Message::Settings(SettingsMessage::CronJobEditScheduleChanged(value))])
+                    | (false, CronAddScheduleKind::At, [Message::Settings(SettingsMessage::CronAddAtChanged(value))])
+                    | (true, CronAddScheduleKind::At, [Message::Settings(SettingsMessage::CronJobEditAtChanged(value))])
+                    | (false, CronAddScheduleKind::Every, [Message::Settings(SettingsMessage::CronAddEveryMsChanged(value))])
+                    | (true, CronAddScheduleKind::Every, [Message::Settings(SettingsMessage::CronJobEditEveryMsChanged(value))])
+                    if value == &input[..input.len() - 1]
+                ),
+                "unexpected input message: {messages:?}"
+            );
         }
     }
 }

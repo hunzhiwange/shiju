@@ -69,7 +69,7 @@ fn field_row<'a>(
 fn field_row_with_help<'a>(
     app: &App,
     label: &'static str,
-    description: &'static str,
+    description: impl Into<std::borrow::Cow<'a, str>>,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
@@ -77,12 +77,31 @@ fn field_row_with_help<'a>(
         i18n,
         &app.app_theme,
         i18n.__(label),
-        i18n.__(description),
+        description,
         CRON_FORM_CONTROL_WIDTH,
         control,
     )
     .padding([14, 0])
     .into()
+}
+
+fn at_field<'a>(
+    app: &App,
+    value: &'a str,
+    changed: fn(String) -> message::SettingsMessage,
+) -> Element<'a, Message> {
+    let i18n = I18n::new(app.desktop_locale);
+    let format = i18n.__("RFC3339 时间");
+    field_row_with_help(
+        app,
+        "指定时间",
+        i18n.__("RFC3339 时间，例如 2026-06-04T09:00:00Z。"),
+        column![
+            text_field(format, value, move |v| Message::Settings(changed(v))),
+            text(format).size(11).style(settings_muted_text_style),
+        ]
+        .spacing(8),
+    )
 }
 
 fn cron_segment_style(theme: &Theme, status: button::Status, is_active: bool) -> button::Style {
@@ -491,6 +510,7 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
 }
 
 fn edit_form(app: &App) -> Element<'_, Message> {
+    let i18n = I18n::new(app.desktop_locale);
     let draft = &app.cron_settings.edit_draft;
     let agent_options = with_selected_option(
         app.agents_settings
@@ -520,42 +540,32 @@ fn edit_form(app: &App) -> Element<'_, Message> {
     );
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, true),
-        CronAddScheduleKind::At => field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("RFC3339 时间，例如 2026-06-04T09:00:00Z。"),
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("RFC3339 时间"),
-                &draft.at,
-                |v| Message::Settings(message::SettingsMessage::CronJobEditAtChanged(v)),
-            ),
-        ),
+        CronAddScheduleKind::At => {
+            at_field(app, &draft.at, message::SettingsMessage::CronJobEditAtChanged)
+        }
         CronAddScheduleKind::Every => field_row_with_help(
             app,
             "固定间隔",
-            "按毫秒数循环触发。",
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("例如 60000"),
-                &draft.every_ms,
-                |v| Message::Settings(message::SettingsMessage::CronJobEditEveryMsChanged(v)),
-            ),
+            i18n.__("按毫秒数循环触发。"),
+            text_field(i18n.__("例如 60000"), &draft.every_ms, |v| {
+                Message::Settings(message::SettingsMessage::CronJobEditEveryMsChanged(v))
+            }),
         ),
     };
 
     let mut form = column![
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("任务名称"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("用于在列表中识别任务。"),
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("可选名称"),
-                &draft.name,
-                |v| Message::Settings(message::SettingsMessage::CronJobEditNameChanged(v))
-            )
+        field_row_with_help(
+            app,
+            "任务名称",
+            i18n.__("可选，便于在列表中识别。"),
+            text_field(i18n.__("可选名称"), &draft.name, |v| Message::Settings(
+                message::SettingsMessage::CronJobEditNameChanged(v)
+            ))
         ),
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("任务类型"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("Shell 执行命令，Agent 执行提示词任务。"),
+        field_row_with_help(
+            app,
+            "任务类型",
+            i18n.__("Shell 执行命令，Agent 执行提示词任务。"),
             row![
                 segment_button(
                     "Shell",
@@ -578,24 +588,24 @@ fn edit_form(app: &App) -> Element<'_, Message> {
         field_row_with_help(
             app,
             "调度类型",
-            "常用周期可直接选择时间，高级模式支持 Cron。",
+            i18n.__("常用周期可直接选择时间，高级模式支持 Cron。"),
             row![
                 segment_button(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("周期执行"),
+                    i18n.__("周期执行"),
                     draft.schedule_kind == CronAddScheduleKind::Cron,
                     Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
                         CronAddScheduleKind::Cron
                     ))
                 ),
                 segment_button(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
+                    i18n.__("指定时间"),
                     draft.schedule_kind == CronAddScheduleKind::At,
                     Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
                         CronAddScheduleKind::At
                     ))
                 ),
                 segment_button(
-                    crate::app::i18n::I18n::new(app.desktop_locale).__("固定间隔"),
+                    i18n.__("固定间隔"),
                     draft.schedule_kind == CronAddScheduleKind::Every,
                     Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
                         CronAddScheduleKind::Every
@@ -607,36 +617,30 @@ fn edit_form(app: &App) -> Element<'_, Message> {
         ),
         schedule_row,
         field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("项目"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-            project_field(
-                app,
-                &draft.project_path,
-                |v| Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v)),
-            ),
+            i18n.__("项目"),
+            i18n.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
+            project_field(app, &draft.project_path, |v| Message::Settings(
+                message::SettingsMessage::CronJobEditProjectPathChanged(v)
+            ),),
         ),
-        field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("项目路径"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("可手工输入项目目录；留空使用默认工作区。"),
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("项目目录路径"),
-                &draft.project_path,
-                |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v))
-                }
-            ),
+        field_row_with_help(
+            app,
+            "项目路径",
+            i18n.__("可手工输入项目目录；留空使用默认工作区。"),
+            text_field(i18n.__("项目目录路径"), &draft.project_path, |v| {
+                Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v))
+            }),
         ),
     ]
     .spacing(0);
 
     form = match draft.job_type {
-        CronAddJobType::Shell => form.push(field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("执行命令"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("按安全策略执行的 Shell 命令。"),
+        CronAddJobType::Shell => form.push(field_row_with_help(
+            app,
+            "执行命令",
+            i18n.__("按安全策略执行的 Shell 命令。"),
             text_editor(&draft.command_editor)
-                .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("Shell 命令"))
+                .placeholder(i18n.__("Shell 命令"))
                 .on_action(|action| {
                     Message::Settings(message::SettingsMessage::CronJobEditCommandEditorAction(
                         action,
@@ -648,20 +652,20 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                 .style(settings_text_editor_style),
         )),
         CronAddJobType::Agent => form
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("委托代理"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
+            .push(field_row_with_help(
+                app,
+                "委托代理",
+                i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
                 pick_field(
                     agent_options,
                     (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
                     |v| Message::Settings(message::SettingsMessage::CronJobEditAgentChanged(v)),
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
+            .push(field_row_with_help(
+                app,
+                "ACP 智能体",
+                i18n.__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
                 pick_field(
                     acp_agent_options,
                     Some(selected_acp_agent_label(app.desktop_locale, &draft.acp_agent)),
@@ -672,13 +676,12 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                     },
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("Agent 提示词"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("创建 Agent 类型定时任务。"),
+            .push(field_row_with_help(
+                app,
+                "Agent 提示词",
+                i18n.__("创建 Agent 类型定时任务。"),
                 settings_text_editor(&draft.prompt_editor)
-                    .placeholder(
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("要让 Agent 执行的任务"),
-                    )
+                    .placeholder(i18n.__("要让 Agent 执行的任务"))
                     .on_action(|action| {
                         Message::Settings(message::SettingsMessage::CronJobEditPromptEditorAction(
                             action,
@@ -686,18 +689,18 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                     })
                     .height(Length::Fixed(140.0)),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型提供商"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("与智能体配置中的模型选择一致。"),
+            .push(field_row_with_help(
+                app,
+                "模型提供商",
+                i18n.__("与智能体配置中的模型选择一致。"),
                 pick_field(provider_options, selected_provider, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelProviderChanged(v))
                 }),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型下拉"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("从当前提供商的模型列表选择，会写入 provider/model。"),
+            .push(field_row_with_help(
+                app,
+                "模型下拉",
+                i18n.__("从当前提供商的模型列表选择，会写入 provider/model。"),
                 pick_field(
                     model_options,
                     (!selected_model_for_provider.is_empty())
@@ -717,53 +720,48 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                     },
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型手工输入"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("可选，留空使用代理或全局默认模型。"),
+            .push(field_row_with_help(
+                app,
+                "模型手工输入",
+                i18n.__("可选，留空使用代理或全局默认模型。"),
                 text_field("provider/model", &draft.model, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelChanged(v))
                 }),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("回退模型"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("主模型失败后依次尝试，使用逗号或换行分隔。"),
+            .push(field_row_with_help(
+                app,
+                "回退模型",
+                i18n.__("主模型失败后依次尝试，使用逗号或换行分隔。"),
                 text_field("provider/model, provider/model", &draft.fallbacks, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditFallbacksChanged(v))
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("完全访问"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
+                i18n.__("完全访问"),
+                i18n.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
                 checkbox(draft.full_access)
-                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("获取完全访问权限"))
+                    .label(i18n.__("获取完全访问权限"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronJobEditFullAccessToggled(v))
                     })
                     .style(settings_checkbox_style),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("任务池"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
+                i18n.__("任务池"),
+                i18n.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
                 checkbox(draft.task_pool)
-                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("投递到任务池"))
+                    .label(i18n.__("投递到任务池"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronJobEditTaskPoolToggled(v))
                     })
                     .style(settings_checkbox_style),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("唤醒"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
+            .push(field_row_with_help(
+                app,
+                "唤醒",
+                i18n.__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
                 checkbox(draft.wake)
-                    .label(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("任务运行时标记为需要关注"),
-                    )
+                    .label(i18n.__("任务运行时标记为需要关注"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronJobEditWakeToggled(v))
                     })
@@ -772,23 +770,23 @@ fn edit_form(app: &App) -> Element<'_, Message> {
     };
 
     form = form
-        .push(field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("执行后删除"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("适合指定时间的一次性任务，成功后自动清理。"),
+        .push(field_row_with_help(
+            app,
+            "执行后删除",
+            i18n.__("适合指定时间的一次性任务。"),
             checkbox(draft.delete_after_run)
-                .label(crate::app::i18n::I18n::new(app.desktop_locale).__("运行成功后删除任务"))
+                .label(i18n.__("运行成功后删除任务"))
                 .on_toggle(|v| {
                     Message::Settings(message::SettingsMessage::CronJobEditDeleteAfterRunToggled(v))
                 })
                 .style(settings_checkbox_style),
         ))
-        .push(field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("结果投递"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("将任务执行结果投递到配置好的通道。"),
+        .push(field_row_with_help(
+            app,
+            "结果投递",
+            i18n.__("将任务执行结果投递到配置好的通道。"),
             checkbox(draft.delivery_enabled)
-                .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启结果投递"))
+                .label(i18n.__("开启结果投递"))
                 .on_toggle(|v| {
                     Message::Settings(message::SettingsMessage::CronJobEditDeliveryEnabledToggled(
                         v,
@@ -799,10 +797,10 @@ fn edit_form(app: &App) -> Element<'_, Message> {
 
     if draft.delivery_enabled {
         form = form
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("投递通道"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("例如 telegram、discord、slack、mattermost、email。"),
+            .push(field_row_with_help(
+                app,
+                "投递通道",
+                i18n.__("例如 telegram、discord、slack、mattermost、email。"),
                 text_field("channel", &draft.delivery_channel, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditDeliveryChannelChanged(
                         v,
@@ -810,21 +808,17 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("投递目标"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("通道内的目标 ID、地址或频道。"),
+                i18n.__("投递目标"),
+                i18n.__("通道内的目标 ID、地址或频道。"),
                 text_field("target", &draft.delivery_to, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditDeliveryToChanged(v))
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("尽力投递"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后投递失败不会把任务标记为失败。"),
+                i18n.__("尽力投递"),
+                "",
                 checkbox(draft.delivery_best_effort)
-                    .label(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("投递失败不影响任务状态"),
-                    )
+                    .label(i18n.__("投递失败不影响任务状态"))
                     .on_toggle(|v| {
                         Message::Settings(
                             message::SettingsMessage::CronJobEditDeliveryBestEffortToggled(v),
@@ -1018,19 +1012,18 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         models_for_provider(app, &draft.model_provider),
         &selected_model_for_provider,
     );
-    let name_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("任务名称"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("可选，便于在列表中识别。"),
-        text_field(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("例如 每日备份"),
-            &draft.name,
-            |v| Message::Settings(message::SettingsMessage::CronAddNameChanged(v)),
-        ),
+    let name_row = field_row_with_help(
+        app,
+        "任务名称",
+        i18n.__("可选，便于在列表中识别。"),
+        text_field(i18n.__("例如 每日备份"), &draft.name, |v| {
+            Message::Settings(message::SettingsMessage::CronAddNameChanged(v))
+        }),
     );
-    let job_type_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("任务类型"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("Shell 执行命令，Agent 执行提示词任务。"),
+    let job_type_row = field_row_with_help(
+        app,
+        "任务类型",
+        i18n.__("Shell 执行命令，Agent 执行提示词任务。"),
         row![
             segment_button(
                 "Shell",
@@ -1053,24 +1046,24 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     let schedule_kind_row = field_row_with_help(
         app,
         "调度类型",
-        "常用周期可直接选择时间，高级模式支持 Cron。",
+        i18n.__("常用周期可直接选择时间，高级模式支持 Cron。"),
         row![
             segment_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("周期执行"),
+                i18n.__("周期执行"),
                 draft.schedule_kind == CronAddScheduleKind::Cron,
                 Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
                     CronAddScheduleKind::Cron
                 ))
             ),
             segment_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
+                i18n.__("指定时间"),
                 draft.schedule_kind == CronAddScheduleKind::At,
                 Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
                     CronAddScheduleKind::At
                 ))
             ),
             segment_button(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("固定间隔"),
+                i18n.__("固定间隔"),
                 draft.schedule_kind == CronAddScheduleKind::Every,
                 Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
                     CronAddScheduleKind::Every
@@ -1082,47 +1075,33 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     );
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, false),
-        CronAddScheduleKind::At => field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("指定时间"),
-            crate::app::i18n::I18n::new(app.desktop_locale)
-                .__("RFC3339 时间，例如 2026-06-04T09:00:00Z。"),
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("RFC3339 时间"),
-                &draft.at,
-                |v| Message::Settings(message::SettingsMessage::CronAddAtChanged(v)),
-            ),
-        ),
+        CronAddScheduleKind::At => {
+            at_field(app, &draft.at, message::SettingsMessage::CronAddAtChanged)
+        }
         CronAddScheduleKind::Every => field_row_with_help(
             app,
             "固定间隔",
-            "按毫秒数循环触发。",
-            text_field(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("例如 60000"),
-                &draft.every_ms,
-                |v| Message::Settings(message::SettingsMessage::CronAddEveryMsChanged(v)),
-            ),
+            i18n.__("按毫秒数循环触发。"),
+            text_field(i18n.__("例如 60000"), &draft.every_ms, |v| {
+                Message::Settings(message::SettingsMessage::CronAddEveryMsChanged(v))
+            }),
         ),
     };
 
     let project_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("项目"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-        project_field(
-            app,
-            &draft.project_path,
-            |v| Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v)),
-        ),
+        i18n.__("项目"),
+        i18n.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
+        project_field(app, &draft.project_path, |v| {
+            Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v))
+        }),
     );
-    let project_path_row = field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("项目路径"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("可手工输入项目目录；留空使用默认工作区。"),
-        text_field(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("项目目录路径"),
-            &draft.project_path,
-            |v| Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v)),
-        ),
+    let project_path_row = field_row_with_help(
+        app,
+        "项目路径",
+        i18n.__("可手工输入项目目录；留空使用默认工作区。"),
+        text_field(i18n.__("项目目录路径"), &draft.project_path, |v| {
+            Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v))
+        }),
     );
 
     let mut form = column![
@@ -1135,11 +1114,12 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     ]
     .spacing(0);
     form = match draft.job_type {
-        CronAddJobType::Shell => form.push(field_row(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("执行命令"),
-            crate::app::i18n::I18n::new(app.desktop_locale).__("创建 Shell 类型定时任务。"),
+        CronAddJobType::Shell => form.push(field_row_with_help(
+            app,
+            "执行命令",
+            i18n.__("按安全策略执行的 Shell 命令。"),
             text_editor(&draft.command_editor)
-                .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("Shell 命令"))
+                .placeholder(i18n.__("Shell 命令"))
                 .on_action(|action| {
                     Message::Settings(message::SettingsMessage::CronAddCommandEditorAction(action))
                 })
@@ -1149,20 +1129,20 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                 .style(settings_text_editor_style),
         )),
         CronAddJobType::Agent => form
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("委托代理"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
+            .push(field_row_with_help(
+                app,
+                "委托代理",
+                i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
                 pick_field(
                     agent_options,
                     (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
                     |v| Message::Settings(message::SettingsMessage::CronAddAgentChanged(v)),
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
+            .push(field_row_with_help(
+                app,
+                "ACP 智能体",
+                i18n.__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
                 pick_field(
                     acp_agent_options,
                     Some(selected_acp_agent_label(app.desktop_locale, &draft.acp_agent)),
@@ -1173,13 +1153,12 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                     },
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("Agent 提示词"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("创建 Agent 类型定时任务。"),
+            .push(field_row_with_help(
+                app,
+                "Agent 提示词",
+                i18n.__("创建 Agent 类型定时任务。"),
                 settings_text_editor(&draft.prompt_editor)
-                    .placeholder(
-                        crate::app::i18n::I18n::new(app.desktop_locale).__("要让 Agent 执行的任务"),
-                    )
+                    .placeholder(i18n.__("要让 Agent 执行的任务"))
                     .on_action(|action| {
                         Message::Settings(message::SettingsMessage::CronAddPromptEditorAction(
                             action,
@@ -1187,18 +1166,18 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                     })
                     .height(Length::Fixed(140.0)),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型提供商"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("与智能体配置中的模型选择一致。"),
+            .push(field_row_with_help(
+                app,
+                "模型提供商",
+                i18n.__("与智能体配置中的模型选择一致。"),
                 pick_field(provider_options, selected_provider, |v| {
                     Message::Settings(message::SettingsMessage::CronAddModelProviderChanged(v))
                 }),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型下拉"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("从当前提供商的模型列表选择，会写入 provider/model。"),
+            .push(field_row_with_help(
+                app,
+                "模型下拉",
+                i18n.__("从当前提供商的模型列表选择，会写入 provider/model。"),
                 pick_field(
                     model_options,
                     (!selected_model_for_provider.is_empty())
@@ -1216,53 +1195,48 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                     },
                 ),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("模型手工输入"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("可选，留空使用代理或全局默认模型。"),
+            .push(field_row_with_help(
+                app,
+                "模型手工输入",
+                i18n.__("可选，留空使用代理或全局默认模型。"),
                 text_field("provider/model", &draft.model, |v| {
                     Message::Settings(message::SettingsMessage::CronAddModelChanged(v))
                 }),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("回退模型"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("主模型失败后依次尝试，使用逗号或换行分隔。"),
+            .push(field_row_with_help(
+                app,
+                "回退模型",
+                i18n.__("主模型失败后依次尝试，使用逗号或换行分隔。"),
                 text_field("provider/model, provider/model", &draft.fallbacks, |v| {
                     Message::Settings(message::SettingsMessage::CronAddFallbacksChanged(v))
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("完全访问"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
+                i18n.__("完全访问"),
+                i18n.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
                 checkbox(draft.full_access)
-                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("获取完全访问权限"))
+                    .label(i18n.__("获取完全访问权限"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronAddFullAccessToggled(v))
                     })
                     .style(settings_checkbox_style),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("任务池"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
+                i18n.__("任务池"),
+                i18n.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
                 checkbox(draft.task_pool)
-                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("投递到任务池"))
+                    .label(i18n.__("投递到任务池"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronAddTaskPoolToggled(v))
                     })
                     .style(settings_checkbox_style),
             ))
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("唤醒"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
+            .push(field_row_with_help(
+                app,
+                "唤醒",
+                i18n.__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
                 checkbox(draft.wake)
-                    .label(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("任务运行时标记为需要关注"),
-                    )
+                    .label(i18n.__("任务运行时标记为需要关注"))
                     .on_toggle(|v| {
                         Message::Settings(message::SettingsMessage::CronAddWakeToggled(v))
                     })
@@ -1270,23 +1244,24 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             )),
     };
 
-    form = form.push(field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("执行后删除"),
-        crate::app::i18n::I18n::new(app.desktop_locale)
-            .__("适合指定时间的一次性任务，成功后自动清理。"),
+    form = form.push(field_row_with_help(
+        app,
+        "执行后删除",
+        i18n.__("适合指定时间的一次性任务。"),
         checkbox(draft.delete_after_run)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("运行成功后删除任务"))
+            .label(i18n.__("运行成功后删除任务"))
             .on_toggle(|v| {
                 Message::Settings(message::SettingsMessage::CronAddDeleteAfterRunToggled(v))
             })
             .style(settings_checkbox_style),
     ));
 
-    form = form.push(field_row(
-        crate::app::i18n::I18n::new(app.desktop_locale).__("结果投递"),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("将任务执行结果投递到配置好的通道。"),
+    form = form.push(field_row_with_help(
+        app,
+        "结果投递",
+        i18n.__("将任务执行结果投递到配置好的通道。"),
         checkbox(draft.delivery_enabled)
-            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启结果投递"))
+            .label(i18n.__("开启结果投递"))
             .on_toggle(|v| {
                 Message::Settings(message::SettingsMessage::CronAddDeliveryEnabledToggled(v))
             })
@@ -1295,30 +1270,26 @@ fn add_tab(app: &App) -> Element<'_, Message> {
 
     if draft.delivery_enabled {
         form = form
-            .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("投递通道"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("例如 telegram、discord、slack、mattermost、email。"),
+            .push(field_row_with_help(
+                app,
+                "投递通道",
+                i18n.__("例如 telegram、discord、slack、mattermost、email。"),
                 text_field("channel", &draft.delivery_channel, |v| {
                     Message::Settings(message::SettingsMessage::CronAddDeliveryChannelChanged(v))
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("投递目标"),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("通道内的目标 ID、地址或频道。"),
+                i18n.__("投递目标"),
+                i18n.__("通道内的目标 ID、地址或频道。"),
                 text_field("target", &draft.delivery_to, |v| {
                     Message::Settings(message::SettingsMessage::CronAddDeliveryToChanged(v))
                 }),
             ))
             .push(field_row(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("尽力投递"),
-                crate::app::i18n::I18n::new(app.desktop_locale)
-                    .__("开启后投递失败不会把任务标记为失败。"),
+                i18n.__("尽力投递"),
+                "",
                 checkbox(draft.delivery_best_effort)
-                    .label(
-                        crate::app::i18n::I18n::new(app.desktop_locale)
-                            .__("投递失败不影响任务状态"),
-                    )
+                    .label(i18n.__("投递失败不影响任务状态"))
                     .on_toggle(|v| {
                         Message::Settings(
                             message::SettingsMessage::CronAddDeliveryBestEffortToggled(v),
@@ -1337,7 +1308,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         ),
         settings_group_card(form),
         container(primary_button(
-            crate::app::i18n::I18n::new(app.desktop_locale).__("新增任务"),
+            i18n.__("新增任务"),
             Message::Settings(message::SettingsMessage::CronAddSubmit)
         ))
         .align_right(Length::Fill),

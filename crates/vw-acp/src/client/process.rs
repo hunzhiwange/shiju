@@ -129,6 +129,12 @@ impl AcpClient {
     /// Materialize only known official launch shapes; custom argv stays byte-for-byte intact.
     pub(super) fn launch_args(&self) -> Result<Vec<String>, AcpError> {
         let unrestricted = self.full_access && self.permission_mode == PermissionMode::ApproveAll;
+        if self.agent_name == "opencode" && self.desktop_workspace.is_some() && !unrestricted {
+            return Err(AcpError::Initialize(
+                "OpenCode approval mode cannot constrain native tools; a current full access grant is required"
+                    .into(),
+            ));
+        }
         if self.agent_name == "copilot" {
             crate::access_policy::copilot::validate_launch(&self.config.args, unrestricted)?;
         }

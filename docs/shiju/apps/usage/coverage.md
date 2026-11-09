@@ -191,3 +191,23 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
+
+## 任务 16 智谱回落余额
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [个人套餐检测](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L32-L50) · [套餐查询与无套餐识别](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L376-L495) · [用量分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/commands/provider.rs#L713-L751) | `query_zhipu_balance` 接收已授权的智谱个人套餐类型和 API 密钥，仅向对应官方站点发送请求。只有 HTTP 成功、业务码 500、明确失败且完整文案匹配已知无套餐响应时才查询余额。上游复用业务码 500，完整匹配缩小了上游模糊关键词识别的范围。鉴权、限流、传输中断、其他业务失败及格式错误使用类型化错误。已有套餐返回 `Ok(None)`，多时间窗解析归任务 18。 |
+| [余额请求与解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L434-L530) · [套餐判别夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L3371-L3458) · [余额夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/balance.rs#L724-L774) | 本地 HTTP 测试核对套餐和余额的 GET 路径、原样鉴权头、语言及 JSON 请求头，并验证套餐查询失败时只请求套餐。国内站按 CNY，国际站按上游推定记为 USD。余额优先取 `availableBalance`，缺少可解析值时使用 `balance`，保留零和负数。 |
+
+[适配器](../../../../crates/vw-agent-apps/src/usage/balances/zhipu.rs) · [独立行为测试](../../../../crates/vw-agent-apps/src/usage/balances/zhipu_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后均动态领取槽位 2。`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_balances_zhipu_ -- --nocapture` | 退出 101，执行 0 项。`usage_balances_zhipu_returns_expected_result`、`usage_balances_zhipu_rejects_invalid_input` 等测试依赖尚未实现的 `client_builder`、`query_at` 和 `query_zhipu_balance`，编译报 E0432。 |
+| 格式化 | `cargo fmt --all` | 在批次 15 提交 `448833e9d` 的隔离源码副本运行两次，均退出 0。只同步任务 16 的三个 Rust 文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_balances_zhipu_ -- --nocapture` | 共享工作区退出 0，4 项通过，0 项失败。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 共享工作区退出 0。 |
+
+限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55 和 56。

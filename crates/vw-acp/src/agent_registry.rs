@@ -493,6 +493,18 @@ fn alias_target(name: &str) -> Option<&'static str> {
     AGENT_ALIASES.iter().find_map(|(alias, target)| (*alias == name).then_some(*target))
 }
 
+pub(crate) fn desktop_permission_agent(name: &str) -> Option<&'static str> {
+    let name = normalize_agent_name(name);
+    if name == "claude-legacy" {
+        return Some("claude");
+    }
+    alias_target(&name).or_else(|| {
+        built_in_agent_definitions()
+            .iter()
+            .find_map(|definition| (definition.name == name).then_some(definition.name))
+    })
+}
+
 /// 返回所有内置 ACP 代理的结构化启动规格。
 ///
 /// 返回值按代理 key 排序，且会尽量优先解析本地已安装的命令；如果找不到

@@ -90,6 +90,7 @@ async fn acp_full_access_codex_new_load_resume_reapply_current_grant_and_preserv
     agent.state.lock().codex_controls = true;
     with_fixture(agent.clone(), async |fixture| {
         prepare_codex(fixture);
+        fixture.client.desktop_workspace = Some(Path::new("/tmp/vw-acp-session-control").into());
         let conn = &fixture.runtime.as_ref().unwrap().conn;
         let cwd = Path::new("/tmp/vw-acp-session-control");
         let mut original_id = None;
@@ -255,6 +256,7 @@ async fn acp_full_access_codex_read_approval_cannot_enable_native_full_access() 
     agent.state.lock().codex_controls = true;
     with_fixture(agent.clone(), async |fixture| {
         prepare_codex(fixture);
+        fixture.client.desktop_workspace = Some(Path::new("/tmp/vw-acp-session-control").into());
         fixture.client.full_access = true;
         fixture.client.permission_mode = PermissionMode::ApproveReads;
         fixture
@@ -348,19 +350,28 @@ async fn acp_full_access_codex_unverified_handshake_clears_prior_runtime_identit
 async fn acp_full_access_codex_unverified_elevated_restore_refuses_to_continue() {
     let agent = TestAgent::default();
     with_fixture(agent.clone(), async |fixture| {
-        for config_surface in [true, false] {
+        for (mode, config_surface) in [
+            ("agent-full-access", true),
+            ("agent-full-access", false),
+            ("workspace-write", true),
+            ("agent", false),
+        ] {
             prepare_codex(fixture);
+            if mode != "agent-full-access" {
+                fixture.client.desktop_workspace =
+                    Some(Path::new("/tmp/vw-acp-session-control").into());
+            }
             {
                 let mut state = fixture.client.actor_state.lock();
                 state.codex_runtime_verified = false;
                 let info = state.session_capabilities.as_mut().unwrap();
                 if config_surface {
-                    info.config_options = Some(options("agent-full-access"));
+                    info.config_options = Some(options(mode));
                 } else {
                     info.config_options = None;
                     info.modes = Some(acp::SessionModeState::new(
-                        "agent-full-access",
-                        vec![acp::SessionMode::new("agent-full-access", "Full access")],
+                        mode,
+                        vec![acp::SessionMode::new(mode, mode)],
                     ));
                 }
             }

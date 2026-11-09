@@ -23,7 +23,9 @@ impl AcpClient {
             return value;
         }
         match self.agent_name.as_str() {
-            "codex" if value == codex::FULL_MODE => codex::RESTRICTED_MODE,
+            "codex" if value == codex::FULL_MODE || self.desktop_workspace.is_some() => {
+                codex::RESTRICTED_MODE
+            }
             "claude"
                 if value == claude::FULL_MODE
                     || (self.desktop_workspace.is_some()

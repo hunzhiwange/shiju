@@ -13,6 +13,12 @@ impl AcpClient {
         event_tx: mpsc::UnboundedSender<InternalEvent>,
     ) -> AcpEventClient {
         let on_operation = self.on_client_operation.clone();
+        let permission_mode = match self.permission_mode {
+            PermissionMode::ApproveAll if self.desktop_workspace.is_some() && !self.full_access => {
+                PermissionMode::ApproveReads
+            }
+            mode => mode,
+        };
         let actor_state = Arc::downgrade(&self.actor_state);
         let on_update = self.on_session_update.clone();
         let on_session_update: SessionUpdateCallback = Arc::new(move |notification| {
@@ -68,7 +74,7 @@ impl AcpClient {
             event_tx,
             filesystem: FileSystemHandlers::new(FileSystemHandlersOptions {
                 cwd: cwd.to_path_buf(),
-                permission_mode: self.permission_mode,
+                permission_mode,
                 full_access: self.full_access,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation: on_operation.clone(),
@@ -91,14 +97,14 @@ impl AcpClient {
             ),
             terminal_manager: TerminalManager::new(TerminalManagerOptions {
                 cwd: cwd.to_path_buf(),
-                permission_mode: self.permission_mode,
+                permission_mode,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation,
                 confirm_execute: None,
                 kill_grace_ms: None,
             })
             .with_workspace_auto_execute(self.desktop_workspace.is_none()),
-            permission_mode: self.permission_mode,
+            permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
             on_session_update: Some(on_session_update),
             permission_stats: self.permission_stats.clone(),

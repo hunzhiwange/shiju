@@ -1092,3 +1092,147 @@ async fn acp_desktop_approval_policy_only_current_full_grant_allows_external_wri
         .await;
     }
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_desktop_approval_backend_matrix() {
+    // Review coverage when the production registry changes, including native-only backends.
+    let built_in = crate::built_in_agent_specs();
+    assert_eq!(
+        built_in.keys().map(String::as_str).collect::<Vec<_>>(),
+        [
+            "auggie",
+            "claude",
+            "codebuddy",
+            "codex",
+            "copilot",
+            "cursor",
+            "droid",
+            "gemini",
+            "goose",
+            "hermes",
+            "iflow",
+            "kilocode",
+            "kimi",
+            "kiro",
+            "openclaw",
+            "opencode",
+            "pi",
+            "qoder",
+            "qwen",
+            "snow",
+            "trae",
+            "vibe",
+        ]
+    );
+    let alias = "github-copilot";
+    assert_eq!(
+        crate::resolve_agent_spec(alias).unwrap().command_line(),
+        built_in["copilot"].command_line()
+    );
+    let replacement = crate::AgentCommandSpec {
+        display_name: "Replacement".into(),
+        command: "/fixture/replacement".into(),
+        args: Vec::new(),
+        env: Default::default(),
+    };
+    let overrides = std::collections::HashMap::from([("codex".into(), replacement)]);
+    let override_spec =
+        crate::resolve_agent_spec_with_overrides("codex", Some(&overrides)).unwrap();
+    assert_eq!(override_spec.command, "/fixture/replacement");
+
+    let backends = built_in.keys().map(|key| (key.as_str(), AcpAgentConfig::default())).chain([
+        (alias, AcpAgentConfig::default()),
+        ("CoDeX", AcpAgentConfig::default()),
+        ("claude-legacy", AcpAgentConfig::default()),
+        ("custom-fixture", AcpAgentConfig::default()),
+        ("codex", AcpAgentConfig { command: override_spec.command, ..Default::default() }),
+    ]);
+    for (backend, config) in backends {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let note = root.path().canonicalize().unwrap().join("note.txt");
+        let marker = outside.path().canonicalize().unwrap().join("terminal.txt");
+        for full_access in [false, true, false] {
+            // An approval preference alone must never act as a desktop full-access grant.
+            let client = super::AcpClient::new(backend, config.clone())
+                .with_desktop_workspace(Some(root.path().canonicalize().unwrap()))
+                .with_full_access(full_access)
+                .with_permission_mode(PermissionMode::ApproveAll)
+                .with_non_interactive_permissions(Some(NonInteractivePermissionPolicy::Deny));
+            let expected_backend = match backend {
+                "github-copilot" => "copilot",
+                "CoDeX" => "codex",
+                "claude-legacy" => "claude",
+                _ => backend,
+            };
+            assert_eq!(client.agent_name(), expected_backend);
+
+            with_workspace_rpc(&client, root.path(), async |io| {
+                let mut io = tokio::io::BufReader::new(io);
+                for content in ["first", "second"] {
+                    let response = workspace_rpc(
+                        &mut io,
+                        "fs/write_text_file",
+                        serde_json::json!({
+                            "sessionId": "workspace", "path": note, "content": content
+                        }),
+                    )
+                    .await;
+                    assert!(response.get("result").is_some(), "{backend}: {response}");
+                    assert_eq!(fs::read_to_string(&note).unwrap(), content);
+                }
+                assert_eq!(client.permission_stats.lock().requested, 0, "{backend}");
+
+                for kind in [acp::ToolKind::Edit, acp::ToolKind::Delete, acp::ToolKind::Execute] {
+                    let mut request = permission_request("workspace");
+                    request.tool_call.fields.kind = Some(kind);
+                    request.options[0].option_id = acp::PermissionOptionId::new("approve_once");
+                    request.options.insert(
+                        0,
+                        acp::PermissionOption::new(
+                            "approve_always",
+                            "Always allow",
+                            acp::PermissionOptionKind::AllowAlways,
+                        ),
+                    );
+                    let response = workspace_rpc(
+                        &mut io,
+                        "session/request_permission",
+                        serde_json::to_value(request).unwrap(),
+                    )
+                    .await;
+                    let expected = if full_access { "approve_once" } else { "reject" };
+                    assert_eq!(
+                        response["result"]["outcome"]["optionId"], expected,
+                        "{backend}: {response}"
+                    );
+                }
+                let response = workspace_rpc(
+                    &mut io,
+                    "terminal/create",
+                    serde_json::json!({
+                        "sessionId": "workspace", "command": "/usr/bin/touch", "args": [marker],
+                        "cwd": root.path().canonicalize().unwrap()
+                    }),
+                )
+                .await;
+                assert_eq!(response.get("result").is_some(), full_access, "{backend}: {response}");
+                if full_access {
+                    let exit = workspace_rpc(
+                        &mut io,
+                        "terminal/wait_for_exit",
+                        serde_json::json!({
+                            "sessionId": "workspace", "terminalId": response["result"]["terminalId"]
+                        }),
+                    )
+                    .await;
+                    assert_eq!(exit["result"]["exitCode"], 0, "{backend}: {exit}");
+                    fs::remove_file(&marker).unwrap();
+                }
+                assert!(!marker.exists(), "{backend}");
+            })
+            .await;
+        }
+    }
+}

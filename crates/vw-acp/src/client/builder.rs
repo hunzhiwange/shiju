@@ -5,6 +5,13 @@ use super::*;
 impl AcpClient {
     /// Bind desktop permissions to a server-authorized canonical workspace directory.
     pub fn with_desktop_workspace(mut self, workspace: Option<PathBuf>) -> Self {
+        if workspace.is_some()
+            && let Some(target) = crate::agent_registry::desktop_permission_agent(&self.agent_name)
+        {
+            // Compatibility names use the same permission guards. Native grants still
+            // depend on the actual launch configuration and protocol confirmation.
+            self.agent_name = target.into();
+        }
         self.desktop_workspace = workspace;
         self
     }

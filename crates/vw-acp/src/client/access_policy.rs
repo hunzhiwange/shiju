@@ -245,11 +245,13 @@ impl AcpClient {
             return Ok(());
         }
         self.actor_state.lock().codex_confirmed_session = None;
-        if mode_id == crate::access_policy::codex::FULL_MODE
+        if (mode_id == crate::access_policy::codex::FULL_MODE
+            || (self.desktop_workspace.is_some()
+                && mode_id != crate::access_policy::codex::RESTRICTED_MODE))
             && !(self.full_access && self.permission_mode == PermissionMode::ApproveAll)
         {
             return Err(AcpError::Prompt(
-                "Codex full access requires the current host grant; host deny cannot be overridden"
+                "Codex native write modes require the current host grant; host deny cannot be overridden"
                     .into(),
             ));
         }
@@ -270,14 +272,14 @@ impl AcpClient {
             let mut state = self.actor_state.lock();
             if !state.codex_runtime_verified {
                 let elevated = state.session_capabilities.as_ref().is_some_and(|info| {
+                    let config =
+                        crate::access_policy::codex::current_mode(info.config_options.as_deref());
+                    let legacy = info.modes.as_ref().map(|modes| modes.current_mode_id.0.as_ref());
                     info.session_id == session_id
-                        && (crate::access_policy::codex::current_mode(
-                            info.config_options.as_deref(),
-                        ) == Some(FULL_MODE)
-                            || info
-                                .modes
-                                .as_ref()
-                                .is_some_and(|modes| modes.current_mode_id.0.as_ref() == FULL_MODE))
+                        && [config, legacy].into_iter().flatten().any(|mode| {
+                            mode == FULL_MODE
+                                || (self.desktop_workspace.is_some() && mode != RESTRICTED_MODE)
+                        })
                 });
                 if self.agent_name == "codex"
                     && elevated
@@ -287,7 +289,7 @@ impl AcpClient {
                     state
                         .pending_controls
                         .insert((session_id.into(), "mode".into()), RESTRICTED_MODE.into());
-                    return Err(AcpError::Prompt("Cannot revoke full access from an unverified Codex runtime; use a reviewed runtime before prompting".into()));
+                    return Err(AcpError::Prompt("Cannot revoke native write access from an unverified Codex runtime; use a reviewed runtime before prompting".into()));
                 }
                 return Ok(());
             }
@@ -296,6 +298,10 @@ impl AcpClient {
         };
         let desired = if self.full_access && self.permission_mode == PermissionMode::ApproveAll {
             FULL_MODE
+        } else if self.desktop_workspace.is_some() {
+            // Codex's writable modes can run commands and write to the system temp
+            // directory without traversing the desktop workspace's file boundary.
+            RESTRICTED_MODE
         } else {
             crate::access_policy::codex::current_mode(
                 capabilities.as_ref().and_then(|info| info.config_options.as_deref()),

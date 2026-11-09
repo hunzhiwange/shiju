@@ -2,7 +2,9 @@
 
 use std::{fmt, time::Duration};
 
-use rquickjs::{Context, Ctx, Function, Object, Runtime, Value as JsValue};
+use rquickjs::{
+    Context, Ctx, Exception, Function, Object, Runtime, String as JsString, Value as JsValue,
+};
 use serde_json::Value;
 
 use super::config::PreparedUsageScript;
@@ -48,7 +50,7 @@ impl PreparedUsageScript<'_> {
             run_stage(&source, |ctx, config| {
                 let request: Object =
                     config.get("request").map_err(|_| RuntimeError::InvalidRequest)?;
-                to_json(&ctx, request.into_value(), RuntimeError::InvalidRequest)
+                to_json(ctx.json_stringify(request), RuntimeError::InvalidRequest)
             })
         })
         .await
@@ -56,7 +58,7 @@ impl PreparedUsageScript<'_> {
     }
 
     /// Extract a JSON candidate from the response received by the host.
-    pub async fn extract(&self, response: &str) -> Result<Value, RuntimeError> {
+    pub(super) async fn extract(&self, response: &str) -> Result<Value, RuntimeError> {
         if response.len() >= MEMORY_LIMIT {
             return Err(RuntimeError::InvalidResponse);
         }
@@ -70,7 +72,11 @@ impl PreparedUsageScript<'_> {
                     ctx.json_parse(response).map_err(|_| RuntimeError::InvalidResponse)?;
                 let result: JsValue =
                     extractor.call((response,)).map_err(|_| RuntimeError::InvalidResult)?;
-                to_json(&ctx, result, RuntimeError::InvalidResult)
+                // JSON.stringify would turn non-finite numbers into null, hiding them
+                // from validation of the optional quantities.
+                let replacer = Function::new(ctx.clone(), reject_non_finite)
+                    .map_err(|_| RuntimeError::InvalidResult)?;
+                to_json(ctx.json_stringify_replacer(result, replacer), RuntimeError::InvalidResult)
             })
         })
         .await
@@ -106,12 +112,22 @@ fn run_stage(
     result
 }
 
-fn to_json<'js>(
-    ctx: &Ctx<'js>,
+fn reject_non_finite<'js>(
+    ctx: Ctx<'js>,
+    _key: JsValue<'js>,
     value: JsValue<'js>,
+) -> rquickjs::Result<JsValue<'js>> {
+    if value.as_float().is_some_and(|number| !number.is_finite()) {
+        return Err(Exception::throw_type(&ctx, "non-finite usage number"));
+    }
+    Ok(value)
+}
+
+fn to_json(
+    json: rquickjs::Result<Option<JsString<'_>>>,
     error: RuntimeError,
 ) -> Result<Value, RuntimeError> {
-    let json = ctx.json_stringify(value).map_err(|_| error)?.ok_or(error)?;
+    let json = json.map_err(|_| error)?.ok_or(error)?;
     let json = json.to_string().map_err(|_| error)?;
     serde_json::from_str(&json).map_err(|_| error)
 }

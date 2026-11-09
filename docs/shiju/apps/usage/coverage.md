@@ -579,3 +579,20 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 34 提交 `38e9a3b2c`，叠加本任务源码及共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
 
 真实 QuickJS 与本机 HTTP 夹具核对 PATCH 方法、路径、查询串、请求头、请求体和提取结果，并确认未授权端口与已获授权的重定向目标均未收到连接。拒绝用例还覆盖无效方法、URL 用户信息、非 HTTP(S) 协议和 Host 头覆盖。超时用例覆盖 2–30 秒边界及响应体停滞，HTTP 403 用例验证类型化鉴权错误。验收覆盖宿主网络入口，凭据、响应和目标来自本机夹具。差异审查通过，共享槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/network_tests.rs#L79)
+
+## 任务 36 校验脚本返回套餐
+
+`PreparedUsageScript::extract_packages` 将单对象或非空对象数组转换为 `UsageScriptPackage`，按顺序保留八个约定字段。零和负数保留，未提供的可选字段继续表达为缺失。有效性未声明或为真的套餐至少需要一个额度值。显式失效的套餐可只提供失效状态和说明。错误按类型区分，省略脚本异常和响应原文。套餐文本含有主机传入的 API Key 或访问令牌原文时拒绝整个结果。 [上游结果校验](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L315) · [上游套餐类型](../../../../crates/vw-agent-apps/upstream/src-tauri/src/provider.rs#L342) · [TS 字段说明](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L1671) · [本地结果类型](../../../../crates/vw-api-types/src/apps_usage.rs#L148) · [本地提取入口](../../../../crates/vw-agent-apps/src/usage/scripts/extract.rs#L35)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_scripts_extract_ -- --nocapture` | 退出 101，执行 0 项。成功、拒绝和凭据用例按预期缺少模块及 `extract_packages`（E0432/E0599）。 |
+| 格式化 | `cargo fmt --all` | 退出 0。仅将本任务文件从源码副本同步回共享工作区。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_scripts_extract_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 脚本模块回归 | `cargo test -p vw-agent-apps usage_scripts_ -- --nocapture` | 退出 0，18 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。既有 ACP 会话改动缺少 `PermissionConfirmation` 和 `with_permission_confirmation`，桌面会话改动缺少 `session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 35 提交 `daba0a2a1`，叠加本任务源码和共享工作区已有的 `postgres_tests.rs` 参数修正。 |
+
+真实 QuickJS 夹具覆盖单套餐和多套餐、零与负数、显式失效、缺值、字段类型错误、非法 JSON、NaN 和无穷值，以及凭据出现在套餐字段和脚本异常中的情况。本机 HTTP 夹具也验证了收到响应后调用受校验的提取入口。差异审查通过，槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/extract_tests.rs#L27) · [本机 HTTP 测试](../../../../crates/vw-agent-apps/src/usage/scripts/network_tests.rs#L79)

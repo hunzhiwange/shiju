@@ -90,7 +90,10 @@ async fn usage_scripts_network_returns_expected_result() {
     );
 
     let body = script.send_request(10, std::slice::from_ref(&base)).await.unwrap();
-    assert_eq!(script.extract(&body).await.unwrap(), json!({"remaining": 12, "unit": "USD"}));
+    let packages = script.extract_packages(&body).await.unwrap();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(packages[0].remaining.map(f64::from), Some(12.0));
+    assert_eq!(packages[0].unit.as_deref(), Some("USD"));
     let request = received.await.unwrap();
     assert!(request.starts_with("PATCH /user/balance?currency=USD HTTP/1.1\r\n"));
     assert!(request.to_ascii_lowercase().contains("\r\nauthorization: bearer fixture-token\r\n"));

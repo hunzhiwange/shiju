@@ -91,6 +91,8 @@ pub struct PreparedUsageScript<'a> {
     template: UsageTemplate,
     source: String,
     base_url: Option<&'a str>,
+    #[cfg(target_os = "macos")]
+    pub(super) credentials: [Option<&'a str>; 2],
 }
 
 impl PreparedUsageScript<'_> {
@@ -162,10 +164,11 @@ impl UsageTemplate {
         let api_key = trimmed(parameters.api_key).or_else(|| trimmed(provider.api_key));
         let base_url = normalized_base_url(parameters.base_url)
             .or_else(|| normalized_base_url(provider.base_url));
+        let access_token = trimmed(parameters.access_token);
         let values = [
             ("apiKey}}", ScriptParameter::ApiKey, api_key),
             ("baseUrl}}", ScriptParameter::BaseUrl, base_url),
-            ("accessToken}}", ScriptParameter::AccessToken, trimmed(parameters.access_token)),
+            ("accessToken}}", ScriptParameter::AccessToken, access_token),
             ("userId}}", ScriptParameter::UserId, trimmed(parameters.user_id)),
         ];
 
@@ -196,6 +199,8 @@ impl UsageTemplate {
             template: self,
             source: rendered,
             base_url,
+            #[cfg(target_os = "macos")]
+            credentials: [api_key, access_token],
         }))
     }
 }

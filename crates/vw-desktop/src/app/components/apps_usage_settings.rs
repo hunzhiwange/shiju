@@ -20,6 +20,7 @@ use vw_gateway_client::{
 
 use super::{
     apps_usage_cards::{Scope, current_scope, scope},
+    apps_usage_script,
     system_settings::SystemTab,
 };
 use crate::app::{
@@ -201,6 +202,8 @@ impl Draft {
 pub enum Event {
     Open(AppId, String),
     Close,
+    OpenScript,
+    Script(apps_usage_script::Event),
     Select(Kind),
     Edit(Field, String),
     Enabled(bool),
@@ -220,6 +223,7 @@ impl fmt::Debug for Event {
 enum Phase {
     Loading,
     LoadFailed,
+    Script(apps_usage_script::Editor),
     Editing { draft: Draft, saving: bool },
 }
 
@@ -239,11 +243,13 @@ pub(crate) struct Editor {
 
 impl Editor {
     pub(super) fn clear(&mut self) {
-        self.modal = None;
+        if let Some(Modal { phase: Phase::Script(mut script), .. }) = self.modal.take() {
+            script.cancel();
+        }
     }
 }
 
-fn send(event: Event) -> Message {
+pub(super) fn send(event: Event) -> Message {
     message(ListMessage::UsageSettings(event))
 }
 
@@ -254,6 +260,17 @@ fn live_scope(app: &App) -> Option<Scope> {
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if matches!(event, Event::Close) {
+        let editor = &mut app.app_providers.usage.settings;
+        if !editor
+            .modal
+            .as_ref()
+            .is_some_and(|modal| matches!(modal.phase, Phase::Editing { saving: true, .. }))
+        {
+            editor.clear();
+        }
+        return Task::none();
+    }
     let completed = matches!(event, Event::Loaded(..) | Event::Saved(..));
     if !completed && (!app.show_system_settings || app.system_settings_tab != SystemTab::Apps) {
         return Task::none();
@@ -296,6 +313,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             account_id: None,
             kind: None,
         };
+        editor.clear();
         editor.modal =
             Some(Modal { scope, selection: selection.clone(), ticket, phase: Phase::Loading });
         return Task::perform(
@@ -309,8 +327,35 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     match event {
-        Event::Close if !matches!(modal.phase, Phase::Editing { saving: true, .. }) => {
-            editor.clear();
+        Event::OpenScript
+            if matches!(modal.phase, Phase::LoadFailed | Phase::Editing { saving: false, .. })
+                || matches!(&modal.phase, Phase::Script(script) if matches!(script, apps_usage_script::Editor::LoadFailed)) =>
+        {
+            let token = app.apps_catalog.token.trim().to_owned();
+            let Ok(client) = GatewayClient::new(endpoint) else {
+                return app.show_error_toast("无法连接额度设置网关");
+            };
+            if token.is_empty() {
+                return app.show_error_toast("请先连接执行主机");
+            }
+            editor.sequence = editor.sequence.wrapping_add(1);
+            let ticket = editor.sequence;
+            modal.phase = Phase::Script(apps_usage_script::Editor::Loading(ticket));
+            return apps_usage_script::Editor::load(client, modal.selection.clone(), token, ticket);
+        }
+        Event::Script(event) => {
+            if let Phase::Script(script) = &mut modal.phase {
+                return match script.update(
+                    event,
+                    &modal.selection,
+                    endpoint,
+                    &app.apps_catalog.token,
+                    &mut editor.sequence,
+                ) {
+                    Ok(task) => task,
+                    Err(hint) => app.show_error_toast(hint),
+                };
+            }
         }
         Event::Loaded(ticket, result)
             if ticket == modal.ticket && matches!(modal.phase, Phase::Loading) =>

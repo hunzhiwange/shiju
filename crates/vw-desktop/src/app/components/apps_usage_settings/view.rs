@@ -26,8 +26,12 @@ pub(super) fn modal_view<'a>(
     selection: &vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    if let Phase::Script(script) = phase {
+        return super::apps_usage_script::modal_view(script, selection, base);
+    }
     let close = send(Event::Close);
     let (content, save, saving): (Element<'_, Message>, _, _) = match phase {
+        Phase::Script(_) => unreachable!(),
         Phase::Loading => (text("正在读取额度设置…").into(), None, false),
         Phase::LoadFailed => (
             column![
@@ -58,6 +62,9 @@ pub(super) fn modal_view<'a>(
         close_button,
     );
     let footer = row![
+        button(text("试运行脚本")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe(
+            (!saving && !matches!(phase, Phase::Loading)).then(|| send(Event::OpenScript)),
+        ),
         Space::new().width(Length::Fill),
         button(text("取消"))
             .padding([8, 14])

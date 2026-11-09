@@ -877,3 +877,22 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 提交差异 | — | `git diff --cached --check` | 退出 0，仅暂存任务 51 的代码、测试及文档。 |
 
 Rust 验证在隔离源码副本执行。网关测试与 Clippy 的副本带上共享工作区已存在的 `postgres_tests.rs` 参数修正。桌面点击用例使用完整视口和 tiny-skia，无窗口布局验证覆盖中文表单及保存动作。真实账号和 macOS 窗口留待后续验收。动态槽位锁已释放，编译缓存保留。 [桌面行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_settings_tests.rs) · [网关行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script_tests.rs)
+
+## 任务 52 编辑试运行查询脚本
+
+从供应商「查询设置」进入试运行弹窗。模板通过已有 SDK 从当前执行主机读取。自定义模板保留本次弹窗内的可编辑草稿，通用余额和 Sub2API 预览未展开的内置脚本，试运行时只发送获准的 UUID v4 凭据引用。请求超时为 2–30 秒，默认 10 秒。套餐沿用额度明细的格式，在弹窗内显示零余额、失效原因和单位。试运行与正式设置、额度快照和刷新事件隔离。 [上游模板选择](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L811) · [上游试运行](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L736) · [请求构造与状态](../../../../crates/vw-desktop/src/app/components/apps_usage_script.rs) · [桌面弹窗](../../../../crates/vw-desktop/src/app/components/apps_usage_script/view.rs)
+
+取消按钮、关闭弹窗及 Escape 中止对应 Iced 任务，断开 SDK 的试运行请求。网关在请求生命周期结束时取消执行操作。迟到的结果按试运行代次丢弃。失败按网关类型和状态归类，通过 toast 显示固定文案。Codex 额度保护由母任务 8 消费正式额度数据并实现拦截，阈值设置归母任务 20。 [网关试运行取消](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script.rs#L382) · [上游额度保护](../../../../crates/vw-agent-apps/upstream/src-tauri/src/proxy/codex_quota_protection.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-desktop` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-desktop usage_usage_script_ -- --nocapture` | 退出 101，有效测试 0。`usage_usage_script_returns_expected_result` 和 `usage_usage_script_rejects_invalid_input` 因缺少 `apps_usage_script` 按预期报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 桌面聚焦 | `cargo test -p vw-desktop usage_usage_script_ -- --nocapture` | 退出 0，4 项通过，失败 0。覆盖模板和草稿请求、输入校验、错误脱敏、取消断连和迟到结果丢弃。套餐显示经 tiny-skia 无窗口布局验证。 |
+| 全特性静态检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 网关聚焦 | `cargo test -p vw-agent usage_usage_script_ -- --nocapture` | 退出 0，5 项通过，失败 0。使用真实 Router、隔离 SQLite、QuickJS 和本机 HTTP 夹具验证出站、权限与试运行隔离。 |
+| 提交差异 | `git diff --cached --check` | 退出 0。 |
+
+验证使用隔离源码副本，并带入共享工作区已有的 `postgres_tests.rs` 参数修正。测试链接时出现 macOS 的 DWARF unwind 大小告警。验证覆盖夹具和无窗口布局，真实账号与 macOS 窗口留待后续验收。槽位锁已释放，编译缓存保留。 [桌面行为测试](../../../../crates/vw-desktop/src/app/components/apps_usage_script_tests.rs) · [网关行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script_tests.rs)

@@ -437,4 +437,6 @@ mod apps_usage_details;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod apps_usage_details_tests;
 #[cfg(not(target_arch = "wasm32"))]
+mod apps_usage_script;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod apps_usage_settings;

@@ -4,8 +4,8 @@ use chrono::{DateTime, TimeZone, Utc};
 use iced::Element;
 use iced::widget::{Column, button, column, text};
 use vw_gateway_client::vw_api_types::apps_usage::{
-    UsageNumber, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow, UsageSnapshot, UsageSource,
-    UsageSubscription, UsageWallet,
+    UsageNumber, UsageQueryData, UsageQueryOutcome, UsageQuotaWindow, UsageScriptPackage,
+    UsageSnapshot, UsageSource, UsageSubscription, UsageWallet,
     presentation::{
         credits::{CreditsUsdEstimate, credits_line, reset_credits_line},
         tiers::{QuotaDisplay, tier_lines},
@@ -66,18 +66,7 @@ pub(super) fn view(
             ),
             UsageQueryData::CustomScript(packages) => {
                 for package in packages {
-                    let mut values = vec![package.plan_name.as_deref().unwrap_or("套餐").into()];
-                    if package.is_valid == Some(false) {
-                        values.push("失效".into());
-                        values.extend(package.invalid_message.iter().cloned());
-                    } else {
-                        let unit = package.unit.as_deref();
-                        values.extend(amount("剩余", package.remaining, unit));
-                        values.extend(amount("已用", package.used, unit));
-                        values.extend(amount("总额", package.total, unit));
-                        values.extend(package.extra.iter().cloned());
-                    }
-                    body = body.push(line(values.join(" · ")));
+                    body = body.push(script_package_line(package));
                 }
                 body
             }
@@ -183,6 +172,21 @@ fn wallet_rows(
         );
     }
     body
+}
+
+pub(super) fn script_package_line(package: &UsageScriptPackage) -> Element<'static, Message> {
+    let mut values = vec![package.plan_name.as_deref().unwrap_or("套餐").into()];
+    if package.is_valid == Some(false) {
+        values.push("失效".into());
+        values.extend(package.invalid_message.iter().cloned());
+    } else {
+        let unit = package.unit.as_deref();
+        values.extend(amount("剩余", package.remaining, unit));
+        values.extend(amount("已用", package.used, unit));
+        values.extend(amount("总额", package.total, unit));
+        values.extend(package.extra.iter().cloned());
+    }
+    line(values.join(" · "))
 }
 
 fn line(value: String) -> Element<'static, Message> {

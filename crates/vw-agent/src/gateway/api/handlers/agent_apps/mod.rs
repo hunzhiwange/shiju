@@ -32,9 +32,12 @@ pub(crate) fn router() -> Router {
             patch(rename_icon).delete(delete_icon).layer(DefaultBodyLimit::max(128 * 1024)),
         );
     #[cfg(target_os = "macos")]
-    let router = router.merge(apps_usage_refresh::router_with_policy(
-        std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from),
-    ));
+    let router = {
+        let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
+        router
+            .merge(apps_usage_refresh::router_with_policy(policy.clone()))
+            .merge(apps_usage_script::router_with_policy(policy))
+    };
     router
 }
 
@@ -175,7 +178,7 @@ pub(super) fn authorize_auth_account_read(
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
-    account_host(authorized, owns_native_slot)
+    account_host(&authorized, owns_native_slot)
 }
 
 pub(super) fn authorize_auth_binding(
@@ -193,7 +196,7 @@ pub(super) fn authorize_auth_binding(
     if matches!(service, AuthService::AgyOauth | AuthService::KimiOauth) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
-    account_host(authorized, owns_native_slot)
+    account_host(&authorized, owns_native_slot)
 }
 
 pub(super) fn authorize_auth_default(
@@ -205,7 +208,7 @@ pub(super) fn authorize_auth_default(
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     let authorized = access::authorize_auth_default(path, headers, tenant, target, service)?;
     let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
-    account_host(authorized, owns_native_slot)
+    account_host(&authorized, owns_native_slot)
 }
 
 pub(super) fn authorize_auth_account_delete(
@@ -223,7 +226,7 @@ pub(super) fn authorize_auth_account_delete(
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
-    account_host(authorized, owns_native_slot)
+    account_host(&authorized, owns_native_slot)
 }
 
 pub(super) fn authorize_auth_account_termination(
@@ -246,19 +249,23 @@ pub(super) fn authorize_auth_account_termination(
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    account_host(authorized, owns_native_slot)
+    account_host(&authorized, owns_native_slot)
 }
 
 fn account_host(
-    authorized: access::Authorization,
+    authorized: &access::Authorization,
     owns_native_slot: bool,
 ) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
     Ok(AuthAccountHost {
-        id: authorized.host.id,
-        home: authorized.host.home,
-        credential_root: authorized.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
-        principal: authorized.principal,
+        id: authorized.host.id.clone(),
+        home: authorized.host.home.clone(),
+        credential_root: authorized
+            .host
+            .credential_root
+            .clone()
+            .ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
+        principal: authorized.principal.clone(),
         owns_native_slot,
         can_set_default: authorized.can_set_default,
         can_revoke: authorized.can_revoke,
@@ -506,3 +513,8 @@ mod apps_usage_refresh;
 mod apps_usage_refresh_tests;
 #[cfg(target_os = "macos")]
 mod usage_codex;
+
+#[cfg(target_os = "macos")]
+mod apps_usage_script;
+#[cfg(all(test, target_os = "macos"))]
+mod apps_usage_script_tests;

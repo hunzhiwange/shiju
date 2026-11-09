@@ -8,6 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
+#[cfg(target_os = "macos")]
+use {
+    crate::agent_apps::usage_settings::UsageCredentialId,
+    vw_api_types::apps_usage::UsageSnapshotQuery,
+};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -38,6 +43,15 @@ struct Grant {
     usage_refresh: Vec<UsageRefreshPermit>,
     #[serde(default)]
     usage_read: Vec<UsageReadPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_settings_read: Vec<UsageReadPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_settings_write: Vec<UsageSettingsWritePermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    usage_script_test: Vec<UsageScriptTestPermit>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_cancel: Vec<UsageReadPermit>,
@@ -76,6 +90,48 @@ struct UsageReadPermit {
     app_id: vw_api_types::agent_apps::AppId,
     provider_id: String,
     account_id: Option<String>,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UsageSettingsWritePermit {
+    resource: UsageReadPermit,
+    api_key_ref: Option<UsageCredentialId>,
+}
+
+#[cfg(target_os = "macos")]
+impl UsageSettingsWritePermit {
+    fn matches(&self, query: &UsageSnapshotQuery, key: Option<UsageCredentialId>) -> bool {
+        self.resource.matches(query) && (key.is_none() || self.api_key_ref == key)
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UsageScriptTestPermit {
+    resource: UsageReadPermit,
+    api_key_ref: Option<UsageCredentialId>,
+    origin: String,
+}
+
+#[cfg(target_os = "macos")]
+impl UsageScriptTestPermit {
+    fn origin(
+        &self,
+        query: &UsageSnapshotQuery,
+        key: Option<UsageCredentialId>,
+    ) -> Option<reqwest::Url> {
+        if !self.resource.matches(query)
+            || key.is_some_and(|key| self.api_key_ref != Some(key))
+            || vw_agent_apps::providers::validation::endpoint(&self.origin).is_err()
+        {
+            return None;
+        }
+        let url = reqwest::Url::parse(&self.origin).ok()?;
+        (url.path() == "/").then_some(url)
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -218,6 +274,8 @@ pub(super) struct IdentityPermit {
 pub(super) struct Authorization {
     pub host: Host,
     pub principal: String,
+    #[cfg(target_os = "macos")]
+    pub(super) usage_script_origins: Vec<reqwest::Url>,
     pub identities: Vec<IdentityPermit>,
     native_slots: Vec<(AuthService, bool)>,
     pub(super) auth_browser_local: bool,
@@ -339,6 +397,8 @@ pub(super) fn authorize_identity_launch(
 enum Capability<'a> {
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
+    UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
+    #[cfg(target_os = "macos")]
     UsageCancel(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageBatch(&'a vw_api_types::id::ProjectId),
@@ -356,6 +416,33 @@ enum Capability<'a> {
     AuthAccountDelete(AuthService),
     AuthAccountTerminate(AuthService, AccountTermination),
     AuthFlowStart(AuthService),
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy)]
+pub(super) enum UsageScriptAction {
+    Templates,
+    SettingsRead,
+    SettingsWrite(Option<UsageCredentialId>),
+    Test(Option<UsageCredentialId>),
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_usage_script(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    query: &UsageSnapshotQuery,
+    action: UsageScriptAction,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(
+        path,
+        headers,
+        tenant,
+        &query.target_host_id,
+        None,
+        Capability::UsageScript(query, action),
+    )
 }
 
 pub(super) fn authorize_usage_read(
@@ -557,6 +644,22 @@ fn authorize_scoped(
                         g.usage_read.iter().any(|permit| permit.matches(query))
                     }
                     #[cfg(target_os = "macos")]
+                    Capability::UsageScript(query, UsageScriptAction::Templates) => {
+                        g.usage_read.iter().any(|permit| permit.matches(query))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::UsageScript(query, UsageScriptAction::SettingsRead) => {
+                        g.usage_settings_read.iter().any(|permit| permit.matches(query))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::UsageScript(query, UsageScriptAction::SettingsWrite(key)) => {
+                        g.usage_settings_write.iter().any(|permit| permit.matches(query, key))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::UsageScript(query, UsageScriptAction::Test(key)) => {
+                        g.usage_script_test.iter().any(|permit| permit.origin(query, key).is_some())
+                    }
+                    #[cfg(target_os = "macos")]
                     Capability::UsageCancel(query) => {
                         g.usage_cancel.iter().any(|permit| permit.matches(query))
                     }
@@ -601,6 +704,15 @@ fn authorize_scoped(
         _ => (false, false),
     };
     let auth_browser_local = grants.iter().any(|grant| grant.auth_browser_local);
+    #[cfg(target_os = "macos")]
+    let usage_script_origins = match capability {
+        Capability::UsageScript(query, UsageScriptAction::Test(key)) => grants
+            .iter()
+            .flat_map(|grant| &grant.usage_script_test)
+            .filter_map(|permit| permit.origin(query, key))
+            .collect(),
+        _ => Vec::new(),
+    };
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let native_slots = policy
         .hosts
@@ -625,6 +737,8 @@ fn authorize_scoped(
     Ok(Authorization {
         host,
         principal: principal.id.clone(),
+        #[cfg(target_os = "macos")]
+        usage_script_origins,
         identities,
         native_slots,
         auth_browser_local,

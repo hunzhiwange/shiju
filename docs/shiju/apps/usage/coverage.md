@@ -760,3 +760,23 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | Codex 适配器回归 | `cargo test -p vw-agent-apps usage_subscriptions_codex_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
 
 测试使用真实 Router、隔离 SQLite、QuickJS、本机 HTTP 和托管 Codex 的本机 HTTPS 夹具。托管用例验证实际请求头、轮换后旧快照失效、丢弃在途旧版本、取消及混合批量刷新。真实上游账号待 macOS 实机验收。macOS 调试链接提示 `__eh_frame` 大小，行为测试正常执行。限定任务范围的差异检查退出 0，槽位锁已释放，缓存保留。
+
+## 任务 46 提供脚本设置 API
+
+四个入口复用已授权项目、主机、应用、供应商和账号选择。查询参数包含 `projectId`、`targetHostId`、`appId`、`providerId` 以及可选的 `accountId`。账号设置另查实际供应商绑定。模板读取沿用 `usage_read`，返回模板标识及未展开的内置脚本源码。设置读取独立要求 `usage_settings_read`，返回脱敏设置对象或 `null`。读取模板和设置均不出站。 [上游模板与选择](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L493-L533) · [本地路由](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script.rs)
+
+`PUT /v1/apps/usage/settings` 以 `{selection, settings}` 提交，返回 204。保存复用已有的 0–1440 分钟校验和按范围原子替换。策略的 `usage_settings_write` 使用 `{resource, api_key_ref?}`，其中 `resource` 与 `usage_read` 的单条授权结构相同。可选 UUID 仅指向同一资源的托管供应商 API Key；保存引用时必须与策略条目匹配。设置记录存放模板、开关、刷新间隔、显示方式和获准引用。 [上游保存规则](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L448-L577) · [设置存储](../../../../crates/vw-agent/src/agent_apps/usage_settings.rs) · [授权策略](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs)
+
+`POST /v1/apps/usage/script-test` 接收 `{selection, template, source?, timeoutSeconds?, credentials?}`。策略的 `usage_script_test` 使用 `{resource, origin, api_key_ref?}`，授权和出站源必须匹配同一条目。可编辑的 Custom 草稿只获得供应商基础地址。内置 General 和 Sub2API 使用显式获准的 `credentials.apiKeyRef`，只在主机展开模板。任意命令、原始凭据字段和未知字段均被拒绝。响应是校验后的套餐或稳定错误，试运行中检查授权与执行输入，断开请求后取消。草稿和结果与正式设置、快照和刷新事件隔离。访问令牌、签名材料、原生账号试运行和基于显式引用的正式刷新仍需相应的宿主接入。 [上游试运行](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L736-L770) · [上游 Tauri 包装](../../../../crates/vw-agent-apps/upstream/src/lib/api/usage.ts#L28-L49) · [本机 HTTP 行为测试](../../../../crates/vw-agent/src/gateway/api/handlers/agent_apps/apps_usage_script_tests.rs)
+
+验证环境为 macOS 27.0（26A428）、arm64，`vw-agent` 0.6.0。动态领取槽位 1 和 2，分别使用 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1` 和 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，`CARGO_BUILD_BUILD_DIR` 与各自槽位一致。
+
+| 阶段 | 槽位 | 确切命令 | 结果 |
+| --- | --- | --- | --- |
+| 实现前 | 1 | `cargo test -p vw-agent usage_usage_script_ -- --nocapture` | 退出 101，有效测试 0。两项预先注册的测试因 `apps_usage_script` 入口缺失报 E0432。 |
+| 格式化 | 1、2 | `cargo fmt --all` | 退出 0。在隔离源码副本运行，仅同步本任务文件。 |
+| 聚焦验证 | 2、1 | `cargo test -p vw-agent usage_usage_script_ -- --nocapture` | 两轮退出 0，各 4 项通过、0 项失败。 |
+| 全特性静态检查 | 1 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 相邻回归 | 1 | `cargo test -p vw-agent usage_usage_ -- --nocapture` | 退出 0，有效测试 13 项、0 项失败。测试框架报告 14 项通过，其中 PostgreSQL 用例因未配置连接环境变量提前返回。 |
+
+测试使用真实 Router、隔离 SQLite、QuickJS 和本机 HTTP，核对请求方法、路径、请求头和结果脱敏，覆盖凭据引用校验、跨资源拒绝、在途撤权和正式快照隔离。真实上游账号待 macOS 实机验收。macOS 调试链接提示 `__eh_frame` 大小，行为测试正常执行。限定任务差异检查退出 0，槽位锁已释放，缓存保留。

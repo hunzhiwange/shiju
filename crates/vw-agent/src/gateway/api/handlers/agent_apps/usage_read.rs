@@ -113,24 +113,9 @@ fn account_snapshot(
     authorization: super::access::Authorization,
     explicit_policy: bool,
 ) -> Result<UsageSnapshotResponse, AuthErrorCode> {
-    use vw_api_types::{
-        agent_apps::AppId, agent_apps_auth::AuthService, apps_usage::UsageQueryKind,
-    };
+    use vw_api_types::{agent_apps::AppId, apps_usage::UsageQueryKind};
 
-    let auth_service = match query.app_id {
-        AppId::Claude => AuthService::ClaudeOfficial,
-        AppId::Codex => AuthService::CodexOauth,
-        AppId::Agy => AuthService::AgyOauth,
-        AppId::Kimi => AuthService::KimiOauth,
-        _ => return Err(AuthErrorCode::Unsupported),
-    };
-    let owns_native_slot =
-        explicit_policy && authorization.native_login_owner(auth_service) == Some(true);
-    if auth_service == AuthService::AgyOauth && !owns_native_slot {
-        return Err(AuthErrorCode::Forbidden);
-    }
-    let host = super::account_host(authorization, owns_native_slot)
-        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    let (host, auth_service) = usage_account_host(query.app_id, &authorization, explicit_policy)?;
     if query.app_id == AppId::Codex {
         let scope = super::usage_codex::CodexScope {
             selection: crate::agent_apps::usage_settings::UsageSettingsScope {
@@ -169,6 +154,31 @@ fn account_snapshot(
         capabilities: vec![UsageQueryKind::OfficialSubscription],
         snapshot: None,
     })
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn usage_account_host(
+    app: vw_api_types::agent_apps::AppId,
+    authorization: &super::access::Authorization,
+    explicit_policy: bool,
+) -> Result<(super::AuthAccountHost, vw_api_types::agent_apps_auth::AuthService), AuthErrorCode> {
+    use vw_api_types::{agent_apps::AppId, agent_apps_auth::AuthService};
+
+    let service = match app {
+        AppId::Claude => AuthService::ClaudeOfficial,
+        AppId::Codex => AuthService::CodexOauth,
+        AppId::Agy => AuthService::AgyOauth,
+        AppId::Kimi => AuthService::KimiOauth,
+        _ => return Err(AuthErrorCode::Unsupported),
+    };
+    let owns_native_slot =
+        explicit_policy && authorization.native_login_owner(service) == Some(true);
+    if service == AuthService::AgyOauth && !owns_native_slot {
+        return Err(AuthErrorCode::Forbidden);
+    }
+    let host = super::account_host(authorization, owns_native_slot)
+        .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
+    Ok((host, service))
 }
 
 pub(super) struct ReadError(AuthErrorCode);

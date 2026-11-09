@@ -110,6 +110,19 @@ impl PreparedUsageScript<'_> {
 }
 
 impl UsageTemplate {
+    /// Unexpanded, static editor source. Native templates have no JavaScript.
+    pub fn preset_source(self) -> Option<&'static str> {
+        match self {
+            Self::Custom => Some(CUSTOM),
+            Self::General => Some(GENERAL),
+            Self::NewApi => Some(NEW_API),
+            Self::Sub2Api => Some(SUB2API),
+            Self::GitHubCopilot | Self::CodingPlan | Self::Balance | Self::OfficialSubscription => {
+                None
+            }
+        }
+    }
+
     /// Keep native account queries on their dedicated path, then honor an explicit
     /// template. Legacy New API fields take precedence over URL-based detection.
     pub fn select(
@@ -145,10 +158,9 @@ impl UsageTemplate {
         provider: ProviderDefaults<'a>,
     ) -> Result<PreparedUsage<'a>, TemplateError> {
         let preset = match self {
-            Self::Custom => CUSTOM,
-            Self::General => GENERAL,
-            Self::NewApi => NEW_API,
-            Self::Sub2Api => SUB2API,
+            Self::Custom | Self::General | Self::NewApi | Self::Sub2Api => {
+                self.preset_source().expect("script templates have presets")
+            }
             Self::GitHubCopilot => return Ok(PreparedUsage::Native(NativeTemplate::GitHubCopilot)),
             Self::CodingPlan => return Ok(PreparedUsage::Native(NativeTemplate::CodingPlan)),
             Self::Balance => return Ok(PreparedUsage::Native(NativeTemplate::Balance)),

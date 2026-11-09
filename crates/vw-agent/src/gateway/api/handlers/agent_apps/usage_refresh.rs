@@ -101,13 +101,13 @@ struct State {
 
 pub(crate) struct UsageRefresh {
     pub(super) database: GlobalDatabase,
-    settings: UsageSettingsStore,
+    pub(super) settings: UsageSettingsStore,
     pub(super) projects: ProjectStore,
     pub(super) operations: super::apps_usage_refresh::Operations,
     // Process-local, keyed generations. Never store raw credentials in cache keys.
     generations: RandomState,
     state: Mutex<State>,
-    query_slots: tokio::sync::Semaphore,
+    pub(super) query_slots: tokio::sync::Semaphore,
     #[cfg(test)]
     pub(super) codex_client: Option<ManagedCodexUsage>,
 }

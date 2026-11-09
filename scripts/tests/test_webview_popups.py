@@ -136,17 +136,16 @@ class WebViewPopups(unittest.TestCase):
 
     @staticmethod
     def stop(process):
-        if process.stdin.closed:
-            return
-        with process.stdin:
-            if process.poll() is None:
-                try:
-                    process.stdin.write("close\n")
-                    process.stdin.flush()
-                    process.wait(timeout=4)
-                except (BrokenPipeError, subprocess.TimeoutExpired):
-                    process.kill()
-                    process.wait()
+        try:
+            if not process.stdin.closed:
+                with process.stdin:
+                    if process.poll() is None:
+                        process.stdin.write("close\n")
+                        process.stdin.flush()
+            process.wait(timeout=4)
+        except (BrokenPipeError, subprocess.TimeoutExpired):
+            process.kill()
+            process.wait()
 
     def request(self, path):
         deadline = time.monotonic() + 12
@@ -160,6 +159,13 @@ class WebViewPopups(unittest.TestCase):
             if received_path == path:
                 return method, headers, body
         self.fail(f"WebView did not request {path}")
+
+    def test_embedded_view_exits_when_host_pipe_closes(self):
+        self.action_page("/host-pipe", "", 'fetch("/host-pipe-loaded");')
+        process = self.launch("/host-pipe")
+        self.request("/host-pipe-loaded")
+        process.stdin.close()
+        self.assertEqual(process.wait(timeout=4), 0)
 
     def test_target_blank_preserves_post_body(self):
         self.action_page(

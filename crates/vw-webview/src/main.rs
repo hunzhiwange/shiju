@@ -816,6 +816,7 @@ fn main() {
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
+    let embedded_mode = options.mode == "embedded";
     #[cfg(target_os = "macos")]
     edit_menu::install_edit_menu(proxy.clone(), &url);
     {
@@ -827,11 +828,15 @@ fn main() {
                     let _ = stdin_proxy.send_event(event);
                 }
             }
+            // The desktop owns the embedded control pipe. Closing it ends the view's lifetime.
+            if embedded_mode {
+                let _ = stdin_proxy.send_event(UserEvent::Close);
+            }
         });
     }
 
     let mut wb = WindowBuilder::new().with_title(options.window_title.clone());
-    if options.mode == "embedded" {
+    if embedded_mode {
         wb = wb.with_decorations(false).with_always_on_top(true);
         #[cfg(target_os = "macos")]
         {
@@ -889,7 +894,6 @@ fn main() {
         }
     };
 
-    let embedded_mode = options.mode == "embedded";
     let independent_mode = !embedded_mode;
     let logical_size = window.inner_size().to_logical::<u32>(window.scale_factor());
     let (toolbar_region, content_region) =

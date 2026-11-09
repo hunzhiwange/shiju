@@ -681,3 +681,20 @@ macOS 网关在配置了 `SHIJU_AGENT_APPS_ACCESS_FILE` 时运行刷新循环。
 | 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。
+
+## 任务 42 投影 Credits 与重置明细
+
+`reset_credits_line` 按调用方传入的当前时间过滤已到期重置，按该时区的日历日期分组。各组保留次数及最早到期时刻，缺失或无法解析的日期归为最后一组。摘要和各组在距最早到期不足 72 小时时提示，恰好 72 小时时保持正常。没有可用重置时隐藏摘要。 [上游重置摘要及分组](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L182-L257) · [上游分组规则](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L320-L350) · [Rust 投影](../../../../crates/vw-agent-apps/src/usage/presentation/credits.rs)
+
+`credits_line` 保留原始正数 Credits 数量，并用独立的 `CreditsUsdEstimate` 表达展示估算。沿用来源快照的每 Credit 0.04 美元折算规则，四舍五入到整美元，舍入为零时显示「低于 1 美元」的估算状态。客户端负责本地化数字和文案，估算字段与账单及钱包金额分开。 [上游折算](../../../../crates/vw-agent-apps/upstream/src/components/quota/quotaRules.ts#L260-L306) · [上游调用方](../../../../crates/vw-agent-apps/upstream/src/components/SubscriptionQuotaFooter.tsx#L174-L203) · [独立 Rust 用例](../../../../crates/vw-agent-apps/src/usage/presentation/credits_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。两阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_presentation_credits_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_presentation_credits_returns_expected_result` 和 `usage_presentation_credits_rejects_invalid_input` 的模块因缺少 `super::credits` 按预期报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在隔离源码副本执行，仅同步本任务文件。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_presentation_credits_ -- --nocapture` | 退出 0，3 项通过，0 项失败。覆盖时区分组、过期过滤、72 小时警示边界、不可用额度和估算舍入。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+用例以脱敏的查询合同数据验证纯投影，真实账号验收归任务 56。限定提交范围的差异检查退出 0。槽位锁已释放，编译缓存已保留。

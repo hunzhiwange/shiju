@@ -3,6 +3,28 @@ import json, secrets, threading, time, shlex, copy, os
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+EFFORT_MODEL = "gpt-5.5"
+EFFORT_TURNS = {"ACP_EFFORT_DEFAULT": "default", "ACP_EFFORT_A": "a",
+                "ACP_EFFORT_B": "b", "ACP_EFFORT_RESTORED": "restored"}
+EFFORT_VALUES = ("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
+
+
+def effort_turn(inputs):
+    # Only the newest user message identifies a turn. Older markers survive resume.
+    for item in reversed(inputs):
+        if item.get('role') != 'user':
+            continue
+        content = item.get('content', [])
+        if isinstance(content, str):
+            return EFFORT_TURNS.get(content)
+        for part in content:
+            label = EFFORT_TURNS.get(part.get('text'))
+            if label is not None and part.get('type') == 'input_text':
+                return label
+        break
+    return None
+
+
 class ResponsesFixture:
 
     def __init__(self):
@@ -10,6 +32,7 @@ class ResponsesFixture:
         self.challenge = secrets.token_hex(16)
         self.control = secrets.token_hex(24)
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
+        self.effort_check = False
         self.records = []
         self.read_path = None
         self.second_read_path = None
@@ -52,7 +75,7 @@ class ResponsesFixture:
                         raise ValueError('invalid fixture request length')
                     body = json.loads(self.rfile.read(length))
                     auth = self.headers.get('Authorization') == 'Bearer ' + fixture.key
-                    if self.path != '/v1/responses' or not auth or body.get('model') not in ('acp-fixture-primary', 'acp-fixture-switched'):
+                    if self.path != '/v1/responses' or not auth or body.get('model') not in fixture.models:
                         fixture.rejections.append({'method':'POST', 'route':self.path if self.path in ('/v1/responses','/v1/chat/completions') else 'other', 'model_auth':auth, 'known_model':body.get('model') in fixture.models})
                         fixture.errors += 1
                         raise ValueError('route/auth')
@@ -67,13 +90,23 @@ class ResponsesFixture:
                     shapes = {kind: sorted(keys) for kind, keys in shapes.items()}
                     schema = body.get('text', {}).get('format', {}).get('schema', {})
                     aux = bool(schema)
-                    fixture.records.append({'route': self.path, 'model': body.get('model'), 'authenticated': auth, 'tool_results': len(results), 'input_shapes': shapes, 'input_has_ids': any('id' in item for item in inputs), 'input_id_roles': sorted({item.get('role') if item.get('role') in ('system','developer','user','assistant') else 'other' for item in inputs if item.get('id') is not None}), 'input_reference_count': sum(item.get('type') == 'item_reference' for item in inputs), 'has_previous_response': bool(body.get('previous_response_id')), 'auxiliary': aux, 'cancel_probe': 'CANCEL_PROBE' in json.dumps(inputs), 'keys': sorted(body.keys()), 'tool_types': sorted(set((t.get('type', '') for t in body.get('tools', []))))})
+                    if fixture.effort_check:
+                        label = None if aux else effort_turn(inputs)
+                        reasoning = body.get('reasoning')
+                        effort = reasoning.get('effort') if isinstance(reasoning, dict) else None
+                        fixture.records.append({
+                            'route': self.path, 'model': 'acp-fixture-primary',
+                            'authenticated': auth, 'auxiliary': aux, 'turn': label,
+                            'field': 'reasoning.effort', 'value': effort if effort in EFFORT_VALUES else None,
+                        })
+                    else:
+                        fixture.records.append({'route': self.path, 'model': body.get('model'), 'authenticated': auth, 'tool_results': len(results), 'input_shapes': shapes, 'input_has_ids': any('id' in item for item in inputs), 'input_id_roles': sorted({item.get('role') if item.get('role') in ('system','developer','user','assistant') else 'other' for item in inputs if item.get('id') is not None}), 'input_reference_count': sum(item.get('type') == 'item_reference' for item in inputs), 'has_previous_response': bool(body.get('previous_response_id')), 'auxiliary': aux, 'cancel_probe': 'CANCEL_PROBE' in json.dumps(inputs), 'keys': sorted(body.keys()), 'tool_types': sorted(set((t.get('type', '') for t in body.get('tools', []))))})
                     if 'CANCEL_PROBE' in json.dumps(inputs):
                         time.sleep(5)
                     if schema:
                         key = next(iter(schema.get('properties', {'title': {}})))
                         output = [{'type': 'message', 'id': 'msg_fixture', 'status': 'completed', 'role': 'assistant', 'content': [{'type': 'output_text', 'text': json.dumps({key: 'Offline fixture'}), 'annotations': []}]}]
-                    elif len(results) < 2 and any((t.get('name') == 'exec_command' for t in body.get('tools', []))):
+                    elif not fixture.effort_check and len(results) < 2 and any((t.get('name') == 'exec_command' for t in body.get('tools', []))):
                         path = fixture.read_path if not results else fixture.second_read_path
                         output = [{'type': 'function_call', 'id': 'fc_fixture_' + str(len(results)), 'call_id': 'call_fixture_' + str(len(results)), 'name': 'exec_command', 'arguments': json.dumps({'cmd': 'cat ' + shlex.quote(path)})}]
                     else:

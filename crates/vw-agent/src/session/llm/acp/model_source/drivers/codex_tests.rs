@@ -344,12 +344,15 @@ async fn codex_request(
             panic!("cancellation never reached a model request");
         }
     };
-    let options = json!({
+    let mut options = json!({
         "acp_agent": input["agent"],
         "acp_model_source": if input["mode"] == "cli-local" { "cli_local" } else { "session_model" },
         "cwd": input["root"],
         "acp_close_client_after_request": true,
     });
+    if let Some(effort) = input.get("reasoning_effort") {
+        options["reasoning_effort"] = effort.clone();
+    }
     let messages = json!([{"role":"user", "content":prompt}]);
     let mut output = String::new();
     let mut done = false;
@@ -415,7 +418,7 @@ async fn codex_request(
     }
 }
 
-async fn codex_run(mode: &str) {
+async fn codex_run(mode: &str, effort_check: bool) {
     let manifest = std::env::var("VW_ACP_ACCEPTANCE_MANIFEST")
         .expect("explicit offline manifest required; absence is a failure, never a skip");
     let input: Value = serde_json::from_slice(&std::fs::read(manifest).unwrap()).unwrap();
@@ -458,21 +461,26 @@ async fn codex_run(mode: &str) {
     } else {
         ("/v1/responses", "openai-responses")
     };
+    // Use a model from the pinned engine's catalog so ACP publishes native efforts.
+    let primary = if effort_check { "gpt-5.5" } else { "acp-fixture-primary" };
     crate::config::update_project_for_tenant(&tenant, root, json!({
         "acp": {agent: config},
         "providers": {"acp-offline-acceptance": {
             "api": format!("{}{route}", input["fixture"].as_str().unwrap()),
             "adapter":adapter, "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
-                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true,"reasoning":true},
+                primary:{"id":primary,"status":"active","tool_call":true,"temperature":true,"reasoning":true},
                 "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true,"reasoning":true}
             }
         }}
     })).await.unwrap();
     instance::provide_context(context, async {
         let info = provider::get_provider("acp-offline-acceptance").await.unwrap().unwrap();
-        let model =
-            provider::get_model("acp-offline-acceptance", "acp-fixture-primary").await.unwrap();
+        let model = provider::get_model("acp-offline-acceptance", primary).await.unwrap();
+        if effort_check {
+            codex_effort_run(&input, &model, &info).await;
+            return;
+        }
         let switched =
             provider::get_model("acp-offline-acceptance", "acp-fixture-switched").await.unwrap();
         let mut flow = json!({"isolated":true});
@@ -512,19 +520,111 @@ async fn codex_run(mode: &str) {
 #[tokio::test]
 #[ignore = "requires explicit pinned real CLI manifest and owned offline model fixture"]
 async fn acp_model_source_codex_real_cli_session_model() {
-    codex_run("session-model").await;
+    codex_run("session-model", false).await;
+}
+
+#[tokio::test]
+#[ignore = "requires the pinned Codex CLI and an owned offline Responses fixture"]
+async fn acp_model_source_codex_effort_real_cli() {
+    codex_run("session-model", true).await;
+}
+
+async fn codex_effort_run(input: &Value, model: &provider::Model, info: &provider::Info) {
+    use crate::session::llm::acp::{controls, lifecycle};
+    use vw_api_types::{
+        acp_model_source::AcpModelSource,
+        acp_session::{AcpOptionKind, AcpSessionOptions, AcpSessionSelection},
+    };
+
+    let directory = input["root"].as_str().unwrap();
+    let session = format!("real-cli-offline-{}", input["challenge"].as_str().unwrap());
+    let path = std::env::var("VW_ACP_ACCEPTANCE_FLOW").unwrap();
+    let mut flow = json!({});
+    let mut checkpoint = |key: &str, passed: bool| {
+        flow[key] = json!(passed);
+        std::fs::write(&path, serde_json::to_vec(&flow).unwrap()).unwrap();
+        assert!(passed, "Codex effort checkpoint failed: {key}");
+    };
+
+    checkpoint(
+        "default_turn",
+        codex_request(input, model, info, "ACP_EFFORT_DEFAULT", false).await,
+    );
+    let store = lifecycle::Store::open(&session, directory).unwrap();
+    let anchor = store.read().unwrap().unwrap();
+    let native_id = vw_acp::resolve_session_record(&anchor.record_id).await.unwrap().acp_session_id;
+    let options = controls::read(&session, directory).await.unwrap();
+    checkpoint(
+        "managed_model",
+        anchor.agent == "codex"
+            && anchor.model.source == AcpModelSource::SessionModel
+            && anchor.model.model.as_deref() == Some(model.id.as_str())
+            && options.acp_model_source == AcpModelSource::SessionModel
+            && options.selected_model.as_ref().and_then(|selection| selection.model.as_deref())
+                == Some("acp-offline-acceptance/gpt-5.5"),
+    );
+    let effort = options.options.iter().find(
+        |option| matches!(&option.kind, AcpOptionKind::Config { id } if id == "reasoning_effort"),
+    );
+    checkpoint(
+        "advertised",
+        effort.is_some_and(|option| {
+            ["low", "high"]
+                .iter()
+                .all(|value| option.choices.iter().any(|choice| choice.id == *value))
+                && !option.choices.iter().any(|choice| choice.id == "max")
+        }),
+    );
+    let kind = effort.unwrap().kind.clone();
+    let select = |value: &str| {
+        controls::select(
+            &session,
+            directory,
+            AcpSessionSelection { kind: kind.clone(), value: value.into() },
+        )
+    };
+    let current_is = |options: AcpSessionOptions, value: &str| {
+        options.options.iter().any(|option| option.kind == kind && option.current == value)
+    };
+
+    assert!(current_is(select("low").await.expect("select low"), "low"));
+    assert!(codex_request(input, model, info, "ACP_EFFORT_A", false).await);
+    assert!(current_is(select("high").await.expect("select high"), "high"));
+    let mut conflicting_request = input.clone();
+    conflicting_request["reasoning_effort"] = json!("low");
+    checkpoint(
+        "request_precedence",
+        codex_request(&conflicting_request, model, info, "ACP_EFFORT_B", false).await,
+    );
+    let invalid = select("max").await;
+    checkpoint("invalid_rejected", invalid.is_err_and(|e| e.contains("Unsupported value")));
+    checkpoint(
+        "previous_preserved",
+        current_is(controls::read(&session, directory).await.unwrap(), "high"),
+    );
+    // Each managed request tears down its process and relay lease. The next
+    // request must restore both the original native thread and its saved effort.
+    checkpoint("restored", codex_request(input, model, info, "ACP_EFFORT_RESTORED", false).await);
+    let latest = store.read().unwrap().unwrap();
+    let record = vw_acp::resolve_session_record(&latest.record_id).await.unwrap();
+    checkpoint(
+        "same_session",
+        latest.record_id == anchor.record_id
+            && !native_id.is_empty()
+            && record.acp_session_id == native_id,
+    );
 }
 
 #[tokio::test]
 #[ignore = "requires explicit pinned real CLI manifest and owned offline Chat model fixture"]
 async fn acp_model_source_codex_chat_real_cli() {
-    codex_run("session-model-chat").await;
+    codex_run("session-model-chat", false).await;
 }
 
 #[tokio::test]
 #[ignore = "requires explicit pinned real CLI manifest and owned offline model fixture"]
 async fn acp_model_source_codex_real_cli_cli_local() {
-    codex_run("cli-local").await;
+    codex_run("cli-local", false).await;
 }
 
 #[test]

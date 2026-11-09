@@ -767,6 +767,27 @@ pub(crate) async fn do_stream_request_acp(
         }
 
         let now = vw_acp::iso_now();
+        if acp_agent_name == "codex"
+            && let Some(profile) = launch_profile.as_ref()
+            && profile
+                .model_api
+                .as_ref()
+                .is_some_and(super::model_source::drivers::codex::uses_native_responses)
+        {
+            let options = cached_client
+                .client
+                .session_capabilities(&acp_session_id)
+                .and_then(|info| info.config_options)
+                .unwrap_or_default();
+            let effort = options
+                .into_iter()
+                .filter(|option| {
+                    profile.model_supports_reasoning
+                        && super::controls::is_codex_effort_config(option)
+                })
+                .collect();
+            vw_acp::sync_config_options(&mut record, Some(effort));
+        }
         record.last_used_at = now.clone();
         record.last_prompt_at = Some(now);
         record.closed = Some(false);

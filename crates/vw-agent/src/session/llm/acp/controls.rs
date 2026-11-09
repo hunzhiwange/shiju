@@ -12,6 +12,11 @@ pub(super) fn is_model_config(option: &agent_client_protocol::SessionConfigOptio
     option.category == Some(SessionConfigOptionCategory::Model) || option.id.0.as_ref() == "model"
 }
 
+pub(super) fn is_codex_effort_config(option: &agent_client_protocol::SessionConfigOption) -> bool {
+    option.id.0.as_ref() == "reasoning_effort"
+        && option.category == Some(SessionConfigOptionCategory::ThoughtLevel)
+}
+
 fn is_permission_config_id(id: &str) -> bool {
     // Protocol mode and the separate Hermes control found in the fixed-runtime matrix.
     matches!(id, "mode" | "edit_approval_policy")
@@ -278,6 +283,63 @@ async fn connected(
     Ok(None)
 }
 
+// A managed Codex Responses launch releases its process and relay at turn end.
+// The request stores only its advertised effort control for use between turns.
+async fn parked_codex_record(
+    saved: Option<&super::lifecycle::Selection>,
+    directory: &str,
+) -> Result<Option<vw_acp::SessionRecord>, String> {
+    let Some(saved) = saved.filter(|selection| {
+        selection.has_started()
+            && selection.agent == "codex"
+            && selection.model.source
+                == vw_api_types::acp_model_source::AcpModelSource::SessionModel
+    }) else {
+        return Ok(None);
+    };
+    let record = vw_acp::resolve_session_record(&saved.record_id)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok((record.vwacp_record_id == saved.record_id
+        && record.cwd == directory
+        && record.closed != Some(true)
+        && record.agent_command.starts_with("vw-session-model:"))
+    .then_some(record))
+}
+
+fn stored_codex_effort(
+    state: &vw_acp::SessionAcpxState,
+) -> Option<&agent_client_protocol::SessionConfigOption> {
+    state.config_options.iter().flatten().find(|option| is_codex_effort_config(option))
+}
+
+fn parked_codex_options(
+    saved: Option<&super::lifecycle::Selection>,
+    record: &vw_acp::SessionRecord,
+) -> AcpSessionOptions {
+    let mut projected = project_options(None, saved);
+    let Some(state) = &record.vwacp else { return projected };
+    let Some(option) = stored_codex_effort(state) else { return projected };
+    let mut options = native_advertised(vw_acp::SessionCapabilities {
+        session_id: record.acp_session_id.clone(),
+        models: None,
+        modes: None,
+        config_options: Some(vec![option.clone()]),
+    })
+    .options;
+    let desired =
+        state.desired_config_options.as_ref().and_then(|values| values.get(option.id.0.as_ref()));
+    for option in &mut options {
+        if let Some(desired) =
+            desired.filter(|value| option.choices.iter().any(|choice| &choice.id == *value))
+        {
+            option.current.clone_from(desired);
+        }
+    }
+    projected.options = options;
+    projected
+}
+
 pub(crate) async fn read(session_id: &str, directory: &str) -> Result<AcpSessionOptions, String> {
     let selection = super::lifecycle::Store::open(session_id, directory)
         .and_then(|store| store.read())
@@ -289,6 +351,8 @@ pub(crate) async fn read(session_id: &str, directory: &str) -> Result<AcpSession
     let mut options = project_options(info, selection.as_ref());
     if let Some((record, client)) = connection.as_ref() {
         annotate_access(&mut options, &client.client, record);
+    } else if let Some(record) = parked_codex_record(selection.as_ref(), directory).await? {
+        options = parked_codex_options(selection.as_ref(), &record);
     }
     Ok(options)
 }
@@ -303,9 +367,33 @@ pub(crate) async fn select(
     let saved = super::lifecycle::Store::open(session_id, directory)
         .and_then(|store| store.read())
         .map_err(|e| e.to_string())?;
-    let (record, client) = connected(session_id, directory, saved.as_ref())
-        .await?
-        .ok_or("ACP session is not connected")?;
+    let Some((record, client)) = connected(session_id, directory, saved.as_ref()).await? else {
+        let AcpOptionKind::Config { id } = &selection.kind else {
+            return Err("ACP session is not connected".into());
+        };
+        let mut record = parked_codex_record(saved.as_ref(), directory)
+            .await?
+            .ok_or("ACP session is not connected")?;
+        let option = record
+            .vwacp
+            .as_ref()
+            .and_then(stored_codex_effort)
+            .filter(|option| option.id.0.as_ref() == id)
+            .ok_or("ACP option is unavailable for the current model source")?;
+        let id =
+            vw_acp::resolve_config_value(Some(std::slice::from_ref(option)), id, &selection.value)?;
+        let original = record.clone();
+        vw_acp::set_desired_config_option(&mut record, &id, &selection.value);
+        if let Err(error) = vw_acp::write_session_record(&record).await {
+            if let Err(restore) = vw_acp::write_session_record(&original).await {
+                return Err(format!(
+                    "Failed to save ACP selection: {error}; could not restore its saved value: {restore}"
+                ));
+            }
+            return Err(format!("Failed to save ACP selection: {error}"));
+        }
+        return Ok(parked_codex_options(saved.as_ref(), &record));
+    };
     let _guard = client
         .prompt_lock
         .try_lock()

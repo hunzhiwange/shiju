@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(ROOT / 'scripts'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify_acp_model_source as verifier
-from responses_fixture import ResponsesFixture
+from responses_fixture import EFFORT_MODEL, ResponsesFixture
 
 
 def successful(evidence, flow):
@@ -78,6 +78,35 @@ verifier.TESTS = {
     'session-model': 'acp_model_source_codex_real_cli_session_model',
     'cli-local': 'acp_model_source_codex_real_cli_cli_local',
 }
+EFFORT_CHECKPOINTS = ("default_turn", "managed_model", "advertised", "invalid_rejected",
+                      "previous_preserved", "same_session", "restored", "request_precedence")
+
+
+def configure_effort_fixture(fixture):
+    fixture.effort_check = True
+    fixture.models = (EFFORT_MODEL,)
+
+
+def successful_effort(evidence, flow):
+    if evidence["errors"] or not all(flow.get(key) is True for key in EFFORT_CHECKPOINTS):
+        return False
+    requests = evidence["requests"]
+    turns = [r for r in requests if r["turn"] is not None]
+    return (all(r["authenticated"] and r["route"] == "/v1/responses"
+                and r["model"] == "acp-fixture-primary" for r in requests)
+            and [r["turn"] for r in turns] == ["default", "a", "b", "restored"]
+            and all(r["field"] == "reasoning.effort" for r in turns)
+            and [r["value"] for r in turns[1:]] == ["low", "high", "high"])
+
+
+verifier.EFFORT_CHECKS[("codex", "session-model")] = {
+    "test": "acp_model_source_codex_effort_real_cli",
+    "configure_fixture": configure_effort_fixture,
+    "identity": lambda: dict(verified_identity),
+    "checkpoints": EFFORT_CHECKPOINTS,
+    "successful": successful_effort,
+}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--cached-test-binary', type=Path)

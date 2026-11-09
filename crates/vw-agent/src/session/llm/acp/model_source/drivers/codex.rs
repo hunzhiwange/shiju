@@ -1,5 +1,14 @@
 use super::AcpLaunchProfile;
 
+pub(in crate::session::llm::acp) fn uses_native_responses(
+    api: &crate::provider::provider::ApiInfo,
+) -> bool {
+    api.adapter == "openai-responses"
+        || (matches!(api.adapter.as_str(), "openai" | "openai-compatible")
+            && reqwest::Url::parse(&api.url)
+                .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses")))
+}
+
 pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     anyhow::ensure!(
         profile.config().args.is_empty(),
@@ -25,10 +34,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         .model_api
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Codex requires selected model transport metadata"))?;
-    let native_responses = api.adapter == "openai-responses"
-        || (matches!(api.adapter.as_str(), "openai" | "openai-compatible")
-            && reqwest::Url::parse(&api.url)
-                .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses")));
+    let native_responses = uses_native_responses(api);
     anyhow::ensure!(
         native_responses || crate::model_relay::chat_url(api).is_ok(),
         "Codex requires a Responses or Chat Completions model"

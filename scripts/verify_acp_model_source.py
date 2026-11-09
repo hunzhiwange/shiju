@@ -20,6 +20,7 @@ from acp_model_source_pi import PiIdentityError, pi_identity
 ROOT = Path(__file__).resolve().parents[1]
 TESTS = {"session-model": "acp_model_source_real_cli_session_model",
          "cli-local": "acp_model_source_real_cli_cli_local"}
+EFFORT_CHECKS = {}
 
 
 class Unavailable(Exception):
@@ -317,6 +318,11 @@ def run(args):
               "status": "unavailable", "passed": False, "platform": platform.system() + "-" + platform.machine()}
     try:
         slot = cargo_slot(os.environ)
+        effort_check = None
+        if getattr(args, "effort_check", False):
+            effort_check = EFFORT_CHECKS.get((args.agent, args.mode))
+            if effort_check is None:
+                raise Unavailable("no effort check for the selected agent and model source")
         manifest = json.loads(args.manifest.read_text())
         entries = [e for e in manifest["entries"] if e["key"] == args.agent]
         if len(entries) != 1:
@@ -326,6 +332,8 @@ def run(args):
         if upstream_protocol not in ("chat", "messages"):
             raise Unavailable("unsupported offline fixture protocol")
         with tempfile.TemporaryDirectory(prefix="acp-model-acceptance-") as temp, ModelFixture() as fixture, ExitStack() as owned:
+            if effort_check:
+                effort_check["configure_fixture"](fixture)
             root = Path(temp)
             os.chmod(root, 0o700)
             native = root / "native"
@@ -351,6 +359,8 @@ def run(args):
                     "refreshToken": "offline-native-refresh-must-not-be-used", "expiresAt": 4102444800000}}))
                 os.chmod(credentials, 0o600)
             config = locate(entry, env)
+            if effort_check:
+                report["identity"] = effort_check["identity"]()
             if args.agent == "pi":
                 fixture.pi_compaction = True
                 report["identity"] = pi_identity(config["command"], entry, env)
@@ -401,7 +411,7 @@ def run(args):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
-            test = TESTS[args.mode]
+            test = effort_check["test"] if effort_check else TESTS[args.mode]
             command = ["cargo", "test", "-p", "vw-agent", "--lib", "--all-features", test,
                        "--", "--ignored", "--nocapture", "--test-threads=1"]
             # Logs can contain supplier content. Never persist or echo raw stdout/stderr.
@@ -428,14 +438,18 @@ def run(args):
             raw_flow = json.loads(flow_path.read_text()) if flow_path.exists() else {}
             if not isinstance(raw_flow, dict):
                 raise ValueError("invalid flow result")
-            flow = {key: raw_flow.get(key) is True for key in
-                    ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
+            if effort_check:
+                flow = {key: raw_flow.get(key) is True for key in effort_check["checkpoints"]}
+            else:
+                flow = {key: raw_flow.get(key) is True for key in
+                        ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
+                flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro", "openclaw", "pi")
+                if args.agent == "pi":
+                    flow["auxiliary"] = raw_flow.get("auxiliary") is True
+                    flow["auxiliary_switched"] = raw_flow.get("auxiliary_switched") is True
             flow["mode"] = args.mode
-            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro", "openclaw", "pi")
-            if args.agent == "pi":
-                flow["auxiliary"] = raw_flow.get("auxiliary") is True
-                flow["auxiliary_switched"] = raw_flow.get("auxiliary_switched") is True
-            passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
+            predicate = effort_check["successful"] if effort_check else successful
+            passed = result.returncode == 0 and exactly_one and predicate(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,
                           failure_locations=sorted(set(re.findall(
@@ -461,6 +475,8 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--offline-fixture", action="store_true", default=True,
                         help="owned loopback upstream (the only supported upstream)")
+    parser.add_argument("--effort-check", action="store_true",
+                        help="verify native reasoning effort for the selected agent and source")
     return run(parser.parse_args())
 
 

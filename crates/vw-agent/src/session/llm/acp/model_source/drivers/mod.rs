@@ -3,7 +3,7 @@ use super::profile::AcpLaunchProfile;
 mod auggie;
 mod claude;
 mod codebuddy;
-mod codex;
+pub(in crate::session::llm::acp) mod codex;
 mod copilot;
 mod cursor;
 mod droid;

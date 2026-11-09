@@ -26,7 +26,7 @@ pub struct UsageAccountSelection<'a> {
     pub unbound: UnboundUsageAccount,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UsageAccount {
     Managed(String),
     NativeLogin,

@@ -631,3 +631,19 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 37 提交 `02377910a`，叠加本任务 Rust 文件和共享工作区已有的 `session/store/postgres_tests.rs` 参数修正。 |
 
 SQLite 和 PostgreSQL 夹具实际保存并重读设置，验证各作用域维度的读取隔离、不同主机的独立更新、0 分钟与默认显示。拒绝测试检查越界间隔、非法主机、原始密钥字段及非法引用格式，并确认失败后原设置完整。差异审查通过，槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent/src/agent_apps/usage_settings_tests.rs#L89)
+
+## 任务 39 保留短期成功缓存
+
+`UsageCache::record` 按已授权查询的完整身份保存最近一次成功，使用注入的单调完成时间计算十分钟窗口。网络中断、超时、429 和可重试 5xx 在窗口内返回 `UsageCacheResult::Stale`，保留原结果、原查询时间和本次失败。鉴权、解析等确定性失败立即清除旧值。键包含项目及租户、主体、主机、应用、供应商、查询类型、解析后的账号和两个版本。调用方发布前须复核授权、主机和当前键，切绑、撤销或版本变化时通过 `UsageCache::invalidate` 清理旧键。 [上游短期成功规则](../../../../crates/vw-agent-apps/upstream/src/lib/query/queries.ts#L121-L245) · [账号切换](../../../../crates/vw-agent-apps/upstream/src/lib/query/subscription.ts#L54-L86) · [上游行为测试](../../../../crates/vw-agent-apps/upstream/tests/lib/keepLastGoodUsage.test.ts#L84) · [Rust 实现](../../../../crates/vw-agent-apps/src/usage/cache.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_cache_ -- --nocapture` | 退出 101，执行 0 项。独立测试导入 `super::cache` 时按预期报 E0432。 |
+| 格式化 | `cargo fmt --all` | 退出 0。在批次 38 的隔离源码副本执行，仅同步本任务格式化结果。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_cache_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 夹具回归 | `cargo test -p vw-agent-apps usage_subscriptions_codex_ -- --nocapture` | 退出 0，5 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+本机 HTTP 夹具运行真实 Codex 查询并核对请求方法、路径及头。三个用例 `usage_cache_returns_expected_result`、`usage_cache_rejects_invalid_input` 和 `usage_cache_isolates_accounts_and_versions` 分别核对断连、429、503、连续失败不续期及十分钟边界，401 与解析失败后旧值无法复活，以及账号、凭据版本、配置版本和显式失效的隔离。结果来自脱敏夹具，真实账号验收见任务 56。限定提交范围的差异检查退出 0，槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/cache_tests.rs)

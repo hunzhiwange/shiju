@@ -90,6 +90,15 @@ async fn replay(
     usage: (&str, &str),
     reset: (&str, &str),
 ) -> UsageQueryResult {
+    replay_with_usage(managed, workspace, Some(usage), reset).await
+}
+
+pub(in crate::usage) async fn replay_with_usage(
+    managed: bool,
+    workspace: Option<&str>,
+    usage: Option<(&str, &str)>,
+    reset: (&str, &str),
+) -> UsageQueryResult {
     let home = tempfile::tempdir().unwrap();
     let codex_home = home.path().join(".codex");
     fs::create_dir(&codex_home).unwrap();
@@ -133,10 +142,10 @@ async fn replay(
             let mut stream = BufReader::new(stream);
             let mut line = String::new();
             stream.read_line(&mut line).await.unwrap();
-            let (status, body, beta) = match line.as_str() {
-                "GET /backend-api/wham/usage HTTP/1.1\r\n" => (usage.0, usage.1, None),
+            let (response, beta) = match line.as_str() {
+                "GET /backend-api/wham/usage HTTP/1.1\r\n" => (usage, None),
                 "GET /backend-api/wham/rate-limit-reset-credits HTTP/1.1\r\n" => {
-                    (reset.0, reset.1, Some("codex-1"))
+                    (Some(reset), Some("codex-1"))
                 }
                 _ => panic!("unexpected HTTP request"),
             };
@@ -156,6 +165,9 @@ async fn replay(
             assert_eq!(headers["accept"], "application/json");
             assert_eq!(headers.get("chatgpt-account-id").map(String::as_str), workspace);
             assert_eq!(headers.get("openai-beta").map(String::as_str), beta);
+            let Some((status, body)) = response else {
+                continue;
+            };
             let response = format!(
                 "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                 body.len()

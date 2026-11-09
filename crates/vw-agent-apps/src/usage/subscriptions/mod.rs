@@ -15,7 +15,7 @@ mod agy_tests;
 mod claude_tests;
 
 #[cfg(test)]
-mod codex_tests;
+pub(super) mod codex_tests;
 
 #[cfg(test)]
 mod copilot_tests;

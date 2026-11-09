@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 #[tokio::test]
 async fn task_session_wait_wakes_on_terminal_transition() {
     let coordinator = TaskSessionCoordinator::new();
-    coordinator.register("parent-1", "task-1").expect("task should register");
+    coordinator.register("parent-1", "task-1", None).expect("task should register");
     coordinator.mark_running("parent-1", "task-1").expect("task should start");
 
     let waiting_coordinator = coordinator.clone();
@@ -43,7 +43,7 @@ async fn task_session_wait_wakes_on_terminal_transition() {
 async fn task_session_wait_times_out_without_state_change() {
     let coordinator = TaskSessionCoordinator::new();
     for task_id in ["task-1", "task-2"] {
-        coordinator.register("parent-1", task_id).expect("task should register");
+        coordinator.register("parent-1", task_id, None).expect("task should register");
         coordinator.mark_running("parent-1", task_id).expect("task should start");
     }
     coordinator.mark_succeeded("parent-1", "task-1").expect("first task should complete");
@@ -78,7 +78,7 @@ async fn task_session_wait_times_out_without_state_change() {
 #[tokio::test]
 async fn task_session_scope_rejects_unknown_ids() {
     let coordinator = TaskSessionCoordinator::new();
-    coordinator.register("parent-1", "task-1").expect("task should register");
+    coordinator.register("parent-1", "task-1", None).expect("task should register");
 
     let unknown = coordinator
         .snapshots("parent-1", &["missing".to_string()])
@@ -95,7 +95,7 @@ async fn task_session_scope_rejects_unknown_ids() {
 #[test]
 fn task_session_begin_turn_rejects_busy_and_reopens_terminal_task() {
     let coordinator = TaskSessionCoordinator::new();
-    coordinator.register("parent-1", "task-1").expect("task should register");
+    coordinator.register("parent-1", "task-1", None).expect("task should register");
     let busy = coordinator.begin_turn("parent-1", "task-1").expect_err("queued task is busy");
     assert!(busy.to_string().contains("busy"));
 

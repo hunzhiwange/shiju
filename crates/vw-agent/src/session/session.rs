@@ -396,6 +396,13 @@ pub(crate) async fn reserve_next(input: CreateInput) -> Result<Info, Error> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn reserve_visible_task(input: CreateInput) -> Result<Info, Error> {
+    let mut info = new_info(input)?;
+    info.slug = Info::visible_task_slug(&info.slug);
+    reserve_info(info).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) async fn reserve_child_agent(input: CreateInput) -> Result<Info, Error> {
     let mut info = new_info(input)?;
     info.mark_agent_tool();

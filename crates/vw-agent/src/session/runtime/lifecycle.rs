@@ -61,6 +61,17 @@ pub(crate) async fn reserve_session(
     create_session_with(input, session::reserve_next).await
 }
 
+/// Reserve a task's identity and source without publishing it in session history.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn reserve_visible_task_session(
+    scope: SessionScope,
+    parent_id: String,
+) -> Result<SessionSnapshot, LifecycleError> {
+    let input =
+        CreateSessionInput { scope, parent_id: Some(parent_id), title: None, permission: None };
+    create_session_with(input, session::reserve_visible_task).await
+}
+
 async fn create_session_with<Fut>(
     input: CreateSessionInput,
     create: impl FnOnce(session::CreateInput) -> Fut + Send + 'static,

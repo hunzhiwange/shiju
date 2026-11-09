@@ -431,7 +431,7 @@ async fn send_message_to_thread_rejects_busy_and_foreign_task() {
     .expect("ready task");
     let coordinator = TaskSessionCoordinator::new();
     for id in [&busy.info.id, &ready.info.id] {
-        coordinator.register(&parent.info.id, id).expect("register");
+        coordinator.register(&parent.info.id, id, None).expect("register");
         coordinator.mark_running(&parent.info.id, id).expect("running");
     }
     coordinator.mark_succeeded(&parent.info.id, &ready.info.id).expect("ready");

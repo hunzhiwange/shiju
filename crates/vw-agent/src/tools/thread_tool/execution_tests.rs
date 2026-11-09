@@ -100,7 +100,7 @@ async fn wait_threads_registry_reports_child_failure_while_other_target_runs() {
         })
         .await
         .expect("visible task");
-        coordinator.register(&context.session, &task.info.id).expect("register");
+        coordinator.register(&context.session, &task.info.id, None).expect("register");
         coordinator.mark_running(&context.session, &task.info.id).expect("running");
         ids.push(task.info.id);
     }

@@ -2462,8 +2462,16 @@ fn commit_stream_session_trajectory(
             || !agent_session::child_agent::child_agent_handoff_from_output(assistant_text)
                 .is_empty())
     {
-        let task_title = (info.is_agent_tool() && !preview.is_empty())
-            .then(|| agent_session::child_agent::task_summary(preview));
+        let task_title = if info.is_visible_task() {
+            crate::session::ui_store::load_visible_task_states(tenant, project_id)?
+                .remove(session_id)
+                .filter(|task| Some(task.parent_session_id.as_str()) == info.parent_id.as_deref())
+                .and_then(|task| task.title)
+        } else if info.is_agent_tool() && !preview.is_empty() {
+            Some(agent_session::child_agent::task_summary(preview))
+        } else {
+            None
+        };
         let published = crate::session::ui_store::commit_first_response(
             tenant,
             project_id,

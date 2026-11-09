@@ -6,14 +6,14 @@ use crate::gateway::api::handlers::session::stream::{
     GatewayChatStreamCollected, collect_gateway_chat_stream,
 };
 use crate::session::runtime::{
-    CreateSessionInput, SessionScope, SessionSnapshot, create_visible_task_session, load_session,
+    SessionScope, SessionSnapshot, load_session, reserve_visible_task_session,
     visible_tasks_for_parent,
 };
 use crate::session::task_session::{
     MAX_TASK_SESSION_WAIT, TaskSessionCoordinator, TaskSessionSnapshot, TaskSessionState,
     TaskSessionWaitCondition, global_task_session_coordinator,
 };
-use crate::session::ui_store;
+use crate::session::{session, ui_store};
 use async_trait::async_trait;
 use futures_util::future::BoxFuture;
 use serde_json::{Value, json};
@@ -77,6 +77,11 @@ impl SessionTool {
             .ok_or_else(|| anyhow::anyhow!("SessionTool requires a current session ID"))
     }
 
+    fn tenant_scope() -> TenantScope {
+        current_tool_use_context()
+            .map_or_else(ui_store::current_tenant_scope, |context| context.tenant_scope())
+    }
+
     fn workspace_dir(&self) -> anyhow::Result<PathBuf> {
         if self.workspace_dir.as_os_str().is_empty() {
             anyhow::bail!("SessionTool requires a current session directory");
@@ -128,7 +133,7 @@ impl SessionTool {
         if session_id == current {
             anyhow::bail!("SessionTool cannot target the current session");
         }
-        let scope = SessionScope::new(TenantScope::default(), self.workspace_dir()?)?;
+        let scope = SessionScope::new(Self::tenant_scope(), self.workspace_dir()?)?;
         let snapshot = load_session(scope, session_id).await?;
         if !snapshot.info.is_visible_task() {
             anyhow::bail!("session '{session_id}' is not a visible task session");
@@ -141,7 +146,7 @@ impl SessionTool {
 
     async fn recover_tasks(&self) -> anyhow::Result<()> {
         let parent = self.parent_session_id()?;
-        let scope = SessionScope::new(TenantScope::default(), self.workspace_dir()?)?;
+        let scope = SessionScope::new(Self::tenant_scope(), self.workspace_dir()?)?;
         let tasks = visible_tasks_for_parent(scope.clone(), parent).await?;
         let Some(project_id) = tasks.first().map(|task| task.project_id.as_str()) else {
             return Ok(());
@@ -154,6 +159,7 @@ impl SessionTool {
             let mut snapshot = saved.cloned().unwrap_or_else(|| TaskSessionSnapshot {
                 parent_session_id: parent.to_string(),
                 task_session_id: task.id.clone(),
+                title: None,
                 state: TaskSessionState::Failed,
                 error: Some("task turn state unavailable after restart".to_string()),
                 created_ms: task.time.created,
@@ -187,97 +193,89 @@ impl SessionTool {
     fn spawn_background_turn(
         &self,
         parent_session_id: String,
-        task_session_id: String,
-        project_id: String,
-        directory: String,
+        task: session::Info,
         prompt: String,
     ) -> anyhow::Result<()> {
+        let pending = task.is_first_response_pending();
+        let session::Info { id: task_session_id, project_id, directory, .. } = task;
+        let tenant = Self::tenant_scope();
         let coordinator = self.coordinator.clone();
         let executor = self.stream_executor.clone();
         let model = Self::inherited_model_ref();
         let (startup_tx, startup_rx) = std::sync::mpsc::sync_channel(1);
         let thread_parent = parent_session_id.clone();
         let thread_task = task_session_id.clone();
-        let spawn_project_id = project_id.clone();
+        let thread_project = project_id.clone();
+        let thread_tenant = tenant.clone();
         let spawned = std::thread::Builder::new()
             .name("vw-visible-task-session".to_string())
             .spawn(move || {
-                let runtime = tokio::runtime::Builder::new_current_thread()
+                let startup = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .expect("failed to build visible task session runtime");
-                runtime.block_on(async move {
-                    if let Err(error) = coordinator.mark_running(&thread_parent, &thread_task) {
-                        tracing::error!(target: "vw_agent", error = %error, "failed to start visible task session state");
+                    .map_err(anyhow::Error::from)
+                    .and_then(|runtime| {
+                        coordinator.mark_running(&thread_parent, &thread_task)?;
+                        persist_task_state(
+                            &coordinator, &thread_tenant, &thread_parent, &thread_task, &thread_project,
+                        )?;
+                        Ok(runtime)
+                    });
+                let runtime = match startup {
+                    Ok(runtime) => runtime,
+                    Err(error) => {
                         let _ = startup_tx.send(Err(error.to_string()));
                         return;
                     }
-                    if let Err(error) = persist_task_state(&coordinator, &thread_parent, &thread_task, &spawn_project_id) {
-                        tracing::error!(target: "vw_agent", error = %error, "failed to persist running visible task state");
-                        let _ = coordinator.mark_failed(
-                            &thread_parent,
-                            &thread_task,
-                            error.to_string(),
-                        );
-                        let _ = startup_tx.send(Err(error.to_string()));
-                        return;
-                    }
-                    let _ = startup_tx.send(Ok(()));
-                    let request = GatewayChatStreamRequest {
-                        session_id: Some(SessionId::from(thread_task.as_str())),
-                        messages: vec![json!({"role": "user", "content": prompt})],
-                        model,
-                        ..GatewayChatStreamRequest::default()
-                    };
-                    match executor(directory, request).await {
-                        Ok(_) => {
-                            let _ = coordinator.mark_succeeded(&thread_parent, &thread_task);
-                        }
-                        Err(error) => {
-                            let _ = coordinator.mark_failed(
-                                &thread_parent,
-                                &thread_task,
-                                error.to_string(),
-                            );
-                        }
-                    }
-                    if let Err(error) = persist_task_state(&coordinator, &thread_parent, &thread_task, &spawn_project_id) {
-                        tracing::error!(target: "vw_agent", error = %error, "failed to persist terminal visible task state");
-                    }
-                });
+                };
+                let _ = startup_tx.send(Ok(()));
+                let request = GatewayChatStreamRequest {
+                    session_id: Some(SessionId::from(thread_task.as_str())),
+                    messages: vec![json!({"role": "user", "content": prompt})],
+                    model,
+                    ..GatewayChatStreamRequest::default()
+                };
+                let result = runtime.block_on(ui_store::with_tenant_scope(
+                    thread_tenant.clone(),
+                    async move { executor(directory, request).await },
+                ));
+                let error = match result {
+                    Ok(_) if pending => match ui_store::has_committed_first_response(
+                        &thread_tenant, &thread_project, &thread_task,
+                    ) {
+                        Ok(true) => None,
+                        Ok(false) => Some("task turn did not commit a successful first response".into()),
+                        Err(error) => Some(error.to_string()),
+                    },
+                    Ok(_) => None,
+                    Err(error) => Some(error.to_string()),
+                };
+                if let Err(error) = finish_task_turn(
+                    &coordinator, &thread_tenant, &thread_parent, &thread_task, &thread_project, error,
+                ) {
+                    tracing::error!(target: "vw_agent", error = %error, "failed to persist terminal visible task state");
+                }
             });
 
-        if let Err(error) = spawned {
-            let message = format!("spawn visible task session runtime: {error}");
-            let _ =
-                self.coordinator.mark_failed(&parent_session_id, &task_session_id, message.clone());
-            persist_task_state(
-                &self.coordinator,
-                &parent_session_id,
-                &task_session_id,
-                &project_id,
-            )?;
-            anyhow::bail!(message);
+        let startup_error = match spawned {
+            Err(error) => format!("spawn visible task session runtime: {error}"),
+            Ok(_) => match startup_rx.recv() {
+                Ok(Ok(())) => return Ok(()),
+                Ok(Err(error)) => format!("start visible task session: {error}"),
+                Err(error) => format!("visible task session stopped before startup: {error}"),
+            },
+        };
+        if let Err(error) = finish_task_turn(
+            &self.coordinator,
+            &tenant,
+            &parent_session_id,
+            &task_session_id,
+            &project_id,
+            Some(startup_error.clone()),
+        ) {
+            tracing::error!(target: "vw_agent", %error, "failed to record visible task startup failure");
         }
-        match startup_rx.recv() {
-            Ok(Ok(())) => Ok(()),
-            Ok(Err(error)) => anyhow::bail!("start visible task session: {error}"),
-            Err(error) => {
-                let message = format!("visible task session stopped before startup: {error}");
-                let _ = self.coordinator.mark_failed(
-                    &parent_session_id,
-                    &task_session_id,
-                    message.clone(),
-                );
-                persist_task_state(
-                    &self.coordinator,
-                    &parent_session_id,
-                    &task_session_id,
-                    &project_id,
-                )?;
-                anyhow::bail!(message)
-            }
-        }
+        anyhow::bail!(startup_error)
     }
 
     async fn create(&self, args: &Value) -> anyhow::Result<ToolResult> {
@@ -288,26 +286,12 @@ impl SessionTool {
         let prompt = Self::required_text(args, "prompt")?;
         let prompt = encode_task_session_source_marker(&parent_session_id, prompt)
             .ok_or_else(|| anyhow::anyhow!("current session ID cannot be encoded as a source"))?;
-        let scope = SessionScope::new(TenantScope::default(), &directory)?;
-        let created = create_visible_task_session(CreateSessionInput {
-            scope,
-            parent_id: Some(parent_session_id.clone()),
-            title: Some(title.clone()),
-            permission: None,
-        })
-        .await?;
-        let session_id = created.info.id;
-        let project_id = created.info.project_id;
-        self.coordinator.register(&parent_session_id, &session_id)?;
-        persist_task_state(&self.coordinator, &parent_session_id, &session_id, &project_id)?;
-        let directory = created.info.directory;
-        self.spawn_background_turn(
-            parent_session_id.clone(),
-            session_id.clone(),
-            project_id,
-            directory.clone(),
-            prompt,
-        )?;
+        let scope = SessionScope::new(Self::tenant_scope(), &directory)?;
+        let created = reserve_visible_task_session(scope, parent_session_id.clone()).await?;
+        let session_id = created.info.id.clone();
+        let directory = created.info.directory.clone();
+        self.coordinator.register(&parent_session_id, &session_id, Some(title.clone()))?;
+        self.spawn_background_turn(parent_session_id.clone(), created.info, prompt)?;
         let output = serde_json::to_string(&json!({
             "action": "create",
             "state": "running",
@@ -327,7 +311,12 @@ impl SessionTool {
         let mut tasks = Vec::new();
         for state in snapshots {
             let target = self.validated_target(&state.task_session_id).await?;
-            tasks.push(json!({"session_id": target.info.id, "title": target.info.title, "state": state.state, "updated_ms": state.updated_ms}));
+            let title = if target.info.is_first_response_pending() {
+                state.title.as_deref().unwrap_or_default()
+            } else {
+                &target.info.title
+            };
+            tasks.push(json!({"session_id": target.info.id, "title": title, "state": state.state, "updated_ms": state.updated_ms}));
         }
         Self::result(json!({"action": "list", "tasks": tasks}))
     }
@@ -379,24 +368,10 @@ impl SessionTool {
         let id = Self::required_text(args, "session_id")?.to_string();
         let prompt = Self::required_text(args, "prompt")?;
         let target = self.validated_target(&id).await?;
-        self.coordinator.begin_turn(&parent, &id)?;
-        if let Err(error) =
-            persist_task_state(&self.coordinator, &parent, &id, &target.info.project_id)
-        {
-            let _ = self.coordinator.mark_failed(&parent, &id, error.to_string());
-            return Err(error);
-        }
         let prompt = encode_task_session_source_marker(&parent, prompt)
             .ok_or_else(|| anyhow::anyhow!("current session ID cannot be encoded as a source"))?;
-        if let Err(error) = self.spawn_background_turn(
-            parent,
-            id.clone(),
-            target.info.project_id,
-            target.info.directory,
-            prompt,
-        ) {
-            return Err(error);
-        }
+        self.coordinator.begin_turn(&parent, &id)?;
+        self.spawn_background_turn(parent, target.info, prompt)?;
         Self::result(json!({"action": "send", "session_id": id, "state": "running"}))
     }
 
@@ -442,15 +417,27 @@ impl SessionTool {
 
 fn persist_task_state(
     coordinator: &TaskSessionCoordinator,
+    tenant: &TenantScope,
     parent_id: &str,
     task_id: &str,
     project_id: &str,
 ) -> anyhow::Result<()> {
     let snapshot = coordinator.snapshots(parent_id, &[task_id.to_string()])?.remove(0);
-    let project_id = project_id.to_string();
-    run_sync(move || {
-        ui_store::save_visible_task_state(&TenantScope::default(), &project_id, &snapshot)
-    })
+    run_sync(move || ui_store::save_visible_task_state(tenant, project_id, &snapshot))
+}
+
+fn finish_task_turn(
+    coordinator: &TaskSessionCoordinator,
+    tenant: &TenantScope,
+    parent_id: &str,
+    task_id: &str,
+    project_id: &str,
+    error: Option<String>,
+) -> anyhow::Result<()> {
+    coordinator.finish_turn(parent_id, task_id, error, |snapshot| {
+        run_sync(move || ui_store::save_visible_task_state(tenant, project_id, snapshot))
+    })?;
+    Ok(())
 }
 
 fn run_sync<T: Send>(operation: impl FnOnce() -> anyhow::Result<T> + Send) -> anyhow::Result<T> {

@@ -32,6 +32,8 @@ impl TaskSessionState {
 pub(crate) struct TaskSessionSnapshot {
     pub(crate) parent_session_id: String,
     pub(crate) task_session_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) title: Option<String>,
     pub(crate) state: TaskSessionState,
     pub(crate) error: Option<String>,
     pub(crate) created_ms: u64,
@@ -87,7 +89,12 @@ impl TaskSessionCoordinator {
         }
     }
 
-    pub(crate) fn register(&self, parent_session_id: &str, task_session_id: &str) -> Result<()> {
+    pub(crate) fn register(
+        &self,
+        parent_session_id: &str,
+        task_session_id: &str,
+        title: Option<String>,
+    ) -> Result<()> {
         validate_id("parent session", parent_session_id)?;
         validate_id("task session", task_session_id)?;
 
@@ -105,6 +112,7 @@ impl TaskSessionCoordinator {
                     snapshot: TaskSessionSnapshot {
                         parent_session_id: parent_session_id.to_string(),
                         task_session_id: task_session_id.to_string(),
+                        title,
                         state: TaskSessionState::Queued,
                         error: None,
                         created_ms: now,
@@ -136,7 +144,9 @@ impl TaskSessionCoordinator {
         parent_session_id: &str,
         task_session_id: &str,
     ) -> Result<bool> {
-        self.transition(parent_session_id, task_session_id, TaskSessionState::Running, None)
+        self.transition(parent_session_id, task_session_id, TaskSessionState::Running, None, |_| {
+            Ok(())
+        })
     }
 
     /// 为已结束的任务开启新一轮；排队或运行中的任务会被明确拒绝。
@@ -157,26 +167,36 @@ impl TaskSessionCoordinator {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn mark_succeeded(
         &self,
         parent_session_id: &str,
         task_session_id: &str,
     ) -> Result<bool> {
-        self.transition(parent_session_id, task_session_id, TaskSessionState::Succeeded, None)
+        self.finish_turn(parent_session_id, task_session_id, None, |_| Ok(()))
     }
 
+    #[cfg(test)]
     pub(crate) fn mark_failed(
         &self,
         parent_session_id: &str,
         task_session_id: &str,
         error: impl Into<String>,
     ) -> Result<bool> {
-        self.transition(
-            parent_session_id,
-            task_session_id,
-            TaskSessionState::Failed,
-            Some(error.into()),
-        )
+        self.finish_turn(parent_session_id, task_session_id, Some(error.into()), |_| Ok(()))
+    }
+
+    /// Persist the terminal state before waiters can observe it or send another turn.
+    pub(crate) fn finish_turn(
+        &self,
+        parent_session_id: &str,
+        task_session_id: &str,
+        error: Option<String>,
+        persist: impl FnOnce(&TaskSessionSnapshot) -> Result<()>,
+    ) -> Result<bool> {
+        let next =
+            if error.is_some() { TaskSessionState::Failed } else { TaskSessionState::Succeeded };
+        self.transition(parent_session_id, task_session_id, next, error, persist)
     }
 
     pub(crate) fn snapshots(
@@ -220,8 +240,9 @@ impl TaskSessionCoordinator {
         task_session_id: &str,
         next: TaskSessionState,
         error: Option<String>,
+        persist: impl FnOnce(&TaskSessionSnapshot) -> Result<()>,
     ) -> Result<bool> {
-        let version = {
+        let (version, persisted) = {
             let mut state = self.lock_state();
             let entry = task_for_parent_mut(&mut state, parent_session_id, task_session_id)?;
             if entry.snapshot.state.is_terminal() || entry.snapshot.state == next {
@@ -230,11 +251,12 @@ impl TaskSessionCoordinator {
             entry.snapshot.state = next;
             entry.snapshot.error = error;
             entry.snapshot.updated_ms = current_time_ms();
+            let persisted = persist(&entry.snapshot);
             state.version = state.version.saturating_add(1);
-            state.version
+            (state.version, persisted)
         };
         self.publish_change(version);
-        Ok(true)
+        persisted.map(|()| true)
     }
 
     fn publish_change(&self, version: u64) {

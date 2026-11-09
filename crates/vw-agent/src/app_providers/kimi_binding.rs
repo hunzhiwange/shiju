@@ -39,6 +39,19 @@ impl AppProviderStore {
             .await
     }
 
+    pub(crate) fn unbind_kimi_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        native: &KimiNativeTarget<'_>,
+    ) -> Result<(), AuthErrorCode> {
+        native.check_scope(scope)?;
+        let row = binding_row(self, scope, native.provider_id)?;
+        connection(&row)?;
+        let catalog_unchanged =
+            self.binding_catalog_unchanged(scope.tenant, native.provider_id, &row)?;
+        native.unbind_account(scope, catalog_unchanged)
+    }
+
     /// Resolve only a committed binding for this authorized account owner.
     pub fn kimi_account_binding(
         &self,

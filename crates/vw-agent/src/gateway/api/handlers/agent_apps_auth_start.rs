@@ -54,8 +54,8 @@ pub(super) struct Runtime {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct ScopeQuery {
-    host_id: String,
-    service: AuthService,
+    pub(super) host_id: String,
+    pub(super) service: AuthService,
 }
 
 pub(super) struct Execution {
@@ -353,7 +353,7 @@ impl From<AuthErrorCode> for FlowError {
 }
 
 impl FlowError {
-    fn access(status: StatusCode) -> Self {
+    pub(super) fn access(status: StatusCode) -> Self {
         use AuthErrorCode::*;
         Self(match status {
             StatusCode::UNAUTHORIZED => Unauthenticated,

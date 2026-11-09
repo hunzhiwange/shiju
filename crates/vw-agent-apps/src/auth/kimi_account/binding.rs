@@ -141,6 +141,25 @@ impl KimiNativeTarget<'_> {
         .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?
     }
 
+    /// Clear only the scoped catalog reference. The CLI retains its model and grant.
+    pub fn unbind_account(
+        &self,
+        scope: AuthAccountScope<'_>,
+        catalog_unchanged: impl FnOnce() -> bool,
+    ) -> Result<(), AuthErrorCode> {
+        self.check_scope(scope)?;
+        if self.transactions.pending(AppId::Kimi).map_err(write_error)?.is_some() {
+            return Err(AuthErrorCode::Conflict);
+        }
+        let state = self.transactions.state(AppId::Kimi).map_err(write_error)?;
+        if self.binding(&state, scope.tenant, scope.principal)?.is_none() {
+            return Ok(());
+        }
+        self.transactions
+            .remove_kimi_binding(self.provider_id, state, catalog_unchanged)
+            .map_err(write_error)
+    }
+
     pub fn check_scope(&self, scope: AuthAccountScope<'_>) -> Result<(), AuthErrorCode> {
         scope.validate()?;
         if scope.service != AuthService::KimiOauth

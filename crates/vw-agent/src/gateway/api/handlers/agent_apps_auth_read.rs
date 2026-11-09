@@ -1,7 +1,7 @@
 //! The versioned, management-only view of scoped authorization accounts.
 
 use super::{
-    agent_apps::{AuthReadHost, authorize_auth_account_read},
+    agent_apps::{AuthAccountHost, authorize_auth_account_read},
     agent_apps_auth_start::{Runtime, routes},
 };
 #[cfg(target_os = "macos")]
@@ -12,11 +12,11 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{Query, Request, rejection::QueryRejection},
+    extract::{DefaultBodyLimit, Query, Request, rejection::QueryRejection},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, put},
 };
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
@@ -92,6 +92,10 @@ pub(super) fn router_with_runtime(
         .route("/v1/agent-apps/auth/accounts", get(read).layer(Extension(Resource::Accounts)))
         .route("/v1/agent-apps/auth/status", get(read).layer(Extension(Resource::Status)))
         .route("/v1/agent-apps/auth/bindings", get(read).layer(Extension(Resource::Bindings)))
+        .route(
+            "/v1/agent-apps/auth/bindings/{provider_id}",
+            put(super::agent_apps_auth_binding::put).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
         .layer(Extension(PolicyFile(policy)))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
         .layer(middleware::from_fn(move |request: Request, next: Next| async move {
@@ -177,7 +181,7 @@ async fn read(
 
 fn query_resource(
     accounts: &AuthAccountStore,
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
     scope: AuthAccountScope<'_>,
     database: GlobalDatabase,
     resource: Resource,
@@ -220,7 +224,7 @@ fn query_resource(
 
 fn require_binding_account(
     accounts: &AuthAccountStore,
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
     scope: AuthAccountScope<'_>,
     id: &str,
 ) -> Result<(), AuthErrorCode> {
@@ -248,7 +252,7 @@ fn require_binding_account(
 fn read_accounts(
     store: &AuthAccountStore,
     scope: AuthAccountScope<'_>,
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
 ) -> Result<Vec<AuthAccount>, AuthErrorCode> {
     if matches!(scope.service, AuthService::AgyOauth | AuthService::DshAccount) {
         return read_native_accounts(scope, host);
@@ -263,7 +267,7 @@ fn read_accounts(
 #[cfg(target_os = "macos")]
 fn read_native_accounts(
     scope: AuthAccountScope<'_>,
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
 ) -> Result<Vec<AuthAccount>, AuthErrorCode> {
     match scope.service {
         AuthService::AgyOauth => read_agy_accounts(
@@ -284,14 +288,14 @@ fn read_native_accounts(
 #[cfg(not(target_os = "macos"))]
 fn read_native_accounts(
     _scope: AuthAccountScope<'_>,
-    _host: &AuthReadHost,
+    _host: &AuthAccountHost,
 ) -> Result<Vec<AuthAccount>, AuthErrorCode> {
     Err(AuthErrorCode::Unsupported)
 }
 
 #[cfg(target_os = "macos")]
 fn native_transactions(
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
 ) -> Result<Option<std::sync::Arc<ProviderTransactions>>, AuthErrorCode> {
     let id = ExecutionHostId::new(&host.id).map_err(|_| AuthErrorCode::StorageUnavailable)?;
     ProviderTransactions::open_existing(&host.credential_root, id)
@@ -303,7 +307,7 @@ fn native_transactions(
 fn apply_kimi_default(
     store: &AuthAccountStore,
     scope: AuthAccountScope<'_>,
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
     accounts: &mut [AuthAccount],
 ) -> Result<(), AuthErrorCode> {
     use vw_agent_apps::providers::kimi;
@@ -342,14 +346,14 @@ fn apply_kimi_default(
 fn apply_kimi_default(
     _store: &AuthAccountStore,
     _scope: AuthAccountScope<'_>,
-    _host: &AuthReadHost,
+    _host: &AuthAccountHost,
     _accounts: &mut [AuthAccount],
 ) -> Result<(), AuthErrorCode> {
     Err(AuthErrorCode::Unsupported)
 }
 
 fn read_bindings(
-    host: &AuthReadHost,
+    host: &AuthAccountHost,
     scope: AuthAccountScope<'_>,
     database: GlobalDatabase,
     account_filter: Option<&str>,

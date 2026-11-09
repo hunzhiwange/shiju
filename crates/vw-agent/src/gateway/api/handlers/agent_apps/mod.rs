@@ -140,7 +140,7 @@ mod read_tests;
 
 mod access;
 
-pub(super) struct AuthReadHost {
+pub(super) struct AuthAccountHost {
     pub id: String,
     pub home: std::path::PathBuf,
     pub credential_root: std::path::PathBuf,
@@ -155,7 +155,7 @@ pub(super) fn authorize_auth_account_read(
     target: &str,
     service: vw_api_types::agent_apps_auth::AuthService,
     bindings: bool,
-) -> Result<AuthReadHost, axum::http::StatusCode> {
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
     use axum::http::StatusCode;
     use vw_api_types::agent_apps_auth::AuthService;
     let authorized =
@@ -164,7 +164,33 @@ pub(super) fn authorize_auth_account_read(
     if matches!(service, AuthService::AgyOauth | AuthService::DshAccount) && !owns_native_slot {
         return Err(StatusCode::FORBIDDEN);
     }
-    Ok(AuthReadHost {
+    account_host(authorized, owns_native_slot)
+}
+
+pub(super) fn authorize_auth_binding(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    use vw_api_types::agent_apps_auth::AuthService;
+
+    let authorized = access::authorize_auth_binding(path, headers, tenant, target, service)?;
+    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    if matches!(service, AuthService::AgyOauth | AuthService::KimiOauth) && !owns_native_slot {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    account_host(authorized, owns_native_slot)
+}
+
+fn account_host(
+    authorized: access::Authorization,
+    owns_native_slot: bool,
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
+    use axum::http::StatusCode;
+    Ok(AuthAccountHost {
         id: authorized.host.id,
         home: authorized.host.home,
         credential_root: authorized.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?,

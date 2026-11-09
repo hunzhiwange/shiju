@@ -36,6 +36,8 @@ struct Grant {
     #[serde(default)]
     auth_account_read: Vec<AuthService>,
     #[serde(default)]
+    auth_binding_write: Vec<AuthService>,
+    #[serde(default)]
     auth_flow_start: Vec<AuthService>,
     /// Explicit deployment assertion for direct, same-host browser clients.
     #[serde(default)]
@@ -181,6 +183,7 @@ enum Capability {
     ProviderConfigRead,
     ProviderConfigWrite,
     AuthAccountRead { service: AuthService, bindings: bool },
+    AuthBindingWrite(AuthService),
     AuthFlowStart(AuthService),
 }
 
@@ -200,6 +203,16 @@ pub(super) fn authorize_auth_account_read(
         None,
         Capability::AuthAccountRead { service, bindings },
     )
+}
+
+pub(super) fn authorize_auth_binding(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: AuthService,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::AuthBindingWrite(service))
 }
 
 pub(super) fn authorize_auth_flow_start(
@@ -265,6 +278,9 @@ fn authorize_scoped(
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
                     Capability::ProviderConfigWrite => g.provider_config_write,
+                    Capability::AuthBindingWrite(service) => {
+                        g.provider_config_write && g.auth_binding_write.contains(&service)
+                    }
                     Capability::AuthFlowStart(service) => g.auth_flow_start.contains(&service),
                     Capability::AuthAccountRead { service, bindings } => {
                         g.auth_account_read.contains(&service)

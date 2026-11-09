@@ -338,6 +338,22 @@ impl ProviderTransactions {
         Ok(())
     }
 
+    /// A reference-only change has no native file publication to journal.
+    pub(crate) fn remove_kimi_binding(
+        &self,
+        provider: &str,
+        mut expected: AppState,
+        validate: impl FnOnce() -> bool,
+    ) -> Result<(), WriteError> {
+        let app = AppId::Kimi;
+        let _lock = self.lock(app)?;
+        if self.pending(app)?.is_some() || self.state(app)? != expected || !validate() {
+            return Err(WriteError::Conflict);
+        }
+        expected.kimi_bindings.remove(provider);
+        self.save(app, "state", &expected)
+    }
+
     pub(super) fn validate_claude_login(
         &self,
         tenant: &TenantScope,

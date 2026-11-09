@@ -1,7 +1,7 @@
 //! Request-local, size-bounded SSE conversion; cancellation drops the upstream stream.
 use super::{
     RelayIdentity,
-    responses::{self, References},
+    responses::{self, ChatTools, References},
 };
 use axum::{
     body::{Body, Bytes},
@@ -26,6 +26,9 @@ struct Decoder {
     id: String,
     identity: RelayIdentity,
     native: bool,
+    codex_chat: bool,
+    tool_names: ChatTools,
+    reasoning: String,
     upstream_id: Option<String>,
     store: bool,
     references: Arc<References>,
@@ -56,8 +59,17 @@ impl Decoder {
             return Err(StatusCode::BAD_GATEWAY);
         }
         let calls = self.tools.values().cloned().collect::<Vec<_>>();
-        let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
-        let response = responses::from_chat(&body, &self.identity.model, &self.id)?;
+        let mut body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
+        if !self.reasoning.is_empty() {
+            body["choices"][0]["message"]["reasoning_content"] = self.reasoning.as_str().into();
+        }
+        let response = responses::from_chat(
+            &body,
+            &self.identity.model,
+            &self.id,
+            &self.tool_names,
+            self.codex_chat,
+        )?;
         let mut out = String::new();
         for (index, item) in
             response["output"].as_array().ok_or(StatusCode::BAD_GATEWAY)?.iter().enumerate()
@@ -66,15 +78,34 @@ impl Decoder {
             if item["type"] == "message" {
                 out.push_str(&self.emit(json!({"type":"response.output_text.done","item_id":item_id,"output_index":index,"content_index":0,"text":self.text,"logprobs":[]})));
                 out.push_str(&self.emit(json!({"type":"response.content_part.done","item_id":item_id,"output_index":index,"content_index":0,"part":item["content"][0]})));
+            } else if item["type"] == "reasoning" {
+                let mut start = item.clone();
+                start["summary"] = json!([]);
+                out.push_str(&self.emit(
+                    json!({"type":"response.output_item.added","output_index":index,"item":start}),
+                ));
             } else {
                 let mut start = item.clone();
-                start["arguments"] = "".into();
+                let (field, delta_event, done_event) = if item["type"] == "custom_tool_call" {
+                    (
+                        "input",
+                        "response.custom_tool_call_input.delta",
+                        "response.custom_tool_call_input.done",
+                    )
+                } else {
+                    (
+                        "arguments",
+                        "response.function_call_arguments.delta",
+                        "response.function_call_arguments.done",
+                    )
+                };
+                start[field] = "".into();
                 start["status"] = "in_progress".into();
                 out.push_str(&self.emit(
                     json!({"type":"response.output_item.added","output_index":index,"item":start}),
                 ));
-                out.push_str(&self.emit(json!({"type":"response.function_call_arguments.delta","item_id":item_id,"output_index":index,"delta":item["arguments"]})));
-                out.push_str(&self.emit(json!({"type":"response.function_call_arguments.done","item_id":item_id,"output_index":index,"arguments":item["arguments"]})));
+                out.push_str(&self.emit(json!({"type":delta_event,"item_id":item_id,"output_index":index,"delta":item[field]})));
+                out.push_str(&self.emit(json!({"type":done_event,"item_id":item_id,"output_index":index,(field):item[field]})));
             }
             out.push_str(&self.emit(
                 json!({"type":"response.output_item.done","output_index":index,"item":item}),
@@ -169,7 +200,19 @@ impl Decoder {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
             let delta = &choice["delta"];
-            super::messages::object_keys(delta, &["role", "content", "tool_calls", "refusal"])?;
+            if self.codex_chat {
+                super::messages::object_keys(
+                    delta,
+                    &["role", "content", "tool_calls", "refusal", "reasoning_content"],
+                )?;
+                if let Some(reasoning) =
+                    delta.get("reasoning_content").filter(|value| !value.is_null())
+                {
+                    self.reasoning.push_str(reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?);
+                }
+            } else {
+                super::messages::object_keys(delta, &["role", "content", "tool_calls", "refusal"])?;
+            }
             if !delta["refusal"].is_null() || delta.get("role").is_some_and(|v| v != "assistant") {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
@@ -254,6 +297,8 @@ impl Decoder {
 pub(super) struct Output {
     pub identity: RelayIdentity,
     pub native: bool,
+    pub codex_chat: bool,
+    pub tool_names: ChatTools,
     pub streaming: bool,
     pub store: bool,
     pub references: Arc<References>,
@@ -282,7 +327,13 @@ pub(super) async fn response(
         let body = if output.native {
             responses::native_output(body, &output.identity, &id, &output.references, output.store)?
         } else {
-            responses::from_chat(&body, &output.identity.model, &id)?
+            responses::from_chat(
+                &body,
+                &output.identity.model,
+                &id,
+                &output.tool_names,
+                output.codex_chat,
+            )?
         };
         return Response::builder()
             .header("content-type", "application/json")
@@ -307,6 +358,9 @@ pub(super) async fn response(
         id,
         identity: output.identity,
         native: output.native,
+        codex_chat: output.codex_chat,
+        tool_names: output.tool_names,
+        reasoning: String::new(),
         upstream_id: None,
         store: output.store,
         references: output.references,

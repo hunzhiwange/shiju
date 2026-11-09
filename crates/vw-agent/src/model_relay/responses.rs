@@ -3,9 +3,17 @@ use super::{RelayIdentity, messages::object_keys};
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::{Value, json};
 use std::{
+    collections::HashSet,
     sync::Arc,
     time::{Duration, Instant},
 };
+
+#[path = "responses_chat_tools.rs"]
+mod chat_tools;
+pub(super) use chat_tools::ChatTools;
+#[path = "responses_codex_chat.rs"]
+mod codex_chat;
+pub(super) use codex_chat::{codex_chat_effort, configure_codex_chat};
 
 const UNSUPPORTED: StatusCode = StatusCode::UNPROCESSABLE_ENTITY;
 const REFERENCE_LIMIT: usize = 4096;
@@ -114,18 +122,47 @@ fn content(value: &Value, role: &str) -> Result<String, StatusCode> {
     }
     let mut text = String::new();
     for part in value.as_array().ok_or(StatusCode::BAD_REQUEST)? {
-        object_keys(part, &["type", "text", "annotations"])?;
+        object_keys(part, &["type", "text", "annotations", "logprobs"])?;
         if part["type"] != "input_text" && !(role == "assistant" && part["type"] == "output_text") {
             return Err(UNSUPPORTED);
         }
-        if part.get("annotations").is_some_and(|v| v.as_array().is_none_or(|v| !v.is_empty())) {
-            return Err(UNSUPPORTED);
+        for field in ["annotations", "logprobs"] {
+            if part.get(field).is_some_and(|v| v.as_array().is_none_or(|v| !v.is_empty())) {
+                return Err(UNSUPPORTED);
+            }
         }
         text.push_str(part["text"].as_str().ok_or(StatusCode::BAD_REQUEST)?);
     }
     Ok(text)
 }
-pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
+fn chat_content(value: &Value, role: &str, codex: bool) -> Result<Value, StatusCode> {
+    if codex
+        && role == "user"
+        && let Some(parts) = value.as_array()
+        && parts.iter().any(|part| part["type"] == "input_image")
+    {
+        let mut chat = Vec::new();
+        for part in parts {
+            if part["type"] == "input_image" {
+                object_keys(part, &["type", "image_url", "detail"])?;
+                let mut image = json!({"url": string(part, "image_url")?});
+                if let Some(detail) = part.get("detail") {
+                    if !matches!(detail.as_str(), Some("auto" | "low" | "high")) {
+                        return Err(UNSUPPORTED);
+                    }
+                    image["detail"] = detail.clone();
+                }
+                chat.push(json!({"type":"image_url","image_url":image}));
+            } else {
+                chat.push(json!({"type":"text","text":content(&json!([part]), role)?}));
+            }
+        }
+        return Ok(chat.into());
+    }
+    Ok(content(value, role)?.into())
+}
+
+pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), StatusCode> {
     object_keys(
         body,
         &[
@@ -167,27 +204,34 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         output["max_tokens"] = max.clone();
     }
     if let Some(text) = body.get("text") {
-        object_keys(text, &["format"])?;
-        let format = &text["format"];
-        match string(format, "type")? {
-            "text" => {
-                object_keys(format, &["type"])?;
-            }
-            "json_object" => {
-                object_keys(format, &["type"])?;
-                output["response_format"] = format.clone();
-            }
-            "json_schema" => {
-                object_keys(format, &["type", "name", "description", "schema", "strict"])?;
-                if !format["schema"].is_object() {
-                    return Err(StatusCode::BAD_REQUEST);
+        object_keys(text, if codex { &["format", "verbosity"] } else { &["format"] })?;
+        if let Some(format) = text.get("format") {
+            match string(format, "type")? {
+                "text" => {
+                    object_keys(format, &["type"])?;
                 }
-                let mut schema = format.clone();
-                schema.as_object_mut().unwrap().remove("type");
-                output["response_format"] = json!({"type":"json_schema","json_schema":schema});
+                "json_object" => {
+                    object_keys(format, &["type"])?;
+                    output["response_format"] = format.clone();
+                }
+                "json_schema" => {
+                    object_keys(format, &["type", "name", "description", "schema", "strict"])?;
+                    if !format["schema"].is_object() {
+                        return Err(StatusCode::BAD_REQUEST);
+                    }
+                    let mut schema = format.clone();
+                    schema.as_object_mut().unwrap().remove("type");
+                    output["response_format"] = json!({"type":"json_schema","json_schema":schema});
+                }
+                _ => return Err(UNSUPPORTED),
             }
-            _ => return Err(UNSUPPORTED),
+        } else if !codex {
+            return Err(StatusCode::BAD_REQUEST);
         }
+    }
+    let mut tools = ChatTools::default();
+    if let Some(definitions) = body.get("tools") {
+        output["tools"] = tools.definitions(definitions)?;
     }
     let mut messages = Vec::new();
     if let Some(instructions) = body.get("instructions").filter(|v| !v.is_null()) {
@@ -199,17 +243,54 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         for item in body["input"].as_array().ok_or(StatusCode::BAD_REQUEST)? {
             match item["type"].as_str() {
                 None | Some("message") => {
-                    object_keys(item, &["type", "id", "role", "content", "status"])?;
+                    object_keys(item, &["type", "id", "role", "content", "status", "phase"])?;
                     let role = string(item, "role")?;
                     if !matches!(role, "system" | "developer" | "user" | "assistant") {
                         return Err(UNSUPPORTED);
                     }
-                    messages.push(json!({"role":role,"content":content(&item["content"],role)?}));
+                    let content = chat_content(&item["content"], role, codex)?;
+                    let role = if codex && role == "developer" { "system" } else { role };
+                    if codex
+                        && role == "assistant"
+                        && let Some(last) = messages.last_mut().filter(|m| {
+                            m["role"] == "assistant"
+                                && m["content"].is_null()
+                                && m.get("tool_calls").is_none()
+                        })
+                    {
+                        last["content"] = content;
+                    } else {
+                        messages.push(json!({"role":role,"content":content}));
+                    }
                 }
-                Some("function_call") => {
-                    object_keys(item, &["type", "id", "call_id", "name", "arguments", "status"])?;
-                    arguments(item)?;
-                    let call = json!({"id":string(item,"call_id")?,"type":"function","function":{"name":string(item,"name")?,"arguments":item["arguments"]}});
+                Some("reasoning") if codex => {
+                    // Only plain reasoning produced by Chat can be replayed to Chat.
+                    object_keys(
+                        item,
+                        &["type", "id", "summary", "status", "content", "encrypted_content"],
+                    )?;
+                    if !item["content"].is_null() || !item["encrypted_content"].is_null() {
+                        return Err(UNSUPPORTED);
+                    }
+                    let mut reasoning = String::new();
+                    for part in item["summary"].as_array().ok_or(StatusCode::BAD_REQUEST)? {
+                        object_keys(part, &["type", "text"])?;
+                        if part["type"] != "summary_text" {
+                            return Err(UNSUPPORTED);
+                        }
+                        reasoning.push_str(string(part, "text")?);
+                    }
+                    if let Some(last) = messages.last_mut().filter(|m| m["role"] == "assistant") {
+                        if last.get("reasoning_content").is_some() {
+                            return Err(UNSUPPORTED);
+                        }
+                        last["reasoning_content"] = reasoning.into();
+                    } else {
+                        messages.push(json!({"role":"assistant","content":null,"reasoning_content":reasoning}));
+                    }
+                }
+                Some("function_call" | "custom_tool_call") => {
+                    let call = tools.replay(item)?;
                     if let Some(last) = messages.last_mut().filter(|m| m["role"] == "assistant") {
                         if last.get("tool_calls").is_none() {
                             last["tool_calls"] = json!([]);
@@ -223,9 +304,14 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
                             .push(json!({"role":"assistant","content":null,"tool_calls":[call]}));
                     }
                 }
-                Some("function_call_output") => {
+                Some("function_call_output" | "custom_tool_call_output") => {
                     object_keys(item, &["type", "id", "call_id", "output", "status"])?;
-                    messages.push(json!({"role":"tool","tool_call_id":string(item,"call_id")?,"content":item["output"].as_str().ok_or(UNSUPPORTED)?}));
+                    let output = if codex {
+                        content(&item["output"], "assistant")?
+                    } else {
+                        item["output"].as_str().ok_or(UNSUPPORTED)?.into()
+                    };
+                    messages.push(json!({"role":"tool","tool_call_id":string(item,"call_id")?,"content":output}));
                 }
                 _ => return Err(UNSUPPORTED),
             }
@@ -235,23 +321,6 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         return Err(StatusCode::BAD_REQUEST);
     }
     output["messages"] = messages.into();
-    if let Some(tools) = body.get("tools") {
-        let mut converted = Vec::new();
-        for tool in tools.as_array().ok_or(StatusCode::BAD_REQUEST)? {
-            object_keys(tool, &["type", "name", "description", "parameters", "strict"])?;
-            if tool["type"] != "function" {
-                return Err(UNSUPPORTED);
-            }
-            string(tool, "name")?;
-            if !tool["parameters"].is_object() {
-                return Err(StatusCode::BAD_REQUEST);
-            }
-            let mut function = tool.clone();
-            function.as_object_mut().unwrap().remove("type");
-            converted.push(json!({"type":"function","function":function}));
-        }
-        output["tools"] = converted.into();
-    }
     if let Some(choice) = body.get("tool_choice") {
         output["tool_choice"] = if let Some(choice) = choice.as_str() {
             if !matches!(choice, "auto" | "none" | "required") {
@@ -259,32 +328,74 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             }
             json!(choice)
         } else {
-            object_keys(choice, &["type", "name"])?;
-            if choice["type"] != "function" {
-                return Err(UNSUPPORTED);
-            }
-            json!({"type":"function","function":{"name":string(choice,"name")?}})
+            tools.choice(choice)?
         };
     }
-    Ok(output)
+    if codex && output["tools"].as_array().is_none_or(Vec::is_empty) {
+        let object = output.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
+        if object.get("tool_choice").is_some_and(|choice| choice != "auto" && choice != "none") {
+            return Err(UNSUPPORTED);
+        }
+        for field in ["tools", "tool_choice", "parallel_tool_calls"] {
+            object.remove(field);
+        }
+    }
+    Ok((output, tools))
 }
 
-pub(super) fn from_chat(body: &Value, model: &str, id: &str) -> Result<Value, StatusCode> {
-    // Reuse the strict Chat output validator; reasoning, hosted tools and citations cannot disappear.
+pub(super) fn from_chat(
+    body: &Value,
+    model: &str,
+    id: &str,
+    tools: &ChatTools,
+    codex: bool,
+) -> Result<Value, StatusCode> {
+    // Preserve the strict Chat validator for all other response fields.
+    let mut normalized;
+    let mut reasoning = None;
+    let body = if codex && let Some(value) = body["choices"][0]["message"].get("reasoning_content")
+    {
+        reasoning = if value.is_null() {
+            None
+        } else {
+            Some(value.as_str().ok_or(StatusCode::BAD_GATEWAY)?)
+        };
+        normalized = body.clone();
+        normalized["choices"][0]["message"]
+            .as_object_mut()
+            .ok_or(StatusCode::BAD_GATEWAY)?
+            .remove("reasoning_content");
+        &normalized
+    } else {
+        body
+    };
     let message = super::messages::from_chat(body, model)?;
     let status = if message["stop_reason"] == "max_tokens" { "incomplete" } else { "completed" };
     let mut output = Vec::new();
+    let mut call_ids = HashSet::new();
     for block in message["content"].as_array().ok_or(StatusCode::BAD_GATEWAY)? {
         let index = output.len();
         output.push(match block["type"].as_str(){
             Some("text")=>json!({"type":"message","id":format!("{id}_msg_{index}"),"role":"assistant","status":status,"content":[{"type":"output_text","text":block["text"],"annotations":[],"logprobs":[]}]}),
+            Some("tool_use") if codex && status == "incomplete" => continue,
             Some("tool_use")=>{
+                if !call_ids.insert(string(block, "id")?) {
+                    return Err(StatusCode::BAD_GATEWAY);
+                }
                 // Keep the original JSON argument string, including formatting and number precision.
                 let call=body["choices"][0]["message"]["tool_calls"].as_array().and_then(|calls|calls.iter().find(|call|call["id"]==block["id"])).ok_or(StatusCode::BAD_GATEWAY)?;
-                json!({"type":"function_call","id":format!("{id}_fc_{index}"),"status":status,"call_id":block["id"],"name":block["name"],"arguments":call["function"]["arguments"]})
+                tools.output(block, call, format!("{id}_fc_{index}"), status)?
             },
             _=>return Err(UNSUPPORTED)
         });
+    }
+    if let Some(reasoning) = reasoning.filter(|text| !text.is_empty()) {
+        let index = usize::from(output.first().is_some_and(|item| item["type"] == "message"));
+        output.insert(
+            index,
+            json!({"type":"reasoning","id":format!("{id}_rs"),
+            "summary":[{"type":"summary_text","text":reasoning}]}),
+        );
     }
     let input = message["usage"]["input_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;
     let tokens = message["usage"]["output_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;

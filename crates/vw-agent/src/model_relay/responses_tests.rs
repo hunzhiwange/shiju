@@ -2,6 +2,41 @@ use super::*;
 use serde_json::json;
 
 #[test]
+fn acp_model_source_relay_responses_codex_replays_namespaced_and_custom_tools() {
+    let body = json!({
+        "model": "selected",
+        "input": [
+            {"role": "user", "content": "edit the file"},
+            {"type": "function_call", "namespace": "workspace", "name": "read", "call_id": "read-1", "arguments": "{}"},
+            {"type": "custom_tool_call", "name": "apply_patch", "call_id": "patch-1", "input": "*** Begin Patch\n*** End Patch"},
+            {"type": "function_call_output", "call_id": "read-1", "output": "old text"},
+            {"type": "custom_tool_call_output", "call_id": "patch-1", "output": "done"}
+        ],
+        "tools": [
+            {"type": "namespace", "name": "workspace", "tools": [{"type": "function", "name": "read", "parameters": {"type": "object"}}]},
+            {"type": "custom", "name": "apply_patch", "format": {"type": "text"}}
+        ]
+    });
+    let (chat, tools) = super::responses::to_chat(&body, false).unwrap();
+    let calls = &chat["messages"][1]["tool_calls"];
+    assert_eq!(calls[0]["function"]["name"], chat["tools"][0]["function"]["name"]);
+    assert_eq!(calls[1]["function"]["arguments"], r#"{"input":"*** Begin Patch\n*** End Patch"}"#);
+    assert_eq!(
+        chat["messages"][3],
+        json!({"role":"tool","tool_call_id":"patch-1","content":"done"})
+    );
+    let response = json!({"id":"upstream","choices":[{"message":chat["messages"][1],"finish_reason":"tool_calls"}],
+        "usage":{"prompt_tokens":5,"completion_tokens":3}});
+    let converted =
+        super::responses::from_chat(&response, "selected", "resp-local", &tools, false).unwrap();
+    assert_eq!(converted["output"][0]["namespace"], "workspace");
+    assert_eq!(converted["output"][0]["name"], "read");
+    assert_eq!(converted["output"][1]["type"], "custom_tool_call");
+    assert_eq!(converted["output"][1]["input"], "*** Begin Patch\n*** End Patch");
+    assert_eq!(converted["output"][1]["call_id"], "patch-1");
+}
+
+#[test]
 fn acp_model_source_relay_responses_parallel_tools_roles_and_structured_output() {
     let request = json!({"model":"selected","instructions":"system","input":[
         {"role":"developer","content":"policy"},
@@ -11,7 +46,7 @@ fn acp_model_source_relay_responses_parallel_tools_roles_and_structured_output()
         {"type":"function_call_output","call_id":"a","output":"first"},
         {"type":"function_call_output","call_id":"b","output":"second"}
     ],"text":{"format":{"type":"json_schema","name":"answer","strict":true,"schema":{"type":"object"}}},"tool_choice":{"type":"function","name":"one"},"parallel_tool_calls":true});
-    let chat = super::responses::to_chat(&request).unwrap();
+    let (chat, tools) = super::responses::to_chat(&request, false).unwrap();
     assert_eq!(chat["messages"][0], json!({"role":"system","content":"system"}));
     assert_eq!(chat["messages"][1], json!({"role":"developer","content":"policy"}));
     assert_eq!(chat["messages"][2]["tool_calls"].as_array().unwrap().len(), 2);
@@ -21,7 +56,8 @@ fn acp_model_source_relay_responses_parallel_tools_roles_and_structured_output()
     assert_eq!(chat["response_format"]["json_schema"]["name"], "answer");
     assert_eq!(chat["tool_choice"]["function"]["name"], "one");
     let response = json!({"id":"upstream","choices":[{"message":chat["messages"][2],"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":11,"completion_tokens":4,"total_tokens":15,"prompt_tokens_details":{"cached_tokens":8},"completion_tokens_details":{"reasoning_tokens":2}}});
-    let converted = super::responses::from_chat(&response, "selected", "resp-local").unwrap();
+    let converted =
+        super::responses::from_chat(&response, "selected", "resp-local", &tools, false).unwrap();
     assert_eq!(converted["output"][1]["arguments"], "{ \"n\": 10000000000000000000 }");
     assert_eq!(converted["usage"]["input_tokens_details"]["cached_tokens"], 8);
     assert_eq!(converted["usage"]["output_tokens_details"]["reasoning_tokens"], 2);
@@ -40,13 +76,19 @@ fn acp_model_source_relay_responses_rejects_lossy_requests_and_outputs() {
     ] {
         let mut body = json!({"model":"selected","input":"hello"});
         body.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
-        assert_eq!(super::responses::to_chat(&body), Err(StatusCode::UNPROCESSABLE_ENTITY));
+        assert_eq!(super::responses::to_chat(&body, false), Err(StatusCode::UNPROCESSABLE_ENTITY));
     }
     for key in ["reasoning_content", "annotations", "audio"] {
         let mut response = json!({"id":"upstream","choices":[{"message":{"role":"assistant","content":"answer"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}});
         response["choices"][0]["message"][key] = json!({"unrepresentable":true});
         assert_eq!(
-            super::responses::from_chat(&response, "selected", "resp-local"),
+            super::responses::from_chat(
+                &response,
+                "selected",
+                "resp-local",
+                &Default::default(),
+                false
+            ),
             Err(StatusCode::UNPROCESSABLE_ENTITY)
         );
     }

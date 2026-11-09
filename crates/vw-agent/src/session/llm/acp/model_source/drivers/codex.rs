@@ -30,8 +30,12 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             && reqwest::Url::parse(&api.url)
                 .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses")));
     anyhow::ensure!(
-        native_responses,
-        "Codex requires a Responses model; its native tools cannot be converted losslessly"
+        native_responses || crate::model_relay::chat_url(api).is_ok(),
+        "Codex requires a Responses or Chat Completions model"
+    );
+    anyhow::ensure!(
+        native_responses || profile.model_supports_tool_call,
+        "Codex requires a Chat Completions model supporting tool calls"
     );
     use sha2::Digest;
     // Project config cannot predefine routing headers for this request-owned provider key.
@@ -39,7 +43,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "shiju_session_{}",
         hex::encode(sha2::Sha256::digest(profile.binding.bearer_token().as_bytes()))
     );
-    let config = serde_json::json!({
+    let mut config = serde_json::json!({
         "model": profile.model_alias,
         "review_model": profile.model_alias,
         "model_context_window": profile.model_context_limit,
@@ -54,6 +58,10 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             "stream_max_retries": 0
         }}
     });
+    if !native_responses {
+        // Chat cannot invoke a Responses-hosted search. Disable it in the session tool set.
+        config["web_search"] = "disabled".into();
+    }
     let native = toml::to_string(&config)?;
     let reference = profile
         .config()

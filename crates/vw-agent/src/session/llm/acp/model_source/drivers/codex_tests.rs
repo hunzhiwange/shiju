@@ -135,9 +135,9 @@ fn acp_model_source_codex_rejects_non_acp_arguments_and_non_loopback_relay() {
 }
 
 #[test]
-fn acp_model_source_codex_rejects_lossy_transport_before_launch() {
+fn acp_model_source_codex_rejects_unsupported_transport_before_launch() {
     for (adapter, url) in [
-        ("openai-compatible", "https://example.invalid/v1/chat/completions"),
+        ("openai-compatible", "https://example.invalid/v1/messages"),
         ("anthropic", "https://example.invalid/v1/messages"),
         ("google", "https://example.invalid/v1beta"),
     ] {
@@ -146,7 +146,7 @@ fn acp_model_source_codex_rejects_lossy_transport_before_launch() {
         api.adapter = adapter.into();
         api.url = url.into();
         let error = configure(&mut profile, "http://127.0.0.1:12345").unwrap_err().to_string();
-        assert!(error.contains("converted losslessly"));
+        assert!(error.contains("Responses or Chat Completions model"));
         assert!(!profile.directory().join("config.toml").exists());
         assert!(!profile.config().env.contains_key("CODEX_HOME"));
     }
@@ -154,6 +154,25 @@ fn acp_model_source_codex_rejects_lossy_transport_before_launch() {
     profile.model_api = None;
     assert!(configure(&mut profile, "http://127.0.0.1:12345").is_err());
     assert!(!profile.directory().join("config.toml").exists());
+}
+
+#[test]
+fn acp_model_source_codex_chat_accepts_tool_capable_models_and_disables_hosted_search() {
+    let mut profile = profile(&Default::default());
+    let api = profile.model_api.as_mut().unwrap();
+    api.adapter = "openai-compatible".into();
+    api.url = "https://example.invalid/v1/chat/completions".into();
+    let relay = "http://127.0.0.1:12345";
+    assert!(configure(&mut profile, relay).unwrap_err().to_string().contains("tool calls"));
+
+    profile.model_supports_tool_call = true;
+    configure(&mut profile, relay).unwrap();
+    let config: serde_json::Value =
+        serde_json::from_str(&profile.config().env["CODEX_CONFIG"]).unwrap();
+    assert_eq!(config["web_search"], "disabled");
+    let provider = &config["model_providers"][config["model_provider"].as_str().unwrap()];
+    assert_eq!(provider["wire_api"], "responses");
+    assert_eq!(provider["base_url"], format!("{relay}/v1"));
 }
 
 #[tokio::test]
@@ -268,18 +287,21 @@ use serde_json::{Value, json};
 use std::{path::Path, time::Duration};
 
 fn codex_accepted(evidence: &Value, mode: &str) -> bool {
-    let Some(requests) = evidence["requests"].as_array() else { return false };
+    let Some(requests) = evidence["requests"].as_array() else {
+        return false;
+    };
     let primary = requests.iter().any(|r| r["model"] == "acp-fixture-primary");
     let switched = requests.iter().any(|r| r["model"] == "acp-fixture-switched");
+    let route = if mode == "session-model-chat" { "/v1/chat/completions" } else { "/v1/responses" };
     evidence["errors"] == 0
         && requests.len() >= 4
         && primary
         && (mode == "cli-local" || switched)
         && requests.iter().all(|r| {
             r["authenticated"] == true
-                && r["route"] == "/v1/responses"
+                && r["route"] == route
                 && (r["model"] == "acp-fixture-primary"
-                    || (mode == "session-model" && r["model"] == "acp-fixture-switched"))
+                    || (mode != "cli-local" && r["model"] == "acp-fixture-switched"))
         })
         && requests.iter().any(|r| r["tool_results"].as_u64().unwrap_or(0) >= 2)
 }
@@ -336,7 +358,13 @@ async fn codex_request(
         StreamEvent::Done { .. } => done = true,
         _ => {}
     };
-    let session = format!("real-cli-offline-{}", input["challenge"].as_str().unwrap());
+    let challenge = input["challenge"].as_str().unwrap();
+    let session = if input["mode"] == "session-model-chat" {
+        // A started session keeps its selected model. Test the second model in a new session.
+        format!("real-cli-offline-{challenge}-{}", model.id)
+    } else {
+        format!("real-cli-offline-{challenge}")
+    };
     let production = crate::session::llm::acp::do_stream_request_acp(
         model,
         info,
@@ -425,11 +453,16 @@ async fn codex_run(mode: &str) {
     };
     let agent = input["agent"].as_str().unwrap();
     assert_eq!(agent, "codex");
+    let (route, adapter) = if mode == "session-model-chat" {
+        ("/v1/chat/completions", "openai-compatible")
+    } else {
+        ("/v1/responses", "openai-responses")
+    };
     crate::config::update_project_for_tenant(&tenant, root, json!({
         "acp": {agent: config},
         "providers": {"acp-offline-acceptance": {
-            "api": format!("{}/v1/responses", input["fixture"].as_str().unwrap()),
-            "adapter":"openai-responses", "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
+            "api": format!("{}{route}", input["fixture"].as_str().unwrap()),
+            "adapter":adapter, "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
                 "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true,"reasoning":true},
                 "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true,"reasoning":true}
@@ -480,6 +513,12 @@ async fn codex_run(mode: &str) {
 #[ignore = "requires explicit pinned real CLI manifest and owned offline model fixture"]
 async fn acp_model_source_codex_real_cli_session_model() {
     codex_run("session-model").await;
+}
+
+#[tokio::test]
+#[ignore = "requires explicit pinned real CLI manifest and owned offline Chat model fixture"]
+async fn acp_model_source_codex_chat_real_cli() {
+    codex_run("session-model-chat").await;
 }
 
 #[tokio::test]

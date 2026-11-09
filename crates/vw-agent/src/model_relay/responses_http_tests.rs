@@ -75,6 +75,19 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
             calls.lock().push((headers,body.clone()));
             let prompt = body["messages"].as_array().unwrap().last().unwrap()["content"].as_str().unwrap_or("").to_owned();
             if prompt == "error" { return Response::builder().status(500).body(Body::from("private upstream secret")).unwrap(); }
+            if body["tools"].as_array().is_some_and(|tools| {
+                tools.iter().any(|tool| tool["function"]["name"] == "apply_patch")
+            }) {
+                let frames = [
+                    json!({"choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Inspect the file."}}]}),
+                    json!({"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"patch-1","type":"function","function":{"name":"apply_patch","arguments":"{\"input\":"}}]}}]}),
+                    json!({"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"*** Begin Patch\\n*** End Patch\"}"}}]},"finish_reason":"tool_calls"}]}),
+                    json!({"choices":[],"usage":{"prompt_tokens":8,"completion_tokens":5}})
+                ];
+                let mut wire = frames.iter().map(|frame| format!("data: {frame}\n\n")).collect::<String>();
+                wire.push_str("data: [DONE]\n\n");
+                return sse(wire, false);
+            }
             if body["stream"] == true {
                 let values = [
                     json!({"id":"chat-id","choices":[{"index":0,"delta":{"role":"assistant","content":"你"}}]}),
@@ -243,6 +256,88 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         .await
         .unwrap();
     assert_eq!(parse_events(&wire).last().unwrap()["type"], "response.failed");
+    let codex = RelayBinding::new(
+        RelayIdentity { session: "one:codex".into(), ..identity.clone() },
+        Duration::from_secs(60),
+    )
+    .unwrap();
+    let codex_server =
+        RelayServer::start(codex.clone(), backend.clone(), context.clone()).await.unwrap();
+    let codex_url = format!("http://{}/v1/responses", codex_server.address());
+    let request = json!({"model":"selected","input":[
+        {"type":"message","id":"dev-1","role":"developer","content":"policy"},
+        {"type":"message","role":"user","content":"edit the file"}
+    ],"stream":true,"store":false,"tools":[
+        {"type":"custom","name":"apply_patch","format":{"type":"text"}}
+    ],"reasoning":{"effort":"medium","summary":"auto"},
+    "include":["reasoning.encrypted_content"],"client_metadata":{"client":"private"},
+    "prompt_cache_key":"private-session"});
+    let wire = client
+        .post(&codex_url)
+        .bearer_auth(codex.bearer_token())
+        .json(&request)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    let events = parse_events(&wire);
+    assert!(events.iter().any(|event| event["type"] == "response.custom_tool_call_input.delta"
+        && event["delta"] == "*** Begin Patch\n*** End Patch"));
+    let result = &events.last().unwrap()["response"];
+    assert_eq!(result["status"], "completed");
+    assert_eq!(result["output"][0]["type"], "reasoning");
+    assert_eq!(result["output"][1]["call_id"], "patch-1");
+    let mut replay = request.clone();
+    let items = replay["input"].as_array_mut().unwrap();
+    let mut reasoning = result["output"][0].clone();
+    reasoning["content"] = Value::Null;
+    reasoning["encrypted_content"] = Value::Null;
+    items.push(reasoning);
+    items.push(result["output"][1].clone());
+    items.push(json!({"type":"custom_tool_call_output","call_id":"patch-1","output":"done"}));
+    client
+        .post(&codex_url)
+        .bearer_auth(codex.bearer_token())
+        .json(&replay)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .bytes()
+        .await
+        .unwrap();
+    {
+        let calls = captured.lock();
+        let sent = &calls.last().unwrap().1;
+        assert!(sent.get("prompt_cache_key").is_none());
+        assert!(sent.get("client_metadata").is_none());
+        assert_eq!(sent["messages"][0]["role"], "system");
+        assert_eq!(sent["messages"][2]["reasoning_content"], "Inspect the file.");
+        assert_eq!(sent["messages"][2]["tool_calls"][0]["id"], "patch-1");
+        assert_eq!(sent["messages"][3]["tool_call_id"], "patch-1");
+    }
+    let next_turn = json!({"model":"selected","input":[
+        {"type":"message","role":"user","content":"previous turn"},
+        {"type":"message","role":"assistant","content":[
+            {"type":"output_text","text":"finished","annotations":[],"logprobs":[]}
+        ]},
+        {"type":"message","role":"user","content":"next turn"}
+    ]});
+    client
+        .post(&codex_url)
+        .bearer_auth(codex.bearer_token())
+        .json(&next_turn)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+    drop(codex_server);
     // Same-protocol reasoning and extensions survive; upstream response references stay capability-local.
     crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/responses"),"adapter":"openai-responses","models":{"selected":{"reasoning":true,"tool_call":true}}}}})).await.unwrap();
     body = json!({"model":"selected","input":"hello","store":true,"include":["reasoning.encrypted_content"]});

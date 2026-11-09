@@ -72,6 +72,11 @@ Windows、Linux、macOS Intel 当前不公布客户端模型支持，默认原�
 例如 Claude 使用 Chat 协议时关闭 Claude 专属 thinking，不转换签名；
 原生 Messages 推理路径保留原有能力，Responses 等未支持的转换仍会拒绝。
 
+Codex 客户端模型支持原生 Responses 和支持工具调用的 OpenAI 兼容 Chat
+Completions。Chat 路径转换流式事件、命名空间函数和 `apply_patch` 等自由文本工具，
+并保留工具调用与结果的关联。Chat 路径关闭 Responses 托管网页搜索，拒绝加密推理
+和服务端历史引用。原生 Responses 路径使用供应商自身的能力。
+
 ## 后续对比方法
 
 1. 核对生产[能力表与证据版本](../../../crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs)

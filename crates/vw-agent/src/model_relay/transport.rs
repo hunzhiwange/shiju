@@ -54,12 +54,12 @@ pub(super) fn credential(
     }
 }
 
-fn chat_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
-    if !matches!(model.api.adapter.as_str(), "openai" | "openai-compatible") {
+pub(crate) fn chat_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
+    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible") {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     let mut url =
-        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if !matches!(url.scheme(), "http" | "https")
         || !url.username().is_empty()
         || url.password().is_some()
@@ -79,6 +79,32 @@ fn chat_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
         url.set_path(&format!("{path}/chat/completions"));
     }
     Ok(url)
+}
+
+/// The official DeepSeek Chat and Messages endpoints share model IDs and credentials.
+pub(crate) fn official_deepseek_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
+    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible")
+        || !matches!(api.id.as_str(), "deepseek-flash" | "deepseek-v4-pro")
+    {
+        return None;
+    }
+    let mut url = reqwest::Url::parse(api.url.trim()).ok()?;
+    if url.scheme() != "https"
+        || url.host_str() != Some("api.deepseek.com")
+        || url.port().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !matches!(
+            url.path().trim_end_matches('/'),
+            "" | "/v1" | "/chat/completions" | "/v1/chat/completions"
+        )
+    {
+        return None;
+    }
+    url.set_path("/anthropic/v1/messages");
+    Some(url)
 }
 
 fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
@@ -215,6 +241,9 @@ impl RelayBackend for ProviderRelayBackend {
         let messages_request = request.path == "/v1/messages";
         let responses_request = request.path == "/v1/responses";
         let native_responses = responses_request && super::responses::is_native(model);
+        let codex_chat =
+            responses_request && !native_responses && identity.session.ends_with(":codex");
+        let mut response_tools = super::responses::ChatTools::default();
         let native = messages_request && model.api.adapter == "anthropic";
         let body = if gemini_request {
             let input =
@@ -232,9 +261,15 @@ impl RelayBackend for ProviderRelayBackend {
         } else if native_responses {
             super::responses::native(model, identity, &request.body, &self.references)?
         } else if responses_request {
-            let input =
+            let mut input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
-            let converted = super::responses::to_chat(&input)?;
+            let effort =
+                if codex_chat { super::responses::codex_chat_effort(&mut input)? } else { None };
+            let (mut converted, tools) = super::responses::to_chat(&input, codex_chat)?;
+            response_tools = tools;
+            if codex_chat {
+                super::responses::configure_codex_chat(&mut converted, model, effort.as_deref());
+            }
             chat::prepare(
                 model,
                 &identity.model,
@@ -262,7 +297,7 @@ impl RelayBackend for ProviderRelayBackend {
         } else if native {
             messages_url(model)?
         } else {
-            chat_url(model)?
+            chat_url(&model.api)?
         };
         let key = bearer(&info)?;
         let mut headers = axum::http::HeaderMap::new();
@@ -325,6 +360,8 @@ impl RelayBackend for ProviderRelayBackend {
                 super::responses_stream::Output {
                     identity: identity.clone(),
                     native: native_responses,
+                    codex_chat,
+                    tool_names: response_tools,
                     streaming,
                     store: native_responses && body["store"] != false,
                     references: self.references.clone(),

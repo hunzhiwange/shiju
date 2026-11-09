@@ -14,10 +14,11 @@ pub enum GoalTaskFilesState {
 pub fn inspect_goal_task_files(
     plan_abs: &Path,
     tasks: &[PlanTaskEntry],
+    restrict_files: bool,
 ) -> Result<GoalTaskFilesState, String> {
     let mut pending = Vec::new();
     for task in tasks {
-        match inspect_goal_task_file(plan_abs, task)? {
+        match inspect_goal_task_file(plan_abs, task, restrict_files)? {
             GoalTaskFilesState::Complete => {}
             GoalTaskFilesState::Pending(reason) => pending.push(reason),
             GoalTaskFilesState::Blocked(reason) => {
@@ -36,8 +37,10 @@ pub fn inspect_goal_task_files(
 pub fn inspect_goal_task_file(
     plan_abs: &Path,
     task: &PlanTaskEntry,
+    restrict_files: bool,
 ) -> Result<GoalTaskFilesState, String> {
     let task_path = task_file_path(plan_abs, task);
+    check_plan_file(plan_abs, &task_path, restrict_files)?;
     if !task_path.exists() {
         return Ok(GoalTaskFilesState::Pending(format!(
             "## {} ({})\n任务文件不存在",
@@ -56,6 +59,39 @@ pub fn inspect_goal_task_file(
         )));
     }
     Ok(GoalTaskFilesState::Complete)
+}
+
+/// Background ACP plans must not make the host read arbitrary files from the manifest.
+pub(super) fn check_plan_file(
+    plan_dir: &Path,
+    path: &Path,
+    restricted: bool,
+) -> Result<(), String> {
+    if !restricted {
+        return Ok(());
+    }
+    let outside = || format!("ACP 计划文件必须是计划目录中的普通文件: {}", path.display());
+    if path.parent() != Some(plan_dir)
+        || path.file_name().and_then(|name| name.to_str()).is_none_or(|name| name.starts_with('.'))
+        || plan_dir.canonicalize().ok().as_deref() != Some(plan_dir)
+    {
+        return Err(outside());
+    }
+    let metadata = match path.symlink_metadata() {
+        Ok(metadata) if metadata.is_file() => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        _ => return Err(outside()),
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if metadata.nlink() != 1 {
+            return Err(outside());
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = metadata;
+    Ok(())
 }
 
 fn build_goal_continuation_prompt_base(

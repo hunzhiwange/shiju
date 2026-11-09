@@ -1049,6 +1049,7 @@ async fn start_gateway_chat_stream(
     tenant: TenantScope,
     dir: String,
     body: GatewayChatStreamRequest,
+    background_full_access: Option<bool>,
     abort_token: Option<tokio_util::sync::CancellationToken>,
 ) -> Result<UnboundedReceiver<Value>, ApiError> {
     let (tx, rx) = mpsc::unbounded_channel::<Value>();
@@ -1056,7 +1057,7 @@ async fn start_gateway_chat_stream(
         tenant,
         dir,
         body,
-        None,
+        background_full_access,
         abort_token,
         None,
         move |payload, _terminal| tx.send(payload).is_ok(),
@@ -1114,6 +1115,7 @@ fn merge_acp_model_source(body: &mut GatewayChatStreamRequest) -> Result<(), Api
 
 async fn prepare_gateway_agent_request(
     body: &mut GatewayChatStreamRequest,
+    background_full_access: Option<bool>,
 ) -> Result<DelegateRequestOverrides, ApiError> {
     merge_acp_model_source(body)?;
     let options = body.options.as_ref();
@@ -1169,18 +1171,28 @@ async fn prepare_gateway_agent_request(
             value.as_bool().ok_or_else(|| ApiError::bad_request("full_access must be a boolean"))
         })
         .transpose()?;
-    let full_access = crate::session::agent_binding::resolve_full_access(
-        session,
-        explicit_full_access,
-        binding.defaults.full_access,
-    )
-    .await
-    .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let background_acp_access = background_full_access.filter(|_| body.acp_agent.is_some());
+    let full_access = match background_acp_access {
+        // The automation grant is for this turn only. Never persist it as a chat preference.
+        Some(granted) => granted,
+        None => crate::session::agent_binding::resolve_full_access(
+            session,
+            explicit_full_access,
+            binding.defaults.full_access,
+        )
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?,
+    };
     let mut options = body.options.take().unwrap_or_else(|| serde_json::json!({}));
-    options
+    let values = options
         .as_object_mut()
-        .ok_or_else(|| ApiError::bad_request("options must be an object"))?
-        .insert("full_access".into(), Value::Bool(full_access));
+        .ok_or_else(|| ApiError::bad_request("options must be an object"))?;
+    values.insert("full_access".into(), Value::Bool(full_access));
+    if background_acp_access.is_some() {
+        values
+            .entry("acp_non_interactive_permissions")
+            .or_insert_with(|| serde_json::json!("deny"));
+    }
     body.options = Some(options);
     body.agent = Some(binding.agent.clone());
     let definition = config
@@ -1282,7 +1294,7 @@ async fn start_gateway_chat_producer(
     tenant: TenantScope,
     dir: String,
     mut body: GatewayChatStreamRequest,
-    delegate_overrides: Option<DelegateRequestOverrides>,
+    background_full_access: Option<bool>,
     abort_token: Option<tokio_util::sync::CancellationToken>,
     prompt_cancel: Option<SharedPromptCancel>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
@@ -1322,10 +1334,8 @@ async fn start_gateway_chat_producer(
     let (session_project, _) = crate::project::from_directory(&tenant, &dir)
         .await
         .map_err(|error| ApiError::bad_request(format!("无法解析会话项目：{error}")))?;
-    let delegate_overrides = match delegate_overrides {
-        Some(overrides) => overrides,
-        None => prepare_gateway_agent_request(&mut body).await?,
-    };
+    let delegate_overrides =
+        prepare_gateway_agent_request(&mut body, background_full_access).await?;
     let GatewayChatStreamRequest {
         acp_model_source: _,
         session_id,
@@ -1343,6 +1353,7 @@ async fn start_gateway_chat_producer(
     let model = delegate_overrides.model.clone();
     let message_agent = delegate_overrides.agent.clone().unwrap_or_else(|| "gateway".to_string());
     let preserve_structured_prompt = acp_agent.is_some();
+    let background_acp = background_full_access.is_some() && preserve_structured_prompt;
     let options = merge_gateway_request_options(
         options,
         delegate_overrides.agent,
@@ -1475,13 +1486,13 @@ async fn start_gateway_chat_producer(
                         options: options.clone(),
                         approval: Some(approval_manager.clone()),
                         channel_name: Some("desktop".to_string()),
-                        non_cli_approval_context: Some(
+                        non_cli_approval_context: (!background_acp).then(|| {
                             crate::agent::loop_::NonCliApprovalContext {
                                 sender: "desktop".to_string(),
                                 reply_target: approval_reply_target,
                                 prompt_tx: approval_prompt_tx,
-                            },
-                        ),
+                            }
+                        }),
                         assistant_message_id: stream_message_ids
                             .as_ref()
                             .map(|ids| ids.assistant_id.clone()),
@@ -1911,14 +1922,33 @@ pub(crate) async fn collect_gateway_chat_stream_with_observer(
     body: GatewayChatStreamRequest,
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
+    collect_gateway_chat_stream_for_turn(dir, body, None, observe_payload).await
+}
+
+pub(crate) async fn collect_background_gateway_chat_stream(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    acp_full_access: bool,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    collect_gateway_chat_stream_for_turn(dir, body, Some(acp_full_access), observe_payload).await
+}
+
+async fn collect_gateway_chat_stream_for_turn(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    background_full_access: Option<bool>,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let cancellation = tokio_util::sync::CancellationToken::new();
     // AgentTool can drop the collector on stop while the gateway producer is still active.
     let _cancel_on_drop = cancellation.clone().drop_guard();
     let rx = with_tenant_instance(tenant.clone(), dir.clone(), move || {
-        Box::pin(
-            async move { start_gateway_chat_stream(tenant, dir, body, Some(cancellation)).await },
-        )
+        Box::pin(async move {
+            start_gateway_chat_stream(tenant, dir, body, background_full_access, Some(cancellation))
+                .await
+        })
     })
     .await?;
     collect_gateway_chat_stream_payloads(rx, observe_payload).await
@@ -1982,6 +2012,14 @@ pub(super) async fn chat_stream(
     Json(mut body): Json<GatewayChatStreamRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     validate_public_acp_chat_options(body.options.as_ref())?;
+    // Public background requests can only opt into the restricted ACP path.
+    let background_full_access = (body
+        .options
+        .as_ref()
+        .and_then(|options| options.get("acp_background"))
+        .and_then(Value::as_bool)
+        == Some(true))
+    .then_some(false);
     let tenant = crate::session::ui_store::current_tenant_scope();
     let dir = resolve_directory(&query, &headers);
     #[cfg(not(target_arch = "wasm32"))]
@@ -2053,7 +2091,7 @@ pub(super) async fn chat_stream(
                     tenant_for_stream,
                     dir,
                     body,
-                    None,
+                    background_full_access,
                     Some(cancellation),
                     Some(prompt_cancel),
                     move |payload, terminal| producer.publish(payload.to_string(), terminal),

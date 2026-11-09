@@ -116,7 +116,7 @@ fn gateway_stream_payload_logs_ignore_empty_delta_and_truncate_step_fields() {
 }
 
 #[test]
-fn gateway_stream_request_adds_acp_session_isolation_options() -> Result<()> {
+fn acp_background_approval_scheduler_keeps_session_isolation() -> Result<()> {
     let request = execution_request(Some("reviewer"), Some("codex"))?;
 
     let stream = gateway_local_agent_stream_request(&request);
@@ -128,14 +128,65 @@ fn gateway_stream_request_adds_acp_session_isolation_options() -> Result<()> {
     );
     assert_eq!(stream.messages, vec![json!({"role": "user", "content": "Do the task"})]);
     assert_eq!(options["cwd"], "/repo/.vw/worktrees/slot-1");
-    assert_eq!(options["full_access"], true);
+    assert_eq!(options["full_access"], false);
     assert_eq!(options["agent"], "reviewer");
     assert_eq!(options["acp_agent"], "codex");
     assert_eq!(options["acp_force_new_session"], true);
     assert_eq!(options["acp_close_client_after_request"], true);
     assert_eq!(options["acp_history_strategy"], "discard");
     assert_eq!(options["acp_history_recent_count"], 1);
-    assert_eq!(options["acp_permission_mode"], "approve-all");
+    assert_eq!(options["acp_permission_mode"], "approve-reads");
+    assert_eq!(options["acp_non_interactive_permissions"], "deny");
+    Ok(())
+}
+
+#[cfg(unix)]
+#[tokio::test]
+#[ignore = "requires python3 for the ACP protocol fixture"]
+async fn acp_background_approval_scheduler_writes_only_inside_worktree() -> Result<()> {
+    use crate::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream;
+    use vw_api_types::acp_model_source::AcpModelSource;
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let temp = tempfile::tempdir()?;
+    let workspace = temp.path().canonicalize()?.join("worktree");
+    std::fs::create_dir(&workspace)?;
+    let outside = temp.path().join("outside.txt");
+    let peer = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/verify_acp_approval.py");
+    crate::config::update(json!({
+        "agents":{"acp-codex":{"enabled":true,"runtime":{"kind":"acp","backend":"codex"}}},
+        "acp":{"codex":{"command":"python3", "args":[peer, "--peer", workspace, outside]}}
+    }))
+    .await?;
+
+    let mut task = execution_request(Some("acp-codex"), Some("codex"))?;
+    task.workspace.path = workspace.to_string_lossy().into_owned();
+    let mut request = gateway_local_agent_stream_request(&task);
+    // The controlled peer exercises host callbacks without a supplier model or credentials.
+    request.acp_model_source = AcpModelSource::CliLocal;
+    request.model = None;
+
+    let mut completed = false;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        collect_background_gateway_chat_stream(task.workspace.path, request, false, |event| {
+            completed |= event["type"] == "chat.done";
+        }),
+    )
+    .await??;
+    assert!(completed);
+    assert!(
+        result
+            .output
+            .contains(r#"ACP_APPROVAL_FIXTURE_DONE [["deny", "deny", "deny"], false, "new"]"#)
+    );
+    assert_eq!(std::fs::read_to_string(workspace.join("note.txt"))?, "second edit");
+    assert!(!outside.exists());
     Ok(())
 }
 

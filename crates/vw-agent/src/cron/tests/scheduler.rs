@@ -719,6 +719,7 @@ async fn cron_gateway_options_close_acp_client_after_request() {
 
     let options = super::cron_gateway_options(&config, &job, Some("codex"));
 
+    assert_eq!(options["acp_non_interactive_permissions"], "deny");
     assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
     assert_eq!(
@@ -741,6 +742,7 @@ async fn cron_gateway_options_preserves_disabled_full_access_for_acp() {
 
     let options = super::cron_gateway_options(&config, &job, Some("codex"));
 
+    assert_eq!(options["acp_non_interactive_permissions"], "deny");
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(false));
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),

@@ -1,10 +1,13 @@
 //! 计划生成与按批次调度的子会话执行器。
 
+use super::goal::check_plan_file;
 use super::goal::{
     GoalTaskFilesState, build_goal_continuation_prompt, goal_turn_session_id,
     inspect_goal_task_file, inspect_goal_task_files,
 };
-use super::prompts::{build_execution_prompt, build_goal_planning_prompt_for_dir, plan_dir_abs};
+use super::prompts::{
+    build_execution_prompt, build_goal_planning_prompt_for_dir, plan_dir_abs, plan_dir_name,
+};
 use super::session_bind::{ensure_plan_run_session_info, persist_plan_run_session_history};
 use super::{PlanTaskEntry, build_batch_stages, load_tasks_json};
 use crate::session::child_agent::coordinator::{
@@ -58,21 +61,62 @@ pub trait SessionRunner: Send + Sync {
 #[derive(Debug, Default, Clone)]
 pub struct GatewaySessionRunner {
     tenant: vw_api_types::id::TenantScope,
+    parent_session_id: Option<String>,
 }
 
 impl GatewaySessionRunner {
-    pub fn new(tenant: vw_api_types::id::TenantScope) -> Self {
-        Self { tenant }
+    pub fn new(tenant: vw_api_types::id::TenantScope, parent_session_id: Option<String>) -> Self {
+        Self { tenant, parent_session_id }
+    }
+
+    pub(super) async fn acp_full_access(
+        &self,
+        request: &SessionRunRequest,
+    ) -> anyhow::Result<bool> {
+        let (Some(parent), Some(backend)) = (
+            self.parent_session_id.as_deref().map(str::trim).filter(|id| !id.is_empty()),
+            selected_acp_agent(request.acp_agent.as_deref()),
+        ) else {
+            return Ok(false);
+        };
+        let root = Path::new(&request.root).canonicalize()?;
+        let (project, _) = crate::project::from_directory(&self.tenant, &root).await?;
+        let tenant = self.tenant.clone();
+        let parent_id = parent.to_owned();
+        let project_id = project.id.clone();
+        let parent_matches = crate::global_database::run_isolated(move || {
+            crate::session::ui_store::load_agent_session_scoped_for_tenant(
+                &tenant,
+                &parent_id,
+                Some(&project_id),
+            )
+            .is_some_and(|info| {
+                info.time.archived.is_none()
+                    && Path::new(&info.directory).canonicalize().ok().as_ref() == Some(&root)
+            })
+        })
+        .await?;
+        if !parent_matches {
+            return Ok(false);
+        }
+        let binding = crate::session::agent_binding::load_scoped(&project.id, parent).await?;
+        if !binding.is_some_and(|binding| {
+            binding.validate_selection(request.agent.as_deref(), Some(backend)).is_ok()
+        }) {
+            return Ok(false);
+        }
+        crate::session::agent_binding::confirmed_full_access(&project.id, parent).await
     }
 }
 
 /// 构建规划/执行子会话的 processor options。
-///
-/// 对齐桌面任务执行器：始终开启 `full_access`，否则写文件工具会被审批拦住，
-/// 规划会话只会回文本、落不了 `tasks.json`。
-pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String, Value> {
+pub(crate) fn gateway_session_options(
+    request: &SessionRunRequest,
+    acp_full_access: bool,
+) -> Map<String, Value> {
+    let acp_agent = selected_acp_agent(request.acp_agent.as_deref());
     let mut options = Map::new();
-    options.insert("full_access".to_string(), json!(true));
+    options.insert("full_access".to_string(), json!(acp_agent.is_none() || acp_full_access));
     options.insert("cwd".to_string(), json!(request.root.as_str()));
     options.insert("goal_mode".to_string(), json!(true));
     options.insert("workflow_mode".to_string(), json!(true));
@@ -81,13 +125,15 @@ pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String
         options.insert("agent".to_string(), json!(agent));
     }
 
-    let acp_agent =
-        request.acp_agent.as_ref().map(|value| value.trim()).filter(|value| !value.is_empty());
     let acp_enabled = acp_agent.is_some();
     options.insert("acp_test".to_string(), json!(acp_enabled));
     if let Some(acp_agent) = acp_agent {
         options.insert("acp_agent".to_string(), json!(acp_agent));
-        options.insert("acp_permission_mode".to_string(), json!("approve-all"));
+        options.insert(
+            "acp_permission_mode".to_string(),
+            json!(if acp_full_access { "approve-all" } else { "approve-reads" }),
+        );
+        options.insert("acp_non_interactive_permissions".to_string(), json!("deny"));
         options.insert("acp_force_new_session".to_string(), json!(true));
         options.insert("acp_close_client_after_request".to_string(), json!(true));
         options.insert("acp_history_strategy".to_string(), json!("discard"));
@@ -95,6 +141,10 @@ pub(crate) fn gateway_session_options(request: &SessionRunRequest) -> Map<String
     }
 
     options
+}
+
+fn selected_acp_agent(agent: Option<&str>) -> Option<&str> {
+    agent.map(str::trim).filter(|agent| !agent.is_empty())
 }
 
 /// 为需要持久化应用会话工件的 plan-run 轮次预分配 assistant 消息 ID。
@@ -109,7 +159,10 @@ impl SessionRunner for GatewaySessionRunner {
         request: SessionRunRequest,
         delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     ) -> Result<String, String> {
-        let options = gateway_session_options(&request);
+        let acp_full_access =
+            self.acp_full_access(&request).await.map_err(|error| error.to_string())?;
+        let options = gateway_session_options(&request, acp_full_access);
+        let acp = selected_acp_agent(request.acp_agent.as_deref()).is_some();
         let reliability =
             crate::config::get_project_for_tenant(&self.tenant, Path::new(&request.root))
                 .await
@@ -126,7 +179,8 @@ impl SessionRunner for GatewaySessionRunner {
             reliability,
             options: Value::Object(options),
             approval: None,
-            channel_name: None,
+            // Reuse the gateway's host workspace guard without an interactive approval channel.
+            channel_name: acp.then(|| "desktop".to_string()),
             non_cli_approval_context: None,
             assistant_message_id: Some(assistant_message_id),
             history: Vec::new(),
@@ -141,6 +195,34 @@ impl SessionRunner for GatewaySessionRunner {
             .await
             .map_err(|error| error.to_string())
     }
+}
+
+pub(super) fn prepare_plan_directory(
+    root: &str,
+    home: &Path,
+    task_id: &str,
+    acp_agent: Option<&str>,
+) -> anyhow::Result<PathBuf> {
+    use anyhow::{Context, ensure};
+    if selected_acp_agent(acp_agent).is_none() {
+        let path = plan_dir_abs(home, task_id);
+        ensure!(
+            !home.as_os_str().is_empty(),
+            "无法解析用户 home，计划目录目标: {}",
+            path.display()
+        );
+        std::fs::create_dir_all(&path).with_context(|| path.display().to_string())?;
+        return Ok(path);
+    }
+
+    let workspace = Path::new(root).canonicalize()?;
+    let plans = workspace.join("shiju-plans");
+    std::fs::create_dir_all(&plans)?;
+    ensure!(plans.canonicalize()? == plans, "ACP 计划目录不能使用符号链接");
+    let path = plans.join(plan_dir_name(task_id));
+    std::fs::create_dir_all(&path)?;
+    ensure!(path.canonicalize()? == path, "ACP 计划目录不能使用符号链接");
+    Ok(path)
 }
 
 /// 使用根取消令牌执行计划；取消会抢占当前规划、批次等待、重试或目标续轮。
@@ -215,29 +297,22 @@ where
         return Err(message);
     }
 
-    let plan_abs = plan_dir_abs(home, task_id);
+    let plan_abs = match prepare_plan_directory(root, home, task_id, request.acp_agent.as_deref()) {
+        Ok(plan_abs) => plan_abs,
+        Err(error) => {
+            let message = format!("无法创建计划目录: {error}");
+            let _ = on_event(TaskPlanRunStreamEventDto::Error {
+                task_id: Some(task_id.to_string()),
+                message: message.clone(),
+            });
+            return Err(message);
+        }
+    };
     let plan_dir_display = path_display(&plan_abs);
-    if home.as_os_str().is_empty() {
-        let message = format!("无法解析用户 home，计划目录目标: {plan_dir_display}");
-        let _ = on_event(TaskPlanRunStreamEventDto::Error {
-            task_id: Some(task_id.to_string()),
-            message: message.clone(),
-        });
-        return Err(message);
-    }
     let planning_session = planning_session_id(task_id);
     let parent_session_id =
         request.parent_session_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
     let planning_title = format!("规划 · {task_id}");
-
-    if let Err(error) = std::fs::create_dir_all(&plan_abs) {
-        let message = format!("无法创建计划目录 {}: {error}", plan_dir_display);
-        let _ = on_event(TaskPlanRunStreamEventDto::Error {
-            task_id: Some(task_id.to_string()),
-            message: message.clone(),
-        });
-        return Err(message);
-    }
 
     if let Err(error) =
         ensure_plan_run_session_info(&planning_session, parent_session_id, root).await
@@ -346,8 +421,11 @@ where
         }
     };
 
+    let restrict_files = selected_acp_agent(request.acp_agent.as_deref()).is_some();
     let tasks_json_path = plan_abs.join("tasks.json");
-    let document = match load_tasks_json(&tasks_json_path) {
+    let document = match check_plan_file(&plan_abs, &tasks_json_path, restrict_files)
+        .and_then(|()| load_tasks_json(&tasks_json_path))
+    {
         Ok(document) => document,
         Err(error) => {
             let preview = truncate_for_error(&planning_output, 800);
@@ -394,7 +472,17 @@ where
         }
     };
 
-    let plan_markdown = std::fs::read_to_string(plan_abs.join("plan.md")).unwrap_or_default();
+    let check_file = |path: &Path, on_event: &mut F| {
+        check_plan_file(&plan_abs, path, restrict_files).inspect_err(|message| {
+            let _ = on_event(TaskPlanRunStreamEventDto::Error {
+                task_id: Some(task_id.to_string()),
+                message: message.clone(),
+            });
+        })
+    };
+    let plan_markdown_path = plan_abs.join("plan.md");
+    check_file(&plan_markdown_path, &mut on_event)?;
+    let plan_markdown = std::fs::read_to_string(plan_markdown_path).unwrap_or_default();
     let mut combined_output = String::new();
 
     for stage in stages {
@@ -418,6 +506,7 @@ where
         for &index in &stage {
             let task = &document.tasks[index];
             let task_file_abs = resolve_task_file(&plan_abs, task);
+            check_file(&task_file_abs, &mut on_event)?;
             let task_file_display = path_display(&task_file_abs);
             let session_id = subtask_session_id(task_id, &task.id);
             let subtask_title = task.title.clone();
@@ -508,12 +597,13 @@ where
             let session_id = subtask_session_id(task_id, &task.id);
             match result {
                 Ok(output) => {
-                    let completion_error = match inspect_goal_task_file(&plan_abs, &task) {
-                        Ok(GoalTaskFilesState::Complete) => None,
-                        Ok(GoalTaskFilesState::Pending(reason))
-                        | Ok(GoalTaskFilesState::Blocked(reason))
-                        | Err(reason) => Some(reason),
-                    };
+                    let completion_error =
+                        match inspect_goal_task_file(&plan_abs, &task, restrict_files) {
+                            Ok(GoalTaskFilesState::Complete) => None,
+                            Ok(GoalTaskFilesState::Pending(reason))
+                            | Ok(GoalTaskFilesState::Blocked(reason))
+                            | Err(reason) => Some(reason),
+                        };
                     append_subtask_execution_evidence(
                         &mut combined_output,
                         &task,
@@ -614,9 +704,19 @@ where
     let root = request.root.trim();
     let parent_session_id =
         request.parent_session_id.as_deref().map(str::trim).filter(|value| !value.is_empty());
+    let restrict_files = selected_acp_agent(request.acp_agent.as_deref()).is_some();
     let mut turn = 1_u32;
     loop {
-        let task_files_state = inspect_goal_task_files(plan_abs, tasks)?;
+        let task_files_state = match inspect_goal_task_files(plan_abs, tasks, restrict_files) {
+            Ok(state) => state,
+            Err(message) => {
+                let _ = on_event(TaskPlanRunStreamEventDto::Error {
+                    task_id: Some(task_id.to_string()),
+                    message: message.clone(),
+                });
+                return Err(message);
+            }
+        };
         let reason = match &task_files_state {
             GoalTaskFilesState::Complete => {
                 let _ = on_event(TaskPlanRunStreamEventDto::Finished {

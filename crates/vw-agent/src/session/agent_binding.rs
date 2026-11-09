@@ -207,6 +207,21 @@ impl ForkSettings {
     }
 }
 
+/// Read a persisted permission choice for automation without granting or storing a default.
+pub(crate) async fn confirmed_full_access(project: &str, session: &str) -> Result<bool> {
+    let key = storage_key(project, session)?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    crate::global_database::run_isolated(move || {
+        Ok(store()?
+            .get(&tenant, "session.full-access", &key)?
+            .as_deref()
+            .map(serde_json::from_str::<bool>)
+            .transpose()?
+            .unwrap_or(false))
+    })
+    .await?
+}
+
 // Persist the session choice separately from the immutable agent defaults snapshot.
 static FULL_ACCESS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 

@@ -71,6 +71,14 @@ fn internal_title_profile_is_fixed_and_has_no_configured_options() {
 }
 
 #[test]
+fn internal_acp_title_profile_denies_tool_permissions_without_prompting() {
+    let profile = internal_title_profile(Some("codex"));
+    assert_eq!(profile.options["full_access"], false);
+    assert_eq!(profile.options["acp_permission_mode"], "deny-all");
+    assert_eq!(profile.options["acp_non_interactive_permissions"], "deny");
+}
+
+#[test]
 fn generated_title_is_trimmed_without_truncation() {
     assert_eq!(finalize_generated_title("  Rust 标题\n"), Ok("Rust 标题".to_string()));
 }

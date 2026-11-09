@@ -165,7 +165,7 @@ fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None).await
+                    start_gateway_chat_stream(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -1483,7 +1483,8 @@ async fn gateway_first_turn_registers_parent_before_thread_tool_use() {
     let directory_for_stream = directory.clone();
     let receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
         Box::pin(async move {
-            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request, None).await
+            start_gateway_chat_stream(tenant_for_stream, directory_for_stream, request, None, None)
+                .await
         })
     })
     .await
@@ -1996,7 +1997,7 @@ fn agcollab_delivery_reaches_next_model_request() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None).await
+                    start_gateway_chat_stream(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -2353,7 +2354,7 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None).await
+                    start_gateway_chat_stream(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -2504,7 +2505,7 @@ fn agent_session_identity_survives_profile_edits() {
         runtime.block_on(async {
             let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
                 Box::pin(async move {
-                    start_gateway_chat_stream(tenant, directory, request, None).await
+                    start_gateway_chat_stream(tenant, directory, request, None, None).await
                 })
             })
             .await
@@ -2555,11 +2556,11 @@ fn agent_session_identity_survives_profile_edits() {
                     agent: Some("main".into()),
                     ..Default::default()
                 };
-                let overrides = prepare_gateway_agent_request(&mut resumed).await.unwrap();
+                let overrides = prepare_gateway_agent_request(&mut resumed, None).await.unwrap();
                 assert_eq!(overrides.chat_system_prompt.as_deref(), Some("ORIGINAL_BINDING_RULE"));
                 let mut switched = resumed.clone();
                 switched.model = Some("model-recovery/different".into());
-                let error = prepare_gateway_agent_request(&mut switched).await.err().unwrap();
+                let error = prepare_gateway_agent_request(&mut switched, None).await.err().unwrap();
                 assert!(error.message.contains("changing a session model requires a new session"));
                 let mut config = crate::config::get_current().await.unwrap();
                 crate::session::agent_binding::apply_to_config(&session_id, &mut config)
@@ -2582,7 +2583,7 @@ fn agent_session_identity_survives_profile_edits() {
                 let mut new_session =
                     GatewayChatStreamRequest { agent: Some("main".into()), ..Default::default() };
                 assert!(
-                    prepare_gateway_agent_request(&mut new_session).await.is_err(),
+                    prepare_gateway_agent_request(&mut new_session, None).await.is_err(),
                     "disabled agents cannot start new sessions"
                 );
                 Ok(())
@@ -2605,16 +2606,62 @@ async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
         Box::pin(async {
             let mut request =
                 GatewayChatStreamRequest { agent: Some("acp-codex".into()), ..Default::default() };
-            let overrides = prepare_gateway_agent_request(&mut request).await.unwrap();
+            let overrides = prepare_gateway_agent_request(&mut request, None).await.unwrap();
             assert_eq!(overrides.agent.as_deref(), Some("acp-codex"));
             assert_eq!(request.acp_agent.as_deref(), Some("codex"));
             let mut conflicting = request.clone();
             conflicting.acp_agent = Some("claude".into());
             conflicting.options = Some(serde_json::json!({"goal_evaluation":true}));
-            assert!(prepare_gateway_agent_request(&mut conflicting).await.is_err());
+            assert!(prepare_gateway_agent_request(&mut conflicting, None).await.is_err());
             let mut conflicting = request;
             conflicting.agent = Some("acp-claude".into());
-            assert!(prepare_gateway_agent_request(&mut conflicting).await.is_err());
+            assert!(prepare_gateway_agent_request(&mut conflicting, None).await.is_err());
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn acp_background_approval_gateway_uses_turn_grant_after_agent_resolution() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
+        Box::pin(async {
+            let mut request = GatewayChatStreamRequest {
+                agent: Some("acp-codex".into()),
+                options: Some(serde_json::json!({"full_access":true})),
+                ..Default::default()
+            };
+            prepare_gateway_agent_request(&mut request, Some(false)).await.unwrap();
+            assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+            let options = request.options.as_ref().unwrap();
+            assert_eq!(options["full_access"], false);
+            assert_eq!(options["acp_non_interactive_permissions"], "deny");
+
+            request.options = Some(serde_json::json!({
+                "acp_permission_mode":"deny-all",
+                "acp_non_interactive_permissions":"fail"
+            }));
+            prepare_gateway_agent_request(&mut request, Some(true)).await.unwrap();
+            let options = request.options.as_ref().unwrap();
+            assert_eq!(options["full_access"], true);
+            assert_eq!(options["acp_permission_mode"], "deny-all");
+            assert_eq!(options["acp_non_interactive_permissions"], "fail");
+            let session = request.session_id.as_ref().unwrap().as_ref();
+            let project = instance::project().unwrap();
+            assert!(
+                !crate::session::agent_binding::confirmed_full_access(&project.id, session)
+                    .await
+                    .unwrap()
+            );
             Ok(())
         })
     })
@@ -2678,26 +2725,26 @@ async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_c
     with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
         Box::pin(async {
             let mut request = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut request).await.unwrap();
+            prepare_gateway_agent_request(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], true);
             request.options = Some(serde_json::json!({"full_access":false}));
-            prepare_gateway_agent_request(&mut request).await.unwrap();
+            prepare_gateway_agent_request(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
             let mut untouched = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut untouched).await.unwrap();
+            prepare_gateway_agent_request(&mut untouched, None).await.unwrap();
             crate::config::update(
                 serde_json::json!({"agents":{"main":{"defaults":{"full_access":false}}}}),
             )
             .await
             .unwrap();
             request.options = None;
-            prepare_gateway_agent_request(&mut request).await.unwrap();
+            prepare_gateway_agent_request(&mut request, None).await.unwrap();
             assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
             untouched.options = None;
-            prepare_gateway_agent_request(&mut untouched).await.unwrap();
+            prepare_gateway_agent_request(&mut untouched, None).await.unwrap();
             assert_eq!(untouched.options.as_ref().unwrap()["full_access"], true);
             let mut fresh = GatewayChatStreamRequest::default();
-            prepare_gateway_agent_request(&mut fresh).await.unwrap();
+            prepare_gateway_agent_request(&mut fresh, None).await.unwrap();
             assert_eq!(fresh.options.as_ref().unwrap()["full_access"], false);
             Ok(())
         })
@@ -2802,7 +2849,8 @@ async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority
                         })
                         .unwrap_or("model-recovery/original");
                     for _ in 0..2 {
-                        let resolved = prepare_gateway_agent_request(&mut request).await.unwrap();
+                        let resolved =
+                            prepare_gateway_agent_request(&mut request, None).await.unwrap();
                         assert_eq!(
                             resolved.model.as_deref(),
                             Some(expected),
@@ -2816,12 +2864,20 @@ async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority
                     ..Default::default()
                 };
                 assert!(
-                    prepare_gateway_agent_request(&mut inherited).await.unwrap().model.is_none(),
+                    prepare_gateway_agent_request(&mut inherited, None)
+                        .await
+                        .unwrap()
+                        .model
+                        .is_none(),
                     "prompt retains responsibility for global/Auto resolution"
                 );
                 inherited.model = Some("model-recovery/selected".into());
                 assert_eq!(
-                    prepare_gateway_agent_request(&mut inherited).await.unwrap().model.as_deref(),
+                    prepare_gateway_agent_request(&mut inherited, None)
+                        .await
+                        .unwrap()
+                        .model
+                        .as_deref(),
                     Some("model-recovery/selected")
                 );
                 let mut forced = GatewayChatStreamRequest {
@@ -2829,16 +2885,24 @@ async fn agent_model_inheritance_acp_new_and_reopened_sessions_preserve_priority
                     ..Default::default()
                 };
                 assert_eq!(
-                    prepare_gateway_agent_request(&mut forced).await.unwrap().model.as_deref(),
+                    prepare_gateway_agent_request(&mut forced, None)
+                        .await
+                        .unwrap()
+                        .model
+                        .as_deref(),
                     Some("model-recovery/original")
                 );
                 forced.model = Some("  AuTo  ".into());
                 assert_eq!(
-                    prepare_gateway_agent_request(&mut forced).await.unwrap().model.as_deref(),
+                    prepare_gateway_agent_request(&mut forced, None)
+                        .await
+                        .unwrap()
+                        .model
+                        .as_deref(),
                     Some("model-recovery/original")
                 );
                 forced.model = Some("model-recovery/conflict".into());
-                assert!(prepare_gateway_agent_request(&mut forced).await.is_err());
+                assert!(prepare_gateway_agent_request(&mut forced, None).await.is_err());
                 Ok(())
             })
         },

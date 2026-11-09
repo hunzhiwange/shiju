@@ -1620,7 +1620,7 @@ fn gateway_session_options_always_enable_full_access() {
         agent: Some("main".to_string()),
         acp_agent: None,
     };
-    let options = super::gateway_session_options(&request);
+    let options = super::gateway_session_options(&request, false);
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
     assert_eq!(options.get("cwd").and_then(serde_json::Value::as_str), Some("/tmp/project"));
     assert_eq!(options.get("agent").and_then(serde_json::Value::as_str), Some("main"));
@@ -1631,7 +1631,7 @@ fn gateway_session_options_always_enable_full_access() {
 }
 
 #[test]
-fn gateway_session_options_use_approve_all_for_acp() {
+fn acp_background_approval_plan_run_defaults_to_approval() {
     let request = SessionRunRequest {
         session_id: "s1".to_string(),
         query: "q".to_string(),
@@ -1640,14 +1640,93 @@ fn gateway_session_options_use_approve_all_for_acp() {
         agent: None,
         acp_agent: Some("codex".to_string()),
     };
-    let options = super::gateway_session_options(&request);
-    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    let options = super::gateway_session_options(&request, false);
+    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(false));
     assert_eq!(options.get("acp_agent").and_then(serde_json::Value::as_str), Some("codex"));
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
-        Some("approve-all")
+        Some("approve-reads")
     );
     assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(true));
+}
+
+#[test]
+fn gateway_session_options_respects_confirmed_acp_full_access() {
+    let request = SessionRunRequest {
+        session_id: "s1".into(),
+        query: "q".into(),
+        root: "/tmp/project".into(),
+        model: None,
+        agent: None,
+        acp_agent: Some("codex".into()),
+    };
+    let options = super::gateway_session_options(&request, true);
+    assert_eq!(options["full_access"], true);
+    assert_eq!(options["acp_permission_mode"], "approve-all");
+    assert_eq!(options["acp_non_interactive_permissions"], "deny");
+}
+
+#[cfg(unix)]
+#[test]
+fn acp_background_approval_plan_directory_stays_in_workspace() {
+    let workspace = tempfile::tempdir().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let root = workspace.path().to_str().unwrap();
+    let plan =
+        super::runner::prepare_plan_directory(root, home.path(), "task1", Some("codex")).unwrap();
+    assert_eq!(plan, workspace.path().canonicalize().unwrap().join("shiju-plans/task-task1"));
+    std::fs::remove_dir_all(workspace.path().join("shiju-plans")).unwrap();
+    std::os::unix::fs::symlink(home.path(), workspace.path().join("shiju-plans")).unwrap();
+    assert!(
+        super::runner::prepare_plan_directory(root, home.path(), "task2", Some("codex")).is_err()
+    );
+    assert!(!home.path().join("task-task2").exists());
+}
+
+#[tokio::test]
+async fn acp_background_approval_plan_inherits_current_workspace_grant() {
+    use crate::session::agent_binding::{AgentBinding, resolve_full_access_scoped, save_scoped};
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let workspace = tempfile::tempdir().unwrap();
+    let root = workspace.path().to_str().unwrap();
+    let parent = format!("parent-{}", uuid::Uuid::new_v4());
+    super::session_bind::ensure_plan_run_session_info(&parent, None, root).await.unwrap();
+    let (project, _) = crate::project::from_directory(&tenant, root).await.unwrap();
+    let definition = vw_config_types::agent::AgentDefinitionConfig {
+        runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+        ..Default::default()
+    };
+    let binding = AgentBinding::from_definition("acp-codex".into(), &definition);
+    save_scoped(&project.id, &parent, &binding).await.unwrap();
+    let runner = super::GatewaySessionRunner::new(tenant, Some(parent.clone()));
+    let mut request = SessionRunRequest {
+        session_id: "child".into(),
+        query: "q".into(),
+        root: root.into(),
+        model: None,
+        agent: Some("acp-codex".into()),
+        acp_agent: Some("codex".into()),
+    };
+    assert!(!runner.acp_full_access(&request).await.unwrap());
+    resolve_full_access_scoped(&project.id, &parent, Some(true), false).await.unwrap();
+    assert!(runner.acp_full_access(&request).await.unwrap());
+
+    request.acp_agent = Some("claude".into());
+    assert!(!runner.acp_full_access(&request).await.unwrap());
+    request.acp_agent = Some("codex".into());
+    let other = tempfile::tempdir().unwrap();
+    request.root = other.path().to_string_lossy().into_owned();
+    assert!(!runner.acp_full_access(&request).await.unwrap());
+
+    request.root = root.into();
+    resolve_full_access_scoped(&project.id, &parent, Some(false), false).await.unwrap();
+    assert!(!runner.acp_full_access(&request).await.unwrap());
 }
 
 #[test]

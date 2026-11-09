@@ -89,9 +89,11 @@ fn gateway_prompt_options_for_mode(
     let mut options = Map::new();
     options.insert("acp_test".to_string(), json!(acp_enabled));
     options.insert("cwd".to_string(), json!(execution_path));
-    options.insert("full_access".to_string(), json!(true));
+    options.insert("full_access".to_string(), json!(!acp_enabled));
+    // A named agent may resolve to ACP at the gateway even without an explicit backend.
+    options.insert("acp_background".to_string(), json!(true));
     if acp_enabled {
-        options.insert("acp_permission_mode".to_string(), json!("approve-all"));
+        options.insert("acp_permission_mode".to_string(), json!("approve-reads"));
         options.insert(
             "acp_force_new_session".to_string(),
             json!(session_mode == GatewayPromptSessionMode::Fresh),

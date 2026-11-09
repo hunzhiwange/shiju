@@ -66,6 +66,21 @@ Hermes 和 Kilocode 在审批档与撤销后能执行创建标记的命令。Ope
 
 同名 Codex 替换夹具只通过 ACP 回调操作文件。网关验证了无需批准的工作区创建和编辑、完全访问后允许越界写入、撤销并加载后恢复拒绝。两个并行工作区使用相同的远端会话 ID，同时等待独立审批，网关拒绝六次跨工作区答复和六次重复答复。未知自定义 key 由宿主协议矩阵覆盖，网关的智能体配置入口会拒绝该 key。
 
+## 后台入口
+
+| 入口 | 授权来源与无交互行为 |
+| --- | --- |
+| 计划运行 | 规划、各批次及续轮每次读取同租户、同工作区、同 ACP 绑定的父会话已保存权限。无匹配授权使用审批档。ACP 计划产物写入工作区内的 `shiju-plans/`，宿主拒绝目录外的清单文件引用与链接。 |
+| 本地调度 | 任务及 worktree 租约没有独立的完全访问授权。网关解析出 ACP 后使用审批档，拒绝需要人工确认的操作。 |
+| 桌面任务执行 | 后台请求在网关解析出 ACP 后使用审批档，显式指定后端或由代理配置选中后端均适用。 |
+| 定时任务 | 直接执行采用当前任务记录的 `full_access`，授权仅用于本轮。投递到任务池后按本地调度权限执行。 |
+| 标题生成 | 使用独立 ACP 会话，权限模式为 `deny-all`，无交互策略为 `deny`。 |
+| `shiju acp` | 入站 stdio 服务通过外部客户端接收 ACP 请求。它不提供本地后台任务的授权来源。独立 ACP 客户端仍使用调用者给定的权限及无交互策略。 |
+
+审批档继续允许符合宿主边界的普通文件写入。需要一次性人工确认的原生写入、命令和删除在后台拒绝，显式 `fail` 策略仍返回错误。上表列明要求当前完全访问授权的原生适配器在后台同样适用。缺少固定运行时边界证据的五个供应商仍受前述限制。
+
+Darwin arm64 的 Vibe 3.0.4 以真实计划入口运行两种模型来源。每轮完成 9 个工具请求，普通文件创建和覆盖落盘，越界写入、终端命令和删除均无副作用，计划完成时没有待审批请求。本地调度通过真实网关和受控 ACP 对端复验了工作区创建及覆盖、三次拒绝和正常结束。
+
 ## 复现
 
 按编号任务的共享槽位规则设置 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR`。管理运行时在临时目录调用仓库 `managed_runtime/install.py`，传入该运行时的合同及补丁素材目录、待创建的运行时路径和后端 key。将已核验的固定版适配器加入 `PATH`。验收网关与模型端点只使用回环地址，运行时使用隔离配置和临时工作区。
@@ -76,6 +91,12 @@ cargo test -p vw-acp --lib acp_full_access_ -- --test-threads=1
 cargo build -p vw-cli --bin shiju
 python3 -m unittest discover -s scripts -p acp_approval_model_tests.py
 python3 scripts/verify_acp_approval.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --output target/acp-approval-evidence/matrix.json
+cargo test -p vw-agent --lib acp_background_approval_ -- --test-threads=1
+VW_RECOVERY_WINDOW_HTTP=1 cargo test -p vw-agent --lib acp_background_approval_scheduler_writes_only_inside_worktree -- --ignored --test-threads=1
+python3 scripts/verify_acp_background.py --gateway "$CARGO_TARGET_DIR/debug/shiju"
+python3 scripts/verify_acp_background.py --gateway "$CARGO_TARGET_DIR/debug/shiju" --session-model-runtime "$VIBE_RUNTIME"
 ```
+
+`VIBE_RUNTIME` 指向已核验的 Vibe 3.0.4 运行时目录。
 
 JSON 分别记录宿主夹具与真实适配器结果。Darwin arm64 完整矩阵共 44 条，34 条真实路径通过，5 条客户端模型路径为生产不支持，Auggie、Cursor、Droid、Qoder 和 Trae 的 5 条原生路径受上述外部条件阻塞。宿主并行夹具通过。全矩阵因 5 条外部阻塞返回 1。使用 `--agent <key>` 可单独重跑某个供应商，该运行不作为完整矩阵。

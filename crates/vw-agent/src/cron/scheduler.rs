@@ -653,9 +653,11 @@ async fn run_gateway_agent_job(
     let (session_id, request) = cron_gateway_agent_request(config, job, prompt, model_override);
 
     let collected =
-        crate::app::agent::gateway::api::handlers::session::stream::collect_gateway_chat_stream(
+        crate::app::agent::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream(
             config.workspace_dir.to_string_lossy().to_string(),
             request,
+            job.full_access,
+            |_| {},
         )
         .await
         .map_err(|err| anyhow::anyhow!("{err}"))?;
@@ -732,6 +734,7 @@ fn cron_gateway_options(
     let mut options = serde_json::Map::new();
     options.insert("full_access".to_string(), serde_json::Value::Bool(job.full_access));
     if let Some(acp_agent) = acp_agent {
+        options.insert("acp_non_interactive_permissions".to_string(), json!("deny"));
         options.insert("acp_test".to_string(), serde_json::Value::Bool(true));
         options.insert("acp_agent".to_string(), serde_json::Value::String(acp_agent.to_string()));
         options.insert("acp_force_new_session".to_string(), serde_json::Value::Bool(true));

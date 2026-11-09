@@ -24,7 +24,7 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
     std::fs::write(&path, "# task\n\n状态：已完成\n\n完成条件：功能已实现\n")
         .expect("write incomplete completed task");
     assert!(matches!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("missing evidence"),
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false).expect("missing evidence"),
         GoalTaskFilesState::Pending(reason) if reason.contains("验证命令")
     ));
 
@@ -34,7 +34,7 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
     )
     .expect("write failed validation");
     assert!(matches!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("failed evidence"),
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false).expect("failed evidence"),
         GoalTaskFilesState::Pending(reason) if reason.contains("退出码")
     ));
 
@@ -44,23 +44,24 @@ fn goal_task_files_require_completed_status_and_validation_evidence() {
     )
     .expect("write completed task");
     assert_eq!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("complete"),
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false).expect("complete"),
         GoalTaskFilesState::Complete
     );
     assert_eq!(
-        inspect_goal_task_file(temp.path(), &task("1-goal.md")).expect("single task complete"),
+        inspect_goal_task_file(temp.path(), &task("1-goal.md"), false)
+            .expect("single task complete"),
         GoalTaskFilesState::Complete
     );
 
     std::fs::write(&path, "# task\n\n状态：已阻塞\n\n阻塞原因：缺少凭据\n").expect("write blocked");
     assert!(matches!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("blocked"),
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false).expect("blocked"),
         GoalTaskFilesState::Blocked(reason) if reason.contains("缺少凭据")
     ));
 
     std::fs::remove_file(path).expect("remove task");
     assert!(matches!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")]).expect("missing task"),
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false).expect("missing task"),
         GoalTaskFilesState::Pending(reason) if reason.contains("不存在")
     ));
 }
@@ -75,7 +76,7 @@ fn goal_task_files_accept_expected_failure_only_with_successful_completion_check
     .expect("write expected failure evidence");
 
     assert_eq!(
-        inspect_goal_task_files(temp.path(), &[task("1-goal.md")])
+        inspect_goal_task_files(temp.path(), &[task("1-goal.md")], false)
             .expect("successful completion check"),
         GoalTaskFilesState::Complete
     );
@@ -126,4 +127,21 @@ fn goal_continuation_keeps_outer_plan_and_reuses_recursive_policy() {
     assert!(prompt.contains(&temp.path().join(&task.file).to_string_lossy().to_string()));
     assert!(prompt.contains("子任务 [1] 已完成实现，测试退出码 0"));
     assert!(prompt.contains("不要重复实现已经达成的产物"));
+}
+
+#[cfg(unix)]
+#[test]
+fn acp_background_approval_plan_rejects_external_task_files() {
+    let root = tempfile::tempdir().unwrap();
+    let plan_dir = root.path().canonicalize().unwrap().join("plan");
+    std::fs::create_dir(&plan_dir).unwrap();
+    let outside = root.path().join("outside.md");
+    std::fs::write(&outside, "private").unwrap();
+    assert!(inspect_goal_task_file(&plan_dir, &task("../outside.md"), true).is_err());
+    let linked = plan_dir.join("linked.md");
+    std::os::unix::fs::symlink(&outside, &linked).unwrap();
+    assert!(inspect_goal_task_file(&plan_dir, &task("linked.md"), true).is_err());
+    std::fs::remove_file(&linked).unwrap();
+    std::fs::hard_link(&outside, &linked).unwrap();
+    assert!(inspect_goal_task_file(&plan_dir, &task("linked.md"), true).is_err());
 }

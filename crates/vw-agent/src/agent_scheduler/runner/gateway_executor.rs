@@ -157,9 +157,10 @@ impl GatewayChatStreamClient for RealGatewayChatStreamClient {
     ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
         Box::pin(async move {
             let mut observe_payload = observe_payload;
-            crate::app::agent::gateway::api::handlers::session::stream::collect_gateway_chat_stream_with_observer(
+            crate::app::agent::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream(
                 workspace_path,
                 body,
+                false,
                 move |payload| observe_payload(payload),
             )
             .await
@@ -509,7 +510,9 @@ pub(crate) fn gateway_local_agent_stream_request(
         options.insert("acp_close_client_after_request".to_string(), json!(true));
         options.insert("acp_history_strategy".to_string(), json!("discard"));
         options.insert("acp_history_recent_count".to_string(), json!(1));
-        options.insert("acp_permission_mode".to_string(), json!("approve-all"));
+        options.insert("full_access".to_string(), json!(false));
+        options.insert("acp_permission_mode".to_string(), json!("approve-reads"));
+        options.insert("acp_non_interactive_permissions".to_string(), json!("deny"));
     }
 
     GatewayChatStreamRequest {

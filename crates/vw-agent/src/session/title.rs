@@ -102,6 +102,16 @@ fn internal_title_profile(acp_agent: Option<&str>) -> crate::app::agent::session
     let mut options = HashMap::new();
     apply_acp_agent_options(&mut options, acp_agent);
 
+    if acp_agent.is_some() {
+        options.extend([
+            ("full_access".into(), Value::Bool(false)),
+            ("acp_permission_mode".into(), serde_json::json!("deny-all")),
+            ("acp_non_interactive_permissions".into(), serde_json::json!("deny")),
+            ("acp_force_new_session".into(), Value::Bool(true)),
+            ("acp_close_client_after_request".into(), Value::Bool(true)),
+        ]);
+    }
+
     crate::app::agent::session::llm::AgentInfo {
         name: "session-title".to_string(),
         mode: INTERNAL_TITLE_MODE.to_string(),
@@ -139,13 +149,7 @@ async fn stream_title(
 
     if acp_agent.is_some() {
         let directory = crate::project::instance::directory();
-        profile.options.extend([
-            ("cwd".into(), Value::String(directory)),
-            ("full_access".into(), Value::Bool(false)),
-            ("acp_permission_mode".into(), serde_json::json!("deny-all")),
-            ("acp_force_new_session".into(), Value::Bool(true)),
-            ("acp_close_client_after_request".into(), Value::Bool(true)),
-        ]);
+        profile.options.insert("cwd".into(), Value::String(directory));
     }
     // Keep auxiliary model usage and ACP state separate from the conversation.
     let session_id = format!("session-title:{}", uuid::Uuid::new_v4());

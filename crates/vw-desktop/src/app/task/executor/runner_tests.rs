@@ -283,16 +283,18 @@ fn gateway_prompt_options_grants_full_access_for_internal_design_route() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn gateway_prompt_options_uses_approve_all_for_acp_agents() {
+fn gateway_prompt_options_uses_approval_for_background_acp_agents() {
     let options = super::gateway_prompt_options_for_mode(
         "/tmp/project",
         true,
         super::GatewayPromptSessionMode::Fresh,
     );
 
+    assert_eq!(options["full_access"], false);
+    assert_eq!(options["acp_background"], true);
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
-        Some("approve-all")
+        Some("approve-reads")
     );
     assert_eq!(
         options.get("acp_force_new_session").and_then(serde_json::Value::as_bool),

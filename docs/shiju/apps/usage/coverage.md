@@ -338,3 +338,24 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。隔离副本同步了共享工作区已有的 `postgres_tests.rs` 第三参数修正，以通过基线测试编译。 |
 
 限定提交范围的 `git diff --cached --check` 退出 0。两阶段均释放槽位锁并保留缓存。夹具验证签名与请求构造，真实账号验收见任务 56。
+
+## 任务 23 火山双套餐查询
+
+| 来源 | 实现和测试 |
+| --- | --- |
+| [上游 AK/SK 分派](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1883-L1894) · [上游探测顺序](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1654-L1726) · [TS 启用规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L103-L113) | `query_volcengine` 复用批次 22 的签名入口，在固定控制面先发 `GetAFPUsage`，遇到空额度或非鉴权响应失败时再发 `GetCodingPlanUsage`。仅从方舟地区域名提取区域，其他输入使用 `cn-beijing`。探测成功即返回，两个响应均无窗口时返回脱敏的无有效套餐错误。 |
+| [上游错误信封与 HTTP 处理](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1301-L1336) · [上游错误与回退](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1474-L1529) · [火山公共错误码](https://docs.volcengine.com/docs/Contentmanagementplatform/Commonerrorcode-4?lang=zh) | HTTP 401/403 和 OpenAPI 信封内的已知鉴权码立即停止探测，返回 `UpstreamUnauthorized`。网络、超时和读体中断也立即返回。普通业务错误进入下一探测，限流与服务不可用在没有可用额度时保留重试分类。公开错误使用固定说明。 |
+| [上游窗口解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1531-L1622) · [上游窗口夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L2874-L2963) · [火山 AFP 接口字段](https://docs.volcengine.com/docs/ark/get-afp-usage-api?lang=zh) | Agent Plan 保留 5 小时、周、月窗口的 AFP 已用量、总额、剩余及百分比，跳过日窗口和非正额度。已知档位映射为固定标签。Coding Plan 保留窗口百分比，未知窗口跳过。秒和毫秒统一转为 ISO 8601，零或负时间戳表示无重置时间。 |
+
+[查询入口](../../../../crates/vw-agent-apps/src/usage/coding/volcengine.rs#L24) · [独立 HTTP 夹具](../../../../crates/vw-agent-apps/src/usage/coding/volcengine_tests.rs#L27)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。使用批次 22 提交 `8e9f72a8f` 的隔离源码副本，绿阶段同步工作区已有的 `postgres_tests.rs` 第三参数修正。动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 退出 0，仅同步任务 23 的三个 Rust 文件。 |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_volcengine_ -- --nocapture` | 退出 101，执行 0 项。测试模块报 E0432，无法导入尚未实现的 `super::volcengine`。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_volcengine_ -- --nocapture` | 退出 0，7 项通过，0 项失败，含本任务 4 项及批次 22 签名回归 3 项。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+本任务用例为 `usage_coding_volcengine_returns_expected_result`、`usage_coding_volcengine_rejects_invalid_input`、`usage_coding_volcengine_falls_back_and_preserves_window_times` 和 `usage_coding_volcengine_distinguishes_empty_plans_from_transport_failure`。夹具核对实际 HTTP POST 路径、签名头、请求顺序、脱敏错误和时间解析。真实账号验收留待任务 56。各阶段释放槽位锁并保留缓存，限定提交范围的差异检查退出 0。

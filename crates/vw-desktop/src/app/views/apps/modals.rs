@@ -4,8 +4,8 @@ use super::ui;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_close_button, settings_field_label, settings_group_card,
-    settings_group_heading_with_help, settings_modal_header, settings_modal_layout,
-    settings_text_editor_style, settings_text_input_style,
+    settings_group_heading_with_help, settings_hover_help_label, settings_modal_header,
+    settings_modal_layout, settings_text_editor_style, settings_text_input_style,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::ViewMessage;
@@ -86,24 +86,23 @@ fn edit_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)>
         .padding([12, 0]),
     );
 
-    let cookie_tooltip = ui::tooltip_bubble_el(
-        column![
-            text(i18n.__("配置示例")).size(12),
-            text(WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE).size(11),
-        ]
-        .spacing(6)
-        .into(),
+    let cookie_label = i18n.__("Cookie配置(JSON)");
+    let cookie_help = format!(
+        "{}\n\n{}\n{WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE}",
+        i18n.__("支持按 JSON 为指定站点注入 Cookie。"),
+        i18n.__("配置示例"),
     );
     let cookie = settings_group_card(
         column![
             row![
-                settings_field_label(i18n.__("Cookie配置(JSON)")),
-                Tooltip::new(
-                    button(text("?").size(12)).style(rounded_action_btn_style).padding([4, 8]),
-                    cookie_tooltip,
-                    TooltipPosition::Top,
+                settings_hover_help_label(
+                    i18n,
+                    &app.app_theme,
+                    cookie_label,
+                    settings_field_label(cookie_label),
+                    cookie_help,
                 )
-                .gap(8.0),
+                .wrap(),
                 Tooltip::new(
                     button(text(i18n.__("插入例子")).size(13))
                         .on_press(Message::View(
@@ -140,12 +139,7 @@ fn edit_web_bookmark_modal(app: &App) -> Option<(Element<'_, Message>, Message)>
             i18n.__("设置标题、网址以及独立窗口的默认尺寸。")
         ),
         fields,
-        settings_group_heading_with_help(
-            i18n,
-            &app.app_theme,
-            i18n.__("Cookie 配置"),
-            i18n.__("支持按 JSON 为指定站点注入 Cookie。")
-        ),
+        text(i18n.__("Cookie 配置")).size(17),
         cookie,
     ]
     .spacing(12);

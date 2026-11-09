@@ -345,7 +345,7 @@ pub(crate) async fn lifecycle_fixture()
 pub(crate) async fn channel_session_lifecycle_new_preserves_old() {
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     let snapshot = ctx.message_snapshot.as_ref().unwrap();
-    let old = resolve_or_create_sender_session_id(snapshot, &msg).await.unwrap();
+    let old = resolve_or_create_sender_session_id(snapshot, &msg, None).await.unwrap();
     let response = handle_new_session(&ctx, &msg, &snapshot.scope.key()).await;
     let next = sender_session_store()
         .lock()
@@ -437,8 +437,20 @@ async fn lifecycle_save_history(ctx: &ChannelRuntimeContext, id: &str, content: 
         updated_ms: 2,
     };
     crate::global_database::run_isolated(move || {
-        crate::session::ui_store::save_session_scoped_for_tenant(&tenant, &session, Some(&project))
-            .expect("persist UI history");
+        assert!(
+            crate::session::ui_store::commit_first_response(
+                &tenant,
+                &project,
+                crate::session::store::FirstResponseCommit {
+                    snapshot: &session,
+                    raw_artifacts: &[],
+                    expected_finished_steps: &[],
+                    preview: Some(&session.messages[0].content),
+                    task_title: Some(&session.title),
+                },
+            )
+            .expect("commit fixture reply")
+        );
     })
     .await
     .unwrap();
@@ -503,6 +515,7 @@ pub(crate) async fn channel_session_lifecycle_resume_isolates_all_chat_dimension
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
     let id = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &id, "owned session").await;
     for dimension in 0..5 {
         let mut other = msg.clone();
         match dimension {
@@ -551,6 +564,7 @@ pub(crate) async fn channel_session_lifecycle_archive_rejects_stale_and_busy_sta
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
     let old = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &old, "owned session").await;
     lifecycle_call(&ctx, &msg, "/archive").await;
     lifecycle_call(&ctx, &msg, "/rename changed").await;
     assert!(lifecycle_call(&ctx, &msg, &format!("/archive confirm {old}")).await.contains("失败"));
@@ -576,6 +590,7 @@ pub(crate) async fn channel_session_lifecycle_continue_and_rename_use_owned_sess
     assert!(lifecycle_call(&ctx, &msg, "/continue").await.contains("失败"));
     lifecycle_call(&ctx, &msg, "/new").await;
     let old = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &old, "owned session").await;
     assert!(lifecycle_call(&ctx, &msg, "/rename 调试 记录").await.contains("已重命名"));
     assert_eq!(crate::session::session::get_any(&old).await.unwrap().title, "调试 记录");
     lifecycle_call(&ctx, &msg, "/new").await;
@@ -659,6 +674,7 @@ pub(crate) async fn channel_session_lifecycle_resume_isolates_projects_and_tenan
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
     let id = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &id, "owned session").await;
     let (_other_temp, mut other, mut other_msg) = lifecycle_fixture().await;
     other_msg.channel = msg.channel.clone();
     other_msg.sender = msg.sender.clone();
@@ -700,6 +716,7 @@ pub(crate) async fn channel_session_lifecycle_invalid_saved_model_preserves_curr
     let (_temp, ctx, msg) = lifecycle_fixture().await;
     lifecycle_call(&ctx, &msg, "/new").await;
     let old = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &old, "owned session").await;
     let snapshot = ctx.message_snapshot.as_ref().unwrap();
     save_channel_session_route(snapshot, &old, &route("missing-provider", "missing-model", false))
         .await
@@ -728,6 +745,7 @@ pub(crate) async fn channel_session_lifecycle_lists_are_stable_bounded_and_owned
     for _ in 0..22 {
         lifecycle_call(&ctx, &msg, "/new").await;
         ids.push(lifecycle_id(&ctx));
+        lifecycle_save_history(&ctx, ids.last().unwrap(), "owned session").await;
     }
     let first = lifecycle_call(&ctx, &msg, "/sessions").await;
     assert_eq!(first, lifecycle_call(&ctx, &msg, "/sessions").await);

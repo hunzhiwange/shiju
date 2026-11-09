@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn reaction_done_emoji_marks_success_only_for_completed_ok_result() {
     assert_eq!(
-        reaction_done_emoji(&LlmExecutionResult::Completed(Ok(Ok("done".to_string())))),
+        reaction_done_emoji(&LlmExecutionResult::Completed(Ok(Ok("done".into())))),
         "\u{2705}"
     );
     assert_eq!(

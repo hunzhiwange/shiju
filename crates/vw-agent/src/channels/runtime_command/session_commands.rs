@@ -203,7 +203,7 @@ pub(super) async fn handle_new_session(
                     );
                 }
                 persist_current_route(ctx, &get_route_selection(ctx, sender_key)).await?;
-                let id = create_channel_session(&snapshot, msg, Some(route.clone())).await?;
+                let id = create_channel_session(&snapshot, Some(route.clone())).await?;
                 clear_sender_history(ctx, sender_key);
                 set_route_selection(ctx, sender_key, route);
                 invalidate_archive(&snapshot);

@@ -13,7 +13,7 @@ use super::*;
 ///
 /// - `Completed` - LLM 调用正常完成（无论成功或失败）
 ///   - 外层 `Result` 表示是否超时
-///   - 内层 `Result<String, anyhow::Error>` 表示实际的执行结果
+///   - 内层 `Result<ChannelProcessorResponse, anyhow::Error>` 表示实际的执行结果
 ///     - `Ok(String)` 包含 LLM 返回的文本内容
 ///     - `Err(anyhow::Error)` 包含执行过程中的错误信息
 /// - `Cancelled` - 用户主动取消了 LLM 调用
@@ -22,7 +22,7 @@ use super::*;
 ///
 /// ```ignore
 /// // 成功完成的执行
-/// let result = LlmExecutionResult::Completed(Ok(Ok("LLM 响应内容".to_string())));
+/// let result = LlmExecutionResult::Completed(Ok(Ok("LLM 响应内容".into())));
 ///
 /// // 执行超时
 /// let result = LlmExecutionResult::Completed(Err(tokio::time::error::Elapsed::new()));
@@ -39,7 +39,7 @@ pub(crate) enum LlmExecutionResult {
     /// 包含一个嵌套的 Result 结构：
     /// - 外层 Result 处理超时情况
     /// - 内层 Result 处理实际的成功/失败
-    Completed(Result<Result<String, anyhow::Error>, tokio::time::error::Elapsed>),
+    Completed(Result<Result<ChannelProcessorResponse, anyhow::Error>, tokio::time::error::Elapsed>),
 
     /// 用户取消的执行
     Cancelled,
@@ -63,7 +63,7 @@ pub(crate) enum LlmExecutionResult {
 /// # 示例
 ///
 /// ```ignore
-/// let success = LlmExecutionResult::Completed(Ok(Ok("内容".to_string())));
+/// let success = LlmExecutionResult::Completed(Ok(Ok("内容".into())));
 /// assert_eq!(reaction_done_emoji(&success), "✅");
 ///
 /// let failed = LlmExecutionResult::Completed(Ok(Err(anyhow::anyhow!("错误"))));

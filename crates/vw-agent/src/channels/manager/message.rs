@@ -84,6 +84,10 @@ pub(super) async fn process_channel_message_inner(
             None => return,
         };
 
+    if super::message_response::reconcile_channel_reply(&snapshot, &msg, target_channel.as_ref()).await {
+        return;
+    }
+
     let history_key = snapshot.scope.key();
     let route = classify_message_route(ctx.as_ref(), &msg.content)
         .unwrap_or_else(|| get_route_selection(ctx.as_ref(), &history_key));
@@ -172,6 +176,12 @@ pub(super) async fn process_channel_message_inner(
 
     finish_feedback_tasks(draft_updater, typing_cancellation, typing_task).await;
 
+    let llm_result = match llm_result {
+        LlmExecutionResult::Completed(Ok(Ok(_))) if cancellation_token.is_cancelled() => {
+            LlmExecutionResult::Cancelled
+        }
+        result => result,
+    };
     let reaction_done_emoji = reaction_done_emoji(&llm_result);
 
     handle_llm_result(
@@ -183,7 +193,6 @@ pub(super) async fn process_channel_message_inner(
         &history_key,
         &history,
         history_len_before_tools,
-        had_prior_history,
         started_at,
         draft_message_id.as_deref(),
         &user_turn_content,

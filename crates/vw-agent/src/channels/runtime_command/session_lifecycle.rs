@@ -130,7 +130,12 @@ async fn session_lifecycle_command(
         let sessions = owned_channel_sessions(snapshot).await?;
         let mut response = String::from("当前聊天和项目的会话（/resume <ID> 恢复）：\n");
         for info in sessions.iter().take(20) {
-            let title: String = info.title.chars().filter(|ch| !ch.is_control()).take(60).collect();
+            let title = if info.title.is_empty() {
+                channel_session_preview(snapshot, &info.id).await?
+            } else {
+                info.title.clone()
+            };
+            let title: String = title.chars().filter(|ch| !ch.is_control()).take(60).collect();
             response.push_str(&format!("{}  {}\n", info.id, title));
         }
         if sessions.is_empty() {
@@ -162,6 +167,7 @@ async fn session_lifecycle_command(
             channel_session_ownership(snapshot, &id).await?;
             let info = crate::session::session::get_any(&id).await?;
             validate_session(snapshot, &info)?;
+            anyhow::ensure!(!info.is_first_response_pending(), "首轮回复完成后才能重命名");
             let title = title.trim();
             anyhow::ensure!(
                 !title.is_empty()
@@ -240,6 +246,7 @@ async fn restore_channel_session(
     let ownership = channel_session_ownership(snapshot, id).await?;
     let info = crate::session::session::get_any(id).await?;
     validate_session(snapshot, &info)?;
+    anyhow::ensure!(!info.is_first_response_pending(), "首轮回复尚未完成");
     anyhow::ensure!(
         matches!(crate::session::status::get(id), crate::session::status::Info::Idle),
         "目标会话繁忙"
@@ -308,4 +315,28 @@ async fn restore_channel_session(
         .insert(snapshot.scope.clone(), id.into());
     invalidate_archive(snapshot);
     Ok(format!("已恢复会话 {id}。"))
+}
+
+async fn channel_session_preview(snapshot: &ChannelMessageSnapshot, id: &str) -> Result<String> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (snapshot, id);
+        Ok(String::new())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let tenant = snapshot.scope.chat.tenant.clone();
+        let project = snapshot.scope.project.clone();
+        let id = id.to_owned();
+        crate::global_database::run_isolated(move || {
+            Ok(crate::session::ui_store::load_session_meta_scoped_for_tenant(
+                &tenant,
+                &id,
+                Some(&project),
+            )?
+            .and_then(|meta| meta.last_content)
+            .unwrap_or_else(|| "（附件）".into()))
+        })
+        .await?
+    }
 }

@@ -96,42 +96,6 @@ fn processor_request(root: &std::path::Path) -> crate::app::agent::session::proc
     }
 }
 
-#[test]
-fn initial_session_title_normalizes_truncates_and_falls_back_to_channel_sender() {
-    let mut msg = channel_message(None);
-
-    msg.content = "  hello\n   world\tfrom channel  ".to_string();
-    assert_eq!(initial_session_title_for_message(&msg), "hello world from channel");
-
-    msg.content = format!("{} tail", "a".repeat(51));
-    assert_eq!(initial_session_title_for_message(&msg), format!("{}...", "a".repeat(50)));
-
-    msg.content = " \n\t ".to_string();
-    assert_eq!(initial_session_title_for_message(&msg), "telegram sender-1");
-}
-
-#[test]
-fn initial_session_title_truncates_on_char_boundary_after_trimming() {
-    let mut msg = channel_message(None);
-    msg.content = format!("{}   tail", "好".repeat(51));
-
-    let title = initial_session_title_for_message(&msg);
-
-    assert_eq!(title, format!("{}...", "好".repeat(50)));
-    assert!(title.ends_with("..."));
-}
-
-#[tokio::test]
-async fn spawn_channel_session_title_refresh_ignores_empty_title_source() {
-    spawn_channel_session_title_refresh(
-        "missing-channel-session".to_string(),
-        " \n\t ".to_string(),
-        Some("provider/model".to_string()),
-    );
-
-    tokio::task::yield_now().await;
-}
-
 #[tokio::test]
 async fn run_session_processor_for_channel_accumulates_and_forwards_docs_output() {
     if isolated_processor_fixture("channels::session::session_tests::run_session_processor_for_channel_accumulates_and_forwards_docs_output").await { return; }
@@ -308,8 +272,8 @@ pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_r
     let (_b, _, b) = registered_context().await;
     let msg = channel_message(None);
     let a = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let session_a = resolve_or_create_sender_session_id(&a, &msg).await.unwrap();
-    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg).await.unwrap());
+    let session_a = resolve_or_create_sender_session_id(&a, &msg, None).await.unwrap();
+    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg, None).await.unwrap());
     let info = crate::session::session::get_any(&session_a).await.unwrap();
     assert_eq!(info.project_id, a.scope.project);
     assert_eq!(Path::new(&info.directory), a.directory);
@@ -320,16 +284,19 @@ pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_r
         .instance_default_projects
         .insert("telegram:default".into(), b.id);
     let selected_b = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    assert_ne!(session_a, resolve_or_create_sender_session_id(&selected_b, &msg).await.unwrap());
+    assert_ne!(
+        session_a,
+        resolve_or_create_sender_session_id(&selected_b, &msg, None).await.unwrap()
+    );
     let mut other = msg.clone();
     other.reply_target = "other-room".into();
     let room = resolve_channel_message_snapshot(&ctx, &other).await.unwrap();
     assert_ne!(
-        resolve_or_create_sender_session_id(&selected_b, &msg).await.unwrap(),
-        resolve_or_create_sender_session_id(&room, &other).await.unwrap()
+        resolve_or_create_sender_session_id(&selected_b, &msg, None).await.unwrap(),
+        resolve_or_create_sender_session_id(&room, &other, None).await.unwrap()
     );
     // 旧快照不受后续默认项目更新影响。
-    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg).await.unwrap());
+    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg, None).await.unwrap());
 }
 
 pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {
@@ -360,7 +327,7 @@ pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_f
     let msg = channel_message(None);
     let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     temp.close().unwrap();
-    assert!(resolve_or_create_sender_session_id(&snapshot, &msg).await.is_err());
+    assert!(resolve_or_create_sender_session_id(&snapshot, &msg, None).await.is_err());
     assert!(!sender_session_store().lock().unwrap().contains_key(&snapshot.scope));
     assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
 }
@@ -428,13 +395,13 @@ pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
     )
     .await;
     let output = match result {
-        LlmExecutionResult::Completed(Ok(result)) => result.expect("docs processor result"),
+        LlmExecutionResult::Completed(Ok(result)) => result.expect("docs processor result").text,
         LlmExecutionResult::Completed(Err(err)) => panic!("docs processor timed out: {err}"),
         LlmExecutionResult::Cancelled => panic!("docs processor cancelled"),
     };
     assert!(output.contains("docs/a.md"), "{output}");
     assert!(!output.contains("docs/b.md"));
-    let session = resolve_or_create_sender_session_id(&snapshot, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&snapshot, &msg, None).await.unwrap();
     let info = crate::session::session::get_any(&session).await.unwrap();
     assert_eq!(Path::new(&info.directory), snapshot.directory);
     assert_eq!(info.project_id, snapshot.scope.project);
@@ -475,7 +442,7 @@ pub(crate) async fn channel_project_scope_snapshot_rejects_different_sender() {
     let mut msg = channel_message(None);
     let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     msg.sender = "another-sender".into();
-    assert!(resolve_or_create_sender_session_id(&snapshot, &msg).await.is_err());
+    assert!(resolve_or_create_sender_session_id(&snapshot, &msg, None).await.is_err());
     assert!(!sender_session_store().lock().unwrap().contains_key(&snapshot.scope));
 }
 

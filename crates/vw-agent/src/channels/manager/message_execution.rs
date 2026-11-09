@@ -47,7 +47,7 @@ fn reap_channel_shell_processes(
 }
 
 async fn stop_channel_execution(
-    execution: impl std::future::Future<Output = anyhow::Result<String>>,
+    execution: impl std::future::Future<Output = anyhow::Result<ChannelProcessorResponse>>,
     abort: &CancellationToken,
     snapshot: &ChannelMessageSnapshot,
     session: &str,
@@ -118,10 +118,11 @@ pub(crate) async fn run_message_execution(
     if cancellation_token.is_cancelled() {
         return LlmExecutionResult::Cancelled;
     }
-    let session_id = match resolve_or_create_sender_session_id(snapshot, msg).await {
-        Ok(id) => id,
-        Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
-    };
+    let session_id =
+        match resolve_or_create_sender_session_id(snapshot, msg, Some(route.clone())).await {
+            Ok(id) => id,
+            Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
+        };
     if let Err(err) = persist_current_route(ctx, route).await {
         return LlmExecutionResult::Completed(Ok(Err(err)));
     }
@@ -134,7 +135,7 @@ pub(crate) async fn run_message_execution(
     // 使用 select! 同时监听取消信号和执行结果
     // 优先响应取消信号，确保快速终止
     crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
-        let execution = run_session_processor_for_channel(
+        let execution = collect_channel_response(
                     // 构建会话处理器请求
                     crate::app::agent::session::processor::Request {
                         // 使用当前时间戳作为流标识

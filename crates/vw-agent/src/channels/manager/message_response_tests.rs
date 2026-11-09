@@ -253,11 +253,10 @@ async fn completed_success_sends_response_and_appends_history() {
         message("discord"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("assistant reply".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("assistant reply".into()))),
         "history",
         &[ChatMessage::system("system")],
         1,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -283,11 +282,10 @@ async fn completed_success_blocks_canary_leak_before_sending() {
         message("discord"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("leaked TOKEN-123".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("leaked TOKEN-123".into()))),
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -322,11 +320,10 @@ async fn completed_success_hook_cancel_suppresses_send_and_history() {
         message("discord"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("assistant reply".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("assistant reply".into()))),
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -353,11 +350,10 @@ async fn completed_success_hook_mutation_is_truncated_before_delivery() {
         message("discord"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("original".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("original".into()))),
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -387,12 +383,11 @@ async fn completed_success_returns_safe_fallback_for_tool_only_output() {
         Some(&channel_dyn),
         &route(),
         LlmExecutionResult::Completed(Ok(Ok(
-            r#"{"name":"shell","arguments":{"cmd":"echo hi"}}"#.to_string()
+            r#"{"name":"shell","arguments":{"cmd":"echo hi"}}"#.into()
         ))),
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -422,11 +417,10 @@ async fn completed_success_records_tool_summary_except_for_telegram() {
         message("discord"),
         None,
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("done".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("done".into()))),
         "discord-history",
         &history,
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -442,11 +436,10 @@ async fn completed_success_records_tool_summary_except_for_telegram() {
         message("telegram"),
         None,
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("done".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("done".into()))),
         "telegram-history",
         &history,
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -476,11 +469,10 @@ async fn completed_success_finalizes_draft_and_falls_back_to_send_on_failure() {
         message("discord"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("final text".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("final text".into()))),
         "history",
         &[ChatMessage::system("system")],
         1,
-        true,
         Instant::now(),
         Some("draft-1"),
         "user turn",
@@ -509,7 +501,6 @@ async fn cancelled_result_cancels_existing_draft() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         Some("draft-1"),
         "user turn",
@@ -535,7 +526,6 @@ async fn cancelled_result_without_channel_leaves_history_unchanged() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         Some("draft-1"),
         "user turn",
@@ -565,7 +555,6 @@ async fn tool_loop_cancelled_error_cancels_existing_draft() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         Some("draft-1"),
         "user turn",
@@ -597,7 +586,6 @@ async fn context_window_error_sends_retry_guidance() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -627,7 +615,6 @@ async fn tool_iteration_limit_preserves_history_with_pause_marker() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -657,7 +644,6 @@ async fn generic_error_records_failure_marker_and_notifies_channel() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -697,7 +683,6 @@ async fn vision_capability_error_rolls_back_orphan_user_turn_and_finalizes_draft
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         Some("draft-1"),
         "image prompt",
@@ -729,7 +714,6 @@ async fn timeout_records_failure_marker_and_sends_guidance() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         None,
         "user turn",
@@ -762,7 +746,6 @@ async fn timeout_finalizes_existing_draft() {
         "history",
         &[],
         0,
-        true,
         Instant::now(),
         Some("draft-1"),
         "user turn",
@@ -800,11 +783,10 @@ async fn deliver_fixture(
         message("qq"),
         Some(&channel_dyn),
         &route(),
-        LlmExecutionResult::Completed(Ok(Ok("complete logical reply".to_string()))),
+        LlmExecutionResult::Completed(Ok(Ok("complete logical reply".into()))),
         "delivery-history",
         &[],
         0,
-        true,
         Instant::now(),
         draft,
         "user turn",
@@ -905,4 +887,103 @@ async fn markdown_delivery_runtime_hook_mutation_keeps_original_route() {
         ctx.conversation_histories.lock().unwrap()["delivery-history"][0].content,
         "safe complete logical reply"
     );
+}
+
+#[tokio::test]
+async fn channel_first_response_distinguishes_pause_commit_failure_and_redelivery() {
+    use crate::channels::runtime_command::session_commands_tests::{
+        lifecycle_fixture, lifecycle_id,
+    };
+    use crate::session::{message, session, ui_types};
+
+    let (_temp, mut ctx, mut msg) = lifecycle_fixture().await;
+    msg.content = "retryable prompt".into();
+    let snapshot = ctx.message_snapshot.clone().unwrap();
+    let key = snapshot.scope.key();
+    let route = get_route_selection(&ctx, &key);
+    let id =
+        resolve_or_create_sender_session_id(&snapshot, &msg, Some(route.clone())).await.unwrap();
+    let sink = Arc::new(RecordingChannel {
+        send_error: Some(delivery_error(0, DeliveryFailureKind::NotSent)),
+        ..Default::default()
+    });
+    let target: Arc<dyn Channel> = sink.clone();
+
+    for (completed, missing_raw) in [(false, false), (true, true), (true, false)] {
+        let user_id = crate::id::ascending(crate::id::Prefix::Message, None).unwrap();
+        let assistant_id = crate::id::ascending(crate::id::Prefix::Message, None).unwrap();
+        let steps = missing_raw
+            .then(|| ui_types::ChatSessionStep {
+                index: 0,
+                turn_id: Some(assistant_id.clone()),
+                started_ms: 1,
+                finished_ms: Some(2),
+                start_snapshot_path: None,
+                finish_snapshot_path: None,
+                usage: Default::default(),
+                cost_usd: None,
+                finish_reason: Some("stop".into()),
+                model: Some("test".into()),
+                tool_timings: Vec::new(),
+            })
+            .into_iter()
+            .collect();
+        let response = if completed { "completed reply" } else { "approval still pending" };
+        append_sender_turn(&ctx, &key, ChatMessage::user(&msg.content));
+        handle_llm_result(
+            &ctx,
+            msg.clone(),
+            Some(&target),
+            &route,
+            LlmExecutionResult::Completed(Ok(Ok(ChannelProcessorResponse {
+                text: response.into(),
+                completed,
+                user_id: Some(user_id),
+                assistant_id: Some(assistant_id),
+                steps,
+                raw_artifacts: Vec::new(),
+            }))),
+            &key,
+            &[],
+            0,
+            Instant::now(),
+            None,
+            &msg.content,
+            None,
+            "✅",
+            &crate::security::CanaryGuard::new(false),
+        )
+        .await;
+        assert_eq!(lifecycle_id(&ctx), id);
+        let info = session::get_any(&id).await.unwrap();
+        let committed = completed && !missing_raw;
+        assert_eq!(info.is_first_response_pending(), !committed);
+        assert_eq!(
+            message::messages(&id, None).await.unwrap().len(),
+            if committed { 2 } else { 0 }
+        );
+    }
+    assert_eq!(sink.sent.lock().await.len(), 3);
+    assert!(sink.sent.lock().await[1].contains("持久化失败"));
+    assert_eq!(sink.sent.lock().await[2], "completed reply");
+
+    let retry = Arc::new(RecordingChannel::default());
+    let retry_target: Arc<dyn Channel> = retry.clone();
+    ctx.channels_by_name = Arc::new(HashMap::from([(
+        channel_instance_key(&msg.channel, &msg.instance_id),
+        retry_target,
+    )]));
+    sender_session_store().lock().unwrap().remove(&snapshot.scope);
+    // Both re-deliveries pass through the real ingress. Only the confirmed
+    // zero-delivery failure is sent again, without executing another turn.
+    for _ in 0..2 {
+        Box::pin(process_channel_message(
+            Arc::new(ctx.clone()),
+            msg.clone(),
+            CancellationToken::new(),
+        ))
+        .await;
+    }
+    assert_eq!(retry.sent.lock().await.as_slice(), ["completed reply"]);
+    assert_eq!(message::messages(&id, None).await.unwrap().len(), 2);
 }

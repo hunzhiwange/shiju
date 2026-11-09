@@ -31,3 +31,22 @@ mod dynamic_calls_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod dynamic_hosts;
 pub(crate) use lifecycle::validate_session_scope;
+
+pub(crate) fn is_successful_finish_reason(reason: Option<&str>) -> bool {
+    !matches!(
+        reason,
+        Some(
+            "tool_calls"
+                | "tool_use"
+                | "content_filter"
+                | "error"
+                | "cancelled"
+                | "waiting_for_input"
+                | "requires_action"
+                | "refusal"
+                | "max_turn_requests"
+                | "length"
+                | "max_tokens"
+        )
+    )
+}

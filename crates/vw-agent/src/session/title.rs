@@ -356,3 +356,38 @@ pub(crate) async fn generate_message_title(
 #[cfg(test)]
 #[path = "title_tests.rs"]
 mod title_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn spawn_first_response_title(
+    runtime: &tokio::runtime::Handle,
+    tenant: vw_api_types::id::TenantScope,
+    context: crate::project::instance::Context,
+    session_id: String,
+    preview: String,
+    preferred_model: Option<String>,
+) {
+    runtime.spawn(crate::session::ui_store::with_tenant_scope(tenant.clone(), async move {
+        let project_id = context.project.id.clone();
+        let generate = crate::project::instance::provide_context(
+            context,
+            Box::pin(generate_from_content(session_id.clone(), preview, preferred_model, None)),
+        );
+        // The native, tool-free title prompt also serves conversations run through ACP.
+        if let Ok(Ok(title)) =
+            tokio::time::timeout(std::time::Duration::from_secs(30), generate).await
+        {
+            let result = crate::global_database::run_isolated(move || {
+                crate::session::ui_store::set_first_response_title(
+                    &tenant,
+                    &project_id,
+                    &session_id,
+                    &title,
+                )
+            })
+            .await;
+            if let Err(error) = result.and_then(|result| result) {
+                tracing::warn!(%error, "failed to persist first response title");
+            }
+        }
+    }));
+}

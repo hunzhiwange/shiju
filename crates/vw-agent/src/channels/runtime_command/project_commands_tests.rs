@@ -8,7 +8,7 @@ async fn channel_project_select_success_starts_fresh_and_preserves_old_session()
     let (_b, _, b) = registered_context().await;
     let mut msg = channel_message(None);
     let old = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let old_session = resolve_or_create_sender_session_id(&old, &msg).await.unwrap();
+    let old_session = resolve_or_create_sender_session_id(&old, &msg, None).await.unwrap();
     msg.content = format!("/project {}", b.id);
     assert!(handle_project_command(&ctx, &msg).await.contains("已切换"));
     let selected = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
@@ -23,7 +23,7 @@ async fn channel_project_select_invalid_preserves_project_session_and_history() 
     let (_a, ctx, _) = registered_context().await;
     let mut msg = channel_message(None);
     let old = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let session = resolve_or_create_sender_session_id(&old, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&old, &msg, None).await.unwrap();
     append_sender_turn(&ctx, &old.scope.key(), ChatMessage::user("keep"));
     for invalid in ["missing-id", "/tmp", "模糊名称", "two ids"] {
         msg.content = format!("/project {invalid}");
@@ -113,14 +113,14 @@ async fn channel_project_select_returning_to_project_does_not_resume_old_context
     let (_b, _, b) = registered_context().await;
     let mut msg = channel_message(None);
     let old = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let session = resolve_or_create_sender_session_id(&old, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&old, &msg, None).await.unwrap();
     append_sender_turn(&ctx, &old.scope.key(), ChatMessage::user("old context"));
     for id in [&b.id, &a.id] {
         msg.content = format!("/project {id}");
         assert!(handle_project_command(&ctx, &msg).await.contains("已切换"));
     }
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key(&old.scope.key()));
-    assert_ne!(resolve_or_create_sender_session_id(&old, &msg).await.unwrap(), session);
+    assert_ne!(resolve_or_create_sender_session_id(&old, &msg, None).await.unwrap(), session);
     assert!(crate::session::session::get_any(&session).await.is_ok());
 }
 
@@ -228,7 +228,7 @@ async fn channel_project_select_invalid_default_preserves_override_and_session()
             .insert("telegram:default".into(), "missing-default".into());
     }
     let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let session = resolve_or_create_sender_session_id(&snapshot, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&snapshot, &msg, None).await.unwrap();
     msg.content = "/project default".into();
     assert!(handle_project_command(&ctx, &msg).await.contains("失败"));
     assert_eq!(ctx.project_state.lock().unwrap().selections.get(&chat), Some(&a.id));

@@ -211,7 +211,7 @@ async fn shell_outer_timeout_explicit_budget_is_reported() {
     .await
     .unwrap();
     let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
-    let session = resolve_or_create_sender_session_id(&snapshot, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&snapshot, &msg, None).await.unwrap();
     let scope = ShellProcessScope::new(
         serde_json::to_string(&snapshot.scope.chat.tenant).unwrap(),
         &snapshot.directory,
@@ -323,7 +323,7 @@ async fn shell_outer_timeout_user_stop_preserves_other_sessions() {
     }
     let abort = CancellationToken::new();
     stop_channel_execution(
-        std::future::ready(Ok(String::new())),
+        std::future::ready(Ok(ChannelProcessorResponse::default())),
         &abort,
         &snapshot,
         "channel-stop",

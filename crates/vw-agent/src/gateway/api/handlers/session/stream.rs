@@ -19,6 +19,8 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use vw_api_types::chat::{GatewayChatStreamRequest, ReasoningEffortDto};
 use vw_api_types::id::TenantScope;
 
+pub(super) use crate::session::runtime::is_successful_finish_reason;
+
 use super::raw_commit;
 use super::shared::with_tenant_instance;
 use crate::app::agent::gateway::api::handlers::resumable_stream::{
@@ -1636,7 +1638,7 @@ async fn start_gateway_chat_producer(
                                                 } else {
                                                     assistant_model.clone()
                                                 };
-                                                super::session_ops::spawn_first_response_title(
+                                                agent_session::title::spawn_first_response_title(
                                                     &runtime_handle,
                                                     tenant.clone(),
                                                     project_context.clone(),
@@ -2281,25 +2283,6 @@ fn preallocate_stream_turn_message_ids() -> Result<StreamTurnMessageIds, ApiErro
     let user_id = id::ascending(id::Prefix::Message, None)
         .map_err(|err| ApiError::internal(err.to_string()))?;
     Ok(StreamTurnMessageIds { assistant_id, user_id })
-}
-
-pub(super) fn is_successful_finish_reason(reason: Option<&str>) -> bool {
-    !matches!(
-        reason,
-        Some(
-            "tool_calls"
-                | "tool_use"
-                | "content_filter"
-                | "error"
-                | "cancelled"
-                | "waiting_for_input"
-                | "requires_action"
-                | "refusal"
-                | "max_turn_requests"
-                | "length"
-                | "max_tokens"
-        )
-    )
 }
 
 fn upsert_stream_ui_message(

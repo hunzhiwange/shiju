@@ -39,7 +39,6 @@ use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKi
 /// * `history_key` - 会话历史的存储键
 /// * `history` - 当前的聊天历史记录
 /// * `history_len_before_tools` - 执行工具之前的聊天历史长度
-/// * `had_prior_history` - 是否在本次请求之前就存在历史记录
 /// * `started_at` - 请求开始的时间点，用于计算响应延迟
 /// * `draft_message_id` - 草稿消息 ID（如果使用了草稿机制）
 /// * `user_turn_content` - 用户回合的原始内容
@@ -83,7 +82,6 @@ use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKi
 ///     "user_123_history",
 ///     &history,
 ///     5,
-///     true,
 ///     Instant::now(),
 ///     Some("draft_456"),
 ///     "用户的问题内容",
@@ -114,7 +112,6 @@ pub(crate) async fn handle_llm_result(
     history_key: &str,
     history: &[ChatMessage],
     history_len_before_tools: usize,
-    had_prior_history: bool,
     started_at: Instant,
     draft_message_id: Option<&str>,
     user_turn_content: &str,
@@ -154,10 +151,12 @@ pub(crate) async fn handle_llm_result(
         }
         // 情况 2：请求成功完成并返回了响应
         LlmExecutionResult::Completed(Ok(Ok(response))) => {
-            let mut outbound_response = response;
+            let mut outbound_response = response.text.clone();
 
             // 金丝雀令牌检查：检测响应中是否包含敏感的内部上下文
-            if canary_guard.response_contains_canary(&outbound_response, turn_canary_token) {
+            let blocked =
+                canary_guard.response_contains_canary(&outbound_response, turn_canary_token);
+            if blocked {
                 runtime_trace::record_event(
                     "channel_message_blocked_canary_guard",
                     Some(msg.channel.as_str()),
@@ -244,9 +243,8 @@ pub(crate) async fn handle_llm_result(
                 sanitize_channel_response(&outbound_response, ctx.tools_registry.as_ref());
 
             // 如果净化后的响应为空但原始响应非空，说明存在格式问题
-            let delivered_response = if sanitized_response.is_empty()
-                && !outbound_response.trim().is_empty()
-            {
+            let has_reply = !sanitized_response.trim().is_empty();
+            let delivered_response = if !has_reply {
                 "I encountered malformed tool-call output and could not produce a safe reply. Please try again."
                     .to_string()
             } else {
@@ -280,49 +278,46 @@ pub(crate) async fn handle_llm_result(
                 format!("{tool_summary}\n{delivered_response}")
             };
 
-            if let Err(err) = super::super::session_turn::persist_channel_turn(
-                ctx,
-                &msg,
-                route,
-                &history_response,
-            )
-            .await
+            let committed_id = if ctx.message_snapshot.is_none()
+                || (response.completed && !blocked && has_reply)
             {
-                if let Some(channel) = target_channel {
-                    let error = crate::providers::sanitize_api_error(&err.to_string());
-                    let _ = channel
-                        .send(
-                            &SendMessage::new(
-                                format!("会话持久化失败：{error}。请重试。"),
-                                &msg.reply_target,
+                match super::super::session_turn::persist_channel_turn(
+                    ctx,
+                    &msg,
+                    route,
+                    &history_response,
+                    response,
+                )
+                .await
+                {
+                    Ok(id) => {
+                        append_sender_turn(
+                            ctx,
+                            history_key,
+                            ChatMessage::assistant(&history_response),
+                        );
+                        id
+                    }
+                    Err(err) => {
+                        rollback_orphan_user_turn(ctx, history_key, user_turn_content);
+                        tracing::warn!(channel = %msg.channel, "Could not commit channel reply");
+                        let error = crate::providers::sanitize_api_error(&err.to_string());
+                        if let Some(channel) = target_channel {
+                            deliver_channel_reply(
+                                channel,
+                                &msg,
+                                draft_message_id,
+                                &format!("会话持久化失败：{error}。请重试。"),
                             )
-                            .in_thread(msg.thread_ts.clone()),
-                        )
-                        .await;
+                            .await;
+                        }
+                        return;
+                    }
                 }
-                return;
-            }
-
-            // 将助手响应追加到会话历史
-            append_sender_turn(ctx, history_key, ChatMessage::assistant(&history_response));
-
-            // 如果这是新会话的第一条消息，触发会话标题刷新
-            if !had_prior_history {
-                let session_id = ctx.message_snapshot.as_ref().and_then(|snapshot| {
-                    sender_session_store()
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner())
-                        .get(&snapshot.scope)
-                        .cloned()
-                });
-                if let Some(session_id) = session_id {
-                    spawn_channel_session_title_refresh(
-                        session_id,
-                        msg.content.clone(),
-                        Some(route.model.clone()),
-                    );
-                }
-            }
+            } else {
+                rollback_orphan_user_turn(ctx, history_key, user_turn_content);
+                None
+            };
 
             // 在控制台打印响应摘要
             println!(
@@ -331,48 +326,11 @@ pub(crate) async fn handle_llm_result(
                 truncate_with_ellipsis(&delivered_response, 80)
             );
 
-            // 发送响应到目标通道
             if let Some(channel) = target_channel {
-                // 如果存在草稿消息，则完成草稿
-                if let Some(draft_id) = draft_message_id {
-                    if let Err(e) = channel
-                        .finalize_draft(&msg.reply_target, draft_id, &delivered_response)
-                        .await
-                    {
-                        let delivery = e.downcast_ref::<ChannelDeliveryError>();
-                        if delivery.is_some_and(|error| {
-                            error.confirmed_parts > 0 || error.kind == DeliveryFailureKind::Unknown
-                        }) {
-                            log_delivery_failure(channel.name(), &e);
-                        } else {
-                            // Only a known zero-delivery failure, or a legacy draft error,
-                            // may use the existing whole-reply fallback.
-                            tracing::warn!(
-                                channel = channel.name(),
-                                "Draft finalization failed; using new-message fallback"
-                            );
-                            if let Err(error) = channel
-                                .send(
-                                    &SendMessage::new(&delivered_response, &msg.reply_target)
-                                        .in_thread(msg.thread_ts.clone()),
-                                )
-                                .await
-                            {
-                                log_delivery_failure(channel.name(), &error);
-                            }
-                        }
-                    }
-                } else {
-                    // 直接发送新消息
-                    if let Err(e) = channel
-                        .send(
-                            &SendMessage::new(delivered_response, &msg.reply_target)
-                                .in_thread(msg.thread_ts.clone()),
-                        )
-                        .await
-                    {
-                        log_delivery_failure(channel.name(), &e);
-                    }
+                if deliver_channel_reply(channel, &msg, draft_message_id, &delivered_response).await
+                    && let (Some(id), Some(snapshot)) = (committed_id, &ctx.message_snapshot)
+                {
+                    mark_retryable_reply(snapshot, &id, &msg, delivered_response).await;
                 }
             }
         }
@@ -603,6 +561,82 @@ pub(crate) async fn handle_llm_result(
         let _ = channel.remove_reaction(&msg.reply_target, &msg.id, "\u{1F440}").await;
         // 添加完成表情（通常是 ✅）
         let _ = channel.add_reaction(&msg.reply_target, &msg.id, reaction_done_emoji).await;
+    }
+}
+
+/// Return true only when the platform confirmed no part of the reply was sent.
+async fn deliver_channel_reply(
+    channel: &Arc<dyn Channel>,
+    msg: &traits::ChannelMessage,
+    draft_message_id: Option<&str>,
+    reply: &str,
+) -> bool {
+    if let Some(draft_id) = draft_message_id {
+        match channel.finalize_draft(&msg.reply_target, draft_id, reply).await {
+            Ok(()) => return false,
+            Err(error) => {
+                if error.downcast_ref::<ChannelDeliveryError>().is_some_and(|delivery| {
+                    delivery.confirmed_parts > 0 || delivery.kind == DeliveryFailureKind::Unknown
+                }) {
+                    log_delivery_failure(channel.name(), &error);
+                    return false;
+                }
+                tracing::warn!(
+                    channel = channel.name(),
+                    "Draft finalization failed; using new-message fallback"
+                );
+            }
+        }
+    }
+    if let Err(error) = channel
+        .send(&SendMessage::new(reply, &msg.reply_target).in_thread(msg.thread_ts.clone()))
+        .await
+    {
+        log_delivery_failure(channel.name(), &error);
+        return error.downcast_ref::<ChannelDeliveryError>().is_some_and(|delivery| {
+            delivery.confirmed_parts == 0 && delivery.kind != DeliveryFailureKind::Unknown
+        });
+    }
+    false
+}
+
+async fn mark_retryable_reply(
+    snapshot: &ChannelMessageSnapshot,
+    id: &str,
+    msg: &traits::ChannelMessage,
+    reply: String,
+) {
+    if super::super::session_turn::mark_channel_reply_retryable(snapshot, id, msg, reply)
+        .await
+        .is_err()
+    {
+        tracing::warn!(channel = %msg.channel, "Could not record retryable channel delivery");
+    }
+}
+
+/// A platform redelivery must not execute an already committed turn again.
+pub(super) async fn reconcile_channel_reply(
+    snapshot: &ChannelMessageSnapshot,
+    msg: &traits::ChannelMessage,
+    channel: Option<&Arc<dyn Channel>>,
+) -> bool {
+    match super::super::session_turn::take_committed_channel_reply(snapshot, msg).await {
+        Ok(None) => false,
+        Ok(Some((id, reply))) => {
+            if let (Some(channel), Some(reply)) = (channel, reply)
+                && deliver_channel_reply(channel, msg, None, &reply).await
+            {
+                mark_retryable_reply(snapshot, &id, msg, reply).await;
+            }
+            true
+        }
+        Err(_) => {
+            tracing::warn!(channel = %msg.channel, "Could not check for a committed channel reply");
+            if let Some(channel) = channel {
+                deliver_channel_reply(channel, msg, None, "会话记录暂不可用，请重试。").await;
+            }
+            true
+        }
     }
 }
 

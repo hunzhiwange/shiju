@@ -323,14 +323,17 @@ impl TenantConfigSource {
             std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);
 
         let migrate = tenant == &TenantScope::default();
-        let store = tokio::task::spawn_blocking(move || {
+        let open_store = move || {
             if migrate {
                 migrate_user_config(&home)?;
             }
             SystemConfigStore::new(GlobalDatabase::for_home(home)?)
-        })
-        .await
-        .context("join system config store initialization task")??;
+        };
+        #[cfg(test)]
+        let open_store = crate::global_database::inherit_test_database_context(open_store);
+        let store = tokio::task::spawn_blocking(open_store)
+            .await
+            .context("join system config store initialization task")??;
 
         let (default_config_dir, default_workspace_dir) = default_config_and_workspace_dirs()?;
         let (config_dir, resolved_workspace_dir, resolution_source) =

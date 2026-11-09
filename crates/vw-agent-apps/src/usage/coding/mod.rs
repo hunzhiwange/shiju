@@ -1,5 +1,6 @@
 //! Native Coding Plan quota queries on the authorized execution host.
 
+pub mod command_code;
 pub mod kimi;
 pub mod minimax;
 pub mod opencode_go;

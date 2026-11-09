@@ -376,3 +376,21 @@
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 
 四项测试覆盖两类入口的实际 HTTP 方法、路径与请求头，按量 Zen 和无效凭据的拒绝，401 与 403 的区分，以及缺失窗口和占位时间。真实账号验收留待任务 56。各阶段释放槽位锁并保留缓存，提交范围差异检查退出 0。
+
+## 任务 25 CommandCode 套餐查询
+
+`query_command_code` 复用能力识别，Claude 的 `/provider` 和 Codex 的 `/provider/v1` 共用固定的 `https://api.commandcode.ai` 控制面。使用 Bearer 凭据依次读取身份、余额、订阅与用量摘要。按身份响应中的组织限定后三条请求，并在已知订阅周期起点时为摘要传入 `since`。共用 HTTP 客户端禁用重定向，并限制响应体大小。 [上游识别规则](../../../../crates/vw-agent-apps/upstream/src/config/codingPlanProviders.ts#L83-L89) · [上游查询顺序](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1157-L1247) · [本地适配器](../../../../crates/vw-agent-apps/src/usage/coding/command_code.rs#L39)
+
+`CommandCodeUsage` 分别返回余额、套餐结果及补充错误。余额合计上游已报告的月度、充值与赠送额度，保留负值。五小时和周窗口读取独立上限，月档沿用上游公式，以总花费除以总花费与三类非负剩余额度之和。按量账户仍可得到余额及月档。订阅查询失败时省略月档，避免查询未经确认的周期。摘要或单个窗口失败时保留其他有效窗口。任一请求收到 401 时，两类结果均标记凭据失效。错误只包含稳定码、安全说明和关联 ID。 [上游解析](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1045-L1154) · [上游夹具](../../../../crates/vw-agent-apps/upstream/src-tauri/src/services/coding_plan.rs#L1966-L2153) · [本机 HTTP 夹具](../../../../crates/vw-agent-apps/src/usage/coding/command_code_tests.rs)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。实现前后测试、格式化和共享工作区 Clippy 动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。隔离 Clippy 动态领取槽位 2，两项环境变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。格式化在隔离源码副本执行，仅同步本任务三个 Rust 文件。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_coding_command_code_ -- --nocapture` | 退出 101，执行 0 项。包含 `usage_coding_command_code_returns_expected_result` 和 `usage_coding_command_code_rejects_invalid_input` 的测试模块报 E0432，缺少 `super::command_code`。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_coding_command_code_ -- --nocapture` | 退出 0，7 项通过，0 项失败。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。并行变更中的 ACP `PermissionConfirmation` 导入报 E0432，桌面调用 `session_set_full_access` 报 E0599。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 24 提交 `f853e61b1`、本次三个 Rust 文件及批次 24 已记录的 PostgreSQL 测试第三参数修正。 |
+
+七项测试核对两类入口、Bearer GET 请求顺序、组织和周期参数、按量余额、部分错误和迟发 401。真实账号验收留待任务 56。提交范围差异检查通过，各阶段均释放自己的锁并保留缓存。

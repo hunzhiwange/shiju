@@ -617,6 +617,7 @@ async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
     assert_eq!(requests[0].body["name"], "Shell job");
     assert_eq!(requests[0].body["schedule"], "0 0 * * * *");
     assert_eq!(requests[0].body["command"], "echo ok");
+    assert_eq!(requests[0].body["project_path"], "");
     assert_eq!(requests[0].body["task_pool"], false);
     assert!(requests[0].body.get("agent").is_none());
 }
@@ -638,6 +639,7 @@ async fn enabled_and_delete_helpers_send_one_request_per_job() {
     assert_eq!(requests.len(), 4);
     assert_eq!(requests[0].method, "PATCH");
     assert_eq!(requests[0].body["enabled"], false);
+    assert!(requests[0].body.get("project_path").is_none());
     assert_eq!(requests[1].body["enabled"], true);
     assert_eq!(requests[2].path, "/v1/cron/job-2");
     assert_eq!(requests[3].method, "DELETE");

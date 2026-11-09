@@ -183,6 +183,45 @@ fn project_options(app: &App, selected: &str) -> Vec<String> {
     with_selected_option(options, selected)
 }
 
+#[derive(Clone, PartialEq)]
+enum ProjectChoice {
+    None(&'static str),
+    Path(String),
+}
+
+impl std::fmt::Display for ProjectChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None(label) => f.write_str(label),
+            Self::Path(path) => f.write_str(path),
+        }
+    }
+}
+
+fn project_field<'a>(
+    app: &App,
+    path: &str,
+    on_selected: impl Fn(String) -> Message + 'a,
+) -> Element<'a, Message> {
+    let empty = ProjectChoice::None(I18n::new(app.desktop_locale).__("选择项目"));
+    let path = path.trim();
+    let selected = if path.is_empty() { empty.clone() } else { ProjectChoice::Path(path.into()) };
+    let options = std::iter::once(empty).chain(
+        project_options(app, path)
+            .into_iter()
+            .filter(|path| !path.trim().is_empty())
+            .map(ProjectChoice::Path),
+    );
+    settings_select(options, Some(selected), move |choice| {
+        on_selected(match choice {
+            ProjectChoice::None(_) => String::new(),
+            ProjectChoice::Path(path) => path,
+        })
+    })
+    .width(Length::Fill)
+    .into()
+}
+
 fn acp_agent_options(app: &App, selected: &str) -> Vec<String> {
     let mut options = Vec::with_capacity(app.acp_agents.len() + 1);
     options
@@ -479,8 +518,6 @@ fn edit_form(app: &App) -> Element<'_, Message> {
         models_for_provider(app, &draft.model_provider),
         &selected_model_for_provider,
     );
-    let project_options = project_options(app, &draft.project_path);
-
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, true),
         CronAddScheduleKind::At => field_row(
@@ -573,9 +610,9 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             crate::app::i18n::I18n::new(app.desktop_locale).__("项目"),
             crate::app::i18n::I18n::new(app.desktop_locale)
                 .__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-            pick_field(
-                project_options,
-                (!draft.project_path.trim().is_empty()).then_some(draft.project_path.clone()),
+            project_field(
+                app,
+                &draft.project_path,
                 |v| Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v)),
             ),
         ),
@@ -981,8 +1018,6 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         models_for_provider(app, &draft.model_provider),
         &selected_model_for_provider,
     );
-    let project_options = project_options(app, &draft.project_path);
-
     let name_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("任务名称"),
         crate::app::i18n::I18n::new(app.desktop_locale).__("可选，便于在列表中识别。"),
@@ -1073,9 +1108,9 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         crate::app::i18n::I18n::new(app.desktop_locale).__("项目"),
         crate::app::i18n::I18n::new(app.desktop_locale)
             .__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-        pick_field(
-            project_options,
-            (!draft.project_path.trim().is_empty()).then_some(draft.project_path.clone()),
+        project_field(
+            app,
+            &draft.project_path,
             |v| Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v)),
         ),
     );

@@ -386,7 +386,7 @@ pub async fn update_cron_job_async(
         model,
         agent,
         acp_agent,
-        project_path,
+        project_path: Some(project_path.unwrap_or_default()),
         wake: Some(wake),
         fallbacks,
         full_access: Some(full_access),

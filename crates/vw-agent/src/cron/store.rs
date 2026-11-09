@@ -312,7 +312,7 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
         job.acp_agent = Some(acp_agent);
     }
     if let Some(project_path) = patch.project_path {
-        job.project_path = Some(project_path);
+        job.project_path = Some(project_path).filter(|path| !path.trim().is_empty());
     }
     if let Some(wake) = patch.wake {
         job.wake = wake;

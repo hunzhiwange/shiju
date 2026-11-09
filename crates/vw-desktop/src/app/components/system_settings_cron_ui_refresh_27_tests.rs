@@ -259,6 +259,41 @@ fn fixture() -> App {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn cron_project_selector_clears_selected_path() {
+    if !isolated("cron_project_selector_clears_selected_path") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    let size = Size::new(420, 260);
+    let mut ui = scene(
+        project_field(&app, PROJECT, |path| {
+            Message::Settings(SettingsMessage::CronJobEditProjectPathChanged(path))
+        }),
+        &mut renderer,
+        size,
+    );
+    let trigger = geometry(&mut ui, &renderer).focusables[0];
+    assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
+    assert!(key_at(&mut ui, &mut renderer, Named::Home).is_empty());
+    for theme in [Theme::Light, Theme::Dark] {
+        capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            "cron-project-menu",
+            mouse::Cursor::Unavailable,
+        );
+    }
+    assert!(matches!(
+        key_at(&mut ui, &mut renderer, Named::Enter).as_slice(),
+        [Message::Settings(SettingsMessage::CronJobEditProjectPathChanged(path))] if path.is_empty()
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn ui_refresh_27_layout_and_interaction() {
     if !isolated("ui_refresh_27_layout_and_interaction") {
         return;

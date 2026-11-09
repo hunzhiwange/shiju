@@ -438,7 +438,7 @@ pub struct CronJobPatch {
     pub agent: Option<String>,
     /// 新的 ACP 智能体标识
     pub acp_agent: Option<String>,
-    /// 新的项目工作目录
+    /// 新的项目工作目录。空字符串清除项目，None 保留原值。
     pub project_path: Option<String>,
     /// 新的唤醒标志
     pub wake: Option<bool>,

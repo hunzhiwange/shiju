@@ -519,6 +519,7 @@ async fn cron_handlers_manage_shell_job_lifecycle() {
     body.schedule = None;
     body.every_ms = Some(60_000);
     body.command = Some("echo ok".to_string());
+    body.project_path = Some("/tmp/project".to_string());
 
     let (status, add_json) = response_json(
         handle_api_cron_add(
@@ -561,6 +562,21 @@ async fn cron_handlers_manage_shell_job_lifecycle() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(update_json["job"]["name"], "Updated");
     assert_eq!(update_json["job"]["enabled"], false);
+    assert_eq!(update_json["job"]["project_path"], "/tmp/project");
+
+    let (status, clear_json) = response_json(
+        handle_api_cron_update(
+            State(state_with_config(config.clone(), false)),
+            headers.clone(),
+            Path(job_id.clone()),
+            JsonResponse(CronUpdateBody { project_path: Some(String::new()), ..update_body() }),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(clear_json["job"]["project_path"], serde_json::Value::Null);
+    assert_eq!(crate::app::agent::cron::list_jobs(&config.lock()).unwrap()[0].project_path, None);
 
     let (status, runs_json) = response_json(
         handle_api_cron_runs(

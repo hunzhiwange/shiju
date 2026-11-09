@@ -27,6 +27,7 @@ from verify_acp_model_source import (
 
 MANIFEST = ROOT / "docs/shiju/acp-model-source/cli-versions.json"
 PHASES = (("approval", False), ("full_access", True), ("revoked", False))
+UNCONFINED_NATIVE = ("hermes", "kilocode", "openclaw", "opencode", "pi")
 HTTP = build_opener(ProxyHandler({}))
 
 
@@ -133,7 +134,7 @@ def expect_reply_error(url, route, reply, status):
 
 
 def interactive_turn(url, query, other_query, body, workspace, approve_edits, rendezvous=None,
-                     gemini_write_expected=None):
+                     fixture_edit=None, edit_titles=()):
     """Drive the same one-time approval route used by the desktop."""
     decisions = []
     seen = set()
@@ -150,10 +151,10 @@ def interactive_turn(url, query, other_query, body, workspace, approve_edits, re
                 arguments = metadata.get("arguments") or {}
                 # Only approve an exact fixture write. Titles do not authorize commands.
                 write = matches_workspace_edit(arguments, workspace)
-                # Gemini omits rawInput from permission requests. In this isolated
-                # single-tool turn the fixture itself selected the exact file input.
-                if gemini_write_expected and gemini_write_expected() and not arguments:
-                    write = metadata.get("title") in ("Writing to note.txt", "Confirm Write: note.txt")
+                # Some adapters omit rawInput. For their isolated single-tool turns,
+                # correlate the reported action to the exact input emitted by the fixture.
+                if fixture_edit and fixture_edit() and not arguments:
+                    write = metadata.get("title") in edit_titles
                 decision = "once" if approve_edits and write else "reject"
                 if rendezvous is not None and not decisions:
                     rendezvous.wait(timeout=20)
@@ -182,7 +183,7 @@ def stream_evidence(stream):
 
 def stream_failure_categories(stream):
     categories = {
-        "opencode_requires_full_access": ("opencode approval mode cannot constrain native tools",),
+        "requires_full_access": ("approval mode cannot constrain native tools",),
         "authentication": ("auth", "api key", "credential"),
         "model_source": ("model", "provider"),
         "reviewed_runtime": ("reviewed", "checksum", "artifact"),
@@ -281,19 +282,23 @@ def gateway(binary, root, env):
 
 
 def session_turns(binary, backend, source, row, entry=None):
-    with tempfile.TemporaryDirectory(prefix="shiju-acp-approval-") as name:
+    # Hermes explicitly protects Darwin's /private/var, including the default TMPDIR.
+    temp_parent = "/tmp" if backend == "hermes" and platform.system() == "Darwin" else None
+    with tempfile.TemporaryDirectory(prefix="shiju-acp-approval-", dir=temp_parent) as name:
         root = Path(name).resolve()
         env = environment(root)
         workspace = root / "workspace"
         workspace.mkdir()
         outside = root / "outside.txt"
         agent = "approval-fixture"
-        with model_fixture(workspace, outside) as fixture, ExitStack() as owned:
+        with model_fixture(workspace, outside, backend) as fixture, ExitStack() as owned:
             if entry is None:
                 spec = {"command": sys.executable, "args": [
                     str(Path(__file__).resolve()), "--peer", str(workspace), str(outside)
                 ], "env": {}}
             else:
+                if source == "cli_local" and "cli-local" not in entry.get("offline_acceptance", {}):
+                    raise Unavailable("driver has no reviewed offline native configuration recipe")
                 spec = locate_codex(entry, env) if backend == "codex" else locate(entry, env)
                 if backend == "gemini":
                     spec["args"] = ["--experimental-acp"]
@@ -303,7 +308,16 @@ def session_turns(binary, backend, source, row, entry=None):
                     native = root / "native"
                     native.mkdir(mode=0o700)
                     native_env = isolated_environment(entry, native, fixture, "cli-local")
-                    if backend == "gemini":
+                    if backend == "codebuddy":
+                        native_env.update(
+                            WORKBUDDY_CONFIG_DIR=str(native),
+                            CODEBUDDY_DISABLE_BUILTIN_MODELS="1",
+                            CODEBUDDY_MODEL=fixture.models[0],
+                            CODEBUDDY_SMALL_FAST_MODEL=fixture.models[0],
+                            CODEBUDDY_BIG_SLOW_MODEL=fixture.models[0],
+                            CODEBUDDY_CODE_SUBAGENT_MODEL=fixture.models[0],
+                        )
+                    elif backend == "gemini":
                         settings = native / ".gemini/settings.json"
                         payload = json.loads(settings.read_text())
                         payload["security"]["auth"]["selectedType"] = "gemini-api-key"
@@ -345,9 +359,9 @@ def session_turns(binary, backend, source, row, entry=None):
                         file.unlink(missing_ok=True)
                     (workspace / "keep.txt").write_text("keep")
                     if backend == "gemini":
-                        # Gemini's edit preparation reads the file before writing. Use an
+                        # These adapters read the file before writing. Use an
                         # existing file for this native path; the host peer tests creation.
-                        (workspace / "note.txt").write_text("before Gemini edit")
+                        (workspace / "note.txt").write_text("before native edit")
                     body = {"session_id": session, "agent": agent, "acp_model_source": source,
                             "options": {"full_access": full, "cwd": str(workspace),
                                         "acp_close_client_after_request": entry is None}}
@@ -357,7 +371,7 @@ def session_turns(binary, backend, source, row, entry=None):
                         body["options"]["acp_non_interactive_permissions"] = "deny"
                     # Some suppliers end the current prompt when a user rejects a tool.
                     # Give each restricted probe its own turn to still cover later tools.
-                    steps = (None,) if entry is None or backend in ("claude", "codex", "opencode") or full else range(5)
+                    steps = (None,) if entry is None or backend in ("claude", "codex", *UNCONFINED_NATIVE) or full else range(5)
                     decisions, actions, results, advertised = [], [], {}, set()
                     completed = True
                     failures = []
@@ -369,12 +383,19 @@ def session_turns(binary, backend, source, row, entry=None):
                             stream = request(url, "/chat/stream" + query, body)
                             turn_decisions = []
                         else:
-                            gemini_write_expected = None
-                            if backend == "gemini" and step in (0, 1):
-                                gemini_write_expected = lambda: fixture.workspace_edit_issued
+                            edit_titles = {
+                                "gemini": ("Writing to note.txt", "Confirm Write: note.txt"),
+                                "kimi": ("Write",),
+                                "kiro": ("Write File",),
+                                "codebuddy": ("Write to note.txt",),
+                                "iflow": ("Write to note.txt",),
+                                "qwen": ("Confirm Write: note.txt", "Writing to note.txt", "Write to note.txt"),
+                                "snow": ("filesystem-create",),
+                            }.get(backend, ()) if step in (0, 1) else ()
                             stream, turn_decisions = interactive_turn(
                                 url, query, other_query, body, workspace, phase == "approval",
-                                gemini_write_expected=gemini_write_expected,
+                                fixture_edit=lambda: fixture.workspace_edit_issued,
+                                edit_titles=edit_titles,
                             )
                         turn_completed, answer = stream_evidence(stream)
                         if not turn_completed and not any(d["reply"] == "reject" for d in turn_decisions):
@@ -449,17 +470,17 @@ def session_turns(binary, backend, source, row, entry=None):
 
 def verify_native_phases(backend, source, row, phases):
     restricted, full, revoked = phases
-    if backend == "opencode":
+    if backend in UNCONFINED_NATIVE:
         require(all(not phase["turn_completed"] and not phase["model_tool_requests"]
-                    and "opencode_requires_full_access" in phase.get("gateway_failures", [])
+                    and "requires_full_access" in phase.get("gateway_failures", [])
                     for phase in (restricted, revoked)),
-                "OpenCode approval and revocation must reject native execution before model calls")
+                "approval and revocation must reject unconfined native execution before model calls")
         require(not any(phase[key] for phase in (restricted, revoked)
                         for key in ("second_edit", "outside_write", "terminal_marker", "deletion")),
-                "OpenCode had native side effects without full access")
-        require(full["turn_completed"] and len(full["model_tool_results"]) == 5 and all(
+                "an unconfined adapter had native side effects without full access")
+        require(full["turn_completed"] and len(full["model_tool_requests"]) == 5 and all(
             full[key] for key in ("second_edit", "outside_write", "terminal_marker", "deletion")
-        ), "OpenCode full access did not complete its operations")
+        ), "native full access did not complete its operations")
         row.update(status="passed", fallback="native execution requires a current full-access grant")
         return
     require(all(p["turn_completed"] and len(p["model_tool_requests"]) == 5 for p in phases),
@@ -470,7 +491,7 @@ def verify_native_phases(backend, source, row, phases):
     require(len(full["model_tool_results"]) == 5 and full["second_edit"]
             and full["terminal_marker"] and full["deletion"],
             "full access did not complete workspace edits and shell operations")
-    if backend != "gemini":
+    if backend not in ("gemini", "iflow"):
         require(full["outside_write"], "the native outside write did not complete with full access")
     if backend == "codex":
         require(not restricted["second_edit"] and not revoked["second_edit"],
@@ -528,7 +549,9 @@ def verify(binary, report, entries, selected):
             row["reason"] = str(error)
         except AssertionError as error:
             row.update(status="failed", reason=str(error))
-        print(f"{key} {source}: {row['status']}", file=sys.stderr, flush=True)
+        except ValueError as error:
+            row.update(status="failed", reason=f"invalid fixture or gateway response: {type(error).__name__}")
+        print(f"{key} {source}: {row['status']} {row.get('reason', '')}", file=sys.stderr, flush=True)
 
     with ThreadPoolExecutor(max_workers=3) as pool:
         list(pool.map(run_supplier, runnable))

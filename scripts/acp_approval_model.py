@@ -10,11 +10,14 @@ from urllib.parse import urlsplit
 
 from acp_skill_mount_claude import messages_wire
 from acp_skill_mount_codex import responses_wire
+from acp_model_source_kiro_fixture import KiroFixtureMixin
 
 CONTENTS = ("first edit", "second edit")
 DONE = "ACP_APPROVAL_FIXTURE_DONE"
-WRITE_TOOLS = ("write", "write_file", "write_to_file", "write_text_file", "create_file", "create")
-SHELL_TOOLS = ("bash", "shell", "run_shell_command", "exec_command", "shell_command", "execute_command")
+WRITE_TOOLS = ("write", "writefile", "writetofile", "writetextfile", "createfile", "create",
+               "fswrite", "filesystemwrite", "filewrite", "filesystemcreate")
+SHELL_TOOLS = ("bash", "shell", "runshellcommand", "execcommand", "shellcommand", "executecommand",
+               "executeshellcommand", "terminal", "runcommand", "executebash", "exec", "terminalexecute")
 
 
 def shell_command(index, workspace, outside):
@@ -27,11 +30,12 @@ def shell_command(index, workspace, outside):
     return "rm " + shlex.quote(str(workspace / "keep.txt"))
 
 
-def tool_inputs(tools, index, workspace, outside):
+def tool_inputs(tools, index, workspace, outside, backend=None):
     """Issue calls only against the adapter's actually advertised tools."""
-    definitions = {tool["name"].lower(): tool for item in tools
+    definitions = {"".join(c for c in tool["name"].lower().rsplit("__", 1)[-1] if c.isalnum()): tool for item in tools
                    if (tool := item.get("function", item)).get("name")}
-    if index < 3:
+    # Copilot's create tool refuses to overwrite. Use its reviewed shell path.
+    if index < 3 and backend != "copilot":
         target = workspace / "note.txt" if index < 2 else outside
         content = CONTENTS[index] if index < 2 else "outside edit"
         for name in WRITE_TOOLS:
@@ -41,14 +45,19 @@ def tool_inputs(tools, index, workspace, outside):
             props = properties(tool)
             path_key = next((key for key in ("file_path", "filePath", "path", "absolute_path")
                              if key in props), None)
-            if path_key and "content" in props:
-                return tool["name"], {path_key: str(target), "content": content}
+            content_key = next((key for key in ("content", "file_text", "file_content", "contents", "text")
+                                if key in props), None)
+            if path_key and content_key and "command" not in props:
+                arguments = {path_key: str(target), content_key: content}
+                if name == "filesystemcreate":
+                    arguments["overwrite"] = index == 1
+                return tool["name"], arguments
     for name in SHELL_TOOLS:
         if name not in definitions:
             continue
         tool = definitions[name]
         props = properties(tool)
-        command_key = next((key for key in ("command", "cmd") if key in props), None)
+        command_key = next((key for key in ("command", "cmd", "script") if key in props), None)
         if not command_key:
             continue
         arguments = {command_key: shell_command(index, workspace, outside)}
@@ -56,8 +65,13 @@ def tool_inputs(tools, index, workspace, outside):
             arguments["description"] = "Run the isolated approval fixture operation"
         if "workdir" in props:
             arguments["workdir"] = str(workspace)
-        if "timeout" in props:
+        if "cwd" in props:
+            arguments["cwd"] = str(workspace)
+        if backend == "copilot" and "timeout" in props:
             arguments["timeout"] = 5000
+        if name == "terminalexecute":
+            arguments.update(explanation="Run the isolated approval fixture operation",
+                             workingDirectory=str(workspace), enableAiSummary=False)
         return tool["name"], arguments
     return None
 
@@ -71,11 +85,14 @@ def properties(tool):
 def matches_workspace_edit(arguments, workspace):
     if not isinstance(arguments, dict):
         return False
+    if isinstance(arguments.get("arguments"), dict):
+        arguments = arguments["arguments"]
     path = next((arguments[key] for key in ("file_path", "filePath", "path", "absolute_path")
                  if key in arguments), None)
-    if isinstance(path, str) and (workspace / Path(path)) == workspace / "note.txt":
-        return arguments.get("content") in CONTENTS
-    return (arguments.get("command") or arguments.get("cmd")) in [
+    if isinstance(path, str) and (workspace / Path(path)).resolve() == workspace / "note.txt":
+        return any(arguments.get(key) in CONTENTS
+                   for key in ("content", "file_text", "file_content", "contents", "text"))
+    return (arguments.get("command") or arguments.get("cmd") or arguments.get("script")) in [
         shell_command(index, workspace, workspace / "unused") for index in range(2)
     ]
 
@@ -98,18 +115,21 @@ def chat_wire(message, model, response_id):
 
 
 @contextmanager
-def model_fixture(workspace, outside):
+def model_fixture(workspace, outside, backend=None):
     """Reuse existing wire envelopes while driving native tools with fixed inputs."""
-    class Handler(BaseHTTPRequestHandler):
+    class Handler(KiroFixtureMixin, BaseHTTPRequestHandler):
         def log_message(self, *_args):
             pass
 
-        def reply(self, data, content_type="application/json"):
-            self.send_response(200)
+        def send_body(self, data, content_type="application/json", status=200):
+            self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+
+        def reply(self, status, value):
+            self.send_body(json.dumps(value).encode(), status=status)
 
         def authenticated(self):
             return fixture.key in (self.headers.get("x-api-key"), self.headers.get("x-goog-api-key"),
@@ -118,9 +138,9 @@ def model_fixture(workspace, outside):
         def do_GET(self):
             if urlsplit(self.path).path != "/v1/models" or not self.authenticated():
                 return self.send_error(404)
-            self.reply(json.dumps({"object": "list", "data": [
+            self.reply(200, {"object": "list", "data": [
                 {"id": model, "object": "model"} for model in fixture.models
-            ]}).encode())
+            ]})
 
         def do_POST(self):
             length = int(self.headers.get("Content-Length", "0"))
@@ -128,13 +148,18 @@ def model_fixture(workspace, outside):
                 return self.send_error(400)
             body = json.loads(self.rfile.read(length))
             route = urlsplit(self.path).path
+            if route == "/" and fixture.kiro_controls:
+                try:
+                    return self.kiro_control(body)
+                except ValueError:
+                    return self.send_error(400)
             model = route.rsplit("/", 1)[-1].split(":", 1)[0] if route.startswith("/v1beta/") else body.get("model")
             if model not in fixture.models:
                 return self.send_error(400)
             if route in ("/v1/messages/count_tokens", "/v1/chat/completions/count_tokens"):
-                return self.reply(b'{"input_tokens":1}')
+                return self.reply(200, {"input_tokens": 1})
             if route.endswith(":countTokens"):
-                return self.reply(b'{"totalTokens":1}')
+                return self.reply(200, {"totalTokens": 1})
             if route not in ("/v1/messages", "/v1/responses", "/v1/chat/completions") and not (
                 route.startswith("/v1beta/models/") and
                 route.endswith((":generateContent", ":streamGenerateContent"))
@@ -147,7 +172,7 @@ def model_fixture(workspace, outside):
             message = {"role": "assistant", "content": DONE}
             if route == "/v1/responses" and body.get("text", {}).get("format", {}).get("schema"):
                 message["content"] = '{"title":"ACP approval fixture"}'
-            elif tools:
+            else:
                 call = fixture.next_tool(tools, body)
                 if call:
                     message.update(content=None, tool_calls=[call])
@@ -170,13 +195,14 @@ def model_fixture(workspace, outside):
             else:
                 result, wire = chat_wire(message, body["model"], "fixture-" + secrets.token_hex(8))
             if body.get("stream") or route.endswith(":streamGenerateContent"):
-                return self.reply(wire, "text/event-stream")
-            self.reply(json.dumps(result).encode())
+                return self.send_body(wire, "text/event-stream")
+            self.reply(200, result)
 
     class Fixture(ThreadingHTTPServer):
         daemon_threads = True
         key = "offline-acp-approval-key"
         models = ("acp-fixture-primary",)
+        kiro_controls = False
 
         def reset(self, phase, operation=None):
             with self.lock:
@@ -187,6 +213,7 @@ def model_fixture(workspace, outside):
                 self.results = {}
                 self.tool_names = set()
                 self.workspace_edit_issued = False
+                self.prior_read_issued = False
 
         def next_tool(self, tools, request):
             with self.lock:
@@ -212,7 +239,16 @@ def model_fixture(workspace, outside):
                 if index >= (5 if self.operation is None else 1):
                     return None
                 self.tool_names.update(tool.get("function", tool).get("name", "") for tool in tools)
-                selected = tool_inputs(tools, index if self.operation is None else self.operation, workspace, outside)
+                step = index if self.operation is None else self.operation
+                note = workspace / "note.txt"
+                # Qwen requires a native read before it will overwrite an existing file.
+                if (backend == "qwen" and step == 1 and not self.prior_read_issued
+                        and note.is_file() and any(tool.get("function", tool).get("name") == "read_file"
+                                                   for tool in tools)):
+                    self.prior_read_issued = True
+                    return {"id": f"toolu_approval_{self.phase}_read", "type": "function",
+                            "function": {"name": "read_file", "arguments": json.dumps({"file_path": str(note)})}}
+                selected = tool_inputs(tools, step, workspace, outside, backend)
                 if selected is None:
                     return None
                 name, arguments = selected
@@ -224,6 +260,7 @@ def model_fixture(workspace, outside):
                         "function": {"name": name, "arguments": json.dumps(arguments)}}
 
     with Fixture(("127.0.0.1", 0), Handler) as fixture:
+        Handler.model_fixture = fixture
         fixture.url = f"http://127.0.0.1:{fixture.server_port}"
         fixture.lock = threading.Lock()
         fixture.reset("startup")

@@ -158,12 +158,15 @@ def locate(entry, env):
         return {"command": str(Path(executable).absolute()), "args": [], "env": {}}
     result = subprocess.run([executable, "--version"], env=env, capture_output=True, timeout=20)
     version = (result.stdout + result.stderr).decode(errors="replace")
-    version_prefix = r"v?" if entry.get("key") == "hermes" else ""
     if entry.get("key") == "copilot":
         # The fixed CLI prints a sentence-ending period. Keep this product-specific
         # and exact: a fourth component or prerelease must never match the pin.
         matches_version = version.splitlines()[:1] == ["GitHub Copilot CLI " + release + "."]
+    elif entry.get("key") == "goose":
+        # The reviewed build prints the release without the source tag's v prefix.
+        matches_version = version.strip().removeprefix("v") == release.removeprefix("v")
     else:
+        version_prefix = r"v?" if entry.get("key") == "hermes" else ""
         matches_version = re.search(r"(?<![\w.])" + version_prefix + re.escape(release) + r"(?![\w.])", version)
     if result.returncode or not matches_version:
         raise VersionMismatch("installed CLI version differs from manifest")

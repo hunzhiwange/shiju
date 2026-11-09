@@ -12264,6 +12264,7 @@ version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -12487,6 +12488,7 @@ version = "0.6.0"
 dependencies = [
  "block2 0.6.2",
  "directories",
+ "getrandom 0.4.3",
  "gtk",
  "mime_guess",
  "objc2 0.6.4",
@@ -12498,6 +12500,7 @@ dependencies = [
  "serde_json",
  "tao",
  "url",
+ "vw-api-types",
  "webkit2gtk",
  "webview2-com",
  "windows 0.61.3",

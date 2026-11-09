@@ -10,6 +10,7 @@ use std::{
         atomic::{AtomicBool, AtomicU8, Ordering},
     },
 };
+use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;
 
 #[derive(Debug, Clone)]
 pub struct McpAppPanel(Arc<PanelLease>);
@@ -54,49 +55,9 @@ impl McpAppPanel {
         Ok((server, tool, binding, html))
     }
 
-    pub fn network_policy(app: &Value) -> Result<Value> {
-        let csp = &app["resource"]["contents"][0]["_meta"]["ui"]["csp"];
-        if csp.is_null() {
-            return Ok(serde_json::json!({}));
-        }
-        let object = csp.as_object().ok_or_else(|| anyhow::anyhow!("invalid app CSP"))?;
-        for (key, value) in object {
-            if !matches!(
-                key.as_str(),
-                "resourceDomains" | "connectDomains" | "baseUriDomains" | "redirectDomains"
-            ) {
-                bail!("unsupported app CSP directive");
-            }
-            let domains = value
-                .as_array()
-                .filter(|v| v.len() <= 32)
-                .ok_or_else(|| anyhow::anyhow!("invalid app CSP domains"))?;
-            for domain in domains {
-                let origin =
-                    domain.as_str().ok_or_else(|| anyhow::anyhow!("invalid app origin"))?;
-                let authority = origin
-                    .strip_prefix("https://")
-                    .ok_or_else(|| anyhow::anyhow!("app origins require HTTPS"))?;
-                if authority.is_empty()
-                    || authority.len() > 253
-                    || !authority
-                        .bytes()
-                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'-' | b':'))
-                    || !authority.contains('.')
-                    || authority.starts_with('.')
-                    || authority.ends_with('.')
-                    || authority.split(':').count() > 2
-                {
-                    bail!("app CSP requires exact HTTPS origins");
-                }
-                if let Some((_, port)) = authority.split_once(':')
-                    && port.parse::<u16>().ok().is_none_or(|p| p == 0)
-                {
-                    bail!("invalid app origin port");
-                }
-            }
-        }
-        Ok(csp.clone())
+    pub fn network_policy(app: &Value) -> Result<McpAppNetworkPolicy> {
+        McpAppNetworkPolicy::parse(app.pointer("/resource/contents/0/_meta/ui/csp"))
+            .map_err(anyhow::Error::msg)
     }
 
     pub fn launch(

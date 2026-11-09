@@ -2,6 +2,7 @@
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;
 
 pub struct McpAppBridge {
     session: String,
@@ -118,7 +119,14 @@ impl McpAppProcess {
         html: &str,
         tools: BTreeSet<String>,
     ) -> Result<Self> {
-        Self::launch_with_policy(helper, session, server, html, tools, json!({}))
+        Self::launch_with_policy(
+            helper,
+            session,
+            server,
+            html,
+            tools,
+            McpAppNetworkPolicy::default(),
+        )
     }
     pub fn launch_with_policy(
         helper: &std::path::Path,
@@ -126,7 +134,7 @@ impl McpAppProcess {
         server: String,
         html: &str,
         tools: BTreeSet<String>,
-        csp: Value,
+        csp: McpAppNetworkPolicy,
     ) -> Result<Self> {
         use std::io::{BufRead, Write};
         if html.len() > 4 * 1024 * 1024 {

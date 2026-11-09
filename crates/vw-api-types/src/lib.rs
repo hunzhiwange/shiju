@@ -48,6 +48,7 @@ pub mod git;
 pub mod id;
 pub mod knowledge;
 pub mod mcp;
+pub mod mcp_app_network;
 pub mod project;
 pub mod provider;
 pub mod question;

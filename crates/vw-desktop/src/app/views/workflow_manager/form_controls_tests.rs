@@ -1,10 +1,13 @@
-use super::{WorkflowDraft, WorkflowDraftStatus, WorkflowManagerMessage, build_draft_editor};
+use super::{
+    WorkflowDraft, WorkflowDraftStatus, WorkflowManagerMessage, build_draft_editor,
+    owned_workflow_from_draft,
+};
 use crate::app::{Message, i18n::I18n, task::StatusRole};
 use iced::advanced::renderer::{Headless, Style};
 use iced::advanced::widget::operation::{Focusable, Operation};
 use iced::advanced::{Layout, clipboard, layout, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
-use iced::{Element, Event, Font, Rectangle, Renderer, Size, Theme, mouse};
+use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use vw_config_types::ui::DesktopLocale;
 
@@ -67,21 +70,165 @@ async fn help_rollout_27_lifecycle_route_renders_contextual_help() {
         .fold(Layout::new(&scene.layout), |node, index| node.children().nth(index).unwrap());
     let trigger = help_bounds(route_name).expect("workflow route help icon").center();
     let idle = scene.capture(&mut renderer, &Theme::Dark);
-    let mut messages = Vec::new();
-    scene.ui.update(
-        &[
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-        ],
-        mouse::Cursor::Available(trigger),
-        &mut renderer,
-        &mut clipboard::Null,
-        &mut messages,
-    );
-    assert!(messages.is_empty());
+    assert!(scene.click(&mut renderer, trigger, mouse::Button::Left).is_empty());
     assert!(scene.capture(&mut renderer, &Theme::Dark) != idle);
     assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
     assert!(scene.capture(&mut renderer, &Theme::Dark) == idle);
+}
+
+struct FindText<'a>(&'a str, Option<Rectangle>);
+
+impl Operation for FindText<'_> {
+    fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        children(self);
+    }
+
+    fn text(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle, value: &str) {
+        if value == self.0 {
+            self.1 = Some(bounds);
+        }
+    }
+}
+
+#[tokio::test]
+async fn settings_help_gap_17_lifecycle_route_heading_and_controls() {
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia renderer");
+
+    let mut new_draft = WorkflowDraft::empty();
+    new_draft.id = "review_flow".into();
+    new_draft.label = "Review flow".into();
+    let mut queued = WorkflowDraftStatus::new("queued", "Queued", StatusRole::Queued);
+    queued.routes.truncate(1);
+    queued.add_route();
+    let mut done = WorkflowDraftStatus::new("done", "Done", StatusRole::Done);
+    done.routes.clear();
+    new_draft.statuses = vec![queued, done];
+
+    let mut saved = new_draft.clone();
+    saved.statuses[0].set_route_target_key(1, Some("done".into()));
+    let saved = owned_workflow_from_draft(&saved).expect("valid lifecycle fixture");
+    let saved_draft = WorkflowDraft::from_workflow(saved.into());
+
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        let explanation = i18n.__("结果 key 可自定义；目标留空表示此结果结束。");
+        for (theme, width) in [(Theme::Light, 760), (Theme::Dark, 456)] {
+            for draft in [&new_draft, &saved_draft] {
+                let mut scene =
+                    EditorScene::new(build_draft_editor(i18n, draft), &mut renderer, width);
+                assert!(
+                    scene.text_bounds(&renderer, explanation).is_none(),
+                    "route explanation is still in the body: {explanation}"
+                );
+                let status = [0, 4, 0, 0, 0, 0];
+                let field = |scene: &EditorScene<'_>, path: &[usize]| {
+                    scene.bounds(&[status.as_slice(), path].concat())
+                };
+                assert!(scene.text_bounds(&renderer, i18n.__("结果去向")).is_some());
+                let icon = field(&scene, &[4, 0, 1]);
+                assert_eq!(icon.size(), Size::new(22.0, 22.0));
+                let idle = scene.capture(&mut renderer, &theme);
+                assert!(
+                    scene
+                        .send_at(
+                            &mut renderer,
+                            &[Event::Mouse(mouse::Event::CursorMoved { position: icon.center() })],
+                            mouse::Cursor::Available(icon.center())
+                        )
+                        .is_empty()
+                );
+                assert!(scene.capture(&mut renderer, &theme) != idle, "help opens on hover");
+                assert!(scene.click(&mut renderer, icon.center(), mouse::Button::Left).is_empty());
+                let pinned = scene.capture(&mut renderer, &theme);
+                assert!(pinned != idle, "help stays visible with the pointer unavailable");
+
+                // The help card opens to the right of this icon. Copy its full body through
+                // the selection menu without writing to the clipboard.
+                let card = Point::new(icon.x + icon.width + 4.0 + 12.5, icon.center_y() + 5.0);
+                assert!(scene.click(&mut renderer, card, mouse::Button::Right).is_empty());
+                assert!(scene.capture(&mut renderer, &theme) != pinned);
+                assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
+                assert!(
+                    scene.capture(&mut renderer, &theme) == pinned,
+                    "Esc closes the menu first"
+                );
+                assert!(scene.click(&mut renderer, card, mouse::Button::Right).is_empty());
+                let menu_row_height =
+                    f32::from(iced::advanced::text::LineHeight::default().to_absolute(12.0.into()))
+                        + 10.0;
+                let copy = Point::new(card.x + 24.0, card.y + 3.0 + menu_row_height * 0.5);
+                assert!(matches!(
+                    scene.click(&mut renderer, copy, mouse::Button::Left).as_slice(),
+                    [Message::CopyCode(value)] if value == explanation
+                ));
+                assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
+                assert!(scene.capture(&mut renderer, &theme) == idle, "Esc closes the help card");
+
+                for path in [&[5, 0, 0, 1][..], &[5, 0, 1, 1], &[5, 0, 3]] {
+                    let point = field(&scene, path).center();
+                    assert!(scene.click(&mut renderer, point, mouse::Button::Left).is_empty());
+                    assert!(
+                        scene.key(&mut renderer, Key::Character("x".into()), Some("x")).is_empty()
+                    );
+                }
+                assert!(scene.text_bounds(&renderer, "succeed").is_some());
+                let add = field(&scene, &[4, 2]).center();
+                assert!(matches!(
+                    scene.click(&mut renderer, add, mouse::Button::Left).as_slice(),
+                    [Message::WorkflowManager(WorkflowManagerMessage::AddDraftStatusRoute(0))]
+                ));
+                let custom = draft.statuses[0].routes.len() - 1;
+                let remove = field(&scene, &[5, custom, 3]).center();
+                assert!(matches!(
+                    scene.click(&mut renderer, remove, mouse::Button::Left).as_slice(),
+                    [Message::WorkflowManager(WorkflowManagerMessage::RemoveDraftStatusRoute {
+                        status_index: 0,
+                        route_index,
+                    })] if *route_index == custom
+                ));
+
+                let (custom_key, custom_target) = if draft.original_id.is_some() {
+                    (Named::Home, None)
+                } else {
+                    (Named::End, Some("done"))
+                };
+                for (route_index, key, expected) in
+                    [(0, Named::Home, None), (custom, custom_key, custom_target)]
+                {
+                    let target = field(&scene, &[5, route_index, 2]);
+                    scene.ui.operate(&renderer, &mut FocusControl(target));
+                    let closed = scene.capture(&mut renderer, &theme);
+                    assert!(scene.key(&mut renderer, Key::Named(Named::Enter), None).is_empty());
+                    assert!(scene.capture(&mut renderer, &theme) != closed, "route menu opens");
+                    assert!(scene.key(&mut renderer, Key::Named(Named::Escape), None).is_empty());
+                    assert!(scene.capture(&mut renderer, &theme) == closed, "route menu closes");
+                    assert!(scene.key(&mut renderer, Key::Named(Named::Enter), None).is_empty());
+                    assert!(scene.key(&mut renderer, Key::Named(key), None).is_empty());
+                    assert!(matches!(
+                        scene.key(&mut renderer, Key::Named(Named::Enter), None).as_slice(),
+                        [Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
+                            status_index: 0,
+                            route_index: index,
+                            target_key,
+                        })] if *index == route_index && target_key.as_deref() == expected
+                    ));
+                }
+            }
+        }
+    }
 }
 
 struct EditorScene<'a> {
@@ -113,15 +260,40 @@ impl<'a> EditorScene<'a> {
     }
 
     fn send(&mut self, renderer: &mut Renderer, event: Event) -> Vec<Message> {
+        self.send_at(renderer, &[event], mouse::Cursor::Unavailable)
+    }
+
+    fn send_at(
+        &mut self,
+        renderer: &mut Renderer,
+        events: &[Event],
+        cursor: mouse::Cursor,
+    ) -> Vec<Message> {
         let mut messages = Vec::new();
-        self.ui.update(
-            &[event],
-            mouse::Cursor::Unavailable,
-            renderer,
-            &mut clipboard::Null,
-            &mut messages,
-        );
+        self.ui.update(events, cursor, renderer, &mut clipboard::Null, &mut messages);
         messages
+    }
+
+    fn click(
+        &mut self,
+        renderer: &mut Renderer,
+        point: Point,
+        button: mouse::Button,
+    ) -> Vec<Message> {
+        self.send_at(
+            renderer,
+            &[
+                Event::Mouse(mouse::Event::ButtonPressed(button)),
+                Event::Mouse(mouse::Event::ButtonReleased(button)),
+            ],
+            mouse::Cursor::Available(point),
+        )
+    }
+
+    fn text_bounds(&mut self, renderer: &Renderer, value: &str) -> Option<Rectangle> {
+        let mut find = FindText(value, None);
+        self.ui.operate(renderer, &mut find);
+        find.1
     }
 
     fn key(&mut self, renderer: &mut Renderer, key: Key, text: Option<&str>) -> Vec<Message> {

@@ -2170,13 +2170,12 @@ fn build_status_row<'a>(
                 role_pick,
             ),
             row![
-                column![
-                    text(i18n.__("结果去向")).size(13),
-                    text(i18n.__("结果 key 可自定义；目标留空表示此结果结束。"))
-                        .size(11)
-                        .style(settings_muted_text_style),
-                ]
-                .spacing(4),
+                field_help(
+                    i18n,
+                    i18n.__("结果去向"),
+                    i18n.__("结果 key 可自定义；目标留空表示此结果结束。"),
+                    13,
+                ),
                 Space::new().width(Length::Fill),
                 button(text(i18n.__("添加结果")).size(12))
                     .padding([7, 10])

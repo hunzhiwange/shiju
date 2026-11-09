@@ -13,3 +13,5 @@ pub mod providers;
 pub mod auth;
 
 pub mod models;
+
+pub mod usage;

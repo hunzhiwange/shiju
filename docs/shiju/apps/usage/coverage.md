@@ -151,6 +151,8 @@
 
 限定提交范围的 `git diff --cached --check` 退出 0。槽位锁已释放，编译缓存保留。真实账号验收见任务 55。
 
+共享工作区回归（基于 `ad9b49174`）使用槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。`cargo test -p vw-agent-apps usage_balances_siliconflow_ -- --nocapture` 退出 0，4 项通过，0 项失败。`cargo clippy --all-targets --all-features -- -D warnings` 退出 0。槽位锁已释放，编译缓存保留。
+
 ## 任务 14 OpenRouter 余额
 
 | 来源 | 实现和测试 |

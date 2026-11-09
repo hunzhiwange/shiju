@@ -330,11 +330,11 @@ impl App {
             task_board_ui_tick,
             #[cfg(not(target_arch = "wasm32"))]
             if self.agent_apps_auth.login.as_ref().is_some_and(|login| {
-                matches!(login.phase, crate::app::state::agent_apps_auth::DevicePhase::Pending(_))
+                matches!(login.phase, crate::app::state::agent_apps_auth::LoginPhase::Pending(_))
             }) {
                 iced::time::every(std::time::Duration::from_secs(1)).map(|_| {
                     use crate::app::message::agent_apps_auth::{Event, message};
-                    message(Event::DeviceTick)
+                    message(Event::LoginTick)
                 })
             } else {
                 Subscription::none()

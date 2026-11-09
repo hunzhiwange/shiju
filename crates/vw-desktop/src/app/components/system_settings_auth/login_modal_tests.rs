@@ -1,6 +1,6 @@
 use crate::app::{
-    message::agent_apps_auth::device::{Update, run},
-    state::agent_apps_auth::{Connection, DevicePhase, DeviceTarget, Scope, State},
+    message::agent_apps_auth::flow::{Update, run},
+    state::agent_apps_auth::{Connection, LoginPhase, LoginTarget, Scope, State},
 };
 use iced::futures::{StreamExt, channel::mpsc};
 use serde_json::{Value, json};
@@ -20,9 +20,9 @@ const NEXT: &str = "7cb10748-4eb9-4424-a67d-d4ec08509645";
 const PRINCIPAL: &str = "fixture-agent-apps-auth-principal-token";
 const DEADLINE: i64 = 7_100;
 
-struct Exchange {
+pub(in crate::app) struct Exchange {
     method: &'static str,
-    flow: Option<&'static str>,
+    suffix: String,
     request: Option<Value>,
     response: Option<Value>,
     status: &'static str,
@@ -37,7 +37,7 @@ impl Exchange {
         }
         Self {
             method: "POST",
-            flow: None,
+            suffix: String::new(),
             request: Some(request),
             response: Some(json!({
                 "state": "pending",
@@ -52,10 +52,42 @@ impl Exchange {
         }
     }
 
-    fn poll(response: Value) -> Self {
+    pub(in crate::app) fn claude_start(
+        flow: &str,
+        method: &str,
+        url: &str,
+        expires_at: i64,
+    ) -> Self {
+        Self {
+            method: "POST",
+            suffix: String::new(),
+            request: Some(json!({"method": method})),
+            response: Some(json!({
+                "state": "pending", "flow_id": flow, "expires_at": expires_at,
+                "retry_after_seconds": 1, "verification_url": url, "can_paste": true,
+            })),
+            status: "201 Created",
+            pause: None,
+        }
+    }
+
+    pub(in crate::app) fn paste(flow: &str, pasted: &str, accepted: bool) -> Self {
+        Self {
+            method: "POST",
+            suffix: format!("/{flow}/paste"),
+            request: Some(json!({"pasted": pasted})),
+            response: (!accepted).then(|| json!({
+                "code": "invalid_input", "message": "fixture upstream diagnostic", "correlation_id": "fixture-correlation"
+            })),
+            status: if accepted { "202 Accepted" } else { "400 Bad Request" },
+            pause: None,
+        }
+    }
+
+    pub(in crate::app) fn poll(response: Value) -> Self {
         Self {
             method: "GET",
-            flow: Some(FLOW),
+            suffix: format!("/{FLOW}"),
             request: None,
             response: Some(response),
             status: "200 OK",
@@ -63,10 +95,10 @@ impl Exchange {
         }
     }
 
-    fn cancel(flow: &'static str) -> Self {
+    pub(in crate::app) fn cancel(flow: &'static str) -> Self {
         Self {
             method: "DELETE",
-            flow: Some(flow),
+            suffix: format!("/{flow}"),
             request: None,
             response: None,
             status: "204 No Content",
@@ -75,7 +107,7 @@ impl Exchange {
     }
 }
 
-fn gateway(
+pub(in crate::app) fn gateway(
     service: &'static str,
     exchanges: Vec<Exchange>,
 ) -> (GatewayClient, Connection, std::thread::JoinHandle<()>) {
@@ -102,7 +134,7 @@ fn gateway(
             let mut reader = BufReader::new(&socket);
             let mut line = String::new();
             reader.read_line(&mut line).unwrap();
-            let suffix = exchange.flow.map_or(String::new(), |id| format!("/{id}"));
+            let suffix = exchange.suffix;
             assert_eq!(
                 line.trim_end(),
                 format!(
@@ -162,7 +194,7 @@ fn gateway(
     (GatewayClient::new(endpoint).unwrap(), connection, server)
 }
 
-async fn next(updates: &mut mpsc::Receiver<Update>) -> Update {
+pub(in crate::app) async fn next(updates: &mut mpsc::Receiver<Update>) -> Update {
     tokio::time::timeout(Duration::from_secs(8), updates.next())
         .await
         .expect("device update timed out")
@@ -188,17 +220,25 @@ async fn auth6_ui_login_commits_expected_scoped_result() {
     );
     let mut state = State::default();
     state.select_endpoint(client.endpoint());
-    let (generation, cancelled) = state.begin_device_login(DeviceTarget::Copilot);
+    let (generation, cancelled, pastes) = state.begin_login(LoginTarget::Copilot);
     let (sender, mut updates) = mpsc::channel(4);
-    let task = tokio::spawn(run(client, connection, DeviceTarget::Copilot, cancelled, sender));
+    let task = tokio::spawn(run(
+        client,
+        connection,
+        LoginTarget::Copilot,
+        false,
+        cancelled,
+        pastes,
+        sender,
+    ));
     let Update::Started(challenge) = next(&mut updates).await else {
         panic!("expected a device challenge");
     };
-    assert_eq!(challenge.user_code, "ABCD-2345");
+    assert_eq!(challenge.user_code.as_deref(), Some("ABCD-2345"));
     assert_eq!(challenge.detail(), ("授权域", "github.example:8443"));
     assert_eq!(challenge.remaining_seconds(TimestampMs(3_200)), 4);
     assert_eq!(challenge.remaining_seconds(TimestampMs(7_101)), 0);
-    state.device_login_mut(generation).unwrap().phase = DevicePhase::Pending(challenge);
+    state.login_mut(generation).unwrap().phase = LoginPhase::Pending(challenge);
     assert!(matches!(next(&mut updates).await, Update::Pending(TimestampMs(DEADLINE))));
     assert!(matches!(next(&mut updates).await, Update::Approved));
     task.await.unwrap();
@@ -223,27 +263,34 @@ async fn auth6_ui_login_rejects_invalid_or_stale_input() {
     let mut state = State::default();
     state.select_endpoint(client.endpoint());
     let scope = Scope::from(client.endpoint());
-    let target = DeviceTarget::Kimi(AuthRegion::MainlandCn);
-    let (old_generation, old_cancelled) = state.begin_device_login(target);
+    let target = LoginTarget::Kimi(AuthRegion::MainlandCn);
+    let (old_generation, old_cancelled, old_pastes) = state.begin_login(target);
     let (sender, mut updates) = mpsc::channel(4);
-    let old_task =
-        tokio::spawn(run(client.clone(), connection.clone(), target, old_cancelled, sender));
+    let old_task = tokio::spawn(run(
+        client.clone(),
+        connection.clone(),
+        target,
+        false,
+        old_cancelled,
+        old_pastes,
+        sender,
+    ));
     tokio::time::timeout(Duration::from_secs(5), received).await.unwrap().unwrap();
 
     state.login = None;
-    let (generation, cancelled) = state.begin_device_login(target);
+    let (generation, cancelled, pastes) = state.begin_login(target);
     resume.send(()).unwrap();
     let Update::Started(old_challenge) = next(&mut updates).await else {
         panic!("expected delayed challenge");
     };
     assert_eq!(old_challenge.detail(), ("授权地区", "中国大陆"));
-    assert!(!state.is_latest_device_update(&scope, old_generation));
-    assert!(state.device_login_mut(old_generation).is_none());
-    assert!(matches!(state.device_login_mut(generation).unwrap().phase, DevicePhase::Starting));
+    assert!(!state.is_latest_login_update(&scope, old_generation));
+    assert!(state.login_mut(old_generation).is_none());
+    assert!(matches!(state.login_mut(generation).unwrap().phase, LoginPhase::Starting));
     old_task.await.unwrap();
 
     let (sender, mut updates) = mpsc::channel(4);
-    let task = tokio::spawn(run(client, connection, target, cancelled, sender));
+    let task = tokio::spawn(run(client, connection, target, false, cancelled, pastes, sender));
     assert!(matches!(next(&mut updates).await, Update::Failed("网关返回了无效的设备码或验证地址")));
     task.await.unwrap();
     server.join().unwrap();

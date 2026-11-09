@@ -2,20 +2,20 @@
 
 mod login_modal;
 #[cfg(test)]
-mod login_modal_tests;
+pub(in crate::app) mod login_modal_tests;
 
 use super::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_error_banner, settings_field_label, settings_group_card, settings_modal_header,
-    settings_modal_layout, settings_modal_overlay_with_escape, settings_muted_text_style,
-    settings_page_heading, settings_text_input,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_close_button, settings_error_banner, settings_field_label, settings_group_card,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay_with_escape,
+    settings_muted_text_style, settings_page_heading, settings_text_input,
 };
 use crate::app::{
     Message,
     message::agent_apps_auth::{Event, message},
-    state::agent_apps_auth::{DeviceTarget, ServiceAccounts, State},
+    state::agent_apps_auth::{LoginTarget, ServiceAccounts, State},
 };
-use iced::widget::{button, column, container, row, scrollable, text};
+use iced::widget::{button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 use vw_gateway_client::vw_api_types::agent_apps_auth::{
     AuthCredentialState, AuthRegion, AuthService,
@@ -44,6 +44,13 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
 
     let mut heading = column![
         settings_page_heading("授权中心", "查看当前公司在授权执行主机上的账号状态。"),
+        checkbox(!state.copy_login_link)
+            .label("登录时自动打开浏览器")
+            .on_toggle(|open| message(Event::OpenBrowserPreference(open)))
+            .style(settings_checkbox_style),
+        text("关闭后复制登录链接，可在自己选择的浏览器中打开。")
+            .size(13)
+            .style(settings_muted_text_style),
         actions,
     ]
     .spacing(10);
@@ -138,15 +145,19 @@ fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message>
         }
     }
     if configured {
-        let targets: &[(&str, DeviceTarget)] = match row.service {
-            AuthService::GithubCopilot => &[("设备码登录", DeviceTarget::Copilot)],
-            AuthService::CodexOauth => &[("设备码登录", DeviceTarget::Codex)],
-            AuthService::XaiOauth => &[("设备码登录", DeviceTarget::Xai)],
+        let targets: &[(&str, LoginTarget)] = match row.service {
+            AuthService::GithubCopilot => &[("设备码登录", LoginTarget::Copilot)],
+            AuthService::CodexOauth => {
+                &[("浏览器登录", LoginTarget::CodexBrowser), ("设备码登录", LoginTarget::Codex)]
+            }
+            AuthService::XaiOauth => &[("设备码登录", LoginTarget::Xai)],
             AuthService::KimiOauth => &[
-                ("中国大陆登录", DeviceTarget::Kimi(AuthRegion::MainlandCn)),
-                ("国际登录", DeviceTarget::Kimi(AuthRegion::Global)),
+                ("中国大陆登录", LoginTarget::Kimi(AuthRegion::MainlandCn)),
+                ("国际登录", LoginTarget::Kimi(AuthRegion::Global)),
             ],
-            _ => &[],
+            AuthService::ClaudeOfficial => &[("浏览器登录", LoginTarget::Claude)],
+            AuthService::AgyOauth => &[("浏览器登录", LoginTarget::Agy)],
+            AuthService::DshAccount => &[("浏览器登录", LoginTarget::Dsh)],
         };
         if !targets.is_empty() {
             card = card.push(
@@ -154,7 +165,7 @@ fn service_card(row: &ServiceAccounts, configured: bool) -> Element<'_, Message>
                     button(text(label))
                         .style(rounded_action_btn_style)
                         .padding([6, 12])
-                        .on_press(message(Event::StartDevice(target)))
+                        .on_press(message(Event::StartLogin(target)))
                         .into()
                 }))
                 .spacing(8)

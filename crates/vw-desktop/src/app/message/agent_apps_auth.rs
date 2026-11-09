@@ -1,13 +1,19 @@
 //! Authorization center requests through the scoped management SDK.
 
-pub(in crate::app) mod device;
+#[path = "agent_apps_auth_browser.rs"]
+pub(in crate::app) mod browser;
+#[cfg(test)]
+#[path = "agent_apps_auth_browser_tests.rs"]
+mod browser_tests;
+pub(in crate::app) mod flow;
 
 use crate::app::{
     App, Message,
     components::system_settings::SystemTab,
     message::SettingsMessage,
-    state::agent_apps_auth::{Connection, DevicePhase, DeviceTarget, Scope, ServiceAccounts},
+    state::agent_apps_auth::{Connection, LoginPhase, LoginTarget, Scope, ServiceAccounts, now},
 };
+use browser::LinkAction;
 use iced::Task;
 use vw_gateway_client::{
     AgentAppsAuthCredentials, AgentAppsAuthReadError, GatewayClient,
@@ -34,11 +40,15 @@ pub enum Event {
     Token(String),
     Connect,
     Refresh,
-    StartDevice(DeviceTarget),
-    RetryDevice,
-    CloseDevice,
-    DeviceTick,
-    DeviceUpdated { scope: Scope, generation: u64, update: device::Update },
+    OpenBrowserPreference(bool),
+    StartLogin(LoginTarget),
+    RetryLogin,
+    CloseLogin,
+    LoginTick,
+    LoginLink(u64, LinkAction),
+    PasteInput(u64, String),
+    PasteSubmit(u64),
+    LoginUpdated { scope: Scope, generation: u64, update: flow::Update },
     Loaded { scope: Scope, generation: u64, rows: Vec<ServiceAccounts> },
 }
 
@@ -63,6 +73,16 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         let failed = rows.iter().all(|row| row.accounts.is_err());
         if state.finish(&loaded_scope, generation, rows) && failed && visible {
             return app.show_error_toast("授权账号读取失败，请检查各服务的提示");
+        }
+        return Task::none();
+    }
+
+    if let Event::OpenBrowserPreference(open) = event {
+        if visible {
+            state.copy_login_link = !open;
+            if let Err(error) = browser::store_preference(open) {
+                return app.show_error_toast(error);
+            }
         }
         return Task::none();
     }
@@ -141,14 +161,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 move |rows| message(Event::Loaded { scope, generation, rows }),
             );
         }
-        Event::StartDevice(_) | Event::RetryDevice => {
+        Event::StartLogin(_) | Event::RetryLogin => {
             if !visible || state.form.is_some() || state.pending.is_some() {
                 return Task::none();
             }
             let target = match (&state.login, event) {
-                (None, Event::StartDevice(target)) => target,
-                (Some(login), Event::RetryDevice)
-                    if matches!(login.phase, DevicePhase::Failed(_)) =>
+                (None, Event::StartLogin(target)) => target,
+                (Some(login), Event::RetryLogin)
+                    if matches!(login.phase, LoginPhase::Failed(_)) =>
                 {
                     login.target
                 }
@@ -158,42 +178,93 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let Ok(client) = GatewayClient::new(endpoint) else {
                 return app.show_error_toast("无法建立管理连接，请重试");
             };
-            return device::start(state, scope, client, connection, target);
+            return flow::start(state, scope, client, connection, target);
         }
-        Event::CloseDevice => state.login = None,
-        Event::DeviceTick => {}
-        Event::DeviceUpdated { scope, generation, update } => {
-            if !visible || !state.is_latest_device_update(&scope, generation) {
+        Event::CloseLogin => state.login = None,
+        Event::LoginTick => {}
+        Event::LoginLink(generation, action) if visible => {
+            if let Some(login) = state.login_mut(generation)
+                && let LoginPhase::Pending(challenge) = &login.phase
+                && challenge.expires_at.0 > now().0
+            {
+                let url = challenge.verification_url.clone();
+                return deliver_link(app, action, url);
+            }
+        }
+        Event::PasteInput(generation, input) if visible => {
+            browser::edit_paste(state, generation, input);
+        }
+        Event::PasteSubmit(generation) if visible => {
+            if let Err(error) = browser::submit_paste(state, generation) {
+                return app.show_error_toast(error);
+            }
+        }
+        Event::LoginLink(..) | Event::PasteInput(..) | Event::PasteSubmit(_) => {}
+        Event::LoginUpdated { scope, generation, update } => {
+            if !visible || !state.is_latest_login_update(&scope, generation) {
                 return Task::none();
             }
-            if matches!(update, device::Update::CancelFailed) {
-                return app.show_error_toast("执行主机未确认取消设备码登录");
+            if matches!(update, flow::Update::CancelFailed) {
+                return app.show_error_toast("执行主机未确认取消授权登录");
             }
-            let Some(login) = state.device_login_mut(generation) else { return Task::none() };
+            let action = LinkAction::for_preference(state.copy_login_link);
+            let Some(login) = state.login_mut(generation) else { return Task::none() };
             match update {
-                device::Update::Started(challenge) => login.phase = DevicePhase::Pending(challenge),
-                device::Update::Pending(expires_at) => {
-                    if let DevicePhase::Pending(challenge) = &mut login.phase {
+                flow::Update::Started(challenge) => {
+                    if matches!(login.phase, LoginPhase::Starting) {
+                        let active = challenge.expires_at.0 > now().0;
+                        let url = challenge.verification_url.clone();
+                        login.phase = LoginPhase::Pending(challenge);
+                        if active {
+                            return deliver_link(app, action, url);
+                        }
+                    }
+                }
+                flow::Update::Pending(expires_at) => {
+                    if let LoginPhase::Pending(challenge) = &mut login.phase {
                         challenge.expires_at = expires_at;
                     }
                 }
-                device::Update::Approved => {
+                flow::Update::Approved => {
+                    let label = if login.target.is_device() {
+                        "设备码登录成功"
+                    } else {
+                        "授权登录成功"
+                    };
                     state.login = None;
                     return Task::batch([
-                        app.show_success_toast("设备码登录成功"),
+                        app.show_success_toast(label),
                         Task::done(message(Event::Refresh)),
                     ]);
                 }
-                device::Update::Failed(reason) => {
-                    login.phase = DevicePhase::Failed(reason);
+                flow::Update::Failed(reason) => {
+                    login.paste_input.clear();
+                    login.phase = LoginPhase::Failed(reason);
                     return app.show_error_toast(reason);
                 }
-                device::Update::CancelFailed => unreachable!("cancellation errors handled above"),
+                flow::Update::PasteFinished(result) => {
+                    login.paste_submitting = false;
+                    return match result {
+                        Ok(()) => app.show_success_toast("已提交回填，正在等待执行主机确认登录"),
+                        Err(error) => app.show_error_toast(error),
+                    };
+                }
+                flow::Update::CancelFailed => unreachable!("cancellation errors handled above"),
             }
         }
-        Event::Loaded { .. } => unreachable!("loaded results handled above"),
+        Event::Loaded { .. } | Event::OpenBrowserPreference(_) => {
+            unreachable!("local events handled above")
+        }
     }
     Task::none()
+}
+
+fn deliver_link(app: &mut App, action: LinkAction, url: reqwest::Url) -> Task<Message> {
+    match action.deliver(&url) {
+        Ok(()) if matches!(action, LinkAction::Copy) => app.show_success_toast("已复制授权链接"),
+        Ok(()) => Task::none(),
+        Err(error) => app.show_error_toast(error),
+    }
 }
 
 pub(crate) async fn load(

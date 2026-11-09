@@ -1,12 +1,14 @@
 //! Authorization center state, scoped to the active management connection.
 
-use tokio::sync::oneshot;
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::{mpsc, oneshot};
 use vw_gateway_client::{
     GatewayEndpoint,
     vw_api_types::{
         TimestampMs,
         agent_apps_auth::{
-            AuthAccount, AuthLoginMethod, AuthRegion, AuthService, AuthStartRequest,
+            AuthAccount, AuthLoginMethod, AuthPasteRequest, AuthRegion, AuthService,
+            AuthStartRequest,
         },
         id::TenantScope,
     },
@@ -60,12 +62,17 @@ pub(crate) struct State {
     pub loopback: bool,
     pub form: Option<Connection>,
     pub connection: Option<Connection>,
-    pub login: Option<DeviceLogin>,
-    device_generation: u64,
+    pub login: Option<Login>,
+    pub copy_login_link: bool,
+    login_generation: u64,
     generation: u64,
 }
 
 impl State {
+    pub fn with_browser_preference(open: bool) -> Self {
+        Self { copy_login_link: !open, ..Self::default() }
+    }
+
     pub fn select_endpoint(&mut self, endpoint: &GatewayEndpoint) {
         self.select(Scope::from(endpoint));
         self.loopback = endpoint.is_loopback();
@@ -100,26 +107,43 @@ impl State {
 }
 
 #[derive(Clone, Copy)]
-pub enum DeviceTarget {
+pub enum LoginTarget {
     Copilot,
     Codex,
     Xai,
     Kimi(AuthRegion),
+    CodexBrowser,
+    Claude,
+    Agy,
+    Dsh,
 }
 
-impl DeviceTarget {
+impl LoginTarget {
     pub fn service(self) -> AuthService {
         match self {
             Self::Copilot => AuthService::GithubCopilot,
-            Self::Codex => AuthService::CodexOauth,
+            Self::Codex | Self::CodexBrowser => AuthService::CodexOauth,
             Self::Xai => AuthService::XaiOauth,
             Self::Kimi(_) => AuthService::KimiOauth,
+            Self::Claude => AuthService::ClaudeOfficial,
+            Self::Agy => AuthService::AgyOauth,
+            Self::Dsh => AuthService::DshAccount,
         }
     }
 
-    pub fn request(self) -> AuthStartRequest {
+    pub fn is_device(self) -> bool {
+        matches!(self, Self::Copilot | Self::Codex | Self::Xai | Self::Kimi(_))
+    }
+
+    pub fn request(self, copy_link: bool) -> AuthStartRequest {
         AuthStartRequest {
-            method: AuthLoginMethod::DeviceCode,
+            method: match self {
+                Self::Claude if copy_link => AuthLoginMethod::CopyLink,
+                Self::Claude | Self::CodexBrowser | Self::Agy | Self::Dsh => {
+                    AuthLoginMethod::Browser
+                }
+                _ => AuthLoginMethod::DeviceCode,
+            },
             github_domain: None,
             region: match self {
                 Self::Kimi(region) => Some(region),
@@ -130,47 +154,68 @@ impl DeviceTarget {
     }
 }
 
-pub(crate) struct DeviceLogin {
+pub(crate) struct Login {
     pub generation: u64,
-    pub target: DeviceTarget,
-    pub phase: DevicePhase,
+    pub target: LoginTarget,
+    pub phase: LoginPhase,
+    pub paste_input: String,
+    pub paste_submitting: bool,
+    pub paste_sender: mpsc::Sender<AuthPasteRequest>,
     // Dropping the modal signals the task even when the start response is still in flight.
     _cancel_on_close: oneshot::Sender<()>,
 }
 
 #[derive(Clone)]
-pub(crate) enum DevicePhase {
+pub(crate) enum LoginPhase {
     Starting,
-    Pending(DeviceChallenge),
+    Pending(LoginChallenge),
     Failed(&'static str),
 }
 
 #[derive(Clone)]
-pub struct DeviceChallenge {
-    pub(crate) user_code: String,
+pub struct LoginChallenge {
+    pub(crate) user_code: Option<String>,
     pub(crate) verification_url: reqwest::Url,
     pub(crate) region: Option<AuthRegion>,
     pub(crate) expires_at: TimestampMs,
+    pub(crate) can_paste: bool,
+}
+
+pub(crate) fn now() -> TimestampMs {
+    TimestampMs(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()
+            .and_then(|elapsed| i64::try_from(elapsed.as_millis()).ok())
+            .unwrap_or(0),
+    )
 }
 
 impl State {
-    pub fn begin_device_login(&mut self, target: DeviceTarget) -> (u64, oneshot::Receiver<()>) {
-        self.device_generation = self.device_generation.wrapping_add(1);
+    pub fn begin_login(
+        &mut self,
+        target: LoginTarget,
+    ) -> (u64, oneshot::Receiver<()>, mpsc::Receiver<AuthPasteRequest>) {
+        self.login_generation = self.login_generation.wrapping_add(1);
         let (cancel_on_close, cancelled) = oneshot::channel();
-        self.login = Some(DeviceLogin {
-            generation: self.device_generation,
+        let (paste_sender, paste_receiver) = mpsc::channel(1);
+        self.login = Some(Login {
+            generation: self.login_generation,
             target,
-            phase: DevicePhase::Starting,
+            phase: LoginPhase::Starting,
+            paste_input: String::new(),
+            paste_submitting: false,
+            paste_sender,
             _cancel_on_close: cancel_on_close,
         });
-        (self.device_generation, cancelled)
+        (self.login_generation, cancelled, paste_receiver)
     }
 
-    pub fn device_login_mut(&mut self, generation: u64) -> Option<&mut DeviceLogin> {
+    pub fn login_mut(&mut self, generation: u64) -> Option<&mut Login> {
         self.login.as_mut().filter(|login| login.generation == generation)
     }
 
-    pub fn is_latest_device_update(&self, scope: &Scope, generation: u64) -> bool {
-        self.scope.as_ref() == Some(scope) && self.device_generation == generation
+    pub fn is_latest_login_update(&self, scope: &Scope, generation: u64) -> bool {
+        self.scope.as_ref() == Some(scope) && self.login_generation == generation
     }
 }

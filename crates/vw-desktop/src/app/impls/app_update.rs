@@ -777,7 +777,7 @@ impl App {
         if matches!(
             message,
             Message::Settings(message::SettingsMessage::AgentAppsAuth(
-                message::agent_apps_auth::Event::DeviceTick
+                message::agent_apps_auth::Event::LoginTick
             ))
         ) {
             return Task::none();

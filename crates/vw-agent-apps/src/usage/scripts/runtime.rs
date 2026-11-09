@@ -8,7 +8,7 @@ use serde_json::Value;
 use super::config::PreparedUsageScript;
 
 const CPU_BUDGET: Duration = Duration::from_secs(5);
-const MEMORY_LIMIT: usize = 16 * 1024 * 1024;
+pub(super) const MEMORY_LIMIT: usize = 16 * 1024 * 1024;
 const STACK_LIMIT: usize = 256 * 1024;
 
 /// Errors contain only a stable classification. Script text, exceptions, and

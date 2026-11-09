@@ -563,3 +563,19 @@ HTTP 与 CLI 夹具核对请求、来源分离、额度归并、重置时间、�
 | 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 33 提交 `3507c1106`，叠加本任务变更和共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
 
 成功夹具验证 General 模板构造请求和解析响应。拒绝夹具覆盖脚本异常脱敏、无效响应 JSON、两阶段无限循环、17 MiB 分配和深递归。请求循环用例还验证同一 Tokio 单线程执行器上的定时器可在脚本运行时推进。夹具使用真实 QuickJS 和合成输入，验证范围为运行时行为。差异审查通过，共享槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/runtime_tests.rs#L30)
+
+## 任务 35 脚本请求网络
+
+`PreparedUsageScript::send_request` 用受限 QuickJS 生成请求，保留合法的 HTTP 方法、请求头和请求体，将宿主提供的超时限制在 2–30 秒并覆盖响应体读取。目标必须匹配宿主明确授予本次查询及其凭据使用的协议、主机和有效端口。非自定义模板还要求与已配置的基础地址同源，仅允许 HTTPS 或回环 HTTP。自定义模板可以访问与基础地址不同的已授权 HTTP(S) 端点。请求禁用环境代理、自动重试和重定向，并拒绝 URL 用户信息及能覆盖目标或报文边界的请求头。响应大小与 QuickJS 输入上限一致，错误分类不携带 URL、凭据或响应内容。 [上游请求方法和超时](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L235-L274) · [上游地址校验](../../../../crates/vw-agent-apps/upstream/src-tauri/src/usage_script.rs#L497-L584) · [TS 超时输入](../../../../crates/vw-agent-apps/upstream/src/components/UsageScriptModal.tsx#L448-L466) · [本地网络入口](../../../../crates/vw-agent-apps/src/usage/scripts/network.rs#L47)
+
+验证环境为 macOS 27.0 (26A428)、arm64，`vw-agent-apps` 0.6.0。各阶段动态领取槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+| 阶段 | 命令 | 结果 |
+| --- | --- | --- |
+| 实现前 | `cargo test -p vw-agent-apps usage_scripts_network_ -- --nocapture` | 退出 101，执行 0 项。成功及拒绝用例因缺少 `NetworkError` 和 `send_request` 无法编译（E0432/E0599）。 |
+| 格式化 | `cargo fmt --all` | 退出 0。仅将本任务文件从源码副本同步回共享工作区。 |
+| 实现后 | `cargo test -p vw-agent-apps usage_scripts_network_ -- --nocapture` | 退出 0，6 项通过，0 项失败，耗时 2.01 秒。 |
+| 共享工作区 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 101。既有 ACP 会话改动引用了缺失的 `PermissionConfirmation` 和 `with_permission_confirmation`，桌面与网关会话改动引用了缺失的 `session_set_full_access` 和 `GatewaySessionUiSummary.full_access`。 |
+| 隔离复核 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。基于批次 34 提交 `38e9a3b2c`，叠加本任务源码及共享工作区已有的 `postgres_tests.rs` 第三个参数修正。 |
+
+真实 QuickJS 与本机 HTTP 夹具核对 PATCH 方法、路径、查询串、请求头、请求体和提取结果，并确认未授权端口与已获授权的重定向目标均未收到连接。拒绝用例还覆盖无效方法、URL 用户信息、非 HTTP(S) 协议和 Host 头覆盖。超时用例覆盖 2–30 秒边界及响应体停滞，HTTP 403 用例验证类型化鉴权错误。验收覆盖宿主网络入口，凭据、响应和目标来自本机夹具。差异审查通过，共享槽位锁已释放，编译缓存已保留。 [独立行为测试](../../../../crates/vw-agent-apps/src/usage/scripts/network_tests.rs#L79)

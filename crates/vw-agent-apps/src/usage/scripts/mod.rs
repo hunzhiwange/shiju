@@ -2,6 +2,8 @@
 
 pub mod config;
 #[cfg(target_os = "macos")]
+pub mod network;
+#[cfg(target_os = "macos")]
 pub mod runtime;
 
 #[cfg(test)]

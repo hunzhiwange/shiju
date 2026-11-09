@@ -38,6 +38,8 @@ struct Grant {
     #[serde(default)]
     auth_binding_write: Vec<AuthService>,
     #[serde(default)]
+    auth_default_write: Vec<AuthService>,
+    #[serde(default)]
     auth_flow_start: Vec<AuthService>,
     /// Explicit deployment assertion for direct, same-host browser clients.
     #[serde(default)]
@@ -63,6 +65,7 @@ pub(super) struct Authorization {
     pub identities: Vec<IdentityPermit>,
     native_slots: Vec<(AuthService, bool)>,
     pub(super) auth_browser_local: bool,
+    pub(super) can_set_default: bool,
 }
 impl Authorization {
     pub(super) fn native_login_owner(&self, service: AuthService) -> Option<bool> {
@@ -184,6 +187,7 @@ enum Capability {
     ProviderConfigWrite,
     AuthAccountRead { service: AuthService, bindings: bool },
     AuthBindingWrite(AuthService),
+    AuthDefaultWrite(AuthService),
     AuthFlowStart(AuthService),
 }
 
@@ -213,6 +217,16 @@ pub(super) fn authorize_auth_binding(
     service: AuthService,
 ) -> Result<Authorization, StatusCode> {
     authorize_scoped(path, headers, tenant, target, None, Capability::AuthBindingWrite(service))
+}
+
+pub(super) fn authorize_auth_default(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: AuthService,
+) -> Result<Authorization, StatusCode> {
+    authorize_scoped(path, headers, tenant, target, None, Capability::AuthDefaultWrite(service))
 }
 
 pub(super) fn authorize_auth_flow_start(
@@ -264,14 +278,15 @@ fn authorize_scoped(
         })
         .ok_or(StatusCode::UNAUTHORIZED)?;
     // Do not reveal whether an unauthorized host exists.
-    let grants: Vec<_> = principal
-        .grants
-        .iter()
+    let mut scoped_grants = principal.grants.iter().filter(|g| {
+        g.platform_id == tenant.platform_id().as_ref()
+            && g.company_id == tenant.company_id().as_ref()
+            && g.host_id == target
+    });
+    let grants: Vec<_> = scoped_grants
+        .clone()
         .filter(|g| {
-            g.platform_id == tenant.platform_id().as_ref()
-                && g.company_id == tenant.company_id().as_ref()
-                && g.host_id == target
-                && action.is_none_or(|a| g.actions.contains(&a))
+            action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
@@ -280,6 +295,9 @@ fn authorize_scoped(
                     Capability::ProviderConfigWrite => g.provider_config_write,
                     Capability::AuthBindingWrite(service) => {
                         g.provider_config_write && g.auth_binding_write.contains(&service)
+                    }
+                    Capability::AuthDefaultWrite(service) => {
+                        g.auth_default_write.contains(&service)
                     }
                     Capability::AuthFlowStart(service) => g.auth_flow_start.contains(&service),
                     Capability::AuthAccountRead { service, bindings } => {
@@ -292,6 +310,12 @@ fn authorize_scoped(
     if grants.is_empty() {
         return Err(StatusCode::FORBIDDEN);
     }
+    let can_set_default = match capability {
+        Capability::AuthAccountRead { service, .. } => {
+            scoped_grants.any(|grant| grant.auth_default_write.contains(&service))
+        }
+        _ => false,
+    };
     let auth_browser_local = grants.iter().any(|grant| grant.auth_browser_local);
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let native_slots = policy
@@ -320,6 +344,7 @@ fn authorize_scoped(
         identities,
         native_slots,
         auth_browser_local,
+        can_set_default,
     })
 }
 

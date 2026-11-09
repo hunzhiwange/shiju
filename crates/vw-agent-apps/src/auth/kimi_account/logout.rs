@@ -130,7 +130,7 @@ impl KimiNativeTarget<'_> {
     }
 }
 
-fn read_managed_grant(
+pub(super) fn read_managed_grant(
     credentials: &CredentialFileStore,
     scope: AuthAccountScope<'_>,
     account_id: &str,
@@ -147,7 +147,7 @@ fn read_managed_grant(
     }
 }
 
-fn read_grant(slot: &NativeSlot) -> Result<Option<Value>, AuthErrorCode> {
+pub(super) fn read_grant(slot: &NativeSlot) -> Result<Option<Value>, AuthErrorCode> {
     match slot.read() {
         Ok(grant) => Ok(Some(grant)),
         Err(AuthErrorCode::ReauthRequired) => Ok(None),

@@ -253,6 +253,10 @@ mod agent_apps_auth_cancel;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_cancel_tests;
 
+mod agent_apps_auth_default;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_auth_default_tests;
+
 mod agent_apps_auth_poll;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_poll_tests;

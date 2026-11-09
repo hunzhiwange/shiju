@@ -146,6 +146,7 @@ pub(super) struct AuthAccountHost {
     pub credential_root: std::path::PathBuf,
     pub principal: String,
     pub owns_native_slot: bool,
+    pub can_set_default: bool,
 }
 
 pub(super) fn authorize_auth_account_read(
@@ -185,6 +186,18 @@ pub(super) fn authorize_auth_binding(
     account_host(authorized, owns_native_slot)
 }
 
+pub(super) fn authorize_auth_default(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    service: vw_api_types::agent_apps_auth::AuthService,
+) -> Result<AuthAccountHost, axum::http::StatusCode> {
+    let authorized = access::authorize_auth_default(path, headers, tenant, target, service)?;
+    let owns_native_slot = path.is_some() && authorized.native_login_owner(service) == Some(true);
+    account_host(authorized, owns_native_slot)
+}
+
 fn account_host(
     authorized: access::Authorization,
     owns_native_slot: bool,
@@ -196,6 +209,7 @@ fn account_host(
         credential_root: authorized.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?,
         principal: authorized.principal,
         owns_native_slot,
+        can_set_default: authorized.can_set_default,
     })
 }
 

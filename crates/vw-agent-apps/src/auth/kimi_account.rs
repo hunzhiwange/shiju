@@ -48,7 +48,86 @@ pub struct KimiNativeTarget<'a> {
     pub provider_id: &'a str,
 }
 
+fn resolve_default_provider(
+    credentials: &CredentialFileStore,
+    account: &KimiAccountTarget<'_>,
+    home: &Path,
+    transactions: &Arc<ProviderTransactions>,
+) -> Result<String, AuthErrorCode> {
+    let KimiAccountTarget { scope, account_id, region, .. } = *account;
+    let saved = logout::read_managed_grant(credentials, scope, account_id)?
+        .ok_or(AuthErrorCode::ReauthRequired)?;
+    if saved.region != region {
+        return Err(AuthErrorCode::IdentityMismatch);
+    }
+    let config = kimi::read(home).map_err(write_error)?.ok_or(AuthErrorCode::NotFound)?;
+    let profiles = kimi::declarations(Some(&config)).map_err(write_error)?;
+    if transactions.pending(AppId::Kimi).map_err(write_error)?.is_some() {
+        return Err(AuthErrorCode::Conflict);
+    }
+    let state = transactions.state(AppId::Kimi).map_err(write_error)?;
+    let mut selected = None;
+    for (provider_id, profile) in &profiles {
+        if !kimi::official(&profile.declaration["provider"]) {
+            continue;
+        }
+        let native = KimiNativeTarget { home, transactions, provider_id };
+        native.check_scope(scope)?;
+        let matches = match native.binding(&state, scope.tenant, scope.principal) {
+            Ok(Some(binding)) => binding.account_id == account_id && binding.region == region,
+            Ok(None) => match oauth_slot(&profile.declaration["provider"], region) {
+                Ok(slot) => logout::read_grant(&NativeSlot::open(home, slot)?)?
+                    .is_some_and(|grant| shares_grant(&grant, &saved)),
+                Err(AuthErrorCode::IdentityMismatch | AuthErrorCode::Unsupported) => false,
+                Err(error) => return Err(error),
+            },
+            Err(AuthErrorCode::Forbidden) => false,
+            Err(error) => return Err(error),
+        };
+        if matches && selected.replace(provider_id.clone()).is_some() {
+            return Err(AuthErrorCode::Conflict);
+        }
+    }
+    if transactions.state(AppId::Kimi).map_err(write_error)? != state
+        || transactions.pending(AppId::Kimi).map_err(write_error)?.is_some()
+        || kimi::read(home).map_err(write_error)?.as_ref() != Some(&config)
+    {
+        return Err(AuthErrorCode::Conflict);
+    }
+    selected.ok_or(AuthErrorCode::ReauthRequired)
+}
+
+pub(super) enum Selection<'a> {
+    Explicit,
+    Default,
+    Bound(&'a Value),
+}
+
 impl KimiDeviceAuth {
+    /// Select a unique scoped binding or exact native grant for the managed account.
+    pub async fn use_default_account(
+        &self,
+        credentials: &CredentialFileStore,
+        account: KimiAccountTarget<'_>,
+        home: &Path,
+        transactions: &Arc<ProviderTransactions>,
+    ) -> Result<(), AuthErrorCode> {
+        self.use_default_account_with(credentials, account, home, transactions, |_| {}).await
+    }
+
+    pub(super) async fn use_default_account_with(
+        &self,
+        credentials: &CredentialFileStore,
+        account: KimiAccountTarget<'_>,
+        home: &Path,
+        transactions: &Arc<ProviderTransactions>,
+        route: impl FnMut(&mut Request),
+    ) -> Result<(), AuthErrorCode> {
+        let provider_id = resolve_default_provider(credentials, &account, home, transactions)?;
+        let native = KimiNativeTarget { home, transactions, provider_id: &provider_id };
+        self.select_account(credentials, account, native, Selection::Default, || true, route).await
+    }
+
     /// Select one of the existing native provider's model aliases after verifying the account.
     pub async fn use_account(
         &self,
@@ -72,7 +151,7 @@ impl KimiDeviceAuth {
             credentials,
             account,
             native,
-            Some(catalog_connection),
+            Selection::Bound(catalog_connection),
             catalog_unchanged,
             |_| {},
         )
@@ -86,7 +165,7 @@ impl KimiDeviceAuth {
         native: KimiNativeTarget<'_>,
         route: impl FnMut(&mut Request),
     ) -> Result<(), AuthErrorCode> {
-        self.select_account(credentials, account, native, None, || true, route).await
+        self.select_account(credentials, account, native, Selection::Explicit, || true, route).await
     }
 
     pub(super) async fn select_account(
@@ -94,7 +173,7 @@ impl KimiDeviceAuth {
         credentials: &CredentialFileStore,
         account: KimiAccountTarget<'_>,
         native: KimiNativeTarget<'_>,
-        catalog_connection: Option<&Value>,
+        selection: Selection<'_>,
         catalog_unchanged: impl Fn() -> bool + Send + 'static,
         mut route: impl FnMut(&mut Request),
     ) -> Result<(), AuthErrorCode> {
@@ -133,7 +212,7 @@ impl KimiDeviceAuth {
             return Err(AuthErrorCode::Conflict);
         }
         let binding = native.binding(&expected, scope.tenant, scope.principal)?;
-        if let Some(connection) = catalog_connection {
+        if let Selection::Bound(connection) = selection {
             binding.ok_or(AuthErrorCode::NotFound)?;
             binding::check_catalog(&before, native.provider_id, connection)?;
             if !catalog_unchanged() {
@@ -148,6 +227,12 @@ impl KimiDeviceAuth {
         }
         let slot = NativeSlot::open(native.home, &slot)?;
         let original = slot.read()?;
+        if matches!(selection, Selection::Default)
+            && binding.is_none()
+            && !shares_grant(&original, &saved)
+        {
+            return Err(AuthErrorCode::Conflict);
+        }
         let current =
             self.resolve_native(&slot, &original, &saved, identity_sha256, &mut route).await?;
         let rotated = shares_grant(&original, &saved) && original != current;
@@ -371,7 +456,25 @@ fn select_model(
 ) -> Result<(String, Vec<u8>), AuthErrorCode> {
     let mut profiles = kimi::declarations(Some(config)).map_err(write_error)?;
     let profile = profiles.remove(provider_id).ok_or(AuthErrorCode::NotFound)?;
-    let provider = &profile.declaration["provider"];
+    let slot = oauth_slot(&profile.declaration["provider"], region)?;
+    let models = profile.declaration["models"].as_object().ok_or(AuthErrorCode::InvalidInput)?;
+    let mut doc = std::str::from_utf8(config)
+        .ok()
+        .and_then(|text| text.parse::<DocumentMut>().ok())
+        .ok_or(AuthErrorCode::InvalidInput)?;
+    let current = doc.get("default_model").and_then(toml_edit::Item::as_str);
+    if !current.is_some_and(|alias| models.contains_key(alias)) {
+        let next = models.keys().next().ok_or(AuthErrorCode::NotFound)?;
+        let mut selected = value(next.as_str());
+        if let Some(decor) = doc.get("default_model").and_then(toml_edit::Item::as_value) {
+            *selected.as_value_mut().expect("TOML string").decor_mut() = decor.decor().clone();
+        }
+        doc["default_model"] = selected;
+    }
+    Ok((slot.into(), doc.to_string().into_bytes()))
+}
+
+fn oauth_slot(provider: &Value, region: AuthRegion) -> Result<&str, AuthErrorCode> {
     if !kimi::official(provider) {
         return Err(AuthErrorCode::Unsupported);
     }
@@ -402,21 +505,7 @@ fn select_model(
     {
         return Err(AuthErrorCode::InvalidInput);
     }
-    let models = profile.declaration["models"].as_object().ok_or(AuthErrorCode::InvalidInput)?;
-    let mut doc = std::str::from_utf8(config)
-        .ok()
-        .and_then(|text| text.parse::<DocumentMut>().ok())
-        .ok_or(AuthErrorCode::InvalidInput)?;
-    let current = doc.get("default_model").and_then(toml_edit::Item::as_str);
-    if !current.is_some_and(|alias| models.contains_key(alias)) {
-        let next = models.keys().next().ok_or(AuthErrorCode::NotFound)?;
-        let mut selected = value(next.as_str());
-        if let Some(decor) = doc.get("default_model").and_then(toml_edit::Item::as_value) {
-            *selected.as_value_mut().expect("TOML string").decor_mut() = decor.decor().clone();
-        }
-        doc["default_model"] = selected;
-    }
-    Ok((slot.into(), doc.to_string().into_bytes()))
+    Ok(slot)
 }
 
 fn write_error(error: WriteError) -> AuthErrorCode {

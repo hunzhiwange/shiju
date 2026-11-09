@@ -13,7 +13,9 @@ pub enum NativeAccountDefault<'a> {
     Agy(AgyNativeTarget<'a>),
     #[cfg(target_os = "macos")]
     Kimi {
-        target: vw_agent_apps::auth::kimi_account::KimiNativeTarget<'a>,
+        home: &'a std::path::Path,
+        transactions:
+            &'a std::sync::Arc<vw_agent_apps::providers::live::commit::ProviderTransactions>,
         exclusive_owner: AuthAccountScope<'a>,
     },
 }
@@ -38,14 +40,15 @@ impl AuthAccountStore {
             #[cfg(target_os = "macos")]
             (
                 AuthService::KimiOauth,
-                Some(NativeAccountDefault::Kimi { target, exclusive_owner }),
+                Some(NativeAccountDefault::Kimi { home, transactions, exclusive_owner }),
             ) => {
                 if exclusive_owner != scope {
                     return Err(AuthErrorCode::Forbidden);
                 }
-                let adapter = vw_agent_apps::auth::kimi::KimiDeviceAuth::new()
-                    .map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
-                self.use_kimi_account(&adapter, scope, account_id, target).await
+                let account = self.kimi_account_target(scope, account_id)?;
+                vw_agent_apps::auth::kimi::KimiDeviceAuth::new()?
+                    .use_default_account(&self.credentials, account, home, transactions)
+                    .await
             }
             #[cfg(target_os = "macos")]
             (AuthService::AgyOauth | AuthService::KimiOauth, None) => Err(AuthErrorCode::Forbidden),

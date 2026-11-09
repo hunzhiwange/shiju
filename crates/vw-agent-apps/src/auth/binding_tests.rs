@@ -1,4 +1,5 @@
 use super::*;
+use crate::auth::kimi_account::Selection;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 fn ready_fixture() -> Fixture {
@@ -48,7 +49,7 @@ async fn auth6_binding_commits_expected_scoped_result() {
             &fixture.credentials,
             fixture.target(AuthRegion::Global),
             fixture.native(),
-            Some(&connection),
+            Selection::Bound(&connection),
             || true,
             |request| *request.url_mut() = url.clone(),
         )
@@ -66,7 +67,7 @@ async fn auth6_binding_commits_expected_scoped_result() {
             &fixture.credentials,
             fixture.target(AuthRegion::Global),
             fixture.native(),
-            Some(&connection),
+            Selection::Bound(&connection),
             move || catalog.load(Ordering::Relaxed),
             |request| {
                 current.store(false, Ordering::Relaxed);
@@ -84,7 +85,7 @@ async fn auth6_binding_commits_expected_scoped_result() {
         &fixture.credentials,
         fixture.target(AuthRegion::Global),
         fixture.native(),
-        Some(&connection),
+        Selection::Bound(&connection),
         || true,
         |request| {
             assert_eq!(request.url().as_str(), "https://api.kimi.ai/coding/v1/me");
@@ -127,7 +128,7 @@ async fn auth6_binding_rejects_invalid_or_stale_input() {
             &fixture.credentials,
             fixture.target(AuthRegion::Global),
             fixture.native(),
-            Some(&connection),
+            Selection::Bound(&connection),
             || true,
             |request| *request.url_mut() = url.clone(),
         )

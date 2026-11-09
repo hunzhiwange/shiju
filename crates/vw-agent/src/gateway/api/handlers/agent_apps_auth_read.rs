@@ -96,6 +96,10 @@ pub(super) fn router_with_runtime(
             "/v1/agent-apps/auth/bindings/{provider_id}",
             put(super::agent_apps_auth_binding::put).layer(DefaultBodyLimit::max(4 * 1024)),
         )
+        .route(
+            "/v1/agent-apps/auth/accounts/{account_id}/default",
+            put(super::agent_apps_auth_default::put),
+        )
         .layer(Extension(PolicyFile(policy)))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
         .layer(middleware::from_fn(move |request: Request, next: Next| async move {
@@ -212,10 +216,14 @@ fn query_resource(
             .into_iter()
             .find(|account| account.is_default)
             .map(|account| account.account_id),
-        // This grant permits reads. Mutation and login permissions belong to their own endpoints.
+        // Each mutation capability requires its own grant.
         capabilities: AuthCapabilities {
             login_methods: Vec::new(),
-            can_set_default: false,
+            can_set_default: host.can_set_default
+                && super::agent_apps_auth_default::supports_default(
+                    scope.service,
+                    host.owns_native_slot,
+                ),
             can_bind: false,
             can_revoke: false,
         },

@@ -143,10 +143,11 @@ async fn auth6_kimi_account_commits_expected_scoped_result() {
     .await;
     let (me_url, me_sent) = oauth_server("200 OK", "", json!({"user_id":41})).await;
     let result = auth
-        .use_account_with(
+        .use_default_account_with(
             &fixture.credentials,
             fixture.target(AuthRegion::Global),
-            fixture.native(),
+            fixture.home.path(),
+            &fixture.transactions,
             |request| {
                 assert!(fixture.lock().is_dir());
                 match request.url().as_str() {

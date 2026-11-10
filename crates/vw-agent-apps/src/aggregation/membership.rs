@@ -1,4 +1,8 @@
-//! Host-local persistence for the planned aggregation membership.
+//! Host-local persistence for planned aggregation members and the default route.
+
+#[cfg(test)]
+#[path = "default_provider_tests.rs"]
+mod default_provider_tests;
 
 use super::{
     member_keys::allocate_key,
@@ -8,7 +12,7 @@ use super::{
 };
 use crate::providers::{
     live::{
-        commit::{AppState, Mode, PendingTarget, ProviderTransactions},
+        commit::{AppState, Mode, ModeState, PendingTarget, ProviderTransactions},
         write_guard::{AppWriteGuard, WriteError},
     },
     mode_state::observe,
@@ -26,12 +30,14 @@ pub struct SavedMember<'a> {
 pub enum MembershipChange<'a> {
     Add { provider_id: &'a str, saved: Option<SavedMember<'a>> },
     Remove { provider_id: &'a str },
+    SetDefault { provider_id: &'a str, saved: Option<SavedMember<'a>> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MembershipError {
     Validation(MemberValidationError),
     Forbidden,
+    NotFound,
     UnsupportedTarget,
     RevisionConflict,
     RecoveryPending,
@@ -57,7 +63,7 @@ impl From<WriteError> for MembershipError {
 /// The executor authorizes the tenant, host, project and application before
 /// taking the application guard. Supply the state from the requested revision
 /// and recheck the other revision inputs (including scope and saved provider)
-/// in `unchanged`. Returns true when the membership state was saved.
+/// in `unchanged`. Returns true when the membership or default route was saved.
 pub fn set_member(
     transactions: &ProviderTransactions,
     guard: &mut AppWriteGuard,
@@ -90,7 +96,7 @@ pub fn set_member(
     };
 
     let mut stack = current.stack.clone();
-    match change {
+    let mode = match change {
         MembershipChange::Add { provider_id, saved } => {
             validate_identity(provider_id).map_err(|_| MemberValidationError::InvalidMember)?;
             let saved = saved.ok_or(MemberValidationError::InvalidMember)?;
@@ -99,21 +105,49 @@ pub fn set_member(
             if !stack.members.iter().any(|id| id == provider_id) {
                 stack.members.push(provider_id.into());
             }
+            None
         }
         MembershipChange::Remove { provider_id } => {
             validate_identity(provider_id).map_err(|_| MemberValidationError::InvalidMember)?;
             validate_member_removal(app, &current, provider_id)?;
             stack.members.retain(|id| id != provider_id);
+            None
         }
-    }
-    if stack == current.stack {
+        MembershipChange::SetDefault { provider_id, saved } => {
+            validate_identity(provider_id).map_err(|_| MemberValidationError::InvalidMember)?;
+            let saved = saved.ok_or(MembershipError::NotFound)?;
+            validate_provider(app, saved.official_service, ProviderRole::Default)?;
+            if saved.official_service.is_some() {
+                // Codex official defaults need verified native login and recovery.
+                return Err(MembershipError::UnsupportedTarget);
+            }
+            allocate_key(&mut stack, provider_id, saved.name, saved.icon);
+            if !stack.members.iter().any(|id| id == provider_id) {
+                stack.members.push(provider_id.into());
+            }
+            let mut mode = current.mode.clone().unwrap_or(ModeState {
+                mode: Mode::Direct,
+                attached: false,
+                proxy_route: None,
+                contract: None,
+            });
+            if mode.proxy_route.as_deref() == Some(provider_id) {
+                None
+            } else {
+                mode.proxy_route = Some(provider_id.into());
+                Some(mode)
+            }
+        }
+    };
+    let stack = (stack != current.stack).then_some(stack);
+    if stack.is_none() && mode.is_none() {
         return Ok(false);
     }
 
-    // An attached aggregation must settle membership and its client projection together.
-    if current.stack.enabled
-        && current.mode.as_ref().is_some_and(|mode| mode.mode == Mode::Proxy && mode.attached)
-    {
+    // Attached routes need coordinated publication with their live client projection.
+    if current.mode.as_ref().is_some_and(|active| {
+        active.attached && (mode.is_some() || current.stack.enabled && active.mode == Mode::Proxy)
+    }) {
         return Err(MembershipError::UnsupportedTarget);
     }
 
@@ -121,7 +155,7 @@ pub fn set_member(
         tenant,
         guard,
         &[],
-        PendingTarget { stack: Some(stack), ..Default::default() },
+        PendingTarget { stack, mode, ..Default::default() },
         check_revision,
     )?;
     Ok(true)

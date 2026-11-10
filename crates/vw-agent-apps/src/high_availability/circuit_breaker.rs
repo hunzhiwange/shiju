@@ -1,6 +1,9 @@
-//! Opening thresholds for one provider's production circuit.
+//! Opening and recovery rules for one provider's production circuit.
 
-use std::time::Instant;
+use std::{
+    sync::Mutex,
+    time::{Duration, Instant},
+};
 use vw_api_types::agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState};
 
 /// Result of a production attempt, classified by the authorized routing caller.
@@ -14,27 +17,92 @@ pub enum AttemptOutcome {
 
 #[derive(Debug, Default)]
 pub struct CircuitBreaker {
-    opened_at: Option<Instant>,
+    state: Mutex<CircuitState>,
+}
+
+#[derive(Debug, Default)]
+struct CircuitState {
+    phase: CircuitPhase,
+    generation: u64,
     consecutive_failures: u32,
     total_requests: u64,
     failed_requests: u64,
 }
 
+#[derive(Debug, Default)]
+enum CircuitPhase {
+    #[default]
+    Closed,
+    Open {
+        opened_at: Instant,
+    },
+    HalfOpen {
+        successes: u32,
+        probe_in_flight: bool,
+    },
+}
+
 impl CircuitBreaker {
     pub fn state(&self) -> FailoverHealthState {
-        if self.opened_at.is_some() {
-            FailoverHealthState::Open
-        } else {
-            FailoverHealthState::Closed
+        match self.state.lock().expect("circuit state lock poisoned").phase {
+            CircuitPhase::Closed => FailoverHealthState::Closed,
+            CircuitPhase::Open { .. } => FailoverHealthState::Open,
+            CircuitPhase::HalfOpen { .. } => FailoverHealthState::HalfOpen,
         }
     }
 
-    /// Record a result against the validated policy snapshot for the attempt.
+    /// Admit a production attempt with the validated policy snapshot.
+    ///
+    /// Once the cooldown elapses, only one half-open attempt may be in flight.
+    pub fn allow_request(
+        &self,
+        policy: &CircuitBreakerPolicy,
+        now: Instant,
+    ) -> Option<CircuitAttempt<'_>> {
+        let mut state = self.state.lock().expect("circuit state lock poisoned");
+        let is_probe = match &mut state.phase {
+            CircuitPhase::Closed => false,
+            CircuitPhase::Open { opened_at } => {
+                if now.checked_duration_since(*opened_at)?
+                    < Duration::from_secs(u64::from(policy.cooldown_secs))
+                {
+                    return None;
+                }
+                state.phase = CircuitPhase::HalfOpen { successes: 0, probe_in_flight: true };
+                true
+            }
+            CircuitPhase::HalfOpen { probe_in_flight, .. } => {
+                if *probe_in_flight {
+                    return None;
+                }
+                *probe_in_flight = true;
+                true
+            }
+        };
+        Some(CircuitAttempt {
+            breaker: self,
+            generation: state.generation,
+            policy: *policy,
+            is_probe,
+        })
+    }
+
+    /// Record a closed-circuit result when the caller has exclusive access.
     pub fn record(&mut self, outcome: AttemptOutcome, policy: &CircuitBreakerPolicy, now: Instant) {
-        // Attempts already in flight cannot extend the open interval.
-        if self.opened_at.is_some() {
-            return;
+        let state = self.state.get_mut().expect("circuit state lock poisoned");
+        if matches!(state.phase, CircuitPhase::Closed) {
+            state.record_closed(outcome, policy, now);
         }
+    }
+}
+
+impl CircuitState {
+    fn record_closed(
+        &mut self,
+        outcome: AttemptOutcome,
+        policy: &CircuitBreakerPolicy,
+        now: Instant,
+    ) {
         match outcome {
             AttemptOutcome::Success => {
                 self.consecutive_failures = 0;
@@ -50,10 +118,68 @@ impl CircuitBreaker {
                         && self.failed_requests as f64 / self.total_requests as f64
                             >= policy.error_rate_threshold)
                 {
-                    self.opened_at = Some(now);
+                    // Invalidate other attempts admitted before the circuit opened.
+                    self.generation = self.generation.wrapping_add(1);
+                    self.phase = CircuitPhase::Open { opened_at: now };
                 }
             }
             AttemptOutcome::Neutral => {}
+        }
+    }
+}
+
+/// Admission for a single production attempt. Dropping it releases any probe slot.
+#[derive(Debug)]
+pub struct CircuitAttempt<'a> {
+    breaker: &'a CircuitBreaker,
+    generation: u64,
+    policy: CircuitBreakerPolicy,
+    is_probe: bool,
+}
+
+impl CircuitAttempt<'_> {
+    /// Consume the admission and apply its outcome once.
+    pub fn record(mut self, outcome: AttemptOutcome, now: Instant) {
+        let was_probe = std::mem::take(&mut self.is_probe);
+        let mut state = self.breaker.state.lock().expect("circuit state lock poisoned");
+        if state.generation != self.generation {
+            return;
+        }
+        match (&mut state.phase, was_probe) {
+            (CircuitPhase::Closed, false) => state.record_closed(outcome, &self.policy, now),
+            (CircuitPhase::HalfOpen { successes, probe_in_flight }, true) => {
+                *probe_in_flight = false;
+                match outcome {
+                    AttemptOutcome::Success => {
+                        *successes += 1;
+                        if *successes >= self.policy.success_threshold {
+                            *state = CircuitState {
+                                generation: state.generation,
+                                ..CircuitState::default()
+                            };
+                        }
+                    }
+                    AttemptOutcome::ProviderFailure => {
+                        state.phase = CircuitPhase::Open { opened_at: now };
+                    }
+                    AttemptOutcome::Neutral => {}
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Drop for CircuitAttempt<'_> {
+    fn drop(&mut self) {
+        if !self.is_probe {
+            return;
+        }
+        let mut state = self.breaker.state.lock().expect("circuit state lock poisoned");
+        if state.generation == self.generation
+            && let CircuitPhase::HalfOpen { probe_in_flight, .. } = &mut state.phase
+        {
+            *probe_in_flight = false;
         }
     }
 }

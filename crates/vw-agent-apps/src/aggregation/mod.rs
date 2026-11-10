@@ -39,3 +39,9 @@ pub mod membership;
 
 #[cfg(all(test, target_os = "macos"))]
 mod membership_tests;
+
+#[cfg(target_os = "macos")]
+pub mod omo_slim;
+
+#[cfg(all(test, target_os = "macos"))]
+mod omo_slim_tests;

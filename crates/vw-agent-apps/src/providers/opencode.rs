@@ -206,40 +206,63 @@ pub struct OpenCodeFiles {
     pub guard: super::live::write_guard::AppWriteGuard,
     directory: std::fs::File,
 }
-impl OpenCodeFiles {
-    pub fn open(home: &Path) -> Result<Self, WriteError> {
-        use std::os::{
+/// Open or provision an already-authorized OpenCode directory beneath the host home.
+pub(crate) fn open_config_directory(
+    home: &Path,
+    directory: &Path,
+) -> Result<std::fs::File, WriteError> {
+    use std::{
+        ffi::CString,
+        os::{
             fd::{AsRawFd, FromRawFd},
-            unix::fs::OpenOptionsExt,
+            unix::{ffi::OsStrExt, fs::OpenOptionsExt},
+        },
+        path::Component,
+    };
+    if !home.is_absolute() {
+        return invalid();
+    }
+    let relative = directory.strip_prefix(home).map_err(|_| WriteError::InvalidResource)?;
+    let names = relative
+        .components()
+        .map(|component| {
+            let Component::Normal(name) = component else {
+                return Err(WriteError::InvalidResource);
+            };
+            CString::new(name.as_bytes()).map_err(|_| WriteError::InvalidResource)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut dir = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(home)
+        .map_err(|_| WriteError::InvalidResource)?;
+    for name in names {
+        // SAFETY: validated single child of the retained authorized directory.
+        if unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), 0o700) } != 0
+            && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
+        {
+            return Err(WriteError::Io);
+        }
+        // SAFETY: validated child, no symlinks, and a newly owned descriptor.
+        let fd = unsafe {
+            libc::openat(
+                dir.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
         };
-        if !home.is_absolute() {
+        if fd < 0 {
             return invalid();
         }
-        let mut dir = std::fs::OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(home)
-            .map_err(|_| WriteError::InvalidResource)?;
-        for name in [c".config", c"opencode"] {
-            // SAFETY: fixed single child of the retained authorized directory.
-            if unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), 0o700) } != 0
-                && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
-            {
-                return Err(WriteError::Io);
-            }
-            // SAFETY: fixed child; no symlinks; returned fd consumed once.
-            let fd = unsafe {
-                libc::openat(
-                    dir.as_raw_fd(),
-                    name.as_ptr(),
-                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                )
-            };
-            if fd < 0 {
-                return invalid();
-            }
-            dir = unsafe { std::fs::File::from_raw_fd(fd) };
-        }
+        dir = unsafe { std::fs::File::from_raw_fd(fd) };
+    }
+    Ok(dir)
+}
+
+impl OpenCodeFiles {
+    pub fn open(home: &Path) -> Result<Self, WriteError> {
+        let dir = open_config_directory(home, &home.join(".config/opencode"))?;
         let directory = dir.try_clone().map_err(|_| WriteError::Io)?;
         Ok(Self {
             guard: super::live::write_guard::lock_directory(AppId::OpenCode, dir)?,

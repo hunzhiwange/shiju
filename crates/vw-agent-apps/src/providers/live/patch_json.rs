@@ -84,6 +84,24 @@ pub(crate) fn replace_member_preserving_trivia(
     Ok(result)
 }
 
+/// Reconcile an entire root object while retaining file and value trivia.
+#[cfg(target_os = "macos")]
+pub(crate) fn replace_object_preserving_trivia(
+    source: &[u8],
+    desired: Value,
+) -> Result<Vec<u8>, PatchError> {
+    let root = parse(source)?;
+    let masked = masked(source)?;
+    let span = root.start..root.end;
+    let before = serde_json::from_slice(&without_trailing_commas(&masked[span.clone()]))
+        .map_err(|_| PatchError::Parse)?;
+    let replacement = reconcile(source, &masked, &root, &before, &desired)?;
+    let mut result = source.to_vec();
+    result.splice(span, replacement);
+    parse(&result)?;
+    Ok(result)
+}
+
 #[cfg(target_os = "macos")]
 fn reconcile(
     source: &[u8],

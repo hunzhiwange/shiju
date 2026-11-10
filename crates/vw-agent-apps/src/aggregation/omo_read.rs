@@ -56,16 +56,8 @@ pub fn read(
         },
         None => read_first(home, &directory, &LEGACY_NAMES)?.unwrap_or_default(),
     };
-    let mut take_object = |key| match config.remove(key) {
-        None | Some(Value::Null) => Ok(None),
-        Some(Value::Object(mut value)) => {
-            remove_credentials(&mut value);
-            Ok(Some(value))
-        }
-        Some(_) => Err(OmoReadError::InvalidConfiguration),
-    };
-    let agents = take_object("agents")?;
-    let categories = take_object("categories")?;
+    let agents = take_object(&mut config, "agents")?;
+    let categories = take_object(&mut config, "categories")?;
     remove_credentials(&mut config);
     Ok(OmoRead {
         current_provider_id: current_provider_id.map(str::to_owned),
@@ -85,7 +77,22 @@ pub fn read(
 }
 
 #[cfg(target_os = "macos")]
-fn remove_credentials(fields: &mut Map<String, Value>) {
+pub(super) fn take_object(
+    config: &mut Map<String, Value>,
+    key: &str,
+) -> Result<Option<Map<String, Value>>, OmoReadError> {
+    match config.remove(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Object(mut value)) => {
+            remove_credentials(&mut value);
+            Ok(Some(value))
+        }
+        Some(_) => Err(OmoReadError::InvalidConfiguration),
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn remove_credentials(fields: &mut Map<String, Value>) {
     fn visit(value: &mut Value) {
         match value {
             Value::Object(fields) => remove_credentials(fields),
@@ -103,19 +110,8 @@ fn read_first(
     directory: &Path,
     names: &[&str],
 ) -> Result<Option<Map<String, Value>>, OmoReadError> {
-    use std::io::Read;
-    use vw_api_types::app_providers::paths::ConfigPathState;
-
     for name in names {
-        let file = match paths::open_beneath(home, &directory.join(name), false) {
-            Ok(file) => file,
-            Err(ConfigPathState::Absent) => continue,
-            Err(_) => return Err(OmoReadError::TargetFailed),
-        };
-        let mut bytes = Vec::new();
-        file.take(1024 * 1024 + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|_| OmoReadError::TargetFailed)?;
+        let Some(bytes) = read_candidate(home, &directory.join(name))? else { continue };
         let Value::Object(object) =
             object_value(&bytes).map_err(|_| OmoReadError::InvalidConfiguration)?
         else {
@@ -124,4 +120,23 @@ fn read_first(
         return Ok(Some(object));
     }
     Ok(None)
+}
+
+#[cfg(target_os = "macos")]
+pub(super) fn read_candidate(home: &Path, path: &Path) -> Result<Option<Vec<u8>>, OmoReadError> {
+    use std::io::Read;
+    use vw_api_types::app_providers::paths::ConfigPathState;
+
+    const MAX_BYTES: u64 = 1024 * 1024;
+    let file = match paths::open_beneath(home, path, false) {
+        Ok(file) => file,
+        Err(ConfigPathState::Absent) => return Ok(None),
+        Err(_) => return Err(OmoReadError::TargetFailed),
+    };
+    let mut bytes = Vec::new();
+    file.take(MAX_BYTES + 1).read_to_end(&mut bytes).map_err(|_| OmoReadError::TargetFailed)?;
+    if bytes.len() as u64 > MAX_BYTES {
+        return Err(OmoReadError::InvalidConfiguration);
+    }
+    Ok(Some(bytes))
 }

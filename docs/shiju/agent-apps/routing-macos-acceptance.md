@@ -405,3 +405,27 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
 
 `vw-agent` 聚焦测试报告既有 macOS 链接器 `__eh_frame` 大小警告。状态为 **已完成**。
+
+## 任务 15　应用请求覆盖的确定顺序
+
+2026-11-10，macOS 27.0（26A428），arm64。直接依赖任务 14 的 `51187057a`。核对 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/forwarder.rs`、`requestOverrides.ts` 和相邻用例，三份快照的 SHA256 均匹配来源映射。核对了转发构造入口、供应商表单和转发器的覆盖测试。
+
+- 沿用网关持有的 `RoutingListener`、项目和执行主机授权、应用标识和代次绑定。目标、上游认证和供应商的 `ProviderRequestOptions` 快照一起绑定到 `JsonTarget`。发布新绑定前复用 `providers::validation::validate`，拒绝受保护头、大小写归一后重名头和顶层 `stream`。校验失败保留当前凭证和路由。原生配置事务、账号凭据租约及生产发布分别由对应所有者接入。
+- 现有 `GatewayClient::app_provider_request_options_save` 与 `PUT /v1/app-providers/{app}/{id}/request-options` 继续写同一供应商记录。数据面消费同一契约的 `localProxyRequestOverrides`。测试通过既有 `request_options::update/read` 取得发布快照。
+- 已授权的 Codex 非流式 `POST /v1/chat/completions` 先校验并解析客户端输入。原生 Chat 的协议转换为恒等操作。`dispatch::prepare_request` 复制转换后的文档，先过滤私有字段，再用 `override_apply::apply` 深合并对象、替换数组与标量、保留显式 null，并重新过滤覆盖带入的私有字段。允许的覆盖头仅加入本次目标的出站请求。最后写入 JSON 媒体类型与该绑定的上游认证。
+- 回环上游捕获两个供应商收到的实际请求，验证覆盖、认证、媒体类型和代次隔离。复用同一份解析文档准备两个目标，验证首个目标的覆盖和过滤均未污染原件。另验证非法覆盖不会撤掉既有绑定。跨协议和流式请求由后续协议任务验收。Windows、Linux 和 WSL 范围外且未验证，WSL 地址仍见来源映射。
+
+各阶段均通过原子锁领取共享槽位 **3**。`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR` 与之相同。各阶段的任务锁均已释放，缓存保留。下表回归命令中的 `$CARGO_TARGET_DIR` 为该绝对路径。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红、绿阶段均退出 0。从格式化输出仅写回本项文件。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_015_ -- --nocapture` | 退出 101。3 项行为断言失败。实际出站正文与同一解析文档的首次构造均缺少覆盖，含受保护认证头的配置也未被拒绝。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_015_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 鉴权回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-377675ed6b51d388" cc_route_008_ --nocapture` | 退出 0，3 项通过。 |
+| JSON 过滤回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-377675ed6b51d388" cc_route_014_ --nocapture` | 退出 0，1 项通过。 |
+| 请求选项 API/SDK 回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-377675ed6b51d388" cc04_ui_endpoints_options_ --nocapture` | 退出 0，2 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
+
+红、绿测试链接均报告既有 macOS `__eh_frame` 大小警告。可选的 `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` 因集成分支并行更新触发重复编译而被中止，执行 0 项。该阶段退出 130，随后使用同一绿灯二进制完成上述回归。状态为 **已完成**。

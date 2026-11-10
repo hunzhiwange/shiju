@@ -112,6 +112,11 @@ impl RouteAuth {
             !binding.host.trim().is_empty() && !binding.account.trim().is_empty(),
             "incomplete application route binding"
         );
+        if let Some(target) = &json_target {
+            // Reject bad persisted options before invalidating the current grant.
+            vw_agent_apps::providers::validation::validate(binding.app, &target.request_options)
+                .map_err(anyhow::Error::msg)?;
+        }
         let mut bytes = [0; TOKEN_BYTES];
         getrandom::fill(&mut bytes)
             .map_err(|_| anyhow::anyhow!("application route entropy unavailable"))?;
@@ -259,3 +264,7 @@ mod browser_guard_tests;
 #[cfg(test)]
 #[path = "dispatch_tests.rs"]
 mod dispatch_tests;
+
+#[cfg(test)]
+#[path = "override_apply_tests.rs"]
+mod override_apply_tests;

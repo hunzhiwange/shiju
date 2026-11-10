@@ -4,6 +4,7 @@ pub(crate) mod config_apply;
 mod dispatch;
 pub(crate) mod gateway_owner;
 mod listener;
+mod override_apply;
 pub(crate) mod reference_scope;
 mod route_auth;
 mod shared_transport;

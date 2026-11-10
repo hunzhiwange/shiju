@@ -69,6 +69,7 @@ async fn cc_route_014_listener_filters_the_authorized_outgoing_json() {
                 url: target,
                 authorization: "Bearer provider-fixture".parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
             }),
         )
         .unwrap();

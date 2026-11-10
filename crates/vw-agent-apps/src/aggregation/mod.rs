@@ -45,3 +45,8 @@ pub mod omo_slim;
 
 #[cfg(all(test, target_os = "macos"))]
 mod omo_slim_tests;
+
+pub mod claude_catalog;
+
+#[cfg(test)]
+mod claude_catalog_tests;

@@ -6,7 +6,7 @@ const CLAUDE_PREFIX: &str = "ccs-claude-";
 const CODEX_PREFIX: &str = "ccs-";
 // Desktop filters vendor names from its selector. Six digits also avoid date-suffix stripping.
 const DESKTOP_PREFIX: &str = "claude-fable-ccs-";
-const ONE_M_MARKER: &str = "[1M]";
+pub(super) const ONE_M_MARKER: &str = "[1M]";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModelIdError {
@@ -98,7 +98,7 @@ fn valid_key(key: &str) -> bool {
     })
 }
 
-fn strip_one_m(text: &str) -> Option<&str> {
+pub(super) fn strip_one_m(text: &str) -> Option<&str> {
     let trimmed = text.trim_end();
     let start = trimmed.len().checked_sub(ONE_M_MARKER.len())?;
     trimmed.as_bytes()[start..]

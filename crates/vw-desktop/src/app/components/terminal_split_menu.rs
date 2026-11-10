@@ -43,10 +43,12 @@ pub(super) fn shortcut(event: &Event) -> Option<Direction> {
         .find_map(|(direction, arrow, ..)| (*key == Key::Named(*arrow)).then_some(*direction))
 }
 
-pub(super) fn split_button(app: &App, pane: Pane) -> Element<'static, Message> {
+pub(super) fn split_items(
+    app: &App,
+    on_split: impl Fn(Direction) -> TerminalMessage,
+) -> [Element<'static, Message>; 4] {
     let i18n = I18n::new(app.desktop_locale);
-    let mut items = column![];
-    for (direction, _, icon, label, arrow) in DIRECTIONS {
+    DIRECTIONS.map(|(direction, _, icon, label, arrow)| {
         let shortcut = match (MACOS, direction) {
             (true, Direction::Right) => "⌘D".into(),
             (false, Direction::Right) => "Ctrl+Shift+5".into(),
@@ -66,33 +68,34 @@ pub(super) fn split_button(app: &App, pane: Pane) -> Element<'static, Message> {
         ]
         .spacing(8)
         .align_y(iced::Alignment::Center);
-        items = items.push(
-            button(item)
-                .width(Length::Fill)
-                .height(30)
-                .padding([4, 8])
-                .style(|theme: &Theme, status| {
-                    let palette = theme.extended_palette();
-                    let background = match status {
-                        button::Status::Hovered | button::Status::Pressed => {
-                            Some(palette.primary.base.color.scale_alpha(0.15).into())
-                        }
-                        _ => None,
-                    };
-                    button::Style {
-                        background,
-                        text_color: theme.palette().text,
-                        border: Border::default().rounded(5),
-                        ..Default::default()
+        button(item)
+            .width(Length::Fill)
+            .height(30)
+            .padding([4, 8])
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let background = match status {
+                    button::Status::Hovered | button::Status::Pressed => {
+                        Some(palette.primary.base.color.scale_alpha(0.15).into())
                     }
-                })
-                .on_press(Message::Terminal(TerminalMessage::Split(
-                    app.terminal.panes.instance.clone(),
-                    pane,
-                    direction,
-                ))),
-        );
-    }
+                    _ => None,
+                };
+                button::Style {
+                    background,
+                    text_color: theme.palette().text,
+                    border: Border::default().rounded(5),
+                    ..Default::default()
+                }
+            })
+            .on_press(Message::Terminal(on_split(direction)))
+            .into()
+    })
+}
+
+pub(super) fn split_button(app: &App, pane: Pane) -> Element<'static, Message> {
+    let items = column![].extend(split_items(app, |direction| {
+        TerminalMessage::Split(app.terminal.panes.instance.clone(), pane, direction)
+    }));
     let menu =
         container(items).width(if MACOS { 200 } else { 240 }).padding(4).style(|theme: &Theme| {
             let palette = theme.extended_palette().background;

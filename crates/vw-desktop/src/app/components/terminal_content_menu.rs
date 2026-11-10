@@ -1,6 +1,7 @@
-use iced::widget::{Space, button, column, container, row, rule, text};
+use iced::widget::{Space, button, column, container, row, rule, scrollable, text};
 use iced::{Border, Element, Length, Theme};
 
+use super::split_menu::split_items;
 use crate::app::components::overlays::point_below::PointBelowOverlay;
 use crate::app::components::widgets::RightClickArea;
 use crate::app::i18n::I18n;
@@ -76,28 +77,37 @@ fn menu(app: &App, tab: &TerminalTab) -> Element<'static, Message> {
         })
     };
     let shortcut = |mac, other| if cfg!(target_os = "macos") { mac } else { other };
-    container(
-        column![
-            item(i18n.__("新建终端"), "", ContentAction::NewTerminal, true),
-            rule::horizontal(1),
-            item(i18n.__("复制"), shortcut("⌘ C", "Ctrl+Shift+C"), ContentAction::Copy, selected),
-            item(i18n.__("粘贴"), "", ContentAction::Paste, true),
-            item(
-                i18n.__("粘贴纯文本"),
-                shortcut("⌘ V", "Ctrl+Shift+V"),
-                ContentAction::PasteText,
-                true,
-            ),
-            item(i18n.__("全选"), shortcut("⌘ A", "Ctrl+Shift+A"), ContentAction::SelectAll, true),
-            item(i18n.__("清屏"), shortcut("⌘ K", "Ctrl+Shift+K"), ContentAction::Clear, true),
-            rule::horizontal(1),
-            item(i18n.__("在聊天中求助"), "", ContentAction::AskInChat, true),
-            item(i18n.__("插入到聊天"), "", ContentAction::InsertInChat, selected),
-            rule::horizontal(1),
-            item(i18n.__("关闭终端标签页"), "", ContentAction::CloseTab, true),
-        ]
-        .spacing(2),
-    )
+    let [split_left, split_right, split_up, split_down] = split_items(app, |direction| {
+        TerminalMessage::ContentMenuAction(id, ContentAction::Split(direction))
+    });
+    let items = column![
+        item(i18n.__("新建终端"), "", ContentAction::NewTerminal, true),
+        rule::horizontal(1),
+        split_left,
+        split_right,
+        split_up,
+        split_down,
+        rule::horizontal(1),
+        item(i18n.__("复制"), shortcut("⌘ C", "Ctrl+Shift+C"), ContentAction::Copy, selected),
+        item(i18n.__("粘贴"), "", ContentAction::Paste, true),
+        item(
+            i18n.__("粘贴纯文本"),
+            shortcut("⌘ V", "Ctrl+Shift+V"),
+            ContentAction::PasteText,
+            true,
+        ),
+        item(i18n.__("全选"), shortcut("⌘ A", "Ctrl+Shift+A"), ContentAction::SelectAll, true),
+        item(i18n.__("清屏"), shortcut("⌘ K", "Ctrl+Shift+K"), ContentAction::Clear, true),
+        rule::horizontal(1),
+        item(i18n.__("在聊天中求助"), "", ContentAction::AskInChat, true),
+        item(i18n.__("插入到聊天"), "", ContentAction::InsertInChat, selected),
+        rule::horizontal(1),
+        item(i18n.__("关闭终端标签页"), "", ContentAction::CloseTab, true),
+    ]
+    .spacing(2);
+    container(scrollable(items).direction(scrollable::Direction::Vertical(
+        scrollable::Scrollbar::new().width(4).scroller_width(4).spacing(3),
+    )))
     .width(240)
     .padding(4)
     .style(|theme: &Theme| {

@@ -1,4 +1,5 @@
-use iced::{Task, widget::operation};
+use iced::Task;
+use iced::widget::{operation, pane_grid::Direction};
 
 use crate::app::i18n::I18n;
 use crate::app::message::ChatMessage;
@@ -9,6 +10,7 @@ use super::TerminalMessage;
 #[derive(Debug, Clone, Copy)]
 pub enum ContentAction {
     NewTerminal,
+    Split(Direction),
     Copy,
     Paste,
     PasteText,
@@ -71,6 +73,11 @@ fn run_action(app: &mut App, id: u64, action: ContentAction) -> Task<Message> {
 
     match action {
         ContentAction::NewTerminal => super::tabs::update(app, TerminalMessage::Add),
+        ContentAction::Split(direction) => {
+            let panes = &app.terminal.panes;
+            let message = TerminalMessage::Split(panes.instance.clone(), panes.focused, direction);
+            super::panes::update(app, message)
+        }
         ContentAction::Copy => {
             let text = tab.term.selected_text();
             if text.is_empty() { Task::none() } else { iced::clipboard::write(text) }

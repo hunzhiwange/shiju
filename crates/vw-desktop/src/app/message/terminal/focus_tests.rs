@@ -627,6 +627,67 @@ async fn click_split_menu(h: &mut Harness, button: Point, item: usize) {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn terminal_context_menu_splits_the_clicked_pane() {
+    use iced::mouse::{Button, Event as Mouse};
+    use iced::widget::pane_grid::Direction;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut h = Harness::new().await;
+    let left = h.app.terminal.panes.focused;
+    h.app.terminal.split_terminal(left, Direction::Right, None).unwrap();
+    let right = h.app.terminal.panes.focused;
+
+    h.event(Event::Mouse(Mouse::ButtonPressed(Button::Right)), Point::new(120.0, 360.0)).await;
+    assert_eq!(h.app.terminal.panes.focused, left);
+    assert!(h.app.terminal.content_menu.is_some());
+
+    let mut messages = Vec::new();
+    {
+        // Leave room below the click for the full menu. Split Down is the
+        // fourth split entry, immediately before the clipboard actions.
+        let mut ui = UserInterface::build(
+            view(&h.app, h.workspace),
+            Size::new(800.0, 800.0),
+            Cache::new(),
+            &mut h.renderer,
+        );
+        let _ = ui.update(
+            &[
+                Event::Mouse(Mouse::ButtonPressed(Button::Left)),
+                Event::Mouse(Mouse::ButtonReleased(Button::Left)),
+            ],
+            iced::mouse::Cursor::Available(Point::new(160.0, 510.0)),
+            &mut h.renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+    }
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::Terminal(TerminalMessage::ContentMenuAction(
+            _,
+            super::ContentAction::Split(Direction::Down)
+        ))]
+    ));
+    for message in messages {
+        let task = h.app.update(message);
+        h.task(task).await;
+    }
+
+    let panes = &h.app.terminal.panes;
+    let regions = panes.grid.layout().pane_regions(
+        crate::app::terminal::panes::PANE_SPACING,
+        0.0,
+        Size::new(800.0, 220.0),
+    );
+    assert_eq!(regions.len(), 3);
+    assert_eq!(regions[&right].height, 220.0);
+    assert_eq!(regions[&panes.focused].x, regions[&left].x);
+    assert!(regions[&panes.focused].y > regions[&left].y);
+    assert!(h.app.terminal.content_menu.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn terminal_split_shortcut_only_runs_in_the_focused_terminal() {
     use iced::keyboard::{self, Modifiers, key};
 

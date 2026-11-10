@@ -23,6 +23,7 @@ use iced::{Background, Border, Color, Length, Point};
 use crate::app::assets::Icon;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::system_settings_common::icon_svg;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, message};
 
 use super::ui::small_plain_icon_button;
@@ -360,34 +361,29 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
         filter_options_toggle_message(app.show_git_filter_options),
     );
 
-    let half_fullscreen_btn = small_plain_icon_button(
-        Some(Icon::LayoutTextWindow),
-        crate::app::i18n::I18n::new(app.desktop_locale).__("半屏").to_owned(),
-        Message::Git(message::GitMessage::ToggleHalfFullscreen),
-    );
-
-    let (fullscreen_icon, fullscreen_tip) = fullscreen_icon_and_tip(app.git_diff_fullscreen);
-    let fullscreen_btn = small_plain_icon_button(
-        Some(fullscreen_icon),
-        crate::app::i18n::I18n::new(app.desktop_locale).__(&fullscreen_tip).to_owned(),
-        Message::Git(message::GitMessage::ToggleFullscreen),
-    );
-
-    let actions: Element<'_, Message> = row![
-        row![
-            select_all_btn,
-            invert_select_btn,
-            summary_toggle,
-            filter_btn,
-            half_fullscreen_btn,
-            fullscreen_btn
-        ]
+    let mut buttons = row![select_all_btn, invert_select_btn, summary_toggle, filter_btn]
         .spacing(8)
-        .align_y(iced::Alignment::Center),
-        Space::new().width(Length::Fixed(10.0))
-    ]
-    .align_y(iced::Alignment::Center)
-    .into();
+        .align_y(iced::Alignment::Center);
+    // 工作模式由外层资源区标题栏负责切换布局。
+    if app.workspace_mode == WorkspaceMode::Code {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+        let (fullscreen_icon, fullscreen_tip) = fullscreen_icon_and_tip(app.git_diff_fullscreen);
+        buttons = buttons
+            .push(small_plain_icon_button(
+                Some(Icon::LayoutTextWindow),
+                i18n.__("半屏").to_owned(),
+                Message::Git(message::GitMessage::ToggleHalfFullscreen),
+            ))
+            .push(small_plain_icon_button(
+                Some(fullscreen_icon),
+                i18n.__(&fullscreen_tip).to_owned(),
+                Message::Git(message::GitMessage::ToggleFullscreen),
+            ));
+    }
+
+    let actions: Element<'_, Message> = row![buttons, Space::new().width(Length::Fixed(10.0))]
+        .align_y(iced::Alignment::Center)
+        .into();
 
     // 构建头部内容行：分支名称 + 弹性空间 + 操作按钮
     let leading: Element<'_, Message> = if let Some(worktree_picker) = worktree_picker {

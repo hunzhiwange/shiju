@@ -164,14 +164,16 @@ async fn render_catalog(theme: iced::Theme, click: bool) {
                 if available { 3 } else { 0 },
                 "only eligible cards expose 开始会话"
             );
-            let cards =
-                Layout::new(&node).children().next().unwrap().children().collect::<Vec<_>>();
+            let cards = Layout::new(&node).children().collect::<Vec<_>>();
             assert_eq!(cards.len(), 3);
             for card in cards {
                 let title = card.children().next().unwrap().children().next().unwrap();
                 let header = title.children().next().unwrap();
-                let icon = header.children().next().unwrap().bounds();
-                assert_eq!(icon.size(), Size::new(20.0, 20.0), "engine identity icon");
+                let tile = header.children().next().unwrap();
+                let icon = tile.children().next().unwrap().bounds();
+                assert_eq!(tile.bounds().size(), Size::new(44.0, 44.0));
+                assert_eq!(icon.size(), Size::new(26.0, 26.0), "engine identity icon");
+                assert_eq!(icon.center(), tile.bounds().center());
             }
             element.as_widget().draw(
                 &tree,

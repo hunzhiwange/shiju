@@ -99,6 +99,8 @@ pub enum Icon {
     HandIndex,
     /// 滑块/设置图标
     Sliders,
+    /// 递增柱形图标
+    BarChartFill,
     /// 调色板图标
     Palette,
     /// 键盘图标

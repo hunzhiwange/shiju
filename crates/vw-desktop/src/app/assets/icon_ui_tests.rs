@@ -12,6 +12,7 @@ use iced::widget::svg;
 use std::collections::HashMap;
 
 const REGISTERED_UI_ICONS: &[Icon] = &[
+    Icon::BarChartFill,
     Icon::QuestionCircle,
     Icon::ArrowLeft,
     Icon::ArrowRight,

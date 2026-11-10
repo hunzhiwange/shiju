@@ -4,6 +4,12 @@ use std::collections::HashMap;
 
 pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
     m.insert(
+        Icon::BarChartFill,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/bar-chart-fill.svg"
+        )),
+    );
+    m.insert(
         Icon::ArrowLeft,
         svg::Handle::from_memory(include_bytes!(
             "../../../../../assets/icons/bootstrap/arrow-left.svg"

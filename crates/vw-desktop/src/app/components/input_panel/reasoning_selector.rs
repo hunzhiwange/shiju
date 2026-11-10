@@ -160,7 +160,7 @@ pub(super) fn reasoning_effort_selector<'a>(
         return None;
     }
     let expanded = app.show_reasoning_effort_popover;
-    let icon = icon_svg(Icon::Speedometer2, BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
+    let icon = icon_svg(Icon::BarChartFill, BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
         svg::Style { color: Some(selector_text_color(theme, expanded || current.is_some())) }
     });
     let chevron = icon_svg(
@@ -237,7 +237,7 @@ pub(super) fn reasoning_effort_popover<'a>(
     let model_name =
         super::model_popover::model_toggle_label(&app.model_settings.providers, false, model);
     let heading = row![
-        icon_svg(Icon::Speedometer2, 16.0),
+        icon_svg(Icon::BarChartFill, 16.0),
         column![
             settings_field_label(localized_reasoning_effort_label(i18n, current))
                 .font(selector_label_font()),

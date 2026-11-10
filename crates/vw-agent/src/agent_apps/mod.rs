@@ -1,4 +1,5 @@
 //! Scoped native application storage.
+pub mod mcp;
 pub mod store;
 
 #[cfg(test)]

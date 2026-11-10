@@ -1,5 +1,6 @@
 //! Business rules for the managed MCP catalog.
 
+pub mod catalog;
 pub mod presets;
 pub mod validation;
 

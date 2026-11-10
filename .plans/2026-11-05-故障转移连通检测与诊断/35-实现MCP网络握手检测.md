@@ -2,7 +2,22 @@
 
 批次：【批次 3】 依赖：批次 2 的任务 3。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已阻塞
+
+## 本次核查
+
+- 直接依赖任务 3 的契约提交 `b6fb3a2fc` 已合入当前分支，任务 1、2 的证据提交 `862fdb4d2`、`1cd32bb00` 也已合入。通过 `git merge-base --is-ancestor <提交> HEAD` 逐一核对，均退出 0。`Cargo.toml` 已注册 `vw-agent-apps`，`c9ebc4319` 已交付 `DiagnosticJobs::start` 和跨任务并发许可。其调用契约要求调用者先解析已授权配置，再提交探测。
+- 用 `rustcodegraph status`、`rustcodegraph explore` 和源码搜索核对授权、配置存储及传输。诊断请求的 `server_ids` 使用 `McpRecordId`。当前 `McpCatalogStore` 只有新增和更新入口，私有连接定义未提供执行端读取或按应用和主机授权的解析入口，`McpCredentialRef` 也尚未接到该目录的执行链。通用主机授权没有把 MCP 记录绑定到本次诊断作用域。
+- 已核对 `tools/mcp_common`、`tools/mcp_inspect.rs`、相邻测试及上游 `SameOriginSseClient`。现有工作区加载器按运行时服务名查找，检查入口还会枚举服务能力。这些入口无法证明目录 ID 在指定租户、项目、主机和应用下获准执行。
+- 恢复条件是母任务 11 提供已有记录在指定执行主机上的授权解析入口，能按 `McpRecordId` 返回当前连接配置并在同一边界解析凭据引用。具备该最小接口后即可恢复，无需等待配置分发全部完成。
+- 因前置接口缺失，在写测试前停止。未运行 `cargo fmt --all`、`cargo test -p vw-agent --lib diagnostic_mcp_http_handshake_is_scoped -- --nocapture` 或 `cargo clippy --all-targets --all-features -- -D warnings`。有效行为测试 0 项，Cargo 槽位及 `CARGO_TARGET_DIR` 不适用。
+
+## 恢复复核
+
+- 基线 `e2910aad5`。执行 `rustcodegraph status`、`rustcodegraph query McpCatalogStore --limit 12` 和 `rustcodegraph query authorize_mcp --limit 12`，再用 `git log`、`git status`、`rg` 和源码读取核对提交及共享工作区。目录所有者已合入任务 6 的创建接口。工作区中的任务 7 更新接线只校验目录作用域和修订，保留凭据引用。它没有供诊断使用的授权读取。通用 `access::authorize_scoped` 验证成员和目标主机，现有能力分支没有 MCP 记录执行许可。已有 MCP 插件 OAuth 许可仅适用于插件来源与会话。
+- 缺少的授权产物由母任务 11 的连接作业入口提供（子任务 39）。任务 35 需要它与目录所有者共享的执行端边界：按已验证的成员、租户、项目、主机和应用批准具体 `McpRecordId`，由 `McpCatalogStore` 在获准的目录作用域读取该记录的当前连接定义及修订。目录作用域隔离只约束存储键，不能据此授予探测许可。公共连接作业路由和完整配置分发无需先落地。
+- 缺少的凭据产物由母任务 11 子任务 9 的 `crates/vw-agent/src/agent_apps/mcp/credentials.rs` 提供。需要由该边界在目标主机按获准记录和目标端点解析 `McpCredentialRef`，再交付传输所需的 headers。母任务 6 的 `AuthAccountStore::{copilot_session,codex_access_token,xai_access_token}` 可读取对应服务的账号凭据，但没有授权将其发往 MCP 记录 URL。直接调用账号访问器或以通用主机读权限代替记录许可都会扩大权限，当前无法用读取接线安全补齐。
+- 本轮只更新本卡。未运行 Cargo，未领槽位。待记录执行许可和端点约束的凭据解析就绪，再补目录读取接线和红绿握手验证。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 

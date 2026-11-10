@@ -10,8 +10,11 @@
 - 基线 `b6fb3a2fc` 缺少真实前置。生产 `crates/vw-agent/src/app_routing/listener.rs::serve_http` 对获准请求直接返回 HTTP 503，`route_auth_tests.rs` 的现有断言也期待 503。母能力 8 的[任务 77 摘要回放与隔离密文](../2026-11-05-常驻路由与完整协议适配/77-重放压缩摘要与隔离密文.md)和[任务 78 V2 请求与流桥接](../2026-11-05-常驻路由与完整协议适配/78-桥接V2压缩请求与流.md)均为未开始，当前分支没有相应生产接入。
 - 已在 macOS arm64 执行只读核对。`rustcodegraph status` 与 `rustcodegraph query codex_compaction --limit 10` 仅定位到上游快照中的压缩实现。用 `cmp` 对比来源提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的本机 `proxy/providers/codex_compaction.rs` 与仓库快照，退出 0。查阅其相邻 Chat、Anthropic 和原生 Responses SSE 用例，确认来源语义为单项输出、摘要回放、外来密文按目标协议处理。执行 `git grep -n -E 'compaction_trigger|prepare_native_third_party_request|wrap_native_compaction_stream' HEAD -- 'crates/**/*.rs' ':!crates/vw-agent-apps/upstream/**'`，退出 1，无匹配。快照不在 `vw-agent-apps` 的生产构建内。
 - 此次为开工前依赖核对，只有任务卡状态变更。未运行 `cargo test -p vw-agent --lib aggregation_t25_ -- --nocapture` 或 `cargo clippy --all-targets --all-features -- -D warnings`，无 Cargo 退出码、槽位或 `CARGO_TARGET_DIR`，也无真实 Codex 验收结果。
-- 当前检出复核：`uname -sm` 返回 `Darwin arm64`，`codex --version` 退出 0，版本为 `codex-cli 0.167.0-alpha.3.2`。两份来源文件 SHA-256 一致。`rustcodegraph query prepare_native_third_party_request --limit 8` 仅命中快照。原生源码与路由证据均未找到生产分发入口，母能力 8 的任务 76（压缩端点）也未开始。
-- 最小解除条件是任务 77、78 的生产实现及其鉴权后常驻分发入口合入并提供证据。随后在项目当前检出验证第三方压缩只输出一个 `compaction` 项、下一回合重放摘要、外来密文遵循目标协议策略及失败路径，再按计划采集 macOS 真实 Codex 证据。
+- 首次复核：`uname -sm` 返回 `Darwin arm64`，`codex --version` 退出 0，版本为 `codex-cli 0.167.0-alpha.3.2`。两份来源文件 SHA-256 一致。`rustcodegraph query prepare_native_third_party_request --limit 8` 仅命中快照。原生源码与路由证据均未找到生产分发入口，母能力 8 的任务 76（压缩端点）也未开始。
+- 集成重试（2026-11-10，`shiju@12d918467`，含当前未提交变更）：常驻监听已有 `listener.rs::serve_http → dispatch.rs::forward_json`，但只允许 Codex 的 `POST /v1/chat/completions` 和非流式 JSON。无目标时返回 503，有目标时 Responses 路径返回 404，流式 Chat 请求返回 400。当前仅 `dispatch_tests.rs` 给授权绑定提供真实目标结构，生产发布尚未接入。这些状态码来自代码路径核对。
+- 复查替代入口：`model_relay/responses.rs::to_chat` 将 `compaction_trigger` 和回放条目落入 422 分支，且入口绑定会话。共享传输只负责转发，来源快照也未加入生产构建。排除快照后，`rg -l --glob '!**/upstream/**' --glob '*.rs' 'compaction_trigger|prepare_native_third_party_request|ccswitch-compaction-v1' crates` 退出 1，无匹配。直接走上游或使用夹具签发目标不能覆盖常驻桥接。母能力 8 的任务 76–78 仍为未开始。
+- 最新集成复核（`shiju@2d9124b79`）：`51187057a` 已提交获授权的非流式 Chat JSON 转发，当前请求覆盖草案仍沿用该入口，只有测试为其绑定上游目标。`0599ea634` 新增的 `aggregation::resolve` 只解析已发布目录条目和目标供应商，不能处理 Responses 压缩请求。生产源码检索 `compaction_trigger|ccswitch-compaction-v1|responses/compact|aggregation_t25_` 仍无匹配（退出 1）。母能力 8 的任务 36、76–78、86 仍未开始，任务 109 仍阻塞。
+- 最小解除条件：母能力 8 在获授权的常驻 Codex Responses 路由交付第三方 V2 摘要流、摘要回放及外来密文策略，并有可供真实客户端使用的受控目标绑定。之后在项目当前检出执行聚焦测试及 macOS Codex 验收。本次复查未运行 Cargo，无槽位或 `CARGO_TARGET_DIR`，未取得行为证据。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 

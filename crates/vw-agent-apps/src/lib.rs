@@ -20,4 +20,6 @@ pub mod routing;
 
 pub mod aggregation;
 
+pub mod mcp;
+
 pub mod high_availability;

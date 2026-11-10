@@ -16,6 +16,7 @@ fn native_row(context_window: Option<u64>) -> CodexNativeModel {
         supports_reasoning_summaries: false,
         supports_parallel_tool_calls: true,
         context_window,
+        supported_reasoning_levels: vec![],
     }
 }
 

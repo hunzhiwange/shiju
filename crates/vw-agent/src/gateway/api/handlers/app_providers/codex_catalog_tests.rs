@@ -6,6 +6,7 @@ use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use vw_api_types::{
     app_providers::{claude::ClaudeActivation, codex_catalog::*},
     id::TenantScope,
+    model_catalog::{CodexNativeModel, SavedCodexCatalog},
 };
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 const TOKEN: &str = "fixture-codex-token-with-at-least-32-chars";
@@ -52,7 +53,30 @@ impl Fixture {
         self.root.path().join(".codex/config.toml")
     }
     fn request(&self, catalog: bool, activation: ClaudeActivation) -> CodexWrite {
-        CodexWrite {target_host_id:"host".into(),profile:CodexProfile{name:"Fixture".into(),config:"model_provider='vendor'\nmodel='saved'\n[model_providers.vendor]\nbase_url='https://fixture.test/v1'\nwire_api='responses'\n".into(),api_key:Some("fake-route-secret".into()),preserve_login:false},catalog:if catalog {Some(vw_api_types::model_catalog::SavedCodexCatalog {models:vec![vw_api_types::model_catalog::CodexNativeModel{slug:"saved".into(),display_name:"Saved".into(),description:"fixture".into(),base_instructions:"fixture instruction".into(),supports_reasoning_summaries:false,supports_parallel_tool_calls:false,context_window:None}]})}else{None},activation}
+        let catalog = catalog.then(|| SavedCodexCatalog {
+            models: vec![CodexNativeModel {
+                slug: "saved".into(),
+                display_name: "Saved".into(),
+                description: "fixture".into(),
+                base_instructions: "fixture instruction".into(),
+                supports_reasoning_summaries: false,
+                supports_parallel_tool_calls: false,
+                context_window: None,
+                supported_reasoning_levels: vec![],
+            }],
+        });
+        let config = "model_provider='vendor'\nmodel='saved'\n[model_providers.vendor]\nbase_url='https://fixture.test/v1'\nwire_api='responses'\n";
+        CodexWrite {
+            target_host_id: "host".into(),
+            profile: CodexProfile {
+                name: "Fixture".into(),
+                config: config.into(),
+                api_key: Some("fake-route-secret".into()),
+                preserve_login: false,
+            },
+            catalog,
+            activation,
+        }
     }
     fn target(&self) -> CodexTarget {
         CodexTarget { target_host_id: "host".into() }
@@ -146,7 +170,7 @@ async fn cc04_codex_catalog_sdk_api_denial_and_profile_failure_keep_native_files
 #[test]
 fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
     use crate::model_catalog::ModelCatalogStore;
-    use vw_api_types::model_catalog::*;
+    use vw_api_types::model_catalog::ModelCatalogIdentity;
     let root = tempfile::tempdir().unwrap();
     let store = ModelCatalogStore::new(GlobalDatabase::for_home(root.path()).unwrap()).unwrap();
     let tenant = TenantScope::new("p", "a").unwrap();
@@ -165,6 +189,7 @@ fn cc04_codex_catalog_saved_revisions_are_deployment_and_tenant_scoped() {
             supports_reasoning_summaries: false,
             supports_parallel_tool_calls: false,
             context_window: None,
+            supported_reasoning_levels: vec![],
         }],
     };
     assert!(store.read(&tenant, &identity, None).unwrap().is_none());

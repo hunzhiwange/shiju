@@ -1,6 +1,7 @@
 //! Model catalog wire contracts shared by the gateway, SDK and clients.
 use crate::{
     agent_apps::AppId,
+    chat::ReasoningEffortDto,
     common::{PaginationRequest, TimestampMs},
     id::{ModelId, TaskId, TenantScope},
 };
@@ -28,7 +29,17 @@ pub struct CodexNativeModel {
     pub supports_parallel_tool_calls: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context_window: Option<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub supported_reasoning_levels: Vec<CodexReasoningLevel>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CodexReasoningLevel {
+    pub effort: ReasoningEffortDto,
+    pub description: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SavedCodexCatalog {

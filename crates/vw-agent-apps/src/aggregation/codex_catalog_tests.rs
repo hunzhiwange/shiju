@@ -46,6 +46,7 @@ fn saved_model(slug: &str, label: &str) -> CodexNativeModel {
         supports_reasoning_summaries: true,
         supports_parallel_tool_calls: true,
         context_window: Some(256_000),
+        supported_reasoning_levels: vec![],
     }
 }
 

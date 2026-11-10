@@ -141,6 +141,7 @@ fn third_party_rows(
         supports_reasoning_summaries: false,
         supports_parallel_tool_calls: false,
         context_window: None,
+        supported_reasoning_levels: vec![],
     };
     Ok(vec![third_party_row(&fallback, &windows)?])
 }
@@ -161,7 +162,7 @@ fn third_party_row(
         "shell_type": "shell_command",
         "visibility": "list",
         "supported_in_api": true,
-        "supported_reasoning_levels": [],
+        "supported_reasoning_levels": model.supported_reasoning_levels,
         "default_reasoning_summary": "none",
         "support_verbosity": false,
         "supports_image_detail_original": false,

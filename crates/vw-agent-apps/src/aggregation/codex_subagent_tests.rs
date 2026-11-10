@@ -28,7 +28,8 @@ fn aggregation_t21_codex_subagent_preserves_contract() {
         plan.choices,
         [CodexSubagentChoice {
             model_id: "ccs-relay/vendor/child",
-            label: "vendor/child（Relay）"
+            label: "vendor/child（Relay）",
+            efforts: vec![],
         }]
     );
     assert_eq!(plan.effective_model_id, requested);

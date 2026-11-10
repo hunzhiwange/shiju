@@ -26,6 +26,7 @@ fn catalog() -> SavedCodexCatalog {
             supports_reasoning_summaries: false,
             supports_parallel_tool_calls: false,
             context_window: None,
+            supported_reasoning_levels: vec![],
         }],
     }
 }

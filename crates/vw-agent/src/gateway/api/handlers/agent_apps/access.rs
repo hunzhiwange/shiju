@@ -11,7 +11,7 @@ use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
 #[cfg(target_os = "macos")]
 use {
     crate::agent_apps::usage_settings::{UsageCredentialId, UsageSigningCredentialRefs},
-    vw_api_types::apps_usage::UsageSnapshotQuery,
+    vw_api_types::{agent_apps::AppId, apps_usage::UsageSnapshotQuery, id::ProjectId},
 };
 
 #[derive(Deserialize)]
@@ -85,10 +85,21 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     routing_manage: bool,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    routing_apps: Vec<RoutingAppPermit>,
     platform_id: String,
     company_id: String,
     host_id: String,
 }
+#[cfg(target_os = "macos")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RoutingAppPermit {
+    project_id: ProjectId,
+    app_id: AppId,
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UsageReadPermit {
@@ -447,6 +458,7 @@ enum Capability<'a> {
     #[cfg(target_os = "macos")]
     RoutingControl {
         scope: &'a RoutingControlScope,
+        app: Option<(&'a ProjectId, AppId)>,
         manage: bool,
     },
     ProviderConfigWrite,
@@ -717,10 +729,15 @@ fn authorize_scoped(
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
                     #[cfg(target_os = "macos")]
-                    Capability::RoutingControl { scope, manage } => {
+                    Capability::RoutingControl { scope, app, manage } => {
                         scope.tenant == *tenant
                             && scope.host == target
-                            && if manage { g.routing_manage } else { g.routing_read }
+                            && (if manage { g.routing_manage } else { g.routing_read })
+                            && app.is_none_or(|(project_id, app_id)| {
+                                g.routing_apps.iter().any(|permit| {
+                                    &permit.project_id == project_id && permit.app_id == app_id
+                                })
+                            })
                     }
                     Capability::ProviderConfigWrite => g.provider_config_write,
                     Capability::AuthBindingWrite(service) => {
@@ -1022,6 +1039,7 @@ pub(crate) fn authorize_routing_control(
     tenant: &TenantScope,
     target: &str,
     scope: &RoutingControlScope,
+    app: Option<(&ProjectId, AppId)>,
     manage: bool,
 ) -> Result<Option<PathBuf>, StatusCode> {
     authorize_scoped(
@@ -1030,7 +1048,7 @@ pub(crate) fn authorize_routing_control(
         tenant,
         target,
         None,
-        Capability::RoutingControl { scope, manage },
+        Capability::RoutingControl { scope, app, manage },
     )
     .map(|authorized| authorized.host.credential_root)
 }

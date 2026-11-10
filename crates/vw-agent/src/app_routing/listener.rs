@@ -38,6 +38,9 @@ pub enum ListenerError {
     NonLoopbackDenied,
     #[error("the routing listener address is already in use")]
     AddressInUse,
+    #[cfg(target_os = "macos")]
+    #[error("application routes are attached")]
+    AppsAttached,
     #[error("could not bind the routing listener: {0}")]
     Bind(#[from] io::Error),
     #[error("the routing listener timed out waiting for connection tasks to stop")]
@@ -164,7 +167,9 @@ impl RoutingListener {
     ) -> anyhow::Result<()> {
         let replacement = match self.bound_address() {
             Some(bound) if current.bind != config.bind && bound != config.bind => {
-                anyhow::ensure!(!self.has_active_routes(), "application routes are attached");
+                if self.has_active_routes() {
+                    return Err(ListenerError::AppsAttached.into());
+                }
                 let runtime =
                     Handle::try_current().map_err(|_| ListenerError::RuntimeUnavailable)?;
                 let socket = bind_listener(config.bind)?;

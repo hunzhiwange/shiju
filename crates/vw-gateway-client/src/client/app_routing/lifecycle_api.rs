@@ -32,7 +32,7 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingStatus, AppRoutingError> {
-        self.app_routing_request(reqwest::Method::GET, host, "status", token).await
+        self.app_routing_request(reqwest::Method::GET, &[host, "status"], token, None::<&()>).await
     }
 
     pub async fn app_routing_health(
@@ -40,7 +40,7 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingHealth, AppRoutingError> {
-        self.app_routing_request(reqwest::Method::GET, host, "health", token).await
+        self.app_routing_request(reqwest::Method::GET, &[host, "health"], token, None::<&()>).await
     }
 
     pub async fn app_routing_start(
@@ -48,7 +48,13 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingStatus, AppRoutingError> {
-        self.app_routing_request(reqwest::Method::POST, host, "start", token).await
+        self.app_routing_request(
+            reqwest::Method::POST,
+            &[host, "start"],
+            token,
+            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+        )
+        .await
     }
 
     pub async fn app_routing_stop(
@@ -56,24 +62,30 @@ impl GatewayClient {
         host: &str,
         token: &str,
     ) -> Result<RoutingStatus, AppRoutingError> {
-        self.app_routing_request(reqwest::Method::POST, host, "stop", token).await
+        self.app_routing_request(
+            reqwest::Method::POST,
+            &[host, "stop"],
+            token,
+            Some(&vw_api_types::app_routing::RoutingLifecycleRequest {}),
+        )
+        .await
     }
 
-    async fn app_routing_request<T: serde::de::DeserializeOwned>(
+    pub(super) async fn app_routing_request<T: serde::de::DeserializeOwned>(
         &self,
         method: reqwest::Method,
-        host: &str,
-        action: &str,
+        path: &[&str],
         token: &str,
+        body: Option<&impl serde::Serialize>,
     ) -> Result<T, AppRoutingError> {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (method, host, action, token);
+            let _ = (method, path, token, body);
             Err(AppRoutingError::Transport)
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            if matches!(host, "" | "." | "..") {
+            if path.iter().any(|segment| matches!(*segment, "" | "." | "..")) {
                 return Err(AppRoutingError::InvalidRequest);
             }
             let mut url = reqwest::Url::parse(&self.endpoint.base_url())
@@ -81,15 +93,15 @@ impl GatewayClient {
             url.path_segments_mut()
                 .map_err(|_| AppRoutingError::InvalidRequest)?
                 .pop_if_empty()
-                .extend(["v1", "app-routing", "hosts", host, action]);
+                .extend(["v1", "app-routing", "hosts"])
+                .extend(path);
             let mut token = reqwest::header::HeaderValue::from_str(token)
                 .map_err(|_| AppRoutingError::InvalidRequest)?;
             token.set_sensitive(true);
-            let write = method == reqwest::Method::POST;
             let mut request =
                 self.dynamic_host_client.request(method, url).header("x-agent-apps-token", token);
-            if write {
-                request = request.json(&vw_api_types::app_routing::RoutingLifecycleRequest {});
+            if let Some(body) = body {
+                request = request.json(body);
             }
             let response = crate::http::apply_request_context(request, &self.endpoint)
                 .send()

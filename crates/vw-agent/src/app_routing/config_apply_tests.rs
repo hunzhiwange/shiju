@@ -45,14 +45,16 @@ fn verify_config_apply(database: GlobalDatabase) -> anyhow::Result<()> {
         enabled: true,
         logging_enabled: false,
     };
-    runtime.block_on(store.apply_listener(&routing, initial, initial))?;
+    runtime.block_on(store.apply_listener(&routing, initial, initial, || Ok(())))?;
     let bound = runtime.block_on(async { routing.start_configured(initial) })?;
     let snapshot = routing.snapshot();
 
     let occupied = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     let rejected =
         ListenerConfig { bind: occupied.local_addr()?, logging_enabled: true, ..initial };
-    assert!(runtime.block_on(store.apply_listener(&routing, initial, rejected)).is_err());
+    assert!(
+        runtime.block_on(store.apply_listener(&routing, initial, rejected, || Ok(()))).is_err()
+    );
     assert_eq!(
         store.listener()?,
         Some(initial),
@@ -62,11 +64,11 @@ fn verify_config_apply(database: GlobalDatabase) -> anyhow::Result<()> {
     assert!(!routing.logging_enabled());
     assert_eq!(http_status(&runtime, bound)?, reqwest::StatusCode::UNAUTHORIZED);
     let invalid = ListenerConfig { bind: (Ipv4Addr::UNSPECIFIED, 0).into(), ..initial };
-    assert!(runtime.block_on(store.apply_listener(&routing, initial, invalid)).is_err());
+    assert!(runtime.block_on(store.apply_listener(&routing, initial, invalid, || Ok(()))).is_err());
     assert_eq!(store.listener()?, Some(initial));
 
     let hot = ListenerConfig { logging_enabled: true, ..initial };
-    runtime.block_on(store.apply_listener(&routing, initial, hot))?;
+    runtime.block_on(store.apply_listener(&routing, initial, hot, || Ok(())))?;
     assert_eq!(routing.snapshot(), snapshot, "a hot update restarted the listener");
     assert!(routing.logging_enabled());
     let updated = AppTimeouts { idle_timeout_secs: 0, ..claude };
@@ -86,7 +88,7 @@ fn verify_config_apply(database: GlobalDatabase) -> anyhow::Result<()> {
     drop(occupied);
     let rebound = ListenerConfig { bind: new_binding, logging_enabled: false, ..hot };
     reject_database_updates(&database, true)?;
-    assert!(runtime.block_on(store.apply_listener(&routing, initial, rebound)).is_err());
+    assert!(runtime.block_on(store.apply_listener(&routing, initial, rebound, || Ok(()))).is_err());
     assert_eq!(store.listener()?, Some(hot));
     assert_eq!(routing.snapshot(), snapshot, "a failed write disturbed the original listener");
     assert!(routing.logging_enabled());
@@ -94,7 +96,7 @@ fn verify_config_apply(database: GlobalDatabase) -> anyhow::Result<()> {
     assert_eq!(http_status(&runtime, bound)?, reqwest::StatusCode::UNAUTHORIZED);
     reject_database_updates(&database, false)?;
 
-    runtime.block_on(store.apply_listener(&routing, hot, rebound))?;
+    runtime.block_on(store.apply_listener(&routing, hot, rebound, || Ok(())))?;
     assert_eq!(routing.bound_address(), Some(new_binding));
     assert!(!routing.logging_enabled());
     assert_eq!(http_status(&runtime, new_binding)?, reqwest::StatusCode::UNAUTHORIZED);

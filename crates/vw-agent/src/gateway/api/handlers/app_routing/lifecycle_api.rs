@@ -20,17 +20,18 @@ use vw_agent_apps::{
     routing::lifecycle_state::LifecycleState,
 };
 use vw_api_types::{
+    agent_apps::AppId,
     app_routing::{RoutingHealth, RoutingLifecycleRequest, RoutingState, RoutingStatus},
     error::{ApiErrorBody, ApiErrorDetail},
-    id::TenantScope,
+    id::{ProjectId, TenantScope},
 };
 
 #[derive(Clone)]
 pub(crate) struct RoutingControl {
-    routing: Arc<RoutingListener>,
+    pub(super) routing: Arc<RoutingListener>,
     scope: Arc<RoutingControlScope>,
     policy: PathBuf,
-    policy_default: ListenerConfig,
+    pub(super) policy_default: ListenerConfig,
 }
 
 pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Router {
@@ -80,32 +81,48 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
 }
 
 impl RoutingControl {
-    async fn config(&self) -> Result<ListenerConfig, ControlError> {
+    pub(super) async fn with_config_store<T: Send + 'static>(
+        &self,
+        operation: impl FnOnce(RoutingConfigStore) -> anyhow::Result<T> + Send + 'static,
+    ) -> Result<T, ControlError> {
         let scope = Arc::clone(&self.scope);
-        let fallback = self.policy_default;
-        tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        tokio::task::spawn_blocking(move || {
             let db = GlobalDatabase::for_home(&crate::global::paths().home)?;
             let settings = RoutingConfigStore::new(db, scope.tenant.clone(), scope.host.clone())?;
-            Ok(settings.listener()?.unwrap_or(fallback))
+            operation(settings)
         })
         .await
         .map_err(|_| ControlError::Unavailable)?
         .map_err(|_| ControlError::Unavailable)
     }
 
-    async fn authorize(
+    pub(super) async fn config(&self) -> Result<ListenerConfig, ControlError> {
+        let fallback = self.policy_default;
+        self.with_config_store(move |store| Ok(store.listener()?.unwrap_or(fallback))).await
+    }
+
+    pub(super) async fn authorize(
         control: Option<Extension<Self>>,
         headers: HeaderMap,
         tenant: TenantScope,
         host: String,
+        app: Option<(ProjectId, AppId)>,
         manage: bool,
     ) -> Result<(Self, Option<PathBuf>), ControlError> {
         let Extension(control) = control.ok_or(ControlError::Unavailable)?;
         let policy = control.policy.clone();
         let scope = Arc::clone(&control.scope);
         let root = tokio::task::spawn_blocking(move || {
-            authorize_routing_control(&policy, &headers, &tenant, &host, &scope, manage)
-                .map_err(ControlError::from)
+            authorize_routing_control(
+                &policy,
+                &headers,
+                &tenant,
+                &host,
+                &scope,
+                app.as_ref().map(|(project, app)| (project, *app)),
+                manage,
+            )
+            .map_err(ControlError::from)
         })
         .await
         .map_err(|_| ControlError::Unavailable)??;
@@ -136,7 +153,8 @@ pub(crate) async fn status(
     Path(host): Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<RoutingStatus>, ControlError> {
-    let (control, _) = RoutingControl::authorize(control, headers, tenant, host, false).await?;
+    let (control, _) =
+        RoutingControl::authorize(control, headers, tenant, host, None, false).await?;
     Ok(Json(control.status()))
 }
 
@@ -146,7 +164,8 @@ pub(crate) async fn health(
     Path(host): Path<String>,
     headers: HeaderMap,
 ) -> Result<Json<RoutingHealth>, ControlError> {
-    let (control, _) = RoutingControl::authorize(control, headers, tenant, host, false).await?;
+    let (control, _) =
+        RoutingControl::authorize(control, headers, tenant, host, None, false).await?;
     if control.routing.state() != LifecycleState::Running {
         return Err(ControlError::NotReady);
     }
@@ -160,7 +179,8 @@ pub(crate) async fn start(
     headers: HeaderMap,
     body: Result<Json<RoutingLifecycleRequest>, JsonRejection>,
 ) -> Result<Json<RoutingStatus>, ControlError> {
-    let (control, _) = RoutingControl::authorize(control, headers, tenant, host, true).await?;
+    let (control, _) =
+        RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
     let _permit = control.routing.try_control()?;
     let config = control.config().await?;
@@ -175,12 +195,13 @@ pub(crate) async fn stop(
     headers: HeaderMap,
     body: Result<Json<RoutingLifecycleRequest>, JsonRejection>,
 ) -> Result<Json<RoutingStatus>, ControlError> {
-    let (control, root) = RoutingControl::authorize(control, headers, tenant, host, true).await?;
+    let (control, root) =
+        RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
     let permit = control.routing.try_control()?;
     if !matches!(control.routing.state(), LifecycleState::Stopped | LifecycleState::Failed) {
         let host = control.scope.host.clone();
-        let attached = tokio::task::spawn_blocking(move || apps_attached(root, host))
+        let attached = tokio::task::spawn_blocking(move || apps_attached(root, &host))
             .await
             .map_err(|_| ControlError::Unavailable)??;
         if attached || control.routing.has_active_routes() {
@@ -198,9 +219,9 @@ pub(crate) async fn stop(
     .map_err(|_| ControlError::Unavailable)?
 }
 
-fn apps_attached(root: Option<PathBuf>, host: String) -> Result<bool, ControlError> {
+pub(super) fn apps_attached(root: Option<PathBuf>, host: &str) -> Result<bool, ControlError> {
     let Some(root) = root else { return Ok(false) };
-    let host = ExecutionHostId::new(&host).map_err(|_| ControlError::Unavailable)?;
+    let host = ExecutionHostId::new(host).map_err(|_| ControlError::Unavailable)?;
     let Some(store) =
         ProviderTransactions::open_existing(&root, host).map_err(|_| ControlError::Unavailable)?
     else {
@@ -221,6 +242,9 @@ fn apps_attached(root: Option<PathBuf>, host: String) -> Result<bool, ControlErr
 
 pub(crate) enum ControlError {
     InvalidInput,
+    InvalidConfig,
+    UnsupportedApp,
+    ConfigNotApplied,
     Unauthenticated,
     Forbidden,
     NotFound,
@@ -248,6 +272,7 @@ impl From<ListenerError> for ControlError {
     fn from(error: ListenerError) -> Self {
         match error {
             ListenerError::AddressInUse => Self::AddressInUse,
+            ListenerError::AppsAttached => Self::AppsAttached,
             ListenerError::TransitionInProgress => Self::TransitionInProgress,
             _ => Self::Unavailable,
         }
@@ -260,6 +285,19 @@ impl IntoResponse for ControlError {
             Self::InvalidInput => {
                 (StatusCode::BAD_REQUEST, "invalid_input", "Expected an empty JSON object")
             }
+            Self::InvalidConfig => {
+                (StatusCode::BAD_REQUEST, "invalid_input", "Invalid routing configuration")
+            }
+            Self::UnsupportedApp => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unsupported_app",
+                "Application routing settings are unsupported",
+            ),
+            Self::ConfigNotApplied => (
+                StatusCode::CONFLICT,
+                "config_not_applied",
+                "Routing address change could not be applied",
+            ),
             Self::Unauthenticated => {
                 (StatusCode::UNAUTHORIZED, "unauthenticated", "Application membership is required")
             }

@@ -333,3 +333,30 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
 
 提交的 Rust 文件与绿灯快照逐字一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位 1 的任务锁均已释放，编译缓存保留。状态为 **已完成**。
+
+## 任务 12　接通运行参数接口
+
+2026-11-10，macOS 27.0（26A428），arm64。采用任务 11 的 `e19bfdf7a` 为基线。已核对 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `commands/proxy.rs`、`types/proxy.ts` 与仓库快照的 SHA256，并检查了 `lib/api/proxy.ts` 和 `lib/query/proxy.ts` 的直接调用。来源的 `tests/proxy_commands.rs` 覆盖计价配置，运行参数行为由本项的独立测试验收。
+
+- `GET/PUT /v1/app-routing/hosts/{host}/config` 使用 `RoutingConfig`。SDK 方法为 `app_routing_config` 和 `app_routing_set_config`。配置启用位控制管理员允许时的启动恢复。端口 0 由操作系统分配，实际绑定端口通过状态接口读取。
+- `GET/PUT /v1/app-routing/hosts/{host}/projects/{project}/apps/{app}/config` 使用 `AppRoutingConfig`。SDK 方法为 `app_routing_app_config` 和 `app_routing_set_app_config`。支持 Claude Code、Codex、Gemini、Grok Build，未保存时依次返回 60、120、600 秒。首字节、空闲和非流式总超时分别接受 1–120、0–600、60–1200 秒，空闲 0 表示关闭。
+- 两组入口复用网关认证、管理员成员策略和对应主机的 `routing_read` / `routing_manage`。应用配置还要求同一条许可中的 `routing_apps` 包含对应项目及应用，例如 `[{"project_id":"p1","app_id":"codex"}]`。未显式授予的项目或应用默认拒绝。配置和错误响应沿用 `Cache-Control: no-store` 与结构化 `ApiErrorBody`。
+- `RoutingConfigStore` 继续在执行端保存设置。PUT 校验完整 JSON 对象、未知字段、数值与回环地址。改绑在现有控制许可内检查已提交和待提交的客户端附接。端口占用或存在附接返回 409 `config_not_applied`，旧配置与监听保持可用。任务 21 消费应用超时，任务 87 负责原生客户端连接地址重投影。WSL 连接地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+验证使用 `255e05085` 的隔离源码快照。各阶段实际使用共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 为该路径下的 `build`。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红、绿阶段退出 0，仅同步本任务文件的格式。 |
+| API 红灯 | `cargo test -p vw-agent --lib cc_route_012_ -- --nocapture` | 退出 101，1 项失败。已获主机读取许可的 SDK 客户端请求配置，基线只返回无结构化错误体的 401。 |
+| SDK 红灯 | `cargo test -p vw-gateway-client --lib cc_route_012_ -- --nocapture` | 退出 101，1 项失败。携带未知字段的 200 响应被误解码为成功。 |
+| API 绿灯 | `cargo test -p vw-agent --lib cc_route_012_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。通过真实回环网关验证成员与权限、租户/主机/项目/应用隔离、非法字段和值拒绝、端口占用及已落盘附接保护、改绑后的鉴权、重启后的配置读回。 |
+| SDK 绿灯 | `cargo test -p vw-gateway-client --lib cc_route_012_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。验证方法、路径编码、认证头、请求与响应字段、结构化 HTTP 错误及未知字段解码错误。 |
+| 网关生命周期回归 | `cargo test -p vw-agent --lib cc_route_010_ -- --nocapture` | 退出 0，3 项通过。 |
+| SDK 生命周期回归 | `cargo test -p vw-gateway-client --lib cc_route_010_ -- --nocapture` | 退出 0，1 项通过。 |
+| 原子更新回归 | `cargo test -p vw-agent --lib cc_route_011_config_apply_expected_behavior -- --nocapture` | 退出 0，1 项通过。 |
+| 持久配置回归 | `cargo test -p vw-agent --lib cc_route_011_lifecycle_reads_the_persisted_listener_config -- --nocapture` | 退出 0，1 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本任务路径） | 退出 0。 |
+
+本项 Rust 文件和 Cargo 清单与绿灯快照一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位锁已释放，缓存保留。状态为 **已完成**。

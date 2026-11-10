@@ -22,7 +22,7 @@ pub(crate) struct ListenerConfig {
 }
 
 impl ListenerConfig {
-    fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         ensure!(self.bind.ip().is_loopback(), "routing requires a loopback address");
         ensure!(self.bind.port() == 0 || self.bind.port() >= 1024, "invalid routing port");
         Ok(())
@@ -30,16 +30,14 @@ impl ListenerConfig {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(not(test), expect(dead_code, reason = "application config API is wired in task 12"))]
 pub(crate) struct AppTimeouts {
     pub(crate) first_byte_timeout_secs: u16,
     pub(crate) idle_timeout_secs: u16,
     pub(crate) non_streaming_timeout_secs: u16,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "application config API is wired in task 12"))]
 impl AppTimeouts {
-    fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         ensure!(
             (1..=120).contains(&self.first_byte_timeout_secs)
                 && self.idle_timeout_secs <= 600
@@ -47,6 +45,16 @@ impl AppTimeouts {
             "invalid routing timeouts"
         );
         Ok(())
+    }
+}
+
+impl Default for AppTimeouts {
+    fn default() -> Self {
+        Self {
+            first_byte_timeout_secs: 60,
+            idle_timeout_secs: 120,
+            non_streaming_timeout_secs: 600,
+        }
     }
 }
 
@@ -69,14 +77,14 @@ impl RoutingConfigStore {
         decode_listener(&payload).map(Some)
     }
 
-    /// Called after host management authorization. The caller must also check
-    /// persisted attachments before changing a client-facing bind address.
-    #[cfg_attr(not(test), expect(dead_code, reason = "host config API is wired in task 12"))]
+    /// Called after host management authorization. Check persisted attachments
+    /// under the same control permit as the change to the client-facing bind.
     pub(crate) async fn apply_listener(
         self: &Arc<Self>,
         routing: &Arc<RoutingListener>,
         policy_default: ListenerConfig,
         config: ListenerConfig,
+        check_rebind: impl FnOnce() -> Result<()> + Send + 'static,
     ) -> Result<()> {
         config.validate()?;
         let permit = routing.try_control()?;
@@ -88,6 +96,9 @@ impl RoutingConfigStore {
             let saved = store.settings.get(&store.tenant, GLOBAL, &store.host)?;
             let current =
                 saved.as_deref().map(decode_listener).transpose()?.unwrap_or(policy_default);
+            if current.bind != config.bind {
+                check_rebind()?;
+            }
             let payload = serde_json::to_string(&config)?;
             routing.apply_config(current, config, || {
                 let committed = match saved {
@@ -112,7 +123,6 @@ impl RoutingConfigStore {
         .await?
     }
 
-    #[cfg_attr(not(test), expect(dead_code, reason = "application config API is wired in task 12"))]
     pub(crate) fn app_timeouts(
         &self,
         project: &ProjectScope,
@@ -127,7 +137,6 @@ impl RoutingConfigStore {
         Ok(Some(timeouts))
     }
 
-    #[cfg_attr(not(test), expect(dead_code, reason = "application config API is wired in task 12"))]
     pub(crate) fn save_app_timeouts(
         &self,
         project: &ProjectScope,

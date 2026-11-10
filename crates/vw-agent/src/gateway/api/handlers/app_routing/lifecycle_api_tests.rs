@@ -13,10 +13,10 @@ use vw_gateway_client::{AppRoutingError, GatewayClient, GatewayEndpoint};
 
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";
-const HOST: &str = "routing-mac";
-const MANAGER: &str = "fixture-routing-manager-token-00001";
-const READER: &str = "fixture-routing-reader-token-000002";
-const MEMBER: &str = "fixture-routing-member-token-000003";
+pub(super) const HOST: &str = "routing-mac";
+pub(super) const MANAGER: &str = "fixture-routing-manager-token-00001";
+pub(super) const READER: &str = "fixture-routing-reader-token-000002";
+pub(super) const MEMBER: &str = "fixture-routing-member-token-000003";
 
 #[tokio::test]
 #[ignore = "started as a separate process with a private gateway configuration"]
@@ -31,7 +31,7 @@ async fn gateway_child() {
     crate::gateway::run_gateway("127.0.0.1", 0, config).await.unwrap();
 }
 
-struct GatewayProcess(Child);
+pub(super) struct GatewayProcess(Child);
 
 impl Drop for GatewayProcess {
     fn drop(&mut self) {
@@ -51,7 +51,7 @@ fn grant(token: &str, read: bool, manage: bool) -> Value {
     })
 }
 
-fn write_policy(path: &Path, home: &Path, port: u16) {
+pub(super) fn write_policy(path: &Path, home: &Path, port: u16) {
     let host = |id| {
         json!({
             "id": id,
@@ -75,7 +75,7 @@ fn write_policy(path: &Path, home: &Path, port: u16) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
 }
 
-async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
+pub(super) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
     let output = tempfile::NamedTempFile::new_in(home).unwrap();
     let log = output.reopen().unwrap();
     let mut command = Command::new(std::env::current_exe().unwrap());
@@ -116,7 +116,7 @@ async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
     (process, port)
 }
 
-fn client(port: u16, company: &str) -> GatewayClient {
+pub(super) fn client(port: u16, company: &str) -> GatewayClient {
     GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", port)
             .with_tenant_scope(TenantScope::new("p", company).unwrap()),
@@ -124,7 +124,7 @@ fn client(port: u16, company: &str) -> GatewayClient {
     .unwrap()
 }
 
-fn assert_error(error: AppRoutingError, status: u16, code: &str) {
+pub(super) fn assert_error(error: AppRoutingError, status: u16, code: &str) {
     assert!(
         matches!(&error, AppRoutingError::Http { status: actual, body: Some(body) }
             if *actual == status && body.error.code == code),
@@ -167,6 +167,7 @@ async fn cc_route_011_lifecycle_reads_the_persisted_listener_config() -> anyhow:
             &Arc::new(RoutingListener::default()),
             ListenerConfig { enabled: true, bind: fallback, logging_enabled: false },
             saved,
+            || Ok(()),
         )
         .await?;
 
@@ -272,19 +273,10 @@ async fn cc_route_010_lifecycle_api_expected_behavior() {
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
 }
 
-#[tokio::test]
-async fn cc_route_010_lifecycle_stop_preserves_attached_apps() {
+pub(super) fn write_attached_app(home: &Path) -> (std::path::PathBuf, String) {
     use vw_agent_apps::providers::live::commit::{ExecutionHostId, ProviderTransactions};
 
-    let home = tempfile::TempDir::new().unwrap();
-    let policy = home.path().join("access.json");
-    write_policy(&policy, home.path(), 0);
-    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
-    let owner = client(port, "owner");
-    let running = owner.app_routing_start(HOST, MANAGER).await.unwrap();
-    let address = (running.bound_address.unwrap(), running.bound_port.unwrap());
-
-    let root = home.path().join("credentials");
+    let root = home.join("credentials");
     fs::create_dir(&root).unwrap();
     fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).unwrap();
     let _store = ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap();
@@ -302,6 +294,20 @@ async fn cc_route_010_lifecycle_stop_preserves_attached_apps() {
     }).to_string();
     fs::write(&host_state, &attached).unwrap();
     fs::set_permissions(&host_state, fs::Permissions::from_mode(0o600)).unwrap();
+    (host_state, attached)
+}
+
+#[tokio::test]
+async fn cc_route_010_lifecycle_stop_preserves_attached_apps() {
+    let home = tempfile::TempDir::new().unwrap();
+    let policy = home.path().join("access.json");
+    write_policy(&policy, home.path(), 0);
+    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let owner = client(port, "owner");
+    let running = owner.app_routing_start(HOST, MANAGER).await.unwrap();
+    let address = (running.bound_address.unwrap(), running.bound_port.unwrap());
+
+    let (host_state, attached) = write_attached_app(home.path());
 
     assert_error(owner.app_routing_stop(HOST, MANAGER).await.unwrap_err(), 409, "apps_attached");
     assert_eq!(fs::read_to_string(&host_state).unwrap(), attached);

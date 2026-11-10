@@ -148,13 +148,20 @@ pub(super) fn app_routing_router() -> Router {
         response::Response,
         routing::{get, post},
     };
-    use handlers::app_routing::{health, start, status, stop};
+    use handlers::app_routing::{
+        get_app_config, get_config, health, put_app_config, put_config, start, status, stop,
+    };
 
     Router::new()
         .route("/app-routing/hosts/{host}/status", get(status))
         .route("/app-routing/hosts/{host}/health", get(health))
         .route("/app-routing/hosts/{host}/start", post(start))
         .route("/app-routing/hosts/{host}/stop", post(stop))
+        .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
+        .route(
+            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/config",
+            get(get_app_config).put(put_app_config),
+        )
         .layer(DefaultBodyLimit::max(1024))
         .layer(middleware::map_response(async |mut response: Response| {
             response

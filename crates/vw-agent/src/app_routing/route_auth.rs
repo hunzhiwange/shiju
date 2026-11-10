@@ -3,6 +3,7 @@
 use super::{
     browser_guard,
     cancellation::{ClientDisconnect, ClientReader},
+    capacity::RouteCapacity,
     dispatch::JsonTarget,
     header_wire,
 };
@@ -77,6 +78,7 @@ pub(super) struct AuthorizedRoute {
     generation: u64,
     cancelled: CancellationToken,
     json_target: Option<JsonTarget>,
+    pub(super) capacity: Arc<RouteCapacity>,
     #[cfg(target_os = "macos")]
     timeout_store: Option<Arc<RoutingConfigStore>>,
 }
@@ -218,8 +220,11 @@ impl RouteAuth {
 
         // A project/host/app has one active route. A rotation or account
         // switch invalidates the previous credential and its in-flight work.
+        let mut capacity = None;
         active.grants.retain(|_, route| {
             if route.binding.same_route(&binding) {
+                // The replacement shares the route's budget until cancelled work exits.
+                capacity = Some(Arc::clone(&route.capacity));
                 route.cancelled.cancel();
                 false
             } else {
@@ -234,6 +239,7 @@ impl RouteAuth {
                 generation,
                 cancelled: CancellationToken::new(),
                 json_target,
+                capacity: capacity.unwrap_or_default(),
                 #[cfg(target_os = "macos")]
                 timeout_store,
             }),

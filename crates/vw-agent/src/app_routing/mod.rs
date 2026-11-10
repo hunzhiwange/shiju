@@ -1,6 +1,7 @@
 mod body_limits;
 mod browser_guard;
 mod cancellation;
+mod capacity;
 #[cfg(target_os = "macos")]
 pub(crate) mod config_apply;
 mod decode_request;
@@ -46,3 +47,6 @@ mod timeouts_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod cancellation_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod capacity_tests;

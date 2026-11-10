@@ -1,6 +1,6 @@
 //! Deadlines for the authorized application upstream and its response body.
 
-use super::body_limits::MAX_JSON_BYTES;
+use super::{body_limits::MAX_JSON_BYTES, capacity::RequestPermit};
 use axum::{
     body::{Body, BodyDataStream, Bytes},
     http::StatusCode,
@@ -9,10 +9,7 @@ use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{future::Future, io, time::Duration};
-use tokio::{
-    sync::OwnedSemaphorePermit,
-    time::{Instant, sleep_until},
-};
+use tokio::time::{Instant, sleep_until};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct AppTimeouts {
@@ -59,7 +56,7 @@ pub(super) async fn stream_body(
     body: Body,
     first_byte_deadline: Instant,
     idle: Duration,
-    permit: OwnedSemaphorePermit,
+    permit: RequestPermit,
 ) -> Result<Body, StatusCode> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver::default();
@@ -99,7 +96,7 @@ struct TimedStream {
     observer: OutputObserver,
     idle: Duration,
     idle_deadline: Option<Instant>,
-    _permit: OwnedSemaphorePermit,
+    _permit: RequestPermit,
 }
 
 impl TimedStream {

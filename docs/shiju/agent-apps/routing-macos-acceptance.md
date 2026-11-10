@@ -561,3 +561,30 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 槽位锁已释放，缓存保留。测试链接器报告既有 macOS `__eh_frame` 大小警告。状态为 **已完成**。
+
+## 任务 23　约束并发与背压
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 22 的 `062c4d6cb`。CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/forwarder.rs` 与仓库快照、来源映射的 SHA256 一致。核对了 `handlers.rs` 的调用、活跃连接守卫向响应传递的路径及相邻测试。沿用母任务 2、3 的运行时、执行主机和应用身份。原生配置与账号凭据租约由母任务 4、6 的既有契约负责。
+
+- `app_routing::dispatch::forward_json` 在授权的 Codex `POST /v1/chat/completions` 路径接入 `capacity::RouteCapacity`。同一可信租户、项目、执行主机和应用最多同时转发 2 个请求，另允许 1 个等待最多 2 秒。满队列或等待超时返回 429。凭据轮换复用同一路由配额，客户端声明的项目或请求头无法改写配额归属。
+- 继续在读取正文前保留监听器级 8 个缓冲许可。请求完成上传和校验后才等待上游许可，以便断线检测取消排队。普通响应的字节所有者和 SSE 响应流持有相应许可。成功、上游失败、客户端断线和队列超时均释放对应许可。控制状态读取沿用独立的生命周期快照。
+- 回环 TCP 夹具验证其他授权项目可在单路由饱和时独立转发，控制快照仍可读取，队列超时和满队列均返回 429，以及成功、失败和取消后的配额复用。慢读用例向 reqwest 与有序直连分别发送约 16 MiB 的有限 SSE 流，两条传输路径都在下游暂停时阻止上游写完，并在恢复读取后完整传输。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。
+
+### 验证记录
+
+槽位 **2** 用于红灯、格式化、绿灯和回归，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。槽位 **1** 用于排查红灯构建前置，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。槽位 **3** 用于运行改动前的回归基线，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与目标路径相同。回环测试使用隔离的临时 home。
+
+| 阶段 | 槽位 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- | --- |
+| 构建前置排查 | 2、1 | `cargo test -p vw-agent --lib cc_route_023_ -- --nocapture` | 退出 101，0 项。槽位 2 出现既有 `vw-api-types` 缓存导致的 `E0432` 与依赖元数据 `E0463`，仅更新相关 Cargo 指纹。槽位 1 由并行 MCP 代码的 `E0277` 阻断，修复后重跑。 |
+| 行为红灯 | 2 | `cargo test -p vw-agent --lib cc_route_023_ -- --nocapture` | 退出 101，1 项通过、1 项失败。前两条请求仍在途时，同路由的第三条已抵达上游。慢读背压基线通过。 |
+| 全仓格式化 | 2 | `cargo fmt --all -- --emit stdout` | 退出 0。工作区写入仅对本项文件执行 `rustfmt --edition 2024 --config skip_children=true`。 |
+| 绿灯 | 2 | `cargo test -p vw-agent --lib cc_route_023_ -- --nocapture` | 退出 0，2 项通过，0 项失败或忽略。 |
+| 聚焦串行复测 | 2 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_023_ --test-threads=1 --nocapture` | 连续 3 次退出 0，每次 2 项通过。 |
+| 并行相邻回归 | 2 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_008_ cc_route_010_ cc_route_011_ cc_route_014_ cc_route_020_ cc_route_021_ cc_route_022_ --nocapture` | 退出 101，17 项通过，3 项失败。PostgreSQL 夹具缺少 `VIBEWINDOW_TEST_POSTGRES_URL`，另有首包超时及持久监听状态用例失败。 |
+| 串行相邻回归 | 2 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_008_ cc_route_010_ cc_route_011_ cc_route_014_ cc_route_020_ cc_route_021_ cc_route_022_ cc_route_023_ --skip cc_route_011_config_apply_postgres_expected_behavior --test-threads=1 --nocapture` | 退出 101，20 项通过，1 项失败。首包超时和状态 API 用例通过，持久监听状态仍为 `Failed`。 |
+| 改动前基线 | 3 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_011_lifecycle_reads_the_persisted_listener_config cc_route_021_stream_first_output_deadline_includes_headers_and_heartbeats --test-threads=1 --nocapture` | 退出 101，1 项通过、1 项失败。改动前的缓存二进制同样返回 `Failed`，首包超时用例通过。 |
+| 全仓 Clippy | 2 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。先前退出 101 和中断退出 143 的轮次遇到并行熔断测试的 `E0308` 或 `drop_non_drop`，待对应代码修复后复跑通过。 |
+| 差异审查 | — | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
+
+测试链接器报告既有 macOS `__eh_frame` 大小警告。本项占用的槽位锁均已释放，编译缓存保留。状态为 **已完成**。

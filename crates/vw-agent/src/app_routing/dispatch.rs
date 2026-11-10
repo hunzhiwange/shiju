@@ -4,6 +4,7 @@ use super::{
     SharedTransport,
     body_limits::{self, BodyError, BodyLimits, MAX_JSON_BYTES},
     cancellation::ClientDisconnect,
+    capacity::RequestPermit,
     decode_request::{ContentCodings, DecodeError},
     decode_response,
     header_wire::{self, HeaderWire},
@@ -19,7 +20,7 @@ use axum::{
 use hyper::body::Incoming;
 use serde_json::Value;
 use std::time::Duration;
-use tokio::{sync::OwnedSemaphorePermit, time::Instant};
+use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
@@ -60,7 +61,7 @@ pub(super) async fn forward_json(
         return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
     let (mut parts, incoming) = request.into_parts();
-    let permit = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let buffer = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let disconnect = parts.extensions.remove::<ClientDisconnect>();
     let bytes = tokio::time::timeout(Duration::from_secs(10), async {
         let bytes = body_limits::collect(Body::new(incoming), MAX_JSON_BYTES)
@@ -84,6 +85,9 @@ pub(super) async fn forward_json(
         _ => return Err(StatusCode::BAD_REQUEST),
     };
 
+    // Wait only after the upload so disconnect detection can cancel a queued
+    // request, and keep the listener-wide buffer reservation while it waits.
+    let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     // Native Chat uses the parsed document unchanged at the conversion step.
     let mut outgoing = prepare_request(&body, target)?;
     drop(body);
@@ -132,7 +136,7 @@ pub(super) async fn forward_json(
 
 async fn buffer_json_response(
     response: Response,
-    permit: OwnedSemaphorePermit,
+    permit: RequestPermit,
 ) -> Result<Response, StatusCode> {
     if !response.status().is_success() {
         return Err(StatusCode::BAD_GATEWAY);

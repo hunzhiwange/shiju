@@ -1,5 +1,6 @@
 //! Admission and byte budgets for buffered application routing.
 
+use super::capacity::RequestPermit;
 use axum::{
     body::{Body, Bytes},
     http::{HeaderMap, header},
@@ -31,7 +32,7 @@ impl BodyLimits {
     }
 }
 
-pub(super) fn buffered_response(bytes: Bytes, permit: OwnedSemaphorePermit) -> Body {
+pub(super) fn buffered_response(bytes: Bytes, permit: RequestPermit) -> Body {
     // Keep the reservation until the last reference to the response bytes is
     // dropped, including while the HTTP writer waits for a slow client.
     Body::from(Bytes::from_owner(BufferedBody { bytes, _permit: permit }))
@@ -39,7 +40,7 @@ pub(super) fn buffered_response(bytes: Bytes, permit: OwnedSemaphorePermit) -> B
 
 struct BufferedBody {
     bytes: Bytes,
-    _permit: OwnedSemaphorePermit,
+    _permit: RequestPermit,
 }
 
 impl AsRef<[u8]> for BufferedBody {

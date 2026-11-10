@@ -3,6 +3,7 @@
 use super::{
     SharedTransport,
     decode_request::{ContentCodings, DecodeError},
+    decode_response,
     header_wire::{self, HeaderWire},
     override_apply,
     route_auth::AuthorizedRoute,
@@ -66,24 +67,23 @@ pub(super) async fn forward_json(
     let mut outgoing = prepare_request(&body, target)?;
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
-    let mut response =
-        target.transport.forward_ordered(&target.url, outgoing, wire, cancelled).await?;
-    if !response.status().is_success()
-        || response
-            .headers()
-            .get_all(header::CONTENT_ENCODING)
-            .iter()
-            .any(|value| !value.as_bytes().eq_ignore_ascii_case(b"identity"))
-    {
+    let response = target.transport.forward_ordered(&target.url, outgoing, wire, cancelled).await?;
+    if !response.status().is_success() {
         return Err(StatusCode::BAD_GATEWAY);
     }
-    header_wire::strip_hop_headers(response.headers_mut());
-    if !is_json(response.headers()) {
+    let (mut parts, body) = response.into_parts();
+    // Read the actual coding before Connection nominations strip any fields.
+    let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
+    header_wire::strip_hop_headers(&mut parts.headers);
+    if !is_json(&parts.headers) {
         return Err(StatusCode::BAD_GATEWAY);
     }
-    response.headers_mut().clear();
-    response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
-    Ok(response)
+    let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
+        .await
+        .map_err(upstream_decode_status)?;
+    parts.headers.clear();
+    parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
+    Ok(Response::from_parts(parts, body))
 }
 
 pub(super) fn prepare_request(
@@ -115,6 +115,11 @@ fn decode_status(error: DecodeError) -> StatusCode {
         DecodeError::Corrupt => StatusCode::BAD_REQUEST,
         DecodeError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
     }
+}
+
+fn upstream_decode_status(error: DecodeError) -> StatusCode {
+    tracing::debug!(reason = ?error, "Rejected encoded upstream response");
+    StatusCode::BAD_GATEWAY
 }
 
 fn is_json(headers: &HeaderMap) -> bool {

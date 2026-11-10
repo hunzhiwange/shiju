@@ -18,18 +18,26 @@ use tokio::{
 };
 use tokio_rustls::TlsConnector;
 use tokio_util::sync::CancellationToken;
-use tower::ServiceExt;
-use tower_http::decompression::Decompression;
 
 /// HTTP transport for the application router, independent of session relay bindings.
 pub struct SharedTransport {
     client: reqwest::Client,
+    encoded_client: reqwest::Client,
     proxies: Matcher,
 }
 
 impl SharedTransport {
     pub fn new() -> Result<Self, reqwest::Error> {
-        Ok(Self { client: upstream::upstream_http_client()?, proxies: Matcher::from_system() })
+        Ok(Self {
+            client: upstream::upstream_http_client()?,
+            encoded_client: upstream::upstream_http_client_builder()
+                .no_gzip()
+                .no_brotli()
+                .no_deflate()
+                .no_zstd()
+                .build()?,
+            proxies: Matcher::from_system(),
+        })
     }
 
     /// Send a prepared request to the exact target authorized by the application router.
@@ -43,14 +51,7 @@ impl SharedTransport {
         request: reqwest::Request,
         cancel: CancellationToken,
     ) -> Result<Response, StatusCode> {
-        let mut upstream =
-            upstream::execute(&self.client, authorized_target, request, &cancel).await?;
-        let status = upstream.status();
-        let headers = std::mem::take(upstream.headers_mut());
-        let mut response = Response::new(upstream::response_body(upstream, cancel));
-        *response.status_mut() = status;
-        *response.headers_mut() = headers;
-        Ok(response)
+        forward_with_client(&self.client, authorized_target, request, cancel).await
     }
 
     pub(super) async fn forward_ordered(
@@ -62,10 +63,17 @@ impl SharedTransport {
     ) -> Result<Response, StatusCode> {
         upstream::validate_target(authorized_target, &request)?;
         let uri: Uri = authorized_target.as_str().parse().map_err(|_| StatusCode::BAD_GATEWAY)?;
+        // Leave decoding to the JSON handler so it can enforce the wire and
+        // decoded budgets before sending a success status.
+        request
+            .headers_mut()
+            .entry(header::ACCEPT_ENCODING)
+            .or_insert(HeaderValue::from_static("zstd,gzip,deflate,br"));
         // The established client owns proxy selection and tunneling. Never
         // fall back to a direct connection when its proxy matcher selects one.
         if wire.is_empty() || self.proxies.intercept(&uri).is_some() {
-            return self.forward(authorized_target, request, cancel).await;
+            return forward_with_client(&self.encoded_client, authorized_target, request, cancel)
+                .await;
         }
         let method = request.method().clone();
         let mut headers = std::mem::take(request.headers_mut());
@@ -77,19 +85,29 @@ impl SharedTransport {
         *outgoing.headers_mut() = headers;
 
         let deadline = Instant::now() + upstream::REQUEST_TIMEOUT;
-        // Use the same decompression middleware as the existing reqwest client.
-        let service = Decompression::new(tower::service_fn(|outgoing: Request<reqwest::Body>| {
-            send_ordered(outgoing, wire.clone(), cancel.clone(), deadline)
-        }));
-        let response = tokio::select! {
+        tokio::select! {
             biased;
-            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT),
-            result = timeout_at(deadline, service.oneshot(outgoing)) => {
-                result.map_err(|_| StatusCode::BAD_GATEWAY)??
+            () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
+            result = timeout_at(deadline, send_ordered(outgoing, wire, cancel.clone(), deadline)) => {
+                result.map_err(|_| StatusCode::BAD_GATEWAY)?
             }
-        };
-        Ok(response.map(Body::new))
+        }
     }
+}
+
+async fn forward_with_client(
+    client: &reqwest::Client,
+    authorized_target: &reqwest::Url,
+    request: reqwest::Request,
+    cancel: CancellationToken,
+) -> Result<Response, StatusCode> {
+    let mut upstream = upstream::execute(client, authorized_target, request, &cancel).await?;
+    let status = upstream.status();
+    let headers = std::mem::take(upstream.headers_mut());
+    let mut response = Response::new(upstream::response_body(upstream, cancel));
+    *response.status_mut() = status;
+    *response.headers_mut() = headers;
+    Ok(response)
 }
 
 async fn send_ordered(

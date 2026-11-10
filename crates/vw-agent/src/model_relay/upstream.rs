@@ -12,11 +12,14 @@ pub(crate) const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Common upstream client for relay transports: credentials must never follow redirects.
 pub fn upstream_http_client() -> Result<reqwest::Client, reqwest::Error> {
+    upstream_http_client_builder().build()
+}
+
+pub(crate) fn upstream_http_client_builder() -> reqwest::ClientBuilder {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
-        .build()
 }
 
 pub(crate) async fn execute(

@@ -313,3 +313,7 @@ mod header_wire_tests;
 #[cfg(test)]
 #[path = "decode_request_tests.rs"]
 mod decode_request_tests;
+
+#[cfg(test)]
+#[path = "decode_response_tests.rs"]
+mod decode_response_tests;

@@ -1,5 +1,5 @@
-//! Surgical YAML provider edits adapted from OMP's block-mapping editor.
-//! Callers own provider schema validation, file authorization, locks and commit.
+//! Surgical YAML mapping edits adapted from OMP's block-mapping editor.
+//! Callers own schema validation, file authorization, locks and commit.
 use serde_json::Value;
 use serde_yaml::{Mapping, Value as Yaml};
 
@@ -28,7 +28,7 @@ impl ProviderSection {
 /// Replace/remove one literal provider key. Missing input starts an empty mapping.
 /// Block section headers may be created or normalized from null. Only the target
 /// node is emitted; surrounding comments, sibling nodes and root bytes survive.
-/// Flow section headers, references, tags and ambiguous layouts require manual edit.
+/// Nonempty flow sections, references, tags and ambiguous layouts require manual edit.
 /// This prepares bytes only and does not establish a successful live switch.
 pub fn patch_provider(
     pre: Option<&[u8]>,
@@ -36,15 +36,38 @@ pub fn patch_provider(
     id: &str,
     replacement: Option<&Value>,
 ) -> Result<Vec<u8>, PatchError> {
+    if replacement.is_some_and(|value| !value.is_object()) {
+        return Err(PatchError::InvalidNode);
+    }
+    let replacement =
+        replacement.map(serde_yaml::to_value).transpose().map_err(|_| PatchError::InvalidNode)?;
+    patch_entry(pre, section.key(), id, replacement.as_ref())
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn patch_mcp_server(
+    pre: Option<&[u8]>,
+    id: &str,
+    replacement: Option<Mapping>,
+) -> Result<Vec<u8>, PatchError> {
+    patch_entry(pre, "mcp_servers", id, replacement.map(Yaml::Mapping).as_ref())
+}
+
+fn patch_entry(
+    pre: Option<&[u8]>,
+    section: &str,
+    id: &str,
+    replacement: Option<&Yaml>,
+) -> Result<Vec<u8>, PatchError> {
     let bytes = pre.unwrap_or_default();
     if bytes.len() > 1024 * 1024 {
         return Err(PatchError::ManualEdit);
     }
-    if id.is_empty() || replacement.is_some_and(|value| !value.is_object()) {
+    if id.is_empty() {
         return Err(PatchError::InvalidNode);
     }
     let text = std::str::from_utf8(bytes).map_err(|_| PatchError::ManualEdit)?;
-    let output = edit_provider(text, section.key(), id, replacement)?;
+    let output = edit_entry(text, section, id, replacement)?;
     if output.len() > 1024 * 1024 {
         return Err(PatchError::ManualEdit);
     }
@@ -64,7 +87,7 @@ fn parse(text: &str) -> Result<Yaml, PatchError> {
     }
 }
 
-fn providers(document: &Yaml, section: &str) -> Result<Mapping, PatchError> {
+fn section_mapping(document: &Yaml, section: &str) -> Result<Mapping, PatchError> {
     match document.get(section) {
         None | Some(Yaml::Null) => Ok(Mapping::new()),
         Some(Yaml::Mapping(nodes)) if nodes.keys().all(|key| key.as_str().is_some()) => {
@@ -73,24 +96,23 @@ fn providers(document: &Yaml, section: &str) -> Result<Mapping, PatchError> {
         _ => Err(manual_edit()),
     }
 }
-fn edit_provider(
+fn edit_entry(
     text: &str,
     section: &str,
     id: &str,
-    replacement: Option<&Value>,
+    replacement: Option<&Yaml>,
 ) -> Result<String, PatchError> {
     if text.contains('\t') || text.lines().any(has_yaml_reference_tokens) {
         return Err(manual_edit());
     }
     let document = parse(text).map_err(|_| manual_edit())?;
-    let mut intended = providers(&document, section)?;
+    let mut intended = section_mapping(&document, section)?;
     if let Some(value) = replacement {
-        intended
-            .insert(id.into(), serde_yaml::to_value(value).map_err(|_| PatchError::InvalidNode)?);
+        intended.insert(id.into(), value.clone());
     } else {
         intended.remove(Yaml::from(id));
     }
-    if replacement.is_none() && !providers(&document, section)?.contains_key(Yaml::from(id)) {
+    if replacement.is_none() && !section_mapping(&document, section)?.contains_key(Yaml::from(id)) {
         return Ok(text.to_string());
     }
     let mut expected = document.clone();
@@ -127,11 +149,11 @@ fn edit_provider(
         let line = lines[header];
         let (_, tail) = line.split_once(':').ok_or_else(manual_edit)?;
         let value = tail.split('#').next().unwrap_or_default().trim();
-        if !matches!(value, "" | "null" | "~") {
+        if !matches!(value, "" | "null" | "~" | "{}") {
             return Err(manual_edit());
         }
         if !value.is_empty() {
-            // Remove only the null token, preserving header whitespace and comments.
+            // Remove only the null or empty map token, preserving header whitespace and comments.
             let start = offsets[header] + line.len() - tail.trim_start().len();
             null_span = Some(start..start + value.len());
         }
@@ -207,7 +229,7 @@ fn edit_provider(
     let mut emitted = if intended.is_empty() {
         format!("{}{{}}\n", " ".repeat(indent))
     } else {
-        emit_provider(id, replacement, indent)?
+        emit_entry(id, replacement, indent)?
     };
     if start == end && !output[..start].is_empty() && !output[..start].ends_with('\n') {
         emitted.insert(0, '\n');
@@ -220,7 +242,7 @@ fn edit_provider(
     Ok(output)
 }
 
-fn emit_provider(id: &str, value: Option<&Value>, indent: usize) -> Result<String, PatchError> {
+fn emit_entry(id: &str, value: Option<&Yaml>, indent: usize) -> Result<String, PatchError> {
     let Some(value) = value else {
         return Ok(String::new());
     };

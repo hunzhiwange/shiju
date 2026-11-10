@@ -257,7 +257,7 @@ fn layout(
 }
 
 #[tokio::test]
-async fn ui_refresh_17_channel_card_text_fits() {
+async fn ui_refresh_17_channel_card_content_fits_and_is_vertically_centered() {
     let mut renderer = renderer().await;
     let descriptor = channel_tab_descriptors()
         .into_iter()
@@ -268,6 +268,11 @@ async fn ui_refresh_17_channel_card_text_fits() {
     // 640px content, page gutters and two gaps between three cards.
     let width = (640.0 - 24.0 - 24.0) / 3.0;
     let node = layout(&mut card, &renderer, Size::new(width, 120.0));
+    let card_layout = iced::advanced::Layout::new(&node);
+    let content = card_layout.children().next().unwrap();
+    for item in content.children() {
+        assert!((item.bounds().center_y() - card_layout.bounds().center_y()).abs() < 0.5);
+    }
     let mut ui = UserInterface::build(card, Size::new(width, 120.0), Cache::new(), &mut renderer);
     let geometry = geometry(&mut ui, &renderer);
     for (label, text_size) in [("DingTalk", 15), ("Configuration", 12)] {

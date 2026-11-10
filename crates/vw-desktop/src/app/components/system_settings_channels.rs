@@ -227,6 +227,7 @@ fn china_channel_card(
         .width(Length::Fill),
     ]
     .spacing(12)
+    .height(Length::Fill)
     .align_y(Alignment::Center);
 
     button(content)

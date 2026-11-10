@@ -266,7 +266,7 @@ where
     /// 绘制组件
     ///
     /// 绘制调整手柄的视觉效果，包括：
-    /// 在命中区中央绘制 1px 分割线，悬停时使用主题强调色。
+    /// 用终端背景色填充分割线下方，在命中区中央绘制 1px 分割线，悬停时使用主题强调色。
     ///
     /// # 参数
     ///
@@ -288,19 +288,25 @@ where
         _viewport: &Rectangle,
     ) {
         let bounds = layout.bounds();
+        let line_height = bounds.height.min(1.0);
+        let line_offset = (bounds.height - line_height) / 2.0;
+        let line_y = bounds.y + line_offset;
+        let palette = theme.extended_palette();
+        renderer.fill_quad(
+            renderer::Quad {
+                bounds: Rectangle { y: line_y, height: bounds.height - line_offset, ..bounds },
+                ..Default::default()
+            },
+            palette.background.base.color,
+        );
         let color = if cursor.is_over(bounds) {
-            theme.extended_palette().primary.base.color
+            palette.primary.base.color
         } else {
             divider_line_color(theme)
         };
         renderer.fill_quad(
             renderer::Quad {
-                bounds: Rectangle {
-                    x: bounds.x,
-                    y: bounds.y + (bounds.height - 1.0).max(0.0) / 2.0,
-                    width: bounds.width,
-                    height: bounds.height.min(1.0),
-                },
+                bounds: Rectangle { y: line_y, height: line_height, ..bounds },
                 ..Default::default()
             },
             color,

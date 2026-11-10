@@ -225,7 +225,7 @@ fn vertical_resize_handle_mouse_interaction_tracks_cursor_bounds() {
 }
 
 #[test]
-fn terminal_resize_draws_thin_centered_line_and_highlights_hover_in_both_themes() {
+fn terminal_resize_draws_terminal_background_and_highlights_centered_line_on_hover() {
     let handle = VResizeHandle;
     let mut state = tree();
     let mut renderer = RecordingRenderer::default();
@@ -250,12 +250,20 @@ fn terminal_resize_draws_thin_centered_line_and_highlights_hover_in_both_themes(
                 cursor,
                 &Rectangle::INFINITE,
             );
-            assert_eq!(renderer.fills.len(), 1);
+            assert_eq!(renderer.fills.len(), 2);
             assert_eq!(
                 renderer.fills[0].bounds,
+                Rectangle { x: 0.0, y: 3.5, width: 160.0, height: 4.5 }
+            );
+            assert_eq!(
+                color_background(&renderer.fills[0]),
+                theme.extended_palette().background.base.color
+            );
+            assert_eq!(
+                renderer.fills[1].bounds,
                 Rectangle { x: 0.0, y: 3.5, width: 160.0, height: 1.0 }
             );
-            colors.push(color_background(&renderer.fills[0]));
+            colors.push(color_background(&renderer.fills[1]));
         }
         assert_eq!(colors[0], divider_line_color(&theme));
         assert_eq!(colors[1], theme.extended_palette().primary.base.color);

@@ -10,6 +10,7 @@ mod dispatch;
 pub(crate) mod gateway_owner;
 mod header_wire;
 mod listener;
+mod outbound_custom;
 mod override_apply;
 mod protocol_errors;
 pub(crate) mod reference_scope;
@@ -33,6 +34,9 @@ mod listener_tests;
 
 #[cfg(test)]
 mod shared_transport_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod outbound_custom_tests;
 
 #[cfg(test)]
 mod reference_scope_tests;

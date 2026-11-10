@@ -1,4 +1,4 @@
-use super::header_wire::HeaderWire;
+use super::{header_wire::HeaderWire, outbound_custom};
 use crate::model_relay::upstream;
 use axum::{
     body::Body,
@@ -7,7 +7,10 @@ use axum::{
 };
 use futures_util::StreamExt;
 use hyper::body::Incoming;
-use hyper_util::{client::proxy::matcher::Matcher, rt::TokioIo};
+use hyper_util::{
+    client::proxy::matcher::{Intercept, Matcher},
+    rt::TokioIo,
+};
 use rustls_platform_verifier::BuilderVerifierExt;
 use std::sync::{Arc, OnceLock};
 use tokio::{
@@ -17,27 +20,46 @@ use tokio::{
     time::{Instant, timeout_at},
 };
 use tokio_rustls::TlsConnector;
-use tokio_util::sync::CancellationToken;
+use tokio_util::{either::Either, sync::CancellationToken};
+
+enum Egress {
+    System(Matcher),
+    Custom(Intercept),
+}
 
 /// HTTP transport for the application router, independent of session relay bindings.
 pub struct SharedTransport {
     client: reqwest::Client,
     encoded_client: reqwest::Client,
-    proxies: Matcher,
+    egress: Egress,
 }
 
 impl SharedTransport {
+    /// Build an explicit egress for publication with an authorized route.
+    pub fn with_custom_proxy(proxy_url: &str) -> anyhow::Result<Self> {
+        let (proxy, intercept) = outbound_custom::parse(proxy_url)?;
+        let build_error = |_| anyhow::anyhow!("could not build outbound proxy transport");
+        Ok(Self {
+            client: upstream::upstream_http_client_builder()
+                .retry(reqwest::retry::never())
+                .no_proxy()
+                .proxy(proxy.clone())
+                .build()
+                .map_err(build_error)?,
+            encoded_client: encoded_client_builder()
+                .no_proxy()
+                .proxy(proxy)
+                .build()
+                .map_err(build_error)?,
+            egress: Egress::Custom(intercept),
+        })
+    }
+
     pub fn new() -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: upstream::upstream_http_client()?,
-            encoded_client: upstream::upstream_http_client_builder_without_total_timeout()
-                .retry(reqwest::retry::never())
-                .no_gzip()
-                .no_brotli()
-                .no_deflate()
-                .no_zstd()
-                .build()?,
-            proxies: Matcher::from_system(),
+            encoded_client: encoded_client_builder().build()?,
+            egress: Egress::System(Matcher::from_system()),
         })
     }
 
@@ -70,12 +92,27 @@ impl SharedTransport {
             .headers_mut()
             .entry(header::ACCEPT_ENCODING)
             .or_insert(HeaderValue::from_static("zstd,gzip,deflate,br"));
-        // The established client owns proxy selection and tunneling. Never
-        // fall back to a direct connection when its proxy matcher selects one.
-        if wire.is_empty() || self.proxies.intercept(&uri).is_some() {
-            return forward_with_client(&self.encoded_client, authorized_target, request, cancel)
+        let tunnel = match &self.egress {
+            Egress::System(matcher) if !wire.is_empty() && matcher.intercept(&uri).is_none() => {
+                None
+            }
+            Egress::Custom(proxy)
+                if !wire.is_empty()
+                    && matches!(proxy.uri().scheme_str(), Some("http" | "https")) =>
+            {
+                Some(proxy)
+            }
+            // Reqwest handles the default proxy path and SOCKS DNS selection.
+            _ => {
+                return forward_with_client(
+                    &self.encoded_client,
+                    authorized_target,
+                    request,
+                    cancel,
+                )
                 .await;
-        }
+            }
+        };
         let method = request.method().clone();
         let mut headers = std::mem::take(request.headers_mut());
         headers.entry(header::ACCEPT).or_insert(HeaderValue::from_static("*/*"));
@@ -88,9 +125,18 @@ impl SharedTransport {
         tokio::select! {
             biased;
             () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
-            result = send_ordered(outgoing, wire, cancel.clone()) => result,
+            result = send_ordered(outgoing, wire, tunnel, cancel.clone()) => result,
         }
     }
+}
+
+fn encoded_client_builder() -> reqwest::ClientBuilder {
+    upstream::upstream_http_client_builder_without_total_timeout()
+        .retry(reqwest::retry::never())
+        .no_gzip()
+        .no_brotli()
+        .no_deflate()
+        .no_zstd()
 }
 
 async fn forward_with_client(
@@ -111,6 +157,7 @@ async fn forward_with_client(
 async fn send_ordered(
     request: Request<reqwest::Body>,
     wire: HeaderWire,
+    tunnel: Option<&Intercept>,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
     let (parts, body) = request.into_parts();
@@ -130,21 +177,29 @@ async fn send_ordered(
     head.extend_from_slice(b"\r\n");
 
     let connect_deadline = Instant::now() + upstream::CONNECT_TIMEOUT;
-    let tcp = timeout_at(connect_deadline, TcpStream::connect((host, port)))
-        .await
-        .map_err(|_| StatusCode::BAD_GATEWAY)?
-        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let socket = timeout_at(connect_deadline, async {
+        if let Some(proxy) = tunnel {
+            outbound_custom::connect_tunnel(proxy, &parts.uri, tls_connector()?).await
+        } else {
+            TcpStream::connect((host, port))
+                .await
+                .map(Either::Left)
+                .map_err(|_| StatusCode::BAD_GATEWAY)
+        }
+    })
+    .await
+    .map_err(|_| StatusCode::BAD_GATEWAY)??;
     let mut driver = JoinSet::new();
     let response = if https {
         let name = rustls_pki_types::ServerName::try_from(host.to_owned())
             .map_err(|_| StatusCode::BAD_GATEWAY)?;
-        let socket = timeout_at(connect_deadline, tls_connector()?.connect(name, tcp))
+        let socket = timeout_at(connect_deadline, tls_connector()?.connect(name, socket))
             .await
             .map_err(|_| StatusCode::BAD_GATEWAY)?
             .map_err(|_| StatusCode::BAD_GATEWAY)?;
         exchange(socket, &head, body, parts.method, &mut driver).await?
     } else {
-        exchange(tcp, &head, body, parts.method, &mut driver).await?
+        exchange(socket, &head, body, parts.method, &mut driver).await?
     };
     Ok(response.map(|body| {
         Body::from_stream(futures_util::stream::unfold(

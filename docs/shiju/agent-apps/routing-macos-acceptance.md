@@ -614,3 +614,27 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | — | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
 
 测试链接时报告既有 macOS `__eh_frame` 大小警告。本项的槽位锁已释放，构建缓存保留。状态为 **已完成**。
+
+## 任务 25　实现自定义 HTTP 与 SOCKS 出口
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 24 的 `3ca4f0e79`。CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/http_client.rs` 和 `proxy/hyper_client.rs` 与仓库快照、来源映射的 SHA256 一致。检查了 `forwarder.rs` 的代理分流、`server.rs` 的头部捕获调用，以及代理配置和转发测试。沿用母任务 2、3 的网关运行时、授权执行主机和应用标识。原生配置事务与上游账号租约由母任务 4、6 的现有所有者提供。
+
+- `SharedTransport::with_custom_proxy` 为目标绑定构建独立传输。已授权的 `POST /v1/chat/completions` 通过 `JsonTarget` 使用该传输，回环用例验证轮换一个执行主机的绑定后，另一执行主机仍走原出口。任务 28 接入出口控制 API 和 SDK，任务 86 接入生产绑定发布。
+- HTTP 和 HTTPS 代理在保留头部线序时使用 CONNECT，HTTPS 先校验代理的 TLS 证书。代理 Basic 认证仅出现在 CONNECT，供应商认证仅在隧道建立后的请求中发送。回环验证头部拼写和顺序、HTTPS 上的认证与双向传输、不可信代理证书拒绝，以及代理返回 407 时应用收到脱敏 502 且无直连。
+- SOCKS5 和 SOCKS5H 复用 reqwest 的认证握手。回环夹具观察到 SOCKS5 使用本地解析后的 IP，SOCKS5H 传送原始域名。校验只接受四种明确的协议，拒绝缺少主机、无效端口、附加路径、查询或片段的端点。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。
+
+### 验证记录
+
+红灯、绿灯与回归使用共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。回环用例使用独立临时 home。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_025_ -- --nocapture` | 4 项失败。HTTP 实际走直连，SOCKS 返回 502，非法协议被接受，拒绝认证夹具超时。首次包装脚本在运行中被改写，退出 127，未捕获 Cargo 退出码。再次执行原命令时共享源码已变更并触发重编译，主动中止重编译，退出 130，执行 0 项。 |
+| 红灯复验 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-d7cc4815ce201d46" cc_route_025_ --nocapture` | 退出 101，4 项触发相同失败。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`；`rustfmt --edition 2024 --config skip_children=true crates/vw-agent/src/app_routing/{mod,outbound_custom,outbound_custom_tests,shared_transport}.rs` | 均退出 0，仅写入本项 Rust 文件。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_025_ -- --nocapture` | 退出 0，6 项通过，0 项失败或忽略。 |
+| 相邻回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_002_ cc_route_017_ cc_route_024_ --test-threads=1 --nocapture` | 退出 0，9 项通过，0 项失败或忽略。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
+
+测试链接时报告既有的 macOS `__eh_frame` 大小警告。槽位锁已释放，编译缓存保留。状态为 **已完成**。

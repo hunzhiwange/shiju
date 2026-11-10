@@ -155,7 +155,7 @@ pub use self::shiju_account_api::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
     ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountRoleDto,
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential,
-    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuModelTokenDto,
+    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuModelTokenDto, ShijuMonthlyQuotaDto,
 };
 pub use self::shiju_app_api::{
     ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto,

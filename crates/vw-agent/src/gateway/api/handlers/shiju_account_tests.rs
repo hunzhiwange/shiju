@@ -185,3 +185,66 @@ async fn connector_routes_require_credential_and_reject_identity_override() {
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     }
 }
+
+#[tokio::test]
+async fn shiju_monthly_quota_uses_employee_key_and_converts_upstream_budget() {
+    use axum::routing::get;
+    use axum::{Json, Router, serve};
+    use serde_json::json;
+
+    let upstream = Router::new().route(
+        "/sj/model/api/runtime/model-usage",
+        get(|headers: axum::http::HeaderMap, uri: axum::http::Uri| async move {
+            assert_eq!(uri.query(), Some("include_monthly_quota=true"));
+            let key = headers.get("x-api-key").unwrap().to_str().unwrap();
+            let (limit, used, unit) = match key {
+                "fixture-limited" => (50_000_000, 49_997_050, 500_000),
+                "fixture-exhausted" => (50_000_000, 50_001_000, 500_000),
+                "fixture-unlimited" => (0, 25_000_000, 500_000),
+                "fixture-invalid" => (50_000_000, 0, 0),
+                _ => panic!("unexpected fixture credential"),
+            };
+            Json(json!({
+                "success": true,
+                "data": {
+                    "monthly_quota": limit,
+                    "monthly_used_quota": used,
+                    "monthly_reset_at": 1796054400,
+                    "quota_per_unit": unit,
+                    "unrelated": key,
+                }
+            }))
+        }),
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let upstream_task = tokio::spawn(async move { serve(listener, upstream).await.unwrap() });
+    let client =
+        crate::shiju::account::ShijuAccountClient::with_base_urls(&base, &format!("{base}/sj/"))
+            .unwrap();
+    let gateway = super::router_with_client::<()>(client);
+    for (credential, status, limit, remaining) in [
+        (None, StatusCode::BAD_REQUEST, 0.0, None),
+        (Some("fixture-limited"), StatusCode::OK, 100.0, Some(0.0059)),
+        (Some("fixture-exhausted"), StatusCode::OK, 100.0, Some(0.0)),
+        (Some("fixture-unlimited"), StatusCode::OK, 0.0, None),
+        (Some("fixture-invalid"), StatusCode::INTERNAL_SERVER_ERROR, 0.0, None),
+    ] {
+        let mut request = Request::get("/shiju/account/monthly-quota");
+        if let Some(credential) = credential {
+            request = request.header(SHIJU_CREDENTIAL_HEADER, credential);
+        }
+        let response = gateway.clone().oneshot(request.body(Body::empty()).unwrap()).await.unwrap();
+        assert_eq!(response.status(), status);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        assert!(!String::from_utf8_lossy(&body).contains("fixture-"));
+        if status == StatusCode::OK {
+            let quota: vw_gateway_client::ShijuMonthlyQuotaDto =
+                serde_json::from_slice(&body).unwrap();
+            assert_eq!(quota.limit, limit);
+            assert_eq!(quota.remaining, remaining);
+            assert_eq!(quota.reset_at, 1796054400);
+        }
+    }
+    upstream_task.abort();
+}

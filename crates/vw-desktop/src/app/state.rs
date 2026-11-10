@@ -52,6 +52,7 @@ mod runtime_tools_tests;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use account::{
     AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, AccountState,
+    MonthlyQuotaState,
 };
 pub(crate) use agent::*;
 #[cfg(not(target_arch = "wasm32"))]

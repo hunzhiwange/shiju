@@ -122,6 +122,12 @@ pub(crate) async fn gateway_shiju_account_profile_async(
     client.shiju_account_profile(credential).await
 }
 
+pub(crate) async fn gateway_shiju_account_monthly_quota_async(
+    credential: &ShijuCredential,
+) -> Result<vw_gateway_client::ShijuMonthlyQuotaDto, String> {
+    gateway_client()?.shiju_account_monthly_quota(credential).await
+}
+
 pub(crate) async fn gateway_shiju_account_me_async(
     credential: &ShijuCredential,
 ) -> Result<ShijuAccountMeDto, String> {

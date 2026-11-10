@@ -14,7 +14,7 @@ use serde::Deserialize;
 use vw_gateway_client::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest,
     ShijuAccountProfileDto, ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto,
-    ShijuCredential, ShijuLoginChallengeDto, ShijuLoginPollDto,
+    ShijuCredential, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMonthlyQuotaDto,
 };
 
 use crate::gateway::ApiError;
@@ -44,6 +44,7 @@ where
         .route("/shiju/models/token", axum::routing::put(model_token_put))
         .route("/shiju/account/login/poll", post(login_poll_post))
         .route("/shiju/account/profile", get(profile_get))
+        .route("/shiju/account/monthly-quota", get(monthly_quota_get))
         .route("/shiju/account/me", get(account_me_get).put(account_me_put))
         .route("/shiju/account/me/password", axum::routing::put(account_password_put))
         .layer(Extension(Arc::new(client)))
@@ -102,6 +103,15 @@ async fn profile_get(
     let credential = credential_from_headers(&headers)?;
     let profile = client.profile(credential.expose()).await.map_err(upstream_error)?;
     Ok(Json(profile))
+}
+
+async fn monthly_quota_get(
+    Extension(client): Extension<Arc<ShijuAccountClient>>,
+    headers: HeaderMap,
+) -> Result<Json<ShijuMonthlyQuotaDto>, ApiError> {
+    let credential = credential_from_headers(&headers)?;
+    let quota = client.monthly_quota(credential.expose()).await.map_err(upstream_error)?;
+    Ok(Json(quota))
 }
 
 async fn account_me_get(

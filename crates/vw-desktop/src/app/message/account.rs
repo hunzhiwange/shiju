@@ -7,11 +7,14 @@ use crate::app::account::{
 };
 use crate::app::session_gateway::{
     gateway_shiju_account_login_async, gateway_shiju_account_login_poll_async,
-    gateway_shiju_account_me_async, gateway_shiju_account_password_update_async,
-    gateway_shiju_account_profile_async, gateway_shiju_account_update_async,
+    gateway_shiju_account_me_async, gateway_shiju_account_monthly_quota_async,
+    gateway_shiju_account_password_update_async, gateway_shiju_account_profile_async,
+    gateway_shiju_account_update_async,
 };
 use crate::app::skill_hub::NativeShijuSkillPrepared;
-use crate::app::state::{AccountOperation, AccountPasswordEditorState, AccountProfileEditorState};
+use crate::app::state::{
+    AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, MonthlyQuotaState,
+};
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
@@ -49,6 +52,13 @@ pub(crate) enum AccountMessage {
     },
     RepositoryLoaded(Result<AccountRepository, String>),
     ToggleMenu,
+    ToggleMonthlyQuota,
+    CloseMonthlyQuota,
+    RefreshMonthlyQuota,
+    MonthlyQuotaLoaded {
+        generation: u64,
+        quota: Option<vw_gateway_client::ShijuMonthlyQuotaDto>,
+    },
     CloseMenu,
     OpenDetails,
     CloseDetails,
@@ -175,6 +185,25 @@ fn start_browser_login_task(generation: u64) -> Task<Message> {
     )
 }
 
+fn refresh_monthly_quota(app: &mut App) -> Task<Message> {
+    if matches!(app.account.monthly_quota, MonthlyQuotaState::Loading) {
+        return Task::none();
+    }
+    let Some(account) = app.account.active_account() else {
+        return Task::none();
+    };
+    let skey = account.skill_hub_credential();
+    let generation = app.account.monthly_quota_generation;
+    app.account.monthly_quota = MonthlyQuotaState::Loading;
+    Task::perform(
+        async move {
+            let credential = skey.gateway_credential().ok()?;
+            gateway_shiju_account_monthly_quota_async(&credential).await.ok()
+        },
+        move |quota| Message::Account(AccountMessage::MonthlyQuotaLoaded { generation, quota }),
+    )
+}
+
 fn profile_load_task(skey: SecretSkey, generation: u64) -> Task<Message> {
     Task::perform(
         async move {
@@ -265,10 +294,41 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             let reload = crate::app::message::skill_hub::account_changed(app);
             let models = super::settings::providers::managed_shiju::sync(app);
             let native_skill = shiju_skill::start(app);
-            Task::batch([reload, models, native_skill])
+            let quota = refresh_monthly_quota(app);
+            Task::batch([reload, models, native_skill, quota])
         }
         AccountMessage::ToggleMenu => {
+            app.account.monthly_quota_open = false;
             app.account.menu_open = !app.account.menu_open;
+            Task::none()
+        }
+        AccountMessage::ToggleMonthlyQuota => {
+            if app.account.active_account().is_none() {
+                return Task::none();
+            }
+            app.account.menu_open = false;
+            app.account.monthly_quota_open = !app.account.monthly_quota_open;
+            if app.account.monthly_quota_open
+                && matches!(app.account.monthly_quota, MonthlyQuotaState::Idle)
+            {
+                return refresh_monthly_quota(app);
+            }
+            Task::none()
+        }
+        AccountMessage::CloseMonthlyQuota => {
+            app.account.monthly_quota_open = false;
+            Task::none()
+        }
+        AccountMessage::RefreshMonthlyQuota => refresh_monthly_quota(app),
+        AccountMessage::MonthlyQuotaLoaded { generation, quota } => {
+            if app.account.monthly_quota_generation == generation
+                && matches!(app.account.monthly_quota, MonthlyQuotaState::Loading)
+            {
+                app.account.monthly_quota = match quota {
+                    Some(quota) => MonthlyQuotaState::Ready(quota),
+                    None => MonthlyQuotaState::Unavailable,
+                };
+            }
             Task::none()
         }
         AccountMessage::CloseMenu => {
@@ -751,7 +811,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     let reload = crate::app::message::skill_hub::account_changed(app);
                     let sync = shiju_key_sync_task(app, notice);
                     let models = super::settings::providers::managed_shiju::sync(app);
-                    Task::batch([feedback, reload, sync, models])
+                    let quota = refresh_monthly_quota(app);
+                    Task::batch([feedback, reload, sync, models, quota])
                 }
                 Err(error) => app.show_localized_toast(
                     crate::app::state::ToastKind::Error,

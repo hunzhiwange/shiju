@@ -129,6 +129,7 @@ fn gateway_route_summary_lists_tenant_policy_and_client_api_entries() {
         "/v1/shiju/account/login",
         "/v1/shiju/account/login/poll",
         "/v1/shiju/account/profile",
+        "/v1/shiju/account/monthly-quota",
         "/v1/shiju/apps/catalog",
         "/v1/shiju/apps",
         "/v1/shiju/apps/api-keys",

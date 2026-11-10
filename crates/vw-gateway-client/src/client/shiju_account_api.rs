@@ -12,9 +12,19 @@ use crate::http::{apply_request_context, log_request, log_request_succeeded, tra
 
 const LOGIN_PATH: &str = "/v1/shiju/account/login";
 const LOGIN_POLL_PATH: &str = "/v1/shiju/account/login/poll";
+const MONTHLY_QUOTA_PATH: &str = "/v1/shiju/account/monthly-quota";
 const PROFILE_PATH: &str = "/v1/shiju/account/profile";
 const ACCOUNT_ME_PATH: &str = "/v1/shiju/account/me";
 const ACCOUNT_PASSWORD_PATH: &str = "/v1/shiju/account/me/password";
+
+/// Monthly model budget in CNY, with a Unix reset timestamp in seconds.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ShijuMonthlyQuotaDto {
+    pub limit: f64,
+    pub used: f64,
+    pub remaining: Option<f64>,
+    pub reset_at: i64,
+}
 
 /// Internal header carrying a single-request SHIJU credential to the local gateway.
 pub const SHIJU_CREDENTIAL_HEADER: &str = "x-vibewindow-shiju-credential";
@@ -243,6 +253,21 @@ impl GatewayClient {
         self.shiju_account_sensitive_request::<ShijuLoginRequest, _>(
             reqwest::Method::GET,
             PROFILE_PATH,
+            &[],
+            None,
+            Some(credential),
+        )
+        .await
+    }
+
+    /// Reads the active employee Key's monthly model budget.
+    pub async fn shiju_account_monthly_quota(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuMonthlyQuotaDto, String> {
+        self.shiju_account_sensitive_request::<ShijuLoginRequest, _>(
+            reqwest::Method::GET,
+            MONTHLY_QUOTA_PATH,
             &[],
             None,
             Some(credential),

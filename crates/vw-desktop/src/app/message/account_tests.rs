@@ -4,6 +4,7 @@
 
 use super::*;
 use crate::app::account::{AccountIdentity, AccountProfile};
+use crate::app::skill_hub::ShijuPackageId;
 use crate::app::state::ToastKind;
 
 fn repository_with_account(secret: &str, company_id: &str) -> AccountRepository {
@@ -49,7 +50,9 @@ fn native_shiju_skill_restored_account_schedules_preparation() {
             "company-1",
         ))),
     );
-    assert_eq!(task.units(), 3);
+    let package_refresh = usize::from(ShijuPackageId::current().is_some());
+    assert_eq!(task.units(), 4 + package_refresh);
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
 }
 
 #[test]
@@ -341,7 +344,9 @@ fn successful_login_and_switch_schedule_shiju_key_sync() {
             AccountMessage::RepositoryPersisted { generation, notice, result: Ok(repository) },
         );
 
-        assert_eq!(task.units(), 4);
+        let package_refresh = usize::from(ShijuPackageId::current().is_some());
+        assert_eq!(task.units(), 5 + package_refresh);
+        assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
         assert!(app.account.active_account().is_some());
     }
 }
@@ -391,4 +396,43 @@ fn shiju_key_sync_failure_keeps_account_active() {
     assert_eq!(warning.kind, ToastKind::Warning);
     assert!(warning.message.contains("安装页"));
     assert!(!warning.message.contains("credential-secret"));
+}
+
+#[test]
+fn monthly_quota_ignores_old_account_results_and_allows_retry() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("first-key", "company-1"));
+    let first = app.account.monthly_quota_generation;
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 0);
+    let _ = update(&mut app, AccountMessage::ToggleMonthlyQuota);
+
+    app.account.replace_repository(repository_with_account("second-key", "company-1"));
+    assert!(!app.account.monthly_quota_open);
+    let second = app.account.monthly_quota_generation;
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
+    let quota = vw_gateway_client::ShijuMonthlyQuotaDto {
+        limit: 100.0,
+        used: 50.0,
+        remaining: Some(50.0),
+        reset_at: 1796054400,
+    };
+    let _ = update(
+        &mut app,
+        AccountMessage::MonthlyQuotaLoaded { generation: first, quota: Some(quota) },
+    );
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
+    let _ =
+        update(&mut app, AccountMessage::MonthlyQuotaLoaded { generation: second, quota: None });
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Unavailable));
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
+    let _ = update(
+        &mut app,
+        AccountMessage::MonthlyQuotaLoaded { generation: second, quota: Some(quota) },
+    );
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Ready(value) if value == quota));
+
+    app.account.replace_repository(AccountRepository::default());
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Idle));
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 0);
 }

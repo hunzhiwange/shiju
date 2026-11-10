@@ -95,12 +95,23 @@ impl AccountPasswordEditorState {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum MonthlyQuotaState {
+    Idle,
+    Loading,
+    Ready(vw_gateway_client::ShijuMonthlyQuotaDto),
+    Unavailable,
+}
+
 #[derive(Debug, Clone)]
-/// 账号仓储、弹窗和三个独立请求代次的界面状态。
+/// 账号仓储、弹窗和独立请求代次的界面状态。
 pub(crate) struct AccountState {
     repository: AccountRepository,
     pub(crate) menu_open: bool,
     pub(crate) details_open: bool,
+    pub(crate) monthly_quota_open: bool,
+    pub(crate) monthly_quota: MonthlyQuotaState,
+    pub(crate) monthly_quota_generation: u64,
     pub(crate) manual_input: ManualSkeyInput,
     pub(crate) operation: AccountOperation,
     generation: u64,
@@ -118,6 +129,9 @@ impl Default for AccountState {
             repository: AccountRepository::default(),
             menu_open: false,
             details_open: false,
+            monthly_quota_open: false,
+            monthly_quota: MonthlyQuotaState::Idle,
+            monthly_quota_generation: 0,
             manual_input: ManualSkeyInput::default(),
             operation: AccountOperation::Idle,
             generation: 0,
@@ -157,6 +171,11 @@ impl AccountState {
         self.native_shiju_skill.set_credential(
             repository.active_account().map(|account| account.skill_hub_credential()),
         );
+        if self.repository.active_account_id() != repository.active_account_id() {
+            self.monthly_quota_open = false;
+            self.monthly_quota = MonthlyQuotaState::Idle;
+            self.monthly_quota_generation = self.monthly_quota_generation.wrapping_add(1);
+        }
         self.repository = repository;
     }
 

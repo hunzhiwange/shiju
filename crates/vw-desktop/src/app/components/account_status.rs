@@ -6,7 +6,9 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_muted_text_style,
     settings_text_input_style,
 };
+use crate::app::i18n::I18n;
 use crate::app::message::{AccountMessage, SkillHubMessage};
+use crate::app::state::MonthlyQuotaState;
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
@@ -281,6 +283,74 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .snap_within_viewport(true)
         .on_close(account_message(AccountMessage::CloseMenu))
         .block_background_events(true)
+        .into()
+}
+
+fn quota_money(amount: f64) -> String {
+    if amount > 0.0 && amount < 0.01 { format!("¥{amount:.4}") } else { format!("¥{amount:.2}") }
+}
+
+/// Displays the employee Key's monthly balance next to the account entry.
+pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
+    app.account.active_account()?;
+    let i18n = I18n::new(app.desktop_locale);
+    let title = i18n.__("本月余额");
+    let unlimited = i18n.__("无月限额");
+    let mut details = column![text(title).size(14), settings_divider()].spacing(8);
+    let status = match app.account.monthly_quota {
+        MonthlyQuotaState::Ready(quota) => {
+            let reset_at = chrono::DateTime::from_timestamp(quota.reset_at, 0)
+                .and_then(|reset| reset.checked_add_signed(chrono::TimeDelta::hours(8)))
+                .map(|reset| reset.format("%m/%d").to_string())
+                .unwrap_or_else(|| "—".into());
+            let limit =
+                quota.remaining.map_or_else(|| unlimited.to_string(), |_| quota_money(quota.limit));
+            details = details
+                .push(quota_detail(i18n.__("本月已用"), quota_money(quota.used)))
+                .push(quota_detail(i18n.__("月限额"), limit))
+                .push(quota_detail(i18n.__("重置日（北京时间）"), reset_at))
+                .push(
+                    text(i18n.__("已用金额包含在途预占。"))
+                        .size(12)
+                        .style(settings_muted_text_style),
+                );
+            quota.remaining.map_or_else(|| unlimited.to_string(), quota_money)
+        }
+        MonthlyQuotaState::Unavailable => i18n.__("额度暂不可用").to_string(),
+        MonthlyQuotaState::Idle | MonthlyQuotaState::Loading => i18n.__("加载中…").to_string(),
+    };
+    if !matches!(app.account.monthly_quota, MonthlyQuotaState::Ready(_)) {
+        details = details.push(text(status.clone()).size(13).style(settings_muted_text_style));
+    }
+    let refresh = button(text(i18n.__("刷新")).size(12))
+        .padding([4, 9])
+        .style(rounded_action_btn_style)
+        .on_press_maybe(
+            (!matches!(app.account.monthly_quota, MonthlyQuotaState::Loading))
+                .then(|| account_message(AccountMessage::RefreshMonthlyQuota)),
+        );
+    let popup =
+        container(details.push(refresh)).width(Length::Fixed(280.0)).padding(12).style(menu_style);
+    let trigger = button(text(format!("{title} · {status}")).size(12))
+        .padding([5, 9])
+        .style(trigger_style)
+        .on_press(account_message(AccountMessage::ToggleMonthlyQuota));
+
+    Some(
+        AboveOverlay::new(trigger, popup)
+            .show(app.account.monthly_quota_open)
+            .gap(5.0)
+            .snap_within_viewport(true)
+            .on_close(account_message(AccountMessage::CloseMonthlyQuota))
+            .block_background_events(true)
+            .into(),
+    )
+}
+
+fn quota_detail(label: &str, value: String) -> Element<'_, Message> {
+    row![text(label).size(13), iced::widget::Space::new().width(Length::Fill), text(value).size(13)]
+        .spacing(8)
+        .align_y(iced::Alignment::Center)
         .into()
 }
 

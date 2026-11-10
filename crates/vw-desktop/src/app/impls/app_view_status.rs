@@ -296,14 +296,13 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
     let account = crate::app::components::account_status::view(app);
 
     // 组装完整的状态栏布局
-    let content = iced::widget::row![
-        account,
-        lsp_content,
-        iced::widget::Space::new().width(iced::Length::Fill),
-        notification_btn
-    ]
-    .align_y(iced::Alignment::Center)
-    .spacing(10);
+    let content = iced::widget::row![account]
+        .extend(crate::app::components::account_status::monthly_quota(app))
+        .push(lsp_content)
+        .push(iced::widget::Space::new().width(iced::Length::Fill))
+        .push(notification_btn)
+        .align_y(iced::Alignment::Center)
+        .spacing(10);
 
     iced::widget::container(content)
         .width(iced::Length::Fill)

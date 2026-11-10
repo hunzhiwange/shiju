@@ -694,3 +694,50 @@ async fn ui_refresh_31_preserves_values_and_disabled_states() {
     let mut ui = scene(app.view(), &mut renderer, size);
     redraw(&mut ui, &mut renderer, &Theme::Light, size, "password-invalid");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn monthly_quota_renders_in_status_bar_and_refreshes() {
+    if !isolated("monthly_quota_renders_in_status_bar_and_refreshes") {
+        return;
+    }
+    use crate::app::state::MonthlyQuotaState;
+
+    let mut app = fixture();
+    app.account.replace_repository(repository());
+    app.account.monthly_quota = MonthlyQuotaState::Ready(vw_gateway_client::ShijuMonthlyQuotaDto {
+        limit: 100.0,
+        used: 99.9941,
+        remaining: Some(0.0059),
+        reset_at: 1796054400,
+    });
+    let size = Size::new(800, 600);
+    let mut renderer = renderer().await;
+    for (locale, theme) in
+        [(DesktopLocale::SimplifiedChinese, Theme::Dark), (DesktopLocale::English, Theme::Light)]
+    {
+        app.desktop_locale = locale;
+        app.account.monthly_quota_open = false;
+        let i18n = I18n::new(locale);
+        let trigger = iced::widget::container(super::monthly_quota(&app).unwrap())
+            .align_bottom(iced::Fill)
+            .align_right(iced::Fill);
+        let mut ui = scene(trigger.into(), &mut renderer, size);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, Point::new(770.0, 587.0)).as_slice(),
+            [Message::Account(AccountMessage::ToggleMonthlyQuota)]
+        ));
+        drop(ui);
+        app.account.monthly_quota_open = true;
+        let mut ui = scene(app.view(), &mut renderer, size);
+        redraw(&mut ui, &mut renderer, &theme, size, &format!("monthly-quota-{locale:?}"));
+        let positions = geometry(&mut ui, &renderer);
+        for label in ["¥99.99", "¥100.00", "12/01", i18n.__("已用金额包含在途预占。")]
+        {
+            assert_fits(positions.label(label), size);
+        }
+        assert!(matches!(
+            click_label(&mut ui, &mut renderer, i18n.__("刷新")).as_slice(),
+            [Message::Account(AccountMessage::RefreshMonthlyQuota)]
+        ));
+    }
+}

@@ -28,6 +28,9 @@ mod connectors;
 #[path = "knowledge.rs"]
 mod knowledge;
 
+#[path = "monthly_quota.rs"]
+mod monthly_quota;
+
 #[path = "model_token.rs"]
 mod model_token;
 

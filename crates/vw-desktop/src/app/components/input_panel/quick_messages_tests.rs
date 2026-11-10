@@ -53,7 +53,7 @@ fn shiju_upgrade_count_includes_main_skill_and_each_outdated_function() {
     app.expert_hub.installed =
         LoadState::Loaded(vec![first, second, installed_skill(31, "data-export", "数据导出")]);
     assert_eq!(shiju_upgrade_count(&app), 3);
-    assert_eq!(Tree::new(shiju_menu_view(&app).as_widget()).children.len(), 4);
+    assert_eq!(Tree::new(shiju_menu_view(&app).as_widget()).children.len(), 3);
 
     app.expert_hub.package_status.local_version = Some("1.3.0".to_string());
     assert_eq!(shiju_upgrade_count(&app), 2, "function updates must remain visible on their own");
@@ -85,7 +85,7 @@ fn shiju_upgrade_count_excludes_missing_unknown_equal_and_older_main_versions() 
 
 #[test]
 fn shiju_upgrade_function_action_opens_installed_functions() {
-    let Message::Batch(messages) = shiju_function_upgrade_message() else {
+    let Message::Batch(messages) = shiju_upgrade_message(false, 5) else {
         panic!("expected function upgrade navigation");
     };
     assert!(matches!(
@@ -107,9 +107,15 @@ async fn shiju_upgrade_badge_and_menu_render_chinese_counts_in_both_themes() {
     let mut app = App::new().0;
     app.expert_hub.package_status =
         package_status(Some("1.0.0"), Some("2.0.0"), ShijuPackageRefreshState::Fresh);
-    let mut skill = installed_skill(17, "document-review", "文档审查");
-    skill.upgrade_available = true;
-    app.expert_hub.installed = LoadState::Loaded(vec![skill]);
+    app.expert_hub.installed = LoadState::Loaded(
+        (1..=5)
+            .map(|id| {
+                let mut skill = installed_skill(id, "document-review", "文档审查");
+                skill.upgrade_available = true;
+                skill
+            })
+            .collect(),
+    );
     for theme in [Theme::Dark, Theme::Light] {
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
@@ -457,7 +463,7 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         "trigger Tooltip and menu overlay should both be present"
     );
 
-    let Message::Batch(messages) = shiju_upgrade_message() else {
+    let Message::Batch(messages) = shiju_upgrade_message(true, 5) else {
         panic!("upgrade action should close the menu before opening the install guide");
     };
     assert!(matches!(

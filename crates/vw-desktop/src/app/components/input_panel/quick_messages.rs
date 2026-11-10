@@ -91,19 +91,16 @@ fn shiju_refresh_message() -> Message {
     Message::SkillHub(message::SkillHubMessage::RefreshInstalledSkills)
 }
 
-fn shiju_upgrade_message() -> Message {
-    Message::Batch(vec![
-        Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
-        Message::SkillHub(message::SkillHubMessage::OpenInstallGuide),
-    ])
-}
-
-fn shiju_function_upgrade_message() -> Message {
-    Message::Batch(vec![
-        Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
-        Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
-        Message::SkillHub(message::SkillHubMessage::SelectSkillTab(SkillTab::Installed)),
-    ])
+fn shiju_upgrade_message(main_upgrade: bool, function_upgrades: usize) -> Message {
+    let mut messages = vec![Message::Chat(message::ChatMessage::ToggleShijuSkillMenu)];
+    if !main_upgrade && function_upgrades > 0 {
+        messages.push(Message::SkillHub(message::SkillHubMessage::OpenShijuSkills));
+        messages
+            .push(Message::SkillHub(message::SkillHubMessage::SelectSkillTab(SkillTab::Installed)));
+    } else {
+        messages.push(Message::SkillHub(message::SkillHubMessage::OpenInstallGuide));
+    }
+    Message::Batch(messages)
 }
 
 fn toggled_group(
@@ -349,7 +346,7 @@ fn shiju_upgrade_count(app: &App) -> usize {
         + shiju_function_upgrade_count(&app.expert_hub.installed)
 }
 
-fn shiju_update_badge(i18n: crate::app::i18n::I18n, count: usize) -> Element<'static, Message> {
+fn shiju_update_badge(label: String) -> Element<'static, Message> {
     let dot = container(Space::new().width(6).height(6)).style(|theme: &Theme| container::Style {
         background: Some(theme.extended_palette().danger.strong.color.into()),
         border: iced::Border { radius: 3.0.into(), ..Default::default() },
@@ -357,11 +354,9 @@ fn shiju_update_badge(i18n: crate::app::i18n::I18n, count: usize) -> Element<'st
     });
     row![
         dot,
-        text(i18n.format("%s 项待升级", &[count.to_string().into()]).expect("valid upgrade count"))
-            .size(11)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().danger.strong.color),
-            }),
+        text(label).size(11).style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().danger.strong.color),
+        }),
     ]
     .spacing(4)
     .align_y(iced::Alignment::Center)
@@ -514,11 +509,12 @@ fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
 }
 
 fn shiju_menu_view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let refresh_action = shiju_refresh_action(&app.expert_hub.installed);
     let refresh_button = button(
         row![
             super::icons::icon_svg(Icon::ArrowRepeat, 13.0),
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(refresh_action.label)).size(12),
+            text(i18n.__(refresh_action.label)).size(12),
         ]
         .spacing(8)
         .align_y(iced::Alignment::Center),
@@ -527,22 +523,28 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     .padding([8, 10])
     .width(Length::Fill)
     .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false));
-    let upgrade_enabled = shiju_version_hint(
-        crate::app::i18n::I18n::new(app.desktop_locale),
-        &app.expert_hub.package_status,
-    )
-    .upgrade_enabled;
-    let mut upgrade_content = row![
-        text(crate::app::i18n::I18n::new(app.desktop_locale).__("前往识矩技能升级")).size(12),
-    ]
-    .spacing(5)
-    .align_y(iced::Alignment::Center);
-    if shiju_update_available(&app.expert_hub.package_status) {
-        upgrade_content = upgrade_content
-            .push(shiju_update_badge(crate::app::i18n::I18n::new(app.desktop_locale), 1));
+    let main_upgrade = shiju_update_available(&app.expert_hub.package_status);
+    let function_upgrades = shiju_function_upgrade_count(&app.expert_hub.installed);
+    let upgrade_enabled = function_upgrades > 0
+        || shiju_version_hint(i18n, &app.expert_hub.package_status).upgrade_enabled;
+    let mut upgrade_content = row![text(i18n.__("前往识矩技能升级")).size(12)]
+        .spacing(5)
+        .align_y(iced::Alignment::Center);
+    let mut upgrade_labels = Vec::new();
+    if main_upgrade {
+        upgrade_labels.push(i18n.__("主技能待升级").to_string());
+    }
+    if function_upgrades > 0 {
+        upgrade_labels.push(
+            i18n.format("%s项功能待升级", &[function_upgrades.to_string().into()])
+                .expect("valid function upgrade count"),
+        );
+    }
+    if !upgrade_labels.is_empty() {
+        upgrade_content = upgrade_content.push(shiju_update_badge(upgrade_labels.join(" ")));
     }
     let upgrade_button = button(upgrade_content)
-        .on_press(shiju_upgrade_message())
+        .on_press(shiju_upgrade_message(main_upgrade, function_upgrades))
         .padding([8, 10])
         .width(Length::Fill)
         .style(move |theme: &Theme, status| {
@@ -623,29 +625,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let items =
         scrollable(items).height(menu_height(item_count)).direction(Direction::Vertical(scrollbar));
 
-    let mut menu = column![upgrade_button].spacing(3).width(Length::Fill);
-    let function_upgrades = shiju_function_upgrade_count(&app.expert_hub.installed);
-    if function_upgrades > 0 {
-        menu = menu.push(
-            button(
-                row![
-                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("前往功能升级"))
-                        .size(12),
-                    shiju_update_badge(
-                        crate::app::i18n::I18n::new(app.desktop_locale),
-                        function_upgrades,
-                    ),
-                ]
-                .spacing(5)
-                .align_y(iced::Alignment::Center),
-            )
-            .on_press(shiju_function_upgrade_message())
-            .padding([8, 10])
-            .width(Length::Fill)
-            .style(|theme: &Theme, status| styles::shiju_upgrade_button_style(theme, status, true)),
-        );
-    }
-    container(menu.push(refresh_button).push(items))
+    container(column![upgrade_button, refresh_button, items].spacing(3).width(Length::Fill))
         .padding(6)
         .width(Length::Fixed(300.0))
         .style(styles::quick_message_menu_style)
@@ -659,9 +639,10 @@ fn shiju_menu(app: &App) -> Element<'_, Message> {
         .align_y(iced::Alignment::Center);
     let upgrade_count = shiju_upgrade_count(app);
     if upgrade_count > 0 {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
         trigger_content = trigger_content.push(shiju_update_badge(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            upgrade_count,
+            i18n.format("%s 项待升级", &[upgrade_count.to_string().into()])
+                .expect("valid upgrade count"),
         ));
     }
     let trigger_button = button(trigger_content.push(dropdown_icon()))

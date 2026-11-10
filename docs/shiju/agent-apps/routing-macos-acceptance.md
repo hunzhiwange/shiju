@@ -382,3 +382,26 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
 
 状态为 **已完成**。已释放本项槽位锁，保留构建缓存。任务卡由原会话在集成工作区收尾。
+
+## 任务 14　过滤私有参数并保护 Schema 属性
+
+2026-11-10，macOS 27.0（26A428），arm64。任务 13 的请求覆盖校验由 `5255827c6` 交付。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/body_filter.rs` 与仓库快照及来源映射的 SHA256 一致。来源 `forwarder.rs::prepare_upstream_request_body` 使用空白名单过滤正文。
+
+- `routing::private_params::filter_private_params` 递归处理对象和数组，只在已识别的工具 Schema 内保留 `properties`、`patternProperties`、`definitions` 与 `$defs` 的声明名。Schema 定义对象内的私有字段及其他正文中伪装成名称映射的私有字段仍会移除。纯策略覆盖 Chat、Messages、Responses、Gemini 的来源工具 Schema 形状。
+- 为解除过滤与协议分发的调度依赖，接通现有常驻监听上的单一路径。生产调用链为 `RoutingListener::serve_http` → `route_auth::serve` → `dispatch::forward_json` → 过滤 → JSON 序列化 → `SharedTransport::forward`。只接受已绑定目标的 Codex `POST /v1/chat/completions` 非流式 JSON。目标 URL 和供应商认证与同一代次的授权绑定一并持有。撤销或轮换使旧绑定和在途请求失效。未授权和未就绪分别返回 401、503，其余入口和不支持的正文形状明确拒绝。
+- 回环夹具经真实监听和能力凭证进入生产分发，受控上游收到绑定目标、独立认证及过滤后的实际正文。用例验证未就绪、旧凭证、方法和路径、流式请求及缺少 JSON 媒体类型的拒绝，并检查上游 Cookie 不回传。凭证与目标的生产发布由既有模式事务所有者接入，原生 Chat 的别名、SSE 和完整协议验收归任务 34。Windows、Linux 和 WSL 范围外且未验证，WSL 地址仍见来源映射。
+
+集成目录首轮使用槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。复核使用 `22617ffe6` 加本项 Rust 文件的临时源码副本，槽位 **15**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-15`。两槽位的 `CARGO_BUILD_BUILD_DIR` 为各自目标目录下的 `build`。任务源码直接落在集成目录，八个 Rust 文件与绿灯副本逐一比较一致。两个槽位的任务锁均已释放，缓存保留。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 集成目录首轮红灯 | `cargo test -p vw-agent-apps --lib cc_route_014_ -- --nocapture` | 退出 101，执行 0 项。并行 OMP 改动的 `providers/omp.rs:339` 对 SHA256 输出使用 `LowerHex` 导致 E0277。 |
+| 格式化 | `cargo fmt --all` | 源码副本红、绿阶段均退出 0，只同步本项文件。 |
+| 行为红灯 | `cargo test -p vw-agent-apps --lib cc_route_014_ -- --nocapture` | 退出 101，2 项因私有字段残留触发行为断言失败。 |
+| 策略绿灯 | `cargo test -p vw-agent-apps --lib cc_route_014_ -- --nocapture` | 退出 0，2 项通过，0 项失败或忽略。 |
+| 生产监听回环 | `cargo test -p vw-agent --lib cc_route_014_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。 |
+| 凭证鉴权回归 | `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
+
+`vw-agent` 聚焦测试报告既有 macOS 链接器 `__eh_frame` 大小警告。状态为 **已完成**。

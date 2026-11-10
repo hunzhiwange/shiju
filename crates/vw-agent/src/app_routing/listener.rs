@@ -1,6 +1,7 @@
 //! Owns the application's loopback listener independently of session relays.
 
 use super::{
+    dispatch,
     route_auth::{self, RouteAuth},
     shutdown,
 };
@@ -303,11 +304,16 @@ impl RoutingListener {
 }
 
 async fn serve_http(connection: TcpStream, auth: Arc<RouteAuth>, logging: Arc<AtomicBool>) {
-    route_auth::serve(connection, auth, |_, _| async {
-        if logging.load(Ordering::Relaxed) {
-            tracing::info!("Authorized application routing request");
+    route_auth::serve(connection, auth, |request, route| {
+        let logging = logging.load(Ordering::Relaxed);
+        async move {
+            if logging {
+                tracing::info!("Authorized application routing request");
+            }
+            dispatch::forward_json(request, &route)
+                .await
+                .unwrap_or_else(IntoResponse::into_response)
         }
-        axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response()
     })
     .await;
 }

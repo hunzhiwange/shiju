@@ -1,6 +1,6 @@
 //! Application capabilities owned by the gateway's routing listener.
 
-use super::browser_guard;
+use super::{browser_guard, dispatch::JsonTarget};
 use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
@@ -41,9 +41,14 @@ pub(super) struct AuthorizedRoute {
     binding: VerifiedRouteBinding,
     generation: u64,
     cancelled: CancellationToken,
+    json_target: Option<JsonTarget>,
 }
 
 impl AuthorizedRoute {
+    pub(super) fn json_target(&self) -> Option<(AppId, &JsonTarget, CancellationToken)> {
+        self.json_target.as_ref().map(|target| (self.binding.app, target, self.cancelled.clone()))
+    }
+
     /// The dispatcher compares the selected target's trusted scope and epoch
     /// before accessing provider state or reading the request body.
     #[cfg_attr(
@@ -93,6 +98,16 @@ impl RouteAuth {
         expect(dead_code, reason = "production issuance awaits the authorized attach transaction")
     )]
     fn issue(&self, binding: VerifiedRouteBinding) -> anyhow::Result<IssuedRoute> {
+        self.issue_with_target(binding, None)
+    }
+
+    // Attach the trusted destination when publishing the same immutable grant.
+    // Rotating or revoking the grant also retires its target and in-flight work.
+    fn issue_with_target(
+        &self,
+        binding: VerifiedRouteBinding,
+        json_target: Option<JsonTarget>,
+    ) -> anyhow::Result<IssuedRoute> {
         anyhow::ensure!(
             !binding.host.trim().is_empty() && !binding.account.trim().is_empty(),
             "incomplete application route binding"
@@ -123,7 +138,12 @@ impl RouteAuth {
         active.generation = generation;
         active.grants.insert(
             digest,
-            Arc::new(AuthorizedRoute { binding, generation, cancelled: CancellationToken::new() }),
+            Arc::new(AuthorizedRoute {
+                binding,
+                generation,
+                cancelled: CancellationToken::new(),
+                json_target,
+            }),
         );
         Ok(IssuedRoute { token, revocation: RouteRevocation { digest, generation } })
     }
@@ -235,3 +255,7 @@ mod route_auth_tests;
 #[cfg(test)]
 #[path = "browser_guard_tests.rs"]
 mod browser_guard_tests;
+
+#[cfg(test)]
+#[path = "dispatch_tests.rs"]
+mod dispatch_tests;

@@ -5,3 +5,8 @@ mod lifecycle_state_tests;
 
 #[cfg(test)]
 mod override_validate_tests;
+
+pub mod private_params;
+
+#[cfg(test)]
+mod private_params_tests;

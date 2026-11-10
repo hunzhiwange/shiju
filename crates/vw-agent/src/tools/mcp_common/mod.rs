@@ -7,7 +7,7 @@ use crate::app::agent::config::schema::{Config, ConfigExt};
 use crate::plugins::{
     PluginDiscoveryOptions, merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_options,
 };
-use agent_client_protocol::{HttpHeader, McpServer};
+use agent_client_protocol::{HttpHeader, McpServer, McpServerStdio};
 use anyhow::Context;
 use reqwest_012::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::model::{
@@ -238,9 +238,24 @@ pub async fn load_resolved_acp_config() -> anyhow::Result<vw_acp::ResolvedAcpxCo
 pub async fn load_resolved_acp_config_from(
     cwd: impl AsRef<Path>,
 ) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
-    let cwd = cwd.as_ref();
+    load_resolved_mcp_config(cwd.as_ref(), None).await
+}
+
+/// Native tool discovery uses the project established at the request boundary.
+pub(crate) fn load_resolved_runtime_mcp_config_from(
+    cwd: &Path,
+) -> impl Future<Output = anyhow::Result<vw_acp::ResolvedAcpxConfig>> + '_ {
+    // Capture the project before the toolset's synchronous bridge changes threads.
+    let project_id = crate::project::instance::project().map(|project| project.id);
+    load_resolved_mcp_config(cwd, project_id)
+}
+
+async fn load_resolved_mcp_config(
+    cwd: &Path,
+    project_id: Option<String>,
+) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
     let mut config = vw_acp::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
-    merge_runtime_mcp_servers(&mut config, cwd).await?;
+    merge_runtime_mcp_servers(&mut config, cwd, project_id).await?;
     if let Some(context) = crate::tools::current_tool_use_context()
         && let Some(selected) = context.native_mcp_selection()
     {
@@ -263,6 +278,7 @@ pub(crate) async fn load_resolved_acp_config_from_with_plugin_options(
 async fn merge_runtime_mcp_servers(
     config: &mut vw_acp::ResolvedAcpxConfig,
     workspace: &Path,
+    project_id: Option<String>,
 ) -> anyhow::Result<()> {
     let tenant = crate::tools::current_tool_use_context()
         .map(|context| context.tenant_scope())
@@ -274,6 +290,18 @@ async fn merge_runtime_mcp_servers(
     agent_config.workspace_dir = workspace.to_path_buf();
     let plugin_options = plugin_mcp_discovery_options(&agent_config);
     merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, &plugin_options)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(project_id) = project_id {
+        let project = vw_api_types::ProjectScope::new(tenant, project_id.into())?;
+        let selected = crate::agent_apps::mcp::runtime::selected_runtime_servers(
+            &project,
+            workspace,
+            &config.mcp_servers,
+        )?;
+        config.mcp_servers.extend(selected);
+    }
+    #[cfg(target_arch = "wasm32")]
+    let _ = project_id;
     apply_global_mcp_server_overrides_from_agent_config(config, &agent_config)
 }
 
@@ -596,6 +624,17 @@ pub(crate) async fn with_server_client_timeout<T>(
 
 pub(crate) type RunningMcpPeer = rmcp::service::RunningService<rmcp::RoleClient, NoopClient>;
 
+pub(crate) fn runtime_stdio_cwd(
+    server: &McpServerStdio,
+) -> anyhow::Result<Option<std::path::PathBuf>> {
+    let cwd = crate::plugins::plugin_mcp_runtime_cwd(server)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    if cwd.is_none() {
+        return crate::agent_apps::mcp::runtime::managed_stdio_cwd(server);
+    }
+    Ok(cwd)
+}
+
 /// The owner runs this handshake on a durable runtime, separate from synchronous tool bridges.
 pub(crate) async fn open_server_peer(
     server: McpServer,
@@ -615,7 +654,7 @@ pub(crate) async fn open_server_peer(
     let running = match server {
         McpServer::Stdio(server) => {
             let mut command = Command::new(&server.command);
-            if let Some(cwd) = crate::plugins::plugin_mcp_runtime_cwd(server)? {
+            if let Some(cwd) = runtime_stdio_cwd(server)? {
                 command.current_dir(cwd);
             }
             let args = server.args.clone();

@@ -161,60 +161,99 @@ mod execution {
             + Sync,
         ) -> Result<McpExecutionConnection, McpFailureCode> {
             let connection =
-                run_sync_database(|| Ok(self.connection_for_revision(authorized_scope, expected)))
+                run_sync_database(|| Ok(self.execution_definition(authorized_scope, expected)))
                     .map_err(|_| McpFailureCode::StorageUnavailable)??;
-            validate_catalog_connection(&connection)?;
             let (tenant, _) = catalog_location(authorized_scope)?;
             let authorize =
                 |reference: &McpCredentialRef| authorize_credential_use(&connection, reference);
-            let resolve =
-                |fields| resolve_fields(fields, tenant, execution_host, accounts, &authorize);
-            let transport = match &connection {
-                McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
-                McpConnectionDefinition::StreamableHttp { .. } => McpTransport::StreamableHttp,
-                McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
-            };
-            match &connection {
-                McpConnectionDefinition::Stdio { command, args, env, cwd } => {
-                    let env = resolve(env)
-                        .await?
-                        .into_iter()
-                        .map(|(key, value, _)| {
-                            if value.contains('\0') {
-                                return Err(McpFailureCode::CredentialUnavailable);
-                            }
-                            Ok((key, value))
-                        })
-                        .collect::<Result<_, _>>()?;
-                    Ok(McpExecutionConnection::Stdio {
-                        command: command.clone(),
-                        args: args.clone(),
-                        env,
-                        cwd: cwd.clone(),
+            let fields = resolve_fields(
+                connection_fields(&connection),
+                tenant,
+                execution_host,
+                accounts,
+                &authorize,
+            )
+            .await?;
+            execution_connection(connection, fields)
+        }
+
+        pub(in crate::agent_apps::mcp) fn resolve_for_native_runtime(
+            &self,
+            scope: &McpCatalogScope,
+            expected: &McpRecordRef,
+        ) -> Result<McpExecutionConnection, McpFailureCode> {
+            let connection = self.execution_definition(scope, expected)?;
+            // A project selection carries no execution-host credential grant.
+            let fields = connection_fields(&connection)
+                .iter()
+                .map(|(key, field)| match field {
+                    McpConfigValue::Literal { value } => Ok((key.clone(), value.clone(), false)),
+                    McpConfigValue::Credential { .. } => Err(McpFailureCode::PermissionDenied),
+                })
+                .collect::<Result<_, _>>()?;
+            execution_connection(connection, fields)
+        }
+
+        fn execution_definition(
+            &self,
+            scope: &McpCatalogScope,
+            expected: &McpRecordRef,
+        ) -> Result<McpConnectionDefinition, McpFailureCode> {
+            let connection = self.connection_for_revision(scope, expected)?;
+            validate_catalog_connection(&connection)?;
+            Ok(connection)
+        }
+    }
+
+    fn connection_fields(
+        connection: &McpConnectionDefinition,
+    ) -> &BTreeMap<String, McpConfigValue> {
+        match connection {
+            McpConnectionDefinition::Stdio { env, .. } => env,
+            McpConnectionDefinition::StreamableHttp { headers, .. }
+            | McpConnectionDefinition::Sse { headers, .. } => headers,
+        }
+    }
+
+    fn execution_connection(
+        connection: McpConnectionDefinition,
+        fields: Vec<(String, String, bool)>,
+    ) -> Result<McpExecutionConnection, McpFailureCode> {
+        let transport = match &connection {
+            McpConnectionDefinition::Stdio { .. } => McpTransport::Stdio,
+            McpConnectionDefinition::StreamableHttp { .. } => McpTransport::StreamableHttp,
+            McpConnectionDefinition::Sse { .. } => McpTransport::Sse,
+        };
+        match connection {
+            McpConnectionDefinition::Stdio { command, args, cwd, .. } => {
+                let env = fields
+                    .into_iter()
+                    .map(|(key, value, _)| {
+                        if value.contains('\0') {
+                            return Err(McpFailureCode::CredentialUnavailable);
+                        }
+                        Ok((key, value))
                     })
+                    .collect::<Result<_, _>>()?;
+                Ok(McpExecutionConnection::Stdio { command, args, env, cwd })
+            }
+            McpConnectionDefinition::StreamableHttp { url, .. }
+            | McpConnectionDefinition::Sse { url, .. } => {
+                let mut headers = HeaderMap::new();
+                for (key, value, sensitive) in fields {
+                    let name = HeaderName::from_bytes(key.as_bytes())
+                        .map_err(|_| McpFailureCode::InvalidDefinition)?;
+                    let text = if sensitive && name == AUTHORIZATION {
+                        format!("Bearer {value}")
+                    } else {
+                        value
+                    };
+                    let mut value = HeaderValue::try_from(text)
+                        .map_err(|_| McpFailureCode::CredentialUnavailable)?;
+                    value.set_sensitive(sensitive);
+                    headers.insert(name, value);
                 }
-                McpConnectionDefinition::StreamableHttp { url, headers }
-                | McpConnectionDefinition::Sse { url, headers } => {
-                    let mut request_headers = HeaderMap::new();
-                    for (key, value, sensitive) in resolve(headers).await? {
-                        let name = HeaderName::from_bytes(key.as_bytes())
-                            .map_err(|_| McpFailureCode::InvalidDefinition)?;
-                        let text = if sensitive && name == AUTHORIZATION {
-                            format!("Bearer {value}")
-                        } else {
-                            value
-                        };
-                        let mut value = HeaderValue::try_from(text)
-                            .map_err(|_| McpFailureCode::CredentialUnavailable)?;
-                        value.set_sensitive(sensitive);
-                        request_headers.insert(name, value);
-                    }
-                    Ok(McpExecutionConnection::Http {
-                        transport,
-                        url: url.clone(),
-                        headers: request_headers,
-                    })
-                }
+                Ok(McpExecutionConnection::Http { transport, url, headers })
             }
         }
     }

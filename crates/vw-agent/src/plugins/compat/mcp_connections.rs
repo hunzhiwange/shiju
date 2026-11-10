@@ -85,7 +85,7 @@ fn connection_key(server: &McpServer, configuration: &str, oauth: Option<&str>) 
     hash.update(configuration);
     match server {
         McpServer::Stdio(server) => {
-            if let Some(cwd) = crate::plugins::plugin_mcp_runtime_cwd(server)? {
+            if let Some(cwd) = crate::tools::mcp_common::runtime_stdio_cwd(server)? {
                 hash.update(cwd.as_os_str().as_encoded_bytes());
             }
         }

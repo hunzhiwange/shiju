@@ -1072,14 +1072,15 @@ fn register_dynamic_mcp_tools(
     let connections = session
         .map(|id| crate::plugins::mcp_session_connections(id, workspace_dir))
         .unwrap_or_default();
-    let config = match block_on(super::mcp_common::load_resolved_acp_config_from(workspace_dir)) {
-        Ok(config) => config,
-        Err(error) => {
-            let _ = connections.synchronize(&[]);
-            tracing::warn!("MCP toolset: failed to load ACP config for dynamic tools: {error}");
-            return;
-        }
-    };
+    let config =
+        match block_on(super::mcp_common::load_resolved_runtime_mcp_config_from(workspace_dir)) {
+            Ok(config) => config,
+            Err(error) => {
+                let _ = connections.synchronize(&[]);
+                tracing::warn!("MCP toolset: failed to load ACP config for dynamic tools: {error}");
+                return;
+            }
+        };
 
     let enabled = config
         .mcp_servers

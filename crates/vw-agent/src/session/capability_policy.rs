@@ -190,7 +190,8 @@ pub(crate) async fn native_agent_defaults(
         .map(|skill| (skill.invocation_name().to_string(), true))
         .collect();
     if mcp_fixed {
-        let mcp = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
+        let mcp =
+            crate::tools::mcp_common::load_resolved_runtime_mcp_config_from(workspace).await?;
         context.mcp = mcp
             .mcp_servers
             .iter()

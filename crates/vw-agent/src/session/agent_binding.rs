@@ -342,7 +342,14 @@ pub(crate) async fn prepare(
         .ok_or_else(|| anyhow::anyhow!("unknown or disabled agent: {agent}"))?;
     let provisional = AgentBinding::from_definition(agent.clone(), &definition);
     provisional.validate_selection(selected_agent, backend)?;
-    let mcp = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
+    let mcp = match provisional.runtime {
+        AgentRuntime::Native => {
+            crate::tools::mcp_common::load_resolved_runtime_mcp_config_from(workspace).await?
+        }
+        AgentRuntime::Acp { .. } => {
+            crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?
+        }
+    };
     let context = DefaultsContext {
         skills: crate::skills::load_skills_with_config(workspace, &config)
             .iter()

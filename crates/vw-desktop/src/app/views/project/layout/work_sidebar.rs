@@ -27,6 +27,7 @@ use super::super::components::{
     SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu,
     running_draft_sessions, session_row,
 };
+use super::super::styles::work_surface_style;
 
 mod rail;
 
@@ -375,20 +376,14 @@ pub(super) fn shiju_skills_button(i18n: crate::app::i18n::I18n) -> Element<'stat
 
 pub(super) fn sidebar_style(theme: &Theme) -> container::Style {
     let palette = theme.extended_palette();
-    let background = if palette.is_dark {
-        palette.background.weak.color
-    } else {
-        crate::app::theme_catalog::panel_surface_color(theme, 0.995)
-    };
     container::Style {
-        background: Some(Background::Color(background)),
         text_color: Some(theme.palette().text),
         border: Border {
             color: palette.background.strong.color.scale_alpha(0.72),
             width: 0.0,
             radius: 0.0.into(),
         },
-        ..Default::default()
+        ..work_surface_style(theme)
     }
 }
 

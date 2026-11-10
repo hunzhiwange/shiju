@@ -5,6 +5,7 @@ use iced::{Element, Length};
 
 use crate::app::components::chat_panel;
 use crate::app::message::ViewMessage;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message};
 
 use super::super::handles::HResizeHandle;
@@ -63,7 +64,7 @@ pub fn build_work_layout(
         .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into());
     let right_column =
         stack![right_column_base, right_overlay].width(Length::Fill).height(Length::Fill);
-    let right_column = right_column_chrome(right_column.into(), corner_radius);
+    let right_column = right_column_chrome(right_column.into(), corner_radius, WorkspaceMode::Work);
 
     let _ = (settings_panel_width, left_rail_width, session_panel_width_scale);
     if app.work_chat_fullscreen || app.work_resource_fullscreen {

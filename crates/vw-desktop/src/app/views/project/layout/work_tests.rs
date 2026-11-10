@@ -5,6 +5,7 @@ use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer, widget::
 use iced::{Event, Font, Pixels, Point, Rectangle, Size, Theme};
 
 use crate::app::message::ViewMessage;
+use crate::app::state::{WorkResourceMode, WorkspaceMode};
 use crate::app::{App, Message};
 
 use super::super::handles::HResizeHandle;
@@ -47,17 +48,40 @@ async fn work_layout_keeps_single_chat_surface_when_code_panels_are_enabled() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn work_layout_draws_in_dark_and_light_themes() {
+async fn work_layout_renders_matching_backgrounds_in_dark_and_light_themes() {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
     let mut app = App::new().0;
-    app.show_settings = true;
+    app.workspace_mode = WorkspaceMode::Work;
+    app.active_theme_skin = None;
+    app.terminal.is_visible = false;
+    app.work_sidebar_collapsed = false;
+    app.work_sidebar_width = 280.0;
+    app.work_resources_visible = true;
+    app.work_resource_mode = WorkResourceMode::Overview;
 
     for theme in [Theme::Dark, Theme::Light] {
-        let mut element = super::build_work_layout(&app, 476.0, 56.0, 0.6, 12.0, 0.0, 0.0);
+        app.app_theme = theme.clone();
+        let mut element = super::super::view(&app);
         draw_element(&mut element, &mut renderer, &theme);
+
+        let size = Size::new(VIEWPORT.width as u32, VIEWPORT.height as u32);
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        let pixel_at = |x: usize| {
+            let offset = (size.height as usize / 2 * size.width as usize + x) * 4;
+            &pixels[offset..offset + 4]
+        };
+        let sidebar_edge = app.work_sidebar_width as usize;
+        let sidebar = pixel_at(sidebar_edge - 3);
+        let divider = pixel_at(sidebar_edge + 2);
+        let chat = pixel_at(sidebar_edge + HResizeHandle::HIT_WIDTH as usize + 12);
+        let resources = pixel_at(size.width as usize - 28);
+
+        assert_eq!(sidebar, divider, "{theme:?} divider background");
+        assert_eq!(sidebar, chat, "{theme:?} chat background");
+        assert_eq!(sidebar, resources, "{theme:?} resources background");
     }
 }
 
@@ -425,8 +449,6 @@ async fn terminal_modes_work_fullscreen_temporarily_hides_terminal_and_restores_
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
-    use crate::app::state::WorkspaceMode;
-
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await

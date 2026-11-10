@@ -4,6 +4,8 @@ use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Font, Pixels, Rectangle, Size, Theme};
 
+use crate::app::state::WorkspaceMode;
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());
@@ -14,7 +16,7 @@ fn test_module_is_wired() {
 #[test]
 fn right_column_chrome_builds_with_positive_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 8.0);
+    let chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
 
     assert_eq!(chrome.as_widget().size().width, iced::Length::Fill);
     assert_eq!(chrome.as_widget().size().height, iced::Length::Fill);
@@ -24,7 +26,7 @@ fn right_column_chrome_builds_with_positive_radius() {
 #[test]
 fn right_column_chrome_builds_with_zero_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 0.0);
+    let chrome = super::right_column_chrome(content, 0.0, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -32,7 +34,7 @@ fn right_column_chrome_builds_with_zero_radius() {
 #[test]
 fn right_column_chrome_builds_with_negative_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, -1.0);
+    let chrome = super::right_column_chrome(content, -1.0, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -40,7 +42,7 @@ fn right_column_chrome_builds_with_negative_radius() {
 #[test]
 fn right_column_chrome_builds_with_large_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 100.0);
+    let chrome = super::right_column_chrome(content, 100.0, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -48,7 +50,7 @@ fn right_column_chrome_builds_with_large_radius() {
 #[test]
 fn right_column_chrome_builds_with_very_small_positive_radius() {
     let content = iced::widget::text("right panel").into();
-    let chrome = super::right_column_chrome(content, 0.001);
+    let chrome = super::right_column_chrome(content, 0.001, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -56,7 +58,7 @@ fn right_column_chrome_builds_with_very_small_positive_radius() {
 #[test]
 fn right_column_chrome_accepts_rich_element_content() {
     let content = iced::widget::column![iced::widget::text("a"), iced::widget::text("b")].into();
-    let chrome = super::right_column_chrome(content, 6.0);
+    let chrome = super::right_column_chrome(content, 6.0, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -64,7 +66,7 @@ fn right_column_chrome_accepts_rich_element_content() {
 #[test]
 fn right_column_chrome_accepts_empty_container_content() {
     let content = iced::widget::container(iced::widget::text("")).into();
-    let chrome = super::right_column_chrome(content, 8.0);
+    let chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
 
     std::hint::black_box(chrome);
 }
@@ -76,7 +78,7 @@ async fn right_column_chrome_draws_inner_and_outer_styles() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0);
+    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
 
     draw_element(&mut chrome, &mut renderer, &Theme::Dark);
 }
@@ -88,7 +90,7 @@ async fn right_column_chrome_covers_its_bottom_border() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0);
+    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
     let bounds = Size::new(320.0, 480.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(chrome.as_widget());

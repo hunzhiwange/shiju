@@ -8,8 +8,11 @@ use iced::widget::{column, container};
 use iced::{Background, Element, Length, Theme};
 
 use crate::app::components::{chat_panel, input_panel};
+use crate::app::state::WorkspaceMode;
 use crate::app::theme_catalog::{ChromeStyleOverrides, resolve_chrome_style_from_skin};
 use crate::app::{App, Message};
+
+use super::super::styles::work_surface_style;
 
 /// 构建聊天区域的完整布局
 ///
@@ -61,6 +64,7 @@ pub fn chat_area(
 
     let radius = corner_radius + 4.0;
     let chrome = resolve_chrome_style_from_skin(app.active_theme_skin.as_ref(), &app.app_theme);
+    let use_work_surface = app.workspace_mode == WorkspaceMode::Work && chrome.panel_bg.is_none();
 
     // 组装完整的聊天区域布局
     let chat_area = column![
@@ -79,7 +83,13 @@ pub fn chat_area(
     container(chat_area)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(move |theme: &Theme| chat_area_style(theme, radius, Some(&chrome)))
+        .style(move |theme: &Theme| {
+            let mut style = chat_area_style(theme, radius, Some(&chrome));
+            if use_work_surface {
+                style.background = work_surface_style(theme).background;
+            }
+            style
+        })
         .into()
 }
 

@@ -67,6 +67,17 @@ pub fn workspace_background_style(theme: &Theme) -> ContainerStyle {
     ContainerStyle { background: Some(Background::Color(background)), ..Default::default() }
 }
 
+/// 工作模式侧栏与主区域共用的主题底色。
+pub(super) fn work_surface_style(theme: &Theme) -> ContainerStyle {
+    let palette = theme.extended_palette();
+    let background = if palette.is_dark {
+        palette.background.weak.color
+    } else {
+        crate::app::theme_catalog::panel_surface_color(theme, 1.0)
+    };
+    ContainerStyle { background: Some(Background::Color(background)), ..Default::default() }
+}
+
 /// 生成主题相关样式。
 ///
 /// # 参数

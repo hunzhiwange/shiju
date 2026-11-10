@@ -6,10 +6,12 @@ use iced::widget::{Space, container, stack};
 use iced::{Element, Length, Theme};
 
 use crate::app::Message;
+use crate::app::state::WorkspaceMode;
 
 use super::super::handles::{HResizeHandle, TopBorderCover};
 use super::super::styles::{
-    right_column_inner_style, right_column_outer_style, workspace_background_style,
+    right_column_inner_style, right_column_outer_style, work_surface_style,
+    workspace_background_style,
 };
 
 const RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT: f32 = 1.0;
@@ -19,6 +21,7 @@ const RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT: f32 = 1.0;
 /// # 参数
 /// - `right_column`: 当前视图构建所需的状态、配置或消息。
 /// - `corner_radius`: 当前视图构建所需的状态、配置或消息。
+/// - `mode`: 当前工作区模式，用于选择背景样式。
 ///
 /// # 返回
 /// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
@@ -28,12 +31,19 @@ const RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT: f32 = 1.0;
 pub fn right_column_chrome(
     right_column: Element<'_, Message>,
     corner_radius: f32,
+    mode: WorkspaceMode,
 ) -> Element<'_, Message> {
-    let right_column_inner = container(right_column)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .clip(true)
-        .style(move |theme: &Theme| right_column_inner_style(theme, corner_radius));
+    let right_column_inner =
+        container(right_column).width(Length::Fill).height(Length::Fill).clip(true).style(
+            move |theme: &Theme| {
+                let mut style = right_column_inner_style(theme, corner_radius);
+                if mode == WorkspaceMode::Work {
+                    style.background = work_surface_style(theme).background;
+                }
+                style
+            },
+        );
+
     let right_column_base = container(right_column_inner)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -43,7 +53,10 @@ pub fn right_column_chrome(
         container(Space::new())
             .width(Length::Fill)
             .height(Length::Fixed(RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT))
-            .style(workspace_background_style),
+            .style(match mode {
+                WorkspaceMode::Work => work_surface_style,
+                WorkspaceMode::Code => workspace_background_style,
+            }),
     )
     .width(Length::Fill)
     .height(Length::Fill)

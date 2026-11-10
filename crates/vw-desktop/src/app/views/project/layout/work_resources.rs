@@ -14,6 +14,8 @@ use crate::app::message::ViewMessage;
 use crate::app::state::WorkResourceMode;
 use crate::app::{App, Message};
 
+use super::super::styles::work_surface_style;
+
 const FILE_TREE_WIDTH: f32 = 286.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,15 +94,12 @@ pub(super) fn panel_style(theme: &Theme, mode: WorkResourceMode) -> container::S
     let palette = theme.extended_palette();
     let browser_mode = mode == WorkResourceMode::Browser;
     container::Style {
-        background: Some(Background::Color(crate::app::theme_catalog::panel_surface_color(
-            theme, 0.985,
-        ))),
         border: Border {
             width: if browser_mode { 0.0 } else { 1.0 },
             color: palette.background.strong.color.scale_alpha(0.62),
             radius: if browser_mode { 0.0 } else { 12.0 }.into(),
         },
-        ..Default::default()
+        ..work_surface_style(theme)
     }
 }
 

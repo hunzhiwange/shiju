@@ -6,6 +6,7 @@ use iced::widget::{Space, column, stack};
 use iced::{Element, Length};
 
 use crate::app::components::chat_panel;
+use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message};
 
 mod bottom;
@@ -91,7 +92,7 @@ pub fn build_base_layout(
         .unwrap_or_else(|| Space::new().width(Length::Fill).height(Length::Fill).into());
     let right_column: Element<'_, Message> =
         stack![right_column_base, right_overlay].width(Length::Fill).height(Length::Fill).into();
-    let right_column = right_column_chrome(right_column, corner_radius);
+    let right_column = right_column_chrome(right_column, corner_radius, WorkspaceMode::Code);
 
     let workspace: Element<'_, Message> = if let Some(handle) = left_resize_handle {
         iced::widget::row![left_sidebar, handle, right_column].spacing(spacing).into()

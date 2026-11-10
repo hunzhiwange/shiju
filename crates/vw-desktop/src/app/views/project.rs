@@ -33,7 +33,7 @@ mod layout;
 pub(crate) use layout::WorkSidebarModel;
 mod styles;
 use layout::{build_base_layout, build_work_layout, drag_badge_layer};
-use styles::workspace_background_style;
+use styles::{work_surface_style, workspace_background_style};
 pub mod utils;
 pub use utils::truncate_display_width;
 
@@ -87,7 +87,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     // 构建基础布局：包含左侧导航栏、会话面板和设置面板的主布局结构
-    let base_layout = if uses_work_layout(app) {
+    let work_layout = uses_work_layout(app);
+    let base_layout = if work_layout {
         build_work_layout(
             app,
             settings_panel_width,
@@ -121,7 +122,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let base = container(stack![base_layout, drag_badge_layer, session_picker_layer])
         .width(Length::Fill) // 容器宽度填满可用空间
         .height(Length::Fill) // 容器高度填满可用空间
-        .style(workspace_background_style)
+        .style(if work_layout { work_surface_style } else { workspace_background_style })
         .into();
     crate::app::components::input_panel::acp_options::with_modal(app, base)
 }

@@ -59,6 +59,121 @@ pub(crate) fn object_value(source: &[u8]) -> Result<Value, PatchError> {
         .map_err(|_| PatchError::Parse)
 }
 
+/// Replace one root member, retaining trivia inside compatible objects and arrays.
+#[cfg(target_os = "macos")]
+pub(crate) fn replace_member_preserving_trivia(
+    source: &[u8],
+    key: &str,
+    desired: Value,
+) -> Result<Vec<u8>, PatchError> {
+    let root = parse(source)?;
+    let Some(member) =
+        root.members.as_ref().and_then(|members| members.iter().find(|m| m.key == key))
+    else {
+        return JsonPatch { set: vec![(vec![key.to_owned()], desired)], ..Default::default() }
+            .apply(Some(source));
+    };
+    let masked = masked(source)?;
+    let span = member.value.start..member.value.end;
+    let before = serde_json::from_slice(&without_trailing_commas(&masked[span.clone()]))
+        .map_err(|_| PatchError::Parse)?;
+    let replacement = reconcile(source, &masked, &member.value, &before, &desired)?;
+    let mut result = source.to_vec();
+    result.splice(span, replacement);
+    parse(&result)?;
+    Ok(result)
+}
+
+#[cfg(target_os = "macos")]
+fn reconcile(
+    source: &[u8],
+    masked: &[u8],
+    target: &Node,
+    before: &Value,
+    desired: &Value,
+) -> Result<Vec<u8>, PatchError> {
+    let span = target.start..target.end;
+    if before == desired {
+        return Ok(source[span].to_vec());
+    }
+    match (before, desired) {
+        (Value::Object(before), Value::Object(desired)) => {
+            let mut result = source[span].to_vec();
+            let mut patch = JsonPatch::default();
+            for member in target.members.as_ref().ok_or(PatchError::Shape)?.iter().rev() {
+                if let Some(next) = desired.get(&member.key) {
+                    let child = &member.value;
+                    let old = before.get(&member.key).ok_or(PatchError::Shape)?;
+                    if old != next {
+                        let replacement = reconcile(source, masked, child, old, next)?;
+                        result.splice(
+                            child.start - target.start..child.end - target.start,
+                            replacement,
+                        );
+                    }
+                } else {
+                    patch.remove.push(vec![member.key.clone()]);
+                }
+            }
+            for (key, value) in desired.iter().filter(|(key, _)| !before.contains_key(*key)) {
+                patch.set.push((vec![key.clone()], value.clone()));
+            }
+            if patch.remove.is_empty() && patch.set.is_empty() {
+                Ok(result)
+            } else {
+                patch.apply(Some(&result))
+            }
+        }
+        (Value::Array(before), Value::Array(desired)) => {
+            reconcile_array(source, masked, target, before, desired)
+        }
+        _ => serde_json::to_vec(desired).map_err(|_| PatchError::Parse),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn reconcile_array(
+    source: &[u8],
+    masked: &[u8],
+    target: &Node,
+    before: &[Value],
+    desired: &[Value],
+) -> Result<Vec<u8>, PatchError> {
+    let mut result = vec![b'['];
+    let mut cursor = target.start + 1;
+    for (index, old) in before.iter().enumerate() {
+        let mut pos = cursor;
+        let child = node(masked, &mut pos)?;
+        result.extend_from_slice(&source[cursor..child.start]);
+        skip(masked, &mut pos);
+        let comma = masked[pos] == b',';
+        if let Some(next) = desired.get(index) {
+            result.extend(reconcile(source, masked, &child, old, next)?);
+            // Insert a new separator before trailing trivia (which may be a line comment).
+            if !comma && index + 1 < desired.len() {
+                result.push(b',');
+            }
+        }
+        result.extend_from_slice(&source[child.end..pos]);
+        if comma
+            && index < desired.len()
+            && (index + 1 < desired.len() || index + 1 == before.len())
+        {
+            result.push(b',');
+        }
+        cursor = pos + usize::from(comma);
+    }
+    result.extend_from_slice(&source[cursor..target.end - 1]);
+    for (index, value) in desired.iter().skip(before.len()).enumerate() {
+        if index > 0 {
+            result.push(b',');
+        }
+        serde_json::to_writer(&mut result, value).map_err(|_| PatchError::Parse)?;
+    }
+    result.push(b']');
+    Ok(result)
+}
+
 struct Node {
     start: usize,
     end: usize,

@@ -938,7 +938,15 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
         panel = panel.child(0);
     }
     let bounds = panel.bounds();
-    assert_eq!(bounds.width, 336.0);
+    let rows = panel.child(0).child(0).child(1);
+    let longest_row = rows.child(4).child(0);
+    let icon = longest_row.child(0).bounds();
+    let label = longest_row.child(1).bounds();
+    let left_inset = icon.x - bounds.x;
+    let right_inset = bounds.x + bounds.width - label.x - label.width;
+    assert!(bounds.width < 336.0);
+    assert!(left_inset > 0.0 && (left_inset - right_inset).abs() < 0.1);
+    assert_eq!(rows.child(0).bounds().width, rows.bounds().width);
     for theme in [Theme::Light, Theme::Dark] {
         menu.draw(
             &mut renderer,

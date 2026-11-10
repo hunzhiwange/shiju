@@ -876,44 +876,54 @@ fn more_menu_action(
     label: &'static str,
     icon: Icon,
     message: Message,
+    width: Length,
 ) -> Element<'static, Message> {
     button(
         row![
             container(navigation_icon(icon)).width(Length::Fixed(28.0)),
             text(i18n.__(label)).size(15),
-            Space::new().width(Length::Fill),
         ]
         .spacing(10)
-        .align_y(iced::Alignment::Center)
-        .width(Length::Fill),
+        .align_y(iced::Alignment::Center),
     )
     .on_press(close_more_then(message))
     .padding([11, 12])
-    .width(Length::Fill)
+    .width(width)
     .style(navigation_button_style)
     .into()
 }
 
-fn more_menu_items(i18n: crate::app::i18n::I18n) -> iced::widget::Column<'static, Message> {
+fn more_menu_items(
+    i18n: crate::app::i18n::I18n,
+    width: Length,
+) -> iced::widget::Column<'static, Message> {
     let specs = more_menu_item_specs();
     let add_url = Message::Batch(vec![
         Message::View(ViewMessage::OpenApps),
         Message::View(ViewMessage::ToggleWebLinksMenu),
     ]);
     column![
-        more_menu_action(i18n, specs[0].0, specs[0].1, add_url),
+        more_menu_action(i18n, specs[0].0, specs[0].1, add_url, width),
         more_menu_divider(),
-        more_menu_action(i18n, specs[1].0, specs[1].1, Message::View(ViewMessage::OpenKnowledge),),
+        more_menu_action(
+            i18n,
+            specs[1].0,
+            specs[1].1,
+            Message::View(ViewMessage::OpenKnowledge),
+            width
+        ),
         more_menu_action(
             i18n,
             specs[2].0,
             specs[2].1,
             Message::View(ViewMessage::OpenWorkflowTool),
+            width,
         ),
         more_menu_divider(),
-        more_menu_action(i18n, specs[3].0, specs[3].1, Message::View(ViewMessage::OpenApps),),
+        more_menu_action(i18n, specs[3].0, specs[3].1, Message::View(ViewMessage::OpenApps), width),
     ]
     .spacing(3)
+    .width(width)
 }
 
 fn more_control(app: &App) -> Element<'static, Message> {
@@ -928,7 +938,7 @@ fn more_control(app: &App) -> Element<'static, Message> {
     );
     let hover_trigger =
         mouse_area(trigger).on_enter(Message::View(ViewMessage::WorkSidebarMoreOpened));
-    let menu = container(more_menu_items(i18n))
+    let menu = container(more_menu_items(i18n, Length::Fill))
         .padding([12, 14])
         .width(Length::Fixed(252.0))
         .style(more_menu_style);

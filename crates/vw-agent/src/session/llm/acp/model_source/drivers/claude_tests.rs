@@ -217,6 +217,19 @@ fn acp_model_source_claude_chat_reasoning_model_disables_signed_thinking() {
 }
 
 #[test]
+fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
+    let mut launch = profile(&Default::default());
+    launch.model_api = Some(crate::provider::provider::ApiInfo {
+        id: "deepseek-flash".into(),
+        url: "https://api.deepseek.com".into(),
+        adapter: "openai-compatible".into(),
+    });
+    launch.model_supports_reasoning = true;
+    configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+}
+
+#[test]
 fn acp_model_source_claude_verified_effort_runtime_is_scoped() {
     let directory = tempfile::tempdir().unwrap();
     let entry = directory.path().join("claude-agent-acp");

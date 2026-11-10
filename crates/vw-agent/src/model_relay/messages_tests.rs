@@ -3,6 +3,56 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 #[test]
+fn acp_model_source_official_deepseek_keeps_legacy_tool_continuations_usable() {
+    let request = json!({
+        "thinking":{"type":"adaptive"},
+        "metadata":{"user_id":"private"},
+        "messages":[
+            {"role":"user","content":"Look it up"},
+            {"role":"assistant","content":[{"type":"tool_use","id":"t","name":"lookup","input":{}}]},
+            {"role":"user","content":[{"type":"tool_result","tool_use_id":"t","content":"42"}]}
+        ]
+    });
+    let mut legacy = request.clone();
+    messages::prepare_deepseek_native(&mut legacy).unwrap();
+    assert_eq!(legacy["thinking"]["type"], "disabled");
+    assert!(legacy.get("metadata").is_none());
+    assert_eq!(legacy["messages"], request["messages"]);
+
+    let mut next_turn = request.clone();
+    next_turn["messages"].as_array_mut().unwrap().extend([
+        json!({"role":"assistant","content":"42"}),
+        json!({"role":"user","content":"What else?"}),
+    ]);
+    messages::prepare_deepseek_native(&mut next_turn).unwrap();
+    assert_eq!(next_turn["thinking"]["type"], "adaptive");
+
+    let mut current = request;
+    current["messages"][1]["content"].as_array_mut().unwrap().insert(
+        0,
+        json!({"type":"thinking","thinking":"Need to look up the answer","signature":"native"}),
+    );
+    let history = current["messages"].clone();
+    messages::prepare_deepseek_native(&mut current).unwrap();
+    assert_eq!(current["thinking"]["type"], "adaptive");
+    assert_eq!(current["messages"], history);
+}
+
+#[test]
+fn acp_model_source_official_deepseek_rejects_server_side_tools() {
+    let mut request = json!({"messages": [], "mcp_servers": []});
+    assert_eq!(
+        messages::prepare_deepseek_native(&mut request),
+        Err(StatusCode::UNPROCESSABLE_ENTITY)
+    );
+    let mut request = json!({"messages": [], "tools": [{"type": "web_search"}]});
+    assert_eq!(
+        messages::prepare_deepseek_native(&mut request),
+        Err(StatusCode::UNPROCESSABLE_ENTITY)
+    );
+}
+
+#[test]
 fn acp_model_source_relay_messages_preserves_tool_roundtrip_and_system() {
     let request = json!({"model":"selected","max_tokens":64,"system":[{"type":"text","text":"Be concise"}],"messages":[
         {"role":"user","content":"hello"},

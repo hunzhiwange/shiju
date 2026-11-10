@@ -81,6 +81,14 @@ pub(crate) fn chat_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCo
     Ok(url)
 }
 
+pub(super) fn configure_messages_chat(body: &mut serde_json::Value, url: &reqwest::Url) {
+    // DeepSeek enables reasoning by default. The Messages bridge cannot carry
+    // Chat reasoning as signed Anthropic thinking or replay it across tool turns.
+    if url.scheme() == "https" && url.host_str() == Some("api.deepseek.com") {
+        body["thinking"] = serde_json::json!({"type": "disabled"});
+    }
+}
+
 /// The official DeepSeek Chat and Messages endpoints share model IDs and credentials.
 pub(crate) fn official_deepseek_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
     if !matches!(api.adapter.as_str(), "openai" | "openai-compatible")
@@ -244,8 +252,14 @@ impl RelayBackend for ProviderRelayBackend {
         let codex_chat =
             responses_request && !native_responses && identity.session.ends_with(":codex");
         let mut response_tools = super::responses::ChatTools::default();
-        let native = messages_request && model.api.adapter == "anthropic";
-        let body = if gemini_request {
+        let deepseek_messages = (messages_request
+            && model.capabilities.reasoning
+            && identity.session.ends_with(":claude"))
+        .then(|| official_deepseek_messages_url(&model.api))
+        .flatten();
+        let native =
+            messages_request && (model.api.adapter == "anthropic" || deepseek_messages.is_some());
+        let mut body = if gemini_request {
             let input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
             if native_gemini {
@@ -276,7 +290,11 @@ impl RelayBackend for ProviderRelayBackend {
                 &serde_json::to_vec(&converted).map_err(|_| StatusCode::BAD_REQUEST)?,
             )?
         } else if native {
-            super::messages::native(model, &identity.model, &request.body)?
+            let mut body = super::messages::native(model, &identity.model, &request.body)?;
+            if deepseek_messages.is_some() {
+                super::messages::prepare_deepseek_native(&mut body)?;
+            }
+            body
         } else if messages_request {
             let input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -294,11 +312,16 @@ impl RelayBackend for ProviderRelayBackend {
             gemini_url(model, streaming)?
         } else if native_responses {
             responses_url(model)?
+        } else if let Some(url) = deepseek_messages {
+            url
         } else if native {
             messages_url(model)?
         } else {
             chat_url(&model.api)?
         };
+        if messages_request && !native {
+            configure_messages_chat(&mut body, &url);
+        }
         let key = bearer(&info)?;
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(

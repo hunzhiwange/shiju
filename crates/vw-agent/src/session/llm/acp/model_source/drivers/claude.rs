@@ -36,7 +36,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
                     && !url.path().trim_end_matches('/').ends_with("/messages"),
                 "Claude selected model requires an unsupported protocol conversion"
             );
-            false
+            crate::model_relay::official_deepseek_messages_url(api).is_some()
         }
         _ => anyhow::bail!("Claude selected model protocol is unsupported"),
     };

@@ -311,3 +311,54 @@ pub(super) fn native(
     body["model"] = model.api.id.clone().into();
     Ok(body)
 }
+
+pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode> {
+    // Retain native thinking and SDK inference options without exposing account
+    // metadata or enabling server-side MCP or tools.
+    object_keys(
+        body,
+        &[
+            "model",
+            "messages",
+            "system",
+            "max_tokens",
+            "stream",
+            "temperature",
+            "top_p",
+            "tools",
+            "tool_choice",
+            "metadata",
+            "thinking",
+            "output_config",
+            "context_management",
+        ],
+    )?;
+    body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("metadata");
+    if let Some(tools) = body.get("tools") {
+        for tool in tools.as_array().ok_or(StatusCode::BAD_REQUEST)? {
+            object_keys(tool, &["name", "description", "input_schema", "cache_control"])?;
+        }
+    }
+
+    // DeepSeek requires thinking from earlier tool rounds in the current turn.
+    // Old Chat-converted history has none. Resume that turn without inventing
+    // thinking or signatures, then allow thinking again on the next user turn.
+    let messages = body["messages"].as_array().ok_or(StatusCode::BAD_REQUEST)?;
+    for message in messages.iter().rev() {
+        let blocks = message["content"].as_array().into_iter().flatten();
+        if message["role"] == "user" && !blocks.clone().any(|block| block["type"] == "tool_result")
+        {
+            break;
+        }
+        if message["role"] == "assistant"
+            && blocks.clone().any(|block| block["type"] == "tool_use")
+            && !blocks
+                .filter(|block| block["type"] == "thinking")
+                .any(|block| block["thinking"].as_str().is_some_and(|text| !text.is_empty()))
+        {
+            body["thinking"] = json!({"type": "disabled"});
+            break;
+        }
+    }
+    Ok(())
+}

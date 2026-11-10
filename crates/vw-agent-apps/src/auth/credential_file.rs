@@ -315,7 +315,15 @@ impl CredentialFileStore {
         let path = self.location(tenant, host, app, id)?;
         #[cfg(unix)]
         {
-            CredentialLease::new(self.scoped_path(path), CredentialKind::App(app), create)
+            let lease =
+                CredentialLease::new(self.scoped_path(path), CredentialKind::App(app), create)?;
+            #[cfg(target_os = "macos")]
+            let lease = if app == AppId::Claude && self.owner.is_some() {
+                lease.with_claude_profile_scope(tenant, host)
+            } else {
+                lease
+            };
+            Ok(lease)
         }
         #[cfg(not(unix))]
         {

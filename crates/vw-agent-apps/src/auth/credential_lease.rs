@@ -14,6 +14,11 @@ use std::{ffi::CStr, fs::File, os::fd::AsRawFd, sync::Mutex};
 use vw_api_types::agent_apps::AppId;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_api_types::agent_apps_auth::AuthErrorCode;
+#[cfg(target_os = "macos")]
+use {
+    super::claude_login_files::Directory, crate::providers::live::write_guard::WriteError,
+    vw_api_types::TenantScope,
+};
 
 const CREDENTIAL_GENERATION_CHANGED: &str = "official credential changed before publication";
 
@@ -24,6 +29,8 @@ pub struct CredentialLease {
     kind: CredentialKind,
     lock: CredentialLock,
     write: Mutex<()>,
+    #[cfg(target_os = "macos")]
+    claude_profile_scope: Option<(TenantScope, String)>,
 }
 
 #[cfg(unix)]
@@ -36,7 +43,15 @@ impl CredentialLease {
         let directory = location.directory(create)?;
         let name = child_name(&location.path.with_extension("session-lock"))?;
         let lock = CredentialLock::acquire(&directory, &name)?;
-        let lease = Self { location, directory, kind, lock, write: Mutex::new(()) };
+        let lease = Self {
+            location,
+            directory,
+            kind,
+            lock,
+            write: Mutex::new(()),
+            #[cfg(target_os = "macos")]
+            claude_profile_scope: None,
+        };
         lease.check()?;
         Ok(lease)
     }
@@ -107,6 +122,43 @@ impl CredentialLease {
     pub fn read(&self) -> Result<AccountCredential, String> {
         self.check()?;
         read_from(&self.directory, &self.location.path, self.kind)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn with_claude_profile_scope(mut self, tenant: &TenantScope, host: &str) -> Self {
+        self.claude_profile_scope = Some((tenant.clone(), host.into()));
+        self
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn claude_profile_scope(&self) -> Result<&(TenantScope, String), WriteError> {
+        self.claude_profile_scope.as_ref().ok_or(WriteError::InvalidResource)
+    }
+
+    /// Open the registered account's profile directory relative to the checked lease.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn open_claude_profile(&self) -> Result<Directory, WriteError> {
+        self.claude_profile_scope()?;
+        let Ok(AccountCredential::ClaudeDirectory(config)) = self.read() else {
+            return Err(WriteError::InvalidResource);
+        };
+        let name = child_name(config.path()).map_err(|_| WriteError::InvalidResource)?;
+        let directory = self
+            .directory
+            .open_child(&name, libc::O_RDONLY | libc::O_DIRECTORY, 0)
+            .map_err(|_| WriteError::InvalidResource)?;
+        check_private(&directory, 0o700).map_err(|_| WriteError::InvalidResource)?;
+        Ok(Directory(directory))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn verify_claude_profile(&self, expected: &File) -> Result<(), WriteError> {
+        let current = self.open_claude_profile()?;
+        if same_file(expected, &current.0).map_err(|_| WriteError::Io)? {
+            Ok(())
+        } else {
+            Err(WriteError::Conflict)
+        }
     }
 
     pub fn save(&self, credential: &AccountCredential) -> Result<(), String> {

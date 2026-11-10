@@ -1,5 +1,9 @@
 //! Application-specific projections for native MCP configurations.
 
+pub mod claude;
+#[cfg(test)]
+mod claude_tests;
+
 pub mod hermes;
 #[cfg(test)]
 mod hermes_tests;

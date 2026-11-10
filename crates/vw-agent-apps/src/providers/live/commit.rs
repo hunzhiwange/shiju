@@ -141,6 +141,10 @@ pub struct ProviderTransactions {
     pub(super) host: ExecutionHostId,
 }
 impl ProviderTransactions {
+    pub(crate) fn is_for_host(&self, host: &str) -> bool {
+        self.host.0 == host
+    }
+
     /// Executor initialization factory. Caller supplies the authorized host's
     /// existing private root; no discovery, client path or tenant root fallback.
     pub fn new(private_root: &Path, host: ExecutionHostId) -> Result<Self, WriteError> {

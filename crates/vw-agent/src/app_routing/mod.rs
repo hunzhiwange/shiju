@@ -3,6 +3,7 @@ mod browser_guard;
 pub(crate) mod config_apply;
 mod dispatch;
 pub(crate) mod gateway_owner;
+mod header_wire;
 mod listener;
 mod override_apply;
 pub(crate) mod reference_scope;

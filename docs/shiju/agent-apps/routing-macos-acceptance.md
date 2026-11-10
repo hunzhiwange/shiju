@@ -450,3 +450,28 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（本项暂存差异） | 退出 0。 |
 
 槽位锁已释放，缓存保留。状态为 **已完成**。
+
+## 任务 17　保留安全的头部线协议
+
+2026-11-10 至 2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 16 的 `aa88e2027`。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/hyper_client.rs`、`proxy/response_processor.rs` 与仓库快照逐字节一致，SHA256 匹配来源映射。检查了来源 `server.rs` 的入站头部捕获、`forwarder.rs` 的认证和实体头处理，以及逐跳头剥离用例。沿用母任务 2、3 的执行主机、项目和应用身份，复用母任务 4 的供应商请求选项。原生配置写入和账号凭据租约继续由母任务 4、6 的各自执行端负责。
+
+- 已授权的 Codex 非流式 `POST /v1/chat/completions` 通过 `route_auth::serve`、`dispatch::forward_json` 和 `SharedTransport::forward_ordered`。监听器在现有 HTTP/1 头部时限和大小限制内获取完整头部前缀并原样交给 Hyper。原始信息只用于保留 `Accept`、`Accept-Language` 和 `User-Agent` 的拼写和顺序。取值使用 Hyper 已解析的请求头，同名多值保持顺序，供应商覆盖优先。
+- 所有 `Connection` 字段中声明的逐跳头先被移除。请求正文重建时剥离旧长度、编码和摘要等实体头。执行端为绑定目标生成 Host、长度和认证，响应侧继续只向应用返回 JSON 媒体类型及正确的传输帧。
+- 保留线序的直连路径使用 HTTP/1.1，HTTPS 使用平台证书校验。Hyper 负责解析上游响应，沿用现有压缩解码中间件。命中代理时现有客户端继续负责出口，代理路径的原始拼写和顺序留给任务 25、26。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。
+- 回环夹具通过真实授权监听和出站 TCP，验证分片头部、大小写混合的交错重复值、逐跳头和客户端凭证剥离、供应商认证、重建正文及生成后的长度，以及响应逐跳头和 Cookie 不回传。
+
+格式化及测试使用共享槽位 **3** 和 **1**。对应的 `CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` 与 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。`CARGO_BUILD_BUILD_DIR` 与该阶段目标目录相同，使用 `CARGO_INCREMENTAL=0`。下表中的二进制命令使用槽位 1。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all -- --emit stdout` | 各轮退出 0，仅写回本项 Rust 文件。 |
+| 首轮编译 | `cargo test -p vw-agent --lib cc_route_017_ -- --nocapture` | 槽位 3，退出 101，执行 0 项。测试改为在授权模块内注册，复用私有目标绑定接口。 |
+| 行为红灯 | `cargo test -p vw-agent --lib cc_route_017_ -- --nocapture` | 槽位 1，1 项执行、1 项失败。上游只收到默认的 `accept: */*`。记录退出码的脚本在测试期间被改写，包装进程退出 127，未捕获 Cargo 退出码。 |
+| 红灯复现 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-1a5158046c3572f0" cc_route_017_ --nocapture` | 同一二进制再次触发允许头的拼写与顺序断言，退出 101，1 项失败。 |
+| 首轮绿灯构建 | `cargo test -p vw-agent --lib cc_route_017_ -- --nocapture` | 退出 101，执行 0 项。修复解码中间件闭包的请求正文所有权，使监听任务满足 `Send`。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_017_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。 |
+| 相关回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-d5cd992c0fb3d499" <过滤前缀> --nocapture` | 分别运行 `cc_route_002_`、`cc_route_008_`、`cc_route_014_`、`cc_route_015_`、`cc_route_016_`，退出码均为 0，通过数依次为 3、3、1、3、1。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 1，退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+红、绿测试链接均报告既有的 macOS `__eh_frame` 大小警告。各阶段的任务锁均已释放，构建缓存保留。状态为 **已完成**。

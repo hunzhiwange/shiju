@@ -1,6 +1,11 @@
 //! Minimal authorized JSON request path for the application listener.
 
-use super::{SharedTransport, override_apply, route_auth::AuthorizedRoute};
+use super::{
+    SharedTransport,
+    header_wire::{self, HeaderWire},
+    override_apply,
+    route_auth::AuthorizedRoute,
+};
 use axum::{
     body::{Body, to_bytes},
     http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header},
@@ -26,7 +31,7 @@ pub(super) struct JsonTarget {
 }
 
 pub(super) async fn forward_json(
-    request: Request<Incoming>,
+    mut request: Request<Incoming>,
     route: &AuthorizedRoute,
 ) -> Result<Response, StatusCode> {
     let (app, target, cancelled) = route.json_target().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
@@ -36,12 +41,17 @@ pub(super) async fn forward_json(
     if request.method() != Method::POST {
         return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
-    if !is_json(request.headers()) || request.headers().contains_key(header::CONTENT_ENCODING) {
+    if request.headers().contains_key(header::CONTENT_ENCODING) {
         return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
+    header_wire::strip_hop_headers(request.headers_mut());
+    if !is_json(request.headers()) {
+        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    }
+    let (mut parts, incoming) = request.into_parts();
     let bytes = tokio::time::timeout(
         Duration::from_secs(10),
-        to_bytes(Body::new(request.into_body()), MAX_JSON_BYTES),
+        to_bytes(Body::new(incoming), MAX_JSON_BYTES),
     )
     .await
     .map_err(|_| StatusCode::REQUEST_TIMEOUT)?
@@ -52,9 +62,22 @@ pub(super) async fn forward_json(
     }
 
     // Native Chat uses the parsed document unchanged at the conversion step.
-    let outgoing = prepare_request(&body, target)?;
-    let mut response = target.transport.forward(&target.url, outgoing, cancelled).await?;
-    if !response.status().is_success() || !is_json(response.headers()) {
+    let mut outgoing = prepare_request(&body, target)?;
+    let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
+    wire.retain_allowed(&parts.headers, outgoing.headers_mut());
+    let mut response =
+        target.transport.forward_ordered(&target.url, outgoing, wire, cancelled).await?;
+    if !response.status().is_success()
+        || response
+            .headers()
+            .get_all(header::CONTENT_ENCODING)
+            .iter()
+            .any(|value| !value.as_bytes().eq_ignore_ascii_case(b"identity"))
+    {
+        return Err(StatusCode::BAD_GATEWAY);
+    }
+    header_wire::strip_hop_headers(response.headers_mut());
+    if !is_json(response.headers()) {
         return Err(StatusCode::BAD_GATEWAY);
     }
     response.headers_mut().clear();
@@ -72,6 +95,8 @@ pub(super) fn prepare_request(
     if let Some(overrides) = &target.request_options.local_proxy_request_overrides {
         override_apply::apply(&mut body, outgoing.headers_mut(), overrides)?;
     }
+    header_wire::strip_hop_headers(outgoing.headers_mut());
+    header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());
     *outgoing.body_mut() =
         Some(serde_json::to_vec(&body).map_err(|_| StatusCode::BAD_REQUEST)?.into());
     // The router owns the media type and the credential for this destination.

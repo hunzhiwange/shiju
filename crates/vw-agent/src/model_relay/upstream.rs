@@ -7,13 +7,14 @@ use futures_util::StreamExt;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
-pub(super) const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+pub(crate) const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+pub(crate) const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Common upstream client for relay transports: credentials must never follow redirects.
 pub fn upstream_http_client() -> Result<reqwest::Client, reqwest::Error> {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(10))
+        .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
         .build()
 }
@@ -24,6 +25,18 @@ pub(crate) async fn execute(
     request: reqwest::Request,
     cancel: &CancellationToken,
 ) -> Result<reqwest::Response, StatusCode> {
+    validate_target(authorized_target, &request)?;
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
+        response = client.execute(request) => response.map_err(|_| StatusCode::BAD_GATEWAY),
+    }
+}
+
+pub(crate) fn validate_target(
+    authorized_target: &reqwest::Url,
+    request: &reqwest::Request,
+) -> Result<(), StatusCode> {
     if request.url() != authorized_target || request.headers().contains_key(header::HOST) {
         return Err(StatusCode::FORBIDDEN);
     }
@@ -34,11 +47,7 @@ pub(crate) async fn execute(
     {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
-    tokio::select! {
-        biased;
-        () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
-        response = client.execute(request) => response.map_err(|_| StatusCode::BAD_GATEWAY),
-    }
+    Ok(())
 }
 
 pub(crate) fn response_body(response: reqwest::Response, cancel: CancellationToken) -> Body {

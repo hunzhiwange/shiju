@@ -1,6 +1,6 @@
 //! Application capabilities owned by the gateway's routing listener.
 
-use super::{browser_guard, dispatch::JsonTarget};
+use super::{browser_guard, dispatch::JsonTarget, header_wire};
 use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
@@ -9,8 +9,8 @@ use hyper::{Request, body::Incoming, server::conn::http1, service::service_fn};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use parking_lot::Mutex;
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, convert::Infallible, future::Future, sync::Arc, time::Duration};
-use tokio::{net::TcpStream, sync::oneshot};
+use std::{collections::HashMap, convert::Infallible, future::Future, sync::Arc};
+use tokio::{net::TcpStream, sync::oneshot, time::timeout};
 use tokio_util::sync::CancellationToken;
 use vw_api_types::{agent_apps::AppId, id::ProjectScope};
 
@@ -232,11 +232,16 @@ where
     let Ok(local_addr) = connection.local_addr() else {
         return;
     };
+    let Ok(Ok((connection, wire))) =
+        timeout(header_wire::HEAD_TIMEOUT, header_wire::capture(connection)).await
+    else {
+        return;
+    };
     let (send_cancel, receive_cancel) = oneshot::channel::<CancellationToken>();
-    let send_cancel = Mutex::new(Some(send_cancel));
+    let connection_state = Mutex::new(Some((send_cancel, wire)));
     let service = service_fn(|mut request: Request<Incoming>| {
         let auth = &auth;
-        let send_cancel = &send_cancel;
+        let connection_state = &connection_state;
         let dispatch = &dispatch;
         async move {
             let has_origin = request.headers().contains_key(header::ORIGIN);
@@ -251,7 +256,7 @@ where
             if has_origin && route.binding.app != AppId::ClaudeDesktop {
                 return Ok(StatusCode::FORBIDDEN.into_response());
             }
-            let Some(send_cancel) = send_cancel.lock().take() else {
+            let Some((send_cancel, wire)) = connection_state.lock().take() else {
                 return Ok(StatusCode::UNAUTHORIZED.into_response());
             };
             if send_cancel.send(route.cancelled.clone()).is_err() || route.cancelled.is_cancelled()
@@ -260,13 +265,18 @@ where
             }
             request.headers_mut().remove(header::AUTHORIZATION);
             request.headers_mut().remove(API_KEY);
+            request.extensions_mut().insert(wire);
             Ok(dispatch(request, route).await)
         }
     });
     // One request per connection lets revocation drop the whole HTTP future,
     // even while it cannot write the response because the client stopped reading.
     let mut http = http1::Builder::new();
-    http.keep_alive(false).timer(TokioTimer::new()).header_read_timeout(Duration::from_secs(5));
+    http.keep_alive(false)
+        .max_headers(header_wire::MAX_HEADERS)
+        .max_buf_size(header_wire::MAX_HEAD_BYTES)
+        .timer(TokioTimer::new())
+        .header_read_timeout(header_wire::HEAD_TIMEOUT);
     let revoked = async {
         match receive_cancel.await {
             Ok(cancel) => cancel.cancelled().await,
@@ -295,3 +305,7 @@ mod dispatch_tests;
 #[cfg(test)]
 #[path = "override_apply_tests.rs"]
 mod override_apply_tests;
+
+#[cfg(test)]
+#[path = "header_wire_tests.rs"]
+mod header_wire_tests;

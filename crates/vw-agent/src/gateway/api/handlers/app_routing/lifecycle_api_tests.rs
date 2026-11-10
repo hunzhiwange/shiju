@@ -133,6 +133,54 @@ fn assert_error(error: AppRoutingError, status: u16, code: &str) {
 }
 
 #[tokio::test]
+async fn cc_route_011_lifecycle_reads_the_persisted_listener_config() -> anyhow::Result<()> {
+    use crate::{
+        app_routing::{
+            RoutingListener,
+            config_apply::{ListenerConfig, RoutingConfigStore},
+        },
+        global_database::GlobalDatabase,
+    };
+    use std::sync::Arc;
+
+    let home = tempfile::tempdir()?;
+    let policy = home.path().join("access.json");
+    let occupied = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
+    let fallback = occupied.local_addr()?;
+    write_policy(&policy, home.path(), fallback.port());
+    let mut value: Value = serde_json::from_slice(&fs::read(&policy)?)?;
+    value["hosts"][0]["routing_startup"]["enabled"] = json!(true);
+    fs::write(&policy, value.to_string())?;
+
+    let store = Arc::new(RoutingConfigStore::new(
+        GlobalDatabase::for_home(home.path())?,
+        TenantScope::new("p", "owner")?,
+        HOST.into(),
+    )?);
+    let saved = ListenerConfig {
+        enabled: false,
+        bind: (Ipv4Addr::LOCALHOST, 0).into(),
+        logging_enabled: true,
+    };
+    store
+        .apply_listener(
+            &Arc::new(RoutingListener::default()),
+            ListenerConfig { enabled: true, bind: fallback, logging_enabled: false },
+            saved,
+        )
+        .await?;
+
+    let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+    let client = client(port, "owner");
+    assert_eq!(client.app_routing_status(HOST, READER).await?.state, RoutingState::Stopped);
+    let started = client.app_routing_start(HOST, MANAGER).await?;
+    assert_eq!(started.state, RoutingState::Running);
+    assert!(started.bound_port.is_some_and(|port| port != 0 && port != fallback.port()));
+    client.app_routing_stop(HOST, MANAGER).await?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn cc_route_010_lifecycle_api_expected_behavior() {
     let home = tempfile::TempDir::new().unwrap();
     let policy = home.path().join("access.json");

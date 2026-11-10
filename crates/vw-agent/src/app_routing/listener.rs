@@ -10,7 +10,10 @@ use std::{
     future::Future,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::{Arc, Weak},
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 use tokio::{
     net::{TcpListener, TcpSocket, TcpStream},
@@ -47,6 +50,8 @@ struct RunningListener {
     started_at: chrono::DateTime<chrono::Utc>,
     shutdown: oneshot::Sender<()>,
     exited: oneshot::Receiver<()>,
+    #[cfg(target_os = "macos")]
+    retired: Arc<AtomicBool>,
 }
 
 type ListenerLifecycle = Mutex<Lifecycle<RunningListener>>;
@@ -60,6 +65,7 @@ pub struct RoutingListener {
     // before draining the single listener.
     control_closed: Arc<tokio::sync::Mutex<bool>>,
     pub(super) auth: Arc<RouteAuth>,
+    logging_enabled: Arc<AtomicBool>,
 }
 
 impl RoutingListener {
@@ -127,11 +133,77 @@ impl RoutingListener {
 
     fn start_http(&self, address: SocketAddr) -> Result<SocketAddr, ListenerError> {
         let auth = Arc::clone(&self.auth);
+        let logging = Arc::clone(&self.logging_enabled);
         self.start_at(address, move |connection| {
-            Some(route_auth::serve(connection, Arc::clone(&auth), |_, _| async {
-                axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response()
-            }))
+            Some(serve_http(connection, Arc::clone(&auth), Arc::clone(&logging)))
         })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn start_configured(
+        &self,
+        config: super::config_apply::ListenerConfig,
+    ) -> Result<SocketAddr, ListenerError> {
+        let address = self.start_http(config.bind)?;
+        self.logging_enabled.store(config.logging_enabled, Ordering::Relaxed);
+        Ok(address)
+    }
+
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn logging_enabled(&self) -> bool {
+        self.logging_enabled.load(Ordering::Relaxed)
+    }
+
+    /// The gateway control permit must cover the entire write and publication.
+    #[cfg(target_os = "macos")]
+    pub(super) fn apply_config(
+        &self,
+        current: super::config_apply::ListenerConfig,
+        config: super::config_apply::ListenerConfig,
+        commit: impl FnOnce() -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        let replacement = match self.bound_address() {
+            Some(bound) if current.bind != config.bind && bound != config.bind => {
+                anyhow::ensure!(!self.has_active_routes(), "application routes are attached");
+                let runtime =
+                    Handle::try_current().map_err(|_| ListenerError::RuntimeUnavailable)?;
+                let socket = bind_listener(config.bind)?;
+                let address = socket.local_addr()?;
+                Some((runtime, socket, address))
+            }
+            _ => None,
+        };
+        // A failed bind or write leaves the original task and its configuration intact.
+        commit()?;
+        self.logging_enabled.store(config.logging_enabled, Ordering::Relaxed);
+        if let Some((runtime, socket, address)) = replacement {
+            let auth = Arc::clone(&self.auth);
+            let logging = Arc::clone(&self.logging_enabled);
+            let mut lifecycle = self.lifecycle.lock();
+            // The listener may have exited on its own while the database write ran.
+            let previous = match std::mem::replace(&mut *lifecycle, Lifecycle::Starting) {
+                Lifecycle::Running(running) => {
+                    running.retired.store(true, Ordering::Relaxed);
+                    drop(running.shutdown);
+                    Some(running.exited)
+                }
+                Lifecycle::Failed => None,
+                _ => unreachable!("the control permit serializes listener transitions"),
+            };
+            let (running, task) = self.prepare_task(socket, address);
+            lifecycle.finish_start(Some(running));
+            drop(lifecycle);
+            runtime.spawn(async move {
+                if let Some(exited) = previous {
+                    let _ = exited.await;
+                }
+                task.serve(move |connection| {
+                    Some(serve_http(connection, Arc::clone(&auth), Arc::clone(&logging)))
+                })
+                .await;
+            });
+        }
+        Ok(())
     }
 
     /// Connection futures own request handlers and response bodies so stopping
@@ -185,57 +257,84 @@ impl RoutingListener {
         Fut: Future<Output = ()> + Send + 'static,
     {
         let runtime = Handle::try_current().map_err(|_| ListenerError::RuntimeUnavailable)?;
-        let socket = bind_listener(requested).map_err(|error| {
-            if error.kind() == io::ErrorKind::AddrInUse {
-                ListenerError::AddressInUse
-            } else {
-                ListenerError::Bind(error)
-            }
-        })?;
+        let socket = bind_listener(requested)?;
         let address = socket.local_addr()?;
+        let (running, task) = self.prepare_task(socket, address);
+        self.lifecycle.lock().finish_start(Some(running));
+        runtime.spawn(task.serve(serve_connection));
+        Ok(address)
+    }
+
+    fn prepare_task(
+        &self,
+        socket: TcpListener,
+        address: SocketAddr,
+    ) -> (RunningListener, ListenerTask) {
         let (shutdown, stop) = oneshot::channel();
         let (completion, exited) = oneshot::channel();
+        #[cfg(target_os = "macos")]
+        let retired = Arc::new(AtomicBool::new(false));
         let task = ListenerTask {
             socket,
+            stop,
             _on_exit: ListenerExit {
                 lifecycle: Arc::downgrade(&self.lifecycle),
                 _completion: completion,
+                #[cfg(target_os = "macos")]
+                retired: Arc::clone(&retired),
             },
         };
-        self.lifecycle.lock().finish_start(Some(RunningListener {
+        let running = RunningListener {
             address,
             #[cfg(target_os = "macos")]
             started_at: chrono::Utc::now(),
             shutdown,
             exited,
-        }));
-        runtime.spawn(task.serve(stop, serve_connection));
-        Ok(address)
+            #[cfg(target_os = "macos")]
+            retired,
+        };
+        (running, task)
     }
 }
 
-fn bind_listener(requested: SocketAddr) -> io::Result<TcpListener> {
+async fn serve_http(connection: TcpStream, auth: Arc<RouteAuth>, logging: Arc<AtomicBool>) {
+    route_auth::serve(connection, auth, |_, _| async {
+        if logging.load(Ordering::Relaxed) {
+            tracing::info!("Authorized application routing request");
+        }
+        axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response()
+    })
+    .await;
+}
+
+fn bind_listener(requested: SocketAddr) -> Result<TcpListener, ListenerError> {
     let socket = if requested.is_ipv4() { TcpSocket::new_v4()? } else { TcpSocket::new_v6()? };
     // Allow restarting on the same Unix port while closed connections are in TIME_WAIT.
     #[cfg(unix)]
     socket.set_reuseaddr(true)?;
-    socket.bind(requested)?;
-    socket.listen(128)
+    socket.bind(requested).and_then(|()| socket.listen(128)).map_err(|error| {
+        if error.kind() == io::ErrorKind::AddrInUse {
+            ListenerError::AddressInUse
+        } else {
+            ListenerError::Bind(error)
+        }
+    })
 }
 
 struct ListenerTask {
     // Field order releases the socket before publishing the terminal state.
     socket: TcpListener,
+    stop: oneshot::Receiver<()>,
     _on_exit: ListenerExit,
 }
 
 impl ListenerTask {
-    async fn serve<F, Fut>(self, stop: oneshot::Receiver<()>, serve_connection: F)
+    async fn serve<F, Fut>(self, serve_connection: F)
     where
         F: Fn(TcpStream) -> Option<Fut>,
         Fut: Future<Output = ()> + Send + 'static,
     {
-        shutdown::serve(self.socket, stop, serve_connection).await;
+        shutdown::serve(self.socket, self.stop, serve_connection).await;
     }
 }
 
@@ -243,12 +342,19 @@ struct ListenerExit {
     lifecycle: Weak<ListenerLifecycle>,
     // Closing the channel signals stop after the socket, tasks and state are settled.
     _completion: oneshot::Sender<()>,
+    #[cfg(target_os = "macos")]
+    retired: Arc<AtomicBool>,
 }
 
 impl Drop for ListenerExit {
     fn drop(&mut self) {
         if let Some(lifecycle) = self.lifecycle.upgrade() {
-            lifecycle.lock().listener_exited();
+            let mut lifecycle = lifecycle.lock();
+            #[cfg(target_os = "macos")]
+            if self.retired.load(Ordering::Relaxed) {
+                return;
+            }
+            lifecycle.listener_exited();
         }
     }
 }

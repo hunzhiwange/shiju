@@ -1,4 +1,6 @@
 mod browser_guard;
+#[cfg(target_os = "macos")]
+pub(crate) mod config_apply;
 pub(crate) mod gateway_owner;
 mod listener;
 pub(crate) mod reference_scope;
@@ -7,6 +9,9 @@ mod shared_transport;
 mod shutdown;
 pub use listener::{ListenerError, RoutingListener};
 pub use shared_transport::SharedTransport;
+
+#[cfg(all(test, target_os = "macos"))]
+mod config_apply_tests;
 
 #[cfg(test)]
 mod listener_tests;

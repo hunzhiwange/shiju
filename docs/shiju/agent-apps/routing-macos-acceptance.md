@@ -309,3 +309,27 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 监听回归 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过。 |
 | 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
 | 差异检查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
+
+## 任务 11　原子更新运行参数
+
+2026-11-10，macOS 27.0（26A428），arm64。以批次 10 的 `ff417dc2e` 为基线。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `services/proxy.rs` 与 `proxy/types.rs` 的仓库快照匹配来源映射的 SHA256。核对了来源全局配置入口、应用级入口和占用端口恢复测试。
+
+- `app_routing::config_apply::RoutingConfigStore` 使用母任务 2 的 `GatewaySettingsStore` 和当前配置的 `GlobalDatabase`。监听记录按租户和执行主机存储。超时记录另按租户、执行主机、项目和应用存储。三项超时分别校验，只有空闲超时允许 0。更新整条应用超时记录时保留其他作用域和监听记录。
+- 全局更新沿用网关监听控制许可。重绑先准备新回环端口，再以原记录为条件写入数据库。绑定或写入失败时保留旧记录、旧监听任务和日志状态，释放预备套接字。成功提交后旧监听停止接收并回收连接，新监听接管同一鉴权状态。日志开关在运行中即时生效，仅输出无请求内容或身份的授权事件。端口 0 保持为配置中的系统分配意图，实际端口由监听状态返回。
+- 批次 10 的授权启动入口读取持久设置。管理员策略继续决定能否自动启动，已存禁用可取消本次启动恢复，手动启停仍执行原有主机授权。活动路由阻止改绑。任务 12 接入配置 API/SDK 时检查已落盘的客户端附接，任务 21 消费应用超时执行请求限时，任务 87 负责原生客户端连接地址重投影。WSL 连接地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔离模式。双库均用真实回环 HTTP/TCP 验证端口冲突和数据库拒绝更新时旧端口仍返回 401、候选端口可回收、日志开关热更新、成功切换、非法输入拒绝及不同应用、项目与主机的隔离。网关子进程通过 SDK 验证持久禁用抑制自动启动，并在授权手动启动时使用持久端口配置。
+
+验证在 `ff417dc2e` 的隔离源码快照完成，排除了无关格式化差异。红灯和绿灯均实际领取槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 为该路径下的 `build`。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红、绿阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_011_ -- --nocapture` | 退出 101，两库各 1 项均因端口冲突后配置被覆盖而失败。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_011_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 生命周期回归 | `cargo test -p vw-agent --lib cc_route_010_ -- --nocapture` | 退出 0，3 项通过。 |
+| 路由回归 | `cargo test -p vw-agent --lib app_routing:: -- --nocapture` | 退出 0，30 项通过，2 项子进程夹具由父测试调用。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 首次检查及共享工作区其他 Clippy 退出后的串行复核均退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
+
+提交的 Rust 文件与绿灯快照逐字一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位 1 的任务锁均已释放，编译缓存保留。状态为 **已完成**。

@@ -1,6 +1,12 @@
 //! Host management endpoints for the gateway-owned application listener.
 use super::super::agent_apps::{RoutingControlScope, authorize_routing_control, routing_setup};
-use crate::app_routing::{ListenerError, RoutingListener};
+use crate::{
+    app_routing::{
+        ListenerError, RoutingListener,
+        config_apply::{ListenerConfig, RoutingConfigStore},
+    },
+    global_database::GlobalDatabase,
+};
 use axum::{
     Extension, Json, Router,
     extract::{Path, rejection::JsonRejection},
@@ -24,6 +30,7 @@ pub(crate) struct RoutingControl {
     routing: Arc<RoutingListener>,
     scope: Arc<RoutingControlScope>,
     policy: PathBuf,
+    policy_default: ListenerConfig,
 }
 
 pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Router {
@@ -39,23 +46,53 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
         tracing::warn!("Application routing policy rejected");
         return app;
     };
-    if let Some(address) = setup.startup_address
-        && let Err(error) = routing.start_on(&address.ip().to_string(), address.port())
-    {
-        tracing::warn!(%error, "Application routing startup failed");
+    let Some(scope) = setup.control else {
+        if let Some(bind) = setup.startup_address
+            && let Err(error) = routing.start_on(&bind.ip().to_string(), bind.port())
+        {
+            tracing::warn!(%error, "Application routing startup failed");
+        }
+        return app;
+    };
+    let policy_default = ListenerConfig {
+        enabled: setup.startup_address.is_some(),
+        bind: scope.bind,
+        logging_enabled: false,
+    };
+    let control = RoutingControl {
+        routing: Arc::clone(routing),
+        scope: Arc::new(scope),
+        policy,
+        policy_default,
+    };
+    if policy_default.enabled {
+        match control.config().await {
+            Ok(config) if config.enabled => {
+                if let Err(error) = routing.start_configured(config) {
+                    tracing::warn!(%error, "Application routing startup failed");
+                }
+            }
+            Ok(_) => {}
+            Err(_) => tracing::warn!("Application routing settings unavailable"),
+        }
     }
-    if let Some(scope) = setup.control {
-        app.layer(Extension(RoutingControl {
-            routing: Arc::clone(routing),
-            scope: Arc::new(scope),
-            policy,
-        }))
-    } else {
-        app
-    }
+    app.layer(Extension(control))
 }
 
 impl RoutingControl {
+    async fn config(&self) -> Result<ListenerConfig, ControlError> {
+        let scope = Arc::clone(&self.scope);
+        let fallback = self.policy_default;
+        tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let db = GlobalDatabase::for_home(&crate::global::paths().home)?;
+            let settings = RoutingConfigStore::new(db, scope.tenant.clone(), scope.host.clone())?;
+            Ok(settings.listener()?.unwrap_or(fallback))
+        })
+        .await
+        .map_err(|_| ControlError::Unavailable)?
+        .map_err(|_| ControlError::Unavailable)
+    }
+
     async fn authorize(
         control: Option<Extension<Self>>,
         headers: HeaderMap,
@@ -126,8 +163,8 @@ pub(crate) async fn start(
     let (control, _) = RoutingControl::authorize(control, headers, tenant, host, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
     let _permit = control.routing.try_control()?;
-    let bind = control.scope.bind;
-    control.routing.start_on(&bind.ip().to_string(), bind.port())?;
+    let config = control.config().await?;
+    control.routing.start_configured(config)?;
     Ok(Json(control.status()))
 }
 

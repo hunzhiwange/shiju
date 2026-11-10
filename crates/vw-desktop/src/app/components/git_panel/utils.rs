@@ -462,6 +462,9 @@ fn build_line_content_row(
 
     for part in parts {
         let chunk_text = &content[part.start..part.end];
+        // Iced's basic shaping draws a missing glyph for tabs instead of blank indentation.
+        let shaping =
+            if chunk_text.contains('\t') { text::Shaping::Advanced } else { text::Shaping::Auto };
         let bg = if part.is_highlighted { highlight_bg } else { base_bg };
         row = row.push(
             container(
@@ -471,6 +474,7 @@ fn build_line_content_row(
                     text(chunk_text.to_owned())
                 }
                 .size(13)
+                .shaping(shaping)
                 .line_height(iced::widget::text::LineHeight::Relative(1.2)),
             )
             .padding([2, 0])

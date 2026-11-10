@@ -1,6 +1,7 @@
 pub(crate) mod gateway_owner;
 mod listener;
 pub(crate) mod reference_scope;
+mod route_auth;
 mod shared_transport;
 mod shutdown;
 pub use listener::{ListenerError, RoutingListener};

@@ -94,6 +94,8 @@ dialoguer = "0.11"
 fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 hostname = "0.4"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "rustls-tls"] }
 mysql = { version = "27.0.0", optional = true }
 nostr-sdk = { version = "0.37", features = ["nip04", "nip59"] }
@@ -155,8 +157,6 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", default-features = false, features = ["Window"] }
 
 [dev-dependencies]
-hyper = { version = "1", features = ["http1", "server"] }
-hyper-util = { version = "0.1", features = ["tokio"] }
 tower = "0.5"
 
 [features]

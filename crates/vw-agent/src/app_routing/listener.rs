@@ -1,9 +1,13 @@
 //! Owns the application's loopback listener independently of session relays.
 
-use super::shutdown;
+use super::{
+    route_auth::{self, RouteAuth},
+    shutdown,
+};
+use axum::response::IntoResponse;
 use parking_lot::Mutex;
 use std::{
-    future::{Future, Ready},
+    future::Future,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, Weak},
@@ -47,6 +51,7 @@ type ListenerLifecycle = Mutex<Lifecycle<RunningListener>>;
 #[derive(Default)]
 pub struct RoutingListener {
     lifecycle: Arc<ListenerLifecycle>,
+    pub(super) auth: Arc<RouteAuth>,
 }
 
 impl RoutingListener {
@@ -64,7 +69,7 @@ impl RoutingListener {
     /// Start from an I/O-enabled Tokio runtime. Repeated starts return the
     /// address of the current listener.
     pub fn start(&self, port: u16) -> Result<SocketAddr, ListenerError> {
-        self.start_at(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port), refuse_connection)
+        self.start_http(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port))
     }
 
     /// Bind a loopback IP literal, with optional brackets around IPv6.
@@ -75,7 +80,16 @@ impl RoutingListener {
             None => host.parse(),
         }
         .map_err(|_| ListenerError::InvalidAddress)?;
-        self.start_at(SocketAddr::new(ip.to_canonical(), port), refuse_connection)
+        self.start_http(SocketAddr::new(ip.to_canonical(), port))
+    }
+
+    fn start_http(&self, address: SocketAddr) -> Result<SocketAddr, ListenerError> {
+        let auth = Arc::clone(&self.auth);
+        self.start_at(address, move |connection| {
+            Some(route_auth::serve(connection, Arc::clone(&auth), |_, _| async {
+                axum::http::StatusCode::SERVICE_UNAVAILABLE.into_response()
+            }))
+        })
     }
 
     /// Connection futures own request handlers and response bodies so stopping
@@ -89,7 +103,7 @@ impl RoutingListener {
         F: Fn(TcpStream) -> Option<Fut> + Send + 'static,
         Fut: Future<Output = ()> + Send + 'static,
     {
-        // There is no authenticated application data plane yet.
+        // Exposing routing beyond loopback requires explicit host authorization.
         if !address.ip().is_loopback() {
             return Err(ListenerError::NonLoopbackDenied);
         }
@@ -150,11 +164,6 @@ impl RoutingListener {
         runtime.spawn(task.serve(stop, serve_connection));
         Ok(address)
     }
-}
-
-fn refuse_connection(_: TcpStream) -> Option<Ready<()>> {
-    // Application authentication and dispatch are pending.
-    None
 }
 
 fn bind_listener(requested: SocketAddr) -> io::Result<TcpListener> {

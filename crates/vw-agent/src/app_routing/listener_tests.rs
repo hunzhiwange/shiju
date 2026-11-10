@@ -1,6 +1,11 @@
 use super::listener::{ListenerError, RoutingListener};
 use std::{io::ErrorKind, net::Ipv4Addr, sync::Arc, time::Duration};
-use tokio::{io::AsyncReadExt, net::TcpStream, sync::Barrier, time::timeout};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+    sync::Barrier,
+    time::timeout,
+};
 use vw_agent_apps::routing::lifecycle_state::LifecycleState;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -34,9 +39,10 @@ async fn cc_route_004_listener_has_one_owner_and_rejects_connections() {
     assert_eq!(listener.start(0).unwrap(), address);
 
     let mut connection = TcpStream::connect(address).await.unwrap();
-    let mut response = [0; 1];
-    let read = timeout(Duration::from_secs(5), connection.read(&mut response)).await.unwrap();
-    assert_eq!(read.unwrap(), 0, "uncredentialed connections must be closed");
+    connection.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n").await.unwrap();
+    let mut response = Vec::new();
+    timeout(Duration::from_secs(5), connection.read_to_end(&mut response)).await.unwrap().unwrap();
+    assert!(response.starts_with(b"HTTP/1.1 401 Unauthorized\r\n"));
 
     listener.stop().await.unwrap();
     assert_eq!(listener.state(), LifecycleState::Stopped);

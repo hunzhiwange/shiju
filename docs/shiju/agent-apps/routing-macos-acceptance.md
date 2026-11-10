@@ -265,3 +265,27 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 测试链接器报告既有 macOS `__eh_frame` 大小警告。暂存的 Rust 文件与验证快照逐字一致，只读 `plan.md` 无差异。槽位锁已释放，缓存保留。
+
+## 任务 8　签发与撤销应用路由凭证
+
+2026-11-10，macOS 27.0（26A428），arm64。复用批次 7 提交 `e5a864b17` 的网关监听所有者。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/browser_guard.rs`、`proxy/handlers.rs` 与仓库快照及来源映射的 SHA256 一致。来源只对 Claude Desktop 使用单独 token，本项扩展到按授权作用域隔离。
+
+- `app_routing::route_auth::RouteAuth` 由 `RoutingListener` 持有。签发接收模块内部的 `VerifiedRouteBinding`，绑定租户、项目、执行主机、应用、账号与账号代次。使用 256 位系统随机数生成独立凭证。内存注册表保存 SHA256 摘要，原始凭证只随内部签发结果返回，撤销句柄单独持有摘要和签发代次。轮换使同一作用域的旧凭证和在途请求失效，旧撤销句柄不会影响新凭证。
+- `RoutingListener::start`、`start_on` 在同一回环监听上接入 HTTP 鉴权，逐请求检查单一 Bearer 或 `x-api-key`，未授权时在读正文前返回 401。进入内部处理前移除凭证头，获准绑定和签发代次可与分发选中的可信目标复核。当前每条连接处理一个请求，撤销会丢弃整个连接任务的 HTTP future，包括正在等待的处理和正在写出的响应流。生产协议分发未就绪，鉴权成功也只返回 503。
+- 生产签发仍待任务 86。现有 `ModeApplyRequest` 缺项目选择器，`RouteScope` 只含租户、主机和应用，供应商编辑授权没有项目成员与路由动作许可。任务 86 需在现有模式事务内取得这两项许可及账号代次，向授权客户端配置交付凭证，并在切换、脱离和账号失效时轮换或撤销。任务 36 需把获准绑定与可信目标复核接到真实 Responses 分发。WSL 地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+验证在 `e5a864b17` 的隔离源码快照执行。红灯使用槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。绿灯及监听回归使用槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与对应槽位相同。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红灯和绿灯均退出 0。仅同步本任务文件的格式。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` | 退出 101，1 项失败。旧监听直接断开，客户端收到 `IncompleteMessage`，未收到预期的 401。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` | 退出 0，3 项通过。覆盖管理凭证、实际会话令牌与其他应用凭证的拒绝，读正文前拒绝、逐维匹配、歧义头、轮换、重复撤销和旧撤销句柄隔离。真实回环 TCP 上游记录路径并证实撤销关闭等待响应头的 HTTP 以及已经开始的 SSE。 |
+| 状态机回归 | `cargo test -p vw-agent --lib cc_route_004_ -- --nocapture` | 退出 0，3 项通过。 |
+| 绑定回归 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过。 |
+| 连接回收回归 | `cargo test -p vw-agent --lib cc_route_006_ -- --nocapture` | 退出 0，2 项通过。 |
+| 网关回归 | `cargo test -p vw-agent --lib cc_route_007_ -- --nocapture` | 退出 0，3 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 1，退出 0。 |
+| 差异检查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+本项 Rust 文件和依赖清单与绿灯快照逐一比对一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位 1、2 的任务锁均已释放，缓存保留。独立凭证和监听鉴权已交付，真实附接与协议分发联验待回归。

@@ -92,7 +92,7 @@ fn yaml(bytes: Option<&[u8]>) -> Result<Yaml, WriteError> {
     }
     serde_yaml::from_slice(bytes).map_err(|_| WriteError::InvalidResource)
 }
-fn entries(bytes: Option<&[u8]>) -> Result<Vec<Yaml>, WriteError> {
+pub(crate) fn entries(bytes: Option<&[u8]>) -> Result<Vec<Yaml>, WriteError> {
     match yaml(bytes)? {
         Yaml::Null => Ok(vec![]),
         Yaml::Sequence(v) => Ok(v),

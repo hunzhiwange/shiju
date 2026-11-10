@@ -34,3 +34,5 @@ mod agy_tests;
 pub mod pi;
 #[cfg(test)]
 mod pi_tests;
+
+pub mod dsh;

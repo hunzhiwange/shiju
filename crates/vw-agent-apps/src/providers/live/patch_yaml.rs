@@ -312,7 +312,7 @@ fn reject_yaml_tokens(line: &str) -> Result<(), PatchError> {
 /// `&`, `*` and `!` are only YAML indicators where a node starts: inside a plain scalar
 /// (`name: Search & Fetch`, which serde_yaml and Bun both write unquoted) they are
 /// ordinary text.
-fn has_yaml_reference_tokens(line: &str) -> bool {
+pub(crate) fn has_yaml_reference_tokens(line: &str) -> bool {
     let mut quote = None;
     let mut escaped = false;
     // A node may start here: line start, after `:`, a flow opener or `,`, and after a

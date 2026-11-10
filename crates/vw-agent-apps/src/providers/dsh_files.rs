@@ -2,7 +2,10 @@
 use super::{Snapshot, invalid};
 use crate::providers::live::write_guard::WriteError;
 
-use crate::providers::live::write_guard::{AppWriteGuard, DirectoryTarget};
+use crate::providers::live::{
+    commit::{PendingTarget, ProviderTransactions},
+    write_guard::{AppWriteGuard, DirectoryTarget},
+};
 use std::{
     ffi::{CString, OsStr},
     fs::{File, OpenOptions},
@@ -151,17 +154,51 @@ impl DshFiles {
         next: &Snapshot,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
-        use crate::providers::live::{
-            commit::*,
-            stage::{FileChange, WholeFile},
-            write_guard::FilePrivacy,
-        };
+        use crate::providers::live::commit::{Mode, ModeState};
         if expected.pointer.is_some()
             || expected.mode_tenant.as_ref().is_some_and(|t| t != tenant)
             || expected.mode.as_ref().is_some_and(|m| m.attached || m.mode != Mode::Direct)
         {
             return Err(WriteError::Conflict);
         }
+        self.apply_checked(
+            tx,
+            tenant,
+            PendingTarget {
+                pointer: None,
+                mode: Some(ModeState {
+                    mode: Mode::Direct,
+                    attached: false,
+                    proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
+                    contract: None,
+                }),
+                ..Default::default()
+            },
+            pre,
+            next,
+            || {
+                if unchanged() && tx.state(AppId::Dsh)? == *expected {
+                    Ok(())
+                } else {
+                    Err(WriteError::Conflict)
+                }
+            },
+        )
+    }
+
+    pub(crate) fn apply_checked(
+        &mut self,
+        tx: &ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        target: PendingTarget,
+        pre: &Snapshot,
+        next: &Snapshot,
+        preflight: impl Fn() -> Result<(), WriteError>,
+    ) -> Result<(), WriteError> {
+        use crate::providers::live::{
+            stage::{FileChange, WholeFile},
+            write_guard::FilePrivacy,
+        };
         if pre.keys().ne(next.keys()) || pre.len() != self.keys.len() {
             return invalid();
         }
@@ -177,31 +214,12 @@ impl DshFiles {
                 patch,
             })
             .collect();
-        tx.commit_checked(
-            tenant,
-            &mut self.guard,
-            &changes,
-            PendingTarget {
-                pointer: None,
-                mode: Some(ModeState {
-                    mode: Mode::Direct,
-                    attached: false,
-                    proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
-                    contract: None,
-                }),
-                ..Default::default()
-            },
-            || {
-                if unchanged()
-                    && self._native_locks.iter().all(NativeLock::is_current)
-                    && tx.state(AppId::Dsh)? == *expected
-                {
-                    Ok(())
-                } else {
-                    Err(WriteError::Conflict)
-                }
-            },
-        )
+        tx.commit_checked(tenant, &mut self.guard, &changes, target, || {
+            if !self._native_locks.iter().all(NativeLock::is_current) {
+                return Err(WriteError::Conflict);
+            }
+            preflight()
+        })
     }
 }
 /// The account slot shares the provider adapter's physical application guard

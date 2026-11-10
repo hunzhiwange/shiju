@@ -73,7 +73,7 @@ struct Registry {
 
 struct Job {
     metadata: JobMetadata,
-    results: Option<Vec<DiagnosticResult>>,
+    results: Option<Vec<(usize, DiagnosticResult)>>,
     expires: Option<Instant>,
     cancellation: Option<CancellationToken>,
 }
@@ -280,7 +280,10 @@ impl Job {
             job: self.metadata.identity.clone(),
             state: self.metadata.state,
             progress: self.metadata.progress,
-            results: self.results.clone(),
+            results: self
+                .results
+                .as_ref()
+                .map(|results| results.iter().map(|(_, result)| result.clone()).collect()),
         }
     }
 }
@@ -297,8 +300,8 @@ impl Registry {
         F: FnOnce(CancellationToken) -> Fut + Send + 'static,
         Fut: Future<Output = Result<DiagnosticResult, DiagnosticProbeError>> + Send + 'static,
     {
-        let mut results = stream::iter(probes)
-            .map(|probe| {
+        let mut results = stream::iter(probes.into_iter().enumerate())
+            .map(|(position, probe)| {
                 let (registry, id, cancellation) = (&self, &id, &cancellation);
                 async move {
                     let _permit = tokio::select! {
@@ -322,7 +325,7 @@ impl Registry {
                             .catch_unwind()
                             .await
                             .unwrap_or(Err(DiagnosticProbeError::Failed(INVALID_RESULT)));
-                    Some(result)
+                    Some((position, result))
                 }
             })
             .buffer_unordered(MAX_CONCURRENT_PROBES);
@@ -331,7 +334,7 @@ impl Registry {
         let mut cancelled = false;
         let mut checkpoint_failed = false;
         while let Some(probe) = results.next().await {
-            let Some(result) = probe else { continue };
+            let Some((position, result)) = probe else { continue };
             let result = match result {
                 Ok(result) if valid_result(kind, &result) => Some(result),
                 Ok(_) => {
@@ -350,7 +353,7 @@ impl Registry {
             if !checkpoint_failed {
                 let (registry, id) = (self.clone(), id.clone());
                 checkpoint_failed =
-                    !tokio::task::spawn_blocking(move || registry.record(&id, result))
+                    !tokio::task::spawn_blocking(move || registry.record(&id, position, result))
                         .await
                         .unwrap_or(false);
             }
@@ -371,7 +374,7 @@ impl Registry {
             .unwrap_or(Err(OperationFailure::Failed))
     }
 
-    fn record(&self, id: &TaskId, result: Option<DiagnosticResult>) -> bool {
+    fn record(&self, id: &TaskId, position: usize, result: Option<DiagnosticResult>) -> bool {
         let mut entries = self.entries.lock();
         let job = entries.get_mut(id).expect("active job is retained");
         if job.metadata.state == (DiagnosticJobState::Cancelling {}) {
@@ -381,7 +384,16 @@ impl Registry {
         let saved = save(&self.checkpoint, &entries).is_ok();
         let job = entries.get_mut(id).expect("active job is retained");
         if saved {
-            job.results.as_mut().expect("active job retains results").extend(result);
+            if let Some(result) = result {
+                let results = job.results.as_mut().expect("active job retains results");
+                // Publish each completion immediately. Speed results retain selection order.
+                let index = if job.metadata.identity.kind == DiagnosticProbeKind::Speed {
+                    results.partition_point(|(previous, _)| *previous < position)
+                } else {
+                    results.len()
+                };
+                results.insert(index, (position, result));
+            }
         } else {
             job.metadata.progress.completed -= 1;
         }

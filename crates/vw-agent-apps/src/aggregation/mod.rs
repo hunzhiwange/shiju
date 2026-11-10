@@ -40,6 +40,11 @@ pub mod membership;
 #[cfg(all(test, target_os = "macos"))]
 mod membership_tests;
 
+pub mod codex_catalog;
+
+#[cfg(test)]
+mod codex_catalog_tests;
+
 #[cfg(target_os = "macos")]
 pub mod omo_slim;
 

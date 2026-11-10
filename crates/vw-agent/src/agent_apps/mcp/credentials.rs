@@ -32,7 +32,7 @@ impl McpCatalogStore {
             .collect())
     }
 
-    fn connection_for_revision(
+    pub(super) fn connection_for_revision(
         &self,
         authorized_scope: &McpCatalogScope,
         expected: &McpRecordRef,

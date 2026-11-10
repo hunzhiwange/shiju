@@ -138,6 +138,10 @@ mod resync_tests;
 pub use resync::{McpResyncResult, McpResyncTargetResult, McpResyncTask, resync_targets};
 
 #[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod revocation;
+#[cfg(all(test, target_os = "macos"))]
+mod revocation_tests;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod runtime;
 #[cfg(all(test, target_os = "macos"))]
 mod runtime_tests;

@@ -14,7 +14,7 @@ use vw_api_types::{
     },
 };
 
-use super::{McpCatalogStore, McpExecutionConnection};
+use super::{McpCatalogStore, McpExecutionConnection, revocation::RuntimeSelectionLease};
 use crate::{
     global_database::{GlobalDatabase, run_sync_database},
     project::store::ProjectStore,
@@ -23,11 +23,15 @@ use crate::{
 
 const RUNTIME_CWD: &str = "shiju.managedMcpCwd";
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct StoredSelection {
-    scope: McpCatalogScope,
-    record: McpRecordRef,
+pub(super) struct StoredSelection {
+    pub(super) scope: McpCatalogScope,
+    pub(super) record: McpRecordRef,
+    #[serde(default)]
+    pub(super) disabled: bool,
+    #[serde(default)]
+    pub(super) generation: u64,
 }
 
 impl McpCatalogStore {
@@ -47,8 +51,12 @@ impl McpCatalogStore {
         self.resolve_for_native_runtime(authorized_catalog, &selection.record)?;
         let namespace = selection_namespace(authorized_project)?;
         let key = &selection.record.id.0;
-        let next =
-            StoredSelection { scope: authorized_catalog.clone(), record: selection.record.clone() };
+        let mut next = StoredSelection {
+            scope: authorized_catalog.clone(),
+            record: selection.record.clone(),
+            disabled: false,
+            generation: 0,
+        };
         let payload =
             serde_json::to_string(&next).map_err(|_| McpFailureCode::StorageUnavailable)?;
         if self
@@ -71,9 +79,10 @@ impl McpCatalogStore {
         if current.record.revision > next.record.revision {
             return Err(McpFailureCode::StaleRevision);
         }
-        if current.record == next.record {
+        if current.record == next.record && !current.disabled {
             return Ok(());
         }
+        next.generation = current.generation;
         self.save_entry(tenant, &namespace, key, &previous, &next)
     }
 
@@ -94,35 +103,43 @@ impl McpCatalogStore {
             {
                 return Err(catalog_error(McpFailureCode::PermissionDenied));
             }
+            if selection.disabled {
+                continue;
+            }
+            let connection =
+                match self.resolve_for_native_runtime(&selection.scope, &selection.record) {
+                    Ok(connection) => connection,
+                    Err(McpFailureCode::NotFound | McpFailureCode::StaleRevision) => continue,
+                    Err(error) => return Err(catalog_error(error)),
+                };
             if existing.iter().any(|server| server_name(server) == row.config_key) {
                 bail!(
                     "managed MCP runtime server '{}' conflicts with an existing declaration",
                     row.config_key
                 );
             }
-            let connection = self
-                .resolve_for_native_runtime(&selection.scope, &selection.record)
-                .map_err(catalog_error)?;
-            servers.push(runtime_server(row.config_key, connection, workspace)?);
+            let mut server = runtime_server(row.config_key, connection, workspace)?;
+            RuntimeSelectionLease::attach(&mut server, project, selection)?;
+            servers.push(server);
         }
         Ok(servers)
     }
 }
 
-fn selection_namespace(project: &ProjectScope) -> Result<String, McpFailureCode> {
+pub(super) fn selection_namespace(project: &ProjectScope) -> Result<String, McpFailureCode> {
     let project = serde_json::to_string(project.project_id())
         .map_err(|_| McpFailureCode::InvalidDefinition)?;
     Ok(format!("agent_apps.mcp.runtime.v1.{project}"))
 }
 
-fn scope_belongs_to_project(scope: &McpCatalogScope, project: &ProjectScope) -> bool {
+pub(super) fn scope_belongs_to_project(scope: &McpCatalogScope, project: &ProjectScope) -> bool {
     match scope {
         McpCatalogScope::Tenant { scope } => scope == project.tenant_scope(),
         McpCatalogScope::Project { scope } => scope == project,
     }
 }
 
-fn catalog_error(code: McpFailureCode) -> anyhow::Error {
+pub(super) fn catalog_error(code: McpFailureCode) -> anyhow::Error {
     anyhow::anyhow!("managed MCP runtime selection: {code:?}")
 }
 

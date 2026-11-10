@@ -33,7 +33,7 @@ use crate::{
     },
 };
 
-fn register_project(
+pub(super) fn register_project(
     database: &GlobalDatabase,
     project: &ProjectScope,
     workspace: &Path,

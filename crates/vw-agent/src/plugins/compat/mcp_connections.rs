@@ -38,6 +38,19 @@ pub(super) struct State {
     required_failure: Option<String>,
     pub(super) tool_sources: HashMap<String, super::mcp_catalog_refresh::Source>,
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+impl State {
+    pub(super) fn retire_managed_server(&mut self, server: &McpServer) {
+        let name = crate::tools::mcp_common::server_name(server);
+        if self.entries.get(name).is_some_and(|entry| {
+            configuration_key(server).is_ok_and(|key| key == entry.configuration)
+        }) {
+            // An already admitted operation owns its entry until it finishes.
+            self.entries.remove(name);
+        }
+    }
+}
 #[derive(Default)]
 pub(crate) struct McpSessionConnections {
     pub(super) state: Mutex<State>,
@@ -104,6 +117,14 @@ fn connection_key(server: &McpServer, configuration: &str, oauth: Option<&str>) 
     Ok(hex::encode(hash.finalize()))
 }
 impl McpSessionConnections {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn managed_selection_is_current(&self, server: &McpServer) -> Result<bool> {
+        crate::agent_apps::mcp::revocation::runtime_selection_is_current(
+            server,
+            self.form_owner.as_ref().map(|owner| &owner.tenant),
+        )
+    }
+
     pub(crate) fn for_form_owner(owner: super::mcp_elicitation::FormOwner) -> Self {
         Self {
             form_owner: Some(owner),
@@ -223,6 +244,10 @@ impl McpSessionConnections {
         if abort.as_ref().is_some_and(CancellationToken::is_cancelled) {
             bail!("MCP call cancelled");
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        if !self.managed_selection_is_current(server)? {
+            bail!("managed MCP runtime selection was revoked");
+        }
         let settings = settings(server)?;
         let startup = timeout
             .or(settings.startup_timeout_ms.map(Duration::from_millis))
@@ -312,6 +337,10 @@ impl McpSessionConnections {
             _ = async { match &abort { Some(token) => token.cancelled().await, None => std::future::pending().await } } => bail!("MCP call cancelled"),
             client = entry.client.clone().lock_owned() => client,
         };
+        #[cfg(not(target_arch = "wasm32"))]
+        if !self.managed_selection_is_current(server)? {
+            bail!("managed MCP runtime selection was revoked");
+        }
         let mut active = ActiveConnection { client, keep: false };
         if active.client.as_ref().is_some_and(|c| c.peer().is_transport_closed()) {
             active.client.take();

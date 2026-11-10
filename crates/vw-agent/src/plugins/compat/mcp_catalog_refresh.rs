@@ -86,6 +86,8 @@ impl McpSessionConnections {
             .cloned()
             .collect();
         let mut bindings = Vec::new();
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut revoked = Vec::new();
         let mut changed = false;
         for (name, source) in &sources {
             let enabled = {
@@ -95,6 +97,12 @@ impl McpSessionConnections {
                 })
             };
             if !enabled {
+                changed = true;
+                continue;
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if !self.managed_selection_is_current(&source.server)? {
+                revoked.push(&source.server);
                 changed = true;
                 continue;
             }
@@ -159,6 +167,10 @@ impl McpSessionConnections {
             }
         }
         catalog.replace_if_current(&previous, tools, ids)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        for server in revoked {
+            state.retire_managed_server(server);
+        }
         state.tool_sources.retain(|name, _| bindings.iter().any(|(enabled, _)| enabled == name));
         for (name, binding) in bindings {
             if let Some(source) = state.tool_sources.get_mut(&name) {

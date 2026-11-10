@@ -98,23 +98,6 @@ pub(super) fn prominent_action_foreground(theme: &Theme) -> Color {
     if is_dark_theme(theme) { Color::from_rgba8(15, 16, 18, 1.0) } else { Color::WHITE }
 }
 
-pub(super) fn utility_cluster_style(theme: &Theme) -> iced::widget::container::Style {
-    let is_dark = is_dark_theme(theme);
-    iced::widget::container::Style {
-        background: Some(Background::Color(crate::app::theme_catalog::input_surface_color(
-            theme,
-            if is_dark { 0.88 } else { 1.0 },
-        ))),
-        border: Border { radius: 999.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        shadow: iced::Shadow {
-            color: Color::BLACK.scale_alpha(if is_dark { 0.12 } else { 0.035 }),
-            offset: iced::Vector::new(0.0, 6.0),
-            blur_radius: 16.0,
-        },
-        ..Default::default()
-    }
-}
-
 pub(super) fn prominent_action_style(
     theme: &Theme,
     status: iced::widget::button::Status,
@@ -761,8 +744,7 @@ pub fn bottom_bar<'a>(
 
     bar = bar.push(
         container(utility_controls)
-            .padding(iced::Padding { top: 1.0, right: 5.0, bottom: 1.0, left: 5.0 })
-            .style(utility_cluster_style),
+            .padding(iced::Padding { top: 1.0, right: 5.0, bottom: 1.0, left: 5.0 }),
     );
 
     // 在非任务模式下，添加取消和发送按钮

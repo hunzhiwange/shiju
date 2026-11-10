@@ -6,8 +6,7 @@
 use super::send_controls::{
     bottom_bar, cancel_button, full_access_button, is_dark_theme, permission_access_button_style,
     pool_button, prominent_action_background, prominent_action_foreground, prominent_action_style,
-    send_behavior_icon, send_behavior_popover, send_button, utility_cluster_style,
-    workflow_mode_button,
+    send_behavior_icon, send_behavior_popover, send_button, workflow_mode_button,
 };
 use super::styles::square_icon_button_style;
 use crate::app::Message;
@@ -25,13 +24,6 @@ fn button_background(style: &iced::widget::button::Style) -> Color {
     match style.background.as_ref() {
         Some(Background::Color(color)) => *color,
         other => panic!("expected solid button background, got {other:?}"),
-    }
-}
-
-fn container_background(style: &iced::widget::container::Style) -> Color {
-    match style.background.as_ref() {
-        Some(Background::Color(color)) => *color,
-        other => panic!("expected solid container background, got {other:?}"),
     }
 }
 
@@ -288,29 +280,6 @@ fn permission_access_style_highlights_active_state_for_both_themes() {
         assert_eq!(enabled.shadow.blur_radius, 16.0);
         assert_eq!(disabled_flag.shadow.blur_radius, 16.0);
     }
-}
-
-#[test]
-fn utility_cluster_style_sets_theme_specific_pill_surface() {
-    let dark = utility_cluster_style(&Theme::Dark);
-    let light = utility_cluster_style(&Theme::Light);
-
-    assert_eq!(
-        container_background(&dark),
-        crate::app::theme_catalog::input_surface_color(&Theme::Dark, 0.88)
-    );
-    assert_eq!(
-        container_background(&light),
-        crate::app::theme_catalog::input_surface_color(&Theme::Light, 1.0)
-    );
-    assert_eq!(dark.border.width, 0.0);
-    assert_eq!(light.border.width, 0.0);
-    assert_eq!(dark.shadow.color, Color::BLACK.scale_alpha(0.12));
-    assert_eq!(light.shadow.color, Color::BLACK.scale_alpha(0.035));
-    assert_eq!(dark.shadow.offset, iced::Vector::new(0.0, 6.0));
-    assert_eq!(light.shadow.offset, iced::Vector::new(0.0, 6.0));
-    assert_eq!(dark.shadow.blur_radius, 16.0);
-    assert_eq!(light.shadow.blur_radius, 16.0);
 }
 
 #[test]

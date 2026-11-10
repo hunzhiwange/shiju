@@ -19,3 +19,5 @@ pub mod usage;
 pub mod routing;
 
 pub mod aggregation;
+
+pub mod high_availability;

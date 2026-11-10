@@ -40,6 +40,7 @@ pub mod acp_model_source;
 pub mod acp_session;
 pub mod agent_apps;
 pub mod agent_apps_auth;
+pub mod agent_apps_high_availability;
 pub mod agent_scheduler;
 pub mod app_routing;
 pub mod apps_usage;
@@ -141,6 +142,8 @@ mod mcp_management_tests;
 
 #[cfg(test)]
 mod agent_apps_auth_tests;
+#[cfg(test)]
+mod agent_apps_high_availability_tests;
 #[cfg(test)]
 mod agent_apps_tests;
 

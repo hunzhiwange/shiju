@@ -177,9 +177,9 @@ fn running_indicator(frame: usize, breathe: f32) -> Element<'static, Message> {
         .height(STATUS_SIZE)
         .style(|theme: &Theme, _| svg::Style {
             color: Some(if is_dark_theme(theme) {
-                Color::from_rgb8(248, 113, 113)
+                Color::from_rgb8(150, 150, 150)
             } else {
-                Color::from_rgb8(220, 38, 38)
+                Color::from_rgb8(133, 133, 133)
             }),
         });
     let diameter = 5.0 + 2.0 * breathe;

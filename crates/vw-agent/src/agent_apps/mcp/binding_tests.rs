@@ -21,13 +21,13 @@ use super::{
 };
 use crate::agent_apps::auth_accounts::AuthAccountStore;
 
-fn private_root() -> std::io::Result<tempfile::TempDir> {
+pub(super) fn private_root() -> std::io::Result<tempfile::TempDir> {
     let root = tempfile::tempdir()?;
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700))?;
     Ok(root)
 }
 
-fn installed(
+pub(super) fn installed(
     home: &Path,
     app: AppId,
     executable: &str,

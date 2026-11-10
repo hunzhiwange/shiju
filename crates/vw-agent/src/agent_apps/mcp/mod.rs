@@ -123,3 +123,8 @@ mod binding_tests;
 
 #[cfg(target_os = "macos")]
 pub use binding::McpBindingTarget;
+
+#[cfg(target_os = "macos")]
+mod bulk;
+#[cfg(all(test, target_os = "macos"))]
+mod bulk_tests;

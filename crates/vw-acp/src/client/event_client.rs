@@ -29,9 +29,10 @@ impl AcpClient {
                     match policy {
                         None => Ok(confirm("Terminal".into(), json!({"command": command})).await),
                         Some(NonInteractivePermissionPolicy::Deny) => Ok(false),
-                        Some(NonInteractivePermissionPolicy::Fail) => Err(Box::new(
-                            crate::errors::PermissionPromptUnavailableError::new(),
-                        ) as crate::errors::ErrorSource),
+                        Some(NonInteractivePermissionPolicy::Fail) => {
+                            Err(Box::new(crate::errors::PermissionPromptUnavailableError::new())
+                                as crate::errors::ErrorSource)
+                        }
                     }
                 })
             });
@@ -195,13 +196,20 @@ impl acp::Client for AcpEventClient {
             match resolve(&args, self.permission_mode, Some(NonInteractivePermissionPolicy::Fail)) {
                 Ok(response) => response,
                 Err(_) => {
-                    let has_allow_once = args.options.iter().any(|option| {
-                        option.kind == acp::PermissionOptionKind::AllowOnce
-                    });
-                    let approved = has_allow_once && confirm(
-                        args.tool_call.fields.title.clone().unwrap_or_else(|| "ACP tool".into()),
-                        args.tool_call.fields.raw_input.clone().unwrap_or(Value::Null),
-                    ).await;
+                    let has_allow_once = args
+                        .options
+                        .iter()
+                        .any(|option| option.kind == acp::PermissionOptionKind::AllowOnce);
+                    let approved = has_allow_once
+                        && confirm(
+                            args.tool_call
+                                .fields
+                                .title
+                                .clone()
+                                .unwrap_or_else(|| "ACP tool".into()),
+                            args.tool_call.fields.raw_input.clone().unwrap_or(Value::Null),
+                        )
+                        .await;
                     if self.cancelling_session_ids.lock().contains(args.session_id.0.as_ref()) {
                         cancelled_permission_response()
                     } else {

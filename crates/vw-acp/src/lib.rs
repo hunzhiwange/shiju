@@ -173,8 +173,8 @@ pub use permission_prompt::{
     PermissionPromptOptions, can_prompt_for_permission, prompt_for_permission,
 };
 pub use permissions::{
-    PermissionConfirmation, PermissionDecision, classify_permission_decision, permission_mode_satisfies,
-    resolve_permission_request,
+    PermissionConfirmation, PermissionDecision, classify_permission_decision,
+    permission_mode_satisfies, resolve_permission_request,
 };
 pub use persisted_key_policy::{
     PersistedKeyPolicyError, assert_persisted_key_policy, find_persisted_key_policy_violations,

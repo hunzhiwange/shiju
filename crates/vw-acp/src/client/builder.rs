@@ -17,7 +17,10 @@ impl AcpClient {
     }
 
     /// Delegate interactive permission prompts to the embedding host.
-    pub fn with_permission_confirmation(mut self, confirmation: crate::PermissionConfirmation) -> Self {
+    pub fn with_permission_confirmation(
+        mut self,
+        confirmation: crate::PermissionConfirmation,
+    ) -> Self {
         self.permission_confirmation = Some(confirmation);
         self
     }

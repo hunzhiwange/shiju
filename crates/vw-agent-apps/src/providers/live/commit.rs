@@ -229,6 +229,25 @@ impl ProviderTransactions {
             .transpose()
             .map(Option::unwrap_or_default)
     }
+    /// Caller-triggered recovery must belong to the same tenant as the write.
+    pub(crate) fn recover_owned(
+        &self,
+        tenant: &TenantScope,
+        guard: &mut AppWriteGuard,
+    ) -> Result<Option<super::recovery::RecoveryOutcome>, WriteError> {
+        let app = guard.app();
+        let _lock = self.lock(app)?;
+        self.check_pending_owner(app, tenant)?;
+        self.recover_locked(guard)
+    }
+
+    fn check_pending_owner(&self, app: AppId, tenant: &TenantScope) -> Result<(), WriteError> {
+        if self.pending(app)?.as_ref().is_some_and(|pending| pending.tenant != *tenant) {
+            return Err(WriteError::Conflict);
+        }
+        Ok(())
+    }
+
     /// Holds the physical application guard for staging, intent, publication and
     /// state settlement. Recovery stops this request so the caller can replan.
     pub fn commit(
@@ -254,6 +273,7 @@ impl ProviderTransactions {
         validate_target(app, &target)?;
         self.validate_claude_login(tenant, &target)?;
         let _lock = self.lock(app)?;
+        self.check_pending_owner(app, tenant)?;
         if self.recover_locked(guard)?.is_some() {
             // Recovery can move state. The caller must re-read and replan.
             return Err(WriteError::Recovered);

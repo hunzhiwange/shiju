@@ -1,9 +1,9 @@
-//! Fixed macOS Desktop direct profiles; all four files share one durable intent.
+//! Fixed macOS Desktop profiles; all four files share one durable intent.
 use super::live::{
     patch_json::{JsonPatch, object_value},
     write_guard::WriteError,
 };
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use vw_api_types::app_providers::claude_desktop::*;
 
 pub const PROFILE_ID: &str = "00000000-0000-4000-8000-000000157210";
@@ -17,6 +17,15 @@ const FLOOR: &[&str] = &[
     "modelDiscoveryEnabled",
 ];
 const KEYS: [&str; 4] = ["normal", "third", "profile", "meta"];
+const CONFIG_FILE: &str = "claude_desktop_config.json";
+const META_FILE: &str = "_meta.json";
+
+#[cfg(target_os = "macos")]
+pub mod publication;
+
+#[cfg(target_os = "macos")]
+use std::{fs::File, path::Path};
+
 pub fn settings(profile: &ClaudeDesktopProfile) -> Result<Value, WriteError> {
     if profile.name.trim().is_empty()
         || profile.name.len() > 128
@@ -45,13 +54,29 @@ pub fn settings(profile: &ClaudeDesktopProfile) -> Result<Value, WriteError> {
 pub fn generic_import() -> Result<Value, &'static str> {
     Err("claude_desktop.import_unsupported")
 }
+fn profile_fields(config: &ClaudeDesktopConfig, models: Option<&Value>) -> Map<String, Value> {
+    let ClaudeDesktopConfig::ThirdParty { base_url, auth_token } = config else {
+        return Map::new();
+    };
+    let mut fields = Map::from_iter([
+        ("inferenceProvider".into(), json!("gateway")),
+        ("inferenceGatewayBaseUrl".into(), json!(base_url.trim())),
+        ("inferenceGatewayApiKey".into(), json!(auth_token.trim())),
+        ("inferenceGatewayAuthScheme".into(), json!("bearer")),
+    ]);
+    if let Some(models) = models {
+        fields.insert("inferenceModels".into(), models.clone());
+        fields.insert("modelDiscoveryEnabled".into(), json!(true));
+    }
+    fields
+}
+
 fn patch(
     pre: Option<&[u8]>,
     key: &str,
-    profile: &ClaudeDesktopProfile,
+    fields: &Map<String, Value>,
 ) -> Result<Vec<u8>, WriteError> {
-    settings(profile)?;
-    let official = matches!(profile.config, ClaudeDesktopConfig::Official {});
+    let official = fields.is_empty();
     let mut patch = JsonPatch::default();
     let value = object_value(pre.unwrap_or(b"{}")).map_err(|_| WriteError::InvalidResource)?;
     match key {
@@ -73,15 +98,9 @@ fn patch(
         }
         "profile" => {
             patch.remove = FLOOR.iter().map(|s| vec![(*s).into()]).collect();
-            if let ClaudeDesktopConfig::ThirdParty { base_url, auth_token } = &profile.config {
-                for (key, value) in [
-                    ("inferenceProvider", json!("gateway")),
-                    ("inferenceGatewayBaseUrl", json!(base_url.trim())),
-                    ("inferenceGatewayApiKey", json!(auth_token.trim())),
-                    ("inferenceGatewayAuthScheme", json!("bearer")),
-                ] {
-                    patch.set.push((vec![key.into()], value));
-                }
+            if !official {
+                patch.set =
+                    fields.iter().map(|(key, value)| (vec![key.clone()], value.clone())).collect();
                 patch.seed = vec![
                     (vec!["disableDeploymentModeChooser".into()], json!(true)),
                     (vec!["coworkEgressAllowedHosts".into()], json!(["*"])),
@@ -143,56 +162,19 @@ pub struct ClaudeDesktopFiles {
 impl ClaudeDesktopFiles {
     pub fn open(home: &std::path::Path) -> Result<Self, WriteError> {
         use super::live::write_guard::{DirectoryTarget, lock_directories};
-        use std::{
-            ffi::CString,
-            fs::{File, OpenOptions},
-            os::{
-                fd::{AsRawFd, FromRawFd},
-                unix::fs::{MetadataExt, OpenOptionsExt},
-            },
-        };
-        fn child(parent: &File, name: &str) -> Result<File, WriteError> {
-            let name = CString::new(name).map_err(|_| WriteError::InvalidResource)?;
-            // SAFETY: fixed single component under the authorized retained HOME.
-            if unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o700) } != 0
-                && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
-            {
-                return Err(WriteError::Io);
-            }
-            let fd = unsafe {
-                libc::openat(
-                    parent.as_raw_fd(),
-                    name.as_ptr(),
-                    libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-                )
-            };
-            if fd < 0 {
-                return Err(WriteError::InvalidResource);
-            }
-            // SAFETY: newly owned fd from openat.
-            let file = unsafe { File::from_raw_fd(fd) };
-            let m = file.metadata().map_err(|_| WriteError::Io)?;
-            if m.uid() != unsafe { libc::geteuid() } || m.mode() & 0o022 != 0 {
-                return Err(WriteError::InvalidResource);
-            }
-            parent.sync_all().map_err(|_| WriteError::Io)?;
-            Ok(file)
-        }
-        let home = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(home)
-            .map_err(|_| WriteError::InvalidResource)?;
+        let child =
+            |parent: &File, name: &str| open_child(parent, name, true)?.ok_or(WriteError::Io);
+        let home = open_home(home)?;
         let library = child(&home, "Library")?;
         let support = child(&library, "Application Support")?;
         let normal = child(&support, "Claude")?;
         let third = child(&support, "Claude-3p")?;
         let profiles = child(&third, "configLibrary")?;
         let targets = [
-            ("normal", 0, "claude_desktop_config.json".to_string()),
-            ("third", 1, "claude_desktop_config.json".to_string()),
+            ("normal", 0, CONFIG_FILE.to_string()),
+            ("third", 1, CONFIG_FILE.to_string()),
             ("profile", 2, format!("{PROFILE_ID}.json")),
-            ("meta", 2, "_meta.json".to_string()),
+            ("meta", 2, META_FILE.to_string()),
         ]
         .into_iter()
         .map(|(key, directory, name)| DirectoryTarget {
@@ -215,9 +197,11 @@ impl ClaudeDesktopFiles {
         profile: &ClaudeDesktopProfile,
         _: &super::live::commit::AppState,
     ) -> Result<(), WriteError> {
+        settings(profile)?;
+        let fields = profile_fields(&profile.config, None);
         for key in KEYS {
             let before = self.guard.read(std::ffi::OsStr::new(key))?;
-            patch(before.as_deref(), key, profile)?;
+            patch(before.as_deref(), key, &fields)?;
         }
         Ok(())
     }
@@ -231,33 +215,62 @@ impl ClaudeDesktopFiles {
         profile: &ClaudeDesktopProfile,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
+        use super::{live::commit::*, mode_state};
+        mode_state::observe(state, tenant).map_err(|_| WriteError::Conflict)?;
+        if tx.recover_owned(tenant, &mut self.guard)?.is_some() {
+            return Err(WriteError::Recovered);
+        }
+        if state.mode.as_ref().is_some_and(|mode| mode.attached || mode.mode != Mode::Direct) {
+            return Err(WriteError::Conflict);
+        }
+        settings(profile)?;
+        self.commit_profile(
+            tx,
+            tenant,
+            state,
+            &profile_fields(&profile.config, None),
+            PendingTarget {
+                pointer: Some(id.into()),
+                mode: Some(ModeState {
+                    mode: Mode::Direct,
+                    attached: false,
+                    proxy_route: state.mode.as_ref().and_then(|m| m.proxy_route.clone()),
+                    contract: Some(Contract {
+                        version: 1,
+                        key: id.into(),
+                        exclusive: Map::new(),
+                        claude_login_operation: None,
+                    }),
+                }),
+                ..Default::default()
+            },
+            unchanged,
+        )
+    }
+
+    fn commit_profile(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        state: &super::live::commit::AppState,
+        fields: &Map<String, Value>,
+        target: super::live::commit::PendingTarget,
+        unchanged: impl Fn() -> bool,
+    ) -> Result<(), WriteError> {
         use super::live::{
-            commit::*,
             stage::{FileChange, WholeFile},
             write_guard::FilePrivacy,
         };
         use vw_api_types::agent_apps::AppId;
-        if tx.recover(&mut self.guard)?.is_some() {
-            return Err(WriteError::Recovered);
-        }
-        if state.pointer.as_ref().is_some_and(|p| p.tenant != *tenant)
-            || state.mode_tenant.as_ref().is_some_and(|t| t != tenant)
-            || state.mode.as_ref().is_some_and(|m| m.attached || m.mode != Mode::Direct)
-        {
-            return Err(WriteError::Conflict);
-        }
         let mut plans = Vec::new();
         for key in KEYS {
             let before = self.guard.read(std::ffi::OsStr::new(key))?;
-            if key == "profile"
-                && before.is_none()
-                && matches!(profile.config, ClaudeDesktopConfig::Official {})
-            {
+            if key == "profile" && before.is_none() && fields.is_empty() {
                 continue;
             }
             plans.push((
                 key,
-                WholeFile::new(before.as_deref(), Some(patch(before.as_deref(), key, profile)?)),
+                WholeFile::new(before.as_deref(), Some(patch(before.as_deref(), key, fields)?)),
             ));
         }
         let changes: Vec<_> = plans
@@ -268,32 +281,90 @@ impl ClaudeDesktopFiles {
                 patch,
             })
             .collect();
-        tx.commit_checked(
-            tenant,
-            &mut self.guard,
-            &changes,
-            PendingTarget {
-                pointer: Some(id.into()),
-                mode: Some(ModeState {
-                    mode: Mode::Direct,
-                    attached: false,
-                    proxy_route: state.mode.as_ref().and_then(|m| m.proxy_route.clone()),
-                    contract: Some(Contract {
-                        version: 1,
-                        key: id.into(),
-                        exclusive: serde_json::Map::new(),
-                        claude_login_operation: None,
-                    }),
-                }),
-                ..Default::default()
-            },
-            || {
-                if unchanged() && tx.state(AppId::ClaudeDesktop)? == *state {
-                    Ok(())
-                } else {
-                    Err(WriteError::Conflict)
-                }
-            },
-        )
+        tx.commit_checked(tenant, &mut self.guard, &changes, target, || {
+            if unchanged() && tx.state(AppId::ClaudeDesktop)? == *state {
+                Ok(())
+            } else {
+                Err(WriteError::Conflict)
+            }
+        })
     }
 }
+
+#[cfg(target_os = "macos")]
+fn open_home(home: &Path) -> Result<File, WriteError> {
+    use std::{fs::OpenOptions, os::unix::fs::OpenOptionsExt};
+    if !home.is_absolute() {
+        return Err(WriteError::InvalidResource);
+    }
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(home)
+        .map_err(|_| WriteError::InvalidResource)
+}
+
+#[cfg(target_os = "macos")]
+fn open_child(parent: &File, name: &str, create: bool) -> Result<Option<File>, WriteError> {
+    use std::{
+        ffi::CString,
+        os::{
+            fd::{AsRawFd, FromRawFd},
+            unix::fs::MetadataExt,
+        },
+    };
+    let name = CString::new(name).map_err(|_| WriteError::InvalidResource)?;
+    // SAFETY: fixed single component and a retained, authorized directory.
+    if create
+        && unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o700) } != 0
+        && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
+    {
+        return Err(WriteError::Io);
+    }
+    // SAFETY: same retained directory and fixed component.
+    let fd = unsafe {
+        libc::openat(
+            parent.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+        )
+    };
+    if fd < 0 {
+        if !create && std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+            return Ok(None);
+        }
+        return Err(WriteError::InvalidResource);
+    }
+    // SAFETY: newly owned descriptor returned by openat.
+    let file = unsafe { File::from_raw_fd(fd) };
+    let metadata = file.metadata().map_err(|_| WriteError::Io)?;
+    if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0 {
+        return Err(WriteError::InvalidResource);
+    }
+    if create {
+        parent.sync_all().map_err(|_| WriteError::Io)?;
+    }
+    Ok(Some(file))
+}
+
+#[cfg(target_os = "macos")]
+fn lock_profiles(
+    home: &Path,
+) -> Result<Option<super::live::write_guard::AppWriteGuard>, WriteError> {
+    use super::live::write_guard::{DirectoryTarget, lock_directories};
+    let mut directory = open_home(home)?;
+    for name in ["Library", "Application Support", "Claude-3p", "configLibrary"] {
+        let Some(child) = open_child(&directory, name, false)? else { return Ok(None) };
+        directory = child;
+    }
+    let targets = [("profile", format!("{PROFILE_ID}.json")), ("meta", META_FILE.to_string())]
+        .into_iter()
+        .map(|(key, name)| DirectoryTarget { key: key.into(), directory: 0, name: name.into() })
+        .collect();
+    lock_directories(vw_api_types::agent_apps::AppId::ClaudeDesktop, directory, vec![], targets)
+        .map(Some)
+}
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "claude_desktop/publish_tests.rs"]
+mod publish_tests;

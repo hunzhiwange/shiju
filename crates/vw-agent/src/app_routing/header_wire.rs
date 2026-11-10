@@ -1,11 +1,8 @@
 //! Preserve only approved request header names from the first HTTP/1 head.
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue, header};
-use std::{collections::HashMap, io, io::Cursor, time::Duration};
-use tokio::{
-    io::{AsyncReadExt, join},
-    net::TcpStream,
-};
+use std::{collections::HashMap, io, time::Duration};
+use tokio::{io::AsyncReadExt, net::TcpStream};
 
 pub(super) const HEAD_TIMEOUT: Duration = Duration::from_secs(5);
 // Match the server's HTTP/1 parser limits.
@@ -92,9 +89,7 @@ fn write_field(head: &mut Vec<u8>, name: &str, value: &HeaderValue) {
     head.extend_from_slice(b"\r\n");
 }
 
-pub(super) async fn capture(
-    mut socket: TcpStream,
-) -> io::Result<(impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin, HeaderWire)> {
+pub(super) async fn capture(mut socket: TcpStream) -> io::Result<(TcpStream, Vec<u8>, HeaderWire)> {
     let mut prefix = Vec::new();
     let mut chunk = [0; 4096];
     let mut wire = HeaderWire::default();
@@ -115,8 +110,7 @@ pub(super) async fn capture(
             break;
         }
     }
-    let (reader, writer) = socket.into_split();
-    Ok((join(Cursor::new(prefix).chain(reader), writer), wire))
+    Ok((socket, prefix, wire))
 }
 
 pub(super) fn strip_hop_headers(headers: &mut HeaderMap) {

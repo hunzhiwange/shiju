@@ -177,6 +177,11 @@ impl RoutingListener {
         self.logging_enabled.load(Ordering::Relaxed)
     }
 
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn available_body_permits(&self) -> usize {
+        self.body_limits.available()
+    }
+
     /// The gateway control permit must cover the entire write and publication.
     #[cfg(target_os = "macos")]
     pub(super) fn apply_config(

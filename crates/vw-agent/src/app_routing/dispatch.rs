@@ -3,6 +3,7 @@
 use super::{
     SharedTransport,
     body_limits::{self, BodyError, BodyLimits, MAX_JSON_BYTES},
+    cancellation::ClientDisconnect,
     decode_request::{ContentCodings, DecodeError},
     decode_response,
     header_wire::{self, HeaderWire},
@@ -60,10 +61,14 @@ pub(super) async fn forward_json(
     }
     let (mut parts, incoming) = request.into_parts();
     let permit = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let disconnect = parts.extensions.remove::<ClientDisconnect>();
     let bytes = tokio::time::timeout(Duration::from_secs(10), async {
         let bytes = body_limits::collect(Body::new(incoming), MAX_JSON_BYTES)
             .await
             .map_err(request_body_status)?;
+        if let Some(disconnect) = disconnect {
+            disconnect.request_body_read();
+        }
         codings.decode(bytes, MAX_JSON_BYTES).await.map_err(decode_status)
     })
     .await

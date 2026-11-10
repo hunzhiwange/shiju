@@ -537,3 +537,27 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | — | `git diff --cached --check`（限定本项路径） | 退出 0。只读计划无差异。 |
 
 隔离 SQLite 配置及回环 HTTP/TCP 用例覆盖响应头和分段 JSON 共用总截止点、首包前持续心跳、分片 SSE 正常输出、有效输出刷新空闲期限、只有心跳时的空闲中断、禁用空闲时跨过 601 秒及终止后上游套接字回收。相邻回归覆盖授权分发、头部线协议、压缩解码和缓冲上限。macOS 测试链接器报告既有 `__eh_frame` 大小警告。本项状态为 **已完成**。
+
+## 任务 22　传播取消与客户端断线
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 21 的 `b5c95ea1f`。已核对 CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/response_processor.rs` 和 `proxy/forwarder.rs`，两份文件的 SHA256 均与仓库快照和来源映射一致。核对了来源 handler 的转发入口、流内活跃连接守卫及用量完成保护。沿用母任务 2、3 的运行时、执行主机和应用身份，以及任务 8、14 的鉴权和目标绑定。原生配置写入与账号凭据租约仍由母任务 4、6 的所有者负责。
+
+- 授权的 Codex `POST /v1/chat/completions` 在读完请求体后启用 `app_routing::cancellation::ClientDisconnect`。即使 Hyper 缓冲了流水线字节并停止读套接字，连接任务仍能观察客户端 EOF 或重置。监听器只处理每条连接的首个请求，流水线尾部字节不进入分发。
+- 客户端断开与凭据撤销均丢弃同一个 HTTP 连接 future。首包前丢弃转发，出流后丢弃响应体及其上游所有者。有序直连的连接任务和 reqwest 的响应流随所有者释放，每次请求只归还自己的一个缓冲许可。取消一条 SDK 请求保留同凭据的其他在途请求。撤销可重复调用，旧凭据随后返回 401。数据面禁用 reqwest 的协议级重试。
+- 使用真实回环 TCP 上游与 `GatewayClient::inference_openai_chat`。覆盖普通及流水线客户端在首包前与 SSE 空闲时断开、SDK 取消、同凭据并行隔离、重复撤销、上游 EOF 或重置、许可余额及无新请求。验收覆盖路由请求的终止与资源释放。持久用量由母任务 17 负责，请求终态发布由任务 85 负责。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。
+
+### 验证记录
+
+共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 与之相同。全仓格式化输出到 stdout，只格式化本项文件。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 普通断线基线 | `cargo test -p vw-agent --lib cc_route_022_ -- --nocapture` | 退出 0，1 项通过。普通连接在首包前和 SSE 空闲时已能回收上游。 |
+| 行为红灯 | `cargo test -p vw-agent --lib cc_route_022_ -- --nocapture` | 退出 101，1 项通过、1 项失败。流水线客户端在首包前断开，3 秒后上游套接字仍未关闭。 |
+| 全仓格式化 | `cargo fmt --all -- --emit stdout` | 退出 0。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_022_ -- --nocapture` | 退出 0，2 项通过，0 项失败或忽略。 |
+| 相邻回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_008_ cc_route_014_ cc_route_017_ cc_route_018_ cc_route_019_ cc_route_020_ cc_route_021_ --nocapture` | 退出 0，17 项通过，0 项失败或忽略。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 两轮退出 0，使用 `CARGO_INCREMENTAL=0`，后一轮单独运行。 |
+| 差异审查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+槽位锁已释放，缓存保留。测试链接器报告既有 macOS `__eh_frame` 大小警告。状态为 **已完成**。

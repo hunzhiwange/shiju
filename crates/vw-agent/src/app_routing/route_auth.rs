@@ -1,6 +1,11 @@
 //! Application capabilities owned by the gateway's routing listener.
 
-use super::{browser_guard, dispatch::JsonTarget, header_wire};
+use super::{
+    browser_guard,
+    cancellation::{ClientDisconnect, ClientReader},
+    dispatch::JsonTarget,
+    header_wire,
+};
 use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
@@ -9,8 +14,13 @@ use hyper::{Request, body::Incoming, server::conn::http1, service::service_fn};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use parking_lot::Mutex;
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, convert::Infallible, future::Future, sync::Arc};
-use tokio::{net::TcpStream, sync::oneshot, time::timeout};
+use std::{collections::HashMap, convert::Infallible, future::Future, io::Cursor, sync::Arc};
+use tokio::{
+    io::{AsyncReadExt, join},
+    net::TcpStream,
+    sync::oneshot,
+    time::timeout,
+};
 use tokio_util::sync::CancellationToken;
 use vw_api_types::{agent_apps::AppId, id::ProjectScope};
 #[cfg(target_os = "macos")]
@@ -159,6 +169,16 @@ impl RouteAuth {
         Ok(self.issue_with_target(binding, Some(target))?.token)
     }
 
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn issue_revocable_test_token(
+        &self,
+        binding: VerifiedRouteBinding,
+        target: JsonTarget,
+    ) -> anyhow::Result<(String, impl Fn() + '_)> {
+        let issued = self.issue_with_target(binding, Some(target))?;
+        Ok((issued.token, move || self.revoke(&issued.revocation)))
+    }
+
     // Attach the trusted destination when publishing the same immutable grant.
     // Rotating or revoking the grant also retires its target and in-flight work.
     fn issue_with_target(
@@ -273,17 +293,22 @@ where
     let Ok(local_addr) = connection.local_addr() else {
         return;
     };
-    let Ok(Ok((connection, wire))) =
+    let Ok(Ok((connection, prefix, wire))) =
         timeout(header_wire::HEAD_TIMEOUT, header_wire::capture(connection)).await
     else {
         return;
     };
+    let (reader, writer) = connection.into_split();
+    let reader = Mutex::new(reader);
+    let connection = join(Cursor::new(prefix).chain(ClientReader(&reader)), writer);
+    let disconnect = ClientDisconnect::default();
     let (send_cancel, receive_cancel) = oneshot::channel::<CancellationToken>();
     let connection_state = Mutex::new(Some((send_cancel, wire)));
     let service = service_fn(|mut request: Request<Incoming>| {
         let auth = &auth;
         let connection_state = &connection_state;
         let dispatch = &dispatch;
+        let disconnect = &disconnect;
         async move {
             let has_origin = request.headers().contains_key(header::ORIGIN);
             if !browser_guard::allows_host(&request, local_addr)
@@ -307,6 +332,7 @@ where
             request.headers_mut().remove(header::AUTHORIZATION);
             request.headers_mut().remove(API_KEY);
             request.extensions_mut().insert(wire);
+            request.extensions_mut().insert(disconnect.clone());
             Ok(dispatch(request, route).await)
         }
     });
@@ -327,6 +353,7 @@ where
     tokio::select! {
         biased;
         () = revoked => {}
+        () = disconnect.wait(ClientReader(&reader)) => {}
         _ = http.serve_connection(TokioIo::new(connection), service) => {}
     }
 }

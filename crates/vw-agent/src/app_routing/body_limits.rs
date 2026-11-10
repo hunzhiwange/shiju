@@ -21,6 +21,11 @@ impl Default for BodyLimits {
 }
 
 impl BodyLimits {
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn available(&self) -> usize {
+        self.0.available_permits()
+    }
+
     pub(super) fn try_reserve(&self) -> Option<OwnedSemaphorePermit> {
         Arc::clone(&self.0).try_acquire_owned().ok()
     }

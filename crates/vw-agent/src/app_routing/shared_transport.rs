@@ -31,6 +31,7 @@ impl SharedTransport {
         Ok(Self {
             client: upstream::upstream_http_client()?,
             encoded_client: upstream::upstream_http_client_builder_without_total_timeout()
+                .retry(reqwest::retry::never())
                 .no_gzip()
                 .no_brotli()
                 .no_deflate()

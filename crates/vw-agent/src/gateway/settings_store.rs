@@ -5,7 +5,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use vw_api_types::id::TenantScope;
 
 use crate::global_database::GlobalDatabase;
@@ -107,22 +107,7 @@ impl GatewaySettingsStore {
         match &self.provider {
             GatewaySettingsStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
-                connection
-                    .query_row(
-                        "SELECT payload_json
-                         FROM gateway_settings
-                         WHERE platform_id = ?1 AND company_id = ?2
-                           AND namespace = ?3 AND config_key = ?4",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            namespace,
-                            config_key,
-                        ],
-                        |row| row.get(0),
-                    )
-                    .optional()
-                    .context("read tenant SQLite gateway setting")
+                get_sqlite(&connection, tenant, namespace, config_key)
             }
             GatewaySettingsStoreProvider::Postgres(store) => {
                 store.get(tenant, namespace, config_key)
@@ -146,31 +131,51 @@ impl GatewaySettingsStore {
         match &self.provider {
             GatewaySettingsStoreProvider::Sqlite(database) => {
                 let connection = database.connect_sqlite()?;
-                connection
-                    .execute(
-                        "INSERT INTO gateway_settings (
-                             platform_id, company_id, namespace, config_key, payload_json,
-                             updated_at_ms
-                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                         ON CONFLICT (platform_id, company_id, namespace, config_key) DO UPDATE SET
-                             payload_json = excluded.payload_json,
-                             updated_at_ms = excluded.updated_at_ms",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            namespace,
-                            config_key,
-                            payload_json,
-                            updated_at_ms,
-                        ],
-                    )
-                    .context("upsert tenant SQLite gateway setting")?;
-                Ok(())
+                upsert_sqlite(
+                    &connection,
+                    tenant,
+                    namespace,
+                    config_key,
+                    payload_json,
+                    updated_at_ms,
+                )
             }
             GatewaySettingsStoreProvider::Postgres(store) => {
                 store.upsert(tenant, namespace, config_key, payload_json, updated_at_ms)
             }
         }
+    }
+
+    /// Read and optionally replace a scoped setting under one SQLite write transaction.
+    pub(super) fn update_sqlite<T>(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        update: impl FnOnce(Option<&str>) -> Result<(T, Option<String>)>,
+    ) -> Result<T> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        validate_identifier(config_key, "gateway settings config key")?;
+        let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
+            bail!("SQLite gateway settings transaction required");
+        };
+
+        database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+            let current = get_sqlite(transaction, tenant, namespace, config_key)?;
+            let (result, replacement) = update(current.as_deref())?;
+            if let Some(payload) = replacement {
+                validate_identifier(&payload, "gateway settings payload")?;
+                upsert_sqlite(
+                    transaction,
+                    tenant,
+                    namespace,
+                    config_key,
+                    &payload,
+                    current_timestamp_ms()?,
+                )?;
+            }
+            Ok(result)
+        })
     }
 
     /// Atomically insert a new scoped key; conflicts leave payload and timestamp unchanged.
@@ -394,6 +399,59 @@ impl GatewaySettingsStore {
             GatewaySettingsStoreProvider::Postgres(store) => store.list(tenant, namespace),
         }
     }
+}
+
+fn get_sqlite(
+    connection: &Connection,
+    tenant: &TenantScope,
+    namespace: &str,
+    config_key: &str,
+) -> Result<Option<String>> {
+    connection
+        .query_row(
+            "SELECT payload_json
+             FROM gateway_settings
+             WHERE platform_id = ?1 AND company_id = ?2
+               AND namespace = ?3 AND config_key = ?4",
+            params![
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+                namespace,
+                config_key
+            ],
+            |row| row.get(0),
+        )
+        .optional()
+        .context("read tenant SQLite gateway setting")
+}
+
+fn upsert_sqlite(
+    connection: &Connection,
+    tenant: &TenantScope,
+    namespace: &str,
+    config_key: &str,
+    payload_json: &str,
+    updated_at_ms: i64,
+) -> Result<()> {
+    connection
+        .execute(
+            "INSERT INTO gateway_settings (
+                 platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT (platform_id, company_id, namespace, config_key) DO UPDATE SET
+                 payload_json = excluded.payload_json,
+                 updated_at_ms = excluded.updated_at_ms",
+            params![
+                tenant.platform_id().as_ref(),
+                tenant.company_id().as_ref(),
+                namespace,
+                config_key,
+                payload_json,
+                updated_at_ms,
+            ],
+        )
+        .context("upsert tenant SQLite gateway setting")?;
+    Ok(())
 }
 
 fn validate_identifier(value: &str, label: &str) -> Result<()> {

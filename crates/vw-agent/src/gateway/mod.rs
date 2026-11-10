@@ -13,6 +13,9 @@
 
 mod agent;
 pub mod agent_apps_diagnostic_jobs;
+pub mod agent_apps_high_availability_store;
+#[cfg(test)]
+mod agent_apps_high_availability_store_tests;
 pub mod api;
 pub(crate) mod approval_state;
 mod bootstrap;

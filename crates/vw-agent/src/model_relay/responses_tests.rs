@@ -1,4 +1,5 @@
 use super::*;
+use crate::app_routing::reference_scope::{ReferenceScope, References};
 use serde_json::json;
 
 #[test]
@@ -96,7 +97,7 @@ fn acp_model_source_relay_responses_rejects_lossy_requests_and_outputs() {
 
 #[test]
 fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
-    let references = super::responses::References::default();
+    let references = References::default();
     let id = RelayIdentity {
         tenant: vw_api_types::id::TenantScope::new("responses", "one").unwrap(),
         project: "p".into(),
@@ -105,9 +106,10 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
         model: "model".into(),
         generation: 1,
     };
-    references.remember(&id, "local", "upstream").unwrap();
-    assert_eq!(references.resolve(&id, "local").unwrap(), "upstream");
-    assert!(references.resolve(&id, "upstream").is_err());
+    let scope = ReferenceScope::Session(id.clone());
+    references.remember(&scope, "local", "upstream").unwrap();
+    assert_eq!(references.resolve(&scope, "local").unwrap(), "upstream");
+    assert!(references.resolve(&scope, "upstream").is_err());
     for dimension in 0..6 {
         let mut other = id.clone();
         match dimension {
@@ -118,7 +120,10 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
             4 => other.model = "other".into(),
             _ => other.generation = 2,
         }
-        assert_eq!(references.resolve(&other, "local"), Err(axum::http::StatusCode::FORBIDDEN));
+        assert_eq!(
+            references.resolve(&ReferenceScope::Session(other), "local"),
+            Err(axum::http::StatusCode::FORBIDDEN)
+        );
     }
 }
 
@@ -170,7 +175,7 @@ fn acp_model_source_relay_responses_native_complete_inline_ids_are_not_lookups()
 fn acp_model_source_relay_responses_native_real_references_remain_identity_bound() {
     use axum::http::StatusCode;
     let (model, identity) = native_fixture();
-    let references = std::sync::Arc::new(super::responses::References::default());
+    let references = std::sync::Arc::new(References::default());
     super::responses::native_output(json!({"id":"upstream","object":"response","status":"completed",
         "output":[{"type":"reasoning","id":"owned-item","encrypted_content":"opaque","summary":[]}]}),
         &identity, "local", &references, true).unwrap();

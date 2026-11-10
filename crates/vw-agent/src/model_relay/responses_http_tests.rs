@@ -603,9 +603,14 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         .unwrap();
     assert!(!wire.contains("wire-model"));
     assert!(wire.contains("native-signature"));
-    assert_eq!(parse_events(&wire).last().unwrap()["type"], "response.completed");
+    let events = parse_events(&wire);
+    let completed = events.last().unwrap();
+    assert_eq!(completed["type"], "response.completed");
+    let stream_reference = completed["response"]["id"].as_str().unwrap();
+    assert_ne!(stream_reference, reference);
     // Probe the real relay from a subprocess, without claiming any supplier CLI acceptance.
     body["stream"] = false.into();
+    body["previous_response_id"] = stream_reference.into();
     use tokio::io::AsyncWriteExt;
     let mut child=tokio::process::Command::new("python3").arg("-c").arg("import sys,json,urllib.request; v=json.load(sys.stdin); r=urllib.request.urlopen(urllib.request.Request(v['url'],data=json.dumps(v['body']).encode(),headers={'Authorization':'Bearer '+v['token'],'Content-Type':'application/json'})); print(json.load(r)['model'])").stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).spawn().unwrap();
     child
@@ -620,6 +625,7 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
     let output = child.wait_with_output().await.unwrap();
     assert!(output.status.success());
     assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "selected");
+    assert_eq!(captured.lock().last().unwrap().1["previous_response_id"], "resp-native");
     crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"adapter":"openai"}}})).await.unwrap();
     body = json!({"model":"selected","input":"wait","stream":true});
     let response =

@@ -1,5 +1,6 @@
 //! Responses text/function boundary. References are opaque and scoped to the owning relay.
 use super::{RelayIdentity, messages::object_keys};
+use crate::app_routing::reference_scope::{ReferenceScope, References};
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::{Value, json};
 use std::{collections::HashSet, sync::Arc};
@@ -12,86 +13,6 @@ mod codex_chat;
 pub(super) use codex_chat::{codex_chat_effort, configure_codex_chat};
 
 const UNSUPPORTED: StatusCode = StatusCode::UNPROCESSABLE_ENTITY;
-const REFERENCE_LIMIT: usize = 4096;
-struct Reference {
-    identity: RelayIdentity,
-    public: String,
-    upstream: String,
-    item: bool,
-}
-/// No Debug/Serialize: this is transient provider state, never persisted as session history.
-#[derive(Default)]
-pub(super) struct References(parking_lot::Mutex<Vec<Reference>>);
-impl References {
-    pub(super) fn resolve(
-        &self,
-        identity: &RelayIdentity,
-        public: &str,
-    ) -> Result<String, StatusCode> {
-        let entries = self.0.lock();
-        entries
-            .iter()
-            .find(|entry| &entry.identity == identity && entry.public == public && !entry.item)
-            .map(|entry| entry.upstream.clone())
-            .ok_or(StatusCode::FORBIDDEN)
-    }
-    fn public(&self, identity: &RelayIdentity, upstream: &str) -> Result<String, StatusCode> {
-        let entries = self.0.lock();
-        entries
-            .iter()
-            .find(|entry| &entry.identity == identity && entry.upstream == upstream && !entry.item)
-            .map(|entry| entry.public.clone())
-            .ok_or(StatusCode::BAD_GATEWAY)
-    }
-    pub(super) fn remember(
-        &self,
-        identity: &RelayIdentity,
-        public: &str,
-        upstream: &str,
-    ) -> Result<(), StatusCode> {
-        self.insert(identity, public, upstream, false)
-    }
-    fn check_item(&self, identity: &RelayIdentity, id: &str) -> Result<(), StatusCode> {
-        let entries = self.0.lock();
-        if entries
-            .iter()
-            .any(|entry| entry.item && &entry.identity == identity && entry.upstream == id)
-        {
-            Ok(())
-        } else {
-            Err(StatusCode::FORBIDDEN)
-        }
-    }
-    fn insert(
-        &self,
-        identity: &RelayIdentity,
-        public: &str,
-        upstream: &str,
-        item: bool,
-    ) -> Result<(), StatusCode> {
-        if public.len() > 1024 || upstream.is_empty() || upstream.len() > 1024 {
-            return Err(StatusCode::BAD_GATEWAY);
-        }
-        let mut entries = self.0.lock();
-        if item
-            && entries.iter().any(|entry| {
-                entry.item && &entry.identity == identity && entry.upstream == upstream
-            })
-        {
-            return Ok(());
-        }
-        if entries.len() >= REFERENCE_LIMIT {
-            return Err(StatusCode::TOO_MANY_REQUESTS);
-        }
-        entries.push(Reference {
-            identity: identity.clone(),
-            public: public.into(),
-            upstream: upstream.into(),
-            item,
-        });
-        Ok(())
-    }
-}
 pub(super) fn response_id() -> String {
     format!("resp_{}", uuid::Uuid::new_v4().simple())
 }
@@ -527,6 +448,7 @@ pub(super) fn native(
             return Err(UNSUPPORTED);
         }
     }
+    let scope = ReferenceScope::Session(identity.clone());
     if let Some(items) = body["input"].as_array_mut() {
         for item in items {
             if let Some(id) = item.get("id") {
@@ -534,7 +456,7 @@ pub(super) fn native(
                 if !id.is_empty() && is_complete_inline_item(item) {
                     item.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("id");
                 } else {
-                    references.check_item(identity, id)?;
+                    references.check_item(&scope, id)?;
                 }
             }
             match item["type"].as_str() {
@@ -576,7 +498,7 @@ pub(super) fn native(
     }
     if let Some(previous) = body.get("previous_response_id").filter(|v| !v.is_null()) {
         body["previous_response_id"] =
-            references.resolve(identity, previous.as_str().ok_or(StatusCode::BAD_REQUEST)?)?.into();
+            references.resolve(&scope, previous.as_str().ok_or(StatusCode::BAD_REQUEST)?)?.into();
     }
     body["model"] = model.api.id.clone().into();
     Ok(body)
@@ -598,18 +520,19 @@ pub(super) fn native_output(
         return Err(StatusCode::BAD_GATEWAY);
     }
     let upstream = string(&body, "id")?.to_owned();
+    let scope = ReferenceScope::Session(identity.clone());
     if let Some(previous) = body.get("previous_response_id").filter(|v| !v.is_null()) {
         body["previous_response_id"] =
-            references.public(identity, previous.as_str().ok_or(StatusCode::BAD_GATEWAY)?)?.into();
+            references.public(&scope, previous.as_str().ok_or(StatusCode::BAD_GATEWAY)?)?.into();
     }
     if remember {
         for item in body["output"].as_array().ok_or(StatusCode::BAD_GATEWAY)? {
             if let Some(item_id) = item.get("id") {
                 let item_id = item_id.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
-                references.insert(identity, item_id, item_id, true)?;
+                references.remember_item(&scope, item_id)?;
             }
         }
-        references.remember(identity, id, &upstream)?;
+        references.remember(&scope, id, &upstream)?;
     }
     body["id"] = id.into();
     body["model"] = identity.model.clone().into();

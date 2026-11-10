@@ -152,3 +152,26 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 会话基线 | `cargo test -p vw-agent --lib acp_model_source_relay_ -- --nocapture` | 退出 0，21 项通过，0 项失败，1 项真实 Gemini CLI 用例按既有标记跳过。 |
 
 红灯和绿灯链接阶段均报告既有 macOS `__eh_frame` 大小警告。提交的 Rust 文件与验收副本逐一比较一致。限定提交范围的 `git diff --cached --check` 退出 0，只读 `plan.md` 无差异。槽位 1 的本任务锁已释放，编译缓存保留。状态为 **已完成**，下一步为任务 3 的响应引用隔离。
+
+## 任务 3　隔离共享响应引用作用域
+
+2026-11-10，macOS 27.0（26A428），arm64。已交付共享索引与现有会话生产入口，状态为 **已完成，待回归**。应用数据面的真实入口验收待任务 8 和 36 接通后执行。
+
+- `app_routing::reference_scope::References` 是唯一引用存储实现。键区分会话和应用，所有正向、反向及 item 查找均匹配完整作用域。应用键使用 `ProjectScope` 携带租户和项目，另含执行主机、应用、账号、供应商和凭据代次。生产代码当前仅从经会话 relay 校验的身份构造会话键。
+- `ProviderRelayBackend` 为原生 `POST /v1/responses` 的 JSON 和 SSE 共用索引。保留索引 4096 条上限、标识长度检查、反向匹配顺序和会话 `RelayBinding` 的 900 秒上限、代次隔离与撤销。
+- 应用索引测试逐一改变平台、公司、项目、执行主机、应用、账号、供应商和凭据代次，检查正反向 response 查找及 item 所有权。真实会话回环验证本地引用、跨租户拒绝、SSE 引用在后续 JSON 请求回放，以及在途撤销。固定来源与快照已核对。WSL 连接地址见来源映射，Windows、Linux、WSL 范围外且未验证。
+
+实测槽位 **1**。所有 Cargo 命令使用 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。格式化在临时源码副本执行，仅复制本任务文件的格式化结果。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_003_ -- --nocapture` | 首次退出 101，测试夹具使用了 `ProjectId` 未提供的 `Display`，执行 0 项。修复后退出 101，执行 2 项，两项均因共享索引尚只接收会话键，首次应用写入返回 403。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_003_ -- --nocapture` | 退出 0，2 项通过，0 项失败。 |
+| Responses 基线 | `cargo test -p vw-agent --lib acp_model_source_relay_responses_ -- --nocapture` | 退出 0，7 项通过，0 项失败。 |
+| 绑定基线 | `cargo test -p vw-agent --lib acp_model_source_relay_binding_ -- --nocapture` | 退出 0，4 项通过，0 项失败。 |
+| 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+
+测试链接阶段报告既有 macOS `__eh_frame` 大小警告。任务的 8 个 Rust 文件与格式化副本逐一比较一致，差异检查退出 0。各阶段的槽位锁均已释放，缓存保留。
+
+任务 8 接通逐请求应用凭据后，由获准目标解析把应用账号、供应商和实际凭据代次绑定到鉴权结果。任务 36 需把该结果接到同一引用索引的 JSON/SSE 读写。届时通过真实 macOS 应用数据面和回环上游补验同作用域回放、跨作用域拒绝、代次变化与撤销，以及会话和应用间的双向隔离。

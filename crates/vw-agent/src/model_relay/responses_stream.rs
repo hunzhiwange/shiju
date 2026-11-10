@@ -1,8 +1,9 @@
 //! Request-local, size-bounded SSE conversion; cancellation drops the upstream stream.
 use super::{
     RelayIdentity,
-    responses::{self, ChatTools, References},
+    responses::{self, ChatTools},
 };
+use crate::app_routing::reference_scope::References;
 use axum::{
     body::{Body, Bytes},
     http::StatusCode,

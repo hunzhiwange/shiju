@@ -1,6 +1,6 @@
 //! Provider-only HTTP transport; no agent loop, tool dispatcher, history or usage writes.
 use super::{RelayBackend, RelayIdentity, RelayRequest, chat, upstream};
-use crate::{auth, provider::provider};
+use crate::{app_routing::reference_scope::References, auth, provider::provider};
 use axum::{
     body::Body,
     http::{StatusCode, header},
@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
 pub struct ProviderRelayBackend {
     client: reqwest::Client,
-    references: std::sync::Arc<super::responses::References>,
+    references: std::sync::Arc<References>,
 }
 impl ProviderRelayBackend {
     pub fn new() -> Result<Self, reqwest::Error> {

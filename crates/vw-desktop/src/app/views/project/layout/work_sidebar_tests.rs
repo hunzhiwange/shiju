@@ -777,7 +777,7 @@ async fn work_sidebar_refreshes_sessions_for_every_space() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn work_sidebar_current_project_above_new_task_refreshes_and_opens_edit_menu() {
+async fn work_sidebar_current_project_above_new_task_has_refresh_and_tools_buttons() {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -812,33 +812,24 @@ async fn work_sidebar_current_project_above_new_task_refreshes_and_opens_edit_me
                 .as_slice(),
             [Message::View(ViewMessage::ProjectFileNewSession)]
         ));
-        let refresh = card.child(0).child(0).child(1).bounds().center();
+        let controls = card.child(0).child(0).child(1);
+        assert_eq!(controls.children().count(), 2);
+        let refresh = controls.child(0).bounds().center();
         let refresh = click_at(&mut sidebar, &mut tree, &renderer, layout, refresh);
         assert!(matches!(
             refresh.as_slice(),
             [Message::Project(ProjectMessage::ProjectLoadSessions(path))] if path == active
         ));
 
-        let position = card.position() + Vector::new(12.0, 12.0);
+        let tools = controls.child(1).bounds().center();
         let viewport = Rectangle::with_size(VIEWPORT);
-        let mut messages = Vec::new();
-        sidebar.as_widget_mut().update(
-            &mut tree,
-            &Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
-            layout,
-            mouse::Cursor::Available(position),
-            &renderer,
-            &mut clipboard::Null,
-            &mut Shell::new(&mut messages),
-            &viewport,
-        );
-        let [Message::Project(open @ ProjectMessage::CurrentProjectMenuOpened(path, anchor))] =
+        let messages = click_at(&mut sidebar, &mut tree, &renderer, layout, tools);
+        let [Message::Project(open @ ProjectMessage::CurrentProjectMenuToggled(path))] =
             messages.as_slice()
         else {
-            panic!("right-clicking the project should open its menu");
+            panic!("clicking the second button should open the project menu");
         };
         assert_eq!(path, active);
-        assert_eq!(*anchor, Point::new(12.0, 12.0));
         drop(sidebar);
         let _ = crate::app::message::project::update(&mut app, open.clone());
 
@@ -848,34 +839,42 @@ async fn work_sidebar_current_project_above_new_task_refreshes_and_opens_edit_me
         let mut overlay = sidebar
             .as_widget_mut()
             .overlay(&mut tree, Layout::new(&node), &renderer, &viewport, Vector::ZERO)
-            .expect("right-click opens the project menu");
+            .expect("the second button opens the project menu");
         let menu = overlay.as_overlay_mut();
         let node = menu.layout(&renderer, VIEWPORT);
-        let mut edit = Vec::new();
-        for event in [
-            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
-            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
-        ] {
-            menu.update(
-                &event,
-                Layout::new(&node),
-                mouse::Cursor::Available(position + Vector::new(12.0, 12.0)),
-                &renderer,
-                &mut clipboard::Null,
-                &mut Shell::new(&mut edit),
-            );
+        let layout = Layout::new(&node);
+        let mut panel = layout;
+        while panel.bounds().width == VIEWPORT.width {
+            panel = panel.child(0);
         }
-        let [Message::Batch(actions)] = edit.as_slice() else {
-            panic!("clicking the menu item should close the menu and edit the project");
-        };
+        let rows = panel.child(0);
+        assert_eq!(rows.children().count(), 4, "three actions and a separator");
+        let mut actions = Vec::new();
+        for index in [0, 2, 3] {
+            let cursor = mouse::Cursor::Available(rows.child(index).bounds().center());
+            for event in [
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            ] {
+                menu.update(
+                    &event,
+                    layout,
+                    cursor,
+                    &renderer,
+                    &mut clipboard::Null,
+                    &mut Shell::new(&mut actions),
+                );
+            }
+        }
         let [
-            Message::Project(ProjectMessage::ProjectToolsMenuClosed),
-            Message::Project(edit @ ProjectMessage::ProjectEditOpened(path)),
+            Message::Project(edit @ ProjectMessage::ProjectEditOpened(edit_path)),
+            Message::Project(ProjectMessage::RecentRevealPressed(reveal_path)),
+            Message::Project(ProjectMessage::RecentRemovePressed(remove_path)),
         ] = actions.as_slice()
         else {
             panic!("unexpected project menu actions");
         };
-        assert_eq!(path, active);
+        assert_eq!([edit_path, reveal_path, remove_path], [active; 3]);
         drop(overlay);
         drop(sidebar);
         let _ = crate::app::message::project::update(&mut app, edit.clone());

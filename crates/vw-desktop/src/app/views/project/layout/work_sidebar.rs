@@ -24,8 +24,8 @@ use crate::app::state::{
 use crate::app::{App, Message};
 
 use super::super::components::{
-    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, project_info_header,
-    running_draft_sessions, session_row,
+    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu,
+    project_sessions_header_with_tools, running_draft_sessions, session_row,
 };
 use super::super::styles::work_surface_style;
 
@@ -771,48 +771,17 @@ fn expanded_header(app: &App) -> Element<'static, Message> {
 }
 
 fn current_project_card(app: &App, path: &str) -> Element<'static, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-    let refresh = header_icon_button(
-        i18n,
-        Icon::ArrowRepeat,
-        "刷新会话",
-        Message::Project(ProjectMessage::ProjectLoadSessions(path.to_owned())),
+    container(project_sessions_header_with_tools(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        project_label(app, path),
+        path.to_owned(),
+        false,
+        ProjectMessage::CurrentProjectMenuToggled(path.to_owned()),
+        app.work_current_project_menu.as_deref() == Some(path),
         app.project_sessions_loading.contains(path),
-    );
-    let header =
-        container(project_info_header(project_label(app, path), path.to_owned(), false, refresh))
-            .padding([6, 10]);
-    let path_for_click = path.to_owned();
-    let trigger = Element::new(RightClickArea::new(
-        header.into(),
-        Box::new(move |anchor| {
-            Message::Project(ProjectMessage::CurrentProjectMenuOpened(
-                path_for_click.clone(),
-                anchor,
-            ))
-        }),
-    ));
-    let Some((_, anchor)) =
-        app.work_current_project_menu.as_ref().filter(|(menu_path, _)| menu_path == path)
-    else {
-        return trigger;
-    };
-    let menu = container(space_tools_menu_action(
-        i18n,
-        "编辑项目",
-        Icon::Sliders,
-        Message::Project(ProjectMessage::ProjectEditOpened(path.to_owned())),
     ))
-    .padding(4)
-    .width(Length::Fixed(160.0))
-    .style(more_menu_style);
-    PointBelowOverlay::new(trigger, menu)
-        .show(true)
-        .anchor(*anchor)
-        .close_on_target_click(true)
-        .capture_keyboard()
-        .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
-        .into()
+    .padding([6, 10])
+    .into()
 }
 
 fn navigation_icon(icon: Icon) -> svg::Svg<'static> {

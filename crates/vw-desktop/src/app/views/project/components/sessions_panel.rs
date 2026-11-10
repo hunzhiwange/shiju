@@ -366,9 +366,27 @@ pub fn project_sessions_header<'a>(
     clickable: bool,
     show_tools_menu: bool,
 ) -> Element<'a, Message> {
-    let path_for_refresh = path.clone();
-    let path_for_toggle = path.clone();
-    let path_for_menu = path.clone();
+    let toggle_tools = message::ProjectMessage::ProjectToolsMenuToggled(path.clone());
+    project_sessions_header_with_tools(
+        i18n,
+        title,
+        path,
+        clickable,
+        toggle_tools,
+        show_tools_menu,
+        false,
+    )
+}
+
+pub(in crate::app::views::project) fn project_sessions_header_with_tools<'a>(
+    i18n: crate::app::i18n::I18n,
+    title: String,
+    path: String,
+    clickable: bool,
+    toggle_tools: message::ProjectMessage,
+    show_tools_menu: bool,
+    refreshing: bool,
+) -> Element<'a, Message> {
     let refresh_btn = Tooltip::new(
         button(
             container(icon_svg(Icon::ArrowRepeat, 12.0))
@@ -377,9 +395,16 @@ pub fn project_sessions_header<'a>(
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
         )
-        .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path_for_refresh)))
+        .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path.clone())))
         .padding(0)
-        .style(icon_action_button_style),
+        .style(move |theme, status| {
+            let status = if refreshing && status == button::Status::Active {
+                button::Status::Pressed
+            } else {
+                status
+            };
+            icon_action_button_style(theme, status)
+        }),
         tooltip_bubble(i18n.__("刷新会话").to_string()),
         Position::Top,
     )
@@ -391,31 +416,17 @@ pub fn project_sessions_header<'a>(
             .align_x(iced::alignment::Horizontal::Center)
             .align_y(iced::alignment::Vertical::Center),
     )
-    .on_press(Message::Project(message::ProjectMessage::ProjectToolsMenuToggled(path_for_toggle)))
+    .on_press(Message::Project(toggle_tools))
     .padding(0)
     .style(icon_action_button_style);
 
     let tools: Element<'a, Message> =
-        PointBelowOverlay::new(more_btn, build_project_tools_menu(i18n, path_for_menu))
+        PointBelowOverlay::new(more_btn, build_project_tools_menu(i18n, path.clone()))
             .show(show_tools_menu)
             .anchor(Point::new(20.0, 20.0))
             .on_close(Message::Project(message::ProjectMessage::ProjectToolsMenuClosed))
             .into();
 
-    project_info_header(
-        title,
-        path,
-        clickable,
-        row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center),
-    )
-}
-
-pub(in crate::app::views::project) fn project_info_header<'a>(
-    title: String,
-    path: String,
-    clickable: bool,
-    actions: impl Into<Element<'a, Message>>,
-) -> Element<'a, Message> {
     let title_label = SingleLineLabel::new(title.clone(), 16.0)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     let title_label: Element<'a, Message> = if clickable {
@@ -434,11 +445,9 @@ pub(in crate::app::views::project) fn project_info_header<'a>(
         }
     });
 
+    let actions = row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center);
     column![
-        row![title_text, actions.into()]
-            .spacing(8)
-            .align_y(iced::Alignment::Center)
-            .width(Length::Fill),
+        row![title_text, actions].spacing(8).align_y(iced::Alignment::Center).width(Length::Fill),
         title_tooltip(path_label, path, Position::Right),
     ]
     .spacing(3)

@@ -29,12 +29,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::CurrentProjectMenuOpened(path, anchor) => {
+        ProjectMessage::CurrentProjectMenuToggled(path) => {
             if app.project_path.as_deref() == Some(path.as_str()) {
                 app.project_tools_menu_path = None;
                 app.session_menu_id = None;
                 app.session_menu_anchor = None;
-                app.work_current_project_menu = Some((path, anchor));
+                app.work_current_project_menu =
+                    (app.work_current_project_menu.as_ref() != Some(&path)).then_some(path);
             }
             Some(iced::Task::none())
         }
@@ -584,6 +585,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             Some(iced::Task::none())
         }
         ProjectMessage::RecentRevealPressed(_path) => {
+            app.work_current_project_menu = None;
             #[cfg(not(target_arch = "wasm32"))]
             {
                 let _ = open::that(&_path);
@@ -592,6 +594,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::RecentRemovePressed(path) => {
             app.project_tools_menu_path = None;
+            app.work_current_project_menu = None;
             app.recent_project_remove_confirm_path = Some(path);
             Some(iced::Task::none())
         }

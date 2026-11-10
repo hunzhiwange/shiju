@@ -9,7 +9,7 @@
 //! 该模块是 VibeWindow 应用的终端 UI 层核心组件，
 //! 负责将终端状态转换为 Iced 框架的可渲染元素。
 
-use iced::widget::{Space, button, column, container, row, scrollable, svg, text, text_input};
+use iced::widget::{Space, button, canvas, column, container, row, scrollable, svg, text, text_input};
 use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use crate::app::assets::{self, Icon};
@@ -37,6 +37,56 @@ mod pane_grid;
 const TAB_HEADER_HEIGHT: f32 = 34.0;
 const TAB_SCROLLBAR_WIDTH: f32 = 4.0;
 const TAB_SCROLLBAR_GAP: f32 = 3.0;
+
+struct TabCloseIcon {
+    enabled: bool,
+    active: bool,
+}
+
+impl canvas::Program<Message> for TabCloseIcon {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &Self::State,
+        renderer: &iced::Renderer,
+        theme: &Theme,
+        bounds: iced::Rectangle,
+        cursor: iced::mouse::Cursor,
+    ) -> Vec<canvas::Geometry> {
+        let palette = theme.palette();
+        let extended = theme.extended_palette();
+        let hovered = self.enabled && cursor.is_over(bounds);
+        let color = if !self.enabled {
+            palette.text.scale_alpha(0.28)
+        } else if hovered {
+            extended.danger.base.color
+        } else if self.active {
+            extended.primary.base.color
+        } else if palette.background.r + palette.background.g + palette.background.b < 1.5 {
+            Color::from_rgb8(238, 238, 238)
+        } else {
+            palette.text
+        };
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+        let center = Point::new(bounds.width / 2.0, bounds.height / 2.0);
+        let half_span = 3.4;
+        let cross = canvas::Path::new(|path| {
+            path.move_to(Point::new(center.x - half_span, center.y - half_span));
+            path.line_to(Point::new(center.x + half_span, center.y + half_span));
+            path.move_to(Point::new(center.x - half_span, center.y + half_span));
+            path.line_to(Point::new(center.x + half_span, center.y - half_span));
+        });
+        frame.stroke(
+            &cross,
+            canvas::Stroke::default()
+                .with_color(color)
+                .with_width(if hovered { 1.6 } else { 0.7 })
+                .with_line_cap(canvas::LineCap::Round),
+        );
+        vec![frame.into_geometry()]
+    }
+}
 
 pub(super) fn terminal_tab_width(title: &str) -> f32 {
     (title.chars().count() as f32 * 8.4 + 62.0).clamp(92.0, 260.0)
@@ -203,82 +253,18 @@ fn pane_view<'a>(
             }
         });
 
-        // ---------- 构建关闭按钮 ----------
-        // 悬停时显示红色，用于关闭对应标签页
         let close_btn = button(
-            container(
-                svg::Svg::new(assets::get_icon(Icon::X))
-                    .width(Length::Fixed(10.0))
-                    .height(Length::Fixed(10.0))
-                    .style(move |theme: &Theme, _| {
-                        let palette = theme.extended_palette();
-                        // 检测是否为深色主题：RGB 总和小于 1.5 判定为深色
-                        let is_dark = theme.palette().background.r
-                            + theme.palette().background.g
-                            + theme.palette().background.b
-                            < 1.5;
-                        iced::widget::svg::Style {
-                            color: Some(if !can_close_tabs {
-                                theme.palette().text.scale_alpha(0.28)
-                            } else if active {
-                                palette.primary.base.color
-                            } else if is_dark {
-                                Color::from_rgb8(238, 238, 238)
-                            } else {
-                                theme.palette().text
-                            }),
-                        }
-                    }),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
+            canvas::Canvas::new(TabCloseIcon { enabled: can_close_tabs, active })
+                .width(close_btn_size)
+                .height(close_btn_size),
         )
         .on_press_maybe(
             can_close_tabs.then_some(Message::Terminal(message::TerminalMessage::Close(tab_id))),
         )
         .height(Length::Fixed(close_btn_size))
         .width(Length::Fixed(close_btn_size))
-        .padding([0, 0])
-        .style(move |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            // 检测是否为深色主题
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            // 非激活标签的图标颜色
-            let inactive_color =
-                if is_dark { Color::from_rgb8(238, 238, 238) } else { theme.palette().text };
-            // 文本颜色：悬停时红色 > 激活时主题色 > 默认色
-            let text_color = if !can_close_tabs {
-                theme.palette().text.scale_alpha(0.28)
-            } else if status == iced::widget::button::Status::Hovered {
-                palette.danger.base.color
-            } else if active {
-                palette.primary.base.color
-            } else {
-                inactive_color
-            };
-            // 背景颜色：仅悬停时显示半透明红色背景
-            let bg = if can_close_tabs && status == iced::widget::button::Status::Hovered {
-                palette.danger.base.color.scale_alpha(0.24)
-            } else {
-                Color::TRANSPARENT
-            };
-            iced::widget::button::Style {
-                background: Some(Background::Color(bg)),
-                border: Border {
-                    width: 0.0,
-                    color: Color::TRANSPARENT,
-                    // 圆角半径为按钮尺寸的一半，形成圆形
-                    radius: (close_btn_size * 0.5).into(),
-                },
-                text_color,
-                ..Default::default()
-            }
-        });
+        .padding(0)
+        .style(|_, _| button::Style::default());
 
         // ---------- 组装单个标签页项 ----------
         // 结构：[选择按钮 | 关闭按钮] + 底部指示条

@@ -854,3 +854,85 @@ async fn terminal_split_routes_input_and_closes_empty_panes() {
     send_terminal_input(&mut h, first, character_key("y"), first_point, b"y").await;
     wait_for_line(&mut h, first, "FIRST:x中文y").await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_drag_preserves_pty_identity_and_uses_new_grid_size() {
+    use iced::advanced::input_method::Event as Ime;
+    use iced::mouse::{Button, Event as Mouse};
+    use iced::widget::pane_grid::Direction;
+
+    let mut h = Harness::with_command(concat!(
+        "stty -echo; printf 'READY\\n'; ",
+        r#"while IFS= read -r line; do printf 'FIRST:%s ' "$line"; stty size; done"#,
+    ))
+    .await;
+    let first = h.app.terminal.active_id.unwrap();
+    let pane = h.app.terminal.panes.focused;
+    let widget = h.app.terminal.tabs[0].term.widget_id().clone();
+    h.app.terminal.split_terminal(pane, Direction::Right, Size::new(800.0, 220.0), None).unwrap();
+    let second = h.app.terminal.active_id.unwrap();
+    let first_point = Point::new(120.0, 360.0);
+    let redraw = || Event::Window(iced::window::Event::RedrawRequested(std::time::Instant::now()));
+    h.click(first_point).await;
+    h.event(redraw(), first_point).await;
+    wait_for_line(&mut h, first, "READY").await;
+    send_terminal_input(&mut h, first, character_key("before\n"), first_point, b"before\n").await;
+    async fn pty_size(h: &mut Harness, id: u64, prefix: &str) -> (u16, u16) {
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            loop {
+                h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
+                    id,
+                    iced_term::BackendCommand::Resize(None, None),
+                )))
+                .await;
+                let tab = h.app.terminal.tabs.iter().find(|tab| tab.id == id).unwrap();
+                if let Some(size) = tab.term.text().iter().find_map(|line| {
+                    let (rows, cols) = line.strip_prefix(prefix)?.split_once(' ')?;
+                    Some((rows.parse::<u16>().ok()?, cols.parse::<u16>().ok()?))
+                }) {
+                    break size;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("stty size from the original PTY")
+    }
+    async fn drag(h: &mut Harness, from: Point, to: Point) {
+        h.event(Event::Mouse(Mouse::ButtonPressed(Button::Left)), from).await;
+        h.event(Event::Mouse(Mouse::CursorMoved { position: to }), to).await;
+        h.event(Event::Mouse(Mouse::ButtonReleased(Button::Left)), to).await;
+    }
+    let before = pty_size(&mut h, first, "FIRST:before ").await;
+    drag(&mut h, Point::new(400.0, 390.0), Point::new(550.0, 390.0)).await;
+    drag(&mut h, Point::new(10.0, 297.0), Point::new(675.0, 390.0)).await;
+    let moved = Point::new(675.0, 390.0);
+    h.event(redraw(), moved).await;
+    assert_eq!(h.app.terminal.active_id, Some(first));
+    assert_eq!(h.app.terminal.tabs[0].term.widget_id(), &widget);
+    send_terminal_input(
+        &mut h,
+        first,
+        Event::InputMethod(Ime::Commit("中文".into())),
+        moved,
+        "中文".as_bytes(),
+    )
+    .await;
+    send_terminal_input(&mut h, first, character_key("\n"), moved, b"\n").await;
+    let after = pty_size(&mut h, first, "FIRST:中文 ").await;
+    eprintln!("terminal {first} {widget:?}: stty size {before:?} -> {after:?}");
+    assert_eq!(before.0, after.0);
+    assert!(after.1 < before.1);
+    assert!(
+        h.app
+            .terminal
+            .tabs
+            .iter()
+            .find(|tab| tab.id == second)
+            .unwrap()
+            .term
+            .text()
+            .iter()
+            .all(|line| !line.contains("FIRST:"))
+    );
+}

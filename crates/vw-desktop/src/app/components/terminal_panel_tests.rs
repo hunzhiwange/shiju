@@ -413,3 +413,193 @@ async fn terminal_typography_draws_mixed_text_and_cursor_on_the_same_grid() {
     state.close_terminal(id);
     state.reap_retired();
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+struct DragPanel {
+    app: App,
+    renderer: iced::Renderer,
+    cache: iced_runtime::user_interface::Cache,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl DragPanel {
+    const SIZE: Size = Size::new(800.0, 400.0);
+
+    async fn new() -> Self {
+        let mut app = test_app();
+        app.terminal = blank_terminal(true);
+        assert!(app.terminal.add_terminal(None));
+        Self {
+            app,
+            renderer: <iced::Renderer as Headless>::new(
+                Font::DEFAULT,
+                Pixels(16.0),
+                Some("tiny-skia"),
+            )
+            .await
+            .expect("tiny-skia renderer"),
+            cache: Default::default(),
+        }
+    }
+
+    fn split(
+        &mut self,
+        pane: iced::widget::pane_grid::Pane,
+        direction: iced::widget::pane_grid::Direction,
+    ) -> iced::widget::pane_grid::Pane {
+        self.app.terminal.split_terminal(pane, direction, Self::SIZE, None).unwrap();
+        self.app.terminal.panes.focused
+    }
+
+    fn bounds(&mut self, pane: iced::widget::pane_grid::Pane) -> iced::Rectangle {
+        let index = self.app.terminal.panes.grid.iter().position(|(id, _)| *id == pane).unwrap();
+        let mut view = super::terminal_panel::view(&self.app);
+        let mut tree = Tree::new(view.as_widget());
+        let node = view.as_widget_mut().layout(
+            &mut tree,
+            &self.renderer,
+            &layout::Limits::new(Size::ZERO, Self::SIZE),
+        );
+        Layout::new(&node)
+            .children()
+            .next()
+            .unwrap()
+            .children()
+            .next()
+            .unwrap()
+            .children()
+            .nth(index)
+            .unwrap()
+            .bounds()
+    }
+
+    fn event(&mut self, event: iced::mouse::Event, point: iced::Point) {
+        use iced_runtime::user_interface::UserInterface;
+
+        let mut ui = UserInterface::build(
+            super::terminal_panel::view(&self.app),
+            Self::SIZE,
+            std::mem::take(&mut self.cache),
+            &mut self.renderer,
+        );
+        let mut messages = Vec::new();
+        let _ = ui.update(
+            &[iced::Event::Mouse(event)],
+            iced::mouse::Cursor::Available(point),
+            &mut self.renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+        for theme in [Theme::Light, Theme::Dark] {
+            ui.draw(
+                &mut self.renderer,
+                &theme,
+                &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                iced::mouse::Cursor::Available(point),
+            );
+        }
+        self.cache = ui.into_cache();
+        for message in messages {
+            let _ = self.app.update(message);
+        }
+    }
+
+    fn drag(&mut self, from: iced::Point, to: iced::Point) {
+        use iced::mouse::{Button, Event};
+
+        self.event(Event::ButtonPressed(Button::Left), from);
+        self.event(Event::CursorMoved { position: to }, to);
+        self.event(Event::ButtonReleased(Button::Left), to);
+    }
+
+    fn grip(&mut self, pane: iced::widget::pane_grid::Pane) -> iced::Point {
+        let bounds = self.bounds(pane);
+        iced::Point::new(bounds.x + 10.0, bounds.y + 17.0)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_drag_divider_resizes_nested_panes() {
+    use iced::Point;
+    use iced::widget::pane_grid::Direction;
+
+    let mut panel = DragPanel::new().await;
+    let first = panel.app.terminal.panes.focused;
+    let right = panel.split(first, Direction::Right);
+    let bottom = panel.split(first, Direction::Down);
+
+    let before = panel.bounds(first);
+    let vertical = (before.width + panel.bounds(right).x) / 2.0;
+    panel.drag(Point::new(vertical, 100.0), Point::new(500.0, 100.0));
+    let wider = panel.bounds(first);
+    eprintln!("vertical divider {vertical}, first pane {before:?} -> {wider:?}");
+    assert!(wider.width > before.width + 90.0);
+    assert_eq!(panel.bounds(bottom).width, wider.width);
+
+    let horizontal = (wider.height + panel.bounds(bottom).y) / 2.0;
+    panel.drag(Point::new(100.0, horizontal), Point::new(100.0, 390.0));
+    let taller = panel.bounds(first);
+    let lower = panel.bounds(bottom);
+    eprintln!("horizontal divider {horizontal}, panes {taller:?} and {lower:?}");
+    assert!(taller.height > wider.height + 100.0);
+    assert_eq!(lower.height, 88.0);
+    assert_eq!(panel.bounds(right).height, DragPanel::SIZE.height);
+
+    let point = Point::new(100.0, 120.0);
+    panel.event(iced::mouse::Event::CursorMoved { position: point }, point);
+    assert_eq!(panel.bounds(first), taller);
+    assert!(!panel.app.terminal.is_dragging);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_drag_header_docks_panes_without_capturing_terminal_selection() {
+    use iced::Point;
+    use iced::widget::pane_grid::Direction;
+
+    let mut panel = DragPanel::new().await;
+    let first = panel.app.terminal.panes.focused;
+    let right = panel.split(first, Direction::Right);
+    let bottom = panel.split(first, Direction::Down);
+    panel.app.terminal.tabs[0].default_title = false;
+    panel.app.terminal.tabs[0].title = "开发环境的长终端标签".repeat(15);
+    let before = panel.bounds(first);
+    let target = panel.bounds(right);
+    let grip = panel.grip(first);
+    panel.drag(grip, target.center());
+    assert_eq!(panel.bounds(first), target);
+    assert_eq!(panel.bounds(right), before);
+
+    let grip = panel.grip(first);
+    panel.drag(grip, Point::new(100.0, 300.0));
+    let docked = panel.bounds(first);
+    assert!(docked.x < panel.bounds(bottom).x);
+    assert_eq!(docked.y, panel.bounds(bottom).y);
+
+    let grip = panel.grip(first);
+    panel.drag(grip, Point::new(798.0, 250.0));
+    let edge = panel.bounds(first);
+    assert_eq!(edge.height, DragPanel::SIZE.height);
+    assert_eq!(edge.x + edge.width, DragPanel::SIZE.width);
+
+    let grip = panel.grip(first);
+    panel.drag(grip, Point::new(900.0, 350.0));
+    assert_eq!(panel.bounds(first), edge);
+    panel.drag(grip, Point::new(799.0, 250.0));
+    assert_eq!(panel.bounds(first), edge);
+
+    // Selecting a tab or starting a selection in the terminal must not pick up the pane.
+    panel.drag(Point::new(edge.x + 45.0, 17.0), Point::new(100.0, 80.0));
+    assert_eq!(panel.bounds(first), edge);
+    use iced::mouse::{Button, Event};
+    panel.event(Event::ButtonPressed(Button::Left), Point::new(edge.x + 45.0, 54.0));
+    let inside = Point::new(edge.x + 120.0, 74.0);
+    panel.event(Event::CursorMoved { position: inside }, inside);
+    let other_pane = Point::new(100.0, 80.0);
+    panel.event(Event::CursorMoved { position: other_pane }, other_pane);
+    panel.event(Event::ButtonReleased(Button::Left), inside);
+    assert_eq!(panel.bounds(first), edge);
+    let tab = &panel.app.terminal.tabs[0];
+    assert!(tab.term.has_selection(), "terminal body should still process mouse selection");
+}

@@ -345,6 +345,10 @@ impl App {
             if let Some(state) = self.terminals_by_project.remove(&path) {
                 let old = std::mem::replace(&mut self.terminal, state);
                 self.terminal.absorb_replaced(old);
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    self.terminal.panes.instance = iced::widget::Id::unique();
+                }
                 if self.terminal.is_visible {
                     let _ = self
                         .terminal

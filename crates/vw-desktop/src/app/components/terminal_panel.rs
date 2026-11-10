@@ -139,7 +139,7 @@ fn pane_view<'a>(
     tabs: Vec<&'a TerminalTab>,
     active_id: Option<u64>,
     controls: iced::widget::Row<'a, Message>,
-) -> Element<'a, Message> {
+) -> (Element<'a, Message>, Element<'a, Message>) {
     let tab_header_height = TAB_HEADER_HEIGHT - TAB_SCROLLBAR_WIDTH - TAB_SCROLLBAR_GAP;
 
     // ==================== 构建标签页行 ====================
@@ -517,7 +517,7 @@ fn pane_view<'a>(
     let toolbar = row![tabs_scroll, controls].height(TAB_HEADER_HEIGHT);
     let header = container(toolbar).width(Length::Fill).style(terminal_surface_style);
 
-    column![header, out].width(Length::Fill).height(Length::Fill).into()
+    (header.into(), out.into())
 }
 
 /// 渲染终端窗格以及覆盖整个面板的重命名模态框。
@@ -529,15 +529,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let content = pane_grid::view(app);
     #[cfg(target_arch = "wasm32")]
-    let content = pane_view(
-        app,
-        app.terminal.tabs.iter().collect(),
-        app.terminal.active_id,
-        row![
-            toolbar_icon_button(Icon::Plus, Message::Terminal(message::TerminalMessage::Add)),
-            hide_button()
-        ],
-    );
+    let content = {
+        let (header, out) = pane_view(
+            app,
+            app.terminal.tabs.iter().collect(),
+            app.terminal.active_id,
+            row![
+                toolbar_icon_button(Icon::Plus, Message::Terminal(message::TerminalMessage::Add)),
+                hide_button()
+            ],
+        );
+        column![header, out].width(Length::Fill).height(Length::Fill)
+    };
     let main_content =
         container(content).width(Length::Fill).height(Length::Fill).style(|theme: &Theme| {
             iced::widget::container::Style {

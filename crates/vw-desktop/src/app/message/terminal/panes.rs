@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use iced::Task;
+use iced::widget::pane_grid::DragEvent;
 
 use super::TerminalMessage;
 use crate::app::state::ToastKind;
@@ -9,6 +10,23 @@ use crate::app::{App, FocusArea, Message};
 
 pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {
+        TerminalMessage::ResizePane(instance, event, size) => {
+            let terminal = &mut app.terminal;
+            if terminal.is_visible && terminal.panes.instance == instance {
+                terminal.panes.resize(event, size);
+            }
+            Task::none()
+        }
+        TerminalMessage::DragPane(instance, event, size) => {
+            let terminal = &mut app.terminal;
+            if terminal.is_visible
+                && terminal.panes.instance == instance
+                && let DragEvent::Dropped { pane, target } = event
+            {
+                terminal.panes.dock(pane, target, size);
+            }
+            Task::none()
+        }
         TerminalMessage::AddToPane(pane) => {
             if app.terminal.is_visible {
                 super::tabs::add_to_pane(app, pane)

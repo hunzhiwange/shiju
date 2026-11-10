@@ -3,7 +3,8 @@
 use std::path::PathBuf;
 
 use iced::Size;
-use iced::widget::pane_grid::{Axis, Direction, Pane, State};
+use iced::widget::Id;
+use iced::widget::pane_grid::{Axis, Direction, Node, Pane, ResizeEvent, State, Target};
 
 use super::TerminalState;
 
@@ -11,13 +12,14 @@ pub(crate) const PANE_SPACING: f32 = 4.0;
 const MIN_PANE_WIDTH: f32 = 160.0;
 const MIN_PANE_HEIGHT: f32 = 88.0;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct TerminalPane {
     pub(crate) tabs: Vec<u64>,
     pub(crate) active_id: Option<u64>,
 }
 
 pub(crate) struct TerminalPanes {
+    pub(crate) instance: Id,
     pub(crate) grid: State<TerminalPane>,
     pub(crate) focused: Pane,
     pub(crate) split_menu: Option<Pane>,
@@ -26,7 +28,7 @@ pub(crate) struct TerminalPanes {
 impl Default for TerminalPanes {
     fn default() -> Self {
         let (grid, focused) = State::new(TerminalPane::default());
-        Self { grid, focused, split_menu: None }
+        Self { instance: Id::unique(), grid, focused, split_menu: None }
     }
 }
 
@@ -74,6 +76,77 @@ impl TerminalPanes {
 
     pub(crate) fn is_visible_tab(&self, id: u64) -> bool {
         self.grid.iter().any(|(_, pane)| pane.active_id == Some(id))
+    }
+
+    pub(crate) fn resize(&mut self, event: ResizeEvent, size: Size) {
+        if !event.ratio.is_finite() {
+            return;
+        }
+        let splits = self.grid.layout().split_regions(PANE_SPACING, 0.0, size);
+        let Some(&(_, _, current)) = splits.get(&event.split) else {
+            return;
+        };
+        let mut candidate = self.grid.clone();
+        let requested = event.ratio.clamp(0.0, 1.0);
+        candidate.resize(event.split, requested);
+        if fits(&candidate, size) {
+            self.grid.resize(event.split, requested);
+        } else if fits(&self.grid, size) {
+            // A child can contain more splits. Use the rendered leaf bounds to
+            // find the nearest legal divider position, including Iced's rounding.
+            let (mut valid, mut invalid) = (current, requested);
+            for _ in 0..16 {
+                let ratio = (valid + invalid) / 2.0;
+                candidate.resize(event.split, ratio);
+                if fits(&candidate, size) {
+                    valid = ratio;
+                } else {
+                    invalid = ratio;
+                }
+            }
+            self.grid.resize(event.split, valid);
+        }
+    }
+
+    pub(crate) fn dock(&mut self, pane: Pane, target: Target, size: Size) {
+        if self.grid.len() < 2
+            || self.grid.get(pane).is_none()
+            || matches!(target, Target::Pane(id, _) if id == pane || self.grid.get(id).is_none())
+        {
+            return;
+        }
+
+        let mut candidate = self.grid.clone();
+        candidate.drop(pane, target);
+        if candidate.panes == self.grid.panes
+            && !same_arrangement(candidate.layout(), self.grid.layout())
+            && fits(&candidate, size)
+        {
+            self.grid = candidate;
+        }
+    }
+}
+
+fn fits(grid: &State<TerminalPane>, size: Size) -> bool {
+    let regions = grid.layout().pane_regions(PANE_SPACING, 0.0, size);
+    regions.keys().eq(grid.panes.keys())
+        && regions.values().all(|region| {
+            region.width.is_finite()
+                && region.height.is_finite()
+                && region.width >= MIN_PANE_WIDTH
+                && region.height >= MIN_PANE_HEIGHT
+        })
+}
+
+// Re-docking a pane on its existing edge must preserve the user's split ratios.
+fn same_arrangement(first: &Node, second: &Node) -> bool {
+    match (first, second) {
+        (Node::Pane(first), Node::Pane(second)) => first == second,
+        (
+            Node::Split { axis, a, b, .. },
+            Node::Split { axis: other_axis, a: other_a, b: other_b, .. },
+        ) => axis == other_axis && same_arrangement(a, other_a) && same_arrangement(b, other_b),
+        _ => false,
     }
 }
 

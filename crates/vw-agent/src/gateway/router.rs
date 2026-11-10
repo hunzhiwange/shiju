@@ -140,6 +140,30 @@ pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) 
         .layer(cors)
 }
 
+#[cfg(target_os = "macos")]
+pub(super) fn app_routing_router() -> Router {
+    use axum::{
+        extract::DefaultBodyLimit,
+        http::header,
+        response::Response,
+        routing::{get, post},
+    };
+    use handlers::app_routing::{health, start, status, stop};
+
+    Router::new()
+        .route("/app-routing/hosts/{host}/status", get(status))
+        .route("/app-routing/hosts/{host}/health", get(health))
+        .route("/app-routing/hosts/{host}/start", post(start))
+        .route("/app-routing/hosts/{host}/stop", post(stop))
+        .layer(DefaultBodyLimit::max(1024))
+        .layer(middleware::map_response(async |mut response: Response| {
+            response
+                .headers_mut()
+                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+            response
+        }))
+}
+
 pub(crate) fn handler_router() -> Router {
     Router::new()
         // 全局路由：健康检查、系统状态等

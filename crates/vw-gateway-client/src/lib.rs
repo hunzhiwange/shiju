@@ -31,6 +31,7 @@ mod stream;
 #[cfg(test)]
 mod tests;
 
+pub use client::AppRoutingError;
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]

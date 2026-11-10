@@ -79,6 +79,12 @@ struct Grant {
     launch: bool,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    routing_read: bool,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    routing_manage: bool,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -438,6 +444,11 @@ enum Capability<'a> {
     PreferencesWrite,
     Launch,
     ProviderConfigRead,
+    #[cfg(target_os = "macos")]
+    RoutingControl {
+        scope: &'a RoutingControlScope,
+        manage: bool,
+    },
     ProviderConfigWrite,
     AuthAccountRead {
         service: AuthService,
@@ -705,6 +716,12 @@ fn authorize_scoped(
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
+                    #[cfg(target_os = "macos")]
+                    Capability::RoutingControl { scope, manage } => {
+                        scope.tenant == *tenant
+                            && scope.host == target
+                            && if manage { g.routing_manage } else { g.routing_read }
+                    }
                     Capability::ProviderConfigWrite => g.provider_config_write,
                     Capability::AuthBindingWrite(service) => {
                         g.provider_config_write && g.auth_binding_write.contains(&service)
@@ -927,25 +944,95 @@ pub(super) fn authorize_provider_discovery(
         .map(|a| (a.host, a.principal))
 }
 
-/// Restore at most one listener from the explicitly configured administrator policy.
 #[cfg(target_os = "macos")]
-pub(crate) fn routing_startup_address(path: &Path) -> Result<Option<std::net::SocketAddr>, ()> {
+pub(crate) struct RoutingControlScope {
+    pub tenant: TenantScope,
+    pub host: String,
+    pub bind: std::net::SocketAddr,
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) struct RoutingSetup {
+    pub startup_address: Option<std::net::SocketAddr>,
+    pub control: Option<RoutingControlScope>,
+}
+
+/// One explicit administrator policy governs the gateway's single listener.
+#[cfg(target_os = "macos")]
+pub(crate) fn routing_setup(path: &Path) -> Result<RoutingSetup, ()> {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    let policy = load(path)?;
-    let mut enabled = policy
-        .hosts
-        .into_iter()
-        .filter(|host| host.online && matches!(host.binding, Binding::Local))
-        .filter_map(|host| host.routing_startup.filter(|startup| startup.enabled));
-    let Some(startup) = enabled.next() else {
-        return Ok(None);
+    let bind = |config: Option<&RoutingStartup>| {
+        let ip = config
+            .and_then(|config| config.listen_address)
+            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+            .to_canonical();
+        let port = config.map_or(15721, |config| config.listen_port);
+        if !ip.is_loopback() || (1..1024).contains(&port) {
+            return Err(());
+        }
+        Ok(SocketAddr::new(ip, port))
     };
-    let ip = startup.listen_address.unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST)).to_canonical();
-    if enabled.next().is_some() || !ip.is_loopback() || (1..1024).contains(&startup.listen_port) {
+    let policy = load(path)?;
+    let mut enabled = policy.hosts.iter().filter(|host| {
+        host.online
+            && matches!(host.binding, Binding::Local)
+            && host.routing_startup.as_ref().is_some_and(|startup| startup.enabled)
+    });
+    let startup = enabled.next();
+    if enabled.next().is_some() {
         return Err(());
     }
-    Ok(Some(SocketAddr::new(ip, startup.listen_port)))
+    let startup_address = startup.map(|host| bind(host.routing_startup.as_ref())).transpose()?;
+
+    let mut grants = policy
+        .principals
+        .iter()
+        .flat_map(|principal| &principal.grants)
+        .filter(|grant| grant.routing_read || grant.routing_manage);
+    let control = if let Some(owner) = grants.next() {
+        if startup.is_some_and(|host| host.id != owner.host_id)
+            || grants.any(|grant| {
+                grant.platform_id != owner.platform_id
+                    || grant.company_id != owner.company_id
+                    || grant.host_id != owner.host_id
+            })
+        {
+            return Err(());
+        }
+        let tenant = TenantScope::new(owner.platform_id.clone(), owner.company_id.clone())
+            .map_err(|_| ())?;
+        let host = policy.hosts.iter().find(|host| host.id == owner.host_id).ok_or(())?;
+        vw_agent_apps::providers::validate_identity(&host.id).map_err(|_| ())?;
+        Some(RoutingControlScope {
+            tenant,
+            host: host.id.clone(),
+            bind: bind(host.routing_startup.as_ref())?,
+        })
+    } else {
+        None
+    };
+    Ok(RoutingSetup { startup_address, control })
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn authorize_routing_control(
+    path: &Path,
+    headers: &HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+    scope: &RoutingControlScope,
+    manage: bool,
+) -> Result<Option<PathBuf>, StatusCode> {
+    authorize_scoped(
+        Some(path),
+        headers,
+        tenant,
+        target,
+        None,
+        Capability::RoutingControl { scope, manage },
+    )
+    .map(|authorized| authorized.host.credential_root)
 }
 
 /// Startup consumes the same administrator-owned host identities and private

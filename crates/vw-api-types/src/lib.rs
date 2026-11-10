@@ -41,6 +41,7 @@ pub mod acp_session;
 pub mod agent_apps;
 pub mod agent_apps_auth;
 pub mod agent_scheduler;
+pub mod app_routing;
 pub mod apps_usage;
 pub mod chat;
 pub mod common;

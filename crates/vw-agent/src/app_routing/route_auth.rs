@@ -83,6 +83,11 @@ struct ActiveRoutes {
 pub(super) struct RouteAuth(Mutex<ActiveRoutes>);
 
 impl RouteAuth {
+    #[cfg(target_os = "macos")]
+    pub(super) fn has_active_routes(&self) -> bool {
+        !self.0.lock().grants.is_empty()
+    }
+
     #[cfg_attr(
         not(test),
         expect(dead_code, reason = "production issuance awaits the authorized attach transaction")

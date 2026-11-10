@@ -239,6 +239,9 @@ mod agent_apps_error_tests;
 #[cfg(test)]
 mod agent_apps_read_tests;
 
+#[cfg(target_os = "macos")]
+pub(crate) mod app_routing;
+
 pub(crate) mod agent_apps;
 
 pub(crate) mod agent_apps_auth_read;

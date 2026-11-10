@@ -99,8 +99,9 @@ async fn serve_gateway(
     host: &str,
     port: u16,
     mut config: Config,
-    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
-    routing: &crate::app_routing::RoutingListener,
+    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] routing: &Arc<
+        crate::app_routing::RoutingListener,
+    >,
 ) -> Result<()> {
     if is_public_bind(host) && config.tunnel.provider == "none" && !config.gateway.allow_public_bind
     {
@@ -304,21 +305,7 @@ async fn serve_gateway(
         std::future::pending::<()>().await;
     };
     #[cfg(target_os = "macos")]
-    if let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
-        let address = tokio::task::spawn_blocking(move || {
-            api::handlers::agent_apps::routing_startup_address(std::path::Path::new(&path))
-        })
-        .await;
-        match address {
-            Ok(Ok(Some(address))) => {
-                if let Err(error) = routing.start_on(&address.ip().to_string(), address.port()) {
-                    tracing::warn!(%error, "Application routing startup failed");
-                }
-            }
-            Ok(Ok(None)) => {}
-            _ => tracing::warn!("Application routing startup policy rejected"),
-        }
-    }
+    let app = api::handlers::app_routing::configure(app, routing).await;
     tokio::select! {
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
         result = super::channel_reload::watch_gateway_channels(state, config) => result?,
@@ -824,7 +811,10 @@ pub(super) fn client_router(
     openai_compat_route: Router<AppState>,
     dashboard_config_route: Router<AppState>,
 ) -> Router<AppState> {
-    let handler_router = stateful_handler_router()
+    let handler_router = stateful_handler_router();
+    #[cfg(target_os = "macos")]
+    let handler_router = handler_router.merge(super::router::app_routing_router().with_state(()));
+    let handler_router = handler_router
         // 认证（外层）-> 租户解析 -> 受保护的业务 handler。
         .layer(from_fn(middleware::tenant_scope_middleware))
         .layer(from_fn_with_state(state.clone(), skey_auth_middleware));

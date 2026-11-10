@@ -24,6 +24,9 @@ use vw_agent_apps::routing::lifecycle_state::{Lifecycle, LifecycleState};
 pub enum ListenerError {
     #[error("a routing listener transition is already in progress")]
     TransitionInProgress,
+    #[cfg(target_os = "macos")]
+    #[error("the gateway is shutting down")]
+    ShuttingDown,
     #[error("the routing listener requires an active Tokio runtime")]
     RuntimeUnavailable,
     #[error("the routing listener address must be an IPv4 or IPv6 literal")]
@@ -40,6 +43,8 @@ pub enum ListenerError {
 
 struct RunningListener {
     address: SocketAddr,
+    #[cfg(target_os = "macos")]
+    started_at: chrono::DateTime<chrono::Utc>,
     shutdown: oneshot::Sender<()>,
     exited: oneshot::Receiver<()>,
 }
@@ -51,10 +56,47 @@ type ListenerLifecycle = Mutex<Lifecycle<RunningListener>>;
 #[derive(Default)]
 pub struct RoutingListener {
     lifecycle: Arc<ListenerLifecycle>,
+    // Shared with management requests so shutdown closes the control plane
+    // before draining the single listener.
+    control_closed: Arc<tokio::sync::Mutex<bool>>,
     pub(super) auth: Arc<RouteAuth>,
 }
 
 impl RoutingListener {
+    pub(super) async fn shutdown(&self) -> Result<(), ListenerError> {
+        let mut closed = self.control_closed.lock().await;
+        *closed = true;
+        self.stop().await
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn try_control(&self) -> Result<tokio::sync::OwnedMutexGuard<bool>, ListenerError> {
+        let guard = Arc::clone(&self.control_closed)
+            .try_lock_owned()
+            .map_err(|_| ListenerError::TransitionInProgress)?;
+        if *guard {
+            return Err(ListenerError::ShuttingDown);
+        }
+        Ok(guard)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn has_active_routes(&self) -> bool {
+        self.auth.has_active_routes()
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn snapshot(
+        &self,
+    ) -> (LifecycleState, Option<(SocketAddr, chrono::DateTime<chrono::Utc>)>) {
+        let lifecycle = self.lifecycle.lock();
+        let binding = match &*lifecycle {
+            Lifecycle::Running(running) => Some((running.address, running.started_at)),
+            _ => None,
+        };
+        (lifecycle.state(), binding)
+    }
+
     pub fn state(&self) -> LifecycleState {
         self.lifecycle.lock().state()
     }
@@ -160,7 +202,13 @@ impl RoutingListener {
                 _completion: completion,
             },
         };
-        self.lifecycle.lock().finish_start(Some(RunningListener { address, shutdown, exited }));
+        self.lifecycle.lock().finish_start(Some(RunningListener {
+            address,
+            #[cfg(target_os = "macos")]
+            started_at: chrono::Utc::now(),
+            shutdown,
+            exited,
+        }));
         runtime.spawn(task.serve(stop, serve_connection));
         Ok(address)
     }

@@ -156,12 +156,12 @@ async fn cc_route_007_gateway_owner_expected_behavior() {
 
 #[test]
 fn cc_route_007_gateway_owner_rejects_untrusted_startup() {
-    use crate::gateway::api::handlers::agent_apps::routing_startup_address;
+    use crate::gateway::api::handlers::agent_apps::routing_setup;
 
     let fixture = TempDir::new().unwrap();
     let policy = fixture.path().join("access.json");
     let authorized = host(fixture.path(), 0);
-    let read = || routing_startup_address(&policy);
+    let read = || routing_setup(&policy).map(|setup| setup.startup_address);
     assert!(read().is_err(), "missing policy");
 
     for (field, value) in [("online", json!(false)), ("binding", json!("remote"))] {

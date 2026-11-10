@@ -497,7 +497,7 @@ mod import_tests;
 #[cfg(target_os = "macos")]
 mod usage_refresh;
 #[cfg(target_os = "macos")]
-pub(crate) use access::routing_startup_address;
+pub(crate) use access::{RoutingControlScope, authorize_routing_control, routing_setup};
 #[cfg(target_os = "macos")]
 pub(crate) use usage_refresh::{init as init_usage_refresh, run as run_usage_refresh};
 

@@ -79,6 +79,7 @@ pub enum ProjectMessage {
     CodeProjectsMenuChanged(bool),
     RecentOverlayClosed,
     ProjectToolsMenuToggled(String),
+    CurrentProjectMenuOpened(String, iced::Point),
     ProjectToolsMenuClosed,
     ProjectEditOpened(String),
     ProjectEditTabSelected(ProjectEditTab),

@@ -777,7 +777,7 @@ async fn work_sidebar_refreshes_sessions_for_every_space() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn work_sidebar_current_project_card_targets_active_project() {
+async fn work_sidebar_current_project_above_new_task_refreshes_and_opens_edit_menu() {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
@@ -801,30 +801,86 @@ async fn work_sidebar_current_project_card_targets_active_project() {
         let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
         let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
         let layout = Layout::new(&node);
-        let card = layout.child(1).child(0).child(1);
-        let actions = card.child(0).child(0).child(1);
-        let refresh = click_at(
-            &mut sidebar,
-            &mut tree,
-            &renderer,
-            layout,
-            actions.child(0).bounds().center(),
-        );
+        let navigation = layout.child(1).child(0).child(0);
+        let card_index = usize::from(!collapsed);
+        let card = navigation.child(card_index);
+        let new_task = navigation.child(card_index + 1);
+        let new_task = if collapsed { new_task } else { new_task.child(0) };
+        assert!(card.bounds().y + card.bounds().height <= new_task.bounds().y);
+        assert!(matches!(
+            click_at(&mut sidebar, &mut tree, &renderer, layout, new_task.bounds().center())
+                .as_slice(),
+            [Message::View(ViewMessage::ProjectFileNewSession)]
+        ));
+        let refresh = card.child(0).child(0).child(1).bounds().center();
+        let refresh = click_at(&mut sidebar, &mut tree, &renderer, layout, refresh);
         assert!(matches!(
             refresh.as_slice(),
             [Message::Project(ProjectMessage::ProjectLoadSessions(path))] if path == active
         ));
-        let edit = click_at(
-            &mut sidebar,
+
+        let position = card.position() + Vector::new(12.0, 12.0);
+        let viewport = Rectangle::with_size(VIEWPORT);
+        let mut messages = Vec::new();
+        sidebar.as_widget_mut().update(
             &mut tree,
-            &renderer,
+            &Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)),
             layout,
-            actions.child(1).bounds().center(),
+            mouse::Cursor::Available(position),
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut messages),
+            &viewport,
         );
-        assert!(matches!(
-            edit.as_slice(),
-            [Message::Project(ProjectMessage::ProjectEditOpened(path))] if path == active
-        ));
+        let [Message::Project(open @ ProjectMessage::CurrentProjectMenuOpened(path, anchor))] =
+            messages.as_slice()
+        else {
+            panic!("right-clicking the project should open its menu");
+        };
+        assert_eq!(path, active);
+        assert_eq!(*anchor, Point::new(12.0, 12.0));
+        drop(sidebar);
+        let _ = crate::app::message::project::update(&mut app, open.clone());
+
+        let mut sidebar = work_sidebar::view(&app);
+        let mut tree = Tree::new(sidebar.as_widget());
+        let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let mut overlay = sidebar
+            .as_widget_mut()
+            .overlay(&mut tree, Layout::new(&node), &renderer, &viewport, Vector::ZERO)
+            .expect("right-click opens the project menu");
+        let menu = overlay.as_overlay_mut();
+        let node = menu.layout(&renderer, VIEWPORT);
+        let mut edit = Vec::new();
+        for event in [
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ] {
+            menu.update(
+                &event,
+                Layout::new(&node),
+                mouse::Cursor::Available(position + Vector::new(12.0, 12.0)),
+                &renderer,
+                &mut clipboard::Null,
+                &mut Shell::new(&mut edit),
+            );
+        }
+        let [Message::Batch(actions)] = edit.as_slice() else {
+            panic!("clicking the menu item should close the menu and edit the project");
+        };
+        let [
+            Message::Project(ProjectMessage::ProjectToolsMenuClosed),
+            Message::Project(edit @ ProjectMessage::ProjectEditOpened(path)),
+        ] = actions.as_slice()
+        else {
+            panic!("unexpected project menu actions");
+        };
+        assert_eq!(path, active);
+        drop(overlay);
+        drop(sidebar);
+        let _ = crate::app::message::project::update(&mut app, edit.clone());
+        assert!(app.work_current_project_menu.is_none());
+        assert_eq!(app.project_edit_path.as_deref(), Some(active));
     }
 }
 
@@ -906,7 +962,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     let rail = root.child(0).child(0);
     let sessions = root.child(1).child(0);
     assert_eq!(root.child(1).bounds().width, app.work_sidebar_width);
-    assert_eq!(sessions.children().count(), 4, "new task, current project, tabs, and session list");
+    assert_eq!(sessions.children().count(), 3, "navigation, tabs, and session list");
     let controls = rail.children();
     let mut actions = controls.map(|control| {
         click_at(&mut sidebar, &mut tree, &renderer, root, control.bounds().center())
@@ -936,14 +992,14 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
         click_at(sidebar, tree, &renderer, root, target.bounds().center())
     };
     assert!(matches!(
-        click(&mut sidebar, &mut tree, sessions.child(0)).as_slice(),
+        click(&mut sidebar, &mut tree, sessions.child(0).child(1)).as_slice(),
         [Message::View(ViewMessage::ProjectFileNewSession)]
     ));
     assert!(matches!(
-        click(&mut sidebar, &mut tree, sessions.child(2).child(1)).as_slice(),
+        click(&mut sidebar, &mut tree, sessions.child(1).child(1)).as_slice(),
         [Message::View(ViewMessage::WorkSidebarTabSelected(WorkSidebarTab::Spaces))]
     ));
-    let task = sessions.child(3).child(0).child(0).child(0);
+    let task = sessions.child(2).child(0).child(0).child(0);
     assert!(click(&mut sidebar, &mut tree, task).iter().any(|message| matches!(
         message,
         Message::Project(ProjectMessage::OpenProjectSessionPressed(path, id))
@@ -975,7 +1031,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     let mut tree = Tree::new(sidebar.as_widget());
     let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let root = Layout::new(&node);
-    let new_task = root.child(1).child(0).child(0).bounds().center();
+    let new_task = root.child(1).child(0).child(0).child(1).bounds().center();
 
     let mut overlay = sidebar
         .as_widget_mut()

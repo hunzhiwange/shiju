@@ -311,6 +311,7 @@ impl App {
                 .unwrap_or(false),
             work_sidebar_filter_open: false,
             work_sidebar_more_open: false,
+            work_current_project_menu: None,
             work_sidebar_project_nav_hovered: false,
             work_sidebar_filter_scope: state::WorkSidebarFilterScope::default(),
             work_sidebar_filter_status: state::WorkSidebarFilterStatus::default(),

@@ -27,7 +27,7 @@ use super::super::components::{
     SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, project_info_header,
     running_draft_sessions, session_row,
 };
-use super::super::styles::{content_panel_style, work_surface_style};
+use super::super::styles::work_surface_style;
 
 mod rail;
 
@@ -779,22 +779,40 @@ fn current_project_card(app: &App, path: &str) -> Element<'static, Message> {
         Message::Project(ProjectMessage::ProjectLoadSessions(path.to_owned())),
         app.project_sessions_loading.contains(path),
     );
-    let edit = header_icon_button(
+    let header =
+        container(project_info_header(project_label(app, path), path.to_owned(), false, refresh))
+            .padding([6, 10]);
+    let path_for_click = path.to_owned();
+    let trigger = Element::new(RightClickArea::new(
+        header.into(),
+        Box::new(move |anchor| {
+            Message::Project(ProjectMessage::CurrentProjectMenuOpened(
+                path_for_click.clone(),
+                anchor,
+            ))
+        }),
+    ));
+    let Some((_, anchor)) =
+        app.work_current_project_menu.as_ref().filter(|(menu_path, _)| menu_path == path)
+    else {
+        return trigger;
+    };
+    let menu = container(space_tools_menu_action(
         i18n,
-        Icon::Sliders,
         "编辑项目",
+        Icon::Sliders,
         Message::Project(ProjectMessage::ProjectEditOpened(path.to_owned())),
-        false,
-    );
-    container(project_info_header(
-        project_label(app, path),
-        path.to_owned(),
-        false,
-        row![refresh, edit].spacing(4).align_y(iced::Alignment::Center),
     ))
-    .padding([6, 10])
-    .style(content_panel_style)
-    .into()
+    .padding(4)
+    .width(Length::Fixed(160.0))
+    .style(more_menu_style);
+    PointBelowOverlay::new(trigger, menu)
+        .show(true)
+        .anchor(*anchor)
+        .close_on_target_click(true)
+        .capture_keyboard()
+        .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
+        .into()
 }
 
 fn navigation_icon(icon: Icon) -> svg::Svg<'static> {
@@ -1453,26 +1471,27 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill)
     .height(Length::Fill);
 
-    let navigation = if app.work_sidebar_collapsed {
+    let mut navigation = column![].spacing(9);
+    if !app.work_sidebar_collapsed {
+        navigation = navigation.push(expanded_header(app));
+    }
+    if let Some(path) = app.project_path.as_deref() {
+        navigation = navigation.push(current_project_card(app, path));
+    }
+    let navigation = navigation.push(if app.work_sidebar_collapsed {
         new_task_button(app)
     } else {
-        column![expanded_header(app), navigation_section(app)].spacing(9).into()
-    };
-    let mut sidebar_content = column![navigation];
-    if let Some(path) = app.project_path.as_deref() {
-        sidebar_content = sidebar_content.push(current_project_card(app, path));
-    }
+        navigation_section(app)
+    });
     let sidebar = container(
-        sidebar_content
-            .push(tabs(
-                crate::app::i18n::I18n::new(app.desktop_locale),
-                &model,
-                app.work_sidebar_tab,
-            ))
-            .push(scroll)
-            .spacing(9)
-            .width(Length::Fill)
-            .height(Length::Fill),
+        column![
+            navigation,
+            tabs(crate::app::i18n::I18n::new(app.desktop_locale), &model, app.work_sidebar_tab),
+            scroll,
+        ]
+        .spacing(9)
+        .width(Length::Fill)
+        .height(Length::Fill),
     )
     .width(Length::Fixed(app.work_sidebar_width))
     .height(Length::Fill)

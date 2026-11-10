@@ -766,6 +766,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
         ProjectMessage::SessionRightClicked(id, x, y) => {
+            app.work_current_project_menu = None;
             app.session_menu_id = Some(id);
             app.session_menu_anchor = Some(iced::Point::new(x, y));
             Some(iced::Task::none())

@@ -114,6 +114,8 @@ pub struct App {
     pub(crate) work_sidebar_filter_open: bool,
     /// 工作模式左栏“更多”应用菜单是否打开
     pub(crate) work_sidebar_more_open: bool,
+    /// 工作模式当前项目右键菜单的项目路径与局部锚点
+    pub(crate) work_current_project_menu: Option<(String, Point)>,
     /// 工作模式左栏“项目”导航项是否悬停（展开态显示新建入口）
     pub(crate) work_sidebar_project_nav_hovered: bool,
     /// 工作模式左栏项目范围过滤

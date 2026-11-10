@@ -21,6 +21,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
     // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
     match message {
         ProjectMessage::ProjectToolsMenuToggled(path) => {
+            app.work_current_project_menu = None;
             if app.project_tools_menu_path.as_ref() == Some(&path) {
                 app.project_tools_menu_path = None;
             } else {
@@ -28,8 +29,18 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
+        ProjectMessage::CurrentProjectMenuOpened(path, anchor) => {
+            if app.project_path.as_deref() == Some(path.as_str()) {
+                app.project_tools_menu_path = None;
+                app.session_menu_id = None;
+                app.session_menu_anchor = None;
+                app.work_current_project_menu = Some((path, anchor));
+            }
+            Some(iced::Task::none())
+        }
         ProjectMessage::ProjectToolsMenuClosed => {
             app.project_tools_menu_path = None;
+            app.work_current_project_menu = None;
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditOpened(path) => {
@@ -158,6 +169,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 .clamp(5, 3600)
                 .to_string();
             app.project_tools_menu_path = None;
+            app.work_current_project_menu = None;
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectEditTabSelected(tab) => {

@@ -604,6 +604,7 @@ impl App {
         }
         self.project_path = Some(path.clone());
         if project_changed {
+            self.work_current_project_menu = None;
             self.project_is_git_repo = false;
             self.reset_task_board_project_state();
         }

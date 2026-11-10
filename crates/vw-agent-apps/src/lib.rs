@@ -17,3 +17,5 @@ pub mod models;
 pub mod usage;
 
 pub mod routing;
+
+pub mod aggregation;

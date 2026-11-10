@@ -68,7 +68,7 @@ pub(super) fn connection_matches(
     connection: &Connection,
     supplier_token: &str,
 ) -> bool {
-    connection.valid()
+    connection.valid_management()
         && connection.host.trim() == binding.host
         && connection.token.trim() == supplier_token.trim()
 }

@@ -56,7 +56,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             {
                 app.agent_apps_auth.form = None;
                 if tab == SystemTab::Auth {
-                    app.agent_apps_auth.select_endpoint(&crate::app::gateway_client_endpoint());
+                    return super::super::agent_apps_auth::update(
+                        app,
+                        super::super::agent_apps_auth::Event::Refresh,
+                    );
                 }
             }
             if tab == SystemTab::Apps {

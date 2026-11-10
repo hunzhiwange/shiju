@@ -144,7 +144,7 @@ impl GatewayClient {
             .map_err(|_| AgentAppsAuthError::InvalidPrincipalToken)?;
         principal.set_sensitive(true);
 
-        // Management requests use Basic authentication and the endpoint's tenant scope.
+        // Use the endpoint's tenant scope without its regular gateway credential.
         let mut context = self.endpoint.clone();
         context.auth = None;
         let mut url = Url::parse(&format!("{}/v1/agent-apps/auth", context.base_url()))
@@ -155,8 +155,8 @@ impl GatewayClient {
             .request(method, url)
             .query(&ScopeQuery { host_id, service })
             .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", principal)
-            .basic_auth(credentials.username, Some(credentials.password));
+            .header("x-agent-apps-token", principal);
+        let request = credentials.apply_basic_auth(request);
         Ok(apply_request_context(request, &context))
     }
 }

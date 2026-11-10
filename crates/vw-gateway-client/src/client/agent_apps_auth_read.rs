@@ -7,11 +7,24 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use vw_api_types::agent_apps_auth::{AuthAccount, AuthError, AuthService, AuthStatus};
 
-/// Basic management credentials and the independent trusted principal token.
+/// A trusted principal token and optional Basic credentials for managed gateways.
 pub struct AgentAppsAuthCredentials<'a> {
     pub username: &'a str,
     pub password: &'a str,
     pub principal_token: &'a str,
+}
+
+impl AgentAppsAuthCredentials<'_> {
+    pub(super) fn apply_basic_auth(
+        &self,
+        request: reqwest::RequestBuilder,
+    ) -> reqwest::RequestBuilder {
+        if self.username.is_empty() && self.password.is_empty() {
+            request
+        } else {
+            request.basic_auth(self.username, Some(self.password))
+        }
+    }
 }
 
 /// A supplier's account reference in the selected authorization scope.
@@ -111,7 +124,7 @@ impl GatewayClient {
             .map_err(|_| AgentAppsAuthReadError::InvalidPrincipalToken)?;
         principal.set_sensitive(true);
 
-        // The management route uses Basic authentication on the endpoint's tenant scope.
+        // Use the endpoint's tenant scope without its regular gateway credential.
         let mut context = self.endpoint.clone();
         context.auth = None;
         let request = self
@@ -119,8 +132,8 @@ impl GatewayClient {
             .get(format!("{}/v1/agent-apps/auth/{resource}", context.base_url()))
             .query(&ScopeQuery { host_id, service, account_id })
             .header(CACHE_CONTROL, "no-cache, no-store")
-            .header("x-agent-apps-token", principal)
-            .basic_auth(credentials.username, Some(credentials.password));
+            .header("x-agent-apps-token", principal);
+        let request = credentials.apply_basic_auth(request);
         let response = apply_request_context(request, &context)
             .send()
             .await

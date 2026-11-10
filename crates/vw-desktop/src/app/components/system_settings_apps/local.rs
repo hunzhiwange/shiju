@@ -8,6 +8,20 @@ pub(crate) fn available() -> bool {
 pub(crate) async fn connect(
     client: GatewayClient,
 ) -> Result<vw_shared::local_apps::Credentials, String> {
+    provision(client, false).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn connect_auth(
+    client: GatewayClient,
+) -> Result<vw_shared::local_apps::Credentials, String> {
+    provision(client, true).await
+}
+
+async fn provision(
+    client: GatewayClient,
+    auth: bool,
+) -> Result<vw_shared::local_apps::Credentials, String> {
     if !cfg!(unix) || !client.endpoint().is_loopback() {
         return Err("请先在网关连接中切换到本机网关，再添加本机应用".into());
     }
@@ -17,7 +31,18 @@ pub(crate) async fn connect(
         tokio::task::spawn_blocking(move || {
             let base =
                 directories::BaseDirs::new().ok_or_else(|| "无法确定本机用户目录".to_string())?;
-            let result = vw_shared::local_apps::initialize(
+            #[cfg(unix)]
+            let initialize = if auth {
+                vw_shared::local_apps::initialize_auth
+            } else {
+                vw_shared::local_apps::initialize
+            };
+            #[cfg(not(unix))]
+            let initialize = {
+                let _ = auth;
+                vw_shared::local_apps::initialize
+            };
+            let result = initialize(
                 base.home_dir(),
                 tenant.platform_id().as_ref(),
                 tenant.company_id().as_ref(),
@@ -28,7 +53,10 @@ pub(crate) async fn connect(
         .map_err(|_| "本机应用初始化任务失败".to_string())?
     }
     #[cfg(target_arch = "wasm32")]
-    Err("请在桌面应用中添加本机应用".into())
+    {
+        let _ = auth;
+        Err("请在桌面应用中添加本机应用".into())
+    }
 }
 
 /// Only our private local grant may default to this machine's existing CLI configuration.

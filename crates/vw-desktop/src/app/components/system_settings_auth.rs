@@ -41,23 +41,22 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
     }
     let configured = state.connection.is_some();
     let idle = state.pending.is_none() && state.account_action.is_none();
-    let refresh_label =
-        if state.rows.as_ref().is_some_and(|rows| rows.iter().any(|row| row.accounts.is_err())) {
-            "重试"
-        } else {
-            "刷新"
-        };
+    let failed = state.connection_error.is_some()
+        || state.rows.as_ref().is_some_and(|rows| rows.iter().all(|row| row.accounts.is_err()));
+    let refresh_label = if failed { "重试" } else { "刷新" };
+    let show_management = !cfg!(unix)
+        || failed
+        || state.connection.as_ref().is_some_and(|connection| connection.valid_management());
     let usage_scope = apps_usage_cards::current_scope(app, true);
     let batch_pending = usage_scope.as_ref().is_some_and(|scope| state.usage.batch_pending(scope));
     let actions = row![
-        button(text("管理连接"))
-            .style(rounded_action_btn_style)
-            .padding([6, 12])
-            .on_press_maybe((state.loopback && idle).then(|| message(Event::Open))),
         button(text(refresh_label))
             .style(rounded_action_btn_style)
             .padding([6, 12])
-            .on_press_maybe((configured && idle).then(|| message(Event::Refresh))),
+            .on_press_maybe(
+                (state.loopback && idle && (configured || cfg!(unix)))
+                    .then(|| message(Event::Refresh)),
+            ),
         button(text(if batch_pending { "正在刷新额度…" } else { "刷新全部额度" }))
             .style(rounded_action_btn_style)
             .padding([6, 12])
@@ -70,7 +69,17 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
                     && !batch_pending)
                     .then(|| apps_usage_cards::message_event(apps_usage_cards::Event::RefreshAll))
             ),
-    ]
+    ];
+    let actions = if state.loopback && show_management {
+        actions.push(
+            button(text("管理连接"))
+                .style(rounded_action_btn_style)
+                .padding([6, 12])
+                .on_press_maybe(idle.then(|| message(Event::Open))),
+        )
+    } else {
+        actions
+    }
     .spacing(8)
     .wrap();
 
@@ -98,17 +107,21 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
         );
     }
     if let Some(connection) = &state.connection {
-        heading = heading.push(
-            text(format!("执行主机 {}", connection.host.trim()))
-                .size(12)
-                .style(settings_muted_text_style),
-        );
+        let host = if connection.host == vw_shared::local_apps::HOST_ID {
+            "本机"
+        } else {
+            connection.host.trim()
+        };
+        heading = heading
+            .push(text(format!("执行主机 {host}")).size(12).style(settings_muted_text_style));
     }
 
     let body: Element<'_, Message> = if !state.loopback {
         settings_error_banner("授权中心需要本机回环管理连接。请在网关设置中选择本机连接。")
     } else if state.pending.is_some() {
         text("正在读取授权账号…").style(settings_muted_text_style).into()
+    } else if let Some(error) = &state.connection_error {
+        settings_error_banner(error.as_str())
     } else if let Some(rows) = &state.rows {
         let report =
             usage_scope.as_ref().map_or_else(Vec::new, |scope| state.usage.batch_lines(scope));
@@ -153,9 +166,13 @@ pub(crate) fn view(app: &crate::app::App) -> Element<'_, Message> {
         .height(Length::Fill)
         .into()
     } else {
-        text("请配置管理连接，填写执行主机及其账号读取令牌。")
-            .style(settings_muted_text_style)
-            .into()
+        text(if cfg!(unix) {
+            "正在准备本机授权…"
+        } else {
+            "请打开管理连接读取授权账号。"
+        })
+        .style(settings_muted_text_style)
+        .into()
     };
 
     column![container(heading).padding([0, 7]), body]
@@ -341,7 +358,7 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
         button(text("读取账号"))
             .padding([8, 14])
             .style(primary_action_btn_style)
-            .on_press_maybe(form.valid().then(|| message(Event::Connect))),
+            .on_press_maybe(form.valid_management().then(|| message(Event::Connect))),
     ]
     .spacing(8)
     .align_y(Alignment::Center);

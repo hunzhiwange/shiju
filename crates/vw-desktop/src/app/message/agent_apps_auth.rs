@@ -39,7 +39,10 @@ pub(crate) const SERVICES: [AuthService; 7] = [
 #[derive(Clone)]
 pub enum Event {
     AccountAction(actions::ActionEvent),
-    OpenBinding { provider_id: String, provider_generation: u64 },
+    OpenBinding {
+        provider_id: String,
+        provider_generation: u64,
+    },
     LoadBinding(u64),
     BindingLoaded(u64, Result<Vec<AuthAccount>, &'static str>),
     SelectBinding(u64, String),
@@ -62,8 +65,21 @@ pub enum Event {
     LoginLink(u64, LinkAction),
     PasteInput(u64, String),
     PasteSubmit(u64),
-    LoginUpdated { scope: Scope, generation: u64, update: flow::Update },
-    Loaded { scope: Scope, generation: u64, rows: Vec<ServiceAccounts> },
+    LoginUpdated {
+        scope: Scope,
+        generation: u64,
+        update: flow::Update,
+    },
+    LocalReady {
+        scope: Scope,
+        generation: u64,
+        result: Result<vw_shared::local_apps::Credentials, String>,
+    },
+    Loaded {
+        scope: Scope,
+        generation: u64,
+        rows: Vec<ServiceAccounts>,
+    },
 }
 
 impl std::fmt::Debug for Event {
@@ -171,6 +187,24 @@ pub(in crate::app) fn update_at(
             }
         }
         Event::Close => state.form = None,
+        Event::LocalReady { scope: ready_scope, generation, result } => {
+            if scope != ready_scope || state.pending != Some(generation) {
+                return Task::none();
+            }
+            state.pending = None;
+            match result {
+                Ok(credentials) => {
+                    state.connection = Some(Connection::local(credentials));
+                    return update_at(app, Event::Refresh, endpoint);
+                }
+                Err(error) => {
+                    state.connection_error = Some(error.clone());
+                    if visible {
+                        return app.show_error_toast(error);
+                    }
+                }
+            }
+        }
         Event::Host(value) => {
             if state.binding.is_none()
                 && let Some(form) = &mut state.form
@@ -196,7 +230,7 @@ pub(in crate::app) fn update_at(
             }
         }
         Event::Connect | Event::Refresh => {
-            if !visible || state.account_action.is_some() {
+            if !visible || state.account_action.is_some() || state.login.is_some() {
                 return Task::none();
             }
             if let Some(binding) = &state.binding {
@@ -220,16 +254,23 @@ pub(in crate::app) fn update_at(
                 return Task::none();
             }
             if matches!(event, Event::Connect) {
-                if !state.form.as_ref().is_some_and(Connection::valid) {
+                if !state.form.as_ref().is_some_and(Connection::valid_management) {
                     return Task::none();
                 }
                 state.connection = state.form.take();
             }
-            let Some(connection) = state.connection.clone() else {
-                return Task::none();
-            };
             let Ok(client) = GatewayClient::new(endpoint) else {
                 return app.show_error_toast("无法建立管理连接，请重试");
+            };
+            let Some(connection) = state.connection.clone() else {
+                if !cfg!(unix) {
+                    return Task::none();
+                }
+                let generation = state.begin();
+                return Task::perform(
+                    crate::app::components::system_settings_apps::local::connect_auth(client),
+                    move |result| message(Event::LocalReady { scope, generation, result }),
+                );
             };
             let generation = state.begin();
             return Task::perform(

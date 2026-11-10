@@ -42,7 +42,23 @@ pub(crate) struct Connection {
 }
 
 impl Connection {
+    pub fn local(credentials: vw_shared::local_apps::Credentials) -> Self {
+        Self {
+            host: vw_shared::local_apps::HOST_ID.into(),
+            token: credentials.token,
+            ..Self::default()
+        }
+    }
+
     pub fn valid(&self) -> bool {
+        self.valid_management()
+            || self.host == vw_shared::local_apps::HOST_ID
+                && self.username.is_empty()
+                && self.password.is_empty()
+                && !self.token.trim().is_empty()
+    }
+
+    pub fn valid_management(&self) -> bool {
         let username = self.username.trim();
         !self.host.trim().is_empty()
             && !self.host.chars().any(char::is_control)
@@ -63,6 +79,7 @@ pub(crate) struct State {
     pub loopback: bool,
     pub form: Option<Connection>,
     pub connection: Option<Connection>,
+    pub connection_error: Option<String>,
     pub login: Option<Login>,
     pub binding: Option<Binding>,
     pub account_action: Option<AccountAction>,
@@ -92,6 +109,7 @@ impl State {
             self.pending = None;
             self.form = None;
             self.connection = None;
+            self.connection_error = None;
             self.login = None;
             self.binding = None;
             self.account_action = None;
@@ -105,6 +123,7 @@ impl State {
 
     pub fn begin(&mut self) -> u64 {
         self.usage.clear();
+        self.connection_error = None;
         self.generation = self.generation.wrapping_add(1);
         self.pending = Some(self.generation);
         self.rows = None;

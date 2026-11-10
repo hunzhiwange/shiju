@@ -133,7 +133,7 @@ async fn start(
     query: Result<Query<ScopeQuery>, QueryRejection>,
     request: Request,
 ) -> Result<(StatusCode, Json<AuthStartResponse>), FlowError> {
-    let browser_peer = local_browser_peer(&request);
+    let browser_peer = direct_loopback_peer(&request);
     let execution = authorize(policy, tenant, request.headers().clone(), query).await?;
     let Json(input) = Json::<AuthStartRequest>::from_request(request, &())
         .await
@@ -181,7 +181,7 @@ async fn start(
     Ok((StatusCode::CREATED, Json(started)))
 }
 
-fn local_browser_peer(request: &Request) -> bool {
+pub(super) fn direct_loopback_peer(request: &Request) -> bool {
     let headers = request.headers();
     request
         .extensions()

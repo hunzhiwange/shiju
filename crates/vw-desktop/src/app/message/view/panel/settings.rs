@@ -146,6 +146,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ToggleSystemSettings => {
             app.show_system_settings = !app.show_system_settings;
+            app.project_tools_menu_path = None;
+            app.system_settings_help_tab = None;
             #[cfg(not(target_arch = "wasm32"))]
             {
                 app.agent_apps_auth.form = None;
@@ -153,11 +155,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     && app.system_settings_tab
                         == crate::app::components::system_settings::SystemTab::Auth
                 {
-                    app.agent_apps_auth.select_endpoint(&crate::app::gateway_client_endpoint());
+                    return crate::app::message::agent_apps_auth::update(
+                        app,
+                        crate::app::message::agent_apps_auth::Event::Refresh,
+                    );
                 }
             }
-            app.project_tools_menu_path = None;
-            app.system_settings_help_tab = None;
             if app.show_system_settings {
                 Task::none()
             } else {

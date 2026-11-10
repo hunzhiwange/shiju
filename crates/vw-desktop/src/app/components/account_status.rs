@@ -12,8 +12,12 @@ use crate::app::state::MonthlyQuotaState;
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::text::Wrapping;
+use iced::widget::tooltip::{Position, Tooltip};
 use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Background, Border, Color, Element, Length, Shadow, Theme};
+
+#[path = "account_quota_ring.rs"]
+mod quota_ring;
 
 /// 账号菜单统一使用的滚动条宽度。
 pub(crate) const ACCOUNT_SCROLLBAR_WIDTH: u32 = 4;
@@ -294,55 +298,46 @@ fn quota_money(amount: f64) -> String {
 pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
     app.account.active_account()?;
     let i18n = I18n::new(app.desktop_locale);
-    let title = i18n.__("本月余额");
+    let title = i18n.__("本月额度");
     let unlimited = i18n.__("无月限额");
     let mut details = column![text(title).size(14), settings_divider()].spacing(8);
-    let status = match app.account.monthly_quota {
-        MonthlyQuotaState::Ready(quota) => {
+    let ring = match app.account.monthly_quota {
+        MonthlyQuotaState::Ready(quota) | MonthlyQuotaState::Loading(Some(quota)) => {
             let reset_at = chrono::DateTime::from_timestamp(quota.reset_at, 0)
                 .and_then(|reset| reset.checked_add_signed(chrono::TimeDelta::hours(8)))
                 .map(|reset| reset.format("%m/%d").to_string())
                 .unwrap_or_else(|| "—".into());
             let limit =
                 quota.remaining.map_or_else(|| unlimited.to_string(), |_| quota_money(quota.limit));
+            let balance = quota.remaining.map_or_else(|| unlimited.to_string(), quota_money);
             details = details
+                .push(quota_detail(i18n.__("本月余额"), balance))
                 .push(quota_detail(i18n.__("本月已用"), quota_money(quota.used)))
                 .push(quota_detail(i18n.__("月限额"), limit))
-                .push(quota_detail(i18n.__("重置日（北京时间）"), reset_at))
-                .push(
-                    text(i18n.__("已用金额包含在途预占。"))
-                        .size(12)
-                        .style(settings_muted_text_style),
-                );
-            quota.remaining.map_or_else(|| unlimited.to_string(), quota_money)
+                .push(quota_detail(i18n.__("重置日（北京时间）"), reset_at));
+            match quota.remaining {
+                Some(remaining) if quota.limit > 0.0 => {
+                    quota_ring::QuotaRing::Limited((remaining / quota.limit).clamp(0.0, 1.0))
+                }
+                Some(_) => quota_ring::QuotaRing::Unknown,
+                None => quota_ring::QuotaRing::Unlimited,
+            }
         }
-        MonthlyQuotaState::Unavailable => i18n.__("额度暂不可用").to_string(),
-        MonthlyQuotaState::Idle | MonthlyQuotaState::Loading => i18n.__("加载中…").to_string(),
+        status => {
+            let label = if matches!(status, MonthlyQuotaState::Unavailable) {
+                i18n.__("额度暂不可用")
+            } else {
+                i18n.__("加载中…")
+            };
+            details = details.push(text(label).size(13).style(settings_muted_text_style));
+            quota_ring::QuotaRing::Unknown
+        }
     };
-    if !matches!(app.account.monthly_quota, MonthlyQuotaState::Ready(_)) {
-        details = details.push(text(status.clone()).size(13).style(settings_muted_text_style));
-    }
-    let refresh = button(text(i18n.__("刷新")).size(12))
-        .padding([4, 9])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(
-            (!matches!(app.account.monthly_quota, MonthlyQuotaState::Loading))
-                .then(|| account_message(AccountMessage::RefreshMonthlyQuota)),
-        );
-    let popup =
-        container(details.push(refresh)).width(Length::Fixed(280.0)).padding(12).style(menu_style);
-    let trigger = button(text(format!("{title} · {status}")).size(12))
-        .padding([5, 9])
-        .style(trigger_style)
-        .on_press(account_message(AccountMessage::ToggleMonthlyQuota));
-
     Some(
-        AboveOverlay::new(trigger, popup)
-            .show(app.account.monthly_quota_open)
+        Tooltip::new(ring.view(), container(details).width(Length::Fixed(248.0)), Position::Top)
             .gap(5.0)
-            .snap_within_viewport(true)
-            .on_close(account_message(AccountMessage::CloseMonthlyQuota))
-            .block_background_events(true)
+            .padding(12.0)
+            .style(menu_style)
             .into(),
     )
 }

@@ -52,7 +52,7 @@ fn native_shiju_skill_restored_account_schedules_preparation() {
     );
     let package_refresh = usize::from(ShijuPackageId::current().is_some());
     assert_eq!(task.units(), 4 + package_refresh);
-    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(None)));
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn successful_login_and_switch_schedule_shiju_key_sync() {
 
         let package_refresh = usize::from(ShijuPackageId::current().is_some());
         assert_eq!(task.units(), 5 + package_refresh);
-        assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
+        assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(None)));
         assert!(app.account.active_account().is_some());
     }
 }
@@ -405,10 +405,8 @@ fn monthly_quota_ignores_old_account_results_and_allows_retry() {
     let first = app.account.monthly_quota_generation;
     assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
     assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 0);
-    let _ = update(&mut app, AccountMessage::ToggleMonthlyQuota);
 
     app.account.replace_repository(repository_with_account("second-key", "company-1"));
-    assert!(!app.account.monthly_quota_open);
     let second = app.account.monthly_quota_generation;
     assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
     let quota = vw_gateway_client::ShijuMonthlyQuotaDto {
@@ -421,7 +419,7 @@ fn monthly_quota_ignores_old_account_results_and_allows_retry() {
         &mut app,
         AccountMessage::MonthlyQuotaLoaded { generation: first, quota: Some(quota) },
     );
-    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading));
+    assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(None)));
     let _ =
         update(&mut app, AccountMessage::MonthlyQuotaLoaded { generation: second, quota: None });
     assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Unavailable));
@@ -431,6 +429,10 @@ fn monthly_quota_ignores_old_account_results_and_allows_retry() {
         AccountMessage::MonthlyQuotaLoaded { generation: second, quota: Some(quota) },
     );
     assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Ready(value) if value == quota));
+    assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
+    assert!(
+        matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(Some(value)) if value == quota)
+    );
 
     app.account.replace_repository(AccountRepository::default());
     assert!(matches!(app.account.monthly_quota, MonthlyQuotaState::Idle));

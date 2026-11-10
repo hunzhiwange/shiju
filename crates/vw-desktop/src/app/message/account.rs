@@ -52,8 +52,6 @@ pub(crate) enum AccountMessage {
     },
     RepositoryLoaded(Result<AccountRepository, String>),
     ToggleMenu,
-    ToggleMonthlyQuota,
-    CloseMonthlyQuota,
     RefreshMonthlyQuota,
     MonthlyQuotaLoaded {
         generation: u64,
@@ -186,7 +184,7 @@ fn start_browser_login_task(generation: u64) -> Task<Message> {
 }
 
 fn refresh_monthly_quota(app: &mut App) -> Task<Message> {
-    if matches!(app.account.monthly_quota, MonthlyQuotaState::Loading) {
+    if matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(_)) {
         return Task::none();
     }
     let Some(account) = app.account.active_account() else {
@@ -194,7 +192,11 @@ fn refresh_monthly_quota(app: &mut App) -> Task<Message> {
     };
     let skey = account.skill_hub_credential();
     let generation = app.account.monthly_quota_generation;
-    app.account.monthly_quota = MonthlyQuotaState::Loading;
+    let previous = match app.account.monthly_quota {
+        MonthlyQuotaState::Ready(quota) => Some(quota),
+        _ => None,
+    };
+    app.account.monthly_quota = MonthlyQuotaState::Loading(previous);
     Task::perform(
         async move {
             let credential = skey.gateway_credential().ok()?;
@@ -298,31 +300,13 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             Task::batch([reload, models, native_skill, quota])
         }
         AccountMessage::ToggleMenu => {
-            app.account.monthly_quota_open = false;
             app.account.menu_open = !app.account.menu_open;
-            Task::none()
-        }
-        AccountMessage::ToggleMonthlyQuota => {
-            if app.account.active_account().is_none() {
-                return Task::none();
-            }
-            app.account.menu_open = false;
-            app.account.monthly_quota_open = !app.account.monthly_quota_open;
-            if app.account.monthly_quota_open
-                && matches!(app.account.monthly_quota, MonthlyQuotaState::Idle)
-            {
-                return refresh_monthly_quota(app);
-            }
-            Task::none()
-        }
-        AccountMessage::CloseMonthlyQuota => {
-            app.account.monthly_quota_open = false;
             Task::none()
         }
         AccountMessage::RefreshMonthlyQuota => refresh_monthly_quota(app),
         AccountMessage::MonthlyQuotaLoaded { generation, quota } => {
             if app.account.monthly_quota_generation == generation
-                && matches!(app.account.monthly_quota, MonthlyQuotaState::Loading)
+                && matches!(app.account.monthly_quota, MonthlyQuotaState::Loading(_))
             {
                 app.account.monthly_quota = match quota {
                     Some(quota) => MonthlyQuotaState::Ready(quota),

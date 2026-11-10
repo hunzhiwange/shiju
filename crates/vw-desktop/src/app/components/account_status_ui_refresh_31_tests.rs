@@ -696,8 +696,8 @@ async fn ui_refresh_31_preserves_values_and_disabled_states() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn monthly_quota_renders_in_status_bar_and_refreshes() {
-    if !isolated("monthly_quota_renders_in_status_bar_and_refreshes") {
+async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
+    if !isolated("monthly_quota_renders_ring_and_shows_details_on_hover") {
         return;
     }
     use crate::app::state::MonthlyQuotaState;
@@ -716,28 +716,67 @@ async fn monthly_quota_renders_in_status_bar_and_refreshes() {
         [(DesktopLocale::SimplifiedChinese, Theme::Dark), (DesktopLocale::English, Theme::Light)]
     {
         app.desktop_locale = locale;
-        app.account.monthly_quota_open = false;
-        let i18n = I18n::new(locale);
-        let trigger = iced::widget::container(super::monthly_quota(&app).unwrap())
-            .align_bottom(iced::Fill)
-            .align_right(iced::Fill);
-        let mut ui = scene(trigger.into(), &mut renderer, size);
-        assert!(matches!(
-            click(&mut ui, &mut renderer, Point::new(770.0, 587.0)).as_slice(),
-            [Message::Account(AccountMessage::ToggleMonthlyQuota)]
-        ));
-        drop(ui);
-        app.account.monthly_quota_open = true;
         let mut ui = scene(app.view(), &mut renderer, size);
-        redraw(&mut ui, &mut renderer, &theme, size, &format!("monthly-quota-{locale:?}"));
+        let closed = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("monthly-ring-{locale:?}"),
+            mouse::Cursor::Unavailable,
+        );
         let positions = geometry(&mut ui, &renderer);
-        for label in ["¥99.99", "¥100.00", "12/01", i18n.__("已用金额包含在途预占。")]
-        {
-            assert_fits(positions.label(label), size);
-        }
-        assert!(matches!(
-            click_label(&mut ui, &mut renderer, i18n.__("刷新")).as_slice(),
-            [Message::Account(AccountMessage::RefreshMonthlyQuota)]
-        ));
+        let trigger = positions.label("<1%");
+        assert_fits(trigger, size);
+        assert!(!positions.labels.iter().any(|(label, _)| label == "¥0.0059"));
+        let x = trigger.center().x as usize;
+        let y = trigger.center().y as usize;
+        assert!((y - 12..=y + 12).any(|row| {
+            (x - 12..=x + 12).any(|column| {
+                let pixel = (row * size.width as usize + column) * 4;
+                closed[pixel..pixel + 4] == [255, 0, 0, 255]
+            })
+        }));
+
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                at(trigger.center()),
+                &[Event::Mouse(mouse::Event::CursorMoved { position: trigger.center() })],
+            )
+            .is_empty()
+        );
+        let hovered = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("monthly-hover-{locale:?}"),
+            at(trigger.center()),
+        );
+        // Compare the area above the status bar to exclude any ring animation.
+        let details_region = ..((size.height - 30) * size.width * 4) as usize;
+        assert_ne!(closed[details_region], hovered[details_region]);
+        assert!(click(&mut ui, &mut renderer, trigger.center()).is_empty());
+
+        assert!(
+            send(
+                &mut ui,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[Event::Mouse(mouse::Event::CursorLeft)],
+            )
+            .is_empty()
+        );
+        let dismissed = capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("monthly-dismissed-{locale:?}"),
+            mouse::Cursor::Unavailable,
+        );
+        assert_eq!(closed[details_region], dismissed[details_region]);
     }
 }

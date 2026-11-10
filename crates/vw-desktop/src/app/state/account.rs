@@ -98,7 +98,7 @@ impl AccountPasswordEditorState {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum MonthlyQuotaState {
     Idle,
-    Loading,
+    Loading(Option<vw_gateway_client::ShijuMonthlyQuotaDto>),
     Ready(vw_gateway_client::ShijuMonthlyQuotaDto),
     Unavailable,
 }
@@ -109,7 +109,6 @@ pub(crate) struct AccountState {
     repository: AccountRepository,
     pub(crate) menu_open: bool,
     pub(crate) details_open: bool,
-    pub(crate) monthly_quota_open: bool,
     pub(crate) monthly_quota: MonthlyQuotaState,
     pub(crate) monthly_quota_generation: u64,
     pub(crate) manual_input: ManualSkeyInput,
@@ -129,7 +128,6 @@ impl Default for AccountState {
             repository: AccountRepository::default(),
             menu_open: false,
             details_open: false,
-            monthly_quota_open: false,
             monthly_quota: MonthlyQuotaState::Idle,
             monthly_quota_generation: 0,
             manual_input: ManualSkeyInput::default(),
@@ -172,7 +170,6 @@ impl AccountState {
             repository.active_account().map(|account| account.skill_hub_credential()),
         );
         if self.repository.active_account_id() != repository.active_account_id() {
-            self.monthly_quota_open = false;
             self.monthly_quota = MonthlyQuotaState::Idle;
             self.monthly_quota_generation = self.monthly_quota_generation.wrapping_add(1);
         }

@@ -12172,6 +12172,8 @@ dependencies = [
  "hmac 0.13.0",
  "hostname",
  "html2md",
+ "hyper",
+ "hyper-util",
  "image",
  "include_dir",
  "js-sys",

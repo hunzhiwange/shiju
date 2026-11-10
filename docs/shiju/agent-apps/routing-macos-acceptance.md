@@ -217,3 +217,25 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 测试链接报告既有 macOS `__eh_frame` 大小警告。两个提交的 Rust 文件与验证快照逐字一致；只读 `plan.md` 无差异。本项各阶段的槽位锁已释放，缓存保留。状态为 **已完成**，下一步为任务 6 的连接回收。
+
+## 任务 6　停止并回收连接任务
+
+2026-11-10，macOS 27.0（26A428），arm64。以任务 5 提交 `8b86cd074` 为验证基线。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/server.rs` 与直接调用方 `services/proxy.rs` 已和仓库快照、来源映射核对 SHA256。来源的停止路径等待监听循环，连接任务独立运行。
+
+- `vw_agent::app_routing::RoutingListener::stop` 先令 `app_routing::shutdown::serve` 关闭监听套接字，再取消并等待其持有的所有连接任务。连接 future 持有请求和响应流。5 秒内仍未退出返回 `ListenerError::StopTimeout`，状态保持 `Stopping` 直至完成回收。等待方取消也不影响回收。
+- 回环测试在同一个监听所有者上运行 Hyper HTTP/1 夹具，使用生产 `SharedTransport::forward` 访问受控 TCP 上游。实测等待响应头的 HTTP 请求、已收到事件的 SSE、已接收的空闲 TCP、上下游关闭和任务退出、拒绝新连接及同端口立即重绑。另一用例让连接任务暂时无法让出执行权，验证显式超时、停止期间拒绝重启和新连接、释放任务后恢复。
+- 生产回环入口继续在解析前关闭连接。任务 7 接通网关所有权，任务 8 接通数据面凭据。WSL 连接地址见来源映射，Windows、Linux、WSL 范围外且未验证。
+
+验证在隔离的 `8b86cd074` 源码快照叠加本任务文件后执行。仅同步本任务文件的格式化结果。实际槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红灯和绿灯阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_006_ -- --nocapture` | 退出 101，执行 2 项，两项分别因停止后 SSE 未关闭、连接任务仍运行时停止误报成功而失败。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_006_ -- --nocapture` | 退出 0，2 项通过，0 项失败或忽略。 |
+| 生命周期回归 | `cargo test -p vw-agent --lib cc_route_004_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 绑定回归 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过，0 项失败或忽略。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 隔离快照首次退出 0。共享工作区的并发检查结束后，串行复跑退出 0。 |
+| 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+测试链接器报告既有 macOS `__eh_frame` 大小警告。本项 Rust 文件和依赖清单与验证快照逐一比较一致，只读 `plan.md` 无差异。各阶段的槽位锁已释放，缓存保留。状态为 **已完成**。

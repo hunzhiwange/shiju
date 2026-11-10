@@ -155,6 +155,8 @@ wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", default-features = false, features = ["Window"] }
 
 [dev-dependencies]
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
 tower = "0.5"
 
 [features]

@@ -1,6 +1,7 @@
 mod listener;
 pub(crate) mod reference_scope;
 mod shared_transport;
+mod shutdown;
 pub use listener::{ListenerError, RoutingListener};
 pub use shared_transport::SharedTransport;
 
@@ -12,3 +13,6 @@ mod shared_transport_tests;
 
 #[cfg(test)]
 mod reference_scope_tests;
+
+#[cfg(test)]
+mod shutdown_tests;

@@ -121,6 +121,8 @@ pub enum ServerEdit<'a> {
     Insert(&'a McpConnectionDefinition),
     /// Replace connection fields while keeping the current enabled state.
     Update(&'a McpConnectionDefinition),
+    /// Replace the connection and enable the binding in the same transaction.
+    Enable(&'a McpConnectionDefinition),
     Disable,
     Remove,
 }
@@ -146,6 +148,11 @@ impl ServerPatch {
         let edit = match edit {
             ServerEdit::Insert(connection) => PatchEdit::Insert(project(connection)?),
             ServerEdit::Update(connection) => PatchEdit::Update(project(connection)?),
+            ServerEdit::Enable(connection) => {
+                let mut fields = project(connection)?;
+                fields.insert("enabled".into(), true.into());
+                PatchEdit::Update(fields)
+            }
             ServerEdit::Disable => PatchEdit::Disable,
             ServerEdit::Remove => PatchEdit::Remove,
         };

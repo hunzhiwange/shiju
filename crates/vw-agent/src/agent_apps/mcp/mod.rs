@@ -115,3 +115,11 @@ mod import_tests;
 
 #[cfg(target_os = "macos")]
 pub use import::{McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource};
+
+#[cfg(target_os = "macos")]
+mod binding;
+#[cfg(all(test, target_os = "macos"))]
+mod binding_tests;
+
+#[cfg(target_os = "macos")]
+pub use binding::McpBindingTarget;

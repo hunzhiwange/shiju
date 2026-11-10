@@ -52,6 +52,8 @@ pub enum PiMcpEdit<'a> {
     Insert(&'a PiMcpServer),
     /// Replace the verified binding's connection while retaining its enabled state.
     Update(&'a McpConnectionDefinition),
+    /// Replace the connection and enable the binding in the same transaction.
+    Enable(&'a McpConnectionDefinition),
     /// Explicitly change the verified binding's native enabled flag.
     SetEnabled(bool),
     /// Delete the verified binding.
@@ -103,8 +105,13 @@ impl<'a> PiMcp<'a> {
         validate_name(id)?;
         let expected = self.0.read()?;
         let mut servers = server_map(expected.as_deref())?;
-        if matches!(edit, PiMcpEdit::Insert(_) | PiMcpEdit::Update(_) | PiMcpEdit::SetEnabled(true))
-        {
+        if matches!(
+            edit,
+            PiMcpEdit::Insert(_)
+                | PiMcpEdit::Update(_)
+                | PiMcpEdit::Enable(_)
+                | PiMcpEdit::SetEnabled(true)
+        ) {
             let name = normalized_name(id);
             if servers.keys().any(|key| key != id && normalized_name(key) == name) {
                 return Err(WriteError::Conflict.into());
@@ -121,8 +128,12 @@ impl<'a> PiMcp<'a> {
                 fields = projected;
                 JsonServerEdit::Insert(&fields)
             }
-            PiMcpEdit::Update(connection) => {
-                fields = project_connection(connection)?;
+            PiMcpEdit::Update(connection) | PiMcpEdit::Enable(connection) => {
+                let mut projected = project_connection(connection)?;
+                if matches!(edit, PiMcpEdit::Enable(_)) {
+                    projected.insert("enabled".into(), json!(true));
+                }
+                fields = projected;
                 remove = TRANSPORT_FIELDS
                     .iter()
                     .copied()

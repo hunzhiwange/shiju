@@ -111,6 +111,7 @@ impl McpCatalogStore {
             native_status: McpNativeStatus::Present,
         };
         let mut new = StoredCatalogRecord { record, connection, bindings: vec![binding.clone()] };
+        let _lock = super::binding::lock_record(&id.0);
         match self.insert_record(tenant, namespace, &mut new) {
             Ok(()) => return Ok(McpImportOutcome::Added(new.record)),
             Err(McpFailureCode::Conflict) => {}

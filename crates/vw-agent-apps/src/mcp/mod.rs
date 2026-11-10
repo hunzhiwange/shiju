@@ -19,3 +19,6 @@ pub mod adapters;
 
 #[cfg(target_os = "macos")]
 pub mod import;
+
+#[cfg(target_os = "macos")]
+pub mod distribution;

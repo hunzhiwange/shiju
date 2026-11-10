@@ -24,6 +24,8 @@ impl McpCatalogStore {
         validate_catalog_connection(&connection)?;
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let mut stored = StoredCatalogRecord { record, connection, bindings: Vec::new() };
+        #[cfg(target_os = "macos")]
+        let _lock = super::binding::lock_record(&stored.record.record.id.0);
         self.insert_record(tenant, &namespace, &mut stored)?;
         Ok(stored.record)
     }

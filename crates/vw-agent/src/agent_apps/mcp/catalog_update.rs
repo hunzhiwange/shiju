@@ -22,6 +22,8 @@ impl McpCatalogStore {
     ) -> Result<McpCatalogRecord, McpFailureCode> {
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let key = &expected.id.0;
+        #[cfg(target_os = "macos")]
+        let _lock = super::binding::lock_record(key);
         let (previous, entry) = self.load_entry(tenant, &namespace, key)?;
         let StoredCatalogEntry::Active(mut stored) = entry else {
             return Err(McpFailureCode::NotFound);

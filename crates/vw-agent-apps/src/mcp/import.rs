@@ -166,7 +166,10 @@ fn read_guarded(
     })
 }
 
-fn existing_config(home: &Path, app: AppId) -> Result<Option<AppWriteGuard>, McpFailureCode> {
+pub(super) fn existing_config(
+    home: &Path,
+    app: AppId,
+) -> Result<Option<AppWriteGuard>, McpFailureCode> {
     let location = paths::read(home, app, None, &paths::execution_environment())
         .map_err(|_| McpFailureCode::TargetUnavailable)?;
     match open_beneath(home, Path::new(&location.directory), true) {

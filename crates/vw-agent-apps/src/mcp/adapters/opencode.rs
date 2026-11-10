@@ -39,6 +39,8 @@ pub enum Edit<'a> {
     Insert(&'a McpConnectionDefinition),
     /// Replace the connection of a binding verified by the executor.
     Update(&'a McpConnectionDefinition),
+    /// Replace the connection and enable the binding in the same transaction.
+    Enable(&'a McpConnectionDefinition),
     /// Change the enabled flag of a binding verified by the executor.
     SetEnabled(bool),
     /// Revoke a binding verified by the executor.
@@ -90,8 +92,11 @@ pub fn apply(
             fields.insert("enabled".into(), Value::Bool(true));
             JsonServerEdit::Insert(&fields)
         }
-        Edit::Update(connection) => {
+        Edit::Update(connection) | Edit::Enable(connection) => {
             fields = project(connection)?;
+            if matches!(edit, Edit::Enable(_)) {
+                fields.insert("enabled".into(), Value::Bool(true));
+            }
             JsonServerEdit::Update { set: &fields, remove: CONNECTION_FIELDS }
         }
         Edit::SetEnabled(enabled) => {

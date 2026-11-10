@@ -30,6 +30,8 @@ impl McpCatalogStore {
     ) -> Result<Vec<McpRevocation>, McpFailureCode> {
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let key = &expected.id.0;
+        #[cfg(target_os = "macos")]
+        let _lock = super::binding::lock_record(key);
         let (previous, entry) = self.load_entry(tenant, &namespace, key)?;
         let stored = match entry {
             StoredCatalogEntry::Active(stored) if &stored.record.record == expected => stored,
@@ -61,6 +63,8 @@ impl McpCatalogStore {
     ) -> Result<(), McpFailureCode> {
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let key = &deleted.id.0;
+        #[cfg(target_os = "macos")]
+        let _lock = super::binding::lock_record(key);
         let (previous, entry) = self.load_entry(tenant, &namespace, key)?;
         let StoredCatalogEntry::Deleted(mut stored) = entry else {
             return Err(McpFailureCode::StaleRevision);

@@ -1,12 +1,17 @@
-//! Incremental Pi models.json membership; defaults and login files are never opened.
+//! Pi's native directory and incremental models.json membership.
 use super::live::{
     patch_json::{JsonPatch, object_value},
     write_guard::WriteError,
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::pi::*};
+use vw_api_types::{
+    agent_apps::AppId,
+    app_providers::{catalog::ProviderReadUnavailable, pi::*},
+};
 pub mod form;
+#[cfg(test)]
+mod read_tests;
 
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
@@ -23,20 +28,24 @@ pub fn validate(p: &PiProfile) -> Result<(), WriteError> {
     }
     Ok(())
 }
+fn provider_entries(pre: Option<&[u8]>) -> Result<Map<String, Value>, WriteError> {
+    let mut doc = object_value(pre.unwrap_or(b"{}")).map_err(|_| WriteError::InvalidResource)?;
+    match doc.as_object_mut().and_then(|root| root.remove("providers")) {
+        None => Ok(Map::new()),
+        Some(Value::Object(providers)) => Ok(providers),
+        Some(_) => invalid(),
+    }
+}
 pub fn declarations(pre: Option<&[u8]>) -> Result<BTreeMap<String, PiProfile>, WriteError> {
-    let doc = object_value(pre.unwrap_or(b"{}")).map_err(|_| WriteError::InvalidResource)?;
     let mut rows = BTreeMap::new();
-    if let Some(v) = doc.get("providers") {
-        let map = v.as_object().ok_or(WriteError::InvalidResource)?;
-        for (id, v) in map {
-            super::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
-            let p = PiProfile {
-                name: v.get("name").and_then(Value::as_str).unwrap_or(id).into(),
-                declaration: v.clone(),
-            };
-            validate(&p)?;
-            rows.insert(id.clone(), p);
-        }
+    for (id, declaration) in provider_entries(pre)? {
+        super::validate_identity(&id).map_err(|_| WriteError::InvalidResource)?;
+        let profile = PiProfile {
+            name: declaration.get("name").and_then(Value::as_str).unwrap_or(&id).into(),
+            declaration,
+        };
+        validate(&profile)?;
+        rows.insert(id, profile);
     }
     Ok(rows)
 }
@@ -78,15 +87,19 @@ pub(super) fn directory_components(
     home: &Path,
     raw: Option<&OsStr>,
 ) -> Result<Vec<String>, WriteError> {
-    if !home.is_absolute() {
-        return invalid();
-    }
     let raw = raw.map(|v| v.to_str().ok_or(WriteError::InvalidResource)).transpose()?;
     let path = raw
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| home.join(".pi/agent"));
+    checked_directory_components(home, &path)
+}
+
+fn checked_directory_components(home: &Path, path: &Path) -> Result<Vec<String>, WriteError> {
+    if !home.is_absolute() || !path.is_absolute() {
+        return invalid();
+    }
     let relative = path.strip_prefix(home).map_err(|_| WriteError::InvalidResource)?;
     let mut parts = vec![];
     for part in relative.components() {
@@ -103,10 +116,62 @@ pub(super) fn directory_components(
 /// Read only the configured Pi directory beneath the authorized execution HOME.
 pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
     let parts = directory_components(home, std::env::var_os("PI_CODING_AGENT_DIR").as_deref())?;
-    let mut components: Vec<&str> = parts.iter().map(String::as_str).collect();
-    components.push("models.json");
-    super::catalog::read_file(home, &components).map_err(|_| WriteError::InvalidResource)
+    read_native_file(home, &parts, "models.json").map_err(|_| WriteError::InvalidResource)
 }
+
+fn read_native_file(
+    home: &Path,
+    parts: &[String],
+    name: &str,
+) -> Result<Option<Vec<u8>>, ProviderReadUnavailable> {
+    let mut components: Vec<&str> = parts.iter().map(String::as_str).collect();
+    components.push(name);
+    super::catalog::read_file(home, &components)
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PiNativeDirectory {
+    pub members: Vec<String>,
+    pub default_provider_id: Option<String>,
+    pub default_model_id: Option<String>,
+}
+
+/// Directory overrides must be absolute paths beneath the authorized execution HOME.
+/// Pass the target host's PI_CODING_AGENT_DIR as `env_dir`.
+pub fn read_native_directory(
+    home: &Path,
+    configured_dir: Option<&Path>,
+    env_dir: Option<&OsStr>,
+) -> Result<PiNativeDirectory, ProviderReadUnavailable> {
+    use ProviderReadUnavailable::InvalidConfiguration;
+
+    let parts = match configured_dir {
+        Some(path) => checked_directory_components(home, path),
+        None => directory_components(home, env_dir),
+    }
+    .map_err(|_| InvalidConfiguration)?;
+    let models = read_native_file(home, &parts, "models.json")?;
+    let providers = provider_entries(models.as_deref()).map_err(|_| InvalidConfiguration)?;
+    let mut members: Vec<_> = providers.into_iter().map(|(id, _)| id).collect();
+    members.sort_unstable();
+    let settings = read_native_file(home, &parts, "settings.json")?;
+    let settings =
+        object_value(settings.as_deref().unwrap_or(b"{}")).map_err(|_| InvalidConfiguration)?;
+    Ok(PiNativeDirectory {
+        members,
+        default_provider_id: default_setting(&settings, "defaultProvider")?,
+        default_model_id: default_setting(&settings, "defaultModel")?,
+    })
+}
+
+fn default_setting(settings: &Value, key: &str) -> Result<Option<String>, ProviderReadUnavailable> {
+    match settings.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        Some(_) => Err(ProviderReadUnavailable::InvalidConfiguration),
+    }
+}
+
 pub struct PiFiles {
     pub guard: super::live::write_guard::AppWriteGuard,
 }

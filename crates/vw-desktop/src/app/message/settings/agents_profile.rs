@@ -4,7 +4,7 @@ use super::*;
 pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
     match message {
         AgentsMessage::ProfileOpen(key) => {
-            if !catalog_can_write(app) {
+            if !catalog_can_write(app) || app.agents_settings.profile_entering_key {
                 return Task::none();
             }
             app.agents_settings.profile_modal =
@@ -31,6 +31,10 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
         }
         AgentsMessage::ProfileCancel => {
             if !app.agents_settings.profile_saving {
+                if app.agents_settings.profile_entering_key {
+                    app.agents_settings.profile_entering_key = false;
+                    app.agents_settings.new_agent_key_input.clear();
+                }
                 app.agents_settings.profile_modal = None;
             }
             Task::none()

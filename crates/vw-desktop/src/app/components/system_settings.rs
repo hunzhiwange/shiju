@@ -583,6 +583,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::Agents {
         dialog = match app.agents_settings.active_config_tab {
+            crate::app::state::AgentConfigTab::Agents => {
+                super::system_settings_agents::view_overlays(app, dialog)
+            }
             crate::app::state::AgentConfigTab::Heartbeat => {
                 crate::app::components::system_settings_heartbeat::view_overlays(app, dialog)
             }

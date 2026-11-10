@@ -1134,6 +1134,7 @@ impl App {
                     catalog_official: false,
                     catalog_query: String::new(),
                     catalog_busy: false,
+                    profile_entering_key: false,
                     profile_modal: None,
                     profile_saving: false,
                     profile_deleting: false,

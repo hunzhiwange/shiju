@@ -38,9 +38,9 @@ mod tests;
 mod tools_tests;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_error_banner, settings_group_card, settings_group_heading, settings_muted_text_style,
-    settings_page_heading_with_help, settings_tab_row, settings_text_input,
+    SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style, settings_error_banner,
+    settings_group_card, settings_group_heading, settings_muted_text_style,
+    settings_page_heading_with_help, settings_tab_row,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::{I18n, settings_extensions::text as tr};
@@ -48,11 +48,13 @@ use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, Settin
 use crate::app::state::AgentConfigTab;
 use crate::app::{App, Message};
 use iced::widget::{
-    button, column, container, row, scrollable,
+    button, column, container, scrollable,
     scrollable::{Direction, Scrollbar},
     text,
 };
-use iced::{Alignment, Element, Length};
+use iced::{Element, Length};
+
+pub(super) use profile_modal::overlay as view_overlays;
 
 pub(super) const AGENT_CONFIG_TABS: &[SettingsTabDescriptor<AgentConfigTab>] = &[
     SettingsTabDescriptor::new(
@@ -319,27 +321,9 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         .into();
     }
 
-    let add_agent_bar = row![
-        settings_text_input(
-            tr(app.desktop_locale, "新增智能体 key"),
-            &settings.new_agent_key_input
-        )
-        .on_input(|value| {
-            Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged(value)))
-        })
-        .width(Length::Fill),
-        button(text(tr(app.desktop_locale, "新建智能体")).size(SETTINGS_CONTROL_TEXT_SIZE))
-            .padding([8, 14])
-            .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentRequested,)))
-            .style(primary_action_btn_style),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-
     let mut content = column![
         title,
         catalog::controls(app),
-        settings_group_card(add_agent_bar).padding([12, 16]),
         scrollable(container(catalog::grid(app)).padding([0, 7]))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill),
@@ -356,7 +340,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         );
     }
 
-    profile_modal::overlay(app, content.into())
+    content.into()
 }
 
 #[cfg(test)]

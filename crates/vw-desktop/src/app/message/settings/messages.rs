@@ -626,6 +626,7 @@ pub enum AgentsMessage {
         result: Result<Box<vw_config_types::config::Config>, String>,
     },
     SelectAgent(String),
+    AddAgentOpened,
     AddAgentKeyChanged(String),
     AddAgentRequested,
     DetailTabSelected(String),

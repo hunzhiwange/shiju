@@ -42,12 +42,22 @@ pub(super) fn controls(app: &App) -> Element<'_, Message> {
             message(AgentsMessage::CatalogTabSelected(official)),
         )
     };
+    let can_add = !settings.catalog_busy
+        && !settings.save_in_flight
+        && !settings.profile_saving
+        && !settings.dirty;
     settings_group_card(
         container(
             column![
                 settings_tab_row([
                     tab(false, label("已启用智能体")).into(),
                     tab(true, label("官方智能体")).into(),
+                    settings_tab_button(
+                        label("新增智能体"),
+                        settings.profile_entering_key,
+                        can_add.then_some(message(AgentsMessage::AddAgentOpened)),
+                    )
+                    .into(),
                 ])
                 .wrap(),
                 settings_control_with_hint(

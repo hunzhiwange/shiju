@@ -314,6 +314,18 @@ pub fn settings_modal_overlay<'a>(
     modal_overlay(base, close_message, card.into(), false)
 }
 
+/// Keep the background at the same tree position as the modal opens and closes.
+pub(crate) fn settings_optional_modal_overlay<'a>(
+    base: Element<'a, Message>,
+    modal: Option<(Message, Element<'a, Message>)>,
+) -> Element<'a, Message> {
+    if let Some((close, card)) = modal {
+        settings_modal_overlay(Some(base), close, card)
+    } else {
+        stack![base].into()
+    }
+}
+
 /// 让当前弹窗通过 Escape 发送和关闭按钮相同的取消消息。
 pub(crate) fn settings_modal_overlay_with_escape<'a>(
     base: Element<'a, Message>,

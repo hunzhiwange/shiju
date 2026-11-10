@@ -1015,22 +1015,46 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 )
             }
         }
+        AgentsMessage::AddAgentOpened => {
+            if catalog_can_write(app) {
+                app.agents_settings.new_agent_key_input.clear();
+                app.agents_settings.profile_entering_key = true;
+            }
+            Task::none()
+        }
         AgentsMessage::AddAgentKeyChanged(value) => {
             app.agents_settings.new_agent_key_input = value;
-            app.agents_settings.save_error = None;
+            if !app.agents_settings.profile_entering_key {
+                app.agents_settings.save_error = None;
+            }
             Task::none()
         }
         AgentsMessage::AddAgentRequested => {
             if !catalog_can_write(app) {
                 return Task::none();
             }
+            let entering_key = app.agents_settings.profile_entering_key;
             let key = normalize_agent_key(&app.agents_settings.new_agent_key_input);
             if key.is_empty() {
+                if entering_key {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "智能体 key 不能为空，只允许字母、数字、-、_。",
+                        vec![],
+                    );
+                }
                 app.agents_settings.save_error =
                     Some("智能体 key 不能为空，只允许字母、数字、-、_。".to_string());
                 return Task::none();
             }
             if app.agents_settings.entries.iter().any(|entry| entry.key == key) {
+                if entering_key {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "智能体 %s 已存在。",
+                        vec![key.into()],
+                    );
+                }
                 app.agents_settings.save_error = Some(format!("智能体 {key} 已存在。"));
                 app.agents_settings.save_error_translation = Some(
                     crate::app::i18n::format::Message::new("智能体 %s 已存在。", vec![key.into()]),
@@ -1046,11 +1070,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
             app.agents_settings.workspace_identity_root_path = None;
             app.agents_settings.profile_modal = Some(entry);
+            app.agents_settings.profile_entering_key = false;
             app.agents_settings.new_agent_key_input.clear();
             app.agents_settings.selected_agent = key;
             app.agents_settings.active_detail_tab =
                 crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
-            app.agents_settings.save_error = None;
+            if !entering_key {
+                app.agents_settings.save_error = None;
+            }
             let catalog = if app.acp_agents.is_empty() && !app.acp_settings.loading {
                 super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::Refresh))
             } else {

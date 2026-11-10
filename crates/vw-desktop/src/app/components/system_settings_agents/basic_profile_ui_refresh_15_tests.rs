@@ -289,11 +289,12 @@ async fn ui_refresh_15_layout_and_interaction() {
                     page.click(&mut renderer, catalog_tab.center()).as_slice(),
                     [Message::Settings(S::Agents(A::CatalogTabSelected(true)))]
                 ));
-                let add = geometry.label(tr(locale, "新建智能体"));
-                assert!((add.center().y - geometry.inputs[1].1.center().y).abs() < 0.5);
+                let add = geometry.label(tr(locale, "新增智能体"));
+                assert!((add.center().y - catalog_tab.center().y).abs() < 0.5);
+                assert_eq!(geometry.inputs.len(), 1);
                 assert!(matches!(
                     page.click(&mut renderer, add.center()).as_slice(),
-                    [Message::Settings(S::Agents(A::AddAgentRequested))]
+                    [Message::Settings(S::Agents(A::AddAgentOpened))]
                 ));
                 let edit = geometry.label(tr(locale, "编辑配置"));
                 let start = geometry.label(tr(locale, "开始会话"));
@@ -386,6 +387,95 @@ async fn ui_refresh_15_layout_and_interaction() {
         mouse::Cursor::Unavailable,
         "catalog-unavailable",
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_profile_modal_preserves_catalog_scroll() {
+    if !isolated("agent_profile_modal_preserves_catalog_scroll") {
+        return;
+    }
+    use crate::app::components::system_settings::{self, SystemTab};
+    use crate::app::message::settings::update;
+
+    let mut renderer = renderer().await;
+    let (mut app, _root, draft) = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Agents;
+    app.agents_settings.entries = (0..16)
+        .map(|index| DelegateAgentSettingsEntry {
+            key: format!("fixture-{index}"),
+            ..draft.clone()
+        })
+        .collect();
+
+    let size = Size::new(1200.0, 740.0);
+    let mut cache = Cache::new();
+    let catalog_scroll = |geometry: &Geometry| {
+        *geometry.scrolls.iter().find(|(bounds, _, _)| bounds.width > 500.0).unwrap()
+    };
+    let before = {
+        let mut scene = Scene {
+            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            size: Size::new(1200, 740),
+        };
+        let (bounds, _, _) = catalog_scroll(&scene.geometry(&renderer));
+        scene.send(
+            &mut renderer,
+            &[Event::Mouse(mouse::Event::WheelScrolled {
+                delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -200.0 },
+            })],
+            mouse::Cursor::Available(bounds.center()),
+        );
+        let geometry = scene.geometry(&renderer);
+        let before = catalog_scroll(&geometry);
+        assert!(before.2.y > 0.0);
+        let messages = scene.click(&mut renderer, geometry.label("新增智能体").center());
+        cache = scene.ui.into_cache();
+        assert!(matches!(messages.as_slice(), [Message::Settings(S::Agents(A::AddAgentOpened))]));
+        before
+    };
+    let _ = update(&mut app, S::Agents(A::AddAgentOpened));
+    assert!(app.agents_settings.profile_entering_key);
+    let _ = update(&mut app, S::Agents(A::AddAgentKeyChanged("new-profile".into())));
+    {
+        let mut scene = Scene {
+            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            size: Size::new(1200, 740),
+        };
+        let geometry = scene.geometry(&renderer);
+        assert_eq!(geometry.inputs.len(), 1);
+        assert_eq!(geometry.inputs[0].0, "new-profile");
+        assert!((geometry.inputs[0].1.center().x - size.width / 2.0).abs() < 1.0);
+        assert!(matches!(
+            scene.click(&mut renderer, geometry.label("下一步").center()).as_slice(),
+            [Message::Settings(S::Agents(A::AddAgentRequested))]
+        ));
+        scene.screenshot(&mut renderer, &Theme::Light, mouse::Cursor::Unavailable, "new-agent");
+        cache = scene.ui.into_cache();
+    }
+    let _ = update(&mut app, S::Agents(A::AddAgentRequested));
+    assert!(!app.agents_settings.profile_entering_key);
+    assert_eq!(app.agents_settings.profile_modal.as_ref().unwrap().key, "new-profile");
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut scene = Scene {
+            ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+            size: Size::new(1200, 740),
+        };
+        let geometry = scene.geometry(&renderer);
+        let title = geometry.label("智能体配置");
+        assert!(title.y < before.0.y);
+        let save = geometry.label("保存配置");
+        assert!(save.y > title.y && save.y + save.height <= size.height);
+        scene.screenshot(&mut renderer, &theme, mouse::Cursor::Unavailable, "new-agent-profile");
+        cache = scene.ui.into_cache();
+    }
+    let _ = update(&mut app, S::Agents(A::ProfileCancel));
+    let mut scene = Scene {
+        ui: UserInterface::build(system_settings::view(&app), size, cache, &mut renderer),
+        size: Size::new(1200, 740),
+    };
+    assert_eq!(catalog_scroll(&scene.geometry(&renderer)), before);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

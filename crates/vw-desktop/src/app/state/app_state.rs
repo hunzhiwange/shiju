@@ -975,6 +975,8 @@ pub struct App {
     pub(crate) file_tree_rename_path: Option<String>,
     /// 文件重命名输入值
     pub(crate) file_tree_rename_value: String,
+    /// 等待确认删除的项目路径和目标路径。
+    pub(crate) file_tree_pending_delete: Option<(String, String)>,
     /// 文件搜索查询文本
     pub(crate) file_search_query: String,
     /// 是否显示文件搜索面板

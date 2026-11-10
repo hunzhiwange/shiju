@@ -555,15 +555,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         .to_string();
                 }
                 FileTreeAction::Delete => {
-                    let recursive = is_directory_path(&path, &app.files);
-                    let Some(project_path) = app.project_path.clone() else {
-                        return Some(iced::Task::none());
-                    };
-                    remove_local_file_tree_path(&mut app.files, &path, recursive);
-                    return Some(iced::Task::perform(
-                        async move { gateway_delete_path(&project_path, &path, recursive).await },
-                        |result| Message::Project(ProjectMessage::FileTreeDeleteCompleted(result)),
-                    ));
+                    if let Some(project_path) = app.project_path.clone() {
+                        app.file_tree_pending_delete = Some((project_path, path));
+                    }
                 }
             }
             Some(iced::Task::none())
@@ -592,6 +586,25 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
             }
             Some(refresh_file_index(app))
+        }
+        ProjectMessage::FileTreeDeleteCanceled => {
+            app.file_tree_pending_delete = None;
+            Some(iced::Task::none())
+        }
+        ProjectMessage::FileTreeDeleteConfirmed => {
+            let Some((project_path, path)) = app.file_tree_pending_delete.take() else {
+                return Some(iced::Task::none());
+            };
+            if app.project_path.as_ref() != Some(&project_path) {
+                return Some(iced::Task::none());
+            }
+
+            let recursive = is_directory_path(&path, &app.files);
+            remove_local_file_tree_path(&mut app.files, &path, recursive);
+            Some(iced::Task::perform(
+                async move { gateway_delete_path(&project_path, &path, recursive).await },
+                |result| Message::Project(ProjectMessage::FileTreeDeleteCompleted(result)),
+            ))
         }
         ProjectMessage::FileTreeDeleteCompleted(result) => {
             match result {

@@ -239,6 +239,8 @@ pub enum ProjectMessage {
         clear_clipboard: bool,
         result: Result<(), String>,
     },
+    FileTreeDeleteConfirmed,
+    FileTreeDeleteCanceled,
     FileTreeDeleteCompleted(Result<(), String>),
     SessionRightClicked(String, f32, f32),
     SessionMenuClose,

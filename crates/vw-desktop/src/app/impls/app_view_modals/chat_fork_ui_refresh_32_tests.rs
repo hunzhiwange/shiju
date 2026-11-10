@@ -4,7 +4,7 @@
 use super::{App, ForkSessionTarget, Message, with_chat_fork_dialog};
 use crate::app::i18n::I18n;
 use crate::app::impls::app_view_modals::{
-    with_chat_reset_dialog, with_file_tree_rename, with_session_rename,
+    with_chat_reset_dialog, with_file_tree_delete_confirm, with_file_tree_rename, with_session_rename,
 };
 use crate::app::message::{ChatMessage, ProjectMessage, chat::ForkSessionAnchor};
 use crate::app::models::{ChatMessage as TranscriptMessage, ChatRole};
@@ -1061,6 +1061,47 @@ async fn ui_refresh_32_escape_cancels_only_the_visible_modal() {
             ),
             "Escape did not cancel {kind}"
         );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn file_tree_delete_confirmation_draws_and_routes_actions() {
+    if !isolated("file_tree_delete_confirmation_draws_and_routes_actions") {
+        return;
+    }
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    let path = "/fixture/项目/待删除的文件.txt";
+    app.file_tree_pending_delete = Some(("/fixture/项目".into(), path.into()));
+    let i18n = I18n::new(app.desktop_locale);
+    let mut renderer = renderer().await;
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut ui = scene(with_file_tree_delete_confirm(&app, root()), &mut renderer, VIEW_SIZE);
+        let bounds = geometry(&mut ui, &renderer);
+        assert_fits(&bounds, VIEW_SIZE);
+        label(&bounds, path);
+        capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            VIEW_SIZE,
+            "file-tree-delete",
+            mouse::Cursor::Unavailable,
+        );
+        assert!(key(&mut ui, &mut renderer, Key::Named(Named::Enter), None).is_empty());
+        assert!(matches!(
+            click(&mut ui, &mut renderer, label(&bounds, i18n.__("删除")).center()).as_slice(),
+            [Message::Project(ProjectMessage::FileTreeDeleteConfirmed)]
+        ));
+        assert!(matches!(
+            click(&mut ui, &mut renderer, label(&bounds, i18n.__("取消")).center()).as_slice(),
+            [Message::Project(ProjectMessage::FileTreeDeleteCanceled)]
+        ));
+        assert!(matches!(
+            key(&mut ui, &mut renderer, Key::Named(Named::Escape), None).as_slice(),
+            [Message::Project(ProjectMessage::FileTreeDeleteCanceled)]
+        ));
     }
 }
 

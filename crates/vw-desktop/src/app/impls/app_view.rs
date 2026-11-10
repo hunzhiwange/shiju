@@ -276,6 +276,7 @@ impl App {
         // 依次叠加各种功能性模态框
         // 文件树重命名模态框
         let root_content = app_view_modals::with_file_tree_rename(self, root_content);
+        let root_content = app_view_modals::with_file_tree_delete_confirm(self, root_content);
         // 会话重命名模态框
         let root_content = app_view_modals::with_session_rename(self, root_content);
         // 项目编辑模态框

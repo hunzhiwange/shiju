@@ -282,7 +282,7 @@ fn file_tree_action_without_menu_path_is_ignored() {
 }
 
 #[test]
-fn delete_action_removes_file_from_local_tree_before_gateway_completes() {
+fn delete_action_keeps_file_until_confirmed() {
     let mut app = app();
     let target = "/tmp/project/src/main.rs";
     app.project_path = Some("/tmp/project".to_string());
@@ -294,14 +294,20 @@ fn delete_action_removes_file_from_local_tree_before_gateway_completes() {
         crate::app::message::project::ProjectMessage::FileTreeAction(
             crate::app::message::project::FileTreeAction::Delete,
         ),
-    );
+    )
+    .unwrap();
+    assert_eq!(task.units(), 0);
+    assert!(app.file_tree_menu_path.is_none());
+    assert_eq!(app.files, [target, "/tmp/project/src/lib.rs"]);
 
-    assert!(task.is_some());
+    let task = super::handle(&mut app, super::ProjectMessage::FileTreeDeleteConfirmed).unwrap();
+    assert_eq!(task.units(), 1);
+    assert!(app.file_tree_pending_delete.is_none());
     assert_eq!(app.files, vec!["/tmp/project/src/lib.rs".to_string()]);
 }
 
 #[test]
-fn delete_action_removes_directory_subtree_from_local_tree_before_gateway_completes() {
+fn delete_confirmation_removes_directory_subtree_before_gateway_completes() {
     let mut app = app();
     let target = "/tmp/project/src";
     app.project_path = Some("/tmp/project".to_string());
@@ -314,18 +320,47 @@ fn delete_action_removes_directory_subtree_from_local_tree_before_gateway_comple
         "/tmp/project/README.md".to_string(),
     ];
 
-    let task = super::handle(
+    let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::FileTreeAction(
             crate::app::message::project::FileTreeAction::Delete,
         ),
     );
 
-    assert!(task.is_some());
+    assert_eq!(app.files.len(), 5);
+    let _ = super::handle(&mut app, super::ProjectMessage::FileTreeDeleteConfirmed);
     assert_eq!(
         app.files,
         vec!["/tmp/project/src-old/keep.rs".to_string(), "/tmp/project/README.md".to_string(),]
     );
+}
+
+#[test]
+fn delete_confirmation_keeps_file_after_cancel_or_project_change() {
+    use super::{FileTreeAction, ProjectMessage};
+
+    let mut app = app();
+    let project = "/tmp/project";
+    let target = "/tmp/project/src/main.rs";
+    app.files = vec![target.to_string()];
+
+    for cancel in [true, false] {
+        app.project_path = Some(project.to_string());
+        app.file_tree_menu_path = Some(target.to_string());
+        let _ = super::handle(&mut app, ProjectMessage::FileTreeAction(FileTreeAction::Delete));
+        assert!(app.file_tree_pending_delete.is_some());
+
+        if cancel {
+            let _ = super::handle(&mut app, ProjectMessage::FileTreeDeleteCanceled);
+        } else {
+            app.project_path = Some("/tmp/other".to_string());
+        }
+
+        let task = super::handle(&mut app, ProjectMessage::FileTreeDeleteConfirmed).unwrap();
+        assert_eq!(task.units(), 0);
+        assert!(app.file_tree_pending_delete.is_none());
+        assert_eq!(app.files, [target]);
+    }
 }
 
 #[test]

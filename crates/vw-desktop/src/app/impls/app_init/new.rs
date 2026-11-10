@@ -1476,6 +1476,7 @@ impl App {
             input_drop_hovered: false,
             file_tree_rename_path: None,
             file_tree_rename_value: String::new(),
+            file_tree_pending_delete: None,
 
             // ========== 文件搜索 ==========
             file_search_query: String::new(),

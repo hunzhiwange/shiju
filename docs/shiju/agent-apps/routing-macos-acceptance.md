@@ -289,3 +289,23 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 差异检查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 本项 Rust 文件和依赖清单与绿灯快照逐一比对一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位 1、2 的任务锁均已释放，缓存保留。独立凭证和监听鉴权已交付，真实附接与协议分发联验待回归。
+
+## 任务 9　拦截浏览器与主机伪造
+
+2026-11-10，macOS 27.0（26A428），arm64，已完成。按授权采用批次 8 提交 `beb9678b6` 的生产监听鉴权作为基线。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/browser_guard.rs`、`proxy/handlers.rs` 与仓库快照的 SHA256 一致。
+
+- `RoutingListener::start_http` 继续使用同一监听器的 `route_auth::serve`。`browser_guard::allows_host` 在调用分发器或消费正文前校验 Host 和绝对请求目标的 authority。只接受连接实际绑定的回环 IP 或 `localhost`（忽略大小写并兼容一个尾点），显式端口须匹配实际端口。拒绝重复、格式错误或伪造的 Host，HTTP/1.0 继续兼容无 Host。按当前客户端投影收紧来源的主机名范围，无 DNS 查询。监听器继续拒绝非回环绑定。
+- 常规路由出现 Origin 即返回 403。`/claude-desktop/v1/messages` 和 `/claude-desktop/v1/models` 的 Origin 例外要求有效的 Claude Desktop 独立凭证，仍校验 Host。真实回环测试中，浏览器 POST 和 WebSocket 升级请求、DNS 重绑定、错误 authority 及跨应用凭证均被拦截。带 `Expect: 100-continue` 的客户端只发送请求头，首条响应即为最终状态。IPv4/IPv6 本机请求仍须通过独立鉴权。
+- 回环测试通过内部可信绑定签发夹具凭证。通过闸门和鉴权的请求到达当前分发占位响应 503。生产凭证签发和真实上游联验按授权后置。WSL 连接地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+红灯、绿灯和回归均使用共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。验证使用隔离的基线源码快照。绿灯恢复了非本项格式化文件，并逐一比对了本项 Rust 文件和依赖清单。测试链接器报告既有 macOS `__eh_frame` 大小警告。两阶段均已释放槽位锁并保留缓存。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 两阶段均退出 0，仅纳入本项格式差异。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_009_ -- --nocapture` | 退出 101，1 项通过、3 项失败。浏览器 POST、重绑定 Host 和其他应用凭证访问带 Origin 的 Desktop 端点均收到 503，预期为 403。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_009_ -- --nocapture` | 退出 0，4 项通过、0 项失败。 |
+| 鉴权回归 | `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` | 退出 0，3 项通过。 |
+| 监听回归 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异检查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |

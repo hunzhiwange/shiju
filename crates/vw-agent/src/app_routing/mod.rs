@@ -1,3 +1,4 @@
+mod browser_guard;
 pub(crate) mod gateway_owner;
 mod listener;
 pub(crate) mod reference_scope;

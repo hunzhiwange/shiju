@@ -1,5 +1,6 @@
 //! Application capabilities owned by the gateway's routing listener.
 
+use super::browser_guard;
 use axum::{
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
@@ -171,15 +172,30 @@ where
     F: Fn(Request<Incoming>, Arc<AuthorizedRoute>) -> Fut,
     Fut: Future<Output = Response>,
 {
+    let Ok(local_addr) = connection.local_addr() else {
+        return;
+    };
     let (send_cancel, receive_cancel) = oneshot::channel::<CancellationToken>();
     let send_cancel = Mutex::new(Some(send_cancel));
     let service = service_fn(|mut request: Request<Incoming>| {
-        let route = auth.authorize(request.headers());
-        let send_cancel = send_cancel.lock().take();
+        let auth = &auth;
+        let send_cancel = &send_cancel;
         let dispatch = &dispatch;
         async move {
-            let (Some(route), Some(send_cancel)) = (route, send_cancel) else {
-                return Ok::<_, Infallible>(StatusCode::UNAUTHORIZED.into_response());
+            let has_origin = request.headers().contains_key(header::ORIGIN);
+            if !browser_guard::allows_host(&request, local_addr)
+                || (has_origin && !browser_guard::is_desktop_route(request.uri()))
+            {
+                return Ok::<_, Infallible>(StatusCode::FORBIDDEN.into_response());
+            }
+            let Some(route) = auth.authorize(request.headers()) else {
+                return Ok(StatusCode::UNAUTHORIZED.into_response());
+            };
+            if has_origin && route.binding.app != AppId::ClaudeDesktop {
+                return Ok(StatusCode::FORBIDDEN.into_response());
+            }
+            let Some(send_cancel) = send_cancel.lock().take() else {
+                return Ok(StatusCode::UNAUTHORIZED.into_response());
             };
             if send_cancel.send(route.cancelled.clone()).is_err() || route.cancelled.is_cancelled()
             {
@@ -210,3 +226,7 @@ where
 #[cfg(test)]
 #[path = "route_auth_tests.rs"]
 mod route_auth_tests;
+
+#[cfg(test)]
+#[path = "browser_guard_tests.rs"]
+mod browser_guard_tests;

@@ -6,6 +6,27 @@ use super::{
 use serde_json::Value;
 use vw_api_types::{agent_apps::AppId, app_providers::mode_apply::*, id::TenantScope};
 
+/// Observe the existing mode transaction before any route preparation. Recovery
+/// and configuration writes remain owned by the mode publication path.
+pub fn observe_claude_route(
+    transactions: &ProviderTransactions,
+    tenant: &TenantScope,
+) -> Result<AppState, ModeApplyError> {
+    let state = transactions.state(AppId::Claude)?;
+    super::mode_state::observe(&state, tenant).map_err(|_| ModeApplyError::Ownership)?;
+    transactions.claude_directory(tenant)?;
+    if let Some(pending) = transactions.pending(AppId::Claude)? {
+        if pending.tenant != *tenant {
+            return Err(ModeApplyError::Ownership);
+        }
+        return Err(WriteError::Conflict.into());
+    }
+    if state.stack.enabled {
+        return Err(ModeApplyError::InvalidInput);
+    }
+    Ok(state)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModeApplyError {
     Unavailable,

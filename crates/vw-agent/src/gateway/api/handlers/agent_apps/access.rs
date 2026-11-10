@@ -460,6 +460,7 @@ enum Capability<'a> {
         scope: &'a RoutingControlScope,
         app: Option<(&'a ProjectId, AppId)>,
         manage: bool,
+        provider_write: bool,
     },
     ProviderConfigWrite,
     AuthAccountRead {
@@ -729,9 +730,10 @@ fn authorize_scoped(
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
                     #[cfg(target_os = "macos")]
-                    Capability::RoutingControl { scope, app, manage } => {
+                    Capability::RoutingControl { scope, app, manage, provider_write } => {
                         scope.tenant == *tenant
                             && scope.host == target
+                            && (!provider_write || g.provider_config_write)
                             && (if manage { g.routing_manage } else { g.routing_read })
                             && app.is_none_or(|(project_id, app_id)| {
                                 g.routing_apps.iter().any(|permit| {
@@ -1048,9 +1050,36 @@ pub(crate) fn authorize_routing_control(
         tenant,
         target,
         None,
-        Capability::RoutingControl { scope, app, manage },
+        Capability::RoutingControl { scope, app, manage, provider_write: false },
     )
     .map(|authorized| authorized.host.credential_root)
+}
+
+/// Authorize the provider write and the exact project/application route in one policy snapshot.
+#[cfg(target_os = "macos")]
+pub(crate) fn authorize_routing_mode(
+    path: &Path,
+    headers: &HeaderMap,
+    scope: &RoutingControlScope,
+    project: &vw_api_types::id::ProjectScope,
+    host: &str,
+    app: AppId,
+) -> Result<(PathBuf, String), StatusCode> {
+    let authorization = authorize_scoped(
+        Some(path),
+        headers,
+        project.tenant_scope(),
+        host,
+        None,
+        Capability::RoutingControl {
+            scope,
+            app: Some((project.project_id(), app)),
+            manage: true,
+            provider_write: true,
+        },
+    )?;
+    let root = authorization.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((root, authorization.principal))
 }
 
 /// Startup consumes the same administrator-owned host identities and private

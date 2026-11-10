@@ -351,6 +351,11 @@ impl LoginHost {
     }
 }
 impl LoginMaterial {
+    /// The same normalized OAuth generation used by the native rotation check.
+    pub fn credential_generation(&self) -> Result<Option<vw_api_types::TimestampMs>, WriteError> {
+        crate::auth::claude_rotation::expiry(self.oauth().and_then(|oauth| oauth.get("expiresAt")))
+    }
+
     pub(crate) fn oauth(&self) -> Option<&Value> {
         self.secret.as_ref()?.get("claudeAiOauth")
     }

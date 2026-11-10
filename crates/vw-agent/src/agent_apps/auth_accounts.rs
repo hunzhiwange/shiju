@@ -763,7 +763,7 @@ impl AuthAccountStore {
         Ok(())
     }
 
-    fn managed_key(
+    pub(crate) fn managed_key(
         scope: &AuthAccountScope<'_>,
         account_id: &str,
     ) -> Result<String, AuthErrorCode> {

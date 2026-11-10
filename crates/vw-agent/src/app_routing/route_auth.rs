@@ -18,11 +18,10 @@ const TOKEN_PREFIX: &str = "sra_";
 const TOKEN_BYTES: usize = 32;
 const API_KEY: &str = "x-api-key";
 
-/// This proof has no constructor outside this module. The attach transaction
-/// must prove project membership, route permission and current account ownership
-/// before it can construct one. Request headers never supply these fields.
+/// The mode transaction verifies project permission and current account ownership
+/// before constructing this proof. Request headers never supply these fields.
 #[derive(Clone, PartialEq, Eq)]
-pub(super) struct VerifiedRouteBinding {
+pub(crate) struct VerifiedRouteBinding {
     project: ProjectScope,
     host: String,
     app: AppId,
@@ -31,6 +30,27 @@ pub(super) struct VerifiedRouteBinding {
 }
 
 impl VerifiedRouteBinding {
+    #[cfg(target_os = "macos")]
+    pub(crate) fn new(
+        project: ProjectScope,
+        host: String,
+        app: AppId,
+        account: String,
+        account_generation: u64,
+    ) -> Self {
+        Self { project, host, app, account, account_generation }
+    }
+
+    fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.host.trim().is_empty()
+                && !self.account.trim().is_empty()
+                && self.account_generation != 0,
+            "incomplete application route binding"
+        );
+        Ok(())
+    }
+
     fn same_route(&self, other: &Self) -> bool {
         self.project == other.project && self.host == other.host && self.app == other.app
     }
@@ -89,6 +109,16 @@ pub(super) struct RouteAuth(Mutex<ActiveRoutes>);
 
 impl RouteAuth {
     #[cfg(target_os = "macos")]
+    pub(super) fn prepare(&self, binding: &VerifiedRouteBinding) -> anyhow::Result<()> {
+        binding.validate()?;
+        anyhow::ensure!(
+            self.0.lock().generation < u64::MAX,
+            "application route generation exhausted"
+        );
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
     pub(super) fn has_active_routes(&self) -> bool {
         !self.0.lock().grants.is_empty()
     }
@@ -108,10 +138,7 @@ impl RouteAuth {
         binding: VerifiedRouteBinding,
         json_target: Option<JsonTarget>,
     ) -> anyhow::Result<IssuedRoute> {
-        anyhow::ensure!(
-            !binding.host.trim().is_empty() && !binding.account.trim().is_empty(),
-            "incomplete application route binding"
-        );
+        binding.validate()?;
         if let Some(target) = &json_target {
             // Reject bad persisted options before invalidating the current grant.
             vw_agent_apps::providers::validation::validate(binding.app, &target.request_options)

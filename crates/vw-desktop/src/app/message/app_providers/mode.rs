@@ -159,6 +159,7 @@ async fn execute(
                 scope.app,
                 &ModeApplyRequest {
                     target_host_id: scope.host,
+                    project_id: None,
                     action: ModeApplyAction::Direct {},
                 },
                 &token,

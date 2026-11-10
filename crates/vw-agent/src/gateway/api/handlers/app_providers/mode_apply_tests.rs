@@ -261,7 +261,7 @@ impl Fixture {
         self.client
             .provider_mode_apply(
                 AppId::Claude,
-                &ModeApplyRequest { target_host_id: "host".into(), action },
+                &ModeApplyRequest { target_host_id: "host".into(), project_id: None, action },
                 TOKEN,
             )
             .await
@@ -331,14 +331,20 @@ async fn cc04_mode_apply_denial_unavailable_and_failed_readiness_do_not_write() 
         if inject {
             f.runtime.ready.store(false, Ordering::SeqCst);
         }
-        for (token, host, status) in
-            [(TOKEN, "host", 503), ("wrong", "host", 401), (TOKEN, "foreign", 403)]
-        {
+        for (token, host, status) in [
+            (TOKEN, "host", if inject { 503 } else { 403 }),
+            ("wrong", "host", 401),
+            (TOKEN, "foreign", 403),
+        ] {
             let error = f
                 .client
                 .provider_mode_apply(
                     AppId::Claude,
-                    &ModeApplyRequest { target_host_id: host.into(), action: proxy("route") },
+                    &ModeApplyRequest {
+                        target_host_id: host.into(),
+                        project_id: None,
+                        action: proxy("route"),
+                    },
                     token,
                 )
                 .await
@@ -364,7 +370,7 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
             .client
             .provider_mode_apply(
                 app,
-                &ModeApplyRequest { target_host_id: "host".into(), action },
+                &ModeApplyRequest { target_host_id: "host".into(), project_id: None, action },
                 TOKEN,
             )
             .await
@@ -384,7 +390,11 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
         .client
         .provider_mode_apply(
             AppId::Claude,
-            &ModeApplyRequest { target_host_id: "host".into(), action: proxy("route") },
+            &ModeApplyRequest {
+                target_host_id: "host".into(),
+                project_id: None,
+                action: proxy("route"),
+            },
             TOKEN,
         )
         .await
@@ -417,7 +427,11 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
         .client
         .provider_mode_apply(
             AppId::Claude,
-            &ModeApplyRequest { target_host_id: "host".into(), action: proxy("route") },
+            &ModeApplyRequest {
+                target_host_id: "host".into(),
+                project_id: None,
+                action: proxy("route"),
+            },
             TOKEN,
         )
         .await
@@ -427,4 +441,224 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
     assert!(!f.path().exists());
     assert!(tx.pending(AppId::Claude).unwrap().is_none());
     assert!(f.runtime.published.lock().unwrap().is_empty());
+}
+
+struct ProductionFixture {
+    _gateway: super::super::app_routing::lifecycle_api_tests::GatewayProcess,
+    home: tempfile::TempDir,
+    client: GatewayClient,
+    http: reqwest::Client,
+    mode_url: String,
+    state: std::path::PathBuf,
+}
+
+impl ProductionFixture {
+    async fn new(expires_at: u64) -> Self {
+        use super::super::app_routing::lifecycle_api_tests::{
+            HOST, MANAGER, client, spawn_gateway, write_policy,
+        };
+        use crate::{
+            agent_apps::auth_accounts::{AuthAccountMetadata, AuthAccountScope},
+            app_providers::{AppProviderStore, ClaudeBindingHost},
+        };
+        use vw_agent_apps::auth::credential_file::{AccountCredential, CredentialFileStore};
+        use vw_api_types::{
+            TimestampMs,
+            agent_apps_auth::AuthService,
+            app_providers::claude::{ClaudeConfig, ClaudeProfile},
+        };
+
+        let home = tempfile::tempdir().unwrap();
+        let root = home.path().join("credentials");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+        let policy = home.path().join("access.json");
+        write_policy(&policy, home.path(), 0);
+        let mut value: Value = serde_json::from_slice(&std::fs::read(&policy).unwrap()).unwrap();
+        let grant = &mut value["principals"][0]["grants"][0];
+        grant["provider_config_write"] = json!(true);
+        grant["routing_apps"] = json!([{"project_id":"allowed","app_id":"claude"}]);
+        std::fs::write(&policy, value.to_string()).unwrap();
+
+        let tenant = TenantScope::new("p", "owner").unwrap();
+        let db = GlobalDatabase::for_home(home.path()).unwrap();
+        let store = AppProviderStore::new(db.clone()).unwrap();
+        store
+            .claude_save(
+                &tenant,
+                "route",
+                &ClaudeProfile {
+                    name: "Bound Claude".into(),
+                    config: ClaudeConfig::Official { account: None },
+                    model: None,
+                },
+                None,
+                true,
+            )
+            .unwrap();
+        let settings = GatewaySettingsStore::new(db).unwrap();
+        settings.upsert(&tenant, "app_providers.records", "\"claude\":direct",
+            &json!({"category":"custom","settingsConfig":{"env":{"ANTHROPIC_BASE_URL":"https://direct.example","ANTHROPIC_API_KEY":"fixture-key"}}}).to_string()).unwrap();
+
+        let scope = AuthAccountScope {
+            tenant: &tenant,
+            principal: MANAGER,
+            host: HOST,
+            service: AuthService::ClaudeOfficial,
+        };
+        let accounts = store.claude_accounts(&root).unwrap();
+        let credentials =
+            CredentialFileStore::new(&root).unwrap().for_owner(scope.principal).unwrap();
+        credentials.register_claude_directory(&tenant, HOST, "bound").unwrap();
+        let AccountCredential::ClaudeDirectory(directory) =
+            credentials.read(&tenant, HOST, AppId::Claude, "bound").unwrap()
+        else {
+            panic!("expected a managed account");
+        };
+        for (name, value) in [
+            (
+                ".claude.json",
+                json!({"oauthAccount":{"accountUuid":"bound","organizationUuid":"org"}}),
+            ),
+            (
+                ".credentials.json",
+                json!({"claudeAiOauth":{"accessToken":"fixture-access","refreshToken":"fixture-refresh","expiresAt":expires_at}}),
+            ),
+        ] {
+            let path = directory.path().join(name);
+            std::fs::write(&path, value.to_string()).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        accounts
+            .insert_metadata(
+                &scope,
+                "bound",
+                &AuthAccountMetadata::new("bound:org", TimestampMs(1_800_000_000_000)).unwrap(),
+            )
+            .unwrap();
+        store
+            .bind_claude_account(
+                scope,
+                ClaudeBindingHost { home: home.path(), private_root: &root },
+                "route",
+                None,
+                Some("bound"),
+            )
+            .unwrap();
+
+        let native = home.path().join(".claude");
+        std::fs::create_dir(&native).unwrap();
+        let tx = ProviderTransactions::new(&root, ExecutionHostId::new(HOST).unwrap()).unwrap();
+        let mut guard =
+            vw_agent_apps::providers::live::write_guard::lock_app(AppId::Claude, &native).unwrap();
+        tx.commit(
+            &tenant,
+            &mut guard,
+            &[],
+            PendingTarget { pointer: Some("direct".into()), ..Default::default() },
+        )
+        .unwrap();
+        drop(guard);
+        let state = std::fs::read_dir(root.join("provider-live"))
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .path()
+            .join("claude.state.json");
+
+        let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
+        Self {
+            _gateway,
+            home,
+            client: client(port, "owner"),
+            http: reqwest::Client::builder().no_proxy().build().unwrap(),
+            mode_url: format!("http://127.0.0.1:{port}/v1/app-providers/claude/mode/apply"),
+            state,
+        }
+    }
+
+    async fn mode(&self, project: Option<&str>, action: Value) -> reqwest::Response {
+        use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
+        let mut body = json!({"targetHostId":HOST,"action":action});
+        if let Some(project) = project {
+            body["projectId"] = json!(project);
+        }
+        self.http
+            .post(&self.mode_url)
+            .header("x-platform-id", "p")
+            .header("x-company-id", "owner")
+            .header("x-agent-apps-token", MANAGER)
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
+    }
+
+    fn configuration(&self) -> std::path::PathBuf {
+        self.home.path().join(".claude/settings.json")
+    }
+}
+
+#[tokio::test]
+async fn cc_route_109_authorized_preparation_uses_gateway_listener_and_preserves_direct() {
+    use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
+    let f = ProductionFixture::new(4_000_000_000_000).await;
+    let proxy = json!({"kind":"proxy","providerId":"route"});
+    let binding = f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    let port = binding.bound_port.unwrap();
+    let prepared = f.mode(Some("allowed"), proxy.clone()).await;
+    assert_eq!(prepared.status(), 503);
+    assert_eq!(
+        prepared.json::<Value>().await.unwrap()["error"]["code"],
+        "route_publication_unavailable"
+    );
+
+    let direct = f.mode(None, json!({"kind":"direct"})).await;
+    assert_eq!(direct.status(), 200, "original direct request must work");
+    let direct = direct.json::<ModeApplyResult>().await.unwrap();
+    assert!(!direct.attached);
+    let before = std::fs::read(f.configuration()).unwrap();
+    let state = std::fs::read(&f.state).unwrap();
+    for _ in 0..2 {
+        let prepared = f.mode(Some("allowed"), proxy.clone()).await;
+        assert_eq!(prepared.status(), 503);
+        assert_eq!(
+            prepared.json::<Value>().await.unwrap()["error"]["code"],
+            "route_publication_unavailable"
+        );
+        assert_eq!(
+            f.client.app_routing_status(HOST, MANAGER).await.unwrap().bound_port,
+            Some(port)
+        );
+    }
+    let data = f
+        .http
+        .post(format!("http://127.0.0.1:{port}/v1/messages"))
+        .header("x-api-key", CLIENT_TOKEN_PLACEHOLDER)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(data.status(), 401);
+    assert_eq!(std::fs::read(f.configuration()).unwrap(), before);
+    assert_eq!(std::fs::read(&f.state).unwrap(), state);
+    f.client.app_routing_stop(HOST, MANAGER).await.unwrap();
+    let stopped = f.mode(Some("allowed"), proxy).await;
+    assert_eq!(stopped.status(), 503);
+    assert!(stopped.json::<Value>().await.is_err());
+}
+
+#[tokio::test]
+async fn cc_route_109_missing_project_or_stale_account_generation_never_writes() {
+    use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
+    let f = ProductionFixture::new(1_700_000_000_000).await;
+    let state = std::fs::read(&f.state).unwrap();
+    f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    for (project, status) in [(None, 403), (Some("denied"), 403), (Some("allowed"), 409)] {
+        let response = f.mode(project, json!({"kind":"proxy","providerId":"route"})).await;
+        assert_eq!(response.status(), status, "project {project:?}");
+        assert!(!f.configuration().exists());
+        assert_eq!(std::fs::read(&f.state).unwrap(), state);
+        assert!(!f.state.with_file_name("claude.pending.json").exists());
+    }
 }

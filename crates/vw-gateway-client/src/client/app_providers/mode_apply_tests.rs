@@ -13,6 +13,7 @@ async fn cc04_mode_apply_sdk_sends_typed_operation_and_discards_error_payload() 
     );
     let request = ModeApplyRequest {
         target_host_id: "host".into(),
+        project_id: None,
         action: ModeApplyAction::Proxy { provider_id: "route".into() },
     };
     let result =

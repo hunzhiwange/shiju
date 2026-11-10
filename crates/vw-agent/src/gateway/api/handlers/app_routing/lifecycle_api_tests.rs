@@ -13,8 +13,8 @@ use vw_gateway_client::{AppRoutingError, GatewayClient, GatewayEndpoint};
 
 const CHILD_TEST: &str = "gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child";
 const GATEWAY_LINE: &str = "VibeWindow Gateway listening on http://127.0.0.1:";
-pub(super) const HOST: &str = "routing-mac";
-pub(super) const MANAGER: &str = "fixture-routing-manager-token-00001";
+pub(in crate::gateway::api::handlers) const HOST: &str = "routing-mac";
+pub(in crate::gateway::api::handlers) const MANAGER: &str = "fixture-routing-manager-token-00001";
 pub(super) const READER: &str = "fixture-routing-reader-token-000002";
 pub(super) const MEMBER: &str = "fixture-routing-member-token-000003";
 
@@ -31,7 +31,7 @@ async fn gateway_child() {
     crate::gateway::run_gateway("127.0.0.1", 0, config).await.unwrap();
 }
 
-pub(super) struct GatewayProcess(Child);
+pub(in crate::gateway::api::handlers) struct GatewayProcess(Child);
 
 impl Drop for GatewayProcess {
     fn drop(&mut self) {
@@ -51,7 +51,7 @@ fn grant(token: &str, read: bool, manage: bool) -> Value {
     })
 }
 
-pub(super) fn write_policy(path: &Path, home: &Path, port: u16) {
+pub(in crate::gateway::api::handlers) fn write_policy(path: &Path, home: &Path, port: u16) {
     let host = |id| {
         json!({
             "id": id,
@@ -75,7 +75,10 @@ pub(super) fn write_policy(path: &Path, home: &Path, port: u16) {
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).unwrap();
 }
 
-pub(super) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess, u16) {
+pub(in crate::gateway::api::handlers) async fn spawn_gateway(
+    home: &Path,
+    policy: &Path,
+) -> (GatewayProcess, u16) {
     let output = tempfile::NamedTempFile::new_in(home).unwrap();
     let log = output.reopen().unwrap();
     let mut command = Command::new(std::env::current_exe().unwrap());
@@ -85,6 +88,7 @@ pub(super) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
         .env("HOME", home)
+        .env("USER", "shiju-routing-fixture")
         .env("TMPDIR", home)
         .env("SHIJU_AGENT_APPS_ACCESS_FILE", policy)
         .stdin(Stdio::null())
@@ -116,7 +120,7 @@ pub(super) async fn spawn_gateway(home: &Path, policy: &Path) -> (GatewayProcess
     (process, port)
 }
 
-pub(super) fn client(port: u16, company: &str) -> GatewayClient {
+pub(in crate::gateway::api::handlers) fn client(port: u16, company: &str) -> GatewayClient {
     GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", port)
             .with_tenant_scope(TenantScope::new("p", company).unwrap()),

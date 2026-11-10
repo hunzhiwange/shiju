@@ -73,6 +73,17 @@ pub struct RoutingListener {
 }
 
 impl RoutingListener {
+    /// Check the current listener and its credential owner without issuing or starting anything.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn prepare_route(
+        &self,
+        binding: &route_auth::VerifiedRouteBinding,
+    ) -> anyhow::Result<()> {
+        let _permit = self.try_control()?;
+        anyhow::ensure!(self.bound_address().is_some(), "application routing listener is stopped");
+        self.auth.prepare(binding)
+    }
+
     pub(super) async fn shutdown(&self) -> Result<(), ListenerError> {
         let mut closed = self.control_closed.lock().await;
         *closed = true;

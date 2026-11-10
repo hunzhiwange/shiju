@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ModeApplyRequest {
     pub target_host_id: String,
+    /// Project selector for proxy preparation. The gateway verifies its grant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<crate::id::ProjectId>,
     pub action: ModeApplyAction,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

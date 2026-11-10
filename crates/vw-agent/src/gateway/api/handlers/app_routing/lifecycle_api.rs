@@ -1,5 +1,7 @@
 //! Host management endpoints for the gateway-owned application listener.
-use super::super::agent_apps::{RoutingControlScope, authorize_routing_control, routing_setup};
+use super::super::agent_apps::{
+    RoutingControlScope, authorize_routing_control, authorize_routing_mode, routing_setup,
+};
 use crate::{
     app_routing::{
         ListenerError, RoutingListener,
@@ -23,12 +25,12 @@ use vw_api_types::{
     agent_apps::AppId,
     app_routing::{RoutingHealth, RoutingLifecycleRequest, RoutingState, RoutingStatus},
     error::{ApiErrorBody, ApiErrorDetail},
-    id::{ProjectId, TenantScope},
+    id::{ProjectId, ProjectScope, TenantScope},
 };
 
 #[derive(Clone)]
 pub(crate) struct RoutingControl {
-    pub(super) routing: Arc<RoutingListener>,
+    pub(crate) routing: Arc<RoutingListener>,
     scope: Arc<RoutingControlScope>,
     policy: PathBuf,
     pub(super) policy_default: ListenerConfig,
@@ -81,6 +83,16 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
 }
 
 impl RoutingControl {
+    pub(crate) fn authorize_mode(
+        &self,
+        headers: &HeaderMap,
+        project: &ProjectScope,
+        host: &str,
+        app: AppId,
+    ) -> Result<(PathBuf, String), StatusCode> {
+        authorize_routing_mode(&self.policy, headers, &self.scope, project, host, app)
+    }
+
     pub(super) async fn with_config_store<T: Send + 'static>(
         &self,
         operation: impl FnOnce(RoutingConfigStore) -> anyhow::Result<T> + Send + 'static,

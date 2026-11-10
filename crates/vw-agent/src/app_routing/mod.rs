@@ -10,6 +10,8 @@ mod route_auth;
 mod shared_transport;
 mod shutdown;
 pub use listener::{ListenerError, RoutingListener};
+#[cfg(target_os = "macos")]
+pub(crate) use route_auth::VerifiedRouteBinding;
 pub use shared_transport::SharedTransport;
 
 #[cfg(all(test, target_os = "macos"))]

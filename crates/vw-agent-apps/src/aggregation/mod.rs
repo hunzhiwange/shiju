@@ -23,6 +23,11 @@ pub mod codex_classic;
 #[cfg(test)]
 mod codex_classic_tests;
 
+pub mod member_validation;
+
+#[cfg(test)]
+mod member_validation_tests;
+
 #[cfg(target_os = "macos")]
 pub mod omo_write;
 

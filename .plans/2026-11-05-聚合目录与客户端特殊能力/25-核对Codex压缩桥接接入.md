@@ -2,7 +2,16 @@
 
 批次：【批次 3】 依赖：批次 2 的任务 2。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已阻塞
+
+## 阻塞记录（2026-11-10）
+
+- 直接依赖已满足。任务 2 的 `3902ad096` 已合入，正式证据见[接口契约](../../docs/shiju/agent-apps/aggregation/接口契约.md)。任务 1 的来源核对见 `636204fce` 和[来源核对](../../docs/shiju/agent-apps/aggregation/来源核对.md)。接口契约将本任务的转换入口交给母能力 8。
+- 基线 `b6fb3a2fc` 缺少真实前置。生产 `crates/vw-agent/src/app_routing/listener.rs::serve_http` 对获准请求直接返回 HTTP 503，`route_auth_tests.rs` 的现有断言也期待 503。母能力 8 的[任务 77 摘要回放与隔离密文](../2026-11-05-常驻路由与完整协议适配/77-重放压缩摘要与隔离密文.md)和[任务 78 V2 请求与流桥接](../2026-11-05-常驻路由与完整协议适配/78-桥接V2压缩请求与流.md)均为未开始，当前分支没有相应生产接入。
+- 已在 macOS arm64 执行只读核对。`rustcodegraph status` 与 `rustcodegraph query codex_compaction --limit 10` 仅定位到上游快照中的压缩实现。用 `cmp` 对比来源提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的本机 `proxy/providers/codex_compaction.rs` 与仓库快照，退出 0。查阅其相邻 Chat、Anthropic 和原生 Responses SSE 用例，确认来源语义为单项输出、摘要回放、外来密文按目标协议处理。执行 `git grep -n -E 'compaction_trigger|prepare_native_third_party_request|wrap_native_compaction_stream' HEAD -- 'crates/**/*.rs' ':!crates/vw-agent-apps/upstream/**'`，退出 1，无匹配。快照不在 `vw-agent-apps` 的生产构建内。
+- 此次为开工前依赖核对，只有任务卡状态变更。未运行 `cargo test -p vw-agent --lib aggregation_t25_ -- --nocapture` 或 `cargo clippy --all-targets --all-features -- -D warnings`，无 Cargo 退出码、槽位或 `CARGO_TARGET_DIR`，也无真实 Codex 验收结果。
+- 当前检出复核：`uname -sm` 返回 `Darwin arm64`，`codex --version` 退出 0，版本为 `codex-cli 0.167.0-alpha.3.2`。两份来源文件 SHA-256 一致。`rustcodegraph query prepare_native_third_party_request --limit 8` 仅命中快照。原生源码与路由证据均未找到生产分发入口，母能力 8 的任务 76（压缩端点）也未开始。
+- 最小解除条件是任务 77、78 的生产实现及其鉴权后常驻分发入口合入并提供证据。随后在项目当前检出验证第三方压缩只输出一个 `compaction` 项、下一回合重放摘要、外来密文遵循目标协议策略及失败路径，再按计划采集 macOS 真实 Codex 证据。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -27,9 +36,9 @@
 
 ## Cargo 共享槽位规则
 
-1. 同一仓库的所有计划和任务共用原仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
-2. 每次构建/验证阶段开始前，创建原仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从原仓库根目录执行。
-3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
+1. 同一仓库的所有计划和任务共用原仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-20`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建原仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–20。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从原仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 20 个槽位都占用时等待并重试。
 4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从原仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
 5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
 6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。

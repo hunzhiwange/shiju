@@ -2,7 +2,26 @@
 
 批次：【批次 14】 依赖：批次 13 的任务 13。外部前置：核实母任务 1 的来源快照与母任务 2、3 的对应运行时、执行主机和应用能力。原生配置写入、账号上游分别等母任务 4、6 的对应契约。
 
-状态：未开始
+状态：已阻塞
+
+### 集成工作区复核（2026-11-10，macOS 27.0 arm64）
+
+- 在 `/Users/xiangmin/worker/code/shiju` 的 `shiju` 分支（`b6fb3a2fc`）确认任务 13 已由 `5255827c6` 交付。workspace 已注册 `vw-agent-apps`，母任务 2、3 的网关、执行主机授权及应用目录可复用。母任务 4 的请求选项与模式事务、母任务 6 的凭据租约契约已存在。任务 109 仍阻塞在验证阶段，其范围仅为可信绑定准备与网关组装，生产凭据发布归任务 86。
+- 对上游快照及 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `body_filter.rs` 运行 `shasum -a 256`，与来源映射均为 `64b6e6c0f69ac17e6531584512c99f08bf2a6d5398615a2f3e330ebb478db824`。核对 `forwarder.rs::prepare_upstream_request_body` 的调用与相邻测试。来源在发送前使用空白名单递归过滤，保留 Schema 名称映射中的属性名，并继续过滤属性定义里的私有参数。
+- 生产调用链为网关 `bootstrap` → `gateway_owner::run_with_routing` → `RoutingListener::start_http` → `route_auth::serve`。鉴权通过后，`listener.rs::serve_http` 的闭包忽略正文与绑定，直接返回 503。
+  - `rg --files crates/vw-agent/src/app_routing` 确认无 `dispatch.rs`。`rg -n 'SharedTransport|filter_private_params|prepare_upstream_request_body' crates --glob '*.rs' --glob '!**/upstream/**'` 仅找到共享传输定义、导出和测试调用。
+  - 生产 `upstream::execute` 的另一调用者使用短期 `RelayBinding`，共用层只接收成形 HTTP 请求。任务 13 的保存入口只校验供应商档案。这些入口均无已授权的常驻 JSON 正文可供本项过滤。
+- **调度存在隐式依赖环。** 用 Python `graphlib.TopologicalSorter` 检查《执行索引》。显式依赖可排序，但补上实际缺失的分发依赖后成环。
+  - 任务 33 最早把修改 `dispatch.rs` 列为交付项，其行为是 SSE 分帧。首个有正文的原生 HTTP 转发任务 34 经 33、32、31、29、28–21、20、18–15 传递依赖任务 14。把 33、34 或生产凭据发布任务 86 加为 14 的前置均成环。任务 109 可以独立推进，但只完成它仍缺 JSON 分发。
+- **恢复条件。** 将首个已授权的生产 JSON 分发接线从下游协议任务中拆出，解除其对任务 14 的传递依赖。接线须由现有监听使用，在可信目标与代次复核后形成 JSON 正文，经 `SharedTransport::forward` 发送。
+  - 分发接线与过滤合入时须保持未就绪路径拒绝转发。然后在发送前唯一的正文处理点接入过滤，执行本卡红绿验证，并以生产入口和受控回环上游复核 Schema 保留与私有字段移除。
+- 本轮执行了 RustCodeGraph 调用链导航、源码检索、来源哈希和调度图检查。缺生产入口，未运行聚焦红绿测试、格式化或 Clippy，未领取槽位，未设置 `CARGO_TARGET_DIR`。
+
+### 授权补齐与验证进度
+
+- 用户已授权在集成目录补齐最小 JSON 生产分发接线。接线使用同一常驻监听与授权绑定，仅为已绑定目标的 Codex 非流式 Chat JSON 提供发送点。生产凭据及目标发布仍由既有事务所有者负责。当前接线和夹具在集成目录，验证进行中。
+- 首轮 `cargo test -p vw-agent-apps --lib cc_route_014_ -- --nocapture` 在槽位 3（`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`）退出 101，执行 0 项。独立 OMP 改动 `providers/omp.rs:339` 对 SHA256 输出使用 `LowerHex` 导致 E0277。已释放槽位 3，保留缓存。
+- 复核以 `22617ffe6` 叠加本项 Rust 文件的源码副本执行，未创建 Git 工作树。槽位 15（`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-15`）已领取，格式化、红绿测试和全仓 Clippy 正在排队或执行。集成目录的其他任务改动不进入本项源码副本。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -36,9 +55,9 @@
 
 ## Cargo 共享槽位规则
 
-1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
-2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
-3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
+1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-20`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–20。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 20 个槽位都占用时等待并重试。
 4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
 5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
 6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。

@@ -1,5 +1,7 @@
 //! Domain rules for application routing availability.
 
+pub mod circuit_breaker;
+
 pub mod queue;
 
 #[cfg(test)]

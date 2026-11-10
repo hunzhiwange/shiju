@@ -234,3 +234,16 @@ fn aggregation_t30_desktop_catalog_rejects_implicit_or_reserved_configuration() 
         );
     }
 }
+
+#[test]
+fn aggregation_t30_legacy_opus_id_prefers_its_compatible_role_id() {
+    use catalog::DesktopModelCatalog;
+
+    let mapping = mapped_routes(&[
+        ("claude-opus-4-7", "older-opus", None, false),
+        ("claude-opus-5", "current-opus", None, false),
+    ]);
+    let catalog = DesktopModelCatalog::new(member("primary", "Primary", &mapping), &[]).unwrap();
+
+    assert_eq!(catalog.resolve("claude-opus-4-8").unwrap().upstream_model, "current-opus");
+}

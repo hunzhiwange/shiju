@@ -104,8 +104,8 @@ impl DesktopModelCatalog {
             return Some(&defaults[index]);
         }
         let legacy_opus = match requested {
-            "claude-opus-4-7" => Some("claude-opus-4-8"),
-            "claude-opus-4-8" => Some("claude-opus-4-7"),
+            "claude-opus-5" => Some("claude-opus-4-8"),
+            "claude-opus-4-8" => Some("claude-opus-5"),
             _ => None,
         };
         if let Some(alias) = legacy_opus.and_then(|id| defaults.iter().find(|model| model.id == id))

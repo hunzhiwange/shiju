@@ -244,6 +244,9 @@ pub(crate) mod app_routing;
 
 pub(crate) mod agent_apps;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_high_availability_tests;
+
 pub(crate) mod agent_apps_auth_read;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_read_tests;

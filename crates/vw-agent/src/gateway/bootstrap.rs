@@ -814,7 +814,9 @@ pub(super) fn client_router(
 ) -> Router<AppState> {
     let handler_router = stateful_handler_router();
     #[cfg(target_os = "macos")]
-    let handler_router = handler_router.merge(super::router::app_routing_router().with_state(()));
+    let handler_router = handler_router
+        .merge(super::router::app_routing_router().with_state(()))
+        .merge(api::handlers::app_routing::agent_apps_high_availability::router().with_state(()));
     let handler_router = handler_router
         // 认证（外层）-> 租户解析 -> 受保护的业务 handler。
         .layer(from_fn(middleware::tenant_scope_middleware))

@@ -40,7 +40,7 @@ pub struct McpBindingTarget<'a> {
 }
 
 impl McpBindingTarget<'_> {
-    fn validate(&self, scope: &McpCatalogScope) -> Result<(), McpFailureCode> {
+    pub(super) fn validate(&self, scope: &McpCatalogScope) -> Result<(), McpFailureCode> {
         if self.installation.app_id != self.target.app_id
             || self.installation.id != self.target.installation_id
             || self.installation.target_host_id != self.target.target_host_id
@@ -109,7 +109,7 @@ impl McpCatalogStore {
 
         let outcome = connection.and_then(|connection| {
             run_sync_database(|| {
-                Ok(self.publish_binding(scope, &record, target, connection.as_ref()))
+                Ok(self.publish_binding(scope, &record, target, connection.as_ref(), false))
             })
             .map_err(|_| McpFailureCode::StorageUnavailable)?
         });
@@ -163,12 +163,13 @@ impl McpCatalogStore {
         Ok(stored.record.record)
     }
 
-    fn publish_binding(
+    pub(super) fn publish_binding(
         &self,
         scope: &McpCatalogScope,
         record: &McpRecordRef,
         target: &McpBindingTarget<'_>,
         connection: Option<&McpConnectionDefinition>,
+        restore_missing: bool,
     ) -> Result<McpDistributionOutcome, McpFailureCode> {
         let (tenant, namespace) = catalog_location(scope)?;
         let key = &record.id.0;
@@ -192,9 +193,18 @@ impl McpCatalogStore {
             (None, true) => NativeMcpEdit::Disable,
             (None, false) => return Ok(McpDistributionOutcome::Unchanged),
         };
-        let status = target
-            .native_write(tenant)
-            .apply(key, edit, || self.check_snapshot(tenant, &namespace, key, &previous))?;
+        let write = target.native_write(tenant);
+        let preflight = || self.check_snapshot(tenant, &namespace, key, &previous);
+        let status = match (edit, write.apply(key, edit, preflight)) {
+            (NativeMcpEdit::Update(connection), Err(McpFailureCode::Conflict))
+                if restore_missing =>
+            {
+                // Some adapters require an existing entry for Update. A fresh guarded Insert
+                // repairs deletion while still rejecting any same-name entry.
+                write.apply(key, NativeMcpEdit::Insert(connection), preflight)?
+            }
+            (_, result) => result?,
+        };
         if binding.native_status != status || binding.record != *record {
             binding.native_status = status;
             binding.record = record.clone();
@@ -260,7 +270,7 @@ impl McpCatalogStore {
     }
 }
 
-fn native_definition(
+pub(super) fn native_definition(
     connection: McpExecutionConnection,
 ) -> Result<McpConnectionDefinition, McpFailureCode> {
     match connection {

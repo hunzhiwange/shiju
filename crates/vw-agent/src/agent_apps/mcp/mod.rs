@@ -128,3 +128,11 @@ pub use binding::McpBindingTarget;
 mod bulk;
 #[cfg(all(test, target_os = "macos"))]
 mod bulk_tests;
+
+#[cfg(target_os = "macos")]
+mod resync;
+#[cfg(all(test, target_os = "macos"))]
+mod resync_tests;
+
+#[cfg(target_os = "macos")]
+pub use resync::{McpResyncResult, McpResyncTargetResult, McpResyncTask, resync_targets};

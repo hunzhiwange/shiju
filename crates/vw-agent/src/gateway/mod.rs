@@ -12,6 +12,7 @@
 //! - Header sanitization (handled by axum/hyper)
 
 mod agent;
+pub mod agent_apps_diagnostic_jobs;
 pub mod api;
 pub(crate) mod approval_state;
 mod bootstrap;

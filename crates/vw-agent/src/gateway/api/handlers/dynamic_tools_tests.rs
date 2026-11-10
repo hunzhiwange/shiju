@@ -61,7 +61,7 @@ impl Fixture {
             .uri(format!("/session/{session}/dynamic-tools{suffix}"))
             .header("X-Platform-ID", self.scope.tenant().platform_id().as_ref())
             .header("X-Company-ID", self.scope.tenant().company_id().as_ref())
-            .header("x-vibewindow-directory", self.directory.path().to_str().unwrap())
+            .header("x-directory", self.directory.path().to_str().unwrap())
             .header("content-type", "application/json");
         if let Some(token) = token {
             request = request.header("x-vibewindow-tool-host", token);
@@ -167,7 +167,7 @@ async fn dynamic_tools_gateway_scope_and_host_updates_are_denied() {
         f.request("PUT", &f.session, "", Some(&binding.binding_token), replacement());
     wrong_directory
         .headers_mut()
-        .insert("x-vibewindow-directory", directory.path().to_str().unwrap().parse().unwrap());
+        .insert("x-directory", directory.path().to_str().unwrap().parse().unwrap());
     assert_eq!(
         f.router.clone().oneshot(wrong_directory).await.unwrap().status(),
         StatusCode::NOT_FOUND
@@ -283,7 +283,7 @@ async fn dynamic_tools_gateway_http_host_receives_real_call_and_responds_once() 
             .request(method, format!("{url}{suffix}"))
             .header("X-Platform-ID", f.scope.tenant().platform_id().as_ref())
             .header("X-Company-ID", f.scope.tenant().company_id().as_ref())
-            .header("x-vibewindow-directory", f.directory.path().to_str().unwrap());
+            .header("x-directory", f.directory.path().to_str().unwrap());
         if let Some(token) = token {
             request = request.header("x-vibewindow-tool-host", token);
         }

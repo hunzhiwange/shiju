@@ -67,7 +67,7 @@ fn has_explicit_directory_checks_query_before_headers() {
 fn has_explicit_directory_accepts_directory_header() {
     let query = InstanceQuery { directory: None };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("/tmp/project"));
+    headers.insert("x-directory", HeaderValue::from_static("/tmp/project"));
 
     assert!(has_explicit_directory(&query, &headers));
 }
@@ -76,7 +76,7 @@ fn has_explicit_directory_accepts_directory_header() {
 fn has_explicit_directory_falls_back_to_header_when_query_is_blank() {
     let query = InstanceQuery { directory: Some("  ".to_string()) };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static(" /tmp/project "));
+    headers.insert("x-directory", HeaderValue::from_static(" /tmp/project "));
 
     assert!(has_explicit_directory(&query, &headers));
 }
@@ -85,7 +85,7 @@ fn has_explicit_directory_falls_back_to_header_when_query_is_blank() {
 fn has_explicit_directory_rejects_blank_query_and_header() {
     let query = InstanceQuery { directory: Some("  ".to_string()) };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("  "));
+    headers.insert("x-directory", HeaderValue::from_static("  "));
 
     assert!(!has_explicit_directory(&query, &headers));
 }
@@ -103,7 +103,7 @@ fn has_explicit_directory_ignores_invalid_header_value() {
     let query = InstanceQuery { directory: None };
     let mut headers = HeaderMap::new();
     let value = HeaderValue::from_bytes(b"\xff").expect("header bytes");
-    headers.insert("x-vibewindow-directory", value);
+    headers.insert("x-directory", value);
 
     assert!(!has_explicit_directory(&query, &headers));
 }
@@ -246,7 +246,7 @@ fn resolve_scope_from_query_returns_scope_for_directory_header() {
     let mut headers = HeaderMap::new();
     let path = temp_dir.path().to_string_lossy();
     let value = HeaderValue::from_str(path.as_ref()).expect("header value");
-    headers.insert("x-vibewindow-directory", value);
+    headers.insert("x-directory", value);
 
     assert!(
         resolve_scope_from_query(&vw_api_types::id::TenantScope::default(), &query, &headers)

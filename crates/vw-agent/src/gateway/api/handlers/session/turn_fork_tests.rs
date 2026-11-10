@@ -21,7 +21,7 @@ async fn request(method: Method, path: &str, directory: &str, body: Value) -> (S
                 .method(method)
                 .uri(path)
                 .header("content-type", "application/json")
-                .header("x-vibewindow-directory", directory)
+                .header("x-directory", directory)
                 .body(Body::from(body.to_string()))
                 .unwrap(),
         )

@@ -290,7 +290,7 @@ async fn dynamic_tools_gateway_bootstrap_mounts_authenticated_host_routes() {
             .header("Authorization", "Bearer dynamic-host-test-skey")
             .header("X-Platform-ID", "gateway-host-bootstrap")
             .header("X-Company-ID", "validation")
-            .header("x-vibewindow-directory", directory.path().to_str().unwrap());
+            .header("x-directory", directory.path().to_str().unwrap());
         if let Some(token) = token {
             request = request.header("x-vibewindow-tool-host", token);
         }

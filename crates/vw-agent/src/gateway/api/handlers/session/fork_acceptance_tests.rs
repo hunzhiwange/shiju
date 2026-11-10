@@ -42,7 +42,7 @@ async fn request(
             Request::builder()
                 .method(method)
                 .uri(route)
-                .header("x-vibewindow-directory", directory)
+                .header("x-directory", directory)
                 .header("content-type", "application/json")
                 .body(Body::from(payload.to_string()))
                 .unwrap(),

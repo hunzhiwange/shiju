@@ -878,7 +878,7 @@ fn resolve_directory_or_agent_root_prefers_directory_and_home_fallback() {
     let temp = tempfile::tempdir().expect("temp dir");
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(
-        "x-vibewindow-directory",
+        "x-directory",
         axum::http::HeaderValue::from_str(temp.path().to_str().expect("utf8 path"))
             .expect("header"),
     );

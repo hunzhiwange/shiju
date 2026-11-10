@@ -154,7 +154,7 @@ async fn apply_config_patch(
 fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap) -> bool {
     query.directory.as_deref().is_some_and(|value| !value.trim().is_empty())
         || headers
-            .get("x-vibewindow-directory")
+            .get("x-directory")
             .and_then(|value| value.to_str().ok())
             .is_some_and(|value| !value.trim().is_empty())
 }

@@ -22,7 +22,7 @@ fn query_for(path: &std::path::Path) -> InstanceQuery {
 fn headers_for(path: &std::path::Path) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
-        "x-vibewindow-directory",
+        "x-directory",
         HeaderValue::from_str(&path.to_string_lossy()).expect("valid directory header"),
     );
     headers
@@ -103,7 +103,7 @@ async fn router_path_get_prefers_query_directory_over_header() {
             Request::builder()
                 .method(Method::GET)
                 .uri(uri)
-                .header("x-vibewindow-directory", header_dir.path().to_string_lossy().as_ref())
+                .header("x-directory", header_dir.path().to_string_lossy().as_ref())
                 .body(Body::empty())
                 .expect("request should build"),
         )
@@ -125,7 +125,7 @@ async fn router_vcs_get_uses_directory_header_when_query_missing() {
             Request::builder()
                 .method(Method::GET)
                 .uri("/vcs")
-                .header("x-vibewindow-directory", temp.path().to_string_lossy().as_ref())
+                .header("x-directory", temp.path().to_string_lossy().as_ref())
                 .body(Body::empty())
                 .expect("request should build"),
         )

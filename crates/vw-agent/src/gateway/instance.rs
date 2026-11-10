@@ -27,7 +27,7 @@ pub(crate) struct InstanceQuery {
 /// # 参数
 ///
 /// * `query` - URL 查询参数，优先级最高。
-/// * `headers` - HTTP 请求头，支持 `x-vibewindow-directory` 作为桌面端传入目录。
+/// * `headers` - HTTP 请求头，支持 `x-directory` 作为桌面端传入目录。
 ///
 /// # 返回值
 ///
@@ -41,7 +41,7 @@ pub(crate) fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> S
     }
     // 请求头用于前端统一附带当前工作区，空值不能覆盖后面的安全默认值。
     if let Some(d) =
-        headers.get("x-vibewindow-directory").and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+        headers.get("x-directory").and_then(|v| v.to_str().ok()).map(|s| s.to_string())
     {
         if !d.trim().is_empty() {
             return d;

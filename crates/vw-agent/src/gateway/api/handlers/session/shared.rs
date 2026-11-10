@@ -54,7 +54,7 @@ pub(super) fn lifecycle_api_error(error: LifecycleError) -> ApiError {
 /// # 参数
 ///
 /// * `query` - 查询参数中的目录。
-/// * `headers` - 可能包含 `x-vibewindow-directory` 的请求头。
+/// * `headers` - 可能包含 `x-directory` 的请求头。
 ///
 /// # 返回值
 ///
@@ -65,7 +65,7 @@ pub(super) fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap)
     }
 
     headers
-        .get("x-vibewindow-directory")
+        .get("x-directory")
         .and_then(|v| v.to_str().ok())
         .is_some_and(|d| !d.trim().is_empty())
 }

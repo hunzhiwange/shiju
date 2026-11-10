@@ -136,10 +136,10 @@ fn has_explicit_directory_detects_non_empty_query_or_header_values() {
     let query = InstanceQuery { directory: Some("/tmp/project".to_string()) };
     assert!(has_explicit_directory(&query, &headers));
 
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("  "));
+    headers.insert("x-directory", HeaderValue::from_static("  "));
     assert!(!has_explicit_directory(&empty_query, &headers));
 
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("/tmp/project"));
+    headers.insert("x-directory", HeaderValue::from_static("/tmp/project"));
     assert!(has_explicit_directory(&empty_query, &headers));
 }
 
@@ -148,7 +148,7 @@ fn has_explicit_directory_ignores_non_utf8_header_value() {
     let query = InstanceQuery { directory: None };
     let mut headers = HeaderMap::new();
     let invalid = HeaderValue::from_bytes(&[0xff]).expect("non-utf8 header bytes");
-    headers.insert("x-vibewindow-directory", invalid);
+    headers.insert("x-directory", invalid);
 
     assert!(!has_explicit_directory(&query, &headers));
 }
@@ -302,7 +302,7 @@ async fn config_patch_uses_explicit_header_for_project_override() {
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     let mut headers = HeaderMap::new();
     headers.insert(
-        "x-vibewindow-directory",
+        "x-directory",
         HeaderValue::from_str(&project.to_string_lossy()).expect("project header"),
     );
 

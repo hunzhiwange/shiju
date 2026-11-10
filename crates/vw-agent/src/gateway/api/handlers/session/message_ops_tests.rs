@@ -32,7 +32,7 @@ fn query_for(directory: &FsPath) -> InstanceQuery {
 fn headers_for(directory: &FsPath) -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
-        "x-vibewindow-directory",
+        "x-directory",
         HeaderValue::from_str(&directory.to_string_lossy()).expect("valid directory header"),
     );
     headers

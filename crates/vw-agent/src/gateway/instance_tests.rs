@@ -54,7 +54,7 @@ fn instance_query_deserializes_explicit_and_missing_directory() {
 fn resolve_directory_prefers_query_over_header() {
     let query = InstanceQuery { directory: Some("/query".to_string()) };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("/header"));
+    headers.insert("x-directory", HeaderValue::from_static("/header"));
 
     assert_eq!(resolve_directory(&query, &headers), "/query");
 }
@@ -70,7 +70,7 @@ fn resolve_directory_preserves_non_empty_query_value() {
 fn resolve_directory_uses_header_when_query_is_blank() {
     let query = InstanceQuery { directory: Some("   ".to_string()) };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("/header"));
+    headers.insert("x-directory", HeaderValue::from_static("/header"));
 
     assert_eq!(resolve_directory(&query, &headers), "/header");
 }
@@ -79,7 +79,7 @@ fn resolve_directory_uses_header_when_query_is_blank() {
 fn resolve_directory_ignores_blank_header() {
     let query = InstanceQuery { directory: None };
     let mut headers = HeaderMap::new();
-    headers.insert("x-vibewindow-directory", HeaderValue::from_static("   "));
+    headers.insert("x-directory", HeaderValue::from_static("   "));
 
     assert_eq!(
         resolve_directory(&query, &headers),
@@ -92,7 +92,7 @@ fn resolve_directory_ignores_invalid_header_value() {
     let query = InstanceQuery { directory: None };
     let mut headers = HeaderMap::new();
     let invalid = HeaderValue::from_bytes(&[0xff]).expect("invalid utf8 header bytes");
-    headers.insert("x-vibewindow-directory", invalid);
+    headers.insert("x-directory", invalid);
 
     assert_eq!(
         resolve_directory(&query, &headers),

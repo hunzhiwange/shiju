@@ -31,11 +31,3 @@ pub(super) fn badge(theme: &Theme, tone: Tone) -> container::Style {
         ..Default::default()
     }
 }
-
-pub(super) fn icon_tile(theme: &Theme) -> container::Style {
-    container::Style {
-        background: Some(theme.palette().text.scale_alpha(0.045).into()),
-        border: Border { radius: 12.0.into(), ..Default::default() },
-        ..Default::default()
-    }
-}

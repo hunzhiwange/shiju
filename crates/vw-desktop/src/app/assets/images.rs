@@ -60,6 +60,13 @@ static IMAGES: Lazy<HashMap<Icon, image::Handle>> = Lazy::new(|| {
         ),
     );
 
+    m.insert(
+        Icon::AppHermes,
+        image::Handle::from_bytes(
+            include_bytes!("../../../../../assets/icons/app/hermes.png").as_slice(),
+        ),
+    );
+
     m
 });
 

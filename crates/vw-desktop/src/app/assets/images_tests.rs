@@ -12,6 +12,7 @@ fn get_image_returns_all_png_backed_assets() {
         Icon::AppTextMate,
         Icon::AppXcode,
         Icon::AppWindsurf,
+        Icon::AppHermes,
     ] {
         std::hint::black_box(get_image(icon));
     }

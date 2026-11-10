@@ -1,17 +1,19 @@
 //! 系统设置中 ACP 配置页面的界面拼装与交互消息转换。
 
+use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, rounded_action_btn_style, settings_close_button,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_divider,
     settings_error_banner, settings_field_label, settings_group_card,
-    settings_group_heading_with_help, settings_hover_help_label, settings_modal_card_style,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_muted_text_style, settings_page_heading_with_help, settings_panel,
-    settings_success_banner, settings_text_input, settings_value_badge,
+    settings_group_heading_with_help, settings_hover_help_label, settings_icon_tile_style,
+    settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_modal_overlay, settings_muted_text_style, settings_page_heading_with_help,
+    settings_panel, settings_panel_style, settings_success_banner, settings_text_input,
+    settings_value_badge,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
+use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 use vw_config_types::config::AcpAgentConfig;
 
@@ -148,23 +150,7 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     };
 
     let locale = app.desktop_locale;
-    let tr = |label: &'static str| I18n::new(locale).__(label);
-    let title = tr(acp_title(&agent));
-    let header = row![
-        settings_hover_help_label(
-            I18n::new(locale),
-            &app.app_theme,
-            title,
-            text(title).size(16),
-            tr(acp_description(&agent)),
-        )
-        .wrap(),
-        settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .width(Length::Fill)
-    .wrap();
+    let tr = move |label: &'static str| I18n::new(locale).__(label);
 
     let toggle_message = if saving {
         None
@@ -174,32 +160,67 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
             enabled: !enabled,
         })))
     };
-    let mut toggle =
-        button(text(toggle_label).size(13)).padding([7, 14]).style(rounded_action_btn_style);
-    if let Some(message) = toggle_message {
-        toggle = toggle.on_press(message);
-    }
-    let actions = row![
-        button(text(tr("编辑")).size(13))
-            .padding([7, 14])
-            .style(rounded_action_btn_style)
-            .on_press(acp_message(AcpMessage::EditAgent(agent.clone()))),
-        button(text(tr(if testing { "取消测试" } else { "测试连接" })).size(13))
-            .padding([7, 14])
-            .style(rounded_action_btn_style)
-            .on_press_maybe(if testing {
-                Some(acp_message(AcpMessage::CancelDiagnostic))
-            } else {
-                app.acp_settings
-                    .diagnostic_id
-                    .is_none()
-                    .then(|| acp_message(AcpMessage::TestAgent(agent.clone())))
-            }),
-        toggle,
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .wrap();
+    let summary_agent = agent.clone();
+    let summary = responsive(move |size| {
+        let title = tr(acp_title(&summary_agent));
+        let identity = row![
+            container(acp_agent_icon(&summary_agent, 28.0))
+                .center_x(44.0)
+                .center_y(44.0)
+                .style(settings_icon_tile_style),
+            row![
+                settings_hover_help_label(
+                    I18n::new(locale),
+                    &app.app_theme,
+                    title,
+                    text(title).size(16),
+                    tr(acp_description(&summary_agent)),
+                )
+                .wrap(),
+                settings_value_badge(tr(if enabled { "已启用" } else { "未启用" })),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .wrap(),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+        let actions = row![
+            button(text(tr("编辑")).size(13))
+                .padding([7, 12])
+                .style(rounded_action_btn_style)
+                .on_press(acp_message(AcpMessage::EditAgent(summary_agent.clone()))),
+            button(text(tr(if testing { "取消测试" } else { "测试连接" })).size(13))
+                .padding([7, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(if testing {
+                    Some(acp_message(AcpMessage::CancelDiagnostic))
+                } else {
+                    app.acp_settings
+                        .diagnostic_id
+                        .is_none()
+                        .then(|| acp_message(AcpMessage::TestAgent(summary_agent.clone())))
+                }),
+            button(text(toggle_label).size(13))
+                .padding([7, 12])
+                .style(if enabled || saving {
+                    rounded_action_btn_style
+                } else {
+                    primary_action_btn_style
+                })
+                .on_press_maybe(toggle_message.clone()),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .wrap();
+        if size.width >= 540.0 {
+            row![identity, actions].spacing(12).align_y(Alignment::Center).into()
+        } else {
+            column![identity, actions].spacing(8).into()
+        }
+    })
+    .height(Length::Shrink);
 
     let installation: Element<'_, Message> =
         if vw_config_types::acp_install::acp_install_command(&agent).is_some() {
@@ -239,8 +260,8 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
         };
 
     let mut content = column![
-        header,
-        actions,
+        summary,
+        settings_divider(),
         installation,
         text(I18n::new(app.desktop_locale).__(setup_hint(&agent)))
             .size(12)
@@ -280,11 +301,11 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
             }
         }),
     ]
-    .spacing(12);
+    .spacing(10);
     if let Some(status) = app.acp_settings.diagnostic_results.get(&agent) {
         content = content.push(diagnostic_status(*status, app.status_animation_frame, locale));
     }
-    settings_panel(content).into()
+    container(content).padding([16, 18]).width(Length::Fill).style(settings_panel_style).into()
 }
 
 fn form_field<'a>(
@@ -543,11 +564,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ));
     } else {
+        let mut cards = column![].spacing(8);
         for agent in agents {
             if let Some(config) = app.acp_settings.catalog.get(&agent) {
-                content = content.push(acp_card(app, agent.clone(), config));
+                cards = cards.push(acp_card(app, agent, config));
             }
         }
+        content = content.push(cards);
     }
 
     let content: Element<'_, Message> =

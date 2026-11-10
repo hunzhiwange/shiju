@@ -291,6 +291,8 @@ pub enum Icon {
     AppXcode,
     /// Kiro 应用图标
     AppKiro,
+    /// Hermes 应用图标
+    AppHermes,
     /// Windsurf 应用图标
     AppWindsurf,
     /// 三个垂直点/更多选项图标

@@ -179,7 +179,6 @@ pub(super) fn default_acp_icon<'a>(size: f32) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-#[allow(dead_code)]
 pub(super) fn svg_icon<'a>(icon: Icon, size: f32) -> Element<'a, Message> {
     icon_svg(icon, size).into()
 }
@@ -197,7 +196,6 @@ pub(super) fn svg_icon<'a>(icon: Icon, size: f32) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-#[allow(dead_code)]
 pub(super) fn image_icon<'a>(icon: Icon, size: f32) -> Element<'a, Message> {
     image(assets::get_image(icon)).width(Length::Fixed(size)).height(Length::Fixed(size)).into()
 }
@@ -218,22 +216,29 @@ pub(super) fn image_icon<'a>(icon: Icon, size: f32) -> Element<'a, Message> {
 pub fn acp_agent_icon<'a>(agent: &str, size: f32) -> Element<'a, Message> {
     let normalized = normalize_acp_agent_icon_name(agent);
     match normalized {
-        "auggie" => raw_svg_handle(assets::get_icon(Icon::AppAuggie), size).into(),
+        "auggie" => svg_icon(Icon::AppAuggie, size),
         "claude" => raw_svg_handle(assets::get_icon(Icon::AppClaudeCode), size).into(),
         "codex" => raw_svg_handle(assets::get_icon(Icon::AppCodex), size).into(),
-        "copilot" => raw_svg_handle(assets::get_icon(Icon::AppGitHubCopilot), size).into(),
+        "copilot" => svg_icon(Icon::AppGitHubCopilot, size),
         "cursor" => raw_svg_handle(assets::get_icon(Icon::AppCursor), size).into(),
         "droid" => raw_svg_handle(assets::get_icon(Icon::AppFactoryDroid), size).into(),
         "gemini" => raw_svg_handle(assets::get_icon(Icon::AppGeminiCli), size).into(),
+        "hermes" => image_icon(Icon::AppHermes, size),
+        "iflow" => themed_svg_handle(assets::get_provider_icon("iflowcn"), size).into(),
         "kiro" => raw_svg_handle(assets::get_icon(Icon::AppKiro), size).into(),
-        "kilocode" => raw_svg_handle(assets::get_icon(Icon::AppKiloCode), size).into(),
+        "kilocode" => svg_icon(Icon::AppKiloCode, size),
         "kimi" => raw_svg_handle(assets::get_icon(Icon::AppKimiCode), size).into(),
-        "opencode" => raw_svg_handle(assets::get_icon(Icon::AppOpenCode), size).into(),
+        "opencode" => svg_icon(Icon::AppOpenCode, size),
         "openclaw" => raw_svg_handle(assets::get_icon(Icon::AppOpenClaw), size).into(),
-        "pi" => raw_svg_handle(assets::get_icon(Icon::AppPi), size).into(),
-        "qoder" => raw_svg_handle(assets::get_icon(Icon::AppQoder), size).into(),
+        "pi" => svg_icon(Icon::AppPi, size),
+        "qoder" => raw_svg_handle(assets::get_icon(Icon::AppQoder), size)
+            .style(|theme, _| svg::Style {
+                color: is_dark_mode(theme).then_some(theme.palette().text),
+            })
+            .into(),
         "qwen" => raw_svg_handle(assets::get_icon(Icon::AppQwenCode), size).into(),
         "trae" => raw_svg_handle(assets::get_icon(Icon::AppTrae), size).into(),
+        "vibe" => themed_svg_handle(assets::get_provider_icon("mistral"), size).into(),
         _ => default_acp_icon(size),
     }
 }
@@ -264,6 +269,8 @@ pub(super) fn normalize_acp_agent_icon_name(agent: &str) -> &str {
         "cursor" => "cursor",
         "droid" | "factory droid" | "factory-droid" | "factorydroid" => "droid",
         "gemini" | "gemini cli" | "gemini-cli" => "gemini",
+        "hermes" | "hermes agent" | "hermes-agent" => "hermes",
+        "iflow" => "iflow",
         "kiro" | "kiro agent" | "kiro-agent" | "kiro-cli-chat" => "kiro",
         "kilocode" => "kilocode",
         "kimi" | "kimi code" | "kimi-code" | "kimi code cli" | "kimi-code-cli" => "kimi",
@@ -273,6 +280,7 @@ pub(super) fn normalize_acp_agent_icon_name(agent: &str) -> &str {
         "qoder" | "qoder cli" | "qoder-cli" => "qoder",
         "qwen" | "qwen code" | "qwen-code" => "qwen",
         "trae" | "trae cli" | "trae-cli" => "trae",
+        "vibe" | "mistral vibe" | "mistral-vibe" => "vibe",
         _ => "",
     }
 }

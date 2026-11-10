@@ -207,7 +207,7 @@ pub(crate) fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message>
 fn empty<'a>(title: &'a str, description: &'a str, glyph: Icon) -> Element<'a, Message> {
     container(
         column![
-            container(icon(glyph, 26.)).padding(16).style(styles::icon_tile),
+            container(icon(glyph, 26.)).padding(16).style(settings_icon_tile_style),
             text(title).size(16),
             text(description).size(13).center().style(settings_muted_text_style)
         ]
@@ -261,16 +261,10 @@ fn brand(app: AppId) -> Element<'static, Message> {
             AppId::Dsh => {
                 svg::Svg::new(assets::get_provider_icon("deepseek")).width(28.).height(28.).into()
             }
-            AppId::Hermes => {
-                static HERMES: std::sync::LazyLock<iced::widget::image::Handle> =
-                    std::sync::LazyLock::new(|| {
-                        iced::widget::image::Handle::from_bytes(
-                            include_bytes!("../../../../../../assets/icons/app/hermes.png")
-                                .as_slice(),
-                        )
-                    });
-                iced::widget::image(HERMES.clone()).width(28.).height(28.).into()
-            }
+            AppId::Hermes => iced::widget::image(assets::get_image(Icon::AppHermes))
+                .width(28.)
+                .height(28.)
+                .into(),
             _ => icon(Icon::Terminal, 28.).into(),
         }
     };
@@ -279,7 +273,7 @@ fn brand(app: AppId) -> Element<'static, Message> {
         .height(44.)
         .center_x(44.)
         .center_y(44.)
-        .style(styles::icon_tile)
+        .style(settings_icon_tile_style)
         .into()
 }
 

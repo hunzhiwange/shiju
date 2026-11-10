@@ -161,6 +161,13 @@ async fn ui_refresh_18_renders_catalogs_and_forms() {
         for theme in [Theme::Light, Theme::Dark] {
             let mut app = fixture();
             app.desktop_locale = locale;
+            for (name, command) in [("codex", "codex-acp"), ("opencode", "opencode acp")] {
+                app.acp_settings.catalog.insert(
+                    name.into(),
+                    AcpAgentConfig { command: command.into(), ..Default::default() },
+                );
+            }
+            app.acp_settings.enabled.insert("codex".into());
             let size = Size::new(width, 660);
             let stem = format!("{locale:?}-{theme:?}-{width}");
             snapshot(view(&app), &mut renderer, &theme, size, &format!("{stem}-acp-list"));

@@ -1,4 +1,6 @@
 //! Ordered queue mutations for one application and one authorized provider snapshot.
+use std::collections::HashSet;
+
 use crate::{
     providers::failover::{ProviderAuth, ProviderSnapshot},
     routing::supports_app,
@@ -10,6 +12,7 @@ pub enum QueueError {
     UnsupportedApp,
     ProviderNotFound,
     IneligibleProvider,
+    InvalidPermutation,
 }
 
 pub struct Queue {
@@ -24,6 +27,18 @@ impl Queue {
 
     pub fn members(&self) -> &[String] {
         &self.members
+    }
+
+    /// Replace the queue order with a complete permutation of the current members.
+    /// The saved position is the sole ordering key, including for stale members.
+    pub fn reorder(&mut self, members: Vec<String>) -> Result<(), QueueError> {
+        self.require_supported_app()?;
+        let mut remaining: HashSet<_> = self.members.iter().collect();
+        if members.len() != self.members.len() || members.iter().any(|id| !remaining.remove(id)) {
+            return Err(QueueError::InvalidPermutation);
+        }
+        self.members = members;
+        Ok(())
     }
 
     /// The caller supplies the authorized scope's current provider snapshot.

@@ -124,6 +124,53 @@ fn ha_sqlite_queue_updates_are_atomic() -> Result<()> {
 }
 
 #[test]
+fn ha_reorder_rejects_stale_queue_version() -> Result<()> {
+    let home = tempfile::tempdir()?;
+    let store = FailoverQueueStore::new(GlobalDatabase::for_home(home.path())?)?;
+    let scope = FailoverQueueScope {
+        project: ProjectScope::new(TenantScope::new("platform", "company")?, "project".into())?,
+        target_host_id: "host-a".into(),
+        app_id: Claude,
+    };
+    let original = ["provider-z", "provider-a"];
+    let providers = original.map(|id| ProviderSnapshot {
+        provider: AppProviderSummary {
+            id: id.into(),
+            app_id: Claude,
+            name: id.into(),
+            configured: true,
+        },
+        auth: ProviderAuth::ThirdParty,
+    });
+    let initial = store.update(&scope, FailoverQueueVersion(0), |queue, enabled| {
+        for id in original {
+            queue.add(id, &providers).map_err(|error| anyhow::anyhow!("{error:?}"))?;
+        }
+        *enabled = true;
+        Ok(())
+    })?;
+    let reorder = |version, ids: &[&str]| {
+        store.update(&scope, version, |queue, _| {
+            queue
+                .reorder(ids.iter().copied().map(str::to_owned).collect())
+                .map_err(|error| anyhow::anyhow!("{error:?}"))
+        })
+    };
+    let desired = ["provider-a", "provider-z"];
+    let saved = reorder(initial.version, &desired)?;
+    assert_eq!(saved.version, FailoverQueueVersion(2));
+    assert_eq!(saved.members, desired);
+    assert!(saved.enabled);
+
+    let conflict = reorder(initial.version, &original).expect_err("old version must conflict");
+    assert!(conflict.is::<FailoverQueueVersionConflict>(), "{conflict:#}");
+    assert!(reorder(saved.version, &["provider-z"]).is_err());
+    assert_eq!(store.get(&scope)?, saved);
+    assert_eq!(reorder(saved.version, &desired)?, saved);
+    Ok(())
+}
+
+#[test]
 fn ha_postgres_queue_updates_are_atomic() -> Result<()> {
     let fixture = PostgresTestDatabase::from_environment()?;
     let database = fixture.database();

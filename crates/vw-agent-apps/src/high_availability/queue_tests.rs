@@ -48,3 +48,30 @@ fn ha_queue_rejects_ineligible_members() {
     assert_eq!(queue.members(), ["first", "second"]);
     assert!(queue.candidates(&providers).unwrap().is_empty());
 }
+
+#[test]
+fn ha_reorder_rejects_partial_or_duplicate_members() {
+    let original = ["zeta", "alpha", "stale"].map(str::to_owned).to_vec();
+    let mut queue = Queue::new(AppId::Codex, original.clone());
+    for ids in [
+        vec!["alpha", "zeta"],
+        vec!["alpha", "alpha", "stale"],
+        vec!["alpha", "zeta", "foreign"],
+        vec!["alpha", "zeta", "stale", "foreign"],
+    ] {
+        let result = queue.reorder(ids.iter().copied().map(str::to_owned).collect());
+        assert!(result.is_err(), "reorder accepted invalid membership {ids:?}");
+        assert_eq!(queue.members(), original);
+    }
+
+    let reordered = ["stale", "alpha", "zeta"].map(str::to_owned).to_vec();
+    queue.reorder(reordered.clone()).unwrap();
+    assert_eq!(queue.members(), reordered);
+    queue.reorder(reordered.clone()).unwrap();
+    assert_eq!(queue.members(), reordered);
+
+    let mut empty = Queue::new(AppId::Codex, Vec::new());
+    assert_eq!(empty.reorder(Vec::new()), Ok(()));
+    let mut unsupported = Queue::new(AppId::Pi, Vec::new());
+    assert_eq!(unsupported.reorder(Vec::new()), Err(QueueError::UnsupportedApp));
+}

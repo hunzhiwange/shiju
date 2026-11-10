@@ -12,3 +12,5 @@ mod grokbuild_tests;
 pub mod codex;
 #[cfg(test)]
 mod codex_tests;
+
+pub mod opencode;

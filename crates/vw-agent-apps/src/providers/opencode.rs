@@ -276,6 +276,37 @@ impl OpenCodeFiles {
             Ok(("opencode.json", self.guard.read(OsStr::new("opencode.json"))?))
         }
     }
+    /// Detect a higher-precedence file appearing before a JSON fallback is published.
+    pub(crate) fn selected_file_preflight(
+        &self,
+        name: &str,
+    ) -> Result<impl Fn() -> Result<(), WriteError> + use<>, WriteError> {
+        let directory = self.directory.try_clone().map_err(|_| WriteError::Io)?;
+        let json_fallback = name == "opencode.json";
+        Ok(move || {
+            if json_fallback {
+                use std::os::fd::AsRawFd;
+                let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
+                // SAFETY: retained directory, fixed child and valid output buffer;
+                // existence (including a symlink) changes JSONC path precedence.
+                let exists = unsafe {
+                    libc::fstatat(
+                        directory.as_raw_fd(),
+                        c"opencode.jsonc".as_ptr(),
+                        metadata.as_mut_ptr(),
+                        libc::AT_SYMLINK_NOFOLLOW,
+                    )
+                };
+                if exists == 0
+                    || std::io::Error::last_os_error().kind() != std::io::ErrorKind::NotFound
+                {
+                    return Err(WriteError::Conflict);
+                }
+            }
+            Ok(())
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn apply(
         &mut self,
@@ -304,7 +335,7 @@ impl OpenCodeFiles {
         let after =
             if pre.is_none() && object_value(&next) == Ok(json!({})) { None } else { Some(next) };
         let patch = WholeFile::new(pre, after);
-        let directory = self.directory.try_clone().map_err(|_| WriteError::Io)?;
+        let check_selection = self.selected_file_preflight(name)?;
         tx.commit_checked(
             tenant,
             &mut self.guard,
@@ -320,25 +351,7 @@ impl OpenCodeFiles {
                 ..Default::default()
             },
             || {
-                if name == "opencode.json" {
-                    use std::os::fd::AsRawFd;
-                    let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
-                    // SAFETY: retained directory, fixed child and valid output buffer;
-                    // existence (including a symlink) changes JSONC path precedence.
-                    let exists = unsafe {
-                        libc::fstatat(
-                            directory.as_raw_fd(),
-                            c"opencode.jsonc".as_ptr(),
-                            metadata.as_mut_ptr(),
-                            libc::AT_SYMLINK_NOFOLLOW,
-                        )
-                    };
-                    if exists == 0
-                        || std::io::Error::last_os_error().kind() != std::io::ErrorKind::NotFound
-                    {
-                        return Err(WriteError::Conflict);
-                    }
-                }
+                check_selection()?;
                 if unchanged() && tx.state(AppId::OpenCode)? == *expected {
                     Ok(())
                 } else {

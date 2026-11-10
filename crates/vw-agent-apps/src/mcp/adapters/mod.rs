@@ -21,19 +21,19 @@ pub mod grokbuild;
 #[cfg(test)]
 mod grokbuild_tests;
 
+pub mod opencode;
+
 pub mod codex;
 #[cfg(test)]
 mod codex_tests;
 
-pub mod opencode;
+pub mod pi;
+#[cfg(test)]
+mod pi_tests;
 
 pub mod agy;
 #[cfg(test)]
 mod agy_tests;
-
-pub mod pi;
-#[cfg(test)]
-mod pi_tests;
 
 pub mod dsh;
 

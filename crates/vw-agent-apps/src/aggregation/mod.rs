@@ -3,11 +3,6 @@ pub mod model_ids;
 #[cfg(test)]
 mod model_ids_tests;
 
-pub mod codex_review;
-
-#[cfg(test)]
-mod codex_review_tests;
-
 pub mod omo_read;
 
 #[cfg(test)]
@@ -17,6 +12,11 @@ pub mod member_keys;
 
 #[cfg(all(test, target_os = "macos"))]
 mod member_keys_tests;
+
+pub mod codex_review;
+
+#[cfg(test)]
+mod codex_review_tests;
 
 pub mod codex_classic;
 
@@ -35,6 +35,12 @@ pub mod omo_write;
 mod omo_write_tests;
 
 #[cfg(target_os = "macos")]
+pub mod omo_slim;
+
+#[cfg(all(test, target_os = "macos"))]
+mod omo_slim_tests;
+
+#[cfg(target_os = "macos")]
 pub mod membership;
 
 #[cfg(all(test, target_os = "macos"))]
@@ -49,12 +55,6 @@ pub mod codex_subagent;
 
 #[cfg(test)]
 mod codex_subagent_tests;
-
-#[cfg(target_os = "macos")]
-pub mod omo_slim;
-
-#[cfg(all(test, target_os = "macos"))]
-mod omo_slim_tests;
 
 pub mod claude_catalog;
 

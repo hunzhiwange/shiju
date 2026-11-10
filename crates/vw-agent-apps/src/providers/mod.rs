@@ -59,6 +59,8 @@ pub mod catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_tests;
 
+pub mod failover;
+
 pub mod create;
 #[cfg(test)]
 mod create_tests;

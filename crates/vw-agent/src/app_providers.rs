@@ -27,9 +27,12 @@ impl AppProviderStore {
             .map(|settings| Self { settings, database })
             .map_err(|_| "application provider storage unavailable".into())
     }
+    fn prefix(app: AppId) -> String {
+        format!("{}:", serde_json::to_string(&app).expect("AppId serialization"))
+    }
     fn key(app: AppId, id: &str) -> Result<String, String> {
         validate_identity(id)?;
-        Ok(format!("{}:{id}", serde_json::to_string(&app).expect("AppId serialization")))
+        Ok(format!("{}{id}", Self::prefix(app)))
     }
     /// Consume the shared tenant library without linking provider records to deletable IDs.
     pub fn set_icon(
@@ -595,7 +598,7 @@ impl AppProviderStore {
         tenant: &TenantScope,
         app: AppId,
     ) -> Result<Vec<AppProviderSummary>, String> {
-        let prefix = format!("{}:", serde_json::to_string(&app).expect("AppId serialization"));
+        let prefix = Self::prefix(app);
         self.settings
             .list(tenant, NAMESPACE)
             .map_err(|_| "application provider storage unavailable".to_string())?
@@ -637,6 +640,11 @@ mod tests;
 mod universal;
 
 mod universal_sync;
+
+mod failover;
+
+#[cfg(all(test, target_os = "macos"))]
+mod failover_tests;
 
 impl AppProviderStore {
     pub(crate) fn editor_save_record(

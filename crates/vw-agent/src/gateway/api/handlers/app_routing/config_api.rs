@@ -132,7 +132,7 @@ async fn authorize_app(
         manage,
     )
     .await?;
-    if !matches!(app, AppId::Claude | AppId::Codex | AppId::Gemini | AppId::GrokBuild) {
+    if !vw_agent_apps::routing::supports_app(app) {
         return Err(ControlError::UnsupportedApp);
     }
     let project = ProjectScope::new(tenant, project).map_err(|_| ControlError::InvalidConfig)?;

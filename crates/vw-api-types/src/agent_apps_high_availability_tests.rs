@@ -120,3 +120,124 @@ fn ha_queue_dto_roundtrip_keeps_scope_and_order() {
         .is_err()
     );
 }
+
+#[test]
+fn ha_policy_rejects_out_of_range_values() {
+    use super::agent_apps_high_availability::FailoverPolicy;
+
+    let minimum = json!({
+        "circuitBreaker": {
+            "failureThreshold": 1, "successThreshold": 1, "cooldownSecs": 0,
+            "errorRateThreshold": 0.0, "minRequests": 5
+        },
+        "retryTimeout": {
+            "maxRetries": 0, "firstByteTimeoutSecs": 1, "idleTimeoutSecs": 0,
+            "nonStreamingTimeoutSecs": 60
+        }
+    });
+    let maximum = json!({
+        "circuitBreaker": {
+            "failureThreshold": 20, "successThreshold": 10, "cooldownSecs": 300,
+            "errorRateThreshold": 1.0, "minRequests": 100
+        },
+        "retryTimeout": {
+            "maxRetries": 10, "firstByteTimeoutSecs": 120, "idleTimeoutSecs": 600,
+            "nonStreamingTimeoutSecs": 1200
+        }
+    });
+    for wire in [&minimum, &maximum] {
+        let policy: FailoverPolicy = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(policy.validate(), Ok(()));
+        assert_eq!(&serde_json::to_value(policy).unwrap(), wire);
+    }
+
+    for (section, field, value) in [
+        ("circuitBreaker", "failureThreshold", json!(0)),
+        ("circuitBreaker", "failureThreshold", json!(21)),
+        ("circuitBreaker", "successThreshold", json!(0)),
+        ("circuitBreaker", "successThreshold", json!(11)),
+        ("circuitBreaker", "cooldownSecs", json!(301)),
+        ("circuitBreaker", "errorRateThreshold", json!(-0.01)),
+        ("circuitBreaker", "errorRateThreshold", json!(1.01)),
+        ("circuitBreaker", "minRequests", json!(4)),
+        ("circuitBreaker", "minRequests", json!(101)),
+        ("retryTimeout", "maxRetries", json!(11)),
+        ("retryTimeout", "firstByteTimeoutSecs", json!(0)),
+        ("retryTimeout", "firstByteTimeoutSecs", json!(121)),
+        ("retryTimeout", "idleTimeoutSecs", json!(601)),
+        ("retryTimeout", "nonStreamingTimeoutSecs", json!(59)),
+        ("retryTimeout", "nonStreamingTimeoutSecs", json!(1201)),
+    ] {
+        let mut wire = minimum.clone();
+        wire[section][field] = value;
+        let policy: FailoverPolicy = serde_json::from_value(wire).unwrap();
+        assert!(policy.validate().is_err(), "{field} accepted an out-of-range value");
+    }
+
+    let mut policy: FailoverPolicy = serde_json::from_value(minimum.clone()).unwrap();
+    for rate in [f64::NAN, f64::NEG_INFINITY, f64::INFINITY] {
+        policy.circuit_breaker.error_rate_threshold = rate;
+        assert!(policy.validate().is_err(), "accepted non-finite rate {rate}");
+    }
+
+    let mut wrong_units = minimum;
+    let timeout = wrong_units["retryTimeout"].as_object_mut().unwrap();
+    timeout.remove("firstByteTimeoutSecs");
+    timeout.insert("firstByteTimeoutMs".into(), json!(1000));
+    assert!(serde_json::from_value::<FailoverPolicy>(wrong_units).is_err());
+}
+
+#[test]
+fn ha_route_and_health_keep_separate_observations() {
+    use super::agent_apps_high_availability::{
+        FailoverFailureReason, FailoverHealthResponse, FailoverHealthState, FailoverRouteResponse,
+    };
+
+    let scope = json!({
+        "project": {
+            "platform_id": "platform-1", "company_id": "company-1", "project_id": "project-1"
+        },
+        "targetHostId": "host-1",
+        "appId": "claude"
+    });
+    for (wire_state, state) in [
+        ("closed", FailoverHealthState::Closed),
+        ("open", FailoverHealthState::Open),
+        ("half_open", FailoverHealthState::HalfOpen),
+        ("unknown", FailoverHealthState::Unknown),
+    ] {
+        let retry_after_ms = (state == FailoverHealthState::Open).then_some(1500);
+        let wire = json!({
+            "scope": scope,
+            "providerId": "primary",
+            "state": wire_state,
+            "retryAfterMs": retry_after_ms
+        });
+        let health: FailoverHealthResponse = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(health.state, state);
+        assert_eq!(health.retry_after_ms, retry_after_ms);
+        assert_eq!(serde_json::to_value(health).unwrap(), wire);
+    }
+
+    let wire = json!({
+        "scope": scope,
+        "configuredProviderId": "primary",
+        "actualProviderId": "backup",
+        "failureReason": "first_byte_timeout"
+    });
+    let route: FailoverRouteResponse = serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(route.configured_provider_id, Some("primary".into()));
+    assert_eq!(route.actual_provider_id, Some("backup".into()));
+    assert_eq!(route.failure_reason, Some(FailoverFailureReason::FirstByteTimeout));
+    assert_eq!(serde_json::to_value(route).unwrap(), wire);
+
+    let mut unknown_route = wire.clone();
+    unknown_route["actualProviderId"] = json!(null);
+    let route: FailoverRouteResponse = serde_json::from_value(unknown_route.clone()).unwrap();
+    assert_eq!(route.actual_provider_id, None);
+    assert_eq!(serde_json::to_value(route).unwrap(), unknown_route);
+
+    let mut unsafe_route = wire;
+    unsafe_route["failureReason"] = json!("raw upstream error containing a fixture secret");
+    assert!(serde_json::from_value::<FailoverRouteResponse>(unsafe_route).is_err());
+}

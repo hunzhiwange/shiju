@@ -387,12 +387,6 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     let retained_chat = app.chat.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
     let retained_message_ids =
         app.chat_message_ids.get(..retain_end).map(|slice| slice.to_vec()).unwrap_or_default();
-    let local_title = app
-        .sessions
-        .iter()
-        .find(|session| session.id == session_id)
-        .map(|session| session.title.clone())
-        .unwrap_or_else(|| "重置会话".to_string());
 
     app.chat_reset_menu_idx = None;
     app.chat_fork_dialog = None;
@@ -421,17 +415,44 @@ fn reset_session_locally(app: &mut App, session_id: String, msg_idx: usize) -> T
     let now =
         crate::app::time::now_ms().max(app.active_session_view_state.updated_ms.saturating_add(1));
     app.active_session_view_state.updated_ms = now;
-    let local = models::ChatSession {
-        id: session_id,
-        title: local_title,
-        messages: app.chat.clone(),
-        message_ids: app.chat_message_ids.clone(),
-        calls: Vec::new(),
-        steps: Vec::new(),
-        created_ms: now,
-        updated_ms: now,
-    };
-    save_session_task(local, root)
+    let seq_base = app.get_session_runtime(&session_id).stream_save_seq_base;
+    let boundary = app.chat.last().cloned();
+    let boundary_id = app.chat_message_ids.last().cloned().flatten();
+    Task::perform(
+        async move {
+            let boundary = boundary.ok_or_else(|| "无法重置到不存在的消息".to_string())?;
+            let seq_no = seq_base + history_len.saturating_sub(1) as u64;
+            let client = crate::app::gateway_client()?;
+            let stored = client
+                .session_ui_get_without_raw(&session_id, root.as_deref())
+                .await?
+                .ok_or_else(|| "会话历史不存在".to_string())?
+                .session;
+            let index = usize::try_from(seq_no).map_err(|error| error.to_string())?;
+            let matches = stored.messages.get(index).is_some_and(|message| {
+                message.role == boundary.role && message.content == boundary.content
+            }) && boundary_id.as_ref().is_none_or(|id| {
+                stored.message_ids.get(index).and_then(Option::as_ref) == Some(id)
+            });
+            if !matches {
+                return Err("会话历史已变化，请重新加载后重置".to_string());
+            }
+            let delta = vw_shared::session::ui_types::SessionMessageDelta {
+                session_id: session_id.clone(),
+                expected_updated_ms: stored.updated_ms,
+                updated_ms: now.max(stored.updated_ms.saturating_add(1)),
+                upserts: Vec::new(),
+                truncate_after: Some(seq_no),
+            };
+            client.session_message_delta(&session_id, root.as_deref(), &delta).await.map(|_| ())
+        },
+        |result| {
+            Message::Chat(match result {
+                Ok(()) => ChatMessage::SessionSaveAck,
+                Err(error) => ChatMessage::SessionSaveFailed(error),
+            })
+        },
+    )
 }
 
 fn save_session_task(session: models::ChatSession, directory: Option<String>) -> Task<Message> {
@@ -458,6 +479,31 @@ fn send_to_existing_session(app: &mut App, session_id: String, input: String) ->
     let input = input.trim().to_string();
     if input.is_empty() {
         return Task::none();
+    }
+
+    if app.active_session_id.as_deref() != Some(session_id.as_str())
+        && app.cached_chat_messages(&session_id).is_none()
+    {
+        let Some(directory) = app.known_session_directory(&session_id) else {
+            return app.show_error_toast("无法确定会话目录，未发送消息");
+        };
+        return Task::perform(
+            async move {
+                let result = async {
+                    let loaded = crate::app::gateway_client()?
+                        .session_ui_get_without_raw(&session_id, Some(&directory))
+                        .await?
+                        .ok_or_else(|| "会话历史不存在，未发送消息".to_string())?;
+                    if loaded.session.id != session_id {
+                        return Err("网关返回了其他会话的历史".to_string());
+                    }
+                    Ok(Box::new(loaded.session))
+                }
+                .await;
+                ChatMessage::SessionSendHistoryLoaded { session_id, input, result }
+            },
+            Message::Chat,
+        );
     }
 
     if app.active_session_id.as_deref() == Some(session_id.as_str()) {
@@ -841,6 +887,13 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
 }
 
 fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
+    if app.active_session_id.is_some()
+        && app.current_session_runtime().draft.is_none()
+        && app.active_session_view_state.ui_preparing
+        && !app.active_session_view_state.base_ready
+    {
+        return app.show_error_toast("会话历史正在加载，请稍后发送");
+    }
     let runtime = app.current_session_runtime();
     let query = runtime.input_editor.text().to_string();
     let selected_tools = runtime.tool_selector.selected_manual_tools();
@@ -1001,6 +1054,35 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::SendToSession { session_id, input } => {
+            send_to_existing_session(app, session_id, input)
+        }
+        ChatMessage::SessionSendHistoryLoaded { session_id, input, result } => {
+            let loaded = match result {
+                Ok(loaded) if loaded.id == session_id => loaded,
+                Ok(_) => return app.show_error_toast("网关返回了其他会话的历史，未发送消息"),
+                Err(error) => {
+                    return app.show_error_toast(format!("加载会话历史失败，未发送消息：{error}"));
+                }
+            };
+            // A newer local load or send wins over this asynchronous snapshot.
+            if app.cached_chat_messages(&session_id).is_none() {
+                if app.session_is_requesting(&session_id) {
+                    return app.show_error_toast("会话正在回复且历史尚未就绪，请稍后发送");
+                }
+                let runtime = app.get_session_runtime_mut(&session_id);
+                runtime.stream_save_seq_base = 0;
+                runtime.stream_save_expected_updated_ms = loaded.updated_ms;
+                if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+                    app.chat = loaded.messages.clone();
+                    app.chat_message_ids = loaded.message_ids.clone();
+                    app.invalidate_chat_ui_state();
+                }
+                app.store_session_chat_snapshot(
+                    session_id.clone(),
+                    crate::app::session::shared_chat_messages(loaded.messages),
+                    loaded.message_ids,
+                );
+            }
             send_to_existing_session(app, session_id, input)
         }
         ChatMessage::CompactSessionRequested { session_id, project_path } => {
@@ -1836,6 +1918,14 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         }
         return Task::none();
     }
+    if app.active_session_id.is_some()
+        && app.current_session_runtime().draft.is_none()
+        && app.active_session_view_state.ui_preparing
+        && !app.active_session_view_state.base_ready
+    {
+        app.current_session_runtime_mut().queue.insert(0, item);
+        return app.show_error_toast("会话历史正在加载，消息已保留在队列中");
+    }
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     let stream_id = app.agent_stream_id;
     let mut save_tasks = Vec::new();
@@ -1901,6 +1991,14 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
         save_tasks.push(persist_session_reasoning_effort(app));
     }
 
+    // 主动停止后续接（包括队列中的“立刻引导”）保留已显示的历史。
+    // 只有普通失败/取消重试才回到草稿的上一稳定边界。
+    if item.send_behavior == ChatSendBehavior::StopAndSend {
+        let history_len = app.chat.len();
+        if let Some(draft) = app.current_session_runtime_mut().draft.as_mut() {
+            draft.history_len = history_len;
+        }
+    }
     let draft = app.current_session_runtime_ref().and_then(|runtime| runtime.draft.clone());
     let is_draft = draft.is_some();
     if let Some(draft) = draft {

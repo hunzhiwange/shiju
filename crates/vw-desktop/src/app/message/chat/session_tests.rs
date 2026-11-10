@@ -2265,3 +2265,148 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     assert_eq!(app.session_previews[&session_id], "third attempt");
     assert_eq!(app.chat.last().unwrap().content, "successful answer");
 }
+
+#[test]
+fn session_history_survives_failed_publication_lookup_and_multiple_followups() {
+    use crate::app::state::ChatSendBehavior::Queue;
+    let (mut app, _) = crate::app::App::new();
+    app.project_id = Some("project-1".into());
+    app.project_path = Some("/repo".into());
+    for turn in 0..3 {
+        super::start(&mut app, queue_item(&format!("question {turn}"), Queue), false);
+        let request = app.current_session_runtime().active_agent_request.unwrap();
+        assert_eq!(request.history.len(), turn * 2);
+        super::stream::update(
+            &mut app,
+            super::ChatMessage::AgentStreamDelta(request.id, format!("answer {turn}")),
+        );
+        super::stream::update(
+            &mut app,
+            super::ChatMessage::DraftResponseReloaded {
+                id: request.id,
+                usage: Default::default(),
+                assistant_message_id: Some(format!("assistant-{turn}")),
+                parent_message_id: Some(format!("user-{turn}")),
+                publication: None,
+            },
+        );
+        assert_eq!(app.chat.len(), (turn + 1) * 2);
+        assert_eq!(app.chat[0].content, "question 0");
+        assert_eq!(app.chat[1].content, "answer 0");
+    }
+}
+
+#[test]
+fn session_history_missing_background_cache_does_not_start_an_empty_continuation() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/repo".into());
+    app.sessions = vec![session_info("existing", "Existing", "/repo")];
+    app.active_session_id = Some("active".into());
+    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
+    super::send_to_existing_session(&mut app, "existing".into(), "next question".into());
+    assert!(app.get_session_runtime("existing").active_agent_request.is_none());
+    assert!(app.cached_chat_messages("existing").is_none());
+    assert_eq!(app.active_session_id.as_deref(), Some("active"));
+    assert_eq!(app.chat[0].content, "keep active");
+}
+
+#[test]
+fn session_history_loaded_before_background_send_preserves_prior_turns() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/repo".into());
+    app.sessions = vec![session_info("existing", "Existing", "/repo")];
+    app.active_session_id = Some("active".into());
+    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
+    let history = vec![
+        chat_message(crate::app::models::ChatRole::User, "previous question"),
+        chat_message(crate::app::models::ChatRole::Assistant, "previous answer"),
+    ];
+    let loaded = crate::app::models::ChatSession {
+        id: "existing".into(),
+        title: "Existing".into(),
+        messages: history.clone(),
+        message_ids: vec![Some("user-1".into()), Some("assistant-1".into())],
+        calls: vec![],
+        steps: vec![],
+        created_ms: 1,
+        updated_ms: 2,
+    };
+    super::update(
+        &mut app,
+        super::ChatMessage::SessionSendHistoryLoaded {
+            session_id: "existing".into(),
+            input: "next question".into(),
+            result: Ok(Box::new(loaded)),
+        },
+    );
+    let request = app.get_session_runtime("existing").active_agent_request.unwrap();
+    assert_eq!(request.history, history);
+    assert_eq!(request.query, "next question");
+    assert_eq!(app.cached_chat_messages("existing").unwrap().len(), 4);
+    assert_eq!(app.active_session_id.as_deref(), Some("active"));
+    assert_eq!(app.chat[0].content, "keep active");
+}
+
+#[test]
+fn session_history_load_failure_does_not_send_or_replace_active_history() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active".into());
+    app.chat = vec![chat_message(crate::app::models::ChatRole::User, "keep active")];
+    super::update(
+        &mut app,
+        super::ChatMessage::SessionSendHistoryLoaded {
+            session_id: "existing".into(),
+            input: "next question".into(),
+            result: Err("offline".into()),
+        },
+    );
+    assert!(app.get_session_runtime("existing").active_agent_request.is_none());
+    assert!(app.cached_chat_messages("existing").is_none());
+    assert_eq!(app.chat[0].content, "keep active");
+}
+
+#[test]
+fn session_history_pending_foreground_load_blocks_send_without_clearing_input() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("existing".into());
+    app.active_session_view_state.ui_preparing = true;
+    app.active_session_view_state.base_ready = false;
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("next question");
+    super::update(&mut app, super::ChatMessage::SendPressed);
+    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert!(app.chat.is_empty());
+    assert_eq!(app.current_session_runtime().input_editor.text(), "next question");
+}
+
+#[test]
+fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
+    use crate::app::state::ChatSendBehavior::Queue;
+    let (mut app, _) = crate::app::App::new();
+    app.project_id = Some("project-1".into());
+    app.project_path = Some("/repo".into());
+    super::start(&mut app, queue_item("original question", Queue), false);
+    let session_id = app.active_session_id.clone().unwrap();
+
+    for (query, delta) in [("first guidance", "first partial"), ("second guidance", "second partial")] {
+        let request_id = app.current_session_runtime().active_agent_request.unwrap().id;
+        super::stream::update(
+            &mut app,
+            super::ChatMessage::AgentStreamDelta(request_id, delta.into()),
+        );
+        super::dispatch_queue_item(&mut app, queue_item(query, Queue));
+        super::update(&mut app, super::ChatMessage::QueueGuide(0));
+        super::stream::update(&mut app, super::ChatMessage::AgentStreamCancelled(request_id));
+        assert_eq!(app.active_session_id.as_ref(), Some(&session_id));
+        assert_eq!(app.chat[0].content, "original question");
+        assert!(app.chat.iter().any(|message| message.content.contains(delta)));
+        let request = app.current_session_runtime().active_agent_request.unwrap();
+        assert_eq!(request.history[0].content, "original question");
+        assert!(request.history.iter().any(|message| message.content.contains(delta)));
+        assert_eq!(request.query, query);
+        assert_eq!(app.chat.len(), app.chat_message_ids.len());
+    }
+    assert_eq!(app.chat.len(), 6);
+    assert_eq!(app.chat[2].content, "first guidance");
+    assert_eq!(app.chat[4].content, "second guidance");
+}

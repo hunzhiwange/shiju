@@ -732,3 +732,63 @@ fn plan_run_first_response_start_updates_only_the_runtime_projection() {
     let chat = app.cached_chat_messages("plan-child").unwrap();
     assert_eq!(chat[1].content, "partial output");
 }
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn session_history_conflict_is_reported_without_disabling_future_saves() {
+    let coordinator = super::StreamSessionSaveCoordinator::default();
+    let snapshot = crate::app::models::ChatSession {
+        id: "history-conflict".into(),
+        title: "Session".into(),
+        messages: vec![chat_message(ChatRole::User, "next question")],
+        message_ids: vec![None],
+        calls: vec![],
+        steps: vec![],
+        created_ms: 1,
+        updated_ms: 2,
+    };
+    let result = coordinator.save(snapshot.clone(), None, |_, _| {
+        Err("409 Conflict: session history conflict at seq_no 0".into())
+    });
+    assert!(matches!(
+        super::stream_session_save_message(Some(result)),
+        crate::app::Message::Chat(super::ChatMessage::SessionSaveFailed(_))
+    ));
+    assert_eq!(
+        coordinator.save(snapshot, None, |_, _| Ok(None)),
+        super::StreamSessionSaveResult::Committed
+    );
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn session_history_conflict_keeps_a_newer_pending_snapshot() {
+    let coordinator = super::StreamSessionSaveCoordinator::default();
+    let snapshot = crate::app::models::ChatSession {
+        id: "history-pending".into(),
+        title: "Session".into(),
+        messages: vec![chat_message(ChatRole::User, "question")],
+        message_ids: vec![None],
+        calls: vec![],
+        steps: vec![],
+        created_ms: 1,
+        updated_ms: 1,
+    };
+    let mut attempts = Vec::new();
+    let result = coordinator.save(snapshot, None, |session, _| {
+        attempts.push(session.updated_ms);
+        if session.updated_ms == 1 {
+            let mut newer = session.clone();
+            newer.updated_ms = 2;
+            assert_eq!(
+                coordinator.save(newer, None, |_, _| panic!("coalesced")),
+                super::StreamSessionSaveResult::Coalesced
+            );
+            Err("session history conflict at seq_no 0".into())
+        } else {
+            Ok(None)
+        }
+    });
+    assert_eq!(result, super::StreamSessionSaveResult::Committed);
+    assert_eq!(attempts, vec![1, 2]);
+}

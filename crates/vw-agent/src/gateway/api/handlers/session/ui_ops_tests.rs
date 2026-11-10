@@ -1237,7 +1237,11 @@ async fn ui_content_save_preserves_runtime_calls_and_steps() {
     assert!(initial_saved);
 
     let mut snapshot = initial;
-    snapshot.messages[0].content = "updated".to_string();
+    snapshot.messages.push(ui_models::ChatMessage {
+        content: "updated".to_string(),
+        ..snapshot.messages[0].clone()
+    });
+    snapshot.message_ids.push(Some("message-2".to_string()));
     snapshot.calls.clear();
     snapshot.steps.clear();
     let Json(snapshot_saved) = session_ui_save(
@@ -1264,7 +1268,8 @@ async fn ui_content_save_preserves_runtime_calls_and_steps() {
             .expect("serialize loaded steps"),
         serde_json::to_value(expected_steps).expect("serialize expected steps")
     );
-    assert_eq!(loaded.messages[0].content, "updated");
+    assert_eq!(loaded.messages[0].content, "initial");
+    assert_eq!(loaded.messages[1].content, "updated");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -1622,4 +1627,40 @@ async fn gateway_first_response_ui_save_cannot_publish_a_new_session() {
     let Json(preview) =
         session_ui_preview_meta(Path(session_id), query(), HeaderMap::new()).await.unwrap();
     assert!(preview.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_history_ui_save_rejects_newer_incomplete_content_with_conflict() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let original = scoped_session("history-save-conflict", "Keep", "original question", 100);
+    save_runtime_session(project.path(), &original);
+    for empty in [false, true] {
+        let mut incomplete = scoped_session(&original.id, "Wrong", "next question", 200);
+        if empty {
+            incomplete.messages.clear();
+            incomplete.message_ids.clear();
+        }
+        let error = session_ui_save(
+            Path(original.id.clone()),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+            Json(incomplete),
+        )
+        .await
+        .expect_err("ordinary save must preserve existing history");
+        assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
+        let Json(loaded) = session_ui_get(
+            Path(original.id.clone()),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+        )
+        .await
+        .unwrap();
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.title, original.title);
+        assert_eq!(loaded.messages.len(), 1);
+        assert_eq!(loaded.messages[0].content, "original question");
+    }
 }

@@ -385,6 +385,7 @@ impl PostgresSessionStore {
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session UI snapshot save")?;
         lock_session_scope(&mut transaction, scope)?;
+        super::history::validate_postgres_snapshot(&mut transaction, scope, session)?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -412,6 +413,7 @@ impl PostgresSessionStore {
             connection.transaction().context("begin PostgreSQL session UI content save")?;
         lock_session_scope(&mut transaction, scope)?;
         reject_stale_session_ui_content(&mut transaction, scope, session)?;
+        super::history::validate_postgres_snapshot(&mut transaction, scope, session)?;
         let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -1333,6 +1335,7 @@ fn commit_ui_snapshot(
     session: &ChatSession,
     raw_artifacts: &[LlmRawArtifact],
 ) -> Result<()> {
+    super::history::validate_postgres_snapshot(transaction, scope, session)?;
     let call_count = transaction
             .query_opt(
                 "SELECT call_count FROM session_index
@@ -1471,6 +1474,7 @@ fn apply_session_message_delta_postgres(
         delta.truncate_after,
         &delta.upserts,
     )?;
+    super::history::validate_postgres_delta(client, scope, delta)?;
     let truncated_rows = if let Some(boundary) = delta.truncate_after {
         let boundary = to_i64(boundary, "message truncate boundary")?;
         client.execute(
@@ -1569,7 +1573,7 @@ fn reject_stale_session_ui_content(
     let stored_updated_ms = client
         .query_opt(
             "SELECT updated_ms FROM session_index
-             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4 FOR UPDATE",
             scoped_id_params!(scope, &session.id),
         )?
         .map(|row| from_i64(row.get(0), "session updated_ms"))

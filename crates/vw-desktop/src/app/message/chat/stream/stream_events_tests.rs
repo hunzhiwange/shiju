@@ -182,6 +182,56 @@ fn running_session_switch_preserves_history_after_background_delta() {
 }
 
 #[test]
+fn running_session_cross_project_switch_preserves_history_after_background_delta() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "running-session".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![
+        message(ChatRole::User, "old question"),
+        message(ChatRole::Assistant, "old answer"),
+        message(ChatRole::User, "current question"),
+        message(ChatRole::Assistant, "current"),
+    ];
+    app.chat_message_ids = vec![
+        Some("old-user-id".to_string()),
+        Some("old-assistant-id".to_string()),
+        Some("current-user-id".to_string()),
+        None,
+    ];
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(agent_request(42, &session_id));
+
+    let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), " partial".to_string());
+    assert!(app.cached_chat_messages(&session_id).is_none());
+
+    app.stash_active_session_view();
+    let _ = app.open_project("/workspace/other-project".to_string());
+    app.active_session_id = Some("foreground-session".to_string());
+    app.chat = vec![message(ChatRole::User, "foreground")];
+    app.chat_message_ids = vec![Some("foreground-id".to_string())];
+    let _ =
+        super::handle_agent_session_delta(&mut app, session_id.clone(), " complete".to_string());
+
+    app.active_session_id = Some(session_id.clone());
+    app.restore_chat_for_session(&session_id);
+
+    assert_eq!(
+        app.chat.iter().map(|entry| entry.content.as_str()).collect::<Vec<_>>(),
+        vec!["old question", "old answer", "current question", "current partial complete"]
+    );
+    assert_eq!(
+        app.chat_message_ids,
+        vec![
+            Some("old-user-id".to_string()),
+            Some("old-assistant-id".to_string()),
+            Some("current-user-id".to_string()),
+            None,
+        ]
+    );
+}
+
+#[test]
 fn running_session_switch_preserves_history_on_terminal_without_delta() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "running-session".to_string();

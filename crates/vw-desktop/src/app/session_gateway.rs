@@ -510,6 +510,9 @@ async fn gateway_session_message_delta_with_client(
 ) -> Result<(), SessionMessageDeltaSaveError> {
     match client.session_message_delta(session_id, directory, delta).await {
         Ok(_) => Ok(()),
+        Err(error) if error.contains("session history conflict") => {
+            Err(SessionMessageDeltaSaveError::Rejected(error))
+        }
         Err(error)
             if error.contains("409 Conflict")
                 || error.contains("session message delta would create a seq_no gap") =>

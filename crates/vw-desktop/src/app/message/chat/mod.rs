@@ -286,6 +286,13 @@ pub enum ChatMessage {
         input: String,
     },
 
+    /// 给未缓存会话续聊前加载完整历史。
+    SessionSendHistoryLoaded {
+        session_id: String,
+        input: String,
+        result: Result<Box<models::ChatSession>, String>,
+    },
+
     /// 首次发送前异步解析项目身份，回包仅用于原始项目与发送请求。
     NewSessionProjectResolved {
         project_path: String,
@@ -1426,6 +1433,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::SendPressed
         | ChatMessage::NewSessionProjectResolved { .. }
         | ChatMessage::SendToSession { .. }
+        | ChatMessage::SessionSendHistoryLoaded { .. }
         | ChatMessage::CompactSessionRequested { .. }
         | ChatMessage::CompactSessionConfirmationResolved { .. }
         | ChatMessage::CompactSessionFinished { .. }

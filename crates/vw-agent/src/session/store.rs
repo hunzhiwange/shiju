@@ -15,6 +15,7 @@ use crate::global_database::config::DatabaseProvider;
 use crate::global_database::{GlobalDatabase, run_sync_database};
 use crate::session::llm_raw::{LlmRawArtifact, LlmRawRound, LlmRawTurnContext};
 
+mod history;
 mod postgres;
 
 use postgres::PostgresSessionStore;
@@ -451,6 +452,7 @@ impl SessionStore {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    history::validate_sqlite_snapshot(transaction, scope, session)?;
                     let call_count = existing_session_call_count(
                         transaction,
                         scope,
@@ -480,6 +482,7 @@ impl SessionStore {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
                     reject_stale_session_ui_content(transaction, scope, session)?;
+                    history::validate_sqlite_snapshot(transaction, scope, session)?;
                     let call_count = existing_session_call_count(
                         transaction,
                         scope,
@@ -1640,6 +1643,7 @@ fn commit_ui_snapshot_sqlite(
     session: &ChatSession,
     raw_artifacts: &[LlmRawArtifact],
 ) -> Result<()> {
+    history::validate_sqlite_snapshot(transaction, scope, session)?;
     let call_count =
         existing_session_call_count(transaction, scope, &session.id, session.calls.len())?;
     upsert_session_header(transaction, scope, session, call_count)?;
@@ -2405,6 +2409,7 @@ fn apply_session_message_delta_sqlite(
         &delta.upserts,
     )?;
 
+    history::validate_sqlite_delta(transaction, scope, delta)?;
     let truncated_rows = if let Some(boundary) = delta.truncate_after {
         transaction.execute(
             "DELETE FROM session_messages

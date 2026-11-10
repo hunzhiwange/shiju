@@ -111,6 +111,7 @@ enum StreamSessionSaveResult {
     Committed,
     Coalesced,
     Deferred(String),
+    Rejected(String),
     PermanentlyFailed(String),
     Blocked,
 }
@@ -124,9 +125,10 @@ fn stream_session_save_message(completed: Option<StreamSessionSaveResult>) -> Me
             | StreamSessionSaveResult::Deferred(_)
             | StreamSessionSaveResult::Blocked,
         ) => Message::None,
-        Some(StreamSessionSaveResult::PermanentlyFailed(error)) => {
-            Message::Chat(ChatMessage::SessionSaveFailed(error))
-        }
+        Some(
+            StreamSessionSaveResult::Rejected(error)
+            | StreamSessionSaveResult::PermanentlyFailed(error),
+        ) => Message::Chat(ChatMessage::SessionSaveFailed(error)),
         None => {
             tracing::warn!(target: "vw_desktop", "stream session save task failed");
             Message::Chat(ChatMessage::SessionSaveFailed("会话保存任务异常终止".to_string()))
@@ -185,6 +187,16 @@ impl StreamSessionSaveCoordinator {
             let result = save(&current.session, current.directory.as_deref());
             if let Err(error) = result {
                 let mut state = self.state.lock().expect("stream session save lock");
+                if error.contains("session history conflict") {
+                    if let Some(pending) =
+                        state.sessions.get_mut(&session_id).and_then(|slot| slot.pending.take())
+                    {
+                        current = pending;
+                        continue;
+                    }
+                    state.sessions.remove(&session_id);
+                    return StreamSessionSaveResult::Rejected(error);
+                }
                 if session_gateway::is_permanent_session_save_error(&error) {
                     state.blocked_sessions.insert(session_id.clone());
                     state.sessions.remove(&session_id);

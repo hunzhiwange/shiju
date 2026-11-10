@@ -562,3 +562,27 @@ async fn session_message_delta_rejects_invalid_requests_and_keeps_outages_retrya
         }
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn session_history_conflict_does_not_rebase_and_retry_wrong_rows() {
+    use vw_gateway_client::vw_api_types::id::TenantScope;
+    let (client, request) = stop_stub(
+        "409 Conflict",
+        r#"{"error":"session history conflict at seq_no 0"}"#,
+        TenantScope::new("platform-test", "company-test").unwrap(),
+    )
+    .await;
+    let delta = vw_shared::session::ui_types::SessionMessageDelta {
+        session_id: "s1".into(),
+        expected_updated_ms: 10,
+        updated_ms: 11,
+        upserts: vec![],
+        truncate_after: None,
+    };
+    let result =
+        super::gateway_session_message_delta_with_client(&client, "s1", Some("/repo"), &delta)
+            .await;
+    assert!(matches!(result, Err(super::SessionMessageDeltaSaveError::Rejected(_))));
+    request.await.unwrap();
+}

@@ -1471,3 +1471,100 @@ fn first_response_lifecycle_scopes_rename_and_discard() -> Result<()> {
         Ok(())
     })
 }
+
+#[test]
+fn session_history_rejects_incomplete_newer_snapshots_atomically() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "history-guard")?;
+        let original = sample_session("history-guard", "Original", 100);
+        fixture.store.save_session(&scope, &original)?;
+        for variant in 0..4 {
+            let mut incoming = original.clone();
+            incoming.updated_ms = 200;
+            incoming.title = "Must not replace title".into();
+            match variant {
+                0 => {
+                    incoming.messages.clear();
+                    incoming.message_ids.clear();
+                }
+                1 => {
+                    incoming.messages.truncate(1);
+                    incoming.message_ids.truncate(1);
+                }
+                2 => {
+                    incoming.messages[0].content = "next question".into();
+                    incoming.message_ids[0] = None;
+                }
+                _ => {
+                    incoming.message_ids[0] = Some("different-user".into());
+                }
+            }
+            for writer in 0..3 {
+                let result = match writer {
+                    0 => fixture.store.save_session_ui_content(&scope, &incoming),
+                    1 => fixture.store.save_session_ui_snapshot(&scope, &incoming),
+                    _ => fixture.store.commit_session_ui_snapshot(&scope, &incoming, &[], &[]),
+                };
+                assert!(result.is_err(), "writer {writer} accepted incomplete variant {variant}");
+                assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&original));
+            }
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn session_history_rejects_rebased_delta_overwriting_another_turn() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "history-delta")?;
+        let original = sample_session("history-delta", "Original", 100);
+        fixture.store.save_session(&scope, &original)?;
+        let delta = SessionMessageDelta {
+            session_id: original.id.clone(),
+            expected_updated_ms: 100,
+            updated_ms: 200,
+            upserts: vec![SessionMessageRecord {
+                seq_no: 0,
+                message_id: None,
+                message: ChatMessage {
+                    content: "new question".into(),
+                    ..original.messages[0].clone()
+                },
+            }],
+            truncate_after: None,
+        };
+        assert!(fixture.store.apply_session_message_delta(&scope, &delta).is_err());
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(original));
+        Ok(())
+    })
+}
+
+#[test]
+fn session_history_allows_continuation_and_explicit_versioned_reset() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "history-continue")?;
+        let original = sample_session("history-continue", "Original", 100);
+        fixture.store.save_session(&scope, &original)?;
+        let mut next = original.clone();
+        next.updated_ms = 200;
+        next.message_ids[1] = Some("answer-1".into());
+        next.messages
+            .push(ChatMessage { content: "next question".into(), ..original.messages[0].clone() });
+        next.message_ids.push(None);
+        fixture.store.save_session_ui_content(&scope, &next)?;
+        assert_json_eq!(fixture.store.load_session(&scope, &next.id)?, Some(&next));
+        let delta = SessionMessageDelta {
+            session_id: next.id.clone(),
+            expected_updated_ms: 200,
+            updated_ms: 201,
+            upserts: vec![],
+            truncate_after: Some(0),
+        };
+        fixture.store.apply_session_message_delta(&scope, &delta)?;
+        let loaded = fixture.store.load_session(&scope, &next.id)?.unwrap();
+        assert_eq!(loaded.messages.len(), 1);
+        assert_eq!(loaded.messages[0].content, original.messages[0].content);
+        assert!(fixture.store.apply_session_message_delta(&scope, &delta).is_err());
+        Ok(())
+    })
+}

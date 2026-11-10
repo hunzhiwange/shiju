@@ -1485,16 +1485,10 @@ pub(super) fn complete_agent_stream(
         app.cached_chat_messages(&session_id).and_then(|messages| messages.len().checked_sub(1));
     if let Some(last) = terminal_idx
         && let Some(runtime) = app.session_runtime_states.get_mut(&session_id)
-        && runtime.active_agent_request.as_ref().is_some_and(|request| {
-            crate::app::impls::task_plan_run_active(
-                request.workflow_mode_enabled,
-                request.resume_history_only,
-            )
-        })
         && let Some(draft) = runtime.draft.as_mut()
     {
-        // Plan-run persists its execution sessions separately. Keep the parent's
-        // completed transcript available in the current desktop draft.
+        // A completed answer remains history even when publication lookup fails.
+        // Only an unsuccessful attempt may be discarded on the next draft send.
         draft.history_len = last + 1;
     }
     if let Some(terminal_idx) = terminal_idx {

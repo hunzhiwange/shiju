@@ -45,7 +45,9 @@ SDK 0.10.4 的 `ext_method` 自动添加前导 `_`；传入 `SET_SESSION_MOUNTS_
 {"revision":4,"skills":["demo"],"mcpServers":["fixture"]}
 ```
 
-响应仅包含实际生效名称，不含路径、凭据或完整 MCP 配置。`SessionMountRevision` 使用非负 u64；`next` 校验冲突和溢出，不负责提前发布状态。标准 new/load 的 `mcpServers` 每次由调用方完整提供，持久化仅保存技能目录描述及必要身份/revision，不保存 MCP 凭据用于恢复。
+响应只包含实际生效名称。`SessionMountRevision` 使用非负 u64，`next` 校验冲突和溢出。标准 new/load 的 `mcpServers` 每次由调用方完整提供。
+
+识矩服务端的替换请求还接受可选的 `mcpCatalog` 数组，每项包含 `scope` 和 `record`，记录引用包含 `id` 和 `revision`。省略或传空数组均清除之前的受管选择。服务端依据已绑定会话的租户和项目验证作用域，挂载状态只保存受管引用。load 重新检查保存的修订，过期或删除的条目不再挂载。标准 MCP 连接定义和凭据不写入挂载状态。
 
 协议测试与真实验收分开计数；实际生产证据见上述验收说明。
 

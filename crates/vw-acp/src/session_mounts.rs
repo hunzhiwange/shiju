@@ -9,6 +9,7 @@ use std::{
 
 use agent_client_protocol::{ExtRequest, McpServer, Meta, SessionId};
 use serde::{Deserialize, Serialize, de::Error};
+use vw_api_types::mcp_management::{McpCatalogScope, McpRecordRef};
 
 pub const SESSION_MOUNTS_META_KEY: &str = "shiju.mounts";
 pub const SESSION_SKILL_MOUNTS_META_KEY: &str = "shiju.skillMounts";
@@ -208,6 +209,15 @@ impl SessionMountCapabilities {
     }
 }
 
+/// A managed server selected by exact revision. The backend authorizes the
+/// requested scope against the session before resolving its connection.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct McpCatalogMount {
+    pub scope: McpCatalogScope,
+    pub record: McpRecordRef,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(try_from = "SetMountsWire", rename_all = "camelCase")]
 pub struct SetSessionMountsRequest {
@@ -215,6 +225,8 @@ pub struct SetSessionMountsRequest {
     pub expected_revision: SessionMountRevision,
     pub skills: Vec<SessionSkillMount>,
     pub mcp_servers: Vec<McpServer>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_catalog: Vec<McpCatalogMount>,
 }
 
 #[derive(Deserialize)]
@@ -224,6 +236,8 @@ struct SetMountsWire {
     expected_revision: SessionMountRevision,
     skills: Vec<SessionSkillMount>,
     mcp_servers: Vec<McpServer>,
+    #[serde(default)]
+    mcp_catalog: Vec<McpCatalogMount>,
 }
 
 fn mcp_name(server: &McpServer) -> Result<&str, SessionMountError> {
@@ -246,6 +260,7 @@ impl TryFrom<SetMountsWire> for SetSessionMountsRequest {
             expected_revision: wire.expected_revision,
             skills: wire.skills,
             mcp_servers: wire.mcp_servers,
+            mcp_catalog: wire.mcp_catalog,
         })
     }
 }

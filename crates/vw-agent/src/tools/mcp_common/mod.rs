@@ -246,7 +246,12 @@ pub(crate) fn load_resolved_runtime_mcp_config_from(
     cwd: &Path,
 ) -> impl Future<Output = anyhow::Result<vw_acp::ResolvedAcpxConfig>> + '_ {
     // Capture the project before the toolset's synchronous bridge changes threads.
-    let project_id = crate::project::instance::project().map(|project| project.id);
+    let project_id = crate::project::instance::project()
+        .filter(|_| {
+            crate::tools::current_tool_use_context()
+                .is_none_or(|context| context.channel() != Some("acp"))
+        })
+        .map(|project| project.id);
     load_resolved_mcp_config(cwd, project_id)
 }
 

@@ -51,7 +51,7 @@ for line in sys.stdin:
 #[tokio::test]
 async fn mcp_servers_are_scoped_to_bound_session() {
     let root = TempDir::new().expect("temporary root");
-    let tools = prepare_session_tools(&[fixture_server(root.path(), Vec::new())])
+    let tools = prepare_session_tools(&[fixture_server(root.path(), Vec::new())], None)
         .await
         .expect("session tools");
     let with_mcp =
@@ -70,10 +70,10 @@ async fn mcp_servers_are_scoped_to_bound_session() {
 async fn mcp_conversion_preserves_supported_transport_without_logging_env() {
     let root = TempDir::new().expect("temporary root");
     let secret = "Bearer session-secret";
-    let tools = prepare_session_tools(&[fixture_server(
-        root.path(),
-        vec![EnvVariable::new("AUTHORIZATION", secret)],
-    )])
+    let tools = prepare_session_tools(
+        &[fixture_server(root.path(), vec![EnvVariable::new("AUTHORIZATION", secret)])],
+        None,
+    )
     .await
     .expect("stdio transport");
 
@@ -88,13 +88,13 @@ async fn unsupported_or_failed_mcp_is_rejected_atomically() {
         McpServer::Stdio(McpServerStdio::new("same", "missing-command-two")),
     ];
     let duplicate_error =
-        prepare_session_tools(&duplicate).await.expect_err("duplicate names must fail");
+        prepare_session_tools(&duplicate, None).await.expect_err("duplicate names must fail");
     assert!(duplicate_error.to_string().contains("duplicate MCP server name"));
     assert!(!duplicate_error.to_string().contains("missing-command"));
 
     let failed =
         [McpServer::Stdio(McpServerStdio::new("broken", "vibewindow-missing-mcp-command"))];
-    let failure = prepare_session_tools(&failed).await.expect_err("startup must fail");
+    let failure = prepare_session_tools(&failed, None).await.expect_err("startup must fail");
     assert_eq!(failure.to_string(), "invalid backend request: MCP server 'broken' failed to start");
 }
 

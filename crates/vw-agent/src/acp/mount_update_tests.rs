@@ -13,6 +13,7 @@ fn update(id: &str, revision: u64) -> SetSessionMountsRequest {
         expected_revision: SessionMountRevision(revision),
         skills: vec![],
         mcp_servers: vec![],
+        mcp_catalog: vec![],
     }
 }
 fn skill(root: &std::path::Path) -> SessionSkillMount {

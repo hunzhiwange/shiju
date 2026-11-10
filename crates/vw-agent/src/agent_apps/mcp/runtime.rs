@@ -170,7 +170,7 @@ pub(crate) fn selected_runtime_servers(
     })
 }
 
-fn runtime_server(
+pub(super) fn runtime_server(
     name: String,
     connection: McpExecutionConnection,
     workspace: &Path,

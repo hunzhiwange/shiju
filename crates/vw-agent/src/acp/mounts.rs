@@ -1,4 +1,5 @@
 //! Native session skill sources, retaining their private directory lease.
+use crate::agent_apps::mcp::acp_mount::ResolvedCatalogMounts;
 use crate::session::runtime::{SessionScope, SessionToolset};
 use crate::{
     config::Config,
@@ -10,7 +11,7 @@ use crate::{
 use anyhow::{Result, ensure};
 use std::{path::Path, sync::Arc};
 use vw_acp::server::{BackendError, BackendMountRequest};
-use vw_acp::{SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
+use vw_acp::{McpCatalogMount, SessionMountRevision, SessionSkillMount, SetSessionMountsResponse};
 
 /// Audited skill directories owned by one inbound session and retained across tool rounds.
 #[derive(Clone, Default)]
@@ -90,6 +91,7 @@ pub(super) struct PreparedMounts {
     pub skills: SessionSkillSources,
     pub tools: SessionToolset,
     pub response: SetSessionMountsResponse,
+    pub mcp_catalog: Vec<McpCatalogMount>,
 }
 pub(super) async fn prepare(
     scope: &SessionScope,
@@ -97,15 +99,17 @@ pub(super) async fn prepare(
     request: BackendMountRequest,
     saved: &[SessionSkillMount],
 ) -> Result<PreparedMounts, BackendError> {
-    prepare_revision(scope, session, request, saved, SessionMountRevision(0)).await
+    prepare_revision(scope, session, request, saved, SessionMountRevision(0), Default::default())
+        .await
 }
 
 pub(super) async fn prepare_revision(
     scope: &SessionScope,
     session: &str,
-    request: BackendMountRequest,
+    mut request: BackendMountRequest,
     saved: &[SessionSkillMount],
     revision: SessionMountRevision,
+    managed: ResolvedCatalogMounts,
 ) -> Result<PreparedMounts, BackendError> {
     let prepare_error = |error: anyhow::Error| BackendError::InvalidRequest(error.to_string());
     if request.skills.as_ref().is_some_and(|selection| selection.version != 1) {
@@ -142,7 +146,10 @@ pub(super) async fn prepare_revision(
     skills
         .extend(crate::skills::load_skills_with_config(scope.directory(), &config), &config, false)
         .map_err(prepare_error)?;
-    let tools = super::mcp::prepare_session_tools(&request.mcp_servers).await?;
+    let ResolvedCatalogMounts { leases, servers } = managed;
+    request.mcp_servers.extend(servers);
+    let mcp_catalog = leases.as_ref().map(|leases| leases.mounts.clone()).unwrap_or_default();
+    let tools = super::mcp::prepare_session_tools(&request.mcp_servers, leases).await?;
     skills.validate().map_err(prepare_error)?;
     let names = request
         .mcp_servers
@@ -152,6 +159,7 @@ pub(super) async fn prepare_revision(
     Ok(PreparedMounts {
         skills,
         tools,
+        mcp_catalog,
         response: SetSessionMountsResponse {
             revision,
             skills: mounts.iter().map(|m| m.name.clone()).collect(),

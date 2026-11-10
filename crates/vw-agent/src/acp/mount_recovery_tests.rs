@@ -41,6 +41,7 @@ async fn recovery_process_worker() {
                 expected_revision: SessionMountRevision(0),
                 skills: request(&root.join("source")).skills.unwrap().skills,
                 mcp_servers: vec![mcp(&root)],
+                mcp_catalog: vec![],
             })
             .await
             .unwrap();
@@ -112,6 +113,7 @@ async fn recovery_process_worker() {
             },
             &[],
             SessionMountRevision(2),
+            Default::default(),
         )
         .await
         .unwrap();
@@ -152,6 +154,7 @@ async fn recovery_process_worker() {
                 expected_revision: SessionMountRevision(1),
                 skills: vec![],
                 mcp_servers: vec![],
+                mcp_catalog: vec![],
             })
             .await;
         assert!(result.unwrap_err().to_string().contains("persist"));
@@ -178,6 +181,7 @@ async fn recovery_process_worker() {
                 expected_revision: SessionMountRevision(1),
                 skills: vec![],
                 mcp_servers: vec![],
+                mcp_catalog: vec![],
             })
             .await
             .unwrap();

@@ -1,5 +1,6 @@
 //! 会话拥有连接与取消权；旧协议连接始终私有，不借用其他会话的权限。
 use super::mcp_connection_settings::settings;
+use crate::agent_apps::mcp::acp_mount::AcpMountLeases;
 use agent_client_protocol::McpServer;
 use anyhow::{Context, Result, bail};
 use rmcp::service::{Peer, RoleClient};
@@ -56,6 +57,7 @@ pub(crate) struct McpSessionConnections {
     pub(super) state: Mutex<State>,
     pub(super) tool_refresh: AsyncMutex<()>,
     pub(crate) form_owner: Option<super::mcp_elicitation::FormOwner>,
+    pub(crate) acp_mounts: Option<AcpMountLeases>,
 }
 
 // Discovery creates temporary synchronous bridge runtimes. Transport tasks must outlive them.
@@ -119,6 +121,11 @@ fn connection_key(server: &McpServer, configuration: &str, oauth: Option<&str>) 
 impl McpSessionConnections {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn managed_selection_is_current(&self, server: &McpServer) -> Result<bool> {
+        if let Some(mounts) = &self.acp_mounts
+            && !mounts.is_current(crate::tools::mcp_common::server_name(server))?
+        {
+            return Ok(false);
+        }
         crate::agent_apps::mcp::revocation::runtime_selection_is_current(
             server,
             self.form_owner.as_ref().map(|owner| &owner.tenant),
@@ -130,7 +137,13 @@ impl McpSessionConnections {
             form_owner: Some(owner),
             state: Mutex::new(State::default()),
             tool_refresh: AsyncMutex::new(()),
+            acp_mounts: None,
         }
+    }
+
+    pub(crate) fn with_acp_mounts(mut self, acp_mounts: Option<AcpMountLeases>) -> Self {
+        self.acp_mounts = acp_mounts;
+        self
     }
 
     #[cfg(test)]

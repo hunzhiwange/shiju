@@ -1,9 +1,9 @@
-//! Versioned, scope-bound skill descriptions. MCP configuration never enters this store.
+//! Versioned, scope-bound mount references. Resolved MCP configuration stays in memory.
 use crate::session::runtime::SessionScope;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use vw_acp::server::BackendError;
-use vw_acp::{SessionMountRevision, SessionSkillMount};
+use vw_acp::{McpCatalogMount, SessionMountRevision, SessionSkillMount};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -14,6 +14,8 @@ pub(super) struct MountRecord {
     pub skills: Vec<SessionSkillMount>,
     pub fingerprint: Option<String>,
     mcp_names: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mcp_catalog: Vec<McpCatalogMount>,
 }
 
 pub(super) fn key(scope: &SessionScope, session: &str) -> String {
@@ -69,6 +71,7 @@ pub(super) async fn save(
         skills: prepared.skills.mounts().to_vec(),
         fingerprint: prepared.skills.fingerprint().map(str::to_owned),
         mcp_names: prepared.response.mcp_servers.clone(),
+        mcp_catalog: prepared.mcp_catalog.clone(),
     };
     // Rename is the recovery commit point: before it the old record is authoritative;
     // after it a restarted backend must prepare the complete new revision again.

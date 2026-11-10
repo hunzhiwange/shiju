@@ -94,7 +94,7 @@ impl VibeWindowBackend {
     }
 
     #[cfg(test)]
-    pub(super) fn mounted_runtime(
+    pub(crate) fn mounted_runtime(
         &self,
         session_id: &str,
     ) -> (super::mounts::SessionSkillSources, SessionToolset) {
@@ -570,6 +570,7 @@ async fn start_prompt_core(
     let BoundSession { scope, tools, skills, model, .. } = backend.bound_session(session_id)?;
     let model = model.lock().await.clone();
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
+    let tools = super::mcp::prune_revoked_mounts(tools)?;
     let history = backend_history(snapshot.history);
     let query = prompt_query(prompt);
     let config = crate::config::get_project_for_tenant(&backend.tenant, scope.directory())
@@ -645,7 +646,14 @@ impl SessionBackend for VibeWindowBackend {
             .revision
             .next(request.expected_revision)
             .map_err(|e| BackendError::InvalidRequest(e.to_string()))?;
-        load_session(bound.scope.clone(), &id).await.map_err(lifecycle_error)?;
+        let snapshot = load_session(bound.scope.clone(), &id).await.map_err(lifecycle_error)?;
+        let managed = crate::agent_apps::mcp::acp_mount::resolve_mounts(
+            &bound.scope,
+            &id,
+            &snapshot.info.project_id,
+            &request.mcp_catalog,
+            false,
+        )?;
         let mut prepared = super::mounts::prepare_revision(
             &bound.scope,
             &id,
@@ -655,6 +663,7 @@ impl SessionBackend for VibeWindowBackend {
             },
             &[],
             revision,
+            managed,
         )
         .await?;
         // Invocation checkpoints are bound to the committed revision. Failed writes
@@ -733,12 +742,20 @@ impl SessionBackend for VibeWindowBackend {
         } else {
             previous_revision
         };
+        let managed = crate::agent_apps::mcp::acp_mount::resolve_mounts(
+            &scope,
+            session_id,
+            &snapshot.info.project_id,
+            record.as_ref().map(|record| record.mcp_catalog.as_slice()).unwrap_or_default(),
+            true,
+        )?;
         let prepared = super::mounts::prepare_revision(
             &scope,
             session_id,
             request,
             record.as_ref().map(|r| r.skills.as_slice()).unwrap_or_default(),
             revision,
+            managed,
         )
         .await?;
         if restoring

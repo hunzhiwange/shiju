@@ -20,7 +20,7 @@
 - 用 FileWrite 工具替代 `echo > file` 命令
 
 进程会话：
-- `yield_time_ms` 默认 10000，整数范围为 250–30000，仅控制首次等待；等待到期不会终止进程。
+- 普通命令省略 `yield_time_ms`。Bash 最多等待 30000 毫秒，命令退出即返回。只有需要提前返回时才指定较短的等待窗口，整数范围为 250–30000。
 - `timeout` 是可选正整数执行期限，无默认期限。
-- `state=running` 表示已受理且仍在执行，不代表命令执行成功。请用 `bash_wait` 携带 `process_id` 与 `next_cursor`（作为 `cursor`）续读，不要重复启动编译。
-- 需要中止时调用 `bash_cancel`，等待进程树回收完成。句柄按可信租户、工作区和会话隔离。不支持 stdin 或 PTY。
+- 命令已到终态时直接使用结果。仅当最新结果为 `state=running` 时调用 `bash_wait`，即使 `success=true` 且输出为空。沿用同一 `process_id`，将 `next_cursor` 作为 `cursor`。
+- 仅在用户要求停止等确有中止理由时调用 `bash_cancel`。它会终止进程树。句柄按可信租户、工作区和会话隔离。不支持 stdin 或 PTY。

@@ -68,7 +68,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// 首次等待输出的默认时间（毫秒），不限制进程执行期限。
-const DEFAULT_YIELD_TIME_MS: u64 = 10_000;
+const DEFAULT_INITIAL_YIELD_TIME_MS: u64 = 30_000;
 
 /// 安全的环境变量列表
 ///
@@ -276,7 +276,7 @@ impl ShellTool {
         let description =
             extract_description_argument(args).unwrap_or_else(|| format!("run: {command}"));
         let timeout_ms = parse_timeout_ms(args)?;
-        let yield_time_ms = parse_yield_time_ms(args)?;
+        let yield_time_ms = parse_yield_time_ms(args, DEFAULT_INITIAL_YIELD_TIME_MS)?;
         let approved = args.get("approved").and_then(|v| v.as_bool()).unwrap_or(false);
         let workdir =
             resolve_workdir(args.get("workdir").and_then(|value| value.as_str()), &self.security)?;
@@ -565,9 +565,9 @@ fn parse_timeout_ms(args: &serde_json::Value) -> anyhow::Result<Option<u64>> {
     }
 }
 
-fn parse_yield_time_ms(args: &serde_json::Value) -> anyhow::Result<u64> {
+fn parse_yield_time_ms(args: &serde_json::Value, default_ms: u64) -> anyhow::Result<u64> {
     let value = match args.get("yield_time_ms") {
-        None => DEFAULT_YIELD_TIME_MS,
+        None => default_ms,
         Some(value) => {
             value.as_u64().ok_or_else(|| anyhow::anyhow!("'yield_time_ms' must be an integer"))?
         }
@@ -694,8 +694,8 @@ impl Tool for ShellTool {
                     "description": "Optional positive execution deadline in milliseconds; no default deadline."
                 },
                 "yield_time_ms": {
-                    "type": "integer", "minimum": 250, "maximum": 30000, "default": 10000,
-                    "description": "Initial output wait in milliseconds; running processes continue after this wait."
+                    "type": "integer", "minimum": 250, "maximum": 30000, "default": DEFAULT_INITIAL_YIELD_TIME_MS,
+                    "description": "Initial wait for command completion in milliseconds. Omit for ordinary commands. Set a shorter wait only when intentionally returning before completion."
                 },
                 "workdir": {
                     "type": "string",

@@ -4,7 +4,7 @@
 
 | 层与实际符号 | 默认值 / 来源 | 计时区间、到期行为及证据 |
 | --- | --- | --- |
-| `tools/shell/mod.rs::parse_yield_time_ms`、`session_tools.rs::ShellTool::call_session` / `BashWaitTool::call` | 10000 ms，允许 250–30000 ms | 每次响应等待；返回 running、句柄和游标。不是硬执行预算。真实进程测试 `shell_outer_timeout_yield_does_not_cancel_process` 经同步工具入口连续两次 yield 后仍 running。 |
+| `tools/shell/mod.rs::parse_yield_time_ms`、`session_tools.rs::ShellTool::call_session` / `BashWaitTool::call` | bash 首次默认 30000 ms，bash_wait 续读默认 10000 ms，允许 250–30000 ms | bash 等待进程退出，窗口到期且仍在运行时返回 running、句柄和游标。执行预算由 timeout 独立控制。真实进程测试 `shell_outer_timeout_yield_does_not_cancel_process` 经同步工具入口连续两次 yield 后仍 running。 |
 | `tools/shell/mod.rs::parse_timeout_ms` → `processes.rs::start_with_timeout` | `timeout` 可选，单位 ms；省略为 None | 从 spawn 起算、不因输出续期的硬执行预算；到期为 timed_out，终止进程树并保留尾部输出。原生会话没有默认 120 秒硬终止。 |
 | `tools/toolset/mod.rs::execute_tool_call` → `block_on` | 同步桥使用临时 Tokio runtime；已有 runtime 时另起线程 | 调用结束销毁桥；子进程由 `ShellProcesses::shared` 的独立线程/runtime 持有。上述真实工具入口测试覆盖 registry/runtime 重建。 |
 | `session/processor/runner.rs::run` → `llm_runner::run_llm_step_with_retry` → `tools_exec::run_tool_and_record_with_protocol` | 模型步骤与工具执行分阶段 | 模型步骤收集结束后才执行工具；后台进程不依赖当前模型流。工具结果保留结构化 running/终态信息。 |

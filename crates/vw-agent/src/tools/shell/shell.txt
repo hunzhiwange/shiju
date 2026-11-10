@@ -20,6 +20,6 @@ Recommended usage:
 - Use the file_write tool instead of `echo > file` commands.
 
 Process sessions:
-- `yield_time_ms` defaults to 10000, integer range 250–30000. It controls the initial wait; waiting does not kill a running command.
-- `state=running` means accepted and still running. Use `bash_wait` with `process_id` and `next_cursor` as `cursor`; do not start the same build again.
-- Use `bash_cancel` to stop the process and reap its descendants. Handles belong to the trusted tenant, workspace and session. No stdin or PTY is supported.
+- For ordinary commands, omit `yield_time_ms`. Bash waits up to 30000 ms for completion and returns as soon as the command exits. Set a shorter wait (250–30000 ms) only when intentionally returning early. The optional `timeout` sets the command's execution deadline.
+- Use terminal results directly. Call `bash_wait` only when the latest result has `state=running`, including when `success=true` and output is empty. Keep the same `process_id` and pass `next_cursor` as `cursor`.
+- Use `bash_cancel` only when there is a reason to stop the command, such as a user request. It terminates the process tree. Handles belong to the trusted tenant, workspace and session. No stdin or PTY is supported.

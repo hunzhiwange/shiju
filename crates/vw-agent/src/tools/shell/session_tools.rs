@@ -9,6 +9,8 @@ use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+const DEFAULT_FOLLOWUP_YIELD_TIME_MS: u64 = 10_000;
+
 struct ProcessMetadata {
     scope: ShellProcessScope,
     semantics: ExitSemantics,
@@ -221,12 +223,12 @@ impl Tool for BashWaitTool {
         "bash_wait"
     }
     fn description(&self) -> &str {
-        "Read incremental output from a running bash process. Continue with next_cursor; do not restart the command. No stdin or PTY."
+        "Wait for new output or completion from an existing bash process. An empty result with state=running means it is still executing. Continue with the same process_id and next_cursor as cursor. Use a longer yield_time_ms for quiet commands."
     }
     fn parameters_schema(&self) -> serde_json::Value {
         json!({"type":"object","properties":{
             "process_id":{"type":"string"}, "cursor":{"type":"integer","minimum":0,"default":0},
-            "yield_time_ms":{"type":"integer","minimum":250,"maximum":30000,"default":10000}
+            "yield_time_ms":{"type":"integer","minimum":250,"maximum":30000,"default":DEFAULT_FOLLOWUP_YIELD_TIME_MS}
         },"required":["process_id"]})
     }
     fn spec(&self) -> ToolSpec {
@@ -237,7 +239,7 @@ impl Tool for BashWaitTool {
     async fn check_permissions(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         let scope = trusted_scope(&self.tenant, &self.security.workspace_dir)?;
         let _ = cursor(input)?;
-        let _ = parse_yield_time_ms(input)?;
+        let _ = parse_yield_time_ms(input, DEFAULT_FOLLOWUP_YIELD_TIME_MS)?;
         ShellProcesses::shared()?.snapshot(&scope, process_id(input)?)?;
         Ok(())
     }
@@ -248,7 +250,7 @@ impl Tool for BashWaitTool {
                 &scope,
                 process_id(&input)?,
                 cursor(&input)?,
-                Duration::from_millis(parse_yield_time_ms(&input)?),
+                Duration::from_millis(parse_yield_time_ms(&input, DEFAULT_FOLLOWUP_YIELD_TIME_MS)?),
             )
             .await?;
         session_result(&scope, snapshot, self.name())
@@ -269,7 +271,7 @@ impl Tool for BashCancelTool {
         "bash_cancel"
     }
     fn description(&self) -> &str {
-        "Cancel a bash process in the current session and reap its process tree. Does not change or reapprove the original command."
+        "Stop a bash process in the current session and reap its process tree. Use only when there is a reason to stop it, such as a user request. Empty output from bash_wait is normal while state=running."
     }
     fn parameters_schema(&self) -> serde_json::Value {
         json!({"type":"object","properties":{"process_id":{"type":"string"}},"required":["process_id"]})

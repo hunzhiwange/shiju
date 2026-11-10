@@ -1034,19 +1034,19 @@ mod tests {
 
     // ── §5.2 Shell 超时执行测试 ─────────────────
 
-    /// 测试 Shell 超时常量值是否合理
-    ///
-    /// 验证默认等待为 10000ms，与 schema 保持一致
     #[test]
-    fn shell_yield_default_is_ten_seconds() {
-        assert_eq!(DEFAULT_YIELD_TIME_MS, 10_000, "shell yield must default to 10000ms");
+    fn shell_initial_wait_defaults_to_thirty_seconds() {
+        let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
+        let args = tool.parse_args(&json!({"command": "echo ready"})).unwrap();
+        assert_eq!(args.yield_time_ms, 30_000);
+        assert_eq!(tool.parameters_schema()["properties"]["yield_time_ms"]["default"], 30_000);
     }
 
     /// 等待期限越界时明确拒绝。
     #[test]
     fn shell_yield_rejects_out_of_range_values() {
-        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 249})).is_err());
-        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 30001})).is_err());
+        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 249}), 30_000).is_err());
+        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 30001}), 30_000).is_err());
     }
 
     // ── §5.3 非 UTF-8 二进制输出测试 ────────────────────

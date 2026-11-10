@@ -107,3 +107,11 @@ impl McpCatalogStore {
         Ok(())
     }
 }
+
+#[cfg(target_os = "macos")]
+mod import;
+#[cfg(all(test, target_os = "macos"))]
+mod import_tests;
+
+#[cfg(target_os = "macos")]
+pub use import::{McpImportEntry, McpImportOutcome, McpImportReport, McpImportSource};

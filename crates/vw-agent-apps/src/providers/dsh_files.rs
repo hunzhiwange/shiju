@@ -333,6 +333,15 @@ impl Drop for NativeLock {
 }
 /// Read observations without creating directories or taking native write locks.
 pub fn read(home: &Path) -> Result<Snapshot, WriteError> {
+    read_files(home, &["credentials", "home", "web", "desktop", "headless", "acp"])
+}
+
+/// Read only the profile patches that can contain MCP declarations.
+pub fn read_mcp_profiles(home: &Path) -> Result<Snapshot, WriteError> {
+    read_files(home, &["web", "desktop", "headless", "acp"])
+}
+
+fn read_files(home: &Path, keys: &[&str]) -> Result<Snapshot, WriteError> {
     let parts = components(home)?;
     let mut result = Snapshot::new();
     for (key, tail) in [
@@ -343,6 +352,9 @@ pub fn read(home: &Path) -> Result<Snapshot, WriteError> {
         ("headless", vec!["profiles", "headless", "cordis.patch.yml"]),
         ("acp", vec!["profiles", "acp", "cordis.patch.yml"]),
     ] {
+        if !keys.contains(&key) {
+            continue;
+        }
         let path: Vec<_> = parts.iter().map(String::as_str).chain(tail).collect();
         let bytes = crate::providers::catalog::read_file(home, &path)
             .map_err(|_| WriteError::InvalidResource)?;

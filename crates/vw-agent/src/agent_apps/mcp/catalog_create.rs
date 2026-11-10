@@ -24,19 +24,29 @@ impl McpCatalogStore {
         validate_catalog_connection(&connection)?;
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let mut stored = StoredCatalogRecord { record, connection, bindings: Vec::new() };
+        self.insert_record(tenant, &namespace, &mut stored)?;
+        Ok(stored.record)
+    }
+
+    pub(super) fn insert_record(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        stored: &mut StoredCatalogRecord,
+    ) -> Result<(), McpFailureCode> {
         let key = &stored.record.record.id.0;
         let payload =
-            serde_json::to_string(&stored).map_err(|_| McpFailureCode::StorageUnavailable)?;
+            serde_json::to_string(stored).map_err(|_| McpFailureCode::StorageUnavailable)?;
         let inserted = self
             .0
-            .insert_if_absent(tenant, &namespace, key, &payload)
+            .insert_if_absent(tenant, namespace, key, &payload)
             .map_err(|_| McpFailureCode::StorageUnavailable)?;
         if inserted {
-            return Ok(stored.record);
+            return Ok(());
         }
 
         // Keep the retired revision as a fence for late cleanup reports.
-        let (previous, entry) = self.load_entry(tenant, &namespace, key)?;
+        let (previous, entry) = self.load_entry(tenant, namespace, key)?;
         let StoredCatalogEntry::Deleted(deleted) = entry else {
             return Err(McpFailureCode::Conflict);
         };
@@ -46,13 +56,15 @@ impl McpCatalogStore {
         stored.record.record.revision =
             deleted.deleted.revision.checked_add(1).ok_or(McpFailureCode::StorageUnavailable)?;
         stored.record.connection_revision = stored.record.record.revision;
-        self.save_entry(tenant, &namespace, key, &previous, &stored).map_err(
+        for binding in &mut stored.bindings {
+            binding.record = stored.record.record.clone();
+        }
+        self.save_entry(tenant, namespace, &stored.record.record.id.0, &previous, stored).map_err(
             |code| match code {
                 McpFailureCode::StaleRevision => McpFailureCode::Conflict,
                 other => other,
             },
-        )?;
-        Ok(stored.record)
+        )
     }
 }
 

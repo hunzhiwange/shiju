@@ -393,7 +393,7 @@ pub fn plan(
 mod files;
 #[cfg(target_os = "macos")]
 pub(crate) use files::DshCredentials;
-pub use files::{DshFiles, read};
+pub use files::{DshFiles, read, read_mcp_profiles};
 
 #[path = "dsh_edit.rs"]
 mod edit;

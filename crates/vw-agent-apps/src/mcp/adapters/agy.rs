@@ -20,6 +20,7 @@ use std::{collections::BTreeMap, ffi::OsStr, path::Path};
 use vw_api_types::{
     TenantScope,
     agent_apps::AppId,
+    app_providers::paths::ConfigPathState,
     mcp_management::{McpConfigValue, McpConnectionDefinition},
 };
 
@@ -72,12 +73,18 @@ impl AgyMcp {
     /// The executor supplies the authorized installation's host home.
     /// AGY shares this configuration between native and provisioned profiles.
     pub fn open(home: &Path) -> Result<Self, WriteError> {
+        Self::open_existing(home)?.ok_or(WriteError::InvalidResource)
+    }
+
+    pub(in crate::mcp) fn open_existing(home: &Path) -> Result<Option<Self>, WriteError> {
         if !home.is_absolute() {
             return Err(WriteError::InvalidResource);
         }
-        let directory = open_beneath(home, &home.join(".gemini/config"), true)
-            .map_err(|_| WriteError::InvalidResource)?;
-        Ok(Self(lock_directory(AppId::Agy, directory)?))
+        match open_beneath(home, &home.join(".gemini/config"), true) {
+            Ok(directory) => Ok(Some(Self(lock_directory(AppId::Agy, directory)?))),
+            Err(ConfigPathState::Absent) => Ok(None),
+            Err(_) => Err(WriteError::InvalidResource),
+        }
     }
 
     fn file(&mut self) -> NativeFile<'_> {

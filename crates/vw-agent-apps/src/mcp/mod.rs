@@ -16,3 +16,6 @@ mod native_file_tests;
 
 #[cfg(target_os = "macos")]
 pub mod adapters;
+
+#[cfg(target_os = "macos")]
+pub mod import;

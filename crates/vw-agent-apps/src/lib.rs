@@ -15,3 +15,5 @@ pub mod auth;
 pub mod models;
 
 pub mod usage;
+
+pub mod routing;

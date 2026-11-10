@@ -834,6 +834,18 @@ pub(super) fn queue_agent_stream_delta(app: &mut App, id: u64, delta: String) ->
     queue_agent_session_delta(app, session_id, delta)
 }
 
+pub(super) fn queue_agent_tool_delta(app: &mut App, id: u64, delta: String) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    let pending = &mut app.get_session_runtime_mut(&session_id).pending_stream_delta;
+    // The flush can combine the preceding text and the tool into one delta.
+    if !pending.is_empty() && !pending.ends_with('\n') {
+        pending.push('\n');
+    }
+    queue_agent_session_delta(app, session_id, delta)
+}
+
 fn upsert_compaction_status(
     chat: &mut Vec<models::ChatMessage>,
     message_ids: &mut Vec<Option<String>>,

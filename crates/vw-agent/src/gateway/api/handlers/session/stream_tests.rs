@@ -522,7 +522,7 @@ fn compaction_lifecycle_events_encode_stable_gateway_payloads() {
 
 #[test]
 fn gateway_stream_preserves_existing_tool_payloads() {
-    let mut assistant_text = String::new();
+    let mut assistant_text = "Checking the repo.".to_string();
     let mut finish_reason = None;
     let mut assistant_model = None;
     let mut current_step_index = None;
@@ -549,10 +549,10 @@ fn gateway_stream_preserves_existing_tool_payloads() {
         "",
     )
     .expect("tool payload");
-    let legacy_delta = format!("tool shell\n{payload}\n");
+    let legacy_delta = format!("\ntool shell\n{payload}\n");
 
     assert_eq!(stream_payload, serde_json::json!({"type": "chat.delta", "delta": legacy_delta}));
-    assert_eq!(assistant_text, legacy_delta);
+    assert_eq!(assistant_text, format!("Checking the repo.{legacy_delta}"));
 }
 
 #[test]
@@ -1876,6 +1876,34 @@ fn shell_session_running_update_retains_gateway_metadata_without_finishing() {
     assert_eq!(event.payload["metadata"]["next_cursor"], 3);
     assert_eq!(event.status, agent_session::processor::ToolCallStatus::Running);
     assert_eq!(recorder.steps[0].tool_timings[0].finished_ms, None);
+}
+
+#[test]
+fn streamed_acp_tool_part_retains_display_title_and_input() {
+    use agent_session::message::{Part, ToolState};
+    use agent_session::processor::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
+
+    let mut recorder = StreamTrajectoryRecorder::new("assistant".into());
+    recorder.record(&StreamEvent::Tool(ToolEvent {
+        call_id: "call-execute".into(),
+        name: "execute".into(),
+        kind: ToolEventKind::Complete,
+        status: ToolCallStatus::Completed,
+        occurred_ms: 20,
+        payload: serde_json::json!({
+            "toolCallId": "call-execute",
+            "input": r#"{"command":"pwd"}"#,
+            "output": "",
+            "title": "Inspect workspace"
+        }),
+    }));
+    let mut parts = Vec::new();
+    recorder.append_tool_parts("session", &mut parts).unwrap();
+    let [Part::Tool(part)] = parts.as_slice() else { panic!("expected one tool part") };
+    let ToolState::Completed(state) = &part.state else { panic!("expected completed tool") };
+    assert_eq!(part.tool, "execute");
+    assert_eq!(state.title, "Inspect workspace");
+    assert_eq!(state.input["command"], "pwd");
 }
 
 #[test]

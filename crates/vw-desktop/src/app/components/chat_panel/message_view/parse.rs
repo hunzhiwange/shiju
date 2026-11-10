@@ -3,6 +3,11 @@
 //! 该模块负责把原始消息字符串切分为思考块、工具块与普通文本块，
 //! 并提供与渲染缓存配合使用的块结构转换能力。
 
+use std::collections::HashMap;
+
+use serde_json::{Map, Value};
+
+use super::super::tools::is_acp_tool_payload;
 use crate::app::models::ParsedChatBlock;
 
 /// 渲染块类型枚举
@@ -42,19 +47,71 @@ pub(crate) fn hash_chat_content(raw: &str) -> u64 {
 }
 
 pub(super) fn owned_blocks_from_raw(raw: &str) -> Vec<ParsedChatBlock> {
-    parse_blocks(raw)
-        .into_iter()
-        .filter_map(|block| match block {
+    let mut blocks = Vec::new();
+    let mut acp_tools = HashMap::new();
+    for block in parse_blocks(raw) {
+        match block {
             RenderBlock::Think { content, open } => {
-                Some(ParsedChatBlock::Think { content: content.to_string(), open })
+                blocks.push(ParsedChatBlock::Think { content: content.to_string(), open });
             }
-            RenderBlock::Tool { raw } => Some(ParsedChatBlock::Tool { raw: raw.to_string() }),
+            RenderBlock::Tool { raw } => {
+                let index = blocks.len();
+                if let Some((header, payload)) = acp_tool_block(raw)
+                    && let Some(call_id) = payload.get("toolCallId").and_then(Value::as_str)
+                {
+                    let first_index = *acp_tools.entry(call_id.to_owned()).or_insert(index);
+                    if let Some(ParsedChatBlock::Tool { raw: previous }) =
+                        blocks.get_mut(first_index)
+                    {
+                        merge_acp_tool_block(previous, header, payload);
+                        continue;
+                    }
+                }
+                blocks.push(ParsedChatBlock::Tool { raw: raw.to_string() });
+            }
             RenderBlock::Text { content } => {
                 let content = strip_orphan_think_close_tags(content);
-                (!content.is_empty()).then_some(ParsedChatBlock::Text { content })
+                if !content.is_empty() {
+                    blocks.push(ParsedChatBlock::Text { content });
+                }
             }
-        })
-        .collect()
+        }
+    }
+    blocks
+}
+
+fn acp_tool_block(raw: &str) -> Option<(&str, Map<String, Value>)> {
+    let (header, body) = raw.split_once('\n')?;
+    if !body.contains("\"toolCallId\"") {
+        return None;
+    }
+    let value = serde_json::from_str::<Value>(body).ok()?;
+    if !is_acp_tool_payload(&value) {
+        return None;
+    }
+    let Value::Object(payload) = value else { return None };
+    Some((header, payload))
+}
+
+fn merge_acp_tool_block(previous: &mut String, header: &str, mut update: Map<String, Value>) {
+    let Some((previous_header, mut payload)) = acp_tool_block(previous) else {
+        return;
+    };
+    // Sparse ACP updates use these defaults when the agent omits a field.
+    let name = header.trim().strip_prefix("tool ").unwrap_or_default();
+    if update.get("title").and_then(Value::as_str) == Some(name) {
+        update.remove("title");
+    }
+    update.retain(|key, value| match key.as_str() {
+        "input" => value.as_str().is_some_and(|input| !matches!(input.trim(), "" | "{}")),
+        "metadata" => value.as_object().is_some_and(|metadata| !metadata.is_empty()),
+        "output" => value.as_str().is_some_and(|output| !output.is_empty()),
+        "summary" | "renderHint" | "result" => !value.is_null(),
+        _ => true,
+    });
+    payload.extend(update);
+    let header = if name == "tool_call" { previous_header } else { header };
+    *previous = format!("{header}\n{}\n", Value::Object(payload));
 }
 
 pub(super) fn borrowed_blocks(
@@ -192,7 +249,7 @@ fn find_reasoning_marker(s: &str) -> Option<(usize, usize)> {
 /// 查找工具调用块的起始位置
 ///
 /// 在字符串中搜索 "tool " 关键字的位置。
-/// 仅识别位于行首的工具块，避免把读取文件内容中的普通文本误判为工具卡。
+/// 普通工具块需要行首或冒号边界。旧 ACP 记录可能把工具块直接接在正文后。
 ///
 /// # 参数
 /// - `s`: 要搜索的字符串
@@ -211,7 +268,7 @@ fn find_tool_start(s: &str) -> Option<usize> {
             prefix.ends_with(':') || prefix.ends_with('：')
         };
 
-        if boundary_ok && parse_tool_block(&s[idx..]).is_some() {
+        if parse_tool_block(&s[idx..], !boundary_ok).is_some() {
             return Some(idx);
         }
     }
@@ -232,7 +289,7 @@ fn find_tool_start(s: &str) -> Option<usize> {
 ///
 /// # 解析策略
 /// 逐行读取并累积，尝试解析为 JSON，直到成功或超过最大行数限制（64行）
-fn parse_tool_block(s: &str) -> Option<usize> {
+fn parse_tool_block(s: &str, inline: bool) -> Option<usize> {
     if !s.starts_with("tool ") {
         return None;
     }
@@ -240,6 +297,12 @@ fn parse_tool_block(s: &str) -> Option<usize> {
     let Some(line_end) = s.find('\n') else {
         return None;
     };
+    if inline
+        && (s["tool ".len()..line_end].trim().is_empty()
+            || !s[line_end + 1..].trim_start().starts_with('{'))
+    {
+        return None;
+    }
 
     let mut idx = line_end + 1;
     let mut buf = String::new();
@@ -257,8 +320,9 @@ fn parse_tool_block(s: &str) -> Option<usize> {
         }
         buf.push_str(line);
 
-        if serde_json::from_str::<serde_json::Value>(buf.trim()).is_ok() {
-            return Some(if next_end < s.len() { next_end + 1 } else { next_end });
+        if let Ok(value) = serde_json::from_str::<Value>(buf.trim()) {
+            let end = if next_end < s.len() { next_end + 1 } else { next_end };
+            return (!inline || is_acp_tool_payload(&value)).then_some(end);
         }
 
         if next_end >= s.len() {
@@ -290,7 +354,7 @@ fn push_tool_and_text_blocks<'a>(out: &mut Vec<RenderBlock<'a>>, mut s: &'a str)
         }
 
         let rest = &s[pos..];
-        let Some(consumed) = parse_tool_block(rest) else {
+        let Some(consumed) = parse_tool_block(rest, false) else {
             out.push(RenderBlock::Text { content: rest });
             break;
         };
@@ -347,7 +411,7 @@ fn parse_blocks(raw: &str) -> Vec<RenderBlock<'_>> {
 
         match kind {
             SpecialBlockKind::Tool => {
-                let Some(consumed) = parse_tool_block(rest) else {
+                let Some(consumed) = parse_tool_block(rest, false) else {
                     out.push(RenderBlock::Text { content: rest });
                     break;
                 };

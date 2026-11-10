@@ -20,7 +20,8 @@ use crate::app::{App, Message, message};
 
 use super::tool_meta::{tool_activity_header, tool_header_label, tool_visual_state};
 use super::tool_parse::{
-    tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
+    is_acp_tool_payload, tool_error_text, tool_input, tool_output_text, tool_status,
+    tool_summary_text,
 };
 use super::{canonical_tool_name, tool_permission_state, tool_permission_summary};
 use crate::app::components::chat_panel::utils::{
@@ -33,7 +34,12 @@ pub(super) fn tool_text_header_label(
     tool_name: &str,
     label: &str,
 ) -> String {
-    format!("{} {}", i18n.__(label), canonical_tool_name(tool_name))
+    let name = canonical_tool_name(tool_name);
+    if name == "tool_call" {
+        i18n.__(label).to_string()
+    } else {
+        format!("{} {}", i18n.__(label), name)
+    }
 }
 
 pub(super) fn tool_text_failure_title(i18n: crate::app::i18n::I18n, label: &str) -> String {
@@ -102,9 +108,9 @@ fn workflow_preview_button<'a>(
 /// * `Some(Element)` - 成功解析并生成 UI 元素时返回
 /// * `None` - 以下情况返回 None：
 ///   - 文本格式不正确（缺少换行符或 "tool " 前缀）
-///   - 工具名称为空或在排除列表中（bash、todoread、todowrite、write、edit 等）
+///   - 工具名称为空，或普通工具命中专用视图的排除规则
 ///   - JSON 解析失败
-///   - 显示内容为空
+///   - 显示内容为空且没有 ACP 生命周期状态
 ///
 /// # 示例
 ///
@@ -145,13 +151,22 @@ pub fn tool_text_view<'a>(
     visible: &str,
 ) -> Option<Element<'a, Message>> {
     let (first, rest) = visible.split_once('\n')?;
-    let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
+    let raw_name = first.trim().strip_prefix("tool ")?.trim();
+    let tool_name = canonical_tool_name(raw_name);
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
+    let is_lifecycle_tool = is_acp_tool_payload(&v)
+        || v["callID"].as_str().is_some_and(|id| {
+            !id.trim().is_empty() && v["toolCallId"].as_str() == Some(id) && v["status"].is_string()
+        });
     let status = tool_status(&v);
     let is_error = matches!(status, "error" | "failed" | "denied");
     let visual = tool_visual_state(status);
-    if tool_name.is_empty()
-        || matches!(
+    if tool_name.is_empty() {
+        return None;
+    }
+    if !is_lifecycle_tool
+        && !is_error
+        && matches!(
             tool_name,
             "bash"
                 | "todoread"
@@ -164,9 +179,7 @@ pub fn tool_text_view<'a>(
                 | "pdf_read"
         )
     {
-        if !is_error {
-            return None;
-        }
+        return None;
     }
 
     let input = tool_input(&v).trim();
@@ -198,12 +211,19 @@ pub fn tool_text_view<'a>(
         )
         .unwrap_or_default();
     }
+    if summary.is_empty()
+        && is_lifecycle_tool
+        && let Some(title) = v["title"].as_str().map(str::trim)
+        && title != raw_name
+    {
+        summary = single_line_preview(title, 96);
+    }
     if summary.is_empty() && !is_error && !display_text.is_empty() {
         summary = single_line_preview(display_text, 96);
     }
 
     let has_detail = is_error || (!is_question_tool && !display_text.is_empty());
-    if !has_detail && summary.is_empty() {
+    if !is_lifecycle_tool && !has_detail && summary.is_empty() {
         return None;
     }
 

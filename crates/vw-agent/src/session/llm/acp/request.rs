@@ -21,7 +21,7 @@ use super::session::{
     acp_session_name, close_cached_acp_client_if_unshared, find_or_create_cached_session_record,
     get_cached_acp_client, should_abort,
 };
-use super::updates::forward_acp_message;
+use super::updates::{AcpToolUpdates, forward_acp_message};
 use super::{
     CachedAcpClientEntry, Error, StreamEvent, acp_option_error, is_acp_session_changed_error,
     to_api_error,
@@ -620,6 +620,7 @@ pub(crate) async fn do_stream_request_acp(
 
         let mut acp_error: Option<Error> = None;
         let mut delta_count = 0usize;
+        let mut tool_updates = AcpToolUpdates::default();
         let mut latest_usage = ui_types::TokenUsage::default();
         let mut finish_reason = None;
         let mut abort_rx = abort.cloned();
@@ -665,7 +666,7 @@ pub(crate) async fn do_stream_request_acp(
                     }
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count);
+                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                     }
                     joined = &mut acp_task => {
@@ -694,7 +695,7 @@ pub(crate) async fn do_stream_request_acp(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count);
+                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                         break;
                     }
@@ -703,7 +704,7 @@ pub(crate) async fn do_stream_request_acp(
                 tokio::select! {
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count);
+                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                     }
                     joined = &mut acp_task => {
@@ -732,7 +733,7 @@ pub(crate) async fn do_stream_request_acp(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
-                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count);
+                            forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                         break;
                     }

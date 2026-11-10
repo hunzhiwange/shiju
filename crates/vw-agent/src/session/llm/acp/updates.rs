@@ -1,8 +1,9 @@
 //! ACP 输出消息到 VibeWindow 流式事件的转换工具。
 //!
 //! ACP 代理会以 JSON-RPC session/update 消息上报文本、推理、工具和 token 使用量。
-//! 本模块只做结构解析和事件映射，不执行本地工具调用；远端工具更新会作为 transcript
-//! 文本呈现，避免突破本地工具权限边界。
+//! 本模块只做结构解析和事件映射。远端工具更新通过只读生命周期事件呈现。
+
+use std::collections::HashMap;
 
 use serde_json::{Map, Value, json};
 use vw_acp::AcpJsonRpcMessage;
@@ -11,6 +12,18 @@ use vw_api_types::tools::{StructuredPatchHunkDto, ToolResultContentDto, ToolResu
 use crate::app::agent::session::ui_types;
 
 use super::{StreamEvent, ToolCall};
+
+#[derive(Default)]
+pub(super) struct AcpToolUpdates {
+    calls: HashMap<String, AcpToolDetails>,
+}
+
+#[derive(Default)]
+struct AcpToolDetails {
+    kind: Option<String>,
+    title: Option<String>,
+    input: Option<String>,
+}
 
 /// 从 ACP 内容块中提取可展示文本。
 ///
@@ -190,7 +203,10 @@ fn parse_tool_result_dto(update: &Map<String, Value>) -> Option<ToolResultDto> {
 fn normalize_tool_status(update: &Map<String, Value>, result: Option<&ToolResultDto>) -> String {
     if let Some(status) = update.get("status").and_then(Value::as_str) {
         let normalized = status.trim().to_ascii_lowercase();
-        if normalized.contains("running") || normalized.contains("pending") {
+        if normalized == "in_progress"
+            || normalized.contains("running")
+            || normalized.contains("pending")
+        {
             return "running".to_string();
         }
         if normalized.contains("error")
@@ -239,6 +255,8 @@ fn output_from_tool_update(update: &Map<String, Value>, result: Option<&ToolResu
         .get("rawOutput")
         .or_else(|| update.get("output"))
         .and_then(extract_tool_result_text_value)
+        .filter(|text| !text.trim().is_empty())
+        .or_else(|| update.get("content").and_then(extract_tool_result_text_value))
         .or_else(|| {
             update.get("rawOutput").or_else(|| update.get("output")).and_then(|value| {
                 serde_json::to_string(value).ok().filter(|text| !text.trim().is_empty())
@@ -262,7 +280,10 @@ fn error_from_tool_update(status: &str, output: &str) -> Option<String> {
 ///
 /// ACP 工具已经在远端代理侧运行，因此这里保留展示所需的结构化信息，但绝不把它转换成
 /// 本地 `ToolCall` 执行请求或普通答复文本。
-fn remote_tool_update_from_update(update: &Map<String, Value>) -> Option<StreamEvent> {
+fn remote_tool_update_from_update(
+    tools: &mut AcpToolUpdates,
+    update: &Map<String, Value>,
+) -> Option<StreamEvent> {
     let update_type = update.get("sessionUpdate").and_then(Value::as_str)?;
     if update_type != "tool_call" && update_type != "tool_call_update" {
         return None;
@@ -273,11 +294,21 @@ fn remote_tool_update_from_update(update: &Map<String, Value>) -> Option<StreamE
         return None;
     }
 
-    let tool_name = transcript_tool_name(update);
-    let tool_title = transcript_tool_title(update, &tool_name);
+    let details = tools.calls.entry(tool_call_id.to_string()).or_default();
+    if let Some(kind) = tool_kind_from_update(update) {
+        details.kind = Some(kind.to_string());
+    }
+    if let Some(title) = tool_title_from_update(update) {
+        details.title = Some(title.to_string());
+    }
+    if update.contains_key("rawInput") || update.contains_key("input") {
+        details.input = Some(tool_input_string(update));
+    }
+    let tool_name = details.kind.as_deref().or(details.title.as_deref()).unwrap_or("tool_call");
+    let tool_title = details.title.as_deref().unwrap_or(tool_name);
     let result = parse_tool_result_dto(update);
     let status = normalize_tool_status(update, result.as_ref());
-    let input = tool_input_string(update);
+    let input = details.input.as_deref().unwrap_or("{}");
     let output = output_from_tool_update(update, result.as_ref());
     let error = error_from_tool_update(&status, &output);
     let summary = result
@@ -288,7 +319,7 @@ fn remote_tool_update_from_update(update: &Map<String, Value>) -> Option<StreamE
 
     Some(StreamEvent::RemoteToolUpdate {
         call_id: tool_call_id.to_string(),
-        name: tool_name,
+        name: tool_name.to_string(),
         is_initial: update_type == "tool_call",
         payload: json!({
             "status": status,
@@ -397,11 +428,12 @@ fn extract_usage_from_acp_message(message: &AcpJsonRpcMessage) -> Option<ui_type
 ///
 /// 文本和工具 transcript 会增加 `delta_count`；usage 更新会覆盖 `latest_usage`。
 /// 函数不会返回错误，无法识别的 ACP 消息会被忽略。
-pub(crate) fn forward_acp_message(
+pub(super) fn forward_acp_message(
     message: &AcpJsonRpcMessage,
     on_event: &mut impl FnMut(StreamEvent),
     latest_usage: &mut ui_types::TokenUsage,
     delta_count: &mut usize,
+    tools: &mut AcpToolUpdates,
 ) {
     if let Some(delta) = extract_delta_from_acp_message(message)
         && !delta.is_empty()
@@ -415,7 +447,7 @@ pub(crate) fn forward_acp_message(
         on_event(StreamEvent::ReasoningDelta(reasoning));
     }
     if let Some(tool_update) = session_update_payload_from_message(message)
-        .and_then(|update| remote_tool_update_from_update(&update))
+        .and_then(|update| remote_tool_update_from_update(tools, &update))
     {
         *delta_count = delta_count.saturating_add(1);
         on_event(tool_update);

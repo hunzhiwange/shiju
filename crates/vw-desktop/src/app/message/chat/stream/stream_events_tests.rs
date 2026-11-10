@@ -637,6 +637,25 @@ fn active_stream_applies_first_delta_without_flush_timer() {
 }
 
 #[test]
+fn buffered_tool_event_starts_on_its_own_line() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-1".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _ = super::queue_agent_stream_delta(&mut app, 42, "Checking".to_string());
+    let _ = super::queue_agent_stream_delta(&mut app, 42, " the repo.".to_string());
+    let _ = super::queue_agent_tool_delta(&mut app, 42, "tool execute\n{}\n".to_string());
+    let _ = super::queue_agent_stream_delta(&mut app, 42, "Done.".to_string());
+    let _ = super::flush_agent_stream_delta(&mut app, session_id);
+
+    assert_eq!(app.chat.last().unwrap().content, "Checking the repo.\ntool execute\n{}\nDone.");
+}
+
+#[test]
 fn active_stream_terminal_flushes_pending_delta() {
     fn active_app(request_id: u64) -> crate::app::App {
         let (mut app, _) = crate::app::App::new();

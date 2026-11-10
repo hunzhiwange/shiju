@@ -165,8 +165,8 @@ pub(crate) use tool_meta::{
 };
 pub(crate) use tool_parse::{
     AgentToolSessionPayload, AgentToolSessionStatus, agent_tool_session_payloads_from_content,
-    explore_item_dedupe_key, tool_error_text, tool_input, tool_output_text, tool_status,
-    tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
+    explore_item_dedupe_key, is_acp_tool_payload, tool_error_text, tool_input, tool_output_text,
+    tool_status, tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
 };
 pub use tool_parse::{
     ExploreToolKind, explore_tool_kind, is_explore_tool, should_hide_tool_block,

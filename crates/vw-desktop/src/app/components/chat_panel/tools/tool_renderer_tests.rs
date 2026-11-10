@@ -146,6 +146,27 @@ fn render_shared_tool_view_rejects_unparseable_tool_blocks() {
 }
 
 #[test]
+fn render_shared_tool_view_displays_acp_lifecycle_without_output() {
+    let app = app();
+    for raw in [
+        concat!(
+            "tool tool_call\n",
+            r#"{"status":"completed","toolCallId":"call-1","input":"{}","title":"tool_call","output":""}"#,
+        ),
+        concat!(
+            "tool search\n",
+            r#"{"status":"in_progress","toolCallId":"call-2","input":"{}","title":"Search in style.css","output":""}"#,
+        ),
+        concat!(
+            "tool tool_call\n",
+            r#"{"callID":"call-3","metadata":{"callID":"call-3"},"status":"completed","time":{"start":123,"end":123},"title":"tool_call","toolCallId":"call-3"}"#,
+        ),
+    ] {
+        assert!(render_shared_tool_view(&app, 0, 0, raw).is_some());
+    }
+}
+
+#[test]
 fn render_shared_tool_view_dispatches_each_tool_kind() {
     let app = app();
 

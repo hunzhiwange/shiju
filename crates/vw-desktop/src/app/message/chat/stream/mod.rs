@@ -442,7 +442,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
             }
             let timing_task = steps::handle_agent_tool_lifecycle(app, id, &event);
-            let delta_task = stream_events::queue_agent_stream_delta(app, id, event.legacy_delta());
+            let delta_task = stream_events::queue_agent_tool_delta(app, id, event.legacy_delta());
             let refresh_task = session_tool_created_session(&event)
                 .map(|(session_id, directory)| {
                     Task::perform(

@@ -22,6 +22,65 @@ fn owned_blocks_from_raw_splits_think_tool_and_text() {
 }
 
 #[test]
+fn legacy_acp_tool_appended_to_prose_renders_as_a_tool_block() {
+    let raw_tool = concat!(
+        "tool execute\n",
+        r#"{"status":"in_progress","toolCallId":"call-1","input":"{}","title":"pwd"}"#,
+        "\n",
+    );
+    let blocks = owned_blocks_from_raw(&format!("检查仓库。{raw_tool}继续检查。"));
+
+    assert!(matches!(blocks.as_slice(), [
+        ParsedChatBlock::Text { content: before },
+        ParsedChatBlock::Tool { raw },
+        ParsedChatBlock::Text { content: after },
+    ] if before == "检查仓库。" && raw == raw_tool && after == "继续检查。"));
+
+    let prose = "An example tool execute\n{\"status\":\"in_progress\"}";
+    let blocks = owned_blocks_from_raw(prose);
+    assert!(matches!(blocks.as_slice(), [ParsedChatBlock::Text { content }] if content == prose));
+}
+
+#[test]
+fn acp_search_keeps_its_title_and_receives_sparse_completion() {
+    let raw = concat!(
+        "检查样式。tool search\n",
+        "{\n",
+        r#""status":"in_progress","toolCallId":"call-search","input":"{}","title":"Search for 'code-surface|code-gutter' in style.css""#,
+        "\n}\n",
+        "继续检查。\n",
+        "tool search\n",
+        r#"{"status":"running","toolCallId":"call-other","input":"{}","title":"Search in main.ts"}"#,
+        "\n",
+        "tool tool_call\n",
+        r#"{"status":"completed","toolCallId":"call-search","input":"{}","title":"tool_call","output":"{\"exit_code\":0}"}"#,
+        "\n",
+    );
+    let blocks = owned_blocks_from_raw(raw);
+    let [
+        ParsedChatBlock::Text { content: before },
+        ParsedChatBlock::Tool { raw: search },
+        ParsedChatBlock::Text { content: between },
+        ParsedChatBlock::Tool { raw: other },
+    ] = blocks.as_slice()
+    else {
+        panic!("expected both search cards and surrounding text");
+    };
+
+    assert_eq!(before, "检查样式。");
+    assert_eq!(between, "继续检查。\n");
+    let (header, body) = search.split_once('\n').unwrap();
+    let payload: serde_json::Value = serde_json::from_str(body).unwrap();
+    assert_eq!(header, "tool search");
+    assert_eq!(payload["title"], "Search for 'code-surface|code-gutter' in style.css");
+    assert_eq!(payload["status"], "completed");
+    assert_eq!(payload["output"], r#"{"exit_code":0}"#);
+    let identity = crate::app::components::chat_panel::tools::tool_identity_from_raw;
+    assert_eq!(identity(search).as_deref(), Some("acp:call-search"));
+    assert_eq!(identity(other).as_deref(), Some("acp:call-other"));
+}
+
+#[test]
 fn reasoning_marker_renders_as_closed_think_block() {
     let blocks = owned_blocks_from_raw("answer\n\n[reasoning]\nchain");
 

@@ -86,7 +86,7 @@ pub fn tool_visual_state(raw_state: &str) -> ToolVisual {
             is_animated: true,
             tone: ToolVisualTone::Waiting,
         },
-        "running" => ToolVisual {
+        "running" | "in_progress" => ToolVisual {
             state: ToolVisualState::Running,
             icon: Icon::ArrowRepeat,
             label: "运行中",

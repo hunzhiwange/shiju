@@ -329,7 +329,8 @@ fn remote_tool_update_accepts_input_output_aliases() {
         "output": "2026-06-05 12:34:56\n"
     }));
 
-    let event = remote_tool_update_from_update(&update).expect("event should be built");
+    let event = remote_tool_update_from_update(&mut AcpToolUpdates::default(), &update)
+        .expect("event should be built");
     let StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } = event else {
         panic!("expected remote tool update");
     };
@@ -361,7 +362,8 @@ fn remote_tool_update_renders_dto_metadata_summary_and_errors() {
         }
     }));
 
-    let event = remote_tool_update_from_update(&update).expect("event should be built");
+    let event = remote_tool_update_from_update(&mut AcpToolUpdates::default(), &update)
+        .expect("event should be built");
     let StreamEvent::RemoteToolUpdate { name, is_initial, payload, .. } = event else {
         panic!("expected remote tool update");
     };
@@ -379,17 +381,23 @@ fn remote_tool_update_renders_dto_metadata_summary_and_errors() {
 #[test]
 fn remote_tool_update_ignores_non_tool_or_missing_id_updates() {
     assert!(
-        remote_tool_update_from_update(&object(json!({
-            "sessionUpdate": "agent_message_chunk",
-            "toolCallId": "call-1"
-        })))
+        remote_tool_update_from_update(
+            &mut AcpToolUpdates::default(),
+            &object(json!({
+                "sessionUpdate": "agent_message_chunk",
+                "toolCallId": "call-1"
+            }))
+        )
         .is_none()
     );
     assert!(
-        remote_tool_update_from_update(&object(json!({
-            "sessionUpdate": "tool_call",
-            "toolCallId": " "
-        })))
+        remote_tool_update_from_update(
+            &mut AcpToolUpdates::default(),
+            &object(json!({
+                "sessionUpdate": "tool_call",
+                "toolCallId": " "
+            }))
+        )
         .is_none()
     );
 }
@@ -493,6 +501,7 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
     forward_acp_message(
         &update_message(json!({
@@ -502,6 +511,7 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
     forward_acp_message(
         &update_message(json!({
@@ -514,6 +524,7 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
     forward_acp_message(
         &update_message(json!({
@@ -524,6 +535,7 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
 
     assert_eq!(delta_count, 2);
@@ -547,6 +559,38 @@ fn forward_acp_message_emits_deltas_reasoning_tools_and_usage() {
                 && payload["status"] == "completed"
                 && payload["output"] == "done"
     ));
+}
+
+#[test]
+fn sparse_acp_completion_preserves_tool_identity_and_input() {
+    let mut tools = AcpToolUpdates::default();
+    let start = object(json!({
+        "sessionUpdate": "tool_call",
+        "toolCallId": "call-execute",
+        "kind": "execute",
+        "status": "in_progress",
+        "title": "Inspect workspace",
+        "rawInput": {"command": "pwd", "cwd": "/workspace"}
+    }));
+    remote_tool_update_from_update(&mut tools, &start).expect("tool start");
+
+    let complete = object(json!({
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "call-execute",
+        "status": "completed",
+        "rawOutput": {"exit_code": 0},
+        "content": [{"type": "content", "content": {"type": "text", "text": "/workspace"}}]
+    }));
+    let event = remote_tool_update_from_update(&mut tools, &complete).expect("tool complete");
+    let StreamEvent::RemoteToolUpdate { name, is_initial, payload, .. } = event else {
+        panic!("expected remote lifecycle event");
+    };
+    assert_eq!(name, "execute");
+    assert!(!is_initial);
+    assert_eq!(payload["title"], "Inspect workspace");
+    assert_eq!(payload["status"], "completed");
+    assert_eq!(payload["input"], r#"{"command":"pwd","cwd":"/workspace"}"#);
+    assert_eq!(payload["output"], "/workspace");
 }
 
 #[test]
@@ -656,6 +700,7 @@ fn tool_result_helpers_skip_blank_fields_and_reject_invalid_dtos() {
 #[test]
 fn tool_status_helpers_cover_aliases_empty_status_and_null_metadata() {
     assert_eq!(normalize_tool_status(&object(json!({"status": "PENDING"})), None), "running");
+    assert_eq!(normalize_tool_status(&object(json!({"status": "in_progress"})), None), "running");
     assert_eq!(normalize_tool_status(&object(json!({"status": "failure"})), None), "error");
     assert_eq!(normalize_tool_status(&object(json!({"status": "done"})), None), "completed");
 
@@ -670,10 +715,13 @@ fn tool_status_helpers_cover_aliases_empty_status_and_null_metadata() {
 
 #[test]
 fn remote_tool_update_uses_safe_defaults_for_optional_fields() {
-    let event = remote_tool_update_from_update(&object(json!({
-        "sessionUpdate": "tool_call",
-        "toolCallId": "call-defaults"
-    })))
+    let event = remote_tool_update_from_update(
+        &mut AcpToolUpdates::default(),
+        &object(json!({
+            "sessionUpdate": "tool_call",
+            "toolCallId": "call-defaults"
+        })),
+    )
     .expect("remote tool update");
     let StreamEvent::RemoteToolUpdate { call_id, name, is_initial, payload } = event else {
         panic!("expected remote tool update");
@@ -733,6 +781,7 @@ fn forward_acp_message_ignores_unknown_updates_without_mutating_state() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
 
     assert!(events.is_empty());
@@ -755,6 +804,7 @@ fn forward_acp_message_saturates_delta_count_at_usize_max() {
         &mut |event| events.push(event),
         &mut latest_usage,
         &mut delta_count,
+        &mut AcpToolUpdates::default(),
     );
 
     assert_eq!(delta_count, usize::MAX);

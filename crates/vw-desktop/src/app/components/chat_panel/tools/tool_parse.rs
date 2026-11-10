@@ -587,6 +587,15 @@ pub fn tool_error_text(value: &Value) -> Option<String> {
         .or_else(|| if tool_status(value) == "error" { tool_output_text(value) } else { None })
 }
 
+pub(crate) fn is_acp_tool_payload(value: &Value) -> bool {
+    // Projected native ToolParts carry both callID and toolCallId.
+    value.get("callID").is_none()
+        && value["toolCallId"].as_str().is_some_and(|id| !id.trim().is_empty())
+        && value["status"].is_string()
+        && value["input"].is_string()
+        && value["title"].is_string()
+}
+
 pub fn tool_summary_text(value: &Value) -> Option<String> {
     value
         .get("summary")
@@ -771,6 +780,9 @@ pub fn tool_identity_from_raw(raw: &str) -> Option<String> {
 
     // 解析 JSON 参数部分
     let v = serde_json::from_str::<Value>(rest.trim()).ok()?;
+    if is_acp_tool_payload(&v) {
+        return v["toolCallId"].as_str().map(|id| format!("acp:{}", id.trim()));
+    }
     let input = v.get("input").and_then(|vv| vv.as_str()).unwrap_or("").trim();
 
     // 处理 bash 工具的特殊标识符逻辑

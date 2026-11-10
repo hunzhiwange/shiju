@@ -186,6 +186,7 @@ impl StreamTrajectoryRecorder {
 
         for event in &self.tool_results {
             let payload = &event.payload;
+            let title = payload["title"].as_str().filter(|title| !title.trim().is_empty());
             let input = payload["input"]
                 .as_object()
                 .cloned()
@@ -202,7 +203,7 @@ impl StreamTrajectoryRecorder {
                 ToolState::Completed(ToolStateCompleted {
                     input,
                     output,
-                    title: event.name.clone(),
+                    title: title.unwrap_or(&event.name).to_owned(),
                     metadata: Map::new(),
                     time: ToolStateCompletedTime {
                         start: event.occurred_ms,
@@ -721,7 +722,12 @@ fn stream_payload_for_non_done_event(
             Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
         }
         agent_session::processor::StreamEvent::Tool(event) => {
-            let delta = format!("tool {}\n{}\n", event.name, event.payload);
+            let separator = if assistant_text.is_empty() || assistant_text.ends_with('\n') {
+                ""
+            } else {
+                "\n"
+            };
+            let delta = format!("{separator}tool {}\n{}\n", event.name, event.payload);
             assistant_text.push_str(&delta);
             let Some(step_index) = *current_step_index else {
                 return Some(serde_json::json!({ "type": "chat.delta", "delta": delta }));

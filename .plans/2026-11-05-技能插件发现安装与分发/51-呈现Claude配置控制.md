@@ -1,8 +1,10 @@
 # 任务 51: 呈现Claude配置控制
 
-批次：【批次 51】 依赖：批次 50（累计前置批次 1–50）。本批仅此任务，不安排并行。线性顺序为 1 → 2 → … → 57，可复制入口见 prompt.md。
+批次：【批次 5】 依赖：批次 4 的任务 41。外部前置见上下文。同批实施与资源规则见 prompt.md。
 
 状态：未开始
+
+按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
 目的：Claude配置标记及首次启动确认独立显示并由显式操作控制。
 
@@ -18,17 +20,17 @@
 
 ## 上下文
 
-- 实施前核对首任务执行合同和母批次1–11验收：来源快照、vw-agent-apps正式workspace注册及依赖、作用域存储/授权/目标主机、14项应用注册与MCP边界必须已交付；缺失标记本任务已阻塞，不伪造接口，不在本会话补完全部前置。
+- 按任务 1 的执行合同核对本任务外部前置：母任务 1 的来源快照、母任务 2 的原生业务包与本任务实际使用的授权、存储、目标主机或长任务合同、母任务 3 的应用实例、路径和能力声明、母任务 4 的原生配置事务；缺失标记本任务已阻塞，不伪造接口，不在本会话补完全部前置。
 - 以上新路径和 `cp12_claude_view` 测试前缀是本计划拟定义的接口，不是现存实现声明。执行前用 rustcodegraph 核实相邻真实调用者；已有等价模块则原位扩展并在本任务记录实际路径，禁止重复所有者。
 - 组件从现有 `system_settings_skills.rs` 注册，消息从 `message/settings/skills.rs` 和 `message/settings/messages.rs` 接线，状态限 `state/settings/runtime.rs` 对应技能字段；SDK通过现有 `app/session_gateway.rs` 调用。只追加本任务所需消息和状态，不预建后续页面。
-- 新增/修改表单前阅读 system_settings_common/ 与 system_settings_providers/custom_model_modal.rs；使用 settings_* 样式、统一padding/text size、modal card/overlay/close与圆角主次按钮。滚动条4px、内容两侧7px；中文默认字体，ASCII路径单独等宽；反馈统一toast.rs。每项桌面变更实际打开本任务页面，记录明暗主题中文渲染结果，不能把消息测试替代整形验证。
+- 新增/修改表单前阅读 system_settings_common/ 与 system_settings_providers/custom_model_modal.rs；使用 settings_* 样式、统一padding/text size、modal card/overlay/close与圆角主次按钮。滚动条4px、内容两侧7px；中文默认字体，ASCII路径单独等宽；反馈统一toast.rs。
 
 ## Cargo 共享槽位规则
 
-1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
-2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+1. 同一仓库的所有计划和任务共用原仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-10`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建原仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–10。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从原仓库根目录执行。
 3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 10 个槽位都占用时等待并重试。
-4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
+4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从原仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
 5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
 6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
 7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
@@ -60,8 +62,8 @@
 - 聚焦命令、crate与features以上文为准；Clippy为workspace全部features，使用同一阶段领取槽位。
 - 不运行无过滤全量 `cargo test`、wasm检查、Makefile、fmt check；仅验收macOS，不加Windows/Linux验收门槛。
 - 预期：成功行为与失败后状态断言均通过，错误不泄露敏感信息；聚焦测试命中数大于0，Clippy退出0。
-- 所需证据：失败断言/通过输出、确切命令、退出码、有效测试数量、相关符号与路径、实际槽位及绝对 CARGO_TARGET_DIR。文档/截图/请求结果写 `docs/vibewindow/agent-apps/skills/claude_view-证据.md`，不记录原始令牌或私有载荷。
-- API证据附授权与越权请求/结果以及目标主机；桌面证据附真实页面明暗主题截图与无panic日志；缺真实渲染、账号或环境则明确未验证，不能用构造Element或编译成功替代。
+- 所需证据：失败断言/通过输出、确切命令、退出码、有效测试数量、相关符号与路径、实际槽位及绝对 CARGO_TARGET_DIR。文档与脱敏请求结果写 `docs/vibewindow/agent-apps/skills/claude_view-证据.md`，不记录原始令牌或私有载荷。
+- API证据附授权与越权请求/结果以及目标主机。
 
 ## 完成与阻塞
 

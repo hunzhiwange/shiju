@@ -15,6 +15,10 @@ use vw_api_types::{
 #[cfg(test)]
 #[path = "omp_read_tests.rs"]
 mod read_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "omp_write_tests.rs"]
+mod write_tests;
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
 }
@@ -355,6 +359,10 @@ pub struct OmpFiles {
 }
 impl OmpFiles {
     pub fn open(home: &Path) -> Result<Self, WriteError> {
+        Self::open_at(home, environment_location(home, None)?)
+    }
+
+    fn open_at(home: &Path, location: OmpLocation) -> Result<Self, WriteError> {
         use std::os::{
             fd::{AsRawFd, FromRawFd},
             unix::fs::OpenOptionsExt,
@@ -367,7 +375,7 @@ impl OmpFiles {
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
             .open(home)
             .map_err(|_| WriteError::InvalidResource)?;
-        for component in environment_location(home, None)?.components {
+        for component in location.components {
             let name =
                 std::ffi::CString::new(component).map_err(|_| WriteError::InvalidResource)?;
             // SAFETY: fixed single child of the retained authorized directory.

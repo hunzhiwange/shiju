@@ -122,12 +122,18 @@ fn edit_provider(
         }
     }
     let mut output = text.to_string();
+    let mut null_span = None;
     let (start, end, indent) = if let Some(header) = header {
         let line = lines[header];
         let (_, tail) = line.split_once(':').ok_or_else(manual_edit)?;
-        let tail = tail.split('#').next().unwrap_or_default().trim();
-        if !matches!(tail, "" | "null" | "~") {
+        let value = tail.split('#').next().unwrap_or_default().trim();
+        if !matches!(value, "" | "null" | "~") {
             return Err(manual_edit());
+        }
+        if !value.is_empty() {
+            // Remove only the null token, preserving header whitespace and comments.
+            let start = offsets[header] + line.len() - tail.trim_start().len();
+            null_span = Some(start..start + value.len());
         }
         let end = ((header + 1)..lines.len())
             .find(|&i| {
@@ -178,22 +184,14 @@ fn edit_provider(
             {
                 stop -= 1;
             }
-        }
-        if !tail.is_empty() {
-            // Normalize only the providers header when its value is null. Edit the
-            // provider range first: the header rewrite changes its length.
-            let colon = line.find(':').ok_or_else(manual_edit)?;
-            let suffix =
-                line.find('#').map(|i| format!(" {}", &line[i..])).unwrap_or_else(|| "\n".into());
-            let mut original = text.to_string();
-            let emitted = emit_provider(id, replacement, indent)?;
-            original.replace_range(offsets[start]..offsets[stop], &emitted);
-            original.replace_range(
-                offsets[header]..offsets[header + 1],
-                &format!("{}:{}", &line[..colon], suffix),
-            );
-            verify_edit(&original, &expected)?;
-            return Ok(original);
+            // A peer or root comment interleaved with the node has ambiguous
+            // ownership. Replacing the entire span would silently discard it.
+            if lines[start + 1..stop].iter().any(|line| {
+                let trimmed = line.trim_start_matches(' ');
+                trimmed.starts_with('#') && line.len() - trimmed.len() <= indent
+            }) {
+                return Err(manual_edit());
+            }
         }
         (offsets[start], offsets[stop], indent)
     } else {
@@ -215,6 +213,9 @@ fn edit_provider(
         emitted.insert(0, '\n');
     }
     output.replace_range(start..end, &emitted);
+    if let Some(span) = null_span {
+        output.replace_range(span, "");
+    }
     verify_edit(&output, &expected)?;
     Ok(output)
 }

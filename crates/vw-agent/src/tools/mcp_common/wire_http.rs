@@ -21,17 +21,22 @@ struct HttpProtocol {
 }
 
 impl HttpProtocol {
-    fn capture(&mut self, value: &Value) {
+    /// Track the negotiated version and signal a JSON-RPC error for initialize.
+    fn capture(&mut self, value: &Value) -> bool {
         let id = value.get("id").and_then(|id| serde_json::from_value(id.clone()).ok());
         if self.initialize_id.is_none() || self.initialize_id != id {
-            return;
+            return false;
         }
-        let Some(result) = value.get("result") else { return };
-        let Ok(info) = serde_json::from_value::<ServerInfo>(result.clone()) else { return };
+        if value.get("error").is_some() {
+            return true;
+        }
+        let Some(result) = value.get("result") else { return false };
+        let Ok(info) = serde_json::from_value::<ServerInfo>(result.clone()) else { return false };
         if crate::plugins::validate_mcp_server_protocol(Some(&info)).is_ok() {
             self.version = Some(info.protocol_version.to_string());
         }
         self.initialize_id = None;
+        false
     }
 }
 
@@ -40,6 +45,7 @@ pub(super) struct HttpClient {
     client: reqwest_012::Client,
     responses: Arc<crate::plugins::RawMcpResponse>,
     protocol: Arc<Mutex<HttpProtocol>>,
+    check_origin: Option<url::Origin>,
 }
 
 impl HttpClient {
@@ -47,7 +53,12 @@ impl HttpClient {
         client: reqwest_012::Client,
         responses: Arc<crate::plugins::RawMcpResponse>,
     ) -> Self {
-        Self { client, responses, protocol: Default::default() }
+        Self { client, responses, protocol: Default::default(), check_origin: None }
+    }
+
+    pub(super) fn with_check_origin(mut self, origin: url::Origin) -> Self {
+        self.check_origin = Some(origin);
+        self
     }
 
     fn request(&self, request: reqwest_012::RequestBuilder) -> reqwest_012::RequestBuilder {
@@ -63,24 +74,32 @@ fn events(
     stream: BoxedSseResponse,
     responses: Arc<crate::plugins::RawMcpResponse>,
     protocol: Arc<Mutex<HttpProtocol>>,
+    reject_initialize_error: bool,
 ) -> BoxedSseResponse {
     stream
         .map(move |event| {
-            event.map(|mut event| {
+            event.and_then(|mut event| {
                 if matches!(event.event.as_deref(), None | Some("") | Some("message")) {
                     if let Some(data) = &event.data {
                         if let Ok(mut value) = serde_json::from_str::<Value>(data) {
-                            protocol
+                            let initialize_error = protocol
                                 .lock()
                                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                                 .capture(&value);
+                            if initialize_error && reject_initialize_error {
+                                // The streamable HTTP worker otherwise skips error events
+                                // while waiting for the initialize result.
+                                return Err(sse_stream::Error::Body(
+                                    std::io::Error::other("MCP initialization rejected").into(),
+                                ));
+                            }
                             responses.capture(&value);
                             crate::plugins::preserve_mcp_wire_result(&mut value);
                             event.data = Some(value.to_string());
                         }
                     }
                 }
-                event
+                Ok(event)
             })
         })
         .boxed()
@@ -155,7 +174,12 @@ impl StreamableHttpClient for HttpClient {
                 let stream =
                     sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
                 Ok(StreamableHttpPostResponse::Sse(
-                    events(stream, self.responses.clone(), self.protocol.clone()),
+                    events(
+                        stream,
+                        self.responses.clone(),
+                        self.protocol.clone(),
+                        self.check_origin.is_some(),
+                    ),
                     session,
                 ))
             }
@@ -213,7 +237,7 @@ impl StreamableHttpClient for HttpClient {
             return Err(StreamableHttpError::UnexpectedContentType(kind));
         }
         let stream = sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
-        Ok(events(stream, self.responses.clone(), self.protocol.clone()))
+        Ok(events(stream, self.responses.clone(), self.protocol.clone(), false))
     }
 }
 
@@ -226,6 +250,18 @@ impl SseClient for HttpClient {
         message: ClientJsonRpcMessage,
         auth: Option<String>,
     ) -> Result<(), SseTransportError<Self::Error>> {
+        if let Some(origin) = &self.check_origin {
+            let allowed = reqwest_012::Url::parse(&uri.to_string()).is_ok_and(|url| {
+                url.origin() == *origin && url.username().is_empty() && url.password().is_none()
+            });
+            if !allowed {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "MCP SSE message endpoint must stay on the configured origin",
+                )
+                .into());
+            }
+        }
         SseClient::post_message(&self.client, uri, message, auth).await
     }
 
@@ -237,6 +273,6 @@ impl SseClient for HttpClient {
     ) -> Result<BoxedSseResponse, SseTransportError<Self::Error>> {
         SseClient::get_stream(&self.client, uri, last, auth)
             .await
-            .map(|stream| events(stream, self.responses.clone(), self.protocol.clone()))
+            .map(|stream| events(stream, self.responses.clone(), self.protocol.clone(), false))
     }
 }

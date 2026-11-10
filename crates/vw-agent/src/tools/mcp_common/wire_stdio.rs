@@ -70,11 +70,12 @@ impl StdioTransport {
     pub(super) fn new(
         mut command: Command,
         responses: Arc<crate::plugins::RawMcpResponse>,
+        connection_check: bool,
     ) -> io::Result<Self> {
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
+            .stderr(if connection_check { Stdio::null() } else { Stdio::inherit() })
             .kill_on_drop(true)
             .spawn()?;
         let input = child.stdin.take().ok_or_else(|| io::Error::other("MCP stdin unavailable"))?;

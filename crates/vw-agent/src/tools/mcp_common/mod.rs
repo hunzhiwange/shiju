@@ -14,7 +14,7 @@ use rmcp::model::{
     ClientInfo, CreateElicitationRequestParam, CreateElicitationResult, CreateMessageRequestParam,
     CreateMessageResult, ErrorData, ListRootsResult, ResourceContents,
 };
-use rmcp::service::{NotificationContext, Peer, RequestContext, RoleClient, ServiceExt};
+use rmcp::service::{NotificationContext, Peer, RequestContext, RoleClient};
 use rmcp::transport::{
     SseClientTransport, StreamableHttpClientTransport, sse_client::SseClientConfig,
     streamable_http_client::StreamableHttpClientTransportConfig,
@@ -28,6 +28,7 @@ use std::{
 };
 use tokio::process::Command;
 
+mod wire_check;
 mod wire_http;
 mod wire_stdio;
 
@@ -553,6 +554,23 @@ fn remote_http_client(
         .context("failed to build MCP remote HTTP client")
 }
 
+fn connection_check_http_client(
+    headers: &[HttpHeader],
+    timeout: Duration,
+) -> anyhow::Result<reqwest_012::Client> {
+    let mut headers = remote_header_map(headers)?;
+    for (_, value) in &mut headers {
+        value.set_sensitive(true);
+    }
+    reqwest_012::Client::builder()
+        .default_headers(headers)
+        .connect_timeout(timeout)
+        .read_timeout(timeout)
+        .redirect(reqwest_012::redirect::Policy::none())
+        .build()
+        .context("failed to build MCP connection check HTTP client")
+}
+
 async fn with_connect_timeout<T>(
     server_name: &str,
     timeout: Duration,
@@ -647,6 +665,26 @@ pub(crate) async fn open_server_peer(
     closed: tokio_util::sync::CancellationToken,
     form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
 ) -> anyhow::Result<RunningMcpPeer> {
+    open_server_peer_inner(server, timeout, closed, form_owner, false).await
+}
+
+/// Open a short-lived peer for an explicit catalog check, with no session privileges.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn open_connection_check_peer(
+    server: McpServer,
+    timeout: Duration,
+) -> anyhow::Result<RunningMcpPeer> {
+    open_server_peer_inner(server, timeout, tokio_util::sync::CancellationToken::new(), None, true)
+        .await
+}
+
+async fn open_server_peer_inner(
+    server: McpServer,
+    timeout: Duration,
+    closed: tokio_util::sync::CancellationToken,
+    form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
+    connection_check: bool,
+) -> anyhow::Result<RunningMcpPeer> {
     let mut peer_client = NoopClient::with_cancellation(closed);
     if form_owner.is_some() {
         peer_client.info.capabilities.elicitation =
@@ -672,31 +710,42 @@ pub(crate) async fn open_server_peer(
             for (key, value) in &env {
                 command.env(key, value);
             }
-            let transport = wire_stdio::StdioTransport::new(command, responses)?;
-            with_connect_timeout(&server.name, timeout, async move {
-                peer_client.serve(transport).await.map_err(anyhow::Error::from)
-            })
+            let transport = wire_stdio::StdioTransport::new(command, responses, connection_check)?;
+            with_connect_timeout(
+                &server.name,
+                timeout,
+                wire_check::serve(peer_client, transport, connection_check),
+            )
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
         McpServer::Sse(server) => {
-            let client = remote_http_client(&server.headers, timeout)
-                .with_context(|| format!("failed to build SSE MCP client for '{}'", server.name))?;
-            let config =
+            let client = if connection_check {
+                connection_check_http_client(&server.headers, timeout)
+            } else {
+                remote_http_client(&server.headers, timeout)
+            }
+            .with_context(|| format!("failed to build SSE MCP client for '{}'", server.name))?;
+            let mut client = wire_http::HttpClient::new(client, responses);
+            let mut config =
                 SseClientConfig { sse_endpoint: server.url.clone().into(), ..Default::default() };
+            if connection_check {
+                client = client.with_check_origin(reqwest_012::Url::parse(&server.url)?.origin());
+                config.retry_policy =
+                    std::sync::Arc::new(rmcp::transport::common::client_side_sse::NeverRetry);
+            }
             let transport = with_connect_timeout(&server.name, timeout, async move {
-                SseClientTransport::start_with_client(
-                    wire_http::HttpClient::new(client, responses),
-                    config,
-                )
-                .await
-                .map_err(anyhow::Error::from)
+                SseClientTransport::start_with_client(client, config)
+                    .await
+                    .map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to start SSE MCP transport for '{}'", server.name))?;
-            with_connect_timeout(&server.name, timeout, async move {
-                peer_client.serve(transport).await.map_err(anyhow::Error::from)
-            })
+            with_connect_timeout(
+                &server.name,
+                timeout,
+                wire_check::serve(peer_client, transport, connection_check),
+            )
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
@@ -709,7 +758,9 @@ pub(crate) async fn open_server_peer(
                 Some(token) => crate::plugins::plugin_mcp_oauth_headers(server, Some(token))?,
                 None => crate::plugins::plugin_mcp_http_headers(server)?,
             };
-            let client = if let Some(headers) = scoped_headers {
+            let client = if connection_check {
+                connection_check_http_client(&server.headers, timeout)
+            } else if let Some(headers) = scoped_headers {
                 reqwest_012::Client::builder()
                     .default_headers(headers)
                     .connect_timeout(timeout)
@@ -721,13 +772,21 @@ pub(crate) async fn open_server_peer(
                 remote_http_client(&server.headers, timeout)
             }
             .with_context(|| format!("failed to build HTTP MCP client for '{}'", server.name))?;
-            let transport = StreamableHttpClientTransport::with_client(
-                wire_http::HttpClient::new(client, responses),
-                StreamableHttpClientTransportConfig::with_uri(server.url.clone()),
-            );
-            with_connect_timeout(&server.name, timeout, async move {
-                peer_client.serve(transport).await.map_err(anyhow::Error::from)
-            })
+            let mut config = StreamableHttpClientTransportConfig::with_uri(server.url.clone());
+            if connection_check {
+                config.retry_config =
+                    std::sync::Arc::new(rmcp::transport::common::client_side_sse::NeverRetry);
+            }
+            let mut client = wire_http::HttpClient::new(client, responses);
+            if connection_check {
+                client = client.with_check_origin(reqwest_012::Url::parse(&server.url)?.origin());
+            }
+            let transport = StreamableHttpClientTransport::with_client(client, config);
+            with_connect_timeout(
+                &server.name,
+                timeout,
+                wire_check::serve(peer_client, transport, connection_check),
+            )
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }

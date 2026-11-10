@@ -15,6 +15,11 @@ mod catalog_delete;
 mod catalog_update;
 mod credentials;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod connectivity;
+#[cfg(all(test, target_os = "macos"))]
+mod connectivity_tests;
+
 #[cfg(test)]
 mod catalog_create_tests;
 #[cfg(test)]

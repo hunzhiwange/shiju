@@ -12,6 +12,7 @@
 //! - Header sanitization (handled by axum/hyper)
 
 mod agent;
+pub mod agent_apps_diagnostic_executors;
 pub mod agent_apps_diagnostic_jobs;
 pub mod agent_apps_high_availability_store;
 #[cfg(test)]

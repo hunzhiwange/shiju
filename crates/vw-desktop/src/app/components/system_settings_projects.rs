@@ -105,7 +105,13 @@ fn project_row<'a>(
         .padding([12, 14])
         .width(Length::Fill)
         .on_press(Message::Project(ProjectMessage::OpenRecentPressed(path.to_owned())))
-        .style(quiet_button_style);
+        .style(|theme, status| {
+            let panel = settings_panel_style(theme);
+            let mut style = quiet_button_style(theme, status);
+            style.border.radius = panel.border.radius;
+            style.snap = panel.snap;
+            style
+        });
 
     let trigger = icon_btn(
         Icon::DotsThreeVertical,

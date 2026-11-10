@@ -1,14 +1,14 @@
 //! Shared session rows for the code and work sidebars.
 
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use chrono::{Local, TimeZone};
 use iced::widget::tooltip::{Position, Tooltip};
-use iced::widget::{Space, button, column, container, hover, row, svg, text};
-use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
+use iced::widget::{Space, button, column, container, hover, row, stack, svg, text};
+use iced::{Alignment, Background, Border, Color, Element, Length, Theme, border};
 use vw_shared::session::info::{Info, TimeInfo};
 
-use crate::app::components::status_animation::{session_running_dot, session_spinner};
 use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style,
 };
@@ -23,6 +23,27 @@ use super::super::utils::mix_color;
 const ACTION_SIZE: f32 = 22.0;
 const ACTION_GAP: f32 = 2.0;
 const ROW_PADDING: f32 = 8.0;
+const STATUS_SIZE: f32 = 14.0;
+const RUNNING_RING_FRAMES: usize = 16;
+
+// Rotate the arc inside the SVG so its bounds stay fixed across frames.
+static RUNNING_RING_ICONS: LazyLock<[svg::Handle; RUNNING_RING_FRAMES]> = LazyLock::new(|| {
+    std::array::from_fn(|frame| {
+        let angle = frame as f32 * 360.0 / RUNNING_RING_FRAMES as f32;
+        svg::Handle::from_memory(
+            format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                  <g fill="none" stroke="black" stroke-width="1.75">
+                    <circle cx="8" cy="8" r="6.25" opacity="0.23"/>
+                    <circle cx="8" cy="8" r="6.25" stroke-linecap="round"
+                      stroke-dasharray="22 40" transform="rotate({angle} 8 8)"/>
+                  </g>
+                </svg>"#,
+            )
+            .into_bytes(),
+        )
+    })
+});
 const PIN: &[u8] =
     include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../assets/icons/bootstrap/pin.svg"));
 const PINNED: &[u8] = include_bytes!(concat!(
@@ -111,8 +132,7 @@ impl SessionRowStatus {
     fn indicator_width(self) -> f32 {
         match self {
             Self::Idle => 0.0,
-            Self::Queued(_) | Self::Updated => 14.0,
-            Self::Running => 28.0,
+            Self::Running | Self::Queued(_) | Self::Updated => STATUS_SIZE,
         }
     }
 }
@@ -151,6 +171,24 @@ pub(super) fn queued_status_color(breathe: f32) -> Color {
     running_status_color(breathe * 0.75)
 }
 
+fn running_indicator(frame: usize, breathe: f32) -> Element<'static, Message> {
+    let ring = svg(RUNNING_RING_ICONS[frame % RUNNING_RING_FRAMES].clone())
+        .width(STATUS_SIZE)
+        .height(STATUS_SIZE)
+        .style(|theme: &Theme, _| svg::Style {
+            color: Some(if is_dark_theme(theme) {
+                Color::from_rgb8(248, 113, 113)
+            } else {
+                Color::from_rgb8(220, 38, 38)
+            }),
+        });
+    let diameter = 5.0 + 2.0 * breathe;
+    let dot = container(Space::new()).width(diameter).height(diameter).style(move |_| {
+        container::background(running_status_color(breathe)).border(border::rounded(diameter / 2.0))
+    });
+    stack![ring, container(dot).center(STATUS_SIZE)].into()
+}
+
 fn status_icon(id: &str, status: SessionRowStatus, frame: usize) -> Element<'static, Message> {
     let session_phase =
         id.bytes().fold(0u32, |acc, byte| acc.wrapping_mul(16777619).wrapping_add(byte as u32));
@@ -158,21 +196,17 @@ fn status_icon(id: &str, status: SessionRowStatus, frame: usize) -> Element<'sta
     let phase =
         (now / 1.8 + f64::from(session_phase) / f64::from(u32::MAX)) * std::f64::consts::TAU;
     let breathe = ((phase.sin() + 1.0) * 0.5) as f32;
-    let indicator = match status {
-        SessionRowStatus::Running => row![
-            session_spinner(frame, 11.0, Color::from_rgb8(239, 68, 68)),
-            session_running_dot(running_status_color(breathe)),
-        ],
+    let indicator: Element<'static, Message> = match status {
+        SessionRowStatus::Running => running_indicator(frame, breathe),
         SessionRowStatus::Queued(_) => {
-            row![text("●").size(8.5).color(queued_status_color(breathe))]
+            text("●").size(8.5).color(queued_status_color(breathe)).into()
         }
-        SessionRowStatus::Updated => row![text("●").size(11).color(Color::from_rgb8(46, 184, 114))],
-        SessionRowStatus::Idle => row![],
+        SessionRowStatus::Updated => {
+            text("●").size(11).color(Color::from_rgb8(46, 184, 114)).into()
+        }
+        SessionRowStatus::Idle => Space::new().into(),
     };
-    container(indicator.spacing(3).align_y(Alignment::Center))
-        .width(status.indicator_width())
-        .align_x(Alignment::End)
-        .into()
+    container(indicator).width(status.indicator_width()).align_x(Alignment::End).into()
 }
 
 fn action(icon: &'static [u8], label: &str, message: Message) -> Element<'static, Message> {

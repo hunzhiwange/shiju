@@ -1,4 +1,7 @@
-use super::{SessionRowDetails, SessionRowStatus, session_row};
+use super::{
+    RUNNING_RING_FRAMES, STATUS_SIZE, SessionRowDetails, SessionRowStatus, running_indicator,
+    session_row,
+};
 use crate::app::{App, Message};
 use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
 use iced::{Font, Pixels, Size, Theme, mouse};
@@ -53,5 +56,62 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
         let title = draw(&details, SessionRowStatus::Idle);
         assert_ne!(running, preview);
         assert_ne!(preview, title);
+    }
+}
+
+#[tokio::test]
+async fn running_indicator_rotates_around_a_centered_breathing_dot() {
+    use iced::Rectangle;
+    use iced::advanced::renderer::{Renderer as _, Style};
+
+    let mut renderer =
+        iced::Renderer::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia")).await.unwrap();
+    let size = Size::new(STATUS_SIZE, STATUS_SIZE);
+    let viewport = Rectangle::with_size(size);
+    let limits = layout::Limits::new(Size::ZERO, size);
+    const SCALE: u32 = 4;
+    let pixels = STATUS_SIZE as u32 * SCALE;
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut render = |frame, breathe| {
+            let mut indicator = running_indicator(frame, breathe);
+            let mut tree = Tree::new(indicator.as_widget());
+            let node = indicator.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            assert_eq!(node.size(), size);
+            renderer.reset(viewport);
+            indicator.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &Style::default(),
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &viewport,
+            );
+            renderer.screenshot(Size::new(pixels, pixels), SCALE as f32, theme.palette().background)
+        };
+        let contracted = render(0, 0.0);
+        let expanded = render(RUNNING_RING_FRAMES / 2, 1.0);
+        let contrast = |image: &[u8], x, y| {
+            let offset = ((y * pixels + x) * 4) as usize;
+            let background = &image[..3];
+            image[offset..offset + 3]
+                .iter()
+                .zip(background)
+                .map(|(channel, background)| u32::from(channel.abs_diff(*background)))
+                .sum::<u32>()
+        };
+        let center = pixels / 2;
+        let ring_radius = 22;
+        let top = |image: &[u8]| contrast(image, center, center - ring_radius);
+        let bottom = |image: &[u8]| contrast(image, center, center + ring_radius);
+        assert!(top(&contracted) < bottom(&contracted));
+        assert!(top(&expanded) > bottom(&expanded));
+        for image in [&contracted, &expanded] {
+            assert!(contrast(image, center, center) > 0);
+            assert_eq!(contrast(image, center - 16, center), 0);
+        }
+        assert_eq!(contrast(&contracted, center + 12, center), 0);
+        assert!(contrast(&expanded, center + 12, center) > 0);
     }
 }

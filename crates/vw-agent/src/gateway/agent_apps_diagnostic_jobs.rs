@@ -15,6 +15,7 @@ use futures_util::{FutureExt, StreamExt, stream};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use tokio::{sync::Semaphore, time::Instant};
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use vw_agent_apps::apps::lifecycle::operations::{Operation, OperationFailure};
 use vw_api_types::{
@@ -74,6 +75,7 @@ struct Job {
     metadata: JobMetadata,
     results: Option<Vec<DiagnosticResult>>,
     expires: Option<Instant>,
+    cancellation: Option<CancellationToken>,
 }
 
 // The bounded checkpoint retains only the fields needed to query an interrupted job.
@@ -131,6 +133,7 @@ impl DiagnosticJobs {
                         metadata,
                         results: None,
                         expires: Some(restored_at + remaining.min(RETENTION)),
+                        cancellation: None,
                     };
                     anyhow::ensure!(entries.insert(id, job).is_none(), "duplicate diagnostic job");
                 }
@@ -149,7 +152,9 @@ impl DiagnosticJobs {
 
     /// Submit server-prepared work from a blocking thread within the host runtime.
     /// The caller resolves authorized configuration before submission. Probe closures
-    /// start I/O only after obtaining a host permit and return public evidence after resource cleanup.
+    /// start I/O only after obtaining a host permit. Each receives a child token
+    /// to stop I/O and retry waits, and must close connections and reap children
+    /// before returning. The host permit is held until the probe returns.
     pub fn start<F, Fut>(
         &self,
         owner: DiagnosticJobOwner,
@@ -157,7 +162,7 @@ impl DiagnosticJobs {
         probes: Vec<F>,
     ) -> Result<DiagnosticJobIdentity, DiagnosticJobError>
     where
-        F: FnOnce() -> Fut + Send + 'static,
+        F: FnOnce(CancellationToken) -> Fut + Send + 'static,
         Fut: Future<Output = Result<DiagnosticResult, DiagnosticProbeError>> + Send + 'static,
     {
         let project = &owner.scope.project;
@@ -199,9 +204,15 @@ impl DiagnosticJobs {
             progress: DiagnosticProgress { completed: 0, total: Some(probes.len() as u32) },
             expires_at: None,
         };
+        let cancellation = CancellationToken::new();
         entries.insert(
             identity.task_id.clone(),
-            Job { metadata, results: Some(Vec::new()), expires: None },
+            Job {
+                metadata,
+                results: Some(Vec::new()),
+                expires: None,
+                cancellation: Some(cancellation.clone()),
+            },
         );
         if save(&self.0.checkpoint, &entries).is_err() {
             entries.remove(&identity.task_id);
@@ -212,7 +223,7 @@ impl DiagnosticJobs {
         let registry = self.0.clone();
         let task_id = identity.task_id.clone();
         Operation::new()
-            .start_task(async move { registry.run(task_id, kind, probes).await })
+            .start_task(async move { registry.run(task_id, kind, probes, cancellation).await })
             .expect("a fresh operation can always start");
         Ok(identity)
     }
@@ -224,24 +235,53 @@ impl DiagnosticJobs {
         id: &TaskId,
     ) -> Result<DiagnosticJobSnapshot, DiagnosticJobError> {
         let entries = self.0.entries.lock();
-        let job = entries.get(id).ok_or(DiagnosticJobError::NotFound)?;
-        let meta = &job.metadata;
-        if job.expired() || meta.principal != owner.principal || meta.identity.scope != owner.scope
-        {
-            return Err(DiagnosticJobError::NotFound);
+        entries
+            .get(id)
+            .filter(|job| job.visible_to(owner))
+            .map(Job::snapshot)
+            .ok_or(DiagnosticJobError::NotFound)
+    }
+
+    /// Request cancellation for the authorized owner. Cleanup may still be running.
+    pub fn cancel(
+        &self,
+        owner: &DiagnosticJobOwner,
+        id: &TaskId,
+    ) -> Result<DiagnosticJobSnapshot, DiagnosticJobError> {
+        let mut entries = self.0.entries.lock();
+        let job = entries
+            .get_mut(id)
+            .filter(|job| job.visible_to(owner))
+            .ok_or(DiagnosticJobError::NotFound)?;
+        if matches!(
+            job.metadata.state,
+            DiagnosticJobState::Queued {} | DiagnosticJobState::Running {}
+        ) {
+            job.metadata.state = DiagnosticJobState::Cancelling {};
+            job.cancellation.as_ref().expect("active job has a cancellation token").cancel();
         }
-        Ok(DiagnosticJobSnapshot {
-            job: meta.identity.clone(),
-            state: meta.state,
-            progress: meta.progress,
-            results: job.results.clone(),
-        })
+        Ok(job.snapshot())
     }
 }
 
 impl Job {
     fn expired(&self) -> bool {
         self.expires.is_some_and(|expires| Instant::now() >= expires)
+    }
+
+    fn visible_to(&self, owner: &DiagnosticJobOwner) -> bool {
+        !self.expired()
+            && self.metadata.principal == owner.principal
+            && self.metadata.identity.scope == owner.scope
+    }
+
+    fn snapshot(&self) -> DiagnosticJobSnapshot {
+        DiagnosticJobSnapshot {
+            job: self.metadata.identity.clone(),
+            state: self.metadata.state,
+            progress: self.metadata.progress,
+            results: self.results.clone(),
+        }
     }
 }
 
@@ -251,28 +291,38 @@ impl Registry {
         id: TaskId,
         kind: DiagnosticProbeKind,
         probes: Vec<F>,
+        cancellation: CancellationToken,
     ) -> Result<(), OperationFailure>
     where
-        F: FnOnce() -> Fut + Send + 'static,
+        F: FnOnce(CancellationToken) -> Fut + Send + 'static,
         Fut: Future<Output = Result<DiagnosticResult, DiagnosticProbeError>> + Send + 'static,
     {
         let mut results = stream::iter(probes)
             .map(|probe| {
-                let (registry, id) = (&self, &id);
+                let (registry, id, cancellation) = (&self, &id, &cancellation);
                 async move {
-                    let _permit =
-                        registry.permits.acquire().await.expect("diagnostic semaphore stays open");
-                    registry
-                        .entries
-                        .lock()
-                        .get_mut(id)
-                        .expect("active job is retained")
-                        .metadata
-                        .state = DiagnosticJobState::Running {};
-                    AssertUnwindSafe(async { probe().await })
-                        .catch_unwind()
-                        .await
-                        .unwrap_or(Err(DiagnosticProbeError::Failed(INVALID_RESULT)))
+                    let _permit = tokio::select! {
+                        biased;
+                        () = cancellation.cancelled() => return None,
+                        permit = registry.permits.acquire() => {
+                            permit.expect("diagnostic semaphore stays open")
+                        }
+                    };
+                    {
+                        let mut entries = registry.entries.lock();
+                        let job = entries.get_mut(id).expect("active job is retained");
+                        if job.metadata.state == (DiagnosticJobState::Cancelling {}) {
+                            return None;
+                        }
+                        job.metadata.state = DiagnosticJobState::Running {};
+                    }
+                    // Let the worker finish asynchronous cleanup before dropping its permit.
+                    let result =
+                        AssertUnwindSafe(async { probe(cancellation.child_token()).await })
+                            .catch_unwind()
+                            .await
+                            .unwrap_or(Err(DiagnosticProbeError::Failed(INVALID_RESULT)));
+                    Some(result)
                 }
             })
             .buffer_unordered(MAX_CONCURRENT_PROBES);
@@ -280,7 +330,8 @@ impl Registry {
         let mut failure = None;
         let mut cancelled = false;
         let mut checkpoint_failed = false;
-        while let Some(result) = results.next().await {
+        while let Some(probe) = results.next().await {
+            let Some(result) = probe else { continue };
             let result = match result {
                 Ok(result) if valid_result(kind, &result) => Some(result),
                 Ok(_) => {
@@ -322,7 +373,11 @@ impl Registry {
 
     fn record(&self, id: &TaskId, result: Option<DiagnosticResult>) -> bool {
         let mut entries = self.entries.lock();
-        entries.get_mut(id).expect("active job is retained").metadata.progress.completed += 1;
+        let job = entries.get_mut(id).expect("active job is retained");
+        if job.metadata.state == (DiagnosticJobState::Cancelling {}) {
+            return true;
+        }
+        job.metadata.progress.completed += 1;
         let saved = save(&self.checkpoint, &entries).is_ok();
         let job = entries.get_mut(id).expect("active job is retained");
         if saved {
@@ -341,7 +396,13 @@ impl Registry {
     ) -> Result<(), OperationFailure> {
         let mut entries = self.entries.lock();
         let job = entries.get_mut(id).expect("active job is retained");
+        let (state, outcome) = if job.metadata.state == (DiagnosticJobState::Cancelling {}) {
+            (DiagnosticJobState::Cancelled {}, Err(OperationFailure::Cancelled))
+        } else {
+            (state, outcome)
+        };
         job.metadata.state = state;
+        job.cancellation = None;
         job.metadata.expires_at = Some(SystemTime::now() + RETENTION);
         job.expires = Some(Instant::now() + RETENTION);
         if save(&self.checkpoint, &entries).is_err() {

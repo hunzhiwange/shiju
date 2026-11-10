@@ -99,7 +99,7 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
             (0..count)
                 .map(|_| {
                     let (client, url) = (client.clone(), url.clone());
-                    move || async move {
+                    move |_| async move {
                         let response = client.get(url).send().await.unwrap();
                         Ok(result(response.status().as_u16()))
                     }
@@ -160,7 +160,7 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
         .start(
             owner.clone(),
             kind,
-            vec![move || async move { Err(DiagnosticProbeError::Failed(failure)) }],
+            vec![move |_| async move { Err(DiagnosticProbeError::Failed(failure)) }],
         )
         .unwrap();
     observe(&jobs, &owner, &failed.task_id, |job| {
@@ -172,7 +172,7 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
         .start(
             owner.clone(),
             kind,
-            vec![|| async {
+            vec![|_| async {
                 let DiagnosticResult::Reachability { provider_id, mut report } = result(401) else {
                     unreachable!()
                 };
@@ -190,7 +190,7 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
     assert_eq!(oversized.results, Some(vec![]));
 
     let cancelled = jobs
-        .start(owner.clone(), kind, vec![|| async { Err(DiagnosticProbeError::Cancelled) }])
+        .start(owner.clone(), kind, vec![|_| async { Err(DiagnosticProbeError::Cancelled) }])
         .unwrap();
     observe(&jobs, &owner, &cancelled.task_id, |job| job.state == DiagnosticJobState::Cancelled {})
         .await;
@@ -250,7 +250,7 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
                 .start(
                     owner.clone(),
                     kind,
-                    vec![move || async move {
+                    vec![move |_| async move {
                         started.send(()).unwrap();
                         pending::<Result<DiagnosticResult, DiagnosticProbeError>>().await
                     }],
@@ -273,4 +273,178 @@ async fn diagnostic_jobs_progress_and_retention_are_bounded() {
     assert_eq!(interrupted.job, task);
     assert_eq!(interrupted.state, DiagnosticJobState::Interrupted {});
     assert!(interrupted.results.is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn diagnostic_cancel_is_terminal_and_releases_capacity() {
+    use tokio::{
+        io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
+        process::Command,
+        time::timeout,
+    };
+    use tokio_util::sync::CancellationToken;
+
+    let directory = tempfile::tempdir().unwrap();
+    let jobs = DiagnosticJobs::open(directory.path()).unwrap();
+    let owner = owner();
+    let kind = DiagnosticProbeKind::Reachability;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let (entered, mut requests) = mpsc::unbounded_channel();
+    let (closed, mut disconnects) = mpsc::unbounded_channel();
+    let server = tokio::spawn(async move {
+        let mut connections = tokio::task::JoinSet::new();
+        loop {
+            let (socket, _) = listener.accept().await.unwrap();
+            let (entered, closed) = (entered.clone(), closed.clone());
+            connections.spawn(async move {
+                let mut socket = BufReader::new(socket);
+                let mut line = String::new();
+                socket.read_line(&mut line).await.unwrap();
+                let path = line.split_whitespace().nth(1).unwrap().to_owned();
+                loop {
+                    line.clear();
+                    assert_ne!(socket.read_line(&mut line).await.unwrap(), 0);
+                    if line == "\r\n" {
+                        break;
+                    }
+                }
+                entered.send(path.clone()).unwrap();
+                if path == "/active" {
+                    assert_eq!(
+                        socket.read_u8().await.unwrap_err().kind(),
+                        std::io::ErrorKind::UnexpectedEof
+                    );
+                    closed.send(()).unwrap();
+                } else {
+                    socket
+                        .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+                        .await
+                        .unwrap();
+                }
+            });
+        }
+    });
+
+    let client = reqwest::Client::builder().no_proxy().http1_only().build().unwrap();
+    let cleanup = Arc::new(Semaphore::new(0));
+    let (reaped, mut exits) = mpsc::unbounded_channel();
+    let submit = |path: &str, count| {
+        jobs.start(
+            owner.clone(),
+            kind,
+            (0..count)
+                .map(|_| {
+                    let (client, url) = (client.clone(), format!("{url}{path}"));
+                    let (cleanup, reaped) = (cleanup.clone(), reaped.clone());
+                    let holds_resources = path == "/active";
+                    move |cancel: CancellationToken| async move {
+                        if !holds_resources {
+                            let response = client.get(url).send().await.unwrap();
+                            return Ok(result(response.status().as_u16()));
+                        }
+                        let mut child = Command::new("/bin/sleep")
+                            .arg("60")
+                            .kill_on_drop(true)
+                            .spawn()
+                            .unwrap();
+                        tokio::select! {
+                            () = cancel.cancelled() => {}
+                            _ = client.get(url).send() => panic!("fixture should wait for cancellation"),
+                        }
+                        assert!(child.try_wait().unwrap().is_none());
+                        cleanup.acquire().await.unwrap().forget();
+                        child.kill().await.unwrap();
+                        reaped.send(child.wait().await.unwrap()).unwrap();
+                        // A successful result racing with cancellation must be discarded.
+                        Ok(result(204))
+                    }
+                })
+                .collect(),
+        )
+        .unwrap()
+    };
+
+    let active = submit("/active", 4);
+    for _ in 0..3 {
+        assert_eq!(
+            timeout(Duration::from_secs(10), requests.recv()).await.unwrap().unwrap(),
+            "/active"
+        );
+    }
+    let queued = submit("/queued", 1);
+    tokio::task::yield_now().await;
+    assert_eq!(
+        jobs.snapshot(&owner, &queued.task_id).unwrap().state,
+        DiagnosticJobState::Queued {}
+    );
+    let mut foreign = owner.clone();
+    foreign.scope.target_host_id = "other-host".into();
+    assert_eq!(jobs.cancel(&foreign, &active.task_id), Err(DiagnosticJobError::NotFound));
+    foreign = owner.clone();
+    foreign.principal = "other-member".into();
+    assert_eq!(jobs.cancel(&foreign, &queued.task_id), Err(DiagnosticJobError::NotFound));
+
+    assert_ne!(
+        jobs.cancel(&owner, &queued.task_id).unwrap().state,
+        DiagnosticJobState::Queued {},
+        "cancelling a queued job must stop its permit wait"
+    );
+    let queued_done = observe(&jobs, &owner, &queued.task_id, |job| {
+        job.state == DiagnosticJobState::Cancelled {}
+    })
+    .await;
+    assert_eq!(queued_done.progress.completed, 0);
+    assert_eq!(jobs.cancel(&owner, &queued.task_id).unwrap(), queued_done);
+
+    let replacement = submit("/replacement", 1);
+    assert_eq!(
+        jobs.cancel(&owner, &active.task_id).unwrap().state,
+        DiagnosticJobState::Cancelling {}
+    );
+    for _ in 0..3 {
+        timeout(Duration::from_secs(10), disconnects.recv()).await.unwrap().unwrap();
+    }
+    assert_eq!(
+        jobs.cancel(&owner, &active.task_id).unwrap().state,
+        DiagnosticJobState::Cancelling {}
+    );
+    assert_eq!(
+        jobs.snapshot(&owner, &replacement.task_id).unwrap().state,
+        DiagnosticJobState::Queued {}
+    );
+    assert!(requests.try_recv().is_err(), "no queued request can run before cleanup");
+    assert!(exits.try_recv().is_err(), "children are still being held for cleanup");
+
+    cleanup.add_permits(3);
+    for _ in 0..3 {
+        assert!(!timeout(Duration::from_secs(10), exits.recv()).await.unwrap().unwrap().success());
+    }
+    let cancelled = observe(&jobs, &owner, &active.task_id, |job| {
+        job.state == DiagnosticJobState::Cancelled {}
+    })
+    .await;
+    assert_eq!(cancelled.progress.completed, 0);
+    assert_eq!(cancelled.results, Some(vec![]));
+    assert_eq!(jobs.cancel(&owner, &active.task_id).unwrap(), cancelled);
+
+    let finished = observe(&jobs, &owner, &replacement.task_id, |job| {
+        job.state == DiagnosticJobState::Succeeded {}
+    })
+    .await;
+    assert_eq!(finished.results, Some(vec![result(204)]));
+    assert_eq!(jobs.cancel(&owner, &replacement.task_id).unwrap(), finished);
+    assert_eq!(requests.try_recv().unwrap(), "/replacement");
+    assert!(requests.try_recv().is_err(), "cancelled queued probes never send HTTP");
+
+    let checkpoint = std::fs::read(directory.path().join("diagnostics.json")).unwrap();
+    let persisted: Vec<serde_json::Value> = serde_json::from_slice(&checkpoint).unwrap();
+    assert!(persisted.iter().any(|job| {
+        job["identity"]["taskId"] == active.task_id.as_ref()
+            && job["state"]["status"] == "cancelled"
+            && job["progress"]["completed"] == 0
+    }));
+    server.abort();
+    assert!(server.await.unwrap_err().is_cancelled());
 }

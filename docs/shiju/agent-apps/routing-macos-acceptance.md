@@ -132,3 +132,23 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 93–98 生命周期及五应用原生链路 | 待补 | 待验 | 待验 | 待验 |
 | 99–106 桥接、出口、辅助端点与图片 | 待补 | 待验 | 待验 | 待验 |
 | 107–108 桌面实际渲染与覆盖闭环 | 待补 | 待验 | 待验 | 待验 |
+
+## 任务 2　提取共享上游传输入口
+
+2026-11-10，macOS 27.0（26A428），arm64。任务 1 的来源与接口合同由 `ad5f5ca61` 交付。复用上节核对的母任务 1–7 底座，常驻运行时、凭据签发及官方账号路径分别由后续任务验收。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/forwarder.rs`、`proxy/providers/adapter.rs` 与仓库快照及来源映射的 SHA256 一致。来源 handler 先选供应商、组装认证与协议请求，再发送 HTTP。本项仅接入现有 reqwest 传输路径。
+
+- `model_relay::upstream::execute` 接收调用者已经授权的目标、成形请求和取消信号，请求 URL 须精确匹配目标，显式 Host 覆盖被拒绝。沿用现有客户端配置和重定向限制，响应头等待与透传响应体均可取消。
+- `app_routing::SharedTransport::forward` 是内部 Rust 数据面适配入口，接收已授权的目标及上游凭据，保留上游 HTTP 状态和响应元数据供后续协议层处理。该入口独立于 `RelayBinding` 和 `RelayIdentity`。会话仍逐请求校验绑定令牌、项目和租户并解析当前供应商凭据，状态映射与 Chat、Messages、Responses、Gemini 转换留在会话路径。
+- 环回 HTTP/TCP 夹具核对方法、路径、查询、正文和独立的上游认证头，覆盖目标与 Host 不匹配、请求前取消、响应头等待取消、SSE 取消与截断、gzip 解压、错误状态和不跟随重定向。WSL 连接地址见来源映射，Windows、Linux、WSL 范围外且未验证。
+
+实测槽位 **1**。全部 Cargo 命令的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。首次工作区红灯命令退出 101，因会话摘要依赖的 `full_access` 字段不匹配而执行 0 项。后续在 `07edaedc8` 源码快照叠加本任务文件验证，重新编译会话摘要依赖。格式化另用源码副本，仅同步本任务相关格式，保留无关内容。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_002_ -- --nocapture` | 退出 101，执行 2 项，2 项行为断言失败。目标不匹配时实际收到上游 418，响应头等待取消后仍超时。 |
+| 格式化 | `cargo fmt --all` | 退出 0。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_002_ -- --nocapture` | 退出 0，3 项通过，0 项失败。 |
+| 工作区检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 两次因其他任务进入全仓检查窗口而中断，均退出 130。等待串行窗口后复跑退出 0。 |
+| 会话基线 | `cargo test -p vw-agent --lib acp_model_source_relay_ -- --nocapture` | 退出 0，21 项通过，0 项失败，1 项真实 Gemini CLI 用例按既有标记跳过。 |
+
+红灯和绿灯链接阶段均报告既有 macOS `__eh_frame` 大小警告。提交的 Rust 文件与验收副本逐一比较一致。限定提交范围的 `git diff --cached --check` 退出 0，只读 `plan.md` 无差异。槽位 1 的本任务锁已释放，编译缓存保留。状态为 **已完成**，下一步为任务 3 的响应引用隔离。

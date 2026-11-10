@@ -1,4 +1,4 @@
-use super::{RelayBinding, RelayIdentity};
+use super::{RelayBinding, RelayIdentity, upstream::REQUEST_TIMEOUT};
 use axum::{
     Router,
     body::{Body, Bytes, to_bytes},
@@ -20,7 +20,6 @@ use tokio::{
 use tokio_util::sync::CancellationToken;
 
 const BODY_LIMIT: usize = 4 * 1024 * 1024;
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Only protocol and body cross into the provider transport. No client headers, URL or credentials.
 pub struct RelayRequest {
@@ -386,15 +385,6 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         },
     );
     Response::from_parts(parts, Body::from_stream(stream))
-}
-
-/// Common upstream client for relay transports: credentials must never follow redirects.
-pub fn upstream_http_client() -> Result<reqwest::Client, reqwest::Error> {
-    reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(REQUEST_TIMEOUT)
-        .build()
 }
 
 #[cfg(test)]

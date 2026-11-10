@@ -1,8 +1,10 @@
 //! Loopback-only model transport boundary. Never enters the session/tool execution loop.
 mod binding;
 mod server;
+pub(crate) mod upstream;
 pub use binding::{RelayBinding, RelayIdentity};
-pub use server::{RelayBackend, RelayRequest, RelayServer, upstream_http_client};
+pub use server::{RelayBackend, RelayRequest, RelayServer};
+pub use upstream::upstream_http_client;
 #[cfg(test)]
 mod binding_tests;
 #[cfg(test)]

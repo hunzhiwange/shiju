@@ -1,12 +1,11 @@
 //! Provider-only HTTP transport; no agent loop, tool dispatcher, history or usage writes.
-use super::{RelayBackend, RelayIdentity, RelayRequest, chat, upstream_http_client};
+use super::{RelayBackend, RelayIdentity, RelayRequest, chat, upstream};
 use crate::{auth, provider::provider};
 use axum::{
     body::Body,
     http::{StatusCode, header},
     response::Response,
 };
-use futures_util::StreamExt;
 use tokio_util::sync::CancellationToken;
 
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
@@ -16,7 +15,7 @@ pub struct ProviderRelayBackend {
 }
 impl ProviderRelayBackend {
     pub fn new() -> Result<Self, reqwest::Error> {
-        Ok(Self { client: upstream_http_client()?, references: Default::default() })
+        Ok(Self { client: upstream::upstream_http_client()?, references: Default::default() })
     }
 }
 
@@ -357,13 +356,14 @@ impl RelayBackend for ProviderRelayBackend {
                 .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             headers.insert(name, value);
         }
-        let outgoing = self.client.post(url).headers(headers).json(&body);
-        // No automatic retries: a partially emitted completion is never billed or executed twice.
-        let response = tokio::select! {
-            biased;
-            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT),
-            response = outgoing.send() => response.map_err(|_| StatusCode::BAD_GATEWAY)?,
-        };
+        let outgoing = self
+            .client
+            .post(url.clone())
+            .headers(headers)
+            .json(&body)
+            .build()
+            .map_err(|_| StatusCode::BAD_GATEWAY)?;
+        let response = upstream::execute(&self.client, &url, outgoing, &cancel).await?;
         if !response.status().is_success() {
             return Err(StatusCode::BAD_GATEWAY);
         }
@@ -408,16 +408,6 @@ impl RelayBackend for ProviderRelayBackend {
             result = result.header(header::CONTENT_TYPE, content_type);
         }
         // Preserve SSE deltas, parallel call indexes, finish reasons and usage byte-for-byte.
-        let stream = futures_util::stream::unfold(
-            (response.bytes_stream(), cancel),
-            |(mut stream, cancel)| async move {
-                tokio::select! {
-                    biased;
-                    () = cancel.cancelled() => None,
-                    next = stream.next() => next.map(|value| (value.map_err(|_| std::io::Error::other("upstream stream failed")), (stream, cancel))),
-                }
-            },
-        );
-        result.body(Body::from_stream(stream)).map_err(|_| StatusCode::BAD_GATEWAY)
+        result.body(upstream::response_body(response, cancel)).map_err(|_| StatusCode::BAD_GATEWAY)
     }
 }

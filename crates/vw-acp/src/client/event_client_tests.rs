@@ -46,6 +46,7 @@ fn event_client(
         }),
         permission_mode: PermissionMode::ApproveAll,
         non_interactive_permissions: None,
+        permission_confirmation: None,
         on_session_update: None,
         permission_stats: Arc::new(Mutex::new(PermissionStats::default())),
         cancelling_session_ids: Arc::new(Mutex::new(HashSet::new())),
@@ -79,6 +80,7 @@ fn event_client_with_cwd(
         }),
         permission_mode: PermissionMode::ApproveAll,
         non_interactive_permissions: None,
+        permission_confirmation: None,
         on_session_update: None,
         permission_stats: Arc::new(Mutex::new(PermissionStats::default())),
         cancelling_session_ids: Arc::new(Mutex::new(HashSet::new())),
@@ -99,6 +101,29 @@ fn permission_request(session_id: &str) -> acp::RequestPermissionRequest {
             acp::PermissionOption::new("reject", "Reject", acp::PermissionOptionKind::RejectOnce),
         ],
     )
+}
+
+#[tokio::test]
+async fn request_permission_uses_host_confirmation_for_matching_session_only() {
+    let (event_tx, _) = mpsc::unbounded_channel();
+    let mut client = event_client(event_tx, Some("owned-session".into()));
+    client.permission_mode = PermissionMode::ApproveReads;
+    client.permission_confirmation = Some(Arc::new(|title, _| {
+        assert_eq!(title, "write file");
+        Box::pin(async { true })
+    }));
+    let request = permission_request("owned-session");
+    let response = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &response),
+        crate::PermissionDecision::Approved
+    );
+    let request = permission_request("foreign-session");
+    let response = client.request_permission(request.clone()).await.unwrap();
+    assert_eq!(
+        crate::classify_permission_decision(&request, &response),
+        crate::PermissionDecision::Cancelled
+    );
 }
 
 fn unique_temp_dir(name: &str) -> PathBuf {

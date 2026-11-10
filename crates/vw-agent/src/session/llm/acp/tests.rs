@@ -25,6 +25,7 @@ fn cached_client(
     output_tx: Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>,
 ) -> Arc<CachedAcpClient> {
     Arc::new(CachedAcpClient {
+        permission_confirmation: Default::default(),
         tenant: vw_api_types::id::TenantScope::default(),
         runtime_identity: None,
         client,

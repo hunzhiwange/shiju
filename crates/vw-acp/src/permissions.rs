@@ -16,6 +16,26 @@ use crate::permission_prompt::{
 };
 use crate::types::{NonInteractivePermissionPolicy, PermissionMode};
 
+pub type PermissionConfirmation = std::sync::Arc<
+    dyn Fn(String, serde_json::Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>>
+        + Send
+        + Sync,
+>;
+
+pub(crate) fn resolve_host_confirmation(
+    request: &RequestPermissionRequest,
+    approved: bool,
+) -> RequestPermissionResponse {
+    let kind = if approved {
+        PermissionOptionKind::AllowOnce
+    } else {
+        PermissionOptionKind::RejectOnce
+    };
+    pick_option(&request.options, &[kind])
+        .map(|option| selected(option.option_id.to_string()))
+        .unwrap_or_else(cancelled)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PermissionDecision {
     Approved,

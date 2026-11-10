@@ -135,7 +135,7 @@ pub(crate) async fn await_non_cli_approval_decision(
         // 检查审批请求是否仍然存在
         if !mgr.has_non_cli_pending_request(request_id) {
             // 当请求在没有明确解决的情况下消失时，采用安全失败策略，返回拒绝
-            return ApprovalResponse::No;
+            return mgr.take_non_cli_pending_resolution(request_id).unwrap_or(ApprovalResponse::No);
         }
 
         // 检查是否超时

@@ -149,6 +149,9 @@ fn build_cached_acp_client(
     acp_cfg: &config::schema::AcpAgentConfig,
     parsed_options: &ParsedAcpOptions,
 ) -> Arc<CachedAcpClient> {
+    let permission_confirmation =
+        Arc::new(parking_lot::Mutex::new(None::<vw_acp::PermissionConfirmation>));
+    let active_confirmation = permission_confirmation.clone();
     let output_tx =
         Arc::new(parking_lot::Mutex::new(None::<mpsc::UnboundedSender<AcpJsonRpcMessage>>));
     let callback_output_tx = output_tx.clone();
@@ -201,12 +204,22 @@ fn build_cached_acp_client(
     }))
     .with_full_access(parsed_options.full_access)
     .with_non_interactive_permissions(parsed_options.non_interactive_permissions.clone())
+    .with_permission_confirmation(Arc::new(move |title, arguments| {
+        let active = active_confirmation.lock().clone();
+        Box::pin(async move {
+            match active {
+                Some(confirm) => confirm(title, arguments).await,
+                None => false,
+            }
+        })
+    }))
     .with_auth_policy(parsed_options.auth_policy.unwrap_or(AuthPolicy::Skip))
     .with_session_options(parsed_options.session_options.clone())
     .with_acp_output_message_callback(Some(callback))
     .with_verbose(false);
 
     Arc::new(CachedAcpClient {
+        permission_confirmation,
         tenant: crate::session::ui_store::current_tenant_scope(),
         runtime_identity: parsed_options.runtime_identity.clone(),
         client: Arc::new(client),

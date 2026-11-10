@@ -13,7 +13,7 @@
 
 mod agent;
 pub mod api;
-mod approval_state;
+pub(crate) mod approval_state;
 mod bootstrap;
 mod channel_reload;
 mod channel_runtime;

@@ -351,6 +351,8 @@ pub(crate) async fn do_stream_request_acp(
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
         let prompt_guard = cached_client.prompt_lock.lock().await;
+        let _approval =
+            super::approval::PromptApproval::bind(&cached_client.permission_confirmation, session_id);
         let record = if let Some(recovered) = &recovered {
             Ok(recovered.record.clone())
         } else {

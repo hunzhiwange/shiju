@@ -2,7 +2,7 @@
 
 use axum::Json;
 use axum::Router;
-use axum::extract::{Path, Query};
+use axum::extract::{Extension, Path, Query};
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use serde::Deserialize;
@@ -28,11 +28,12 @@ where
 }
 
 async fn permission_list(
+    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<permission_next::Request>>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let rows = with_instance(dir, move || {
+    let rows = crate::session::ui_store::with_tenant_scope(tenant, with_instance(dir, move || {
         Box::pin(async move {
             let manager = approval_state::approval_manager_for_current_instance().await;
             Ok(manager
@@ -41,7 +42,7 @@ async fn permission_list(
                 .map(permission_request_from_pending)
                 .collect::<Vec<_>>())
         })
-    })
+    }))
     .await?;
     Ok(Json(rows))
 }
@@ -53,18 +54,19 @@ struct PermissionReplyRequest {
 }
 
 async fn permission_reply(
+    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
     Path(request_id): Path<String>,
     Json(body): Json<PermissionReplyRequest>,
 ) -> Result<Json<bool>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let applied = with_instance(dir, move || {
+    let applied = crate::session::ui_store::with_tenant_scope(tenant, with_instance(dir, move || {
         Box::pin(async move {
             let manager = approval_state::approval_manager_for_current_instance().await;
             reply_pending_request(&manager, &request_id, body.reply, body.message).await
         })
-    })
+    }))
     .await?;
 
     if !applied {
@@ -77,8 +79,12 @@ fn permission_request_from_pending(
     request: PendingNonCliApprovalRequest,
 ) -> permission_next::Request {
     let mut metadata = Map::new();
+    let acp = request.requested_channel == approval_state::ACP_APPROVAL_CHANNEL;
     if let Some(reason) = request.reason.as_ref().filter(|value| !value.trim().is_empty()) {
         metadata.insert("reason".to_string(), Value::String(reason.clone()));
+        if acp {
+            metadata.insert("title".to_string(), Value::String(reason.clone()));
+        }
     }
     if !request.arguments.is_null() {
         metadata.insert("arguments".to_string(), request.arguments.clone());
@@ -99,7 +105,7 @@ fn permission_request_from_pending(
         permission: request.tool_name.clone(),
         patterns: Vec::new(),
         metadata,
-        always: vec![request.tool_name],
+        always: if acp { Vec::new() } else { vec![request.tool_name] },
         tool: match (request.message_id, request.call_id) {
             (Some(message_id), Some(call_id))
                 if !message_id.trim().is_empty() && !call_id.trim().is_empty() =>
@@ -126,16 +132,13 @@ async fn reply_pending_request(
     };
 
     match reply {
+        permission_next::Reply::Always
+            if request.requested_channel == approval_state::ACP_APPROVAL_CHANNEL =>
+        {
+            return Err(ApiError::bad_request("ACP permission requests allow one-time approval only"));
+        }
         permission_next::Reply::Once => {
-            manager
-                .confirm_non_cli_pending_request(
-                    &request.request_id,
-                    &request.requested_by,
-                    &request.requested_channel,
-                    &request.requested_reply_target,
-                )
-                .map_err(map_pending_approval_error)?;
-            manager.record_non_cli_pending_resolution(&request.request_id, ApprovalResponse::Yes);
+            manager.reply_to_non_cli_pending_once(&request, true).map_err(map_pending_approval_error)?;
         }
         permission_next::Reply::Always => {
             manager
@@ -159,15 +162,7 @@ async fn reply_pending_request(
             manager.record_non_cli_pending_resolution(&request.request_id, ApprovalResponse::Yes);
         }
         permission_next::Reply::Reject => {
-            manager
-                .reject_non_cli_pending_request(
-                    &request.request_id,
-                    &request.requested_by,
-                    &request.requested_channel,
-                    &request.requested_reply_target,
-                )
-                .map_err(map_pending_approval_error)?;
-            manager.record_non_cli_pending_resolution(&request.request_id, ApprovalResponse::No);
+            manager.reply_to_non_cli_pending_once(&request, false).map_err(map_pending_approval_error)?;
         }
     }
 

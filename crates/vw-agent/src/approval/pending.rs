@@ -78,6 +78,7 @@ impl ApprovalManager {
             confirmed_by,
             confirmed_channel,
             confirmed_reply_target,
+            None,
         )
     }
 
@@ -94,7 +95,23 @@ impl ApprovalManager {
             rejected_by,
             rejected_channel,
             rejected_reply_target,
+            None,
         )
+    }
+
+    pub(crate) fn reply_to_non_cli_pending_once(
+        &self,
+        request: &PendingNonCliApprovalRequest,
+        approved: bool,
+    ) -> Result<(), PendingApprovalError> {
+        self.resolve_pending_request(
+            &request.request_id,
+            &request.requested_by,
+            &request.requested_channel,
+            &request.requested_reply_target,
+            Some(if approved { ApprovalResponse::Yes } else { ApprovalResponse::No }),
+        )?;
+        Ok(())
     }
 
     /// 检查指定的待处理非 CLI 请求是否仍存在。
@@ -171,6 +188,7 @@ impl ApprovalManager {
         actor: &str,
         channel: &str,
         reply_target: &str,
+        decision: Option<ApprovalResponse>,
     ) -> Result<PendingNonCliApprovalRequest, PendingApprovalError> {
         let mut pending = self.pending_non_cli_requests.lock();
         prune_expired_pending_requests(&mut pending);
@@ -191,6 +209,9 @@ impl ApprovalManager {
             return Err(PendingApprovalError::RequesterMismatch);
         }
 
+        if let Some(decision) = decision {
+            self.record_non_cli_pending_resolution(request_id, decision);
+        }
         Ok(req)
     }
 }

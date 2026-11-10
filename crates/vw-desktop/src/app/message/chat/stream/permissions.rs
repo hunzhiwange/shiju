@@ -40,7 +40,10 @@ pub(super) fn split_auto_approved_permission_requests(
     let mut remaining_requests = Vec::new();
     let mut auto_approve_request_ids = Vec::new();
     for request in requests {
-        if request.session_id == session_id {
+        if request.session_id == session_id
+            && request.metadata.get("requested_channel").and_then(serde_json::Value::as_str)
+                != Some("desktop-acp")
+        {
             auto_approve_request_ids.push(request.id);
         } else {
             remaining_requests.push(request);

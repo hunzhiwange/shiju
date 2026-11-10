@@ -16,6 +16,12 @@ impl AcpClient {
         self
     }
 
+    /// Delegate interactive permission prompts to the embedding host.
+    pub fn with_permission_confirmation(mut self, confirmation: crate::PermissionConfirmation) -> Self {
+        self.permission_confirmation = Some(confirmation);
+        self
+    }
+
     /// 创建一个新的 ACP 客户端。
     ///
     /// `agent_name` 用于日志和生命周期标识，`config` 描述实际启动命令。
@@ -30,6 +36,7 @@ impl AcpClient {
             permission_mode: PermissionMode::ApproveAll,
             full_access: false,
             non_interactive_permissions: None,
+            permission_confirmation: None,
             desktop_workspace: None,
             auth_credentials: HashMap::new(),
             auth_policy: AuthPolicy::Skip,

@@ -33,6 +33,7 @@ use crate::app::agent::session::message;
 
 use super::types::{Error, StreamEvent, ToolCall};
 
+mod approval;
 mod config;
 mod content;
 pub(crate) mod controls;
@@ -53,6 +54,7 @@ static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> 
 /// 同一个 ACP 代理进程会复用客户端连接；`prompt_lock` 用来串行化同一客户端上的 prompt，
 /// `output_tx` 则在请求运行期间临时接收 ACP JSON-RPC 输出回调。
 struct CachedAcpClient {
+    permission_confirmation: Arc<parking_lot::Mutex<Option<vw_acp::PermissionConfirmation>>>,
     tenant: vw_api_types::id::TenantScope,
     runtime_identity: Option<String>,
     client: Arc<AcpClient>,

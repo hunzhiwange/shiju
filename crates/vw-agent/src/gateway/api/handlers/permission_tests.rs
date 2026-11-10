@@ -272,6 +272,7 @@ async fn permission_list_returns_empty_for_instance_without_pending_requests() {
     approval_state::clear_approval_manager_for_directory(&directory);
 
     let Json(rows) = permission_list(
+        Extension(Default::default()),
         Query(InstanceQuery { directory: Some(directory.clone()) }),
         HeaderMap::new(),
     )
@@ -304,6 +305,7 @@ async fn permission_list_returns_pending_requests_for_resolved_directory() {
     );
 
     let Json(rows) = permission_list(
+        Extension(Default::default()),
         Query(InstanceQuery { directory: Some(directory.clone()) }),
         HeaderMap::new(),
     )
@@ -449,6 +451,7 @@ async fn permission_reply_once_applies_pending_request() {
     );
 
     let Json(applied) = permission_reply(
+        Extension(Default::default()),
         Query(InstanceQuery { directory: Some(directory.clone()) }),
         HeaderMap::new(),
         Path(pending.request_id.clone()),
@@ -476,6 +479,7 @@ async fn permission_reply_missing_request_returns_not_found() {
     approval_state::clear_approval_manager_for_directory(&directory);
 
     let error = permission_reply(
+        Extension(Default::default()),
         Query(InstanceQuery { directory: Some(directory.clone()) }),
         HeaderMap::new(),
         Path("apr-missing".to_string()),

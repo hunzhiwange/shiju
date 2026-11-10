@@ -9,8 +9,13 @@ use std::sync::{Arc, LazyLock, Mutex};
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config;
 use crate::app::agent::project::instance;
+use crate::session::ui_store::current_tenant_scope;
+use vw_api_types::id::TenantScope;
 
-static APPROVAL_MANAGERS: LazyLock<Mutex<HashMap<String, Arc<ApprovalManager>>>> =
+pub(crate) const ACP_APPROVAL_CHANNEL: &str = "desktop-acp";
+
+type ApprovalKey = (TenantScope, String);
+static APPROVAL_MANAGERS: LazyLock<Mutex<HashMap<ApprovalKey, Arc<ApprovalManager>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// 返回当前项目实例对应的审批管理器。
@@ -22,11 +27,11 @@ static APPROVAL_MANAGERS: LazyLock<Mutex<HashMap<String, Arc<ApprovalManager>>>>
 ///
 /// 返回可共享的审批管理器引用。
 pub(crate) async fn approval_manager_for_current_instance() -> Arc<ApprovalManager> {
-    let directory = normalize_directory_key(&instance::directory());
+    let key = (current_tenant_scope(), normalize_directory_key(&instance::directory()));
 
     // 快速路径只读取缓存；锁中毒时继续走重建路径，避免一次 panic 永久阻断审批。
     if let Ok(lock) = APPROVAL_MANAGERS.lock()
-        && let Some(existing) = lock.get(&directory)
+        && let Some(existing) = lock.get(&key)
     {
         return existing.clone();
     }
@@ -36,7 +41,7 @@ pub(crate) async fn approval_manager_for_current_instance() -> Arc<ApprovalManag
 
     // 插入时再次检查 entry，防止并发请求为同一目录创建出多个长期实例。
     let mut lock = APPROVAL_MANAGERS.lock().unwrap_or_else(|error| error.into_inner());
-    lock.entry(directory).or_insert_with(|| manager.clone()).clone()
+    lock.entry(key).or_insert_with(|| manager.clone()).clone()
 }
 
 /// 清理指定目录的审批管理器缓存。
@@ -50,7 +55,8 @@ pub(crate) async fn approval_manager_for_current_instance() -> Arc<ApprovalManag
 /// 该函数用于测试和配置刷新路径；如果缓存锁不可用，会直接跳过清理。
 pub(crate) fn clear_approval_manager_for_directory(directory: &str) {
     if let Ok(mut lock) = APPROVAL_MANAGERS.lock() {
-        lock.remove(&normalize_directory_key(directory));
+        let directory = normalize_directory_key(directory);
+        lock.retain(|(_, key), _| key != &directory);
     }
 }
 

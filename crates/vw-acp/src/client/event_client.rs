@@ -21,6 +21,22 @@ impl AcpClient {
         };
         let actor_state = Arc::downgrade(&self.actor_state);
         let on_update = self.on_session_update.clone();
+        let confirm_execute = self.permission_confirmation.clone().map(|confirm| {
+            let policy = self.non_interactive_permissions;
+            let handler: crate::terminal::TerminalConfirmExecuteFn = Arc::new(move |command| {
+                let confirm = confirm.clone();
+                Box::pin(async move {
+                    match policy {
+                        None => Ok(confirm("Terminal".into(), json!({"command": command})).await),
+                        Some(NonInteractivePermissionPolicy::Deny) => Ok(false),
+                        Some(NonInteractivePermissionPolicy::Fail) => Err(Box::new(
+                            crate::errors::PermissionPromptUnavailableError::new(),
+                        ) as crate::errors::ErrorSource),
+                    }
+                })
+            });
+            handler
+        });
         let on_session_update: SessionUpdateCallback = Arc::new(move |notification| {
             if let Some(state) = actor_state.upgrade() {
                 let mut state = state.lock();
@@ -100,12 +116,13 @@ impl AcpClient {
                 permission_mode,
                 non_interactive_permissions: self.non_interactive_permissions,
                 on_operation,
-                confirm_execute: None,
+                confirm_execute,
                 kill_grace_ms: None,
             })
             .with_workspace_auto_execute(self.desktop_workspace.is_none()),
             permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
+            permission_confirmation: self.permission_confirmation.clone(),
             on_session_update: Some(on_session_update),
             permission_stats: self.permission_stats.clone(),
             cancelling_session_ids: self.cancelling_session_ids.clone(),
@@ -124,6 +141,12 @@ impl acp::Client for AcpEventClient {
             return Ok(cancelled_permission_response());
         }
         if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
+            self.permission_stats.lock().cancelled += 1;
+            return Ok(cancelled_permission_response());
+        }
+        if self.permission_confirmation.is_some()
+            && self.expected_session_id.lock().as_deref() != Some(args.session_id.0.as_ref())
+        {
             self.permission_stats.lock().cancelled += 1;
             return Ok(cancelled_permission_response());
         }
@@ -166,8 +189,30 @@ impl acp::Client for AcpEventClient {
         } else {
             resolve_permission_request
         };
-        let response = resolve(&args, self.permission_mode, self.non_interactive_permissions)
-            .map_err(acp::Error::into_internal_error)?;
+        let response = if let Some(confirm) = &self.permission_confirmation
+            && self.non_interactive_permissions.is_none()
+        {
+            match resolve(&args, self.permission_mode, Some(NonInteractivePermissionPolicy::Fail)) {
+                Ok(response) => response,
+                Err(_) => {
+                    let has_allow_once = args.options.iter().any(|option| {
+                        option.kind == acp::PermissionOptionKind::AllowOnce
+                    });
+                    let approved = has_allow_once && confirm(
+                        args.tool_call.fields.title.clone().unwrap_or_else(|| "ACP tool".into()),
+                        args.tool_call.fields.raw_input.clone().unwrap_or(Value::Null),
+                    ).await;
+                    if self.cancelling_session_ids.lock().contains(args.session_id.0.as_ref()) {
+                        cancelled_permission_response()
+                    } else {
+                        crate::permissions::resolve_host_confirmation(&args, approved)
+                    }
+                }
+            }
+        } else {
+            resolve(&args, self.permission_mode, self.non_interactive_permissions)
+                .map_err(acp::Error::into_internal_error)?
+        };
         match classify_permission_decision(&args, &response) {
             PermissionDecision::Approved => self.permission_stats.lock().approved += 1,
             PermissionDecision::Denied => self.permission_stats.lock().denied += 1,
@@ -212,7 +257,10 @@ impl acp::Client for AcpEventClient {
         &self,
         args: acp::CreateTerminalRequest,
     ) -> acp::Result<acp::CreateTerminalResponse> {
-        if self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id) {
+        if (self.desktop_workspace.is_some() && !self.owns_active_prompt(&args.session_id))
+            || (self.permission_confirmation.is_some()
+                && self.expected_session_id.lock().as_deref() != Some(args.session_id.0.as_ref()))
+        {
             return Err(
                 acp::Error::invalid_params().data("Terminal request has no matching host session")
             );

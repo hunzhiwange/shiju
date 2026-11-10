@@ -190,6 +190,7 @@ pub struct AcpClient {
     permission_mode: PermissionMode,
     full_access: bool,
     non_interactive_permissions: Option<NonInteractivePermissionPolicy>,
+    permission_confirmation: Option<crate::PermissionConfirmation>,
     auth_credentials: HashMap<String, String>,
     auth_policy: AuthPolicy,
     session_options: Option<AcpSessionOptions>,

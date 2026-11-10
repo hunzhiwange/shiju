@@ -1,4 +1,6 @@
-//! Desktop catalog mapping owner, independent of proxy runtime/catalog generation.
+//! Desktop model mapping owner, independent of proxy transport and config transactions.
+pub mod catalog;
+
 use serde_json::Value;
 use vw_api_types::app_providers::desktop_mapping::*;
 pub fn defaults() -> Vec<DesktopDefaultRoute> {
@@ -28,19 +30,24 @@ fn model_id(value: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'/' | b':'))
 }
-fn claude_safe(value: &str) -> bool {
-    if !model_id(value) {
-        return false;
+const ROLES: [&str; 4] = ["sonnet", "opus", "fable", "haiku"];
+
+fn claude_role(value: &str) -> Option<(&'static str, &str)> {
+    fn strip_ascii_prefix<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
+        let head = value.get(..prefix.len())?;
+        head.eq_ignore_ascii_case(prefix).then(|| &value[prefix.len()..])
     }
-    let lower = value.to_ascii_lowercase();
-    let Some(tail) =
-        lower.strip_prefix("anthropic/claude-").or_else(|| lower.strip_prefix("claude-"))
-    else {
-        return false;
-    };
-    ["sonnet-", "opus-", "haiku-", "fable-"]
-        .iter()
-        .any(|p| tail.strip_prefix(p).is_some_and(|s| !s.is_empty()))
+
+    let id = strip_ascii_prefix(value, "anthropic/").unwrap_or(value);
+    let (role, version) = strip_ascii_prefix(id, "claude-")?.split_once('-')?;
+    ROLES
+        .into_iter()
+        .find(|known| !version.is_empty() && known.eq_ignore_ascii_case(role))
+        .map(|known| (known, version))
+}
+
+fn claude_safe(value: &str) -> bool {
+    model_id(value) && claude_role(value).is_some()
 }
 pub fn validate(mapping: &DesktopMapping) -> Result<(), String> {
     if mapping.routes.len() > 200

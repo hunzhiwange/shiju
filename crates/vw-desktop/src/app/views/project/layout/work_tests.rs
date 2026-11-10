@@ -421,3 +421,121 @@ async fn terminal_modes_work_fullscreen_temporarily_hides_terminal_and_restores_
         )
     );
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_fullscreen_toolbar_round_trips_workspace_layout() {
+    use crate::app::state::WorkspaceMode;
+
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = App::new().0;
+    app.terminal = crate::app::TerminalState::blank_with_settings(
+        true,
+        crate::app::Shell::Bash,
+        crate::app::TerminalTheme::System,
+        "monospace".into(),
+        15.0,
+        240.0,
+    );
+    app.terminal
+        .add_terminal_with_command(
+            "中文终端标签".repeat(20),
+            Some(std::env::temp_dir()),
+            "exec cat".into(),
+        )
+        .expect("test PTY");
+
+    let size = Size::new(240.0, 500.0);
+    for theme in [Theme::Light, Theme::Dark] {
+        for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+            app.app_theme = theme.clone();
+            app.workspace_mode = mode;
+            app.show_diff = true;
+            app.work_resources_visible = true;
+
+            for _ in 0..2 {
+                let enter = terminal_toolbar_frame(&app, &mut renderer, size, 268, true)
+                    .expect("docked toolbar should emit a terminal fullscreen message");
+                let _ = app.update(enter);
+                let restore = terminal_toolbar_frame(&app, &mut renderer, size, 0, true)
+                    .expect("fullscreen toolbar should emit a terminal restore message");
+                let _ = app.update(restore);
+                terminal_toolbar_frame(&app, &mut renderer, size, 268, false);
+                assert_eq!(app.terminal.height, 240.0);
+                assert!(app.show_diff && app.work_resources_visible);
+            }
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn terminal_toolbar_frame(
+    app: &App,
+    renderer: &mut iced::Renderer,
+    size: Size,
+    header_y: i32,
+    click: bool,
+) -> Option<Message> {
+    use iced::mouse::{Button, Cursor, Event as MouseEvent, ScrollDelta};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut view = super::super::view(app);
+    let mut tree = Tree::new(view.as_widget());
+    let node =
+        view.as_widget_mut().layout(&mut tree, renderer, &layout::Limits::new(Size::ZERO, size));
+    let mut signature = Vec::new();
+    collect_layout(Layout::new(&node), 0, &mut signature);
+    let expected_content = (size.width as i32, size.height as i32 - header_y - 34);
+    assert!(
+        signature
+            .iter()
+            .any(|&(_, x, y, w, h)| { x == 0 && y == header_y + 34 && (w, h) == expected_content }),
+        "expected full-width terminal content {expected_content:?} below header at y={header_y}"
+    );
+    eprintln!(
+        "{:?} / {:?}: terminal header y={header_y}, content={expected_content:?}",
+        app.workspace_mode, app.app_theme
+    );
+
+    let mut ui = UserInterface::build(view, size, Cache::new(), renderer);
+    let style = renderer::Style { text_color: app.app_theme.palette().text };
+    ui.draw(renderer, &app.app_theme, &style, Cursor::Unavailable);
+    let pixel_size = Size::new(size.width as u32, size.height as u32);
+    let pixels = renderer.screenshot(pixel_size, 1.0, app.app_theme.palette().background);
+    assert_eq!(pixels.len(), (pixel_size.width * pixel_size.height * 4) as usize);
+
+    if !click {
+        return None;
+    }
+    let mut clipboard = clipboard::Null;
+    let mut messages = Vec::new();
+    // Scroll the overflowing tab strip before clicking the fixed right-hand control.
+    let (_, scroll_status) = ui.update(
+        &[Event::Mouse(MouseEvent::WheelScrolled {
+            delta: ScrollDelta::Pixels { x: -200.0, y: 0.0 },
+        })],
+        Cursor::Available(Point::new(80.0, header_y as f32 + 12.0)),
+        renderer,
+        &mut clipboard,
+        &mut messages,
+    );
+    assert_eq!(scroll_status, [iced::event::Status::Captured]);
+    let cursor = Cursor::Available(Point::new(size.width - 16.0, header_y as f32 + 17.0));
+    ui.draw(renderer, &app.app_theme, &style, cursor);
+    let _ = ui.update(
+        &[
+            Event::Mouse(MouseEvent::ButtonPressed(Button::Left)),
+            Event::Mouse(MouseEvent::ButtonReleased(Button::Left)),
+        ],
+        cursor,
+        renderer,
+        &mut clipboard,
+        &mut messages,
+    );
+    messages.into_iter().find(|message| {
+        matches!(message, Message::Terminal(crate::app::message::TerminalMessage::ToggleFullscreen))
+    })
+}

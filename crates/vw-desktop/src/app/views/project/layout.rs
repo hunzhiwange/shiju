@@ -64,6 +64,10 @@ pub fn build_base_layout(
     content_pad: f32,
     chat_content_pad: f32,
 ) -> Element<'_, Message> {
+    if app.terminal.is_fullscreen {
+        return bottom::fullscreen_terminal(app);
+    }
+
     let (left_sidebar, left_resize_handle) = sidebar_group(
         app,
         settings_panel_width,

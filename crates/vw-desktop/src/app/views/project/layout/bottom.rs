@@ -104,6 +104,14 @@ pub fn bottom_panel(app: &App) -> Element<'_, Message> {
     }
 }
 
+pub(super) fn fullscreen_terminal(app: &App) -> Element<'_, Message> {
+    container(terminal_panel::view(app))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(panel_style_no_border)
+        .into()
+}
+
 fn terminal_content_height(terminal_h: f32, handle_h: f32) -> f32 {
     (terminal_h.max(0.0) - handle_h.max(0.0)).max(0.0)
 }

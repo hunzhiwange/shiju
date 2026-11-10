@@ -13,6 +13,8 @@ use iced::widget::{Space, button, column, container, row, scrollable, svg, text,
 use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use crate::app::assets::{self, Icon};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::components::input_panel::styles::tooltip_dark_style;
 use crate::app::components::overlays::point_below::PointBelowOverlay;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
@@ -64,6 +66,48 @@ pub(super) fn terminal_surface_style(theme: &Theme) -> iced::widget::container::
 pub(super) fn terminal_content_padding(tab_id: u64) -> iced::Padding {
     let left_offset = (tab_id % 2) as f32 * 0.01;
     iced::Padding { top: 8.0, right: 8.0, bottom: 4.0, left: 8.0 + left_offset }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn fullscreen_button(app: &App, header_height: f32) -> Element<'_, Message> {
+    use iced::widget::tooltip::{Position, Tooltip};
+
+    let i18n = I18n::new(app.desktop_locale);
+    let (icon, label) = if app.terminal.is_fullscreen {
+        (Icon::FullscreenExit, i18n.__("退出全屏"))
+    } else {
+        (Icon::Fullscreen, i18n.__("全屏"))
+    };
+    let icon = svg::Svg::new(assets::get_icon(icon))
+        .width(14.0)
+        .height(14.0)
+        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
+    let control = button(icon)
+        .padding(5)
+        .style(toolbar_button_style)
+        .on_press(Message::Terminal(message::TerminalMessage::ToggleFullscreen));
+    let tooltip = Tooltip::new(
+        control,
+        container(text(label).size(12)).padding([6, 8]).style(tooltip_dark_style),
+        Position::Bottom,
+    )
+    .gap(6);
+
+    container(tooltip).center_x(32.0).center_y(header_height).into()
+}
+
+fn toolbar_button_style(theme: &Theme, status: button::Status) -> button::Style {
+    let background = if status == button::Status::Hovered {
+        theme.extended_palette().background.strong.color.scale_alpha(0.2)
+    } else {
+        Color::TRANSPARENT
+    };
+    button::Style {
+        background: Some(Background::Color(background)),
+        border: Border { radius: 12.0.into(), ..Default::default() },
+        text_color: theme.palette().text,
+        ..Default::default()
+    }
 }
 
 /// 渲染终端面板视图
@@ -441,21 +485,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .height(Length::Fixed(24.0))
     .width(Length::Fixed(24.0))
     .padding([0, 0])
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        // 悬停时显示背景色
-        let bg = if status == iced::widget::button::Status::Hovered {
-            palette.background.strong.color.scale_alpha(0.2)
-        } else {
-            Color::TRANSPARENT
-        };
-        iced::widget::button::Style {
-            background: Some(Background::Color(bg)),
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 12.0.into() },
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
-    });
+    .style(toolbar_button_style);
 
     let hide_btn = button(
         container(
@@ -475,20 +505,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .height(Length::Fixed(24.0))
     .width(Length::Fixed(24.0))
     .padding([0, 0])
-    .style(|theme: &Theme, status| {
-        let palette = theme.extended_palette();
-        let bg = if status == iced::widget::button::Status::Hovered {
-            palette.background.strong.color.scale_alpha(0.2)
-        } else {
-            Color::TRANSPARENT
-        };
-        iced::widget::button::Style {
-            background: Some(Background::Color(bg)),
-            border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 12.0.into() },
-            text_color: theme.palette().text,
-            ..Default::default()
-        }
-    });
+    .style(toolbar_button_style);
 
     // 将添加按钮添加到标签页行
     tabs_row = tabs_row.push(
@@ -573,10 +590,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let tabs_container = container(tabs_scroll).width(Length::Fill).padding([0, 0]);
 
     // 构建头部容器，包含标签页栏，使用背景色
-    let header = container(row![tabs_container].height(Length::Fixed(tab_header_height)))
-        .width(Length::Fill)
-        .padding([0, 0])
-        .style(terminal_surface_style);
+    let toolbar = row![tabs_container].height(Length::Fixed(tab_header_height));
+    #[cfg(not(target_arch = "wasm32"))]
+    let toolbar = toolbar.push(fullscreen_button(app, tab_header_height));
+    let header =
+        container(toolbar).width(Length::Fill).padding([0, 0]).style(terminal_surface_style);
 
     // ==================== 组装主内容区域 ====================
 

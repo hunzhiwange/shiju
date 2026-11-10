@@ -437,8 +437,9 @@ impl App {
             .get("file_manager_show_changes")
             .and_then(|v| v.as_bool())
             .unwrap_or(self.file_manager_show_changes);
-        self.terminal.is_visible =
-            cfg.get("show_terminal").and_then(|v| v.as_bool()).unwrap_or(self.terminal.is_visible);
+        if let Some(visible) = cfg.get("show_terminal").and_then(|v| v.as_bool()) {
+            self.terminal.set_visible(visible);
+        }
         if let Some(target) = cfg
             .get("open_external_app")
             .and_then(|v| v.as_str())

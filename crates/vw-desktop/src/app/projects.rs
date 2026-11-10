@@ -323,6 +323,8 @@ impl App {
         let terminal_font_size = self.terminal.font_size;
         let terminal_height = self.terminal.height;
 
+        self.terminal.set_fullscreen(false);
+
         // 如果存在前一个项目，保存其终端状态到映射表
         if let Some(prev_path) = previous_project_path {
             let placeholder = crate::app::TerminalState::blank_with_settings(

@@ -296,7 +296,7 @@ fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
         screen: app.screen,
         workspace_mode: app.workspace_mode,
         resource_mode: app.work_resource_mode,
-        resources_visible: app.work_resources_visible,
+        resources_visible: app.work_resources_visible && !app.terminal.is_fullscreen,
         system_settings_open: app.show_system_settings,
         chat_fullscreen: app.work_chat_fullscreen,
         chat_half_fullscreen: app.work_chat_half_fullscreen,
@@ -314,7 +314,13 @@ fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
     let rail_width =
         if app.work_sidebar_collapsed { crate::app::state::WORK_SIDEBAR_RAIL_WIDTH } else { 0.0 };
     let work_sidebar_width = app.work_sidebar_width + rail_width + WORK_RESIZE_HANDLE_WIDTH;
-    let bounds = work_browser_bounds(WorkBrowserLayout {
+    // The browser is a separate native window, so it must stop above the docked terminal.
+    let dock_height = if app.terminal.is_visible && !app.work_resource_fullscreen {
+        app.terminal.height.max(0.0)
+    } else {
+        0.0
+    };
+    let Some(bounds) = work_browser_bounds(WorkBrowserLayout {
         window_x: app.window_position.0,
         window_y: app.window_position.1,
         window_width: app.window_size.0,
@@ -324,12 +330,16 @@ fn sync_lifecycle_result(app: &mut App) -> Result<bool, String> {
         top_bar_height: crate::app::components::top_bar::TOP_BAR_HEIGHT,
         resource_header_height: BROWSER_CONTENT_TOP_INSET,
         horizontal_inset: BROWSER_HORIZONTAL_INSET,
-        bottom_inset: BROWSER_BOTTOM_INSET,
+        bottom_inset: BROWSER_BOTTOM_INSET + dock_height,
         split_ratio: app.work_split_ratio,
         resource_fullscreen: app.work_resource_fullscreen,
         resource_half_fullscreen: app.work_resource_half_fullscreen,
-    })
-    .ok_or_else(|| "当前窗口尺寸不足以停靠内置浏览器".to_string())?;
+    }) else {
+        if app.work_browser_controller.has_running_child() {
+            app.work_browser_controller.set_visible(false)?;
+        }
+        return Err("当前窗口尺寸不足以停靠内置浏览器".into());
+    };
     let target = normalize_navigation_url(&app.work_browser.address)?;
     let started = app.work_browser_controller.ensure_started(&target, bounds)?;
     app.work_browser_controller.sync_bounds(bounds)?;

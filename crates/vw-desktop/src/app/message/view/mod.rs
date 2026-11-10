@@ -654,6 +654,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::WorkBrowserRuntimeTick
     ) || matches!(
         &message,
+        ViewMessage::ToggleTerminalPanel if app.workspace_mode == crate::app::state::WorkspaceMode::Work
+    ) || matches!(
+        &message,
         ViewMessage::PointerMoved(_, _)
             if app.dragging_work_sidebar || app.dragging_work_split
     ) || matches!(

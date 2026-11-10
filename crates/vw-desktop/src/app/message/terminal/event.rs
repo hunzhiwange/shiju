@@ -117,7 +117,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
 
                     // 如果所有终端标签页都已关闭，隐藏终端面板
                     if app.terminal.tabs.is_empty() {
-                        app.terminal.is_visible = false;
+                        app.terminal.set_visible(false);
                     }
                     return super::tabs::reap_retired_task(app);
                 }
@@ -130,9 +130,13 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         #[cfg(target_arch = "wasm32")]
         TerminalMessage::Event(_) => Task::none(),
 
-        // 处理终端面板拖拽开始事件
-        // 用户开始拖拽终端面板边缘以调整其高度
-        TerminalMessage::DragStarted => {
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::ToggleFullscreen if app.terminal.is_visible => {
+            app.terminal.set_fullscreen(!app.terminal.is_fullscreen);
+            focus_active_terminal(app)
+        }
+        // 用户开始拖拽停靠终端的边缘以调整高度。
+        TerminalMessage::DragStarted if !app.terminal.is_fullscreen => {
             let cursor_y = app.cursor_position.y;
             apply_drag_started(&mut app.terminal, cursor_y);
 

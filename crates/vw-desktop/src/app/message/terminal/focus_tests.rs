@@ -8,7 +8,10 @@ use iced::advanced::{Layout, Shell, layout, widget::Tree};
 use iced::{Element, Event, Font, Length, Pixels, Point, Rectangle, Size, Task};
 use iced_runtime::futures::futures::StreamExt;
 
-fn view(app: &App) -> Element<'_, Message> {
+fn view(app: &App, workspace: bool) -> Element<'_, Message> {
+    if workspace {
+        return crate::app::views::project::view(app);
+    }
     iced::widget::column![
         iced::widget::container(
             app.preview_tabs[0]
@@ -25,6 +28,7 @@ struct Harness {
     app: App,
     renderer: iced::Renderer,
     tree: Tree,
+    workspace: bool,
 }
 impl Harness {
     async fn new() -> Self {
@@ -62,14 +66,14 @@ impl Harness {
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await
                 .expect("renderer");
-        let tree = Tree::new(view(&app).as_widget());
-        Self { app, renderer, tree }
+        let tree = Tree::new(view(&app, false).as_widget());
+        Self { app, renderer, tree, workspace: false }
     }
     async fn task(&mut self, task: Task<Message>) {
         if let Some(mut stream) = iced_runtime::task::into_stream(task) {
             while let Some(action) = stream.next().await {
                 if let iced_runtime::Action::Widget(mut operation) = action {
-                    let mut element = view(&self.app);
+                    let mut element = view(&self.app, self.workspace);
                     self.tree.diff(element.as_widget());
                     let node = element.as_widget_mut().layout(
                         &mut self.tree,
@@ -96,7 +100,7 @@ impl Harness {
         position: Point,
     ) -> (Vec<Message>, iced::advanced::input_method::InputMethod) {
         let mut messages = Vec::new();
-        let mut element = view(&self.app);
+        let mut element = view(&self.app, self.workspace);
         self.tree.diff(element.as_widget());
         let size = Size::new(800.0, 500.0);
         let node = element.as_widget_mut().layout(
@@ -153,24 +157,25 @@ impl Harness {
         .await;
     }
     async fn key(&mut self) -> Vec<Vec<u8>> {
-        let key = iced::keyboard::Key::Character("x".into());
-        self.event(
-            Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                modified_key: key.clone(),
-                key,
-                physical_key: iced::keyboard::key::Physical::Unidentified(
-                    iced::keyboard::key::NativeCode::Unidentified,
-                ),
-                location: iced::keyboard::Location::Standard,
-                modifiers: iced::keyboard::Modifiers::empty(),
-                text: Some("x".into()),
-                repeat: false,
-            }),
-            Point::new(120.0, 360.0),
-        )
-        .await
+        self.event(character_key("x"), Point::new(120.0, 360.0)).await
     }
 }
+
+fn character_key(text: &'static str) -> Event {
+    let key = iced::keyboard::Key::Character(text.into());
+    Event::Keyboard(iced::keyboard::Event::KeyPressed {
+        modified_key: key.clone(),
+        key,
+        physical_key: iced::keyboard::key::Physical::Unidentified(
+            iced::keyboard::key::NativeCode::Unidentified,
+        ),
+        location: iced::keyboard::Location::Standard,
+        modifiers: iced::keyboard::Modifiers::empty(),
+        text: Some(text.into()),
+        repeat: false,
+    })
+}
+
 impl Drop for Harness {
     fn drop(&mut self) {
         self.app.preview_tabs[0].editor.inner.lose_focus();
@@ -210,7 +215,7 @@ async fn terminal_context_menu_preserves_selection_and_appends_to_chat_draft() {
     assert_eq!(h.app.terminal.tabs[0].term.selected_text(), selection);
     {
         let mut ui = UserInterface::build(
-            view(&h.app),
+            view(&h.app, h.workspace),
             Size::new(800.0, 500.0),
             Cache::new(),
             &mut h.renderer,
@@ -409,24 +414,6 @@ async fn terminal_ime_writes_committed_utf8_once_to_the_pty() {
     h.click(point).await;
     let id = h.app.terminal.active_id.unwrap();
 
-    async fn wait_for_line(h: &mut Harness, id: u64, expected: &str) {
-        tokio::time::timeout(std::time::Duration::from_secs(5), async {
-            loop {
-                h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
-                    id,
-                    iced_term::BackendCommand::Resize(None, None),
-                )))
-                .await;
-                if h.app.terminal.tabs[0].term.text().iter().any(|line| line == expected) {
-                    break;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-            }
-        })
-        .await
-        .expect("PTY should read the committed input");
-    }
-
     wait_for_line(&mut h, id, "IME-READY").await;
     for event in [
         Ime::Opened,
@@ -448,4 +435,136 @@ async fn terminal_ime_writes_committed_utf8_once_to_the_pty() {
         .await;
     }
     wait_for_line(&mut h, id, "IME:中文").await;
+}
+
+async fn wait_for_line(h: &mut Harness, id: u64, expected: &str) {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
+                id,
+                iced_term::BackendCommand::Resize(None, None),
+            )))
+            .await;
+            if h.app.terminal.tabs[0].term.text().iter().any(|line| line == expected) {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("PTY should read the committed input");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_fullscreen_preserves_pty_focus_and_output() {
+    let mut h = Harness::with_command("stty -echo -icanon; printf 'READY:'; exec cat").await;
+    h.workspace = true;
+    let id = h.app.terminal.active_id.unwrap();
+    let widget_id = h.app.terminal.tabs[0].term.widget_id().clone();
+    wait_for_line(&mut h, id, "READY:").await;
+
+    for (fullscreen, toolbar_y, key, output) in
+        [(true, 305.0, "x", "READY:x"), (false, 17.0, "y", "READY:xy")]
+    {
+        let point = Point::new(784.0, toolbar_y);
+        let (messages, _) = h.dispatch(
+            Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
+            point,
+        );
+        for message in messages {
+            let _ = h.app.update(message);
+        }
+        let (messages, _) = h.dispatch(
+            Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)),
+            point,
+        );
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::Terminal(TerminalMessage::ToggleFullscreen)]
+        ));
+        for message in messages {
+            let task = h.app.update(message);
+            h.task(task).await;
+        }
+
+        assert_eq!(h.app.terminal.is_fullscreen, fullscreen);
+        assert_eq!(h.app.terminal.active_id, Some(id));
+        assert_eq!(h.app.terminal.tabs[0].term.widget_id(), &widget_id);
+        let (messages, _) = h.dispatch(character_key(key), Point::new(120.0, 360.0));
+        assert!(messages.iter().any(|message| matches!(
+            message,
+            Message::Terminal(TerminalMessage::Event(iced_term::Event::BackendCall(
+                event_id,
+                iced_term::BackendCommand::Write(bytes)
+            ))) if *event_id == id && bytes == key.as_bytes()
+        )));
+        for message in messages {
+            let _ = h.app.update(message);
+        }
+        wait_for_line(&mut h, id, output).await;
+        eprintln!("terminal {id}, widget {widget_id:?}, PTY output {output}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_fullscreen_clears_on_hide_project_switch_and_pty_exit() {
+    let mut h = Harness::new().await;
+    let id = h.app.terminal.active_id.unwrap();
+    let widget_id = h.app.terminal.tabs[0].term.widget_id().clone();
+
+    h.message(TerminalMessage::DragStarted).await;
+    h.app.terminal.tab_context_menu_id = Some(id);
+    h.app.terminal.tab_context_menu_pos = Some((20.0, 30.0));
+    h.app.terminal.content_menu = Some((id, Point::new(50.0, 60.0)));
+    h.message(TerminalMessage::ToggleFullscreen).await;
+    assert!(h.app.terminal.is_fullscreen);
+    assert!(h.app.terminal.tab_context_menu_id.is_none());
+    assert!(h.app.terminal.tab_context_menu_pos.is_none());
+    assert!(h.app.terminal.content_menu.is_none());
+    h.message(TerminalMessage::DragStarted).await;
+    assert!(!h.app.terminal.is_dragging);
+    assert!(h.app.terminal.drag_anchor_y.is_none());
+
+    let _ = h.app.update(Message::BootstrapAppConfig(Ok(serde_json::json!({
+        "show_terminal": false,
+    }))));
+    assert!(!h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
+    let _ = h.app.update(Message::BootstrapAppConfig(Ok(serde_json::json!({
+        "show_terminal": true,
+    }))));
+    assert!(h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
+
+    h.message(TerminalMessage::ToggleFullscreen).await;
+    // Check synchronous visibility changes without writing desktop preferences.
+    let _ = h.app.update(Message::View(ViewMessage::ToggleTerminalPanel));
+    assert!(!h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
+    h.message(TerminalMessage::ToggleFullscreen).await;
+    assert!(!h.app.terminal.is_fullscreen);
+    let _ = h.app.update(Message::View(ViewMessage::ToggleTerminalPanel));
+    assert!(h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
+    assert_eq!(h.app.terminal.height, 220.0);
+
+    h.message(TerminalMessage::ToggleFullscreen).await;
+    let project = std::env::temp_dir().to_string_lossy().into_owned();
+    h.app.switch_project_terminal(Some(project.clone()), None);
+    assert!(!h.app.terminal.is_fullscreen);
+    h.app.switch_project_terminal(None, Some(project));
+    assert!(h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
+    assert_eq!(h.app.terminal.active_id, Some(id));
+    assert_eq!(h.app.terminal.tabs[0].term.widget_id(), &widget_id);
+
+    h.message(TerminalMessage::ToggleFullscreen).await;
+    h.message(TerminalMessage::Event(iced_term::Event::BackendCall(
+        id,
+        iced_term::BackendCommand::ProcessAlacrittyEvent(iced_term::AlacrittyEvent::Exit),
+    )))
+    .await;
+    assert!(h.app.terminal.tabs.is_empty());
+    assert!(!h.app.terminal.is_visible);
+    assert!(!h.app.terminal.is_fullscreen);
 }

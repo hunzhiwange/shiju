@@ -22,6 +22,10 @@ pub fn build_work_layout(
     spacing: f32,
     chat_content_pad: f32,
 ) -> Element<'_, Message> {
+    if app.terminal.is_fullscreen {
+        return super::bottom::fullscreen_terminal(app);
+    }
+
     let left_sidebar = work_sidebar::view(app);
     let chat = container(chat_area(app, spacing, corner_radius, chat_content_pad))
         .width(Length::Fill)

@@ -14,7 +14,7 @@ pub(super) fn close_tab(app: &mut App, id: u64) -> Task<Message> {
         return Task::none();
     }
     if app.terminal.tabs.is_empty() {
-        app.terminal.is_visible = false;
+        app.terminal.set_visible(false);
         app.focus_area = FocusArea::None;
     }
     let reap = reap_retired_task(app);

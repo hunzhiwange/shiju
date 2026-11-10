@@ -390,35 +390,35 @@ async fn terminal_focus_composer_does_not_capture_terminal_paste_or_enter() {
     let paste_modifiers = keyboard::Modifiers::LOGO;
     #[cfg(not(target_os = "macos"))]
     let paste_modifiers = keyboard::Modifiers::CTRL | keyboard::Modifiers::SHIFT;
-    for (event, expected) in [
-        (key_event(keyboard::Key::Character("v".into()), paste_modifiers), "中文 paste".as_bytes()),
-        (
-            key_event(named_key(keyboard::key::Named::Enter), keyboard::Modifiers::empty()),
-            b"\n".as_slice(),
-        ),
-    ] {
-        if let Event::Keyboard(keyboard::Event::KeyPressed { modifiers, .. }) = &event {
-            dispatch(
-                Event::Keyboard(keyboard::Event::ModifiersChanged(*modifiers)),
-                Point::new(100.0, 200.0),
-            );
-        }
-        let messages = dispatch(event, Point::new(100.0, 200.0));
+    let mut terminal_commands = |key, modifiers| {
+        let point = Point::new(100.0, 200.0);
+        dispatch(Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), point);
+        let messages = dispatch(key_event(key, modifiers), point);
         assert!(
             !messages.iter().any(|message| matches!(message, Message::Chat(_))),
             "unfocused composer published a chat action: {messages:?}"
         );
-        let writes: Vec<_> = messages
-            .iter()
+        messages
+            .into_iter()
             .filter_map(|message| match message {
                 Message::Terminal(message::TerminalMessage::Event(
-                    iced_term::Event::BackendCall(_, iced_term::BackendCommand::Write(bytes)),
-                )) => Some(bytes.as_slice()),
+                    iced_term::Event::BackendCall(_, command),
+                )) => Some(command),
                 _ => None,
             })
-            .collect();
-        assert_eq!(writes, vec![expected]);
-    }
+            .collect::<Vec<_>>()
+    };
+    let paste = terminal_commands(keyboard::Key::Character("v".into()), paste_modifiers);
+    assert!(matches!(
+        paste.as_slice(),
+        [iced_term::BackendCommand::Paste(text)] if text == "中文 paste"
+    ));
+    let enter =
+        terminal_commands(named_key(keyboard::key::Named::Enter), keyboard::Modifiers::empty());
+    assert!(matches!(
+        enter.as_slice(),
+        [iced_term::BackendCommand::Write(bytes)] if bytes == b"\n"
+    ));
     dispatch(
         Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
         Point::new(100.0, 30.0),

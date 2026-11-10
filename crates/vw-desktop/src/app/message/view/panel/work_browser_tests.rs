@@ -27,12 +27,15 @@ fn work_browser_content_starts_below_resource_header_and_toolbar() {
     );
 }
 
+#[derive(Default)]
 struct NavigationProcess {
     events: Arc<Mutex<Vec<WorkBrowserEvent>>>,
+    commands: Arc<Mutex<Vec<String>>>,
 }
 
 impl BrowserProcess for NavigationProcess {
-    fn write_protocol(&mut self, _bytes: &[u8]) -> io::Result<()> {
+    fn write_protocol(&mut self, bytes: &[u8]) -> io::Result<()> {
+        self.commands.lock().unwrap().push(String::from_utf8_lossy(bytes).into_owned());
         Ok(())
     }
 
@@ -63,6 +66,54 @@ fn visible_work_browser_app() -> App {
 }
 
 #[test]
+fn terminal_fullscreen_keeps_native_browser_above_dock_and_hides_it_when_expanded() {
+    use crate::app::message::TerminalMessage;
+
+    let mut app = visible_work_browser_app();
+    app.work_resources_visible = true;
+    app.work_browser.closed = false;
+    app.work_browser.address = "https://example.com/".into();
+    app.terminal.set_visible(false);
+    app.terminal.height = 220.0;
+    let process = NavigationProcess::default();
+    let commands = Arc::clone(&process.commands);
+    app.work_browser_controller
+        .ensure_started_with(
+            &app.work_browser.address,
+            WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
+            |_| Ok(Box::new(process)),
+        )
+        .expect("controlled browser");
+
+    let take_commands = || std::mem::take(&mut *commands.lock().unwrap());
+    let resize_height = |commands: &[String]| {
+        commands
+            .iter()
+            .find_map(|command| {
+                let command = command.strip_prefix("resize ")?;
+                command.split_whitespace().nth(1)?.parse::<u32>().ok()
+            })
+            .expect("browser should resize")
+    };
+
+    super::sync_lifecycle_result(&mut app).unwrap();
+    let hidden_terminal_height = resize_height(&take_commands());
+    app.terminal.set_visible(true);
+    super::sync_lifecycle_result(&mut app).unwrap();
+    assert_eq!(resize_height(&take_commands()), hidden_terminal_height - 220);
+
+    let _ = app.update(Message::Terminal(TerminalMessage::ToggleFullscreen));
+    assert_eq!(take_commands(), ["hide\n"]);
+    let _ = app.update(Message::Terminal(TerminalMessage::ToggleFullscreen));
+    assert_eq!(take_commands(), ["show\n"]);
+    assert_eq!(app.work_browser.address, "https://example.com/");
+
+    app.window_size.1 = 300.0;
+    assert!(super::sync_lifecycle_result(&mut app).is_err());
+    assert_eq!(take_commands(), ["hide\n"]);
+}
+
+#[test]
 fn work_browser_defaults_to_blank_surface() {
     let mut app = App::new().0;
 
@@ -79,7 +130,7 @@ fn work_browser_close_terminates_current_page_and_keeps_blank_surface() {
         .ensure_started_with(
             "https://example.com/",
             WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
-            |_| Ok(Box::new(NavigationProcess { events: Arc::new(Mutex::new(Vec::new())) })),
+            |_| Ok(Box::new(NavigationProcess::default())),
         )
         .expect("controlled browser should start");
 
@@ -104,7 +155,7 @@ fn work_browser_navigate_reopens_closed_blank_surface() {
         .ensure_started_with(
             "https://example.com/",
             WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
-            |_| Ok(Box::new(NavigationProcess { events: Arc::new(Mutex::new(Vec::new())) })),
+            |_| Ok(Box::new(NavigationProcess::default())),
         )
         .expect("controlled browser should start");
 
@@ -122,7 +173,12 @@ fn work_browser_runtime_tick_updates_address_from_webview_navigation() {
         .ensure_started_with(
             "https://example.com/",
             WebviewBounds { x: 0, y: 0, width: 800, height: 600 },
-            |_| Ok(Box::new(NavigationProcess { events: Arc::clone(&events) })),
+            |_| {
+                Ok(Box::new(NavigationProcess {
+                    events: Arc::clone(&events),
+                    ..Default::default()
+                }))
+            },
         )
         .expect("controlled browser should start");
     events.lock().expect("navigation events lock").push(WorkBrowserEvent::NavigationChanged(

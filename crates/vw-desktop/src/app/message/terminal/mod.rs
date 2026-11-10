@@ -58,6 +58,8 @@ pub enum TerminalMessage {
     #[cfg(not(target_arch = "wasm32"))]
     PasteResolved(iced::widget::Id, Option<String>),
     DragStarted,
+    #[cfg(not(target_arch = "wasm32"))]
+    ToggleFullscreen,
 }
 
 /// 执行 update 对应的领域操作。
@@ -65,7 +67,9 @@ pub enum TerminalMessage {
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
-    match message {
+    #[cfg(not(target_arch = "wasm32"))]
+    let was_fullscreen = app.terminal.is_fullscreen;
+    let task = match message {
         TerminalMessage::Add
         | TerminalMessage::Select(_)
         | TerminalMessage::Close(_)
@@ -90,11 +94,18 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
 
         TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::ToggleFullscreen => event::update(app, message),
+        #[cfg(not(target_arch = "wasm32"))]
         TerminalMessage::ContentMenuOpen(..)
         | TerminalMessage::ContentMenuClose
         | TerminalMessage::ContentMenuAction(..)
         | TerminalMessage::PasteResolved(..) => content_menu::update(app, message),
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    if was_fullscreen != app.terminal.is_fullscreen {
+        return Task::batch([task, super::view::panel::sync_work_browser(app)]);
     }
+    task
 }
 #[cfg(test)]
 mod tests;

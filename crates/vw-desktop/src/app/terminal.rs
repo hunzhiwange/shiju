@@ -287,6 +287,7 @@ pub fn spawn_pty_terminal(
 /// 多标签终端的活动项、字体、主题与待回收后台任务。
 pub struct TerminalState {
     pub is_visible: bool,
+    pub(crate) is_fullscreen: bool,
     pub tabs: Vec<TerminalTab>,
     pub active_id: Option<u64>,
     pub next_id: u64,
@@ -333,6 +334,7 @@ impl TerminalState {
     ) -> Self {
         Self {
             is_visible,
+            is_fullscreen: false,
             tabs: vec![],
             active_id: None,
             next_id: 1,
@@ -631,6 +633,28 @@ fi
         }
     }
 
+    pub(crate) fn set_visible(&mut self, visible: bool) {
+        self.is_visible = visible;
+        if !visible {
+            self.set_fullscreen(false);
+        }
+    }
+
+    pub(crate) fn set_fullscreen(&mut self, fullscreen: bool) {
+        if self.is_fullscreen == fullscreen {
+            return;
+        }
+        self.is_fullscreen = fullscreen;
+        self.is_dragging = false;
+        self.drag_anchor_y = None;
+        self.tab_context_menu_id = None;
+        self.tab_context_menu_pos = None;
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.content_menu = None;
+        }
+    }
+
     /// 关闭指定标签并选择相邻标签；找不到 ID 时返回 `false`。
     pub fn close_terminal(&mut self, id: u64) -> bool {
         if let Some(pos) = self.tabs.iter().position(|t| t.id == id) {
@@ -644,6 +668,9 @@ fi
             }
             #[cfg(not(target_arch = "wasm32"))]
             self.retiring.push(tab.term);
+            if self.tabs.is_empty() {
+                self.set_fullscreen(false);
+            }
             #[cfg(target_arch = "wasm32")]
             let _ = tab;
             true

@@ -16,5 +16,6 @@ pub use projects_list::projects_list;
 pub(super) use session_row::{
     SessionRowDetails, SessionRowStatus, running_draft_sessions, session_row,
 };
+pub(super) use sessions_panel::project_info_header;
 /// 重新导出会话列表与菜单构建器，供项目视图内的不同布局复用同一套交互。
 pub use sessions_panel::{build_session_menu, project_sessions_panel};

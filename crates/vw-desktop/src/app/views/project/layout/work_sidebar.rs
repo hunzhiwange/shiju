@@ -24,10 +24,10 @@ use crate::app::state::{
 use crate::app::{App, Message};
 
 use super::super::components::{
-    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu,
+    SessionRowDetails, SessionRowStatus as WorkTaskStatus, build_session_menu, project_info_header,
     running_draft_sessions, session_row,
 };
-use super::super::styles::work_surface_style;
+use super::super::styles::{content_panel_style, work_surface_style};
 
 mod rail;
 
@@ -770,6 +770,33 @@ fn expanded_header(app: &App) -> Element<'static, Message> {
     .into()
 }
 
+fn current_project_card(app: &App, path: &str) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let refresh = header_icon_button(
+        i18n,
+        Icon::ArrowRepeat,
+        "刷新会话",
+        Message::Project(ProjectMessage::ProjectLoadSessions(path.to_owned())),
+        app.project_sessions_loading.contains(path),
+    );
+    let edit = header_icon_button(
+        i18n,
+        Icon::Sliders,
+        "编辑项目",
+        Message::Project(ProjectMessage::ProjectEditOpened(path.to_owned())),
+        false,
+    );
+    container(project_info_header(
+        project_label(app, path),
+        path.to_owned(),
+        false,
+        row![refresh, edit].spacing(4).align_y(iced::Alignment::Center),
+    ))
+    .padding([6, 10])
+    .style(content_panel_style)
+    .into()
+}
+
 fn navigation_icon(icon: Icon) -> svg::Svg<'static> {
     navigation_icon_enabled(icon, true)
 }
@@ -1431,15 +1458,21 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     } else {
         column![expanded_header(app), navigation_section(app)].spacing(9).into()
     };
+    let mut sidebar_content = column![navigation];
+    if let Some(path) = app.project_path.as_deref() {
+        sidebar_content = sidebar_content.push(current_project_card(app, path));
+    }
     let sidebar = container(
-        column![
-            navigation,
-            tabs(crate::app::i18n::I18n::new(app.desktop_locale), &model, app.work_sidebar_tab),
-            scroll,
-        ]
-        .spacing(9)
-        .width(Length::Fill)
-        .height(Length::Fill),
+        sidebar_content
+            .push(tabs(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &model,
+                app.work_sidebar_tab,
+            ))
+            .push(scroll)
+            .spacing(9)
+            .width(Length::Fill)
+            .height(Length::Fill),
     )
     .width(Length::Fixed(app.work_sidebar_width))
     .height(Length::Fill)

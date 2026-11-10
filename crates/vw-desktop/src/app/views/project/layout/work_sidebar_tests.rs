@@ -777,6 +777,58 @@ async fn work_sidebar_refreshes_sessions_for_every_space() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn work_sidebar_current_project_card_targets_active_project() {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let mut app = App::new().0;
+    let active = "/工作区/一个路径很长的项目/子目录/当前项目";
+    app.recent_projects = vec!["/workspace/other".into(), active.into()];
+    app.recent_projects_edits = vec!["Other project".into(), "自定义项目名称".into()];
+    app.project_path = Some(active.into());
+    app.work_sidebar_width = 220.0;
+
+    for (collapsed, tab, theme) in
+        [(false, WorkSidebarTab::Tasks, Theme::Light), (true, WorkSidebarTab::Spaces, Theme::Dark)]
+    {
+        app.work_sidebar_collapsed = collapsed;
+        app.work_sidebar_tab = tab;
+        let mut sidebar = work_sidebar::view(&app);
+        draw(&mut sidebar, &mut renderer, &theme);
+
+        let mut tree = Tree::new(sidebar.as_widget());
+        let limits = layout::Limits::new(Size::ZERO, VIEWPORT);
+        let node = sidebar.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let layout = Layout::new(&node);
+        let card = layout.child(1).child(0).child(1);
+        let actions = card.child(0).child(0).child(1);
+        let refresh = click_at(
+            &mut sidebar,
+            &mut tree,
+            &renderer,
+            layout,
+            actions.child(0).bounds().center(),
+        );
+        assert!(matches!(
+            refresh.as_slice(),
+            [Message::Project(ProjectMessage::ProjectLoadSessions(path))] if path == active
+        ));
+        let edit = click_at(
+            &mut sidebar,
+            &mut tree,
+            &renderer,
+            layout,
+            actions.child(1).bounds().center(),
+        );
+        assert!(matches!(
+            edit.as_slice(),
+            [Message::Project(ProjectMessage::ProjectEditOpened(path))] if path == active
+        ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn work_sidebar_task_pool_control_reuses_code_mode_entry() {
     let renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
@@ -854,7 +906,7 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
     let rail = root.child(0).child(0);
     let sessions = root.child(1).child(0);
     assert_eq!(root.child(1).bounds().width, app.work_sidebar_width);
-    assert_eq!(sessions.children().count(), 3, "new task, tabs, and session list");
+    assert_eq!(sessions.children().count(), 4, "new task, current project, tabs, and session list");
     let controls = rail.children();
     let mut actions = controls.map(|control| {
         click_at(&mut sidebar, &mut tree, &renderer, root, control.bounds().center())
@@ -888,10 +940,10 @@ async fn work_sidebar_collapsed_keeps_session_list_and_one_new_task() {
         [Message::View(ViewMessage::ProjectFileNewSession)]
     ));
     assert!(matches!(
-        click(&mut sidebar, &mut tree, sessions.child(1).child(1)).as_slice(),
+        click(&mut sidebar, &mut tree, sessions.child(2).child(1)).as_slice(),
         [Message::View(ViewMessage::WorkSidebarTabSelected(WorkSidebarTab::Spaces))]
     ));
-    let task = sessions.child(2).child(0).child(0).child(0);
+    let task = sessions.child(3).child(0).child(0).child(0);
     assert!(click(&mut sidebar, &mut tree, task).iter().any(|message| matches!(
         message,
         Message::Project(ProjectMessage::OpenProjectSessionPressed(path, id))

@@ -366,17 +366,6 @@ pub fn project_sessions_header<'a>(
     clickable: bool,
     show_tools_menu: bool,
 ) -> Element<'a, Message> {
-    let title_label = SingleLineLabel::new(title.clone(), 16.0)
-        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
-    let title_label: Element<'a, Message> = if clickable {
-        iced::widget::mouse_area(title_label)
-            .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.clone())))
-            .into()
-    } else {
-        title_label.into()
-    };
-    let title_text = title_tooltip(title_label, title, Position::Right);
-
     let path_for_refresh = path.clone();
     let path_for_toggle = path.clone();
     let path_for_menu = path.clone();
@@ -413,7 +402,31 @@ pub fn project_sessions_header<'a>(
             .on_close(Message::Project(message::ProjectMessage::ProjectToolsMenuClosed))
             .into();
 
-    let action_buttons = row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center);
+    project_info_header(
+        title,
+        path,
+        clickable,
+        row![refresh_btn, tools].spacing(6).align_y(iced::Alignment::Center),
+    )
+}
+
+pub(in crate::app::views::project) fn project_info_header<'a>(
+    title: String,
+    path: String,
+    clickable: bool,
+    actions: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let title_label = SingleLineLabel::new(title.clone(), 16.0)
+        .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
+    let title_label: Element<'a, Message> = if clickable {
+        iced::widget::mouse_area(title_label)
+            .on_press(Message::Project(message::ProjectMessage::OpenRecentPressed(path.clone())))
+            .into()
+    } else {
+        title_label.into()
+    };
+    let title_text = title_tooltip(title_label, title, Position::Right);
+
     let path_label = container(SingleLineLabel::new(path.clone(), 11.0)).style(|theme| {
         iced::widget::container::Style {
             text_color: settings_muted_text_style(theme).color,
@@ -422,7 +435,7 @@ pub fn project_sessions_header<'a>(
     });
 
     column![
-        row![title_text, action_buttons]
+        row![title_text, actions.into()]
             .spacing(8)
             .align_y(iced::Alignment::Center)
             .width(Length::Fill),

@@ -127,12 +127,7 @@ impl Widget<Message, Theme, iced::Renderer> for QuotaRing {
         viewport: &Rectangle,
     ) {
         let bounds = layout.bounds();
-        let remaining = self.fraction();
-        let color = remaining.map(remaining_color);
-        let track_color = match (remaining, color) {
-            (Some(remaining), Some(color)) if remaining <= CRITICAL_BALANCE => color,
-            _ => theme.extended_palette().background.strong.color,
-        };
+        let track_color = theme.extended_palette().background.strong.color;
         renderer.fill_quad(
             renderer::Quad {
                 bounds: bounds.shrink(iced::Padding::new(1.0)),
@@ -143,16 +138,17 @@ impl Widget<Message, Theme, iced::Renderer> for QuotaRing {
         );
 
         let progress = tree.state.downcast_ref::<RingState>().progress;
-        if let Some(color) = color
+        if let Some(remaining) = self.fraction()
             && progress > 0.0
         {
+            let color = remaining_color(remaining);
             // Use the vector icon renderer so the arc also appears with the software backend.
             let circumference = TAU * 11.0;
             let length = circumference * progress;
             let arc = format!(
                 r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 26">
                 <circle cx="13" cy="13" r="11" fill="none" stroke="white" stroke-width="2"
-                    stroke-linecap="round" stroke-dasharray="{length:.4} {circumference:.4}"
+                    stroke-dasharray="{length:.4} {circumference:.4}"
                     transform="rotate(-90 13 13)"/>
                 </svg>"#
             );

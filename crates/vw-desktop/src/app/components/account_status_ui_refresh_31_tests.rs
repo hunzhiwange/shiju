@@ -705,9 +705,9 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
     let mut app = fixture();
     app.account.replace_repository(repository());
     app.account.monthly_quota = MonthlyQuotaState::Ready(vw_gateway_client::ShijuMonthlyQuotaDto {
-        limit: 100.0,
-        used: 99.9941,
-        remaining: Some(0.0059),
+        limit: 1.0,
+        used: 0.991,
+        remaining: Some(0.009),
         reset_at: 1796054400,
     });
     let size = Size::new(800, 600);
@@ -717,6 +717,13 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
     {
         app.desktop_locale = locale;
         let mut ui = scene(app.view(), &mut renderer, size);
+        let animation_start = iced::time::Instant::now() - iced::time::Duration::from_secs(1);
+        send(
+            &mut ui,
+            &mut renderer,
+            mouse::Cursor::Unavailable,
+            &[Event::Window(iced::window::Event::RedrawRequested(animation_start))],
+        );
         let closed = capture(
             &mut ui,
             &mut renderer,
@@ -728,15 +735,20 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
         let positions = geometry(&mut ui, &renderer);
         let trigger = positions.label("<1%");
         assert_fits(trigger, size);
-        assert!(!positions.labels.iter().any(|(label, _)| label == "¥0.0059"));
+        assert!(!positions.labels.iter().any(|(label, _)| label == "¥0.0090"));
         let x = trigger.center().x as usize;
         let y = trigger.center().y as usize;
-        assert!((y - 12..=y + 12).any(|row| {
-            (x - 12..=x + 12).any(|column| {
+        let mut red_pixels = 0;
+        for row in y - 12..=y + 12 {
+            for column in x - 12..=x + 12 {
                 let pixel = (row * size.width as usize + column) * 4;
-                closed[pixel..pixel + 4] == [255, 0, 0, 255]
-            })
-        }));
+                let [red, green, blue, _]: [u8; 4] = closed[pixel..pixel + 4].try_into().unwrap();
+                if red.saturating_sub(green.max(blue)) > 30 {
+                    red_pixels += 1;
+                }
+            }
+        }
+        assert!((1..=6).contains(&red_pixels), "expected a short red arc, got {red_pixels} pixels");
 
         assert!(
             send(

@@ -8,7 +8,7 @@ use vw_api_types::mcp_management::{
     McpRecordRef, McpTransport,
 };
 
-use super::{McpCatalogStore, StoredCatalogRecord, catalog_create::catalog_location};
+use super::{McpCatalogStore, StoredCatalogEntry, catalog_create::catalog_location};
 
 impl McpCatalogStore {
     /// Update the connection in the caller-authorized scope, preserving display metadata.
@@ -21,13 +21,10 @@ impl McpCatalogStore {
     ) -> Result<McpCatalogRecord, McpFailureCode> {
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let key = &expected.id.0;
-        let previous = self
-            .0
-            .get(tenant, &namespace, key)
-            .map_err(|_| McpFailureCode::StorageUnavailable)?
-            .ok_or(McpFailureCode::NotFound)?;
-        let mut stored: StoredCatalogRecord =
-            serde_json::from_str(&previous).map_err(|_| McpFailureCode::StorageUnavailable)?;
+        let (previous, entry) = self.load_entry(tenant, &namespace, key)?;
+        let StoredCatalogEntry::Active(mut stored) = entry else {
+            return Err(McpFailureCode::NotFound);
+        };
         if stored.record.record.revision != expected.revision {
             return Err(McpFailureCode::StaleRevision);
         }
@@ -62,15 +59,7 @@ impl McpCatalogStore {
         };
         stored.connection = connection;
 
-        let payload =
-            serde_json::to_string(&stored).map_err(|_| McpFailureCode::StorageUnavailable)?;
-        let updated = self
-            .0
-            .compare_exchange(tenant, &namespace, key, &previous, &payload)
-            .map_err(|_| McpFailureCode::StorageUnavailable)?;
-        if !updated {
-            return Err(McpFailureCode::StaleRevision);
-        }
+        self.save_entry(tenant, &namespace, key, &previous, &stored)?;
         Ok(stored.record)
     }
 }

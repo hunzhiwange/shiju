@@ -7,7 +7,7 @@ use super::markdown::{
     MarkdownBlock, MarkdownBlockKind, markdown_block_font, markdown_block_key, markdown_body_view,
     markdown_editor_text, markdown_visual_contract, parse_markdown_blocks, strip_inline_markdown,
 };
-use super::markdown_links::{LinkTarget, link_click_message};
+use super::markdown_links::{LinkTarget, WorkspaceLinks, link_click_message};
 use crate::app::components::chat_panel::tool_text_support::selected_chat_text_for_message;
 use crate::app::message::ViewMessage;
 use crate::app::{App, Message};
@@ -305,11 +305,12 @@ fn table_parses_cells_and_keeps_code_fences_verbatim() {
 }
 
 #[test]
-fn links_keep_web_destinations_and_ignore_code_and_remote_file_schemes() {
+fn links_keep_web_destinations_and_reject_commands_and_remote_file_schemes() {
     let blocks = parse_markdown_blocks(concat!(
         "请看[**文档**](https://example.com/docs_(zh))、",
         "<https://example.com/autolink> 和网址https://example.com/bare。\n",
-        "`https://example.com/code` [远程](file://server/tmp/test) ",
+        "`http://example.com/code` `curl https://example.com/command` ",
+        "[远程](file://server/tmp/test) ",
         "[https://example.com/label](javascript:alert(1))",
     ));
     let links: Vec<_> = blocks[0]
@@ -317,7 +318,9 @@ fn links_keep_web_destinations_and_ignore_code_and_remote_file_schemes() {
         .iter()
         .filter_map(|span| match &span.target {
             Some(LinkTarget::Web(url)) => Some((span.text.as_str(), url.as_str())),
-            Some(LinkTarget::File(path)) => panic!("unexpected local path: {path}"),
+            Some(LinkTarget::File(path) | LinkTarget::InferredFile(path)) => {
+                panic!("unexpected local path: {path}")
+            }
             None => None,
         })
         .collect();
@@ -328,6 +331,7 @@ fn links_keep_web_destinations_and_ignore_code_and_remote_file_schemes() {
             ("文档", "https://example.com/docs_(zh)"),
             ("https://example.com/autolink", "https://example.com/autolink"),
             ("https://example.com/bare", "https://example.com/bare"),
+            ("http://example.com/code", "http://example.com/code"),
         ]
     );
 }
@@ -344,7 +348,9 @@ fn bare_urls_keep_balanced_paths_and_complete_queries() {
         .iter()
         .filter_map(|span| match &span.target {
             Some(LinkTarget::Web(url)) => Some(url.as_str()),
-            Some(LinkTarget::File(path)) => panic!("unexpected local path: {path}"),
+            Some(LinkTarget::File(path) | LinkTarget::InferredFile(path)) => {
+                panic!("unexpected local path: {path}")
+            }
             None => None,
         })
         .collect();
@@ -392,7 +398,7 @@ fn table_link_renders_and_emits_open_message_in_both_themes() {
                 table,
                 &theme,
                 theme.palette().text,
-                |target| link_click_message(target, None),
+                WorkspaceLinks::default(),
                 None,
             ),
             size,
@@ -620,7 +626,7 @@ fn markdown_table_fills_available_width_and_overflows_only_when_needed() {
             table,
             &theme,
             theme.palette().text,
-            |target| link_click_message(target, None),
+            WorkspaceLinks::default(),
             None,
         );
         let mut tree = Tree::new(element.as_widget());
@@ -638,18 +644,19 @@ fn markdown_table_fills_available_width_and_overflows_only_when_needed() {
 
 #[cfg(unix)]
 #[test]
-fn markdown_recognizes_local_paths_without_turning_web_or_commands_into_files() {
+fn markdown_preserves_local_path_candidates_and_explicit_file_links() {
     let blocks = parse_markdown_blocks(concat!(
         "目录 /Users/example/project，文件 `/tmp/中文 文件.rs:12:4`。\n",
         "[带空格](/tmp/My%20File.rs#L42) 和 <file:///tmp/a%2520b.rs#L2>。\n",
         "相对文件 `src/main.rs`、[文档目录](docs)，以及 \"~/My Folder\"。\n",
-        "`cat /tmp/test`、`https://example.com/x`、https://example.com/x",
+        "`./src/Makefile`、`src/README:12`、`src/components/`、[文件](src/README)。\n",
+        "`https://example.com/x`、https://example.com/x",
     ));
     let files: Vec<_> = blocks[0]
         .inline
         .iter()
         .filter_map(|span| match &span.target {
-            Some(LinkTarget::File(path)) => Some(path.as_str()),
+            Some(LinkTarget::File(path) | LinkTarget::InferredFile(path)) => Some(path.as_str()),
             _ => None,
         })
         .collect();
@@ -663,8 +670,66 @@ fn markdown_recognizes_local_paths_without_turning_web_or_commands_into_files() 
             "src/main.rs",
             "docs",
             "~/My Folder",
+            "./src/Makefile",
+            "src/README",
+            "src/components/",
+            "src/README",
         ]
     );
+}
+
+#[test]
+fn markdown_keeps_code_fragments_and_identifiers_unlinked() {
+    let blocks = parse_markdown_blocks(concat!(
+        "`</script>`、`<\\/script>`、`</scr` + `ipt>`、",
+        "`deepseek/deepseek-flash`、`meta-llama/Llama-3.1`、`@scope/package.js`、",
+        "`/tmp/test --verbose`、`/tmp/a && echo done`、`/bin/cat /tmp/test.js`，",
+        "命令 /help，片段 </broken/tag",
+    ));
+    let spans = &blocks[0].inline;
+    for code in ["</script>", "<\\/script>", "</scr", "deepseek/deepseek-flash"] {
+        assert!(spans.iter().any(|span| span.text == code && span.style.code));
+    }
+    let mut app = App::new().0;
+    app.project_path = Some("/repo".into());
+    app.set_file_index("/repo", vec!["src/main.rs".into()]);
+    let rendered =
+        super::markdown_rich::inline_spans(spans, &iced::Theme::Light, &WorkspaceLinks::new(&app));
+    assert!(rendered.iter().all(|span| span.link.is_none()));
+}
+
+#[cfg(unix)]
+#[test]
+fn markdown_auto_links_indexed_paths_and_keeps_explicit_links() {
+    let mut app = App::new().0;
+    app.project_path = Some("/repo".into());
+    app.set_file_index(
+        "/repo",
+        vec!["index.php".into(), "src/main.js".into(), "src/README".into()],
+    );
+    let links = WorkspaceLinks::new(&app);
+    let blocks = parse_markdown_blocks(concat!(
+        "`index.php`，`src/main.js:12`，`src/README`，/repo/src，",
+        "`application/json`，`src/missing.js`，/api/v1，",
+        "[外部文件](/tmp/index.php)，http://example.com/main.js",
+    ));
+    let spans = super::markdown_rich::inline_spans(&blocks[0].inline, &iced::Theme::Light, &links);
+    let targets = spans.into_iter().filter_map(|span| span.link).collect::<Vec<_>>();
+    assert_eq!(
+        targets,
+        [
+            LinkTarget::File("/repo/index.php".into()),
+            LinkTarget::File("/repo/src/main.js".into()),
+            LinkTarget::File("/repo/src/README".into()),
+            LinkTarget::File("/repo/src".into()),
+            LinkTarget::File("/tmp/index.php".into()),
+            LinkTarget::Web("http://example.com/main.js".into()),
+        ]
+    );
+    assert!(matches!(
+        links.open(targets[5].clone()),
+        Message::View(ViewMessage::OpenUrlExternal(url)) if url == "http://example.com/main.js"
+    ));
 }
 
 #[test]
@@ -697,7 +762,11 @@ fn markdown_renders_padded_inline_code_in_both_themes() {
     .expect("headless renderer");
 
     for theme in [Theme::Light, Theme::Dark] {
-        let spans = super::markdown_rich::inline_spans(&blocks[0].inline, &theme);
+        let spans = super::markdown_rich::inline_spans(
+            &blocks[0].inline,
+            &theme,
+            &WorkspaceLinks::default(),
+        );
         for code in ["data-gateway", "中文代码"] {
             let span = spans.iter().find(|span| span.text == code).expect("inline code span");
             assert_eq!(span.padding, Padding::from([0, 3]));

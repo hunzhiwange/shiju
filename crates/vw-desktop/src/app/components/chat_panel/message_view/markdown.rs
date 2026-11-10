@@ -15,7 +15,7 @@ use super::super::tool_text_support::{
 };
 use super::super::utils::markdown_code_fence;
 use super::markdown_code::{code_block_view, is_package_command};
-use super::markdown_links::{LinkTarget, link_click_message};
+use super::markdown_links::WorkspaceLinks;
 use super::markdown_rich::{self, Inline, MarkdownTable};
 use super::markdown_selection::{self, FragmentId, FragmentStyle, Selection};
 use super::styles::{MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, message_body_text_color};
@@ -573,6 +573,7 @@ fn markdown_block_view<'a>(
     block_idx: usize,
     section: &'a [MarkdownBlock],
     selection: &Selection,
+    links: &WorkspaceLinks<'a>,
 ) -> Element<'a, Message> {
     let block = &section[0];
     let contract = markdown_visual_contract();
@@ -585,24 +586,13 @@ fn markdown_block_view<'a>(
     };
     let body_color = message_body_text_color(&theme, false);
 
-    let on_link = move |target| {
-        let session_directory = if matches!(
-            &target,
-            LinkTarget::File(path) if !std::path::Path::new(path).is_absolute() && !path.starts_with("~/")
-        ) {
-            app.active_session_id.as_deref().and_then(|id| app.known_session_directory(id))
-        } else {
-            None
-        };
-        link_click_message(target, session_directory.as_deref().or(app.project_path.as_deref()))
-    };
     match &block.kind {
         MarkdownBlockKind::Table(table) => {
             return markdown_rich::table_view(
                 table,
                 &theme,
                 body_color,
-                on_link,
+                links.clone(),
                 Some((selection.clone(), block_idx)),
             );
         }
@@ -615,8 +605,9 @@ fn markdown_block_view<'a>(
     } else if block.inline.is_empty() {
         vec![iced::widget::span(block.text.as_str())]
     } else {
-        markdown_rich::inline_spans(&block.inline, &theme)
+        markdown_rich::inline_spans(&block.inline, &theme, links)
     };
+    let links = links.clone();
     let editor = markdown_selection::fragment(
         selection.clone(),
         FragmentId { section: block_idx, row: 0, column: 0 },
@@ -628,7 +619,7 @@ fn markdown_block_view<'a>(
             width: Length::Fill,
             align: iced::widget::text::Alignment::Default,
         },
-        on_link,
+        move |target| links.open(target),
     );
 
     match &block.kind {
@@ -746,8 +737,9 @@ pub(crate) fn markdown_body_view<'a>(
     }
 
     let selection = Selection::default();
+    let links = WorkspaceLinks::new(app);
     for (index, section) in markdown_sections(blocks).enumerate() {
-        body = body.push(markdown_block_view(app, index, section, &selection));
+        body = body.push(markdown_block_view(app, index, section, &selection, &links));
     }
     markdown_selection::area(body.into(), selection, app, msg_idx, text_idx)
 }

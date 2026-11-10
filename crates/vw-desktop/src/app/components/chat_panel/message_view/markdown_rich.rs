@@ -14,7 +14,7 @@ use regex::Regex;
 use crate::app::Message;
 
 use super::super::tool_text_support::chat_text_font;
-use super::markdown_links::LinkTarget;
+use super::markdown_links::{LinkTarget, WorkspaceLinks};
 use super::markdown_selection::{self, FragmentId, FragmentStyle, Selection};
 use super::styles::MESSAGE_TEXT_SIZE;
 
@@ -136,13 +136,15 @@ impl InlineBuilder {
             if preceding == Some('@')
                 || (!quoted
                     && candidate.starts_with(['/', '~', '.'])
-                    && preceding.is_some_and(|ch| ch.is_alphanumeric() || "/:_.-".contains(ch)))
+                    && preceding.is_some_and(|ch| ch.is_alphanumeric() || "/:_.-<\\".contains(ch)))
             {
                 continue;
             }
             let target =
                 if candidate.get(..4).is_some_and(|prefix| prefix.eq_ignore_ascii_case("www.")) {
                     LinkTarget::parse(&format!("https://{candidate}"))
+                } else if candidate.starts_with(['/', '~', '.']) {
+                    LinkTarget::inferred_file_path(candidate)
                 } else {
                     LinkTarget::parse(candidate)
                 };
@@ -190,7 +192,7 @@ impl InlineBuilder {
             Event::Code(text) => {
                 let target = match &self.link {
                     Some(target) => target.clone(),
-                    None if self.image_depth == 0 => LinkTarget::code_path(&text),
+                    None if self.image_depth == 0 => LinkTarget::code_target(&text),
                     None => None,
                 };
                 self.push_span(&text, target, true);
@@ -278,7 +280,11 @@ pub(super) fn parse_document(input: &str) -> MarkdownDocument {
     document
 }
 
-pub(super) fn inline_spans<'a>(spans: &'a [Inline], theme: &Theme) -> Vec<Span<'a, LinkTarget>> {
+pub(super) fn inline_spans<'a>(
+    spans: &'a [Inline],
+    theme: &Theme,
+    links: &WorkspaceLinks<'_>,
+) -> Vec<Span<'a, LinkTarget>> {
     let (link_color, emphasis_color) = if super::styles::is_dark_theme(theme) {
         (Color::from_rgb8(147, 197, 253), Color::from_rgb8(216, 180, 254))
     } else {
@@ -315,8 +321,10 @@ pub(super) fn inline_spans<'a>(spans: &'a [Inline], theme: &Theme) -> Vec<Span<'
                 }
                 value = value.font(font);
             }
-            if let Some(target) = &part.target {
-                value = value.link(target.clone()).underline(true).color(link_color);
+            if let Some(target) =
+                part.target.as_ref().and_then(|target| links.visible_target(target))
+            {
+                value = value.link(target).underline(true).color(link_color);
             }
             value
         })
@@ -331,7 +339,7 @@ pub(super) fn inline_view<'a>(
     theme: &Theme,
     on_link: impl Fn(LinkTarget) -> Message + 'a,
 ) -> iced::widget::text::Rich<'a, LinkTarget, Message> {
-    rich_text(inline_spans(spans, theme))
+    rich_text(inline_spans(spans, theme, &WorkspaceLinks::default()))
         .size(size)
         .font(chat_text_font())
         .color(body_color)
@@ -344,7 +352,7 @@ pub(super) fn table_view<'a>(
     data: &'a MarkdownTable,
     theme: &Theme,
     body_color: Color,
-    on_link: impl Fn(LinkTarget) -> Message + Clone + 'a,
+    links: WorkspaceLinks<'a>,
     selection: Option<(Selection, usize)>,
 ) -> Element<'a, Message> {
     let theme = theme.clone();
@@ -359,14 +367,16 @@ pub(super) fn table_view<'a>(
         let columns = data.alignments.iter().enumerate().map(|(column, &alignment)| {
             let theme = &theme;
             let selection = &selection;
-            let on_link = &on_link;
+            let links = &links;
             let cell = move |row: usize, content: &'a [Inline]| -> Element<'a, Message> {
                 let font = if row == 0 {
                     Font { weight: iced::font::Weight::Bold, ..chat_text_font() }
                 } else {
                     chat_text_font()
                 };
-                let spans = inline_spans(content, theme);
+                let spans = inline_spans(content, theme, links);
+                let links = links.clone();
+                let on_link = move |target| links.open(target);
                 if let Some((selection, section)) = selection {
                     markdown_selection::fragment(
                         selection.clone(),
@@ -379,7 +389,7 @@ pub(super) fn table_view<'a>(
                             width: cell_width,
                             align: alignment.into(),
                         },
-                        on_link.clone(),
+                        on_link,
                     )
                 } else {
                     rich_text(spans)
@@ -390,7 +400,7 @@ pub(super) fn table_view<'a>(
                         .align_x(alignment)
                         .line_height(LineHeight::Relative(1.6))
                         .wrapping(Wrapping::WordOrGlyph)
-                        .on_link_click(on_link.clone())
+                        .on_link_click(on_link)
                         .into()
                 }
             };

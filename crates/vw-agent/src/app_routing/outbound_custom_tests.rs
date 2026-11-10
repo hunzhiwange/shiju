@@ -17,7 +17,7 @@ use vw_api_types::{
 const GUARD: Duration = Duration::from_secs(5);
 const PROXY_AUTH: &str = "Basic Zml4dHVyZTp0ZXN0";
 
-fn issue(
+pub(super) fn issue(
     listener: &RoutingListener,
     project: &ProjectScope,
     host: &str,
@@ -44,16 +44,16 @@ fn issue(
         .unwrap()
 }
 
-fn project() -> ProjectScope {
+pub(super) fn project() -> ProjectScope {
     ProjectScope::new(TenantScope::new("platform", "company").unwrap(), "outbound-fixture".into())
         .unwrap()
 }
 
-async fn fixture() -> TcpListener {
+pub(super) async fn fixture() -> TcpListener {
     TcpListener::bind("127.0.0.1:0").await.unwrap()
 }
 
-async fn read_head(socket: &mut (impl AsyncRead + Unpin)) -> String {
+pub(super) async fn read_head(socket: &mut (impl AsyncRead + Unpin)) -> String {
     let mut head = Vec::new();
     while !head.ends_with(b"\r\n\r\n") {
         assert!(head.len() < 4096);
@@ -68,7 +68,7 @@ fn header<'a>(head: &'a str, name: &str) -> Option<&'a str> {
         .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(value))
 }
 
-async fn complete_upstream(
+pub(super) async fn complete_upstream(
     socket: &mut (impl AsyncRead + AsyncWrite + Unpin),
     head: &str,
     origin: &str,
@@ -89,7 +89,7 @@ async fn complete_upstream(
     socket.flush().await.unwrap();
 }
 
-fn direct_fixture(listener: TcpListener, requests: usize) -> JoinHandle<()> {
+pub(super) fn direct_fixture(listener: TcpListener, requests: usize) -> JoinHandle<()> {
     tokio::spawn(async move {
         for _ in 0..requests {
             let (mut socket, _) = listener.accept().await.unwrap();
@@ -99,9 +99,12 @@ fn direct_fixture(listener: TcpListener, requests: usize) -> JoinHandle<()> {
     })
 }
 
-async fn request(address: SocketAddr, token: &str) -> (u16, String) {
+pub(super) async fn request(address: SocketAddr, token: &str) -> (u16, String) {
+    request_with_body(address, token, br#"{"model":"fixture"}"#).await
+}
+
+async fn request_with_body(address: SocketAddr, token: &str, body: &[u8]) -> (u16, String) {
     let mut socket = TcpStream::connect(address).await.unwrap();
-    let body = br#"{"model":"fixture"}"#;
     let head = format!(
         "POST /v1/chat/completions HTTP/1.1\r\nHost: {address}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nConnection: close\r\nAcCePt: application/json\r\nACCEPT-Language: zh-CN\r\naccePT: text/plain\r\nContent-Length: {}\r\n\r\n",
         body.len(),
@@ -115,7 +118,7 @@ async fn request(address: SocketAddr, token: &str) -> (u16, String) {
     (status, body)
 }
 
-async fn assert_origin(address: SocketAddr, token: &str, origin: &str) {
+pub(super) async fn assert_origin(address: SocketAddr, token: &str, origin: &str) {
     let (status, body) = request(address, token).await;
     assert_eq!(status, 200);
     assert!(body.contains(&json!({"origin": origin}).to_string()), "unexpected origin: {body}");
@@ -148,8 +151,8 @@ fn assert_wire_order(head: &str) {
 async fn cc_route_025_outbound_custom_expected_behavior() {
     timeout(GUARD, async {
         let upstream = fixture().await;
-        let authority = upstream.local_addr().unwrap().to_string();
-        let url = format!("http://{authority}/fixture");
+        let url = format!("http://{}/fixture", upstream.local_addr().unwrap());
+        let proxy_target = "http://proxy-target.invalid/fixture";
         let direct = direct_fixture(upstream, 2);
         let proxy = fixture().await;
         let proxy_url = format!("http://fixture:test@{}", proxy.local_addr().unwrap());
@@ -162,7 +165,7 @@ async fn cc_route_025_outbound_custom_expected_behavior() {
 
         let tunnel = tokio::spawn(async move {
             let (mut socket, _) = proxy.accept().await.unwrap();
-            accept_connect(&mut socket, &authority).await;
+            accept_connect(&mut socket, "proxy-target.invalid:80").await;
             let head = read_head(&mut socket).await;
             assert_wire_order(&head);
             complete_upstream(&mut socket, &head, "proxy").await;
@@ -171,12 +174,13 @@ async fn cc_route_025_outbound_custom_expected_behavior() {
             &listener,
             &project,
             "mac-a",
-            &url,
+            proxy_target,
             SharedTransport::with_custom_proxy(&proxy_url).unwrap(),
         );
         assert_origin(address, &updated_a, "proxy").await;
         assert_origin(address, &host_b, "direct").await;
-        assert_eq!(request(address, &host_a).await.0, 401);
+        // Revocation is checked before the request body is read.
+        assert_eq!(request_with_body(address, &host_a, b"").await.0, 401);
         direct.await.unwrap();
         tunnel.await.unwrap();
         listener.stop().await.unwrap();
@@ -206,14 +210,14 @@ async fn accept_socks(socket: &mut TcpStream, port: u16, remote_dns: bool) {
         assert_eq!(address_type, 3);
         let mut name = vec![0; socket.read_u8().await.unwrap().into()];
         socket.read_exact(&mut name).await.unwrap();
-        assert_eq!(name, b"localhost");
+        assert_eq!(name, b"proxy-target.invalid");
     } else {
-        let loopback = match address_type {
+        let address = match address_type {
             1 => std::net::IpAddr::from(socket.read_u32().await.unwrap().to_be_bytes()),
             4 => std::net::IpAddr::from(socket.read_u128().await.unwrap().to_be_bytes()),
             other => panic!("expected an IP from local DNS, got SOCKS address type {other}"),
         };
-        assert!(loopback.is_loopback());
+        assert_eq!(address, "192.0.2.1".parse::<std::net::IpAddr>().unwrap());
     }
     assert_eq!(socket.read_u16().await.unwrap(), port);
     socket.write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0]).await.unwrap();
@@ -225,13 +229,14 @@ async fn cc_route_025_socks5_auth_and_dns() {
         let listener = RoutingListener::default();
         let address = listener.start(0).unwrap();
         let project = project();
-        // Use a real local name so the local DNS case needs no external network.
-        let upstream = fixture().await;
-        let port = upstream.local_addr().unwrap().port();
-        let url = format!("http://localhost:{port}/fixture");
+        // The local form sends an IP. The remote form sends a name that the
+        // fixture accepts without contacting DNS or an upstream service.
+        let port = 8080;
         for (scheme, remote_dns) in [("socks5", false), ("socks5h", true)] {
             let proxy = fixture().await;
             let proxy_url = format!("{scheme}://fixture:test@{}", proxy.local_addr().unwrap());
+            let host = if remote_dns { "proxy-target.invalid" } else { "192.0.2.1" };
+            let url = format!("http://{host}:{port}/fixture");
             let token = issue(
                 &listener,
                 &project,
@@ -248,7 +253,6 @@ async fn cc_route_025_socks5_auth_and_dns() {
             assert_origin(address, &token, scheme).await;
             socks.await.unwrap();
         }
-        assert!(timeout(Duration::from_millis(25), upstream.accept()).await.is_err());
         listener.stop().await.unwrap();
     })
     .await
@@ -276,7 +280,7 @@ fn cc_route_025_rejects_invalid_proxy_urls() {
 async fn cc_route_025_proxy_auth_failure_never_falls_back() {
     timeout(GUARD, async {
         let upstream = fixture().await;
-        let url = format!("http://{}/fixture", upstream.local_addr().unwrap());
+        let url = format!("http://0.0.0.0:{}/fixture", upstream.local_addr().unwrap().port());
         let proxy = fixture().await;
         let proxy_url = format!("http://fixture:test@{}", proxy.local_addr().unwrap());
         let listener = RoutingListener::default();
@@ -367,7 +371,7 @@ async fn cc_route_025_https_proxy_rejects_an_untrusted_certificate() {
         let proxy = fixture().await;
         let proxy_url = format!("https://fixture:test@{}", proxy.local_addr().unwrap());
         let upstream = fixture().await;
-        let target = format!("http://{}/fixture", upstream.local_addr().unwrap());
+        let target = format!("http://0.0.0.0:{}/fixture", upstream.local_addr().unwrap().port());
         let listener = RoutingListener::default();
         let address = listener.start(0).unwrap();
         let token = issue(

@@ -339,6 +339,9 @@ async fn serve_http(
     logging: Arc<AtomicBool>,
     body_limits: BodyLimits,
 ) {
+    let Ok(local_addr) = connection.local_addr() else {
+        return;
+    };
     route_auth::serve(connection, auth, |request, route| {
         let logging = logging.load(Ordering::Relaxed);
         let body_limits = body_limits.clone();
@@ -347,7 +350,7 @@ async fn serve_http(
                 tracing::info!("Authorized application routing request");
             }
             let protocol = Protocol::for_path(request.uri().path());
-            dispatch::forward_json(request, &route, &body_limits)
+            dispatch::forward_json(request, &route, &body_limits, local_addr)
                 .await
                 .unwrap_or_else(|error| error.response(protocol))
         }

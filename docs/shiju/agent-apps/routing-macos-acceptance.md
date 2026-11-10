@@ -638,3 +638,27 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
 
 测试链接时报告既有的 macOS `__eh_frame` 大小警告。槽位锁已释放，编译缓存保留。状态为 **已完成**。
+
+## 任务 26　实现 macOS 系统代理与直连例外
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 25 的 `9467b550e`。CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/http_client.rs` 和 `commands/global_proxy.rs` 与快照及来源映射 SHA256 一致。核对了来源的转发器、监听端口登记、代理配置调用和回环用例。沿用母任务 2、3 的网关运行时、执行主机和应用身份，以及母任务 4、6 的原生配置事务和账号租约契约。
+
+- `outbound_system::SystemProxy` 在构建 `SharedTransport` 时通过 SystemConfiguration 只读取得代理快照。获准的 `POST /v1/chat/completions` 经原有监听、鉴权和分发路径进入共享传输。显式代理优先，其次为环境代理、macOS 对应协议的静态代理、系统 SOCKS5（代理端解析 DNS），最后直连。macOS 的主机名、通配符、CIDR、简单主机名例外及环境 `NO_PROXY` 适用于默认出口。PAC、WPAD 与动态重读未纳入本项。
+- 回环上游覆盖 `localhost` 及子域、IPv4 回环、IPv6 回环和映射地址，始终直连。指向当前监听地址的系统代理绕过，显式代理或上游直接指向当前监听地址返回脱敏 502。通过真实回环 TCP 检查 CONNECT、原始头部拼写和直连，另检查自转发拒绝在拨号前发生。系统设置由 `scutil --proxy` 和 SystemConfiguration 只读核对，测试网络使用隔离夹具。
+- 任务 28 负责出口配置与状态接口，任务 86 负责生产绑定发布。Windows、Linux、WSL 范围外且未验证，WSL 连接地址留在来源映射。
+
+### 验证记录
+
+红灯、绿灯、相邻回归与全仓 Clippy 使用共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。一次中止的绿灯构建使用槽位 **4**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。各阶段的 `CARGO_BUILD_BUILD_DIR` 同对应路径。测试通过 `VW_MODEL_RECOVERY_TEST_ROOT` 使用独立临时目录。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 红灯构建 | `cargo test -p vw-agent --lib cc_route_026_ -- --nocapture` | 退出 137，已生成红灯二进制。为隔离测试目录，在运行用例前结束该 Cargo 进程。 |
+| 隔离红灯 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_026_ --nocapture` | 退出 101，1 项失败。代理收到回环上游的 CONNECT，应用返回 502。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`，随后 `rustfmt --edition 2024 --config skip_children=true crates/vw-agent/src/app_routing/{dispatch,listener,mod,outbound_custom_tests,outbound_system,outbound_system_tests,shared_transport}.rs` | 最终两条命令均退出 0。只写入本项 Rust 文件。 |
+| 聚焦绿灯 | `cargo test -p vw-agent --lib cc_route_026_ -- --nocapture` | 退出 0，7 项通过，0 失败或忽略。 |
+| 相邻回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-e6259d379726497c" cc_route_002_ cc_route_017_ cc_route_024_ cc_route_025_ --test-threads=1 --nocapture` | 首轮退出 101，14 项通过，撤销凭证夹具在 401 后遇到连接重置。让该用例只发送请求头后复验退出 0，15 项通过，0 失败或忽略。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读 `plan.md` 无差异。 |
+
+测试链接报告既有的 macOS `__eh_frame` 大小警告。本任务持有的槽位锁均已释放，编译缓存保留。状态为 **已完成**。

@@ -11,6 +11,8 @@ pub(crate) mod gateway_owner;
 mod header_wire;
 mod listener;
 mod outbound_custom;
+#[cfg(target_os = "macos")]
+mod outbound_system;
 mod override_apply;
 mod protocol_errors;
 pub(crate) mod reference_scope;
@@ -37,6 +39,9 @@ mod shared_transport_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod outbound_custom_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod outbound_system_tests;
 
 #[cfg(test)]
 mod reference_scope_tests;

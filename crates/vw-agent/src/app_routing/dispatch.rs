@@ -20,7 +20,7 @@ use axum::{
 };
 use hyper::body::Incoming;
 use serde_json::Value;
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
@@ -42,6 +42,7 @@ pub(super) async fn forward_json(
     mut request: Request<Incoming>,
     route: &AuthorizedRoute,
     limits: &BodyLimits,
+    listener: SocketAddr,
 ) -> Result<Response, RouteError> {
     let (app, target, cancelled) = route.json_target().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if app != AppId::Codex || request.uri().path() != CHAT_PATH || request.uri().query().is_some() {
@@ -105,7 +106,8 @@ pub(super) async fn forward_json(
             .headers_mut()
             .insert(header::ACCEPT_ENCODING, HeaderValue::from_static("identity"));
     }
-    let forward = target.transport.forward_ordered(&target.url, outgoing, wire, cancelled);
+    let forward =
+        target.transport.forward_ordered(&target.url, outgoing, wire, cancelled, listener);
     let started = Instant::now();
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());

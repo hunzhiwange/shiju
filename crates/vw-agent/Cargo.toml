@@ -143,6 +143,9 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Secur
 [target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
 rusqlite = "0.37.0"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = "0.7"
+
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.5", optional = true }
 

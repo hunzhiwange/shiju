@@ -1,3 +1,5 @@
+#[cfg(target_os = "macos")]
+use super::outbound_system::{self, SystemProxy};
 use super::{header_wire::HeaderWire, outbound_custom};
 use crate::model_relay::upstream;
 use axum::{
@@ -7,12 +9,14 @@ use axum::{
 };
 use futures_util::StreamExt;
 use hyper::body::Incoming;
-use hyper_util::{
-    client::proxy::matcher::{Intercept, Matcher},
-    rt::TokioIo,
-};
+#[cfg(not(target_os = "macos"))]
+use hyper_util::client::proxy::matcher::Matcher;
+use hyper_util::{client::proxy::matcher::Intercept, rt::TokioIo};
 use rustls_platform_verifier::BuilderVerifierExt;
-use std::sync::{Arc, OnceLock};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, OnceLock},
+};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, join, sink, split},
     net::TcpStream,
@@ -23,7 +27,10 @@ use tokio_rustls::TlsConnector;
 use tokio_util::{either::Either, sync::CancellationToken};
 
 enum Egress {
+    #[cfg(not(target_os = "macos"))]
     System(Matcher),
+    #[cfg(target_os = "macos")]
+    System(Arc<SystemProxy>),
     Custom(Intercept),
 }
 
@@ -32,6 +39,24 @@ pub struct SharedTransport {
     client: reqwest::Client,
     encoded_client: reqwest::Client,
     egress: Egress,
+    #[cfg(target_os = "macos")]
+    direct: DirectClients,
+}
+
+#[cfg(target_os = "macos")]
+struct DirectClients {
+    client: reqwest::Client,
+    encoded: reqwest::Client,
+}
+
+#[cfg(target_os = "macos")]
+impl DirectClients {
+    fn new() -> Result<Self, reqwest::Error> {
+        Ok(Self {
+            client: upstream::upstream_http_client_builder().no_proxy().build()?,
+            encoded: encoded_client_builder().no_proxy().build()?,
+        })
+    }
 }
 
 impl SharedTransport {
@@ -52,14 +77,37 @@ impl SharedTransport {
                 .build()
                 .map_err(build_error)?,
             egress: Egress::Custom(intercept),
+            #[cfg(target_os = "macos")]
+            direct: DirectClients::new().map_err(build_error)?,
         })
     }
 
     pub fn new() -> Result<Self, reqwest::Error> {
+        #[cfg(target_os = "macos")]
+        {
+            Self::with_system_proxy(SystemProxy::read())
+        }
+
+        #[cfg(not(target_os = "macos"))]
         Ok(Self {
             client: upstream::upstream_http_client()?,
             encoded_client: encoded_client_builder().build()?,
             egress: Egress::System(Matcher::from_system()),
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn with_system_proxy(system: SystemProxy) -> Result<Self, reqwest::Error> {
+        let system = Arc::new(system);
+        let proxy = reqwest::Proxy::custom({
+            let system = Arc::clone(&system);
+            move |target| system.url(target).cloned()
+        });
+        Ok(Self {
+            client: upstream::upstream_http_client_builder().proxy(proxy.clone()).build()?,
+            encoded_client: encoded_client_builder().proxy(proxy).build()?,
+            egress: Egress::System(system),
+            direct: DirectClients::new()?,
         })
     }
 
@@ -74,6 +122,11 @@ impl SharedTransport {
         request: reqwest::Request,
         cancel: CancellationToken,
     ) -> Result<Response, StatusCode> {
+        #[cfg(target_os = "macos")]
+        if authorized_target.host_str().is_some_and(outbound_system::is_loopback) {
+            return forward_with_client(&self.direct.client, authorized_target, request, cancel)
+                .await;
+        }
         forward_with_client(&self.client, authorized_target, request, cancel).await
     }
 
@@ -83,6 +136,7 @@ impl SharedTransport {
         mut request: reqwest::Request,
         wire: HeaderWire,
         cancel: CancellationToken,
+        listener: SocketAddr,
     ) -> Result<Response, StatusCode> {
         upstream::validate_target(authorized_target, &request)?;
         let uri: Uri = authorized_target.as_str().parse().map_err(|_| StatusCode::BAD_GATEWAY)?;
@@ -92,27 +146,53 @@ impl SharedTransport {
             .headers_mut()
             .entry(header::ACCEPT_ENCODING)
             .or_insert(HeaderValue::from_static("zstd,gzip,deflate,br"));
-        let tunnel = match &self.egress {
-            Egress::System(matcher) if !wire.is_empty() && matcher.intercept(&uri).is_none() => {
-                None
+        #[cfg(target_os = "macos")]
+        let (client, proxy) = {
+            if outbound_system::is_listener(&uri, listener) {
+                return Err(StatusCode::BAD_GATEWAY);
             }
-            Egress::Custom(proxy)
-                if !wire.is_empty()
-                    && matches!(proxy.uri().scheme_str(), Some("http" | "https")) =>
-            {
-                Some(proxy)
-            }
-            // Reqwest handles the default proxy path and SOCKS DNS selection.
-            _ => {
-                return forward_with_client(
-                    &self.encoded_client,
-                    authorized_target,
-                    request,
-                    cancel,
-                )
-                .await;
+            if uri.host().is_some_and(outbound_system::is_loopback) {
+                (&self.direct.encoded, None)
+            } else {
+                match &self.egress {
+                    Egress::System(system) => match system.intercept(authorized_target) {
+                        Some(proxy) if !outbound_system::is_listener(proxy.uri(), listener) => {
+                            (&self.encoded_client, Some(proxy))
+                        }
+                        _ => (&self.direct.encoded, None),
+                    },
+                    Egress::Custom(proxy) => {
+                        if outbound_system::is_listener(proxy.uri(), listener) {
+                            return Err(StatusCode::BAD_GATEWAY);
+                        }
+                        (&self.encoded_client, Some(proxy))
+                    }
+                }
             }
         };
+        #[cfg(not(target_os = "macos"))]
+        let (client, proxy) = {
+            let _ = listener;
+            match &self.egress {
+                Egress::System(matcher) if matcher.intercept(&uri).is_some() => {
+                    return forward_with_client(
+                        &self.encoded_client,
+                        authorized_target,
+                        request,
+                        cancel,
+                    )
+                    .await;
+                }
+                Egress::System(_) => (&self.encoded_client, None),
+                Egress::Custom(proxy) => (&self.encoded_client, Some(proxy)),
+            }
+        };
+        if wire.is_empty()
+            || proxy
+                .is_some_and(|proxy| !matches!(proxy.uri().scheme_str(), Some("http" | "https")))
+        {
+            return forward_with_client(client, authorized_target, request, cancel).await;
+        }
         let method = request.method().clone();
         let mut headers = std::mem::take(request.headers_mut());
         headers.entry(header::ACCEPT).or_insert(HeaderValue::from_static("*/*"));
@@ -125,7 +205,7 @@ impl SharedTransport {
         tokio::select! {
             biased;
             () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
-            result = send_ordered(outgoing, wire, tunnel, cancel.clone()) => result,
+            result = send_ordered(outgoing, wire, proxy, cancel.clone()) => result,
         }
     }
 }

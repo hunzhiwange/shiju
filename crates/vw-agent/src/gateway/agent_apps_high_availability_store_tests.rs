@@ -15,7 +15,7 @@ use super::{
     },
     settings_store::GatewaySettingsStore,
 };
-use crate::global_database::GlobalDatabase;
+use crate::global_database::{GlobalDatabase, test_support::PostgresTestDatabase};
 
 #[test]
 fn ha_sqlite_queue_updates_are_atomic() -> Result<()> {
@@ -121,4 +121,117 @@ fn ha_sqlite_queue_updates_are_atomic() -> Result<()> {
     }
     assert_eq!(FailoverQueueStore::new(database)?.get(&scope)?, saved);
     Ok(())
+}
+
+#[test]
+fn ha_postgres_queue_updates_are_atomic() -> Result<()> {
+    let fixture = PostgresTestDatabase::from_environment()?;
+    let database = fixture.database();
+    let settings = GatewaySettingsStore::new(database.clone())?;
+    let store = FailoverQueueStore::new(database.clone())
+        .expect("the failover queue must accept the configured PostgreSQL provider");
+    let tenant = TenantScope::new("platform", "company")?;
+    let other_tenant = TenantScope::new("platform", "other-company")?;
+    let scope = FailoverQueueScope {
+        project: ProjectScope::new(tenant.clone(), "project".into())?,
+        target_host_id: "host-a".into(),
+        app_id: Claude,
+    };
+    let other_scope = FailoverQueueScope {
+        project: ProjectScope::new(other_tenant.clone(), "project".into())?,
+        ..scope.clone()
+    };
+    let key = config_key(&scope)?;
+    assert_eq!(config_key(&other_scope)?, key);
+    let read_raw = || settings.get(&tenant, NAMESPACE, &key);
+    let empty = FailoverQueueState::default();
+    assert_eq!(store.get(&scope)?, empty);
+    assert_eq!(store.update(&scope, empty.version, |_, _| Ok(()))?, empty);
+    assert_eq!(read_raw()?, None);
+    let conflict = store
+        .update(&scope, FailoverQueueVersion(1), |_, _| panic!("stale change ran"))
+        .expect_err("a stale first write must conflict");
+    assert!(conflict.is::<FailoverQueueVersionConflict>(), "{conflict:#}");
+    assert_eq!(read_raw()?, None);
+
+    let add = |scope: &FailoverQueueScope, id: &str, version| {
+        let candidate = ProviderSnapshot {
+            provider: AppProviderSummary {
+                id: id.into(),
+                app_id: Claude,
+                name: "Fixture".into(),
+                configured: true,
+            },
+            auth: ProviderAuth::ThirdParty,
+        };
+        store.update(scope, version, |queue, _| {
+            queue.add(id, &[candidate]).map_err(|error| anyhow::anyhow!("{error:?}"))?;
+            Ok(())
+        })
+    };
+    let other = add(&other_scope, "provider-other", empty.version)?;
+    assert_eq!(other.members, ["provider-other"]);
+    let other_raw = settings.get(&other_tenant, NAMESPACE, &key)?;
+
+    let (winner, added_a) = race_postgres_queue_updates(
+        || add(&scope, "provider-a", empty.version),
+        || add(&scope, "provider-b", empty.version),
+    );
+    let winner_id = if added_a { "provider-a" } else { "provider-b" };
+    assert_eq!(winner.members, [winner_id]);
+    assert_eq!(winner.version, FailoverQueueVersion(1));
+    assert_eq!(store.get(&scope)?, winner);
+
+    let remove_winner = |version| {
+        store.update(&scope, version, |queue, _| {
+            assert!(queue.remove(winner_id).unwrap().is_some());
+            Ok(())
+        })
+    };
+    let (updated, added_c) = race_postgres_queue_updates(
+        || add(&scope, "provider-c", winner.version),
+        || remove_winner(winner.version),
+    );
+    assert_eq!(updated.version, FailoverQueueVersion(2));
+    assert_eq!(store.get(&scope)?, updated);
+    let saved = if added_c {
+        assert_eq!(updated.members, [winner_id, "provider-c"]);
+        remove_winner(updated.version)?
+    } else {
+        assert!(updated.members.is_empty());
+        add(&scope, "provider-c", updated.version)?
+    };
+    assert_eq!(saved.version, FailoverQueueVersion(3));
+    assert_eq!(saved.members, ["provider-c"]);
+
+    let reopened = FailoverQueueStore::new(fixture.reopen()?)?;
+    assert_eq!(reopened.get(&scope)?, saved);
+    assert_eq!(reopened.get(&other_scope)?, other);
+    assert_eq!(settings.get(&other_tenant, NAMESPACE, &key)?, other_raw);
+    fixture.cleanup()
+}
+
+fn race_postgres_queue_updates(
+    first: impl FnOnce() -> Result<FailoverQueueState> + Send,
+    second: impl FnOnce() -> Result<FailoverQueueState> + Send,
+) -> (FailoverQueueState, bool) {
+    let start = Barrier::new(2);
+    let (first, second) = thread::scope(|threads| {
+        let first = threads.spawn(|| {
+            start.wait();
+            first()
+        });
+        let second = threads.spawn(|| {
+            start.wait();
+            second()
+        });
+        (first.join().expect("first queue writer"), second.join().expect("second queue writer"))
+    });
+    let (winner, conflict, first_won) = match (first, second) {
+        (Ok(winner), Err(conflict)) => (winner, conflict, true),
+        (Err(conflict), Ok(winner)) => (winner, conflict, false),
+        (first, second) => panic!("expected one successful queue write: {first:?}, {second:?}"),
+    };
+    assert!(conflict.is::<FailoverQueueVersionConflict>(), "{conflict:#}");
+    (winner, first_won)
 }

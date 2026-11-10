@@ -8,7 +8,7 @@ use vw_agent_apps::{
 use vw_api_types::agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion};
 
 use super::settings_store::GatewaySettingsStore;
-use crate::global_database::{GlobalDatabase, config::DatabaseProvider};
+use crate::global_database::GlobalDatabase;
 
 pub(super) const NAMESPACE: &str = "agent_apps.high_availability";
 
@@ -33,7 +33,6 @@ pub struct FailoverQueueStore(GatewaySettingsStore);
 
 impl FailoverQueueStore {
     pub fn new(database: GlobalDatabase) -> Result<Self> {
-        ensure!(database.provider() == DatabaseProvider::Sqlite, "SQLite failover queue required");
         Ok(Self(GatewaySettingsStore::new(database)?))
     }
 
@@ -45,7 +44,7 @@ impl FailoverQueueStore {
     }
 
     /// The caller must authorize queue management for this scope.
-    /// The change runs with the SQLite write lock held and should only mutate the in-memory queue.
+    /// The change runs under the database write transaction and should only mutate the in-memory queue.
     pub fn update(
         &self,
         scope: &FailoverQueueScope,
@@ -53,7 +52,7 @@ impl FailoverQueueStore {
         change: impl FnOnce(&mut Queue, &mut bool) -> Result<()>,
     ) -> Result<FailoverQueueState> {
         let key = config_key(scope)?;
-        self.0.update_sqlite(scope.project.tenant_scope(), NAMESPACE, &key, |payload| {
+        self.0.update(scope.project.tenant_scope(), NAMESPACE, &key, |payload| {
             let mut state = decode(payload)?;
             if state.version != expected_version {
                 bail!(FailoverQueueVersionConflict);

@@ -2,10 +2,11 @@
 //!
 //! SQL 主键与 SQLite 后端一致，所有操作显式包含平台和公司作用域。
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
+use postgres::{IsolationLevel, types::ToSql};
 use vw_api_types::id::TenantScope;
 
-use super::GatewaySetting;
+use super::{GatewaySetting, current_timestamp_ms, validate_identifier};
 use crate::global_database::GlobalDatabase;
 
 const GATEWAY_SETTINGS_SCHEMA: &str = r#"
@@ -106,6 +107,67 @@ impl PostgresGatewaySettingsStore {
             bail!("PostgreSQL gateway setting upsert affected an unexpected row count");
         }
         Ok(())
+    }
+
+    /// Serialize changes to a scoped setting, including its first write.
+    pub(super) fn update<T>(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        config_key: &str,
+        update: impl FnOnce(Option<&str>) -> Result<(T, Option<String>)>,
+    ) -> Result<T> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection
+            .build_transaction()
+            .isolation_level(IsolationLevel::ReadCommitted)
+            .start()?;
+        let key: &[&(dyn ToSql + Sync)] = &[
+            &tenant.platform_id().as_ref(),
+            &tenant.company_id().as_ref(),
+            &namespace,
+            &config_key,
+        ];
+        // A missing row cannot be locked. Insert a temporary row so first writers
+        // contend on the same key and the following SELECT sees the committed winner.
+        let inserted = transaction
+            .execute(
+                "INSERT INTO gateway_settings (
+                     platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+                 ) VALUES ($1, $2, $3, $4, 'null', 0)
+                 ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+                key,
+            )
+            .context("initialize tenant PostgreSQL gateway setting for update")?;
+        let current: String = transaction
+            .query_one(
+                "SELECT payload_json FROM gateway_settings
+                 WHERE platform_id = $1 AND company_id = $2
+                   AND namespace = $3 AND config_key = $4
+                 FOR UPDATE",
+                key,
+            )
+            .context("lock tenant PostgreSQL gateway setting")?
+            .try_get(0)
+            .context("decode tenant PostgreSQL gateway setting")?;
+
+        let (result, replacement) = update((inserted == 0).then_some(current.as_str()))?;
+        let Some(payload) = replacement else {
+            transaction.rollback()?;
+            return Ok(result);
+        };
+        validate_identifier(&payload, "gateway settings payload")?;
+        let changed = transaction
+            .execute(
+                "UPDATE gateway_settings SET payload_json = $5, updated_at_ms = $6
+                 WHERE platform_id = $1 AND company_id = $2
+                   AND namespace = $3 AND config_key = $4",
+                &[key[0], key[1], key[2], key[3], &payload, &current_timestamp_ms()?],
+            )
+            .context("update locked tenant PostgreSQL gateway setting")?;
+        ensure!(changed == 1, "PostgreSQL gateway setting update affected an unexpected row count");
+        transaction.commit()?;
+        Ok(result)
     }
 
     /// Duplicate scoped keys preserve the existing payload and timestamp.

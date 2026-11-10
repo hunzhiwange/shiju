@@ -146,8 +146,8 @@ impl GatewaySettingsStore {
         }
     }
 
-    /// Read and optionally replace a scoped setting under one SQLite write transaction.
-    pub(super) fn update_sqlite<T>(
+    /// Read and optionally replace a scoped setting in one write transaction.
+    pub(super) fn update<T>(
         &self,
         tenant: &TenantScope,
         namespace: &str,
@@ -156,8 +156,11 @@ impl GatewaySettingsStore {
     ) -> Result<T> {
         validate_identifier(namespace, "gateway settings namespace")?;
         validate_identifier(config_key, "gateway settings config key")?;
-        let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
-            bail!("SQLite gateway settings transaction required");
+        let database = match &self.provider {
+            GatewaySettingsStoreProvider::Sqlite(database) => database,
+            GatewaySettingsStoreProvider::Postgres(store) => {
+                return store.update(tenant, namespace, config_key, update);
+            }
         };
 
         database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {

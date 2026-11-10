@@ -19,7 +19,7 @@ fn event(value: Value) -> String {
 struct Decoder {
     pending: Vec<u8>,
     data: String,
-    size: usize,
+    retained: usize,
     done: bool,
     started: bool,
     sequence: u64,
@@ -48,11 +48,11 @@ impl Decoder {
     fn initial(&self) -> Value {
         json!({"id":self.id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":self.identity.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
     }
-    fn failure(&mut self) -> String {
+    fn failure(&mut self, message: &str) -> String {
         self.done = true;
         let mut response = self.initial();
         response["status"] = "failed".into();
-        response["error"] = json!({"code":"relay_error","message":"Unsupported or invalid upstream Responses conversion"});
+        response["error"] = json!({"code":"relay_error","message":message});
         self.emit(json!({"type":"response.failed","response":response}))
     }
     fn emit_reasoning_delta(
@@ -243,6 +243,7 @@ impl Decoder {
                 {
                     let reasoning = reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
                     if !reasoning.is_empty() {
+                        self.retained += reasoning.len();
                         if self.text_open {
                             // Codex tracks one active item. Defer late reasoning until text closes.
                             self.late_reasoning.push_str(reasoning);
@@ -267,6 +268,7 @@ impl Decoder {
             }
             if let Some(text) = delta["content"].as_str() {
                 if !text.is_empty() {
+                    self.retained += text.len();
                     let item_id = format!("{}_msg_0", self.id);
                     let index = usize::from(!self.reasoning.is_empty());
                     if !self.text_open {
@@ -308,13 +310,16 @@ impl Decoder {
                             if key == "id" { call.get(key) } else { call["function"].get(key) };
                         if let Some(fragment) = fragment {
                             let fragment = fragment.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                            self.retained += fragment.len();
                             let target = if key == "id" {
                                 &mut tool[key]
                             } else {
                                 &mut tool["function"][key]
                             };
-                            *target =
-                                json!(format!("{}{fragment}", target.as_str().unwrap_or_default()));
+                            let Value::String(target) = target else {
+                                return Err(StatusCode::BAD_GATEWAY);
+                            };
+                            target.push_str(fragment);
                         }
                     }
                 }
@@ -324,18 +329,23 @@ impl Decoder {
                 self.reason = choice["finish_reason"].clone();
             }
         }
+        if self.retained > LIMIT {
+            return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        }
         Ok(out)
     }
     fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
-        self.size += bytes.len();
-        if self.size > LIMIT {
-            return Err(StatusCode::BAD_GATEWAY);
-        }
-        self.pending.extend_from_slice(bytes);
         let mut out = String::new();
-        while let Some(end) = self.pending.iter().position(|b| *b == b'\n') {
-            let line = self.pending.drain(..=end).collect::<Vec<_>>();
-            let line = std::str::from_utf8(&line)
+        for line in bytes.split_inclusive(|byte| *byte == b'\n') {
+            // Bound the pending event independently of the bytes already consumed.
+            if self.pending.len() + self.data.len() + line.len() > LIMIT {
+                return Err(StatusCode::PAYLOAD_TOO_LARGE);
+            }
+            self.pending.extend_from_slice(line);
+            if !line.ends_with(b"\n") {
+                break;
+            }
+            let line = std::str::from_utf8(&self.pending)
                 .map_err(|_| StatusCode::BAD_GATEWAY)?
                 .trim_end_matches(['\r', '\n']);
             if line.is_empty() {
@@ -347,6 +357,7 @@ impl Decoder {
                 self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
                 self.data.push('\n');
             }
+            self.pending.clear();
         }
         Ok(out)
     }
@@ -408,7 +419,7 @@ pub(super) async fn response(
     let decoder = Decoder {
         pending: Vec::new(),
         data: String::new(),
-        size: 0,
+        retained: 0,
         done: false,
         started: false,
         sequence: 0,
@@ -436,14 +447,20 @@ pub(super) async fn response(
             }
             loop {
                 let next = tokio::select! {biased;()=cancel.cancelled()=>return None,next=stream.next()=>next};
-                let result = match next {
-                    Some(Ok(bytes)) => decoder.push(&bytes),
-                    _ => Err(StatusCode::BAD_GATEWAY),
-                };
-                let out = match result {
-                    Ok(out) if out.is_empty() => continue,
-                    Ok(out) => out,
-                    Err(_) => decoder.failure(),
+                let out = match next {
+                    Some(Ok(bytes)) => match decoder.push(&bytes) {
+                        Ok(out) if out.is_empty() => continue,
+                        Ok(out) => out,
+                        Err(StatusCode::PAYLOAD_TOO_LARGE) => decoder.failure(
+                            "Upstream Responses event or output exceeded the relay size limit",
+                        ),
+                        Err(_) => {
+                            decoder.failure("Unsupported or invalid upstream Responses conversion")
+                        }
+                    },
+                    Some(Err(_)) => decoder.failure("Upstream Responses stream read failed"),
+                    None => decoder
+                        .failure("Upstream Responses stream ended without a completion event"),
                 };
                 return Some((
                     Ok::<_, std::io::Error>(Bytes::from(out)),

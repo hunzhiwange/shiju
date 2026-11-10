@@ -75,6 +75,23 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
             calls.lock().push((headers,body.clone()));
             let prompt = body["messages"].as_array().unwrap().last().unwrap()["content"].as_str().unwrap_or("").to_owned();
             if prompt == "error" { return Response::builder().status(500).body(Body::from("private upstream secret")).unwrap(); }
+            if matches!(prompt.as_str(), "long stream" | "oversized output" | "oversized event") {
+                let (text, count) = match prompt.as_str() {
+                    "long stream" => ("x".into(), 24_000),
+                    "oversized output" => ("x".repeat(2 * 1024 * 1024 + 1), 2),
+                    _ => ("x".repeat(4 * 1024 * 1024), 1),
+                };
+                let frame = json!({"id":"chatcmpl-fixture","object":"chat.completion.chunk",
+                    "created":123,"model":"wire-model","choices":[{"index":0,
+                    "delta":{"content":text},"logprobs":null,"finish_reason":null}],"usage":null});
+                let terminal = json!({"choices":[{"index":0,"delta":{},"finish_reason":"stop"}],
+                    "usage":{"prompt_tokens":8,"completion_tokens":count}});
+                let wire = format!("{}data: {terminal}\n\ndata: [DONE]\n\n",
+                    format!("data: {frame}\n\n").repeat(count));
+                assert!(wire.len() > 4 * 1024 * 1024);
+                return Response::builder().header("content-type", "text/event-stream")
+                    .body(Body::from(wire)).unwrap();
+            }
             if body["tools"].as_array().is_some_and(|tools| {
                 tools.iter().any(|tool| tool["function"]["name"] == "apply_patch")
             }) {
@@ -261,7 +278,12 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
         .text()
         .await
         .unwrap();
-    assert_eq!(parse_events(&wire).last().unwrap()["type"], "response.failed");
+    let events = parse_events(&wire);
+    assert_eq!(events.last().unwrap()["type"], "response.failed");
+    assert_eq!(
+        events.last().unwrap()["response"]["error"]["message"],
+        "Upstream Responses stream ended without a completion event"
+    );
     let codex = RelayBinding::new(
         RelayIdentity { session: "one:codex".into(), ..identity.clone() },
         Duration::from_secs(60),
@@ -270,6 +292,32 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
     let codex_server =
         RelayServer::start(codex.clone(), backend.clone(), context.clone()).await.unwrap();
     let codex_url = format!("http://{}/v1/responses", codex_server.address());
+    for prompt in ["long stream", "oversized output", "oversized event"] {
+        let wire = client
+            .post(&codex_url)
+            .bearer_auth(codex.bearer_token())
+            .json(&json!({"model":"selected","input":prompt,"stream":true,"store":false}))
+            .send()
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+        let events = parse_events(&wire);
+        let terminal = events.last().unwrap();
+        if prompt == "long stream" {
+            assert_eq!(terminal["type"], "response.completed");
+            assert_eq!(terminal["response"]["output"][0]["content"][0]["text"], "x".repeat(24_000));
+        } else {
+            assert_eq!(terminal["type"], "response.failed");
+            assert_eq!(
+                terminal["response"]["error"]["message"],
+                "Upstream Responses event or output exceeded the relay size limit"
+            );
+        }
+    }
     let request = json!({"model":"selected","input":[
         {"type":"message","id":"dev-1","role":"developer","content":"policy"},
         {"type":"message","role":"user","content":"edit the file"}

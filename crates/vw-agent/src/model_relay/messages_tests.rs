@@ -23,6 +23,34 @@ fn acp_model_source_relay_messages_preserves_tool_roundtrip_and_system() {
 }
 
 #[test]
+fn acp_model_source_relay_messages_preserves_failed_tool_results_in_history() {
+    let mut request = json!({"model":"selected","max_tokens":64,"messages":[
+        {"role":"assistant","content":[
+            {"type":"tool_use","id":"read-a","name":"Read","input":{}},
+            {"type":"tool_use","id":"read-b","name":"Read","input":{}}
+        ]},
+        {"role":"user","content":[
+            {"type":"tool_result","tool_use_id":"read-a","content":"data","is_error":false},
+            {"type":"tool_result","tool_use_id":"read-b","content":[{"type":"text","text":"File missing"}],"is_error":true},
+            {"type":"text","text":"Try another path"}
+        ]}
+    ]});
+    let chat = messages::to_chat(&request).unwrap();
+    assert_eq!(
+        chat["messages"].as_array().unwrap()[1..],
+        json!([
+            {"role":"tool","tool_call_id":"read-a","content":"data"},
+            {"role":"tool","tool_call_id":"read-b","content":"Tool execution failed:\nFile missing"},
+            {"role":"user","content":"Try another path"}
+        ])
+        .as_array()
+        .unwrap()[..]
+    );
+    request["messages"][1]["content"][1]["is_error"] = json!("true");
+    assert_eq!(messages::to_chat(&request), Err(StatusCode::BAD_REQUEST));
+}
+
+#[test]
 fn acp_model_source_relay_messages_rejects_unrepresentable_state() {
     for block in [
         json!({"type":"thinking","thinking":"secret","signature":"sig"}),

@@ -124,14 +124,18 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
                         block,
                         &["type", "tool_use_id", "content", "is_error", "cache_control"],
                     )?;
-                    if block.get("is_error").is_some_and(|v| v != false) {
-                        return Err(UNSUPPORTED);
+                    let mut result = text(&block["content"])?;
+                    if let Some(is_error) = block.get("is_error")
+                        && is_error.as_bool().ok_or(StatusCode::BAD_REQUEST)?
+                    {
+                        // Chat has no tool error flag. Preserve it in the correlated result.
+                        result.insert_str(0, "Tool execution failed:\n");
                     }
                     if !content.is_empty() {
                         messages
                             .push(json!({"role":"user","content":std::mem::take(&mut content)}));
                     }
-                    messages.push(json!({"role":"tool","tool_call_id":string(block,"tool_use_id")?,"content":text(&block["content"])?}));
+                    messages.push(json!({"role":"tool","tool_call_id":string(block,"tool_use_id")?,"content":result}));
                 }
                 _ => return Err(UNSUPPORTED),
             }

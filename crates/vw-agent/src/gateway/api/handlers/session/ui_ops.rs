@@ -93,28 +93,21 @@ pub(super) async fn session_ui_summary(
     let scope = resolve_scope_from_query(&tenant, &query, &headers)
         .ok_or_else(|| ApiError::bad_request("session project scope is required"))?;
     let id = session_id.clone();
-    let tenant_for_load = tenant.clone();
     let binding_scope = scope.clone();
     let meta = crate::global_database::run_isolated(move || {
-        ui_store::load_session_ui_meta_scoped_for_tenant(&tenant_for_load, &id, &scope)
+        ui_store::load_session_ui_meta_scoped_for_tenant(&tenant, &id, &scope)
     })
     .await
     .map_err(|error| ApiError::internal(error.to_string()))?
     .map_err(|error| ApiError::internal(error.to_string()))?
     .ok_or_else(|| ApiError::not_found(format!("session not found: {session_id}")))?;
-    let binding_session = session_id.clone();
-    let agent_binding = crate::global_database::run_isolated(move || {
-        ui_store::load_session_agent_identity_scoped_for_tenant(
-            &tenant,
-            &binding_session,
-            Some(&binding_scope),
-        )
-    })
-    .await
-    .map_err(|error| ApiError::internal(error.to_string()))?
-    .map_err(|error| ApiError::internal(error.to_string()))?;
+    let settings =
+        crate::session::agent_binding::SessionSettings::load(&binding_scope, &session_id)
+            .await
+            .map_err(|error| ApiError::internal(error.to_string()))?;
     Ok(Json(GatewaySessionUiSummary {
-        agent_binding,
+        agent_binding: settings.binding.map(|binding| binding.identity()),
+        full_access: settings.full_access,
         id: meta.id,
         title: meta.title,
         updated_ms: meta.updated_ms,

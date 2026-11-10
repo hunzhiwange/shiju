@@ -67,6 +67,10 @@ pub(crate) fn router() -> Router<AppState> {
             get(ui_session_get).patch(ui_session_patch).delete(ui_session_delete),
         )
         .route("/session/{session_id}/children", get(session_children))
+        .route(
+            "/session/{session_id}/full-access",
+            axum::routing::put(session_ops::session_full_access_put),
+        )
         .route("/session/{session_id}/todo", get(session_todo_get).put(session_todo_put))
         .route("/session/{session_id}/fork", post(session_fork))
         .route("/session/{session_id}/reset", post(session_reset))

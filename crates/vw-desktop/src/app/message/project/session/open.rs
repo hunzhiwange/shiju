@@ -52,6 +52,7 @@ pub(crate) fn open_session_draft(
     app.show_recommended_prompt_menu = false;
     app.show_agent_sessions_popover = false;
     app.input_editor = iced::widget::text_editor::Content::new();
+    app.reset_draft_full_access();
     let runtime = app.current_session_runtime_mut();
     runtime.input_editor = iced::widget::text_editor::Content::new();
     runtime.acp_source_pending = None;

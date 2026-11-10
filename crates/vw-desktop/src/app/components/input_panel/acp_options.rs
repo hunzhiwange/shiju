@@ -241,6 +241,7 @@ fn access_status(app: &App) -> Element<'_, Message> {
     let runtime = app.current_session_runtime();
     let can_change = super::send_controls::has_permission_context(app)
         && !runtime.is_requesting
+        && !runtime.full_access_saving
         && !runtime.acp_options_pending
         && runtime.acp_source_pending.is_none();
     let mut status = column![

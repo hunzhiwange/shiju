@@ -527,7 +527,7 @@ fn gateway_stream_retries_incomplete_attempts_until_terminal() {
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
@@ -558,7 +558,7 @@ fn autonomous_agent_tool_request_does_not_add_desktop_prompt_or_requirement() {
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
@@ -1481,7 +1481,7 @@ fn agent_stream_wrapper_returns_stream_without_polling() {
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
@@ -2160,7 +2160,7 @@ async fn workflow_mode_without_project_root_emits_error_without_network() {
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: true,
         goal_mode_enabled: false,
@@ -2201,7 +2201,7 @@ fn sample_agent_request(
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled,
         goal_mode_enabled,
@@ -2224,6 +2224,18 @@ fn gateway_request_options_include_input_source() {
             "clientTimeZone": "America/New_York",
         })
     );
+}
+
+#[test]
+fn gateway_request_options_preserve_stored_session_full_access() {
+    let mut request = sample_agent_request(false, false, None);
+    request.full_access_enabled = None;
+    let options = super::gateway_request_options(&request, "rpc", "UTC").unwrap();
+    assert!(options.get("full_access").is_none());
+
+    request.full_access_enabled = Some(false);
+    let options = super::gateway_request_options(&request, "rpc", "UTC").unwrap();
+    assert_eq!(options["full_access"], false);
 }
 
 #[test]

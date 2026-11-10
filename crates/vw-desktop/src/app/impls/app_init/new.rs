@@ -613,6 +613,7 @@ impl App {
             active_session_id,
             archived_session_ids: cfg_archived_session_ids,
             session_reasoning_efforts: config::session_reasoning_efforts_from_config(&cfg),
+            last_llm_full_access: None,
             session_chat_cache: HashMap::new(),
             session_view_cache: crate::app::session::SessionViewCache::new(),
             paged_chat_timeline: None,

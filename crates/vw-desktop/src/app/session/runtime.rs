@@ -44,12 +44,71 @@ impl App {
         let restored = self.sessions.iter().any(|session| session.id == session_id)
             || self.project_sessions.values().flatten().any(|session| session.id == session_id);
         !restored
-            && self
-                .agents_settings
-                .entries
-                .iter()
-                .find(|entry| entry.key == MAIN_AGENT_KEY)
-                .is_some_and(|entry| entry.defaults.full_access)
+            && self.last_llm_full_access.unwrap_or_else(|| {
+                self.agents_settings
+                    .entries
+                    .iter()
+                    .find(|entry| entry.key == MAIN_AGENT_KEY)
+                    .is_some_and(|entry| entry.defaults.full_access)
+            })
+    }
+
+    fn session_full_access(&self, session_id: &str, runtime: Option<&SessionRuntimeState>) -> bool {
+        if self.agents_settings.config_ready
+            && runtime.is_none_or(|r| !r.full_access_initialized && !r.full_access_overridden)
+        {
+            return self.new_session_full_access(session_id);
+        }
+        runtime.is_some_and(|r| r.full_access_enabled)
+    }
+
+    pub(crate) fn current_session_full_access(&self) -> bool {
+        self.session_full_access(
+            self.active_session_id.as_deref().unwrap_or(EMPTY_SESSION_ID),
+            self.current_session_runtime_ref(),
+        )
+    }
+
+    pub(crate) fn restore_session_full_access(&mut self, session_id: &str, full_access: bool) {
+        let runtime = self.get_session_runtime_mut(session_id);
+        if !runtime.full_access_overridden {
+            runtime.full_access_enabled = full_access;
+            runtime.full_access_initialized = true;
+        }
+    }
+
+    pub(crate) fn load_session_full_access(&self, session_id: &str) -> iced::Task<crate::app::Message> {
+        let Some(directory) = self.known_session_directory(session_id) else {
+            return iced::Task::none();
+        };
+        let session_id = session_id.to_owned();
+        let target = session_id.clone();
+        let client = crate::app::gateway_client();
+        iced::Task::perform(
+            async move {
+                client.ok()?.session_ui_summary(&target, Some(&directory)).await.ok()?.full_access
+            },
+            move |result| {
+                result.map_or(crate::app::Message::None, |full_access| {
+                    crate::app::Message::Chat(
+                        crate::app::message::ChatMessage::SessionFullAccessLoaded {
+                            session_id: session_id.clone(),
+                            full_access,
+                        },
+                    )
+                })
+            },
+        )
+    }
+
+    pub(crate) fn reset_draft_full_access(&mut self) {
+        if let Some(runtime) = self.session_runtime_states.get_mut(EMPTY_SESSION_ID)
+            && runtime.acp_agent.is_none()
+        {
+            runtime.full_access_initialized = self.last_llm_full_access.is_some();
+            runtime.full_access_overridden = false;
+            runtime.full_access_enabled = self.last_llm_full_access.unwrap_or(false);
+        }
     }
 
     fn selected_static_allowed_tools(&self, runtime: &SessionRuntimeState) -> Option<Vec<String>> {
@@ -88,12 +147,7 @@ impl App {
                 runtime.acp_recent_count = self.acp_recent_count;
                 runtime
             });
-        if self.agents_settings.config_ready
-            && !runtime.full_access_initialized
-            && !runtime.full_access_overridden
-        {
-            runtime.full_access_enabled = self.new_session_full_access(session_id);
-        }
+        runtime.full_access_enabled = self.session_full_access(session_id, Some(&runtime));
         runtime
     }
 
@@ -348,6 +402,8 @@ impl App {
         }
 
         let runtime = self.get_session_runtime_mut(session_id);
+        runtime.full_access_enabled = false;
+        runtime.full_access_initialized = true;
         runtime.restore_model_from_history = true;
     }
 

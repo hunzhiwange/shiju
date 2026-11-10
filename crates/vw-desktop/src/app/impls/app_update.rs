@@ -403,6 +403,16 @@ impl App {
             }
         }
         self.session_reasoning_efforts = efforts;
+        if let Some(full_access) = cfg.get("last_llm_full_access").and_then(serde_json::Value::as_bool) {
+            self.last_llm_full_access = Some(full_access);
+            if let Some(runtime) = self.session_runtime_states.get_mut("__empty__")
+                && runtime.acp_agent.is_none()
+                && !runtime.full_access_overridden
+            {
+                runtime.full_access_enabled = full_access;
+                runtime.full_access_initialized = true;
+            }
+        }
         self.reasoning_effort = self.current_session_runtime().reasoning_effort;
         self.apply_bootstrap_chat_preferences(&cfg);
         self.auto_max_mode =

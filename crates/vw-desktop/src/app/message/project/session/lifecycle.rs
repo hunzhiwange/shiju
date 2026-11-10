@@ -681,6 +681,7 @@ fn apply_prepared_session_open(
     let crate::app::session::PreparedSessionOpen {
         session_id,
         agent_binding: _,
+        full_access: _,
         messages,
         message_ids,
         usage,
@@ -901,7 +902,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
-                    switch_task = iced::Task::perform(
+                    let load_permissions = app.load_session_full_access(&next_id);
+                    let load_messages = iced::Task::perform(
                         async move {
                             let client = match crate::app::gateway_client() {
                                 Ok(client) => client,
@@ -933,6 +935,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         },
                         |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
                     );
+                    switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
                     app.active_session_id = None;
                     app.chat.clear();
@@ -1010,7 +1013,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
-                    switch_task = iced::Task::perform(
+                    let load_permissions = app.load_session_full_access(&next_id);
+                    let load_messages = iced::Task::perform(
                         async move {
                             let client = match crate::app::gateway_client() {
                                 Ok(client) => client,
@@ -1038,6 +1042,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         },
                         |res| Message::Project(ProjectMessage::SessionMessagesLoaded(res)),
                     );
+                    switch_task = iced::Task::batch([load_messages, load_permissions]);
                 } else {
                     app.active_session_id = None;
                     app.chat.clear();
@@ -1135,7 +1140,10 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.active_session_view_state = ActiveSessionViewState::default();
             app.invalidate_chat_ui_state();
             app.sync_active_session_preferences();
-            Some(save_last_directory_task)
+            Some(iced::Task::batch([
+                save_last_directory_task,
+                app.load_session_full_access(&info.id),
+            ]))
         }
         ProjectMessage::SessionOpenPrepared {
             target_session_id,
@@ -1197,6 +1205,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     .then(|| binding.agent.clone());
                 runtime.acp_agent = binding.acp_agent.clone();
                 runtime.agent_label = binding.label.clone();
+            }
+            if let Some(full_access) = prepared.full_access {
+                app.restore_session_full_access(&target_session_id, full_access);
             }
             let incomplete_remote_history = source == PreparedSessionOpenSource::RemoteHistory
                 && (remote_history_is_incomplete(&app.chat_message_ids, &prepared.message_ids)

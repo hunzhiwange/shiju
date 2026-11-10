@@ -152,7 +152,7 @@ fn agent_request(id: u64, session: &str) -> std::sync::Arc<crate::app::AgentRequ
         acp_force_new_session: false,
         acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
         acp_recent_count: 3,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: false,
         goal_mode_enabled: false,
@@ -2091,6 +2091,7 @@ fn agent_config_cleanup_full_access_initializes_new_session_only() {
         .unwrap()
         .defaults
         .full_access = true;
+    assert!(app.current_session_full_access());
     assert!(app.current_session_runtime().full_access_enabled);
     app.current_session_runtime_mut();
     app.agents_settings
@@ -2103,6 +2104,7 @@ fn agent_config_cleanup_full_access_initializes_new_session_only() {
     assert!(app.current_session_runtime().full_access_enabled);
     app.active_session_id = Some("restored".into());
     app.sessions.push(session_info("restored", "old", "/tmp"));
+    assert!(!app.current_session_full_access());
     assert!(!app.current_session_runtime().full_access_enabled);
     app.active_session_id = Some("new".into());
     assert!(!app.current_session_runtime().full_access_enabled);
@@ -2111,7 +2113,7 @@ fn agent_config_cleanup_full_access_initializes_new_session_only() {
 }
 
 #[test]
-fn agent_config_cleanup_full_access_does_not_override_explicit_session_choice() {
+fn full_access_toggle_is_remembered_for_new_llm_sessions() {
     let mut app = crate::app::App::new().0;
     app.agents_settings.config_ready = true;
     app.agents_settings
@@ -2125,11 +2127,12 @@ fn agent_config_cleanup_full_access_does_not_override_explicit_session_choice() 
     assert!(app.current_session_runtime().full_access_enabled);
     let _ =
         crate::app::message::chat::update(&mut app, super::ChatMessage::ToggleFullAccessPermission);
+    assert!(!app.current_session_full_access());
     assert!(!app.current_session_runtime().full_access_enabled);
     let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("main".into())));
     assert!(!app.current_session_runtime().full_access_enabled);
     app.active_session_id = Some("other-new-session".into());
-    assert!(app.current_session_runtime().full_access_enabled);
+    assert!(!app.current_session_runtime().full_access_enabled);
 }
 
 fn confirm_pending_model_source(app: &mut crate::app::App) {

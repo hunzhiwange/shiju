@@ -160,7 +160,8 @@ pub(crate) struct AgentRequest {
     pub(crate) acp_force_new_session: bool,
     pub(crate) acp_history_mode: AcpHistoryReplayMode,
     pub(crate) acp_recent_count: usize,
-    pub(crate) full_access_enabled: bool,
+    /// None lets the gateway use the established session's stored permission.
+    pub(crate) full_access_enabled: Option<bool>,
     pub(crate) resume_history_only: bool,
     pub(crate) workflow_mode_enabled: bool,
     pub(crate) goal_mode_enabled: bool,
@@ -533,6 +534,8 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) acp_recent_count: usize,
     pub(crate) full_access_enabled: bool,
     pub(crate) full_access_initialized: bool,
+    pub(crate) full_access_saving: bool,
+    pub(crate) full_access_save_failed: bool,
     /// 用户操作后不再采用智能体默认值。
     pub(crate) full_access_overridden: bool,
     pub(crate) last_effective_acp_agent: Option<String>,
@@ -748,6 +751,8 @@ impl SessionRuntimeState {
             full_access_enabled: false,
             full_access_overridden: false,
             full_access_initialized: false,
+            full_access_saving: false,
+            full_access_save_failed: false,
             last_effective_acp_agent: None,
             acp_rebuild_required: false,
         }

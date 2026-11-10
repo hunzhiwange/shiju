@@ -2019,7 +2019,9 @@ fn gateway_request_options(
     use serde_json::{Value, json};
 
     let mut options = serde_json::Map::new();
-    options.insert("full_access".to_string(), json!(req.full_access_enabled));
+    if let Some(full_access) = req.full_access_enabled {
+        options.insert("full_access".to_string(), json!(full_access));
+    }
     if let Some(agent) = &req.agent {
         options.insert("agent".to_string(), json!(agent));
     }
@@ -2039,10 +2041,12 @@ fn gateway_request_options(
         options.insert("acp_history_strategy".to_string(), json!(req.acp_history_mode.as_str()));
         options.insert("acp_history_recent_count".to_string(), json!(req.acp_recent_count));
         options.insert("cwd".to_string(), json!(req.root));
-        options.insert(
-            "acp_permission_mode".to_string(),
-            json!(if req.full_access_enabled { "approve-all" } else { "approve-reads" }),
-        );
+        if let Some(full_access) = req.full_access_enabled {
+            options.insert(
+                "acp_permission_mode".to_string(),
+                json!(if full_access { "approve-all" } else { "approve-reads" }),
+            );
+        }
     }
     if req.resume_history_only {
         options.insert("desktop_resume_history_only".to_string(), json!(true));
@@ -2164,7 +2168,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 acp_force_new_session = req.acp_force_new_session,
                 acp_history_mode = %req.acp_history_mode.as_str(),
                 acp_recent_count = req.acp_recent_count,
-                full_access_enabled = req.full_access_enabled,
+                full_access_enabled = ?req.full_access_enabled,
                 workflow_mode_enabled = req.workflow_mode_enabled,
                 goal_mode_enabled = req.goal_mode_enabled,
                 workflow_mode_active,

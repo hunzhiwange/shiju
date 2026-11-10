@@ -1698,7 +1698,7 @@ pub(super) fn handle_agent_post_tool_round(
         acp_force_new_session: false,
         acp_history_mode: active_request.acp_history_mode,
         acp_recent_count: active_request.acp_recent_count,
-        full_access_enabled: active_request.full_access_enabled,
+        full_access_enabled: active_request.full_access_enabled.unwrap_or(false),
         send_behavior: ChatSendBehavior::Queue,
         request_history_override: Some(resume_history),
         resume_history_only: true,

@@ -1722,8 +1722,9 @@ fn reset_boundary_loaded_end_prefers_last_known_id_and_falls_back_to_bounded_len
 }
 
 #[test]
-fn agent_unified_selection_reopen_restores_gateway_identity() {
+fn session_reopen_restores_gateway_identity_and_full_access() {
     let (mut app, _) = crate::app::App::new();
+    app.last_llm_full_access = Some(false);
     let mut prepared = crate::app::session::prepare_session_open(
         "unified-reopen".into(),
         vec![],
@@ -1740,6 +1741,7 @@ fn agent_unified_selection_reopen_restores_gateway_identity() {
         label: Some("固化助手名称".into()),
         acp_agent: Some("codex".into()),
     });
+    prepared.full_access = Some(true);
     app.active_session_id = Some("unified-reopen".into());
     let _ = super::lifecycle::handle(
         &mut app,
@@ -1755,4 +1757,6 @@ fn agent_unified_selection_reopen_restores_gateway_identity() {
     assert_eq!(runtime.agent.as_deref(), Some("acp-codex"));
     assert_eq!(runtime.acp_agent.as_deref(), Some("codex"));
     assert_eq!(runtime.agent_label.as_deref(), Some("固化助手名称"));
+    assert!(runtime.full_access_enabled);
+    assert_eq!(app.last_llm_full_access, Some(false));
 }

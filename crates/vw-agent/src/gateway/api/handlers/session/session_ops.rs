@@ -173,6 +173,25 @@ pub(super) async fn ui_session_get(
     Ok(Json(session))
 }
 
+/// 保存当前会话的权限选择。
+pub(super) async fn session_full_access_put(
+    path: Path<String>,
+    query: Query<InstanceQuery>,
+    headers: HeaderMap,
+    Json(full_access): Json<bool>,
+) -> Result<Json<bool>, ApiError> {
+    let Json(session) = ui_session_get(path, query, headers).await?;
+    crate::session::agent_binding::resolve_full_access_scoped(
+        &session.project_id,
+        &session.id,
+        Some(full_access),
+        false,
+    )
+    .await
+    .map(Json)
+    .map_err(|error| ApiError::internal(error.to_string()))
+}
+
 /// 创建一个 UI 会话。
 ///
 /// # 参数

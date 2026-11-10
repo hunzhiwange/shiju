@@ -250,6 +250,7 @@ use vw_shared::session::ui_types::SessionMessageRecord;
 fn bounded_summary(message_count: usize) -> vw_gateway_client::GatewaySessionUiSummary {
     vw_gateway_client::GatewaySessionUiSummary {
         agent_binding: None,
+        full_access: None,
         id: "session-page".to_string(),
         title: "Paged".to_string(),
         updated_ms: 42,

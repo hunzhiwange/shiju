@@ -204,28 +204,84 @@ pub(super) fn handle_permission_select_request(app: &mut App, request_id: String
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_toggle_full_access_permission(app: &mut App) -> Task<Message> {
     let session_id = app.active_session_id.clone();
-    let (full_access_enabled, should_rebuild) = {
+    let directory = permission_directory(app);
+    let (full_access_enabled, should_rebuild, saved_session) = {
         let runtime = app.current_session_runtime_mut();
+        if runtime.full_access_saving || (runtime.draft.is_some() && runtime.is_requesting) {
+            return Task::none();
+        }
+        let saved_session = session_id.clone().filter(|_| runtime.draft.is_none());
         runtime.full_access_enabled = !runtime.full_access_enabled;
         runtime.full_access_overridden = true;
         runtime.full_access_initialized = true;
+        runtime.full_access_saving = saved_session.is_some();
         runtime.acp_options.access_status = None;
-        (runtime.full_access_enabled, runtime.acp_agent.is_some())
+        (runtime.full_access_enabled, runtime.acp_agent.is_some(), saved_session)
     };
     if should_rebuild && let Some(session_id) = session_id {
         app.mark_session_acp_rebuild_required(&session_id);
     }
+    let remember = if should_rebuild {
+        Task::none()
+    } else {
+        app.last_llm_full_access = Some(full_access_enabled);
+        if saved_session.is_some() {
+            app.reset_draft_full_access();
+        }
+        app.save_desktop_preference("last_llm_full_access", serde_json::json!(full_access_enabled))
+    };
+    let save = saved_session.map_or_else(Task::none, |session_id| {
+        let target = session_id.clone();
+        let client = crate::app::gateway_client();
+        let directory = directory.clone();
+        Task::perform(
+            async move {
+                client?
+                    .session_set_full_access(&target, directory.as_deref(), full_access_enabled)
+                    .await
+            },
+            move |result| {
+                Message::Chat(ChatMessage::SessionFullAccessSaved {
+                    session_id: session_id.clone(),
+                    previous: !full_access_enabled,
+                    result,
+                })
+            },
+        )
+    });
     if !full_access_enabled {
-        return Task::none();
+        return Task::batch([remember, save]);
     }
 
-    let directory = permission_directory(app);
     let (remaining_requests, auto_approve_request_ids) = split_auto_approved_permission_requests(
         app.active_session_id.as_deref(),
         std::mem::take(&mut app.permission_modal_requests),
     );
     apply_permission_request(app, remaining_requests);
-    submit_permission_replies(auto_approve_request_ids, PendingPermissionReplyDto::Once, directory)
+    let replies = submit_permission_replies(
+        auto_approve_request_ids,
+        PendingPermissionReplyDto::Once,
+        directory,
+    );
+    Task::batch([remember, save, replies])
+}
+
+pub(super) fn handle_full_access_saved(
+    app: &mut App,
+    session_id: &str,
+    previous: bool,
+    result: Result<bool, String>,
+) -> Task<Message> {
+    let Some(runtime) = app.session_runtime_states.get_mut(session_id) else {
+        return Task::none();
+    };
+    runtime.full_access_saving = false;
+    runtime.full_access_save_failed = result.is_err();
+    runtime.full_access_enabled = result.as_ref().copied().unwrap_or(previous);
+    match result {
+        Ok(_) => super::start_next(app, session_id),
+        Err(error) => app.show_error_toast(format!("保存会话权限失败：{error}")),
+    }
 }
 
 /// 模块内可见函数，执行 handle_permission_approve_once 对应的应用流程。

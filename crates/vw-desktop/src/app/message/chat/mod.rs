@@ -787,6 +787,12 @@ pub enum ChatMessage {
 
     /// 切换完全访问权限自动批准
     ToggleFullAccessPermission,
+    SessionFullAccessLoaded { session_id: String, full_access: bool },
+    SessionFullAccessSaved {
+        session_id: String,
+        previous: bool,
+        result: Result<bool, String>,
+    },
 
     /// 输入编辑器动作
     ///
@@ -1404,6 +1410,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::PermissionReject
         | ChatMessage::PermissionSelectRequest(_)
         | ChatMessage::ToggleFullAccessPermission
+        | ChatMessage::SessionFullAccessLoaded { .. }
+        | ChatMessage::SessionFullAccessSaved { .. }
         | ChatMessage::PermissionReplySubmitted(_) => stream::update(app, message),
 
         // 上下文插入相关消息：文件路径、代码片段、位置选择等

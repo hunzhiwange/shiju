@@ -88,8 +88,11 @@ async fn agent_config_cleanup_full_access_session_state_preserves_explicit_false
     )
     .await;
     let project = format!("full-access-{}", uuid::Uuid::new_v4());
+    assert_eq!(SessionSettings::load(&project, "new").await.unwrap().full_access, None);
     assert!(resolve_full_access_scoped(&project, "new", None, true).await.unwrap());
+    assert_eq!(SessionSettings::load(&project, "new").await.unwrap().full_access, Some(true));
     assert!(!resolve_full_access_scoped(&project, "new", Some(false), true).await.unwrap());
+    assert_eq!(SessionSettings::load(&project, "new").await.unwrap().full_access, Some(false));
     assert!(!resolve_full_access_scoped(&project, "new", None, true).await.unwrap());
     assert!(resolve_full_access_scoped(&project, "other", None, true).await.unwrap());
     assert!(!resolve_full_access_scoped(&project, "off", None, false).await.unwrap());

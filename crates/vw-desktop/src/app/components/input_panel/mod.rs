@@ -488,7 +488,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let input_editor = runtime.map(|r| &r.input_editor).unwrap_or(&app.input_editor);
     let selected_acp_agent = runtime.and_then(|r| r.acp_agent.clone());
     let reasoning_effort = runtime.map(|r| r.reasoning_effort).unwrap_or(app.reasoning_effort);
-    let full_access_enabled = runtime.map(|r| r.full_access_enabled).unwrap_or(false);
+    let full_access_enabled = app.current_session_full_access();
     let workflow_mode_enabled = runtime.map(|r| r.workflow_mode_enabled).unwrap_or(false);
 
     // 任务模式相关状态
@@ -535,7 +535,10 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     };
     let permission_btn = Some(full_access_button(
         crate::app::i18n::I18n::new(app.desktop_locale),
-        has_permission_context,
+        has_permission_context
+            && runtime.is_none_or(|runtime| {
+                !runtime.full_access_saving && (runtime.draft.is_none() || !runtime.is_requesting)
+            }),
         full_access_enabled,
     ));
     let workflow_btn = workflow_mode_button(

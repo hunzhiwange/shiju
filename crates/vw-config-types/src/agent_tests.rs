@@ -34,6 +34,10 @@ fn agent_definition_defaults_and_builtin_specs_are_stable() {
 
     assert_eq!(super::BUILTIN_AGENT_SPECS.len(), 5);
     assert_eq!(super::BUILTIN_AGENT_SPECS[0].key, "main");
+    for spec in super::BUILTIN_AGENT_SPECS {
+        let config = super::builtin_agent_config(spec.key).unwrap();
+        assert_eq!(config.defaults.full_access, spec.key == "main");
+    }
 }
 
 #[test]

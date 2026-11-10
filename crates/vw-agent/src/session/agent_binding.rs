@@ -133,13 +133,13 @@ pub(crate) async fn save_scoped(
 }
 
 /// Immutable agent binding and the persisted session permission choice.
-pub(super) struct ForkSettings {
-    binding: Option<AgentBinding>,
-    full_access: Option<bool>,
+pub(crate) struct SessionSettings {
+    pub(crate) binding: Option<AgentBinding>,
+    pub(crate) full_access: Option<bool>,
 }
 
-impl ForkSettings {
-    pub(super) async fn load(project: &str, session: &str) -> Result<Self> {
+impl SessionSettings {
+    pub(crate) async fn load(project: &str, session: &str) -> Result<Self> {
         let key = storage_key(project, session)?;
         let tenant = crate::session::ui_store::current_tenant_scope();
         crate::global_database::run_isolated(move || {
@@ -413,6 +413,10 @@ pub(crate) async fn prepare(
         // An inherited default adds no grant of its own; the live ceiling remains
         // authoritative at every tool invocation, including disabled profiles.
         definition.defaults.permission = AgentDefault::Fixed(serde_json::json!({"*":"allow"}));
+    }
+    if agent == "main" && !history.is_empty() {
+        // Legacy sessions without a binding did not opt in to the new default.
+        definition.defaults.full_access = false;
     }
     let binding = AgentBinding::from_definition(agent.clone(), &definition);
     let project = crate::project::instance::project()

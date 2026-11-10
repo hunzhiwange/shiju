@@ -355,7 +355,7 @@ pub(crate) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
         return Task::none();
     }
     let runtime = app.get_session_runtime(session_id);
-    if runtime.is_requesting {
+    if runtime.is_requesting || runtime.full_access_saving || runtime.full_access_save_failed {
         return Task::none();
     }
     let Some(item) = runtime.queue.first().cloned() else {
@@ -705,6 +705,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::ToggleFullAccessPermission => {
             permissions::handle_toggle_full_access_permission(app)
+        }
+        ChatMessage::SessionFullAccessLoaded { session_id, full_access } => {
+            if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+                app.restore_session_full_access(&session_id, full_access);
+            }
+            Task::none()
+        }
+        ChatMessage::SessionFullAccessSaved { session_id, previous, result } => {
+            permissions::handle_full_access_saved(app, &session_id, previous, result)
         }
         ChatMessage::PermissionReplySubmitted(res) => {
             permissions::handle_permission_reply_submitted(app, res)

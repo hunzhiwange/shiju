@@ -113,7 +113,7 @@ fn agent_request(id: u64, session_id: &str) -> std::sync::Arc<AgentRequest> {
         acp_force_new_session: false,
         acp_history_mode: AcpHistoryReplayMode::Discard,
         acp_recent_count: 0,
-        full_access_enabled: false,
+        full_access_enabled: Some(false),
         resume_history_only: false,
         workflow_mode_enabled: true,
         goal_mode_enabled: false,

@@ -166,7 +166,7 @@ fn model_history(messages: &[message::WithParts]) -> Vec<Value> {
 pub(crate) struct TurnFork {
     source: Info,
     messages: Vec<message::WithParts>,
-    settings: agent_binding::ForkSettings,
+    settings: agent_binding::SessionSettings,
 }
 
 impl TurnFork {
@@ -259,7 +259,7 @@ impl TurnFork {
             messages.extend(children);
         }
 
-        let settings = agent_binding::ForkSettings::load(&source.project_id, session_id).await?;
+        let settings = agent_binding::SessionSettings::load(&source.project_id, session_id).await?;
         Ok(Self { source, messages, settings })
     }
 
@@ -352,7 +352,7 @@ async fn persist_history_and_session(
     source: &Info,
     target: &Info,
     messages: &[message::WithParts],
-    settings: &agent_binding::ForkSettings,
+    settings: &agent_binding::SessionSettings,
 ) -> Result<(), Error> {
     for msg in messages {
         message::write_message(&msg.info).await?;

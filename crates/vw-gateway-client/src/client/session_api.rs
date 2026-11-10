@@ -151,6 +151,20 @@ impl GatewayClient {
         )
         .await
     }
+
+    pub async fn session_set_full_access(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+        full_access: bool,
+    ) -> Result<bool, String> {
+        self.put_json(
+            &format!("{}/full-access", session_path(session_id)?),
+            &directory_query(directory),
+            &full_access,
+        )
+        .await
+    }
     pub async fn acp_session_select(
         &self,
         session_id: &str,

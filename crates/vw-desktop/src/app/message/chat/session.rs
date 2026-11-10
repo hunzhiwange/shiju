@@ -1211,7 +1211,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     vec![],
                 );
             };
-            let full_access = entry.defaults.full_access;
+            let full_access = match &entry.runtime {
+                vw_config_types::agent::AgentRuntime::Native => {
+                    app.last_llm_full_access.unwrap_or(entry.defaults.full_access)
+                }
+                vw_config_types::agent::AgentRuntime::Acp { .. } => entry.defaults.full_access,
+            };
             let agent_label = Some(entry.label.clone());
             let acp_agent = match &entry.runtime {
                 vw_config_types::agent::AgentRuntime::Native => None,
@@ -1821,6 +1826,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// 模块内可见函数，执行 start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Message> {
+    if app.current_session_runtime_ref().is_some_and(|runtime| {
+        runtime.full_access_saving || runtime.full_access_save_failed
+    }) {
+        let runtime = app.current_session_runtime_mut();
+        runtime.queue.push(item);
+        if !keep {
+            runtime.input_editor = iced::widget::text_editor::Content::new();
+        }
+        return Task::none();
+    }
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     let stream_id = app.agent_stream_id;
     let mut save_tasks = Vec::new();
@@ -1881,6 +1896,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             .map_or_else(|| project_path.clone(), |draft| draft.directory.clone());
         runtime.draft = Some(SessionDraft { project_path, directory, history_len: app.chat.len() });
         app.session_runtime_states.insert(id.clone(), runtime);
+        app.reset_draft_full_access();
         app.active_session_id = Some(id);
         save_tasks.push(persist_session_reasoning_effort(app));
     }
@@ -1888,6 +1904,11 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
     let draft = app.current_session_runtime_ref().and_then(|runtime| runtime.draft.clone());
     let is_draft = draft.is_some();
     if let Some(draft) = draft {
+        if let Some(runtime) = app.current_session_runtime_ref()
+            && runtime.full_access_overridden
+        {
+            item.full_access_enabled = runtime.full_access_enabled;
+        }
         item.root = Some(draft.directory);
         if app.chat.len() > draft.history_len {
             app.chat.truncate(draft.history_len);
@@ -2006,7 +2027,9 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             acp_force_new_session: item.acp_force_new_session,
             acp_history_mode: item.acp_history_mode,
             acp_recent_count: item.acp_recent_count,
-            full_access_enabled: item.full_access_enabled,
+            full_access_enabled: (is_draft
+                && (runtime.full_access_initialized || item.acp_test))
+                .then_some(item.full_access_enabled),
             resume_history_only: item.resume_history_only,
             workflow_mode_enabled: item.workflow_mode_enabled,
             goal_mode_enabled: item.goal_mode_enabled,

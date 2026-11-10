@@ -431,6 +431,10 @@ pub fn builtin_agent_keys() -> Vec<&'static str> {
 pub fn builtin_agent_config(key: &str) -> Option<AgentDefinitionConfig> {
     let spec = builtin_agent_spec(key)?;
     Some(AgentDefinitionConfig {
+        defaults: AgentDefaults {
+            full_access: matches!(spec.kind, BuiltinAgentKind::Main),
+            ..AgentDefaults::default()
+        },
         label: Some(spec.label.to_string()),
         description: Some(spec.description.to_string()),
         builtin: true,

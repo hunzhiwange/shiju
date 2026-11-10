@@ -34,7 +34,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.active_session_id = Some(next_id.clone());
                     app.mark_active_session_viewed();
                     app.sync_active_session_preferences();
-                    switch_task = Task::perform(
+                    let load_permissions = app.load_session_full_access(&next_id);
+                    let load_messages = Task::perform(
                         async move {
                             let client = crate::app::gateway_client().map_err(|e| e.to_string())?;
                             let msgs = client
@@ -59,6 +60,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             )
                         },
                     );
+                    switch_task = Task::batch([load_messages, load_permissions]);
                 } else {
                     app.active_session_id = None;
                     app.chat.clear();

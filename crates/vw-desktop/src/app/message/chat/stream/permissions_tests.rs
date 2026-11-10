@@ -367,6 +367,7 @@ fn reply_result_schedules_permission_refresh_for_success_and_error() {
 fn agent_config_cleanup_full_access_disabled_keeps_normal_approval() {
     let mut app = crate::app::App::new().0;
     app.agents_settings.config_ready = true;
+    app.last_llm_full_access = Some(false);
     app.active_session_id = Some("normal-approval".into());
     app.current_session_runtime_mut();
     let pending = request("pending", "normal-approval");
@@ -374,4 +375,26 @@ fn agent_config_cleanup_full_access_disabled_keeps_normal_approval() {
     assert!(!app.current_session_runtime().full_access_enabled);
     assert_eq!(app.permission_modal_requests, vec![pending]);
     assert_eq!(app.permission_modal_request_id.as_deref(), Some("pending"));
+}
+
+#[test]
+fn full_access_save_failure_restores_previous_mode_and_allows_retry() {
+    let (mut app, _) = crate::app::App::new();
+    let id = "stored-session";
+    app.active_session_id = Some(id.into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.full_access_enabled = false;
+    runtime.full_access_saving = true;
+
+    let _ = super::handle_full_access_saved(&mut app, id, true, Err("offline".into()));
+    let runtime = app.current_session_runtime();
+    assert!(runtime.full_access_enabled);
+    assert!(!runtime.full_access_saving);
+    assert!(runtime.full_access_save_failed);
+
+    let _ = super::handle_toggle_full_access_permission(&mut app);
+    let _ = super::handle_full_access_saved(&mut app, id, true, Ok(false));
+    let runtime = app.current_session_runtime();
+    assert!(!runtime.full_access_enabled);
+    assert!(!runtime.full_access_save_failed);
 }

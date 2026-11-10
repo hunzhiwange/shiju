@@ -22,3 +22,7 @@ pub mod codex;
 mod codex_tests;
 
 pub mod opencode;
+
+pub mod agy;
+#[cfg(test)]
+mod agy_tests;

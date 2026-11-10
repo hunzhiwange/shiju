@@ -30,7 +30,7 @@ impl SharedTransport {
     pub fn new() -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: upstream::upstream_http_client()?,
-            encoded_client: upstream::upstream_http_client_builder()
+            encoded_client: upstream::upstream_http_client_builder_without_total_timeout()
                 .no_gzip()
                 .no_brotli()
                 .no_deflate()
@@ -84,13 +84,10 @@ impl SharedTransport {
         *outgoing.uri_mut() = uri;
         *outgoing.headers_mut() = headers;
 
-        let deadline = Instant::now() + upstream::REQUEST_TIMEOUT;
         tokio::select! {
             biased;
             () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
-            result = timeout_at(deadline, send_ordered(outgoing, wire, cancel.clone(), deadline)) => {
-                result.map_err(|_| StatusCode::BAD_GATEWAY)?
-            }
+            result = send_ordered(outgoing, wire, cancel.clone()) => result,
         }
     }
 }
@@ -114,7 +111,6 @@ async fn send_ordered(
     request: Request<reqwest::Body>,
     wire: HeaderWire,
     cancel: CancellationToken,
-    deadline: Instant,
 ) -> Result<Response, StatusCode> {
     let (parts, body) = request.into_parts();
     let body = body.as_bytes().ok_or(StatusCode::BAD_GATEWAY)?;
@@ -152,15 +148,11 @@ async fn send_ordered(
     Ok(response.map(|body| {
         Body::from_stream(futures_util::stream::unfold(
             (Body::new(body).into_data_stream(), driver, cancel),
-            move |(mut stream, driver, cancel)| async move {
+            |(mut stream, driver, cancel)| async move {
                 let chunk = tokio::select! {
                     biased;
                     () = cancel.cancelled() => return None,
-                    result = timeout_at(deadline, stream.next()) => {
-                        result.unwrap_or_else(|_| Some(Err(axum::Error::new(
-                            std::io::Error::new(std::io::ErrorKind::TimedOut, "upstream body timed out"),
-                        ))))
-                    }
+                    chunk = stream.next() => chunk,
                 };
                 chunk.map(|chunk| (chunk, (stream, driver, cancel)))
             },

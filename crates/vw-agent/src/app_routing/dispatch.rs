@@ -1,4 +1,4 @@
-//! Minimal authorized JSON request path for the application listener.
+//! Authorized Chat request path for the application listener.
 
 use super::{
     SharedTransport,
@@ -8,6 +8,7 @@ use super::{
     header_wire::{self, HeaderWire},
     override_apply,
     route_auth::AuthorizedRoute,
+    timeouts,
 };
 use axum::{
     body::Body,
@@ -17,11 +18,13 @@ use axum::{
 use hyper::body::Incoming;
 use serde_json::Value;
 use std::time::Duration;
+use tokio::{sync::OwnedSemaphorePermit, time::Instant};
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
 const CHAT_PATH: &str = "/v1/chat/completions";
 const JSON: &str = "application/json";
+const SSE: &str = "text/event-stream";
 
 /// The publication owner supplies the destination, credential and stored request
 /// options for the same selected provider.
@@ -52,7 +55,7 @@ pub(super) async fn forward_json(
     // Inspect the entity coding before removing client-nominated hop headers.
     let codings = ContentCodings::from_headers(request.headers()).map_err(decode_status)?;
     header_wire::strip_hop_headers(request.headers_mut());
-    if !is_json(request.headers()) {
+    if !is_content_type(request.headers(), JSON) {
         return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
     let (mut parts, incoming) = request.into_parts();
@@ -67,16 +70,65 @@ pub(super) async fn forward_json(
     .map_err(|_| StatusCode::REQUEST_TIMEOUT)??;
     let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
     drop(bytes);
-    if !body.is_object() || body.get("stream").is_some_and(|value| value.as_bool() != Some(false)) {
+    if !body.is_object() {
         return Err(StatusCode::BAD_REQUEST);
     }
+    let streaming = match body.get("stream") {
+        Some(Value::Bool(streaming)) => *streaming,
+        None => false,
+        _ => return Err(StatusCode::BAD_REQUEST),
+    };
 
     // Native Chat uses the parsed document unchanged at the conversion step.
     let mut outgoing = prepare_request(&body, target)?;
     drop(body);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
-    let response = target.transport.forward_ordered(&target.url, outgoing, wire, cancelled).await?;
+    #[cfg(target_os = "macos")]
+    let timeouts = route.timeouts().await?;
+    #[cfg(not(target_os = "macos"))]
+    let timeouts = timeouts::AppTimeouts::default();
+    if streaming {
+        // The deadline observes decoded event data. Buffered JSON keeps its
+        // existing coding negotiation and independent wire/decoded limits.
+        outgoing
+            .headers_mut()
+            .insert(header::ACCEPT_ENCODING, HeaderValue::from_static("identity"));
+    }
+    let forward = target.transport.forward_ordered(&target.url, outgoing, wire, cancelled);
+    let started = Instant::now();
+    if streaming {
+        let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
+        let response = timeouts::before(deadline, forward).await??;
+        if !response.status().is_success() {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+        let (mut parts, body) = response.into_parts();
+        let codings =
+            ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
+        header_wire::strip_hop_headers(&mut parts.headers);
+        if !codings.is_identity() || !is_content_type(&parts.headers, SSE) {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+        let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
+        let body = timeouts::stream_body(body, deadline, idle, permit).await?;
+        parts.headers.clear();
+        parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(SSE));
+        return Ok(Response::from_parts(parts, body));
+    }
+
+    let deadline = started + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
+    timeouts::before(deadline, async {
+        let response = forward.await?;
+        buffer_json_response(response, permit).await
+    })
+    .await?
+}
+
+async fn buffer_json_response(
+    response: Response,
+    permit: OwnedSemaphorePermit,
+) -> Result<Response, StatusCode> {
     if !response.status().is_success() {
         return Err(StatusCode::BAD_GATEWAY);
     }
@@ -86,7 +138,7 @@ pub(super) async fn forward_json(
     // Read the actual coding before Connection nominations strip any fields.
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     header_wire::strip_hop_headers(&mut parts.headers);
-    if !is_json(&parts.headers) {
+    if !is_content_type(&parts.headers, JSON) {
         return Err(StatusCode::BAD_GATEWAY);
     }
     let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
@@ -140,11 +192,11 @@ fn upstream_decode_status(error: DecodeError) -> StatusCode {
     StatusCode::BAD_GATEWAY
 }
 
-fn is_json(headers: &HeaderMap) -> bool {
+fn is_content_type(headers: &HeaderMap, expected: &str) -> bool {
     let mut values = headers.get_all(header::CONTENT_TYPE).iter();
     values.next().is_some_and(|value| {
         value.to_str().is_ok_and(|value| {
-            value.split(';').next().is_some_and(|media| media.trim().eq_ignore_ascii_case(JSON))
+            value.split(';').next().is_some_and(|media| media.trim().eq_ignore_ascii_case(expected))
         })
     }) && values.next().is_none()
 }

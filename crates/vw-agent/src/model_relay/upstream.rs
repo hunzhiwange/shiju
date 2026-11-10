@@ -16,10 +16,13 @@ pub fn upstream_http_client() -> Result<reqwest::Client, reqwest::Error> {
 }
 
 pub(crate) fn upstream_http_client_builder() -> reqwest::ClientBuilder {
+    upstream_http_client_builder_without_total_timeout().timeout(REQUEST_TIMEOUT)
+}
+
+pub(crate) fn upstream_http_client_builder_without_total_timeout() -> reqwest::ClientBuilder {
     reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
-        .timeout(REQUEST_TIMEOUT)
 }
 
 pub(crate) async fn execute(

@@ -505,3 +505,35 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | — | `git diff --cached --check`（限定本项路径） | 退出 0。只读计划无差异。 |
 
 回环用例覆盖两条上游传输路径上的过大声明和提前断开，以及 4 MiB 恰好通过、分块越界、截断和冲突分帧、gzip 解压越界、重建请求越界和超时回收。最终测试的 Rust 文件与提交内容逐一核对一致。macOS 链接器报告既有的 `__eh_frame` 大小警告。本项状态为 **已完成**。
+
+## 任务 21　区分首包、空闲与总超时
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 20 的 `99f335fd9`。核对了 CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/handler_context.rs` 与 `proxy/response_processor.rs`，仓库快照和原提交 SHA256 均匹配来源映射。查阅了来源 `handlers.rs`、`forwarder.rs` 的期限调用、首块回放及持续心跳用例。沿用网关监听器、项目与执行主机授权和 Codex 应用身份。原生配置写入与账号租约仍由现有契约负责。
+
+- 授权的 `POST /v1/chat/completions` 从 `RoutingConfigStore` 读取已验证租户、执行主机、项目和应用的超时配置。读取发生在每次转发前，缺省沿用 60 秒首包、120 秒空闲、600 秒非流式总时限。无法读取或校验配置时返回 503。
+- `app_routing::timeouts` 为等待响应头和首个有效 Chat SSE 事件共用一个截止点。心跳、注释及仅含角色或用量的帧不刷新时限。成功开始后，后续有效输出刷新独立的空闲期限，空闲设为 0 时关闭。首包和非流式总超时返回 504，已发送响应头后的空闲超时以正文错误结束响应。释放上游正文及现有缓冲名额。
+- 非流式从转发开始到缓冲及解压结束共用一个总期限。应用监听器的有序直连与 reqwest 路径使用相同策略。现有连接超时与会话 relay 的总时限继续生效。
+- SSE 验收以原样转发的 LF/CRLF 帧为限。首包前累计缓冲和单个待观察帧各以 4 MiB 为限。SSE 请求以 `Accept-Encoding: identity` 协商响应，JSON 压缩响应继续沿用已有有界解码。回环夹具通过既有签发与认证链附加模拟供应商。WSL 地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+### 验证记录
+
+`CARGO_BUILD_BUILD_DIR` 与对应的 `CARGO_TARGET_DIR` 相同。红灯、格式化和 Clippy 使用 `CARGO_INCREMENTAL=0`，集成绿灯使用 `CARGO_INCREMENTAL=1`。所有本项锁均已释放，槽位缓存保留。
+
+| 槽位 | `CARGO_TARGET_DIR` |
+| --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` |
+| 2 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-2` |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` |
+
+| 阶段 | 槽位 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- | --- |
+| 红灯首跑 | 2 | `cargo test -p vw-agent --lib cc_route_021_ -- --nocapture` | 退出 101，执行 0 项。集成工作区同期诊断模块的类型错误阻断编译，已由其任务修复。 |
+| 红灯复现 | 2 | `cargo test -p vw-agent --lib cc_route_021_ -- --nocapture` | 基于 `b0c5ec2fd` 的临时源码副本，退出 101，1 项失败。停滞的 JSON 正文返回 502，预期为 504。 |
+| 格式化 | 1、2、3 | `cargo fmt --all` | 中间一次因夹具字面量语法退出 1，修正后退出 0。在临时源码副本执行，只回写本项 Rust 文件。 |
+| 绿灯重试 | 1 | `cargo test -p vw-agent --lib cc_route_021_ -- --nocapture` | 首次退出 101，执行 0 项，补齐夹具时钟初始化。第二次退出 101，3 项通过、1 项失败，改为显式推进虚拟时钟并分别检查截止前后。 |
+| 最终绿灯 | 1 | `cargo test -p vw-agent --lib cc_route_021_ -- --nocapture` | 退出 0，4 项通过，0 项失败或忽略。 |
+| 相邻回归 | 1 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_014_ cc_route_017_ cc_route_018_ cc_route_019_ cc_route_020_ --nocapture` | 退出 0，10 项通过，0 项失败或忽略。 |
+| 全仓检查 | 1 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | — | `git diff --cached --check`（限定本项路径） | 退出 0。只读计划无差异。 |
+
+隔离 SQLite 配置及回环 HTTP/TCP 用例覆盖响应头和分段 JSON 共用总截止点、首包前持续心跳、分片 SSE 正常输出、有效输出刷新空闲期限、只有心跳时的空闲中断、禁用空闲时跨过 601 秒及终止后上游套接字回收。相邻回归覆盖授权分发、头部线协议、压缩解码和缓冲上限。macOS 测试链接器报告既有 `__eh_frame` 大小警告。本项状态为 **已完成**。

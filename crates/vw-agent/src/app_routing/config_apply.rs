@@ -1,6 +1,7 @@
 //! Runtime settings stored in the gateway's configured database.
 
 use super::RoutingListener;
+pub(crate) use super::timeouts::AppTimeouts;
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -26,35 +27,6 @@ impl ListenerConfig {
         ensure!(self.bind.ip().is_loopback(), "routing requires a loopback address");
         ensure!(self.bind.port() == 0 || self.bind.port() >= 1024, "invalid routing port");
         Ok(())
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct AppTimeouts {
-    pub(crate) first_byte_timeout_secs: u16,
-    pub(crate) idle_timeout_secs: u16,
-    pub(crate) non_streaming_timeout_secs: u16,
-}
-
-impl AppTimeouts {
-    pub(crate) fn validate(&self) -> Result<()> {
-        ensure!(
-            (1..=120).contains(&self.first_byte_timeout_secs)
-                && self.idle_timeout_secs <= 600
-                && (60..=1200).contains(&self.non_streaming_timeout_secs),
-            "invalid routing timeouts"
-        );
-        Ok(())
-    }
-}
-
-impl Default for AppTimeouts {
-    fn default() -> Self {
-        Self {
-            first_byte_timeout_secs: 60,
-            idle_timeout_secs: 120,
-            non_streaming_timeout_secs: 600,
-        }
     }
 }
 

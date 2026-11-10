@@ -84,7 +84,7 @@ async fn cc_route_014_listener_filters_the_authorized_outgoing_json() {
             StatusCode::NOT_FOUND,
         ),
         (
-            client.post(&chat).bearer_auth(&active.token).json(&json!({"stream": true})),
+            client.post(&chat).bearer_auth(&active.token).json(&json!({"stream": "true"})),
             StatusCode::BAD_REQUEST,
         ),
         (

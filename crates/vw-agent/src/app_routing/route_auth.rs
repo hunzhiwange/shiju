@@ -13,6 +13,11 @@ use std::{collections::HashMap, convert::Infallible, future::Future, sync::Arc};
 use tokio::{net::TcpStream, sync::oneshot, time::timeout};
 use tokio_util::sync::CancellationToken;
 use vw_api_types::{agent_apps::AppId, id::ProjectScope};
+#[cfg(target_os = "macos")]
+use {
+    super::{config_apply::RoutingConfigStore, timeouts::AppTimeouts},
+    crate::global_database::GlobalDatabase,
+};
 
 const TOKEN_PREFIX: &str = "sra_";
 const TOKEN_BYTES: usize = 32;
@@ -62,11 +67,25 @@ pub(super) struct AuthorizedRoute {
     generation: u64,
     cancelled: CancellationToken,
     json_target: Option<JsonTarget>,
+    #[cfg(target_os = "macos")]
+    timeout_store: Option<Arc<RoutingConfigStore>>,
 }
 
 impl AuthorizedRoute {
     pub(super) fn json_target(&self) -> Option<(AppId, &JsonTarget, CancellationToken)> {
         self.json_target.as_ref().map(|target| (self.binding.app, target, self.cancelled.clone()))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) async fn timeouts(&self) -> Result<AppTimeouts, StatusCode> {
+        let store = Arc::clone(self.timeout_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
+        let project = self.binding.project.clone();
+        let app = self.binding.app;
+        tokio::task::spawn_blocking(move || store.app_timeouts(&project, app))
+            .await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+            .map(Option::unwrap_or_default)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
     }
 
     /// The dispatcher compares the selected target's trusted scope and epoch
@@ -153,6 +172,17 @@ impl RouteAuth {
             vw_agent_apps::providers::validation::validate(binding.app, &target.request_options)
                 .map_err(anyhow::Error::msg)?;
         }
+        #[cfg(target_os = "macos")]
+        let timeout_store = if json_target.is_some() {
+            let database = GlobalDatabase::for_home(&crate::global::paths().home)?;
+            Some(Arc::new(RoutingConfigStore::new(
+                database,
+                binding.project.tenant_scope().clone(),
+                binding.host.clone(),
+            )?))
+        } else {
+            None
+        };
         let mut bytes = [0; TOKEN_BYTES];
         getrandom::fill(&mut bytes)
             .map_err(|_| anyhow::anyhow!("application route entropy unavailable"))?;
@@ -184,6 +214,8 @@ impl RouteAuth {
                 generation,
                 cancelled: CancellationToken::new(),
                 json_target,
+                #[cfg(target_os = "macos")]
+                timeout_store,
             }),
         );
         Ok(IssuedRoute { token, revocation: RouteRevocation { digest, generation } })

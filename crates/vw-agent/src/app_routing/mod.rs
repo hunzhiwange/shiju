@@ -13,6 +13,7 @@ pub(crate) mod reference_scope;
 mod route_auth;
 mod shared_transport;
 mod shutdown;
+mod timeouts;
 pub use listener::{ListenerError, RoutingListener};
 #[cfg(target_os = "macos")]
 pub(crate) use route_auth::VerifiedRouteBinding;
@@ -38,3 +39,6 @@ mod shutdown_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod gateway_owner_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod timeouts_tests;

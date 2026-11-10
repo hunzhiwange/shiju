@@ -15,7 +15,9 @@ use crate::{
     global_database::{GlobalDatabase, test_support::PostgresTestDatabase},
 };
 
-fn with_database(test: impl FnOnce(GlobalDatabase) -> anyhow::Result<()>) -> anyhow::Result<()> {
+pub(super) fn with_database(
+    test: impl FnOnce(GlobalDatabase) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
     if std::env::var_os("VIBEWINDOW_TEST_POSTGRES_URL").is_some() {
         let fixture = PostgresTestDatabase::from_environment()?;
         println!("backend: PostgreSQL");
@@ -28,7 +30,7 @@ fn with_database(test: impl FnOnce(GlobalDatabase) -> anyhow::Result<()>) -> any
     }
 }
 
-fn http_draft(id: &str, url: &str) -> McpCatalogDraft {
+pub(super) fn http_draft(id: &str, url: &str) -> McpCatalogDraft {
     McpCatalogDraft {
         id: id.into(),
         name: None,

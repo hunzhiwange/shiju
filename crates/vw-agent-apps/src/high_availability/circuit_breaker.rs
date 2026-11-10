@@ -1,5 +1,6 @@
 //! Opening and recovery rules for one provider's production circuit.
 
+use super::health::HealthSnapshot;
 use std::{
     sync::Mutex,
     time::{Duration, Instant},
@@ -27,6 +28,7 @@ struct CircuitState {
     consecutive_failures: u32,
     total_requests: u64,
     failed_requests: u64,
+    observed_at: Option<Instant>,
 }
 
 #[derive(Debug, Default)]
@@ -44,11 +46,42 @@ enum CircuitPhase {
 
 impl CircuitBreaker {
     pub fn state(&self) -> FailoverHealthState {
-        match self.state.lock().expect("circuit state lock poisoned").phase {
-            CircuitPhase::Closed => FailoverHealthState::Closed,
-            CircuitPhase::Open { .. } => FailoverHealthState::Open,
-            CircuitPhase::HalfOpen { .. } => FailoverHealthState::HalfOpen,
+        self.state.lock().expect("circuit state lock poisoned").phase.health_state()
+    }
+
+    pub(super) fn snapshot(
+        &self,
+        policy: &CircuitBreakerPolicy,
+        now: Instant,
+        observation_ttl: Duration,
+    ) -> HealthSnapshot {
+        let state = self.state.lock().expect("circuit state lock poisoned");
+        if !state.has_fresh_observation(now, observation_ttl) {
+            return HealthSnapshot::UNKNOWN;
         }
+        let retry_after_ms = match state.phase {
+            CircuitPhase::Open { opened_at } => {
+                let cooldown = Duration::from_secs(u64::from(policy.cooldown_secs));
+                let remaining = cooldown.saturating_sub(now.saturating_duration_since(opened_at));
+                Some(remaining.as_millis() as u64)
+            }
+            _ => None,
+        };
+        HealthSnapshot { state: state.phase.health_state(), retry_after_ms }
+    }
+
+    pub(super) fn reset(&self) {
+        let mut state = self.state.lock().expect("circuit state lock poisoned");
+        *state = CircuitState {
+            generation: state.generation.wrapping_add(1),
+            ..CircuitState::default()
+        };
+    }
+
+    pub(super) fn is_evictable(&self, now: Instant, observation_ttl: Duration) -> bool {
+        let state = self.state.lock().expect("circuit state lock poisoned");
+        matches!(state.phase, CircuitPhase::Closed)
+            && !state.has_fresh_observation(now, observation_ttl)
     }
 
     /// Admit a production attempt with the validated policy snapshot.
@@ -96,13 +129,30 @@ impl CircuitBreaker {
     }
 }
 
+impl CircuitPhase {
+    fn health_state(&self) -> FailoverHealthState {
+        match self {
+            Self::Closed => FailoverHealthState::Closed,
+            Self::Open { .. } => FailoverHealthState::Open,
+            Self::HalfOpen { .. } => FailoverHealthState::HalfOpen,
+        }
+    }
+}
+
 impl CircuitState {
+    fn has_fresh_observation(&self, now: Instant, observation_ttl: Duration) -> bool {
+        self.observed_at.is_some_and(|at| now.saturating_duration_since(at) < observation_ttl)
+    }
+
     fn record_closed(
         &mut self,
         outcome: AttemptOutcome,
         policy: &CircuitBreakerPolicy,
         now: Instant,
     ) {
+        if outcome != AttemptOutcome::Neutral {
+            self.observed_at = self.observed_at.max(Some(now));
+        }
         match outcome {
             AttemptOutcome::Success => {
                 self.consecutive_failures = 0;
@@ -152,14 +202,18 @@ impl CircuitAttempt<'_> {
                 match outcome {
                     AttemptOutcome::Success => {
                         *successes += 1;
-                        if *successes >= self.policy.success_threshold {
+                        let recovered = *successes >= self.policy.success_threshold;
+                        state.observed_at = state.observed_at.max(Some(now));
+                        if recovered {
                             *state = CircuitState {
                                 generation: state.generation,
+                                observed_at: state.observed_at,
                                 ..CircuitState::default()
                             };
                         }
                     }
                     AttemptOutcome::ProviderFailure => {
+                        state.observed_at = state.observed_at.max(Some(now));
                         state.phase = CircuitPhase::Open { opened_at: now };
                     }
                     AttemptOutcome::Neutral => {}

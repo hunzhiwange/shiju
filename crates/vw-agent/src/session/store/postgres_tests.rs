@@ -78,7 +78,7 @@ fn session_operations_reject_sqlite_backend_before_accessing_session_data() {
     ));
     assert_requires_postgres(store.load_session_any(scope.tenant_scope(), &session.id));
     assert_requires_postgres(store.list_sessions(&scope));
-    assert_requires_postgres(store.load_session_meta(&scope, &session.id));
+    assert_requires_postgres(store.load_session_meta(&scope, &session.id, false));
     assert_requires_postgres(store.replace_session_index(&scope, &[]));
     assert_requires_postgres(store.delete_session(&scope, &session.id));
     assert_requires_postgres(store.save_session_todos(&scope, &session.id, &[]));

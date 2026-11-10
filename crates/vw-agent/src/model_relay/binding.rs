@@ -22,7 +22,7 @@ pub struct RelayBinding {
     token: String,
     token_key: ring::hmac::Key,
     token_tag: ring::hmac::Tag,
-    pub(crate) expires: Instant,
+    pub(crate) expires: Option<Instant>,
     pub(crate) cancelled: CancellationToken,
 }
 impl RelayBinding {
@@ -31,6 +31,16 @@ impl RelayBinding {
             !ttl.is_zero() && ttl <= Duration::from_secs(900),
             "invalid relay lifetime"
         );
+        Self::issue(identity, Some(Instant::now() + ttl))
+    }
+
+    /// The owning ACP launch profile revokes the capability on drop.
+    #[cfg(unix)]
+    pub(crate) fn for_prompt(identity: RelayIdentity) -> anyhow::Result<Arc<Self>> {
+        Self::issue(identity, None)
+    }
+
+    fn issue(identity: RelayIdentity, expires: Option<Instant>) -> anyhow::Result<Arc<Self>> {
         anyhow::ensure!(
             [&identity.project, &identity.session, &identity.provider, &identity.model]
                 .iter()
@@ -47,7 +57,7 @@ impl RelayBinding {
             token,
             token_key,
             token_tag,
-            expires: Instant::now() + ttl,
+            expires,
             cancelled: CancellationToken::new(),
         }))
     }
@@ -59,7 +69,7 @@ impl RelayBinding {
     }
     pub fn accepts(&self, token: &str, identity: &RelayIdentity) -> bool {
         !self.cancelled.is_cancelled()
-            && Instant::now() < self.expires
+            && self.expires.is_none_or(|expires| Instant::now() < expires)
             && &self.identity == identity
             && token.len() == self.token.len()
             && ring::hmac::verify(&self.token_key, token.as_bytes(), self.token_tag.as_ref())

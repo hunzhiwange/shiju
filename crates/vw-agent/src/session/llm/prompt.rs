@@ -550,7 +550,7 @@ pub fn stream_prompt(
             // 远端工具生命周期只用于完整会话 UI，在简化提示接口中忽略
             StreamEvent::RemoteToolUpdate { .. } => {}
             // 完整消息：在简化接口中忽略
-            StreamEvent::FullMessages(_) => {}
+            StreamEvent::FullMessages(_) | StreamEvent::AcpStarted => {}
             // 完成：提取使用统计并转发
             StreamEvent::Done { usage, .. } => {
                 if let Ok(mut on_event) = stream_on_event.lock() {
@@ -1006,7 +1006,7 @@ pub fn send_prompt(
                 // 远端工具生命周期：忽略
                 StreamEvent::RemoteToolUpdate { .. } => {}
                 // 完整消息：忽略
-                StreamEvent::FullMessages(_) => {}
+                StreamEvent::FullMessages(_) | StreamEvent::AcpStarted => {}
                 // 记录 token 使用统计
                 StreamEvent::Done { usage, .. } => lock.0 = usage,
                 // 记录错误

@@ -107,7 +107,14 @@ impl RelayServer {
         let expires = binding.expires;
         let task = tokio::spawn(async move {
             axum::serve(listener, router).with_graceful_shutdown(async move {
-                tokio::select! { () = cancel.cancelled() => {}, () = tokio::time::sleep_until(expires.into()) => { cancel.cancel(); } }
+                if let Some(expires) = expires {
+                    tokio::select! {
+                        () = cancel.cancelled() => {},
+                        () = tokio::time::sleep_until(expires.into()) => cancel.cancel(),
+                    }
+                } else {
+                    cancel.cancelled().await;
+                }
             }).await
         });
         Ok(Self { address, binding, task: Some(task) })
@@ -249,7 +256,8 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     }
     let cancel = state.binding.cancelled.child_token();
     let guard = RequestGuard { cancel: cancel.clone(), _permit: permit };
-    let deadline = std::cmp::min(state.binding.expires, Instant::now() + REQUEST_TIMEOUT);
+    let deadline = Instant::now() + REQUEST_TIMEOUT;
+    let deadline = state.binding.expires.map_or(deadline, |expires| expires.min(deadline));
     let response = async {
         let body = to_bytes(request.into_body(), BODY_LIMIT)
             .await

@@ -1,12 +1,8 @@
-//! Responses text/function boundary. References are opaque, expiring, and identity-bound.
+//! Responses text/function boundary. References are opaque and scoped to the owning relay.
 use super::{RelayIdentity, messages::object_keys};
 use axum::{http::StatusCode, response::IntoResponse};
 use serde_json::{Value, json};
-use std::{
-    collections::HashSet,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{collections::HashSet, sync::Arc};
 
 #[path = "responses_chat_tools.rs"]
 mod chat_tools;
@@ -21,7 +17,6 @@ struct Reference {
     identity: RelayIdentity,
     public: String,
     upstream: String,
-    expires: Instant,
     item: bool,
 }
 /// No Debug/Serialize: this is transient provider state, never persisted as session history.
@@ -33,8 +28,7 @@ impl References {
         identity: &RelayIdentity,
         public: &str,
     ) -> Result<String, StatusCode> {
-        let mut entries = self.0.lock();
-        entries.retain(|entry| entry.expires > Instant::now());
+        let entries = self.0.lock();
         entries
             .iter()
             .find(|entry| &entry.identity == identity && entry.public == public && !entry.item)
@@ -42,8 +36,7 @@ impl References {
             .ok_or(StatusCode::FORBIDDEN)
     }
     fn public(&self, identity: &RelayIdentity, upstream: &str) -> Result<String, StatusCode> {
-        let mut entries = self.0.lock();
-        entries.retain(|entry| entry.expires > Instant::now());
+        let entries = self.0.lock();
         entries
             .iter()
             .find(|entry| &entry.identity == identity && entry.upstream == upstream && !entry.item)
@@ -59,8 +52,7 @@ impl References {
         self.insert(identity, public, upstream, false)
     }
     fn check_item(&self, identity: &RelayIdentity, id: &str) -> Result<(), StatusCode> {
-        let mut entries = self.0.lock();
-        entries.retain(|entry| entry.expires > Instant::now());
+        let entries = self.0.lock();
         if entries
             .iter()
             .any(|entry| entry.item && &entry.identity == identity && entry.upstream == id)
@@ -81,7 +73,6 @@ impl References {
             return Err(StatusCode::BAD_GATEWAY);
         }
         let mut entries = self.0.lock();
-        entries.retain(|entry| entry.expires > Instant::now());
         if item
             && entries.iter().any(|entry| {
                 entry.item && &entry.identity == identity && entry.upstream == upstream
@@ -96,7 +87,6 @@ impl References {
             identity: identity.clone(),
             public: public.into(),
             upstream: upstream.into(),
-            expires: Instant::now() + Duration::from_secs(900),
             item,
         });
         Ok(())

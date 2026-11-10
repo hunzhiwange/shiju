@@ -1,7 +1,4 @@
 //! Request-owned launch material. No Debug/Serialize: credentials never form a record.
-#[cfg(unix)]
-use std::time::Duration;
-
 use crate::{
     config::schema::AcpAgentConfig,
     model_relay::{RelayBinding, RelayIdentity, RelayServer},
@@ -73,7 +70,7 @@ impl AcpLaunchProfile {
             );
             let reference = launch_reference(&identity)?;
             let model_alias = identity.model.clone();
-            let binding = RelayBinding::new(identity, Duration::from_secs(900))?;
+            let binding = RelayBinding::for_prompt(identity)?;
             let mut config = config.clone();
             config.env.insert(REFERENCE_ENV.into(), reference);
             Ok(Self {

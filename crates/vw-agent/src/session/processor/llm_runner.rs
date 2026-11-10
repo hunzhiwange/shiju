@@ -35,11 +35,6 @@ use std::time::Duration;
 use web_time::Instant;
 
 const DEFAULT_LLM_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
-// ACP 一次性会话由远端代理自行执行工具；一次工具调用（如 cargo llvm-cov、长测试）
-// 可能数分钟内不产生任何流事件，空窗时间远超模型 token 间隔。这里按分钟级命令的空窗
-// 设置上限，避免把仍在执行的长命令误判为“模型响应超时”。
-const ONE_SHOT_ACP_STEP_IDLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
-
 /// LLM 步骤执行结果
 ///
 /// 封装单次 LLM 调用的完整输出结果，包括令牌使用统计、完成原因、推理内容、
@@ -176,14 +171,6 @@ pub(crate) fn is_request_too_long_error(error: &str, messages: &[Value]) -> bool
 #[cfg(test)]
 fn llm_step_retry_allowed(error: &str, is_acp: bool) -> bool {
     super::recovery::retry_allowed(error, is_acp)
-}
-
-fn llm_step_idle_timeout(options: &Value) -> Duration {
-    if options.get("acp_close_client_after_request").and_then(Value::as_bool) == Some(true) {
-        return ONE_SHOT_ACP_STEP_IDLE_TIMEOUT;
-    }
-
-    DEFAULT_LLM_STEP_IDLE_TIMEOUT
 }
 
 const STREAM_CONSUMER_STOPPED_ERR: &str = "stream consumer stopped";
@@ -329,7 +316,8 @@ fn collect_llm_step_from_stream(
     let mut thinking_open = false; // 标记 thinking 标签是否已打开
     let mut streamed_reasoning_len = 0;
 
-    // 短轮询只用于取消；模型空闲超时仍按最后一条事件计时。
+    // ACP prompts can be silent while the remote agent runs tools or waits for approval.
+    let mut monitor_idle = true;
     let mut last_event = Instant::now();
     // === 主事件处理循环 ===
     loop {
@@ -345,7 +333,7 @@ fn collect_llm_step_from_stream(
             }
             // 超时处理：刷新所有待输出内容并返回错误
             Err(std::sync::mpsc::RecvTimeoutError::Timeout)
-                if last_event.elapsed() < idle_timeout =>
+                if !monitor_idle || last_event.elapsed() < idle_timeout =>
             {
                 continue;
             }
@@ -377,6 +365,7 @@ fn collect_llm_step_from_stream(
 
         // 根据事件类型进行相应处理
         match ev {
+            llm::StreamEvent::AcpStarted => monitor_idle = false,
             // 处理普通文本增量
             llm::StreamEvent::Delta(delta) => {
                 if delta.is_empty() {
@@ -587,7 +576,7 @@ fn collect_llm_step_from_stream(
 ///
 /// # 错误情况
 ///
-/// - 模型响应超时（默认 90 秒无响应）
+/// - 普通模型流连续 90 秒无响应；ACP 由远端代理报告结束或错误
 /// - 模型调用失败（网络错误、API 错误等）
 /// - 模型未返回任何内容（文本和工具调用都为空）
 ///
@@ -646,7 +635,6 @@ pub(crate) fn run_llm_step(
     let session_id = session_id.to_string();
     let messages = messages.to_vec();
     let system = system.to_vec();
-    let idle_timeout = llm_step_idle_timeout(options);
     let options = options.clone();
     let available_tools = available_tools.to_vec();
 
@@ -660,7 +648,13 @@ pub(crate) fn run_llm_step(
     let stream_task =
         spawn_llm_stream_thread(session_id, messages, system, model, options, tools, abort_rx, tx);
 
-    let result = collect_llm_step_from_stream(rx, on_event, &abort_tx, idle_timeout, cancellation);
+    let result = collect_llm_step_from_stream(
+        rx,
+        on_event,
+        &abort_tx,
+        DEFAULT_LLM_STEP_IDLE_TIMEOUT,
+        cancellation,
+    );
     if result.is_err() {
         request_stream_abort(&abort_tx);
     }

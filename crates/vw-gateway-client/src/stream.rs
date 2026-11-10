@@ -513,8 +513,13 @@ async fn stream_chat_attempt(
 
     #[cfg(not(target_arch = "wasm32"))]
     let builder = reqwest::Client::builder()
-        .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
-        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS));
+        .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS));
+    #[cfg(not(target_arch = "wasm32"))]
+    let builder = if chat_uses_acp(body) {
+        builder
+    } else {
+        builder.timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS))
+    };
     #[cfg(target_arch = "wasm32")]
     let builder = reqwest::Client::builder();
 
@@ -644,6 +649,17 @@ async fn stream_chat_attempt(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn chat_uses_acp(body: &GatewayChatStreamRequest) -> bool {
+    let options = body.options.as_ref();
+    body.acp_agent.as_deref().is_some_and(|agent| !agent.trim().is_empty())
+        || body.model.as_deref().is_some_and(|model| model.starts_with("acp/"))
+        || options.is_some_and(|options| {
+            options["acp_test"] == true
+                || options["acp_agent"].as_str().is_some_and(|agent| !agent.trim().is_empty())
+        })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// 以阻塞方式连接聊天流接口，适用于非异步调用场景。
 ///
 /// 除了 I/O 模式不同，事件解析与终止条件都与异步版本保持一致。
@@ -662,7 +678,8 @@ pub fn stream_chat_blocking(
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
     let builder = reqwest::blocking::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
-        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS));
+        .timeout((!chat_uses_acp(body))
+            .then(|| std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS)));
     let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
     let client =
         builder.build().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;

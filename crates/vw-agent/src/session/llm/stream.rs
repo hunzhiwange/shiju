@@ -407,6 +407,9 @@ async fn stream_inner(
     let force_acp = request_options_value_enable_acp(&merged_options);
     let is_acp_adapter =
         force_acp || matches!(adapter, "acp" | "agent-client-protocol" | "agent_client_protocol");
+    if is_acp_adapter {
+        on_event(StreamEvent::AcpStarted);
+    }
 
     // Keep authorized tool definitions for the catalog gate to validate.
     let mut tools = resolve_tools(&input.tools, &input.agent.permission, &input.user);

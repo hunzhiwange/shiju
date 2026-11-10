@@ -16,6 +16,7 @@ fn acp_model_source_launch_profile_private_files_child_env_and_revocation() {
     let config = AcpAgentConfig { command: "python3".into(), ..Default::default() };
     let mut profile = AcpLaunchProfile::new(&config, identity("one")).unwrap();
     let binding = profile.binding.clone();
+    assert!(binding.expires.is_none());
     let token = binding.bearer_token().to_owned();
     let directory = profile.directory().to_owned();
     let path = profile.write_config("config.json", token.as_bytes()).unwrap();

@@ -268,22 +268,6 @@ fn llm_step_retry_allowed_blocks_model_config_errors_only() {
 }
 
 #[test]
-fn llm_step_idle_timeout_uses_long_window_for_one_shot_acp_requests() {
-    assert_eq!(
-        super::llm_step_idle_timeout(&serde_json::json!({})),
-        super::DEFAULT_LLM_STEP_IDLE_TIMEOUT
-    );
-    assert_eq!(
-        super::llm_step_idle_timeout(&serde_json::json!({
-            "acp_close_client_after_request": true
-        })),
-        super::ONE_SHOT_ACP_STEP_IDLE_TIMEOUT
-    );
-    // 一次性 ACP 会话由远端代理跑分钟级工具命令，空窗上限必须远大于普通模型 token 间隔。
-    assert!(super::ONE_SHOT_ACP_STEP_IDLE_TIMEOUT >= super::DEFAULT_LLM_STEP_IDLE_TIMEOUT);
-}
-
-#[test]
 fn collect_stream_returns_text_tool_calls_usage_and_full_messages() {
     let tool_call = llm::ToolCall {
         kind: Default::default(),
@@ -529,6 +513,33 @@ fn collect_stream_times_out_and_closes_open_reasoning() {
 }
 
 #[test]
+fn collect_stream_allows_silent_acp_prompt_past_model_idle_timeout() {
+    let (tx, rx) = mpsc::channel();
+    tx.send(llm::StreamEvent::AcpStarted).unwrap();
+    let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
+    let worker = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(60));
+        assert!(!*abort_rx.borrow());
+        tx.send(llm::StreamEvent::Delta("tool finished".into())).unwrap();
+        tx.send(llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: models::TokenUsage::default(),
+        })
+        .unwrap();
+    });
+    let result = super::collect_llm_step_from_stream(
+        rx,
+        &mut |_| true,
+        &abort_tx,
+        Duration::from_millis(10),
+        None,
+    );
+
+    worker.join().unwrap();
+    assert_eq!(result.unwrap().text, "tool finished");
+}
+
+#[test]
 fn collect_stream_reports_empty_when_sender_disconnects_without_done() {
     let (tx, rx) = mpsc::channel();
     drop(tx);
@@ -757,17 +768,6 @@ fn acp_retryable_error_matches_timeout_word_and_eof_failure() {
 fn non_retryable_llm_error_matches_english_model_resolution_failures() {
     assert!(!super::llm_step_retry_allowed("unknown model: custom/model", false));
     assert!(!super::llm_step_retry_allowed("unsupported model family", false));
-}
-
-#[test]
-fn llm_step_idle_timeout_requires_literal_true_flag() {
-    for options in [
-        serde_json::json!({ "acp_close_client_after_request": false }),
-        serde_json::json!({ "acp_close_client_after_request": "true" }),
-        serde_json::json!({ "acp_close_client_after_request": 1 }),
-    ] {
-        assert_eq!(super::llm_step_idle_timeout(&options), super::DEFAULT_LLM_STEP_IDLE_TIMEOUT);
-    }
 }
 
 #[test]

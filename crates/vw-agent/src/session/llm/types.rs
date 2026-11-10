@@ -77,6 +77,8 @@ pub struct StreamInput {
 /// 用于在流式处理过程中传递增量文本、推理内容、工具调用和完成状态。
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
+    /// The selected transport is ACP and may be silent while executing remote tools.
+    AcpStarted,
     /// 文本增量事件，包含新生成的文本片段
     Delta(String),
     /// 推理增量事件，包含模型的推理过程文本（用于思维链模型）

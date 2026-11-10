@@ -2,6 +2,7 @@
 
 use super::{
     SharedTransport,
+    decode_request::{ContentCodings, DecodeError},
     header_wire::{self, HeaderWire},
     override_apply,
     route_auth::AuthorizedRoute,
@@ -41,21 +42,21 @@ pub(super) async fn forward_json(
     if request.method() != Method::POST {
         return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
-    if request.headers().contains_key(header::CONTENT_ENCODING) {
-        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
-    }
+    // Inspect the entity coding before removing client-nominated hop headers.
+    let codings = ContentCodings::from_headers(request.headers()).map_err(decode_status)?;
     header_wire::strip_hop_headers(request.headers_mut());
     if !is_json(request.headers()) {
         return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
     let (mut parts, incoming) = request.into_parts();
-    let bytes = tokio::time::timeout(
-        Duration::from_secs(10),
-        to_bytes(Body::new(incoming), MAX_JSON_BYTES),
-    )
+    let bytes = tokio::time::timeout(Duration::from_secs(10), async {
+        let bytes = to_bytes(Body::new(incoming), MAX_JSON_BYTES)
+            .await
+            .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
+        codings.decode(bytes, MAX_JSON_BYTES).await.map_err(decode_status)
+    })
     .await
-    .map_err(|_| StatusCode::REQUEST_TIMEOUT)?
-    .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
+    .map_err(|_| StatusCode::REQUEST_TIMEOUT)??;
     let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
     if !body.is_object() || body.get("stream").is_some_and(|value| value.as_bool() != Some(false)) {
         return Err(StatusCode::BAD_REQUEST);
@@ -106,6 +107,14 @@ pub(super) fn prepare_request(
     outgoing.headers_mut().insert(header::AUTHORIZATION, authorization);
 
     Ok(outgoing)
+}
+
+fn decode_status(error: DecodeError) -> StatusCode {
+    match error {
+        DecodeError::UnsupportedCoding => StatusCode::UNSUPPORTED_MEDIA_TYPE,
+        DecodeError::Corrupt => StatusCode::BAD_REQUEST,
+        DecodeError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+    }
 }
 
 fn is_json(headers: &HeaderMap) -> bool {

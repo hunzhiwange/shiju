@@ -309,3 +309,7 @@ mod override_apply_tests;
 #[cfg(test)]
 #[path = "header_wire_tests.rs"]
 mod header_wire_tests;
+
+#[cfg(test)]
+#[path = "decode_request_tests.rs"]
+mod decode_request_tests;

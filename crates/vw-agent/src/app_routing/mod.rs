@@ -1,6 +1,7 @@
 mod browser_guard;
 #[cfg(target_os = "macos")]
 pub(crate) mod config_apply;
+mod decode_request;
 mod dispatch;
 pub(crate) mod gateway_owner;
 mod header_wire;

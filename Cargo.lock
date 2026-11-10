@@ -12145,6 +12145,7 @@ version = "0.6.0"
 dependencies = [
  "agent-client-protocol",
  "anyhow",
+ "async-compression",
  "async-imap",
  "async-trait",
  "axum",

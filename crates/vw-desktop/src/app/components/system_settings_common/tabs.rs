@@ -1,8 +1,8 @@
 //! 系统设置和配置弹窗的内容切换标签。
 
 use super::rounded_action_btn_style;
-use iced::widget::{Button, Row, button, row, text};
 use iced::alignment::Vertical;
+use iced::widget::{Button, Row, button, row, text};
 use iced::{Alignment, Border, Element, Padding, Theme};
 
 /// 使用常规设置的中性色调绘制标签。

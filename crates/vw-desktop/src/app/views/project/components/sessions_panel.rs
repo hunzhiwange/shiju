@@ -592,11 +592,11 @@ pub fn session_items_list<'a>(
             .width(Length::Fill),
         );
     } else if let Some(sessions) = sessions {
-        let projection = session_tree_projection(sessions, load_count, &app.session_ui_projection.pinned);
+        let projection =
+            session_tree_projection(sessions, load_count, &app.session_ui_projection.pinned);
         let total_visible = projection.total_roots;
         for tree_row in projection.rows {
-            session_items =
-                session_items.push(session_tree_row(app, tree_row, project_title));
+            session_items = session_items.push(session_tree_row(app, tree_row, project_title));
         }
 
         if total_visible == 0 && drafts.is_empty() {

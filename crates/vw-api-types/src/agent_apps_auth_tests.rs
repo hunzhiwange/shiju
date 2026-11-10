@@ -24,10 +24,7 @@ fn auth6_dto_commits_expected_scoped_result() {
         "user_code": user_code
     });
     assert_eq!(to_value(&start).unwrap(), started_json);
-    assert_eq!(
-        from_value::<AuthStartResponse>(started_json).unwrap(),
-        start
-    );
+    assert_eq!(from_value::<AuthStartResponse>(started_json).unwrap(), start);
 
     let browser = AuthStartResponse::Pending {
         flow_id: flow_id.clone(),
@@ -49,11 +46,8 @@ fn auth6_dto_commits_expected_scoped_result() {
         })
     );
 
-    let pending = AuthFlow::Pending {
-        flow_id: flow_id.clone(),
-        expires_at,
-        retry_after_seconds: 5,
-    };
+    let pending =
+        AuthFlow::Pending { flow_id: flow_id.clone(), expires_at, retry_after_seconds: 5 };
     assert_eq!(
         to_value(&pending).unwrap(),
         json!({
@@ -74,11 +68,7 @@ fn auth6_dto_commits_expected_scoped_result() {
         github_domain: Some("github.example".into()),
         region: None,
     };
-    let approved = AuthFlow::Approved {
-        flow_id: flow_id.clone(),
-        expires_at,
-        account,
-    };
+    let approved = AuthFlow::Approved { flow_id: flow_id.clone(), expires_at, account };
     let approved_json = json!({
         "state": "approved",
         "flow_id": flow_id.0,
@@ -142,24 +132,11 @@ fn auth6_dto_commits_expected_scoped_result() {
     );
 
     let debug = format!("{start:?} {browser:?} {pending:?} {approved:?} {failed:?}");
-    for sensitive in [
-        &flow_id.0,
-        verification_url,
-        "fixture-browser-state",
-        user_code,
-    ] {
-        assert!(
-            !debug.contains(sensitive),
-            "sensitive authorization data in Debug"
-        );
+    for sensitive in [&flow_id.0, verification_url, "fixture-browser-state", user_code] {
+        assert!(!debug.contains(sensitive), "sensitive authorization data in Debug");
     }
-    let paste = AuthPasteRequest {
-        pasted: "fixture-callback-authorization-code".into(),
-    };
-    assert!(
-        !format!("{paste:?}").contains(&paste.pasted),
-        "pasted authorization data in Debug"
-    );
+    let paste = AuthPasteRequest { pasted: "fixture-callback-authorization-code".into() };
+    assert!(!format!("{paste:?}").contains(&paste.pasted), "pasted authorization data in Debug");
 }
 
 #[test]
@@ -173,48 +150,20 @@ fn auth6_dto_rejects_invalid_or_stale_input() {
             json!({"method": "device_code", "github_domain": "github.example"}),
             Ok(()),
         ),
-        (
-            CodexOauth,
-            json!({"method": "device_code", "target_account_id": "fixture"}),
-            Ok(()),
-        ),
-        (
-            CodexOauth,
-            json!({"method": "browser", "target_account_id": "fixture"}),
-            Ok(()),
-        ),
+        (CodexOauth, json!({"method": "device_code", "target_account_id": "fixture"}), Ok(())),
+        (CodexOauth, json!({"method": "browser", "target_account_id": "fixture"}), Ok(())),
         (XaiOauth, json!({"method": "device_code"}), Ok(())),
-        (
-            KimiOauth,
-            json!({"method": "device_code", "region": "mainland-cn"}),
-            Ok(()),
-        ),
-        (
-            KimiOauth,
-            json!({"method": "device_code", "target_account_id": "fixture"}),
-            Ok(()),
-        ),
+        (KimiOauth, json!({"method": "device_code", "region": "mainland-cn"}), Ok(())),
+        (KimiOauth, json!({"method": "device_code", "target_account_id": "fixture"}), Ok(())),
         (ClaudeOfficial, json!({"method": "browser"}), Ok(())),
         (ClaudeOfficial, json!({"method": "copy_link"}), Ok(())),
         (AgyOauth, json!({"method": "browser"}), Ok(())),
         (DshAccount, json!({"method": "browser"}), Ok(())),
         (XaiOauth, json!({"method": "browser"}), Err(Unsupported)),
-        (
-            ClaudeOfficial,
-            json!({"method": "device_code"}),
-            Err(Unsupported),
-        ),
+        (ClaudeOfficial, json!({"method": "device_code"}), Err(Unsupported)),
         (CodexOauth, json!({"method": "copy_link"}), Err(Unsupported)),
-        (
-            KimiOauth,
-            json!({"method": "device_code"}),
-            Err(InvalidInput),
-        ),
-        (
-            CodexOauth,
-            json!({"method": "browser", "region": "global"}),
-            Err(InvalidInput),
-        ),
+        (KimiOauth, json!({"method": "device_code"}), Err(InvalidInput)),
+        (CodexOauth, json!({"method": "browser", "region": "global"}), Err(InvalidInput)),
         (
             DshAccount,
             json!({"method": "browser", "github_domain": "github.example"}),
@@ -227,11 +176,7 @@ fn auth6_dto_rejects_invalid_or_stale_input() {
         ),
     ] {
         let request = from_value::<AuthStartRequest>(request).unwrap();
-        assert_eq!(
-            request.validate_for(service),
-            result,
-            "{service:?} {request:?}"
-        );
+        assert_eq!(request.validate_for(service), result, "{service:?} {request:?}");
     }
     assert!(from_value::<AuthService>(json!("unknown")).is_err());
     assert!(from_value::<AuthStartRequest>(json!({"method": "unknown"})).is_err());
@@ -250,14 +195,9 @@ fn auth6_dto_rejects_invalid_or_stale_input() {
         "retry_after_seconds": 5,
         "verification_url": "https://github.example/login/device"
     });
-    for key in [
-        "token",
-        "access_token",
-        "refresh_token",
-        "id_token",
-        "device_code",
-        "code_verifier",
-    ] {
+    for key in
+        ["token", "access_token", "refresh_token", "id_token", "device_code", "code_verifier"]
+    {
         let mut request = json!({"method": "device_code"});
         request[key] = Value::String("fixture-secret".into());
         assert!(from_value::<AuthStartRequest>(request).is_err(), "{key}");
@@ -265,10 +205,7 @@ fn auth6_dto_rejects_invalid_or_stale_input() {
         response[key] = Value::String("fixture-secret".into());
         assert!(from_value::<AuthStartResponse>(response).is_err(), "{key}");
     }
-    assert!(
-        from_value::<AuthFlow>(challenge).is_err(),
-        "challenge accepted as a poll response"
-    );
+    assert!(from_value::<AuthFlow>(challenge).is_err(), "challenge accepted as a poll response");
     assert!(
         from_value::<AuthFlow>(json!({
             "state": "approved",

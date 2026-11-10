@@ -152,13 +152,7 @@ pub enum AuthStartResponse {
 
 impl fmt::Debug for AuthStartResponse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self::Pending {
-            flow_id,
-            expires_at,
-            retry_after_seconds,
-            can_paste,
-            ..
-        } = self;
+        let Self::Pending { flow_id, expires_at, retry_after_seconds, can_paste, .. } = self;
         f.debug_struct("Pending")
             .field("flow_id", flow_id)
             .field("expires_at", expires_at)
@@ -172,29 +166,11 @@ impl fmt::Debug for AuthStartResponse {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AuthFlow {
-    Pending {
-        flow_id: AuthFlowId,
-        expires_at: TimestampMs,
-        retry_after_seconds: u64,
-    },
-    Approved {
-        flow_id: AuthFlowId,
-        expires_at: TimestampMs,
-        account: AuthAccount,
-    },
-    Failed {
-        flow_id: AuthFlowId,
-        expires_at: TimestampMs,
-        error: AuthError,
-    },
-    Expired {
-        flow_id: AuthFlowId,
-        expires_at: TimestampMs,
-    },
-    Cancelled {
-        flow_id: AuthFlowId,
-        expires_at: TimestampMs,
-    },
+    Pending { flow_id: AuthFlowId, expires_at: TimestampMs, retry_after_seconds: u64 },
+    Approved { flow_id: AuthFlowId, expires_at: TimestampMs, account: AuthAccount },
+    Failed { flow_id: AuthFlowId, expires_at: TimestampMs, error: AuthError },
+    Expired { flow_id: AuthFlowId, expires_at: TimestampMs },
+    Cancelled { flow_id: AuthFlowId, expires_at: TimestampMs },
 }
 
 /// Sensitive user input sent only to the original Claude flow.

@@ -420,7 +420,9 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Runtime => crate::app::components::system_settings_runtime::view(app),
         SystemTab::Autonomy => crate::app::components::system_settings_autonomy::view(app),
         SystemTab::Security => crate::app::components::system_settings_security::view(app),
-        SystemTab::GatewayClient => crate::app::components::system_settings_gateway_client::view(app),
+        SystemTab::GatewayClient => {
+            crate::app::components::system_settings_gateway_client::view(app)
+        }
         SystemTab::Gateway => crate::app::components::system_settings_gateway::view(app),
         SystemTab::Observability => {
             crate::app::components::system_settings_observability::view(app)

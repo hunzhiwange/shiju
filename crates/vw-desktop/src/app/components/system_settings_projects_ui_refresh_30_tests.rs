@@ -542,6 +542,15 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let i18n = I18n::new(app.desktop_locale);
     let size = Size::new(640, 630);
     let mut renderer = renderer().await;
+    app.recent_projects_meta = vec![
+        serde_json::from_value(serde_json::json!({
+            "path": PATH,
+            "name": NAME,
+            "icon": ICON,
+            "icon_color": COLOR,
+        }))
+        .unwrap(),
+    ];
     app.project_path = Some(PATH.into());
     let narrow_size = Size::new(420, 630);
     let mut narrow = scene(view(&app), &mut renderer, narrow_size);
@@ -560,6 +569,12 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
     let disabled = positions.label(i18n.__("请先打开项目"));
     assert!(click(&mut ui, &mut renderer, disabled.center()).is_empty());
     assert_fits(positions.input(i18n.__("搜索项目")), size);
+    let avatar = positions.label(ICON);
+    assert_fits(avatar, size);
+    assert!(matches!(
+        click(&mut ui, &mut renderer, avatar.center()).as_slice(),
+        [Message::Project(ProjectMessage::OpenRecentPressed(path))] if path == PATH
+    ));
     let open = positions.label(NAME).center();
     assert!(matches!(
         click(&mut ui, &mut renderer, open).as_slice(),
@@ -576,6 +591,11 @@ async fn ui_refresh_30_preserves_values_and_disabled_states() {
 
     app.recent_projects.insert(0, "/fixture/another-project".into());
     app.recent_projects_edits.insert(0, "Another project".into());
+    let mut ui = scene(view(&app), &mut renderer, size);
+    assert_fits(geometry(&mut ui, &renderer).label("A"), size);
+    redraw_project(&mut ui, &mut renderer, &Theme::Light, size, "projects-cards-640");
+    drop(ui);
+
     app.recent_project_query = "  fIXTURE 專案  ".into();
     app.project_tools_menu_path = Some(PATH.into());
     let mut ui = scene(view(&app), &mut renderer, size);

@@ -106,15 +106,15 @@ pub(super) fn secondary_button<'a>(label: &'a str, on: Message) -> Element<'a, M
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub(super) fn parse_hex_color(input: &str) -> Option<Color> {
+pub(in crate::app) fn parse_hex_color(input: &str) -> Option<Color> {
     let hex = input.trim().trim_start_matches('#');
     if hex.len() != 6 {
         return None;
     }
 
-    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    let r = u8::from_str_radix(hex.get(0..2)?, 16).ok()?;
+    let g = u8::from_str_radix(hex.get(2..4)?, 16).ok()?;
+    let b = u8::from_str_radix(hex.get(4..6)?, 16).ok()?;
     Some(Color::from_rgb8(r, g, b))
 }
 
@@ -253,7 +253,7 @@ fn lighten_color(color: Color) -> Color {
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub(super) fn project_avatar<'a>(
+pub(in crate::app) fn project_avatar<'a>(
     title: &str,
     path: &str,
     custom_icon: Option<&str>,

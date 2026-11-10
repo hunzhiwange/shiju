@@ -58,6 +58,7 @@ pub(crate) use panels::{
 };
 pub(crate) use select::SettingsSelectLabel;
 pub use select::settings_select;
+pub(crate) use styles::settings_icon_tile_style;
 pub use styles::{
     danger_action_btn_style, primary_action_btn_style, round_icon_btn_style,
     rounded_action_btn_style, settings_checkbox_style, settings_modal_backdrop_style,

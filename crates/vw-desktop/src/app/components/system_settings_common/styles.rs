@@ -273,6 +273,15 @@ pub fn settings_panel_style(theme: &Theme) -> iced::widget::container::Style {
     }
 }
 
+/// 为设置列表的品牌图标提供随主题变化的圆角底座。
+pub(crate) fn settings_icon_tile_style(theme: &Theme) -> iced::widget::container::Style {
+    iced::widget::container::Style {
+        background: Some(theme.palette().text.scale_alpha(0.045).into()),
+        border: Border { radius: 12.0.into(), ..Default::default() },
+        ..Default::default()
+    }
+}
+
 /// 构建或处理 `settings_modal_backdrop_style` 对应的界面片段与交互数据。
 ///
 /// # 参数

@@ -6,6 +6,8 @@ mod common;
 mod header;
 mod recent;
 
+pub(in crate::app) use common::{parse_hex_color, project_avatar};
+
 use iced::widget::{column, container};
 use iced::{Background, Color, Element, Length, Theme};
 

@@ -42,7 +42,7 @@ fn parse_hex_color_accepts_hash_case_and_surrounding_whitespace() {
 
 #[test]
 fn parse_hex_color_rejects_wrong_lengths_and_invalid_digits() {
-    for input in ["", "#", "12345", "1234567", "#12xz56", "red"] {
+    for input in ["", "#", "12345", "1234567", "#12xz56", "red", "#顏色"] {
         assert!(parse_hex_color(input).is_none(), "input should be rejected: {input:?}");
     }
 }

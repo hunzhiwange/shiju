@@ -72,13 +72,31 @@ fn right_column_chrome_accepts_empty_container_content() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn code_mode_chrome_leaves_no_inset_for_an_outer_border() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let content = iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
+    let mut chrome = super::right_column_chrome(content.into(), 8.0, WorkspaceMode::Code);
+    let bounds = Size::new(320.0, 480.0);
+    let limits = layout::Limits::new(Size::ZERO, bounds);
+    let mut tree = Tree::new(chrome.as_widget());
+    let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    let content = Layout::new(&node).children().next().expect("chrome should contain its panel");
+
+    assert_eq!(content.bounds(), Rectangle::with_size(bounds));
+    assert!(content.children().next().is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn right_column_chrome_draws_inner_and_outer_styles() {
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
     let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
+    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
 
     draw_element(&mut chrome, &mut renderer, &Theme::Dark);
 }
@@ -90,7 +108,7 @@ async fn right_column_chrome_covers_its_bottom_border() {
             .await
             .expect("tiny-skia headless renderer should be available");
     let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Code);
+    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
     let bounds = Size::new(320.0, 480.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
     let mut tree = Tree::new(chrome.as_widget());

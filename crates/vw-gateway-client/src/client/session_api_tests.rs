@@ -740,8 +740,9 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(
         server
             .client()
-            .session_title_generate(
+            .session_title_generate_in_directory(
                 "s1",
+                Some("/repo"),
                 &GatewaySessionTitleGenerateBody {
                     content: "hello world".to_string(),
                     preferred_model: Some("gpt".to_string()),
@@ -808,7 +809,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
     assert_eq!(request.body["scope"], "global-scope");
     let request = server.take_request();
     assert_eq!(request.method, "POST");
-    assert_eq!(request.path, "/v1/session/s1/title");
+    assert_eq!(request.path, "/v1/session/s1/title?directory=%2Frepo");
     assert_eq!(request.body["preferred_model"], "gpt");
     server.join();
 }

@@ -692,7 +692,22 @@ impl GatewayClient {
         session_id: &str,
         body: &GatewaySessionTitleGenerateBody,
     ) -> Result<GatewaySessionTitleGenerateResponse, String> {
-        self.post_json(&format!("{}/title", session_path(session_id)?), &[], body).await
+        self.session_title_generate_in_directory(session_id, None, body).await
+    }
+
+    /// Generate a title using the session's project directory.
+    pub async fn session_title_generate_in_directory(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+        body: &GatewaySessionTitleGenerateBody,
+    ) -> Result<GatewaySessionTitleGenerateResponse, String> {
+        self.post_json(
+            &format!("{}/title", session_path(session_id)?),
+            &directory_query(directory),
+            body,
+        )
+        .await
     }
 }
 

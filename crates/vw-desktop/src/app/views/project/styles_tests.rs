@@ -141,14 +141,7 @@ fn left_rail_and_no_border_styles_are_transparent() {
 }
 
 #[test]
-fn divider_session_and_highlight_colors_follow_theme() {
-    assert_color_close(divider_line_color(&Theme::Dark), Color::from_rgba8(50, 54, 61, 0.96));
-    assert_color_close(divider_line_color(&Theme::Light), Color::from_rgba8(221, 225, 232, 1.0));
-    assert_color_close(
-        session_border_color(&Theme::Dark),
-        Color::from_rgba8(50, 54, 61, 0.96).scale_alpha(0.96),
-    );
-    assert_color_close(session_border_color(&Theme::Light), divider_line_color(&Theme::Light));
+fn session_row_highlight_color_follows_theme() {
     assert_color_close(
         session_row_highlight_color(&Theme::Dark),
         Color::from_rgba8(37, 41, 48, 0.96),
@@ -187,10 +180,9 @@ fn session_panel_style_uses_radius_and_theme_palette() {
 }
 
 #[test]
-fn right_column_styles_apply_inner_background_and_outer_border() {
+fn right_column_inner_style_uses_themed_background_without_border() {
     let dark_inner = right_column_inner_style(&Theme::Dark, 12.0);
     let light_inner = right_column_inner_style(&Theme::Light, 16.0);
-    let outer = right_column_outer_style(&Theme::Light, 20.0);
     let dark_palette = Theme::Dark.extended_palette();
 
     assert_color_close(
@@ -205,12 +197,6 @@ fn right_column_styles_apply_inner_background_and_outer_border() {
         crate::app::theme_catalog::panel_surface_color(&Theme::Light, 0.99),
     );
     assert_close(light_inner.border.radius.top_left, 20.0);
-
-    assert!(outer.background.is_none());
-    assert_close(outer.border.width, 1.0);
-    assert_close(outer.border.radius.top_left, 24.0);
-    assert_color_close(outer.border.color, session_border_color(&Theme::Light));
-    assert_eq!(outer.shadow, iced::Shadow::default());
 }
 
 #[test]

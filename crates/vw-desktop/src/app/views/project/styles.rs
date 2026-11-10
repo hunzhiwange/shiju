@@ -126,40 +126,6 @@ pub fn left_rail_style(_theme: &Theme) -> ContainerStyle {
     }
 }
 
-/// 计算颜色表现。
-///
-/// # 参数
-/// - `theme`: 当前视图构建所需的状态、配置或消息。
-///
-/// # 返回
-/// 返回根据输入和主题计算出的颜色。
-///
-/// # 错误
-/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn divider_line_color(theme: &Theme) -> Color {
-    let is_dark = is_dark_theme(theme);
-    if is_dark {
-        Color::from_rgba8(50, 54, 61, 0.96)
-    } else {
-        Color::from_rgba8(221, 225, 232, 1.0)
-    }
-}
-
-/// 计算颜色表现。
-///
-/// # 参数
-/// - `theme`: 当前视图构建所需的状态、配置或消息。
-///
-/// # 返回
-/// 返回根据输入和主题计算出的颜色。
-///
-/// # 错误
-/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn session_border_color(theme: &Theme) -> Color {
-    let base = divider_line_color(theme);
-    if is_dark_theme(theme) { base.scale_alpha(0.96) } else { base }
-}
-
 /// 生成主题相关样式。
 ///
 /// # 参数
@@ -222,29 +188,6 @@ pub fn right_column_inner_style(theme: &Theme, corner_radius: f32) -> ContainerS
             width: 0.0,
             radius: (corner_radius + 4.0).into(),
         },
-        ..Default::default()
-    }
-}
-
-/// 生成主题相关样式。
-///
-/// # 参数
-/// - `theme`: 当前视图构建所需的状态、配置或消息。
-/// - `corner_radius`: 当前视图构建所需的状态、配置或消息。
-///
-/// # 返回
-/// 返回值遵循函数签名约定，调用方据此继续组装界面或更新状态。
-///
-/// # 错误
-/// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn right_column_outer_style(theme: &Theme, corner_radius: f32) -> ContainerStyle {
-    ContainerStyle {
-        border: Border {
-            color: session_border_color(theme),
-            width: 1.0,
-            radius: (corner_radius + 4.0).into(),
-        },
-        shadow: iced::Shadow::default(),
         ..Default::default()
     }
 }

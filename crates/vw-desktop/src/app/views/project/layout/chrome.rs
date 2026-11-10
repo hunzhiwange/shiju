@@ -2,25 +2,21 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{Space, container, stack};
+use iced::widget::container;
 use iced::{Element, Length, Theme};
 
 use crate::app::Message;
 use crate::app::state::WorkspaceMode;
 
 use super::super::handles::{HResizeHandle, TopBorderCover};
-use super::super::styles::{
-    right_column_inner_style, right_column_outer_style, work_surface_style,
-};
-
-const RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT: f32 = 1.0;
+use super::super::styles::{right_column_inner_style, work_surface_style};
 
 /// 执行本模块的界面辅助逻辑。
 ///
 /// # 参数
 /// - `right_column`: 当前视图构建所需的状态、配置或消息。
 /// - `corner_radius`: 当前视图构建所需的状态、配置或消息。
-/// - `mode`: 当前工作区模式，用于选择背景和外框样式。
+/// - `mode`: 当前工作区模式，用于选择背景样式。
 ///
 /// # 返回
 /// 返回可直接嵌入父级视图的 Iced 控件或样式闭包。
@@ -32,43 +28,19 @@ pub fn right_column_chrome(
     corner_radius: f32,
     mode: WorkspaceMode,
 ) -> Element<'_, Message> {
-    let right_column_inner =
-        container(right_column).width(Length::Fill).height(Length::Fill).clip(true).style(
-            move |theme: &Theme| {
-                let mut style = right_column_inner_style(theme, corner_radius);
-                if mode == WorkspaceMode::Work {
-                    style.background = work_surface_style(theme).background;
-                }
-                style
-            },
-        );
-
-    // 代码模式的各面板已有边框，外框会在聊天区圆角处叠出第二条线。
-    if mode == WorkspaceMode::Code {
-        return right_column_inner.into();
-    }
-
-    let right_column_base = container(right_column_inner)
+    // 描边由各面板绘制，右栏只提供底色和裁切。
+    container(right_column)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(iced::Padding { top: 0.0, right: 1.0, bottom: 1.0, left: 0.0 })
-        .style(move |theme: &Theme| right_column_outer_style(theme, corner_radius));
-    let bottom_border_cover = container(
-        container(Space::new())
-            .width(Length::Fill)
-            .height(Length::Fixed(RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT))
-            .style(work_surface_style),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .align_y(iced::alignment::Vertical::Bottom);
-
-    container(
-        stack![right_column_base, bottom_border_cover].width(Length::Fill).height(Length::Fill),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+        .clip(true)
+        .style(move |theme: &Theme| {
+            let mut style = right_column_inner_style(theme, corner_radius);
+            if mode == WorkspaceMode::Work {
+                style.background = work_surface_style(theme).background;
+            }
+            style
+        })
+        .into()
 }
 
 /// 计算遮罩分割线的宽度。

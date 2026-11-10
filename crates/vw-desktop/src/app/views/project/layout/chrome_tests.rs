@@ -1,4 +1,4 @@
-//! 右侧工作区外框的测试，覆盖圆角、内外层样式与底边遮盖。
+//! 右侧工作区容器的测试，覆盖圆角、底色与边缘布局。
 //! 用例也验证分隔手柄在紧凑间距和空内容下仍可稳定布局。
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
@@ -72,65 +72,50 @@ fn right_column_chrome_accepts_empty_container_content() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn code_mode_chrome_leaves_no_inset_for_an_outer_border() {
+async fn right_column_chrome_leaves_no_inset_for_an_outer_border() {
     let renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .expect("tiny-skia headless renderer should be available");
-    let content = iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
-    let mut chrome = super::right_column_chrome(content.into(), 8.0, WorkspaceMode::Code);
     let bounds = Size::new(320.0, 480.0);
     let limits = layout::Limits::new(Size::ZERO, bounds);
-    let mut tree = Tree::new(chrome.as_widget());
-    let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let content = Layout::new(&node).children().next().expect("chrome should contain its panel");
+    for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+        let content =
+            iced::widget::Space::new().width(iced::Length::Fill).height(iced::Length::Fill);
+        let mut chrome = super::right_column_chrome(content.into(), 8.0, mode);
+        let mut tree = Tree::new(chrome.as_widget());
+        let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        let content =
+            Layout::new(&node).children().next().expect("chrome should contain its panel");
 
-    assert_eq!(content.bounds(), Rectangle::with_size(bounds));
-    assert!(content.children().next().is_none());
+        assert_eq!(content.bounds(), Rectangle::with_size(bounds));
+        assert!(content.children().next().is_none());
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn right_column_chrome_draws_inner_and_outer_styles() {
-    let mut renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia headless renderer should be available");
-    let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
+async fn work_chrome_draws_its_background_without_an_outer_border() {
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("tiny-skia headless renderer should be available");
+        let content = iced::widget::Space::new().into();
+        let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
 
-    draw_element(&mut chrome, &mut renderer, &Theme::Dark);
-}
+        draw_element(&mut chrome, &mut renderer, &theme);
 
-#[tokio::test(flavor = "multi_thread")]
-async fn right_column_chrome_covers_its_bottom_border() {
-    let renderer =
-        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
-            .await
-            .expect("tiny-skia headless renderer should be available");
-    let content = iced::widget::text("right panel").into();
-    let mut chrome = super::right_column_chrome(content, 8.0, WorkspaceMode::Work);
-    let bounds = Size::new(320.0, 480.0);
-    let limits = layout::Limits::new(Size::ZERO, bounds);
-    let mut tree = Tree::new(chrome.as_widget());
-    let node = chrome.as_widget_mut().layout(&mut tree, &renderer, &limits);
-    let root = Layout::new(&node);
-    let stack = root.children().next().expect("chrome should contain its stack");
-    let mut layers = stack.children();
-    layers.next().expect("chrome stack should contain the right column");
-    let border_cover = layers.next().expect("chrome stack should contain the bottom border cover");
-    let cover_strip =
-        border_cover.children().next().expect("bottom border cover should contain its strip");
-
-    assert!(
-        (cover_strip.bounds().height - super::RIGHT_COLUMN_BOTTOM_BORDER_COVER_HEIGHT).abs()
-            < 0.001
-    );
-    assert!(
-        (cover_strip.bounds().y + cover_strip.bounds().height
-            - (stack.bounds().y + stack.bounds().height))
-            .abs()
-            < 0.001
-    );
+        let size = Size::new(320, 480);
+        let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+        let pixel_at = |x: usize, y: usize| {
+            let offset = (y * size.width as usize + x) * 4;
+            &pixels[offset..offset + 4]
+        };
+        let center = pixel_at(160, 240);
+        assert_ne!(center, pixel_at(319, 0), "{theme:?} rounded background");
+        assert_eq!(center, pixel_at(319, 240), "{theme:?} right edge");
+        assert_eq!(center, pixel_at(160, 479), "{theme:?} bottom edge");
+    }
 }
 
 #[test]

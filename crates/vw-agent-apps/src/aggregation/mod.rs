@@ -33,3 +33,9 @@ pub mod omo_write;
 
 #[cfg(all(test, target_os = "macos"))]
 mod omo_write_tests;
+
+#[cfg(target_os = "macos")]
+pub mod membership;
+
+#[cfg(all(test, target_os = "macos"))]
+mod membership_tests;

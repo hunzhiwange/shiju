@@ -13,6 +13,7 @@ use rmcp::{
 };
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
+use tokio_util::sync::CancellationToken;
 
 #[derive(Default)]
 struct HttpProtocol {
@@ -46,6 +47,7 @@ pub(super) struct HttpClient {
     responses: Arc<crate::plugins::RawMcpResponse>,
     protocol: Arc<Mutex<HttpProtocol>>,
     check_origin: Option<url::Origin>,
+    check_cancellation: Option<CancellationToken>,
 }
 
 impl HttpClient {
@@ -53,12 +55,45 @@ impl HttpClient {
         client: reqwest_012::Client,
         responses: Arc<crate::plugins::RawMcpResponse>,
     ) -> Self {
-        Self { client, responses, protocol: Default::default(), check_origin: None }
+        Self {
+            client,
+            responses,
+            protocol: Default::default(),
+            check_origin: None,
+            check_cancellation: None,
+        }
     }
 
     pub(super) fn with_check_origin(mut self, origin: url::Origin) -> Self {
         self.check_origin = Some(origin);
         self
+    }
+
+    pub(super) fn with_check_cancellation(mut self, token: CancellationToken) -> Self {
+        self.check_cancellation = Some(token);
+        self
+    }
+
+    async fn check_io<T>(
+        &self,
+        operation: impl Future<Output = Result<T, reqwest_012::Error>>,
+    ) -> Result<T, StreamableHttpError<reqwest_012::Error>> {
+        if let Some(cancel) = &self.check_cancellation {
+            tokio::select! {
+                biased;
+                () = cancel.cancelled() => Err(StreamableHttpError::TransportChannelClosed),
+                result = operation => Ok(result?),
+            }
+        } else {
+            Ok(operation.await?)
+        }
+    }
+
+    fn check_stream(&self, stream: BoxedSseResponse) -> BoxedSseResponse {
+        match &self.check_cancellation {
+            Some(cancel) => stream.take_until(cancel.clone().cancelled_owned()).boxed(),
+            None => stream,
+        }
     }
 
     fn request(&self, request: reqwest_012::RequestBuilder) -> reqwest_012::RequestBuilder {
@@ -132,7 +167,7 @@ impl StreamableHttpClient for HttpClient {
         if let Some(auth) = auth {
             request = request.bearer_auth(auth);
         }
-        let response = request.json(&message).send().await?;
+        let response = self.check_io(request.json(&message).send()).await?;
         if response.status() == reqwest_012::StatusCode::UNAUTHORIZED {
             if let Some(header) = response.headers().get("www-authenticate") {
                 let header = header.to_str().map_err(|_| {
@@ -162,7 +197,7 @@ impl StreamableHttpClient for HttpClient {
             .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
         match kind.as_deref() {
             Some(kind) if kind.starts_with("application/json") => {
-                let value = response.json::<Value>().await?;
+                let value = self.check_io(response.json::<Value>()).await?;
                 self.protocol
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -175,7 +210,7 @@ impl StreamableHttpClient for HttpClient {
                     sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
                 Ok(StreamableHttpPostResponse::Sse(
                     events(
-                        stream,
+                        self.check_stream(stream),
                         self.responses.clone(),
                         self.protocol.clone(),
                         self.check_origin.is_some(),
@@ -224,7 +259,7 @@ impl StreamableHttpClient for HttpClient {
         if let Some(auth) = auth {
             request = request.bearer_auth(auth);
         }
-        let response = request.send().await?;
+        let response = self.check_io(request.send()).await?;
         if response.status() == reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
             return Err(StreamableHttpError::ServerDoesNotSupportSse);
         }
@@ -237,7 +272,7 @@ impl StreamableHttpClient for HttpClient {
             return Err(StreamableHttpError::UnexpectedContentType(kind));
         }
         let stream = sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
-        Ok(events(stream, self.responses.clone(), self.protocol.clone(), false))
+        Ok(events(self.check_stream(stream), self.responses.clone(), self.protocol.clone(), false))
     }
 }
 

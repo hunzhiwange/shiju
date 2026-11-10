@@ -19,6 +19,10 @@ mod credentials;
 mod connectivity;
 #[cfg(all(test, target_os = "macos"))]
 mod connectivity_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod probe_jobs;
+#[cfg(all(test, target_os = "macos"))]
+mod probe_jobs_tests;
 
 #[cfg(test)]
 mod catalog_create_tests;

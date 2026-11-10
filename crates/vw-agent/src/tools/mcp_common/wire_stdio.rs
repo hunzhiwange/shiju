@@ -60,7 +60,7 @@ fn nonstandard_notification(value: &Value) -> bool {
 }
 
 pub(super) struct StdioTransport {
-    child: Child,
+    child: Option<Child>,
     input: Arc<Mutex<Option<ChildStdin>>>,
     output: FramedRead<ChildStdout, LinesCodec>,
     responses: Arc<crate::plugins::RawMcpResponse>,
@@ -71,16 +71,31 @@ impl StdioTransport {
         mut command: Command,
         responses: Arc<crate::plugins::RawMcpResponse>,
         connection_check: bool,
+        probe_child: Option<&mut Option<ProbeChild>>,
     ) -> io::Result<Self> {
+        #[cfg(unix)]
+        if probe_child.is_some() {
+            command.process_group(0);
+        }
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(if connection_check { Stdio::null() } else { Stdio::inherit() })
             .kill_on_drop(true)
             .spawn()?;
-        let input = child.stdin.take().ok_or_else(|| io::Error::other("MCP stdin unavailable"))?;
-        let output =
-            child.stdout.take().ok_or_else(|| io::Error::other("MCP stdout unavailable"))?;
+        let input = child.stdin.take();
+        let output = child.stdout.take();
+        // Transfer ownership before any await. The batch retains the child even if
+        // cancellation drops the initialization future before rmcp returns a peer.
+        let child = match probe_child {
+            Some(owned) => {
+                owned.replace(ProbeChild(child));
+                None
+            }
+            None => Some(child),
+        };
+        let input = input.ok_or_else(|| io::Error::other("MCP stdin unavailable"))?;
+        let output = output.ok_or_else(|| io::Error::other("MCP stdout unavailable"))?;
         Ok(Self {
             responses,
             child,
@@ -139,9 +154,34 @@ impl Transport<RoleClient> for StdioTransport {
     async fn close(&mut self) -> io::Result<()> {
         // Closing the owned pipe sends EOF; shutdown() alone does not drop a ChildStdin handle.
         self.input.lock().await.take();
-        match tokio::time::timeout(Duration::from_secs(3), self.child.wait()).await {
+        let Some(child) = &mut self.child else { return Ok(()) };
+        match tokio::time::timeout(Duration::from_secs(3), child.wait()).await {
             Ok(status) => status.map(|_| ()),
-            Err(_) => self.child.kill().await,
+            Err(_) => child.kill().await,
         }
+    }
+}
+
+/// A dedicated stdio process and, on Unix, its private process group.
+pub(crate) struct ProbeChild(Child);
+
+impl ProbeChild {
+    pub(crate) async fn kill_and_reap(mut self) {
+        self.kill_group();
+        let _ = self.0.kill().await;
+    }
+
+    fn kill_group(&self) {
+        #[cfg(unix)]
+        if let Some(pid) = self.0.id() {
+            // SAFETY: the unreaped child owns the private group created with process_group(0).
+            unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
+        }
+    }
+}
+
+impl Drop for ProbeChild {
+    fn drop(&mut self) {
+        self.kill_group();
     }
 }

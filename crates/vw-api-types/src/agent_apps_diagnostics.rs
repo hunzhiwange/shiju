@@ -3,7 +3,7 @@
 use crate::{
     agent_apps::AppId,
     id::{ModelId, ProjectId, ProjectScope, ProviderId, TaskId},
-    mcp_management::{McpRecordId, McpTransport},
+    mcp_management::{McpCatalogScope, McpConnectionCheckItem, McpRecordId, McpTransport},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -129,6 +129,11 @@ pub enum DiagnosticResult {
     Mcp {
         server_id: McpRecordId,
         report: DiagnosticReport<McpHandshakeEvidence>,
+    },
+    McpConnectionCheck {
+        scope: McpCatalogScope,
+        generation: u64,
+        item: McpConnectionCheckItem,
     },
 }
 

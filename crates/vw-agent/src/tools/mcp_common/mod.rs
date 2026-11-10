@@ -32,6 +32,9 @@ mod wire_check;
 mod wire_http;
 mod wire_stdio;
 
+#[cfg(not(target_arch = "wasm32"))]
+use wire_stdio::ProbeChild;
+
 struct UnsupportedMcpCapability {
     scope: &'static str,
     capability: &'static str,
@@ -566,6 +569,7 @@ fn connection_check_http_client(
         .default_headers(headers)
         .connect_timeout(timeout)
         .read_timeout(timeout)
+        .retry(reqwest_012::retry::never())
         .redirect(reqwest_012::redirect::Policy::none())
         .build()
         .context("failed to build MCP connection check HTTP client")
@@ -665,7 +669,7 @@ pub(crate) async fn open_server_peer(
     closed: tokio_util::sync::CancellationToken,
     form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
 ) -> anyhow::Result<RunningMcpPeer> {
-    open_server_peer_inner(server, timeout, closed, form_owner, false).await
+    open_server_peer_inner(server, timeout, closed, form_owner, None, None).await
 }
 
 /// Open a short-lived peer for an explicit catalog check, with no session privileges.
@@ -673,9 +677,18 @@ pub(crate) async fn open_server_peer(
 pub(crate) async fn open_connection_check_peer(
     server: McpServer,
     timeout: Duration,
+    http_io: tokio_util::sync::CancellationToken,
+    child: Option<&mut Option<ProbeChild>>,
 ) -> anyhow::Result<RunningMcpPeer> {
-    open_server_peer_inner(server, timeout, tokio_util::sync::CancellationToken::new(), None, true)
-        .await
+    open_server_peer_inner(
+        server,
+        timeout,
+        tokio_util::sync::CancellationToken::new(),
+        None,
+        Some(http_io),
+        child,
+    )
+    .await
 }
 
 async fn open_server_peer_inner(
@@ -683,8 +696,10 @@ async fn open_server_peer_inner(
     timeout: Duration,
     closed: tokio_util::sync::CancellationToken,
     form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
-    connection_check: bool,
+    check_http_io: Option<tokio_util::sync::CancellationToken>,
+    child: Option<&mut Option<wire_stdio::ProbeChild>>,
 ) -> anyhow::Result<RunningMcpPeer> {
+    let connection_check = check_http_io.is_some();
     let mut peer_client = NoopClient::with_cancellation(closed);
     if form_owner.is_some() {
         peer_client.info.capabilities.elicitation =
@@ -710,7 +725,8 @@ async fn open_server_peer_inner(
             for (key, value) in &env {
                 command.env(key, value);
             }
-            let transport = wire_stdio::StdioTransport::new(command, responses, connection_check)?;
+            let transport =
+                wire_stdio::StdioTransport::new(command, responses, connection_check, child)?;
             with_connect_timeout(
                 &server.name,
                 timeout,
@@ -778,8 +794,10 @@ async fn open_server_peer_inner(
                     std::sync::Arc::new(rmcp::transport::common::client_side_sse::NeverRetry);
             }
             let mut client = wire_http::HttpClient::new(client, responses);
-            if connection_check {
-                client = client.with_check_origin(reqwest_012::Url::parse(&server.url)?.origin());
+            if let Some(http_io) = check_http_io {
+                client = client
+                    .with_check_origin(reqwest_012::Url::parse(&server.url)?.origin())
+                    .with_check_cancellation(http_io);
             }
             let transport = StreamableHttpClientTransport::with_client(client, config);
             with_connect_timeout(

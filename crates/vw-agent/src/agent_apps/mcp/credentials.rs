@@ -7,10 +7,13 @@ use vw_agent_apps::{
     providers::validate_identity,
 };
 use vw_api_types::mcp_management::{
-    McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode, McpRecordRef,
+    McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode, McpRecordId,
+    McpRecordRef,
 };
 
-use super::{McpCatalogStore, StoredCatalogEntry, catalog_create::catalog_location};
+use super::{
+    McpCatalogStore, StoredCatalogEntry, StoredCatalogRecord, catalog_create::catalog_location,
+};
 
 impl McpCatalogStore {
     /// Return only editor placeholders for this authorized record revision.
@@ -37,15 +40,24 @@ impl McpCatalogStore {
         authorized_scope: &McpCatalogScope,
         expected: &McpRecordRef,
     ) -> Result<McpConnectionDefinition, McpFailureCode> {
-        let (tenant, namespace) = catalog_location(authorized_scope)?;
-        let (_, entry) = self.load_entry(tenant, &namespace, &expected.id.0)?;
-        let StoredCatalogEntry::Active(stored) = entry else {
-            return Err(McpFailureCode::NotFound);
-        };
+        let stored = self.active_record(authorized_scope, &expected.id)?;
         if stored.record.record.revision != expected.revision {
             return Err(McpFailureCode::StaleRevision);
         }
         Ok(stored.connection)
+    }
+
+    pub(super) fn active_record(
+        &self,
+        scope: &McpCatalogScope,
+        id: &McpRecordId,
+    ) -> Result<Box<StoredCatalogRecord>, McpFailureCode> {
+        let (tenant, namespace) = catalog_location(scope)?;
+        let (_, entry) = self.load_entry(tenant, &namespace, &id.0)?;
+        match entry {
+            StoredCatalogEntry::Active(stored) => Ok(stored),
+            StoredCatalogEntry::Deleted(_) => Err(McpFailureCode::NotFound),
+        }
     }
 }
 
@@ -125,7 +137,7 @@ mod execution {
     use vw_api_types::{
         TenantScope,
         agent_apps_auth::{AuthErrorCode, AuthService},
-        mcp_management::{McpCredentialRef, McpTransport},
+        mcp_management::{McpCatalogRecord, McpCredentialRef, McpTransport},
     };
 
     /// Host-private transport inputs. Keep this out of serialized settings and diagnostics.
@@ -160,9 +172,41 @@ mod execution {
             + Send
             + Sync,
         ) -> Result<McpExecutionConnection, McpFailureCode> {
-            let connection =
-                run_sync_database(|| Ok(self.execution_definition(authorized_scope, expected)))
-                    .map_err(|_| McpFailureCode::StorageUnavailable)??;
+            let (connection, _) = self
+                .resolve_execution_connection(
+                    authorized_scope,
+                    &expected.id,
+                    |record| record.record.revision == expected.revision,
+                    execution_host,
+                    accounts,
+                    authorize_credential_use,
+                )
+                .await?;
+            Ok(connection)
+        }
+
+        pub(in crate::agent_apps::mcp) async fn resolve_execution_connection<'a>(
+            &self,
+            authorized_scope: &McpCatalogScope,
+            id: &McpRecordId,
+            revision_matches: impl FnOnce(&McpCatalogRecord) -> bool + Send,
+            execution_host: &str,
+            accounts: &AuthAccountStore,
+            authorize_credential_use: impl Fn(
+                &McpConnectionDefinition,
+                &McpCredentialRef,
+            ) -> Option<AuthAccountScope<'a>>
+            + Send
+            + Sync,
+        ) -> Result<(McpExecutionConnection, u64), McpFailureCode> {
+            let record = run_sync_database(|| Ok(self.active_record(authorized_scope, id)))
+                .map_err(|_| McpFailureCode::StorageUnavailable)??;
+            if !revision_matches(&record.record) {
+                return Err(McpFailureCode::StaleRevision);
+            }
+            let revision = record.record.connection_revision;
+            let connection = record.connection;
+            validate_catalog_connection(&connection)?;
             let (tenant, _) = catalog_location(authorized_scope)?;
             let authorize =
                 |reference: &McpCredentialRef| authorize_credential_use(&connection, reference);
@@ -174,7 +218,7 @@ mod execution {
                 &authorize,
             )
             .await?;
-            execution_connection(connection, fields)
+            Ok((execution_connection(connection, fields)?, revision))
         }
 
         pub(in crate::agent_apps::mcp) fn resolve_for_native_runtime(

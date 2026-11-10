@@ -490,6 +490,11 @@ fn valid_result(kind: DiagnosticProbeKind, result: &DiagnosticResult) -> bool {
         DiagnosticResult::Mcp { server_id, report } => {
             (DiagnosticProbeKind::Mcp, &report.timings, valid_id(&server_id.0))
         }
+        DiagnosticResult::McpConnectionCheck { item, .. } => {
+            return kind == DiagnosticProbeKind::Mcp
+                && valid_id(&item.id.0)
+                && item.connection_revision > 0;
+        }
     };
     result_kind == kind && timings.len() <= MAX_TIMINGS_PER_RESULT && ids_valid
 }

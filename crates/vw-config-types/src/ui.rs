@@ -205,7 +205,7 @@ pub struct AppSystemSettingsConfig {
     #[serde(default = "default_terminal_font_family")]
     pub terminal_font_family: String,
     /// Terminal font size.
-    #[serde(default = "default_editor_font_size")]
+    #[serde(default = "default_terminal_font_size")]
     pub terminal_font_size: f32,
     /// Whether editor theme follows system/app theme.
     #[serde(default = "default_true")]
@@ -378,6 +378,10 @@ fn default_terminal_theme() -> String {
 
 fn default_terminal_font_family() -> String {
     "JetBrains Mono".to_string()
+}
+
+fn default_terminal_font_size() -> f32 {
+    15.0
 }
 
 fn default_editor_font_size() -> f32 {
@@ -559,7 +563,7 @@ impl Default for AppSystemSettingsConfig {
             terminal_shell: default_terminal_shell(),
             terminal_theme: default_terminal_theme(),
             terminal_font_family: default_terminal_font_family(),
-            terminal_font_size: default_editor_font_size(),
+            terminal_font_size: default_terminal_font_size(),
             editor_follow_system_theme: default_true(),
             editor_theme: default_app_theme_name(),
             project_worktree_enabled: HashMap::new(),

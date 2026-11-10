@@ -31,7 +31,7 @@ fn app_system_settings_default_matches_desktop_contract() {
     assert_eq!(settings.terminal_shell, "zsh");
     assert_eq!(settings.terminal_theme, "system");
     assert_eq!(settings.terminal_font_family, "JetBrains Mono");
-    assert_eq!(settings.terminal_font_size, 16.0);
+    assert_eq!(settings.terminal_font_size, 15.0);
     assert!(settings.editor_follow_system_theme);
     assert_eq!(settings.editor_theme, "Light");
     assert_eq!(settings.editor_font_size, 16.0);
@@ -697,9 +697,9 @@ fn task_completion_notification_defaults_off_and_roundtrips() {
 }
 
 #[test]
-fn terminal_typography_missing_font_size_uses_editor_default() {
+fn terminal_typography_missing_font_size_uses_terminal_default() {
     let settings: AppSystemSettingsConfig = serde_json::from_str("{}").unwrap();
-    assert_eq!(settings.terminal_font_size, settings.editor_font_size);
+    assert_eq!(settings.terminal_font_size, 15.0);
 }
 
 #[test]

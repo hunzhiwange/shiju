@@ -475,3 +475,33 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 红、绿测试链接均报告既有的 macOS `__eh_frame` 大小警告。各阶段的任务锁均已释放，构建缓存保留。状态为 **已完成**。
+
+## 任务 20　约束请求与缓冲大小
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 18 的 `7226ff37f` 和任务 19 的 `3df4d0225`，已核对两项回环证据。CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/server.rs` 和 `proxy/content_encoding.rs` 与仓库快照、来源映射的 SHA256 一致。核对了 `services/proxy.rs` 的监听入口、`proxy/response_processor.rs` 的聚合调用和相邻的解压边界用例。沿用网关持有的监听器、项目和执行主机授权及 Codex 应用身份。原生配置写入和账号租约继续由现有契约提供。
+
+- `app_routing::body_limits` 为授权的非流式 `POST /v1/chat/completions` 统一约束客户端线体、各层解压输出、供应商覆盖后重建的出站 JSON 和待发送的上游正文，每项上限 4 MiB。读到超限分块即停止，声明长度在读取前校验。请求的原始 HTTP/1 头捕获保留长度和分块编码同时出现的信号，避免 Hyper 规范化时丢失。畸形请求返回 400，超限请求返回 413。两条上游传输路径均在完整聚合后提交成功状态，超限、损坏或分帧错误返回 502。
+- 每个监听器最多保留 8 个活跃缓冲名额，满载返回 503。请求读入和解压沿用 10 秒期限，超时返回 408 并归还名额。成功响应持有名额直到缓冲字节释放。上游沿用现有传输期限。SSE 断线夹具验证当前非流式入口拒绝该媒体类型。WSL 地址保留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+### 验证记录
+
+各阶段的 `CARGO_BUILD_BUILD_DIR` 与所领 `CARGO_TARGET_DIR` 相同，`CARGO_INCREMENTAL=0`。共享槽位均已释放，编译缓存保留。
+
+| 槽位 | `CARGO_TARGET_DIR` |
+| --- | --- |
+| 1 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-1` |
+| 3 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` |
+| 8 | `/Users/xiangmin/worker/code/shiju/target/rust-slot-8` |
+
+| 阶段 | 槽位 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- | --- |
+| 红灯 | 3 | `cargo test -p vw-agent --lib cc_route_020_ -- --nocapture` | 退出 101，4 项失败。旧实现为过大声明和截断的上游响应发出 200。过大的请求声明及满载请求均未在夹具期限内拒绝。前两次因夹具访问私有接口退出 101，执行 0 项。 |
+| 格式化 | 1、3 | `cargo fmt --all` | 两次均退出 0。在临时源码副本执行，只回写本任务 Rust 文件。 |
+| 绿灯首跑 | 1 | `cargo test -p vw-agent --lib cc_route_020_ -- --nocapture` | 退出 101，执行 0 项。集成工作区 Dsh 适配器的 `serde_yaml::Value` 比较类型错误阻断编译，已由其任务修复。 |
+| 绿灯重试 | 8 | `cargo test -p vw-agent --lib cc_route_020_ -- --nocapture` | 退出 101，3 项通过、1 项失败。转发客户端复用了夹具连接，导致下一次等待新连接超时。为夹具响应补上 `Connection: close`。 |
+| 最终绿灯 | 1 | `cargo test -p vw-agent --lib cc_route_020_ -- --nocapture` | 退出 0，4 项通过，0 项失败或忽略。 |
+| 相邻回归 | 1 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-d7cc4815ce201d46" cc_route_014_ cc_route_017_ cc_route_018_ cc_route_019_ --nocapture` | 退出 0，6 项通过，0 项失败或忽略。 |
+| 全仓检查 | 1 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | — | `git diff --cached --check`（限定本项路径） | 退出 0。只读计划无差异。 |
+
+回环用例覆盖两条上游传输路径上的过大声明和提前断开，以及 4 MiB 恰好通过、分块越界、截断和冲突分帧、gzip 解压越界、重建请求越界和超时回收。最终测试的 Rust 文件与提交内容逐一核对一致。macOS 链接器报告既有的 `__eh_frame` 大小警告。本项状态为 **已完成**。

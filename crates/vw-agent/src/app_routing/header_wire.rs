@@ -13,7 +13,10 @@ pub(super) const MAX_HEAD_BYTES: usize = 8192 + 4096 * 100;
 pub(super) const MAX_HEADERS: usize = 100;
 
 #[derive(Clone, Default)]
-pub(super) struct HeaderWire(Vec<(HeaderName, String)>);
+pub(super) struct HeaderWire {
+    names: Vec<(HeaderName, String)>,
+    conflicting_framing: bool,
+}
 
 impl HeaderWire {
     fn parse(prefix: &[u8]) -> Option<Self> {
@@ -24,8 +27,12 @@ impl HeaderWire {
             Err(_) => return Some(Self::default()), // Hyper will reject the malformed request.
             Ok(httparse::Status::Complete(_)) => {}
         }
-        Some(Self(
-            request
+        // Hyper removes Content-Length when it sees Transfer-Encoding.
+        // Preserve the conflict so dispatch can reject ambiguous framing.
+        let has =
+            |name: &str| request.headers.iter().any(|field| field.name.eq_ignore_ascii_case(name));
+        Some(Self {
+            names: request
                 .headers
                 .iter()
                 .filter_map(|field| {
@@ -33,14 +40,19 @@ impl HeaderWire {
                     is_allowed(&name).then(|| (name, field.name.to_owned()))
                 })
                 .collect(),
-        ))
+            conflicting_framing: has("content-length") && has("transfer-encoding"),
+        })
+    }
+
+    pub(super) fn has_conflicting_framing(&self) -> bool {
+        self.conflicting_framing
     }
 
     pub(super) fn retain_allowed(&mut self, incoming: &HeaderMap, prepared: &mut HeaderMap) {
         // A validated provider override keeps its value and can reuse the
         // spelling of a surviving client field.
-        self.0.retain(|(name, _)| incoming.contains_key(name));
-        for (name, _) in &self.0 {
+        self.names.retain(|(name, _)| incoming.contains_key(name));
+        for (name, _) in &self.names {
             if !prepared.contains_key(name) {
                 for value in incoming.get_all(name) {
                     prepared.append(name.clone(), value.clone());
@@ -50,13 +62,13 @@ impl HeaderWire {
     }
 
     pub(super) fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.names.is_empty()
     }
 
     pub(super) fn write(&self, headers: &HeaderMap, head: &mut Vec<u8>) {
         let mut values: HashMap<_, _> =
             headers.keys().map(|name| (name, headers.get_all(name).iter())).collect();
-        for (name, spelling) in &self.0 {
+        for (name, spelling) in &self.names {
             if let Some(value) = values.get_mut(name).and_then(Iterator::next) {
                 write_field(head, spelling, value);
             }

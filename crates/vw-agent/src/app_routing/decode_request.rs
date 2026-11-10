@@ -47,10 +47,6 @@ impl ContentCodings {
         Ok(Self(codings))
     }
 
-    pub(super) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
     /// Decode in reverse application order. Every intermediate output and the
     /// final entity must fit within `limit`. The caller limits wire collection.
     pub(super) async fn decode(self, mut body: Bytes, limit: usize) -> Result<Bytes, DecodeError> {

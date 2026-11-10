@@ -1,3 +1,4 @@
+mod body_limits;
 mod browser_guard;
 #[cfg(target_os = "macos")]
 pub(crate) mod config_apply;
@@ -16,6 +17,9 @@ pub use listener::{ListenerError, RoutingListener};
 #[cfg(target_os = "macos")]
 pub(crate) use route_auth::VerifiedRouteBinding;
 pub use shared_transport::SharedTransport;
+
+#[cfg(all(test, target_os = "macos"))]
+mod body_limits_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod config_apply_tests;

@@ -186,8 +186,6 @@ async fn cc_route_019_decode_response_distinguishes_corruption_from_each_budget(
         decode_request::{ContentCodings, DecodeError},
         decode_response::decode,
     };
-    use axum::body::to_bytes;
-
     let limit = 256;
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_ENCODING, "gzip".parse().unwrap());
@@ -197,7 +195,7 @@ async fn cc_route_019_decode_response_distinguishes_corruption_from_each_budget(
     let encoded = gzip(&exact);
     assert!(encoded.len() < limit);
     let body = decode(Body::from(encoded.clone()), gzip_coding(), limit).await.unwrap();
-    assert_eq!(to_bytes(body, limit).await.unwrap(), exact);
+    assert_eq!(body, exact);
 
     let truncated = |mut encoded: Vec<u8>| {
         encoded.truncate(encoded.len() - 8); // Remove the gzip trailer.

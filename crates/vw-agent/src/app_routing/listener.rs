@@ -1,6 +1,7 @@
 //! Owns the application's loopback listener independently of session relays.
 
 use super::{
+    body_limits::BodyLimits,
     dispatch,
     route_auth::{self, RouteAuth},
     shutdown,
@@ -69,6 +70,7 @@ pub struct RoutingListener {
     // before draining the single listener.
     control_closed: Arc<tokio::sync::Mutex<bool>>,
     pub(super) auth: Arc<RouteAuth>,
+    body_limits: BodyLimits,
     logging_enabled: Arc<AtomicBool>,
 }
 
@@ -149,8 +151,14 @@ impl RoutingListener {
     fn start_http(&self, address: SocketAddr) -> Result<SocketAddr, ListenerError> {
         let auth = Arc::clone(&self.auth);
         let logging = Arc::clone(&self.logging_enabled);
+        let body_limits = self.body_limits.clone();
         self.start_at(address, move |connection| {
-            Some(serve_http(connection, Arc::clone(&auth), Arc::clone(&logging)))
+            Some(serve_http(
+                connection,
+                Arc::clone(&auth),
+                Arc::clone(&logging),
+                body_limits.clone(),
+            ))
         })
     }
 
@@ -196,6 +204,7 @@ impl RoutingListener {
         if let Some((runtime, socket, address)) = replacement {
             let auth = Arc::clone(&self.auth);
             let logging = Arc::clone(&self.logging_enabled);
+            let body_limits = self.body_limits.clone();
             let mut lifecycle = self.lifecycle.lock();
             // The listener may have exited on its own while the database write ran.
             let previous = match std::mem::replace(&mut *lifecycle, Lifecycle::Starting) {
@@ -215,7 +224,12 @@ impl RoutingListener {
                     let _ = exited.await;
                 }
                 task.serve(move |connection| {
-                    Some(serve_http(connection, Arc::clone(&auth), Arc::clone(&logging)))
+                    Some(serve_http(
+                        connection,
+                        Arc::clone(&auth),
+                        Arc::clone(&logging),
+                        body_limits.clone(),
+                    ))
                 })
                 .await;
             });
@@ -314,14 +328,20 @@ impl RoutingListener {
     }
 }
 
-async fn serve_http(connection: TcpStream, auth: Arc<RouteAuth>, logging: Arc<AtomicBool>) {
+async fn serve_http(
+    connection: TcpStream,
+    auth: Arc<RouteAuth>,
+    logging: Arc<AtomicBool>,
+    body_limits: BodyLimits,
+) {
     route_auth::serve(connection, auth, |request, route| {
         let logging = logging.load(Ordering::Relaxed);
+        let body_limits = body_limits.clone();
         async move {
             if logging {
                 tracing::info!("Authorized application routing request");
             }
-            dispatch::forward_json(request, &route)
+            dispatch::forward_json(request, &route, &body_limits)
                 .await
                 .unwrap_or_else(IntoResponse::into_response)
         }

@@ -131,6 +131,15 @@ impl RouteAuth {
         self.issue_with_target(binding, None)
     }
 
+    #[cfg(all(test, target_os = "macos"))]
+    pub(super) fn issue_test_token(
+        &self,
+        binding: VerifiedRouteBinding,
+        target: JsonTarget,
+    ) -> anyhow::Result<String> {
+        Ok(self.issue_with_target(binding, Some(target))?.token)
+    }
+
     // Attach the trusted destination when publishing the same immutable grant.
     // Rotating or revoking the grant also retires its target and in-flight work.
     fn issue_with_target(

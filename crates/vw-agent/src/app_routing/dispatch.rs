@@ -2,6 +2,7 @@
 
 use super::{
     SharedTransport,
+    body_limits::{self, BodyError, BodyLimits, MAX_JSON_BYTES},
     decode_request::{ContentCodings, DecodeError},
     decode_response,
     header_wire::{self, HeaderWire},
@@ -9,7 +10,7 @@ use super::{
     route_auth::AuthorizedRoute,
 };
 use axum::{
-    body::{Body, to_bytes},
+    body::Body,
     http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header},
     response::Response,
 };
@@ -19,7 +20,6 @@ use std::time::Duration;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
-const MAX_JSON_BYTES: usize = 4 * 1024 * 1024;
 const CHAT_PATH: &str = "/v1/chat/completions";
 const JSON: &str = "application/json";
 
@@ -35,6 +35,7 @@ pub(super) struct JsonTarget {
 pub(super) async fn forward_json(
     mut request: Request<Incoming>,
     route: &AuthorizedRoute,
+    limits: &BodyLimits,
 ) -> Result<Response, StatusCode> {
     let (app, target, cancelled) = route.json_target().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if app != AppId::Codex || request.uri().path() != CHAT_PATH || request.uri().query().is_some() {
@@ -43,6 +44,11 @@ pub(super) async fn forward_json(
     if request.method() != Method::POST {
         return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
+    if request.extensions().get::<HeaderWire>().is_some_and(HeaderWire::has_conflicting_framing) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    body_limits::check_declared_length(request.headers(), MAX_JSON_BYTES)
+        .map_err(request_body_status)?;
     // Inspect the entity coding before removing client-nominated hop headers.
     let codings = ContentCodings::from_headers(request.headers()).map_err(decode_status)?;
     header_wire::strip_hop_headers(request.headers_mut());
@@ -50,21 +56,24 @@ pub(super) async fn forward_json(
         return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
     }
     let (mut parts, incoming) = request.into_parts();
+    let permit = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let bytes = tokio::time::timeout(Duration::from_secs(10), async {
-        let bytes = to_bytes(Body::new(incoming), MAX_JSON_BYTES)
+        let bytes = body_limits::collect(Body::new(incoming), MAX_JSON_BYTES)
             .await
-            .map_err(|_| StatusCode::PAYLOAD_TOO_LARGE)?;
+            .map_err(request_body_status)?;
         codings.decode(bytes, MAX_JSON_BYTES).await.map_err(decode_status)
     })
     .await
     .map_err(|_| StatusCode::REQUEST_TIMEOUT)??;
     let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+    drop(bytes);
     if !body.is_object() || body.get("stream").is_some_and(|value| value.as_bool() != Some(false)) {
         return Err(StatusCode::BAD_REQUEST);
     }
 
     // Native Chat uses the parsed document unchanged at the conversion step.
     let mut outgoing = prepare_request(&body, target)?;
+    drop(body);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     let response = target.transport.forward_ordered(&target.url, outgoing, wire, cancelled).await?;
@@ -72,6 +81,8 @@ pub(super) async fn forward_json(
         return Err(StatusCode::BAD_GATEWAY);
     }
     let (mut parts, body) = response.into_parts();
+    body_limits::check_declared_length(&parts.headers, MAX_JSON_BYTES)
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
     // Read the actual coding before Connection nominations strip any fields.
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     header_wire::strip_hop_headers(&mut parts.headers);
@@ -83,7 +94,7 @@ pub(super) async fn forward_json(
         .map_err(upstream_decode_status)?;
     parts.headers.clear();
     parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
-    Ok(Response::from_parts(parts, body))
+    Ok(Response::from_parts(parts, body_limits::buffered_response(body, permit)))
 }
 
 pub(super) fn prepare_request(
@@ -99,7 +110,7 @@ pub(super) fn prepare_request(
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());
     *outgoing.body_mut() =
-        Some(serde_json::to_vec(&body).map_err(|_| StatusCode::BAD_REQUEST)?.into());
+        Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
     // The router owns the media type and the credential for this destination.
     outgoing.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
     let mut authorization = target.authorization.clone();
@@ -117,8 +128,15 @@ fn decode_status(error: DecodeError) -> StatusCode {
     }
 }
 
+fn request_body_status(error: BodyError) -> StatusCode {
+    match error {
+        BodyError::Malformed => StatusCode::BAD_REQUEST,
+        BodyError::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
+    }
+}
+
 fn upstream_decode_status(error: DecodeError) -> StatusCode {
-    tracing::debug!(reason = ?error, "Rejected encoded upstream response");
+    tracing::debug!(reason = ?error, "Rejected upstream response body");
     StatusCode::BAD_GATEWAY
 }
 

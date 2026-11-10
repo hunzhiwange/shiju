@@ -239,3 +239,29 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 测试链接器报告既有 macOS `__eh_frame` 大小警告。本项 Rust 文件和依赖清单与验证快照逐一比较一致，只读 `plan.md` 无差异。各阶段的槽位锁已释放，缓存保留。状态为 **已完成**。
+
+## 任务 7　随网关启动与退出
+
+2026-11-10，macOS 27.0（26A428），arm64。状态为 **已完成**。采用批次 6 提交 `ec6df98da` 的监听器与回收逻辑。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `services/proxy.rs` 快照 SHA256 与来源映射一致，启动调用方为 `mode/controller.rs::startup_app`。本项使用 ShiJu 的既有管理员策略作为启动授权来源。
+
+- `gateway::bootstrap` 通过 `app_routing::gateway_owner::run_with_routing` 持有唯一的 `RoutingListener`。独立网关响应 SIGINT 或 SIGTERM，daemon 取消网关服务后等待其返回，两条路径均等待 `RoutingListener::stop` 回收连接。回收超过既有五秒限额会返回错误。真实子进程复测使用默认线程栈，启动 Future 的大型状态移到堆上。
+- macOS 网关从管理员通过 `SHIJU_AGENT_APPS_ACCESS_FILE` 显式指定的绝对路径读取既有主机策略。复用同一加载器对目录、文件所有者、权限及符号链接的检查。在线本机条目可设置 `routing_startup`，例如 `{"enabled":true,"listen_port":8080}`。省略 `listen_address` 时绑定 `127.0.0.1`。端口接受 0 或 1024–65535。缺少显式启用、没有唯一合格主机、配置损坏或权限校验失败时不恢复监听。非回环地址拒绝。客户端模式和普通成员授权不参与启动决策。
+- macOS 独立网关与 daemon 子进程均从同一持久策略恢复同一端口。实测无桌面进程、断开客户端后仍可连接、没有显式策略入口时保持关闭、原生 Claude 配置字节保持一致。收到 SIGTERM 后，子进程在网关函数返回与进程退出之间按生产绑定方式重绑原端口。另用真实 TCP 连接将清理暂停，验证所有者等待清理完成才返回。
+- 当前回环连接仍在协议解析前关闭。数据面凭据、控制接口和配置更新由后续任务交付。Iced 关闭调用链已核查，真实关窗与已认证路由联验留给任务 93。WSL 连接地址留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+验证在 `ec6df98da` 的隔离源码快照叠加本任务文件后执行。排除了 21 个无关格式化差异及共享工作区中同一文件的额度路由改动。实际槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红灯和最终绿灯阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_007_ -- --nocapture` | 退出 101，1 项执行且失败。网关健康检查通过，常驻监听连接返回 `ConnectionRefused`。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_007_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。覆盖真实进程恢复和退出、缺失或不可信授权拒绝、连接回收等待。 |
+| 状态机回归 | `cargo test -p vw-agent --lib cc_route_004_ -- --nocapture` | 退出 0，3 项通过。 |
+| 绑定回归 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过。 |
+| 停止回归 | `cargo test -p vw-agent --lib cc_route_006_ -- --nocapture` | 退出 0，2 项通过。 |
+| daemon 回归 | `cargo test -p vw-agent --lib daemon::tests -- --nocapture` | 退出 0，42 项通过。 |
+| 供应商启动恢复回归 | `cargo test -p vw-agent --lib agent_apps::recovery_tests -- --nocapture` | 退出 0，1 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+测试链接器报告既有 macOS `__eh_frame` 大小警告。暂存的 Rust 文件与验证快照逐字一致，只读 `plan.md` 无差异。槽位锁已释放，缓存保留。

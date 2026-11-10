@@ -1,3 +1,4 @@
+pub(crate) mod gateway_owner;
 mod listener;
 pub(crate) mod reference_scope;
 mod shared_transport;
@@ -16,3 +17,6 @@ mod reference_scope_tests;
 
 #[cfg(test)]
 mod shutdown_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod gateway_owner_tests;

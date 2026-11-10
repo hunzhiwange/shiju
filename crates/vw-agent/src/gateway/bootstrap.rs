@@ -73,8 +73,35 @@ impl Provider for UnavailableGatewayProvider {
 }
 
 /// Run the HTTP gateway using axum with proper HTTP/1.1 compliance.
+pub async fn run_gateway(host: &str, port: u16, config: Config) -> Result<()> {
+    run_gateway_until(host, port, config, async {
+        crate::daemon::wait_for_shutdown_signal().await.map(|_| ())
+    })
+    .await
+}
+
+pub(crate) async fn run_gateway_until(
+    host: &str,
+    port: u16,
+    config: Config,
+    shutdown: impl std::future::Future<Output = Result<()>>,
+) -> Result<()> {
+    crate::app_routing::gateway_owner::run_with_routing(
+        // The gateway startup future contains large config and router state.
+        async |routing| Box::pin(serve_gateway(host, port, config, routing)).await,
+        shutdown,
+    )
+    .await
+}
+
 #[allow(clippy::too_many_lines)]
-pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()> {
+async fn serve_gateway(
+    host: &str,
+    port: u16,
+    mut config: Config,
+    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+    routing: &crate::app_routing::RoutingListener,
+) -> Result<()> {
     if is_public_bind(host) && config.tunnel.provider == "none" && !config.gateway.allow_public_bind
     {
         anyhow::bail!(
@@ -276,6 +303,22 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         }
         std::future::pending::<()>().await;
     };
+    #[cfg(target_os = "macos")]
+    if let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE") {
+        let address = tokio::task::spawn_blocking(move || {
+            api::handlers::agent_apps::routing_startup_address(std::path::Path::new(&path))
+        })
+        .await;
+        match address {
+            Ok(Ok(Some(address))) => {
+                if let Err(error) = routing.start_on(&address.ip().to_string(), address.port()) {
+                    tracing::warn!(%error, "Application routing startup failed");
+                }
+            }
+            Ok(Ok(None)) => {}
+            _ => tracing::warn!("Application routing startup policy rejected"),
+        }
+    }
     tokio::select! {
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
         result = super::channel_reload::watch_gateway_channels(state, config) => result?,

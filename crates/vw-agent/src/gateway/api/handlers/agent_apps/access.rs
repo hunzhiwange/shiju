@@ -342,6 +342,18 @@ pub(super) struct Host {
     native_login_owners: Vec<NativeLoginOwner>,
     #[serde(default)]
     pub lifecycle: Option<Lifecycle>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    routing_startup: Option<RoutingStartup>,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RoutingStartup {
+    enabled: bool,
+    listen_address: Option<std::net::IpAddr>,
+    listen_port: u16,
 }
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -913,6 +925,27 @@ pub(super) fn authorize_provider_discovery(
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(path, headers, tenant, target, None, Capability::ProviderConfigRead)
         .map(|a| (a.host, a.principal))
+}
+
+/// Restore at most one listener from the explicitly configured administrator policy.
+#[cfg(target_os = "macos")]
+pub(crate) fn routing_startup_address(path: &Path) -> Result<Option<std::net::SocketAddr>, ()> {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    let policy = load(path)?;
+    let mut enabled = policy
+        .hosts
+        .into_iter()
+        .filter(|host| host.online && matches!(host.binding, Binding::Local))
+        .filter_map(|host| host.routing_startup.filter(|startup| startup.enabled));
+    let Some(startup) = enabled.next() else {
+        return Ok(None);
+    };
+    let ip = startup.listen_address.unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST)).to_canonical();
+    if enabled.next().is_some() || !ip.is_loopback() || (1..1024).contains(&startup.listen_port) {
+        return Err(());
+    }
+    Ok(Some(SocketAddr::new(ip, startup.listen_port)))
 }
 
 /// Startup consumes the same administrator-owned host identities and private

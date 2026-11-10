@@ -32,6 +32,7 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 /// 状态文件刷新间隔（秒）
 ///
@@ -45,7 +46,7 @@ const GATEWAY_PROBE_TIMEOUT_MILLIS: u64 = 500;
 ///
 /// 表示触发守护进程关闭的不同信号来源。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ShutdownSignal {
+pub(crate) enum ShutdownSignal {
     /// 用户按下 Ctrl+C 触发的中断信号（SIGINT）
     CtrlC,
     /// 系统发送的终止信号（SIGTERM），通常来自进程管理器
@@ -107,7 +108,7 @@ fn shutdown_hint() -> &'static str {
 ///
 /// - 在 Unix 系统上，如果 SIGTERM 信号流意外关闭，返回错误
 /// - 信号注册失败时返回错误
-async fn wait_for_shutdown_signal() -> Result<ShutdownSignal> {
+pub(crate) async fn wait_for_shutdown_signal() -> Result<ShutdownSignal> {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{SignalKind, signal};
@@ -186,14 +187,16 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     let existing_gateway_status = existing_gateway_status(&host, port).await;
     let gateway_already_running = existing_gateway_status != ExistingGatewayStatus::Missing;
 
-    // 启动网关组件监督器
-    if existing_gateway_status == ExistingGatewayStatus::Compatible {
+    // The gateway must drain application routing before its supervisor exits.
+    let gateway_shutdown = CancellationToken::new();
+    let gateway_supervisor = if existing_gateway_status == ExistingGatewayStatus::Compatible {
         crate::app::agent::health::mark_component_ok("gateway");
         tracing::info!(
             host = %host,
             port,
             "Gateway already running on requested address; daemon will not bind a duplicate gateway"
         );
+        None
     } else if existing_gateway_status == ExistingGatewayStatus::Stale {
         crate::app::agent::health::mark_component_error(
             "gateway",
@@ -204,20 +207,30 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
             port,
             "Existing gateway is healthy but missing cron history API; stop the old gateway process and restart daemon to load the updated gateway"
         );
+        None
     } else {
         let gateway_cfg = config.clone();
         let gateway_host = host.clone();
-        handles.push(spawn_component_supervisor(
-            "gateway",
+        let shutdown = gateway_shutdown.clone();
+        Some(tokio::spawn(supervise_component(
+            "gateway".into(),
             initial_backoff,
             max_backoff,
+            gateway_shutdown.clone(),
             move || {
                 let cfg = gateway_cfg.clone();
                 let host = gateway_host.clone();
-                async move { crate::app::agent::gateway::run_gateway(&host, port, cfg).await }
+                let shutdown = shutdown.clone();
+                async move {
+                    crate::app::agent::gateway::run_gateway_until(&host, port, cfg, async {
+                        shutdown.cancelled().await;
+                        Ok(())
+                    })
+                    .await
+                }
             },
-        ));
-    }
+        )))
+    };
 
     // 即使启动时没有通道，也持续监测保存后的配置。
     let channels_cfg = config.clone();
@@ -271,16 +284,22 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     println!("   {}", shutdown_hint());
 
     // 等待关闭信号
-    let signal = wait_for_shutdown_signal().await?;
-    crate::app::agent::health::mark_component_error("daemon", shutdown_reason(signal));
+    let signal = wait_for_shutdown_signal().await;
+    if let Ok(signal) = signal.as_ref() {
+        crate::app::agent::health::mark_component_error("daemon", shutdown_reason(*signal));
+    }
 
-    // 组件没有共享关闭令牌，收到进程级停止信号后应立即终止后台任务。
+    gateway_shutdown.cancel();
     let stopped = shutdown_handles(handles).await;
     if stopped > 0 {
         tracing::info!(stopped, "Stopped daemon background tasks");
     }
 
-    Ok(())
+    if let Some(gateway) = gateway_supervisor {
+        gateway.await??;
+    }
+
+    signal.map(|_| ())
 }
 
 async fn existing_gateway_status(host: &str, port: u16) -> ExistingGatewayStatus {
@@ -458,7 +477,7 @@ fn spawn_component_supervisor<F, Fut>(
     name: impl Into<String>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
-    mut run_component: F,
+    run_component: F,
 ) -> JoinHandle<()>
 where
     F: FnMut() -> Fut + Send + 'static,
@@ -466,44 +485,71 @@ where
 {
     let name = name.into();
     tokio::spawn(async move {
-        // 确保退避时间参数有效
-        let mut backoff = initial_backoff_secs.max(1);
-        let max_backoff = max_backoff_secs.max(backoff);
-
-        loop {
-            // 标记组件为健康状态
-            crate::app::agent::health::mark_component_ok(&name);
-            match run_component().await {
-                Ok(()) => {
-                    // 组件正常退出（但守护进程期望它持续运行）
-                    crate::app::agent::health::mark_component_error(
-                        &name,
-                        "component exited unexpectedly",
-                    );
-                    tracing::warn!("Daemon component '{name}' exited unexpectedly");
-                    // 正常退出，重置退避时间
-                    backoff = initial_backoff_secs.max(1);
-                }
-                Err(e) => {
-                    // 组件失败
-                    crate::app::agent::health::mark_component_error(&name, e.to_string());
-                    if is_non_retryable_component_error(&name, &e) {
-                        tracing::error!(
-                            "Daemon component '{name}' failed with a non-retryable error: {e}"
-                        );
-                        break;
-                    }
-                    tracing::error!("Daemon component '{name}' failed: {e}");
-                }
-            }
-
-            // 记录组件重启次数并等待退避时间
-            crate::app::agent::health::bump_component_restart(&name);
-            tokio::time::sleep(Duration::from_secs(backoff)).await;
-            // 在睡眠后更新退避时间，这样首次错误使用初始退避时间
-            backoff = backoff.saturating_mul(2).min(max_backoff);
-        }
+        let _ = supervise_component(
+            name,
+            initial_backoff_secs,
+            max_backoff_secs,
+            CancellationToken::new(),
+            run_component,
+        )
+        .await;
     })
+}
+
+async fn supervise_component<F, Fut>(
+    name: String,
+    initial_backoff_secs: u64,
+    max_backoff_secs: u64,
+    shutdown: CancellationToken,
+    mut run_component: F,
+) -> Result<()>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<()>>,
+{
+    // 确保退避时间参数有效
+    let mut backoff = initial_backoff_secs.max(1);
+    let max_backoff = max_backoff_secs.max(backoff);
+
+    while !shutdown.is_cancelled() {
+        // 标记组件为健康状态
+        crate::app::agent::health::mark_component_ok(&name);
+        match run_component().await {
+            result if shutdown.is_cancelled() => return result,
+            Ok(()) => {
+                // 组件正常退出（但守护进程期望它持续运行）
+                crate::app::agent::health::mark_component_error(
+                    &name,
+                    "component exited unexpectedly",
+                );
+                tracing::warn!("Daemon component '{name}' exited unexpectedly");
+                // 正常退出，重置退避时间
+                backoff = initial_backoff_secs.max(1);
+            }
+            Err(e) => {
+                // 组件失败
+                crate::app::agent::health::mark_component_error(&name, e.to_string());
+                if is_non_retryable_component_error(&name, &e) {
+                    tracing::error!(
+                        "Daemon component '{name}' failed with a non-retryable error: {e}"
+                    );
+                    break;
+                }
+                tracing::error!("Daemon component '{name}' failed: {e}");
+            }
+        }
+
+        // 记录组件重启次数并等待退避时间
+        crate::app::agent::health::bump_component_restart(&name);
+        tokio::select! {
+            biased;
+            () = shutdown.cancelled() => break,
+            () = tokio::time::sleep(Duration::from_secs(backoff)) => {}
+        }
+        // 在睡眠后更新退避时间，这样首次错误使用初始退避时间
+        backoff = backoff.saturating_mul(2).min(max_backoff);
+    }
+    Ok(())
 }
 
 fn is_non_retryable_component_error(name: &str, error: &anyhow::Error) -> bool {

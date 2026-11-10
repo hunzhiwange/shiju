@@ -48,6 +48,7 @@ mod webhook;
 mod webhook_ingress;
 pub mod ws;
 
+pub(crate) use bootstrap::run_gateway_until;
 pub use bootstrap::{GatewayRouteEntry, documented_gateway_routes, run_gateway};
 pub use error::ApiError;
 pub use handlers::{WatiVerifyQuery, WhatsAppVerifyQuery, verify_whatsapp_signature};

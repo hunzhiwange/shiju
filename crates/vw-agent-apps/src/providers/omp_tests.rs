@@ -219,36 +219,40 @@ fn cc04_omp_unsafe_yaml_and_invalid_replacements_are_rejected() {
 fn cc04_omp_native_paths_precedence_legacy_and_symlinks_fail_closed() {
     let home = tempfile::tempdir().unwrap();
     assert_eq!(
-        native_components(home.path(), None, None, None, None).unwrap(),
+        resolve_location(home.path(), None, None, None, None, None).unwrap().components,
         vec![".omp", "agent"]
     );
     assert_eq!(
-        native_components(
+        resolve_location(
             home.path(),
+            None,
             Some(".custom"),
             Some("work"),
             None,
             Some(std::ffi::OsStr::new("ignored"))
         )
-        .unwrap(),
+        .unwrap()
+        .components,
         vec![".custom", "profiles", "work", "agent"]
     );
     let inherited = home.path().join(".omp/profiles/work/agent");
     assert_eq!(
-        native_components(
+        resolve_location(
             home.path(),
+            None,
             None,
             Some("default"),
             Some("work"),
             Some(inherited.as_os_str())
         )
-        .unwrap(),
+        .unwrap()
+        .components,
         vec![".omp", "agent"]
     );
     for name in ["../other", "UPPER", "con", "nul.txt", "trailing."] {
-        assert!(native_components(home.path(), None, Some(name), None, None).is_err());
+        assert!(resolve_location(home.path(), None, None, Some(name), None, None).is_err());
     }
-    assert!(native_components(home.path(), Some("../escape"), None, None, None).is_err());
+    assert!(resolve_location(home.path(), None, Some("../escape"), None, None, None).is_err());
     assert!(directory_components(home.path(), Some(std::ffi::OsStr::new("relative"))).is_err());
     assert!(directory_components(home.path(), Some(std::ffi::OsStr::new("/tmp/foreign"))).is_err());
     let files = OmpFiles::open(home.path()).unwrap();

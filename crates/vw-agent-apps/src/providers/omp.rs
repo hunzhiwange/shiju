@@ -1,11 +1,20 @@
-//! Incremental Omp models.yml membership; defaults and login files are never opened.
+//! Native OMP directory reads and incremental models.yml membership writes.
 use super::live::write_guard::WriteError;
 pub mod form;
 #[path = "omp_validation.rs"]
 mod validation;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, ffi::OsStr, path::Path};
-use vw_api_types::{agent_apps::AppId, app_providers::omp::*};
+use vw_api_types::{
+    agent_apps::AppId,
+    app_providers::{catalog::ProviderReadUnavailable, omp::*},
+};
+
+#[cfg(test)]
+#[path = "omp_read_tests.rs"]
+mod read_tests;
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
 }
@@ -118,79 +127,226 @@ pub(super) fn directory_components(
     }
     Ok(parts)
 }
-/// OMP profile wins over an inherited Pi directory. All paths stay under authorized HOME.
-pub(super) fn native_components(
+fn normalize_profile(raw: Option<&str>) -> Result<Option<String>, WriteError> {
+    let name = raw.unwrap_or_default().trim();
+    if name.is_empty() || name == "default" {
+        return Ok(None);
+    }
+    let reserved = name.split('.').next().unwrap_or_default().to_ascii_uppercase();
+    if name.len() > 64
+        || !name.bytes().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        || !name
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || b"._-".contains(&c))
+        || name.ends_with('.')
+        || matches!(reserved.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (reserved.len() == 4
+            && (reserved.starts_with("COM") || reserved.starts_with("LPT"))
+            && reserved.as_bytes()[3].is_ascii_digit())
+    {
+        return invalid();
+    }
+    Ok(Some(name.into()))
+}
+
+pub(super) struct OmpLocation {
+    profile: Option<String>,
+    pub(super) components: Vec<String>,
+}
+
+/// Resolve the same native location for readers and writers beneath authorized HOME.
+pub(super) fn resolve_location(
     home: &Path,
+    configured_dir: Option<&Path>,
     config: Option<&str>,
     selected: Option<&str>,
     inherited: Option<&str>,
     agent: Option<&OsStr>,
-) -> Result<Vec<String>, WriteError> {
-    let profile = |raw: Option<&str>| -> Result<Option<String>, WriteError> {
-        let name = raw.unwrap_or_default().trim();
-        if name.is_empty() || name == "default" {
-            return Ok(None);
-        }
-        let reserved = name.split('.').next().unwrap_or_default().to_ascii_uppercase();
-        if name.len() > 64
-            || !name.bytes().next().is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-            || !name
-                .bytes()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || b"._-".contains(&c))
-            || name.ends_with('.')
-            || matches!(reserved.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-            || (reserved.len() == 4
-                && (reserved.starts_with("COM") || reserved.starts_with("LPT"))
-                && reserved.as_bytes()[3].is_ascii_digit())
-        {
+) -> Result<OmpLocation, WriteError> {
+    let profile = normalize_profile(selected.or(inherited))?;
+    let path = if let Some(path) = configured_dir {
+        if !path.is_absolute() {
             return invalid();
         }
-        Ok(Some(name.into()))
-    };
-    let chosen = profile(selected.or(inherited))?;
-    let root =
-        home.join(config.filter(|c| !c.is_empty()).unwrap_or(".omp").trim_start_matches('/'));
-    let path = if let Some(name) = chosen {
-        root.join("profiles").join(name).join("agent")
+        path.to_path_buf()
     } else {
-        let inherited_dir =
-            profile(inherited)?.map(|name| root.join("profiles").join(name).join("agent"));
-        let agent = agent.filter(|a| {
-            !a.is_empty() && inherited_dir.as_ref().is_none_or(|p| p.as_os_str() != *a)
-        });
-        agent.map(std::path::PathBuf::from).unwrap_or_else(|| root.join("agent"))
+        let root =
+            home.join(config.filter(|c| !c.is_empty()).unwrap_or(".omp").trim_start_matches('/'));
+        if let Some(name) = &profile {
+            root.join("profiles").join(name).join("agent")
+        } else {
+            let inherited_dir = normalize_profile(inherited)?
+                .map(|name| root.join("profiles").join(name).join("agent"));
+            let agent = agent.filter(|a| {
+                !a.is_empty() && inherited_dir.as_ref().is_none_or(|p| p.as_os_str() != *a)
+            });
+            agent.map(std::path::PathBuf::from).unwrap_or_else(|| root.join("agent"))
+        }
     };
-    directory_components(home, Some(path.as_os_str()))
+    Ok(OmpLocation { profile, components: directory_components(home, Some(path.as_os_str()))? })
 }
-fn components(home: &Path) -> Result<Vec<String>, WriteError> {
+
+fn environment_location(
+    home: &Path,
+    configured_dir: Option<&Path>,
+) -> Result<OmpLocation, WriteError> {
     let env = |key| {
         std::env::var(key).map(Some).or_else(|e| match e {
             std::env::VarError::NotPresent => Ok(None),
             _ => invalid(),
         })
     };
-    native_components(
+    resolve_location(
         home,
+        configured_dir,
         env("PI_CONFIG_DIR")?.as_deref(),
         env("OMP_PROFILE")?.as_deref(),
         env("PI_PROFILE")?.as_deref(),
         std::env::var_os("PI_CODING_AGENT_DIR").as_deref(),
     )
 }
-/// Read only the configured Omp directory beneath the authorized execution HOME.
-pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
-    let parts = components(home)?;
+
+const MODEL_FILES: [&str; 3] = ["models.yml", "models.yaml", "models.json"];
+type SourceFile = (&'static str, Vec<u8>);
+
+fn read_first(
+    home: &Path,
+    parts: &[String],
+    names: &[&'static str],
+) -> Result<Option<SourceFile>, ProviderReadUnavailable> {
     let mut path: Vec<&str> = parts.iter().map(String::as_str).collect();
-    for name in ["models.yml", "models.yaml", "models.json"] {
+    for &name in names {
         path.push(name);
-        let bytes =
-            super::catalog::read_file(home, &path).map_err(|_| WriteError::InvalidResource)?;
+        let bytes = super::catalog::read_file(home, &path)?;
         path.pop();
         if let Some(bytes) = bytes {
-            return if name == "models.json" { invalid() } else { Ok(Some(bytes)) };
+            return Ok(Some((name, bytes)));
         }
     }
     Ok(None)
+}
+
+fn read_models(
+    home: &Path,
+    parts: &[String],
+) -> Result<Option<SourceFile>, ProviderReadUnavailable> {
+    match read_first(home, parts, &MODEL_FILES)? {
+        Some(("models.json", _)) => Err(ProviderReadUnavailable::UnsupportedFormat),
+        source => Ok(source),
+    }
+}
+
+/// Read only the configured Omp directory beneath the authorized execution HOME.
+pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
+    let location = environment_location(home, None)?;
+    read_models(home, &location.components)
+        .map(|source| source.map(|(_, bytes)| bytes))
+        .map_err(|_| WriteError::InvalidResource)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct OmpNativeDirectory {
+    pub profile: Option<String>,
+    pub members: Vec<String>,
+    pub default_provider_id: Option<String>,
+    pub default_model_id: Option<String>,
+    /// Native input fingerprint. Gateway must bind its public revision to the authorized scope.
+    pub source_revision: String,
+}
+
+/// Read the target host's active OMP directory. A configured override must come from
+/// trusted executor settings. No directories, lockfiles or credentials are opened for writing.
+pub fn read_native_directory(
+    home: &Path,
+    configured_dir: Option<&Path>,
+) -> Result<OmpNativeDirectory, ProviderReadUnavailable> {
+    let location = environment_location(home, configured_dir)
+        .map_err(|_| ProviderReadUnavailable::InvalidConfiguration)?;
+    read_native_directory_at(home, location)
+}
+
+fn read_native_directory_at(
+    home: &Path,
+    location: OmpLocation,
+) -> Result<OmpNativeDirectory, ProviderReadUnavailable> {
+    use ProviderReadUnavailable::InvalidConfiguration;
+    let models = read_models(home, &location.components)?;
+    let settings = read_first(home, &location.components, &["config.yml", "config.yaml"])?;
+    let state = state(models.as_ref().map(|(_, bytes)| bytes.as_slice()))
+        .map_err(|_| InvalidConfiguration)?;
+    let (default_provider_id, default_model_id) =
+        default_model(settings.as_ref().map(|(_, bytes)| bytes.as_slice()))?;
+    let source_revision = source_revision(&location, models.as_ref(), settings.as_ref());
+    Ok(OmpNativeDirectory {
+        profile: location.profile,
+        members: state.members,
+        default_provider_id,
+        default_model_id,
+        source_revision,
+    })
+}
+
+fn default_model(
+    settings: Option<&[u8]>,
+) -> Result<(Option<String>, Option<String>), ProviderReadUnavailable> {
+    use ProviderReadUnavailable::InvalidConfiguration;
+    let Some(settings) = settings else { return Ok((None, None)) };
+    let document: serde_yaml::Value =
+        serde_yaml::from_slice(settings).map_err(|_| InvalidConfiguration)?;
+    if !document.is_null() && !document.is_mapping() {
+        return Err(InvalidConfiguration);
+    }
+    let Some(roles) = document.get("modelRoles").filter(|roles| !roles.is_null()) else {
+        return Ok((None, None));
+    };
+    if !roles.is_mapping() {
+        return Err(InvalidConfiguration);
+    }
+    let Some(selector) = roles.get("default").filter(|selector| !selector.is_null()) else {
+        return Ok((None, None));
+    };
+    let selector = selector.as_str().ok_or(InvalidConfiguration)?;
+    if selector.is_empty() {
+        return Ok((None, None));
+    }
+    let (provider, model) = match selector.split_once('/') {
+        Some((provider, model)) if !provider.is_empty() && !model.is_empty() => {
+            (provider, Some(model))
+        }
+        Some(_) => return Err(InvalidConfiguration),
+        None => (selector, None),
+    };
+    if selector.chars().any(char::is_control) {
+        return Err(InvalidConfiguration);
+    }
+    Ok((Some(provider.into()), model.map(str::to_owned)))
+}
+
+fn source_revision(
+    location: &OmpLocation,
+    models: Option<&SourceFile>,
+    settings: Option<&SourceFile>,
+) -> String {
+    let mut hash = Sha256::new();
+    hash.update(b"omp-directory-v1");
+    let mut field = |bytes: &[u8]| {
+        hash.update((bytes.len() as u64).to_be_bytes());
+        hash.update(bytes);
+    };
+    field(location.profile.as_deref().unwrap_or_default().as_bytes());
+    field(&(location.components.len() as u64).to_be_bytes());
+    for component in &location.components {
+        field(component.as_bytes());
+    }
+    for source in [models, settings] {
+        if let Some((name, bytes)) = source {
+            field(name.as_bytes());
+            field(bytes);
+        } else {
+            field(b"");
+        }
+    }
+    URL_SAFE_NO_PAD.encode(hash.finalize())
 }
 
 pub struct OmpFiles {
@@ -211,7 +367,7 @@ impl OmpFiles {
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
             .open(home)
             .map_err(|_| WriteError::InvalidResource)?;
-        for component in components(home)? {
+        for component in environment_location(home, None)?.components {
             let name =
                 std::ffi::CString::new(component).map_err(|_| WriteError::InvalidResource)?;
             // SAFETY: fixed single child of the retained authorized directory.
@@ -237,7 +393,7 @@ impl OmpFiles {
         Ok(Self { directory, guard: super::live::write_guard::lock_directory(AppId::Omp, dir)? })
     }
     pub fn snapshot(&self) -> Result<(&'static str, Option<Vec<u8>>), WriteError> {
-        for name in ["models.yml", "models.yaml", "models.json"] {
+        for name in MODEL_FILES {
             if let Some(bytes) = self.guard.read(OsStr::new(name))? {
                 return if name == "models.json" { invalid() } else { Ok((name, Some(bytes))) };
             }
@@ -310,7 +466,7 @@ fn selection_unchanged(
     missing: bool,
 ) -> Result<bool, WriteError> {
     use std::os::fd::AsRawFd;
-    for name in ["models.yml", "models.yaml", "models.json"] {
+    for name in MODEL_FILES {
         if name == selected {
             continue;
         }

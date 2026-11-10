@@ -37,6 +37,10 @@ mod pi_tests;
 
 pub mod dsh;
 
+pub mod mcode;
+#[cfg(test)]
+mod mcode_tests;
+
 pub mod omp;
 #[cfg(test)]
 mod omp_tests;

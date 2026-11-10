@@ -11,7 +11,7 @@ use std::{os::unix::fs::PermissionsExt, path::Path};
 use vw_api_types::mcp_management::{McpConfigValue, McpConnectionDefinition, McpRecordId};
 
 /// Reserved placeholder in the JSON editor's public projection.
-const SECRET_MASK: &str = "••••••••";
+pub const SECRET_MASK: &str = "••••••••";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationError {

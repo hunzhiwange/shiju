@@ -1,18 +1,19 @@
 //! Revision-checked updates of the private connection definition.
 
-use std::collections::BTreeMap;
-
-use vw_agent_apps::mcp::validation::validate_connection;
 use vw_api_types::mcp_management::{
-    McpCatalogRecord, McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode,
-    McpRecordRef, McpTransport,
+    McpCatalogRecord, McpCatalogScope, McpConnectionDefinition, McpFailureCode, McpRecordRef,
+    McpTransport,
 };
 
-use super::{McpCatalogStore, StoredCatalogEntry, catalog_create::catalog_location};
+use super::{
+    McpCatalogStore, StoredCatalogEntry,
+    catalog_create::catalog_location,
+    credentials::{retain_credentials, validate_catalog_connection},
+};
 
 impl McpCatalogStore {
     /// Update the connection in the caller-authorized scope, preserving display metadata.
-    /// Omitted credential entries are kept when the transport uses the same config field.
+    /// Omitted or masked credential entries are kept when the transport uses the same config field.
     pub fn update_connection(
         &self,
         authorized_scope: &McpCatalogScope,
@@ -42,7 +43,7 @@ impl McpCatalogStore {
             ) => retain_credentials(previous, headers, str::eq_ignore_ascii_case),
             _ => {}
         }
-        validate_connection(&connection).map_err(|_| McpFailureCode::InvalidDefinition)?;
+        validate_catalog_connection(&connection)?;
         let record = &mut stored.record;
         record.record.revision =
             record.record.revision.checked_add(1).ok_or(McpFailureCode::StorageUnavailable)?;
@@ -61,19 +62,5 @@ impl McpCatalogStore {
 
         self.save_entry(tenant, &namespace, key, &previous, &stored)?;
         Ok(stored.record)
-    }
-}
-
-fn retain_credentials(
-    previous: &BTreeMap<String, McpConfigValue>,
-    updated: &mut BTreeMap<String, McpConfigValue>,
-    same_key: fn(&str, &str) -> bool,
-) {
-    for (key, value) in previous {
-        if matches!(value, McpConfigValue::Credential { .. })
-            && !updated.keys().any(|new_key| same_key(key, new_key))
-        {
-            updated.insert(key.clone(), value.clone());
-        }
     }
 }

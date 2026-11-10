@@ -13,6 +13,7 @@ use crate::{gateway::settings_store::GatewaySettingsStore, global_database::Glob
 mod catalog_create;
 mod catalog_delete;
 mod catalog_update;
+mod credentials;
 
 #[cfg(test)]
 mod catalog_create_tests;
@@ -20,8 +21,12 @@ mod catalog_create_tests;
 mod catalog_delete_tests;
 #[cfg(test)]
 mod catalog_update_tests;
+#[cfg(test)]
+mod credentials_tests;
 
 pub use catalog_delete::McpRevocation;
+#[cfg(not(target_arch = "wasm32"))]
+pub use credentials::McpExecutionConnection;
 
 #[derive(Deserialize)]
 #[serde(untagged)]

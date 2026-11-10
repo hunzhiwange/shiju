@@ -6,7 +6,10 @@ use vw_api_types::{
     mcp_management::{McpCatalogRecord, McpCatalogScope, McpFailureCode},
 };
 
-use super::{McpCatalogStore, StoredCatalogEntry, StoredCatalogRecord};
+use super::{
+    McpCatalogStore, StoredCatalogEntry, StoredCatalogRecord,
+    credentials::validate_catalog_connection,
+};
 
 const CATALOG_NAMESPACE: &str = "agent_apps.mcp.catalog.v1";
 
@@ -18,6 +21,7 @@ impl McpCatalogStore {
         draft: McpCatalogDraft,
     ) -> Result<McpCatalogRecord, McpFailureCode> {
         let (record, connection) = draft.into_record(authorized_scope.clone())?;
+        validate_catalog_connection(&connection)?;
         let (tenant, namespace) = catalog_location(authorized_scope)?;
         let mut stored = StoredCatalogRecord { record, connection, bindings: Vec::new() };
         let key = &stored.record.record.id.0;

@@ -6,10 +6,13 @@
 //!
 //! 主要用于输入面板中显示当前会话的 token 消耗情况。
 
+use std::f32::consts::{FRAC_PI_2, TAU};
+
 use crate::app::models::{ChatSessionStep, TokenUsage};
 use crate::app::{App, Message};
+use iced::widget::canvas::path::Arc;
 use iced::widget::canvas::{Frame, Geometry, Path as CanvasPath, Program, Stroke};
-use iced::{Color, Theme};
+use iced::{Color, Radians, Theme};
 
 /// 新步骤的默认零值表示尚未收到用量；沿用本会话最近的有效统计。
 /// 按时间顺序查找，允许压缩后的实际用量下降。
@@ -184,7 +187,7 @@ impl Program<Message> for UsageRing {
         );
 
         // 根据使用率确定进度颜色
-        let percent = self.percent.clamp(0.0, 100.0) / 100.0;
+        let percent = percent_val / 100.0;
         let progress_color = if percent < 0.7 {
             // 0% - 70%: 绿色 - 正常状态
             Color::from_rgb8(0x2E, 0xC2, 0x7E)
@@ -196,24 +199,24 @@ impl Program<Message> for UsageRing {
             Color::from_rgb8(0xE5, 0x3E, 0x3E)
         };
 
-        // 使用虚线绘制进度弧（显示使用百分比）
-        if percent > 0.001 {
-            let circumference = 2.0 * std::f32::consts::PI * radius;
-            let dash_length = circumference * percent;
-            let gap_length = circumference * (1.0 - percent);
+        // 沿容量圆环从正上方顺时针绘制已用比例。
+        if percent > 0.0 {
+            let progress_path = if percent == 1.0 {
+                bg_path
+            } else {
+                CanvasPath::new(|path| {
+                    path.arc(Arc {
+                        center,
+                        radius,
+                        start_angle: Radians(-FRAC_PI_2),
+                        end_angle: Radians(-FRAC_PI_2 + TAU * percent),
+                    });
+                })
+            };
 
             frame.stroke(
-                &bg_path,
-                Stroke {
-                    width: stroke_width,
-                    style: progress_color.into(),
-                    line_dash: iced::widget::canvas::LineDash {
-                        segments: &[dash_length, gap_length],
-                        // 从顶部开始绘制（1/4 周长偏移）
-                        offset: (circumference / 4.0) as usize,
-                    },
-                    ..Stroke::default()
-                },
+                &progress_path,
+                Stroke { width: stroke_width, style: progress_color.into(), ..Stroke::default() },
             );
         }
 

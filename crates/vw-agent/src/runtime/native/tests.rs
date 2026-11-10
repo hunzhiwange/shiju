@@ -571,17 +571,8 @@ mod tests {
         assert!(debug.contains("echo hello"));
     }
 
-    /// 测试 Zsh 命令构建（包含登录和交互标志）
-    ///
-    /// 验证为 Zsh 构建的命令包含正确的参数：
-    /// - 程序路径：`/bin/zsh`
-    /// - `-l`：作为登录 Shell 启动，加载 `.zprofile` 等配置
-    /// - `-i`：作为交互式 Shell 启动，加载 `.zshrc` 等配置
-    /// - 命令内容：`echo hello`
-    ///
-    /// 这确保 Zsh 环境下用户的别名、函数等配置可以被正确加载。
     #[test]
-    fn native_builds_zsh_command_with_login_and_interactive_flags() {
+    fn native_builds_zsh_command_with_startup_files_and_job_control_disabled() {
         let runtime = NativeRuntime::new_for_test(Some(ShellProgram {
             kind: ShellKind::Zsh,
             program: PathBuf::from("/bin/zsh"),
@@ -590,12 +581,9 @@ mod tests {
         let command = runtime
             .build_shell_command("echo hello", Path::new("."))
             .expect("zsh command should build");
-        let debug = format!("{command:?}");
-
-        assert!(debug.contains("/bin/zsh"));
-        assert!(debug.contains("-l"));
-        assert!(debug.contains("-i"));
-        assert!(debug.contains("echo hello"));
+        let command = command.as_std();
+        assert_eq!(command.get_program(), "/bin/zsh");
+        assert_eq!(command.get_args().collect::<Vec<_>>(), ["-l", "-i", "+m", "-c", "echo hello"]);
     }
 
     /// 测试 Bash 命令构建（包含登录标志）

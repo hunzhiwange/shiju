@@ -150,9 +150,9 @@ impl ShellProgram {
     #[cfg(not(target_arch = "wasm32"))]
     fn add_shell_args(&self, process: &mut tokio::process::Command, command: &str) {
         match self.kind.launch_style() {
-            // zsh: 使用登录 shell、交互模式，执行命令
+            // Load interactive startup files without terminal job control in managed groups.
             ShellLaunchStyle::ZshLoginInteractive => {
-                process.arg("-l").arg("-i").arg("-c").arg(command);
+                process.args(["-l", "-i", "+m", "-c"]).arg(command);
             }
             // sh: 标准 POSIX shell，直接执行命令
             ShellLaunchStyle::Posix => {

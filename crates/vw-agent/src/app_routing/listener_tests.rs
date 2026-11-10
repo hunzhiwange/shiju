@@ -51,10 +51,7 @@ async fn cc_route_004_listener_can_restart_after_a_real_bind_failure() {
     let listener = RoutingListener::default();
     assert_eq!(listener.state(), LifecycleState::Stopped);
 
-    assert!(matches!(
-        listener.start(address.port()),
-        Err(ListenerError::Bind(error)) if error.kind() == ErrorKind::AddrInUse
-    ));
+    assert!(matches!(listener.start(address.port()), Err(ListenerError::AddressInUse)));
     assert_eq!(listener.state(), LifecycleState::Failed);
 
     drop(occupied);
@@ -93,5 +90,70 @@ async fn cc_route_004_listener_finishes_stop_when_the_caller_leaves() {
     .unwrap();
     assert_eq!(listener.state(), LifecycleState::Stopped);
     assert_eq!(listener.start(address.port()).unwrap(), address);
+    listener.stop().await.unwrap();
+}
+
+#[tokio::test]
+async fn cc_route_005_listener_expected_behavior() {
+    let listener = RoutingListener::default();
+    assert_eq!(listener.bound_address(), None);
+
+    let address = listener.start(0).unwrap();
+    assert_eq!(address.ip(), Ipv4Addr::LOCALHOST);
+    assert_ne!(address.port(), 0);
+    assert_eq!(listener.bound_address(), Some(address));
+    assert_eq!(listener.start_on("127.0.0.1", 0).unwrap(), address);
+    timeout(Duration::from_secs(5), TcpStream::connect(address)).await.unwrap().unwrap();
+
+    listener.stop().await.unwrap();
+    assert_eq!(listener.bound_address(), None);
+}
+
+#[tokio::test]
+async fn cc_route_005_listener_normalizes_ipv6_and_mapped_ipv4() {
+    let listener = RoutingListener::default();
+    for (host, expected) in
+        [("[0:0:0:0:0:0:0:1]", "::1"), ("::1", "::1"), ("[::ffff:127.0.0.1]", "127.0.0.1")]
+    {
+        let address = listener.start_on(host, 0).unwrap();
+        assert_eq!(address.ip().to_string(), expected);
+        assert_ne!(address.port(), 0);
+        assert_eq!(listener.bound_address(), Some(address));
+        timeout(Duration::from_secs(5), TcpStream::connect(address)).await.unwrap().unwrap();
+        listener.stop().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn cc_route_005_listener_rejects_non_loopback_and_invalid_addresses() {
+    let listener = RoutingListener::default();
+    for host in ["0.0.0.0", "::", "192.0.2.1", "::ffff:192.0.2.1", "2001:db8::1"] {
+        assert!(matches!(listener.start_on(host, 0), Err(ListenerError::NonLoopbackDenied)));
+    }
+    for host in ["", "localhost", "http://127.0.0.1", "127.0.0.1:1234", "[::1]:1234"] {
+        assert!(matches!(listener.start_on(host, 0), Err(ListenerError::InvalidAddress)));
+    }
+    assert_eq!(listener.state(), LifecycleState::Stopped);
+    assert_eq!(listener.bound_address(), None);
+
+    let address = listener.start(0).unwrap();
+    assert!(matches!(listener.start_on("0.0.0.0", 0), Err(ListenerError::NonLoopbackDenied)));
+    assert_eq!(listener.bound_address(), Some(address));
+    listener.stop().await.unwrap();
+}
+
+#[tokio::test]
+async fn cc_route_005_listener_does_not_publish_an_occupied_address() {
+    let occupied = std::net::TcpListener::bind("[::1]:0").unwrap();
+    let address = occupied.local_addr().unwrap();
+    let listener = RoutingListener::default();
+
+    assert!(matches!(listener.start_on("::1", address.port()), Err(ListenerError::AddressInUse)));
+    assert_eq!(listener.state(), LifecycleState::Failed);
+    assert_eq!(listener.bound_address(), None);
+
+    drop(occupied);
+    assert_eq!(listener.start_on("::1", address.port()).unwrap(), address);
+    assert_eq!(listener.bound_address(), Some(address));
     listener.stop().await.unwrap();
 }

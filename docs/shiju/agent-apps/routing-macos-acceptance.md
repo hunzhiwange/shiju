@@ -196,3 +196,24 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
 
 任务 5 在同一个监听所有者上完成端口 0、IPv4/IPv6 和绑定错误合同。任务 7 和 10 接通网关持有及授权启停后，用真实 macOS 网关进程回归并发启停、状态投影、失败恢复、关闭时端口释放，以及关闭桌面和结束会话时监听仍可用。
+
+## 任务 5　绑定监听地址与实际端口
+
+2026-11-10，macOS 27.0（26A428），arm64。沿用任务 4 提交 `691032a9b` 的 `vw_agent::app_routing::RoutingListener`。CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/server.rs` 与 `services/proxy.rs` 已和快照及来源映射逐一核对 SHA256。来源通过内核返回的地址发布实际端口；本项只发布运行地址，不回写端口 0 的配置。
+
+- `start(0)` 默认绑定 IPv4 回环。`start_on` 接受 IPv4 或 IPv6 字面量，允许 IPv6 外层方括号，并将 IPv4 映射地址转为 IPv4 后检查是否为回环。域名、URL、附带端口以及非回环地址在绑定前明确拒绝。
+- 启动返回及 `bound_address()` 均读取实际绑定地址。绑定成功才发布运行地址；端口占用返回 `AddressInUse`，状态为失败且无地址，可以重试。停止后不再发布该地址。
+- 当前常驻数据面鉴权和显式主机级授权尚未接通，因此非回环一律拒绝，回环连接也在解析或转发前关闭。任务 8–10 接通鉴权和授权后再开放非回环，任务 10/12 投影状态和配置接口。WSL 客户端地址留在来源映射，Windows、Linux、WSL 范围外且未验证。
+
+验证在 `691032a9b` 的临时源码快照叠加本项两个 Rust 文件后运行，以隔离共享工作区的其他改动。各阶段实际使用槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径。
+
+| 阶段 | 确切命令 | 结果 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红灯和绿灯阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 101，3 项通过，1 项因有效的方括号 IPv6 回环地址返回 `InvalidAddress` 而失败。 |
+| 绿灯 | `cargo test -p vw-agent --lib cc_route_005_ -- --nocapture` | 退出 0，4 项通过，0 项失败或忽略。通过真实 TCP 连接验证默认 IPv4 与 IPv6 的实际端口，覆盖映射地址、非法及非回环地址、占用和重试。 |
+| 监听回归 | `cargo test -p vw-agent --lib cc_route_004_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 提交差异 | `git diff --cached --check`（限定本项路径） | 退出 0。 |
+
+测试链接报告既有 macOS `__eh_frame` 大小警告。两个提交的 Rust 文件与验证快照逐字一致；只读 `plan.md` 无差异。本项各阶段的槽位锁已释放，缓存保留。状态为 **已完成**，下一步为任务 6 的连接回收。

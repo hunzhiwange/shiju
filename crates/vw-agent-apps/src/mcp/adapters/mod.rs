@@ -36,3 +36,7 @@ pub mod pi;
 mod pi_tests;
 
 pub mod dsh;
+
+pub mod omp;
+#[cfg(test)]
+mod omp_tests;

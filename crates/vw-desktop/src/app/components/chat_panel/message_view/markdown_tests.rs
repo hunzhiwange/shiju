@@ -667,6 +667,57 @@ fn markdown_recognizes_local_paths_without_turning_web_or_commands_into_files() 
     );
 }
 
+#[test]
+fn markdown_keeps_slashes_between_words_as_plain_text() {
+    let prose = "查看/修改仓库里的某段代码，支持读取/写入";
+    let blocks = parse_markdown_blocks(&format!("- {prose}"));
+    assert_eq!(blocks[0].text, prose);
+    assert!(blocks[0].inline.iter().all(|span| span.target.is_none()));
+}
+
+#[test]
+fn markdown_renders_padded_inline_code_in_both_themes() {
+    use iced::advanced::renderer::{Headless, Style};
+    use iced::{Font, Padding, Renderer, Size, Theme, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let blocks = parse_markdown_blocks("在`data-gateway`仓库里查看`中文代码`。");
+    let (mut app, _) = App::new();
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer = iced::futures::executor::block_on(Renderer::new(
+        Font::DEFAULT,
+        15.0.into(),
+        Some("tiny-skia"),
+    ))
+    .expect("headless renderer");
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let spans = super::markdown_rich::inline_spans(&blocks[0].inline, &theme);
+        for code in ["data-gateway", "中文代码"] {
+            let span = spans.iter().find(|span| span.text == code).expect("inline code span");
+            assert_eq!(span.padding, Padding::from([0, 3]));
+        }
+
+        app.app_theme = theme.clone();
+        let view = markdown_body_view(&app, 0, 0, &blocks);
+        let mut ui =
+            UserInterface::build(view, Size::new(340.0, 60.0), Cache::new(), &mut renderer);
+        ui.draw(
+            &mut renderer,
+            &theme,
+            &Style { text_color: theme.palette().text },
+            mouse::Cursor::Unavailable,
+        );
+        let pixels = renderer.screenshot(Size::new(340, 60), 1.0, theme.palette().background);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn markdown_file_link_click_uses_the_finder_action_and_workspace() {

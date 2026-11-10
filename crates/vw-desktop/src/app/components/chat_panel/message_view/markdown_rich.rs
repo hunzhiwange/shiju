@@ -136,8 +136,7 @@ impl InlineBuilder {
             if preceding == Some('@')
                 || (!quoted
                     && candidate.starts_with(['/', '~', '.'])
-                    && preceding
-                        .is_some_and(|ch| ch.is_ascii_alphanumeric() || "/:_.-".contains(ch)))
+                    && preceding.is_some_and(|ch| ch.is_alphanumeric() || "/:_.-".contains(ch)))
             {
                 continue;
             }
@@ -295,6 +294,7 @@ pub(super) fn inline_spans<'a>(spans: &'a [Inline], theme: &Theme) -> Vec<Span<'
                 let font = if part.text.is_ascii() { Font::MONOSPACE } else { chat_text_font() };
                 value = value
                     .font(font)
+                    .padding([0, 3])
                     .background(code_background)
                     .border(Border { radius: 3.0.into(), ..Border::default() });
             } else if style.bold || style.italic {

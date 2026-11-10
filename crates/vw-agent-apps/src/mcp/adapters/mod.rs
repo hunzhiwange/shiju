@@ -30,3 +30,7 @@ pub mod opencode;
 pub mod agy;
 #[cfg(test)]
 mod agy_tests;
+
+pub mod pi;
+#[cfg(test)]
+mod pi_tests;

@@ -160,7 +160,7 @@ fn scrub(value: &mut Value, depth: usize) -> Result<(), String> {
     }
     Ok(())
 }
-fn sensitive(key: &str) -> bool {
+pub(crate) fn sensitive(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
     [
         "APIKEY",

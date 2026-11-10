@@ -33,7 +33,7 @@ fn mix_color_clamps_ratio_and_interpolates_alpha() {
 }
 
 #[test]
-fn clean_diff_header_title_strips_active_stats_and_normalizes_whitespace() {
+fn clean_diff_header_title_strips_stats_and_normalizes_whitespace() {
     assert_eq!(
         super::header::clean_diff_header_title(" src/lib.rs   (+3)  （-2） ", "+3", "-2", 3, 2),
         "src/lib.rs"
@@ -44,7 +44,11 @@ fn clean_diff_header_title_strips_active_stats_and_normalizes_whitespace() {
     );
     assert_eq!(
         super::header::clean_diff_header_title("src/lib.rs (+0) -1", "+0", "-1", 0, 1),
-        "src/lib.rs (+0)"
+        "src/lib.rs"
+    );
+    assert_eq!(
+        super::header::clean_diff_header_title("src/probe-0.ts  +1-0  cached", "+1", "-0", 1, 0),
+        "src/probe-0.ts cached"
     );
 }
 

@@ -36,24 +36,19 @@ pub(super) fn clean_diff_header_title(
     insertions: usize,
     deletions: usize,
 ) -> String {
-    let mut title_display = title.to_string();
-    let strip_token = |s: &mut String, token: &str| {
-        *s = s.replace(&format!("({token})"), "");
-        *s = s.replace(&format!("（{token}）"), "");
-        *s = s.replace(&format!("{token} "), "");
-        *s = s.replace(&format!(" {token}"), "");
-        *s = s.replace(token, "");
-    };
-
-    if insertions > 0 {
-        strip_token(&mut title_display, plus_token);
+    let parts = title.split_whitespace();
+    if insertions == 0 && deletions == 0 {
+        return parts.collect::<Vec<_>>().join(" ");
     }
 
-    if deletions > 0 {
-        strip_token(&mut title_display, minus_token);
-    }
-
-    title_display.split_whitespace().collect::<Vec<&str>>().join(" ")
+    let compact_stats = format!("{plus_token}{minus_token}");
+    parts
+        .filter(|part| {
+            let token = part.trim_matches(['(', ')', '（', '）']);
+            token != plus_token && token != minus_token && token != compact_stats
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub(super) fn diff_stat_badge_text_style(
@@ -186,27 +181,12 @@ pub fn build_diff_header(
     let title_display =
         clean_diff_header_title(&title, &plus_token, &minus_token, insertions, deletions);
 
-    // 判断是否需要显示统计信息
-    let show_plus = insertions > 0;
-    let show_minus = deletions > 0;
-
-    // 构建统计信息区域（新增/删除行数显示）
-    let stats: Option<Element<'static, Message>> = if show_plus || show_minus {
-        let mut r = row![].spacing(5).align_y(iced::Alignment::Center);
-
-        // 添加新增行数统计（绿色）
-        if show_plus {
-            r = r.push(diff_stat_badge(plus_token.clone(), true));
-        }
-
-        // 添加删除行数统计（红色）
-        if show_minus {
-            r = r.push(diff_stat_badge(minus_token.clone(), false));
-        }
-        Some(r.into())
-    } else {
-        None
-    };
+    let stats: Option<Element<'static, Message>> = (insertions > 0 || deletions > 0).then(|| {
+        row![diff_stat_badge(plus_token, true), diff_stat_badge(minus_token, false)]
+            .spacing(5)
+            .align_y(iced::Alignment::Center)
+            .into()
+    });
 
     // 构建完整的头部内容
     let fullscreen_button: Option<Element<'static, Message>> = fullscreen_message

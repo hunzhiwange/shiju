@@ -52,6 +52,7 @@ pub mod id;
 pub mod knowledge;
 pub mod mcp;
 pub mod mcp_app_network;
+pub mod mcp_management;
 pub mod project;
 pub mod provider;
 pub mod question;
@@ -134,6 +135,9 @@ mod acp_model_source_tests;
 
 #[cfg(test)]
 mod dynamic_tools_tests;
+
+#[cfg(test)]
+mod mcp_management_tests;
 
 #[cfg(test)]
 mod agent_apps_auth_tests;

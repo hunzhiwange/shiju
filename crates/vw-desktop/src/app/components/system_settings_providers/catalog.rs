@@ -98,26 +98,22 @@ fn provider_row(locale: DesktopLocale, provider: CatalogProviderItem) -> Element
 
     let model_count = crate::app::i18n::settings_models::model_count(locale, model_count);
     container(
-        column![
-            row![
-                container(provider_logo_svg(&provider_id, 18.0)).center_x(32).center_y(32),
-                column![
-                    text(provider_name).size(15).wrapping(Wrapping::WordOrGlyph),
-                    text(provider_id)
-                        .size(12)
-                        .wrapping(Wrapping::WordOrGlyph)
-                        .style(settings_muted_text_style),
-                    text(model_count).size(12).style(settings_muted_text_style),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
+        row![
+            container(provider_logo_svg(&provider_id, 18.0)).center_x(32).center_y(32),
+            column![
+                text(provider_name).size(15).wrapping(Wrapping::WordOrGlyph),
+                text(provider_id)
+                    .size(12)
+                    .wrapping(Wrapping::WordOrGlyph)
+                    .style(settings_muted_text_style),
+                text(model_count).size(12).style(settings_muted_text_style),
             ]
-            .spacing(10)
-            .align_y(Alignment::Center),
-            container(row![connect, add].spacing(8).align_y(Alignment::Center))
-                .align_right(Length::Fill),
+            .spacing(4)
+            .width(Length::Fill),
+            row![connect, add].spacing(8).align_y(Alignment::Center),
         ]
-        .spacing(8),
+        .spacing(10)
+        .align_y(Alignment::Center),
     )
     .padding([12, 0])
     .width(Length::Fill)

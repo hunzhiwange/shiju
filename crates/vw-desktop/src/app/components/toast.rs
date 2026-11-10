@@ -13,8 +13,11 @@ use crate::app::state::ToastKind;
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg::{self, Svg};
+use iced::widget::text::Wrapping;
 use iced::widget::{Container, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, Vector};
+
+const TOAST_MAX_WIDTH: f32 = 360.0;
 
 pub(super) fn is_dark_theme(theme: &Theme) -> bool {
     let palette = theme.palette();
@@ -151,6 +154,14 @@ pub fn view(app: &App) -> Element<'static, Message> {
     let palette = toast_palette(toast.kind);
     let accent = palette.accent;
     let background = palette.background;
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let title = i18n.__(palette.title);
+    let message = toast
+        .localized_message
+        .as_ref()
+        .map(|message| message.render(i18n).expect("valid toast template"))
+        .unwrap_or_else(|| toast.message.clone());
+    let label = if message.is_empty() { title.to_owned() } else { format!("{title} · {message}") };
 
     let icon_badge = container(icon_svg(palette.icon, 14.0, accent))
         .width(Length::Fixed(34.0))
@@ -161,44 +172,33 @@ pub fn view(app: &App) -> Element<'static, Message> {
 
     let mut content = row![
         icon_badge,
-        column![
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(palette.title)).size(12).style(
-                |theme: &Theme| iced::widget::text::Style {
-                    color: Some(toast_message_text_color(theme)),
-                }
-            ),
-            text(
-                toast
-                    .localized_message
-                    .as_ref()
-                    .map(|message| message
-                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
-                        .expect("valid toast template"))
-                    .unwrap_or_else(|| toast.message.clone())
-            )
-            .size(13)
-            .style(|theme: &Theme| iced::widget::text::Style {
+        text(label).size(13).width(Length::Fill).wrapping(Wrapping::WordOrGlyph).style(
+            |theme: &Theme| iced::widget::text::Style {
                 color: Some(toast_message_text_color(theme)),
-            })
-        ]
-        .spacing(3)
+            }
+        )
     ]
+    .width(Length::Fill)
     .spacing(10)
     .align_y(Alignment::Center);
-    if let Some(message) = cache_sync_retry_message(app) {
+    let width = if let Some(message) = cache_sync_retry_message(app) {
         content = content.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("重试")).size(12))
+            button(text(i18n.__("重试")).size(12))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press(message),
         );
-    }
+        // Fix the card width so the row reserves space for the button before laying out text.
+        Length::Fixed(TOAST_MAX_WIDTH)
+    } else {
+        Length::Shrink
+    };
 
     container(content)
-        .padding([12, 14])
+        .padding([8, 14])
         .style(move |theme: &Theme| toast_card_style(theme, accent, background))
-        .width(Length::Shrink)
-        .max_width(360)
+        .width(width)
+        .max_width(TOAST_MAX_WIDTH)
         .into()
 }
 

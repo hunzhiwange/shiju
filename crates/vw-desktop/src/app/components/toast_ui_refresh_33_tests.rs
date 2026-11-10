@@ -3,7 +3,8 @@
 
 use super::confirm_dialog;
 use crate::app::i18n::I18n;
-use crate::app::message::{ChatMessage, ProjectMessage};
+use crate::app::message::{ChatMessage, ProjectMessage, SkillHubMessage};
+use crate::app::skill_hub::SkillCacheSyncState;
 use crate::app::state::ToastKind;
 use crate::app::{App, Message};
 use iced::advanced::{
@@ -273,6 +274,50 @@ const NARROW: Size<u32> = Size::new(420, 480);
 const TITLE: &str = "权限审查 · 權限審查 · Permission review";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn toast_text_wraps_as_needed_and_leaves_room_for_retry() {
+    if !isolated("toast_text_wraps_as_needed_and_leaves_room_for_retry") {
+        return;
+    }
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    let mut renderer = renderer().await;
+    let _ = app.show_localized_toast(ToastKind::Success, "已删除", vec![]);
+    let mut ui = scene(app.view(), &mut renderer, NARROW);
+    let short = label(&geometry(&mut ui, &renderer), "操作已完成 · 已删除");
+    assert!(short.height < 20.0, "{short:?}");
+    for (theme, name) in [(Theme::Light, "light-short-toast"), (Theme::Dark, "dark-short-toast")] {
+        capture(&mut ui, &mut renderer, &theme, NARROW, name, mouse::Cursor::Unavailable);
+    }
+    drop(ui);
+
+    let path = "/fixture/".to_owned() + &"filename".repeat(16);
+    let _ = app.show_toast(ToastKind::Error, path.clone());
+    let mut ui = scene(app.view(), &mut renderer, NARROW);
+    let long = label(&geometry(&mut ui, &renderer), &format!("操作失败 · {path}"));
+    assert!(long.height > short.height && long.x + long.width <= NARROW.width as f32, "{long:?}");
+    capture(
+        &mut ui,
+        &mut renderer,
+        &Theme::Dark,
+        NARROW,
+        "dark-long-toast",
+        mouse::Cursor::Unavailable,
+    );
+    drop(ui);
+
+    app.expert_hub.cache_sync =
+        SkillCacheSyncState::PendingRetry { skill_id: 7, refresh_detail: false };
+    let _ = app.show_toast(ToastKind::Warning, format!("本地缓存待同步：{path}"));
+    let mut ui = scene(app.view(), &mut renderer, NARROW);
+    let retry = label(&geometry(&mut ui, &renderer), "重试");
+    assert!(retry.width > 0.0 && retry.x + retry.width <= NARROW.width as f32, "{retry:?}");
+    assert!(matches!(
+        click(&mut ui, &mut renderer, retry.center()).as_slice(),
+        [Message::SkillHub(SkillHubMessage::RetrySkillCacheSync)]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ui_refresh_33_layout_and_interaction() {
     if !isolated("ui_refresh_33_layout_and_interaction") {
         return;
@@ -292,6 +337,7 @@ async fn ui_refresh_33_layout_and_interaction() {
     ] {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
+        let toast_label = format!("{} · Fixture notice", i18n.__("提示"));
         for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
             for size in [NARROW, Size::new(640, 560), Size::new(960, 720)] {
                 let mut ui = scene(app.view(), &mut renderer, size);
@@ -314,7 +360,7 @@ async fn ui_refresh_33_layout_and_interaction() {
                 let Some(&(viewport, initial)) = bounds.scroll.first() else {
                     panic!("permission details must scroll independently from actions");
                 };
-                assert!(label(&bounds, "Fixture notice").y > approve.y + approve.height);
+                assert!(label(&bounds, &toast_label).y > approve.y + approve.height);
                 let (_, selected) = bounds
                     .labels
                     .iter()
@@ -502,6 +548,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
     ] {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
+        let toast_label = format!("{} · Fixture error · 測試錯誤", i18n.__("操作失败"));
         for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
             app.question_modal_request = Some(request.clone());
             app.question_modal_request_id = Some(request.id.clone());
@@ -511,7 +558,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
             let bounds = geometry(&mut ui, &renderer);
             let submit = label(&bounds, i18n.__("确定"));
             let cancel = label(&bounds, i18n.__("取消"));
-            assert!(label(&bounds, "Fixture error · 測試錯誤").y > submit.y + submit.height);
+            assert!(label(&bounds, &toast_label).y > submit.y + submit.height);
             let option = label(&bounds, B).center();
             let neutral = capture(
                 &mut ui,
@@ -551,7 +598,7 @@ async fn ui_refresh_33_preserves_values_and_disabled_states() {
                 &renderer,
                 label(&bounds, SINGLE),
                 *input,
-                label(&bounds, "Fixture error · 測試錯誤"),
+                label(&bounds, &toast_label),
             );
             assert!(matches!(
                 click(&mut ui, &mut renderer, close).as_slice(),

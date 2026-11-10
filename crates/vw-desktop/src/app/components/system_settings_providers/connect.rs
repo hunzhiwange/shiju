@@ -3,8 +3,7 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
     settings_close_button, settings_error_banner, settings_field_label, settings_hover_help_label,
-    settings_modal_header, settings_modal_layout, settings_modal_overlay, settings_panel,
-    settings_text_input,
+    settings_modal_header, settings_modal_layout, settings_modal_overlay, settings_text_input,
 };
 use crate::app::i18n::I18n;
 use crate::app::i18n::settings_models::connection_text::text as connection_text;
@@ -69,7 +68,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .align_y(Alignment::Center),
     )
     .align_right(Length::Fill);
-    let card = settings_modal_layout(header, settings_panel(field), Some(footer.into()))
+    let body = container(field).padding([18, 20]).width(Length::Fill);
+    let card = settings_modal_layout(header, body, Some(footer.into()))
         .width(Length::Fixed(560.0))
         .height(Length::Fixed(350.0));
 

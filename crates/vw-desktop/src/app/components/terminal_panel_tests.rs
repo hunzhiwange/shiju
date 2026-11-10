@@ -78,7 +78,16 @@ async fn view_fills_parent_width_independent_of_window_snapshot() {
     let mut tree = Tree::new(element.as_widget());
     let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
     let root = Layout::new(&node);
-    let column = root.children().next().expect("terminal root should contain a column");
+    let content = root.children().next().expect("terminal root should contain content");
+    assert_close(content.bounds().width, bounds.width);
+    #[cfg(not(target_arch = "wasm32"))]
+    let column = {
+        let grid = content.children().next().expect("responsive terminal grid");
+        assert_close(grid.bounds().width, bounds.width);
+        grid.children().next().expect("single terminal pane")
+    };
+    #[cfg(target_arch = "wasm32")]
+    let column = content;
     let mut panels = column.children();
     let header = panels.next().expect("terminal column should contain a header");
     let output = panels.next().expect("terminal column should contain terminal output");

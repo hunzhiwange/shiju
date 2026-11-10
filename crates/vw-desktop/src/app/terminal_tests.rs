@@ -103,25 +103,28 @@ fn blank_with_settings_preserves_user_preferences() {
 }
 
 #[test]
-fn selecting_unknown_terminal_still_opens_panel_and_restores_min_height() {
+fn selecting_unknown_terminal_preserves_selection_and_visibility() {
     let mut state = super::TerminalState::default();
     state.height = 120.0;
 
-    state.select_terminal(99);
+    assert!(!state.select_terminal(99));
 
-    assert_eq!(state.active_id, Some(99));
-    assert!(state.is_visible);
-    assert_eq!(state.height, 200.0);
+    assert_eq!(state.active_id, None);
+    assert!(!state.is_visible);
+    assert_eq!(state.height, 120.0);
 }
 
+#[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn selecting_terminal_preserves_height_at_minimum_boundary() {
     let mut state = super::TerminalState::default();
     state.height = 160.0;
+    assert!(state.add_terminal(Some(std::env::temp_dir())));
+    let id = state.tabs[0].id;
 
-    state.select_terminal(7);
+    assert!(state.select_terminal(id));
 
-    assert_eq!(state.active_id, Some(7));
+    assert_eq!(state.active_id, Some(id));
     assert!(state.is_visible);
     assert_eq!(state.height, 160.0);
 }
@@ -546,4 +549,34 @@ fn absorb_replaced_defers_live_tabs_from_previous_terminal_state() {
     assert!(next.has_retired());
     next.reap_retired();
     assert!(!next.has_retired());
+}
+
+#[cfg(all(unix, not(target_arch = "wasm32")))]
+#[test]
+fn terminal_split_spawn_failure_preserves_existing_panes() {
+    use iced::Size;
+    use iced::widget::pane_grid::Direction;
+
+    let project = tempfile::tempdir().unwrap();
+    let cwd = project.path().to_path_buf();
+    let size = Size::new(800.0, 220.0);
+    let mut terminal = super::TerminalState::default();
+    assert!(terminal.add_terminal(Some(cwd.clone())));
+    let first = terminal.panes.focused;
+    terminal.split_terminal(first, Direction::Right, size, Some(cwd.clone())).unwrap();
+    let focused = terminal.panes.focused;
+    let active = terminal.active_id;
+    let next_id = terminal.next_id;
+    let widget_ids: Vec<_> = terminal.tabs.iter().map(|tab| tab.term.widget_id().clone()).collect();
+    let layout = format!("{:?}", terminal.panes.grid);
+
+    assert_eq!(
+        terminal.split_terminal(first, Direction::Down, size, Some(cwd.join("missing"))),
+        Err(super::panes::SplitError::Spawn)
+    );
+    assert_eq!(format!("{:?}", terminal.panes.grid), layout);
+    assert_eq!(terminal.panes.focused, focused);
+    assert_eq!(terminal.active_id, active);
+    assert_eq!(terminal.next_id, next_id);
+    assert!(terminal.tabs.iter().map(|tab| tab.term.widget_id()).eq(widget_ids.iter()));
 }

@@ -11,7 +11,7 @@ fn test_app() -> App {
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
-fn select_routes_to_tabs_and_closes_context_menu_for_unknown_tab() {
+fn selecting_unknown_tab_closes_context_menu_without_taking_focus() {
     let mut app = test_app();
     app.focus_area = FocusArea::Preview;
     app.terminal.tab_context_menu_id = Some(7);
@@ -19,7 +19,7 @@ fn select_routes_to_tabs_and_closes_context_menu_for_unknown_tab() {
 
     let _task = update(&mut app, TerminalMessage::Select(u64::MAX));
 
-    assert_eq!(app.focus_area, FocusArea::Terminal);
+    assert_eq!(app.focus_area, FocusArea::Preview);
     assert_eq!(app.terminal.tab_context_menu_id, None);
     assert_eq!(app.terminal.tab_context_menu_pos, None);
 }

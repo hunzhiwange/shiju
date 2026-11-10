@@ -294,6 +294,7 @@ async fn terminal_focus_background_events_preserve_editor_input() {
     for command in [
         iced_term::BackendCommand::Resize(None, None),
         iced_term::BackendCommand::ProcessAlacrittyEvent(iced_term::AlacrittyEvent::Wakeup),
+        iced_term::BackendCommand::ProcessAlacrittyEvent(iced_term::AlacrittyEvent::Exit),
     ] {
         h.message(TerminalMessage::Event(iced_term::Event::BackendCall(id, command))).await;
         assert_eq!(h.app.focus_area, crate::app::FocusArea::Preview);
@@ -445,7 +446,17 @@ async fn wait_for_line(h: &mut Harness, id: u64, expected: &str) {
                 iced_term::BackendCommand::Resize(None, None),
             )))
             .await;
-            if h.app.terminal.tabs[0].term.text().iter().any(|line| line == expected) {
+            if h.app
+                .terminal
+                .tabs
+                .iter()
+                .find(|tab| tab.id == id)
+                .unwrap()
+                .term
+                .text()
+                .iter()
+                .any(|line| line == expected)
+            {
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
@@ -567,4 +578,279 @@ async fn terminal_fullscreen_clears_on_hide_project_switch_and_pty_exit() {
     assert!(h.app.terminal.tabs.is_empty());
     assert!(!h.app.terminal.is_visible);
     assert!(!h.app.terminal.is_fullscreen);
+}
+
+async fn click_split_menu(h: &mut Harness, button: Point, item: usize) {
+    use iced_runtime::user_interface::{Cache, UserInterface};
+
+    let mut cache = Cache::new();
+    for (index, point) in [
+        button,
+        Point::new(button.x - 10.0, (button.y + 19.0).min(372.0) + 16.0 + item as f32 * 30.0),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut ui = UserInterface::build(
+            view(&h.app, h.workspace),
+            Size::new(800.0, 500.0),
+            cache,
+            &mut h.renderer,
+        );
+        let mut messages = Vec::new();
+        let _ = ui.update(
+            &[
+                Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left)),
+                Event::Mouse(iced::mouse::Event::ButtonReleased(iced::mouse::Button::Left)),
+            ],
+            iced::mouse::Cursor::Available(point),
+            &mut h.renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+        if index == 1 {
+            for theme in [iced::Theme::Light, iced::Theme::Dark] {
+                ui.draw(
+                    &mut h.renderer,
+                    &theme,
+                    &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                    iced::mouse::Cursor::Available(point),
+                );
+            }
+        }
+        cache = ui.into_cache();
+        for message in messages {
+            let task = h.app.update(message);
+            h.task(task).await;
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_split_toolbar_creates_independent_panes_in_each_direction() {
+    use crate::app::terminal::panes::PANE_SPACING;
+
+    let project = tempfile::tempdir().unwrap();
+    for item in 0..4 {
+        let mut h = Harness::new().await;
+        h.app.project_path = Some(project.path().to_string_lossy().into_owned());
+        h.app.desktop_locale = vw_config_types::ui::DesktopLocale::TraditionalChinese;
+        h.app.terminal.tabs[0].title = "开发环境终端标签".repeat(15);
+        let original = h.app.terminal.active_id.unwrap();
+        let original_pane = h.app.terminal.panes.focused;
+        click_split_menu(&mut h, Point::new(720.0, 297.0), item).await;
+        assert_eq!(h.app.terminal.tabs.len(), 2, "split menu item {item} must start a PTY");
+
+        let panes = &h.app.terminal.panes;
+        let new = h.app.terminal.active_id.unwrap();
+        assert_ne!(new, original);
+        assert_eq!(panes.grid.get(original_pane).unwrap().tabs, [original]);
+        assert_eq!(panes.grid.get(panes.focused).unwrap().tabs, [new]);
+        let regions = panes.grid.layout().pane_regions(PANE_SPACING, 0.0, Size::new(800.0, 220.0));
+        let old_region = regions[&original_pane];
+        let new_region = regions[&panes.focused];
+        match item {
+            0 => assert!(new_region.x < old_region.x && new_region.y == old_region.y),
+            1 => assert!(new_region.x > old_region.x && new_region.y == old_region.y),
+            2 => assert!(new_region.y < old_region.y && new_region.x == old_region.x),
+            3 => assert!(new_region.y > old_region.y && new_region.x == old_region.x),
+            _ => unreachable!(),
+        }
+        let point = Point::new(new_region.center_x(), 280.0 + new_region.y + 62.0);
+        let (messages, _) = h.dispatch(character_key("x"), point);
+        assert!(messages.iter().any(|message| matches!(message,
+            Message::Terminal(TerminalMessage::Event(iced_term::Event::BackendCall(id,
+                iced_term::BackendCommand::Write(_)))) if *id == new
+        )));
+    }
+}
+
+async fn send_terminal_input(h: &mut Harness, id: u64, event: Event, point: Point, bytes: &[u8]) {
+    let (messages, _) = h.dispatch(event, point);
+    let mut writes = Vec::new();
+    for message in messages {
+        if let Message::Terminal(TerminalMessage::Event(iced_term::Event::BackendCall(
+            target,
+            iced_term::BackendCommand::Write(ref data),
+        ))) = message
+        {
+            writes.push((target, data.clone()));
+        }
+        let task = h.app.update(message);
+        h.task(task).await;
+    }
+    assert_eq!(writes, [(id, bytes.to_vec())]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn terminal_split_routes_input_and_closes_empty_panes() {
+    use iced::advanced::{input_method::Event as Ime, subscription::into_recipes};
+
+    let project = tempfile::tempdir().unwrap();
+    let mut h = Harness::with_command("stty -echo -icanon; printf 'FIRST:'; exec cat").await;
+    h.app.project_path = Some(project.path().to_string_lossy().into_owned());
+    let first = h.app.terminal.active_id.unwrap();
+    let left = h.app.terminal.panes.focused;
+    wait_for_line(&mut h, first, "FIRST:").await;
+    click_split_menu(&mut h, Point::new(720.0, 297.0), 1).await;
+    assert_eq!(h.app.terminal.tabs.len(), 2, "right split needs an independent PTY");
+    let second = h.app.terminal.active_id.unwrap();
+    let right = h.app.terminal.panes.focused;
+    let first_point = Point::new(120.0, 360.0);
+    let second_point = Point::new(520.0, 360.0);
+
+    h.click(first_point).await;
+    assert_eq!(h.app.terminal.active_id, Some(first));
+    send_terminal_input(&mut h, first, character_key("x"), first_point, b"x").await;
+    send_terminal_input(
+        &mut h,
+        first,
+        Event::InputMethod(Ime::Commit("中文".into())),
+        first_point,
+        "中文".as_bytes(),
+    )
+    .await;
+    wait_for_line(&mut h, first, "FIRST:x中文").await;
+
+    h.event(
+        Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)),
+        second_point,
+    )
+    .await;
+    assert_eq!(h.app.terminal.content_menu.map(|(id, _)| id), Some(second));
+    h.message(TerminalMessage::ContentMenuClose).await;
+    let command = "printf '\nSECOND:%s\n' ready; pwd -P
+";
+    send_terminal_input(&mut h, second, character_key(command), second_point, command.as_bytes())
+        .await;
+    wait_for_line(&mut h, second, "SECOND:ready").await;
+    let canonical_path = project.path().canonicalize().unwrap();
+    wait_for_line(&mut h, second, canonical_path.to_str().unwrap()).await;
+    assert!(h.app.terminal.tabs[0].term.text().iter().all(|line| !line.contains("SECOND:")));
+    assert!(h.app.terminal.tabs[1].term.text().iter().all(|line| !line.contains("FIRST:")));
+
+    // The per-pane + button targets its pane even when the other pane owns focus.
+    h.click(Point::new(350.0, 297.0)).await;
+    let left_extra = h.app.terminal.active_id.unwrap();
+    assert_eq!(h.app.terminal.panes.grid.get(left).unwrap().tabs, [first, left_extra]);
+    h.click(Point::new(688.0, 297.0)).await;
+    let right_extra = h.app.terminal.active_id.unwrap();
+    assert_eq!(h.app.terminal.panes.grid.get(right).unwrap().tabs, [second, right_extra]);
+    for tab in h.app.terminal.tabs.iter_mut().filter(|tab| [second, right_extra].contains(&tab.id))
+    {
+        tab.title = "右侧终端的长标签".repeat(15);
+        tab.default_title = false;
+    }
+    h.click(Point::new(430.0, 291.0)).await;
+    assert_eq!(h.app.terminal.active_id, Some(second));
+    assert_eq!(h.app.terminal.panes.grid.get(left).unwrap().active_id, Some(left_extra));
+    h.click(Point::new(36.0, 291.0)).await;
+    assert_eq!(h.app.terminal.active_id, Some(first));
+    assert_eq!(h.app.terminal.panes.grid.get(right).unwrap().active_id, Some(second));
+
+    // Split the left pane again, leaving the right pane intact.
+    click_split_menu(&mut h, Point::new(382.0, 297.0), 3).await;
+    assert_eq!(h.app.terminal.panes.grid.len(), 3);
+    let bottom = h.app.terminal.panes.focused;
+    let regions = h.app.terminal.panes.grid.layout().pane_regions(
+        crate::app::terminal::panes::PANE_SPACING,
+        0.0,
+        Size::new(800.0, 220.0),
+    );
+    assert_eq!(regions[&bottom].x, regions[&left].x);
+    assert!(regions[&bottom].y > regions[&left].y);
+    assert_eq!(regions[&right].height, 220.0);
+
+    // The native renderer must paint a visible separator across both themes.
+    {
+        use iced_runtime::user_interface::{Cache, UserInterface};
+
+        let mut ui = UserInterface::build(
+            view(&h.app, h.workspace),
+            Size::new(800.0, 500.0),
+            Cache::new(),
+            &mut h.renderer,
+        );
+        for theme in [iced::Theme::Light, iced::Theme::Dark] {
+            ui.draw(
+                &mut h.renderer,
+                &theme,
+                &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                iced::mouse::Cursor::Unavailable,
+            );
+            let pixels =
+                h.renderer.screenshot(Size::new(800, 500), 1.0, theme.palette().background);
+            let pixel = |x: usize| &pixels[4 * (460 * 800 + x)..][..4];
+            assert_ne!(pixel(400), pixel(405), "pane separator in {theme:?}");
+        }
+    }
+
+    let bottom_id = h.app.terminal.active_id.unwrap();
+    let (messages, _) = h.dispatch(
+        Event::Window(iced::window::Event::RedrawRequested(std::time::Instant::now())),
+        Point::new(120.0, 460.0),
+    );
+    for id in [first, bottom_id] {
+        assert!(messages.iter().any(|message| matches!(
+            message,
+            Message::Terminal(TerminalMessage::Event(iced_term::Event::BackendCall(
+                target, iced_term::BackendCommand::Resize(Some(size), _)
+            ))) if *target == id && size.height == regions[&bottom].height - 46.0
+        )));
+    }
+
+    // A second vertical stack in the short pane would leave too little PTY space.
+    click_split_menu(&mut h, Point::new(382.0, 409.0), 3).await;
+    assert_eq!(h.app.terminal.panes.grid.len(), 3);
+    assert_eq!(h.app.terminal.panes.focused, bottom);
+    assert_eq!(h.app.active_toast.as_ref().unwrap().message, "当前窗格空间不足，无法拆分终端");
+
+    let widgets: Vec<_> =
+        h.app.terminal.tabs.iter().map(|tab| tab.term.widget_id().clone()).collect();
+    h.workspace = true;
+    h.click(Point::new(784.0, 305.0)).await;
+    assert!(h.app.terminal.is_fullscreen);
+    h.click(Point::new(784.0, 17.0)).await;
+    assert!(!h.app.terminal.is_fullscreen);
+    assert_eq!(h.app.terminal.panes.grid.len(), 3);
+    assert!(h.app.terminal.tabs.iter().map(|tab| tab.term.widget_id()).eq(widgets.iter()));
+    h.workspace = false;
+
+    h.message(TerminalMessage::Close(bottom_id)).await;
+    assert_eq!(h.app.terminal.panes.grid.len(), 2);
+    assert_eq!(h.app.terminal.active_id, Some(first));
+
+    h.message(TerminalMessage::Close(right_extra)).await;
+    h.click(second_point).await;
+    let subscription =
+        h.app.terminal.tabs.iter().find(|tab| tab.id == second).unwrap().term.subscription();
+    let mut events = into_recipes(subscription)
+        .pop()
+        .unwrap()
+        .stream(Box::pin(iced::futures::stream::pending()));
+    send_terminal_input(
+        &mut h,
+        second,
+        character_key(
+            "exit
+",
+        ),
+        second_point,
+        b"exit
+",
+    )
+    .await;
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while h.app.terminal.tabs.iter().any(|tab| tab.id == second) {
+            h.message(TerminalMessage::Event(events.next().await.expect("PTY event"))).await;
+        }
+    })
+    .await
+    .expect("shell exit should close its pane");
+    drop(events);
+    assert_eq!(h.app.terminal.panes.grid.len(), 1);
+    assert_eq!(h.app.terminal.active_id, Some(first));
+    assert_eq!(h.app.terminal.panes.grid.get(left).unwrap().tabs, [first, left_extra]);
+    send_terminal_input(&mut h, first, character_key("y"), first_point, b"y").await;
+    wait_for_line(&mut h, first, "FIRST:x中文y").await;
 }

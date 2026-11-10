@@ -15,11 +15,13 @@ pub(super) fn close_tab(app: &mut App, id: u64) -> Task<Message> {
     }
     if app.terminal.tabs.is_empty() {
         app.terminal.set_visible(false);
-        app.focus_area = FocusArea::None;
+        if app.focus_area == FocusArea::Terminal {
+            app.focus_area = FocusArea::None;
+        }
     }
     let reap = reap_retired_task(app);
     #[cfg(not(target_arch = "wasm32"))]
-    if was_active {
+    if was_active && app.focus_area == FocusArea::Terminal {
         return Task::batch([reap, super::event::focus_active_terminal(app)]);
     }
     reap
@@ -34,31 +36,43 @@ pub(crate) fn reap_retired_task(app: &App) -> Task<Message> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) fn add_to_pane(app: &mut App, pane: iced::widget::pane_grid::Pane) -> Task<Message> {
+    app.terminal.tab_context_menu_id = None;
+    app.terminal.tab_context_menu_pos = None;
+    app.terminal.content_menu = None;
+    app.terminal.panes.split_menu = None;
+    if app
+        .terminal
+        .add_terminal_to_pane(pane, app.project_path.as_ref().map(std::path::PathBuf::from))
+    {
+        app.terminal.apply_app_theme(&app.app_theme);
+        return super::event::focus_active_terminal(app);
+    }
+    Task::none()
+}
+
 /// 执行 update 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        TerminalMessage::Add => add_to_pane(app, app.terminal.panes.focused),
+        #[cfg(target_arch = "wasm32")]
         TerminalMessage::Add => {
             app.terminal.tab_context_menu_id = None;
             app.terminal.tab_context_menu_pos = None;
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app.terminal.content_menu = None;
-            }
-            #[cfg(not(target_arch = "wasm32"))]
-            if app.terminal.add_terminal(app.project_path.as_ref().map(std::path::PathBuf::from)) {
-                app.terminal.apply_app_theme(&app.app_theme);
-                return super::event::focus_active_terminal(app);
-            }
             Task::none()
         }
         TerminalMessage::Select(id) => {
             app.terminal.tab_context_menu_id = None;
             app.terminal.tab_context_menu_pos = None;
+            if !app.terminal.select_terminal(id) {
+                return Task::none();
+            }
             app.focus_area = FocusArea::Terminal;
-            app.terminal.select_terminal(id);
             #[cfg(not(target_arch = "wasm32"))]
             app.terminal.apply_app_theme(&app.app_theme);
             #[cfg(not(target_arch = "wasm32"))]
@@ -79,8 +93,10 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             Task::none()
         }
         TerminalMessage::TabContextOpen(id, x, y) => {
+            if !app.terminal.select_terminal(id) {
+                return Task::none();
+            }
             app.focus_area = FocusArea::Terminal;
-            app.terminal.select_terminal(id);
             #[cfg(not(target_arch = "wasm32"))]
             app.terminal.apply_app_theme(&app.app_theme);
             app.terminal.tab_context_menu_id = Some(id);

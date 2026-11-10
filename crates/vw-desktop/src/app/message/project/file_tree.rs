@@ -24,8 +24,6 @@
 //!
 //! 部分功能（如重命名、在终端打开、在文件管理器显示）仅在非 WASM 目标平台可用。
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::FocusArea;
 use crate::app::message::project::helpers::{
     gateway_copy_path, gateway_delete_path, gateway_move_path, now_ms, refresh_file_index,
     relative_to_project,
@@ -372,11 +370,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                             if app.terminal.add_terminal(Some(dir.to_path_buf())) {
                                 app.terminal.apply_app_theme(&app.app_theme);
                                 app.terminal.is_visible = true;
-                                app.focus_area = FocusArea::Terminal;
-                                return Some(app.save_desktop_preference(
-                                    "show_terminal",
-                                    serde_json::Value::Bool(true),
-                                ));
+                                return Some(iced::Task::batch([
+                                    crate::app::message::terminal::event::focus_active_terminal(
+                                        app,
+                                    ),
+                                    app.save_desktop_preference(
+                                        "show_terminal",
+                                        serde_json::Value::Bool(true),
+                                    ),
+                                ]));
                             }
                         }
                     }

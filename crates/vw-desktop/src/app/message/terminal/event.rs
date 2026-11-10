@@ -99,7 +99,17 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                         true
                     )
                 );
-            let focus = if clicked && app.terminal.active_id == Some(id) {
+            let terminal = &mut app.terminal;
+            if matches!(
+                cmd,
+                iced_term::BackendCommand::Write(_) | iced_term::BackendCommand::Paste(_)
+            ) && (!terminal.is_visible
+                || terminal.active_id != Some(id)
+                || terminal.tabs.iter().any(|tab| tab.id == id && tab.edit_title.is_some()))
+            {
+                return Task::none();
+            }
+            let focus = if clicked && terminal.activate_visible_tab(id) {
                 focus_active_terminal(app)
             } else {
                 Task::none()
@@ -112,14 +122,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
                 if tab.term.handle(iced_term::Command::ProxyToBackend(cmd))
                     == iced_term::actions::Action::Shutdown
                 {
-                    // 关闭该终端标签页（延迟 drop，避免订阅流 panic）
-                    app.terminal.close_terminal(id);
-
-                    // 如果所有终端标签页都已关闭，隐藏终端面板
-                    if app.terminal.tabs.is_empty() {
-                        app.terminal.set_visible(false);
-                    }
-                    return super::tabs::reap_retired_task(app);
+                    return super::tabs::close_tab(app, id);
                 }
             }
             focus

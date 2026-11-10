@@ -1,5 +1,10 @@
 //! 定义桌面终端标签、Shell 选项及原生终端实例的生命周期。
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod panes;
+#[cfg(not(target_arch = "wasm32"))]
+use iced::widget::pane_grid::Pane;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// 桌面终端支持启动的交互式 Shell。
 pub enum Shell {
@@ -289,6 +294,8 @@ pub struct TerminalState {
     pub is_visible: bool,
     pub(crate) is_fullscreen: bool,
     pub tabs: Vec<TerminalTab>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) panes: panes::TerminalPanes,
     pub active_id: Option<u64>,
     pub next_id: u64,
     pub height: f32,
@@ -336,6 +343,8 @@ impl TerminalState {
             is_visible,
             is_fullscreen: false,
             tabs: vec![],
+            #[cfg(not(target_arch = "wasm32"))]
+            panes: panes::TerminalPanes::default(),
             active_id: None,
             next_id: 1,
             height,
@@ -391,8 +400,39 @@ impl TerminalState {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn add_terminal(&mut self, cwd: Option<std::path::PathBuf>) -> bool {
-        let id = self.next_id;
+        self.add_terminal_to_pane(self.panes.focused, cwd)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn add_terminal_to_pane(
+        &mut self,
+        pane: Pane,
+        cwd: Option<std::path::PathBuf>,
+    ) -> bool {
+        if self.panes.grid.get(pane).is_none() {
+            return false;
+        }
+        let tab = self.spawn_interactive_terminal(cwd);
         self.next_id = self.next_id.wrapping_add(1);
+        if let Some(tab) = tab {
+            self.push_tab(pane, tab);
+            true
+        } else {
+            false
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn push_tab(&mut self, pane: Pane, tab: TerminalTab) {
+        self.panes.add(pane, tab.id);
+        self.panes.split_menu = None;
+        self.active_id = Some(tab.id);
+        self.tabs.push(tab);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn spawn_interactive_terminal(&self, cwd: Option<std::path::PathBuf>) -> Option<TerminalTab> {
+        let id = self.next_id;
 
         let shell_path = match self.shell {
             Shell::Bash => "/bin/bash".to_string(),
@@ -417,23 +457,17 @@ impl TerminalState {
             ..Default::default()
         };
 
-        if let Ok(mut term) = iced_term::Terminal::new(id, settings) {
-            let fs = build_font_settings(&self.font_family, self.font_size);
-            let _ = term.handle(iced_term::Command::ChangeFont(fs));
-            let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
-
-            self.tabs.push(TerminalTab {
-                id,
-                title: format!("终端 {}", id),
-                default_title: true,
-                term,
-                edit_title: None,
-            });
-            self.active_id = Some(id);
-            true
-        } else {
-            false
-        }
+        let mut term = iced_term::Terminal::new(id, settings).ok()?;
+        let fs = build_font_settings(&self.font_family, self.font_size);
+        let _ = term.handle(iced_term::Command::ChangeFont(fs));
+        let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
+        Some(TerminalTab {
+            id,
+            title: format!("终端 {id}"),
+            default_title: true,
+            term,
+            edit_title: None,
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -474,8 +508,10 @@ impl TerminalState {
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
-        self.active_id = Some(id);
+        self.push_tab(
+            self.panes.focused,
+            TerminalTab { id, title, default_title: false, term, edit_title: None },
+        );
         Some(id)
     }
 
@@ -518,8 +554,10 @@ impl TerminalState {
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
-        self.active_id = Some(id);
+        self.push_tab(
+            self.panes.focused,
+            TerminalTab { id, title, default_title: false, term, edit_title: None },
+        );
         Some(id)
     }
 
@@ -595,8 +633,10 @@ fi
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
-        self.active_id = Some(id);
+        self.push_tab(
+            self.panes.focused,
+            TerminalTab { id, title, default_title: false, term, edit_title: None },
+        );
         Some(id)
     }
 
@@ -615,22 +655,41 @@ fi
         None
     }
 
-    pub fn select_terminal(&mut self, id: u64) {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn activate_visible_tab(&mut self, id: u64) -> bool {
+        if !self.is_visible || !self.panes.is_visible_tab(id) {
+            return false;
+        }
+        self.panes.select(id);
+        self.active_id = Some(id);
+        true
+    }
+
+    pub fn select_terminal(&mut self, id: u64) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        if !self.panes.select(id) {
+            return false;
+        }
+        #[cfg(target_arch = "wasm32")]
+        if !self.tabs.iter().any(|tab| tab.id == id) {
+            return false;
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             self.content_menu = None;
+            self.panes.split_menu = None;
         }
         self.active_id = Some(id);
         self.is_visible = true;
         if self.height < 160.0 {
             self.height = 200.0;
         }
-        // Refresh theme/font for the selected tab to ensure it matches current state
         #[cfg(not(target_arch = "wasm32"))]
-        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == id) {
-            let fs = build_font_settings(&self.font_family, self.font_size);
-            let _ = tab.term.handle(iced_term::Command::ChangeFont(fs));
+        if let Some(tab) = self.tabs.iter_mut().find(|tab| tab.id == id) {
+            let font = build_font_settings(&self.font_family, self.font_size);
+            let _ = tab.term.handle(iced_term::Command::ChangeFont(font));
         }
+        true
     }
 
     pub(crate) fn set_visible(&mut self, visible: bool) {
@@ -641,6 +700,10 @@ fi
     }
 
     pub(crate) fn set_fullscreen(&mut self, fullscreen: bool) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.panes.split_menu = None;
+        }
         if self.is_fullscreen == fullscreen {
             return;
         }
@@ -663,6 +726,15 @@ fi
             if self.content_menu.is_some_and(|(menu_id, _)| menu_id == id) {
                 self.content_menu = None;
             }
+            if self.tab_context_menu_id == Some(id) {
+                self.tab_context_menu_id = None;
+                self.tab_context_menu_pos = None;
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.active_id = self.panes.remove(id);
+            }
+            #[cfg(target_arch = "wasm32")]
             if self.active_id == Some(id) {
                 self.active_id = self.tabs.first().map(|t| t.id);
             }

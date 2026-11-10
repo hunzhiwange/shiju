@@ -22,13 +22,21 @@ use crate::app::components::system_settings_common::{
     settings_modal_overlay_with_backdrop_dismiss, settings_muted_text_style,
     settings_text_input_style,
 };
-use crate::app::components::widgets::RightClickArea;
+use crate::app::components::widgets::{RightClickArea, SingleLineLabel};
 use crate::app::i18n::I18n;
+use crate::app::terminal::TerminalTab;
 use crate::app::{App, Message, message};
 
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "terminal_content_menu.rs"]
 mod content_menu;
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "terminal_pane_grid.rs"]
+mod pane_grid;
+
+const TAB_HEADER_HEIGHT: f32 = 34.0;
+const TAB_SCROLLBAR_WIDTH: f32 = 4.0;
+const TAB_SCROLLBAR_GAP: f32 = 3.0;
 
 pub(super) fn terminal_tab_width(title: &str) -> f32 {
     (title.chars().count() as f32 * 8.4 + 62.0).clamp(92.0, 260.0)
@@ -110,53 +118,40 @@ fn toolbar_button_style(theme: &Theme, status: button::Status) -> button::Style 
     }
 }
 
-/// 渲染终端面板视图
-///
-/// 根据应用状态生成完整的终端界面元素，包括标签页栏和终端内容区。
-/// 当终端面板不可见时返回空容器。
-///
-/// # 参数
-///
-/// * `app` - 应用状态引用，包含终端配置、窗口尺寸等信息
-///
-/// # 返回值
-///
-/// 返回可渲染的 Iced 元素，包含完整的终端 UI
-///
-/// # 布局结构
-///
-/// ```text
-/// ┌─────────────────────────────────────────┐
-/// │ [Tab1] [Tab2] [Tab3] ... [+]            │ ← 标签页栏（可水平滚动）
-/// ├─────────────────────────────────────────┤
-/// │                                         │
-/// │         终端内容显示区域                 │
-/// │                                         │
-/// └─────────────────────────────────────────┘
-/// ```
-pub fn view(app: &App) -> Element<'_, Message> {
-    // 终端面板不可见时直接返回空容器
-    if !app.terminal.is_visible {
-        return container(column![]).into();
-    }
+fn toolbar_icon_button(icon: Icon, on_press: Message) -> Element<'static, Message> {
+    let icon = svg::Svg::new(assets::get_icon(icon))
+        .width(12.0)
+        .height(12.0)
+        .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) });
+    let control = button(container(icon).center_x(24.0).center_y(24.0))
+        .on_press(on_press)
+        .padding(0)
+        .style(toolbar_button_style);
+    container(control).center_x(32.0).center_y(TAB_HEADER_HEIGHT).into()
+}
 
-    // ==================== 尺寸常量 ====================
+fn hide_button() -> Element<'static, Message> {
+    toolbar_icon_button(Icon::EyeSlash, Message::View(message::ViewMessage::ToggleTerminalPanel))
+}
 
-    // 元素间距
-    let spacing = 0;
-    // 标签页标题栏高度
-    let tab_header_height = 34.0;
+fn pane_view<'a>(
+    app: &'a App,
+    tabs: Vec<&'a TerminalTab>,
+    active_id: Option<u64>,
+    controls: iced::widget::Row<'a, Message>,
+) -> Element<'a, Message> {
+    let tab_header_height = TAB_HEADER_HEIGHT - TAB_SCROLLBAR_WIDTH - TAB_SCROLLBAR_GAP;
 
     // ==================== 构建标签页行 ====================
 
-    let mut tabs_row = row![].spacing(spacing).align_y(iced::Alignment::Center);
+    let mut tabs_row = row![].align_y(iced::Alignment::Center);
     let can_close_tabs = app.terminal.tabs.len() > 1;
 
     // 遍历所有终端标签页，逐个构建 UI 元素
-    for (index, t) in app.terminal.tabs.iter().enumerate() {
+    for (index, t) in tabs.iter().enumerate() {
         // 判断当前标签页是否为激活状态
         // 如果没有指定激活 ID，则默认第一个标签页为激活
-        let active = terminal_tab_is_active(app.terminal.active_id, t.id, index);
+        let active = terminal_tab_is_active(active_id, t.id, index);
         let tab_id = t.id;
 
         // 计算标签页宽度：基于标题字符数量
@@ -180,18 +175,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // ---------- 构建标签页选择按钮 ----------
         // 点击此区域可切换到对应标签页
         let select_btn = button(
-            container(
-                text(title)
-                    .size(13)
-                    .width(Length::Shrink)
-                    .height(Length::Fill)
-                    .align_x(iced::alignment::Horizontal::Center)
-                    .align_y(iced::alignment::Vertical::Center),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
+            container(SingleLineLabel::new(title, 13.0).centered())
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
         )
         .on_press(Message::Terminal(message::TerminalMessage::Select(tab_id)))
         .height(Length::Fill)
@@ -465,82 +453,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
         tabs_row = tabs_row.push(tab_with_overlay);
     }
 
-    // ==================== 构建添加标签按钮 ====================
-
-    let add_btn = button(
-        container(
-            svg::Svg::new(assets::get_icon(Icon::Plus))
-                .width(Length::Fixed(12.0))
-                .height(Length::Fixed(12.0))
-                .style(|theme: &Theme, _| iced::widget::svg::Style {
-                    color: Some(theme.palette().text),
-                }),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center),
-    )
-    .on_press(Message::Terminal(message::TerminalMessage::Add))
-    .height(Length::Fixed(24.0))
-    .width(Length::Fixed(24.0))
-    .padding([0, 0])
-    .style(toolbar_button_style);
-
-    let hide_btn = button(
-        container(
-            svg::Svg::new(assets::get_icon(Icon::EyeSlash))
-                .width(Length::Fixed(12.0))
-                .height(Length::Fixed(12.0))
-                .style(|theme: &Theme, _| iced::widget::svg::Style {
-                    color: Some(theme.palette().text),
-                }),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(iced::alignment::Horizontal::Center)
-        .align_y(iced::alignment::Vertical::Center),
-    )
-    .on_press(Message::View(message::ViewMessage::ToggleTerminalPanel))
-    .height(Length::Fixed(24.0))
-    .width(Length::Fixed(24.0))
-    .padding([0, 0])
-    .style(toolbar_button_style);
-
-    // 将添加按钮添加到标签页行
-    tabs_row = tabs_row.push(
-        container(add_btn)
-            .height(Length::Fixed(tab_header_height))
-            .width(Length::Fixed(32.0))
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
-    );
-
-    tabs_row = tabs_row.push(
-        container(hide_btn)
-            .height(Length::Fixed(tab_header_height))
-            .width(Length::Fixed(32.0))
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center),
-    );
-
     // ==================== 构建可滚动的标签页栏 ====================
 
     let tabs_scroll = scrollable(tabs_row)
         .direction(iced::widget::scrollable::Direction::Horizontal(
-            iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            iced::widget::scrollable::Scrollbar::new()
+                .width(TAB_SCROLLBAR_WIDTH)
+                .scroller_width(TAB_SCROLLBAR_WIDTH)
+                .spacing(TAB_SCROLLBAR_GAP),
         ))
-        .height(Length::Fixed(tab_header_height))
+        .height(Length::Fixed(TAB_HEADER_HEIGHT))
         .width(Length::Fill);
 
     // ==================== 获取当前激活的标签页 ====================
 
     // 优先查找指定 ID 的标签页，否则使用第一个标签页
-    let active_tab = active_terminal_tab_index(
-        app.terminal.active_id,
-        app.terminal.tabs.iter().map(|tab| tab.id),
-    )
-    .and_then(|index| app.terminal.tabs.get(index));
+    let active_tab = active_terminal_tab_index(active_id, tabs.iter().map(|tab| tab.id))
+        .and_then(|index| tabs.get(index).copied());
 
     // ==================== 构建终端内容区域 ====================
 
@@ -585,25 +514,37 @@ pub fn view(app: &App) -> Element<'_, Message> {
             style
         });
 
-    // ==================== 组装标签页栏容器 ====================
+    let toolbar = row![tabs_scroll, controls].height(TAB_HEADER_HEIGHT);
+    let header = container(toolbar).width(Length::Fill).style(terminal_surface_style);
 
-    let tabs_container = container(tabs_scroll).width(Length::Fill).padding([0, 0]);
+    column![header, out].width(Length::Fill).height(Length::Fill).into()
+}
 
-    // 构建头部容器，包含标签页栏，使用背景色
-    let toolbar = row![tabs_container].height(Length::Fixed(tab_header_height));
+/// 渲染终端窗格以及覆盖整个面板的重命名模态框。
+pub fn view(app: &App) -> Element<'_, Message> {
+    if !app.terminal.is_visible {
+        return container(column![]).into();
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
-    let toolbar = toolbar.push(fullscreen_button(app, tab_header_height));
-    let header =
-        container(toolbar).width(Length::Fill).padding([0, 0]).style(terminal_surface_style);
-
-    // ==================== 组装主内容区域 ====================
-
-    // 主内容 = 标签栏 + 终端内容区
+    let content = pane_grid::view(app);
+    #[cfg(target_arch = "wasm32")]
+    let content = pane_view(
+        app,
+        app.terminal.tabs.iter().collect(),
+        app.terminal.active_id,
+        row![
+            toolbar_icon_button(Icon::Plus, Message::Terminal(message::TerminalMessage::Add)),
+            hide_button()
+        ],
+    );
     let main_content =
-        container(column![header, out].spacing(0).height(Length::Fill).width(Length::Fill))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(terminal_surface_style);
+        container(content).width(Length::Fill).height(Length::Fill).style(|theme: &Theme| {
+            iced::widget::container::Style {
+                background: Some(theme.extended_palette().background.weak.color.into()),
+                ..Default::default()
+            }
+        });
 
     // ==================== 重命名模态框 ====================
 

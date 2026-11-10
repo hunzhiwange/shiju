@@ -19,33 +19,39 @@ fn test_module_is_wired() {
     assert!(module.ends_with("tabs_tests"));
 }
 
+#[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn select_clears_context_menu_and_focuses_visible_terminal() {
     let mut app = test_app_with_blank_terminal();
+    assert!(app.terminal.add_terminal(Some(std::env::temp_dir())));
+    let id = app.terminal.tabs[0].id;
     app.terminal.height = 120.0;
     app.terminal.tab_context_menu_id = Some(7);
     app.terminal.tab_context_menu_pos = Some((12.0, 24.0));
 
-    let _ = update(&mut app, TerminalMessage::Select(42));
+    let _ = update(&mut app, TerminalMessage::Select(id));
 
     assert_eq!(app.terminal.tab_context_menu_id, None);
     assert_eq!(app.terminal.tab_context_menu_pos, None);
     assert_eq!(app.focus_area, FocusArea::Terminal);
-    assert_eq!(app.terminal.active_id, Some(42));
+    assert_eq!(app.terminal.active_id, Some(id));
     assert!(app.terminal.is_visible);
     assert_eq!(app.terminal.height, 200.0);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
+#[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn select_preserves_terminal_height_at_minimum_boundary() {
     let mut app = test_app_with_blank_terminal();
+    assert!(app.terminal.add_terminal(Some(std::env::temp_dir())));
+    let id = app.terminal.tabs[0].id;
     app.terminal.height = 160.0;
 
-    let _ = update(&mut app, TerminalMessage::Select(17));
+    let _ = update(&mut app, TerminalMessage::Select(id));
 
-    assert_eq!(app.terminal.active_id, Some(17));
+    assert_eq!(app.terminal.active_id, Some(id));
     assert!(app.terminal.is_visible);
     assert_eq!(app.terminal.height, 160.0);
     assert_eq!(app.focus_area, FocusArea::Terminal);
@@ -86,16 +92,19 @@ fn close_with_multiple_tabs_schedules_reap_after_retiring() {
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
 // 连续操作仍需保持模块不变量，并清除已经失效的瞬态反馈。
+#[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn tab_context_open_selects_terminal_and_records_anchor() {
     let mut app = test_app_with_blank_terminal();
+    assert!(app.terminal.add_terminal(Some(std::env::temp_dir())));
+    let id = app.terminal.tabs[0].id;
 
-    let _ = update(&mut app, TerminalMessage::TabContextOpen(23, 18.5, 37.25));
+    let _ = update(&mut app, TerminalMessage::TabContextOpen(id, 18.5, 37.25));
 
     assert_eq!(app.focus_area, FocusArea::Terminal);
-    assert_eq!(app.terminal.active_id, Some(23));
+    assert_eq!(app.terminal.active_id, Some(id));
     assert!(app.terminal.is_visible);
-    assert_eq!(app.terminal.tab_context_menu_id, Some(23));
+    assert_eq!(app.terminal.tab_context_menu_id, Some(id));
     assert_eq!(app.terminal.tab_context_menu_pos, Some((18.5, 37.25)));
 }
 

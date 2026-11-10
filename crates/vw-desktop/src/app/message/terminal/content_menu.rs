@@ -22,7 +22,8 @@ pub enum ContentAction {
 pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {
         TerminalMessage::ContentMenuOpen(id, position) => {
-            if app.terminal.is_visible && app.terminal.active_id == Some(id) {
+            if app.terminal.activate_visible_tab(id) {
+                app.terminal.panes.split_menu = None;
                 app.terminal.tab_context_menu_id = None;
                 app.terminal.tab_context_menu_pos = None;
                 app.terminal.content_menu = Some((id, position));
@@ -45,7 +46,9 @@ pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             if let Some(text) = text.filter(|text| !text.is_empty())
                 && app.terminal.is_visible
                 && let Some(tab) = app.terminal.tabs.iter_mut().find(|tab| {
-                    app.terminal.active_id == Some(tab.id) && tab.term.widget_id() == &widget_id
+                    app.terminal.active_id == Some(tab.id)
+                        && tab.term.widget_id() == &widget_id
+                        && tab.edit_title.is_none()
                 })
             {
                 tab.term.handle(iced_term::Command::ProxyToBackend(

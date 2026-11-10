@@ -13,7 +13,7 @@ fn terminal_with_context_menu() -> TerminalState {
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
-fn rename_start_closes_context_menu_and_selects_missing_tab() {
+fn rename_start_closes_context_menu_for_missing_tab() {
     let mut terminal = terminal_with_context_menu();
     terminal.height = 120.0;
 
@@ -21,9 +21,9 @@ fn rename_start_closes_context_menu_and_selects_missing_tab() {
 
     assert_eq!(terminal.tab_context_menu_id, None);
     assert_eq!(terminal.tab_context_menu_pos, None);
-    assert_eq!(terminal.active_id, Some(42));
-    assert!(terminal.is_visible);
-    assert_eq!(terminal.height, 200.0);
+    assert_eq!(terminal.active_id, None);
+    assert!(!terminal.is_visible);
+    assert_eq!(terminal.height, 120.0);
     assert!(terminal.tabs.is_empty());
 }
 

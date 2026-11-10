@@ -6,10 +6,11 @@ use super::{
     capacity::RouteCapacity,
     dispatch::JsonTarget,
     header_wire,
+    protocol_errors::{Protocol, RouteError},
 };
 use axum::{
     http::{HeaderMap, StatusCode, header},
-    response::{IntoResponse, Response},
+    response::Response,
 };
 use hyper::{Request, body::Incoming, server::conn::http1, service::service_fn};
 use hyper_util::rt::{TokioIo, TokioTimer};
@@ -316,24 +317,26 @@ where
         let dispatch = &dispatch;
         let disconnect = &disconnect;
         async move {
+            let protocol = Protocol::for_path(request.uri().path());
+            let error = |status| RouteError::from(status).response(protocol);
             let has_origin = request.headers().contains_key(header::ORIGIN);
             if !browser_guard::allows_host(&request, local_addr)
                 || (has_origin && !browser_guard::is_desktop_route(request.uri()))
             {
-                return Ok::<_, Infallible>(StatusCode::FORBIDDEN.into_response());
+                return Ok::<_, Infallible>(error(StatusCode::FORBIDDEN));
             }
             let Some(route) = auth.authorize(request.headers()) else {
-                return Ok(StatusCode::UNAUTHORIZED.into_response());
+                return Ok(error(StatusCode::UNAUTHORIZED));
             };
             if has_origin && route.binding.app != AppId::ClaudeDesktop {
-                return Ok(StatusCode::FORBIDDEN.into_response());
+                return Ok(error(StatusCode::FORBIDDEN));
             }
             let Some((send_cancel, wire)) = connection_state.lock().take() else {
-                return Ok(StatusCode::UNAUTHORIZED.into_response());
+                return Ok(error(StatusCode::UNAUTHORIZED));
             };
             if send_cancel.send(route.cancelled.clone()).is_err() || route.cancelled.is_cancelled()
             {
-                return Ok(StatusCode::UNAUTHORIZED.into_response());
+                return Ok(error(StatusCode::UNAUTHORIZED));
             }
             request.headers_mut().remove(header::AUTHORIZATION);
             request.headers_mut().remove(API_KEY);

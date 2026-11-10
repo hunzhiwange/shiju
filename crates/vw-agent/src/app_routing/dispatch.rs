@@ -9,6 +9,7 @@ use super::{
     decode_response,
     header_wire::{self, HeaderWire},
     override_apply,
+    protocol_errors::RouteError,
     route_auth::AuthorizedRoute,
     timeouts,
 };
@@ -41,16 +42,16 @@ pub(super) async fn forward_json(
     mut request: Request<Incoming>,
     route: &AuthorizedRoute,
     limits: &BodyLimits,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, RouteError> {
     let (app, target, cancelled) = route.json_target().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if app != AppId::Codex || request.uri().path() != CHAT_PATH || request.uri().query().is_some() {
-        return Err(StatusCode::NOT_FOUND);
+        return Err(StatusCode::NOT_FOUND.into());
     }
     if request.method() != Method::POST {
-        return Err(StatusCode::METHOD_NOT_ALLOWED);
+        return Err(StatusCode::METHOD_NOT_ALLOWED.into());
     }
     if request.extensions().get::<HeaderWire>().is_some_and(HeaderWire::has_conflicting_framing) {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err(StatusCode::BAD_REQUEST.into());
     }
     body_limits::check_declared_length(request.headers(), MAX_JSON_BYTES)
         .map_err(request_body_status)?;
@@ -58,7 +59,7 @@ pub(super) async fn forward_json(
     let codings = ContentCodings::from_headers(request.headers()).map_err(decode_status)?;
     header_wire::strip_hop_headers(request.headers_mut());
     if !is_content_type(request.headers(), JSON) {
-        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE.into());
     }
     let (mut parts, incoming) = request.into_parts();
     let buffer = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
@@ -77,12 +78,12 @@ pub(super) async fn forward_json(
     let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
     drop(bytes);
     if !body.is_object() {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err(StatusCode::BAD_REQUEST.into());
     }
     let streaming = match body.get("stream") {
         Some(Value::Bool(streaming)) => *streaming,
         None => false,
-        _ => return Err(StatusCode::BAD_REQUEST),
+        _ => return Err(StatusCode::BAD_REQUEST.into()),
     };
 
     // Wait only after the upload so disconnect detection can cancel a queued
@@ -109,15 +110,13 @@ pub(super) async fn forward_json(
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
         let response = timeouts::before(deadline, forward).await??;
-        if !response.status().is_success() {
-            return Err(StatusCode::BAD_GATEWAY);
-        }
+        RouteError::check_upstream(response.status())?;
         let (mut parts, body) = response.into_parts();
         let codings =
             ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
         header_wire::strip_hop_headers(&mut parts.headers);
         if !codings.is_identity() || !is_content_type(&parts.headers, SSE) {
-            return Err(StatusCode::BAD_GATEWAY);
+            return Err(StatusCode::BAD_GATEWAY.into());
         }
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
         let body = timeouts::stream_body(body, deadline, idle, permit).await?;
@@ -137,10 +136,8 @@ pub(super) async fn forward_json(
 async fn buffer_json_response(
     response: Response,
     permit: RequestPermit,
-) -> Result<Response, StatusCode> {
-    if !response.status().is_success() {
-        return Err(StatusCode::BAD_GATEWAY);
-    }
+) -> Result<Response, RouteError> {
+    RouteError::check_upstream(response.status())?;
     let (mut parts, body) = response.into_parts();
     body_limits::check_declared_length(&parts.headers, MAX_JSON_BYTES)
         .map_err(|_| StatusCode::BAD_GATEWAY)?;
@@ -148,7 +145,7 @@ async fn buffer_json_response(
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     header_wire::strip_hop_headers(&mut parts.headers);
     if !is_content_type(&parts.headers, JSON) {
-        return Err(StatusCode::BAD_GATEWAY);
+        return Err(StatusCode::BAD_GATEWAY.into());
     }
     let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
         .await

@@ -1,6 +1,10 @@
 //! Deadlines for the authorized application upstream and its response body.
 
-use super::{body_limits::MAX_JSON_BYTES, capacity::RequestPermit};
+use super::{
+    body_limits::MAX_JSON_BYTES,
+    capacity::RequestPermit,
+    protocol_errors::{Protocol, RouteError},
+};
 use axum::{
     body::{Body, BodyDataStream, Bytes},
     http::StatusCode,
@@ -8,7 +12,7 @@ use axum::{
 use futures_util::{StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{future::Future, io, time::Duration};
+use std::{convert::Infallible, future::Future, time::Duration};
 use tokio::time::{Instant, sleep_until};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -57,37 +61,40 @@ pub(super) async fn stream_body(
     first_byte_deadline: Instant,
     idle: Duration,
     permit: RequestPermit,
-) -> Result<Body, StatusCode> {
+) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver::default();
-    let mut prelude = Vec::new();
-    let activity = before(first_byte_deadline, async {
+    let mut prelude = OutputBatch::default();
+    let mut remaining = MAX_JSON_BYTES;
+    before(first_byte_deadline, async {
         loop {
-            let bytes = stream
-                .next()
-                .await
-                .ok_or(StatusCode::BAD_GATEWAY)?
-                .map_err(|_| StatusCode::BAD_GATEWAY)?;
-            if bytes.len() > MAX_JSON_BYTES - prelude.len() {
-                return Err(StatusCode::BAD_GATEWAY);
+            let bytes = stream.next().await.and_then(Result::ok).ok_or(RouteError::StreamFailed)?;
+            if bytes.len() > remaining {
+                return Err(RouteError::StreamFailed);
             }
-            prelude.extend_from_slice(&bytes);
-            let activity = observer.observe(&bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
-            if activity != Activity::Quiet {
-                return Ok(activity);
+            remaining -= bytes.len();
+            if let Err(error) = observer.observe(&bytes, &mut prelude) {
+                if prelude.activity == Activity::Quiet {
+                    return Err(error);
+                }
+                // Output and the error may arrive together in one TCP read.
+                prelude.append_terminal(error);
+            }
+            if prelude.activity != Activity::Quiet {
+                return Ok(());
             }
         }
     })
     .await??;
     let state = TimedStream {
-        prelude: Some(prelude.into()),
-        upstream: (activity != Activity::End).then_some(stream),
+        prelude: Some(prelude.bytes.into()),
+        upstream: (prelude.activity != Activity::End).then_some(stream),
         observer,
         idle,
         idle_deadline: (!idle.is_zero()).then(|| Instant::now() + idle),
         _permit: permit,
     };
-    Ok(Body::from_stream(stream::try_unfold(state, TimedStream::next)))
+    Ok(Body::from_stream(stream::unfold(state, TimedStream::next)))
 }
 
 struct TimedStream {
@@ -100,43 +107,62 @@ struct TimedStream {
 }
 
 impl TimedStream {
-    async fn next(mut self) -> io::Result<Option<(Bytes, Self)>> {
+    async fn next(mut self) -> Option<(Result<Bytes, Infallible>, Self)> {
         if let Some(bytes) = self.prelude.take() {
-            return Ok(Some((bytes, self)));
+            return Some((Ok(bytes), self));
         }
-        let Some(upstream) = self.upstream.as_mut() else {
-            return Ok(None);
-        };
-        let chunk = match self.idle_deadline {
-            Some(deadline) => before(deadline, upstream.next()).await.map_err(|_| {
-                io::Error::new(io::ErrorKind::TimedOut, "upstream stream idle timeout")
-            })?,
-            None => upstream.next().await,
-        };
-        let Some(chunk) = chunk else {
-            return Ok(None);
-        };
-        let bytes = chunk.map_err(|_| io::Error::other("upstream stream failed"))?;
-        match self.observer.observe(&bytes)? {
-            Activity::Output if !self.idle.is_zero() => {
-                self.idle_deadline = Some(Instant::now() + self.idle);
+        loop {
+            let upstream = self.upstream.as_mut()?;
+            let chunk = match self.idle_deadline {
+                Some(deadline) => before(deadline, upstream.next()).await,
+                None => Ok(upstream.next().await),
+            };
+            let mut batch = OutputBatch::default();
+            let result = match chunk {
+                Ok(Some(Ok(bytes))) => self.observer.observe(&bytes, &mut batch),
+                Ok(_) => Err(RouteError::StreamFailed),
+                Err(status) => Err(status.into()),
+            };
+            if let Err(error) = result {
+                batch.append_terminal(error);
             }
-            Activity::End => self.upstream = None,
-            _ => {}
+            match batch.activity {
+                Activity::Output if !self.idle.is_zero() => {
+                    self.idle_deadline = Some(Instant::now() + self.idle);
+                }
+                Activity::End => self.upstream = None,
+                _ => {}
+            }
+            if !batch.bytes.is_empty() {
+                return Some((Ok(batch.bytes.into()), self));
+            }
         }
-        Ok(Some((bytes, self)))
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Activity {
+    #[default]
     Quiet,
     Output,
     End,
 }
 
-/// Inspect complete SSE frames without rewriting any relayed bytes. The
-/// unfinished frame is bounded separately from the prelude.
+#[derive(Default)]
+struct OutputBatch {
+    bytes: Vec<u8>,
+    activity: Activity,
+}
+
+impl OutputBatch {
+    fn append_terminal(&mut self, error: RouteError) {
+        self.bytes.extend_from_slice(Protocol::Chat.terminal(error, 0).as_bytes());
+        self.activity = Activity::End;
+    }
+}
+
+/// Hold incomplete frames until they can be classified. Only complete success
+/// and metadata frames are relayed verbatim, in their original order.
 #[derive(Default)]
 struct OutputObserver {
     frame: Vec<u8>,
@@ -144,40 +170,44 @@ struct OutputObserver {
 }
 
 impl OutputObserver {
-    fn observe(&mut self, bytes: &[u8]) -> io::Result<Activity> {
-        let mut activity = Activity::Quiet;
+    fn observe(&mut self, bytes: &[u8], batch: &mut OutputBatch) -> Result<(), RouteError> {
         for fragment in bytes.split_inclusive(|byte| *byte == b'\n') {
             if fragment.len() > MAX_JSON_BYTES - self.frame.len() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "upstream SSE frame too large",
-                ));
+                return Err(RouteError::StreamFailed);
             }
             self.frame.extend_from_slice(fragment);
             if fragment.last() != Some(&b'\n') {
                 continue;
             }
             if matches!(self.frame[self.line_start..], [b'\n'] | [b'\r', b'\n']) {
-                match frame_activity(&self.frame)? {
-                    Activity::Quiet => {}
-                    Activity::Output => activity = Activity::Output,
-                    Activity::End => return Ok(Activity::End),
-                }
+                let activity = frame_activity(&self.frame)?;
+                batch.bytes.extend_from_slice(&self.frame);
                 self.frame.clear();
+                if activity != Activity::Quiet {
+                    batch.activity = activity;
+                }
+                if activity == Activity::End {
+                    return Ok(());
+                }
             }
             self.line_start = self.frame.len();
         }
-        Ok(activity)
+        Ok(())
     }
 }
 
-fn frame_activity(frame: &[u8]) -> io::Result<Activity> {
-    let frame = std::str::from_utf8(frame).map_err(|_| {
-        io::Error::new(io::ErrorKind::InvalidData, "upstream SSE frame is not UTF-8")
-    })?;
+fn frame_activity(frame: &[u8]) -> Result<Activity, RouteError> {
+    // The relay accepts LF and CRLF. Reject bare CR to avoid classifying a
+    // frame differently from clients that also recognize CR as a delimiter.
+    let frame = std::str::from_utf8(frame)
+        .map_err(|_| RouteError::StreamFailed)?
+        .trim_start_matches('\u{feff}');
+    if frame.lines().any(|line| line.contains('\r')) {
+        return Err(RouteError::StreamFailed);
+    }
     let event = frame.lines().rev().find_map(|line| sse_field(line, "event"));
-    if event.is_some_and(is_metadata) {
-        return Ok(Activity::Quiet);
+    if event.is_some_and(|event| is_error_event(event.trim_ascii())) {
+        return Err(RouteError::StreamFailed);
     }
 
     let mut data = frame.lines().filter_map(|line| sse_field(line, "data"));
@@ -196,10 +226,18 @@ fn frame_activity(frame: &[u8]) -> io::Result<Activity> {
     if payload == "[DONE]" {
         return Ok(Activity::End);
     }
-    let Ok(value) = serde_json::from_str::<Value>(payload) else {
-        return Ok(Activity::Quiet);
-    };
-    if value["type"].as_str().is_some_and(is_metadata) {
+    let value = serde_json::from_str::<Value>(payload).map_err(|_| RouteError::StreamFailed)?;
+    if value["type"].as_str().is_some_and(is_error_event)
+        || value.get("error").is_some_and(|error| match error {
+            Value::Null | Value::Bool(false) => false,
+            Value::String(message) => !message.is_empty(),
+            Value::Object(fields) => !fields.is_empty(),
+            _ => true,
+        })
+    {
+        return Err(RouteError::StreamFailed);
+    }
+    if event.is_some_and(is_metadata) || value["type"].as_str().is_some_and(is_metadata) {
         return Ok(Activity::Quiet);
     }
     // A role-only or usage-only Chat chunk can precede actual model output.
@@ -222,6 +260,10 @@ fn frame_activity(frame: &[u8]) -> io::Result<Activity> {
 fn sse_field<'a>(line: &'a str, name: &str) -> Option<&'a str> {
     let (field, value) = line.split_once(':').unwrap_or((line, ""));
     (field == name).then(|| value.strip_prefix(' ').unwrap_or(value))
+}
+
+fn is_error_event(event: &str) -> bool {
+    event.eq_ignore_ascii_case("error") || event == "response.failed"
 }
 
 fn is_metadata(event: &str) -> bool {

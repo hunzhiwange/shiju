@@ -166,7 +166,12 @@ async fn cc_route_019_decode_response_expected_behavior() {
                     assert_eq!(response.bytes().await.unwrap(), JSON, "{context}");
                 } else {
                     assert_eq!(response.status(), StatusCode::BAD_GATEWAY, "{context}");
-                    assert!(response.bytes().await.unwrap().is_empty(), "{context}");
+                    assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
+                    assert!(!response.headers().contains_key(header::CONTENT_ENCODING));
+                    let body = response.text().await.unwrap();
+                    assert!(!body.contains("private error"), "{context}");
+                    let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+                    assert_eq!(body["error"]["code"], "upstream_error", "{context}");
                 }
             }
             assert!(cases.lock().is_empty());

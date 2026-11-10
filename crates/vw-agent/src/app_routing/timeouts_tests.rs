@@ -1,6 +1,6 @@
 use super::{
     RoutingListener, SharedTransport,
-    config_apply::{AppTimeouts, RoutingConfigStore},
+    config_apply::{AppTimeouts, ListenerConfig, RoutingConfigStore},
     dispatch::JsonTarget,
     route_auth::VerifiedRouteBinding,
 };
@@ -25,28 +25,40 @@ use vw_api_types::{
     id::{ProjectScope, TenantScope},
 };
 
-const GUARD: Duration = Duration::from_secs(4);
-const STREAM_HEAD: &[u8] =
+pub(super) const GUARD: Duration = Duration::from_secs(4);
+pub(super) const STREAM_HEAD: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n";
 const HEARTBEAT: &[u8] =
     b": keepalive\r\n\r\nevent: ping\r\ndata: {}\r\n\r\ndata: {\"type\":\"heartbeat\"}\n\n";
 
-struct Fixture {
-    listener: RoutingListener,
-    address: SocketAddr,
-    token: String,
-    upstream: TcpListener,
+pub(super) struct Fixture {
+    pub(super) listener: RoutingListener,
+    pub(super) address: SocketAddr,
+    pub(super) token: String,
+    pub(super) upstream: TcpListener,
     store: RoutingConfigStore,
     project: ProjectScope,
 }
 
 impl Fixture {
-    async fn start() -> Self {
+    pub(super) async fn start() -> Self {
+        Self::start_with_logging(false).await
+    }
+
+    pub(super) async fn start_with_logging(logging_enabled: bool) -> Self {
         let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let listener = RoutingListener::default();
-        let address = listener.start(0).unwrap();
+        let address = listener
+            .start_configured(ListenerConfig {
+                enabled: true,
+                bind: ([127, 0, 0, 1], 0).into(),
+                logging_enabled,
+            })
+            .unwrap();
         let tenant = TenantScope::new("platform", "company").unwrap();
-        let project = ProjectScope::new(tenant.clone(), "project".into()).unwrap();
+        let project =
+            ProjectScope::new(tenant.clone(), format!("route-{}", uuid::Uuid::new_v4()).into())
+                .unwrap();
         let database = GlobalDatabase::for_home(&crate::global::paths().home).unwrap();
         let store = RoutingConfigStore::new(database, tenant, "host".into()).unwrap();
         let token = listener
@@ -72,11 +84,11 @@ impl Fixture {
         Self { listener, address, token, upstream, store, project }
     }
 
-    fn save(&self, timeouts: AppTimeouts) {
+    pub(super) fn save(&self, timeouts: AppTimeouts) {
         self.store.save_app_timeouts(&self.project, AppId::Codex, timeouts).unwrap();
     }
 
-    fn request(&self, stream: bool, ordered: bool) -> JoinHandle<Response<Incoming>> {
+    pub(super) fn request(&self, stream: bool, ordered: bool) -> JoinHandle<Response<Incoming>> {
         let address = self.address;
         let mut request = Request::post("/v1/chat/completions")
             .header(header::HOST, address.to_string())
@@ -98,7 +110,7 @@ impl Fixture {
         })
     }
 
-    async fn upstream_request(&self, stream: bool) -> BufReader<TcpStream> {
+    pub(super) async fn upstream_request(&self, stream: bool) -> BufReader<TcpStream> {
         timeout(Duration::from_secs(3), async {
             let (socket, _) = self.upstream.accept().await.unwrap();
             let mut socket = BufReader::new(socket);
@@ -172,7 +184,10 @@ async fn cc_route_021_timeouts_expected_behavior() {
     fixture.listener.stop().await.unwrap();
 }
 
-async fn chunk(upstream: &mut BufReader<TcpStream>, bytes: &[u8]) -> std::io::Result<()> {
+pub(super) async fn chunk(
+    upstream: &mut BufReader<TcpStream>,
+    bytes: &[u8],
+) -> std::io::Result<()> {
     upstream.write_all(format!("{:x}\r\n", bytes.len()).as_bytes()).await?;
     upstream.write_all(bytes).await?;
     upstream.write_all(b"\r\n").await
@@ -254,13 +269,12 @@ async fn cc_route_021_stream_heartbeats_do_not_extend_idle_after_output() {
     chunk(&mut upstream, HEARTBEAT).await.unwrap();
     assert!(timeout(GUARD, stream.next()).await.unwrap().unwrap().is_ok());
     with_heartbeats(&mut upstream, async {
-        loop {
-            match stream.next().await {
-                Some(Ok(_)) => {}
-                Some(Err(_)) => break,
-                None => panic!("idle timeout was reported as a clean EOF"),
-            }
+        let mut terminal = false;
+        while let Some(bytes) = stream.next().await {
+            let bytes = bytes.unwrap();
+            terminal |= String::from_utf8_lossy(&bytes).contains("upstream_timeout");
         }
+        assert!(terminal, "idle timeout was reported as a clean EOF");
     })
     .await;
     assert_upstream_closed(&mut upstream).await;

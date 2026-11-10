@@ -3,10 +3,10 @@
 use super::{
     body_limits::BodyLimits,
     dispatch,
+    protocol_errors::Protocol,
     route_auth::{self, RouteAuth},
     shutdown,
 };
-use axum::response::IntoResponse;
 use parking_lot::Mutex;
 use std::{
     future::Future,
@@ -346,9 +346,10 @@ async fn serve_http(
             if logging {
                 tracing::info!("Authorized application routing request");
             }
+            let protocol = Protocol::for_path(request.uri().path());
             dispatch::forward_json(request, &route, &body_limits)
                 .await
-                .unwrap_or_else(IntoResponse::into_response)
+                .unwrap_or_else(|error| error.response(protocol))
         }
     })
     .await;

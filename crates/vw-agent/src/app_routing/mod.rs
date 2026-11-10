@@ -11,6 +11,7 @@ pub(crate) mod gateway_owner;
 mod header_wire;
 mod listener;
 mod override_apply;
+mod protocol_errors;
 pub(crate) mod reference_scope;
 mod route_auth;
 mod shared_transport;
@@ -50,3 +51,6 @@ mod cancellation_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod capacity_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod protocol_errors_tests;

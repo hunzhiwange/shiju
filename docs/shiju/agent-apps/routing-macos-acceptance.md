@@ -588,3 +588,29 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | — | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
 
 测试链接器报告既有 macOS `__eh_frame` 大小警告。本项占用的槽位锁均已释放，编译缓存保留。状态为 **已完成**。
+
+## 任务 24　统一协议错误边界
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 23 的 `e9bb64853`。核对 CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/error.rs`、`error_mapper.rs` 和 `handlers.rs`。固定 Git 对象、仓库快照与来源映射的 SHA256 均匹配。检查了来源路由注册、HTTP 错误映射及 Codex 413 和 SSE 失败用例。沿用母任务 2、3 的网关运行时、执行主机授权及应用标识。母任务 4、6 提供原生配置事务与上游账号租约契约。
+
+- `app_routing::protocol_errors` 由数据面监听器的鉴权和分发共用。Messages 使用 `type: error`，Responses 和 Chat 使用 OpenAI 的 `error` 对象，Gemini 使用数字 `code` 与规范 `status`。按路径选择封装。四种协议均通过真实监听入口验证本地 401。已接通的 Chat 路径用不同固定代码与消息区分本地 413、上游 413、上游 401 和上游超时。其余上游失败沿用 502。错误回复仅由状态和错误来源构造。 [Claude API 错误](https://platform.claude.com/docs/en/api/errors) · [OpenAI API 错误](https://developers.openai.com/api/docs/guides/error-codes) · [Gemini GenerateContent 错误](https://ai.google.dev/gemini-api/docs/generate-content/api-errors)
+- Chat 流首包提交前的失败返回 HTTP JSON。已输出后保留原 HTTP 状态，空闲超时、上游断开或错误事件返回一个脱敏错误终帧后结束。仅转发完整的正常帧，分片错误正文不进入响应或路由日志，正常 `[DONE]` 仍结束流。其他三种协议验证终帧序列化，原生上游联验归任务 35–37。Responses 终帧采用 Codex 可识别的 `response.failed`。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。 [Claude SSE](https://platform.claude.com/docs/en/build-with-claude/streaming) · [OpenAI Responses SSE](https://developers.openai.com/api/reference/resources/responses/streaming-events) · [Codex 流解析](https://github.com/openai/codex/blob/main/codex-rs/codex-api/src/sse/responses.rs)
+
+### 验证记录
+
+共享槽位 **3** 用于首次红灯构建，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。槽位 **2** 用于行为红灯、绿灯与回归，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。各阶段的 `CARGO_BUILD_BUILD_DIR` 同目标路径。回环测试使用独立临时 home。
+
+| 阶段 | 槽位 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- | --- |
+| 首次红灯构建 | 3 | `cargo test -p vw-agent --lib cc_route_024_ -- --nocapture` | 退出 101，0 项。并行的高可用测试中 `AppProviderStore::new(db)?` 导致 E0277。该处修复后复跑。 |
+| 行为红灯 | 2 | `cargo test -p vw-agent --lib cc_route_024_ -- --nocapture` | 退出 101，3 项失败。401 缺少 JSON 类型，上游 413 变为 502，SSE 空闲超时导致 HTTP 分块截断。 |
+| 全仓格式化 | 3、2 | `cargo fmt --all -- --emit stdout` | 退出 0。工作区只用 `rustfmt --edition 2024 --config skip_children=true` 格式化本项 Rust 文件。 |
+| 绿灯 | 2 | `cargo test -p vw-agent --lib cc_route_024_ -- --nocapture` | 退出 0，5 项通过，0 项失败或忽略。 |
+| 首轮相邻回归 | 2 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_008_ cc_route_009_ cc_route_014_ cc_route_015_ cc_route_016_ cc_route_017_ cc_route_018_ cc_route_019_ cc_route_020_ cc_route_021_ cc_route_022_ cc_route_023_ cc_route_024_ --test-threads=1 --nocapture` | 退出 101，33 项通过，1 项失败。任务 19 的旧断言要求 502 正文为空。更新断言以校验 502 脱敏 JSON、上游正文及编码头隔离。 |
+| 聚焦复测 | 2 | `cargo test -p vw-agent --lib cc_route_024_ -- --nocapture` | 退出 0，5 项通过，0 项失败或忽略。 |
+| 最终相邻回归 | 2 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-bbcd40fe2bf49e0c" cc_route_008_ cc_route_009_ cc_route_014_ cc_route_015_ cc_route_016_ cc_route_017_ cc_route_018_ cc_route_019_ cc_route_020_ cc_route_021_ cc_route_022_ cc_route_023_ cc_route_024_ --test-threads=1 --nocapture` | 退出 0，34 项通过，0 项失败或忽略。 |
+| SDK 回归 | 2 | `cargo test -p vw-gateway-client --lib inference_and_stream_clients_preserve_protocol_events -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。 |
+| 全仓 Clippy | 2 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | — | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读计划无差异。 |
+
+测试链接时报告既有 macOS `__eh_frame` 大小警告。本项的槽位锁已释放，构建缓存保留。状态为 **已完成**。

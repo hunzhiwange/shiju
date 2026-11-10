@@ -22,6 +22,8 @@ exclude = [
 resolver = "3"
 
 [profile.dev]
+# Keep macOS development binaries within the compact unwind offset limit.
+opt-level = 1
 debug = "line-tables-only"
 
 [profile.test]

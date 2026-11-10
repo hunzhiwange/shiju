@@ -201,7 +201,7 @@ fn desktop_model(
     }
 }
 
-fn is_reserved(model: &str) -> bool {
+pub(crate) fn is_reserved(model: &str) -> bool {
     let lower = model.to_ascii_lowercase();
     let normalized = lower.strip_prefix("anthropic/").unwrap_or(&lower);
     !matches!(decode(ClaudeDesktop, normalized), Ok(Decoded::Plain))

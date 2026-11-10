@@ -50,3 +50,8 @@ pub mod claude_catalog;
 
 #[cfg(test)]
 mod claude_catalog_tests;
+
+pub mod resolve;
+
+#[cfg(test)]
+mod resolve_tests;

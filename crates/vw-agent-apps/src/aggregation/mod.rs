@@ -45,6 +45,11 @@ pub mod codex_catalog;
 #[cfg(test)]
 mod codex_catalog_tests;
 
+pub mod codex_subagent;
+
+#[cfg(test)]
+mod codex_subagent_tests;
+
 #[cfg(target_os = "macos")]
 pub mod omo_slim;
 

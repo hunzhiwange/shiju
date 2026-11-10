@@ -429,3 +429,24 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
 
 红、绿测试链接均报告既有 macOS `__eh_frame` 大小警告。可选的 `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` 因集成分支并行更新触发重复编译而被中止，执行 0 项。该阶段退出 130，随后使用同一绿灯二进制完成上述回归。状态为 **已完成**。
+
+## 任务 16　原生校验并发送 User-Agent
+
+2026-11-10，macOS 27.0（26A428），arm64。直接依赖任务 15 的 `44972f56c`。已核对 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `userAgent.ts`、`userAgent.test.ts` 和 `proxy/forwarder.rs`。三份文件与仓库快照逐字节一致，SHA256 匹配来源映射。查阅了来源表单、`ProviderMeta::custom_user_agent_header`、转发器 UA 选择及相邻头部覆盖测试。沿用母任务 2、3 的项目与执行主机授权和应用标识，复用母任务 4 的请求选项契约，原生配置写入和账号租约由其原有执行端负责。
+
+- 通过现有 `localProxyRequestOverrides.headers` 的 `User-Agent` 键配置路由 UA。沿用 `GatewayClient::app_provider_request_options_save` 及 `PUT /v1/app-providers/{app}/{id}/request-options`，摘要由现有 read 接口返回。没有新增字段、端点或存储。解析器 `providers::validation::custom_user_agent` 由保存、摘要、路由和模型发现共用。
+- 保存省略空白 UA，旧档案中的空白值在摘要及执行时同样视为未设置。剥除边缘合法空白，保留内部 TAB 与合法 UTF-8 字节。拒绝 ASCII 控制字符（TAB 除外），包括边缘 CR/LF。沿用 8192 字节限制及脱敏错误。新选项非法时复用发布前校验。
+- `RoutingListener` → `RouteAuth` → `dispatch::forward_json/prepare_request` → `override_apply::apply` → `SharedTransport`。任务 15 的授权绑定携带保存的请求选项。macOS 回环夹具通过相同的监听器、授权和传输捕获上游实际收到的请求，检查合法 UA 按字节发送一次，以及旧空白值不生成头。生产授权签发、客户端头部保留及账号指纹路径分别由对应后续任务验收。Windows、Linux、WSL 范围外且未验证，WSL 地址保留在来源映射。
+
+红灯和绿灯阶段动态领取共享槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR` 与之相同。格式化从 stdout 仅写回本项文件。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all -- --emit stdout` | 红、绿阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent-apps --lib cc_route_016_ -- --nocapture` | 退出 101，1 项执行、1 项失败。空白 UA 被摘要标为已配置。 |
+| 绿灯 | `cargo test -p vw-agent-apps --lib cc_route_016_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。 |
+| 上游回环 | `cargo test -p vw-agent --lib cc_route_016_ -- --nocapture` | 退出 0，1 项通过，0 项失败或忽略。链接报告既有 macOS `__eh_frame` 大小警告。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 退出 0。 |
+| 差异审查 | `git diff --cached --check`（本项暂存差异） | 退出 0。 |
+
+槽位锁已释放，缓存保留。状态为 **已完成**。

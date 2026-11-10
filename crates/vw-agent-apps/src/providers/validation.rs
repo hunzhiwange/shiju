@@ -1,5 +1,5 @@
 //! Common write validation. Errors contain no request data, paths or upstream parser details.
-use reqwest::header::{HeaderName, HeaderValue};
+use reqwest::header::{HeaderName, HeaderValue, USER_AGENT};
 use std::collections::BTreeMap;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 const PROTECTED: &[&str] = &[
@@ -81,6 +81,18 @@ pub(crate) fn header_value(value: &str) -> Result<HeaderValue, &'static str> {
     HeaderValue::from_bytes(value.as_bytes()).map_err(|_| "invalid provider request header value")
 }
 
+/// Resolve only an explicitly supplied value. An absent or blank value leaves the request alone.
+pub fn custom_user_agent(value: Option<&str>) -> Result<Option<HeaderValue>, &'static str> {
+    // Keep illegal control characters at the edges so the header parser can reject them.
+    let value = value.map(|value| {
+        value.trim_matches(|c: char| c.is_whitespace() && (!c.is_ascii_control() || c == '\t'))
+    });
+    value
+        .filter(|value| !value.is_empty())
+        .map(|value| header_value(value).map_err(|_| "invalid custom User-Agent"))
+        .transpose()
+}
+
 fn headers(input: &BTreeMap<String, String>, proxy: bool) -> Result<(), String> {
     let mut seen = std::collections::BTreeSet::new();
     if input.len() > 64 {
@@ -154,11 +166,17 @@ pub fn merge(
     }
     if let Some(overrides) = &mut result.local_proxy_request_overrides {
         // Keep an explicit clear as {}, without persisting empty override members.
-        overrides.headers = overrides.headers.take().filter(|values| !values.is_empty());
         overrides.body = overrides.body.take().filter(|body| !body.is_empty());
         if let Some(values) = &mut overrides.headers {
             normalize(values);
+            let name = USER_AGENT.as_str();
+            if let Some(value) = values.get(name)
+                && custom_user_agent(Some(value))?.is_none()
+            {
+                values.remove(name);
+            }
         }
+        overrides.headers = overrides.headers.take().filter(|values| !values.is_empty());
     }
     Ok(result)
 }

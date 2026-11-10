@@ -1,6 +1,7 @@
 //! Per-provider edits to the converted upstream request.
-use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use serde_json::{Map, Value};
+use vw_agent_apps::providers::validation::custom_user_agent;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::app_providers::validation::ProviderRequestOverrides;
 
@@ -20,10 +21,18 @@ pub(super) fn apply(
         for (name, value) in values {
             let name = HeaderName::from_bytes(name.trim().as_bytes())
                 .map_err(|_| StatusCode::BAD_GATEWAY)?;
-            let mut value =
-                HeaderValue::from_bytes(value.as_bytes()).map_err(|_| StatusCode::BAD_GATEWAY)?;
-            value.set_sensitive(true);
-            headers.insert(name, value);
+            let value = if name == header::USER_AGENT {
+                custom_user_agent(Some(value)).map_err(|_| StatusCode::BAD_GATEWAY)?
+            } else {
+                Some(
+                    HeaderValue::from_bytes(value.as_bytes())
+                        .map_err(|_| StatusCode::BAD_GATEWAY)?,
+                )
+            };
+            if let Some(mut value) = value {
+                value.set_sensitive(true);
+                headers.insert(name, value);
+            }
         }
     }
     Ok(())

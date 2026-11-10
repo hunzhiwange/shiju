@@ -186,3 +186,55 @@ fn cc_route_015_rejects_unsafe_options_without_rotating_the_active_route() {
     headers.insert("x-api-key", active.token.parse().unwrap());
     assert!(listener.auth.authorize(&headers).is_some());
 }
+
+#[tokio::test]
+async fn cc_route_016_user_agent_reaches_authorized_upstream() {
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/fixture", upstream.local_addr().unwrap());
+    let (requests, mut received) = mpsc::unbounded_channel();
+    let app = Router::new().route(
+        "/fixture",
+        post(move |headers: HeaderMap| async move {
+            requests.send(headers).unwrap();
+            Json(json!({"id": "fixture"}))
+        }),
+    );
+    let server = tokio::spawn(async move { axum::serve(upstream, app).await.unwrap() });
+    let listener = RoutingListener::default();
+    let chat = format!("http://{}/v1/chat/completions", listener.start(0).unwrap());
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+
+    for (raw, expected) in [
+        ("\u{3000}\t ", None),
+        ("\u{3000}fixture/1.0\t中文\u{3000}", Some("fixture/1.0\t中文".as_bytes())),
+    ] {
+        // Exercise already persisted request options, including legacy blank values.
+        let row = json!({
+            "codex": {},
+            "requestOptions": {
+                "localProxyRequestOverrides": {"headers": {" User-Agent ": raw}},
+            },
+        });
+        let options = request_options::read(AppId::Codex, &row).unwrap();
+        let grant = listener
+            .auth
+            .issue_with_target(binding(), Some(target(&url, "Bearer fixture", options)))
+            .unwrap();
+        let mut request =
+            client.post(&chat).header("x-api-key", grant.token).json(&json!({"model": "fixture"}));
+        if expected.is_some() {
+            request = request.header(header::USER_AGENT, "incoming-fixture");
+        }
+        let response = request.send().await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let headers = timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
+        let mut values = headers.get_all(header::USER_AGENT).iter();
+        assert_eq!(values.next().map(|value| value.as_bytes()), expected);
+        assert!(values.next().is_none());
+    }
+
+    listener.stop().await.unwrap();
+    server.abort();
+    assert!(server.await.unwrap_err().is_cancelled());
+}

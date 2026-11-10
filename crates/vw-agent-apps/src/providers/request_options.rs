@@ -1,4 +1,6 @@
 //! Native catalog options. This operation never projects headers or starts a proxy.
+use super::validation::custom_user_agent;
+use reqwest::header::USER_AGENT;
 use serde_json::Value;
 use vw_api_types::{
     agent_apps::AppId,
@@ -26,8 +28,12 @@ pub fn view(app: AppId, row: &Value) -> Result<RequestOptionsView, String> {
     Ok(RequestOptionsView {
         headers_configured: options.request_headers.as_ref().is_some_and(|v| !v.is_empty()),
         overrides_configured: options.local_proxy_request_overrides.as_ref().is_some_and(|v| {
-            v.headers.as_ref().is_some_and(|v| !v.is_empty())
-                || v.body.as_ref().is_some_and(|v| !v.is_empty())
+            v.headers.as_ref().is_some_and(|headers| {
+                headers.iter().any(|(name, value)| {
+                    !name.trim().eq_ignore_ascii_case(USER_AGENT.as_str())
+                        || matches!(custom_user_agent(Some(value)), Ok(Some(_)))
+                })
+            }) || v.body.as_ref().is_some_and(|v| !v.is_empty())
         }),
         application: RequestOptionsApplication::NotApplied,
     })

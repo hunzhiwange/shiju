@@ -1,3 +1,8 @@
+pub mod model_ids;
+
+#[cfg(test)]
+mod model_ids_tests;
+
 pub mod codex_review;
 
 #[cfg(test)]

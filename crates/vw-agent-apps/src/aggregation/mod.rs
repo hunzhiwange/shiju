@@ -12,3 +12,8 @@ pub mod member_keys;
 
 #[cfg(all(test, target_os = "macos"))]
 mod member_keys_tests;
+
+pub mod codex_classic;
+
+#[cfg(test)]
+mod codex_classic_tests;

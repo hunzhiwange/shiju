@@ -5146,6 +5146,8 @@
   "无法在文件管理器中显示：文件不存在 %s": "Cannot reveal file: file does not exist %s",
   "无法确定文件所在目录：%s": "Cannot determine containing directory: %s",
   "无法在文件管理器中显示 %s：%s": "Cannot reveal %s: %s",
+  "无法打开路径 %s：%s": "Cannot open path %s: %s",
+  "无法确定本地路径的绝对位置": "Cannot resolve the absolute local path",
   "纯文本": "Plain text",
   "不支持展开该文件：%s 文件无法打开": "Cannot open this file: %s files are not supported",
   "不支持展开该文件：二进制文件无法打开": "Cannot open this file: binary files are not supported",

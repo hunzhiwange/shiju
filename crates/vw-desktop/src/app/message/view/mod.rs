@@ -564,6 +564,12 @@ pub enum ViewMessage {
     UsageTurnStepRawOpen(String, u32),
     /// 关闭使用量步骤原始记录弹窗
     UsageStepRawClose,
+    /// 打开聊天中点击的绝对路径。
+    OpenChatPath(String),
+    ChatPathKindResolved {
+        path: String,
+        result: Result<vw_gateway_client::vw_api_types::file::FileNodeKind, String>,
+    },
     /// 在系统文件管理器中打开指定路径
     ///
     /// # 参数
@@ -907,6 +913,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::UsageStepRawOpen(_)
         | ViewMessage::UsageTurnStepRawOpen(_, _)
         | ViewMessage::UsageStepRawClose
+        | ViewMessage::OpenChatPath(_)
+        | ViewMessage::ChatPathKindResolved { .. }
         | ViewMessage::OpenPathInFinder(_)
         | ViewMessage::PathRevealFinished { .. }
         | ViewMessage::OpenProjectInExternalPreferred

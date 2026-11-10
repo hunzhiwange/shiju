@@ -4,8 +4,10 @@
 //! 不改变任何运行时行为。
 
 use super::ViewMessage;
+use crate::app::message::PreviewMessage;
 use crate::app::{App, Message, state::ExternalOpenApp};
 use iced::Task;
+use vw_gateway_client::vw_api_types::file::FileNodeKind;
 
 /// 执行 update 对应的领域操作。
 ///
@@ -13,6 +15,35 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        ViewMessage::OpenChatPath(path) => Task::perform(
+            async move {
+                let result = match crate::app::gateway_client() {
+                    Ok(client) => client.desktop_external_path_kind(&path).await,
+                    Err(error) => Err(error),
+                };
+                ViewMessage::ChatPathKindResolved { path, result }
+            },
+            Message::View,
+        ),
+        ViewMessage::ChatPathKindResolved { path, result } => match result {
+            Ok(FileNodeKind::File) => Task::done(Message::Preview(PreviewMessage::Open(path))),
+            Ok(FileNodeKind::Directory) => {
+                // Preserve literal percent signs when the reveal endpoint decodes the URL.
+                match reqwest::Url::from_file_path(&path) {
+                    Ok(url) => Task::done(Message::View(ViewMessage::OpenPathInFinder(url.into()))),
+                    Err(()) => app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "无法确定本地路径的绝对位置",
+                        vec![],
+                    ),
+                }
+            }
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "无法打开路径 %s：%s",
+                vec![path.into(), error.into()],
+            ),
+        },
         ViewMessage::OpenPathInFinder(path) => Task::perform(
             async move {
                 let result =

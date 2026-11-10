@@ -127,12 +127,13 @@ pub(super) fn link_click_message(target: LinkTarget, workspace: Option<&str>) ->
             } else {
                 workspace.map(|root| Path::new(root).join(&path))
             };
-            // The existing file-manager endpoint decodes file URLs. Serialize here so literal
-            // percent signs, whitespace, and Unicode survive the gateway round trip.
-            if let Some(url) = absolute.and_then(|path| Url::from_file_path(path).ok()) {
-                Message::View(ViewMessage::OpenPathInFinder(url.into()))
+            if let Some(absolute) = absolute
+                && absolute.is_absolute()
+                && let Ok(absolute) = absolute.into_os_string().into_string()
+            {
+                Message::View(ViewMessage::OpenChatPath(absolute))
             } else {
-                Message::View(ViewMessage::PathRevealFinished {
+                Message::View(ViewMessage::ChatPathKindResolved {
                     path,
                     result: Err("无法确定本地路径的绝对位置".to_owned()),
                 })

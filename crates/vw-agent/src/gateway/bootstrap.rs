@@ -780,6 +780,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/desktop/skills/delete", "delete desktop skill"),
         client_route("GET", "/v1/desktop/external-apps", "external apps"),
         client_route("POST", "/v1/desktop/external-apps/open", "open external app"),
+        client_route("POST", "/v1/desktop/external-path/kind", "classify external path"),
         client_route("POST", "/v1/desktop/external-path/reveal", "reveal external path"),
         client_route("POST", "/v1/desktop/service/{command}", "desktop service command"),
         client_route("GET", "/v1/desktop/project-preferences", "desktop project preferences"),

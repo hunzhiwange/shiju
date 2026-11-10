@@ -181,7 +181,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WebBookmarkEditCancel
         | ViewMessage::WebBookmarkRemove(_) => web::update(app, message),
 
-        ViewMessage::OpenPathInFinder(_)
+        ViewMessage::OpenChatPath(_)
+        | ViewMessage::ChatPathKindResolved { .. }
+        | ViewMessage::OpenPathInFinder(_)
         | ViewMessage::PathRevealFinished { .. }
         | ViewMessage::OpenProjectInExternalPreferred
         | ViewMessage::OpenProjectInExternalWith(_)

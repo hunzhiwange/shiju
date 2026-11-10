@@ -140,6 +140,36 @@ fn finder_open_schedules_reveal_without_polling_gateway() {
     assert!(has_scheduled_action(task));
 }
 
+#[cfg(unix)]
+#[test]
+fn chat_paths_open_files_in_preview_and_reveal_directories() {
+    use super::{FileNodeKind, PreviewMessage, ViewMessage};
+    use crate::app::Message;
+    use iced::futures::{StreamExt, executor::block_on};
+    use iced_runtime::Action;
+
+    let mut app = new_app();
+    let mut open = |path: &str, kind| {
+        let task = super::update(
+            &mut app,
+            ViewMessage::ChatPathKindResolved { path: path.to_owned(), result: Ok(kind) },
+        );
+        let mut actions = iced_runtime::task::into_stream(task).expect("open action");
+        block_on(actions.next())
+    };
+    for file in ["/repo/main.js", "/repo/index.php", "/repo/Makefile"] {
+        assert!(matches!(
+            open(file, FileNodeKind::File),
+            Some(Action::Output(Message::Preview(PreviewMessage::Open(path)))) if path == file
+        ));
+    }
+    assert!(matches!(
+        open("/repo/project 100%.js", FileNodeKind::Directory),
+        Some(Action::Output(Message::View(ViewMessage::OpenPathInFinder(url))))
+            if url == "file:///repo/project%20100%25.js"
+    ));
+}
+
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]

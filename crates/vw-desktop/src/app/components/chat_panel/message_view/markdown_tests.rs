@@ -720,13 +720,13 @@ fn markdown_renders_padded_inline_code_in_both_themes() {
 
 #[cfg(unix)]
 #[test]
-fn markdown_file_link_click_uses_the_finder_action_and_workspace() {
+fn markdown_file_link_click_resolves_the_workspace_path() {
     use iced::advanced::clipboard;
     use iced::advanced::renderer::Headless;
     use iced::{Event, Font, Point, Renderer, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
 
-    let blocks = parse_markdown_blocks("[Open](<./a%20b%25.rs#L3>)");
+    let blocks = parse_markdown_blocks("[Open](<./a%20b%25.js#L3>)");
     let theme = Theme::Light;
     let view = super::markdown_rich::inline_view(
         &blocks[0].inline,
@@ -759,7 +759,7 @@ fn markdown_file_link_click_uses_the_finder_action_and_workspace() {
 
     assert!(matches!(
         messages.as_slice(),
-        [Message::View(ViewMessage::OpenPathInFinder(url))]
-            if url == "file:///workspace/session/a%20b%25.rs"
+        [Message::View(ViewMessage::OpenChatPath(path))]
+            if std::path::Path::new(path) == std::path::Path::new("/workspace/session/a b%.js")
     ));
 }

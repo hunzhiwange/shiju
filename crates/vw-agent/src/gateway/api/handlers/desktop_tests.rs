@@ -571,6 +571,25 @@ async fn external_open_handler_rejects_unknown_target_without_spawning() {
     assert_eq!(err.to_string(), "unsupported external app target");
 }
 
+#[tokio::test]
+async fn external_path_kind_uses_metadata_instead_of_extensions() {
+    let root = tempfile::tempdir().expect("temp directory");
+    let file = root.path().join("Makefile");
+    let directory = root.path().join("project 100%.js");
+    std::fs::write(&file, "all:").expect("write fixture");
+    std::fs::create_dir(&directory).expect("create directory");
+
+    for (path, expected) in [(file, FileNodeKind::File), (directory, FileNodeKind::Directory)] {
+        let request = ExternalPathRequest { path: path.to_str().expect("UTF-8 path").to_owned() };
+        let Json(kind) = external_path_kind_post(Json(request)).await.expect("classify path");
+        assert_eq!(kind, expected);
+    }
+    let path = root.path().join("missing.php");
+    let request = ExternalPathRequest { path: path.to_str().expect("UTF-8 path").to_owned() };
+    let error = external_path_kind_post(Json(request)).await.expect_err("missing path must fail");
+    assert_eq!(error.status, StatusCode::BAD_REQUEST);
+}
+
 #[test]
 fn decode_file_url_path_decodes_plain_and_file_url_paths() {
     assert_eq!(decode_file_url_path("/tmp/space path"), "/tmp/space path");

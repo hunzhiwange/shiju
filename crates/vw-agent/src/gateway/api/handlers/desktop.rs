@@ -19,6 +19,7 @@ use crate::app::agent::gateway::ApiError;
 use crate::gateway::settings_store::GatewaySettingsStore;
 use crate::global_database::GlobalDatabase;
 use crate::storage;
+use vw_api_types::file::FileNodeKind;
 use vw_api_types::id::TenantScope;
 
 const TOOL_CONTENT_TYPES: &[&str] = &["json", "sql", "html"];
@@ -61,6 +62,7 @@ where
         .route("/desktop/skills/delete", post(super::desktop_skills::delete_post))
         .route("/desktop/external-apps", get(external_apps_get))
         .route("/desktop/external-apps/open", post(external_apps_open_post))
+        .route("/desktop/external-path/kind", post(external_path_kind_post))
         .route("/desktop/external-path/reveal", post(external_path_reveal_post))
         .route("/desktop/service/{command}", post(service_command_post))
         .route(
@@ -403,7 +405,7 @@ struct ExternalOpenRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct ExternalRevealRequest {
+struct ExternalPathRequest {
     path: String,
 }
 
@@ -419,10 +421,33 @@ async fn external_apps_open_post(
 }
 
 async fn external_path_reveal_post(
-    Json(body): Json<ExternalRevealRequest>,
+    Json(body): Json<ExternalPathRequest>,
 ) -> Result<Json<Value>, ApiError> {
     reveal_path_in_file_manager(&body.path).map_err(ApiError::bad_request)?;
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn external_path_kind_post(
+    Json(body): Json<ExternalPathRequest>,
+) -> Result<Json<FileNodeKind>, ApiError> {
+    let path = FsPath::new(&body.path);
+    if !path.is_absolute()
+        || body.path.starts_with("//")
+        || body.path.starts_with("\\\\")
+        || body.path.chars().any(char::is_control)
+    {
+        return Err(ApiError::bad_request("expected an absolute local path"));
+    }
+    let metadata = tokio::fs::metadata(path)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    if metadata.is_file() {
+        Ok(Json(FileNodeKind::File))
+    } else if metadata.is_dir() {
+        Ok(Json(FileNodeKind::Directory))
+    } else {
+        Err(ApiError::bad_request("path is neither a regular file nor a directory"))
+    }
 }
 
 fn detect_external_apps() -> Vec<ExternalAppState> {

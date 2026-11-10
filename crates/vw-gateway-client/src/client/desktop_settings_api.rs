@@ -1,6 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use vw_api_types::file::FileNodeKind;
 
 use super::GatewayClient;
 use crate::http::apply_request_context;
@@ -614,6 +615,12 @@ impl GatewayClient {
             )
             .await?;
         Ok(())
+    }
+
+    /// 判断网关主机上的绝对路径指向文件还是目录。
+    pub async fn desktop_external_path_kind(&self, path: &str) -> Result<FileNodeKind, String> {
+        self.post_json("/v1/desktop/external-path/kind", &[], &serde_json::json!({ "path": path }))
+            .await
     }
 
     /// 在系统文件管理器中定位并高亮指定路径。

@@ -360,3 +360,25 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本任务路径） | 退出 0。 |
 
 本项 Rust 文件和 Cargo 清单与绿灯快照一致。测试链接器报告既有 macOS `__eh_frame` 大小警告。槽位锁已释放，缓存保留。状态为 **已完成**。
+
+## 任务 13　原生校验请求覆盖字段
+
+2026-11-10，macOS 27.0（26A428），arm64。基线 `b598b3dd1` 含任务 12 运行参数 API/SDK（`798d036e2`）。核对 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `requestOverrides.ts`、`requestOverrides.test.ts` 和 `proxy/forwarder.rs`，仓库快照的 SHA256 均匹配来源映射。已核对通用供应商表单、Grok 表单、转发器和相邻用例。复用母任务 2、3 的执行主机授权和应用身份，以及母任务 4 任务 23、68 的请求选项契约。原生客户端配置和账号租约由各自的生产所有者提供。
+
+- 沿用 `vw-agent-apps::providers::validation` 的唯一校验规则。来源前端、来源转发器、当前 Rust 规则和回归用例覆盖同一组 43 个受保护头。请求 DTO 要求 headers/body 为 JSON 对象，拒绝非字符串头值及同名重复 JSON 键。Rust 校验 HTTP token、除 TAB 外的 ASCII 控制字符、trim 和大小写归一后的重复头、受保护头与顶层 `stream`。合法头名保存为小写，保留嵌套供应商字段。
+- `validation::merge` 省略空 headers/body 成员。显式清除仍保存为 `localProxyRequestOverrides: {}`，回读显示未配置。省略覆盖字段仍保留旧值，历史空成员也可正常读取。沿用 Claude/Codex 应用限制。
+- 生产写入链为 `GatewayClient::app_provider_request_options_save` → `PUT /v1/app-providers/{app}/{id}/request-options` → 授权 handler → `AppProviderStore::request_options_save` → `providers::request_options::update` → `validation::merge` → 档案 CAS。只读摘要沿用 POST `/v1/app-providers/{app}/{id}/request-options/read`。本项验证保存入口的校验和归一，实际请求应用与转发顺序由任务 15 验证。Windows、Linux 和 WSL 在范围外，WSL 地址仍见来源映射。
+
+共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 为该路径下的 `build`。只保留本项 Rust 文件的格式化差异。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all` | 红灯和绿灯阶段均退出 0。 |
+| 红灯 | `cargo test -p vw-agent-apps --lib cc_route_013_ -- --nocapture` | 退出 101，2 项通过，1 项因保存结果保留空 `body` 失败。 |
+| 绿灯 | `cargo test -p vw-agent-apps --lib cc_route_013_ -- --nocapture` | 退出 0，3 项通过，0 项失败或忽略。 |
+| 原生校验回归 | `cargo test -p vw-agent-apps --lib cc04_validation_ -- --nocapture` | 退出 0，6 项通过。 |
+| SDK 回归 | `cargo test -p vw-gateway-client --lib cc04_validation_ -- --nocapture` | 退出 0，3 项通过。 |
+| 全仓检查 | `cargo clippy --all-targets --all-features -- -D warnings` | 首次在 `vw-desktop` 写编译元数据时磁盘耗尽，退出 101。单作业首次重试在 `vw-config-types` 创建临时目录时磁盘耗尽，退出 101。复用已生成的缓存再次单作业重试，退出 0。两次重试使用 `CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=1`。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。 |
+
+状态为 **已完成**。已释放本项槽位锁，保留构建缓存。任务卡由原会话在集成工作区收尾。

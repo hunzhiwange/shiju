@@ -152,10 +152,13 @@ pub fn merge(
     if let Some(values) = &mut result.request_headers {
         normalize(values);
     }
-    if let Some(values) =
-        result.local_proxy_request_overrides.as_mut().and_then(|v| v.headers.as_mut())
-    {
-        normalize(values);
+    if let Some(overrides) = &mut result.local_proxy_request_overrides {
+        // Keep an explicit clear as {}, without persisting empty override members.
+        overrides.headers = overrides.headers.take().filter(|values| !values.is_empty());
+        overrides.body = overrides.body.take().filter(|body| !body.is_empty());
+        if let Some(values) = &mut overrides.headers {
+            normalize(values);
+        }
     }
     Ok(result)
 }

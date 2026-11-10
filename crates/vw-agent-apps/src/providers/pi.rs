@@ -12,6 +12,10 @@ use vw_api_types::{
 pub mod form;
 #[cfg(test)]
 mod read_tests;
+mod write;
+pub use write::{PiDirectoryChange, PiDirectoryWriteError};
+#[cfg(test)]
+mod write_tests;
 
 fn invalid<T>() -> Result<T, WriteError> {
     Err(WriteError::InvalidResource)
@@ -96,6 +100,17 @@ pub(super) fn directory_components(
     checked_directory_components(home, &path)
 }
 
+fn resolve_directory(
+    home: &Path,
+    configured_dir: Option<&Path>,
+    env_dir: Option<&OsStr>,
+) -> Result<Vec<String>, WriteError> {
+    match configured_dir {
+        Some(path) => checked_directory_components(home, path),
+        None => directory_components(home, env_dir),
+    }
+}
+
 fn checked_directory_components(home: &Path, path: &Path) -> Result<Vec<String>, WriteError> {
     if !home.is_absolute() || !path.is_absolute() {
         return invalid();
@@ -129,8 +144,9 @@ fn read_native_file(
     super::catalog::read_file(home, &components)
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct PiNativeDirectory {
+    pub source_revision: String,
     pub members: Vec<String>,
     pub default_provider_id: Option<String>,
     pub default_model_id: Option<String>,
@@ -145,11 +161,8 @@ pub fn read_native_directory(
 ) -> Result<PiNativeDirectory, ProviderReadUnavailable> {
     use ProviderReadUnavailable::InvalidConfiguration;
 
-    let parts = match configured_dir {
-        Some(path) => checked_directory_components(home, path),
-        None => directory_components(home, env_dir),
-    }
-    .map_err(|_| InvalidConfiguration)?;
+    let parts =
+        resolve_directory(home, configured_dir, env_dir).map_err(|_| InvalidConfiguration)?;
     let models = read_native_file(home, &parts, "models.json")?;
     let providers = provider_entries(models.as_deref()).map_err(|_| InvalidConfiguration)?;
     let mut members: Vec<_> = providers.into_iter().map(|(id, _)| id).collect();
@@ -158,6 +171,7 @@ pub fn read_native_directory(
     let settings =
         object_value(settings.as_deref().unwrap_or(b"{}")).map_err(|_| InvalidConfiguration)?;
     Ok(PiNativeDirectory {
+        source_revision: write::source_revision(&home.join(parts.join("/")), models.as_deref()),
         members,
         default_provider_id: default_setting(&settings, "defaultProvider")?,
         default_model_id: default_setting(&settings, "defaultModel")?,
@@ -173,25 +187,30 @@ fn default_setting(settings: &Value, key: &str) -> Result<Option<String>, Provid
 }
 
 pub struct PiFiles {
+    directory: std::path::PathBuf,
     pub guard: super::live::write_guard::AppWriteGuard,
 }
 impl PiFiles {
     pub fn open(home: &Path) -> Result<Self, WriteError> {
+        Self::open_directory(home, None, std::env::var_os("PI_CODING_AGENT_DIR").as_deref())
+    }
+    pub fn open_directory(
+        home: &Path,
+        configured_dir: Option<&Path>,
+        env_dir: Option<&OsStr>,
+    ) -> Result<Self, WriteError> {
         use std::os::{
             fd::{AsRawFd, FromRawFd},
             unix::fs::OpenOptionsExt,
         };
-        if !home.is_absolute() {
-            return invalid();
-        }
+        let parts = resolve_directory(home, configured_dir, env_dir)?;
+        let directory = home.join(parts.join("/"));
         let mut dir = std::fs::OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
             .open(home)
             .map_err(|_| WriteError::InvalidResource)?;
-        for component in
-            directory_components(home, std::env::var_os("PI_CODING_AGENT_DIR").as_deref())?
-        {
+        for component in parts {
             let name =
                 std::ffi::CString::new(component).map_err(|_| WriteError::InvalidResource)?;
             // SAFETY: fixed single child of the retained authorized directory.
@@ -213,7 +232,7 @@ impl PiFiles {
             }
             dir = unsafe { std::fs::File::from_raw_fd(fd) };
         }
-        Ok(Self { guard: super::live::write_guard::lock_directory(AppId::Pi, dir)? })
+        Ok(Self { directory, guard: super::live::write_guard::lock_directory(AppId::Pi, dir)? })
     }
     pub fn snapshot(&self) -> Result<(&'static str, Option<Vec<u8>>), WriteError> {
         Ok(("models.json", self.guard.read(OsStr::new("models.json"))?))

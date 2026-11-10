@@ -166,6 +166,64 @@ pub fn prepare(
         catalog.or(native)
     }
     .unwrap_or(&EMPTY);
+    let mut next = merge_public_fields(submitted, previous)?;
+    match &body.api_key {
+        ProviderSecretWrite::Keep => {}
+        ProviderSecretWrite::Clear => {
+            next.remove("apiKey");
+        }
+        ProviderSecretWrite::Replace { value } => {
+            let marker = value.trim();
+            // Pi can execute keys prefixed with '!'. The editor only accepts credentials.
+            if marker.is_empty()
+                || marker.starts_with('!')
+                || marker.eq_ignore_ascii_case("[redacted]")
+                || marker.eq_ignore_ascii_case("<redacted>")
+                || marker.chars().all(|ch| matches!(ch, '*' | '•'))
+                || value.chars().any(char::is_control)
+            {
+                return invalid();
+            }
+            next.insert("apiKey".into(), json!(value));
+        }
+    }
+    check_transport(previous, &next, matches!(body.api_key, ProviderSecretWrite::Keep))?;
+    let profile = PiProfile { name: body.fields.name.clone(), declaration: Value::Object(next) };
+    validate(&profile)?;
+    let metadata = basic::apply(
+        AppId::Pi,
+        row.unwrap_or(&json!({})),
+        &body.fields,
+        &ProviderSecretWrite::Keep,
+    )
+    .map_err(|_| bad)?;
+    Ok((profile, metadata))
+}
+
+/// Directory edits can change public model fields. Native or catalog credentials
+/// remain under their existing owner.
+pub(super) fn directory_declaration(
+    profile: &PiProfile,
+    previous: Option<&Value>,
+) -> Result<Value, WriteError> {
+    validate(profile)?;
+    let submitted = profile.declaration.as_object().ok_or(WriteError::InvalidResource)?;
+    if !submitted.iter().all(|(key, value)| root_field(key, value))
+        || (previous.is_none() && !complete_new_node(submitted))
+    {
+        return invalid();
+    }
+    let previous = previous.unwrap_or(&EMPTY);
+    let next = merge_public_fields(submitted.clone(), previous)?;
+    check_transport(previous, &next, true)?;
+    Ok(Value::Object(next))
+}
+
+fn merge_public_fields(
+    submitted: Map<String, Value>,
+    previous: &Value,
+) -> Result<Map<String, Value>, WriteError> {
+    let bad = WriteError::InvalidResource;
     let mut next = previous.as_object().cloned().unwrap_or_default();
     next.retain(|key, _| !ROOT.contains(&key.as_str()));
     next.extend(submitted);
@@ -188,29 +246,17 @@ pub fn prepare(
             }
         }
     }
-    match &body.api_key {
-        ProviderSecretWrite::Keep => {}
-        ProviderSecretWrite::Clear => {
-            next.remove("apiKey");
-        }
-        ProviderSecretWrite::Replace { value } => {
-            let marker = value.trim();
-            // Pi can execute keys prefixed with '!'. The editor only accepts credentials.
-            if marker.is_empty()
-                || marker.starts_with('!')
-                || marker.eq_ignore_ascii_case("[redacted]")
-                || marker.eq_ignore_ascii_case("<redacted>")
-                || marker.chars().all(|ch| matches!(ch, '*' | '•'))
-                || value.chars().any(char::is_control)
-            {
-                return invalid();
-            }
-            next.insert("apiKey".into(), json!(value));
-        }
-    }
+    Ok(next)
+}
+
+fn check_transport(
+    previous: &Value,
+    next: &Map<String, Value>,
+    keeping_key: bool,
+) -> Result<(), WriteError> {
     if ["baseUrl", "api"].iter().any(|key| previous.get(key) != next.get(*key))
         && (next.contains_key("headers")
-            || (matches!(body.api_key, ProviderSecretWrite::Keep) && has_key(previous))
+            || (keeping_key && has_key(previous))
             || next
                 .get("models")
                 .and_then(Value::as_array)
@@ -218,16 +264,7 @@ pub fn prepare(
     {
         return invalid();
     }
-    let profile = PiProfile { name: body.fields.name.clone(), declaration: Value::Object(next) };
-    validate(&profile)?;
-    let metadata = basic::apply(
-        AppId::Pi,
-        row.unwrap_or(&json!({})),
-        &body.fields,
-        &ProviderSecretWrite::Keep,
-    )
-    .map_err(|_| bad)?;
-    Ok((profile, metadata))
+    Ok(())
 }
 
 /// Explicit legacy overrides may inherit missing fields. New nodes need a usable transport

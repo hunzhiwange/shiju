@@ -1,4 +1,4 @@
-use super::{PiNativeDirectory, read_native_directory};
+use super::read_native_directory;
 use std::{ffi::OsStr, fs, os::unix::fs::symlink, path::Path};
 use vw_api_types::app_providers::catalog::ProviderReadUnavailable::{
     InvalidConfiguration, Unreadable,
@@ -19,14 +19,10 @@ fn aggregation_t35_pi_read_preserves_contract() {
     fs::write(dir.join("models.json"), models).unwrap();
     symlink("missing-login-file", dir.join("auth.json")).unwrap();
 
-    assert_eq!(
-        read_native_directory(home, None, None).unwrap(),
-        PiNativeDirectory {
-            members: vec!["custom".into()],
-            default_provider_id: Some("builtin".into()),
-            default_model_id: Some("model-a".into()),
-        }
-    );
+    let state = read_native_directory(home, None, None).unwrap();
+    assert_eq!(state.members, ["custom"]);
+    assert_eq!(state.default_provider_id.as_deref(), Some("builtin"));
+    assert_eq!(state.default_model_id.as_deref(), Some("model-a"));
     assert_eq!(fs::read(dir.join("settings.json")).unwrap(), settings);
     assert_eq!(fs::read(dir.join("models.json")).unwrap(), models);
     assert_eq!(fs::read_link(dir.join("auth.json")).unwrap(), Path::new("missing-login-file"));
@@ -76,10 +72,10 @@ fn aggregation_t35_pi_directory_uses_controlled_override_then_environment_then_d
 #[test]
 fn aggregation_t35_pi_reads_missing_files_without_creating_them() {
     let home = tempfile::tempdir().unwrap();
-    assert_eq!(
-        read_native_directory(home.path(), None, None).unwrap(),
-        PiNativeDirectory::default()
-    );
+    let state = read_native_directory(home.path(), None, None).unwrap();
+    assert!(state.members.is_empty());
+    assert!(state.default_provider_id.is_none());
+    assert!(state.default_model_id.is_none());
     assert!(!home.path().join(".pi").exists());
 }
 

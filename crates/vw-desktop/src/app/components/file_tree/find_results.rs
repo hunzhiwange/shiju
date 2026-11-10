@@ -21,7 +21,7 @@ use iced::{Background, Color, Element, Font, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::file_tree::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
-use crate::app::components::file_tree::menu::build_file_tree_menu;
+use crate::app::components::file_tree::menu::file_tree_menu_overlay;
 use crate::app::components::file_tree::widgets::RightClickArea;
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::ProjectMessage;
@@ -982,11 +982,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
                 && app.file_tree_menu_source.as_deref() == Some(menu_source.as_str())
             {
                 // 显示带有菜单覆盖层的结果项
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, false))
-                    .show(true)
-                    .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
-                    .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-                    .into()
+                file_tree_menu_overlay(app, right_click, false)
             } else {
                 right_click
             };

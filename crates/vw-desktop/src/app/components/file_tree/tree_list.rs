@@ -18,10 +18,9 @@ use iced::{Background, Color, Element, Length, Theme};
 
 use crate::app::assets::Icon;
 use crate::app::components::file_tree::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
-use crate::app::components::file_tree::menu::build_file_tree_menu;
+use crate::app::components::file_tree::menu::file_tree_menu_overlay;
 use crate::app::components::file_tree::model::FileTreeNode;
 use crate::app::components::file_tree::widgets::RightClickArea;
-use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::ProjectMessage;
 use crate::app::{App, Message, message};
 
@@ -305,11 +304,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 && app.file_tree_menu_source.as_deref() == Some("tree-dir")
             {
                 // 显示右键菜单覆盖层
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, true))
-                    .show(true)
-                    .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
-                    .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-                    .into()
+                file_tree_menu_overlay(app, right_click, true)
             } else {
                 right_click
             };
@@ -375,11 +370,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)
                 && app.file_tree_menu_source.as_deref() == Some("tree-file")
             {
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, false))
-                    .show(true)
-                    .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
-                    .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-                    .into()
+                file_tree_menu_overlay(app, right_click, false)
             } else {
                 right_click
             };
@@ -545,11 +536,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
                 && app.file_tree_menu_source.as_deref() == Some("changes-dir")
             {
                 // 显示右键菜单覆盖层
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, true))
-                    .show(true)
-                    .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
-                    .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-                    .into()
+                file_tree_menu_overlay(app, right_click, true)
             } else {
                 right_click
             };
@@ -610,11 +597,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             let item = if app.file_tree_menu_path.as_deref() == Some(&abs)
                 && app.file_tree_menu_source.as_deref() == Some("changes-file")
             {
-                PointBelowOverlay::new(right_click, build_file_tree_menu(app, false))
-                    .show(true)
-                    .anchor(app.file_tree_menu_anchor.unwrap_or(iced::Point::ORIGIN))
-                    .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-                    .into()
+                file_tree_menu_overlay(app, right_click, false)
             } else {
                 right_click
             };

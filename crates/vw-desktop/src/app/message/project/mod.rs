@@ -52,6 +52,7 @@ pub enum FileTreeAction {
     FindInFolder,
     Cut,
     Copy,
+    Duplicate,
     Paste,
     CopyPath,
     CopyRelativePath,
@@ -237,6 +238,10 @@ pub enum ProjectMessage {
     },
     FileTreePasteCompleted {
         clear_clipboard: bool,
+        result: Result<(), String>,
+    },
+    FileTreeDuplicateCompleted {
+        project_path: String,
         result: Result<(), String>,
     },
     FileTreeDeleteConfirmed,

@@ -14,15 +14,37 @@
 //! - **基础操作**：打开、在 Finder 中显示、在终端中打开
 //! - **对话集成**：添加到对话
 //! - **搜索功能**：在文件夹中查找（可选）
-//! - **剪贴板操作**：剪切、复制、粘贴（根据剪贴板状态动态显示）
+//! - **复制操作**：剪切、复制、原地复制、粘贴（根据剪贴板状态动态显示）
 //! - **路径操作**：复制路径、复制相对路径
 //! - **文件管理**：重命名、删除
 
-use iced::widget::{Space, button, column, container, text};
-use iced::{Background, Color, Element, Length, Theme, Vector};
+use iced::keyboard::{Key, Modifiers};
+use iced::widget::{Space, button, column, container, row, text};
+use iced::{Background, Color, Element, Length, Point, Theme, Vector};
 
+use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{App, Message};
+
+pub(super) fn file_tree_menu_overlay<'a>(
+    app: &'a App,
+    row: Element<'a, Message>,
+    include_find_in_folder: bool,
+) -> Element<'a, Message> {
+    PointBelowOverlay::new(row, build_file_tree_menu(app, include_find_in_folder))
+        .show(true)
+        .anchor(app.file_tree_menu_anchor.unwrap_or(Point::ORIGIN))
+        .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
+        .on_key_press(duplicate_shortcut)
+        .capture_keyboard()
+        .into()
+}
+
+pub(super) fn duplicate_shortcut(key: &Key, modifiers: Modifiers) -> Option<Message> {
+    (modifiers == Modifiers::COMMAND
+        && matches!(key, Key::Character(c) if c.eq_ignore_ascii_case("d")))
+    .then_some(Message::Project(ProjectMessage::FileTreeAction(FileTreeAction::Duplicate)))
+}
 
 pub(super) fn file_tree_menu_button_style(
     theme: &Theme,
@@ -100,7 +122,12 @@ pub fn build_file_tree_menu<'a>(
     // 封装按钮的创建逻辑，包括样式、布局和交互行为
     let menu_btn = |label: &str, action: FileTreeAction| -> Element<'a, Message> {
         let label = crate::app::i18n::I18n::new(app.desktop_locale).__(label).to_string();
-        button(container(text(label).size(13)).width(Length::Fill).padding([2, 8]))
+        let mut content = row![text(label).size(13).width(Length::Fill)].align_y(iced::Center);
+        if matches!(action, FileTreeAction::Duplicate) {
+            let shortcut = if cfg!(target_os = "macos") { "⌘D" } else { "Ctrl+D" };
+            content = content.push(text(shortcut).size(12));
+        }
+        button(container(content).width(Length::Fill).padding([2, 8]))
             .on_press(Message::Project(ProjectMessage::FileTreeAction(action)))
             .style(file_tree_menu_button_style)
             .width(Length::Fill)
@@ -133,11 +160,12 @@ pub fn build_file_tree_menu<'a>(
         content = content.push(menu_btn("在文件夹中查找", FileTreeAction::FindInFolder));
     }
 
-    // 添加剪贴板操作：剪切、复制
+    // 添加剪切、复制与原地复制
     content = content
         .push(separator())
         .push(menu_btn("剪切", FileTreeAction::Cut))
-        .push(menu_btn("复制", FileTreeAction::Copy));
+        .push(menu_btn("复制", FileTreeAction::Copy))
+        .push(menu_btn("原地复制", FileTreeAction::Duplicate));
 
     // 条件添加：粘贴（仅当剪贴板有内容时显示）
     if app.file_tree_clipboard.is_some() {

@@ -17,6 +17,8 @@
 //! - `GET /file/status` - 获取 Git 状态
 #[path = "file_import.rs"]
 mod file_import;
+#[path = "file_duplicate.rs"]
+mod file_duplicate;
 
 use std::path::{Path, PathBuf};
 
@@ -69,6 +71,7 @@ where
         .route("/file/status", get(file_status))
         .route("/files/move", post(file_move_v1))
         .route("/files/copy", post(file_copy_v1))
+        .route("/files/duplicate", post(file_duplicate::duplicate))
         .route("/files/delete", post(file_delete_v1))
 }
 

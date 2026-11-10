@@ -13,10 +13,10 @@ use std::pin::Pin;
 use serde::{Deserialize, Serialize};
 use vw_api_types::common::OperationAck;
 use vw_api_types::file::{
-    CopyFileRequest, DeleteFileRequest, FileNodeDto, FileNodeKind, ListFilesRequest,
-    ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest, ReadFileRequest,
-    ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest, StatFileResponse,
-    WriteFileRequest, WriteFileResponse,
+    CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
+    ListFilesRequest, ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest,
+    ReadFileRequest, ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest,
+    StatFileResponse, WriteFileRequest, WriteFileResponse,
 };
 
 use super::GatewayClient;
@@ -174,6 +174,14 @@ impl GatewayClient {
     /// 复制文件或目录。
     pub async fn file_copy(&self, request: &CopyFileRequest) -> Result<OperationAck, String> {
         self.post_json("/v1/files/copy", &[], request).await
+    }
+
+    /// 在同一目录创建文件或文件夹的副本。
+    pub async fn file_duplicate(
+        &self,
+        request: &DuplicateFileRequest,
+    ) -> Result<OperationAck, String> {
+        self.post_json("/v1/files/duplicate", &[], request).await
     }
 
     /// 将本机外部路径复制导入项目，仅允许连接本机网关。

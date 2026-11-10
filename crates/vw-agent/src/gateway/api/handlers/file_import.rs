@@ -97,11 +97,11 @@ fn trusted_origin(headers: &HeaderMap) -> bool {
         && matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"))
 }
 
-fn io_error(error: std::io::Error) -> ApiError {
+pub(super) fn io_error(error: std::io::Error) -> ApiError {
     ApiError::bad_request(error.to_string())
 }
 
-fn target_directory(root: &Path, relative: &str) -> Result<PathBuf, ApiError> {
+pub(super) fn target_directory(root: &Path, relative: &str) -> Result<PathBuf, ApiError> {
     let mut target = root.to_path_buf();
     for component in Path::new(relative).components() {
         match component {
@@ -162,7 +162,7 @@ fn import_one(root: &Path, target: &Path, source: &Path) -> Result<String, ApiEr
         tempfile::Builder::new().prefix(".shiju-import-").tempdir_in(target).map_err(io_error)?;
     let staged = staging.path().join("content");
     let result = (|| {
-        copy_entry(&source, &staged)?;
+        copy_entry(&source, &staged, false)?;
         publish_no_replace(&staged, &destination).map_err(io_error)
     })();
     // Explicit close reports cleanup failures on normal error paths as well as success.
@@ -182,20 +182,29 @@ fn import_one(root: &Path, target: &Path, source: &Path) -> Result<String, ApiEr
 // Unix traversal keeps directory handles open and opens children relative to them.
 // Replacing a path with a symlink during traversal cannot redirect source reads.
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn copy_entry(source: &Path, destination: &Path) -> Result<(), ApiError> {
+pub(super) fn copy_entry(
+    source: &Path,
+    destination: &Path,
+    preserve_mode: bool,
+) -> Result<(), ApiError> {
     use std::os::unix::fs::OpenOptionsExt;
     let input = std::fs::OpenOptions::new()
         .read(true)
         .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
         .open(source)
         .map_err(io_error)?;
-    copy_open_entry(input, destination)
+    copy_open_entry(input, destination, preserve_mode)
 }
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn copy_open_entry(mut input: std::fs::File, destination: &Path) -> Result<(), ApiError> {
+fn copy_open_entry(
+    mut input: std::fs::File,
+    destination: &Path,
+    preserve_mode: bool,
+) -> Result<(), ApiError> {
     use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
     use std::os::unix::ffi::OsStrExt;
+    use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
     let metadata = input.metadata().map_err(io_error)?;
     if metadata.is_file() {
         let mut output = std::fs::OpenOptions::new()
@@ -204,12 +213,24 @@ fn copy_open_entry(mut input: std::fs::File, destination: &Path) -> Result<(), A
             .open(destination)
             .map_err(io_error)?;
         std::io::copy(&mut input, &mut output).map_err(io_error)?;
+        if preserve_mode {
+            output
+                .set_permissions(std::fs::Permissions::from_mode(
+                    metadata.permissions().mode() & 0o777,
+                ))
+                .map_err(io_error)?;
+        }
         return Ok(());
     }
     if !metadata.is_dir() {
         return Err(ApiError::bad_request("special files are unsupported"));
     }
-    std::fs::create_dir(destination).map_err(io_error)?;
+    let mut directory = std::fs::DirBuilder::new();
+    if preserve_mode {
+        // Keep existing group and world restrictions while allowing staging cleanup.
+        directory.mode((metadata.permissions().mode() & 0o777) | 0o700);
+    }
+    directory.create(destination).map_err(io_error)?;
     let descriptor = input.try_clone().map_err(io_error)?.into_raw_fd();
     // fdopendir takes ownership only on success.
     let stream = unsafe { libc::fdopendir(descriptor) };
@@ -261,13 +282,21 @@ fn copy_open_entry(mut input: std::fs::File, destination: &Path) -> Result<(), A
             return Err(io_error(std::io::Error::last_os_error()));
         }
         let child = unsafe { std::fs::File::from_raw_fd(descriptor) };
-        copy_open_entry(child, &destination.join(std::ffi::OsStr::from_bytes(name.to_bytes())))?;
+        copy_open_entry(
+            child,
+            &destination.join(std::ffi::OsStr::from_bytes(name.to_bytes())),
+            preserve_mode,
+        )?;
     }
     Ok(())
 }
 
 #[cfg(windows)]
-fn copy_entry(source: &Path, destination: &Path) -> Result<(), ApiError> {
+pub(super) fn copy_entry(
+    source: &Path,
+    destination: &Path,
+    _preserve_mode: bool,
+) -> Result<(), ApiError> {
     use std::os::windows::fs::OpenOptionsExt;
     // Open reparse points themselves and disallow replacement while reading.
     let mut input = std::fs::OpenOptions::new()
@@ -284,7 +313,7 @@ fn copy_entry(source: &Path, destination: &Path) -> Result<(), ApiError> {
         std::fs::create_dir(destination).map_err(io_error)?;
         for entry in std::fs::read_dir(source).map_err(io_error)? {
             let entry = entry.map_err(io_error)?;
-            copy_entry(&entry.path(), &destination.join(entry.file_name()))?;
+            copy_entry(&entry.path(), &destination.join(entry.file_name()), false)?;
         }
     } else if metadata.is_file() {
         let mut output = std::fs::OpenOptions::new()
@@ -300,7 +329,11 @@ fn copy_entry(source: &Path, destination: &Path) -> Result<(), ApiError> {
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-fn copy_entry(_source: &Path, _destination: &Path) -> Result<(), ApiError> {
+pub(super) fn copy_entry(
+    _source: &Path,
+    _destination: &Path,
+    _preserve_mode: bool,
+) -> Result<(), ApiError> {
     Err(ApiError::bad_request("safe local copy unsupported on this platform"))
 }
 

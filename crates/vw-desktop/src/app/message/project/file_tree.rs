@@ -16,7 +16,7 @@
 //!   - 在终端中打开
 //!   - 添加到聊天
 //!   - 在文件夹中查找
-//!   - 剪切、复制、粘贴
+//!   - 剪切、复制、原地复制、粘贴
 //!   - 复制路径（绝对路径和相对路径）
 //!   - 重命名和删除
 //!
@@ -25,8 +25,8 @@
 //! 部分功能（如重命名、在终端打开、在文件管理器显示）仅在非 WASM 目标平台可用。
 
 use crate::app::message::project::helpers::{
-    gateway_copy_path, gateway_delete_path, gateway_move_path, now_ms, refresh_file_index,
-    relative_to_project,
+    gateway_copy_path, gateway_delete_path, gateway_duplicate_path, gateway_move_path, now_ms,
+    refresh_file_index, relative_to_project,
 };
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{
@@ -493,6 +493,21 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         vec![],
                     ));
                 }
+                FileTreeAction::Duplicate => {
+                    let Some(project_path) = app.project_path.clone() else {
+                        return Some(iced::Task::none());
+                    };
+                    let root = project_path.clone();
+                    return Some(iced::Task::perform(
+                        async move { gateway_duplicate_path(&root, &path).await },
+                        move |result| {
+                            Message::Project(ProjectMessage::FileTreeDuplicateCompleted {
+                                project_path,
+                                result,
+                            })
+                        },
+                    ));
+                }
                 // 粘贴：根据剪贴板模式执行复制或移动操作
                 FileTreeAction::Paste => {
                     if let Some(clipboard) = &app.file_tree_clipboard {
@@ -586,6 +601,26 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
             }
             Some(refresh_file_index(app))
+        }
+        ProjectMessage::FileTreeDuplicateCompleted { project_path, result } => {
+            let refresh = if app.project_path.as_deref() == Some(project_path.as_str()) {
+                refresh_file_index(app)
+            } else {
+                iced::Task::none()
+            };
+            let feedback = match result {
+                Ok(()) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "已创建副本",
+                    vec![],
+                ),
+                Err(err) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "创建副本失败: %s",
+                    vec![err.into()],
+                ),
+            };
+            Some(iced::Task::batch([refresh, feedback]))
         }
         ProjectMessage::FileTreeDeleteCanceled => {
             app.file_tree_pending_delete = None;

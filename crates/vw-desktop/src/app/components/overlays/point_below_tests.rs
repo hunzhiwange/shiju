@@ -209,6 +209,7 @@ fn overlay_element_with<'a>(
         capture_outside_click,
         close_on_target_click,
         capture_keyboard: false,
+        on_key_press: None,
     }
 }
 

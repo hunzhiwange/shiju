@@ -2,11 +2,14 @@
 //! 复制和剪切共享粘贴入口，但无剪贴板内容时不得出现不可执行菜单项。
 
 use super::menu::{
-    build_file_tree_menu, file_tree_menu_button_style, file_tree_menu_container_style,
-    file_tree_menu_separator_style,
+    build_file_tree_menu, duplicate_shortcut, file_tree_menu_button_style,
+    file_tree_menu_container_style, file_tree_menu_separator_style,
 };
 use crate::app::App;
+use crate::app::Message;
+use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::state::{FileTreeClipboard, FileTreeClipboardMode};
+use iced::keyboard::{Key, Modifiers};
 use iced::widget::button;
 use iced::{Background, Color, Element, Theme, Vector};
 
@@ -23,12 +26,23 @@ fn menu_item_count(element: &Element<'_, crate::app::Message>) -> usize {
 }
 
 #[test]
+fn duplicate_shortcut_requires_only_the_platform_command_modifier() {
+    let key = Key::Character("d".into());
+    assert!(matches!(
+        duplicate_shortcut(&key, Modifiers::COMMAND),
+        Some(Message::Project(ProjectMessage::FileTreeAction(FileTreeAction::Duplicate)))
+    ));
+    assert!(duplicate_shortcut(&key, Modifiers::COMMAND | Modifiers::SHIFT).is_none());
+    assert!(duplicate_shortcut(&key, Modifiers::NONE).is_none());
+}
+
+#[test]
 fn file_tree_menu_without_optional_items_has_base_structure() {
     let app = App::new().0;
 
     let menu = build_file_tree_menu(&app, false);
 
-    assert_eq!(menu_item_count(&menu), 15);
+    assert_eq!(menu_item_count(&menu), 16);
 }
 
 #[test]
@@ -38,8 +52,8 @@ fn file_tree_menu_find_option_adds_one_item() {
     let without_find = build_file_tree_menu(&app, false);
     let with_find = build_file_tree_menu(&app, true);
 
-    assert_eq!(menu_item_count(&without_find), 15);
-    assert_eq!(menu_item_count(&with_find), 16);
+    assert_eq!(menu_item_count(&without_find), 16);
+    assert_eq!(menu_item_count(&with_find), 17);
 }
 
 #[test]
@@ -52,9 +66,9 @@ fn file_tree_menu_clipboard_adds_paste_for_copy_and_cut_modes() {
     let with_copy = build_file_tree_menu(&copy_app, false);
     let with_cut = build_file_tree_menu(&cut_app, false);
 
-    assert_eq!(menu_item_count(&without_clipboard), 15);
-    assert_eq!(menu_item_count(&with_copy), 16);
-    assert_eq!(menu_item_count(&with_cut), 16);
+    assert_eq!(menu_item_count(&without_clipboard), 16);
+    assert_eq!(menu_item_count(&with_copy), 17);
+    assert_eq!(menu_item_count(&with_cut), 17);
 }
 
 #[test]
@@ -63,7 +77,7 @@ fn file_tree_menu_combines_find_and_paste_options() {
 
     let menu = build_file_tree_menu(&app, true);
 
-    assert_eq!(menu_item_count(&menu), 17);
+    assert_eq!(menu_item_count(&menu), 18);
 }
 
 #[test]

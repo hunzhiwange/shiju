@@ -158,6 +158,15 @@ pub struct CopyFileRequest {
     pub overwrite: bool,
 }
 
+/// 在项目或工作树中的源路径旁创建副本。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DuplicateFileRequest {
+    pub project_id: ProjectId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<WorktreeId>,
+    pub path: String,
+}
+
 /// 从网关所在本机复制外部路径到项目；仅支持真实回环连接。
 ///
 /// 网关先验证项目、工作树与连接授权，再读取源文件；授权失败整体拒绝。

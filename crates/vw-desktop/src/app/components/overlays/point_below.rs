@@ -8,6 +8,9 @@ use iced::{Element, Length};
 /// 重新导出 use iced::{Event, Point, Rectangle, Size, Theme, Vector}，让上层模块通过稳定路径访问。
 use iced::{Event, Point, Rectangle, Size, Theme, Vector};
 
+type KeyPressHandler<Message> =
+    fn(&iced::keyboard::Key, iced::keyboard::Modifiers) -> Option<Message>;
+
 fn compute_point_below_position(
     anchor: Point,
     target_bounds: Rectangle,
@@ -70,6 +73,7 @@ pub struct PointBelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rend
     // anchor_is_global 表示锚点已经是 overlay 坐标系中的位置。
     anchor_is_global: bool,
     capture_keyboard: bool,
+    on_key_press: Option<KeyPressHandler<Message>>,
 }
 
 impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -115,6 +119,7 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
             close_on_target_click: false,
             anchor_is_global: false,
             capture_keyboard: false,
+            on_key_press: None,
         }
     }
 
@@ -228,6 +233,12 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
     /// Keep keyboard input in the overlay and dismiss it on Escape.
     pub fn capture_keyboard(mut self) -> Self {
         self.capture_keyboard = true;
+        self
+    }
+
+    /// Handle a shortcut while this overlay is open.
+    pub(crate) fn on_key_press(mut self, handler: KeyPressHandler<Message>) -> Self {
+        self.on_key_press = Some(handler);
         self
     }
 
@@ -568,6 +579,7 @@ where
                 // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 close_on_target_click: self.close_on_target_click,
                 capture_keyboard: self.capture_keyboard,
+                on_key_press: self.on_key_press,
             })))
         } else {
             None
@@ -640,6 +652,7 @@ struct PointBelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     close_on_target_click: bool,
     capture_keyboard: bool,
+    on_key_press: Option<KeyPressHandler<Message>>,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>
@@ -714,6 +727,15 @@ where
         // shell 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         shell: &mut Shell<'_, Message>,
     ) {
+        if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = event
+            && let Some(handler) = self.on_key_press
+            && let Some(message) = handler(key, *modifiers)
+        {
+            shell.publish(message);
+            shell.capture_event();
+            return;
+        }
+
         if self.capture_keyboard
             && matches!(
                 event,

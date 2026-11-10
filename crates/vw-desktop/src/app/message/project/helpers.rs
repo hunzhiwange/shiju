@@ -13,8 +13,8 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use vw_gateway_client::vw_api_types::file::{
-    CopyFileRequest, DeleteFileRequest, FileNodeDto, FileNodeKind, ListFilesRequest,
-    MoveFileRequest,
+    CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
+    ListFilesRequest, MoveFileRequest,
 };
 use vw_gateway_client::vw_api_types::id::{ProjectId, WorktreeId};
 use vw_gateway_client::vw_api_types::project::{
@@ -947,6 +947,25 @@ pub(crate) async fn gateway_copy_path(
             from_path: from_relative,
             to_path: to_relative,
             overwrite: false,
+        })
+        .await?;
+    if result.ok {
+        Ok(())
+    } else {
+        Err(result.message.unwrap_or_else(|| "复制失败".to_string()))
+    }
+}
+
+pub(super) async fn gateway_duplicate_path(project_path: &str, path: &str) -> Result<(), String> {
+    let client = gateway_client()?;
+    let context = resolve_gateway_file_context(project_path).await?;
+    let path = relative_to_project(&context.base_directory, path)
+        .ok_or_else(|| "无法定位路径".to_string())?;
+    let result = client
+        .file_duplicate(&DuplicateFileRequest {
+            project_id: context.project_id,
+            worktree_id: context.worktree_id,
+            path,
         })
         .await?;
     if result.ok {

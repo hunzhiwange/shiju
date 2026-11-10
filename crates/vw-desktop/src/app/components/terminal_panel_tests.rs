@@ -447,7 +447,7 @@ impl DragPanel {
         pane: iced::widget::pane_grid::Pane,
         direction: iced::widget::pane_grid::Direction,
     ) -> iced::widget::pane_grid::Pane {
-        self.app.terminal.split_terminal(pane, direction, Self::SIZE, None).unwrap();
+        self.app.terminal.split_terminal(pane, direction, None).unwrap();
         self.app.terminal.panes.focused
     }
 
@@ -512,9 +512,9 @@ impl DragPanel {
         self.event(Event::ButtonReleased(Button::Left), to);
     }
 
-    fn grip(&mut self, pane: iced::widget::pane_grid::Pane) -> iced::Point {
+    fn tab_title(&mut self, pane: iced::widget::pane_grid::Pane) -> iced::Point {
         let bounds = self.bounds(pane);
-        iced::Point::new(bounds.x + 10.0, bounds.y + 17.0)
+        iced::Point::new(bounds.x + 40.0, bounds.y + 14.0)
     }
 }
 
@@ -531,19 +531,19 @@ async fn terminal_drag_divider_resizes_nested_panes() {
 
     let before = panel.bounds(first);
     let vertical = (before.width + panel.bounds(right).x) / 2.0;
-    panel.drag(Point::new(vertical, 100.0), Point::new(500.0, 100.0));
+    panel.drag(Point::new(vertical + 3.0, 100.0), Point::new(500.0, 100.0));
     let wider = panel.bounds(first);
     eprintln!("vertical divider {vertical}, first pane {before:?} -> {wider:?}");
     assert!(wider.width > before.width + 90.0);
     assert_eq!(panel.bounds(bottom).width, wider.width);
 
     let horizontal = (wider.height + panel.bounds(bottom).y) / 2.0;
-    panel.drag(Point::new(100.0, horizontal), Point::new(100.0, 390.0));
+    panel.drag(Point::new(100.0, horizontal - 3.0), Point::new(100.0, 390.0));
     let taller = panel.bounds(first);
     let lower = panel.bounds(bottom);
     eprintln!("horizontal divider {horizontal}, panes {taller:?} and {lower:?}");
     assert!(taller.height > wider.height + 100.0);
-    assert_eq!(lower.height, 88.0);
+    assert!(lower.height <= 10.0);
     assert_eq!(panel.bounds(right).height, DragPanel::SIZE.height);
 
     let point = Point::new(100.0, 120.0);
@@ -566,31 +566,32 @@ async fn terminal_drag_header_docks_panes_without_capturing_terminal_selection()
     panel.app.terminal.tabs[0].title = "开发环境的长终端标签".repeat(15);
     let before = panel.bounds(first);
     let target = panel.bounds(right);
-    let grip = panel.grip(first);
-    panel.drag(grip, target.center());
+    let title = panel.tab_title(first);
+    panel.drag(title, target.center());
     assert_eq!(panel.bounds(first), target);
     assert_eq!(panel.bounds(right), before);
 
-    let grip = panel.grip(first);
-    panel.drag(grip, Point::new(100.0, 300.0));
+    let title = panel.tab_title(first);
+    panel.drag(title, Point::new(100.0, 300.0));
     let docked = panel.bounds(first);
     assert!(docked.x < panel.bounds(bottom).x);
     assert_eq!(docked.y, panel.bounds(bottom).y);
 
-    let grip = panel.grip(first);
-    panel.drag(grip, Point::new(798.0, 250.0));
+    let title = panel.tab_title(first);
+    panel.drag(title, Point::new(798.0, 250.0));
     let edge = panel.bounds(first);
     assert_eq!(edge.height, DragPanel::SIZE.height);
     assert_eq!(edge.x + edge.width, DragPanel::SIZE.width);
 
-    let grip = panel.grip(first);
-    panel.drag(grip, Point::new(900.0, 350.0));
+    let title = panel.tab_title(first);
+    panel.drag(title, Point::new(900.0, 350.0));
     assert_eq!(panel.bounds(first), edge);
-    panel.drag(grip, Point::new(799.0, 250.0));
+    panel.drag(title, Point::new(799.0, 250.0));
     assert_eq!(panel.bounds(first), edge);
 
-    // Selecting a tab or starting a selection in the terminal must not pick up the pane.
-    panel.drag(Point::new(edge.x + 45.0, 17.0), Point::new(100.0, 80.0));
+    // Clicking the title still activates the tab. Dragging inside the terminal selects text.
+    panel.drag(title, title);
+    assert_eq!(panel.app.terminal.panes.focused, first);
     assert_eq!(panel.bounds(first), edge);
     use iced::mouse::{Button, Event};
     panel.event(Event::ButtonPressed(Button::Left), Point::new(edge.x + 45.0, 54.0));

@@ -1,25 +1,33 @@
+use iced::advanced::Renderer as _;
 use iced::advanced::widget::{Operation, Tree, operation, tree};
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer};
-use iced::widget::pane_grid::{self, Direction, Pane, PaneGrid};
-use iced::widget::{Id, Space, button, column, container, responsive, row, text};
-use iced::{Border, Element, Event, Length, Point, Rectangle, Renderer, Size, Theme, Vector};
+use iced::widget::pane_grid::{self, Pane, PaneGrid, Target};
+use iced::widget::{Id, responsive, row};
+use iced::{Border, Element, Event, Length, Rectangle, Renderer, Size, Theme, Vector};
 
-use super::{TAB_HEADER_HEIGHT, fullscreen_button, hide_button, pane_view, toolbar_icon_button};
+use super::pane_drag::{TabDrag, TabTitleHit, drop_target};
+use super::{
+    TAB_HEADER_HEIGHT, fullscreen_button, hide_button, pane_view, split_menu, toolbar_icon_button,
+};
 use crate::app::assets::Icon;
-use crate::app::components::overlays::point_below::PointBelowOverlay;
-use crate::app::i18n::I18n;
 use crate::app::message::TerminalMessage;
-use crate::app::terminal::panes::PANE_SPACING;
-use crate::app::{App, Message};
+use crate::app::terminal::panes::{PANE_SPACING, TerminalPanes};
+use crate::app::{App, FocusArea, Message};
 
-const GRIP_WIDTH: f32 = 18.0;
+const DIVIDER_HIT_WIDTH: f32 = 9.0;
+const DRAG_THRESHOLD: f32 = 5.0;
 
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     responsive(move |size| {
         let panes = &app.terminal.panes;
         let grid = &panes.grid;
-        let can_drag = grid.len() > 1;
-        let regions = grid.layout().pane_regions(PANE_SPACING, 0.0, size);
+        let mut spacing = PANE_SPACING;
+        let mut regions = grid.layout().pane_regions(spacing, 0.0, size);
+        // Iced can produce negative leaf bounds if there is less room than the gaps.
+        if regions.values().any(|region| region.width < 0.0 || region.height < 0.0) {
+            spacing = 0.0;
+            regions = grid.layout().pane_regions(spacing, 0.0, size);
+        }
         let top_right = regions.iter().find_map(|(pane, region)| {
             (region.y == 0.0 && region.x + region.width >= size.width - 0.5).then_some(*pane)
         });
@@ -34,7 +42,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
                 Message::Terminal(TerminalMessage::AddToPane(pane)),
             )];
             if state.active_id.is_some() {
-                controls = controls.push(split_button(app, pane, size));
+                controls = controls.push(split_menu::split_button(app, pane));
             }
             if Some(pane) == top_right {
                 controls =
@@ -42,112 +50,75 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             }
 
             let (header, body) = pane_view(app, tabs, state.active_id, controls);
-            // Only the left padding is draggable. Iced excludes the toolbar,
-            // including the scrollable tabs, from the title bar's pick area.
-            let title = pane_grid::TitleBar::new(Space::new())
-                .controls(header)
-                .always_show_controls()
-                .padding(iced::Padding::ZERO.left(if can_drag { GRIP_WIDTH } else { 0.0 }))
-                .style(grip_style);
-            pane_grid::Content::new(body).title_bar(title)
+            pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(header))
         })
         .width(Length::Fill)
         .height(Length::Fill)
-        .spacing(PANE_SPACING)
-        .min_size(0);
-        if can_drag {
-            grid = grid
-                .on_resize(0, move |event| {
-                    Message::Terminal(TerminalMessage::ResizePane(
-                        panes.instance.clone(),
-                        event,
-                        size,
-                    ))
-                })
-                .on_drag(move |event| {
-                    Message::Terminal(TerminalMessage::DragPane(
-                        panes.instance.clone(),
-                        event,
-                        size,
-                    ))
-                });
+        .spacing(spacing)
+        .min_size(0)
+        .style(|theme| {
+            let mut style = pane_grid::default(theme);
+            style.picked_split.width = PANE_SPACING;
+            style.hovered_split.width = PANE_SPACING;
+            style
+        });
+        if panes.grid.len() > 1 {
+            grid = grid.on_resize(DIVIDER_HIT_WIDTH - spacing, |event| {
+                Message::Terminal(TerminalMessage::ResizePane(panes.instance.clone(), event))
+            });
         }
-        Element::new(TerminalGrid(grid, &panes.instance))
+
+        let shortcut_focus = (app.focus_area == FocusArea::Terminal)
+            .then(|| {
+                app.terminal
+                    .tabs
+                    .iter()
+                    .find(|tab| Some(tab.id) == app.terminal.active_id && tab.edit_title.is_none())
+            })
+            .flatten()
+            .map(|tab| tab.term.widget_id());
+        Element::new(TerminalGrid { grid, panes, regions, shortcut_focus })
     })
-    .into()
-}
-
-fn grip_style(theme: &Theme) -> container::Style {
-    let palette = theme.extended_palette().background;
-    let background = palette.base.color;
-    let grip = palette.strong.color;
-    // The opaque toolbar covers the gradient everywhere except the grip.
-    let gradient = iced::gradient::Linear::new(0.0)
-        .add_stop(0.32, background)
-        .add_stop(0.38, grip)
-        .add_stop(0.44, background)
-        .add_stop(0.50, grip)
-        .add_stop(0.56, background)
-        .add_stop(0.62, grip)
-        .add_stop(0.68, background);
-    container::Style { background: Some(gradient.into()), ..Default::default() }
-}
-
-fn split_button(app: &App, pane: Pane, size: Size) -> Element<'static, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let mut items = column![].spacing(0);
-    for (direction, label) in [
-        (Direction::Left, i18n.__("向左拆分")),
-        (Direction::Right, i18n.__("向右拆分")),
-        (Direction::Up, i18n.__("向上拆分")),
-        (Direction::Down, i18n.__("向下拆分")),
-    ] {
-        items = items.push(
-            button(text(label).size(13))
-                .width(Length::Fill)
-                .height(30)
-                .padding([4, 8])
-                .style(button::text)
-                .on_press(Message::Terminal(TerminalMessage::Split(pane, direction, size))),
-        );
-    }
-    let menu = container(items).width(140).padding(4).style(|theme: &Theme| {
-        let palette = theme.extended_palette().background;
-        container::Style {
-            background: Some(palette.base.color.into()),
-            border: Border::default().rounded(8).width(1).color(palette.strong.color),
-            ..Default::default()
-        }
-    });
-    PointBelowOverlay::new(
-        toolbar_icon_button(
-            Icon::Columns,
-            Message::Terminal(TerminalMessage::ToggleSplitMenu(pane)),
-        ),
-        menu,
-    )
-    .show(app.terminal.panes.split_menu == Some(pane))
-    .anchor(Point::new(0.0, TAB_HEADER_HEIGHT))
-    .gap(2.0)
-    .capture_keyboard()
-    .on_close(Message::Terminal(TerminalMessage::CloseSplitMenu))
     .into()
 }
 
 // Iced fills PaneGrid's pane order in diff, not state. Seed it before the first
 // layout so a focus operation on a newly shown grid survives the next diff.
-struct TerminalGrid<'a>(PaneGrid<'a, Message>, &'a Id);
+struct TerminalGrid<'a> {
+    grid: PaneGrid<'a, Message>,
+    panes: &'a TerminalPanes,
+    regions: std::collections::BTreeMap<Pane, Rectangle>,
+    shortcut_focus: Option<&'a Id>,
+}
 
 struct GridMemory {
     instance: Id,
     grid: Tree,
+    drag: Option<TabDrag>,
 }
 
 impl TerminalGrid<'_> {
+    fn target(
+        &self,
+        drag: TabDrag,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+    ) -> Option<(Target, Rectangle)> {
+        let bounds = layout.bounds();
+        let offset = Vector::new(bounds.x, bounds.y);
+        drop_target(
+            cursor.position()?,
+            bounds,
+            drag.pane,
+            self.regions.iter().map(|(pane, region)| (*pane, *region + offset)),
+        )
+    }
+
     fn memory(&self) -> GridMemory {
-        let mut grid = Tree { tag: self.0.tag(), state: self.0.state(), children: Vec::new() };
-        self.0.diff(&mut grid);
-        GridMemory { instance: self.1.clone(), grid }
+        let mut grid =
+            Tree { tag: self.grid.tag(), state: self.grid.state(), children: Vec::new() };
+        self.grid.diff(&mut grid);
+        GridMemory { instance: self.panes.instance.clone(), grid, drag: None }
     }
 }
 
@@ -177,15 +148,15 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
 
     fn diff(&self, tree: &mut Tree) {
         let memory = tree.state.downcast_mut::<GridMemory>();
-        if memory.instance == *self.1 {
-            self.0.diff(&mut memory.grid);
+        if memory.instance == self.panes.instance {
+            self.grid.diff(&mut memory.grid);
         } else {
             *memory = self.memory();
         }
     }
 
     fn size(&self) -> Size<Length> {
-        self.0.size()
+        self.grid.size()
     }
 
     fn layout(
@@ -194,7 +165,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
-        self.0.layout(&mut tree.state.downcast_mut::<GridMemory>().grid, renderer, limits)
+        self.grid.layout(&mut tree.state.downcast_mut::<GridMemory>().grid, renderer, limits)
     }
 
     fn operate(
@@ -204,7 +175,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         renderer: &Renderer,
         operation: &mut dyn Operation,
     ) {
-        self.0.operate(
+        self.grid.operate(
             &mut tree.state.downcast_mut::<GridMemory>().grid,
             layout,
             renderer,
@@ -226,19 +197,24 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         use iced::{keyboard, touch, window};
         use mouse::{Button, Event as Mouse, Interaction};
 
-        let grid = &mut tree.state.downcast_mut::<GridMemory>().grid;
-        let mut focused = FocusedWidget::default();
-        if matches!(event, Event::Mouse(Mouse::ButtonPressed(Button::Left)))
-            && matches!(
-                self.0.mouse_interaction(grid, layout, cursor, viewport, renderer),
-                Interaction::Grab
-                    | Interaction::ResizingHorizontally
-                    | Interaction::ResizingVertically
-            )
+        let GridMemory { grid, drag, .. } = tree.state.downcast_mut();
+        if let Event::Keyboard(event @ keyboard::Event::KeyPressed { repeat, .. }) = event
+            && let Some(id) = self.shortcut_focus
+            && let Some(direction) = split_menu::shortcut(event)
         {
-            // Terminal views normally lose focus on a press outside their body.
-            // Keep the actual focused widget when the press starts a grid gesture.
-            self.0.operate(grid, layout, renderer, &mut focused);
+            let mut focused = FocusedWidget::default();
+            self.grid.operate(grid, layout, renderer, &mut focused);
+            if focused.0.as_ref() == Some(id) {
+                if !repeat {
+                    shell.publish(Message::Terminal(TerminalMessage::Split(
+                        self.panes.instance.clone(),
+                        self.panes.focused,
+                        direction,
+                    )));
+                }
+                shell.capture_event();
+                return;
+            }
         }
 
         let escape = matches!(
@@ -248,28 +224,35 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
                 ..
             })
         );
-        if (escape
+        let cancel = escape
             || matches!(
                 event,
                 Event::Window(window::Event::Unfocused)
                     | Event::Touch(touch::Event::FingerLost { .. })
-            ))
-            && matches!(
-                self.0.mouse_interaction(
+            );
+        let release = Event::Mouse(Mouse::ButtonReleased(Button::Left));
+        let resizing = |interaction| {
+            matches!(
+                interaction,
+                Interaction::ResizingHorizontally | Interaction::ResizingVertically
+            )
+        };
+        let mut focused = FocusedWidget::default();
+        let mut cursor = cursor;
+        if cancel
+            && (drag.is_some()
+                || resizing(self.grid.mouse_interaction(
                     grid,
                     layout,
                     mouse::Cursor::Unavailable,
                     viewport,
-                    renderer
-                ),
-                Interaction::Grabbing
-                    | Interaction::ResizingHorizontally
-                    | Interaction::ResizingVertically
-            )
+                    renderer,
+                )))
         {
-            self.0.update(
+            *drag = None;
+            self.grid.update(
                 grid,
-                &Event::Mouse(Mouse::ButtonReleased(Button::Left)),
+                &release,
                 layout,
                 mouse::Cursor::Unavailable,
                 renderer,
@@ -282,23 +265,52 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
                 shell.capture_event();
                 return;
             }
+        } else if matches!(event, Event::Mouse(Mouse::ButtonPressed(Button::Left))) {
+            let interaction = self.grid.mouse_interaction(grid, layout, cursor, viewport, renderer);
+            if self.panes.grid.len() > 1
+                && !resizing(interaction)
+                && let Some(origin) = cursor.position_over(layout.bounds())
+            {
+                let mut hit = TabTitleHit::new(origin);
+                self.grid.operate(grid, layout, renderer, &mut hit);
+                if hit.hit {
+                    let local = origin - Vector::new(layout.bounds().x, layout.bounds().y);
+                    *drag = self.regions.iter().find_map(|(&pane, region)| {
+                        region.contains(local).then_some(TabDrag { pane, origin, moving: false })
+                    });
+                }
+            }
+            // Preserve the focused terminal when pressing a divider or a tab title.
+            if drag.is_some() || resizing(interaction) {
+                self.grid.operate(grid, layout, renderer, &mut focused);
+            }
+        } else if let Event::Mouse(Mouse::CursorMoved { position }) = event
+            && let Some(drag) = drag.as_mut()
+        {
+            drag.moving |= drag.origin.distance(*position) >= DRAG_THRESHOLD;
+            if drag.moving {
+                shell.request_redraw();
+                shell.capture_event();
+                return;
+            }
+        } else if *event == release
+            && let Some(drag) = drag.take().filter(|drag| drag.moving)
+        {
+            if let Some((target, _)) = self.target(drag, layout, cursor) {
+                shell.publish(Message::Terminal(TerminalMessage::DockPane(
+                    self.panes.instance.clone(),
+                    drag.pane,
+                    target,
+                )));
+            }
+            // Clear the tab button's pressed state without activating the tab.
+            cursor = mouse::Cursor::Unavailable;
+            shell.request_redraw();
         }
 
-        // Iced's outer-edge hit test accepts a cursor outside the grid on
-        // the perpendicular axis. Only an in-panel release can dock a pane.
-        let cursor = if matches!(
-            event,
-            Event::Mouse(Mouse::ButtonReleased(Button::Left))
-                | Event::Touch(touch::Event::FingerLifted { .. } | touch::Event::FingerLost { .. })
-        ) && !cursor.is_over(layout.bounds())
-        {
-            mouse::Cursor::Unavailable
-        } else {
-            cursor
-        };
-        self.0.update(grid, event, layout, cursor, renderer, clipboard, shell, viewport);
+        self.grid.update(grid, event, layout, cursor, renderer, clipboard, shell, viewport);
         if let Some(id) = focused.0 {
-            self.0.operate(grid, layout, renderer, &mut operation::focusable::focus(id));
+            self.grid.operate(grid, layout, renderer, &mut operation::focusable::focus(id));
         }
     }
 
@@ -312,15 +324,31 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        self.0.draw(
-            &tree.state.downcast_ref::<GridMemory>().grid,
+        let memory = tree.state.downcast_ref::<GridMemory>();
+        let drag = memory.drag.filter(|drag| drag.moving);
+        self.grid.draw(
+            &memory.grid,
             renderer,
             theme,
             style,
             layout,
-            cursor,
+            if drag.is_some() { mouse::Cursor::Unavailable } else { cursor },
             viewport,
         );
+        if let Some(drag) = drag
+            && let Some((_, bounds)) = self.target(drag, layout, cursor)
+            && let Some(bounds) = bounds.intersection(viewport)
+        {
+            let accent = theme.extended_palette().primary.base.color;
+            renderer.fill_quad(
+                renderer::Quad {
+                    bounds,
+                    border: Border::default().width(1).color(accent),
+                    ..Default::default()
+                },
+                accent.scale_alpha(0.19),
+            );
+        }
     }
 
     fn mouse_interaction(
@@ -331,13 +359,15 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         viewport: &Rectangle,
         renderer: &Renderer,
     ) -> mouse::Interaction {
-        self.0.mouse_interaction(
-            &tree.state.downcast_ref::<GridMemory>().grid,
-            layout,
-            cursor,
-            viewport,
-            renderer,
-        )
+        let memory = tree.state.downcast_ref::<GridMemory>();
+        if let Some(drag) = memory.drag {
+            return if drag.moving {
+                mouse::Interaction::Grabbing
+            } else {
+                mouse::Interaction::Grab
+            };
+        }
+        self.grid.mouse_interaction(&memory.grid, layout, cursor, viewport, renderer)
     }
 
     fn overlay<'b>(
@@ -348,7 +378,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         viewport: &Rectangle,
         translation: Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
-        self.0.overlay(
+        self.grid.overlay(
             &mut tree.state.downcast_mut::<GridMemory>().grid,
             layout,
             renderer,

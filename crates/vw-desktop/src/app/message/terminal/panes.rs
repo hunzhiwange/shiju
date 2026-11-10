@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use iced::Task;
-use iced::widget::pane_grid::DragEvent;
 
 use super::TerminalMessage;
 use crate::app::state::ToastKind;
@@ -10,20 +9,17 @@ use crate::app::{App, FocusArea, Message};
 
 pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {
-        TerminalMessage::ResizePane(instance, event, size) => {
+        TerminalMessage::ResizePane(instance, event) => {
             let terminal = &mut app.terminal;
             if terminal.is_visible && terminal.panes.instance == instance {
-                terminal.panes.resize(event, size);
+                terminal.panes.resize(event);
             }
             Task::none()
         }
-        TerminalMessage::DragPane(instance, event, size) => {
+        TerminalMessage::DockPane(instance, pane, target) => {
             let terminal = &mut app.terminal;
-            if terminal.is_visible
-                && terminal.panes.instance == instance
-                && let DragEvent::Dropped { pane, target } = event
-            {
-                terminal.panes.dock(pane, target, size);
+            if terminal.is_visible && terminal.panes.instance == instance {
+                terminal.panes.dock(pane, target);
             }
             Task::none()
         }
@@ -54,24 +50,23 @@ pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
             app.terminal.panes.split_menu = None;
             restore_focus(app)
         }
-        TerminalMessage::Split(pane, direction, size) => {
-            if !app.terminal.is_visible || app.terminal.panes.split_menu != Some(pane) {
+        TerminalMessage::Split(instance, pane, direction) => {
+            if !app.terminal.is_visible || app.terminal.panes.instance != instance {
                 return Task::none();
             }
             app.terminal.panes.split_menu = None;
             let cwd = app.project_path.as_ref().map(PathBuf::from);
-            let (kind, message) = match app.terminal.split_terminal(pane, direction, size, cwd) {
+            match app.terminal.split_terminal(pane, direction, cwd) {
                 Ok(()) => {
                     app.terminal.apply_app_theme(&app.app_theme);
-                    return super::event::focus_active_terminal(app);
+                    super::event::focus_active_terminal(app)
                 }
-                Err(SplitError::MissingPane) => return restore_focus(app),
-                Err(SplitError::InsufficientSpace) => {
-                    (ToastKind::Warning, "当前窗格空间不足，无法拆分终端")
-                }
-                Err(SplitError::Spawn) => (ToastKind::Error, "无法启动拆分终端"),
-            };
-            Task::batch([app.show_localized_toast(kind, message, vec![]), restore_focus(app)])
+                Err(SplitError::MissingPane) => restore_focus(app),
+                Err(SplitError::Spawn) => Task::batch([
+                    app.show_localized_toast(ToastKind::Error, "无法启动拆分终端", vec![]),
+                    restore_focus(app),
+                ]),
+            }
         }
         _ => unreachable!("unexpected terminal pane message"),
     }

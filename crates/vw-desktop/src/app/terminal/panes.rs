@@ -2,15 +2,12 @@
 
 use std::path::PathBuf;
 
-use iced::Size;
 use iced::widget::Id;
 use iced::widget::pane_grid::{Axis, Direction, Node, Pane, ResizeEvent, State, Target};
 
 use super::TerminalState;
 
-pub(crate) const PANE_SPACING: f32 = 4.0;
-const MIN_PANE_WIDTH: f32 = 160.0;
-const MIN_PANE_HEIGHT: f32 = 88.0;
+pub(crate) const PANE_SPACING: f32 = 1.0;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct TerminalPane {
@@ -78,37 +75,13 @@ impl TerminalPanes {
         self.grid.iter().any(|(_, pane)| pane.active_id == Some(id))
     }
 
-    pub(crate) fn resize(&mut self, event: ResizeEvent, size: Size) {
-        if !event.ratio.is_finite() {
-            return;
-        }
-        let splits = self.grid.layout().split_regions(PANE_SPACING, 0.0, size);
-        let Some(&(_, _, current)) = splits.get(&event.split) else {
-            return;
-        };
-        let mut candidate = self.grid.clone();
-        let requested = event.ratio.clamp(0.0, 1.0);
-        candidate.resize(event.split, requested);
-        if fits(&candidate, size) {
-            self.grid.resize(event.split, requested);
-        } else if fits(&self.grid, size) {
-            // A child can contain more splits. Use the rendered leaf bounds to
-            // find the nearest legal divider position, including Iced's rounding.
-            let (mut valid, mut invalid) = (current, requested);
-            for _ in 0..16 {
-                let ratio = (valid + invalid) / 2.0;
-                candidate.resize(event.split, ratio);
-                if fits(&candidate, size) {
-                    valid = ratio;
-                } else {
-                    invalid = ratio;
-                }
-            }
-            self.grid.resize(event.split, valid);
+    pub(crate) fn resize(&mut self, event: ResizeEvent) {
+        if event.ratio.is_finite() {
+            self.grid.resize(event.split, event.ratio.clamp(0.0, 1.0));
         }
     }
 
-    pub(crate) fn dock(&mut self, pane: Pane, target: Target, size: Size) {
+    pub(crate) fn dock(&mut self, pane: Pane, target: Target) {
         if self.grid.len() < 2
             || self.grid.get(pane).is_none()
             || matches!(target, Target::Pane(id, _) if id == pane || self.grid.get(id).is_none())
@@ -120,22 +93,10 @@ impl TerminalPanes {
         candidate.drop(pane, target);
         if candidate.panes == self.grid.panes
             && !same_arrangement(candidate.layout(), self.grid.layout())
-            && fits(&candidate, size)
         {
             self.grid = candidate;
         }
     }
-}
-
-fn fits(grid: &State<TerminalPane>, size: Size) -> bool {
-    let regions = grid.layout().pane_regions(PANE_SPACING, 0.0, size);
-    regions.keys().eq(grid.panes.keys())
-        && regions.values().all(|region| {
-            region.width.is_finite()
-                && region.height.is_finite()
-                && region.width >= MIN_PANE_WIDTH
-                && region.height >= MIN_PANE_HEIGHT
-        })
 }
 
 // Re-docking a pane on its existing edge must preserve the user's split ratios.
@@ -153,7 +114,6 @@ fn same_arrangement(first: &Node, second: &Node) -> bool {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum SplitError {
     MissingPane,
-    InsufficientSpace,
     Spawn,
 }
 
@@ -162,29 +122,15 @@ impl TerminalState {
         &mut self,
         pane: Pane,
         direction: Direction,
-        size: Size,
         cwd: Option<PathBuf>,
     ) -> Result<(), SplitError> {
-        let region = self
-            .panes
-            .grid
-            .layout()
-            .pane_regions(PANE_SPACING, 0.0, size)
-            .remove(&pane)
-            .filter(|_| self.panes.grid.get(pane).is_some_and(|p| p.active_id.is_some()))
-            .ok_or(SplitError::MissingPane)?;
+        if self.panes.grid.get(pane).and_then(|pane| pane.active_id).is_none() {
+            return Err(SplitError::MissingPane);
+        }
         let axis = match direction {
             Direction::Left | Direction::Right => Axis::Vertical,
             Direction::Up | Direction::Down => Axis::Horizontal,
         };
-        let (min_width, min_height) = match axis {
-            Axis::Vertical => (2.0 * MIN_PANE_WIDTH + PANE_SPACING, MIN_PANE_HEIGHT),
-            Axis::Horizontal => (MIN_PANE_WIDTH, 2.0 * MIN_PANE_HEIGHT + PANE_SPACING),
-        };
-        if !(region.width >= min_width && region.height >= min_height) {
-            return Err(SplitError::InsufficientSpace);
-        }
-
         let mut grid = self.panes.grid.clone();
         let (new_pane, _) =
             grid.split(axis, pane, TerminalPane::default()).ok_or(SplitError::MissingPane)?;

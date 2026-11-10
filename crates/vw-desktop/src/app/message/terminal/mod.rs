@@ -6,12 +6,9 @@
 use crate::app::{App, Message, Shell, TerminalTheme};
 use iced::Task;
 #[cfg(not(target_arch = "wasm32"))]
-use iced::{
-    Size,
-    widget::{
-        Id,
-        pane_grid::{Direction, DragEvent, Pane, ResizeEvent},
-    },
+use iced::widget::{
+    Id,
+    pane_grid::{Direction, Pane, ResizeEvent, Target},
 };
 
 /// config 子模块，拆分当前领域的局部职责。
@@ -52,11 +49,11 @@ pub enum TerminalMessage {
     #[cfg(not(target_arch = "wasm32"))]
     CloseSplitMenu,
     #[cfg(not(target_arch = "wasm32"))]
-    Split(Pane, Direction, Size),
+    Split(Id, Pane, Direction),
     #[cfg(not(target_arch = "wasm32"))]
-    ResizePane(Id, ResizeEvent, Size),
+    ResizePane(Id, ResizeEvent),
     #[cfg(not(target_arch = "wasm32"))]
-    DragPane(Id, DragEvent, Size),
+    DockPane(Id, Pane, Target),
     Select(u64),
     Close(u64),
     /// Drop terminals retired after iced cancelled their subscriptions.
@@ -120,7 +117,7 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         | TerminalMessage::CloseSplitMenu
         | TerminalMessage::Split(..)
         | TerminalMessage::ResizePane(..)
-        | TerminalMessage::DragPane(..) => panes::update(app, message),
+        | TerminalMessage::DockPane(..) => panes::update(app, message),
         TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         TerminalMessage::ToggleFullscreen => event::update(app, message),

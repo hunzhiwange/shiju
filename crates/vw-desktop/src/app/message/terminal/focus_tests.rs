@@ -627,6 +627,43 @@ async fn click_split_menu(h: &mut Harness, button: Point, item: usize) {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn terminal_split_shortcut_only_runs_in_the_focused_terminal() {
+    use iced::keyboard::{self, Modifiers, key};
+
+    let mut h = Harness::new().await;
+    let terminal_point = Point::new(120.0, 360.0);
+    let editor_point = Point::new(120.0, 90.0);
+    let macos = cfg!(target_os = "macos");
+    let shortcut = |repeat| {
+        let key = keyboard::Key::Character(if macos { "d" } else { "5" }.into());
+        Event::Keyboard(keyboard::Event::KeyPressed {
+            modified_key: key.clone(),
+            key,
+            physical_key: key::Physical::Code(if macos {
+                key::Code::KeyD
+            } else {
+                key::Code::Digit5
+            }),
+            location: keyboard::Location::Standard,
+            modifiers: if macos { Modifiers::LOGO } else { Modifiers::CTRL | Modifiers::SHIFT },
+            text: None,
+            repeat,
+        })
+    };
+
+    h.click(editor_point).await;
+    h.event(shortcut(false), editor_point).await;
+    assert_eq!(h.app.terminal.panes.grid.len(), 1);
+
+    h.click(terminal_point).await;
+    assert!(h.event(shortcut(false), terminal_point).await.is_empty());
+    assert_eq!(h.app.terminal.panes.grid.len(), 2);
+
+    assert!(h.event(shortcut(true), terminal_point).await.is_empty());
+    assert_eq!(h.app.terminal.panes.grid.len(), 2);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn terminal_split_toolbar_creates_independent_panes_in_each_direction() {
     use crate::app::terminal::panes::PANE_SPACING;
 
@@ -781,7 +818,8 @@ async fn terminal_split_routes_input_and_closes_empty_panes() {
             let pixels =
                 h.renderer.screenshot(Size::new(800, 500), 1.0, theme.palette().background);
             let pixel = |x: usize| &pixels[4 * (460 * 800 + x)..][..4];
-            assert_ne!(pixel(400), pixel(405), "pane separator in {theme:?}");
+            assert_ne!(pixel(400), pixel(399), "pane separator in {theme:?}");
+            assert_eq!(pixel(399), pixel(401), "single-pixel separator in {theme:?}");
         }
     }
 
@@ -790,20 +828,22 @@ async fn terminal_split_routes_input_and_closes_empty_panes() {
         Event::Window(iced::window::Event::RedrawRequested(std::time::Instant::now())),
         Point::new(120.0, 460.0),
     );
-    for id in [first, bottom_id] {
+    for (id, pane) in [(first, left), (bottom_id, bottom)] {
         assert!(messages.iter().any(|message| matches!(
             message,
             Message::Terminal(TerminalMessage::Event(iced_term::Event::BackendCall(
                 target, iced_term::BackendCommand::Resize(Some(size), _)
-            ))) if *target == id && size.height == regions[&bottom].height - 46.0
+            ))) if *target == id && size.height == regions[&pane].height - 46.0
         )));
     }
 
-    // A second vertical stack in the short pane would leave too little PTY space.
-    click_split_menu(&mut h, Point::new(382.0, 409.0), 3).await;
-    assert_eq!(h.app.terminal.panes.grid.len(), 3);
+    // The short bottom pane can still be split and the new tab can be closed.
+    click_split_menu(&mut h, Point::new(382.0, 407.0), 3).await;
+    assert_eq!(h.app.terminal.panes.grid.len(), 4);
+    let small_pane_id = h.app.terminal.active_id.unwrap();
+    assert_ne!(small_pane_id, bottom_id);
+    h.message(TerminalMessage::Close(small_pane_id)).await;
     assert_eq!(h.app.terminal.panes.focused, bottom);
-    assert_eq!(h.app.active_toast.as_ref().unwrap().message, "当前窗格空间不足，无法拆分终端");
 
     let widgets: Vec<_> =
         h.app.terminal.tabs.iter().map(|tab| tab.term.widget_id().clone()).collect();
@@ -869,7 +909,7 @@ async fn terminal_drag_preserves_pty_identity_and_uses_new_grid_size() {
     let first = h.app.terminal.active_id.unwrap();
     let pane = h.app.terminal.panes.focused;
     let widget = h.app.terminal.tabs[0].term.widget_id().clone();
-    h.app.terminal.split_terminal(pane, Direction::Right, Size::new(800.0, 220.0), None).unwrap();
+    h.app.terminal.split_terminal(pane, Direction::Right, None).unwrap();
     let second = h.app.terminal.active_id.unwrap();
     let first_point = Point::new(120.0, 360.0);
     let redraw = || Event::Window(iced::window::Event::RedrawRequested(std::time::Instant::now()));

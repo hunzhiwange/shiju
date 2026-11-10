@@ -9,7 +9,9 @@
 //! 该模块是 VibeWindow 应用的终端 UI 层核心组件，
 //! 负责将终端状态转换为 Iced 框架的可渲染元素。
 
-use iced::widget::{Space, button, canvas, column, container, row, scrollable, svg, text, text_input};
+use iced::widget::{
+    Space, button, canvas, column, container, row, scrollable, svg, text, text_input,
+};
 use iced::{Background, Border, Color, Element, Font, Length, Point, Theme};
 
 use crate::app::assets::{self, Icon};
@@ -33,6 +35,16 @@ mod content_menu;
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "terminal_pane_grid.rs"]
 mod pane_grid;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "terminal_pane_drag.rs"]
+mod pane_drag;
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "terminal_split_menu.rs"]
+mod split_menu;
+
+const TAB_TITLE_ID: &str = "terminal-tab-title";
+const TAB_STRIP_ID: &str = "terminal-tab-strip";
 
 const TAB_HEADER_HEIGHT: f32 = 34.0;
 const TAB_SCROLLBAR_WIDTH: f32 = 4.0;
@@ -226,6 +238,8 @@ fn pane_view<'a>(
         // 点击此区域可切换到对应标签页
         let select_btn = button(
             container(SingleLineLabel::new(title, 13.0).centered())
+                .id(TAB_TITLE_ID)
+                .padding([0, 10])
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center)
@@ -234,7 +248,7 @@ fn pane_view<'a>(
         .on_press(Message::Terminal(message::TerminalMessage::Select(tab_id)))
         .height(Length::Fill)
         .width(Length::Fixed(select_width))
-        .padding([0, 10])
+        .padding(0)
         .style(move |theme: &Theme, status: iced::widget::button::Status| {
             let palette = theme.extended_palette();
             // 激活标签使用主题色，非激活使用默认文本色
@@ -442,6 +456,7 @@ fn pane_view<'a>(
     // ==================== 构建可滚动的标签页栏 ====================
 
     let tabs_scroll = scrollable(tabs_row)
+        .id(TAB_STRIP_ID)
         .direction(iced::widget::scrollable::Direction::Horizontal(
             iced::widget::scrollable::Scrollbar::new()
                 .width(TAB_SCROLLBAR_WIDTH)

@@ -554,16 +554,14 @@ fn absorb_replaced_defers_live_tabs_from_previous_terminal_state() {
 #[cfg(all(unix, not(target_arch = "wasm32")))]
 #[test]
 fn terminal_split_spawn_failure_preserves_existing_panes() {
-    use iced::Size;
     use iced::widget::pane_grid::Direction;
 
     let project = tempfile::tempdir().unwrap();
     let cwd = project.path().to_path_buf();
-    let size = Size::new(800.0, 220.0);
     let mut terminal = super::TerminalState::default();
     assert!(terminal.add_terminal(Some(cwd.clone())));
     let first = terminal.panes.focused;
-    terminal.split_terminal(first, Direction::Right, size, Some(cwd.clone())).unwrap();
+    terminal.split_terminal(first, Direction::Right, Some(cwd.clone())).unwrap();
     let focused = terminal.panes.focused;
     let active = terminal.active_id;
     let next_id = terminal.next_id;
@@ -571,7 +569,7 @@ fn terminal_split_spawn_failure_preserves_existing_panes() {
     let layout = format!("{:?}", terminal.panes.grid);
 
     assert_eq!(
-        terminal.split_terminal(first, Direction::Down, size, Some(cwd.join("missing"))),
+        terminal.split_terminal(first, Direction::Down, Some(cwd.join("missing"))),
         Err(super::panes::SplitError::Spawn)
     );
     assert_eq!(format!("{:?}", terminal.panes.grid), layout);

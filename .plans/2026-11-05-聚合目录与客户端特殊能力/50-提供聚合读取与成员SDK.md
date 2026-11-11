@@ -77,3 +77,12 @@
 - 动态槽位5、10、4；绝对 CARGO_TARGET_DIR 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-5`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-10`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。首轮发现仓库独立 build-dir 覆盖中间目录，后续同时设置 CARGO_BUILD_BUILD_DIR 为各自槽位的 build 子目录；自有消费者均已退出，核对完整 owner 后清理自有锁，保留缓存。
 - 完整证据：`docs/shiju/agent-apps/aggregation/任务50-验证.md`；日志 `/tmp/shiju-t50-red.log`、`/tmp/shiju-t50-green.log`、`/tmp/shiju-t50-final.log`、`/tmp/shiju-t50-public-final.log`。
 - 最小回归条件：发布测试原所有者修正其模块引用后重跑必需全仓 Clippy，通过再删除本任务卡；不算母任务完成。没有以编译、零测试或模拟 HTTP 冒充真实客户端验收。
+
+
+## 2026-11-12 延后回归
+
+状态精确维持“已完成，待回归”。本轮无代码改动、未运行Cargo、未领取构建槽位；8份相关源码/清单、14个DTO/枚举及8项传输/序列化依赖核对后，原4项聚焦通过证据仍适用，无需机械重复。唯一后续实现差异是任务51将共享辅助方法改为pub(super)，无行为变化。完整核对见正式任务50验证文档与 `/tmp/shiju-t50-regression-applicability.json`。
+
+统一全仓由任务15执行，首轮槽位2，CARGO_TARGET_DIR为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；退出101，在途MCP页面system_settings_mcp_tools.rs的7/34/39/46/104行存在5处column宏歧义，且检查前后源码有变化，不能引用为通过。正式记录 `docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/round1-result.json`、`round1-clippy.log`。
+
+按调度本轮收尾，不再轮询统一结果，保留卡片；待统一稳定源码Clippy通过后由调度恢复本会话核对适用性并删除。无需用户决策，不标记已阻塞；不将缺失的统一通过结果报为通过。

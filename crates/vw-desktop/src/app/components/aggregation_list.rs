@@ -9,6 +9,9 @@ use iced::{
 };
 
 pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(session) = &form.publish {
+        return publish::overlay(session, base);
+    }
     let close = message(Event::Close);
     let header =
         settings_modal_header(text("聚合目录").size(20), settings_close_button(close.clone()));
@@ -143,6 +146,11 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
         }
     }
     let footer = row![
+        button(text("预览发布")).padding([8, 14]).style(primary_action_btn_style).on_press_maybe(
+            (!form.loading && form.snapshot.is_some()).then(|| message(Event::Publish(
+                crate::app::message::settings::aggregation_list::publish::Event::Open
+            )))
+        ),
         button(text("刷新"))
             .padding([8, 14])
             .style(rounded_action_btn_style)
@@ -178,3 +186,6 @@ fn notice_label(
         MultiAgentV2Forced => "当前配置要求启用多代理模式",
     }
 }
+
+#[path = "aggregation_publish.rs"]
+mod publish;

@@ -32,14 +32,16 @@ pub(crate) struct Form {
     pub loading: bool,
     pub snapshot: Option<Snapshot>,
     pub error: Option<&'static str>,
+    pub publish: Option<publish::Session>,
 }
 impl Form {
     pub fn new(selection: Selection, generation: u64) -> Self {
-        Self { selection, generation, loading: true, snapshot: None, error: None }
+        Self { selection, generation, loading: true, snapshot: None, error: None, publish: None }
     }
     pub fn invalidate_selection(&mut self, current: &Selection) {
         if &self.selection != current {
             self.loading = false;
+            self.publish = None;
             self.snapshot = None;
             self.error = Some("项目或执行主机上下文已改变，请刷新目录");
         }
@@ -70,6 +72,7 @@ impl Form {
 #[derive(Clone, Debug)]
 pub enum Event {
     Open,
+    Publish(publish::Event),
     Refresh,
     Close,
     Act(Action),
@@ -116,6 +119,9 @@ fn current(app: &App) -> Option<(GatewayClient, Selection)> {
     ))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Publish(event) = event {
+        return publish::update(app, event);
+    }
     if matches!(event, Event::Close) {
         app.app_providers.aggregation = None;
         return Task::none();
@@ -178,7 +184,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     }
     if matches!(event, Event::Refresh)
-        && app.app_providers.aggregation.as_ref().is_none_or(|f| f.loading)
+        && app.app_providers.aggregation.as_ref().is_none_or(|f| f.loading || f.publish.is_some())
     {
         return Task::none();
     }
@@ -251,7 +257,11 @@ impl Form {
         action: &Action,
     ) -> Option<String> {
         self.invalidate_selection(selection);
-        if self.loading || &self.selection != selection || !supported(selection.scope.app) {
+        if self.loading
+            || self.publish.is_some()
+            || &self.selection != selection
+            || !supported(selection.scope.app)
+        {
             return None;
         }
         let snapshot = self.snapshot.as_ref()?;
@@ -362,3 +372,6 @@ pub(crate) async fn mutate(
         Err(error) => MutationOutcome { result: Err(error), write_error: None },
     }
 }
+
+#[path = "aggregation_publish.rs"]
+pub(crate) mod publish;

@@ -61,7 +61,7 @@ impl DesktopModelCatalog {
             if !provider_ids.insert(member.provider_id) || !keys.insert(member.key) {
                 return Err(DesktopMappingError::InvalidConfiguration);
             }
-            for model in desktop_models(member, &proxy_model_routes(member.mapping)?)? {
+            for model in member_models(member)? {
                 if seen.insert(model.id.clone()) {
                     models.push(model);
                 }
@@ -161,6 +161,14 @@ fn proxy_model_routes(
         (rank.unwrap_or(ROLES.len()), route.id)
     });
     Ok(routes)
+}
+
+/// Project one eligible non-default member using the publication owner's rules.
+/// Preview callers use the resulting IDs to report collisions before publication.
+pub fn member_models(
+    member: &DesktopMappingMember<'_>,
+) -> Result<Vec<DesktopModel>, DesktopMappingError> {
+    desktop_models(member, &proxy_model_routes(member.mapping)?)
 }
 
 fn desktop_models(

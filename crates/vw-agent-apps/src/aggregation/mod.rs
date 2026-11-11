@@ -72,3 +72,9 @@ pub mod failover_guard;
 
 #[cfg(all(test, target_os = "macos"))]
 mod failover_guard_tests;
+
+#[cfg(target_os = "macos")]
+pub mod preview;
+
+#[cfg(all(test, target_os = "macos"))]
+mod preview_tests;

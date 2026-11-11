@@ -79,7 +79,26 @@ pub fn plan_codex_stack_catalog(
         if !keys.insert(member.key) {
             return Err(CodexCatalogError::InvalidCatalog);
         }
-        for mut row in third_party_rows(member.row)? {
+        rows.extend(member_rows(member)?);
+    }
+
+    let mut slugs = HashSet::new();
+    for (index, row) in rows.iter_mut().enumerate() {
+        row.insert("priority".into(), json!(index + 1));
+        if !slugs.insert(slug(row)?) {
+            return Err(CodexCatalogError::InvalidCatalog);
+        }
+    }
+    Ok(json!({ "models": rows }))
+}
+
+/// Project a non-default member for publication or read-only collision reporting.
+pub fn member_rows(
+    member: &CodexCatalogMember<'_>,
+) -> Result<Vec<Map<String, Value>>, CodexCatalogError> {
+    third_party_rows(member.row)?
+        .into_iter()
+        .map(|mut row| {
             let model = slug(&row)?;
             let id = model_ids::encode(AppId::Codex, member.key, model, false)
                 .map_err(|_| CodexCatalogError::InvalidCatalog)?;
@@ -97,18 +116,9 @@ pub fn plan_codex_stack_catalog(
             row.insert("slug".into(), json!(id));
             row.insert("display_name".into(), json!(display));
             row.insert("description".into(), json!(description));
-            rows.push(row);
-        }
-    }
-
-    let mut slugs = HashSet::new();
-    for (index, row) in rows.iter_mut().enumerate() {
-        row.insert("priority".into(), json!(index + 1));
-        if !slugs.insert(slug(row)?) {
-            return Err(CodexCatalogError::InvalidCatalog);
-        }
-    }
-    Ok(json!({ "models": rows }))
+            Ok(row)
+        })
+        .collect()
 }
 
 fn slug(row: &Map<String, Value>) -> Result<&str, CodexCatalogError> {

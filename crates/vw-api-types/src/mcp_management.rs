@@ -1,7 +1,7 @@
 //! Wire contracts for the managed MCP catalog and its independent consumers.
 
 use crate::{
-    ProjectScope, SessionId, TaskId, TenantScope,
+    ProjectId, ProjectScope, SessionId, TaskId, TenantScope,
     agent_apps::{AppId, AppInstallationId},
     agent_apps_auth::AuthService,
 };
@@ -64,6 +64,27 @@ pub enum McpConnectionDefinition {
 pub enum McpCatalogScope {
     Tenant { scope: TenantScope },
     Project { scope: ProjectScope },
+}
+
+/// Create a record under the authenticated tenant, optionally in a project.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpCreateRequest {
+    pub target_host_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<ProjectId>,
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub homepage: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub documentation: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    pub connection: McpConnectionDefinition,
 }
 
 /// Stable within the catalog scope.

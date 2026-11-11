@@ -538,6 +538,9 @@ pub(super) fn authorize_mcp_catalog_read(
     access::authorize(path, headers, tenant, target).map(|_| ())
 }
 
+/// Write to the explicitly granted catalog scope on the requested host.
+pub(super) use access::authorize_mcp_catalog_write;
+
 /// Native preview requires the host's configuration read grant.
 #[cfg(target_os = "macos")]
 pub(super) fn authorize_mcp_native_read(

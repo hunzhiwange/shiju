@@ -44,6 +44,10 @@ struct Grant {
     provider_config_read: bool,
     #[serde(default)]
     provider_config_write: bool,
+    #[serde(default)]
+    mcp_catalog_write: bool,
+    #[serde(default)]
+    mcp_catalog_write_projects: Vec<vw_api_types::id::ProjectId>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_refresh: Vec<UsageRefreshPermit>,
@@ -565,6 +569,7 @@ enum Capability<'a> {
     PreferencesWrite,
     Launch,
     ProviderConfigRead,
+    McpCatalogWrite(Option<&'a vw_api_types::id::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
         scope: &'a RoutingControlScope,
@@ -855,6 +860,10 @@ fn authorize_digest(
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
+                    Capability::McpCatalogWrite(project) => match project {
+                        Some(project) => g.mcp_catalog_write_projects.contains(project),
+                        None => g.mcp_catalog_write,
+                    },
                     #[cfg(target_os = "macos")]
                     Capability::RoutingControl { scope, app, manage, provider_write } => {
                         scope.tenant == *tenant
@@ -1083,6 +1092,22 @@ fn load(path: &Path) -> Result<Policy, ()> {
         }
         Ok(policy)
     }
+}
+
+pub(in super::super) fn authorize_mcp_catalog_write(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    scope: &vw_api_types::mcp_management::McpCatalogScope,
+    target: &str,
+) -> Result<(), StatusCode> {
+    use vw_api_types::mcp_management::McpCatalogScope;
+
+    let (tenant, project) = match scope {
+        McpCatalogScope::Tenant { scope } => (scope, None),
+        McpCatalogScope::Project { scope } => (scope.tenant_scope(), Some(scope.project_id())),
+    };
+    authorize_scoped(path, headers, tenant, target, None, Capability::McpCatalogWrite(project))
+        .map(|_| ())
 }
 
 /// Configuration metadata reads require an independent administrator grant.

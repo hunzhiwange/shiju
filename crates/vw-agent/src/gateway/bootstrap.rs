@@ -437,6 +437,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/tools", "tool catalog"),
         client_route("GET", "/v1/mcp/inspect", "MCP inspection"),
         client_route("GET", "/v1/agent-apps/mcp", "managed MCP catalog and capabilities"),
+        client_route("POST", "/v1/agent-apps/mcp", "create managed MCP catalog record"),
         client_route("GET", "/v1/agent-apps/mcp/presets", "managed MCP presets"),
         client_route("GET", "/v1/agent-apps/mcp/native", "managed MCP native preview"),
         client_route("POST", "/v1/mcp/apps/call", "session-bound MCP App tool call"),

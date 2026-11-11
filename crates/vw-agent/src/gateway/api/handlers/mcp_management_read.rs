@@ -28,7 +28,7 @@ use super::agent_apps;
 use crate::{agent_apps::mcp::McpCatalogStore, global_database::GlobalDatabase};
 
 #[derive(Clone)]
-struct PolicyFile(Option<PathBuf>);
+pub(super) struct PolicyFile(pub(super) Option<PathBuf>);
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -47,7 +47,10 @@ struct NativeQuery {
 
 pub(super) fn router() -> Router {
     Router::new()
-        .route("/agent-apps/mcp", get(read_catalog))
+        .route(
+            "/agent-apps/mcp",
+            get(read_catalog).post(super::mcp_management_create::create_catalog_record),
+        )
         .route("/agent-apps/mcp/presets", get(read_presets))
         .route("/agent-apps/mcp/native", get(read_native))
         .layer(Extension(PolicyFile(
@@ -61,13 +64,13 @@ pub(super) fn router() -> Router {
         }))
 }
 
-type ReadError = (StatusCode, Json<McpFailureResponse>);
+pub(super) type McpHttpError = (StatusCode, Json<McpFailureResponse>);
 
-fn failure(status: StatusCode, code: McpFailureCode) -> ReadError {
+pub(super) fn failure(status: StatusCode, code: McpFailureCode) -> McpHttpError {
     (status, Json(McpFailureResponse { code }))
 }
 
-fn access_error(status: StatusCode) -> ReadError {
+pub(super) fn access_error(status: StatusCode) -> McpHttpError {
     let code = match status {
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => McpFailureCode::PermissionDenied,
         StatusCode::BAD_REQUEST => McpFailureCode::InvalidDefinition,
@@ -78,11 +81,13 @@ fn access_error(status: StatusCode) -> ReadError {
     failure(status, code)
 }
 
-fn unavailable<T>(_: T) -> ReadError {
+pub(super) fn unavailable<T>(_: T) -> McpHttpError {
     failure(StatusCode::SERVICE_UNAVAILABLE, McpFailureCode::StorageUnavailable)
 }
 
-fn open_database(database: Option<Extension<GlobalDatabase>>) -> Result<GlobalDatabase, ReadError> {
+pub(super) fn open_database(
+    database: Option<Extension<GlobalDatabase>>,
+) -> Result<GlobalDatabase, McpHttpError> {
     match database {
         Some(Extension(database)) => Ok(database),
         None => GlobalDatabase::for_home(&crate::global::paths().home).map_err(unavailable),
@@ -95,7 +100,7 @@ async fn read_catalog(
     headers: HeaderMap,
     query: Result<Query<CatalogQuery>, QueryRejection>,
     database: Option<Extension<GlobalDatabase>>,
-) -> Result<Json<McpCatalogResponse>, ReadError> {
+) -> Result<Json<McpCatalogResponse>, McpHttpError> {
     let Query(query) = query.map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
     tokio::task::spawn_blocking(move || {
         agent_apps::authorize_mcp_catalog_read(
@@ -124,7 +129,7 @@ async fn read_presets(
     Extension(tenant): Extension<TenantScope>,
     headers: HeaderMap,
     query: Result<Query<CatalogQuery>, QueryRejection>,
-) -> Result<Json<McpPresetsResponse>, ReadError> {
+) -> Result<Json<McpPresetsResponse>, McpHttpError> {
     let Query(query) = query.map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
     tokio::task::spawn_blocking(move || {
         agent_apps::authorize_mcp_catalog_read(
@@ -150,7 +155,7 @@ async fn read_presets(
                     enabled: draft.enabled,
                 })
             })
-            .collect::<Result<_, ReadError>>()?;
+            .collect::<Result<_, McpHttpError>>()?;
         Ok(Json(McpPresetsResponse { presets }))
     })
     .await
@@ -163,7 +168,7 @@ async fn read_native(
     headers: HeaderMap,
     query: Result<Query<NativeQuery>, QueryRejection>,
     database: Option<Extension<GlobalDatabase>>,
-) -> Result<Json<McpNativePreview>, ReadError> {
+) -> Result<Json<McpNativePreview>, McpHttpError> {
     let Query(query) = query.map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
     tokio::task::spawn_blocking(move || {
         #[cfg(not(target_os = "macos"))]
@@ -203,7 +208,7 @@ fn native_preview(
     query: NativeQuery,
     host: vw_agent_apps::apps::discovery::read::LocalReadEnvironment,
     database: Option<Extension<GlobalDatabase>>,
-) -> Result<McpNativePreview, ReadError> {
+) -> Result<McpNativePreview, McpHttpError> {
     use crate::agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore};
     use vw_agent_apps::{
         apps::discovery::read::resolve_cli_installation,

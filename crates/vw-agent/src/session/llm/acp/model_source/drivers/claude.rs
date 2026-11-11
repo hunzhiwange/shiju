@@ -37,6 +37,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
                 "Claude selected model requires an unsupported protocol conversion"
             );
             crate::model_relay::official_deepseek_messages_url(api).is_some()
+                || crate::model_relay::official_alibaba_messages_url(api).is_some()
         }
         _ => anyhow::bail!("Claude selected model protocol is unsupported"),
     };

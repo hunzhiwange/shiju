@@ -230,6 +230,22 @@ fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
 }
 
 #[test]
+fn acp_model_source_claude_keeps_alibaba_token_plan_on_native_messages() {
+    let mut launch = profile(&Default::default());
+    launch.model_api = Some(crate::provider::provider::ApiInfo {
+        id: "deepseek-v4.1-flash-1017".into(),
+        url: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1".into(),
+        adapter: "openai-compatible".into(),
+    });
+    launch.model_supports_reasoning = true;
+    configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "1");
+    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+    assert_eq!(launch.config().env["ANTHROPIC_BASE_URL"], "http://127.0.0.1:12345");
+    assert_eq!(launch.config().env["ANTHROPIC_MODEL"], "selected-model");
+}
+
+#[test]
 fn acp_model_source_claude_verified_effort_runtime_is_scoped() {
     let directory = tempfile::tempdir().unwrap();
     let entry = directory.path().join("claude-agent-acp");

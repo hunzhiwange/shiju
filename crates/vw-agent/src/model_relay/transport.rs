@@ -114,6 +114,36 @@ pub(crate) fn official_deepseek_messages_url(api: &provider::ApiInfo) -> Option<
     Some(url)
 }
 
+/// Token Plan exposes both protocols on the same official origin and credentials.
+pub(crate) fn official_alibaba_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
+    if !matches!(api.adapter.as_str(), "openai" | "openai-compatible") {
+        return None;
+    }
+    let mut url = reqwest::Url::parse(api.url.trim()).ok()?;
+    if url.scheme() != "https"
+        || !matches!(
+            url.host_str(),
+            Some(
+                "token-plan.cn-beijing.maas.aliyuncs.com"
+                    | "token-plan.ap-southeast-1.maas.aliyuncs.com"
+            )
+        )
+        || url.port().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !matches!(
+            url.path().trim_end_matches('/'),
+            "/compatible-mode/v1" | "/compatible-mode/v1/chat/completions"
+        )
+    {
+        return None;
+    }
+    url.set_path("/apps/anthropic/v1/messages");
+    Some(url)
+}
+
 fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     let mut url =
         reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
@@ -256,8 +286,13 @@ impl RelayBackend for ProviderRelayBackend {
             && identity.session.ends_with(":claude"))
         .then(|| official_deepseek_messages_url(&model.api))
         .flatten();
-        let native =
-            messages_request && (model.api.adapter == "anthropic" || deepseek_messages.is_some());
+        let alibaba_messages = (messages_request && identity.session.ends_with(":claude"))
+            .then(|| official_alibaba_messages_url(&model.api))
+            .flatten();
+        let native = messages_request
+            && (model.api.adapter == "anthropic"
+                || deepseek_messages.is_some()
+                || alibaba_messages.is_some());
         let mut body = if gemini_request {
             let input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -292,6 +327,8 @@ impl RelayBackend for ProviderRelayBackend {
             let mut body = super::messages::native(model, &identity.model, &request.body)?;
             if deepseek_messages.is_some() {
                 super::messages::prepare_deepseek_native(&mut body)?;
+            } else if alibaba_messages.is_some() {
+                super::messages::prepare_hosted_native(&mut body)?;
             }
             body
         } else if messages_request {
@@ -311,7 +348,7 @@ impl RelayBackend for ProviderRelayBackend {
             gemini_url(model, streaming)?
         } else if native_responses {
             responses_url(model)?
-        } else if let Some(url) = deepseek_messages {
+        } else if let Some(url) = deepseek_messages.or(alibaba_messages) {
             url
         } else if native {
             messages_url(model)?

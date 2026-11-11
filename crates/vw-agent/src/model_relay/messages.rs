@@ -312,7 +312,7 @@ pub(super) fn native(
     Ok(body)
 }
 
-pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode> {
+pub(super) fn prepare_hosted_native(body: &mut Value) -> Result<(), StatusCode> {
     // Retain native thinking and SDK inference options without exposing account
     // metadata or enabling server-side MCP or tools.
     object_keys(
@@ -339,7 +339,11 @@ pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode
             object_keys(tool, &["name", "description", "input_schema", "cache_control"])?;
         }
     }
+    Ok(())
+}
 
+pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode> {
+    prepare_hosted_native(body)?;
     // DeepSeek requires thinking from earlier tool rounds in the current turn.
     // Old Chat-converted history has none. Resume that turn without inventing
     // thinking or signatures, then allow thinking again on the next user turn.

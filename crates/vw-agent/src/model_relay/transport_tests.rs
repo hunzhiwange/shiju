@@ -3,6 +3,41 @@ use crate::{auth, provider::provider};
 use axum::http::StatusCode;
 
 #[test]
+fn acp_model_source_messages_selects_the_official_alibaba_token_plan_endpoint() {
+    let mut api = provider::ApiInfo {
+        id: "deepseek-v4.1-flash-1017".into(),
+        url: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1".into(),
+        adapter: "openai-compatible".into(),
+    };
+    for host in
+        ["token-plan.cn-beijing.maas.aliyuncs.com", "token-plan.ap-southeast-1.maas.aliyuncs.com"]
+    {
+        for path in ["/compatible-mode/v1", "/compatible-mode/v1/chat/completions/"] {
+            api.url = format!("https://{host}{path}");
+            assert_eq!(
+                super::transport::official_alibaba_messages_url(&api).unwrap().as_str(),
+                format!("https://{host}/apps/anthropic/v1/messages")
+            );
+        }
+    }
+    for url in [
+        "https://token-plan.cn-beijing.maas.aliyuncs.com.example.invalid/compatible-mode/v1",
+        "http://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com:8443/compatible-mode/v1",
+        "https://user@token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1?custom=1",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1#custom",
+        "https://token-plan.cn-beijing.maas.aliyuncs.com/custom/v1",
+    ] {
+        api.url = url.into();
+        assert!(super::transport::official_alibaba_messages_url(&api).is_none());
+    }
+    api.url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1".into();
+    api.adapter = "google".into();
+    assert!(super::transport::official_alibaba_messages_url(&api).is_none());
+}
+
+#[test]
 fn acp_model_source_messages_selects_the_official_deepseek_native_endpoint() {
     let mut api = provider::ApiInfo {
         id: "deepseek-flash".into(),

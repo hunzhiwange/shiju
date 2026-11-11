@@ -3,6 +3,39 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 #[test]
+fn acp_model_source_alibaba_native_preserves_thinking_and_tool_cache_hints() {
+    let mut request = json!({
+        "model":"deepseek-v4.1-flash-1017", "max_tokens":4096,
+        "metadata":{"user_id":"private-native-account"},
+        "thinking":{"type":"adaptive"},
+        "output_config":{"effort":"high"},
+        "context_management":{"edits":[]},
+        "messages":[
+            {"role":"assistant","content":[
+                {"type":"thinking","thinking":"plan","signature":"native-signature"},
+                {"type":"tool_use","id":"read-1","name":"Read","input":{}}
+            ]},
+            {"role":"user","content":[
+                {"type":"tool_result","tool_use_id":"read-1","content":"file contents"}
+            ]}
+        ],
+        "tools":[{"name":"Read","input_schema":{"type":"object"},
+            "cache_control":{"type":"ephemeral"}}]
+    });
+    let original = request.clone();
+    assert_eq!(messages::to_chat(&request), Err(StatusCode::UNPROCESSABLE_ENTITY));
+    messages::prepare_hosted_native(&mut request).unwrap();
+    let mut expected = original;
+    expected.as_object_mut().unwrap().remove("metadata");
+    assert_eq!(request, expected);
+    request["mcp_servers"] = json!([{"url":"https://example.invalid"}]);
+    assert_eq!(
+        messages::prepare_hosted_native(&mut request),
+        Err(StatusCode::UNPROCESSABLE_ENTITY)
+    );
+}
+
+#[test]
 fn acp_model_source_official_deepseek_keeps_legacy_tool_continuations_usable() {
     let request = json!({
         "thinking":{"type":"adaptive"},

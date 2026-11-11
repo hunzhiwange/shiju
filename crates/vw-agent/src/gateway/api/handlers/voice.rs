@@ -5,7 +5,7 @@ use axum::{
     extract::{DefaultBodyLimit, Path, Request},
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{delete, post},
+    routing::{delete, get, post},
 };
 use sha2::{Digest, Sha256};
 use std::{sync::Arc, time::Duration};
@@ -27,6 +27,7 @@ use upload::{MAX_BODY, read_upload};
 /// One shared registry per running router, including cancellation and bounded deduplication.
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()
+        .route("/voice/config", get(voice_config))
         .route("/voice/transcriptions", post(transcribe))
         .route("/voice/transcriptions/{request_id}", delete(cancel))
         .layer(DefaultBodyLimit::max(MAX_BODY))
@@ -65,6 +66,17 @@ async fn authenticate(
         Owner { tenant: tenant.clone(), principal: Sha256::digest(token.as_bytes()).into() },
         config.app_ui.voice,
     ))
+}
+async fn voice_config(
+    Extension(tenant): Extension<TenantScope>,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    match authenticate(&tenant, &headers).await {
+        Ok((_, config)) => {
+            ([(axum::http::header::CACHE_CONTROL, "no-store")], Json(config)).into_response()
+        }
+        Err(code) => failure(code, fallback_id()),
+    }
 }
 async fn transcribe(
     Extension(tenant): Extension<TenantScope>,

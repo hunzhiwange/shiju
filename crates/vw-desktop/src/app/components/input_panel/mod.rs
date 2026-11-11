@@ -51,6 +51,10 @@ mod task_mode;
 pub(crate) mod todo_panel;
 pub(crate) mod usage;
 mod usage_button;
+#[cfg(not(target_arch = "wasm32"))]
+mod voice_controls;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod voice_controls_tests;
 
 pub(crate) const MODEL_POPOVER_SCROLL_ID: &str = "input_panel_model_popover_scroll";
 
@@ -530,6 +534,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
+    #[cfg(not(target_arch = "wasm32"))]
+    let attach_btn = iced::widget::row![attach_btn, voice_controls::view(app)]
+        .spacing(3)
+        .align_y(iced::Alignment::Center)
+        .into();
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
 
     let acp_btn = app.active_session_id.as_ref().and_then(|_| acp_options::entry(app, runtime));

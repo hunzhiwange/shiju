@@ -261,3 +261,52 @@ async fn round_trip() {
     assert_eq!(response.unwrap().status(), StatusCode::CONFLICT);
     upstream_task.abort();
 }
+#[tokio::test]
+async fn voice_task_07_config_requires_owner_and_excludes_credentials() {
+    let tenant = TenantScope::new("voice07", "owner").unwrap();
+    crate::config::update_global_for_tenant(&tenant, json!({"gateway":{"auth_enabled":true,"skeys":[{"skey":TOKEN,"name":"fixture"}]},"app_ui":{"voice":{"dictation_enabled":false}}})).await.unwrap();
+    let app = router::<()>()
+        .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    let server = Server { url, task };
+    let client = reqwest::Client::new();
+    let url = format!("{}/voice/config", server.url);
+    let response = client
+        .get(&url)
+        .header("x-platform-id", "voice07")
+        .header("x-company-id", "owner")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = client
+        .get(&url)
+        .bearer_auth(TOKEN)
+        .header("x-platform-id", "voice07")
+        .header("x-company-id", "other")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let response = client
+        .get(&url)
+        .bearer_auth(TOKEN)
+        .header("x-platform-id", "voice07")
+        .header("x-company-id", "owner")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["cache-control"], "no-store");
+    let bytes = response.bytes().await.unwrap();
+    assert!(!std::str::from_utf8(&bytes).unwrap().contains(TOKEN));
+    let config: vw_config_types::voice::VoiceConfig = serde_json::from_slice(&bytes).unwrap();
+    assert!(!config.dictation_enabled);
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert!(value.get("gateway").is_none());
+    assert!(value.get("model_providers").is_none());
+}

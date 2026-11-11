@@ -41,6 +41,33 @@ impl Drop for CancelOnDrop {
     }
 }
 impl GatewayClient {
+    /// Fetch the authenticated tenant's non-secret voice configuration only.
+    pub async fn voice_config<T: serde::de::DeserializeOwned>(&self) -> Result<T, VoiceApiError> {
+        if !self.endpoint.is_loopback() {
+            return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
+        }
+        let response = apply_request_context(
+            self.dynamic_host_client.get(format!("{}/api/voice/config", self.endpoint.base_url())),
+            &self.endpoint,
+        )
+        .send()
+        .await
+        .map_err(|_| VoiceApiError::Transport)?;
+        if !response.status().is_success() {
+            return Err(VoiceApiError::Transport);
+        }
+        let mut stream = response.bytes_stream();
+        let mut bytes = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|_| VoiceApiError::Transport)?;
+            if bytes.len() + chunk.len() > 64 * 1024 {
+                return Err(VoiceApiError::InvalidResponse);
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        serde_json::from_slice(&bytes).map_err(|_| VoiceApiError::InvalidResponse)
+    }
+
     /// Transcribe WAV bytes and correlate the final result to the original draft.
     /// Dropping this future requests cancellation; callers must still reject stale generations.
     pub async fn voice_transcribe(

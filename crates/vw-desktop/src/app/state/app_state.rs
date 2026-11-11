@@ -87,6 +87,8 @@ pub(crate) enum NativeStartupState {
 
 #[allow(dead_code)]
 pub struct App {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) voice: crate::app::message::voice::State,
     pub(crate) git_repository: crate::app::components::git_panel::repository_ops::RepositoryState,
     pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
     /// 当前显示的屏幕

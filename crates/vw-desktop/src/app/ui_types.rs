@@ -72,6 +72,8 @@ impl std::fmt::Display for SettingsTab {
 #[derive(Debug, Clone)]
 pub enum Message {
     #[cfg(not(target_arch = "wasm32"))]
+    Voice(message::voice::Event),
+    #[cfg(not(target_arch = "wasm32"))]
     StartupCliServiceBootstrapped(Result<(), String>),
     #[cfg(not(target_arch = "wasm32"))]
     StartupGatewaySnapshotLoaded(u64, Box<crate::app::impls::StartupGatewaySnapshot>),

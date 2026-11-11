@@ -178,3 +178,29 @@ async fn voice_task_06_client_refuses_remote_plaintext_recordings() {
     assert_eq!(client.voice_transcribe(&metadata(), vec![1]).await, Err(expected.clone()));
     assert_eq!(client.voice_cancel_transcription(&metadata().request_id).await, Err(expected));
 }
+#[tokio::test]
+async fn voice_task_07_client_fetches_scoped_voice_config_only() {
+    let (client, task) =
+        fixture(200, json!({"dictation_enabled":true,"provider_id":"voice"}).to_string());
+    let config: serde_json::Value = client.voice_config().await.unwrap();
+    assert_eq!(config["provider_id"], "voice");
+    let request = task.join().unwrap();
+    assert!(request.starts_with("GET /api/voice/config HTTP/1.1"));
+    assert!(request.contains("authorization: Bearer fixture-skey"));
+    assert!(request.contains("x-platform-id: p06"));
+    assert!(request.contains("x-company-id: c06"));
+}
+#[tokio::test]
+async fn voice_task_07_client_bounds_config_and_redacts_errors() {
+    let (client, task) = fixture(200, " ".repeat(65 * 1024));
+    assert_eq!(
+        client.voice_config::<serde_json::Value>().await.unwrap_err(),
+        VoiceApiError::InvalidResponse
+    );
+    task.join().unwrap();
+    let (client, task) = fixture(500, "sensitive-upstream-payload".into());
+    let error = client.voice_config::<serde_json::Value>().await.unwrap_err();
+    assert_eq!(error, VoiceApiError::Transport);
+    assert!(!error.to_string().contains("sensitive"));
+    task.join().unwrap();
+}

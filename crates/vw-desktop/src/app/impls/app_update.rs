@@ -790,6 +790,20 @@ impl App {
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
+        {
+            message::voice::invalidate(self);
+            if matches!(
+                &message,
+                Message::View(message::ViewMessage::CloseRequested(_))
+                    | Message::View(message::ViewMessage::GlobalKeyPressed(
+                        iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                        _
+                    ))
+            ) {
+                message::voice::cancel(self);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         if matches!(
             message,
             Message::Settings(message::SettingsMessage::AgentAppsAuth(
@@ -1028,6 +1042,8 @@ impl App {
             Message::Git(msg) => message::git::update(self, msg),
 
             // 聊天功能相关消息
+            #[cfg(not(target_arch = "wasm32"))]
+            Message::Voice(event) => message::voice::update(self, event),
             Message::Chat(msg) => message::chat::update(self, msg),
 
             // 搜索功能相关消息
@@ -1199,6 +1215,8 @@ impl App {
             }
             self.agent_apps_auth.focused_service = None;
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        message::voice::invalidate(self);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

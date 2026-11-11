@@ -342,6 +342,8 @@ impl App {
             project_path_input: String::new(),
 
             // ========== 输入和模型配置 ==========
+            #[cfg(not(target_arch = "wasm32"))]
+            voice: Default::default(),
             input_text: String::new(),
             model: cfg_model.clone(),
             auto_model: cfg_auto_model,

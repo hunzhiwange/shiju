@@ -45,3 +45,17 @@ fn aggregation_t49_directory_wire_contract_rejects_profile_selectors_and_mcp() {
     assert_eq!(encoded["defaultModelId"], "model");
     assert!(encoded.get("default_model_id").is_none());
 }
+
+#[test]
+fn aggregation_t48_pi_requests_reject_native_settings_and_extra_payloads() {
+    let base = json!({"targetHostId":"host","projectId":"project","expectedRevision":"revision","change":{"kind":"remove"}});
+    assert!(serde_json::from_value::<PiDirectoryWrite>(base.clone()).is_ok());
+    for key in ["path", "auth", "defaultProviderId", "defaultModelId"] {
+        let mut request = base.clone();
+        request[key] = json!("untrusted");
+        assert!(serde_json::from_value::<PiDirectoryWrite>(request).is_err());
+    }
+    let mut request = base;
+    request["change"]["profile"] = json!({"name":"bad","declaration":{}});
+    assert!(serde_json::from_value::<PiDirectoryWrite>(request).is_err());
+}

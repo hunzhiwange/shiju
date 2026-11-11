@@ -320,7 +320,7 @@ static KEY: LazyLock<Result<ring::hmac::Key, StatusCode>> = LazyLock::new(|| {
     getrandom::fill(&mut bytes).map_err(unavailable)?;
     Ok(ring::hmac::Key::new(ring::hmac::HMAC_SHA256, &bytes))
 });
-fn sign(bytes: &[u8]) -> Result<String, StatusCode> {
+pub(super) fn sign(bytes: &[u8]) -> Result<String, StatusCode> {
     let key = KEY.as_ref().map_err(|status| *status)?;
     Ok(hex::encode(ring::hmac::sign(key, bytes).as_ref()))
 }

@@ -265,6 +265,9 @@ mod opencode;
 #[cfg(all(test, target_os = "macos"))]
 mod opencode_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+#[path = "aggregation_pi_tests.rs"]
+mod aggregation_pi_tests;
 mod pi;
 #[cfg(all(test, target_os = "macos"))]
 mod pi_tests;

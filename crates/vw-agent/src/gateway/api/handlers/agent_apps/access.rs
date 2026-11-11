@@ -494,6 +494,9 @@ pub(super) struct Host {
     pub applications: PathBuf,
     #[serde(default)]
     pub credential_root: Option<PathBuf>,
+    /// Trusted host configuration, never a request-supplied path.
+    #[serde(default)]
+    pub pi_directory: Option<PathBuf>,
     #[serde(default)]
     pub github_enterprise_authorities: Vec<String>,
     #[serde(default)]
@@ -1100,6 +1103,9 @@ fn load(path: &Path) -> Result<Policy, ()> {
                 || !ids.insert(&host.id)
                 || !host.home.is_absolute()
                 || !host.applications.is_absolute()
+                || host.pi_directory.as_ref().is_some_and(|directory| {
+                    !directory.is_absolute() || !directory.starts_with(&host.home)
+                })
                 || host.credential_root.as_ref().is_some_and(|root| !root.is_absolute())
                 || host.native_login_owners.iter().any(|owner| {
                     let unique = !services.contains(&owner.service);
@@ -1575,4 +1581,31 @@ pub(in super::super) fn authorize_diagnostic_probe(
         Capability::DiagnosticProbe(scope),
     )
     .map(|authorization| (authorization.host.credential_root, authorization.principal))
+}
+
+#[cfg(target_os = "macos")]
+pub(in super::super) struct PiDirectoryContext {
+    pub home: PathBuf,
+    pub credential_root: Option<PathBuf>,
+    pub directory: Option<PathBuf>,
+    pub principal: String,
+}
+
+/// Pi-specific directory permission is checked in the same grant as provider access.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_pi_directory(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    target: &str,
+    write: bool,
+) -> Result<PiDirectoryContext, StatusCode> {
+    authorize_aggregation(path, headers, project, target, AppId::Pi, write.then_some(false)).map(
+        |authorization| PiDirectoryContext {
+            home: authorization.host.home,
+            credential_root: authorization.host.credential_root,
+            directory: authorization.host.pi_directory,
+            principal: authorization.principal,
+        },
+    )
 }

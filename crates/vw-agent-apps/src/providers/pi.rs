@@ -15,6 +15,8 @@ mod read_tests;
 mod write;
 pub use write::{PiDirectoryChange, PiDirectoryWriteError};
 #[cfg(test)]
+mod directory_project_tests;
+#[cfg(test)]
 mod write_tests;
 
 fn invalid<T>() -> Result<T, WriteError> {

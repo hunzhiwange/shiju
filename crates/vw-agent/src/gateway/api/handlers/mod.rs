@@ -332,6 +332,7 @@ mod mcp_management_update;
 mod mcp_management_update_tests;
 
 mod aggregation_omp;
+mod aggregation_pi;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_read_tests;

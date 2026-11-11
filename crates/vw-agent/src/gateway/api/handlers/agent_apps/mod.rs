@@ -561,7 +561,9 @@ pub(super) fn authorize_mcp_native_read(
 }
 
 #[cfg(target_os = "macos")]
-pub(super) use access::{authorize_aggregation_read, authorize_aggregation_write};
+pub(super) use access::{
+    authorize_aggregation_read, authorize_aggregation_write, authorize_pi_directory,
+};
 
 /// Native cleanup uses the same administrator-owned roots and write grant as provider edits.
 #[cfg(target_os = "macos")]

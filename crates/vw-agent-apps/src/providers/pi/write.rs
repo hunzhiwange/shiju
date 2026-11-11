@@ -50,6 +50,68 @@ pub(super) fn source_revision(directory: &Path, models: Option<&[u8]>) -> String
 }
 
 impl PiFiles {
+    /// Project-bound directory edits use the existing project transaction owner.
+    /// Ownership must already be proved; this API never claims legacy inputs.
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_directory_change_for_project(
+        &mut self,
+        tx: &ProviderTransactions,
+        project: &vw_api_types::id::ProjectScope,
+        expected_revision: &str,
+        id: &str,
+        change: PiDirectoryChange<'_>,
+        unchanged: impl Fn() -> bool,
+    ) -> Result<(), PiDirectoryWriteError> {
+        use crate::providers::live::{
+            commit::*,
+            stage::{FileChange, WholeFile},
+            write_guard::FilePrivacy,
+        };
+        use PiDirectoryWriteError::*;
+        use std::ffi::OsStr;
+        let expected = tx.state(AppId::Pi)?;
+        if expected.project_scope.as_ref() != Some(project) {
+            return Err(Forbidden);
+        }
+        expected.require_project(project).map_err(|_| Forbidden)?;
+        if tx.pending(AppId::Pi)?.is_some() {
+            return Err(RecoveryPending);
+        }
+        if expected.pointer.is_some()
+            || expected.mode.as_ref().is_some_and(|mode| mode.attached || mode.mode != Mode::Direct)
+        {
+            return Err(RevisionConflict);
+        }
+        let (name, pre) = self.snapshot()?;
+        if source_revision(&self.directory, pre.as_deref()) != expected_revision || !unchanged() {
+            return Err(RevisionConflict);
+        }
+        let next = patch_entry(pre.as_deref(), id, change)?;
+        if next == pre.as_deref().unwrap_or_default() {
+            return Ok(());
+        }
+        let patch = WholeFile::new(pre.as_deref(), Some(next));
+        tx.commit_project_checked(
+            project,
+            &mut self.guard,
+            &expected,
+            false,
+            &[FileChange { name: OsStr::new(name), privacy: FilePrivacy::Private, patch: &patch }],
+            PendingTarget {
+                pointer: None,
+                mode: Some(ModeState {
+                    mode: Mode::Direct,
+                    attached: false,
+                    proxy_route: expected.mode.as_ref().and_then(|mode| mode.proxy_route.clone()),
+                    contract: None,
+                }),
+                ..Default::default()
+            },
+            || if unchanged() { Ok(()) } else { Err(WriteError::Conflict) },
+        )?;
+        Ok(())
+    }
+
     /// The caller authorizes the project and host, then verifies any scope-bound
     /// revision against this native source revision. Recheck upstream inputs
     /// through `unchanged` before the existing transaction publishes.

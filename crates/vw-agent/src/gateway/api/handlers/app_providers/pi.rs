@@ -13,6 +13,7 @@ pub(super) fn router() -> Router {
 }
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
+        .merge(super::super::aggregation_pi::router_with_policy(path.clone()))
         .route("/app-providers/pi/{id}/config", put(save))
         .route("/app-providers/pi/{id}/form/read", post(form_read))
         .route("/app-providers/pi/{id}/form", post(form_create).patch(form_update))
@@ -127,10 +128,18 @@ async fn state(
     Extension(t): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     h: HeaderMap,
-    body: Result<Json<PiTarget>, JsonRejection>,
+    body: Result<Json<vw_api_types::agent_apps::aggregation::PiDirectoryRead>, JsonRejection>,
 ) -> Response {
-    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
-    run(p, t, db, h, String::new(), Operation::State(b)).await
+    use vw_api_types::agent_apps::aggregation::PiDirectoryRead;
+    let Ok(Json(body)) = body else { return super::super::aggregation_pi::invalid_request() };
+    match body {
+        PiDirectoryRead::Scoped(query) => {
+            super::super::aggregation_pi::read(p.0, t, h, query).await
+        }
+        PiDirectoryRead::Legacy(body) => {
+            run(p, t, db, h, String::new(), Operation::State(body)).await
+        }
+    }
 }
 async fn run(
     p: Policy,
@@ -186,6 +195,26 @@ fn execute(
         host,
         !matches!(op, Operation::State(_) | Operation::FormRead(_)),
     )?;
+    // Legacy native entry points cannot bypass a persisted project binding.
+    let _read_guard =
+        if matches!(op, Operation::State(_) | Operation::FormRead(_) | Operation::Import(_)) {
+            Some(
+                vw_agent_apps::providers::live::write_guard::lock_app(AppId::Pi, &home)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+            )
+        } else {
+            None
+        };
+    if !matches!(op, Operation::Usage(_))
+        && let Some(tx) = ProviderTransactions::open_existing(
+            &root,
+            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
+        )
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+        && tx.state(AppId::Pi).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.project_scope.is_some()
+    {
+        return Err(StatusCode::CONFLICT);
+    }
     if matches!(op, Operation::State(_)) {
         return encode(
             &state(read(&home).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?.as_deref())

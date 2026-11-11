@@ -30,6 +30,7 @@ pub(crate) struct ListState {
     pub snippets: Option<super::snippets::Form>,
     pub env: Option<super::env::Form>,
     pub mode: Option<super::mode::Form>,
+    pub aggregation: Option<crate::app::message::settings::aggregation_list::Form>,
     pub paths: Option<super::paths::Form>,
     pub preview: Option<super::preview::Form>,
     pub endpoints: Option<super::endpoints::Form>,
@@ -70,6 +71,7 @@ impl ListState {
         self.preview = None;
         self.env = None;
         self.mode = None;
+        self.aggregation = None;
         self.paths = None;
         self.loading = true;
         self.error = None;

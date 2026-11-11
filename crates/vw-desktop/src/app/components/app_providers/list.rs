@@ -369,6 +369,11 @@ pub(crate) fn overlay<'a>(
     if crate::app::state::app_providers::env::available(scope.app) {
         actions = actions.push(action("环境诊断", ListMessage::Env(EnvEvent::Open), ready));
     }
+    actions = actions.push(action(
+        "聚合目录",
+        ListMessage::Aggregation(crate::app::message::settings::aggregation_list::Event::Open),
+        ready,
+    ));
     if mode::available(scope.app) {
         actions = actions.push(action("供应商模式", ListMessage::Mode(ModeEvent::Open), ready));
     }
@@ -390,6 +395,9 @@ pub(crate) fn overlay<'a>(
             help.theme,
             list,
         );
+    }
+    if let Some(form) = &state.aggregation {
+        return super::super::aggregation_list::overlay(form, list);
     }
     if let Some(form) = &state.paths {
         return super::paths::overlay(form, help, list);

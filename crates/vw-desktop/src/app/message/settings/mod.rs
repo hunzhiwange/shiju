@@ -2,6 +2,7 @@
 
 mod acp;
 pub(in crate::app) mod agents;
+pub(crate) mod aggregation_list;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 #[cfg(not(target_arch = "wasm32"))]

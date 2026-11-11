@@ -42,6 +42,7 @@ pub enum ListMessage {
     Usage(crate::app::components::apps_usage_cards::Event),
     #[cfg(not(target_arch = "wasm32"))]
     UsageSettings(crate::app::components::apps_usage_settings::Event),
+    Aggregation(crate::app::message::settings::aggregation_list::Event),
     Desktop(super::desktop::Event),
     Endpoints(super::endpoints::Event),
     Icons(super::icons::Event),
@@ -170,6 +171,9 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        ListMessage::Aggregation(event) => {
+            return crate::app::message::settings::aggregation_list::update(app, event);
+        }
         #[cfg(not(target_arch = "wasm32"))]
         ListMessage::Usage(event) => {
             return crate::app::components::apps_usage_cards::update(app, event);

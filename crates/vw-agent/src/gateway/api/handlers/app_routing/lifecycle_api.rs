@@ -16,7 +16,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use std::{path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use vw_agent_apps::{
     apps::catalog::catalog,
     providers::live::commit::{ExecutionHostId, ProviderTransactions},
@@ -42,9 +42,17 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
     let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from) else {
         return app;
     };
+    configure_with_policy(app, routing, path).await
+}
+
+pub(crate) async fn configure_with_policy(
+    app: Router,
+    routing: &Arc<RoutingListener>,
+    policy: PathBuf,
+) -> Router {
     let Ok((policy, Ok(setup))) = tokio::task::spawn_blocking(move || {
-        let setup = routing_setup(&path);
-        (path, setup)
+        let setup = routing_setup(&policy);
+        (policy, setup)
     })
     .await
     else {
@@ -107,6 +115,42 @@ impl RoutingControl {
         app: AppId,
     ) -> Result<(PathBuf, String), StatusCode> {
         authorize_routing_mode(&self.policy, headers, &self.scope, project, host, app)
+    }
+
+    /// Entry for the native configuration transaction. Check the current policy
+    /// before resolving saved members, and use the same executor root throughout.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "awaits native client configuration publication")
+    )]
+    pub(crate) fn publish_aggregation(
+        &self,
+        headers: &HeaderMap,
+        project: &ProjectScope,
+        host: &str,
+        expected_revision: Option<&str>,
+        prepare: impl FnOnce(
+            &std::path::Path,
+            &str,
+        ) -> Result<
+            crate::app_routing::aggregation_routing::AggregationPublication,
+            StatusCode,
+        >,
+        commit: impl FnOnce(
+            &std::path::Path,
+            SocketAddr,
+            &str,
+        ) -> Result<(), crate::app_routing::RouteCommitError>,
+    ) -> Result<crate::app_routing::RouteRevocation, StatusCode> {
+        let app = AppId::Codex;
+        let (root, principal) = self.authorize_mode(headers, project, host, app)?;
+        let publication = prepare(&root, &principal)?;
+        if !publication.binding.has_scope(project, host, app) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        self.routing.publish_aggregation(publication, expected_revision, |address, token| {
+            commit(&root, address, token)
+        })
     }
 
     pub(super) async fn with_config_store<T: Send + 'static>(

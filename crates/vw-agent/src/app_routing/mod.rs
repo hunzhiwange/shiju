@@ -1,3 +1,5 @@
+#[cfg(target_os = "macos")]
+pub(crate) mod aggregation_routing;
 mod body_limits;
 mod browser_guard;
 mod cancellation;
@@ -6,7 +8,7 @@ mod capacity;
 pub(crate) mod config_apply;
 mod decode_request;
 mod decode_response;
-mod dispatch;
+pub(crate) mod dispatch;
 pub(crate) mod gateway_owner;
 mod header_wire;
 mod listener;
@@ -25,7 +27,7 @@ mod timeouts;
 mod transport_security;
 pub use listener::{ListenerError, RoutingListener};
 #[cfg(target_os = "macos")]
-pub(crate) use route_auth::VerifiedRouteBinding;
+pub(crate) use route_auth::{RouteCommitError, RouteRevocation, VerifiedRouteBinding};
 pub use shared_transport::SharedTransport;
 
 #[cfg(all(test, target_os = "macos"))]

@@ -24,10 +24,14 @@ use tokio::{
     time::timeout,
 };
 use tokio_util::sync::CancellationToken;
+use vw_agent_apps::aggregation::model_ids::{Decoded, ModelIdError, decode};
 use vw_api_types::{agent_apps::AppId, id::ProjectScope};
 #[cfg(target_os = "macos")]
 use {
-    super::{config_apply::RoutingConfigStore, timeouts::AppTimeouts},
+    super::{
+        aggregation_routing::AggregationSnapshot, config_apply::RoutingConfigStore,
+        timeouts::AppTimeouts,
+    },
     crate::global_database::GlobalDatabase,
 };
 
@@ -58,6 +62,21 @@ impl VerifiedRouteBinding {
         Self { project, host, app, account, account_generation }
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn has_scope(&self, project: &ProjectScope, host: &str, app: AppId) -> bool {
+        &self.project == project && self.host == host && self.app == app
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn app(&self) -> AppId {
+        self.app
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn project(&self) -> &ProjectScope {
+        &self.project
+    }
+
     fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
             !self.host.trim().is_empty()
@@ -78,15 +97,34 @@ pub(super) struct AuthorizedRoute {
     binding: VerifiedRouteBinding,
     generation: u64,
     cancelled: CancellationToken,
-    json_target: Option<JsonTarget>,
+    json_target: Option<JsonRoute>,
     pub(super) capacity: Arc<RouteCapacity>,
     #[cfg(target_os = "macos")]
     timeout_store: Option<Arc<RoutingConfigStore>>,
 }
 
 impl AuthorizedRoute {
-    pub(super) fn json_target(&self) -> Option<(AppId, &JsonTarget, CancellationToken)> {
-        self.json_target.as_ref().map(|target| (self.binding.app, target, self.cancelled.clone()))
+    pub(super) fn json_app(&self) -> Option<AppId> {
+        self.json_target.as_ref().map(|_| self.binding.app)
+    }
+
+    pub(super) fn select_json(
+        &self,
+        model: Option<&str>,
+    ) -> Result<(&JsonTarget, Option<&str>, CancellationToken), StatusCode> {
+        let route = self.json_target.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let (target, model) = match route {
+            JsonRoute::Plain(target) => match decode(self.binding.app, model.unwrap_or_default()) {
+                Ok(Decoded::Plain) => (target.as_ref(), None),
+                Ok(_) | Err(ModelIdError::UnsupportedApplication) => {
+                    return Err(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+                Err(ModelIdError::InvalidModelId) => return Err(StatusCode::BAD_REQUEST),
+            },
+            #[cfg(target_os = "macos")]
+            JsonRoute::Aggregation(snapshot) => snapshot.select(&self.binding, model)?,
+        };
+        Ok((target, model, self.cancelled.clone()))
     }
 
     #[cfg(target_os = "macos")]
@@ -120,22 +158,31 @@ impl AuthorizedRoute {
     }
 }
 
+enum JsonRoute {
+    Plain(Box<JsonTarget>),
+    #[cfg(target_os = "macos")]
+    Aggregation(Box<AggregationSnapshot>),
+}
+
 type TokenDigest = [u8; 32];
 
 /// The raw secret is returned once for private client configuration. Revocation
 /// keeps only the digest, so a stale handle cannot cancel its replacement.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "production issuance awaits the authorized attach transaction")
-)]
 struct IssuedRoute {
+    #[cfg(test)]
     token: String,
     revocation: RouteRevocation,
 }
 
-struct RouteRevocation {
+pub(crate) struct RouteRevocation {
     digest: TokenDigest,
     generation: u64,
+}
+
+pub(crate) struct RouteCommitError {
+    pub(crate) status: StatusCode,
+    /// A durable intent or a partial write prevents using the old revision.
+    pub(crate) recovery_pending: bool,
 }
 
 #[derive(Default)]
@@ -144,15 +191,35 @@ struct ActiveRoutes {
     generation: u64,
 }
 
+impl ActiveRoutes {
+    fn retire(&mut self, binding: &VerifiedRouteBinding) -> Option<Arc<RouteCapacity>> {
+        let mut capacity = None;
+        self.grants.retain(|_, route| {
+            if route.binding.same_route(binding) {
+                // Keep sharing the budget with requests that are unwinding.
+                capacity = Some(Arc::clone(&route.capacity));
+                route.cancelled.cancel();
+                false
+            } else {
+                true
+            }
+        });
+        capacity
+    }
+}
+
 #[derive(Default)]
-pub(super) struct RouteAuth(Mutex<ActiveRoutes>);
+pub(super) struct RouteAuth {
+    active: Mutex<ActiveRoutes>,
+    publication: Mutex<()>,
+}
 
 impl RouteAuth {
     #[cfg(target_os = "macos")]
     pub(super) fn prepare(&self, binding: &VerifiedRouteBinding) -> anyhow::Result<()> {
         binding.validate()?;
         anyhow::ensure!(
-            self.0.lock().generation < u64::MAX,
+            self.active.lock().generation < u64::MAX,
             "application route generation exhausted"
         );
         Ok(())
@@ -160,7 +227,7 @@ impl RouteAuth {
 
     #[cfg(target_os = "macos")]
     pub(super) fn has_active_routes(&self) -> bool {
-        !self.0.lock().grants.is_empty()
+        !self.active.lock().grants.is_empty()
     }
 
     #[cfg_attr(
@@ -190,56 +257,107 @@ impl RouteAuth {
         Ok((issued.token, move || self.revoke(&issued.revocation)))
     }
 
-    // Attach the trusted destination when publishing the same immutable grant.
-    // Rotating or revoking the grant also retires its target and in-flight work.
     fn issue_with_target(
         &self,
         binding: VerifiedRouteBinding,
         json_target: Option<JsonTarget>,
     ) -> anyhow::Result<IssuedRoute> {
-        binding.validate()?;
         if let Some(target) = &json_target {
-            // Reject bad persisted options before invalidating the current grant.
             vw_agent_apps::providers::validation::validate(binding.app, &target.request_options)
                 .map_err(anyhow::Error::msg)?;
         }
+        self.issue_route(
+            binding,
+            json_target.map(|target| JsonRoute::Plain(Box::new(target))),
+            None,
+            |_| Ok(()),
+        )
+        .map_err(|status| anyhow::anyhow!("application route issuance failed: {status}"))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn publish_aggregation(
+        &self,
+        binding: VerifiedRouteBinding,
+        snapshot: AggregationSnapshot,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
+    ) -> Result<RouteRevocation, StatusCode> {
+        let issued = self.issue_route(
+            binding,
+            Some(JsonRoute::Aggregation(Box::new(snapshot))),
+            expected_revision,
+            commit,
+        )?;
+        Ok(issued.revocation)
+    }
+
+    fn issue_route(
+        &self,
+        binding: VerifiedRouteBinding,
+        json_target: Option<JsonRoute>,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
+    ) -> Result<IssuedRoute, StatusCode> {
+        binding.validate().map_err(|_| StatusCode::FORBIDDEN)?;
+        #[cfg(not(target_os = "macos"))]
+        let _ = expected_revision;
         #[cfg(target_os = "macos")]
         let timeout_store = if json_target.is_some() {
-            let database = GlobalDatabase::for_home(&crate::global::paths().home)?;
-            Some(Arc::new(RoutingConfigStore::new(
+            let database = GlobalDatabase::for_home(&crate::global::paths().home)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let store = RoutingConfigStore::new(
                 database,
                 binding.project.tenant_scope().clone(),
                 binding.host.clone(),
-            )?))
+            )
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            Some(Arc::new(store))
         } else {
             None
         };
         let mut bytes = [0; TOKEN_BYTES];
-        getrandom::fill(&mut bytes)
-            .map_err(|_| anyhow::anyhow!("application route entropy unavailable"))?;
+        getrandom::fill(&mut bytes).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
         let token = format!("{TOKEN_PREFIX}{}", hex::encode(bytes));
         let digest = Sha256::digest(token.as_bytes()).into();
 
-        let mut active = self.0.lock();
-        let generation = active
-            .generation
-            .checked_add(1)
-            .ok_or_else(|| anyhow::anyhow!("application route generation exhausted"))?;
-        anyhow::ensure!(!active.grants.contains_key(&digest), "application route token collision");
-
-        // A project/host/app has one active route. A rotation or account
-        // switch invalidates the previous credential and its in-flight work.
-        let mut capacity = None;
-        active.grants.retain(|_, route| {
-            if route.binding.same_route(&binding) {
-                // The replacement shares the route's budget until cancelled work exits.
-                capacity = Some(Arc::clone(&route.capacity));
-                route.cancelled.cancel();
-                false
-            } else {
-                true
+        // Serialize grant mutations while the caller commits private client
+        // configuration. Authentication can still read the previous grant.
+        let _publication = self.publication.lock();
+        let generation = {
+            let active = self.active.lock();
+            #[cfg(target_os = "macos")]
+            if let Some(JsonRoute::Aggregation(next)) = &json_target {
+                let previous =
+                    active.grants.values().find(|route| route.binding.same_route(&binding));
+                let previous_revision = previous.and_then(|route| match &route.json_target {
+                    Some(JsonRoute::Aggregation(snapshot)) => Some(snapshot.revision.as_str()),
+                    _ => None,
+                });
+                if previous_revision != expected_revision
+                    || previous_revision == Some(next.revision.as_str())
+                    || previous.is_some_and(|route| {
+                        route.binding.account == binding.account
+                            && route.binding.account_generation > binding.account_generation
+                    })
+                {
+                    return Err(StatusCode::CONFLICT);
+                }
             }
-        });
+            if active.grants.contains_key(&digest) {
+                return Err(StatusCode::SERVICE_UNAVAILABLE);
+            }
+            active.generation.checked_add(1).ok_or(StatusCode::SERVICE_UNAVAILABLE)?
+        };
+        if let Err(error) = commit(&token) {
+            if error.recovery_pending {
+                drop(self.active.lock().retire(&binding));
+            }
+            return Err(error.status);
+        }
+
+        let mut active = self.active.lock();
+        let capacity = active.retire(&binding);
         active.generation = generation;
         active.grants.insert(
             digest,
@@ -253,18 +371,16 @@ impl RouteAuth {
                 timeout_store,
             }),
         );
-        Ok(IssuedRoute { token, revocation: RouteRevocation { digest, generation } })
+        Ok(IssuedRoute {
+            #[cfg(test)]
+            token,
+            revocation: RouteRevocation { digest, generation },
+        })
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "production revocation awaits the authorized attach transaction"
-        )
-    )]
-    fn revoke(&self, issued: &RouteRevocation) {
-        let mut active = self.0.lock();
+    pub(super) fn revoke(&self, issued: &RouteRevocation) {
+        let _publication = self.publication.lock();
+        let mut active = self.active.lock();
         if active
             .grants
             .get(&issued.digest)
@@ -283,7 +399,7 @@ impl RouteAuth {
             return None;
         }
         let digest: TokenDigest = Sha256::digest(token.as_bytes()).into();
-        self.0.lock().grants.get(&digest).cloned()
+        self.active.lock().grants.get(&digest).cloned()
     }
 }
 
@@ -386,6 +502,10 @@ mod browser_guard_tests;
 #[cfg(test)]
 #[path = "dispatch_tests.rs"]
 mod dispatch_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "aggregation_routing_tests.rs"]
+mod aggregation_routing_tests;
 
 #[cfg(test)]
 #[path = "override_apply_tests.rs"]

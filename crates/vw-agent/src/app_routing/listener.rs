@@ -92,6 +92,40 @@ impl RoutingListener {
         self.auth.prepare(binding)
     }
 
+    /// Commit the private client token before making this snapshot reachable.
+    /// The configuration owner must validate the same revision and use its existing
+    /// atomic write transaction in the callback. It must not reenter the listener.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn publish_aggregation(
+        &self,
+        publication: super::aggregation_routing::AggregationPublication,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(SocketAddr, &str) -> Result<(), super::RouteCommitError>,
+    ) -> Result<super::RouteRevocation, axum::http::StatusCode> {
+        use axum::http::StatusCode;
+        let _permit = self.try_control().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let address = self.bound_address().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let binding = publication.binding.clone();
+        let snapshot = publication.validate()?;
+        self.auth.publish_aggregation(binding, snapshot, expected_revision, |token| {
+            commit(address, token)
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "awaits the aggregation configuration caller")
+    )]
+    pub(crate) fn revoke_aggregation(
+        &self,
+        handle: &super::RouteRevocation,
+    ) -> Result<(), ListenerError> {
+        let _permit = self.try_control()?;
+        self.auth.revoke(handle);
+        Ok(())
+    }
+
     pub(super) async fn shutdown(&self) -> Result<(), ListenerError> {
         let mut closed = self.control_closed.lock().await;
         *closed = true;

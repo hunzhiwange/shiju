@@ -61,7 +61,8 @@ pub mod claude_catalog;
 #[cfg(test)]
 mod claude_catalog_tests;
 
+#[cfg(target_os = "macos")]
 pub mod resolve;
 
-#[cfg(test)]
+#[cfg(all(test, target_os = "macos"))]
 mod resolve_tests;

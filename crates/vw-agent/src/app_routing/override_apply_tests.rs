@@ -156,7 +156,7 @@ fn cc_route_015_preparation_leaves_the_cached_request_intact() {
     let second =
         target("http://127.0.0.1:1", "Bearer second-fixture", ProviderRequestOptions::default());
     let body = |target| {
-        let request = prepare_request(&cached, target).unwrap();
+        let request = prepare_request(&cached, target, None).unwrap();
         serde_json::from_slice::<Value>(request.body().unwrap().as_bytes().unwrap()).unwrap()
     };
     assert_eq!(body(&first)["model"], "provider-model");

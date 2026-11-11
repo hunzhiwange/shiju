@@ -31,11 +31,11 @@ const SSE: &str = "text/event-stream";
 
 /// The publication owner supplies the destination, credential and stored request
 /// options for the same selected provider.
-pub(super) struct JsonTarget {
-    pub(super) url: reqwest::Url,
-    pub(super) authorization: HeaderValue,
-    pub(super) transport: SharedTransport,
-    pub(super) request_options: ProviderRequestOptions,
+pub(crate) struct JsonTarget {
+    pub(crate) url: reqwest::Url,
+    pub(crate) authorization: HeaderValue,
+    pub(crate) transport: SharedTransport,
+    pub(crate) request_options: ProviderRequestOptions,
 }
 
 pub(super) async fn forward_json(
@@ -45,7 +45,7 @@ pub(super) async fn forward_json(
     listener: SocketAddr,
     #[cfg(target_os = "macos")] egress: &super::outbound_config::EgressState,
 ) -> Result<Response, RouteError> {
-    let (app, target, cancelled) = route.json_target().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let app = route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     if app != AppId::Codex || request.uri().path() != CHAT_PATH || request.uri().query().is_some() {
         return Err(StatusCode::NOT_FOUND.into());
     }
@@ -88,11 +88,14 @@ pub(super) async fn forward_json(
         _ => return Err(StatusCode::BAD_REQUEST.into()),
     };
 
+    let (target, model, cancelled) =
+        route.select_json(body.get("model").and_then(Value::as_str))?;
+
     // Wait only after the upload so disconnect detection can cancel a queued
     // request, and keep the listener-wide buffer reservation while it waits.
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     // Native Chat uses the parsed document unchanged at the conversion step.
-    let mut outgoing = prepare_request(&body, target)?;
+    let mut outgoing = prepare_request(&body, target, model)?;
     drop(body);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
@@ -165,12 +168,16 @@ async fn buffer_json_response(
 pub(super) fn prepare_request(
     converted: &Value,
     target: &JsonTarget,
+    exact_model: Option<&str>,
 ) -> Result<reqwest::Request, StatusCode> {
     let mut body = converted.clone();
     filter_private_params(&mut body);
     let mut outgoing = reqwest::Request::new(Method::POST, target.url.clone());
     if let Some(overrides) = &target.request_options.local_proxy_request_overrides {
         override_apply::apply(&mut body, outgoing.headers_mut(), overrides)?;
+    }
+    if let Some(model) = exact_model {
+        body["model"] = Value::String(model.into());
     }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());

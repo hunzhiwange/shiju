@@ -15,9 +15,8 @@
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style, rounded_action_btn_style,
-    settings_close_button, settings_field_label, settings_group_card, settings_modal_header,
+    settings_close_button, settings_field_label, settings_hover_help_label, settings_modal_header,
     settings_modal_layout, settings_modal_overlay, settings_muted_text_style, settings_select,
-    settings_value_badge,
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
@@ -244,12 +243,12 @@ fn view_inner<'a>(
     let version_block: Element<'a, Message> =
         if let (Some(current_version), Some(server_version)) = (current_version, server_version) {
             row![
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "当前版本 %s",
                     &[current_version.into()]
                 )),
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "服务器版本 %s",
                     &[server_version.into()]
@@ -409,7 +408,14 @@ fn view_inner<'a>(
     };
 
     let header = settings_modal_header(
-        text(i18n.__(title)).size(20).wrapping(Wrapping::WordOrGlyph),
+        settings_hover_help_label(
+            i18n,
+            None,
+            i18n.__(title),
+            text(i18n.__(title)).size(20).wrapping(Wrapping::WordOrGlyph),
+            i18n.__(helper_text),
+        )
+        .wrap(),
         settings_close_button(close_message.clone()),
     );
     let description = text(i18n.__(content))
@@ -425,15 +431,9 @@ fn view_inner<'a>(
         .style(settings_muted_text_style);
     let (body, height): (Element<'_, Message>, _) = if let Some(commands) = cli_commands {
         (
-            column![
-                description,
-                settings_group_card(
-                    column![source_control, version_block, helper].spacing(12).padding([12, 0]),
-                ),
-                commands,
-            ]
-            .spacing(14)
-            .into(),
+            column![description, column![source_control, version_block].spacing(12), commands,]
+                .spacing(14)
+                .into(),
             540,
         )
     } else if has_version_info {
@@ -441,9 +441,7 @@ fn view_inner<'a>(
             column![
                 container(logo_badge(true)).center_x(Length::Fill),
                 description,
-                settings_group_card(
-                    column![source_control, version_block, helper].spacing(12).padding([12, 0]),
-                ),
+                column![source_control, version_block].spacing(12),
                 progress_block,
             ]
             .spacing(14)
@@ -473,6 +471,10 @@ fn view_inner<'a>(
     };
     let card = settings_modal_layout(header, body, actions).width(540).height(height);
     settings_modal_overlay(None, close_message, container(card).padding(12))
+}
+
+fn update_value(label: String) -> iced::widget::Text<'static> {
+    text(label).size(12).style(settings_muted_text_style)
 }
 
 fn update_progress_block_localized<'a>(
@@ -506,12 +508,12 @@ fn update_progress_block_localized<'a>(
             .align_y(Alignment::Center),
             container(progress_bar(0.0..=1.0, progress_value)).height(Length::Fixed(8.0)),
             row![
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "已下载 %s",
                     &[format_bytes(progress.downloaded_bytes).into()]
                 )),
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "总大小 %s",
                     &[total_label.into()]
@@ -519,12 +521,12 @@ fn update_progress_block_localized<'a>(
             ]
             .spacing(8),
             row![
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "速度 %s",
                     &[format_rate(progress.bytes_per_second).into()]
                 )),
-                settings_value_badge(crate::app::i18n::modals::render(
+                update_value(crate::app::i18n::modals::render(
                     i18n,
                     "平均 %s",
                     &[format_rate(progress.average_bytes_per_second).into()]
@@ -566,7 +568,6 @@ pub(super) fn logo_badge_style(
     theme: &Theme,
     logo_badge_radius: f32,
 ) -> iced::widget::container::Style {
-    let palette = theme.extended_palette();
     iced::widget::container::Style {
         background: Some(Background::Color(theme.palette().primary.scale_alpha(
             if theme.palette().background.r
@@ -579,11 +580,7 @@ pub(super) fn logo_badge_style(
                 0.08
             },
         ))),
-        border: iced::Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.78),
-            radius: logo_badge_radius.into(),
-        },
+        border: iced::Border { radius: logo_badge_radius.into(), ..Default::default() },
         ..Default::default()
     }
 }
@@ -592,11 +589,7 @@ pub(super) fn update_progress_card_style(theme: &Theme) -> iced::widget::contain
     let palette = theme.extended_palette();
     iced::widget::container::Style {
         background: Some(Background::Color(palette.background.weak.color.scale_alpha(0.55))),
-        border: iced::Border {
-            width: 1.0,
-            color: palette.background.strong.color.scale_alpha(0.65),
-            radius: 8.0.into(),
-        },
+        border: iced::Border { radius: 8.0.into(), ..Default::default() },
         ..Default::default()
     }
 }

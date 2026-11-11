@@ -213,7 +213,7 @@ fn logo_badge_style_adjusts_alpha_for_light_and_dark_themes() {
         style_background_color(light),
         Theme::Light.palette().primary.scale_alpha(0.08),
     );
-    assert_eq!(light.border.width, 1.0);
+    assert_eq!(light.border.width, 0.0);
     assert_eq!(light.border.radius.top_left, 20.0);
 
     let dark = logo_badge_style(&Theme::Dark, 26.0);
@@ -221,18 +221,18 @@ fn logo_badge_style_adjusts_alpha_for_light_and_dark_themes() {
         style_background_color(dark),
         Theme::Dark.palette().primary.scale_alpha(0.20),
     );
-    assert_eq!(dark.border.width, 1.0);
+    assert_eq!(dark.border.width, 0.0);
     assert_eq!(dark.border.radius.top_left, 26.0);
 }
 
 #[test]
-fn update_progress_card_style_uses_theme_background_and_border() {
+fn update_progress_card_style_uses_theme_background_without_outline() {
     let light = update_progress_card_style(&Theme::Light);
     assert_color_close(
         style_background_color(light),
         Theme::Light.extended_palette().background.weak.color.scale_alpha(0.55),
     );
-    assert_eq!(light.border.width, 1.0);
+    assert_eq!(light.border.width, 0.0);
     assert_eq!(light.border.radius.top_left, 8.0);
 
     let dark = update_progress_card_style(&Theme::Dark);
@@ -240,7 +240,7 @@ fn update_progress_card_style_uses_theme_background_and_border() {
         style_background_color(dark),
         Theme::Dark.extended_palette().background.weak.color.scale_alpha(0.55),
     );
-    assert_eq!(dark.border.width, 1.0);
+    assert_eq!(dark.border.width, 0.0);
     assert_eq!(dark.border.radius.top_left, 8.0);
 }
 
@@ -349,4 +349,69 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
         },
     )
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn update_modals_hide_explanations_and_draw_hover_help_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::widget::{Id, Operation};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    use iced::{Event, Font, Point, Rectangle, Size, mouse};
+
+    #[derive(Default)]
+    struct Labels(Vec<(String, Rectangle)>);
+    impl Operation for Labels {
+        fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+            children(self);
+        }
+        fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+            self.0.push((value.into(), bounds));
+        }
+    }
+
+    let mut app = crate::app::App::new().0;
+    app.cli_install_modal_message = "当前已是最新版本。".into();
+    let mut renderer =
+        iced::Renderer::new(Font::DEFAULT, 16.0.into(), Some("tiny-skia")).await.unwrap();
+    for theme in [Theme::Light, Theme::Dark] {
+        for app_update in [false, true] {
+            app.cli_install_modal_use_app_update_action = app_update;
+            app.cli_install_modal_title =
+                if app_update { "检测更新" } else { "CLI 更新检测" }.into();
+            let mut ui = UserInterface::build(
+                super::install_cli_modal::view_app_update(&app),
+                Size::new(960.0, 900.0),
+                Cache::new(),
+                &mut renderer,
+            );
+            let mut labels = Labels::default();
+            ui.operate(&renderer, &mut labels);
+            assert!(labels.0.iter().any(|(label, _)| label == "当前已是最新版本。"));
+            assert!(labels.0.iter().all(|(label, _)| {
+                !label.contains("通常无需手动安装")
+                    && !label.contains("更新前会先检测")
+                    && !label.contains("自动选择 DEB/RPM")
+                    && !label.contains("在终端运行；点击标签页切换")
+            }));
+            let bounds =
+                labels.0.iter().find(|(label, _)| label == &app.cli_install_modal_title).unwrap().1;
+            let point = Point::new(bounds.x + bounds.width + 15.0, bounds.center_y());
+            let style = iced::advanced::renderer::Style { text_color: theme.palette().text };
+            ui.draw(&mut renderer, &theme, &style, mouse::Cursor::Unavailable);
+            let idle = renderer.screenshot(Size::new(960, 900), 1.0, theme.palette().background);
+            let cursor = mouse::Cursor::Available(point);
+            let mut messages = Vec::new();
+            ui.update(
+                &[Event::Mouse(mouse::Event::CursorMoved { position: point })],
+                cursor,
+                &mut renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut messages,
+            );
+            ui.draw(&mut renderer, &theme, &style, cursor);
+            let opened = renderer.screenshot(Size::new(960, 900), 1.0, theme.palette().background);
+            assert!(messages.is_empty());
+            assert_ne!(idle, opened, "hover must draw the update explanation");
+        }
+    }
 }

@@ -1,7 +1,8 @@
 //! CLI 命令速查：仅展示与复制，不执行命令。
 use super::install_cli_modal::hash_copy_text;
 use super::system_settings_common::{
-    rounded_action_btn_style, settings_muted_text_style, settings_tab_button, settings_tab_row,
+    rounded_action_btn_style, settings_hover_help_label, settings_muted_text_style,
+    settings_tab_button, settings_tab_row,
 };
 use crate::app::{Message, message::ViewMessage};
 use iced::widget::{button, column, row, text};
@@ -106,12 +107,20 @@ pub(crate) fn view(
         CliCommandsTab::All => ALL_COMMANDS,
     };
     let mut content = column![
-        tabs,
-        text(i18n.__(
-            "在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。"
-        ))
-        .size(12)
-        .style(settings_muted_text_style),
+        row![
+            tabs,
+            settings_hover_help_label(
+                i18n,
+                None,
+                i18n.__("常用命令"),
+                text(""),
+                i18n.__(
+                    "在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。"
+                ),
+            ),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
     ]
     .spacing(10);
     for &(command, description) in commands {

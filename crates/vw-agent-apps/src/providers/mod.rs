@@ -108,6 +108,7 @@ pub mod preview;
 mod preview_tests;
 
 mod projection;
+pub(crate) use projection::fields;
 
 pub mod validation;
 #[cfg(test)]

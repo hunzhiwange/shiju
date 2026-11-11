@@ -108,6 +108,12 @@ pub mod codex_settings;
 mod codex_resync_tests;
 
 #[cfg(target_os = "macos")]
+pub mod exit_restore;
+
+#[cfg(all(test, target_os = "macos"))]
+mod exit_restore_tests;
+
+#[cfg(target_os = "macos")]
 pub mod stale_clients;
 
 #[cfg(all(test, target_os = "macos"))]

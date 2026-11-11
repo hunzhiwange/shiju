@@ -113,6 +113,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::GatewayServicesTabSelected(_) => settings::update(app, message),
 
         ViewMessage::ToggleModelPopover
+        | ViewMessage::ToggleInputModelProvider(_)
         | ViewMessage::ToggleModePopover
         | ViewMessage::ToggleSendModePopover
         | ViewMessage::ToggleFilePopover

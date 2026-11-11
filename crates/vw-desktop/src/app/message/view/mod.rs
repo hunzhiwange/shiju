@@ -209,6 +209,8 @@ pub enum ViewMessage {
     MenuAction(Box<Message>),
     /// 切换模型选择弹窗
     ToggleModelPopover,
+    /// 切换输入面板模型提供商分组的折叠状态。
+    ToggleInputModelProvider(String),
     /// 切换模式选择弹窗
     ToggleModePopover,
     /// 切换代码/工作界面模式弹窗
@@ -829,6 +831,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ToggleMenu(_)
         | ViewMessage::MenuAction(_)
         | ViewMessage::ToggleModelPopover
+        | ViewMessage::ToggleInputModelProvider(_)
         | ViewMessage::ToggleModePopover
         | ViewMessage::ToggleWorkspaceModePopover
         | ViewMessage::CloseWorkspaceModePopover

@@ -13,6 +13,17 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        ViewMessage::ToggleInputModelProvider(provider_id) => {
+            let collapsed = &mut app.model_settings.input_collapsed_provider_ids;
+            if !collapsed.insert(provider_id.clone()) {
+                collapsed.remove(&provider_id);
+            }
+            let value = serde_json::Value::Array(
+                collapsed.iter().cloned().map(serde_json::Value::String).collect(),
+            );
+            app.model_popover_hover = None;
+            app.save_desktop_preference("input_model_collapsed_provider_ids", value)
+        }
         ViewMessage::ToggleModelPopover => {
             let new = !app.show_model_popover;
             app.show_model_popover = new;

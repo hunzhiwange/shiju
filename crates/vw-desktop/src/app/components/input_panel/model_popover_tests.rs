@@ -244,7 +244,16 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
             .await
             .expect("headless renderer");
     for theme in [Theme::Light, Theme::Dark] {
-        for source in [AcpModelSource::SessionModel, AcpModelSource::CliLocal] {
+        for (source, collapsed) in [
+            (AcpModelSource::SessionModel, false),
+            (AcpModelSource::SessionModel, true),
+            (AcpModelSource::CliLocal, false),
+        ] {
+            if collapsed {
+                app.model_settings.input_collapsed_provider_ids.insert("custom".into());
+            } else {
+                app.model_settings.input_collapsed_provider_ids.clear();
+            }
             app.current_session_runtime_mut().acp_model_source = source;
             for modal in [false, true] {
                 app.current_session_runtime_mut().acp_options_open = modal;
@@ -298,7 +307,9 @@ async fn acp_model_source_ui_controls_render_chinese_labels_in_both_themes() {
                 std::fs::create_dir_all(&directory).unwrap();
                 ::image::RgbaImage::from_raw(640, 780, pixels)
                     .unwrap()
-                    .save(directory.join(format!("{theme:?}-{source:?}-modal-{modal}.png")))
+                    .save(directory.join(format!(
+                        "{theme:?}-{source:?}-modal-{modal}-collapsed-{collapsed}.png"
+                    )))
                     .unwrap();
             }
         }

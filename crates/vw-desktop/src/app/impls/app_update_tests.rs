@@ -823,3 +823,28 @@ fn startup_chat_defaults_preserve_an_unsubmitted_home_selection() {
     assert_eq!(app.model, "local");
     assert_eq!(app.acp_agent.as_deref(), Some("local-agent"));
 }
+
+#[test]
+fn input_model_provider_collapse_restores_and_preserves_local_edits() {
+    use crate::app::message::ViewMessage;
+
+    let mut app = test_app();
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
+        "input_model_collapsed_provider_ids": ["openai", "custom"]
+    }))));
+    assert!(app.model_settings.input_collapsed_provider_ids.contains("openai"));
+    assert!(app.model_settings.input_collapsed_provider_ids.contains("custom"));
+    assert!(app.model_settings.expanded_provider_ids.is_empty());
+
+    let _ = app.update(Message::View(ViewMessage::ToggleInputModelProvider("openai".into())));
+    let _ = app.update(Message::View(ViewMessage::ToggleInputModelProvider("anthropic".into())));
+    let expected = app.model_settings.input_collapsed_provider_ids.clone();
+    assert!(!expected.contains("openai"));
+    assert!(expected.contains("anthropic"));
+    let _ = app.update(Message::View(ViewMessage::CloseModelPopover));
+    let _ = app.update(Message::View(ViewMessage::ToggleModelPopover));
+    let _ = app.update(Message::BootstrapAppConfig(Ok(json!({
+        "input_model_collapsed_provider_ids": ["openai"]
+    }))));
+    assert_eq!(app.model_settings.input_collapsed_provider_ids, expected);
+}

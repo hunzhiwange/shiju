@@ -424,6 +424,8 @@ pub(crate) struct ModelSettingsState {
     pub(crate) saving: bool,
     /// 当前展开的提供者模型分组；默认全部折叠
     pub(crate) expanded_provider_ids: std::collections::HashSet<String>,
+    /// 输入面板模型选择器中已折叠的提供商，独立于系统设置分组。
+    pub(crate) input_collapsed_provider_ids: std::collections::BTreeSet<String>,
     /// 搜索查询
     pub(crate) query: String,
     /// 提供者模型列表

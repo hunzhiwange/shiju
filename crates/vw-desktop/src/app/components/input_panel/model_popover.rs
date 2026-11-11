@@ -300,15 +300,30 @@ pub fn model_popover_content<'a>(
             // 按名称排序（名称相同时按 id 排序）
             models.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
 
+            any_models = true;
+            // 搜索临时展开匹配项，不覆盖已保存的折叠偏好。
+            let collapsed =
+                query.is_empty() && app.model_settings.input_collapsed_provider_ids.contains(&p.id);
             // Provider 分组标题
             let header = row![
+                icon_svg(if collapsed { Icon::ChevronRight } else { Icon::ChevronDown }, 14.0),
                 themed_svg_handle(provider_logo_handle(&p.id), 16.0),
                 text(&p.name).size(14).width(Length::Fill).wrapping(text::Wrapping::WordOrGlyph),
             ]
             .spacing(8)
             .align_y(Alignment::Center);
 
-            model_list = model_list.push(container(header).padding([4, 0]));
+            let header = button(header)
+                .padding([4, 8])
+                .width(Length::Fill)
+                .style(|theme, status| selectable_list_button_style(theme, status, false))
+                .on_press_maybe(query.is_empty().then(|| {
+                    Message::View(message::ViewMessage::ToggleInputModelProvider(p.id.clone()))
+                }));
+            model_list = model_list.push(header);
+            if collapsed {
+                continue;
+            }
 
             // 渲染该 provider 下的每个模型
             for m in models {
@@ -367,7 +382,6 @@ pub fn model_popover_content<'a>(
                 let select_btn = super::session_lock_tooltip(select_btn, i18n, started);
                 model_list = model_list
                     .push(row![select_btn, detail_btn].spacing(4).align_y(Alignment::Center));
-                any_models = true;
             }
         }
 

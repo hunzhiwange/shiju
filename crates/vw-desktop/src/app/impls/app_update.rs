@@ -427,6 +427,10 @@ impl App {
         if let Some(collapsed) = cfg.get("work_sidebar_collapsed").and_then(|v| v.as_bool()) {
             self.work_sidebar_collapsed = collapsed;
         }
+        if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array()) {
+            self.model_settings.input_collapsed_provider_ids =
+                ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect();
+        }
         self.show_settings =
             cfg.get("show_settings").and_then(|v| v.as_bool()).unwrap_or(self.show_settings);
         self.show_file_manager = cfg

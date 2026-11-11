@@ -44,12 +44,13 @@ pub(crate) fn router() -> Router {
 
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new()
-        .route("/agent-apps/diagnostics/jobs", post(start))
+        .route("/agent-apps/diagnostics/jobs", post(submit))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .layer(Extension(PolicyFile(policy)))
 }
 
-pub(super) async fn start(
+/// Shared submission boundary for diagnostic and managed MCP HTTP entry points.
+pub(super) async fn submit(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,

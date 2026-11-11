@@ -31,7 +31,7 @@ pub(super) async fn submit(
 ) -> Response {
     // Keep authentication, whole-batch authorization, trusted execution-host
     // resolution, credential lookup and scheduling on the existing diagnostic path.
-    agent_apps_diagnostics::start(
+    agent_apps_diagnostics::submit(
         Extension(agent_apps_diagnostics::PolicyFile(policy.0)),
         tenant,
         database,

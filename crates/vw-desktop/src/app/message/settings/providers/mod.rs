@@ -3,6 +3,7 @@
 pub(crate) mod catalog_api;
 pub(crate) mod discovery;
 mod helpers;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod managed_shiju;
 pub(crate) mod metadata_fill;
 mod models;

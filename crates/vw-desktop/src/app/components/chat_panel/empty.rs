@@ -215,7 +215,10 @@ pub fn session_loading_placeholder(app: &App) -> Element<'_, Message> {
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
+    #[cfg(not(target_arch = "wasm32"))]
     let name = app.account.active_account().and_then(|account| account.profile()).map(|p| p.name());
+    #[cfg(target_arch = "wasm32")]
+    let name: Option<&str> = None;
     let logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(96.0))

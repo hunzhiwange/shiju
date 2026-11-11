@@ -1,10 +1,15 @@
 //! Desktop installer snapshots. No binary replacement and no implicit source fallback.
+#[cfg(not(target_arch = "wasm32"))]
 use super::{DEFAULT_RELEASE_API, UpdateProgress, current_version};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_arch = "wasm32"))]
 use sha2::{Digest, Sha256};
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
 
 const SHIJU_ROOT: &str = "https://www.shiju.cloud/agents/shiju-agent";
@@ -150,6 +155,7 @@ fn installer_specs(version: &str) -> Vec<(&'static str, InstallerKind, String)> 
     ]
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct ShijuManifest {
     schema_version: u64,
@@ -159,6 +165,7 @@ struct ShijuManifest {
     assets: Vec<serde_json::Value>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct ShijuAsset {
     #[serde(flatten)]
@@ -166,6 +173,7 @@ struct ShijuAsset {
     github_url: String,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Deserialize)]
 struct GithubManifest {
     tag_name: String,
@@ -174,6 +182,7 @@ struct GithubManifest {
     assets: Vec<serde_json::Value>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn parse_desktop_release(
     source: UpdateSource,
     payload: serde_json::Value,
@@ -250,6 +259,7 @@ fn parse_desktop_release(
     Ok(release)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn http_client(timeout: Duration) -> Result<reqwest::Client> {
     // No authorization headers: neither metadata nor redirected downloads receive credentials.
     Ok(reqwest::Client::builder()
@@ -273,6 +283,7 @@ fn http_client(timeout: Duration) -> Result<reqwest::Client> {
 }
 
 /// Fetch the explicitly selected source; ignores CLI update environment overrides.
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_desktop_release(source: UpdateSource) -> Result<DesktopRelease> {
     let endpoint = match source {
         UpdateSource::Shiju => SHIJU_MANIFEST,
@@ -281,6 +292,7 @@ pub async fn fetch_desktop_release(source: UpdateSource) -> Result<DesktopReleas
     fetch_desktop_release_at(source, endpoint, &http_client(Duration::from_secs(30))?).await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn fetch_desktop_release_at(
     source: UpdateSource,
     endpoint: &str,
@@ -299,6 +311,7 @@ async fn fetch_desktop_release_at(
 
 /// Download into an existing destination directory and atomically publish the verified name.
 /// Existing files are never overwritten. Failure/cancellation drops the temporary file.
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn download_desktop_installer<F>(
     release: &DesktopRelease,
     target: &str,
@@ -320,6 +333,7 @@ where
     .await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn download_installer_at<F>(
     asset: &DesktopInstaller,
     url: &str,
@@ -387,6 +401,8 @@ where
 #[path = "desktop_release_tests.rs"]
 mod desktop_release_tests;
 
+#[cfg(not(target_arch = "wasm32"))]
 #[path = "linux_installer.rs"]
 mod linux_installer;
+#[cfg(not(target_arch = "wasm32"))]
 pub use linux_installer::linux_installer_kind;

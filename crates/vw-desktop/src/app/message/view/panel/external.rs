@@ -29,6 +29,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Ok(FileNodeKind::File) => Task::done(Message::Preview(PreviewMessage::Open(path))),
             Ok(FileNodeKind::Directory) => {
                 // Preserve literal percent signs when the reveal endpoint decodes the URL.
+                #[cfg(target_arch = "wasm32")]
+                {
+                    // The gateway decodes once; escape literal percent signs as well.
+                    Task::done(Message::View(ViewMessage::OpenPathInFinder(
+                        urlencoding::encode(&path).into_owned(),
+                    )))
+                }
+                #[cfg(not(target_arch = "wasm32"))]
                 match reqwest::Url::from_file_path(&path) {
                     Ok(url) => Task::done(Message::View(ViewMessage::OpenPathInFinder(url.into()))),
                     Err(()) => app.show_localized_toast(

@@ -6,7 +6,6 @@ use super::model::{
     LoadedWorkflow, WorkflowAppMeta, WorkflowConnectionEndpoint, create_blank_workflow,
     load_document_from_path, load_document_from_value, suggested_workflow_file_name,
 };
-#[cfg(not(target_arch = "wasm32"))]
 use super::model::{WorkflowViewport, load_document_from_text, serialize_workflow_yaml};
 use super::state::{
     WorkflowAppEditorMode, WorkflowCanvasContextMenuTarget, WorkflowDataNodeEdit,

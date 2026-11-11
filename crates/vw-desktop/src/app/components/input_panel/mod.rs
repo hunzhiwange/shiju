@@ -282,11 +282,16 @@ pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
         .iter()
         .find(|skill| skill.id == skill_id)
         .map(|skill| skill.title.clone())
-        .or_else(|| match &app.expert_hub.public_market.installed {
-            crate::app::skill_hub::LoadState::Loaded(items) => {
-                items.iter().find(|item| item.id == skill_id).map(|item| item.title.clone())
+        .or_else(|| {
+            #[cfg(target_arch = "wasm32")]
+            return None;
+            #[cfg(not(target_arch = "wasm32"))]
+            match &app.expert_hub.public_market.installed {
+                crate::app::skill_hub::LoadState::Loaded(items) => {
+                    items.iter().find(|item| item.id == skill_id).map(|item| item.title.clone())
+                }
+                _ => None,
             }
-            _ => None,
         })
         .unwrap_or_else(|| skill_id.to_string())
 }

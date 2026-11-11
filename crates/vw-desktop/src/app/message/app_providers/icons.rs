@@ -9,6 +9,7 @@ use crate::app::{
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use iced::Task;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Read;
 use vw_gateway_client::{
     GatewayClient,
@@ -172,20 +173,34 @@ async fn pick() -> Result<Outcome, String> {
     };
     let name = file.file_name();
     let name = name.strip_suffix(".png").unwrap_or(&name).to_owned();
-    let path = file.path().to_owned();
-    tokio::task::spawn_blocking(move || {
-        // Cap local reads before encoding. The service decides which submitted PNGs it accepts.
-        let mut bytes = Vec::new();
-        std::fs::File::open(path)
-            .and_then(|file| file.take((MAX_ICON_BYTES + 1) as u64).read_to_end(&mut bytes))
-            .map_err(|_| "无法读取所选文件。")?;
+    #[cfg(target_arch = "wasm32")]
+    {
+        if file.inner().size() > MAX_ICON_BYTES as f64 {
+            return Err("所选文件超过 64 KiB。".into());
+        }
+        let bytes = file.read().await;
         if bytes.len() > MAX_ICON_BYTES {
             return Err("所选文件超过 64 KiB。".into());
         }
         Ok(Outcome::FilePicked(Some((name, format!("{PNG_PREFIX}{}", STANDARD.encode(bytes))))))
-    })
-    .await
-    .map_err(|_| "无法读取所选文件。")?
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let path = file.path().to_owned();
+        tokio::task::spawn_blocking(move || {
+            // Cap local reads before encoding. The service decides which submitted PNGs it accepts.
+            let mut bytes = Vec::new();
+            std::fs::File::open(path)
+                .and_then(|file| file.take((MAX_ICON_BYTES + 1) as u64).read_to_end(&mut bytes))
+                .map_err(|_| "无法读取所选文件。")?;
+            if bytes.len() > MAX_ICON_BYTES {
+                return Err("所选文件超过 64 KiB。".into());
+            }
+            Ok(Outcome::FilePicked(Some((name, format!("{PNG_PREFIX}{}", STANDARD.encode(bytes))))))
+        })
+        .await
+        .map_err(|_| "无法读取所选文件。")?
+    }
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {

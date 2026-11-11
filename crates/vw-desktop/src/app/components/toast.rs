@@ -8,6 +8,7 @@ use crate::app::components::system_settings_common::{
     danger_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
     settings_modal_header, settings_modal_overlay, settings_muted_text_style, settings_panel_style,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::message::SkillHubMessage;
 use crate::app::state::ToastKind;
 use crate::app::{App, Message};
@@ -126,11 +127,17 @@ pub(super) fn toast_card_style(
     style
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(super) fn cache_sync_retry_message(app: &App) -> Option<Message> {
     app.expert_hub
         .cache_sync
         .pending_retry_skill_id()
         .map(|_| Message::SkillHub(SkillHubMessage::RetrySkillCacheSync))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(super) fn cache_sync_retry_message(_app: &App) -> Option<Message> {
+    None
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。

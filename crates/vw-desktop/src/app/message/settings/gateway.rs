@@ -239,7 +239,7 @@ fn service_recovery_task(command: String) -> Task<Message> {
         Task::done(Message::Settings(SettingsMessage::Gateway(
             GatewayMessage::ServiceRecoveryCompleted(
                 command,
-                Err(Feedback::owned("wasm 环境不支持本机 gateway 自动恢复", vec![])),
+                Err("浏览器不支持本机 gateway 自动恢复".to_string()),
             ),
         )))
     }

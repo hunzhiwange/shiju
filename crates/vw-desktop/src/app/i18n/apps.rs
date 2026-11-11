@@ -18,6 +18,7 @@ pub(crate) fn matches_navigation(i18n: I18n, source: &str, query: &str) -> bool 
 }
 
 /// Refresh only built-in hub titles; user-authored tab names remain unchanged.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn refresh_hub_titles(app: &mut crate::app::App) {
     use crate::app::message::{shiju_apps, skill_hub};
     let i18n = I18n::new(app.desktop_locale);
@@ -31,3 +32,6 @@ pub(crate) fn refresh_hub_titles(app: &mut crate::app::App) {
         tab.title = i18n.__(source).to_string();
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn refresh_hub_titles(_app: &mut crate::app::App) {}

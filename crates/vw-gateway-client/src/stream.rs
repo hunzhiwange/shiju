@@ -270,9 +270,13 @@ pub(crate) async fn stream_json_sse(
     use crate::http::{apply_request_context, log_request, response_error, transport_error};
 
     log_request::<serde_json::Value>("GET", endpoint, path, query, None);
+    #[cfg(not(target_arch = "wasm32"))]
     let builder = reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
         .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS));
+    #[cfg(target_arch = "wasm32")]
+    let builder = reqwest::Client::builder();
+    #[cfg(not(target_arch = "wasm32"))]
     let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
     let client = builder.build().map_err(|error| transport_error("GET", endpoint, path, error))?;
     let request = apply_request_context(

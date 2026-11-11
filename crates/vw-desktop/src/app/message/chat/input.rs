@@ -228,6 +228,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.quick_message_open_group = group;
             Task::none()
         }
+        #[cfg(not(target_arch = "wasm32"))]
         ChatMessage::ToggleShijuSkillMenu => {
             app.show_shiju_skill_menu = !app.show_shiju_skill_menu;
             if !app.show_shiju_skill_menu {
@@ -242,6 +243,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 Task::done(Message::Account(message::AccountMessage::PrepareNativeShijuSkill)),
             ])
         }
+        #[cfg(not(target_arch = "wasm32"))]
         ChatMessage::SelectShijuSkill(skill_id) => {
             let selection = match &app.expert_hub.installed {
                 crate::app::skill_hub::LoadState::Loaded(skills) => {
@@ -261,6 +263,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
             app.current_session_runtime_mut().tool_selector.toggle_shiju_skill(selection);
             Task::none()
+        }
+        #[cfg(target_arch = "wasm32")]
+        ChatMessage::ToggleShijuSkillMenu | ChatMessage::SelectShijuSkill(_) => {
+            app.show_warning_toast("识矩原生技能管理请使用桌面端")
         }
         ChatMessage::ToggleAgentSessionsPopover => {
             let has_running_children =

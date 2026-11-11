@@ -192,5 +192,7 @@ mod tests;
 pub(crate) mod mcp_form;
 
 /// MCP Apps host identity and RPC boundary.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod mcp_app_bridge;
+#[cfg(not(target_arch = "wasm32"))]
 mod mcp_app_download;

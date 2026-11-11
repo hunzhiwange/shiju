@@ -162,6 +162,11 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             app.workflow_state.video_edit.path = path;
             Task::none()
         }
+        #[cfg(target_arch = "wasm32")]
+        WorkflowMessage::PickVideoTemplatePath => {
+            app.show_warning_toast("浏览器无法读取本机路径，请填写网关服务器的视频路径")
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         WorkflowMessage::PickVideoTemplatePath => {
             let tenant = crate::app::session_gateway::active_tenant_scope();
             Task::perform(

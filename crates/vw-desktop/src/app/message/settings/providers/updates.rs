@@ -166,13 +166,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ProviderConnectOpen(provider_id) => {
             if is_shiju_official_provider_id(&provider_id) {
                 app.provider_settings.connect_modal = None;
+                #[cfg(not(target_arch = "wasm32"))]
                 if app.account.active_account().is_none() {
                     return app.show_warning_toast(
                         Feedback::owned("请先登录识矩账户，模型将自动配置", vec![])
                             .display(app.desktop_locale),
                     );
                 }
+                #[cfg(not(target_arch = "wasm32"))]
                 return super::managed_shiju::sync(app);
+                #[cfg(target_arch = "wasm32")]
+                return app.show_warning_toast("请在桌面端登录识矩账户并配置模型");
             }
             let provider_name = app
                 .provider_settings
@@ -221,7 +225,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             };
             if is_shiju_official_provider_id(&m.provider_id) {
+                #[cfg(not(target_arch = "wasm32"))]
                 return super::managed_shiju::sync(app);
+                #[cfg(target_arch = "wasm32")]
+                return app.show_warning_toast("请在桌面端登录识矩账户并配置模型");
             }
             if m.api_key.trim().is_empty() {
                 app.provider_settings.connect_error =

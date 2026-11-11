@@ -602,10 +602,7 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
 #[path = "update_tests.rs"]
 mod update_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub mod desktop_release;
+pub use desktop_release::{DesktopInstaller, DesktopRelease, InstallerKind, UpdateSource};
 #[cfg(not(target_arch = "wasm32"))]
-pub use desktop_release::{
-    DesktopInstaller, DesktopRelease, InstallerKind, UpdateSource, download_desktop_installer,
-    fetch_desktop_release,
-};
+pub use desktop_release::{download_desktop_installer, fetch_desktop_release};

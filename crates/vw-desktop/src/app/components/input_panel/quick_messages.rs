@@ -2,6 +2,7 @@
 
 use crate::app::assets::Icon;
 use crate::app::components::overlays::AboveOverlay;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::skill_hub::{
     InstalledSkill, LoadState, ShijuPackageRefreshState, ShijuPackageStatus, SkillTab,
     version_is_newer,
@@ -9,10 +10,9 @@ use crate::app::skill_hub::{
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use iced::widget::{
-    Space, Tooltip, button, column, container, row, scrollable, text,
-    tooltip::Position as TooltipPosition,
-};
+use iced::widget::{Space, button, column, container, row, scrollable, text};
+#[cfg(not(target_arch = "wasm32"))]
+use iced::widget::{Tooltip, tooltip::Position as TooltipPosition};
 use iced::{Element, Length, Theme};
 use vw_config_types::ui::{QuickMessageConfig, QuickMessageGroup};
 
@@ -26,11 +26,13 @@ const QUICK_MESSAGE_MENU_SCROLLBAR_GAP: f32 = 6.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InputStripControl {
     Workspace,
+    #[cfg(not(target_arch = "wasm32"))]
     Shiju,
     GeneralActions,
     GitActions,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ShijuMenuStatus<'a> {
     Loading,
@@ -40,6 +42,7 @@ enum ShijuMenuStatus<'a> {
     Loaded,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ShijuMenuRow<'a> {
     skill_id: u64,
@@ -49,12 +52,14 @@ struct ShijuMenuRow<'a> {
     selected: bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ShijuRefreshAction {
     label: &'static str,
     enabled: bool,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ShijuVersionHint {
     local_version: String,
@@ -83,14 +88,17 @@ fn group_state_message(group: Option<QuickMessageGroup>) -> Message {
     Message::Chat(message::ChatMessage::QuickMessageGroupChanged(group))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_select_message(skill_id: u64) -> Message {
     Message::Chat(message::ChatMessage::SelectShijuSkill(skill_id))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_refresh_message() -> Message {
     Message::SkillHub(message::SkillHubMessage::RefreshInstalledSkills)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_upgrade_message(main_upgrade: bool, function_upgrades: usize) -> Message {
     let mut messages = vec![Message::Chat(message::ChatMessage::ToggleShijuSkillMenu)];
     if !main_upgrade && function_upgrades > 0 {
@@ -133,6 +141,7 @@ fn menu_height(item_count: usize) -> Length {
 
 fn menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
+    #[cfg(not(target_arch = "wasm32"))]
     if app.expert_hub.package_status.local_version.is_none() {
         items = items.push(
             button(
@@ -317,6 +326,7 @@ fn recommendations_menu<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Mess
         .into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
     match state {
         LoadState::Loaded(skills) => format!("识矩（{}）", skills.len()),
@@ -327,6 +337,7 @@ fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_update_available(status: &ShijuPackageStatus) -> bool {
     match (&status.local_version, &status.server_version) {
         (Some(local), Some(server)) => version_is_newer(local, server),
@@ -334,6 +345,7 @@ fn shiju_update_available(status: &ShijuPackageStatus) -> bool {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_function_upgrade_count(installed: &LoadState<Vec<InstalledSkill>>) -> usize {
     match installed {
         LoadState::Loaded(skills) => skills.iter().filter(|skill| skill.upgrade_available).count(),
@@ -341,11 +353,13 @@ fn shiju_function_upgrade_count(installed: &LoadState<Vec<InstalledSkill>>) -> u
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_upgrade_count(app: &App) -> usize {
     usize::from(shiju_update_available(&app.expert_hub.package_status))
         + shiju_function_upgrade_count(&app.expert_hub.installed)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_update_badge(label: String) -> Element<'static, Message> {
     let dot = container(Space::new().width(6).height(6)).style(|theme: &Theme| container::Style {
         background: Some(theme.extended_palette().danger.strong.color.into()),
@@ -363,6 +377,7 @@ fn shiju_update_badge(label: String) -> Element<'static, Message> {
     .into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_version_hint(
     i18n: crate::app::i18n::I18n,
     status: &ShijuPackageStatus,
@@ -418,6 +433,7 @@ fn shiju_version_hint(
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_trigger_tooltip(
     i18n: crate::app::i18n::I18n,
     status: &ShijuPackageStatus,
@@ -437,6 +453,7 @@ fn shiju_trigger_tooltip(
     .into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu_status(state: &LoadState<Vec<InstalledSkill>>) -> ShijuMenuStatus<'_> {
     match state {
         LoadState::Idle | LoadState::Loading { .. } => ShijuMenuStatus::Loading,
@@ -447,6 +464,7 @@ fn shiju_menu_status(state: &LoadState<Vec<InstalledSkill>>) -> ShijuMenuStatus<
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu_status_text(status: ShijuMenuStatus<'_>) -> String {
     match status {
         ShijuMenuStatus::Loading => "正在加载识矩技能…".to_string(),
@@ -457,6 +475,7 @@ fn shiju_menu_status_text(status: ShijuMenuStatus<'_>) -> String {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_refresh_action(state: &LoadState<Vec<InstalledSkill>>) -> ShijuRefreshAction {
     if matches!(state, LoadState::Loading { .. }) {
         ShijuRefreshAction { label: "刷新中…", enabled: false }
@@ -465,6 +484,7 @@ fn shiju_refresh_action(state: &LoadState<Vec<InstalledSkill>>) -> ShijuRefreshA
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu_rows(app: &App) -> Vec<ShijuMenuRow<'_>> {
     let selector = app.current_session_runtime_ref().map(|runtime| &runtime.tool_selector);
     let LoadState::Loaded(skills) = &app.expert_hub.installed else {
@@ -496,6 +516,7 @@ fn shiju_menu_rows(app: &App) -> Vec<ShijuMenuRow<'_>> {
         .collect()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
     container(
         text(row.tooltip.clone())
@@ -508,6 +529,7 @@ fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
     .into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let refresh_action = shiju_refresh_action(&app.expert_hub.installed);
@@ -632,6 +654,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
         .into()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_menu(app: &App) -> Element<'_, Message> {
     let active = app.show_shiju_skill_menu;
     let mut trigger_content = row![text(shiju_trigger_label(&app.expert_hub.installed)).size(12)]
@@ -823,6 +846,7 @@ fn input_strip_control_order(app: &App) -> Vec<InputStripControl> {
     if show_workspace {
         controls.push(InputStripControl::Workspace);
     }
+    #[cfg(not(target_arch = "wasm32"))]
     controls.push(InputStripControl::Shiju);
     if !app.quick_messages.is_empty() {
         controls.push(InputStripControl::GeneralActions);
@@ -833,13 +857,14 @@ fn input_strip_control_order(app: &App) -> Vec<InputStripControl> {
     controls
 }
 
-/// 始终展示识矩入口，并按工作区、识矩、通用、Git 的顺序渲染快捷控件。
+/// 按平台能力渲染工作区、原生识矩技能、通用和 Git 快捷控件。
 pub(super) fn view(app: &App) -> Option<Element<'_, Message>> {
     let (general, git) = grouped_indices(&app.quick_messages);
     let mut controls = row![].spacing(6).align_y(iced::Alignment::Center);
     for control in input_strip_control_order(app) {
         controls = match control {
             InputStripControl::Workspace => controls.push(workspace_menu(app)),
+            #[cfg(not(target_arch = "wasm32"))]
             InputStripControl::Shiju => controls.push(shiju_menu(app)),
             InputStripControl::GeneralActions => {
                 controls.push(group_menu(app, QuickMessageGroup::General, &general))

@@ -41,7 +41,20 @@ impl LinkTarget {
                     && url.host_str().is_none()
                     && url.username().is_empty() =>
             {
+                #[cfg(not(target_arch = "wasm32"))]
                 let path = url.to_file_path().ok()?.into_os_string().into_string().ok()?;
+                #[cfg(target_arch = "wasm32")]
+                let path = {
+                    let path = urlencoding::decode(url.path()).ok()?.into_owned();
+                    // A Windows drive URL is /C:/..., while gateway paths use C:/....
+                    if path.as_bytes().get(2) == Some(&b':')
+                        && path.as_bytes().get(1).is_some_and(u8::is_ascii_alphabetic)
+                    {
+                        path[1..].to_string()
+                    } else {
+                        path
+                    }
+                };
                 valid_path(&path).then_some(Self::File(path))
             }
             _ => None,

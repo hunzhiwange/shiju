@@ -1,5 +1,6 @@
 //! One-use, authenticated desktop voice channels. No credentials in URLs or media logs.
 use super::voice::{failure, fallback_id, realtime_identity};
+use super::voice_handoff::{Binding, Handoffs, Update};
 use crate::provider::voice::realtime::RealtimeSession;
 use axum::{
     Extension, Json, Router,
@@ -212,13 +213,13 @@ async fn upgrade(
         .await
         .map_err(|_| VoiceErrorCode::ProviderUnavailable)?
         .map_err(|_| VoiceErrorCode::ProviderUnavailable)?;
-        session.ok_or(VoiceErrorCode::Forbidden)?;
-        Ok::<_, VoiceErrorCode>((id, reservation))
+        let session = session.ok_or(VoiceErrorCode::Forbidden)?;
+        Ok::<_, VoiceErrorCode>((id, reservation, session.directory))
     }
     .await;
     match result {
         Err(code) => failure(code, fallback_id()),
-        Ok((id, reservation)) => ws
+        Ok((id, reservation, directory)) => ws
             .write_buffer_size(0)
             .max_write_buffer_size(MAX_FRAME_BYTES * 2)
             .max_message_size(MAX_FRAME_BYTES)
@@ -245,7 +246,12 @@ async fn upgrade(
                     match upstream {
                         Ok(upstream) => {
                             let voice = configured_voice(&reservation.config);
-                            bridge(socket, upstream, id, voice).await;
+                            let binding = Binding {
+                                tenant: reservation.tenant,
+                                chat_session: reservation.start.chat_session_id,
+                                directory,
+                            };
+                            bridge(socket, upstream, id, voice, Some(binding)).await;
                         }
                         Err(code) => {
                             let mut error = VoiceError::new(code, reservation.start.request_id);
@@ -340,7 +346,16 @@ async fn read_peer(
     }
     closed.cancel();
 }
-async fn bridge(socket: WebSocket, mut upstream: RealtimeSession, id: VoiceId, voice: VoiceName) {
+async fn bridge(
+    socket: WebSocket,
+    mut upstream: RealtimeSession,
+    id: VoiceId,
+    voice: VoiceName,
+    binding: Option<Binding>,
+) {
+    let mut handoffs = binding.map(Handoffs::new);
+    let mut generation = upstream.generation();
+    let mut result_to_service: Option<Update> = None;
     let (mut writer, reader) = socket.split();
     let closed = CancellationToken::new();
     let (media_tx, mut media) = mpsc::channel(QUEUE);
@@ -386,7 +401,7 @@ async fn bridge(socket: WebSocket, mut upstream: RealtimeSession, id: VoiceId, v
     let mut pending = std::collections::VecDeque::<QueuedFrame>::new();
     let mut input_floor = 0;
     loop {
-        let frames = tokio::select! { biased;
+        let mut frames = tokio::select! { biased;
             _ = closed.cancelled() => break,
             _ = &mut deadline => break,
             frame = control.recv() => {
@@ -403,6 +418,31 @@ async fn bridge(socket: WebSocket, mut upstream: RealtimeSession, id: VoiceId, v
                     },
                     Err(_) => break,
                 }
+            }
+            update = async {
+                match &mut handoffs {
+                    Some(h) => h.updates.recv().await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                let Some(update) = update else { break; };
+                if update.call.generation != upstream.generation() { continue; }
+                let event = VoiceEvent::HandoffStatus { call_id: update.call.call_id.clone(), status: update.status, text: update.text.clone() };
+                let frame = VoiceFrame { voice_session_id: upstream.voice_session_id().clone(), generation: upstream.generation(), seq: VoiceCounter::FIRST, event };
+                if matches!(update.status, HandoffStatus::Completed | HandoffStatus::Failed | HandoffStatus::Cancelled) {
+                    if let Some(h) = &mut handoffs { h.finish(&update.call); }
+                    result_to_service = Some(update);
+                }
+                vec![frame]
+            }
+            _ = std::future::ready(()), if result_to_service.is_some() && !upstream.responding() => {
+                let Some(result) = result_to_service.take() else { break; };
+                let sent = tokio::select! { biased;
+                    _ = closed.cancelled() => break,
+                    sent = upstream.handoff_result(&result.call, result.status, &result.text) => sent,
+                };
+                if sent.is_err() { break; }
+                Vec::new()
             }
             permit = output.reserve(), if !pending.is_empty() => {
                 let Ok(permit) = permit else { break; };
@@ -422,6 +462,45 @@ async fn bridge(socket: WebSocket, mut upstream: RealtimeSession, id: VoiceId, v
             }
             frames = upstream.next(), if pending.is_empty() => match frames { Ok(frames) => frames, Err(_) => break },
         };
+        if generation != upstream.generation() {
+            generation = upstream.generation();
+            result_to_service = None;
+            if let Some(cancelled) = handoffs.as_mut().and_then(Handoffs::generation_changed) {
+                frames.push(VoiceFrame {
+                    voice_session_id: upstream.voice_session_id().clone(),
+                    generation,
+                    seq: VoiceCounter::FIRST,
+                    event: VoiceEvent::HandoffStatus {
+                        call_id: cancelled.call.call_id,
+                        status: cancelled.status,
+                        text: cancelled.text,
+                    },
+                });
+            }
+        }
+        let mut invalid = false;
+        let calls = upstream.take_handoffs();
+        // Reject an ambiguous multi-tool response before admitting its first side effect.
+        if calls.len() > 1 {
+            break;
+        }
+        for call in calls {
+            match &mut handoffs {
+                Some(h) if result_to_service.is_none() => {
+                    if h.submit(call, generation).is_err() {
+                        invalid = true;
+                        break;
+                    }
+                }
+                _ => {
+                    invalid = true;
+                    break;
+                }
+            }
+        }
+        if invalid {
+            break;
+        }
         // The same frame/sample permits cover pending batches, queued output and
         // the writer's in-flight send: at most 50 frames and one second of PCM.
         let mut overflow = false;
@@ -438,6 +517,7 @@ async fn bridge(socket: WebSocket, mut upstream: RealtimeSession, id: VoiceId, v
             break;
         }
     }
+    drop(handoffs);
     closed.cancel();
     let _ = tokio::time::timeout(Duration::from_secs(2), upstream.stop()).await;
     read.abort();

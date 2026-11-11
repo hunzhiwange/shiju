@@ -19,6 +19,7 @@ type Socket = WebSocketStream<reqwest::Upgraded>;
 
 pub struct RealtimeSession {
     socket: Socket,
+    handoffs: super::realtime_handoff::HandoffItems,
     provider_id: VoiceId,
     voice_session_id: VoiceId,
     generation: VoiceCounter,
@@ -132,6 +133,7 @@ impl RealtimeSession {
             .await;
             let mut session = Self {
                 socket,
+                handoffs: Default::default(),
                 provider_id,
                 voice_session_id,
                 generation: VoiceCounter::FIRST,
@@ -167,7 +169,7 @@ impl RealtimeSession {
                     json!({"type":"server_vad","create_response":true,"interrupt_response":true})
                 }
             };
-            session.send(json!({"type":"session.update","session":{"type":"realtime","model":"gpt-realtime-2.1","output_modalities":["audio"],"audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":transcription,"turn_detection":turn},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":config.voice}}}})).await?;
+            session.send(json!({"type":"session.update","session":{"type":"realtime","model":"gpt-realtime-2.1","output_modalities":["audio"],"instructions":"用简短中文回答。需要执行工作时调用 shiju_handoff；遵守审批结果。","tools":super::realtime_handoff::tools(),"tool_choice":"auto","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":transcription,"turn_detection":turn},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":config.voice}}}})).await?;
             let updated = session.receive().await?;
             let s = &updated["session"];
             if updated["type"] != "session.updated"
@@ -175,6 +177,8 @@ impl RealtimeSession {
                 || s["type"] != "realtime"
                 || s["model"] != "gpt-realtime-2.1"
                 || s["output_modalities"] != json!(["audio"])
+                || s["tools"] != super::realtime_handoff::tools()
+                || s["tool_choice"] != "auto"
                 || s["audio"]["input"]["transcription"]["model"] != "gpt-transcribe"
                 || (mode == TurnMode::Manual && !s["audio"]["input"]["turn_detection"].is_null())
                 || (mode == TurnMode::ServerVad
@@ -362,6 +366,7 @@ impl RealtimeSession {
             return Err(VoiceErrorCode::Backpressure);
         }
         self.response = None;
+        self.handoffs.retire();
         if let Some(response) = self.playback_response.take() {
             self.retired.insert(response);
         }
@@ -379,6 +384,33 @@ impl RealtimeSession {
             event,
         })
     }
+    pub(crate) fn take_handoffs(&mut self) -> Vec<super::realtime_handoff::HandoffCall> {
+        self.handoffs.take()
+    }
+    pub(crate) fn responding(&self) -> bool {
+        self.response.is_some()
+    }
+    /// A result is sent once on this socket, never replayed after reconnection.
+    pub(crate) async fn handoff_result(
+        &mut self,
+        call: &super::realtime_handoff::HandoffCall,
+        status: HandoffStatus,
+        text: &str,
+    ) -> Result<()> {
+        if call.generation != self.generation || self.closed {
+            return Err(VoiceErrorCode::Cancelled);
+        }
+        if self.response.is_some() {
+            return Err(VoiceErrorCode::Conflict);
+        }
+        if text.len() > 16 * 1024 {
+            return Err(VoiceErrorCode::PayloadTooLarge);
+        }
+        let output = json!({"status":status,"text":text}).to_string();
+        self.send(json!({"type":"conversation.item.create","item":{"type":"function_call_output","call_id":call.call_id,"output":output}})).await?;
+        self.send(json!({"type":"response.create","response":{"tools":[],"tool_choice":"none"}}))
+            .await
+    }
     pub async fn next(&mut self) -> Result<Vec<VoiceFrame>> {
         let result = self.next_inner().await;
         if result.is_err() {
@@ -387,12 +419,12 @@ impl RealtimeSession {
         result
     }
 }
-fn id(value: &Value, field: &str) -> Result<String> {
+pub(super) fn id(value: &Value, field: &str) -> Result<String> {
     let s = value[field].as_str().ok_or(VoiceErrorCode::ProtocolError)?.to_owned();
     voice_id(s.clone())?;
     Ok(s)
 }
-fn voice_id(value: String) -> Result<VoiceId> {
+pub(super) fn voice_id(value: String) -> Result<VoiceId> {
     value.try_into().map_err(|_| VoiceErrorCode::ProtocolError)
 }
 

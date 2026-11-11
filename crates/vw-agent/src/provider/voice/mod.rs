@@ -1,5 +1,6 @@
 //! Gateway adapters for public voice services.
 pub mod realtime;
+pub(crate) mod realtime_handoff;
 #[cfg(test)]
 mod realtime_tests;
 pub mod transcription;

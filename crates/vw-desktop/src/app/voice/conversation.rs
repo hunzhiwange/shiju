@@ -50,6 +50,11 @@ impl Default for Snapshot {
     }
 }
 impl Snapshot {
+    fn handoff(&mut self, call_id: VoiceId, text: String) {
+        self.captions.retain(|caption| caption.item != call_id);
+        self.caption(TranscriptRole::Assistant, call_id, 0, text, true);
+    }
+
     fn caption(
         &mut self,
         role: TranscriptRole,
@@ -281,6 +286,10 @@ async fn pump(
                     }
                     VoiceEvent::TranscriptFinal { role, item_id, content_index, text } if !awaiting_interrupt => {
                         output.lock().unwrap_or_else(|e| e.into_inner()).caption(role, item_id, content_index, text, true);
+                    }
+                    VoiceEvent::HandoffStatus { call_id, text, .. } => {
+                        let mut snapshot = output.lock().unwrap_or_else(|e| e.into_inner());
+                        snapshot.handoff(call_id, text);
                     }
                     VoiceEvent::SessionClosed { .. } => return Ok(()),
                     VoiceEvent::Error(_) => return Err("语音服务出现错误，请检查服务配置。"),

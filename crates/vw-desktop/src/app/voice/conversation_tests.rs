@@ -165,3 +165,13 @@ async fn voice_task_11_end_cancels_pending_gateway_connection() {
     assert_eq!(conversation.snapshot().phase, Phase::Ending);
     tokio::time::timeout(Duration::from_secs(5), gateway).await.unwrap().unwrap();
 }
+
+#[test]
+fn voice_task_12_handoff_caption_replaces_status_with_final_result() {
+    let mut snapshot = Snapshot::default();
+    let call: VoiceId = "work-call".to_owned().try_into().unwrap();
+    snapshot.handoff(call.clone(), "等待审批".into());
+    snapshot.handoff(call, "工作审批已拒绝".into());
+    assert_eq!(snapshot.captions.len(), 1);
+    assert_eq!(snapshot.captions[0].text, "工作审批已拒绝");
+}

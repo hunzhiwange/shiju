@@ -349,6 +349,9 @@ pub(crate) mod aggregation_read_snapshot;
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
+pub(crate) mod voice_handoff;
+#[cfg(test)]
+mod voice_handoff_session_tests;
 pub(crate) mod voice_realtime;
 
 #[cfg(target_os = "macos")]

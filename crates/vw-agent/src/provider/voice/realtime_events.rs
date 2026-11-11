@@ -5,6 +5,28 @@ impl RealtimeSession {
         let value = self.receive().await?;
         let mut events = Vec::new();
         let kind = value["type"].as_str().ok_or(VoiceErrorCode::ProtocolError)?;
+        let response = if kind == "response.done" {
+            value["response"]["id"].as_str()
+        } else {
+            value["response_id"].as_str()
+        };
+        if response.is_some_and(|id| self.retired.contains(id)) {
+            return Ok(vec![]);
+        }
+        if kind == "response.output_item.added" && self.response.as_deref() != response {
+            return Err(VoiceErrorCode::ProtocolError);
+        }
+        if kind == "response.output_item.added" {
+            let item_id = id(&value["item"], "id")?;
+            if (value["item"]["type"] == "function_call" && self.items.contains_key(&item_id))
+                || (value["item"]["type"] == "message" && self.handoffs.contains(&item_id))
+            {
+                return Err(VoiceErrorCode::ProtocolError);
+            }
+        }
+        if self.handoffs.event(&value, self.generation)? {
+            return Ok(vec![]);
+        }
         match kind {
             "input_audio_buffer.speech_started" if self.mode == TurnMode::ServerVad => {
                 let response_id = self.playback_response.clone().map(voice_id).transpose()?;

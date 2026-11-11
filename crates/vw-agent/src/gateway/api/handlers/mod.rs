@@ -331,6 +331,7 @@ mod mcp_management_update;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_update_tests;
 
+mod aggregation_omp;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_read_tests;
@@ -351,3 +352,6 @@ mod agent_apps_diagnostics_tests;
 mod mcp_management_bindings_tests;
 
 mod mcp_management_bindings;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_omp_tests;

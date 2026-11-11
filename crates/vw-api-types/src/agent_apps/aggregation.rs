@@ -1,4 +1,4 @@
-//! Read-only aggregation resources. No paths, credentials or publication inputs.
+//! Aggregation and native directory resources scoped to a project.
 use crate::id::ProjectId;
 use serde::{Deserialize, Serialize};
 
@@ -110,4 +110,30 @@ pub struct AggregationPreview {
     pub members: Vec<AggregationMember>,
     pub issues: Vec<PreviewIssue>,
     pub notices: Vec<AggregationNotice>,
+}
+
+/// The active native profile is selected by the execution host, never the request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpDirectoryState {
+    pub revision: String,
+    pub profile: Option<String>,
+    pub members: Vec<String>,
+    pub default_provider_id: Option<String>,
+    pub default_model_id: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OmpDirectoryChange {
+    Insert { profile: crate::app_providers::omp::OmpProfile },
+    Replace { profile: crate::app_providers::omp::OmpProfile },
+    Remove {},
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmpDirectoryWrite {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub change: OmpDirectoryChange,
 }

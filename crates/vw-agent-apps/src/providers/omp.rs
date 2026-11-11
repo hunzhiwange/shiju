@@ -419,6 +419,43 @@ impl OmpFiles {
         next: Vec<u8>,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
+        self.apply_inner(tx, tenant, None, expected, name, pre, next, unchanged)
+    }
+    /// Publish within the existing project-owned transaction; never claim a legacy slot.
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_project(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        scope: &vw_api_types::id::ProjectScope,
+        expected: &super::live::commit::AppState,
+        name: &str,
+        pre: Option<&[u8]>,
+        next: Vec<u8>,
+        unchanged: impl Fn() -> bool,
+    ) -> Result<(), WriteError> {
+        self.apply_inner(
+            tx,
+            scope.tenant_scope(),
+            Some(scope),
+            expected,
+            name,
+            pre,
+            next,
+            unchanged,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn apply_inner(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        scope: Option<&vw_api_types::id::ProjectScope>,
+        expected: &super::live::commit::AppState,
+        name: &str,
+        pre: Option<&[u8]>,
+        next: Vec<u8>,
+        unchanged: impl Fn() -> bool,
+    ) -> Result<(), WriteError> {
         use super::live::{
             commit::*,
             stage::{FileChange, WholeFile},
@@ -439,31 +476,40 @@ impl OmpFiles {
         let after = if pre.is_none() && next.is_empty() { None } else { Some(next) };
         let patch = WholeFile::new(pre, after);
         let directory = &self.directory;
-        tx.commit_checked(
-            tenant,
-            &mut self.guard,
-            &[FileChange { name: OsStr::new(name), privacy: FilePrivacy::Private, patch: &patch }],
-            PendingTarget {
-                pointer: None,
-                mode: Some(ModeState {
-                    mode: Mode::Direct,
-                    attached: false,
-                    proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
-                    contract: None,
-                }),
-                ..Default::default()
-            },
-            || {
-                if selection_unchanged(directory, name, pre.is_none())?
-                    && unchanged()
-                    && tx.state(AppId::Omp)? == *expected
-                {
-                    Ok(())
-                } else {
-                    Err(WriteError::Conflict)
-                }
-            },
-        )
+        let changes =
+            [FileChange { name: OsStr::new(name), privacy: FilePrivacy::Private, patch: &patch }];
+        let target = PendingTarget {
+            pointer: None,
+            mode: Some(ModeState {
+                mode: Mode::Direct,
+                attached: false,
+                proxy_route: expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
+                contract: None,
+            }),
+            ..Default::default()
+        };
+        let validate = || {
+            if selection_unchanged(directory, name, pre.is_none())?
+                && unchanged()
+                && tx.state(AppId::Omp)? == *expected
+            {
+                Ok(())
+            } else {
+                Err(WriteError::Conflict)
+            }
+        };
+        match scope {
+            Some(scope) => tx.commit_project_checked(
+                scope,
+                &mut self.guard,
+                expected,
+                false,
+                &changes,
+                target,
+                validate,
+            ),
+            None => tx.commit_checked(tenant, &mut self.guard, &changes, target, validate),
+        }
     }
 }
 

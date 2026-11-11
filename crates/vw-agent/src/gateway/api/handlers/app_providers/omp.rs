@@ -11,8 +11,9 @@ struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
-pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
+pub(in super::super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
+        .merge(super::super::aggregation_omp::router_with_policy(path.clone()))
         .route("/app-providers/omp/{id}/config", put(save))
         .route("/app-providers/omp/{id}/form/read", post(form_read))
         .route("/app-providers/omp/{id}/form", post(form_create).patch(form_update))
@@ -114,9 +115,19 @@ async fn state(
     Extension(t): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     h: HeaderMap,
-    body: Result<Json<OmpTarget>, JsonRejection>,
+    body: Result<Json<serde_json::Value>, JsonRejection>,
 ) -> Response {
-    let Ok(Json(b)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    use super::super::aggregation_omp::{failure, read_scoped};
+    let Ok(Json(b)) = body else { return failure(StatusCode::BAD_REQUEST, "invalid_input") };
+    if b.get("projectId").is_some() {
+        let Ok(query) = serde_json::from_value(b) else {
+            return failure(StatusCode::BAD_REQUEST, "invalid_input");
+        };
+        return read_scoped(p.0, t, h, query).await;
+    }
+    let Ok(b) = serde_json::from_value(b) else {
+        return failure(StatusCode::BAD_REQUEST, "invalid_input");
+    };
     run(p, t, db, h, String::new(), Operation::State(b)).await
 }
 async fn run(
@@ -172,6 +183,38 @@ fn execute(
         host,
         !matches!(op, Operation::State(_) | Operation::FormRead(_)),
     )?;
+    // Serialize legacy reads with scoped publication before inspecting ownership.
+    let _read_guard =
+        if matches!(op, Operation::State(_) | Operation::FormRead(_) | Operation::Import(_)) {
+            Some(
+                vw_agent_apps::providers::live::write_guard::lock_app(AppId::Omp, &home)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+            )
+        } else {
+            None
+        };
+    // Legacy APIs have no project selector and cannot access a project-owned slot.
+    {
+        let tx = ProviderTransactions::open_existing(
+            &root,
+            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
+        )
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        if let Some(tx) = tx {
+            if tx
+                .state(AppId::Omp)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                .project_scope
+                .is_some()
+                || tx
+                    .pending(AppId::Omp)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                    .is_some_and(|p| p.target.project_scope.is_some())
+            {
+                return Err(StatusCode::CONFLICT);
+            }
+        }
+    }
     if matches!(op, Operation::State(_)) {
         return encode(
             &state(read(&home).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?.as_deref())

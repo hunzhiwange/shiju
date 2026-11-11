@@ -19,3 +19,29 @@ fn aggregation_t39_requests_reject_unknown_inputs_and_use_contract_names() {
         "codex_route_owns_catalog"
     );
 }
+
+#[test]
+fn aggregation_t49_directory_wire_contract_rejects_profile_selectors_and_mcp() {
+    let body = json!({"targetHostId":"host","projectId":"project","expectedRevision":"opaque","change":{"kind":"remove"}});
+    let request: OmpDirectoryWrite = serde_json::from_value(body.clone()).unwrap();
+    assert!(matches!(request.change, OmpDirectoryChange::Remove {}));
+    for key in ["profile", "path", "mcpServers", "accountId"] {
+        let mut invalid = body.clone();
+        invalid[key] = json!("external");
+        assert!(serde_json::from_value::<OmpDirectoryWrite>(invalid).is_err());
+    }
+    let mut invalid = body;
+    invalid["change"]["profile"] = json!({"name":"unexpected","declaration":{}});
+    assert!(serde_json::from_value::<OmpDirectoryWrite>(invalid).is_err());
+    let state = OmpDirectoryState {
+        revision: "opaque".into(),
+        profile: None,
+        members: vec!["managed".into()],
+        default_provider_id: Some("builtin".into()),
+        default_model_id: Some("model".into()),
+    };
+    let encoded = serde_json::to_value(state).unwrap();
+    assert!(encoded["profile"].is_null());
+    assert_eq!(encoded["defaultModelId"], "model");
+    assert!(encoded.get("default_model_id").is_none());
+}

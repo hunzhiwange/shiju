@@ -60,11 +60,16 @@ prepare_signing_keychain() {
   fi
 }
 
+PROFILE_DIR="$PROFILE"
+if [ "$PROFILE" = "dev" ]; then
+  PROFILE_DIR="debug"
+fi
+
 if [ -n "$TARGET" ]; then
-  TARGET_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
+  TARGET_DIR="$TARGET_ROOT/$TARGET/$PROFILE_DIR"
   TARGET_SUFFIX="-$TARGET"
 else
-  TARGET_DIR="$TARGET_ROOT/$PROFILE"
+  TARGET_DIR="$TARGET_ROOT/$PROFILE_DIR"
   TARGET_SUFFIX=""
 fi
 
@@ -375,8 +380,8 @@ if [ -x /usr/libexec/PlistBuddy ]; then
   # macOS attributes access by the embedded browser helper to the launching app.
   /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST"
-  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription ShiJu lets websites you allow use your microphone." "$APP_INFO_PLIST" 2>/dev/null \
-    || /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ShiJu lets websites you allow use your microphone." "$APP_INFO_PLIST"
+  /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription ShiJu uses your microphone for dictation and voice chat, and lets websites you allow use it." "$APP_INFO_PLIST" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ShiJu uses your microphone for dictation and voice chat, and lets websites you allow use it." "$APP_INFO_PLIST"
 fi
 
 echo "Copying helper binary to bundle..."
@@ -423,10 +428,23 @@ if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
     --force \
     --timestamp \
     --options runtime \
+    --entitlements "$(dirname "$0")/macos_voice_entitlements.plist" \
     "$APP_BUNDLE"
 else
   echo "Applying ad-hoc signature for local development..."
-  codesign --force --deep --sign - "$APP_BUNDLE"
+  # Sign inside out so the native process and browser keep separate capabilities.
+  codesign --force --sign - \
+    --entitlements "$(dirname "$0")/macos_webview_entitlements.plist" \
+    "$DEST_DIR/vw-webview"
+  for binary_name in "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
+    binary_path="$DEST_DIR/$binary_name"
+    if [ -f "$binary_path" ]; then
+      codesign --force --sign - "$binary_path"
+    fi
+  done
+  codesign --force --sign - \
+    --entitlements "$(dirname "$0")/macos_voice_entitlements.plist" \
+    "$APP_BUNDLE"
 fi
 
 echo "Verifying code signature..."

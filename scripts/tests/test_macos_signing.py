@@ -40,7 +40,8 @@ if name == 'cargo':
     root = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
     if '--target' in args:
         root /= args[args.index('--target') + 1]
-    root /= args[args.index('--profile') + 1] if '--profile' in args else 'release'
+    profile = args[args.index('--profile') + 1] if '--profile' in args else 'release'
+    root /= 'debug' if profile == 'dev' else profile
     if args[0] == 'bundle':
         with open(os.environ['CALL_LOG'], 'a') as log:
             log.write(json.dumps(['bundle-skip-build', os.environ.get('CARGO_BUNDLE_SKIP_BUILD')]) + '\n')
@@ -183,11 +184,10 @@ class MacosSigningTests(unittest.TestCase):
                     self.assertIsInstance(description, str)
                     self.assertTrue(description.strip())
                 signatures = [c[1:] for c in calls if c[0] == "media-signing"]
-                expected = (
-                    [["vw-webview", descriptions, media_entitlements],
-                     ["ShiJu.app", descriptions, {}]]
-                    if mode == "developer-id" else [["ShiJu.app", descriptions, {}]]
-                )
+                expected = [
+                    ["vw-webview", descriptions, media_entitlements],
+                    ["ShiJu.app", descriptions, {"com.apple.security.device.audio-input": True}],
+                ]
                 self.assertEqual(signatures, expected)
 
     def test_missing_prebuilt_binary_fails_without_compiling(self):

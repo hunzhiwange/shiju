@@ -45,6 +45,9 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     aggregation_read: Vec<RoutingAppPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    aggregation_write: Vec<RoutingAppPermit>,
     #[serde(default)]
     provider_config_write: bool,
     #[serde(default)]
@@ -595,6 +598,8 @@ enum Capability<'a> {
     ProviderConfigRead,
     #[cfg(target_os = "macos")]
     AggregationRead(&'a ProjectId, AppId),
+    #[cfg(target_os = "macos")]
+    AggregationWrite(&'a ProjectId, AppId, bool),
     McpCatalogWrite(Option<&'a vw_api_types::id::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
@@ -894,6 +899,18 @@ fn authorize_digest(
                             && g.aggregation_read
                                 .iter()
                                 .any(|permit| &permit.project_id == project && permit.app_id == app)
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::AggregationWrite(project, app, attached) => {
+                        g.provider_config_write
+                            && g.aggregation_write
+                                .iter()
+                                .any(|p| &p.project_id == project && p.app_id == app)
+                            && (!attached
+                                || g.routing_manage
+                                    && g.routing_apps
+                                        .iter()
+                                        .any(|p| &p.project_id == project && p.app_id == app))
                     }
                     Capability::McpCatalogWrite(project) => match project {
                         Some(project) => g.mcp_catalog_write_projects.contains(project),
@@ -1450,6 +1467,34 @@ pub(in super::super) fn authorize_aggregation_read(
     target: &str,
     app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
+    authorize_aggregation(path, headers, project, target, app, None).map(|authorization| {
+        (authorization.host.home, authorization.host.credential_root, authorization.principal)
+    })
+}
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_aggregation_write(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    target: &str,
+    app: AppId,
+    attached: bool,
+) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
+    authorize_aggregation(path, headers, project, target, app, Some(attached)).map(
+        |authorization| {
+            (authorization.host.home, authorization.host.credential_root, authorization.principal)
+        },
+    )
+}
+#[cfg(target_os = "macos")]
+fn authorize_aggregation(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    target: &str,
+    app: AppId,
+    write: Option<bool>,
+) -> Result<Authorization, StatusCode> {
     // These routes accept a single Bearer credential under the existing policy.
     let mut values = headers.get_all(axum::http::header::AUTHORIZATION).iter();
     let token = values
@@ -1467,7 +1512,10 @@ pub(in super::super) fn authorize_aggregation_read(
         project.tenant_scope(),
         target,
         None,
-        Capability::AggregationRead(project.project_id(), app),
+        match write {
+            Some(attached) => Capability::AggregationWrite(project.project_id(), app, attached),
+            None => Capability::AggregationRead(project.project_id(), app),
+        },
     )
     .map_err(|status| {
         if status == StatusCode::NOT_IMPLEMENTED {
@@ -1475,9 +1523,6 @@ pub(in super::super) fn authorize_aggregation_read(
         } else {
             status
         }
-    })
-    .map(|authorization| {
-        (authorization.host.home, authorization.host.credential_root, authorization.principal)
     })
 }
 

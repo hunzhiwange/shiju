@@ -128,7 +128,11 @@ async fn loopback(
             },
         };
         socket.send(Message::Text(serde_json::to_string(&ack).unwrap().into())).await.unwrap();
-        let _ = socket.next().await;
+        let after_ack = socket.next().await;
+        assert!(
+            !matches!(after_ack, Some(Ok(Message::Text(_)))),
+            "retired capture audio must not reach the gateway socket"
+        );
     });
     (endpoint, task)
 }
@@ -144,7 +148,7 @@ fn interrupt() -> VoiceEvent {
 async fn voice_task_10_loopback_authenticated_duplex_and_generation_ack() {
     let (endpoint, task) = loopback(false, false).await;
     let mut stream = VoiceStream::connect(&endpoint, &start()).await.unwrap();
-    stream.send(interrupt()).await.unwrap();
+    stream.send(VoiceCounter::FIRST, interrupt()).await.unwrap();
     assert!(matches!(stream.next().await.unwrap().event, VoiceEvent::GenerationChanged { .. }));
     assert_eq!(stream.generation().get(), 2);
     stream.close().await;
@@ -154,7 +158,7 @@ async fn voice_task_10_loopback_authenticated_duplex_and_generation_ack() {
 async fn voice_task_10_foreign_output_is_rejected() {
     let (endpoint, task) = loopback(false, true).await;
     let mut stream = VoiceStream::connect(&endpoint, &start()).await.unwrap();
-    stream.send(interrupt()).await.unwrap();
+    stream.send(VoiceCounter::FIRST, interrupt()).await.unwrap();
     assert_eq!(stream.next().await.unwrap_err(), VoiceApiError::InvalidResponse);
     assert_eq!(stream.next().await.unwrap_err(), VoiceApiError::Service(VoiceErrorCode::Cancelled));
     stream.close().await;
@@ -167,5 +171,29 @@ async fn voice_task_10_gateway_supplied_foreign_url_is_rejected() {
         VoiceStream::connect(&endpoint, &start()).await,
         Err(VoiceApiError::InvalidResponse)
     ));
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn voice_task_10_stale_capture_generation_is_not_relabelled() {
+    let (endpoint, task) = loopback(false, false).await;
+    let mut stream = VoiceStream::connect(&endpoint, &start()).await.unwrap();
+    stream.send(VoiceCounter::FIRST, interrupt()).await.unwrap();
+    stream.next().await.unwrap();
+    assert_eq!(stream.generation().get(), 2);
+    assert_eq!(
+        stream
+            .send(
+                VoiceCounter::FIRST,
+                VoiceEvent::AudioAppend(AudioPayload {
+                    audio: "AAA=".into(),
+                    samples_per_channel: 1
+                })
+            )
+            .await,
+        Err(VoiceApiError::Service(VoiceErrorCode::Cancelled)),
+        "retired microphone samples must not be relabelled as the current generation"
+    );
+    stream.close().await;
     task.await.unwrap();
 }

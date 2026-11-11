@@ -162,9 +162,11 @@ impl VoiceStream {
     pub fn generation(&self) -> VoiceCounter {
         self.generation
     }
-    /// No buffered media: UI/device queues must stay bounded and prioritize stop/interrupt.
-    pub async fn send(&mut self, event: VoiceEvent) -> Result<()> {
-        if self.closed {
+    /// Preserve the generation attached before queuing capture/control data; stale
+    /// samples must never be retagged after an interruption. UI/device queues must
+    /// stay bounded and prioritize stop/interrupt.
+    pub async fn send(&mut self, generation: VoiceCounter, event: VoiceEvent) -> Result<()> {
+        if self.closed || generation != self.generation {
             return Err(VoiceApiError::Service(VoiceErrorCode::Cancelled));
         }
         if !matches!(
@@ -183,7 +185,7 @@ impl VoiceStream {
             VoiceCounter::try_from(self.sent + 1).map_err(|_| VoiceApiError::InvalidResponse)?;
         let frame = VoiceFrame {
             voice_session_id: self.session.voice_session_id.clone(),
-            generation: self.generation,
+            generation,
             seq,
             event,
         };

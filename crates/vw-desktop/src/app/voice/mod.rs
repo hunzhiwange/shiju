@@ -13,3 +13,8 @@ pub mod capture;
 mod capture_native;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod capture_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod playback;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod playback_tests;

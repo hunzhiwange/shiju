@@ -411,7 +411,6 @@ pub mod top_bar;
 #[path = "top_bar_tests.rs"]
 mod top_bar_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod account_status;
 /// 通用小部件集合
 ///

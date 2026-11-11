@@ -11,6 +11,7 @@ use crate::app::session_gateway::{
     gateway_shiju_account_password_update_async, gateway_shiju_account_profile_async,
     gateway_shiju_account_update_async,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use crate::app::skill_hub::NativeShijuSkillPrepared;
 use crate::app::state::{
     AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, MonthlyQuotaState,
@@ -20,8 +21,20 @@ use iced::Task;
 use std::time::Duration;
 use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest};
 
+fn open_authorization_url(url: &str) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        open::that(url).is_ok()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        crate::app::account::browser::navigate(url)
+    }
+}
+
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
+#[cfg(not(target_arch = "wasm32"))]
 #[path = "account_shiju_skill.rs"]
 mod shiju_skill;
 
@@ -38,14 +51,17 @@ pub(crate) enum AccountNotice {
 #[derive(Debug, Clone)]
 /// 账号登录、资料编辑和密码修改流程中的输入及异步结果消息。
 pub(crate) enum AccountMessage {
+    #[cfg(not(target_arch = "wasm32"))]
     ResetModels {
         generation: u64,
     },
+    #[cfg(not(target_arch = "wasm32"))]
     ModelTokenLoaded {
         generation: u64,
         account_id: String,
         result: Result<vw_gateway_client::ShijuModelTokenDto, String>,
     },
+    #[cfg(not(target_arch = "wasm32"))]
     ModelsConfigured {
         generation: u64,
         result: Result<(), String>,
@@ -120,7 +136,9 @@ pub(crate) enum AccountMessage {
         notice: AccountNotice,
         result: Result<AccountRepository, String>,
     },
+    #[cfg(not(target_arch = "wasm32"))]
     PrepareNativeShijuSkill,
+    #[cfg(not(target_arch = "wasm32"))]
     NativeShijuSkillPrepared {
         generation: u64,
         revision: u64,
@@ -255,6 +273,7 @@ fn password_update_task(
     )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn shiju_key_sync_task(app: &mut App, notice: AccountNotice) -> Task<Message> {
     if !matches!(
         notice,
@@ -271,14 +290,17 @@ fn shiju_key_sync_task(app: &mut App, notice: AccountNotice) -> Task<Message> {
 /// 应用账号状态转换，并为需要的网关或持久化工作返回异步任务。
 pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
         AccountMessage::ResetModels { generation } => {
             super::settings::providers::managed_shiju::reset(app, generation)
         }
+        #[cfg(not(target_arch = "wasm32"))]
         AccountMessage::ModelTokenLoaded { generation, account_id, result } => {
             super::settings::providers::managed_shiju::token_loaded(
                 app, generation, account_id, result,
             )
         }
+        #[cfg(not(target_arch = "wasm32"))]
         AccountMessage::ModelsConfigured { generation, result } => {
             super::settings::providers::managed_shiju::configured(app, generation, result)
         }
@@ -293,11 +315,21 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     );
                 }
             }
+            #[cfg(not(target_arch = "wasm32"))]
             let reload = crate::app::message::skill_hub::account_changed(app);
+            #[cfg(not(target_arch = "wasm32"))]
             let models = super::settings::providers::managed_shiju::sync(app);
+            #[cfg(not(target_arch = "wasm32"))]
             let native_skill = shiju_skill::start(app);
             let quota = refresh_monthly_quota(app);
-            Task::batch([reload, models, native_skill, quota])
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                Task::batch([reload, models, native_skill, quota])
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                quota
+            }
         }
         AccountMessage::ToggleMenu => {
             app.account.menu_open = !app.account.menu_open;
@@ -572,6 +604,14 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             if app.account.operation.is_busy() {
                 return Task::none();
             }
+            #[cfg(target_arch = "wasm32")]
+            if !crate::app::account::browser::prepare() {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法打开登录授权页面",
+                    vec![],
+                );
+            }
             let generation = app.account.begin(AccountOperation::StartingBrowser);
             start_browser_login_task(generation)
         }
@@ -579,6 +619,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             if !matches!(&app.account.operation, AccountOperation::WaitingAuthorization { .. }) {
                 return Task::none();
             }
+            #[cfg(target_arch = "wasm32")]
+            crate::app::account::browser::close();
             app.account.cancel();
             app.show_localized_toast(crate::app::state::ToastKind::Info, "已取消等待授权", vec![])
         }
@@ -588,7 +630,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             }
             match result {
                 Ok(challenge) => {
-                    if open::that(challenge.authorization_url().as_str()).is_err() {
+                    if !open_authorization_url(challenge.authorization_url().as_str()) {
                         app.account.finish();
                         return app.show_localized_toast(
                             crate::app::state::ToastKind::Error,
@@ -599,7 +641,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     let interval = challenge.poll_interval();
                     app.account.operation = AccountOperation::WaitingAuthorization {
                         challenge,
-                        started_at: std::time::Instant::now(),
+                        started_at: web_time::Instant::now(),
                     };
                     Task::batch([
                         crate::app::message::after(
@@ -613,6 +655,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     ])
                 }
                 Err(error) => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::app::account::browser::close();
                     app.account.finish();
                     app.show_localized_toast(
                         crate::app::state::ToastKind::Error,
@@ -632,6 +676,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 return Task::none();
             };
             if started_at.elapsed() >= LOGIN_TIMEOUT {
+                #[cfg(target_arch = "wasm32")]
+                crate::app::account::browser::close();
                 app.account.cancel();
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
@@ -647,6 +693,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             {
                 return Task::none();
             }
+            #[cfg(target_arch = "wasm32")]
+            crate::app::account::browser::close();
             app.account.cancel();
             app.show_localized_toast(
                 crate::app::state::ToastKind::Warning,
@@ -671,6 +719,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     )
                 }
                 Ok(LoginPoll::Approved(skey)) => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::app::account::browser::close();
                     app.account.operation = AccountOperation::Validating;
                     let validation = validate_task(skey, generation, AccountOrigin::BrowserLogin);
                     let feedback = app.show_localized_toast(
@@ -681,6 +731,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     Task::batch([validation, feedback])
                 }
                 Err(error) => {
+                    #[cfg(target_arch = "wasm32")]
+                    crate::app::account::browser::close();
                     app.account.finish();
                     app.show_localized_toast(
                         crate::app::state::ToastKind::Error,
@@ -792,11 +844,16 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                             vec![],
                         ),
                     };
+                    #[cfg(not(target_arch = "wasm32"))]
                     let reload = crate::app::message::skill_hub::account_changed(app);
+                    #[cfg(not(target_arch = "wasm32"))]
                     let sync = shiju_key_sync_task(app, notice);
+                    #[cfg(not(target_arch = "wasm32"))]
                     let models = super::settings::providers::managed_shiju::sync(app);
                     let quota = refresh_monthly_quota(app);
-                    Task::batch([feedback, reload, sync, models, quota])
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let quota = Task::batch([reload, sync, models, quota]);
+                    Task::batch([feedback, quota])
                 }
                 Err(error) => app.show_localized_toast(
                     crate::app::state::ToastKind::Error,
@@ -805,7 +862,9 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 ),
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         AccountMessage::PrepareNativeShijuSkill => shiju_skill::start(app),
+        #[cfg(not(target_arch = "wasm32"))]
         AccountMessage::NativeShijuSkillPrepared { generation, revision, result } => {
             shiju_skill::finished(app, generation, revision, result)
         }

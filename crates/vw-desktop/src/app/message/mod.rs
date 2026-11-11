@@ -21,7 +21,6 @@
 //! - `terminal`: 终端操作消息
 //! - `view`: 视图切换消息
 
-#[cfg(not(target_arch = "wasm32"))]
 pub mod account;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod agent_apps_auth;
@@ -218,7 +217,6 @@ async fn sleep(duration: std::time::Duration) {
 // 而不是 `use crate::app::message::chat::ChatMessage;`
 
 pub use crate::app::views::workflow_manager::WorkflowManagerMessage;
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use account::AccountMessage;
 pub use chat::ChatMessage;
 pub use editor::EditorMessage;

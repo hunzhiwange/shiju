@@ -5,14 +5,19 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::fmt;
+#[cfg(not(target_arch = "wasm32"))]
 use std::fs::{self, OpenOptions};
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 use vw_gateway_client::ShijuAccountMeDto;
 
 #[cfg(unix)]
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 
+#[cfg(not(target_arch = "wasm32"))]
 const STORE_FILE_NAME: &str = "shiju-accounts.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -164,17 +169,20 @@ impl AccountRepository {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn load() -> Result<Self, AccountStoreError> {
         let path = default_path()?;
         Self::load_from(&path)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn save(&self) -> Result<(), AccountStoreError> {
         let path = default_path()?;
         self.save_to(&path)
     }
 
     /// 从指定文件加载并校验仓储，同时兼容缺少资料字段的旧记录。
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn load_from(path: &Path) -> Result<Self, AccountStoreError> {
         let bytes = match fs::read(path) {
             Ok(bytes) => bytes,
@@ -183,7 +191,11 @@ impl AccountRepository {
             }
             Err(_) => return Err(AccountStoreError::at(path, "无法读取账户文件")),
         };
-        let file: StoreFile = serde_json::from_slice(&bytes)
+        Self::decode(&bytes, path)
+    }
+
+    fn decode(bytes: &[u8], path: &Path) -> Result<Self, AccountStoreError> {
+        let file: StoreFile = serde_json::from_slice(bytes)
             .map_err(|_| AccountStoreError::at(path, "账户文件格式无效"))?;
         let mut seen = HashSet::new();
         let mut accounts = Vec::with_capacity(file.accounts.len());
@@ -229,12 +241,32 @@ impl AccountRepository {
     }
 
     /// 以仅限当前用户的权限写入账号文件，并在写入前验证仓储不变量。
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn save_to(&self, path: &Path) -> Result<(), AccountStoreError> {
         self.validate().map_err(|error| AccountStoreError::at(path, error.message))?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
                 .map_err(|_| AccountStoreError::at(path, "无法创建账户目录"))?;
         }
+        let bytes = self.encode(path)?;
+        let mut options = OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut output =
+            options.open(path).map_err(|_| AccountStoreError::at(path, "无法写入账户文件"))?;
+        output
+            .write_all(&bytes)
+            .and_then(|()| output.sync_all())
+            .map_err(|_| AccountStoreError::at(path, "无法保存账户文件"))?;
+        #[cfg(unix)]
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+            .map_err(|_| AccountStoreError::at(path, "无法限制账户文件权限"))?;
+        Ok(())
+    }
+
+    fn encode(&self, path: &Path) -> Result<Vec<u8>, AccountStoreError> {
+        self.validate()?;
         let file = StoreFile {
             accounts: self
                 .accounts
@@ -252,22 +284,31 @@ impl AccountRepository {
                 .collect(),
             active_account_id: self.active_account_id.clone(),
         };
-        let bytes = serde_json::to_vec_pretty(&file)
-            .map_err(|_| AccountStoreError::at(path, "无法编码账户文件"))?;
-        let mut options = OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        options.mode(0o600);
-        let mut output =
-            options.open(path).map_err(|_| AccountStoreError::at(path, "无法写入账户文件"))?;
-        output
-            .write_all(&bytes)
-            .and_then(|()| output.sync_all())
-            .map_err(|_| AccountStoreError::at(path, "无法保存账户文件"))?;
-        #[cfg(unix)]
-        fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-            .map_err(|_| AccountStoreError::at(path, "无法限制账户文件权限"))?;
-        Ok(())
+        serde_json::to_vec_pretty(&file)
+            .map_err(|_| AccountStoreError::at(path, "无法编码账户文件"))
+    }
+
+    // Browser credentials live only for the current tab session.
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn load() -> Result<Self, AccountStoreError> {
+        let storage = browser_storage()?;
+        let value = storage
+            .get_item("shiju-accounts")
+            .map_err(|_| AccountStoreError::new("无法读取浏览器账户存储"))?;
+        match value {
+            Some(value) => Self::decode(value.as_bytes(), Path::new("浏览器会话")),
+            None => Ok(Self::default()),
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn save(&self) -> Result<(), AccountStoreError> {
+        let bytes = self.encode(Path::new("浏览器会话"))?;
+        let value = std::str::from_utf8(&bytes)
+            .map_err(|_| AccountStoreError::new("无法编码浏览器账户存储"))?;
+        browser_storage()?
+            .set_item("shiju-accounts", value)
+            .map_err(|_| AccountStoreError::new("无法保存浏览器账户存储"))
     }
 
     fn validate(&self) -> Result<(), AccountStoreError> {
@@ -284,6 +325,14 @@ impl AccountRepository {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+fn browser_storage() -> Result<web_sys::Storage, AccountStoreError> {
+    web_sys::window()
+        .and_then(|window| window.session_storage().ok().flatten())
+        .ok_or_else(|| AccountStoreError::new("浏览器会话存储不可用"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn default_path() -> Result<PathBuf, AccountStoreError> {
     crate::app::project_dirs()
         .map(|directories| directories.config_dir().join(STORE_FILE_NAME))

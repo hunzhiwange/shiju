@@ -282,7 +282,6 @@ impl App {
         // 项目编辑模态框
         let root_content = app_view_modals::with_project_edit(self, root_content);
         let root_content = app_view_modals::with_git_diff_overlays(self, root_content);
-        #[cfg(not(target_arch = "wasm32"))]
         let root_content = app_view_modals::with_account_details(self, root_content);
         let root_content = app_view_modals::with_chat_reset_dialog(self, root_content);
         let root_content = app_view_modals::with_chat_fork_dialog(self, root_content);

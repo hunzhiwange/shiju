@@ -1,5 +1,7 @@
-//! 统一导出桌面端账号模型与本地账号仓储。
+//! 统一导出账号模型与各平台的账号仓储。
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod browser;
 mod models;
 mod store;
 

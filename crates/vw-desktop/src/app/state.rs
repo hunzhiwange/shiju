@@ -35,7 +35,6 @@ use crate::app::{DiffTheme, FocusArea, PreviewTab, Screen, SettingsTab, TodoPane
 use crate::app::{LspHoverPending, LspProgress};
 use vw_config_types::tools::HttpRequestConfig;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod account;
 mod agent;
 mod app_state;
@@ -49,7 +48,6 @@ mod workspace;
 #[cfg(test)]
 mod runtime_tools_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub(crate) use account::{
     AccountOperation, AccountPasswordEditorState, AccountProfileEditorState, AccountState,
     MonthlyQuotaState,

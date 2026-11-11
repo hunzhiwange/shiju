@@ -108,7 +108,6 @@ pub enum Message {
     ),
     GatewayHealthTick,
     GatewayHealthChecked(Vec<(String, bool)>),
-    #[cfg(not(target_arch = "wasm32"))]
     #[allow(private_interfaces)]
     Account(message::AccountMessage),
     #[cfg(not(target_arch = "wasm32"))]

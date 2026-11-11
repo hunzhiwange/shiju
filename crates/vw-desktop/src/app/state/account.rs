@@ -1,10 +1,10 @@
-//! 保存账号操作、资料编辑与密码编辑的桌面界面状态。
+//! 保存账号操作、资料编辑与密码编辑的界面状态。
 
 use crate::app::account::{
     AccountPasswordDraft, AccountProfileDraft, AccountRepository, LoginChallenge, ManualSkeyInput,
     StoredAccount,
 };
-use std::time::Instant;
+use web_time::Instant;
 
 #[derive(Debug, Clone)]
 /// 当前账号登录或持久化操作的互斥阶段。
@@ -118,7 +118,9 @@ pub(crate) struct AccountState {
     profile_generation: u64,
     pub(crate) password_editor: AccountPasswordEditorState,
     password_generation: u64,
+    #[cfg(not(target_arch = "wasm32"))]
     model_generation: u64,
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) native_shiju_skill: crate::app::skill_hub::NativeShijuSkillState,
 }
 
@@ -137,18 +139,22 @@ impl Default for AccountState {
             profile_generation: 0,
             password_editor: AccountPasswordEditorState::Closed,
             password_generation: 0,
+            #[cfg(not(target_arch = "wasm32"))]
             model_generation: 0,
+            #[cfg(not(target_arch = "wasm32"))]
             native_shiju_skill: crate::app::skill_hub::NativeShijuSkillState::default(),
         }
     }
 }
 
 impl AccountState {
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn begin_model_sync(&mut self) -> u64 {
         self.model_generation = self.model_generation.wrapping_add(1);
         self.model_generation
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn model_sync_is_current(&self, generation: u64) -> bool {
         self.model_generation == generation
     }
@@ -166,6 +172,7 @@ impl AccountState {
     }
 
     pub(crate) fn replace_repository(&mut self, repository: AccountRepository) {
+        #[cfg(not(target_arch = "wasm32"))]
         self.native_shiju_skill.set_credential(
             repository.active_account().map(|account| account.skill_hub_credential()),
         );

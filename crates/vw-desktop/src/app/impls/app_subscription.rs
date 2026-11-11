@@ -347,7 +347,6 @@ impl App {
             work_browser_runtime_tick,
             workflow_run,
             gateway_health_tick,
-            #[cfg(not(target_arch = "wasm32"))]
             if self.account.active_account().is_some() {
                 iced::time::every(std::time::Duration::from_secs(60))
                     .map(|_| Message::Account(message::AccountMessage::RefreshMonthlyQuota))

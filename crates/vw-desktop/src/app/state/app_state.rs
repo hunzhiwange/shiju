@@ -1175,7 +1175,6 @@ pub struct App {
     /// 下一个轻量提示 ID
     pub(crate) next_toast_id: usize,
     /// Shiju 本地多账户与登录状态。
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) account: AccountState,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) expert_hub: crate::app::skill_hub::ExpertHubState,

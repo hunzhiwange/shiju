@@ -8,18 +8,14 @@
 //! 包括语言服务器的工作进度、完成状态以及通用状态信息。
 
 use iced::Element;
-#[cfg(not(target_arch = "wasm32"))]
 use iced::Theme;
-#[cfg(not(target_arch = "wasm32"))]
 use iced::widget::button;
-#[cfg(not(target_arch = "wasm32"))]
 use iced::{Background, Color};
 
 use super::{App, Message};
 
 pub(crate) const STATUS_BAR_HEIGHT: f32 = 30.0;
 
-#[cfg(not(target_arch = "wasm32"))]
 fn is_dark_theme(theme: &Theme) -> bool {
     let palette = theme.palette();
     palette.background.r + palette.background.g + palette.background.b < 1.5
@@ -217,82 +213,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
             .into()
     };
 
-    // 构建通知按钮区域
-    let notification_btn = {
-        let count = app.notifications.len();
-
-        let icon: Element<'_, Message> = if count > 0 {
-            iced::widget::text("⚠️")
-                .size(14)
-                .style(move |theme: &iced::Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::text::Style { color: Some(p.warning.base.color) }
-                })
-                .into()
-        } else {
-            iced::widget::text("🔔")
-                .size(14)
-                .style(move |theme: &iced::Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::text::Style {
-                        color: Some(if is_dark_theme(theme) {
-                            p.background.base.text.scale_alpha(0.72)
-                        } else {
-                            theme.palette().text.scale_alpha(0.64)
-                        }),
-                    }
-                })
-                .into()
-        };
-
-        let count_el: Element<'_, Message> = if count > 0 {
-            iced::widget::text(count.to_string())
-                .size(12)
-                .style(move |theme: &iced::Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::text::Style { color: Some(p.warning.base.color) }
-                })
-                .into()
-        } else {
-            iced::widget::Space::new()
-                .width(iced::Length::Fixed(0.0))
-                .height(iced::Length::Fixed(0.0))
-                .into()
-        };
-
-        button(iced::widget::row![icon, count_el].spacing(4).align_y(iced::Alignment::Center))
-            .on_press(Message::Notification(
-                crate::app::message::NotificationMessage::ToggleExpanded,
-            ))
-            .style(|theme: &iced::Theme, status| {
-                let p = theme.extended_palette();
-                iced::widget::button::Style {
-                    background: match status {
-                        iced::widget::button::Status::Hovered => {
-                            Some(Background::Color(if is_dark_theme(theme) {
-                                p.background.weak.color.scale_alpha(0.42)
-                            } else {
-                                Color::WHITE.scale_alpha(0.52)
-                            }))
-                        }
-                        iced::widget::button::Status::Pressed => {
-                            Some(Background::Color(if is_dark_theme(theme) {
-                                p.background.strong.color.scale_alpha(0.54)
-                            } else {
-                                p.background.weak.color.scale_alpha(0.76)
-                            }))
-                        }
-                        _ => None,
-                    },
-                    text_color: if is_dark_theme(theme) {
-                        p.background.base.text.scale_alpha(0.80)
-                    } else {
-                        theme.palette().text.scale_alpha(0.72)
-                    },
-                    ..Default::default()
-                }
-            })
-    };
+    let notification_btn = notification_button(app);
     let account = crate::app::components::account_status::view(app);
 
     // 组装完整的状态栏布局
@@ -327,23 +248,102 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-/// 构建 WebAssembly 平台的状态栏
-///
-/// 该函数为 WebAssembly 目标平台提供状态栏实现。
-/// 在 WebAssembly 环境中，状态栏被简化为零高度的占位符，
-/// 以减少资源消耗并简化 Web 环境下的渲染逻辑。
-///
-/// # 参数
-/// - `_app`: 应用程序状态引用（在 WebAssembly 版本中未使用）
-///
-/// # 返回值
-/// 返回一个零高度的空白 Element
-///
-/// # 平台兼容性
-/// 此函数仅在 wasm32 目标平台上可用
+/// 所有平台共用通知入口、计数及主题样式。
+fn notification_button(app: &App) -> Element<'_, Message> {
+    let count = app.notifications.len();
+
+    let icon: Element<'_, Message> = if count > 0 {
+        iced::widget::text("⚠️")
+            .size(14)
+            .style(move |theme: &iced::Theme| {
+                let p = theme.extended_palette();
+                iced::widget::text::Style { color: Some(p.warning.base.color) }
+            })
+            .into()
+    } else {
+        iced::widget::text("🔔")
+            .size(14)
+            .style(move |theme: &iced::Theme| {
+                let p = theme.extended_palette();
+                iced::widget::text::Style {
+                    color: Some(if is_dark_theme(theme) {
+                        p.background.base.text.scale_alpha(0.72)
+                    } else {
+                        theme.palette().text.scale_alpha(0.64)
+                    }),
+                }
+            })
+            .into()
+    };
+
+    let count_el: Element<'_, Message> = if count > 0 {
+        iced::widget::text(count.to_string())
+            .size(12)
+            .style(move |theme: &iced::Theme| {
+                let p = theme.extended_palette();
+                iced::widget::text::Style { color: Some(p.warning.base.color) }
+            })
+            .into()
+    } else {
+        iced::widget::Space::new()
+            .width(iced::Length::Fixed(0.0))
+            .height(iced::Length::Fixed(0.0))
+            .into()
+    };
+
+    button(iced::widget::row![icon, count_el].spacing(4).align_y(iced::Alignment::Center))
+        .on_press(Message::Notification(crate::app::message::NotificationMessage::ToggleExpanded))
+        .style(|theme: &iced::Theme, status| {
+            let p = theme.extended_palette();
+            iced::widget::button::Style {
+                background: match status {
+                    iced::widget::button::Status::Hovered => {
+                        Some(Background::Color(if is_dark_theme(theme) {
+                            p.background.weak.color.scale_alpha(0.42)
+                        } else {
+                            Color::WHITE.scale_alpha(0.52)
+                        }))
+                    }
+                    iced::widget::button::Status::Pressed => {
+                        Some(Background::Color(if is_dark_theme(theme) {
+                            p.background.strong.color.scale_alpha(0.54)
+                        } else {
+                            p.background.weak.color.scale_alpha(0.76)
+                        }))
+                    }
+                    _ => None,
+                },
+                text_color: if is_dark_theme(theme) {
+                    p.background.base.text.scale_alpha(0.80)
+                } else {
+                    theme.palette().text.scale_alpha(0.72)
+                },
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
+/// 浏览器状态栏保留账号、额度及右侧通知入口。
 #[cfg(target_arch = "wasm32")]
-pub(super) fn status_bar(_app: &App) -> Element<'_, Message> {
-    iced::widget::Space::new().height(0).into()
+pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
+    let content = iced::widget::row![crate::app::components::account_status::view(app)]
+        .extend(crate::app::components::account_status::monthly_quota(app))
+        .push(iced::widget::Space::new().width(iced::Length::Fill))
+        .push(notification_button(app))
+        .spacing(10)
+        .align_y(iced::Alignment::Center);
+    iced::widget::container(content)
+        .width(iced::Length::Fill)
+        .height(iced::Length::Fixed(STATUS_BAR_HEIGHT))
+        .padding([0, 12])
+        .align_y(iced::alignment::Vertical::Center)
+        .style(|theme: &iced::Theme| iced::widget::container::Style {
+            background: Some(theme.extended_palette().background.weak.color.into()),
+            text_color: Some(theme.palette().text),
+            ..Default::default()
+        })
+        .into()
 }
 #[cfg(test)]
 #[path = "app_view_status_tests.rs"]

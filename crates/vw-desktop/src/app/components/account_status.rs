@@ -7,7 +7,9 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style,
 };
 use crate::app::i18n::I18n;
-use crate::app::message::{AccountMessage, SkillHubMessage};
+use crate::app::message::AccountMessage;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::app::message::SkillHubMessage;
 use crate::app::state::MonthlyQuotaState;
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -26,6 +28,7 @@ fn account_message(message: AccountMessage) -> Message {
     Message::Account(message)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn install_guide_message() -> Message {
     Message::SkillHub(SkillHubMessage::OpenInstallGuide)
 }
@@ -254,16 +257,23 @@ fn menu(app: &App) -> Element<'_, Message> {
             .width(Length::Fill)
             .padding([9, 10])
             .style(rounded_action_btn_style);
+        #[cfg(not(target_arch = "wasm32"))]
         let mut install_guide = button(text(i18n.__("安装识矩技能")).size(13))
             .width(Length::Fill)
             .padding([9, 10])
             .style(rounded_action_btn_style);
         if !busy {
-            install_guide = install_guide.on_press(install_guide_message());
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                install_guide = install_guide.on_press(install_guide_message());
+            }
             sign_out = sign_out.on_press(account_message(AccountMessage::SignOut));
         }
         content = content.push(details);
-        content = content.push(install_guide);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            content = content.push(install_guide);
+        }
         content = content.push(sign_out);
     }
 
@@ -296,7 +306,10 @@ fn quota_money(amount: f64) -> String {
 
 /// Displays the employee Key's monthly balance next to the account entry.
 pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
-    app.account.active_account()?;
+    let signed_in = app.account.active_account().is_some();
+    if !signed_in && !cfg!(target_arch = "wasm32") {
+        return None;
+    }
     let i18n = I18n::new(app.desktop_locale);
     let title = i18n.__("本月额度");
     let unlimited = i18n.__("无月限额");
@@ -324,7 +337,9 @@ pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
             }
         }
         status => {
-            let label = if matches!(status, MonthlyQuotaState::Unavailable) {
+            let label = if !signed_in {
+                i18n.__("请先登录识矩账户")
+            } else if matches!(status, MonthlyQuotaState::Unavailable) {
                 i18n.__("额度暂不可用")
             } else {
                 i18n.__("加载中…")
@@ -333,8 +348,11 @@ pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
             quota_ring::QuotaRing::Unknown
         }
     };
+    let trigger = ring.view();
+    #[cfg(target_arch = "wasm32")]
+    let trigger = row![text(title).size(12), trigger].spacing(6).align_y(iced::Alignment::Center);
     Some(
-        Tooltip::new(ring.view(), container(details).width(Length::Fixed(248.0)), Position::Top)
+        Tooltip::new(trigger, container(details).width(Length::Fixed(248.0)), Position::Top)
             .gap(5.0)
             .padding(12.0)
             .style(menu_style)

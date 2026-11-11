@@ -1603,7 +1603,6 @@ impl App {
             copied_notification_id: None,
             active_toast: None,
             next_toast_id: 0,
-            #[cfg(not(target_arch = "wasm32"))]
             account: crate::app::state::AccountState::default(),
             #[cfg(not(target_arch = "wasm32"))]
             expert_hub: {

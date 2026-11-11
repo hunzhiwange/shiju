@@ -20,6 +20,7 @@ pub(super) fn build_startup_task(app: &mut App) -> Task<Message> {
     #[cfg(target_arch = "wasm32")]
     {
         Task::batch(vec![
+            crate::app::message::account::load_repository(),
             Task::done(Message::GatewayHealthTick),
             Task::perform(crate::app::config::load_app_config_async(), Message::BootstrapAppConfig),
             Task::perform(

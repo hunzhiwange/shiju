@@ -90,3 +90,46 @@ pub fn set_enabled(
         })
     })
 }
+
+/// Authorized queue edits use the provider owner's snapshot and compare its
+/// saved preimages in the same database transaction as the queue revision.
+pub(crate) enum QueueChange {
+    Add(String),
+    Remove(String),
+    Reorder(Vec<String>),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("invalid failover queue mutation: {0:?}")]
+pub(crate) struct QueueMutationError(pub vw_agent_apps::high_availability::queue::QueueError);
+
+pub(crate) fn update_queue(
+    database: GlobalDatabase,
+    scope: &FailoverQueueScope,
+    version: FailoverQueueVersion,
+    change: QueueChange,
+) -> Result<FailoverQueueState> {
+    let store = FailoverQueueStore::new(database.clone())?;
+    match change {
+        QueueChange::Add(id) => {
+            let configuration = AppProviderStore::new(database)
+                .map_err(anyhow::Error::msg)?
+                .failover_configuration(&scope.project, scope.app_id)
+                .map_err(anyhow::Error::msg)?;
+            let (providers, preimages): (Vec<_>, Vec<_>) =
+                configuration.into_iter().map(|entry| (entry.provider, entry.preimage)).unzip();
+            store.update_with_preimages(scope, version, &preimages, |queue, _| {
+                queue.add(&id, &providers).map_err(QueueMutationError)?;
+                Ok(())
+            })
+        }
+        QueueChange::Remove(id) => store.update(scope, version, |queue, _| {
+            queue.remove(&id).map_err(QueueMutationError)?;
+            Ok(())
+        }),
+        QueueChange::Reorder(ids) => store.update(scope, version, |queue, _| {
+            queue.reorder(ids).map_err(QueueMutationError)?;
+            Ok(())
+        }),
+    }
+}

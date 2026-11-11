@@ -7,7 +7,7 @@ mod plugin_install_modal;
 pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_divider, settings_error_banner,
+    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_error_banner,
     settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
     settings_help_button_with_locale, settings_modal_card_style, settings_page_heading_with_help,
     settings_select, settings_tab_button, settings_tab_row,
@@ -140,13 +140,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
                 "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"
             ),
         ),
-        settings_group_card(column![
-            provider_row,
-            settings_divider(),
-            project_auto_load_row,
-            settings_divider(),
-            mode_row,
-        ],),
+        settings_group_card(column![provider_row, project_auto_load_row, mode_row]),
     ]
     .spacing(16)
     .width(Length::Fill);

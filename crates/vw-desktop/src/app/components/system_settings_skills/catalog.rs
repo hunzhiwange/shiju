@@ -186,7 +186,6 @@ pub(super) fn catalog_item(
             .expect("valid skills display template")
     };
     let kind = skill.kind;
-    let source = skill.source.clone();
 
     let status_badge = if skill.installed {
         skill_badge(
@@ -200,19 +199,7 @@ pub(super) fn catalog_item(
     let details = column![
         row![
             text(title).size(15).width(Length::Fill).wrapping(iced::widget::text::Wrapping::Glyph),
-            skill_badge(
-                match kind {
-                    CatalogSkillKind::Recommended => tr(locale, "推荐"),
-                    CatalogSkillKind::System => tr(locale, "内置"),
-                    CatalogSkillKind::Personal => tr(locale, "本地"),
-                },
-                matches!(kind, CatalogSkillKind::Recommended),
-            ),
-            if is_selected {
-                skill_badge(tr(locale, "当前"), true)
-            } else {
-                skill_badge(tr(locale, "查看"), false)
-            },
+            status_badge,
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -222,16 +209,21 @@ pub(super) fn catalog_item(
             .wrapping(iced::widget::text::Wrapping::Glyph)
             .style(settings_muted_text_style),
         row![
-            skill_badge(skill_id, false),
-            skill_badge(resource_text, false),
-            skill_badge(tr(locale, source_label(&source)), false),
-            status_badge,
+            text(skill_id).size(12).style(settings_muted_text_style),
+            text(resource_text).size(12).style(settings_muted_text_style),
+            text(match kind {
+                CatalogSkillKind::Recommended => tr(locale, "推荐"),
+                CatalogSkillKind::System => tr(locale, "内置"),
+                CatalogSkillKind::Personal => tr(locale, "本地"),
+            })
+            .size(12)
+            .style(settings_muted_text_style),
         ]
-        .spacing(6)
+        .spacing(10)
         .align_y(Alignment::Center)
         .wrap(),
     ]
-    .spacing(8)
+    .spacing(6)
     .width(Length::Fill);
 
     let content = container(
@@ -268,7 +260,16 @@ pub(super) fn catalog_item(
         .width(Length::Fill)
         .padding([12, 14])
         .on_press(Message::Settings(message::SettingsMessage::SkillsDetailRequested(skill.id)))
-        .style(move |theme, status| catalog_item_button_style(theme, status, is_selected))
+        .style(move |theme, status| {
+            let mut style = catalog_item_button_style(theme, status, is_selected);
+            if !is_selected {
+                style.border.width = 0.0;
+                if status == button::Status::Active {
+                    style.background = Some(theme.palette().text.scale_alpha(0.045).into());
+                }
+            }
+            style
+        })
         .into()
 }
 
@@ -325,7 +326,7 @@ pub(super) fn catalog_group_section<'a>(
             .spacing(10)
             .align_y(Alignment::Center)
             .width(Length::Fill),
-            skill_badge(format!("{skill_count}"), source == "workspace"),
+            text(skill_count.to_string()).size(12).style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center),

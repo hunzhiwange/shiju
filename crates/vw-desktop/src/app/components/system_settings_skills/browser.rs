@@ -10,10 +10,10 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_error_banner, settings_field_label, settings_group_heading, settings_hover_help_label,
-    settings_modal_card, settings_modal_header, settings_modal_overlay, settings_muted_text_style,
-    settings_panel_style, settings_segment_button_style, settings_select, settings_success_banner,
-    settings_text_input_style, settings_value_badge,
+    settings_error_banner, settings_field_label, settings_group_card, settings_group_heading,
+    settings_hover_help_label, settings_modal_card, settings_modal_header, settings_modal_overlay,
+    settings_muted_text_style, settings_panel_style, settings_segment_button_style,
+    settings_select, settings_success_banner, settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::{I18n, settings_extensions::text as tr};
 use crate::app::state::{SkillsCatalogKind as CatalogSkillKind, SkillsDirectoryScope};
@@ -74,7 +74,10 @@ pub(super) fn scope_button(
 
     button
         .style(move |theme: &iced::Theme, status| {
-            settings_segment_button_style(theme, status, is_active)
+            let mut style = settings_segment_button_style(theme, status, is_active);
+            style.border.width = 0.0;
+            style.text_color = theme.palette().text.scale_alpha(if enabled { 1.0 } else { 0.5 });
+            style
         })
         .into()
 }
@@ -168,16 +171,6 @@ pub(super) fn scope_description(
             "全部结果包含当前项目、父级目录、全局目录以及内置技能，便于核对最终命中来源。",
         )
         .to_string(),
-    }
-}
-
-pub(super) fn active_scope_badge(scope: SkillsDirectoryScope) -> &'static str {
-    match scope {
-        SkillsDirectoryScope::Project => "当前筛选: 项目目录",
-        SkillsDirectoryScope::Ancestor => "当前筛选: 父级目录",
-        SkillsDirectoryScope::Global => "当前筛选: 全局目录",
-        SkillsDirectoryScope::Bundled => "当前筛选: 内置技能",
-        SkillsDirectoryScope::All => "当前筛选: 全部目录",
     }
 }
 
@@ -315,7 +308,7 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
         .padding([18, 20])
         .width(Length::Fill)
         .style(header_panel_style),
-        container(rows).padding([18, 20]).width(Length::Fill).style(catalog_panel_style),
+        rows,
     ]
     .spacing(16)
     .width(Length::Fill)
@@ -665,7 +658,6 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let locale = app.desktop_locale;
     let s = &app.skills_settings;
     let project_open = app.project_path.is_some();
-    let all_skills = &s.catalog;
     let skills = s
         .catalog
         .iter()
@@ -694,103 +686,64 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             })
             .placeholder(tr(locale, "选择项目目录"))
             .width(Length::Fill),
-            settings_value_badge(if s.loading {
-                tr(locale, "切换中")
-            } else {
-                tr(locale, "技能作用域")
-            }),
+            text(if s.loading { tr(locale, "切换中") } else { tr(locale, "技能作用域") })
+                .size(12)
+                .style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center)
         .into()
     };
 
-    let header = container(
-        column![
-            row![
-                column![
-                    text(tr(locale, "技能")).size(22),
-                    text(scope_description(locale, s.directory_scope, s.directory_provider))
-                        .size(13)
-                        .style(|theme: &iced::Theme| iced::widget::text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.68)),
-                        }),
+    let filters = settings_group_card(
+        container(
+            column![
+                row![icon_svg(Icon::Search, 16.0), search_input, refresh_button(locale, s.loading)]
+                    .spacing(10)
+                    .align_y(Alignment::Center),
+                project_switcher,
+                row![
+                    scope_button(
+                        tr(locale, "项目目录"),
+                        SkillsDirectoryScope::Project,
+                        s.directory_scope,
+                        project_open,
+                    ),
+                    scope_button(
+                        tr(locale, "父级目录"),
+                        SkillsDirectoryScope::Ancestor,
+                        s.directory_scope,
+                        project_open,
+                    ),
+                    scope_button(
+                        tr(locale, "全局目录"),
+                        SkillsDirectoryScope::Global,
+                        s.directory_scope,
+                        true
+                    ),
+                    scope_button(
+                        tr(locale, "内置技能"),
+                        SkillsDirectoryScope::Bundled,
+                        s.directory_scope,
+                        true
+                    ),
+                    scope_button(
+                        tr(locale, "全部目录"),
+                        SkillsDirectoryScope::All,
+                        s.directory_scope,
+                        true
+                    ),
                 ]
-                .spacing(6)
-                .width(Length::Fill),
-                refresh_button(locale, s.loading),
-                skill_badge(
-                    crate::__!(crate::app::i18n::I18n::new(locale), "%u 项技能", skills.len())
-                        .expect("valid skills display template"),
-                    true
-                ),
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .wrap(),
             ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-            search_input,
-            project_switcher,
-            row![
-                scope_button(
-                    tr(locale, "项目目录"),
-                    SkillsDirectoryScope::Project,
-                    s.directory_scope,
-                    project_open,
-                ),
-                scope_button(
-                    tr(locale, "父级目录"),
-                    SkillsDirectoryScope::Ancestor,
-                    s.directory_scope,
-                    project_open,
-                ),
-                scope_button(
-                    tr(locale, "全局目录"),
-                    SkillsDirectoryScope::Global,
-                    s.directory_scope,
-                    true
-                ),
-                scope_button(
-                    tr(locale, "内置技能"),
-                    SkillsDirectoryScope::Bundled,
-                    s.directory_scope,
-                    true
-                ),
-                scope_button(
-                    tr(locale, "全部目录"),
-                    SkillsDirectoryScope::All,
-                    s.directory_scope,
-                    true
-                ),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .wrap(),
-            row![
-                settings_value_badge(tr(locale, active_scope_badge(s.directory_scope))),
-                settings_value_badge(if project_open {
-                    tr(locale, "项目已打开")
-                } else {
-                    tr(locale, "未打开项目")
-                }),
-                settings_value_badge(
-                    crate::__!(
-                        crate::app::i18n::I18n::new(locale),
-                        "总目录项 %u",
-                        all_skills.len()
-                    )
-                    .expect("valid skills display template")
-                ),
-            ]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .wrap(),
-        ]
-        .spacing(12),
-    )
-    .padding([16, 18])
-    .width(Length::Fill)
-    .style(header_panel_style);
+            .spacing(12),
+        )
+        .padding([14, 0]),
+    );
 
-    let mut content = column![header].spacing(16).width(Length::Fill);
+    let mut content = column![filters].spacing(20).width(Length::Fill);
 
     if let Some(message) = &s.status_message {
         let rendered = s
@@ -810,24 +763,22 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             column![
                 text(tr(locale, scope_title(s.directory_scope))).size(18),
                 text(scope_description(locale, s.directory_scope, s.directory_provider))
-                    .size(12)
-                    .style(|theme: &iced::Theme| {
-                        iced::widget::text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.64)),
-                        }
-                    }),
+                    .size(13)
+                    .style(settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
-            settings_value_badge(
+            text(
                 crate::__!(crate::app::i18n::I18n::new(locale), "%u 项技能", skills.len())
                     .expect("valid skill results template")
-            ),
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
     ]
-    .spacing(16)
+    .spacing(20)
     .width(Length::Fill);
 
     if s.loading {
@@ -913,10 +864,5 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         catalog_panel = catalog_panel.push(empty_state(title, description));
     }
 
-    let catalog_container =
-        container(catalog_panel).padding([20, 20]).width(Length::Fill).style(catalog_panel_style);
-
-    content = content.push(catalog_container);
-
-    content.into()
+    content.push(catalog_panel).into()
 }

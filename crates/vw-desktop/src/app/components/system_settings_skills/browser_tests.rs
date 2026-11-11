@@ -7,11 +7,11 @@ const SOURCE: &str = include_str!("browser.rs");
 
 use super::browser::DetailActionStyle;
 use super::browser::{
-    active_scope_badge, catalog_panel_style, detail_action_button, detail_modal_body,
-    detail_source_note, discovery_order_text, discovery_order_view, empty_state,
-    header_panel_style, loading_banner, provider_global_paths, provider_project_paths,
-    refresh_button, scope_button, scope_description, scope_source_matches, scope_title,
-    skill_project_options, status_banner, view as browser_view, view_overlays,
+    catalog_panel_style, detail_action_button, detail_modal_body, detail_source_note,
+    discovery_order_text, discovery_order_view, empty_state, header_panel_style, loading_banner,
+    provider_global_paths, provider_project_paths, refresh_button, scope_button, scope_description,
+    scope_source_matches, scope_title, skill_project_options, status_banner, view as browser_view,
+    view_overlays,
 };
 use crate::app::assets::Icon;
 use crate::app::message;
@@ -108,18 +108,17 @@ fn scope_source_matching_is_explicit_for_each_scope() {
 }
 
 #[test]
-fn scope_titles_and_badges_cover_all_scopes() {
+fn scope_titles_cover_all_scopes() {
     let cases = [
-        (SkillsDirectoryScope::Project, "项目目录技能", "当前筛选: 项目目录"),
-        (SkillsDirectoryScope::Ancestor, "父级目录技能", "当前筛选: 父级目录"),
-        (SkillsDirectoryScope::Global, "全局目录技能", "当前筛选: 全局目录"),
-        (SkillsDirectoryScope::Bundled, "内置技能", "当前筛选: 内置技能"),
-        (SkillsDirectoryScope::All, "全部技能目录", "当前筛选: 全部目录"),
+        (SkillsDirectoryScope::Project, "项目目录技能"),
+        (SkillsDirectoryScope::Ancestor, "父级目录技能"),
+        (SkillsDirectoryScope::Global, "全局目录技能"),
+        (SkillsDirectoryScope::Bundled, "内置技能"),
+        (SkillsDirectoryScope::All, "全部技能目录"),
     ];
 
-    for (scope, title, badge) in cases {
+    for (scope, title) in cases {
         assert_eq!(scope_title(scope), title);
-        assert_eq!(active_scope_badge(scope), badge);
     }
 }
 
@@ -475,7 +474,6 @@ fn browser_tests_keeps_planned_coverage_targets() {
         "scope_source_matches",
         "scope_title",
         "scope_description",
-        "active_scope_badge",
         "discovery_order_text",
         "discovery_order_view",
         "loading_banner",

@@ -203,3 +203,10 @@ name = "cc04-provider-window"
 path = "src/cc04_provider_window_main.rs"
 harness = false
 test = false
+
+# Explicit companion native acceptance, excluded from default test runs.
+[[test]]
+name = "companion-window"
+path = "src/companion_window_main.rs"
+harness = false
+test = false

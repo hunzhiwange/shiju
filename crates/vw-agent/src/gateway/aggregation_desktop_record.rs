@@ -45,7 +45,13 @@ pub(crate) fn replace(
     if context.app != vw_api_types::agent_apps::AppId::ClaudeDesktop {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
-    if !active || !candidate.stack.members.iter().any(|id| id == &change.provider_id) {
+    let live_member = if candidate.stack.enabled {
+        candidate.stack.members.iter().any(|id| id == &change.provider_id)
+    } else {
+        candidate.mode.as_ref().and_then(|mode| mode.proxy_route.as_deref())
+            == Some(change.provider_id.as_str())
+    };
+    if !active || !live_member {
         if !active && state.mode.as_ref().is_some_and(|mode| mode.attached) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
@@ -75,6 +81,11 @@ pub(crate) fn replace(
         .as_ref()
         .and_then(|mode| mode.proxy_route.as_deref())
         .ok_or(StatusCode::CONFLICT)?;
+    let rows = if candidate.stack.enabled {
+        rows
+    } else {
+        std::slice::from_ref(rows.iter().find(|(id, _)| id == default).ok_or(StatusCode::CONFLICT)?)
+    };
     let mappings = rows
         .iter()
         .map(|(_, row)| desktop_mapping::form_view(row).map(|form| form.mapping).map_err(invalid))
@@ -112,7 +123,7 @@ pub(crate) fn replace(
         "saved-aggregation".into(),
         1,
     );
-    let previous = routing.desktop_revision(&binding).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let previous = routing.desktop_revision(&binding);
     let revision = uuid::Uuid::new_v4().to_string();
     let target = |(id, row): &(String, Value)| -> Result<DesktopRouteTarget, StatusCode> {
         let profile = crate::app_providers::generation_target::SavedProfile::read_for_host(
@@ -171,7 +182,7 @@ pub(crate) fn replace(
         target(&rows[default_index])?,
         rows.iter().filter(|(id, _)| id != default).map(target).collect::<Result<Vec<_>, _>>()?,
     )?;
-    routing.publish_desktop(publication, Some(&previous), |address, token| {
+    routing.publish_desktop(publication, previous.as_deref(), |address, token| {
         let gateway = vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile {
             name: "Gateway".into(),
             config: vw_api_types::app_providers::claude_desktop::ClaudeDesktopConfig::ThirdParty {

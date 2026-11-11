@@ -288,6 +288,14 @@ impl RecordPublicationContext {
         };
         let active = state.stack.enabled
             && state.mode.as_ref().is_some_and(|m| m.attached && m.mode == Mode::Proxy);
+        let ordinary = !state.stack.enabled
+            && state.mode.as_ref().is_some_and(|mode| mode.attached && mode.mode == Mode::Proxy);
+        if ordinary
+            && matches!(self.app, AppId::Claude | AppId::Codex)
+            && candidate.mode.as_ref().and_then(|mode| mode.proxy_route.as_deref()) == Some(id)
+        {
+            return self.publish_route(&tx, &store, &state, &candidate, &rows, &change, target);
+        }
         if matches!(self.app, AppId::Claude | AppId::Codex)
             && (!active || !candidate.stack.members.iter().any(|member| member == id))
         {
@@ -447,7 +455,15 @@ impl RecordPublicationContext {
             }
             AppId::Codex => self.codex(&tx, &store, &state, &candidate, &rows, &change, target),
             AppId::ClaudeDesktop => super::aggregation_desktop_record::replace(
-                self, &tx, &store, &state, &candidate, &rows, &change, target, active,
+                self,
+                &tx,
+                &store,
+                &state,
+                &candidate,
+                &rows,
+                &change,
+                target,
+                active || ordinary,
             ),
             _ => Err(StatusCode::UNPROCESSABLE_ENTITY),
         }
@@ -534,3 +550,4 @@ impl RecordPublicationContext {
 }
 
 mod codex;
+mod route;

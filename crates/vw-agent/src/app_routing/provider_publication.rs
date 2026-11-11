@@ -42,7 +42,20 @@ pub(crate) struct PublishedProvider {
 
 impl PublishedProvider {
     pub(crate) fn matches_native(&self, state: &AppState, bytes: Option<&[u8]>) -> bool {
-        self.state == *state
+        let mut expected = self.state.clone();
+        if state
+            .stack_tenant
+            .as_ref()
+            .is_some_and(|tenant| tenant != self.scope.project.tenant_scope())
+        {
+            return false;
+        }
+        if !expected.stack.enabled && !state.stack.enabled {
+            // Editing an inactive member plan does not change the live target.
+            expected.stack = state.stack.clone();
+            expected.stack_tenant = state.stack_tenant.clone();
+        }
+        expected == *state
             && self.native_digest == digest(bytes.unwrap_or_default())
             && AppProviderStore::preview_record(
                 &self.database,
@@ -55,6 +68,55 @@ impl PublishedProvider {
                 == Some(&self.row)
     }
 
+    /// Capture the same single-target proof after the common record transaction.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn committed_record(
+        database: GlobalDatabase,
+        root: &Path,
+        home: &Path,
+        scope: FailoverQueueScope,
+        provider_id: &str,
+        address: std::net::SocketAddr,
+        bytes: &[u8],
+        messages_api_key: bool,
+    ) -> Result<Self, StatusCode> {
+        if !matches!(scope.app_id, AppId::Claude | AppId::Codex) {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        let tx = transactions(root, &scope)?;
+        let state = tx.state(scope.app_id).map_err(unavailable)?;
+        state.require_project(&scope.project).map_err(|_| StatusCode::FORBIDDEN)?;
+        if state.stack.enabled
+            || !state.mode.as_ref().is_some_and(|mode| {
+                mode.attached
+                    && mode.mode == vw_agent_apps::providers::live::commit::Mode::Proxy
+                    && mode.proxy_route.as_deref() == Some(provider_id)
+            })
+            || tx.pending(scope.app_id).map_err(unavailable)?.is_some()
+        {
+            return Err(StatusCode::CONFLICT);
+        }
+        let row = AppProviderStore::preview_record(
+            &database,
+            scope.project.tenant_scope(),
+            scope.app_id,
+            provider_id,
+        )
+        .map_err(unavailable)?;
+        Ok(Self {
+            database,
+            root: root.into(),
+            home: home.into(),
+            scope,
+            provider_id: provider_id.into(),
+            address,
+            row,
+            state,
+            native_digest: digest(bytes),
+            messages_api_key,
+        })
+    }
+
     pub(crate) fn matches_record(&self, payload: &str) -> bool {
         serde_json::from_str::<Value>(payload).ok().as_ref() == Some(&self.row)
     }
@@ -65,13 +127,32 @@ impl PublishedProvider {
         {
             headers.insert("x-api-key", key);
         }
-        headers
-            .entry("anthropic-version")
-            .or_insert(axum::http::HeaderValue::from_static("2023-06-01"));
+        if self.scope.app_id == AppId::Claude {
+            headers
+                .entry("anthropic-version")
+                .or_insert(axum::http::HeaderValue::from_static("2023-06-01"));
+        }
     }
 
     pub(super) fn check_current(&self) -> Result<(), StatusCode> {
         let tx = transactions(&self.root, &self.scope)?;
+        if self.scope.app_id == AppId::Codex {
+            use std::ffi::OsStr;
+            let directory = self.home.join(".codex");
+            if !std::fs::symlink_metadata(directory).map_err(unavailable)?.file_type().is_dir() {
+                return Err(StatusCode::CONFLICT);
+            }
+            let files = vw_agent_apps::providers::codex_catalog::CodexFiles::open(&self.home)
+                .map_err(unavailable)?;
+            let bytes = files.guard.read(OsStr::new("config.toml")).map_err(unavailable)?;
+            let state = tx.state(self.scope.app_id).map_err(unavailable)?;
+            if tx.pending(self.scope.app_id).map_err(unavailable)?.is_some()
+                || !self.matches_native(&state, bytes.as_deref())
+            {
+                return Err(StatusCode::CONFLICT);
+            }
+            return Ok(());
+        }
         let _directory = tx.lock_claude_directory().map_err(unavailable)?;
         let selected =
             tx.claude_directory(self.scope.project.tenant_scope()).map_err(unavailable)?;

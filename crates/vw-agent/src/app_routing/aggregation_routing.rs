@@ -75,7 +75,14 @@ impl AggregationPublication {
         }
         let tenant = self.binding.project().tenant_scope();
         let mode = observe(&self.state, tenant).map_err(|_| StatusCode::FORBIDDEN)?;
-        if !mode.stack.active || !mode.attached {
+        let ordinary_desktop = desktop && !self.state.stack.enabled;
+        if !mode.attached
+            || (!mode.stack.active
+                && (!ordinary_desktop
+                    || mode.mode != vw_api_types::app_providers::mode_state::ProviderMode::Proxy
+                    || !self.members.is_empty()
+                    || !self.models.is_empty()))
+        {
             return Err(StatusCode::CONFLICT);
         }
         let validate_target = |target: &AggregationTarget| {
@@ -127,12 +134,13 @@ impl AggregationPublication {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
         }
-        if self
-            .state
-            .stack
-            .members
-            .iter()
-            .any(|member| member != &self.default.provider_id && !members.contains_key(member))
+        if !ordinary_desktop
+            && self
+                .state
+                .stack
+                .members
+                .iter()
+                .any(|member| member != &self.default.provider_id && !members.contains_key(member))
         {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
@@ -157,6 +165,10 @@ impl AggregationSnapshot {
         binding: &VerifiedRouteBinding,
         model: Option<&str>,
     ) -> Result<bool, StatusCode> {
+        if !self.state.stack.enabled {
+            self.select(binding, model)?;
+            return Ok(self.api_keys.contains(&self.default));
+        }
         let provider = match resolve(
             binding.app(),
             binding.project().tenant_scope(),
@@ -176,6 +188,21 @@ impl AggregationSnapshot {
         binding: &VerifiedRouteBinding,
         model: Option<&str>,
     ) -> Result<(&'a JsonTarget, Option<&'a str>), StatusCode> {
+        if !self.state.stack.enabled {
+            if binding.app() != AppId::ClaudeDesktop
+                || self.state.require_project(binding.project()).is_err()
+                || model.is_some_and(|model| !model.is_empty())
+            {
+                return Err(StatusCode::CONFLICT);
+            }
+            // Desktop's catalog owner has already resolved the public role ID.
+            // In ordinary routing it can only select the single default target.
+            return self
+                .members
+                .get(&self.default)
+                .map(|target| (target, None))
+                .ok_or(StatusCode::BAD_GATEWAY);
+        }
         let (provider, upstream) = match resolve(
             binding.app(),
             binding.project().tenant_scope(),

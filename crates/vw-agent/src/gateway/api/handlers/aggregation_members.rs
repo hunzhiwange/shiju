@@ -344,8 +344,13 @@ fn execute(
     // Validate the response projection before changing durable intent. Invalid
     // saved client declarations must not turn a committed write into an error.
     let projected = snapshot::project(app, &tenant, &candidate, &inputs, None)?;
-    if observed.stack.active && observed.attached && candidate != state {
-        if let Some(issue) = projected.issues.iter().find(|issue| issue.blocking) {
+    if observed.attached
+        && candidate != state
+        && (observed.stack.active || candidate.mode != state.mode)
+    {
+        if let Some(issue) =
+            projected.issues.iter().find(|issue| issue.blocking && observed.stack.active)
+        {
             let (status, code) = match issue.code {
                 PreviewIssueCode::FailoverEnabled => (StatusCode::CONFLICT, "failover_conflict"),
                 PreviewIssueCode::InvalidMember => {

@@ -235,3 +235,6 @@ fn aggregation_t40_desktop_new_default_requires_a_live_publication() {
     assert!(!f.root.path().join("Library").exists());
     assert!(f.tx.pending(AppId::ClaudeDesktop).unwrap().is_none());
 }
+
+#[path = "aggregation_members_ordinary_tests.rs"]
+mod ordinary_tests;

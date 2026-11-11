@@ -253,3 +253,59 @@ pub enum McpConnectionOutcome {
     Failed { code: McpFailureCode },
     Cancelled,
 }
+
+/// A stable MCP management error without host or backend diagnostics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct McpFailureResponse {
+    pub code: McpFailureCode,
+}
+
+/// The catalog and its desired native bindings on the requested host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpCatalogResponse {
+    pub records: Vec<McpCatalogRecord>,
+    pub bindings: Vec<McpCliBinding>,
+    pub capabilities: Vec<McpAppCapability>,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpPresetsResponse {
+    pub presets: Vec<McpPresetDraftView>,
+}
+
+/// A built-in, disabled draft. The connection contains only static preset values.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpPresetDraftView {
+    pub id: String,
+    pub name: String,
+    pub tags: Vec<String>,
+    pub homepage: String,
+    pub documentation: String,
+    pub connection: McpConnectionDefinition,
+    pub enabled: bool,
+}
+
+/// Observation for the requested installation, with no native paths or definitions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpNativePreview {
+    pub target: McpAppTarget,
+    pub status: McpNativeStatus,
+    pub entries: Vec<McpNativePreviewEntry>,
+}
+
+/// Compare a catalog ID against the native file on the authorized host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpNativePreviewEntry {
+    pub id: McpRecordId,
+    pub status: McpNativeStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport: Option<McpTransport>,
+}

@@ -71,6 +71,37 @@ pub fn locate_cli(app: AppId, env: &LocalReadEnvironment) -> io::Result<PathBuf>
     Ok(path)
 }
 
+fn installation_id(host: &str, command: &str, entry: &str) -> AppInstallationId {
+    // Length-delimited components avoid collisions across host/path boundaries.
+    let id = format!("{}:{host}:{}:{command}:{}:{entry}", host.len(), command.len(), entry.len());
+    AppInstallationId(URL_SAFE_NO_PAD.encode(id))
+}
+
+/// Revalidate an installation from the authorized search roots without running its CLI.
+#[cfg(target_os = "macos")]
+pub fn resolve_cli_installation(
+    app: AppId,
+    env: &LocalReadEnvironment,
+    id: &AppInstallationId,
+) -> io::Result<bool> {
+    use std::os::unix::fs::PermissionsExt;
+
+    validate_roots(env)?;
+    let command = cli_command(app)?;
+    for path in cli_entries(&command, env) {
+        let path = path?;
+        if installation_id(&env.host_id, &command, &path.to_string_lossy()) == *id {
+            let metadata = match path.metadata() {
+                Ok(metadata) => metadata,
+                Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+                Err(error) => return Err(error),
+            };
+            return Ok(metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
+        }
+    }
+    Ok(false)
+}
+
 /// Blocking host IO. Caller must authenticate and authorize this exact environment first.
 pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadResponse> {
     validate_roots(env)?;
@@ -101,11 +132,9 @@ pub fn read(app: AppId, env: &LocalReadEnvironment) -> io::Result<AppReadRespons
         let path = path?;
         let probe = version::probe_local_version(&path, Duration::from_secs(2))?;
         let entry = path.to_string_lossy().into_owned();
-        // Length-delimited components avoid collisions across host/path boundaries.
-        let id = format!("{}:{}:{}:{}", env.host_id.len(), env.host_id, command.len(), command);
         let is_path_default = installations.is_empty();
         installations.push(AppInstallation {
-            id: AppInstallationId(URL_SAFE_NO_PAD.encode(format!("{id}:{}:{entry}", entry.len()))),
+            id: installation_id(&env.host_id, &command, &entry),
             app_id: app,
             target_host_id: env.host_id.clone(),
             environment: if cfg!(target_os = "macos") {

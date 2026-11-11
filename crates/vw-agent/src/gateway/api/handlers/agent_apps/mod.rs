@@ -17,6 +17,7 @@ use vw_api_types::{
 pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(read::router())
+        .merge(super::mcp_management_read::router())
         .merge(lifecycle::router())
         .merge(preferences::router())
         .merge(launch::router())
@@ -524,3 +525,31 @@ mod usage_native;
 mod apps_usage_script;
 #[cfg(all(test, target_os = "macos"))]
 mod apps_usage_script_tests;
+
+/// Read the MCP catalog under the existing tenant and host membership grant.
+pub(super) fn authorize_mcp_catalog_read(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<(), axum::http::StatusCode> {
+    access::authorize(path, headers, tenant, target).map(|_| ())
+}
+
+/// Native preview requires the host's configuration read grant.
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_mcp_native_read(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<vw_agent_apps::apps::discovery::read::LocalReadEnvironment, axum::http::StatusCode> {
+    access::authorize_provider_config(path, headers, tenant, target).map(|host| {
+        vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
+            host_id: host.id,
+            home: host.home,
+            search_paths: host.search_paths,
+            applications: host.applications,
+        }
+    })
+}

@@ -66,18 +66,45 @@ impl McpCatalogStore {
         &self,
         authorized_scope: &McpCatalogScope,
     ) -> Result<Vec<McpCatalogRecord>, McpFailureCode> {
+        self.read_catalog(authorized_scope, None).map(|(records, _)| records)
+    }
+
+    /// Return the catalog and desired bindings visible on the authorized host in one read.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn list_for_host(
+        &self,
+        authorized_scope: &McpCatalogScope,
+        host: &str,
+    ) -> Result<(Vec<McpCatalogRecord>, Vec<McpCliBinding>), McpFailureCode> {
+        self.read_catalog(authorized_scope, Some(host))
+    }
+
+    fn read_catalog(
+        &self,
+        authorized_scope: &McpCatalogScope,
+        host: Option<&str>,
+    ) -> Result<(Vec<McpCatalogRecord>, Vec<McpCliBinding>), McpFailureCode> {
         let (tenant, namespace) = catalog_create::catalog_location(authorized_scope)?;
         let rows =
             self.0.list(tenant, &namespace).map_err(|_| McpFailureCode::StorageUnavailable)?;
         let mut records = Vec::new();
+        let mut bindings = Vec::new();
         for row in rows {
             let entry = serde_json::from_str(&row.payload_json)
                 .map_err(|_| McpFailureCode::StorageUnavailable)?;
             if let StoredCatalogEntry::Active(stored) = entry {
                 records.push(stored.record);
+                if let Some(host) = host {
+                    bindings.extend(
+                        stored
+                            .bindings
+                            .into_iter()
+                            .filter(|binding| binding.target.target_host_id == host),
+                    );
+                }
             }
         }
-        Ok(records)
+        Ok((records, bindings))
     }
 
     fn load_entry(

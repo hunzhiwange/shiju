@@ -2,7 +2,7 @@
 
 批次：【批次 9】 依赖：批次 8；线性前置任务 8
 
-状态：未开始
+状态：已完成，待回归
 
 目的：让扩展请求通过本机身份校验接入宿主。
 
@@ -82,3 +82,23 @@
 - 阻塞先调查并在已有授权内修复必要相邻依赖；无法消除时只在本任务文件记录原因、尝试、命令和所需输入，不修改plan.md或其他任务状态。
 - 已完成或已完成，待回归且有实际代码、测试、配置或文档变更，使用 `$git-commit` 技能检查 staged/unstaged/untracked，仅提交本任务实际变更。只有本任务文件状态更新或删除时不调用提交技能、不单独提交。
 - 最终报告文件、符号、行为及完成证据；已完成后删除本任务文件，待回归和阻塞时保留。计划与提示词不作为进度来源，plan.md始终只读。
+
+## 本次实现与证据（2026-11-12）
+
+- 依赖：批次8提交 `df9bfb40b`，实际扩展 ID `ogfgcnpdhnmkpcbaclbglefaclanipmg`；批次7提交 `a13ce805e`。未修改 plan.md 或其他任务状态。
+- 实现：`ChromeBridge::pair/serve/is_available/enumerate`，同用户 Unix IPC、challenge/session 绑定、响应 ID/递增序列关联、有界帧、空闲 EOF 与取消断连；`serve` 消费桥接实例，控制端结束即关闭原生端口。动作经真实 ControlHost 一次性 ticket 和实时策略；读、点击、输入使用固定协议，不执行任意脚本或命令。导航、媒体解析和额外按键/滚动明确返回 Unsupported，留给后续动作/站点策略任务接入。
+- Python 入口仅转换本机字节序 Native Messaging 与大端宿主帧，不持久化 ticket/权限。安装/移除限定 `~/.shiju/computer-control` 的自有脚本与独立 Chrome profile 清单；Chrome 使用 `--user-data-dir=~/.shiju/computer-control/chrome-profile`。限制真实扩展来源，目录0700、socket0600并检查连接双方UID。
+- 红灯：`cargo test -p vw-agent --lib cc_control_09 -- --nocapture`，退出101，0项运行；缺少 bridge 模块（E0583），见 `/tmp/cc09-red.log`。集成后下列隔离源码测试已实际运行全部成功/拒绝断言。
+- 仓库首次通过验证尝试：同一聚焦命令退出101，0项运行，其他任务文件 `gateway/api/handlers/mcp_management_resync.rs:359` E0282；其持有任务随后已补闭包类型，本任务未修改该文件。见 `/tmp/cc09-green.log`。
+- 独立源码验证：临时 `/tmp/cc09-harness/Cargo.toml` 直接通过绝对 path 导入本仓库 host.rs、policy.rs、bridge.rs、bridge_tests.rs；配对比较函数逐字提取原实现，仅修正测试 fixture 的 CARGO_MANIFEST_DIR。不是模拟策略/传输。`cargo test --manifest-path /tmp/cc09-harness/Cargo.toml cc_control_09 -- --nocapture` 退出0，9项通过（真实子进程拆帧、错误扩展、超限、截断、请求关联、空闲断连、取消、ControlHost鉴权与即时撤销），实机项单独运行，见 `/tmp/cc09-harness-final.log`。
+- 实机：`cargo test --manifest-path /tmp/cc09-harness/Cargo.toml cc_control_09_real_chrome_native_profile -- --ignored --nocapture` 退出0，1项通过，见 `/tmp/cc09-live-retry.log`。仓库内 Python 测试文件包含可复跑 CDP driver，不依赖临时脚本。真实 Chrome/157.0.8103.40，原始扩展ID同上，真实 connectNative→Python→Rust challenge配对与 enumerate 回读；目标 tabId=1921212470、documentId=7EAFB017EDEC8A0EDE2FA5B11FD2B83E，回环 fixture origin=http://127.0.0.1:58231，未使用模拟原生端口。初次仓库内 driver 复跑发现残留 DevToolsActivePort，已在启动前清理并通过重试。测试后已移除独立profile、宿主清单、脚本和socket，Chrome/HTTP服务退出。
+- Python：`python3 -m unittest discover -s scripts/computer_control -p test_chrome_native_host.py` 退出0，8项通过，见 `/tmp/cc09-python-final.log`。
+- 扩展回归：`node --test plugins/shiju-computer-control/chrome/background.test.mjs` 退出0，18项通过，见 `/tmp/cc09-extension.log`。
+- `cargo fmt --all` 退出0；审查本任务差异，未暂存或提交其他任务文件及纯格式化变更。
+- clippy：`cargo clippy --all-targets --all-features -- -D warnings` 退出101，构建检查不运行行为测试；失败于其他任务的 `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:30`，Form.selection / Form.generation 未读取，lib与lib test均报错。本任务源码无 clippy 报错，未修改外部文件。见 `/tmp/cc09-clippy.log` 与 `/tmp/cc09-stage.log`。因此保留“已完成，待回归”和任务文件，待外部改动完成后复跑该命令。
+- workspace 聚焦复跑：`cargo test -p vw-agent --lib cc_control_09 -- --nocapture` 退出0，9项通过、0失败、实机项按设计单独运行；见 `/tmp/cc09-workspace-retry.log`。完整12,306个其他测试只编译、未执行。链接器提示整个lib test的 __eh_frame 大于16MB，不属本任务源代码诊断；未改动仓库编译配置。
+- 槽位：按原子mkdir动态领取，使用过2（红灯/独立源码/实机/聚焦复跑）、8（workspace验证）、11（最终独立源码）、13（fmt）。对应绝对 CARGO_TARGET_DIR 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-8`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-11`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-13`。发现仓库单独配置build-dir后，后续阶段同步设置 CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR，未删除共享缓存或其他任务锁。
+- 协作事件：曾误向另一任务的 `cargo test -p vw-desktop --bin shi-ju aggregation_t56_ -- --nocapture` 发送SIGINT，已向用户说明；随后观察原持有任务已自行启动 `--lib aggregation_t56_` 验证。本任务未修改该任务源码或锁。
+
+- 最终实机补证：在重新动态领取的槽位2中复用刚生成的真实仓库测试产物，`/Users/xiangmin/worker/code/shiju/target/rust-slot-2/debug/deps/vw_agent-44fc2a0c36b13a17 --ignored --exact computer_control::chrome::bridge_tests::cc_control_09_real_chrome_native_profile --nocapture` 退出0，1项通过（无重编译、无模拟传输），见 `/tmp/cc09-native-binary-final.log`。最终回读 tabId=352644054、documentId=CC23D49E87D2F40192E014AFCDCBBCD9、fixture origin=http://127.0.0.1:61634；真实 Chrome 与扩展版本身份同前。二进制、浏览器、HTTP服务退出后，已移除本次安装的profile/清单/脚本/socket；本会话所有槽位锁均已释放，缓存保留。
+- 下一步：其他任务修复 aggregation_list.rs 未使用字段后，复跑 workspace clippy；通过后可删除本任务文件并进入批次10。当前保留“已完成，待回归”，未以拒绝或模拟替代真实Chrome证据。

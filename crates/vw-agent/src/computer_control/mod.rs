@@ -12,3 +12,6 @@ mod policy_tests;
 mod host_tests;
 
 pub mod native;
+
+#[cfg(unix)]
+pub mod chrome;

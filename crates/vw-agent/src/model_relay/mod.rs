@@ -12,6 +12,7 @@ mod server_tests;
 
 mod chat;
 pub(crate) mod generation;
+pub(crate) mod routing;
 mod transport;
 pub use transport::ProviderRelayBackend;
 pub(crate) use transport::{

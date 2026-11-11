@@ -1,5 +1,7 @@
 //! Provider-only HTTP transport; no agent loop, tool dispatcher, history or usage writes.
-use super::{RelayBackend, RelayIdentity, RelayRequest, chat, upstream};
+use super::{
+    RelayBackend, RelayIdentity, RelayRequest, chat, generation::GenerationProtocol as P, upstream,
+};
 use crate::{app_routing::reference_scope::References, auth, provider::provider};
 use axum::{
     body::Body,
@@ -7,6 +9,7 @@ use axum::{
     response::Response,
 };
 use tokio_util::sync::CancellationToken;
+use vw_provider_resolver::protocol_routes::{ConversionSupport, RouteCapability as C};
 
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
 pub struct ProviderRelayBackend {
@@ -296,13 +299,31 @@ impl RelayBackend for ProviderRelayBackend {
             .ok_or(StatusCode::FORBIDDEN)?;
         // Exact catalog key required: API-id alias lookup must not authorize another model.
         let model = info.models.get(&identity.model).ok_or(StatusCode::FORBIDDEN)?;
+        if info.id != identity.provider || model.provider_id != identity.provider {
+            return Err(StatusCode::FORBIDDEN);
+        }
         let gemini_request = request.path.starts_with("/v1beta/");
         let gemini_streaming = request.path == "/v1beta/streamGenerateContent";
-        let native_gemini = gemini_request && model.api.adapter == "google";
+
         if matches!(request.path, "/v1beta/models" | "/v1beta/model") {
-            bearer(&info)?;
-            if !matches!(model.api.adapter.as_str(), "google" | "openai" | "openai-compatible") {
-                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            let capabilities = [C::Text, C::Streaming];
+            let conversions = [ConversionSupport {
+                source: P::Gemini,
+                target: P::Chat,
+                capabilities: &capabilities,
+            }];
+            let route = super::routing::select(
+                model,
+                P::Gemini,
+                &capabilities,
+                &conversions,
+                super::routing::Execution::Relay,
+            )?;
+            if !matches!(
+                route.endpoint.authentication,
+                vw_shared::provider::protocols::ProtocolAuthentication::None {}
+            ) {
+                bearer(&info)?;
             }
             let metadata = serde_json::json!({"name":format!("models/{}",identity.model),"baseModelId":identity.model,"version":"relay","displayName":identity.model,"inputTokenLimit":model.limit.input.unwrap_or(model.limit.context),"outputTokenLimit":model.limit.output,"supportedGenerationMethods":["generateContent","streamGenerateContent"]});
             let output = if request.path == "/v1beta/models" {
@@ -317,22 +338,58 @@ impl RelayBackend for ProviderRelayBackend {
         }
         let messages_request = request.path == "/v1/messages";
         let responses_request = request.path == "/v1/responses";
-        let native_responses = responses_request && super::responses::is_native(model);
+        let source = if gemini_request {
+            P::Gemini
+        } else if messages_request {
+            P::Messages
+        } else if responses_request {
+            P::Responses
+        } else {
+            P::Chat
+        };
+        let input: serde_json::Value =
+            serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
+        let streaming_requested =
+            if gemini_request { gemini_streaming } else { input["stream"] == true };
+        let required = super::routing::required(&input, streaming_requested);
+        let convertible = [C::Text, C::Tools, C::Streaming, C::Image];
+        let codex_capabilities = [
+            C::Text,
+            C::Tools,
+            C::Streaming,
+            C::Image,
+            C::Thinking,
+            C::ThinkingReplay,
+            C::StructuredOutput,
+        ];
+        let responses_capabilities =
+            [C::Text, C::Tools, C::Streaming, C::Image, C::StructuredOutput];
+        let conversions = [
+            ConversionSupport { source: P::Messages, target: P::Chat, capabilities: &convertible },
+            ConversionSupport {
+                source: P::Responses,
+                target: P::Chat,
+                capabilities: if identity.session.ends_with(":codex") {
+                    &codex_capabilities
+                } else {
+                    &responses_capabilities
+                },
+            },
+            ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: &convertible },
+        ];
+        let route = super::routing::select(
+            model,
+            source,
+            &required,
+            &conversions,
+            super::routing::Execution::Relay,
+        )?;
+        let native_gemini = source == P::Gemini && !route.conversion_required;
+        let native_responses = source == P::Responses && !route.conversion_required;
+        let native = source == P::Messages && !route.conversion_required;
         let codex_chat =
             responses_request && !native_responses && identity.session.ends_with(":codex");
         let mut response_tools = super::responses::ChatTools::default();
-        let deepseek_messages = (messages_request
-            && model.capabilities.reasoning
-            && identity.session.ends_with(":claude"))
-        .then(|| official_deepseek_messages_url(&model.api))
-        .flatten();
-        let alibaba_messages = (messages_request && identity.session.ends_with(":claude"))
-            .then(|| official_alibaba_messages_url(&model.api))
-            .flatten();
-        let native = messages_request
-            && (model.api.adapter == "anthropic"
-                || deepseek_messages.is_some()
-                || alibaba_messages.is_some());
         let mut body = if gemini_request {
             let input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -365,9 +422,9 @@ impl RelayBackend for ProviderRelayBackend {
             )?
         } else if native {
             let mut body = super::messages::native(model, &identity.model, &request.body)?;
-            if deepseek_messages.is_some() {
+            if official_deepseek_messages_url(&model.api).is_some() {
                 super::messages::prepare_deepseek_native(&mut body)?;
-            } else if alibaba_messages.is_some() {
+            } else if official_alibaba_messages_url(&model.api).is_some() {
                 super::messages::prepare_hosted_native(&mut body)?;
             }
             body
@@ -384,48 +441,43 @@ impl RelayBackend for ProviderRelayBackend {
             chat::prepare(model, &identity.model, &request.body)?
         };
         let streaming = if gemini_request { gemini_streaming } else { body["stream"] == true };
-        let url = if native_gemini {
-            gemini_url(&model.api, streaming)?
-        } else if native_responses {
-            responses_url(&model.api)?
-        } else if let Some(url) = deepseek_messages.or(alibaba_messages) {
-            url
-        } else if native {
-            messages_url(&model.api)?
-        } else {
-            chat_url(&model.api)?
-        };
+        let mut url = reqwest::Url::parse(&route.endpoint.url)
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        if native_gemini && streaming {
+            let path = url
+                .path()
+                .strip_suffix(":generateContent")
+                .ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+            let path = format!("{path}:streamGenerateContent");
+            url.set_path(&path);
+            url.query_pairs_mut().append_pair("alt", "sse");
+        }
         if messages_request && !native {
             configure_messages_chat(&mut body, model);
         }
-        let key = bearer(&info)?;
-        let mut headers = axum::http::HeaderMap::new();
-        headers.insert(
-            header::AUTHORIZATION,
-            header::HeaderValue::from_str(&format!("Bearer {key}"))
-                .map_err(|_| StatusCode::UNAUTHORIZED)?,
-        );
-        if native_gemini {
-            headers.remove(header::AUTHORIZATION);
-            headers.insert(
-                "x-goog-api-key",
-                header::HeaderValue::from_str(&key).map_err(|_| StatusCode::UNAUTHORIZED)?,
-            );
-        }
-        if native {
-            headers.remove(header::AUTHORIZATION);
-            headers.insert(
-                "x-api-key",
-                header::HeaderValue::from_str(&key).map_err(|_| StatusCode::UNAUTHORIZED)?,
-            );
-            headers.insert("anthropic-version", header::HeaderValue::from_static("2023-06-01"));
-        }
+        let key = if matches!(
+            route.endpoint.authentication,
+            vw_shared::provider::protocols::ProtocolAuthentication::None {}
+        ) {
+            String::new()
+        } else {
+            bearer(&info)?
+        };
+        let mut headers = super::generation::endpoint_headers(&route.endpoint, &key)?;
         for (name, value) in &model.headers {
             let name = header::HeaderName::from_bytes(name.as_bytes())
                 .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             if matches!(
                 name.as_str(),
-                "host" | "connection" | "content-length" | "transfer-encoding" | "content-type"
+                "host"
+                    | "connection"
+                    | "content-length"
+                    | "transfer-encoding"
+                    | "content-type"
+                    | "authorization"
+                    | "x-api-key"
+                    | "x-goog-api-key"
+                    | "api-key"
             ) {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }

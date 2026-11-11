@@ -81,11 +81,60 @@ pub(crate) struct AisdkRequestInfo {
 /// ```ignore
 /// let model = provider::Model { /* ... */ };
 /// let messages = serde_json::json!([{"role": "user", "content": "Hello"}]);
-/// let info = compute_request_info(&model, &messages)?;
+/// let info = compute_request_info(&model, &messages, &serde_json::json!({}), false)?;
 /// println!("Request URL: {}", info.request_url);
 /// ```
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn compute_request_info(
+    model: &provider::Model,
+    chat_messages: &Value,
+    options: &Value,
+    has_tools: bool,
+) -> Result<AisdkRequestInfo, Error> {
+    let mut requirements = options.as_object().cloned().unwrap_or_default();
+    requirements.insert("messages".into(), chat_messages.clone());
+    if has_tools {
+        requirements.insert("tools".into(), serde_json::json!([{}]));
+    }
+    let required = crate::model_relay::routing::required(&Value::Object(requirements), true);
+    if model.api.protocols.is_some() {
+        return catalog_request_info(model, chat_messages, &required);
+    }
+    let info = legacy_request_info(model, chat_messages)?;
+    reqwest::Url::parse(&info.base_url).map_err(|_| tool_request_error("Invalid base URL"))?;
+    // Legacy URL normalization is retained, but dispatch is still authorized by
+    // the same selector as catalog routes and relay requests.
+    let mut configured = model.clone();
+    configured.api.url = info.request_url.clone();
+    configured.api.adapter = if info.request_url.ends_with("/messages") {
+        "anthropic"
+    } else if info.request_url.ends_with("/responses") {
+        "openai-responses"
+    } else {
+        model.api.adapter.trim()
+    }
+    .into();
+    let source = crate::model_relay::routing::configured_protocol(&configured)
+        .map_err(|_| tool_request_error("unsupported configured protocol"))?;
+    if source == crate::model_relay::generation::GenerationProtocol::Gemini {
+        return Err(tool_request_error("Gemini SDK driver is unavailable"));
+    }
+    let route = crate::model_relay::routing::select(
+        &configured,
+        source,
+        &required,
+        &[],
+        crate::model_relay::routing::Execution::Aisdk,
+    )
+    .map_err(|_| tool_request_error("no authorized executable protocol route"))?;
+    if route.endpoint.url != info.request_url {
+        return Err(tool_request_error("selected route does not match the SDK operation"));
+    }
+    Ok(info)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn legacy_request_info(
     model: &provider::Model,
     chat_messages: &Value,
 ) -> Result<AisdkRequestInfo, Error> {
@@ -273,6 +322,58 @@ pub(crate) fn compute_request_info(
         messages,
         wire_messages,
     })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn catalog_request_info(
+    model: &provider::Model,
+    chat_messages: &Value,
+    required: &[vw_provider_resolver::protocol_routes::RouteCapability],
+) -> Result<AisdkRequestInfo, Error> {
+    use crate::model_relay::{generation::GenerationProtocol as P, routing};
+    use vw_provider_resolver::protocol_routes::{ConversionSupport, RouteCapability as C};
+    // Internal SDK messages use Chat semantics when the adapter has no native
+    // driver identity. Only evidenced, executable endpoints may then be chosen.
+    let source = routing::configured_protocol(model).unwrap_or(P::Chat);
+    let capabilities = [C::Text, C::Tools, C::Streaming, C::Image];
+    let conversions: Vec<_> = [P::Chat, P::Messages, P::Responses]
+        .into_iter()
+        .map(|target| ConversionSupport { source, target, capabilities: &capabilities })
+        .collect();
+    let route = routing::select(model, source, required, &conversions, routing::Execution::Aisdk)
+        .map_err(|_| tool_request_error("no authorized executable protocol route"))?;
+    // These SDK clients own their authentication implementation. A different
+    // shape requires a dedicated driver, never substitute a bearer for a key.
+    let expected_auth = routing::default_authentication(route.target);
+    if route.endpoint.authentication != expected_auth {
+        return Err(tool_request_error(
+            "selected endpoint authentication is unsupported by the SDK driver",
+        ));
+    }
+    let suffix = match route.target {
+        P::Chat => "/chat/completions",
+        P::Messages => "/messages",
+        P::Responses => "/responses",
+        P::Gemini => return Err(tool_request_error("Gemini SDK driver is unavailable")),
+    };
+    let base_url = route.endpoint.url.strip_suffix(suffix).ok_or_else(|| {
+        tool_request_error("selected endpoint path is unsupported by the SDK driver")
+    })?;
+    let mut selected = model.clone();
+    selected.api.protocols = None;
+    selected.api.url = route.endpoint.url.clone();
+    selected.api.adapter = match route.target {
+        P::Chat => "openai-compatible",
+        P::Messages => "anthropic",
+        P::Responses => "openai-responses",
+        P::Gemini => unreachable!(),
+    }
+    .into();
+    let mut info = legacy_request_info(&selected, chat_messages)?;
+    info.base_url = base_url.to_owned();
+    info.request_url = route.endpoint.url;
+    info.path_override = Some(suffix.trim_start_matches('/').into());
+    Ok(info)
 }
 
 /// Convert only the current authorized, visible snapshot; never the registry.

@@ -196,6 +196,12 @@ pub async fn do_stream_request_aisdk(
         ));
     };
 
+    if model.provider_id != provider_info.id {
+        return Err(Error::Api(crate::session::message::AssistantError::Unknown {
+            message: "model and credential provider bindings differ".into(),
+        }));
+    }
+
     validate_catalog_request(
         model,
         chat_messages.as_array().map(Vec::as_slice).unwrap_or_default(),
@@ -205,7 +211,8 @@ pub async fn do_stream_request_aisdk(
     .map_err(Error::Api)?;
 
     // 计算请求信息，包括基础 URL、请求 URL、路径覆盖和消息转换
-    let request_info = compute_request_info(model, chat_messages)?;
+    let request_info =
+        compute_request_info(model, chat_messages, merged_options, !tools.is_empty())?;
     let provider_id = provider_info.id.clone();
 
     // 记录请求日志，包含提供商 ID、模型 ID、适配器和 URL 信息

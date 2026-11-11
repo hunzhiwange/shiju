@@ -248,7 +248,7 @@ async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_an
     let root = dir.path().join("project");
     std::fs::create_dir(&root).unwrap();
     let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true}}}}})).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-responses":{"api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],"models":{"selected":{"id":"wire-model","status":"active","tool_call":true,"reasoning":true}}}}})).await.unwrap();
     let context = crate::project::instance::Context {
         directory: root.to_string_lossy().into(),
         worktree: project.worktree.clone(),

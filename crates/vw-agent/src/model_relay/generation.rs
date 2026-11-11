@@ -78,3 +78,44 @@ impl GenerationTransport for GenerationProtocol {
         Some(headers)
     }
 }
+
+/// Authentication belongs to the selected endpoint, never to a source protocol.
+pub(crate) fn endpoint_headers(
+    endpoint: &vw_shared::provider::protocols::ProtocolEndpoint,
+    credential: &str,
+) -> Result<header::HeaderMap, StatusCode> {
+    use vw_shared::provider::protocols::ProtocolAuthentication as A;
+    let mut headers = header::HeaderMap::new();
+    let invalid = StatusCode::UNPROCESSABLE_ENTITY;
+    let pair = match &endpoint.authentication {
+        A::None {} => None,
+        A::Bearer {} | A::OAuthBearer {} => {
+            Some((header::AUTHORIZATION, format!("Bearer {credential}")))
+        }
+        A::ApiKeyHeader { name }
+            if matches!(
+                name.to_ascii_lowercase().as_str(),
+                "x-api-key" | "x-goog-api-key" | "api-key"
+            ) =>
+        {
+            Some((
+                header::HeaderName::from_bytes(name.as_bytes()).map_err(|_| invalid)?,
+                credential.to_owned(),
+            ))
+        }
+        _ => return Err(invalid),
+    };
+    if let Some((name, value)) = pair {
+        if !is_real_bearer(credential) {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        let mut value =
+            header::HeaderValue::from_str(&value).map_err(|_| StatusCode::UNAUTHORIZED)?;
+        value.set_sensitive(true);
+        headers.insert(name, value);
+    }
+    if endpoint.protocol == GenerationProtocol::Messages {
+        headers.insert("anthropic-version", header::HeaderValue::from_static("2023-06-01"));
+    }
+    Ok(headers)
+}

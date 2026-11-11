@@ -265,8 +265,23 @@ mod http {
                 native_received.lock().push((headers,value.clone()));
                 let message=json!({"id":"native-id","type":"message","role":"assistant","model":"wire-model","content":[{"type":"thinking","thinking":"plan","signature":"signed-native"},{"type":"text","text":"done"}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":2,"output_tokens":1},"vendor_extension":{"retained":true}});
                 if value["stream"] == true {
-                    let start=json!({"type":"message_start","message":message});
-                    let wire=format!("event: message_start\ndata: {start}\n\nevent: message_stop\ndata: {{\"type\":\"message_stop\"}}\n\n");
+                    let mut start = message.clone();
+                    start["content"] = json!([]);
+                    start["stop_reason"] = Value::Null;
+                    start["usage"]["output_tokens"] = 0.into();
+                    let events = [
+                        json!({"type":"message_start","message":start}),
+                        json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}),
+                        json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"plan"}}),
+                        json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"signed-native"}}),
+                        json!({"type":"content_block_stop","index":0}),
+                        json!({"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}),
+                        json!({"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"done"}}),
+                        json!({"type":"content_block_stop","index":1}),
+                        json!({"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":1}}),
+                        json!({"type":"message_stop"}),
+                    ];
+                    let wire = events.iter().map(|event| format!("event: {}\ndata: {event}\n\n", event["type"].as_str().unwrap())).collect::<String>();
                     axum::response::Response::builder().header("content-type","text/event-stream").body(axum::body::Body::from(wire)).unwrap()
                 } else { axum::response::Response::builder().header("content-type","application/json").body(axum::body::Body::from(message.to_string())).unwrap() }
             }

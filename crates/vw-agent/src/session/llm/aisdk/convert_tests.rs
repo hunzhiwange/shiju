@@ -4,7 +4,12 @@ use serde_json::json;
 
 use crate::app::agent::provider::provider;
 
-use super::compute_request_info;
+fn compute_request_info(
+    model: &provider::Model,
+    messages: &serde_json::Value,
+) -> Result<super::AisdkRequestInfo, crate::session::llm::types::Error> {
+    super::compute_request_info(model, messages, &json!({}), false)
+}
 
 fn test_model(
     provider_id: &str,
@@ -73,8 +78,7 @@ fn chat_messages() -> serde_json::Value {
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": "hello"},
-                {"type": "image_url", "image_url": {"url": "ignored"}}
+                {"type": "text", "text": "hello"}
             ]
         },
         {"role": "assistant", "content": "hi"}
@@ -390,15 +394,9 @@ fn compatible_non_gpt_explicit_responses_endpoint_keeps_override_without_strict_
 }
 
 #[test]
-fn empty_anthropic_url_keeps_empty_base_for_client_validation() {
+fn empty_anthropic_url_is_rejected_before_dispatch() {
     let model = test_model("custom", "anthropic", "   ", "claude-sonnet", "Claude Sonnet");
-
-    let info = compute_request_info(&model, &chat_messages()).expect("request info");
-
-    assert_eq!(info.base_url, "");
-    assert_eq!(info.request_url, "/messages");
-    assert_eq!(info.path_override.as_deref(), Some("messages"));
-    assert!(!info.enforce_strict_tool_schema);
+    assert!(compute_request_info(&model, &chat_messages()).is_err());
 }
 
 #[test]
@@ -625,4 +623,44 @@ fn native_tool_search_history_function_namespace_survives_request_assembly() {
     };
     assert_eq!(call.tool.namespace.as_deref(), Some("ledger"));
     assert_eq!(call.tool.id, "function-call");
+}
+
+#[test]
+fn model_protocol_012_ordinary_request_uses_exact_catalog_endpoint() {
+    let mut model =
+        test_model("fixture", "openai-compatible", "https://example.test/v1", "wire", "fixture");
+    model.api.protocols = Some(serde_json::from_value(json!([{
+        "protocol":"chat", "url":"https://example.test/deployment/custom/chat/completions",
+        "deployment":"fixture", "authentication":{"kind":"bearer"},
+        "models":{"kind":"models","ids":["wire"]},
+        "evidence":[{"kind":"configuration","source":"fixture","reference":"explicit","checked_at":"2026-11-11"}]
+    }])).unwrap());
+    for adapter in ["openai-compatible", "vendor-sdk"] {
+        model.api.adapter = adapter.into();
+        let info = compute_request_info(&model, &chat_messages()).unwrap();
+        assert_eq!(info.request_url, "https://example.test/deployment/custom/chat/completions");
+    }
+}
+
+#[test]
+fn model_protocol_012_ordinary_request_refuses_empty_and_foreign_endpoints() {
+    let mut model =
+        test_model("fixture", "openai-compatible", "https://example.test/v1", "wire", "fixture");
+    model.api.protocols = Some(vec![]);
+    assert!(compute_request_info(&model, &chat_messages()).is_err());
+    model.api.protocols = Some(serde_json::from_value(json!([{
+        "protocol":"chat", "url":"https://foreign.test/v1/chat/completions",
+        "deployment":"fixture", "authentication":{"kind":"bearer"},
+        "models":{"kind":"all"},
+        "evidence":[{"kind":"configuration","source":"fixture","reference":"explicit","checked_at":"2026-11-11"}]
+    }])).unwrap());
+    assert!(compute_request_info(&model, &chat_messages()).is_err());
+}
+
+#[test]
+fn model_protocol_012_ordinary_request_rejects_unsupported_image() {
+    let model =
+        test_model("fixture", "openai-compatible", "https://example.test/v1", "wire", "fixture");
+    let messages = json!([{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://example.test/image.png"}}]}]);
+    assert!(compute_request_info(&model, &messages).is_err());
 }

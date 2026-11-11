@@ -94,12 +94,22 @@ async fn capture_skills_transport_request(
     endpoint: &str,
     interleaved: bool,
 ) -> Value {
+    capture_protocol_transport_request(adapter, endpoint, interleaved, false).await
+}
+
+async fn capture_protocol_transport_request(
+    adapter: &str,
+    endpoint: &str,
+    interleaved: bool,
+    catalog: bool,
+) -> Value {
     use super::super::convert::compute_request_info;
     use crate::app::agent::session::llm::{messages::build_chat_messages, types::StreamEvent};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/v1{endpoint}", listener.local_addr().unwrap());
+    let protocol = if endpoint == "/responses" { "responses" } else { "chat" };
     let endpoint = endpoint.to_string();
     let server = tokio::spawn(async move {
         tokio::time::timeout(std::time::Duration::from_secs(10), async move {
@@ -116,6 +126,11 @@ async fn capture_skills_transport_request(
             };
             let headers = String::from_utf8_lossy(&data[..header_end]);
             assert!(headers.starts_with(&format!("POST /v1{endpoint} ")));
+            if endpoint == "/messages" {
+                assert!(headers.to_ascii_lowercase().contains("x-api-key: fictional-test-key"));
+            } else {
+                assert!(headers.to_ascii_lowercase().contains("authorization: bearer fictional-test-key"));
+            }
             let length: usize = headers.lines().find_map(|line| {
                 line.to_ascii_lowercase().strip_prefix("content-length:")
                     .map(|value| value.trim().parse().unwrap())
@@ -157,7 +172,16 @@ async fn capture_skills_transport_request(
     });
     // An intentionally GPT-named model verifies protocol selection comes from the adapter.
     let mut model = test_model("fixture", adapter);
-    model.api.url = url;
+    model.api.url = url.clone();
+    if catalog {
+        model.api.url = format!("{}/unused", url.split("/v1").next().unwrap());
+        model.api.protocols = Some(serde_json::from_value(json!([{
+            "protocol": protocol,
+            "url": url, "deployment":"fixture", "authentication":{"kind":"bearer"},
+            "models":{"kind":"models","ids":[model.api.id]},
+            "evidence":[{"kind":"configuration","source":"fixture","reference":"explicit","checked_at":"2026-11-11"}]
+        }])).unwrap());
+    }
     if interleaved {
         model.capabilities.interleaved =
             provider::InterleavedCapability::Field { field: "reasoning_content".into() };
@@ -177,7 +201,7 @@ async fn capture_skills_transport_request(
         ],
         &model,
     );
-    let info = compute_request_info(&model, &messages).unwrap();
+    let info = compute_request_info(&model, &messages, &json!({}), false).unwrap();
     let mut output = String::new();
     let result = dispatch_stream_request(
         "fixture",
@@ -481,4 +505,14 @@ fn native_tool_search_dependency_rejects_unknown_execution_and_ordinary_function
         }))
         .is_err()
     );
+}
+
+#[tokio::test]
+async fn model_protocol_012_ordinary_stream_dispatches_selected_native_and_conversion() {
+    for endpoint in ["/chat/completions", "/responses"] {
+        let request =
+            capture_protocol_transport_request("openai-compatible", endpoint, false, true).await;
+        assert_eq!(request["model"], "gpt-test");
+        assert_eq!(request["stream"], true);
+    }
 }

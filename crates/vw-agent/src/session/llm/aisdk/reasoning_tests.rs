@@ -124,8 +124,13 @@ async fn reasoning_selection_reaches_real_sdk_http_body_for_every_supported_leve
                 body
             });
             let model = model(provider, id, adapter, &url);
-            let info = compute_request_info(&model, &json!([{"role": "user", "content": "hello"}]))
-                .unwrap();
+            let info = compute_request_info(
+                &model,
+                &json!([{"role": "user", "content": "hello"}]),
+                &json!({}),
+                false,
+            )
+            .unwrap();
             // The local server deliberately rejects after recording the exact wire payload.
             let result = dispatch_stream_request(
                 provider,

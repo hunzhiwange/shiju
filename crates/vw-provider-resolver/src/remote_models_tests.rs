@@ -79,6 +79,7 @@ fn test_model(id: &str, status: &str) -> Model {
         id: id.to_string(),
         provider_id: "test-provider".to_string(),
         api: ApiInfo {
+            protocols: None,
             id: id.to_string(),
             url: "https://static.example/v1".to_string(),
             adapter: "openai-compatible".to_string(),

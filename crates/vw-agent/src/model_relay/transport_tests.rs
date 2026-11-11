@@ -5,6 +5,7 @@ use axum::http::StatusCode;
 #[test]
 fn acp_model_source_messages_selects_the_official_alibaba_token_plan_endpoint() {
     let mut api = provider::ApiInfo {
+        protocols: None,
         id: "deepseek-v4.1-flash-1017".into(),
         url: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1".into(),
         adapter: "openai-compatible".into(),
@@ -40,6 +41,7 @@ fn acp_model_source_messages_selects_the_official_alibaba_token_plan_endpoint() 
 #[test]
 fn acp_model_source_messages_selects_the_official_deepseek_native_endpoint() {
     let mut api = provider::ApiInfo {
+        protocols: None,
         id: "deepseek-flash".into(),
         url: "https://api.deepseek.com/v1/chat/completions".into(),
         adapter: "openai-compatible".into(),
@@ -66,6 +68,7 @@ fn chat_model(provider_id: &str, id: &str, url: &str) -> provider::Model {
         id: id.into(),
         provider_id: provider_id.into(),
         api: provider::ApiInfo {
+            protocols: None,
             id: id.into(),
             url: url.into(),
             adapter: "openai-compatible".into(),

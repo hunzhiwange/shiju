@@ -21,6 +21,7 @@ fn profile(config: &AcpAgentConfig) -> AcpLaunchProfile {
     launch.model_supports_temperature = true;
     launch.model_supports_tool_call = true;
     launch.model_api = Some(crate::provider::provider::ApiInfo {
+        protocols: None,
         id: "selected-model".into(),
         url: "https://example.invalid/v1".into(),
         adapter: "openai-compatible".into(),
@@ -220,6 +221,7 @@ fn acp_model_source_claude_chat_reasoning_model_disables_signed_thinking() {
 fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
     let mut launch = profile(&Default::default());
     launch.model_api = Some(crate::provider::provider::ApiInfo {
+        protocols: None,
         id: "deepseek-flash".into(),
         url: "https://api.deepseek.com".into(),
         adapter: "openai-compatible".into(),
@@ -233,6 +235,7 @@ fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
 fn acp_model_source_claude_keeps_alibaba_token_plan_on_native_messages() {
     let mut launch = profile(&Default::default());
     launch.model_api = Some(crate::provider::provider::ApiInfo {
+        protocols: None,
         id: "deepseek-v4.1-flash-1017".into(),
         url: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1".into(),
         adapter: "openai-compatible".into(),

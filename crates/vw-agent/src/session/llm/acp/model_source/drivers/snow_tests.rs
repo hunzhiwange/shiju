@@ -14,6 +14,7 @@ fn profile(config: &crate::config::schema::AcpAgentConfig) -> AcpLaunchProfile {
     )
     .unwrap();
     profile.model_api = Some(crate::provider::provider::ApiInfo {
+        protocols: None,
         id: "selected-model".into(),
         url: "https://example.invalid/v1".into(),
         adapter: "openai-compatible".into(),

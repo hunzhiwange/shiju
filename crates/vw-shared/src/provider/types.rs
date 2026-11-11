@@ -9,6 +9,13 @@ pub struct ApiInfo {
     pub url: String,
     #[serde(default = "default_adapter")]
     pub adapter: String,
+    /// None is unknown; Some([]) explicitly disables protocol inference.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::protocols::deserialize_protocols"
+    )]
+    pub protocols: Option<Vec<super::protocols::ProtocolEndpoint>>,
 }
 
 /// 返回 provider 默认适配器名称。

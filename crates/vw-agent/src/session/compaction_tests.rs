@@ -17,6 +17,7 @@ pub(crate) fn model_with_limits(context: u64, input: Option<u64>, output: u64) -
         id: "model-fixture".to_string(),
         provider_id: "provider-fixture".to_string(),
         api: provider::ApiInfo {
+            protocols: None,
             id: "api-fixture".to_string(),
             url: "https://example.test/v1".to_string(),
             adapter: provider::default_adapter(),

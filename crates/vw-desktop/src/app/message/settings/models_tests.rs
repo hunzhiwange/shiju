@@ -20,6 +20,7 @@ fn model(provider_id: &str, id: &str, name: &str, status: &str) -> Model {
         id: id.to_string(),
         provider_id: provider_id.to_string(),
         api: ApiInfo {
+            protocols: None,
             id: id.to_string(),
             url: "https://example.test".to_string(),
             adapter: "openai-compatible".to_string(),

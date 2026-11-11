@@ -44,6 +44,7 @@ fn verify_private_byok_launch(reasoning: bool, declared_effort: bool) {
             }]);
     }
     profile.model_api = Some(crate::provider::provider::ApiInfo {
+        protocols: None,
         id: "chosen".into(),
         adapter: "openai-compatible".into(),
         url: "https://example.invalid/v1".into(),

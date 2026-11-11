@@ -99,6 +99,7 @@ fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
         id: id.to_string(),
         provider_id: provider_id.to_string(),
         api: provider::ApiInfo {
+            protocols: None,
             id: id.to_string(),
             url: String::new(),
             adapter: "openai-compatible".to_string(),

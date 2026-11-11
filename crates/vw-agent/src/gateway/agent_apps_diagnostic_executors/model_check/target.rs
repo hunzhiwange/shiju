@@ -27,7 +27,7 @@ use crate::{
     app_providers::AppProviderStore,
     global_database::run_sync_database,
     model_catalog::ModelCatalogStore,
-    model_relay::generation::GenerationProtocol,
+    model_relay::generation::{GenerationProtocol, GenerationTransport},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

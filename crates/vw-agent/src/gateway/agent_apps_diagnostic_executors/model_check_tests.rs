@@ -43,7 +43,7 @@ use crate::{
 
 #[tokio::test]
 async fn diagnostic_model_check_validates_model_response() {
-    use crate::model_relay::generation::GenerationProtocol;
+    use crate::model_relay::generation::{GenerationProtocol, GenerationTransport};
 
     for (model, endpoint, expected) in [
         (

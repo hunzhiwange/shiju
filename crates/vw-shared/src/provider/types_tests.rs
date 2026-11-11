@@ -292,6 +292,7 @@ fn model(id: &str) -> super::Model {
         id: id.to_string(),
         provider_id: "provider".to_string(),
         api: super::ApiInfo {
+            protocols: None,
             id: "main".to_string(),
             url: "https://example.test".to_string(),
             adapter: super::default_adapter(),

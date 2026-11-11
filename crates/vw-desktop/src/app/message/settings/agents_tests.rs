@@ -505,6 +505,7 @@ fn summarize_models_keeps_builtin_provider_models_even_when_all_disabled() {
         id: "gpt-4.1".to_string(),
         provider_id: "openai".to_string(),
         api: ApiInfo {
+            protocols: None,
             id: "gpt-4.1".to_string(),
             url: "https://api.example.com/v1".to_string(),
             adapter: "openai-compatible".to_string(),
@@ -740,6 +741,7 @@ fn summarize_models_projects_active_capabilities_limits_and_detail() {
         id: "vision-model".to_string(),
         provider_id: "provider".to_string(),
         api: ApiInfo {
+            protocols: None,
             id: "vision-model".to_string(),
             url: "https://api.example.com/v1".to_string(),
             adapter: "openai-compatible".to_string(),

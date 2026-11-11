@@ -11,27 +11,23 @@ use super::transport::{
 };
 use crate::provider::provider::ApiInfo;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum GenerationProtocol {
-    Chat,
-    Messages,
-    Responses,
-    Gemini,
+pub(crate) use vw_shared::provider::ModelProtocol as GenerationProtocol;
+
+/// Transport operations for the shared protocol identity.
+pub(crate) trait GenerationTransport {
+    fn url(self, endpoint: &str, model: &str, full_url: bool) -> Result<Url, StatusCode>;
+    fn headers(self, credential: &str, messages_bearer: bool) -> Option<header::HeaderMap>;
 }
 
-impl GenerationProtocol {
-    pub(crate) fn url(
-        self,
-        endpoint: &str,
-        model: &str,
-        full_url: bool,
-    ) -> Result<Url, StatusCode> {
+impl GenerationTransport for GenerationProtocol {
+    fn url(self, endpoint: &str, model: &str, full_url: bool) -> Result<Url, StatusCode> {
         let invalid = StatusCode::UNPROCESSABLE_ENTITY;
         validation::endpoint(endpoint).map_err(|_| invalid)?;
         if full_url && self != Self::Gemini {
             return Url::parse(endpoint).map_err(|_| invalid);
         }
         let api = ApiInfo {
+            protocols: None,
             url: endpoint.to_owned(),
             id: model.to_owned(),
             adapter: "openai-compatible".into(),
@@ -53,11 +49,7 @@ impl GenerationProtocol {
         Ok(url)
     }
 
-    pub(crate) fn headers(
-        self,
-        credential: &str,
-        messages_bearer: bool,
-    ) -> Option<header::HeaderMap> {
+    fn headers(self, credential: &str, messages_bearer: bool) -> Option<header::HeaderMap> {
         if !is_real_bearer(credential) {
             return None;
         }

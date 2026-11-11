@@ -334,6 +334,7 @@ fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Mod
         id: model_id.clone(),
         provider_id: provider_id.to_string(),
         api: ApiInfo {
+            protocols: None,
             id: model_id.clone(),
             url: api_base.trim_end_matches('/').to_string(),
             adapter: default_adapter(),

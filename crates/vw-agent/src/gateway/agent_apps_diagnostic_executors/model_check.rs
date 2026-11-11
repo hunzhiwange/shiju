@@ -21,6 +21,8 @@ use crate::{
     model_relay::upstream::{self, upstream_http_client_builder},
 };
 
+use response::GenerationEvidence;
+
 mod response;
 mod target;
 

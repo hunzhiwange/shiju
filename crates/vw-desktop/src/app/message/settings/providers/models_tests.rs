@@ -443,6 +443,7 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
             id: id.to_string(),
             provider_id: "openai".to_string(),
             api: ApiInfo {
+                protocols: None,
                 id: id.to_string(),
                 url: "https://api.openai.com/v1".to_string(),
                 adapter: "openai".to_string(),

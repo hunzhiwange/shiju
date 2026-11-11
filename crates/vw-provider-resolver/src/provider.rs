@@ -463,7 +463,12 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                     let model = Model {
                         id: model_id.to_string(),
                         provider_id: provider_id.to_string(),
-                        api: ApiInfo { id: api_id, url: api_url, adapter: api_adapter },
+                        api: ApiInfo {
+                            protocols: None,
+                            id: api_id,
+                            url: api_url,
+                            adapter: api_adapter,
+                        },
                         name,
                         family,
                         capabilities: cap,

@@ -234,6 +234,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
     };
 
     let api = ApiInfo {
+        protocols: None,
         id: model.id.clone(),
         url: provider.api.clone().unwrap_or_default(),
         adapter: normalize_adapter(&adapter),

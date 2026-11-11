@@ -171,6 +171,7 @@ pub(crate) fn project_model(provider_id: &str, adapter: &str, row: &ModelCatalog
         id: id.into(),
         provider_id: provider_id.into(),
         api: ApiInfo {
+            protocols: None,
             id: id.into(),
             url: row.identity.deployment.endpoint.clone(),
             adapter: adapter.into(),

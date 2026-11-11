@@ -249,6 +249,7 @@ fn acp_route_model(options: &Value) -> provider::Model {
         id: model_id.clone(),
         provider_id: "acp".to_string(),
         api: provider::ApiInfo {
+            protocols: None,
             id: model_id.clone(),
             url: String::new(),
             adapter: "acp".to_string(),

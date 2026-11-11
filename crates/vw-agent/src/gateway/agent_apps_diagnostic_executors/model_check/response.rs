@@ -5,8 +5,13 @@ use vw_api_types::{agent_apps_diagnostics::DiagnosticFailureCode, id::ModelId};
 
 use crate::model_relay::generation::GenerationProtocol;
 
-impl GenerationProtocol {
-    pub(super) fn prompt(self, model: &str) -> Value {
+pub(super) trait GenerationEvidence {
+    fn prompt(self, model: &str) -> Value;
+    fn actual_model(self, response: &Value) -> Result<ModelId, DiagnosticFailureCode>;
+}
+
+impl GenerationEvidence for GenerationProtocol {
+    fn prompt(self, model: &str) -> Value {
         const PROMPT: &str = "Reply with OK.";
         const LIMIT: u32 = 32;
         match self {
@@ -29,7 +34,7 @@ impl GenerationProtocol {
         }
     }
 
-    pub(super) fn actual_model(self, response: &Value) -> Result<ModelId, DiagnosticFailureCode> {
+    fn actual_model(self, response: &Value) -> Result<ModelId, DiagnosticFailureCode> {
         let invalid = DiagnosticFailureCode::InvalidResponse;
         if response.get("error").is_some_and(|error| !error.is_null()) {
             return Err(invalid);

@@ -187,6 +187,7 @@ mod search_panel_tests;
 ///
 /// 系统设置的入口和容器组件，协调各设置子模块。
 pub mod system_settings;
+pub(crate) mod system_settings_archived_chats;
 pub mod system_settings_search;
 #[cfg(test)]
 #[path = "system_settings_search_tests.rs"]

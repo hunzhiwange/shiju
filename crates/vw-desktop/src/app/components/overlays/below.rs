@@ -126,6 +126,16 @@ where
         self.content.as_widget().size_hint()
     }
 
+    fn operate(
+        &mut self,
+        tree: &mut widget::Tree,
+        layout: Layout<'_>,
+        renderer: &RendererT,
+        operation: &mut dyn widget::Operation,
+    ) {
+        self.content.as_widget_mut().operate(&mut tree.children[0], layout, renderer, operation);
+    }
+
     fn layout(
         &mut self,
         tree: &mut widget::Tree,

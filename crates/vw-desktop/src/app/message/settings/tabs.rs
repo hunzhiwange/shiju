@@ -62,7 +62,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                 }
             }
-            if tab == SystemTab::Apps {
+            if tab == SystemTab::ArchivedChats {
+                super::archived_chats::update(
+                    app,
+                    super::archived_chats::ArchivedChatsMessage::Refresh,
+                )
+            } else if tab == SystemTab::Apps {
                 super::apps_catalog::update(app, super::AppsCatalogMessage::Refresh)
             } else if tab == SystemTab::Themes {
                 app.themes_settings.error = None;

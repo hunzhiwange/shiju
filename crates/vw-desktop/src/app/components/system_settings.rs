@@ -16,6 +16,10 @@ mod field_scroll;
 pub(super) mod general_fields;
 mod navigation;
 
+#[cfg(test)]
+#[path = "system_settings_archived_chats_tests.rs"]
+mod archived_chats_tests;
+
 pub(crate) use field_scroll::reveal_field;
 
 pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;
@@ -71,6 +75,8 @@ pub enum SystemTab {
     Editor,
     /// 项目设置标签页
     Projects,
+    /// 当前网关所有项目的原生归档会话。
+    ArchivedChats,
     /// 提供商设置标签页
     Providers,
     /// 模型设置标签页
@@ -119,6 +125,7 @@ impl SystemTab {
             SystemTab::Themes => "主题",
             SystemTab::Editor => "编辑器",
             SystemTab::Projects => "项目管理",
+            SystemTab::ArchivedChats => "已归档的聊天",
             SystemTab::Providers => "提供商",
             SystemTab::Models => "模型",
             SystemTab::Cron => "定时任务",
@@ -185,6 +192,7 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         }
         SystemTab::Editor => &["editor", "code", "编辑", "主题与显示", "字体大小", "行高"],
         SystemTab::Projects => &["projects", "workspace", "工作区", "Worktree", "历史项目"],
+        SystemTab::ArchivedChats => &["archived", "chats", "归档", "聊天", "历史项目"],
         SystemTab::Providers => {
             &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
         }
@@ -370,6 +378,7 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         | SystemTab::Editor
         | SystemTab::General
         | SystemTab::Projects
+        | SystemTab::ArchivedChats
         | SystemTab::Themes => None,
     }
 }
@@ -409,6 +418,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Themes => crate::app::components::system_settings_themes::view(app),
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
+        SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
         SystemTab::Providers => {
             crate::app::components::system_settings_providers::connected::view(app)
         }
@@ -460,7 +470,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         content_column = content_column.push(settings_error_banner(localized));
     }
     let content_column = content_column.push(content);
-    let owns_scroll = active_tab == SystemTab::Agents;
+    let owns_scroll = matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats);
     #[cfg(not(target_arch = "wasm32"))]
     let owns_scroll = owns_scroll || active_tab == SystemTab::Auth;
     let page: Element<'_, Message> = if owns_scroll || active_tab_help_modal_open(app, active_tab) {

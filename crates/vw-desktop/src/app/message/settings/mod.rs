@@ -8,6 +8,7 @@ pub(crate) mod apps_lifecycle;
 pub(crate) mod apps_usage_events;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod apps_usage_events_tests;
+pub(crate) mod archived_chats;
 mod autonomy;
 mod browser;
 mod channels;
@@ -131,6 +132,7 @@ fn update_config_panel(
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::ArchivedChats(message) => archived_chats::update(app, message),
         SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsMessage::AgentAppsAuth(event) => {

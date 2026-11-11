@@ -6,10 +6,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use vw_shared::session::info::Info;
 
-// The settings view and mutation handlers are wired in the following plan tasks.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) enum ArchivedChatsSort {
+pub enum ArchivedChatsSort {
     #[default]
     Updated,
     Created,
@@ -23,7 +21,6 @@ pub(crate) enum ArchivedChatsDeleteConfirmation {
     Project(String),
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ArchivedChatsState {
     pub(crate) sessions: Vec<Info>,
@@ -36,22 +33,55 @@ pub(crate) struct ArchivedChatsState {
     pub(crate) request_generation: u64,
     pub(crate) operating_ids: HashSet<String>,
     pub(crate) delete_confirmation: Option<ArchivedChatsDeleteConfirmation>,
+    pub(crate) identity: Option<ArchivedChatsIdentity>,
+    pub(crate) menu: Option<ArchivedChatsMenu>,
 }
 
-#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ArchivedChatsMenu {
+    Type,
+    Project,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct ArchivedChatsIdentity {
+    pub(crate) gateway: String,
+    pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,
+    pub(crate) auth_fingerprint: [u8; 32],
+}
+
+impl std::fmt::Debug for ArchivedChatsIdentity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ArchivedChatsIdentity")
+            .field("gateway", &self.gateway)
+            .field("tenant", &self.tenant)
+            .finish_non_exhaustive()
+    }
+}
+
+impl ArchivedChatsIdentity {
+    pub(crate) fn from_endpoint(endpoint: &vw_gateway_client::GatewayEndpoint) -> Self {
+        use sha2::{Digest, Sha256};
+        let auth = endpoint.auth.as_ref().and_then(|auth| auth.skey.as_deref()).unwrap_or("");
+        Self {
+            gateway: endpoint.base_url(),
+            tenant: endpoint.tenant_scope().clone(),
+            auth_fingerprint: Sha256::digest(auth.as_bytes()).into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ArchivedChatsProject {
     pub(crate) id: String,
     pub(crate) name: String,
 }
 
-#[allow(dead_code)]
 pub(crate) struct ArchivedChatsGroup<'a> {
     pub(crate) project: ArchivedChatsProject,
     pub(crate) rows: Vec<&'a Info>,
 }
 
-#[allow(dead_code)]
 impl ArchivedChatsState {
     pub(crate) fn groups(&self) -> Vec<ArchivedChatsGroup<'_>> {
         let search = self.search.trim().to_lowercase();

@@ -30,6 +30,7 @@ pub(super) const GROUPS: &[(&str, &[SystemTab])] = {
                 #[cfg(not(target_arch = "wasm32"))]
                 Auth,
                 Projects,
+                ArchivedChats,
             ],
         ),
         ("模型与智能体", &[Providers, Models, Agents, Memory]),
@@ -211,6 +212,7 @@ fn tab_icon(tab: SystemTab) -> Icon {
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => Icon::ShieldLock,
         SystemTab::Projects => Icon::FolderOpen,
+        SystemTab::ArchivedChats => Icon::ChatTextFill,
         SystemTab::Providers => Icon::Box,
         SystemTab::Models => Icon::Hexagon,
         SystemTab::Agents => Icon::Robot,

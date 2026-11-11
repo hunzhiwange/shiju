@@ -256,9 +256,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         || old_endpoint.tenant_scope() != endpoint.tenant_scope()
         || old_endpoint.auth.and_then(|auth| auth.skey) != endpoint.auth.and_then(|auth| auth.skey)
     {
+        let archived = super::archived_chats::gateway_changed(app);
         app.last_llm_full_access = None;
         app.reset_draft_full_access();
-        app.reload_project_chat_preferences(true)
+        Task::batch([archived, app.reload_project_chat_preferences(true)])
     } else {
         Task::none()
     };

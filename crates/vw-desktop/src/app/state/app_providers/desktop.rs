@@ -1,6 +1,7 @@
 use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::*;
 #[derive(Clone)]
 pub(crate) struct Form {
+    pub aggregation: Option<crate::app::message::settings::aggregation_desktop::Session>,
     pub id: String,
     pub mapping: DesktopMapping,
     pub new_route: String,
@@ -23,6 +24,7 @@ impl std::fmt::Debug for Form {
 impl Form {
     pub fn new(id: String) -> Self {
         Self {
+            aggregation: None,
             id,
             new_route: String::new(),
             mapping: DesktopMapping {

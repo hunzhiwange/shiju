@@ -123,6 +123,13 @@ fn valid(app: &App, scope: &Scope, generation: u64) -> bool {
         && app.app_providers.desktop.as_ref().is_some_and(|f| f.busy)
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if app.app_providers.desktop.as_ref().is_some_and(|f| f.aggregation.is_some())
+        && !matches!(event, Event::Cancel)
+        && !crate::app::message::settings::aggregation_desktop::binding_is_current(app)
+    {
+        app.app_providers.desktop = None;
+        return Task::none();
+    }
     match event {
         Event::Cancel => {
             if app.app_providers.desktop.as_ref().is_some_and(|f| f.busy) {
@@ -212,6 +219,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         | Event::SaveDirect
         | Event::Import
         | Event::Activate => {
+            if app.app_providers.desktop.as_ref().is_some_and(|f| f.aggregation.is_some()) {
+                return Task::none();
+            }
             let Ok((client, scope)) = list::current(app, AppId::ClaudeDesktop) else {
                 return app.show_error_toast("无法连接网关");
             };
@@ -293,6 +303,13 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let Some(form) = app.app_providers.desktop.as_mut().filter(|f| !f.busy) else {
                 return Task::none();
             };
+            if let Some(session) = form.aggregation.as_mut() {
+                if session.running() || !form.mapping_editable {
+                    return Task::none();
+                }
+                session.invalidate();
+                session.dirty = true;
+            }
             match event {
                 Event::Id(v) if form.create => form.id = v,
                 Event::NewRoute(v) => form.new_route = v,

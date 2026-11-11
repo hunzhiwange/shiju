@@ -15,6 +15,9 @@ pub(crate) fn overlay<'a>(
     help: Help<'_>,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    if form.aggregation.is_some() {
+        return crate::app::components::aggregation_desktop::overlay(form, help, base);
+    }
     let active = !form.busy;
     let input = |label, value, event: fn(String) -> Event| {
         text_input(label, value)
@@ -98,61 +101,7 @@ pub(crate) fn overlay<'a>(
         body = body.push(text("直连配置").size(17)).push(settings_panel(direct));
     }
     if form.mapping_editable {
-        body = body
-            .push(text("模型路由").size(17))
-            .push(settings_panel(
-                column![
-                    checkbox(form.mapping.mode == DesktopMappingMode::Proxy)
-                        .label("模型映射模式（仅保存目录，不启动代理）")
-                        .style(settings_checkbox_style)
-                        .on_toggle_maybe(active.then_some(|v| message(Event::Proxy(v)))),
-                    text("直连要求路由与请求模型相同；映射模式需兼容上游及路由运行时。服务端校验失败会保留草稿。")
-                        .size(13)
-                        .style(settings_muted_text_style),
-                    action("载入默认路由", Event::Defaults, active),
-                    help.field("添加模型路由", "由执行端校验标识兼容性"),
-                    input("claude-sonnet-…", &form.new_route, Event::NewRoute),
-                    action("添加模型", Event::AddRoute, active && !form.new_route.is_empty()),
-                ]
-                .spacing(8),
-            ));
-        for (id, route) in &form.mapping.routes {
-            let control = |label, value, event: fn(String, String) -> Event| {
-                let id = id.clone();
-                text_input(label, value)
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style)
-                    .on_input_maybe(active.then_some(move |v| message(event(id.clone(), v))))
-            };
-            let one_id = id.clone();
-            body = body.push(settings_panel(
-                column![
-                    settings_field_label(id),
-                    settings_field_label("实际请求模型"),
-                    control("请求模型", &route.model, Event::Model),
-                    settings_field_label("菜单显示名"),
-                    control(
-                        "可留空",
-                        route.label_override.as_deref().unwrap_or_default(),
-                        Event::Label
-                    ),
-                    row![
-                        checkbox(route.supports_1m)
-                            .label("声明支持 1M")
-                            .style(settings_checkbox_style)
-                            .on_toggle_maybe(
-                                active.then_some(move |v| message(Event::OneM(one_id.clone(), v)))
-                            ),
-                        action("移除", Event::Remove(id.clone()), active)
-                    ]
-                    .spacing(12)
-                    .align_y(Alignment::Center)
-                    .wrap()
-                ]
-                .spacing(8),
-            ));
-        }
+        body = body.extend(mapping_fields(form, help));
     } else if !form.create && !form.direct_editable {
         body = body
             .push(settings_error_banner("此档案使用不支持的凭据或配置形态，无法在此表单修改。"));
@@ -191,3 +140,87 @@ pub(crate) fn overlay<'a>(
 #[cfg(test)]
 #[path = "desktop_ui_refresh_12_tests.rs"]
 pub(super) mod ui_refresh_12_tests;
+
+pub(crate) fn mapping_fields<'a>(form: &'a Form, help: Help<'_>) -> Vec<Element<'a, Message>> {
+    let active = !form.busy && form.aggregation.as_ref().is_none_or(|s| !s.running());
+    let input = |label, value, event: fn(String) -> Event| {
+        text_input(label, value)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_text_input_style)
+            .on_input_maybe(active.then_some(move |v| message(event(v))))
+    };
+    let action = |label: &'static str, event: Event, enabled: bool| {
+        button(text(label))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(enabled.then_some(message(event)))
+    };
+    let mut config = column![
+        checkbox(form.mapping.mode == DesktopMappingMode::Proxy)
+            .label(if form.aggregation.is_some() {
+                "模型映射模式"
+            } else {
+                "模型映射模式（仅保存目录，不启动代理）"
+            })
+            .style(settings_checkbox_style)
+            .on_toggle_maybe(active.then_some(|v| message(Event::Proxy(v)))),
+        text(
+            "直连要求路由与请求模型相同；映射模式需兼容上游及路由运行时。服务端校验失败会保留草稿。"
+        )
+        .size(13)
+        .style(settings_muted_text_style),
+    ]
+    .spacing(8);
+    if form.aggregation.is_none() {
+        config = config.push(action("载入默认路由", Event::Defaults, active));
+    }
+    config = config
+        .push(help.field("添加模型路由", "由执行端校验标识兼容性"))
+        .push(input("claude-sonnet-…", &form.new_route, Event::NewRoute))
+        .push(action("添加模型", Event::AddRoute, active && !form.new_route.is_empty()));
+    let mut body: Vec<Element<'a, Message>> =
+        vec![text("模型路由").size(17).into(), settings_panel(config).into()];
+    for (id, route) in &form.mapping.routes {
+        let control = |label, value, event: fn(String, String) -> Event| {
+            let id = id.clone();
+            text_input(label, value)
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style)
+                .on_input_maybe(active.then_some(move |v| message(event(id.clone(), v))))
+        };
+        let one_id = id.clone();
+        body.push(
+            settings_panel(
+                column![
+                    settings_field_label(id),
+                    settings_field_label("实际请求模型"),
+                    control("请求模型", &route.model, Event::Model),
+                    settings_field_label("菜单显示名"),
+                    control(
+                        "可留空",
+                        route.label_override.as_deref().unwrap_or_default(),
+                        Event::Label
+                    ),
+                    row![
+                        checkbox(route.supports_1m)
+                            .label("声明支持 1M")
+                            .style(settings_checkbox_style)
+                            .on_toggle_maybe(
+                                active.then_some(move |v| message(Event::OneM(one_id.clone(), v)))
+                            ),
+                        action("移除", Event::Remove(id.clone()), active)
+                    ]
+                    .spacing(12)
+                    .align_y(Alignment::Center)
+                    .wrap()
+                ]
+                .spacing(8),
+            )
+            .into(),
+        );
+    }
+
+    body
+}

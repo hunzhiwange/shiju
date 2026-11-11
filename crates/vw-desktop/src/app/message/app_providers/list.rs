@@ -38,6 +38,7 @@ use vw_gateway_client::vw_api_types::{
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
+    DesktopAggregation(crate::app::message::settings::aggregation_desktop::Event),
     OmpDirectory(crate::app::message::settings::aggregation_omp::Event),
     Omo(crate::app::message::settings::aggregation_omo::Event),
     #[cfg(not(target_arch = "wasm32"))]
@@ -174,6 +175,9 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        ListMessage::DesktopAggregation(event) => {
+            return crate::app::message::settings::aggregation_desktop::update(app, event);
+        }
         ListMessage::OmpDirectory(event) => {
             return crate::app::message::settings::aggregation_omp::update(app, event);
         }

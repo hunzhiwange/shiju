@@ -215,6 +215,13 @@ pub(crate) fn overlay<'a>(
             }
             if scope.app == AppId::ClaudeDesktop {
                 actions = actions.push(action(
+                    "聚合映射与应用",
+                    ListMessage::DesktopAggregation(
+                        crate::app::message::settings::aggregation_desktop::Event::Open(id.clone()),
+                    ),
+                    enabled,
+                ));
+                actions = actions.push(action(
                     "直连与映射",
                     ListMessage::Desktop(crate::app::message::app_providers::desktop::Event::Open(
                         Some(id.clone()),

@@ -462,3 +462,6 @@ pub(crate) mod aggregation_omo;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice_onboarding;
+
+#[path = "agent_apps/aggregation_desktop.rs"]
+pub(crate) mod aggregation_desktop;

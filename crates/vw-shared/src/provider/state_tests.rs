@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 fn raw_provider() -> RawProvider {
     RawProvider {
+        npm: None,
         api: Some("https://api.example.test/v1".to_string()),
         name: "Example".to_string(),
         env: vec!["EXAMPLE_API_KEY".to_string()],
@@ -143,7 +144,12 @@ fn effective_input_window_matches_runtime_default_limit() {
 fn from_models_dev_model_uses_model_adapter_before_provider_adapter() {
     let provider = raw_provider();
     let mut model = raw_model("model-a");
-    model.provider = Some(models::ModelProviderInfo { adapter: "model-adapter".to_string() });
+    model.provider = Some(models::ModelProviderInfo {
+        adapter: "model-adapter".to_string(),
+        npm: None,
+        api: None,
+        shape: None,
+    });
 
     let converted = from_models_dev_model(&provider, &model);
 
@@ -419,4 +425,66 @@ fn unknown_chat_model_still_receives_conservative_defaults() {
     let model = from_models_dev_model(&raw_provider(), &raw);
     assert_eq!(model.limit.context, DEFAULT_MODEL_CONTEXT_LIMIT);
     assert_eq!(model.limit.output, DEFAULT_MODEL_OUTPUT_LIMIT);
+}
+
+#[test]
+fn model_protocol_008_sdk_and_model_override_priority() {
+    for (provider_adapter, model_provider, expected) in [
+        (None, json!({}), "anthropic"),
+        (None, json!({"api": "https://model.test/v1"}), "anthropic"),
+        (None, json!({"npm": "@ai-sdk/openai-compatible"}), "openai-compatible"),
+        (Some("explicit-parent"), json!({"npm": "@ai-sdk/openai-compatible"}), "explicit-parent"),
+        (
+            Some("explicit-parent"),
+            json!({"adapter": "explicit-model", "npm": "@ai-sdk/openai-compatible"}),
+            "explicit-model",
+        ),
+        (None, json!({"npm": "@ai-sdk/amazon-bedrock/mantle"}), "@ai-sdk/amazon-bedrock/mantle"),
+    ] {
+        let provider: RawProvider = serde_json::from_value(json!({
+            "npm": "@ai-sdk/anthropic", "adapter": provider_adapter,
+            "api": "https://parent.test/v1"
+        }))
+        .unwrap();
+        let model: RawModel =
+            serde_json::from_value(json!({"id": "fixture", "provider": model_provider})).unwrap();
+        assert_eq!(from_models_dev_model(&provider, &model).api.adapter, expected);
+    }
+}
+
+#[test]
+fn model_protocol_008_preserves_raw_declarations() {
+    let source = json!({
+        "npm": "@ai-sdk/anthropic",
+        "models": {"fixture": {"provider": {
+            "npm": "@ai-sdk/amazon-bedrock/mantle",
+            "api": "https://bedrock-mantle.${AWS_REGION}.api.aws/v1", "shape": "responses"
+        }}}
+    });
+    let provider: RawProvider = serde_json::from_value(source.clone()).unwrap();
+    let roundtrip = serde_json::to_value(provider).unwrap();
+    assert_eq!(roundtrip["npm"], source["npm"]);
+    assert_eq!(
+        roundtrip["models"]["fixture"]["provider"]["npm"],
+        source["models"]["fixture"]["provider"]["npm"]
+    );
+    assert_eq!(
+        roundtrip["models"]["fixture"]["provider"]["api"],
+        source["models"]["fixture"]["provider"]["api"]
+    );
+    assert_eq!(roundtrip["models"]["fixture"]["provider"]["shape"], "responses");
+}
+
+#[test]
+fn model_protocol_008_known_sdks_and_blank_declarations() {
+    for (npm, expected) in [
+        ("@ai-sdk/openai", "openai-responses"),
+        ("@ai-sdk/google", "google"),
+        ("unknown-sdk", "unknown-sdk"),
+    ] {
+        let provider: RawProvider = serde_json::from_value(json!({"npm": npm})).unwrap();
+        let model: RawModel =
+            serde_json::from_value(json!({"provider": {"adapter": "  ", "npm": " "}})).unwrap();
+        assert_eq!(from_models_dev_model(&provider, &model).api.adapter, expected);
+    }
 }

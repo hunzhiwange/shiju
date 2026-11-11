@@ -61,6 +61,14 @@ pub enum ModelInterleaved {
 /// 模型级别的 provider 适配补充信息。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelProviderInfo {
+    /// 原始 SDK 身份；不等同于已支持的运行时协议。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub npm: Option<String>,
+    /// 模型部署端点，保留模板及非 HTTP 传输声明供后续投影验证。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<String>,
     #[serde(default)]
     pub adapter: String,
 }
@@ -114,6 +122,9 @@ pub struct Model {
 /// 提供商及其模型集合定义。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Provider {
+    /// 来源目录 SDK 声明，独立保留显式 adapter。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub npm: Option<String>,
     #[serde(default)]
     pub api: Option<String>,
     #[serde(default)]

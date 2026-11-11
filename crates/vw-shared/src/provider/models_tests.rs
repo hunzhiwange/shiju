@@ -36,3 +36,13 @@ fn catalog_modelsdev_parse_distinguishes_partial_cost_from_free_cost() {
     assert_eq!(raw["limit"]["context"], 65536);
     assert_eq!(raw["status"], "preview");
 }
+
+#[test]
+fn model_protocol_008_shape_and_endpoint_roundtrip_without_sdk() {
+    let source = json!({"provider": {"api": "wss://example.test/realtime", "shape": "responses"}});
+    let model: Model = serde_json::from_value(source.clone()).unwrap();
+    let roundtrip = serde_json::to_value(model).unwrap();
+    assert_eq!(roundtrip["provider"]["api"], source["provider"]["api"]);
+    assert_eq!(roundtrip["provider"]["shape"], source["provider"]["shape"]);
+    assert!(roundtrip["provider"].get("npm").is_none());
+}

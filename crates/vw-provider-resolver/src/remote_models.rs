@@ -290,6 +290,7 @@ pub fn merge_remote_models(
             // Only model metadata crosses providers. Routing, credentials, prices,
             // headers and provider-specific request options stay on Shiju.
             let raw_provider = crate::models::Provider {
+                npm: None,
                 id: provider.id.clone(),
                 api: Some(api_base.to_string()),
                 adapter: Some(default_adapter()),

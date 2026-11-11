@@ -199,12 +199,39 @@ pub fn normalize_adapter(s: &str) -> String {
 
 /// 将原始模型定义转换为对外暴露的模型结构。
 pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model {
-    let adapter = model
-        .provider
-        .as_ref()
-        .map(|p| p.adapter.clone())
-        .or_else(|| provider.adapter.clone())
-        .unwrap_or_else(default_adapter);
+    let model_provider = model.provider.as_ref();
+    let non_blank = |value: &str| !value.trim().is_empty();
+    // 显式 adapter 优先于 SDK 推断；API/shape 单独覆盖不改变父层协议。
+    let explicit_adapter = model_provider
+        .map(|value| value.adapter.as_str())
+        .filter(|value| non_blank(value))
+        .or_else(|| provider.adapter.as_deref().filter(|value| non_blank(value)));
+    let adapter = if let Some(adapter) = explicit_adapter {
+        normalize_adapter(adapter)
+    } else if let Some(npm) = model_provider
+        .and_then(|value| value.npm.as_deref())
+        .filter(|value| non_blank(value))
+        .or_else(|| provider.npm.as_deref().filter(|value| non_blank(value)))
+    {
+        // 2026-11-11 官方 SDK 依据（仅识别协议，不推断端点、鉴权或模型能力）：
+        // https://ai-sdk.dev/providers/openai-compatible-providers
+        // https://ai-sdk.dev/providers/ai-sdk-providers/{anthropic,openai,google}
+        match npm.trim() {
+            "@ai-sdk/anthropic" => "anthropic".to_string(),
+            "@ai-sdk/openai-compatible" => "openai-compatible".to_string(),
+            "@ai-sdk/openai" => "openai-responses".to_string(),
+            "@ai-sdk/google" => "google".to_string(),
+            unsupported => {
+                tracing::debug!(
+                    npm = unsupported,
+                    "unsupported catalog SDK: no verified runtime adapter mapping; preserving SDK identity"
+                );
+                unsupported.to_string()
+            }
+        }
+    } else {
+        default_adapter()
+    };
 
     let api = ApiInfo {
         id: model.id.clone(),

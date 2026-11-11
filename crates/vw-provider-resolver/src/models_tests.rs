@@ -576,3 +576,54 @@ fn shiju_official_models_preserve_documented_limits_and_modalities() {
         }
     }
 }
+
+#[test]
+fn model_protocol_008_complete_catalogs_preserve_declaration_counts() {
+    for (text, expected) in [
+        (BUNDLED_MODELS_TEXT, (230, 8909, 230, 840, 618, 508, 103)),
+        (BUNDLED_SHIJU_MODELS_TEXT, (1, 40, 0, 0, 0, 0, 0)),
+    ] {
+        let source: Value = serde_json::from_str(text).unwrap();
+        let providers = parse_models_text("model_protocol_008", text).unwrap();
+        let mut counts = (providers.len(), 0, 0, 0, 0, 0, 0);
+        for (id, provider) in &providers {
+            assert_eq!(provider.npm.as_deref(), source[id]["npm"].as_str());
+            counts.2 += usize::from(provider.npm.is_some());
+            for (key, model) in &provider.models {
+                counts.1 += 1;
+                if let Some(declaration) = &model.provider {
+                    counts.3 += 1;
+                    counts.4 += usize::from(declaration.api.is_some());
+                    counts.5 += usize::from(declaration.npm.is_some());
+                    counts.6 += usize::from(declaration.shape.is_some());
+                    let raw = &source[id]["models"][key]["provider"];
+                    assert_eq!(declaration.api.as_deref(), raw["api"].as_str());
+                    assert_eq!(declaration.npm.as_deref(), raw["npm"].as_str());
+                    assert_eq!(declaration.shape.as_deref(), raw["shape"].as_str());
+                }
+            }
+        }
+        assert_eq!(counts, expected);
+    }
+}
+
+#[test]
+fn model_protocol_008_real_catalog_overrides_remain_distinct() {
+    let providers = parse_models_text("model_protocol_008", BUNDLED_MODELS_TEXT).unwrap();
+    let anthropic = &providers["anthropic"];
+    let model = anthropic.models.values().next().unwrap();
+    assert_eq!(from_models_dev_model(anthropic, model).api.adapter, "anthropic");
+    let bedrock = &providers["amazon-bedrock"];
+    let model = &bedrock.models["openai.gpt-oss-120b"];
+    assert_eq!(from_models_dev_model(bedrock, model).api.adapter, "@ai-sdk/amazon-bedrock/mantle");
+    let declaration = model.provider.as_ref().unwrap();
+    assert_eq!(declaration.api.as_deref(), Some("https://bedrock-mantle.${AWS_REGION}.api.aws/v1"));
+    assert_eq!(declaration.shape.as_deref(), Some("responses"));
+    let alibaba = &providers["alibaba-cn"];
+    let model = &alibaba.models["qwen-omni-turbo-realtime"];
+    assert_eq!(
+        model.provider.as_ref().unwrap().api.as_deref(),
+        Some("wss://dashscope.aliyuncs.com/api-ws/v1/realtime")
+    );
+    assert_eq!(from_models_dev_model(alibaba, model).api.adapter, "openai-compatible");
+}

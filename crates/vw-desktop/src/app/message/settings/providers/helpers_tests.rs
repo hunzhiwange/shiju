@@ -84,6 +84,7 @@ fn raw_provider(
     models: Vec<raw_model_provider::Model>,
 ) -> raw_model_provider::Provider {
     raw_model_provider::Provider {
+        npm: None,
         api: None,
         name: name.to_string(),
         env: Vec::new(),

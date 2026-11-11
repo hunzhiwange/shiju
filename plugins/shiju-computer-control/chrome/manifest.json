@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "ShiJu Computer Control",
+  "description": "Grant ShiJu temporary control of a tab by clicking the extension. Click again after navigation; newly opened tabs require a separate click.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "106",
+  "permissions": ["activeTab", "scripting", "nativeMessaging"],
+  "background": { "service_worker": "background.mjs", "type": "module" },
+  "action": { "default_title": "Allow ShiJu on this document / connect local host" }
+}

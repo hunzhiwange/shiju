@@ -349,8 +349,6 @@ pub(crate) fn monthly_quota(app: &App) -> Option<Element<'_, Message>> {
         }
     };
     let trigger = ring.view();
-    #[cfg(target_arch = "wasm32")]
-    let trigger = row![text(title).size(12), trigger].spacing(6).align_y(iced::Alignment::Center);
     Some(
         Tooltip::new(trigger, container(details).width(Length::Fixed(248.0)), Position::Top)
             .gap(5.0)

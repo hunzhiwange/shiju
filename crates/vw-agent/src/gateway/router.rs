@@ -149,13 +149,21 @@ pub(super) fn app_routing_router() -> Router {
         routing::{get, post},
     };
     use handlers::app_routing::{
-        cancel_outbound_probe, get_app_config, get_config, get_egress, health,
-        outbound_probe_status, put_app_config, put_config, put_egress, start, start_outbound_probe,
-        status, stop,
+        cancel_outbound_probe, cancel_outbound_scan, get_app_config, get_config, get_egress,
+        health, outbound_probe_status, outbound_scan_status, put_app_config, put_config,
+        put_egress, start, start_outbound_probe, start_outbound_scan, status, stop,
     };
 
     Router::new()
         .route("/app-routing/hosts/{host}/status", get(status))
+        .route(
+            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans",
+            post(start_outbound_scan),
+        )
+        .route(
+            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans/{task}",
+            get(outbound_scan_status).delete(cancel_outbound_scan),
+        )
         .route("/app-routing/hosts/{host}/health", get(health))
         .route("/app-routing/hosts/{host}/start", post(start))
         .route("/app-routing/hosts/{host}/stop", post(stop))

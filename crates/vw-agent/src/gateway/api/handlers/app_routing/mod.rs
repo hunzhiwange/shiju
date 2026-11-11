@@ -2,6 +2,7 @@ mod config_api;
 mod lifecycle_api;
 mod outbound_api;
 mod outbound_probe;
+mod outbound_scan;
 
 #[path = "../agent_apps_high_availability.rs"]
 pub(crate) mod agent_apps_high_availability;
@@ -15,6 +16,8 @@ pub(crate) use outbound_probe::{
     cancel_outbound_probe, outbound_probe_status, start_outbound_probe,
 };
 
+pub(crate) use outbound_scan::{cancel_outbound_scan, outbound_scan_status, start_outbound_scan};
+
 #[cfg(test)]
 mod config_api_tests;
 #[cfg(test)]
@@ -25,3 +28,6 @@ mod outbound_api_tests;
 
 #[cfg(test)]
 mod outbound_probe_tests;
+
+#[cfg(test)]
+mod outbound_scan_tests;

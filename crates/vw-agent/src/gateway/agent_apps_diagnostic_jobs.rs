@@ -522,6 +522,9 @@ fn valid_result(kind: DiagnosticProbeKind, result: &DiagnosticResult) -> bool {
                 && valid_id(&item.id.0)
                 && item.connection_revision > 0;
         }
+        DiagnosticResult::OutboundScan { report } => {
+            (DiagnosticProbeKind::OutboundScan, &report.timings, true)
+        }
         DiagnosticResult::OutboundProxy { report } => {
             (DiagnosticProbeKind::OutboundProxy, &report.timings, true)
         }

@@ -96,7 +96,7 @@ CC Switch 4.0.25，固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。以
 | 12 `get_proxy_config_for_app` / `update_proxy_config_for_app` | GET / PUT `A/config`。PUT `{firstByteTimeoutSecs,idleTimeoutSecs,nonStreamingTimeoutSecs}`，分别 1–120、0–600、60–1200，0 仅表示 idle 禁用 | 200 同形 `AppRoutingConfig`，非法数值 400。enabled 从模式取得，重试、故障转移及熔断写入归母 9 | P读/管 `app_routing_app_config` / `app_routing_set_app_config` |
 | 28 `get_global_proxy_url`、`get_upstream_proxy_status` / `set_global_proxy_url` | GET / PUT `R/egress`。PUT `{mode,proxyUrl?}`，mode 为 direct/system/custom，仅 custom 需写入 URL（http/https/socks5/socks5h） | 200 `{configuredMode,effectiveMode,scheme,hasCredentials}`，无代理时 scheme=null。400 非法代理，409 `egress_not_applied` 保持原出口。空配置映射为系统策略或直连须明确选 mode | H读/管 `app_routing_egress` / `app_routing_set_egress` |
 | 29 `test_proxy_url` | POST `R/projects/{projectId}/egress/tests`，空 JSON 对象。用已配置出口到执行端固定 TLS 目标（来源候选中 `https://api.anthropic.com`），10 秒总时限，无调用者提供的目标或 URL | 202 `{operationId}`，409 `egress_not_configured`，429 达并发上限。真实连接结果见操作状态 | 诊断 `app_routing_egress_test_start` |
-| 30 `scan_local_proxies` | POST `R/projects/{projectId}/egress/scans`，空 JSON 对象。仅本机 `127.0.0.1` 的 7890、7891、1080、8080、8888、3128、10808、10809，每端口至多 100 ms，操作总时限 2 秒 | 202 `{operationId}`。状态给出来源协议候选和开放端口，开放端口只代表 TCP 可连。429 达并发上限 | 诊断 `app_routing_egress_scan_start` |
+| 30 `scan_local_proxies` | POST `R/projects/{projectId}/apps/{app}/egress/scans`，空 JSON。仅固定八个 IPv4 回环候选，每端口至多 100ms，2 秒网络期限，排队后复核；GET/DELETE 同路径追加 `/{task}` 查询/取消 | 202 `DiagnosticJobIdentity`，类别 outbound_scan。状态保留进度及端口开放状态、来源协议候选；开放只代表 TCP 可连。429 达任务容量上限 | 诊断 `app_routing_start_outbound_scan` / `app_routing_outbound_scan_status` / `app_routing_cancel_outbound_scan` |
 | 29–30 读取进度与取消 | GET / DELETE `R/projects/{projectId}/egress/operations/{operationId}` | GET 200 `{operationId,kind,state,completed,total,result?,errorCode?}`，状态 queued/running/completed/failed/cancelled/interrupted。测试结果含 latencyMs，扫描结果含候选端口及 scheme。DELETE 202 接受取消，终态重发 200 返回当前状态。不存在 404，过期 410 `operation_expired` | 诊断且匹配发起主体 `app_routing_egress_operation` / `app_routing_egress_cancel` |
 | 85 请求状态 | GET `A/requests?limit=…`，1–100，默认 50 | 200 `{activeCount,requests}`，只含 requestId、state、startedAt、firstTokenMs、finishedAt、errorCode 等脱敏摘要，按最近开始时间排序。无活动返回空列表 | P读 `app_routing_requests` |
 | 85 请求终态 | GET `A/requests/events`，SSE | 200 `request_finished`，一次终态含作用域、requestId、结果与时间，无 prompt/usage 载荷，usage 单次交母 17。重连先读快照 | P读 `app_routing_request_events` |
@@ -741,3 +741,33 @@ SDK 红灯、初次网关红灯构建和基线 HTTP 复现使用共享槽位 **6
 | 提交审查 | `git diff --cached --check`，逐个暂存 Rust 文件经 `rustfmt --edition 2024 --config skip_children=true --emit stdout` 解析并逐字节比对 | 退出 0，18 个任务文件通过核对。共享文件仅包含本项补丁，相邻聚合和 MCP 改动保留在工作区。 |
 
 网关测试链接出现既有 macOS `__eh_frame` 大小警告，聚焦测试退出 0。SDK、网关和依赖回归共 12 项通过。状态为 **已完成**，仅本项差异进入提交，自己的槽位锁已释放并保留缓存。
+
+## 任务 30　扫描有限回环代理端口
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 28 的 `7039ab326`，复用任务 29 的宿主诊断注册表及授权接线 `e8bba5115`。核对 CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `commands/global_proxy.rs`、`hooks/useGlobalProxy.ts`，两者 SHA256 与仓库快照、来源映射逐字节一致；同时检查 API 包装及 `GlobalProxySettings.tsx` 的扫描调用。母任务 2、3 的网关、执行主机、项目应用授权，以及母任务 4、6 的原生配置和账号契约均已有生产接口，本项不增加这些母能力。
+
+- `POST /v1/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans` 接受空 JSON，返回 202 和 `DiagnosticJobIdentity`。同路径追加 `/{task}`，GET 查询、DELETE 取消。沿用已有应用诊断作用域，显式包含 app，避免推断项目的默认应用；入口逐次核验租户、成员、执行主机、项目应用和管理许可，任务仅对原主体及原作用域可见。扫描与代理连接测试分用 `outbound_scan`、`outbound_proxy` 类别，彼此的查询和取消路径不能混用，响应沿用 no-store 和结构化错误。
+- `RoutingOutboundScanRequest` 拒绝未知字段，无 IP、URL、端口范围或自定义时限。执行地址仅由 `Ipv4Addr::LOCALHOST` 和来源固定八端口 7890、7891、1080、8080、8888、3128、10808、10809 构造。每端口最多 100ms，提交前确定 2 秒网络期限，获得宿主并发许可后再次检查剩余时限，过期不发起连接。复用 `DiagnosticJobs` 的宿主并发、任务容量、进度、取消、检查点和保留期，不增加第二套任务所有者。
+- 每个候选报告 `RoutingOutboundScanEvidence { port, tcpOpen, protocolCandidates }`，关闭或超时端口报告 false 和空协议列表。TCP 可连只提供来源协议提示，7890 提示 HTTP 和 SOCKS5，其余按来源单一协议提示；未执行协议握手，不声称代理可用。连接成功后立即关闭，不发送应用数据，不改出口配置。排队超过网络期限后返回结构化 Timeout，取消在等待或连接过程中释放 future/socket，资源退出后才发布终态。
+- SDK 为 `app_routing_start_outbound_scan`、`app_routing_outbound_scan_status`、`app_routing_cancel_outbound_scan`，保留任务进度、候选证据和错误。实际文件为三个 crate 下的 `app_routing/outbound_scan.rs` 及独立测试，直接父模块注册；已有 lib/client/handlers 分域导出足够，无需重复导出。仅新增本项路由和诊断结果分支。
+- 隔离临时 HOME、策略和动态网关验证授权、非法目标字段、八个固定候选的进度与结果，以及任务类别隔离。独立动态 TCP 夹具验证无应用数据和关闭连接；可控 pending future 验证取消、端口时限和绝对期限，取消返回前以 Drop 标记确认在途连接 future 已释放。无需占用任何固定候选端口。Windows、Linux、WSL 范围外且未验证，WSL 地址映射保持原记录。
+
+### 验证记录
+
+红灯、格式化、聚焦测试和首次 Clippy 动态领取共享槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；Clippy 复验领取 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与目标目录相同，阶段结束释放自己的锁并保留缓存。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| SDK 红灯 | `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 退出 101，1 项断言失败：现有任务 DTO 拒绝 outbound_scan 类别。 |
+| 网关 HTTP 红灯 | `python3 /tmp/task30-baseline.py`，使用槽位 3 的 `vw_agent-e6259d379726497c` | 退出 1，1 条行为断言失败。缓存二进制包含任务 28；同一主体的生命周期、出口配置返回 200，已授权扫描请求返回 401，预期 202。隔离子进程已回收。 |
+| 网关红灯构建 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 退出 101，0 项运行。在独立 HTTP 红灯取得后终止旧基线编译；不作为行为证据。 |
+| 首次 SDK 通过验证尝试 | `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 退出 101，0 项运行。本项测试移动借用证据的 E0507 已修复。 |
+| 首次网关通过验证尝试 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 退出 101，0 项运行。本项整理导入产生的三个 E0252 已修复；取得编译错误后终止该失败构建。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`，再对本项文件执行 `rustfmt --edition 2024 --config skip_children=true` | 退出 0。全仓输出只读，写入限定为本项文件。 |
+| SDK 聚焦复验 | `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 退出 0，2 项通过，0 失败。 |
+| 网关聚焦复验 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 退出 0，4 项通过，0 失败或忽略，运行 0.41 秒。 |
+| 首次全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 3，退出 101。桌面 `app/message/chat/input/file_search.rs:87/96/101/106` 四个未使用函数；所属改动随后移除了这些函数。本项未修改这些文件。 |
+| 全仓 Clippy 复验 | `cargo clippy --all-targets --all-features -- -D warnings` | 等已有 Clippy 全部退出后领取槽位 2，退出 101。并行渠道配置改动中的 `crates/vw-config-types/src/channels/chat_tests.rs:81–109` 存在 12 个 E0422/E0609/E0599：`ChannelExecutionConfig`、`instance_execution`、`validate_instance_execution` 缺失。本项不修改这些文件。 |
+| 差异审查 | `git diff --cached --check` | 退出 0，仅暂存扫描实现、注册、独立测试与本项证据。 |
+
+SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__eh_frame` 大小警告；Clippy 的依赖 `iced_winit` 报告弃用警告。全仓 Clippy 因无关并行改动未通过，因此状态为 **已完成，待回归**，保留任务 30 卡。恢复条件：渠道配置实现与测试对齐后，重新领取共享槽位并运行相同全仓 Clippy 命令。自己的槽位 3、2 均已释放，缓存保留。未修改 `plan.md`，未宣称母任务 8 完成。

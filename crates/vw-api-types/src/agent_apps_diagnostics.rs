@@ -42,6 +42,7 @@ pub enum DiagnosticProbeKind {
     Streaming,
     Mcp,
     OutboundProxy,
+    OutboundScan,
 }
 
 /// Server-issued identity returned on acceptance. IDs do not grant access to the job.
@@ -135,6 +136,9 @@ pub enum DiagnosticResult {
         scope: McpCatalogScope,
         generation: u64,
         item: McpConnectionCheckItem,
+    },
+    OutboundScan {
+        report: DiagnosticReport<crate::app_routing::RoutingOutboundScanEvidence>,
     },
     OutboundProxy {
         report: DiagnosticReport<crate::app_routing::RoutingOutboundProbeEvidence>,

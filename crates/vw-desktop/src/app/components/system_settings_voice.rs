@@ -36,7 +36,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         text(app.voice.hotkeys.status()).style(settings_muted_text_style),
         action("立即停用全局热键（本机）".into(), Event::DisableHotkeys),
         super::voice_recordings::view(app),
-        text(i18n.__("屏幕上下文：未启用")).style(settings_muted_text_style),
+        text(i18n.__("屏幕上下文默认关闭；在每次语音聊天中启用并确认要分享的单帧窗口。"))
+            .style(settings_muted_text_style),
     ]
     .spacing(14)
     .into()

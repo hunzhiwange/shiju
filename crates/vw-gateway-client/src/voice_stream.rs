@@ -171,7 +171,8 @@ impl VoiceStream {
         }
         if !matches!(
             event,
-            VoiceEvent::AudioAppend(_)
+            VoiceEvent::ScreenShare(_)
+                | VoiceEvent::AudioAppend(_)
                 | VoiceEvent::InputCommit {}
                 | VoiceEvent::InputMute { .. }
                 | VoiceEvent::ResponseInterrupt { .. }
@@ -236,7 +237,8 @@ impl VoiceStream {
                         || frame.generation.get() != self.generation.get() + 1))
                 || matches!(
                     frame.event,
-                    VoiceEvent::AudioAppend(_)
+                    VoiceEvent::ScreenShare(_)
+                        | VoiceEvent::AudioAppend(_)
                         | VoiceEvent::InputCommit {}
                         | VoiceEvent::InputMute { .. }
                         | VoiceEvent::ResponseInterrupt { .. }

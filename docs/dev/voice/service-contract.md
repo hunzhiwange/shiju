@@ -266,3 +266,13 @@ WebSocket 只传文本 JSON，不接受二进制帧；每条文本是一条完�
 - `codex-rs/app-server-protocol/src/protocol/v2/realtime.rs` 将音频、字幕、工作和关闭分开，可借鉴事件职责；实验参数、Cove 枚举和私有交接不构成公开能力依据。
 
 本任务仅文档核对，不需要凭据/实机，也未声称真实 API、麦克风、扬声器或 macOS 插入成功。后续任务须验证 DTO 解析、租户隔离、迟到帧、取消、审批去重和真实服务/设备；服务端若拒绝本快照中的模型或字段，应返回明确错误并更新能力证据，不做私有接口回退。
+
+## 单帧屏幕分享扩展（2026-11-12）
+
+本次重新读取[模型说明](https://developers.openai.com/api/docs/models/gpt-realtime-2.1)确认图像输入，及[客户端事件](https://developers.openai.com/api/reference/resources/realtime/client-events)确认 `conversation.item.create` 的 user/message/content/input_image 形状。该扩展取代上文 v1“不接受屏幕帧”的基线限制；不更换模型，不假定账户服务已实测。
+
+桌面到网关新增 `screen.share`，payload 只有 `png`（标准 Base64 PNG），沿用当前 voice_session_id、generation、seq、租户/身份绑定和 64 KiB 完整消息上限。PNG 原始字节最多 40 KiB，宽高各 1–1024；网关校验头部与完整解码，拒绝 URL、文件引用和其它格式。每会话最多 32 帧，两帧间至少两秒，队列继续有界。图像仅加入当前语音会话上下文，不隐式触发 response.create 或工具执行。
+
+上游转换为 user message 中的 `input_image`（`image_url=data:image/png;base64,…`，`detail=low`），另附固定文字标明不可信参考数据；会话 instructions 明确屏幕/OCR/界面文字不是指令，不得提升工具权限或绕过审批。所有媒体调试输出脱敏。服务拒绝图像时明确停止并提示用户改用当前聊天附件；该操作只返回聊天，必须由用户重新选择附件并确认发送，不自动保存截图或写入其它会话。
+
+本机开关每次通话默认关闭。选择目标只读元数据；确认后才调用 ScreenCaptureKit 单窗口截图（macOS 14+），无屏幕流、无轮询采集、无文件落盘。取消/关闭/会话或 generation 变化后拒绝迟到帧；权限在采集前、回调和发送前重新查询。已发送到远端的内容无法由本机关闭操作撤回。

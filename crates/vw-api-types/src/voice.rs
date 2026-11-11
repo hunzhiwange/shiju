@@ -182,6 +182,41 @@ fn validate_audio(audio: &str, samples: usize) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// One in-memory PNG, with no URLs, OCR instructions or permission changes.
+pub const MAX_SCREEN_BYTES: usize = 40 * 1024;
+pub const MAX_SCREEN_EDGE: u32 = 1024;
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScreenPayload {
+    pub png: String,
+}
+impl std::fmt::Debug for ScreenPayload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ScreenPayload([redacted])")
+    }
+}
+impl ScreenPayload {
+    pub fn bytes(&self) -> Result<Vec<u8>, &'static str> {
+        if self.png.len() > MAX_SCREEN_BYTES.div_ceil(3) * 4 {
+            return Err("screen frame exceeds byte limit");
+        }
+        let bytes = STANDARD.decode(&self.png).map_err(|_| "invalid screen base64")?;
+        if bytes.len() < 33
+            || bytes.len() > MAX_SCREEN_BYTES
+            || &bytes[..8] != b"\x89PNG\r\n\x1a\n"
+            || &bytes[8..16] != b"\0\0\0\rIHDR"
+        {
+            return Err("invalid screen PNG");
+        }
+        let width = u32::from_be_bytes(bytes[16..20].try_into().unwrap());
+        let height = u32::from_be_bytes(bytes[20..24].try_into().unwrap());
+        if width == 0 || height == 0 || width > MAX_SCREEN_EDGE || height > MAX_SCREEN_EDGE {
+            return Err("screen dimensions exceed limit");
+        }
+        Ok(bytes)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TranscriptRole {
@@ -234,6 +269,8 @@ pub enum CloseReason {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload", deny_unknown_fields)]
 pub enum VoiceEvent {
+    #[serde(rename = "screen.share")]
+    ScreenShare(ScreenPayload),
     #[serde(rename = "audio.append")]
     AudioAppend(AudioPayload),
     #[serde(rename = "input.commit")]
@@ -310,6 +347,7 @@ pub enum VoiceEvent {
 impl VoiceEvent {
     pub fn validate(&self) -> Result<(), &'static str> {
         match self {
+            Self::ScreenShare(screen) => screen.bytes().map(|_| ()),
             Self::AudioAppend(audio) => validate_audio(&audio.audio, audio.samples_per_channel),
             Self::AudioDelta { audio, samples_per_channel, .. } => {
                 validate_audio(audio, *samples_per_channel)

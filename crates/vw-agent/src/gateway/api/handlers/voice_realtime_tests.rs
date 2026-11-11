@@ -360,3 +360,53 @@ fn voice_task_10_slow_consumer_has_one_second_shared_pcm_budget() {
     assert_eq!(samples.available_permits(), 24_000);
     assert_eq!(frames.available_permits(), 50);
 }
+
+fn screen_payload() -> ScreenPayload {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::new_rgb8(8, 8).write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+    ScreenPayload { png: STANDARD.encode(bytes.into_inner()) }
+}
+#[tokio::test]
+async fn voice_task_17_gateway_screen_is_forwarded_only_on_its_connection() {
+    let mut fixture = fixture().await;
+    send(&mut fixture.peer, "local", 1, VoiceEvent::ScreenShare(screen_payload())).await;
+    // Ordered media commit produces a response after the image; wait for it before closing.
+    send(
+        &mut fixture.peer,
+        "local",
+        2,
+        VoiceEvent::AudioAppend(AudioPayload {
+            audio: "A".repeat(6400),
+            samples_per_channel: 2400,
+        }),
+    )
+    .await;
+    send(&mut fixture.peer, "local", 3, VoiceEvent::InputCommit {}).await;
+    let response = tokio::time::timeout(Duration::from_secs(3), fixture.peer.next())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        VoiceFrame::parse(response.into_data().as_ref()).unwrap().event,
+        VoiceEvent::ResponseStarted { .. }
+    ));
+    fixture.peer.close(None).await.unwrap();
+    let commands =
+        tokio::time::timeout(Duration::from_secs(3), &mut fixture.commands).await.unwrap().unwrap();
+    let images: Vec<_> =
+        commands.iter().filter(|c| c["type"] == "conversation.item.create").collect();
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0]["item"]["role"], "user");
+    assert_eq!(images[0]["item"]["content"][1]["type"], "input_image");
+}
+#[tokio::test]
+async fn voice_task_17_gateway_cross_session_screen_is_not_forwarded() {
+    let mut fixture = fixture().await;
+    send(&mut fixture.peer, "foreign", 1, VoiceEvent::ScreenShare(screen_payload())).await;
+    let _ = tokio::time::timeout(Duration::from_secs(3), fixture.peer.next()).await;
+    let commands =
+        tokio::time::timeout(Duration::from_secs(3), &mut fixture.commands).await.unwrap().unwrap();
+    assert!(commands.is_empty());
+}

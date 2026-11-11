@@ -31,6 +31,7 @@ pub(crate) struct Caption {
 #[derive(Clone)]
 pub(crate) struct Snapshot {
     pub phase: Phase,
+    pub generation: Option<VoiceCounter>,
     pub microphone: bool,
     pub sending: bool,
     pub playing: bool,
@@ -41,6 +42,7 @@ impl Default for Snapshot {
     fn default() -> Self {
         Self {
             phase: Phase::Connecting,
+            generation: None,
             microphone: false,
             sending: false,
             playing: false,
@@ -93,10 +95,12 @@ pub(crate) struct Conversation {
     control: watch::Sender<Control>,
     snapshot: Arc<Mutex<Snapshot>>,
     worker: Option<JoinHandle<()>>,
+    screen: tokio::sync::mpsc::Sender<(super::screen_context::Ticket, VoiceCounter, ScreenPayload)>,
 }
 impl Conversation {
     pub(crate) fn start(endpoint: GatewayEndpoint, session: String) -> Result<Self, &'static str> {
         let (control, receiver) = watch::channel(Control::default());
+        let (screen, screen_rx) = tokio::sync::mpsc::channel(1);
         let snapshot = Arc::new(Mutex::new(Snapshot::default()));
         let output = snapshot.clone();
         let worker = std::thread::Builder::new()
@@ -107,7 +111,13 @@ impl Conversation {
                     .build()
                     .map_err(|_| "无法启动语音通话。")
                     .and_then(|runtime| {
-                        runtime.block_on(run(endpoint, session, receiver, output.clone()))
+                        runtime.block_on(run(
+                            endpoint,
+                            session,
+                            receiver,
+                            output.clone(),
+                            screen_rx,
+                        ))
                     });
                 let mut state = output.lock().unwrap_or_else(|e| e.into_inner());
                 state.microphone = false;
@@ -117,10 +127,23 @@ impl Conversation {
                 state.error = result.err();
             })
             .map_err(|_| "无法启动语音通话。")?;
-        Ok(Self { control, snapshot, worker: Some(worker) })
+        Ok(Self { control, snapshot, worker: Some(worker), screen })
     }
     pub(crate) fn snapshot(&self) -> Snapshot {
         self.snapshot.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+    pub(crate) fn share(
+        &self,
+        ticket: super::screen_context::Ticket,
+        generation: VoiceCounter,
+        payload: ScreenPayload,
+    ) -> Result<(), &'static str> {
+        if !ticket.is_live() || self.snapshot().generation != Some(generation) {
+            return Err("屏幕帧已过期，请重新分享。");
+        }
+        self.screen
+            .try_send((ticket, generation, payload))
+            .map_err(|_| "屏幕分享队列繁忙，请稍后重试。")
     }
     pub(crate) fn mute(&self) {
         self.control.send_modify(|c| c.muted = !c.muted);
@@ -167,6 +190,11 @@ async fn run(
     session: String,
     mut control: watch::Receiver<Control>,
     output: Arc<Mutex<Snapshot>>,
+    mut screen: tokio::sync::mpsc::Receiver<(
+        super::screen_context::Ticket,
+        VoiceCounter,
+        ScreenPayload,
+    )>,
 ) -> Result<(), &'static str> {
     // The outer cancellation also drops connection setup, device and in-flight network sends.
     let mut cancelled = control.clone();
@@ -178,7 +206,7 @@ async fn run(
                 if cancelled.changed().await.is_err() { break; }
             }
         } => Ok(()),
-        result = connected(endpoint, session, &mut control, output) => result,
+        result = connected(endpoint, session, &mut control, output, &mut screen) => result,
     }
 }
 async fn connected(
@@ -186,6 +214,11 @@ async fn connected(
     session: String,
     control: &mut watch::Receiver<Control>,
     output: Arc<Mutex<Snapshot>>,
+    screen: &mut tokio::sync::mpsc::Receiver<(
+        super::screen_context::Ticket,
+        VoiceCounter,
+        ScreenPayload,
+    )>,
 ) -> Result<(), &'static str> {
     if !endpoint.is_loopback() {
         return Err("当前语音传输仅支持本机网关。");
@@ -216,13 +249,18 @@ async fn connected(
         super::preferences::Preferences::load().map_err(|_| "无法读取本机语音设置。")?.microphone;
     let live =
         LiveCapture::start_device(device).map_err(|_| "无法采集麦克风，请检查权限或设备。")?;
-    pump(&mut stream, live, control, output).await
+    pump(&mut stream, live, control, output, screen).await
 }
 async fn pump(
     stream: &mut VoiceStream,
     live: LiveCapture,
     control: &mut watch::Receiver<Control>,
     output: Arc<Mutex<Snapshot>>,
+    screen: &mut tokio::sync::mpsc::Receiver<(
+        super::screen_context::Ticket,
+        VoiceCounter,
+        ScreenPayload,
+    )>,
 ) -> Result<(), &'static str> {
     let (capture, live) = live.into_parts();
     let mut media = Media { capture: Some(capture), playback: None };
@@ -260,6 +298,11 @@ async fn pump(
                     }
                 }
                 last = next;
+            }
+            Some((ticket, generation, payload)) = screen.recv() => {
+                if ticket.is_live() && generation == stream.generation() && super::screen_context::permitted() {
+                    stream.send(generation, VoiceEvent::ScreenShare(payload)).await.map_err(|_| "屏幕分享失败；可结束通话后使用聊天附件分享。")?;
+                }
             }
             frame = stream.next() => {
                 let frame = frame.map_err(|_| "语音连接已断开，请重新开始。");
@@ -321,6 +364,7 @@ async fn pump(
                     }
                 }
                 let mut snapshot = output.lock().unwrap_or_else(|e| e.into_inner());
+                snapshot.generation = Some(stream.generation());
                 snapshot.microphone = true; snapshot.sending = sending; snapshot.playing = playing;
                 snapshot.phase = if last.muted { Phase::Muted } else if response.is_some() { Phase::Speaking } else { Phase::Listening };
             }

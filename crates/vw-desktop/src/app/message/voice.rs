@@ -8,10 +8,15 @@ use std::time::Duration;
 use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
+#[path = "voice_screen.rs"]
+mod screen;
+pub use screen::ScreenEvent;
+
 type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub screen: crate::app::voice::screen_context::State,
     pub insertion: crate::app::voice::insertion::State,
     pub hotkeys: crate::app::voice::hotkeys::Runtime,
     finish_requested: bool,
@@ -40,6 +45,7 @@ pub enum OnboardingEvent {
 }
 #[derive(Clone)]
 pub enum Event {
+    Screen(ScreenEvent),
     Onboarding(OnboardingEvent),
     Recordings(super::voice_recordings::Event),
     Transcribed(u64, Result<(String, Vec<u8>), String>),
@@ -66,6 +72,7 @@ impl State {
 impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Screen(..) => "VoiceScreen",
             Self::Onboarding(..) => "VoiceOnboarding",
             Self::Recordings(..) => "VoiceRecordings",
             Self::Transcribed(..) => "VoiceTranscribed",
@@ -110,6 +117,8 @@ fn stop(state: &mut State) {
     state.retain_requested = false;
 }
 pub(crate) fn end_conversation(app: &mut App) {
+    app.voice.screen.cancel();
+    app.voice.screen.enabled = false;
     app.voice.conversation.take();
     app.voice.conversation_scope = None;
     app.voice.conversation_endpoint = None;
@@ -126,6 +135,29 @@ pub(crate) fn cancel(app: &mut App) {
 }
 /// Called before and after dispatch so a switch away and back cannot revive old work.
 pub(crate) fn invalidate(app: &mut App) {
+    if app.voice.screen.enabled
+        && app.voice.conversation.as_ref().is_none_or(|c| {
+            matches!(
+                c.snapshot().phase,
+                crate::app::voice::conversation::Phase::Connecting
+                    | crate::app::voice::conversation::Phase::Error
+                    | crate::app::voice::conversation::Phase::Ending
+            )
+        })
+    {
+        app.voice.screen.cancel();
+        app.voice.screen.enabled = false;
+    }
+    if app.voice.screen.generation.is_some()
+        && app.voice.screen.generation
+            != app.voice.conversation.as_ref().and_then(|c| c.snapshot().generation)
+    {
+        app.voice.screen.cancel();
+    }
+    if app.voice.screen.enabled && !crate::app::voice::screen_context::permitted() {
+        app.voice.screen.cancel();
+        app.voice.screen.enabled = false;
+    }
     super::settings::voice::invalidate(app);
     super::voice_recordings::invalidate(app);
     if app.voice.conversation.is_some() {
@@ -176,6 +208,7 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::Screen(event) => screen::update(app, event),
         Event::Onboarding(event) => {
             use OnboardingEvent::*;
             match event {

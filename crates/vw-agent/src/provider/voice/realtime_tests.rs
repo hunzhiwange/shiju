@@ -340,3 +340,62 @@ async fn voice_task_09_user_transcript_merges_and_finalizes_once() {
     session.stop().await;
     server.await.unwrap();
 }
+
+fn screen_fixture() -> ScreenPayload {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    let image = image::DynamicImage::new_rgb8(8, 8);
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+    ScreenPayload { png: STANDARD.encode(bytes.into_inner()) }
+}
+#[tokio::test]
+async fn voice_task_17_realtime_screen_uses_user_image_without_tools_or_auto_reply() {
+    let (mut session, server) = fixture(vec![]).await;
+    session.input(VoiceCounter::FIRST, VoiceEvent::ScreenShare(screen_fixture())).await.unwrap();
+    session.stop().await;
+    let commands = server.await.unwrap();
+    assert_eq!(commands.len(), 2);
+    let item = &commands[1]["item"];
+    assert_eq!(commands[1]["type"], "conversation.item.create");
+    assert_eq!(item["role"], "user");
+    assert_eq!(item["content"][1]["type"], "input_image");
+    assert!(
+        item["content"][1]["image_url"].as_str().unwrap().starts_with("data:image/png;base64,")
+    );
+    assert!(item["content"][0]["text"].as_str().unwrap().contains("不可信"));
+    assert!(commands[0]["session"]["instructions"].as_str().unwrap().contains("不可信"));
+    assert_eq!(commands[0]["session"]["tools"].as_array().unwrap().len(), 1);
+}
+#[tokio::test]
+async fn voice_task_17_realtime_screen_invalid_image_and_stale_generation_are_not_sent() {
+    let (mut session, server) = fixture(vec![]).await;
+    assert_eq!(
+        session
+            .input(
+                VoiceCounter::FIRST.checked_next().unwrap(),
+                VoiceEvent::ScreenShare(screen_fixture())
+            )
+            .await
+            .unwrap_err(),
+        VoiceErrorCode::Cancelled
+    );
+    let mut payload = screen_fixture();
+    // A valid bounded PNG header with truncated image data must fail full decoding.
+    payload.png.truncate(48);
+    assert!(session.input(VoiceCounter::FIRST, VoiceEvent::ScreenShare(payload)).await.is_err());
+    session.stop().await;
+    assert_eq!(server.await.unwrap().len(), 1);
+}
+#[tokio::test]
+async fn voice_task_17_realtime_screen_rate_is_bounded() {
+    let (mut session, server) = fixture(vec![]).await;
+    session.input(VoiceCounter::FIRST, VoiceEvent::ScreenShare(screen_fixture())).await.unwrap();
+    assert_eq!(
+        session
+            .input(VoiceCounter::FIRST, VoiceEvent::ScreenShare(screen_fixture()))
+            .await
+            .unwrap_err(),
+        VoiceErrorCode::RateLimited
+    );
+    assert_eq!(server.await.unwrap().len(), 2);
+}

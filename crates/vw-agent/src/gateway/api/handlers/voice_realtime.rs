@@ -333,7 +333,7 @@ async fn read_peer(
             | VoiceEvent::ResponseInterrupt { .. }
             | VoiceEvent::InputMute { .. }
             | VoiceEvent::PlaybackProgress { .. } => &control,
-            VoiceEvent::InputCommit {} => &media,
+            VoiceEvent::InputCommit {} | VoiceEvent::ScreenShare(_) => &media,
             _ => break,
         };
         let stop = matches!(frame.event, VoiceEvent::SessionStop {});

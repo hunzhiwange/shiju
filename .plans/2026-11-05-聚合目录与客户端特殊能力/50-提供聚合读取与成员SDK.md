@@ -2,7 +2,7 @@
 
 批次：【批次 13】 依赖：批次 12 的任务 40。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -66,3 +66,14 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本次执行证据
+
+- 当前检出实施，未创建工作树，未修改 plan.md。任务40依赖见提交 `41a744646`、`cca303137` 及正式任务40验证文档。
+- 已交付 aggregation_members_api.rs 四个 SDK 方法、公开错误导出和独立 HTTP 测试；精确路径编码、scope、Bearer/租户头、结构化错误、禁止重放均有行为证据。
+- 同一过滤命令 `cargo test -p vw-gateway-client --lib aggregation_t50_ -- --nocapture`：红灯3项中1项路径编码失败（101）；修复及公开导出后最终4项全部通过（0），415项过滤。
+- 仅本卡源码/临时副本格式化；`cargo fmt --all --manifest-path /tmp/shiju-t50-format/Cargo.toml` 退出0，输出与当前源码一致。
+- 必需 `cargo clippy --all-targets --all-features -- -D warnings` 首轮退出0；公开导出后的最终轮退出101，仅并发在途 `crates/vw-agent/src/gateway/api/handlers/aggregation_publish_operation_tests.rs:4,22` 的 E0432/E0433，super 下无法解析 aggregation_read_snapshot。未修补、删除或 allow 无关代码。
+- 动态槽位5、10、4；绝对 CARGO_TARGET_DIR 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-5`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-10`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。首轮发现仓库独立 build-dir 覆盖中间目录，后续同时设置 CARGO_BUILD_BUILD_DIR 为各自槽位的 build 子目录；自有消费者均已退出，核对完整 owner 后清理自有锁，保留缓存。
+- 完整证据：`docs/shiju/agent-apps/aggregation/任务50-验证.md`；日志 `/tmp/shiju-t50-red.log`、`/tmp/shiju-t50-green.log`、`/tmp/shiju-t50-final.log`、`/tmp/shiju-t50-public-final.log`。
+- 最小回归条件：发布测试原所有者修正其模块引用后重跑必需全仓 Clippy，通过再删除本任务卡；不算母任务完成。没有以编译、零测试或模拟 HTTP 冒充真实客户端验收。

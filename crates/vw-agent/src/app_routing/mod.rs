@@ -10,6 +10,8 @@ mod dispatch;
 pub(crate) mod gateway_owner;
 mod header_wire;
 mod listener;
+#[cfg(target_os = "macos")]
+pub(crate) mod outbound_config;
 mod outbound_custom;
 #[cfg(target_os = "macos")]
 mod outbound_system;
@@ -37,6 +39,9 @@ mod listener_tests;
 
 #[cfg(test)]
 mod shared_transport_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod outbound_config_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod outbound_custom_tests;

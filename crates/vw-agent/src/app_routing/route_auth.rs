@@ -90,6 +90,14 @@ impl AuthorizedRoute {
     }
 
     #[cfg(target_os = "macos")]
+    pub(super) fn egress(
+        &self,
+        state: &super::outbound_config::EgressState,
+    ) -> Result<Option<Arc<super::outbound_config::RoutingEgress>>, StatusCode> {
+        state.for_scope(self.binding.project.tenant_scope(), &self.binding.host)
+    }
+
+    #[cfg(target_os = "macos")]
     pub(super) async fn timeouts(&self) -> Result<AppTimeouts, StatusCode> {
         let store = Arc::clone(self.timeout_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
         let project = self.binding.project.clone();

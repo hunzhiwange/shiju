@@ -21,10 +21,10 @@ use vw_api_types::{
     id::{ProjectId, ProjectScope, TenantScope},
 };
 
-type ConfigBody = Result<Json<Box<RawValue>>, JsonRejection>;
+pub(super) type ConfigBody = Result<Json<Box<RawValue>>, JsonRejection>;
 type AppPath = Result<Path<(String, ProjectId, AppId)>, PathRejection>;
 
-fn decode<T: DeserializeOwned>(body: ConfigBody) -> Result<T, ControlError> {
+pub(super) fn decode<T: DeserializeOwned>(body: ConfigBody) -> Result<T, ControlError> {
     let Json(body) = body.map_err(|_| ControlError::InvalidConfig)?;
     if !body.get().starts_with('{') {
         return Err(ControlError::InvalidConfig);

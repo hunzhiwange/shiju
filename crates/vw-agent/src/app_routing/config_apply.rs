@@ -1,7 +1,11 @@
 //! Runtime settings stored in the gateway's configured database.
 
-use super::RoutingListener;
 pub(crate) use super::timeouts::AppTimeouts;
+use super::{
+    RoutingListener,
+    outbound_config::{EgressError, RoutingEgress, StoredEgress},
+};
+use crate::security::SecretStore;
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -9,10 +13,12 @@ use std::{net::SocketAddr, sync::Arc};
 use vw_agent_apps::providers::validate_identity;
 use vw_api_types::{
     agent_apps::AppId,
+    app_routing::{RoutingEgressStatus, RoutingEgressUpdate},
     id::{ProjectScope, TenantScope},
 };
 
 const GLOBAL: &str = "agent_apps.routing.listener.v1";
+const EGRESS: &str = "agent_apps.routing.egress.v1";
 const APP: &str = "agent_apps.routing.timeouts.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,6 +99,28 @@ impl RoutingConfigStore {
             })
         })
         .await?
+    }
+
+    pub(crate) fn load_egress(&self, secrets: &SecretStore) -> Result<RoutingEgress> {
+        let payload = self.settings.get(&self.tenant, EGRESS, &self.host)?;
+        StoredEgress::restore(payload.as_deref(), secrets)
+    }
+
+    pub(crate) fn apply_egress(
+        &self,
+        routing: &RoutingListener,
+        update: &RoutingEgressUpdate,
+        secrets: &SecretStore,
+    ) -> std::result::Result<RoutingEgressStatus, EgressError> {
+        let _permit = routing.try_control().map_err(EgressError::Listener)?;
+        let prepared = RoutingEgress::prepare(update, routing.bound_address())?;
+        let payload = StoredEgress::encode(update, secrets).map_err(|_| EgressError::NotApplied)?;
+        self.settings
+            .upsert(&self.tenant, EGRESS, &self.host, &payload)
+            .map_err(|_| EgressError::NotApplied)?;
+        let status = prepared.status.clone();
+        routing.set_egress(self.tenant.clone(), self.host.clone(), Some(prepared));
+        Ok(status)
     }
 
     pub(crate) fn app_timeouts(

@@ -1,5 +1,7 @@
 //! Owns the application's loopback listener independently of session relays.
 
+#[cfg(target_os = "macos")]
+use super::outbound_config::{EgressState, RoutingEgress};
 use super::{
     body_limits::BodyLimits,
     dispatch,
@@ -24,6 +26,8 @@ use tokio::{
     time::timeout,
 };
 use vw_agent_apps::routing::lifecycle_state::{Lifecycle, LifecycleState};
+#[cfg(target_os = "macos")]
+use vw_api_types::{app_routing::RoutingEgressStatus, id::TenantScope};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ListenerError {
@@ -70,6 +74,8 @@ pub struct RoutingListener {
     // before draining the single listener.
     control_closed: Arc<tokio::sync::Mutex<bool>>,
     pub(super) auth: Arc<RouteAuth>,
+    #[cfg(target_os = "macos")]
+    egress: Arc<EgressState>,
     body_limits: BodyLimits,
     logging_enabled: Arc<AtomicBool>,
 }
@@ -120,6 +126,25 @@ impl RoutingListener {
         (lifecycle.state(), binding)
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn set_egress(
+        &self,
+        tenant: TenantScope,
+        host: String,
+        egress: Option<RoutingEgress>,
+    ) {
+        self.egress.set(tenant, host, egress);
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn egress_status(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+    ) -> Option<RoutingEgressStatus> {
+        self.egress.for_scope(tenant, host).ok().flatten().map(|egress| egress.status.clone())
+    }
+
     pub fn state(&self) -> LifecycleState {
         self.lifecycle.lock().state()
     }
@@ -150,12 +175,16 @@ impl RoutingListener {
 
     fn start_http(&self, address: SocketAddr) -> Result<SocketAddr, ListenerError> {
         let auth = Arc::clone(&self.auth);
+        #[cfg(target_os = "macos")]
+        let egress = Arc::clone(&self.egress);
         let logging = Arc::clone(&self.logging_enabled);
         let body_limits = self.body_limits.clone();
         self.start_at(address, move |connection| {
             Some(serve_http(
                 connection,
                 Arc::clone(&auth),
+                #[cfg(target_os = "macos")]
+                Arc::clone(&egress),
                 Arc::clone(&logging),
                 body_limits.clone(),
             ))
@@ -208,6 +237,7 @@ impl RoutingListener {
         self.logging_enabled.store(config.logging_enabled, Ordering::Relaxed);
         if let Some((runtime, socket, address)) = replacement {
             let auth = Arc::clone(&self.auth);
+            let egress = Arc::clone(&self.egress);
             let logging = Arc::clone(&self.logging_enabled);
             let body_limits = self.body_limits.clone();
             let mut lifecycle = self.lifecycle.lock();
@@ -232,6 +262,7 @@ impl RoutingListener {
                     Some(serve_http(
                         connection,
                         Arc::clone(&auth),
+                        Arc::clone(&egress),
                         Arc::clone(&logging),
                         body_limits.clone(),
                     ))
@@ -336,6 +367,7 @@ impl RoutingListener {
 async fn serve_http(
     connection: TcpStream,
     auth: Arc<RouteAuth>,
+    #[cfg(target_os = "macos")] egress: Arc<EgressState>,
     logging: Arc<AtomicBool>,
     body_limits: BodyLimits,
 ) {
@@ -343,6 +375,8 @@ async fn serve_http(
         return;
     };
     route_auth::serve(connection, auth, |request, route| {
+        #[cfg(target_os = "macos")]
+        let egress = Arc::clone(&egress);
         let logging = logging.load(Ordering::Relaxed);
         let body_limits = body_limits.clone();
         async move {
@@ -350,9 +384,16 @@ async fn serve_http(
                 tracing::info!("Authorized application routing request");
             }
             let protocol = Protocol::for_path(request.uri().path());
-            dispatch::forward_json(request, &route, &body_limits, local_addr)
-                .await
-                .unwrap_or_else(|error| error.response(protocol))
+            dispatch::forward_json(
+                request,
+                &route,
+                &body_limits,
+                local_addr,
+                #[cfg(target_os = "macos")]
+                &egress,
+            )
+            .await
+            .unwrap_or_else(|error| error.response(protocol))
         }
     })
     .await;

@@ -66,22 +66,24 @@ impl SharedTransport {
     /// Build an explicit egress for publication with an authorized route.
     pub fn with_custom_proxy(proxy_url: &str) -> anyhow::Result<Self> {
         let (proxy, intercept) = outbound_custom::parse(proxy_url)?;
-        let build_error = |_| anyhow::anyhow!("could not build outbound proxy transport");
+        Self::build_custom_proxy(proxy, intercept)
+            .map_err(|_| anyhow::anyhow!("could not build outbound proxy transport"))
+    }
+
+    pub(super) fn build_custom_proxy(
+        proxy: reqwest::Proxy,
+        intercept: Intercept,
+    ) -> Result<Self, reqwest::Error> {
         Ok(Self {
             client: upstream::upstream_http_client_builder()
                 .retry(reqwest::retry::never())
                 .no_proxy()
                 .proxy(proxy.clone())
-                .build()
-                .map_err(build_error)?,
-            encoded_client: encoded_client_builder()
-                .no_proxy()
-                .proxy(proxy)
-                .build()
-                .map_err(build_error)?,
+                .build()?,
+            encoded_client: encoded_client_builder().no_proxy().proxy(proxy).build()?,
             egress: Egress::Custom(intercept),
             #[cfg(target_os = "macos")]
-            direct: DirectClients::new().map_err(build_error)?,
+            direct: DirectClients::new()?,
         })
     }
 

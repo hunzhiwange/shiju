@@ -685,3 +685,29 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读 `plan.md` 无差异。 |
 
 测试链接报告既有 macOS `__eh_frame` 大小警告。本项占用的槽位锁均已释放，保留编译缓存。状态为 **已完成**。
+
+## 任务 28　接通出口配置与状态接口
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 27 的 `ef9474ffd`。核对了 CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `commands/global_proxy.rs`、`lib/api/globalProxy.ts` 和调用者 `hooks/useGlobalProxy.ts`。两份来源文件的 SHA256 与冻结快照和来源映射一致。复用母任务 2、3 已交付的网关认证、租户、主机和应用身份，原生配置及账号上游继续使用母任务 4、6 的契约。
+
+- `GET /v1/app-routing/hosts/{host}/egress` 使用主机级读许可，PUT 使用管理许可。两者沿用成员认证、租户与执行主机检查、`no-store` 及结构化错误。获准的项目路由继承所属租户和主机的出口。SDK 为 `GatewayClient::app_routing_egress` 与 `GatewayClient::app_routing_set_egress`。
+- `RoutingConfigStore::apply_egress` 持有控制许可，先解析 URL、检查已绑定监听器回环并构建传输，再将加密 URL 和模式写入租户/主机设置，写入成功才切换运行快照。请求在转发前读取快照，在途请求持有已取得的传输。更新失败返回脱敏错误并保留旧出口。进程重启恢复已保存的设置。
+- `RoutingEgressStatus` 只返回配置模式、生效模式、协议和凭据存在标记。显式更新 URL 仅写入且调试输出隐藏整条 URL。首次缺少设置时取系统快照，系统无代理时生效模式为直连，同时配置多个协议时状态优先显示 HTTPS 出口使用的代理协议。直连例外仍按每个目标判断。连接可用性检测归任务 29。
+- 聚焦用例使用独立临时目录、真实网关 HTTP、SQLite 写失败触发器和回环 HTTP CONNECT 夹具。覆盖读写权限、跨租户和主机拒绝、错误结构、状态及存储脱敏、失败保留旧出口、重启恢复、请求按主机选择代理以及回环直连。Windows、Linux、WSL 范围外且未验证，WSL 连接地址保留在来源映射。
+
+### 验证记录
+
+SDK 红灯、初次网关红灯构建和基线 HTTP 复现使用共享槽位 **6**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-6`。全仓格式化使用槽位 **7**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-7`。聚焦复验使用槽位 **5**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`。各阶段的 `CARGO_BUILD_BUILD_DIR` 与目标目录相同。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| SDK 行为红灯 | `cargo test -p vw-gateway-client --lib cc_route_028_ -- --nocapture` | 退出 101，1 项失败。断言复现写入请求的调试格式包含密码。 |
+| 网关红灯构建 | `cargo test -p vw-agent --lib cc_route_028_ -- --nocapture` | 退出 101，0 项运行。并行聚合改动的两个 `Path` 导入导致 E0252/E0107，随后由其所属任务修复。 |
+| 网关基线 HTTP 红灯 | `python3 /tmp/shiju-route-028-baseline.py`，启动槽位 6 的 `vw_agent-e6259d379726497c --ignored --exact gateway::api::handlers::app_routing::lifecycle_api_tests::gateway_child --nocapture` | 断言退出 1。包含批次 27 用例、未包含任务 28 的缓存网关二进制中，同一成员授权读生命周期状态返回 200，合法出口更新实际返回 401，复现缺失出口入口。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`，再对本项 Rust 文件执行 `rustfmt --edition 2024 --config skip_children=true` | 退出 0，只写入本项 Rust 差异。 |
+| SDK 聚焦复验 | `cargo test -p vw-gateway-client --lib cc_route_028_ -- --nocapture` | 退出 0，1 项通过，0 失败。 |
+| 网关聚焦复验 | `cargo test -p vw-agent --lib cc_route_028_ -- --nocapture` | 退出 0，2 项通过，0 失败或忽略。真实回环流量证明数据库提交失败和自转发校验失败都保留旧代理。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 5，退出 0。 |
+| 差异审查 | `git diff --cached --check` | 退出 0。仅暂存本项改动。 |
+
+测试链接报告既有 macOS `__eh_frame` 大小警告。聚焦复验与 Clippy 已各自返回 0，外层临时槽位脚本在三条命令结束后因运行期间编辑脚本退出 2。已核对本项槽位锁全部释放，编译缓存保留。状态为 **已完成**。

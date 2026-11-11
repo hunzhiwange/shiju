@@ -107,6 +107,19 @@ impl SystemProxy {
         }
     }
 
+    pub(super) fn proxy_metadata(&self) -> (Option<String>, bool) {
+        // HTTPS is the primary upstream scheme. System exceptions still apply per request.
+        let scheme = self
+            .https
+            .as_ref()
+            .or(self.http.as_ref())
+            .map(|endpoint| endpoint.url.scheme().to_owned());
+        let has_credentials = [&self.https, &self.http].into_iter().flatten().any(|endpoint| {
+            endpoint.intercept.basic_auth().is_some() || endpoint.intercept.raw_auth().is_some()
+        });
+        (scheme, has_credentials)
+    }
+
     pub(super) fn url(&self, target: &Url) -> Option<&Url> {
         Some(&self.endpoint(target)?.url)
     }

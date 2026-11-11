@@ -68,6 +68,16 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
         policy,
         policy_default,
     };
+    let tenant = control.scope.tenant.clone();
+    let host = control.scope.host.clone();
+    routing.set_egress(tenant.clone(), host.clone(), None);
+    match control
+        .with_config_store(|store| store.load_egress(&super::outbound_api::secrets()))
+        .await
+    {
+        Ok(egress) => routing.set_egress(tenant, host, Some(egress)),
+        Err(_) => tracing::warn!("Application routing egress unavailable"),
+    }
     if policy_default.enabled {
         match control.config().await {
             Ok(config) if config.enabled => {
@@ -257,6 +267,7 @@ pub(crate) enum ControlError {
     InvalidConfig,
     UnsupportedApp,
     ConfigNotApplied,
+    EgressNotApplied,
     Unauthenticated,
     Forbidden,
     NotFound,
@@ -309,6 +320,11 @@ impl IntoResponse for ControlError {
                 StatusCode::CONFLICT,
                 "config_not_applied",
                 "Routing address change could not be applied",
+            ),
+            Self::EgressNotApplied => (
+                StatusCode::CONFLICT,
+                "egress_not_applied",
+                "Routing egress change could not be applied",
             ),
             Self::Unauthenticated => {
                 (StatusCode::UNAUTHORIZED, "unauthenticated", "Application membership is required")

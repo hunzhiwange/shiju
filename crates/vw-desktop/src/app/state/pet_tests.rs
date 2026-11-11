@@ -383,3 +383,30 @@ fn task_pet_reply_dismiss_refresh_and_completed_click_behaviors() {
     assert!(app.task_pet_reply_request_id.is_none());
     assert!(app.task_pet_reply_input.is_empty());
 }
+
+#[test]
+fn mini_companion_none_keeps_controls() {
+    let mut app = app();
+    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    app.task_pet_visible = true;
+    assert!(app.task_pet_visible);
+    assert_eq!(app.task_pet_window_size(), iced::Size::new(112.0, 104.0));
+    let _ = crate::app::components::task_pet::window(&app);
+    app.toggle_task_pet_collapsed();
+    assert!(!app.task_pet_collapsed);
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::None);
+}
+
+#[test]
+fn mini_companion_scale_rejects_non_finite_and_bounds_values() {
+    let mut app = app();
+    assert_eq!(app.task_pet_scale, 1.0);
+    for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        assert!(app.set_task_pet_scale(invalid).is_err());
+        assert_eq!(app.task_pet_scale, 1.0);
+    }
+    app.set_task_pet_scale(0.1).unwrap();
+    assert_eq!(app.task_pet_scale, 0.5);
+    app.set_task_pet_scale(8.0).unwrap();
+    assert_eq!(app.task_pet_scale, 2.0);
+}

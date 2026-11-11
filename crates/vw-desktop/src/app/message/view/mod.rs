@@ -46,6 +46,28 @@ fn task_pet_window_settings(size: iced::Size, position: iced::Point) -> iced::wi
     }
 }
 
+/// 仅由加载和显式显示操作同步窗口；保存响应不改变窗口生命周期。
+pub(crate) fn sync_task_pet_window(app: &mut App) -> Task<Message> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = app;
+        Task::none()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    match (app.task_pet_visible, app.task_pet_window_id) {
+        (true, None) => {
+            let (id, open) = iced::window::open(task_pet_window_settings(
+                app.task_pet_window_size(),
+                app.task_pet_position,
+            ));
+            app.task_pet_window_id = Some(id);
+            open.map(|_| Message::None)
+        }
+        (false, Some(id)) => iced::window::close(id),
+        _ => Task::none(),
+    }
+}
+
 fn open_task_pet_session(app: &mut App, session_id: String) -> Task<Message> {
     if app.active_session_id.as_deref() == Some(session_id.as_str()) {
         return Task::none();
@@ -184,6 +206,10 @@ pub enum ViewMessage {
     TaskPetRobotHover(bool),
     /// 切换小宠物形态
     TaskPetAvatarCycle,
+    /// 选择伙伴头像，不改变 Mini 显示偏好。
+    TaskPetAvatarSelected(crate::app::state::TaskPetAvatarKind),
+    /// 更新并保存伙伴比例。
+    TaskPetScaleChanged(f32),
     /// 点击小宠物任务条目
     TaskPetItemClicked(u64),
     /// 主动删除小宠物任务条目
@@ -709,24 +735,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetToggleWindow => {
             app.task_pet_context_menu_pos = None;
-            #[cfg(target_arch = "wasm32")]
-            {
-                Task::none()
-            }
-
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                if let Some(window_id) = app.task_pet_window_id {
-                    iced::window::close(window_id)
-                } else {
-                    let size = app.task_pet_window_size();
-                    let position = app.task_pet_position;
-                    let (window_id, open_task) =
-                        iced::window::open(task_pet_window_settings(size, position));
-                    app.task_pet_window_id = Some(window_id);
-                    open_task.map(|_| Message::None)
-                }
-            }
+            // 关闭中的 ID 保留至 Closed；期间不再次创建窗口。
+            app.task_pet_visible = app.task_pet_window_id.is_none();
+            Task::batch([sync_task_pet_window(app), app.save_task_pet_preferences()])
+        }
+        ViewMessage::CloseRequested(id) if app.task_pet_window_id == Some(id) => {
+            app.task_pet_visible = false;
+            Task::batch([iced::window::close(id), app.save_task_pet_preferences()])
         }
         ViewMessage::TaskPetContextMenuOpened(x, y) => {
             app.task_pet_context_menu_pos = Some((x, y));
@@ -756,8 +771,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::TaskPetAvatarCycle => {
             app.cycle_task_pet_avatar();
-            Task::none()
+            app.save_task_pet_preferences()
         }
+        ViewMessage::TaskPetAvatarSelected(avatar) => {
+            app.task_pet_avatar_kind = avatar;
+            app.save_task_pet_preferences()
+        }
+        ViewMessage::TaskPetScaleChanged(scale) => match app.set_task_pet_scale(scale) {
+            Ok(()) => app.save_task_pet_preferences(),
+            Err(error) => app.show_error_toast(error),
+        },
         ViewMessage::TaskPetItemClicked(request_id) => {
             if let Some(session_id) = app.task_pet_item_clicked(request_id) {
                 open_task_pet_session(app, session_id)

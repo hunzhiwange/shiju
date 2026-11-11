@@ -352,7 +352,7 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
         }
     }
 
-    if app.task_pet_robot_hovered {
+    if app.task_pet_robot_hovered || app.task_pet_avatar_kind == TaskPetAvatarKind::None {
         pet_stack = pet_stack.push(
             container(expand_collapse_button(collapsed))
                 .width(Length::Fixed(PET_CONTROL_SIZE))
@@ -417,6 +417,7 @@ fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Messa
 
 fn pet_sprite(app: &App, size: f32) -> Element<'_, Message> {
     match app.task_pet_avatar_kind {
+        TaskPetAvatarKind::None => Space::new().into(),
         TaskPetAvatarKind::Robot => robot_pet_sprite(app, size),
         TaskPetAvatarKind::Beauty => human_pet_sprite(
             human_avatar_handle(

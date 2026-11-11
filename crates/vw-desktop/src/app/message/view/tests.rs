@@ -336,3 +336,56 @@ fn system_settings_messages_hide_and_restore_running_work_browser() {
     assert_eq!(probe.terminations, 0);
     assert!(!String::from_utf8_lossy(&probe.protocol).contains("close\n"));
 }
+
+#[test]
+fn mini_companion_hidden_and_avatar_are_independent() {
+    use crate::app::{App, message::ViewMessage, state::TaskPetAvatarKind};
+    let mut app = App::new().0;
+    assert!(!app.task_pet_visible);
+    let _ = super::update(&mut app, ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None));
+    assert!(!app.task_pet_visible);
+    assert!(app.task_pet_window_id.is_none());
+    let _ = super::update(&mut app, ViewMessage::TaskPetToggleWindow);
+    let window = app.task_pet_window_id.unwrap();
+    assert!(app.task_pet_visible);
+    let _ = super::update(&mut app, ViewMessage::TaskPetScaleChanged(1.25));
+    assert_eq!(app.task_pet_window_id, Some(window));
+    let _ = super::update(&mut app, ViewMessage::TaskPetToggleWindow);
+    assert!(!app.task_pet_visible);
+    // Iced 的 Closed 事件到达前仍保留窗口 ID。
+    assert_eq!(app.task_pet_window_id, Some(window));
+    let _ = super::update(&mut app, ViewMessage::WindowClosed(window));
+    assert!(app.task_pet_window_id.is_none());
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert_eq!(app.task_pet_scale, 1.25);
+}
+
+#[test]
+fn mini_companion_close_request_keeps_window_until_closed() {
+    use crate::app::{App, message::ViewMessage, state::TaskPetAvatarKind};
+    let mut app = App::new().0;
+    let main = iced::window::Id::unique();
+    let pet = iced::window::Id::unique();
+    app.register_window_ids(main, Some(pet));
+    app.task_pet_visible = true;
+    app.task_pet_avatar_kind = TaskPetAvatarKind::Handsome;
+    let _ = super::update(&mut app, ViewMessage::CloseRequested(pet));
+    assert!(!app.task_pet_visible);
+    assert_eq!(app.task_pet_window_id, Some(pet));
+    let _ = super::update(&mut app, ViewMessage::WindowClosed(pet));
+    assert_eq!(app.main_window_id, Some(main));
+    assert!(app.task_pet_window_id.is_none());
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
+}
+
+#[test]
+fn mini_companion_invalid_scale_does_not_enqueue_a_save() {
+    use crate::app::{App, message::ViewMessage};
+    let mut app = App::new().0;
+    let _ = super::update(&mut app, ViewMessage::TaskPetScaleChanged(f32::NAN));
+    assert_eq!(app.task_pet_scale, 1.0);
+    assert!(app.active_toast.as_ref().unwrap().message.contains("有限数值"));
+    let mut late = serde_json::json!({"mini_companion":{"scale":1.5}});
+    app.retain_unedited_desktop_preferences(&mut late);
+    assert!(late.get("mini_companion").is_some());
+}

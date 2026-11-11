@@ -14,9 +14,11 @@ const PET_DOUBLE_CLICK_MS: u128 = 500;
 const PET_EXPAND_ANIMATION_STEP: f32 = 0.24;
 const PET_WALK_ANIMATION_MS: u64 = 360;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-/// 任务宠物可轮换的头像类别。
-pub(crate) enum TaskPetAvatarKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+/// 任务宠物可选择的头像类别；无头像仍保留窗口控件。
+pub enum TaskPetAvatarKind {
+    None,
     Robot,
     Beauty,
     Handsome,
@@ -25,6 +27,7 @@ pub(crate) enum TaskPetAvatarKind {
 impl TaskPetAvatarKind {
     fn next(self) -> Self {
         match self {
+            Self::None => Self::Robot,
             Self::Robot => Self::Beauty,
             Self::Beauty => Self::Handsome,
             Self::Handsome => Self::Robot,

@@ -199,6 +199,42 @@ impl DesktopPreferencesPersistence {
 }
 
 impl App {
+    pub(crate) fn set_task_pet_scale(&mut self, scale: f32) -> Result<(), &'static str> {
+        if !scale.is_finite() {
+            return Err("伙伴大小必须是有限数值");
+        }
+        self.task_pet_scale = scale.clamp(0.5, 2.0);
+        Ok(())
+    }
+
+    pub(crate) fn apply_task_pet_preferences(&mut self, cfg: &Value) {
+        let Some(preferences) = cfg.get("mini_companion").and_then(Value::as_object) else {
+            return;
+        };
+        if let Some(avatar) = preferences.get("avatar")
+            && let Ok(avatar) = serde_json::from_value(avatar.clone())
+        {
+            self.task_pet_avatar_kind = avatar;
+        }
+        if let Some(scale) = preferences.get("scale").and_then(Value::as_f64) {
+            let _ = self.set_task_pet_scale(scale.clamp(0.5, 2.0) as f32);
+        }
+        if let Some(visible) = preferences.get("visible").and_then(Value::as_bool) {
+            self.task_pet_visible = visible;
+        }
+    }
+
+    pub(crate) fn save_task_pet_preferences(&mut self) -> Task<Message> {
+        self.save_desktop_preference(
+            "mini_companion",
+            serde_json::json!({
+                "avatar": self.task_pet_avatar_kind,
+                "scale": self.task_pet_scale,
+                "visible": self.task_pet_visible,
+            }),
+        )
+    }
+
     pub(crate) fn save_desktop_preference(&mut self, key: &str, value: Value) -> Task<Message> {
         self.save_desktop_preferences(Map::from_iter([(key.to_owned(), value)]))
     }

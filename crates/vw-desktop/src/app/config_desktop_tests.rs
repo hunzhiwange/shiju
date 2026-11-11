@@ -938,3 +938,202 @@ fn reasoning_and_send_preferences_preserve_unrelated_sessions_and_remove_legacy_
         json!({"session_reasoning_efforts":{"unopened":"future","one":null,"two":"high"}})
     );
 }
+
+#[test]
+fn mini_companion_preferences_round_trip_preserves_other_fields() {
+    use crate::app::{App, Message, state::TaskPetAvatarKind};
+    use serde_json::{Value, json};
+    let server = TestServer::start(2, |request| {
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        match request.method.as_str() {
+            "PATCH" => {
+                let patch: Value = serde_json::from_str(&request.body).unwrap();
+                assert_eq!(
+                    patch,
+                    json!({"mini_companion": {"avatar":"none","scale":1.5,"visible":true}})
+                );
+                (200, "{}")
+            }
+            "GET" => (
+                200,
+                r#"{"theme":"dark","mini_companion":{"avatar":"none","scale":1.5,"visible":true}}"#,
+            ),
+            _ => panic!("unexpected request"),
+        }
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut app = App::new().0;
+    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    app.task_pet_scale = 1.5;
+    app.task_pet_visible = true;
+    let save = app.save_task_pet_preferences();
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(save).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Ok(()))));
+    for message in messages {
+        let _ = app.update(message);
+    }
+    let cfg = super::load_app_config();
+    assert_eq!(cfg["theme"], "dark");
+    let mut restored = App::new().0;
+    let _ = restored.update(Message::StartupAppConfigLoaded(Ok(cfg)));
+    assert_eq!(restored.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert_eq!(restored.task_pet_scale, 1.5);
+    assert!(restored.task_pet_visible);
+    assert!(restored.task_pet_window_id.is_some());
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn mini_companion_late_load_keeps_local_edit() {
+    use crate::app::{App, Message, state::TaskPetAvatarKind};
+    use serde_json::json;
+    let (_lock, _home, _guard) = temp_home();
+    let mut app = App::new().0;
+    app.task_pet_avatar_kind = TaskPetAvatarKind::Beauty;
+    app.task_pet_visible = false;
+    let _save = app.save_task_pet_preferences();
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
+        "mini_companion": {"avatar":"robot", "scale":2.0, "visible":true}
+    }))));
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Beauty);
+    assert_eq!(app.task_pet_scale, 1.0);
+    assert!(!app.task_pet_visible);
+    assert!(app.task_pet_window_id.is_none());
+}
+
+#[test]
+fn mini_companion_failed_save_keeps_edit_and_can_retry() {
+    use crate::app::{App, Message, message::ViewMessage, state::TaskPetAvatarKind};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let writes = AtomicUsize::new(0);
+    let server = TestServer::start(2, move |request| {
+        assert_eq!(request.method, "PATCH");
+        assert!(request.body.contains("mini_companion"));
+        if writes.fetch_add(1, Ordering::SeqCst) == 0 { (500, "{}") } else { (200, "{}") }
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut app = App::new().0;
+    let save = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None),
+    );
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(save).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Err(_))));
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::None);
+    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    let retry = app.save_task_pet_preferences();
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(retry).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Ok(()))));
+    for message in messages {
+        let _ = app.update(message);
+    }
+    assert!(app.task_pet_window_id.is_none());
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn mini_companion_old_endpoint_snapshot_cannot_restore_visibility() {
+    use crate::app::{App, Message, impls::StartupGatewaySnapshot};
+    use vw_gateway_client::GatewayEndpoint;
+    let (_lock, _home, _guard) = temp_home();
+    let mut app = App::new().0;
+    let _load = app.startup_configuration.load();
+    app.startup_configuration.select_endpoint(&GatewayEndpoint::new("127.0.0.1", 1));
+    let snapshot = StartupGatewaySnapshot {
+        preferences: Some(Ok(
+            serde_json::json!({"mini_companion":{"avatar":"none","scale":2.0,"visible":true}}),
+        )),
+        system: None,
+        agent: None,
+        catalog: None,
+        tools: None,
+        external_apps: None,
+    };
+    let _ = app.update(Message::StartupGatewaySnapshotLoaded(1, Box::new(snapshot)));
+    assert!(!app.task_pet_visible);
+    assert_eq!(app.task_pet_scale, 1.0);
+    assert!(app.task_pet_window_id.is_none());
+}
+
+#[test]
+fn mini_companion_queued_edits_save_latest_without_reopening_window() {
+    use crate::app::{App, Message, state::TaskPetAvatarKind};
+    use serde_json::{Value, json};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let writes = AtomicUsize::new(0);
+    let server = TestServer::start(2, move |request| {
+        assert_eq!(request.method, "PATCH");
+        let patch: Value = serde_json::from_str(&request.body).unwrap();
+        let first = writes.fetch_add(1, Ordering::SeqCst) == 0;
+        assert_eq!(
+            patch["mini_companion"],
+            if first {
+                json!({"avatar":"robot", "scale":1.0, "visible":true})
+            } else {
+                json!({"avatar":"none", "scale":1.75, "visible":false})
+            }
+        );
+        (200, "{}")
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut app = App::new().0;
+    app.task_pet_visible = true;
+    let first = app.save_task_pet_preferences();
+    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    assert!(iced_runtime::task::into_stream(app.save_task_pet_preferences()).is_none());
+    app.task_pet_visible = false;
+    app.set_task_pet_scale(1.75).unwrap();
+    assert!(iced_runtime::task::into_stream(app.save_task_pet_preferences()).is_none());
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(first).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    let next = app.update(messages.into_iter().next().unwrap());
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(next).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Ok(()))));
+    let done = app.update(messages.into_iter().next().unwrap());
+    assert!(iced_runtime::task::into_stream(done).is_none());
+    assert!(app.task_pet_window_id.is_none());
+    assert!(!app.task_pet_visible);
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn mini_companion_defaults_and_loaded_scale_are_bounded() {
+    use crate::app::{App, Message, state::TaskPetAvatarKind};
+    use serde_json::json;
+    let mut app = App::new().0;
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert_eq!(app.task_pet_scale, 1.0);
+    assert!(!app.task_pet_visible);
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
+        "mini_companion":{"avatar":"unknown", "scale":99.0, "visible":false}
+    }))));
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert_eq!(app.task_pet_scale, 2.0);
+    let _ = app.update(Message::StartupAppConfigLoaded(Ok(json!({
+        "mini_companion":{"avatar":"handsome", "scale":-1.0, "visible":false}
+    }))));
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
+    assert_eq!(app.task_pet_scale, 0.5);
+}

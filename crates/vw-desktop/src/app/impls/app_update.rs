@@ -383,6 +383,7 @@ impl App {
 
     fn apply_bootstrap_app_config(&mut self, mut cfg: serde_json::Value) {
         self.retain_unedited_desktop_preferences(&mut cfg);
+        self.apply_task_pet_preferences(&cfg);
         if !self.desktop_update.selected_by_user
             && !self.desktop_update.checking
             && self.desktop_update.background_request.is_none()
@@ -866,9 +867,12 @@ impl App {
                 #[cfg(not(target_arch = "wasm32"))]
                 if !self.desktop_update.initial_check_started {
                     self.desktop_update.initial_check_started = true;
-                    return Task::done(Message::View(message::ViewMessage::AutoCheckAppUpdate));
+                    return Task::batch([
+                        message::view::sync_task_pet_window(self),
+                        Task::done(Message::View(message::ViewMessage::AutoCheckAppUpdate)),
+                    ]);
                 }
-                Task::none()
+                message::view::sync_task_pet_window(self)
             }
             Message::StartupSystemSettingsLoaded(result)
             | Message::BootstrapSystemSettings(result) => {

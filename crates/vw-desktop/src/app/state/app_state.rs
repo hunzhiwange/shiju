@@ -803,6 +803,10 @@ pub struct App {
     pub(crate) task_pet_walk_until_ms: u64,
     /// 小宠物当前形态
     pub(crate) task_pet_avatar_kind: TaskPetAvatarKind,
+    /// 伙伴比例，有限值限制在 0.5–2.0。
+    pub(crate) task_pet_scale: f32,
+    /// Mini 显示偏好，与头像选择独立。
+    pub(crate) task_pet_visible: bool,
     /// 鼠标是否悬停在小宠物本体上
     pub(crate) task_pet_robot_hovered: bool,
     /// 小宠物右键菜单在窗口内的锚点位置

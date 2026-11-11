@@ -402,11 +402,11 @@ pub(crate) fn overlay<'a>(
         .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
-    if let Some(form) = &state.pi_directory {
-        return crate::app::components::aggregation_pi::overlay(form, list);
-    }
     if let Some(form) = &state.omo {
         return crate::app::components::aggregation_omo::overlay(form, list);
+    }
+    if let Some(form) = &state.pi_directory {
+        return crate::app::components::aggregation_pi::overlay(form, list);
     }
     if let Some(form) = &state.model_catalog {
         return crate::app::components::system_settings_providers::catalog::deployments(

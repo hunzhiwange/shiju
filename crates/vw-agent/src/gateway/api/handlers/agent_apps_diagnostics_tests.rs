@@ -32,6 +32,7 @@ const TOKEN: &str = "fixture-diagnostic-member-token-00001";
 #[tokio::test]
 async fn diagnostic_api_start_authorizes_before_execution() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
+    std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700))?;
     let database = GlobalDatabase::for_home(root.path())?;
     let tenant = TenantScope::new("platform", "company")?;
     let count = Arc::new(AtomicUsize::new(0));

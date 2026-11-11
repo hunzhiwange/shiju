@@ -48,6 +48,13 @@ impl PostgresGatewaySettingsStore {
     ) -> Result<Option<String>> {
         Self { database: database.clone() }.get(tenant, namespace, config_key)
     }
+    pub(super) fn list_existing(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        namespace: &str,
+    ) -> Result<Vec<GatewaySetting>> {
+        Self { database: database.clone() }.list(tenant, namespace)
+    }
     /// 读取租户命名空间中的单条设置。
     pub(super) fn get(
         &self,

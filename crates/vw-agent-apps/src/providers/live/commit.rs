@@ -50,6 +50,8 @@ pub struct ModeState {
 /// None preserves that part of state; direct pointer and proxy route are independent.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PendingTarget {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub omo: Option<OmoSelection>,
     /// Set only by the executor after authorizing the physical project slot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
@@ -89,8 +91,17 @@ pub struct ScopedProvider {
     pub tenant: TenantScope,
     pub id: String,
 }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "variant", content = "provider", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OmoSelection {
+    Standard(String),
+    Slim(String),
+    Disabled,
+}
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub omo: Option<OmoSelection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -228,11 +239,12 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=8 | 10)
+            !matches!(p.version, 1..=10)
                 || (p.version == 10) != p.provider_record.is_some()
                 || (p.version >= 7) != p.target.project_scope.is_some()
                 || (p.version == 8 && p.target.codex_aggregation_settings.is_none())
                 || (p.version < 8 && p.target.codex_aggregation_settings.is_some())
+                || (p.version == 9) != p.target.omo.is_some()
                 || (p.version == 6 && p.target.claude_managed_login.is_none())
                 || (p.version < 6 && p.target.claude_managed_login.is_some())
                 || (p.version == 5 && p.target.kimi_binding.is_none())
@@ -352,6 +364,8 @@ impl ProviderTransactions {
             // Older executors must reject multi-directory intents and actual deletions.
             version: if record.is_some() {
                 10
+            } else if target.omo.is_some() {
+                9
             } else if target.codex_aggregation_settings.is_some() {
                 8
             } else if target.project_scope.is_some() {
@@ -550,6 +564,17 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     Ok(file)
 }
 pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), WriteError> {
+    if let Some(selection) = &target.omo {
+        if app != AppId::OpenCode || target.project_scope.is_none() {
+            return Err(WriteError::InvalidResource);
+        }
+        match selection {
+            OmoSelection::Standard(id) | OmoSelection::Slim(id) => {
+                crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
+            }
+            OmoSelection::Disabled => {}
+        }
+    }
     if target.codex_aggregation_settings.is_some()
         && (app != AppId::Codex || target.project_scope.is_none())
     {
@@ -621,6 +646,9 @@ pub(super) fn validate_stack_update(
     Ok(())
 }
 pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
+    if let Some(selection) = &target.omo {
+        state.omo = Some(selection.clone());
+    }
     if let Some(settings) = &target.codex_aggregation_settings {
         state.codex_aggregation_settings = Some(settings.clone());
     }

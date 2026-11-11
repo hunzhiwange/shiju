@@ -232,6 +232,40 @@ pub struct CodexSettingsRequest {
     pub requested: CodexSettingsValues,
 }
 
+/// OMO writes accept references to saved provider profiles, never raw configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmoApplyRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub provider_id: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmoDisableRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmoState {
+    pub revision: String,
+    pub current_provider_id: Option<String>,
+    pub agents: Option<serde_json::Map<String, serde_json::Value>>,
+    pub categories: Option<serde_json::Map<String, serde_json::Value>>,
+    pub other_fields: Option<serde_json::Map<String, serde_json::Value>>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmoSlimState {
+    pub revision: String,
+    pub current_provider_id: Option<String>,
+    pub agents: Option<serde_json::Map<String, serde_json::Value>>,
+    pub other_fields: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
 /// Optional scope for existing provider-write routes. Active aggregation requires
 /// both fields; legacy unbound catalog-only edits retain their existing shape.
 #[derive(Clone, Default, Serialize, Deserialize)]

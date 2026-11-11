@@ -27,7 +27,7 @@ pub enum OmoWriteError {
     TargetFailed,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, serde::Serialize)]
 pub struct OmoSnapshot {
     directory: (u64, u64),
     name: &'static str,
@@ -82,6 +82,32 @@ pub fn write(
     change: OmoChange<'_>,
     unchanged: impl Fn() -> bool,
 ) -> Result<bool, OmoWriteError> {
+    write_impl(home, transactions, tenant, expected, change, unchanged, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn write_project(
+    home: &Path,
+    transactions: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &OmoSnapshot,
+    change: OmoChange<'_>,
+    unchanged: impl Fn() -> bool,
+    project: &super::omo_scope::ProjectOmoEdit,
+) -> Result<bool, OmoWriteError> {
+    write_impl(home, transactions, tenant, expected, change, unchanged, Some(project))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_impl(
+    home: &Path,
+    transactions: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &OmoSnapshot,
+    change: OmoChange<'_>,
+    unchanged: impl Fn() -> bool,
+    project: Option<&super::omo_scope::ProjectOmoEdit>,
+) -> Result<bool, OmoWriteError> {
     let check_target = |error| match error {
         OmoWriteError::UnsupportedTarget => OmoWriteError::RevisionConflict,
         other => other,
@@ -108,7 +134,9 @@ pub fn write(
     let after = edit(&expected.bytes, change)?;
     let changed = after != expected.bytes;
     let patch = WholeFile::new(Some(&expected.bytes), Some(after));
-    transactions.commit_checked(
+    super::omo_scope::commit(
+        project,
+        transactions,
         tenant,
         &mut guard,
         &[FileChange {
@@ -116,7 +144,6 @@ pub fn write(
             privacy: FilePrivacy::Shared,
             patch: &patch,
         }],
-        Default::default(),
         || {
             if unchanged() && snapshot(home).is_ok_and(|current| current == *expected) {
                 Ok(())

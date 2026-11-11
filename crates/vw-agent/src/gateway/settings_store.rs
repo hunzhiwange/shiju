@@ -386,6 +386,42 @@ impl GatewaySettingsStore {
         }
     }
 
+    /// SELECT-only catalog snapshot for scoped native configuration revisions.
+    pub(crate) fn list_existing(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+        namespace: &str,
+    ) -> Result<Vec<GatewaySetting>> {
+        validate_identifier(namespace, "gateway settings namespace")?;
+        match database.provider() {
+            DatabaseProvider::Sqlite => {
+                let connection = rusqlite::Connection::open_with_flags(
+                    database.sqlite_path()?,
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+                )?;
+                let mut statement = connection.prepare("SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key")?;
+                statement
+                    .query_map(
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            namespace
+                        ],
+                        |row| {
+                            Ok(GatewaySetting {
+                                config_key: row.get(0)?,
+                                payload_json: row.get(1)?,
+                            })
+                        },
+                    )?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .context("observe existing tenant settings")
+            }
+            DatabaseProvider::Postgres => {
+                PostgresGatewaySettingsStore::list_existing(database, tenant, namespace)
+            }
+        }
+    }
     /// 按配置键排序列出命名空间内全部设置。
     pub(crate) fn list(
         &self,

@@ -13,7 +13,7 @@ pub enum OmoReadError {
     TargetFailed,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct OmoRead {
     pub current_provider_id: Option<String>,
     pub agents: Option<Map<String, Value>>,
@@ -92,7 +92,8 @@ pub(super) fn take_object(
 }
 
 #[cfg(target_os = "macos")]
-pub(super) fn remove_credentials(fields: &mut Map<String, Value>) {
+/// Remove protected fields recursively before exposing native configuration.
+pub fn remove_credentials(fields: &mut Map<String, Value>) {
     fn visit(value: &mut Value) {
         match value {
             Value::Object(fields) => remove_credentials(fields),
@@ -139,4 +140,23 @@ pub(super) fn read_candidate(home: &Path, path: &Path) -> Result<Option<Vec<u8>>
         return Err(OmoReadError::InvalidConfiguration);
     }
     Ok(Some(bytes))
+}
+
+/// Observe whether the standard reader selected a configuration, including an empty legacy file.
+#[cfg(target_os = "macos")]
+pub fn configuration_present(
+    home: &Path,
+    directory_override: Option<&str>,
+) -> Result<bool, OmoReadError> {
+    if !home.is_absolute() {
+        return Err(OmoReadError::TargetFailed);
+    }
+    let directory = directory_override
+        .map(|raw| paths::bounded(home, raw).map_err(|_| OmoReadError::Forbidden))
+        .transpose()?
+        .unwrap_or_else(|| home.join(".config/opencode"));
+    if let Some(root) = read_first(home, &home.join(".omo"), &["omo.jsonc", "omo.json"])? {
+        return Ok(root.contains_key("[opencode]"));
+    }
+    Ok(read_first(home, &directory, &LEGACY_NAMES)?.is_some())
 }

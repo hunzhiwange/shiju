@@ -3,6 +3,26 @@ use super::*;
 use serde_json::{Value, json};
 use vw_api_types::app_providers::opencode::OpenCodeProfile;
 impl AppProviderStore {
+    /// Read all OpenCode profile inputs without initializing storage or exposing them over HTTP.
+    pub(crate) fn opencode_revision_records(
+        database: &GlobalDatabase,
+        tenant: &TenantScope,
+    ) -> Result<Vec<(String, Value)>, String> {
+        let prefix = Self::prefix(AppId::OpenCode);
+        GatewaySettingsStore::list_existing(database, tenant, NAMESPACE)
+            .map_err(|_| "provider storage unavailable")?
+            .into_iter()
+            .filter_map(|row| {
+                row.config_key.strip_prefix(&prefix).map(|id| (id.to_owned(), row.payload_json))
+            })
+            .map(|(id, raw)| {
+                serde_json::from_str(&raw)
+                    .map(|row| (id, row))
+                    .map_err(|_| "invalid provider record".into())
+            })
+            .collect()
+    }
+
     pub(crate) fn opencode_record(
         &self,
         tenant: &TenantScope,

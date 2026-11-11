@@ -29,6 +29,8 @@ pub mod member_validation;
 mod member_validation_tests;
 
 #[cfg(target_os = "macos")]
+pub mod omo_scope;
+#[cfg(target_os = "macos")]
 pub mod omo_write;
 
 #[cfg(all(test, target_os = "macos"))]

@@ -336,6 +336,9 @@ mod aggregation_pi;
 mod aggregation_members;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_members_tests;
+mod aggregation_omo;
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_omo_tests;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_read_tests;

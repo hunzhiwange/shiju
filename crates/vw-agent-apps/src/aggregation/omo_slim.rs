@@ -61,7 +61,7 @@ impl From<WriteError> for OmoSlimError {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, serde::Serialize)]
 pub struct OmoSlimSnapshot {
     directory: PathBuf,
     identity: Option<(u64, u64)>,
@@ -69,6 +69,11 @@ pub struct OmoSlimSnapshot {
 }
 
 impl OmoSlimSnapshot {
+    /// Existing files are configuration even when they contain an empty object.
+    pub fn configuration_present(&self) -> bool {
+        self.files.iter().any(Option::is_some)
+    }
+
     /// The authorized caller supplies the saved Slim provider from the same scope.
     pub fn read(&self, current_provider_id: Option<&str>) -> Result<OmoSlimRead, OmoSlimError> {
         if let Some(id) = current_provider_id {
@@ -154,6 +159,32 @@ pub fn write(
     change: OmoSlimChange<'_>,
     unchanged: impl Fn() -> bool,
 ) -> Result<bool, OmoSlimError> {
+    write_impl(home, transactions, tenant, expected, change, unchanged, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn write_project(
+    home: &Path,
+    transactions: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &OmoSlimSnapshot,
+    change: OmoSlimChange<'_>,
+    unchanged: impl Fn() -> bool,
+    project: &super::omo_scope::ProjectOmoEdit,
+) -> Result<bool, OmoSlimError> {
+    write_impl(home, transactions, tenant, expected, change, unchanged, Some(project))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_impl(
+    home: &Path,
+    transactions: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &OmoSlimSnapshot,
+    change: OmoSlimChange<'_>,
+    unchanged: impl Fn() -> bool,
+    project: Option<&super::omo_scope::ProjectOmoEdit>,
+) -> Result<bool, OmoSlimError> {
     if !home.is_absolute() || !expected.directory.starts_with(home) {
         return Err(OmoSlimError::Forbidden);
     }
@@ -189,7 +220,7 @@ pub fn write(
     };
     let changed = after != expected.files;
     let directory = if expected.identity.is_none() {
-        if !changed {
+        if !changed && project.is_none() {
             return Ok(false);
         }
         open_config_directory(home, &expected.directory)?
@@ -217,7 +248,7 @@ pub fn write(
     }) {
         return Err(OmoSlimError::RecoveryPending);
     }
-    if !changed && pending.is_none() {
+    if !changed && pending.is_none() && project.is_none() {
         return Ok(false);
     }
 
@@ -235,7 +266,7 @@ pub fn write(
             patch,
         })
         .collect::<Vec<_>>();
-    transactions.commit_checked(tenant, &mut guard, &changes, Default::default(), || {
+    super::omo_scope::commit(project, transactions, tenant, &mut guard, &changes, || {
         if unchanged()
             && snapshot_at(home, &current.directory).is_ok_and(|actual| actual == current)
         {

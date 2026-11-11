@@ -62,6 +62,8 @@ pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;
 /// - `HttpRequest` - HTTP 请求设置，配置 http_request 工具白名单与请求限制
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemTab {
+    #[cfg(not(target_arch = "wasm32"))]
+    Voice,
     /// 应用目录与安装诊断
     Apps,
     /// 授权中心的只读账号列表
@@ -118,6 +120,8 @@ pub enum SystemTab {
 impl SystemTab {
     pub(super) fn label(self) -> &'static str {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
+            SystemTab::Voice => "语音设置",
             SystemTab::Apps => "应用列表",
             #[cfg(not(target_arch = "wasm32"))]
             SystemTab::Auth => "授权中心",
@@ -183,6 +187,8 @@ impl std::fmt::Display for SystemTab {
 
 pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
     match tab {
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Voice => &["voice", "microphone", "dictation", "语音", "听写", "音色"],
         SystemTab::Apps => &["apps", "应用", "安装", "catalog"],
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => &["auth", "accounts", "账号", "授权", "凭据"],
@@ -374,6 +380,8 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => None,
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Voice => None,
         SystemTab::Apps
         | SystemTab::Editor
         | SystemTab::General
@@ -408,6 +416,8 @@ pub(crate) const SETTINGS_CONTENT_SCROLL: &str = "system-settings-content-scroll
 
 fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Voice => super::system_settings_voice::view(app),
         SystemTab::Apps => super::system_settings_apps::view(
             &app.apps_catalog,
             crate::app::i18n::I18n::new(app.desktop_locale),
@@ -662,6 +672,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     if app.system_settings_tab == SystemTab::Proxy {
         dialog = crate::app::components::system_settings_proxy::view_overlays(app, dialog);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if active_tab == SystemTab::Voice {
+        dialog = super::system_settings_voice::overlay(app, dialog);
     }
 
     dialog = crate::app::components::system_settings_help::with_help_modal(

@@ -384,3 +384,5 @@ mod aggregation_resync_codex_tests;
 mod aggregation_desktop;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_desktop_tests;
+
+mod voice_settings;

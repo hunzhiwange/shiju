@@ -742,6 +742,8 @@ pub enum GeneralSettingsMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    #[cfg(not(target_arch = "wasm32"))]
+    Voice(super::voice::Event),
     ArchivedChats(super::archived_chats::ArchivedChatsMessage),
     AppsCatalog(super::AppsCatalogMessage),
     #[cfg(not(target_arch = "wasm32"))]

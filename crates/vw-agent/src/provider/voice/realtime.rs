@@ -45,6 +45,10 @@ struct Item {
     response: String,
     audio: HashMap<u32, (u64, u64)>, // delivered samples, played milliseconds
 }
+enum Setup {
+    Conversation(TurnMode),
+    Preview,
+}
 impl RealtimeSession {
     pub(crate) async fn connect(
         base: &str,
@@ -55,6 +59,49 @@ impl RealtimeSession {
         voice_session_id: VoiceId,
         mode: TurnMode,
     ) -> Result<Self> {
+        Self::connect_inner(
+            base,
+            key,
+            builder,
+            config,
+            provider_id,
+            voice_session_id,
+            Setup::Conversation(mode),
+        )
+        .await
+    }
+    pub(crate) async fn connect_preview(
+        base: &str,
+        key: &str,
+        builder: reqwest::ClientBuilder,
+        config: &VoiceConfig,
+        provider_id: VoiceId,
+        voice_session_id: VoiceId,
+    ) -> Result<Self> {
+        Self::connect_inner(
+            base,
+            key,
+            builder,
+            config,
+            provider_id,
+            voice_session_id,
+            Setup::Preview,
+        )
+        .await
+    }
+    async fn connect_inner(
+        base: &str,
+        key: &str,
+        builder: reqwest::ClientBuilder,
+        config: &VoiceConfig,
+        provider_id: VoiceId,
+        voice_session_id: VoiceId,
+        setup: Setup,
+    ) -> Result<Self> {
+        let (mode, preview) = match setup {
+            Setup::Conversation(mode) => (mode, false),
+            Setup::Preview => (TurnMode::Manual, true),
+        };
         config.validate().map_err(|_| VoiceErrorCode::InvalidRequest)?;
         if !config.realtime_enabled {
             return Err(VoiceErrorCode::UnsupportedCapability);
@@ -160,7 +207,10 @@ impl RealtimeSession {
             }
             session.upstream_session = id(&created["session"], "id")?;
             let mut transcription = json!({"model":"gpt-transcribe","keywords":config.dictionary,"prompt":config.prompt});
-            if let Some(language) = config.language.service_code() {
+            if preview {
+                transcription = json!({"model":"gpt-transcribe"});
+            }
+            if let Some(language) = config.language.service_code().filter(|_| !preview) {
                 transcription["languages"] = json!([language]);
             }
             let turn = match mode {
@@ -169,7 +219,14 @@ impl RealtimeSession {
                     json!({"type":"server_vad","create_response":true,"interrupt_response":true})
                 }
             };
-            session.send(json!({"type":"session.update","session":{"type":"realtime","model":"gpt-realtime-2.1","output_modalities":["audio"],"instructions":"用简短中文回答。需要执行工作时调用 shiju_handoff；遵守审批结果。","tools":super::realtime_handoff::tools(),"tool_choice":"auto","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":transcription,"turn_detection":turn},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":config.voice}}}})).await?;
+            let tools = if preview { json!([]) } else { super::realtime_handoff::tools() };
+            let choice = if preview { "none" } else { "auto" };
+            let instructions = if preview {
+                "仅朗读：你好，这是识矩的语音试听。"
+            } else {
+                "用简短中文回答。需要执行工作时调用 shiju_handoff；遵守审批结果。"
+            };
+            session.send(json!({"type":"session.update","session":{"type":"realtime","model":"gpt-realtime-2.1","output_modalities":["audio"],"instructions":instructions,"tools":tools,"tool_choice":choice,"audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":transcription,"turn_detection":turn},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":config.voice}}}})).await?;
             let updated = session.receive().await?;
             let s = &updated["session"];
             if updated["type"] != "session.updated"
@@ -177,8 +234,8 @@ impl RealtimeSession {
                 || s["type"] != "realtime"
                 || s["model"] != "gpt-realtime-2.1"
                 || s["output_modalities"] != json!(["audio"])
-                || s["tools"] != super::realtime_handoff::tools()
-                || s["tool_choice"] != "auto"
+                || s["tools"] != tools
+                || s["tool_choice"] != choice
                 || s["audio"]["input"]["transcription"]["model"] != "gpt-transcribe"
                 || (mode == TurnMode::Manual && !s["audio"]["input"]["turn_detection"].is_null())
                 || (mode == TurnMode::ServerVad
@@ -192,6 +249,9 @@ impl RealtimeSession {
                         .map_err(|_| VoiceErrorCode::InvalidRequest)?
             {
                 return Err(VoiceErrorCode::UnsupportedCapability);
+            }
+            if preview {
+                session.send(json!({"type":"response.create","response":{"conversation":"none","input":[],"instructions":instructions,"tools":[],"tool_choice":"none"}})).await?;
             }
             Ok(session)
         };

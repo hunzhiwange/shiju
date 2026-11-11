@@ -41,6 +41,59 @@ impl Drop for CancelOnDrop {
     }
 }
 impl GatewayClient {
+    /// Patch only the authenticated tenant's non-secret voice fields.
+    pub async fn voice_settings_patch(&self, patch: &serde_json::Value) -> Result<(), String> {
+        if !self.endpoint.is_loopback() {
+            return Err("当前语音传输仅支持本机网关。".into());
+        }
+        let response = apply_request_context(
+            self.dynamic_host_client
+                .patch(format!("{}/api/voice/config", self.endpoint.base_url()))
+                .json(patch),
+            &self.endpoint,
+        )
+        .send()
+        .await
+        .map_err(|_| "无法保存语音设置。")?;
+        if response.status() == reqwest::StatusCode::NO_CONTENT {
+            Ok(())
+        } else {
+            Err("语音设置未保存，请检查网关配置。".into())
+        }
+    }
+    /// Fresh no-tool preview. Dropping the stream closes its gateway request.
+    pub async fn voice_preview(
+        &self,
+        voice: &impl serde::Serialize,
+    ) -> Result<
+        futures_util::stream::BoxStream<'static, Result<Vec<u8>, VoiceApiError>>,
+        VoiceApiError,
+    > {
+        if !self.endpoint.is_loopback() {
+            return Err(VoiceApiError::Service(VoiceErrorCode::UnsupportedCapability));
+        }
+        let response = apply_request_context(
+            self.dynamic_host_client
+                .post(format!("{}/api/voice/preview", self.endpoint.base_url()))
+                .json(&serde_json::json!({"voice":voice})),
+            &self.endpoint,
+        )
+        .send()
+        .await
+        .map_err(|_| VoiceApiError::Transport)?;
+        if !response.status().is_success() {
+            return Err(VoiceApiError::Transport);
+        }
+        if response.headers().get("content-type").and_then(|h| h.to_str().ok())
+            != Some("application/octet-stream")
+        {
+            return Err(VoiceApiError::InvalidResponse);
+        }
+        Ok(response
+            .bytes_stream()
+            .map(|v| v.map(|v| v.to_vec()).map_err(|_| VoiceApiError::Transport))
+            .boxed())
+    }
     /// Fetch the authenticated tenant's non-secret voice configuration only.
     pub async fn voice_config<T: serde::de::DeserializeOwned>(&self) -> Result<T, VoiceApiError> {
         if !self.endpoint.is_loopback() {

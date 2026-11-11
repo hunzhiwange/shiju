@@ -204,3 +204,17 @@ async fn voice_task_07_client_bounds_config_and_redacts_errors() {
     assert!(!error.to_string().contains("sensitive"));
     task.join().unwrap();
 }
+
+#[tokio::test]
+async fn voice_task_13_client_patches_only_voice_fields_with_tenant_auth() {
+    let (client, task) = fixture(204, String::new());
+    client.voice_settings_patch(&json!({"voice":"cedar", "provider_id":null})).await.unwrap();
+    let request = task.join().unwrap();
+    assert!(request.starts_with("PATCH /api/voice/config HTTP/1.1"));
+    assert!(request.contains("authorization: Bearer fixture-skey"));
+    assert!(request.contains("x-platform-id: p06"));
+    assert!(request.contains("x-company-id: c06"));
+    let body: serde_json::Value =
+        serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+    assert_eq!(body, json!({"voice":"cedar", "provider_id":null}));
+}

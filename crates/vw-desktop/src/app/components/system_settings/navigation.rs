@@ -29,6 +29,8 @@ pub(super) const GROUPS: &[(&str, &[SystemTab])] = {
                 Apps,
                 #[cfg(not(target_arch = "wasm32"))]
                 Auth,
+                #[cfg(not(target_arch = "wasm32"))]
+                Voice,
                 Projects,
                 ArchivedChats,
             ],
@@ -205,6 +207,8 @@ fn navigation_entry(app: &App, entry: SystemSettingsSearchEntry) -> Element<'sta
 
 fn tab_icon(tab: SystemTab) -> Icon {
     match tab {
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::Voice => Icon::Sliders,
         SystemTab::General => Icon::Gear,
         SystemTab::Themes => Icon::Palette,
         SystemTab::Editor => Icon::Code,

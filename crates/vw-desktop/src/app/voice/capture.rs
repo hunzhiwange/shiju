@@ -134,7 +134,7 @@ pub(super) trait CaptureBackend: Send + 'static {
     type Stream;
     fn open(self, device_id: Option<String>, sink: CaptureSink) -> Result<Self::Stream>;
 }
-fn device_lease() -> Arc<AtomicBool> {
+pub(super) fn device_lease() -> Arc<AtomicBool> {
     static LEASE: OnceLock<Arc<AtomicBool>> = OnceLock::new();
     LEASE.get_or_init(|| Arc::new(AtomicBool::new(false))).clone()
 }
@@ -147,21 +147,32 @@ pub struct LiveCapture {
 }
 impl LiveCapture {
     pub fn start() -> Result<Self> {
+        Self::start_device(None)
+    }
+    pub fn start_device(device: Option<String>) -> Result<Self> {
         use super::permissions::{SystemPermissions, VoiceCapability, VoicePermissions};
         VoicePermissions::new(SystemPermissions)
             .start(VoiceCapability::Recording, || {
-                Self::start_backend(super::capture_native::NativeCapture, device_lease())
+                Self::open_device(super::capture_native::NativeCapture, device_lease(), device)
                     .map_err(anyhow::Error::from)
             })
             .map_err(|error| error.downcast::<CaptureError>().unwrap_or(CaptureError::Permission))
     }
+    #[cfg(test)]
     pub(super) fn start_backend<B: CaptureBackend>(
         backend: B,
         lease: Arc<AtomicBool>,
     ) -> Result<Self> {
+        Self::open_device(backend, lease, None)
+    }
+    fn open_device<B: CaptureBackend>(
+        backend: B,
+        lease: Arc<AtomicBool>,
+        device: Option<String>,
+    ) -> Result<Self> {
         let (sender, frames) = mpsc::sync_channel(QUEUE_FRAMES);
         let capture =
-            Capture::open_backend(backend, None, Duration::from_secs(1800), lease, Some(sender))?;
+            Capture::open_backend(backend, device, Duration::from_secs(1800), lease, Some(sender))?;
         Ok(Self { capture, frames })
     }
     pub fn into_parts(self) -> (Capture, LiveFrames) {

@@ -30,6 +30,26 @@ impl TranscriptionProvider {
 mod transcription_tests;
 
 impl realtime::RealtimeSession {
+    /// A fresh no-tool session, without chat history or input audio.
+    pub(crate) async fn preview_from_config(config: &VoiceConfig) -> Result<Self, VoiceErrorCode> {
+        let (base, key) =
+            voice_credentials(config).await.map_err(|_| VoiceErrorCode::ProviderAuth)?;
+        let provider = config
+            .provider_id
+            .clone()
+            .ok_or(VoiceErrorCode::ProviderAuth)?
+            .try_into()
+            .map_err(|_| VoiceErrorCode::InvalidRequest)?;
+        let id = uuid::Uuid::new_v4()
+            .to_string()
+            .try_into()
+            .map_err(|_| VoiceErrorCode::InvalidRequest)?;
+        let builder = crate::config::apply_runtime_proxy_to_builder(
+            crate::model_relay::upstream::upstream_http_client_builder(),
+            "provider.openai",
+        );
+        Self::connect_preview(&base, &key, builder, config, provider, id).await
+    }
     /// Caller establishes tenant/project scope before resolving the provider reference.
     pub async fn from_config(
         config: &VoiceConfig,
@@ -92,3 +112,6 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
     };
     Ok((base.to_owned(), key))
 }
+
+#[cfg(test)]
+mod realtime_preview_tests;

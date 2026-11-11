@@ -92,11 +92,14 @@ pub(crate) async fn load_gateway_skeys_for_tenant(
     tenant: &TenantScope,
 ) -> Result<Vec<vw_config_types::gateway::GatewaySkey>, Error> {
     let tenant = tenant.clone();
-    tokio::task::spawn_blocking(move || {
+    let load = move || {
         gateway_skey_store()?.load(&tenant).map_err(|error| Error::Invalid(error.to_string()))
-    })
-    .await
-    .map_err(|error| Error::Invalid(format!("join gateway skey load task: {error}")))?
+    };
+    #[cfg(test)]
+    let load = crate::global_database::inherit_test_database_context(load);
+    tokio::task::spawn_blocking(load)
+        .await
+        .map_err(|error| Error::Invalid(format!("join gateway skey load task: {error}")))?
 }
 
 pub(crate) async fn replace_gateway_skeys_for_tenant(

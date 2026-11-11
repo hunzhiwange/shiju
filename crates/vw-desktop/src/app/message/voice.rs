@@ -12,6 +12,7 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub settings: super::settings::voice::State,
     pub conversation: Option<crate::app::voice::conversation::Conversation>,
     conversation_scope: Option<Scope>,
     conversation_error_reported: bool,
@@ -95,6 +96,7 @@ pub(crate) fn cancel(app: &mut App) {
 }
 /// Called before and after dispatch so a switch away and back cannot revive old work.
 pub(crate) fn invalidate(app: &mut App) {
+    super::settings::voice::invalidate(app);
     if app.voice.conversation.is_some() {
         let endpoint = crate::app::gateway_client_endpoint();
         let auth_changed = app.voice.conversation_endpoint.as_ref().is_some_and(|old| {
@@ -364,7 +366,8 @@ async fn start(
         VoicePermissions::new(SystemPermissions)
             .request_from_user_action(Permission::Microphone)
             .map_err(|_| "请在系统设置中允许麦克风访问。".to_owned())?;
-        Capture::start(None)
+        let device_id = crate::app::voice::preferences::Preferences::load()?.microphone;
+        Capture::start(device_id)
             .and_then(|capture| {
                 if *cancellation.borrow() || cancellation.has_changed().is_err() {
                     drop(capture);

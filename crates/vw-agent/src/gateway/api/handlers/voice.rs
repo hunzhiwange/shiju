@@ -28,7 +28,17 @@ use upload::{MAX_BODY, read_upload};
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()
         .merge(super::voice_realtime::router())
-        .route("/voice/config", get(voice_config))
+        .route(
+            "/voice/config",
+            get(voice_config)
+                .patch(super::voice_settings::save)
+                .layer(DefaultBodyLimit::max(64 * 1024)),
+        )
+        .route(
+            "/voice/preview",
+            post(super::voice_settings::preview).layer(DefaultBodyLimit::max(1024)),
+        )
+        .layer(Extension(Arc::new(tokio::sync::Semaphore::new(4))))
         .route("/voice/transcriptions", post(transcribe))
         .route("/voice/transcriptions/{request_id}", delete(cancel))
         .layer(DefaultBodyLimit::max(MAX_BODY))

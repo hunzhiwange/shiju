@@ -137,11 +137,16 @@ Content-Type: application/json
 
 | 方法与路径 | 请求 → 响应 |
 | --- | --- |
+| GET `/api/voice/config` | 当前鉴权租户的非敏感 VoiceConfig；不返回提供商凭据 |
+| PATCH `/api/voice/config` | VoiceConfig 字段补丁 → 204；复用租户配置合并、校验及持久化，拒绝本机设备或凭据字段 |
+| POST `/api/voice/preview` | `{"voice":"marin"}` → 有界 `application/octet-stream` PCM16LE/24 kHz/mono；只接受契约音色，无聊天 ID、历史或录音输入 |
 | POST `/api/voice/transcriptions` | multipart：`metadata` 为 TranscriptionRequest JSON，`file` 为 WAV → 200 TranscriptionResponse |
 | DELETE `/api/voice/transcriptions/{request_id}` | 同所有者请求取消 → 204；不存在/已取消也为 204，不泄漏其他租户请求 |
 | POST `/api/voice/sessions` | VoiceSessionStart → 201 VoiceSessionStarted；上游配置确认后才返回 |
 | GET `/api/voice/sessions/{voice_session_id}/stream` | 一次性附着的鉴权 WebSocket 升级 → 101；无附着票据或服务密钥返回给桌面 |
 | DELETE `/api/voice/sessions/{voice_session_id}` | 幂等停止 → 204；关闭上游并释放资源后确认；超时返回结构化错误 |
+
+试听复用 Realtime 连接和事件校验，新建独立短会话，关闭 VAD，`tools: []`、`tool_choice: none`，以固定短句发送 `response.create`（`conversation: none`、`input: []`）。不读取原聊天历史，也不上传已保存词典或 prompt。最多同时四路，每路最多十秒音频、二十秒服务期限；桌面单次播放可取消，关闭响应流即释放上游连接，不创建工作交接或获取麦克风权限。[独立响应](https://developers.openai.com/api/reference/resources/realtime/client-events#response.create)
 
 模型、音色、语言、词典来自启动时网关配置快照；请求只携带 provider 配置引用 `provider_id`，不接受服务 URL、密钥或任意上游 session.update。设备列表、设备 ID、权限、热键、录音路径不在网关 DTO 内。配置仍通过已有配置系统管理，不新增音色目录路由。
 

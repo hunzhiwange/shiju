@@ -212,7 +212,10 @@ async fn connected(
     VoicePermissions::new(SystemPermissions)
         .request_from_user_action(Permission::Microphone)
         .map_err(|_| "请允许麦克风访问后重试。")?;
-    let live = LiveCapture::start().map_err(|_| "无法采集麦克风，请检查权限或设备。")?;
+    let device =
+        super::preferences::Preferences::load().map_err(|_| "无法读取本机语音设置。")?.microphone;
+    let live =
+        LiveCapture::start_device(device).map_err(|_| "无法采集麦克风，请检查权限或设备。")?;
     pump(&mut stream, live, control, output).await
 }
 async fn pump(

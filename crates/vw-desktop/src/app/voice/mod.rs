@@ -21,3 +21,11 @@ mod playback_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod conversation;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod preferences;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod preview;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod preview_tests;

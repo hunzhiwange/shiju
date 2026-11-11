@@ -465,3 +465,6 @@ pub(crate) mod voice_onboarding;
 
 #[path = "agent_apps/aggregation_desktop.rs"]
 pub(crate) mod aggregation_desktop;
+
+#[path = "agent_apps/aggregation_subagent.rs"]
+pub(crate) mod aggregation_subagent;

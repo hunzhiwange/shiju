@@ -561,3 +561,7 @@ mod aggregation_omp_tests;
 mod aggregation_desktop_tests;
 
 pub(crate) mod aggregation_desktop;
+
+pub(crate) mod aggregation_subagent;
+#[cfg(test)]
+mod aggregation_subagent_tests;

@@ -38,6 +38,7 @@ use vw_gateway_client::vw_api_types::{
 };
 #[derive(Clone, Debug)]
 pub enum ListMessage {
+    CodexSubagent(crate::app::message::settings::aggregation_subagent::Event),
     DesktopAggregation(crate::app::message::settings::aggregation_desktop::Event),
     OmpDirectory(crate::app::message::settings::aggregation_omp::Event),
     Omo(crate::app::message::settings::aggregation_omo::Event),
@@ -175,6 +176,9 @@ pub(crate) fn current(app: &App, id: AppId) -> Result<(GatewayClient, Scope), St
 }
 pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
     match value {
+        ListMessage::CodexSubagent(event) => {
+            return crate::app::message::settings::aggregation_subagent::update(app, event);
+        }
         ListMessage::DesktopAggregation(event) => {
             return crate::app::message::settings::aggregation_desktop::update(app, event);
         }

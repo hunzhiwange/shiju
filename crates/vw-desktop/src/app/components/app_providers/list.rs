@@ -395,6 +395,15 @@ pub(crate) fn overlay<'a>(
             .push(action("OMO 标准目录", ListMessage::Omo(Event::Open(Variant::Standard)), ready))
             .push(action("OMO Slim 目录", ListMessage::Omo(Event::Open(Variant::Slim)), ready));
     }
+    if scope.app == AppId::Codex {
+        actions = actions.push(action(
+            "Codex 子代理设置",
+            ListMessage::CodexSubagent(
+                crate::app::message::settings::aggregation_subagent::Event::Open,
+            ),
+            ready,
+        ));
+    }
     if scope.app == AppId::Pi {
         actions = actions.push(action(
             "Pi 模型条目",
@@ -418,6 +427,9 @@ pub(crate) fn overlay<'a>(
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
     if let Some(form) = &state.omo {
         return crate::app::components::aggregation_omo::overlay(form, list);
+    }
+    if let Some(form) = &state.codex_subagent {
+        return crate::app::components::aggregation_subagent::overlay(form, list);
     }
     if let Some(form) = &state.pi_directory {
         return crate::app::components::aggregation_pi::overlay(form, list);

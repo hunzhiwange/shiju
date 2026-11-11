@@ -89,7 +89,7 @@ impl Scene {
 
 async fn scene(app: &App, width: f32, click: Option<&str>) -> (Scene, Vec<crate::app::Message>) {
     use iced::advanced::{clipboard, renderer::Headless};
-    use iced::{Color, Event, Font, Size, Theme, mouse};
+    use iced::{Event, Font, Size, Theme, mouse};
     use iced_runtime::user_interface::{Cache, UserInterface};
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
@@ -107,9 +107,18 @@ async fn scene(app: &App, width: f32, click: Option<&str>) -> (Scene, Vec<crate:
     assert!(scene.preview.is_some(), "preview must use selected avatar");
     // Drawing traverses real font shaping, including Chinese text and both themes.
     for theme in [Theme::Light, Theme::Dark] {
-        ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
-        let pixels = renderer.screenshot(Size::new(width as u32, 1600), 1.0, Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
+        ui.draw(
+            &mut renderer,
+            &theme,
+            &iced::advanced::renderer::Style { text_color: theme.palette().text },
+            mouse::Cursor::Unavailable,
+        );
+        let pixels =
+            renderer.screenshot(Size::new(width as u32, 1600), 1.0, theme.palette().background);
+        assert!(
+            pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]),
+            "preview must draw more than a uniform background"
+        );
         if let Some(dir) = std::env::var_os("SHIJU_MINI_TASK4_SCREENSHOTS") {
             std::fs::create_dir_all(&dir).unwrap();
             image::save_buffer(

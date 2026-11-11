@@ -942,12 +942,25 @@ mod tab_appearance {
             (GeneralSettingsTab::Terminal, "终端 Shell"),
             (GeneralSettingsTab::Editor, "主题与显示"),
             (GeneralSettingsTab::Themes, "主题画廊"),
+            (GeneralSettingsTab::Companion, "我的智能伙伴"),
         ];
 
         for (locale, locale_name, names) in [
-            (DesktopLocale::SimplifiedChinese, "zh-CN", ["界面", "终端", "编辑器", "主题"]),
-            (DesktopLocale::TraditionalChinese, "zh-TW", ["介面", "終端機", "編輯器", "主題"]),
-            (DesktopLocale::English, "en", ["Interface", "Terminal", "Editor", "Themes"]),
+            (
+                DesktopLocale::SimplifiedChinese,
+                "zh-CN",
+                ["界面", "终端", "编辑器", "主题", "迷你界面和智能伙伴"],
+            ),
+            (
+                DesktopLocale::TraditionalChinese,
+                "zh-TW",
+                ["介面", "終端機", "編輯器", "主題", "迷你介面和智慧夥伴"],
+            ),
+            (
+                DesktopLocale::English,
+                "en",
+                ["Interface", "Terminal", "Editor", "Themes", "Mini and companions"],
+            ),
         ] {
             app.desktop_locale = locale;
             let i18n = I18n::new(locale);
@@ -973,7 +986,7 @@ mod tab_appearance {
                             page_help_bounds(&mut element, &renderer),
                         )
                     };
-                    assert_eq!(bounds.len(), 4);
+                    assert_eq!(bounds.len(), names.len());
                     for pair in bounds.windows(2) {
                         assert!((pair[1].x - pair[0].x - pair[0].width - 8.0).abs() < 0.01);
                         assert_eq!(pair[0].center_y(), pair[1].center_y());
@@ -986,9 +999,9 @@ mod tab_appearance {
                     );
                     let mut labels = Labels::default();
                     ui.operate(&renderer, &mut labels);
-                    assert_eq!(&labels.0[1..5], &names);
+                    assert_eq!(&labels.0[1..1 + names.len()], &names);
                     assert!(
-                        labels.0[5..].iter().any(|label| label == &i18n.__(content)),
+                        labels.0[1 + names.len()..].iter().any(|label| label == &i18n.__(content)),
                         "{content:?} missing from {active:?}"
                     );
 

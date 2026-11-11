@@ -4,11 +4,29 @@ use serde::{Serialize, de::DeserializeOwned};
 use vw_api_types::{
     TaskId,
     agent_apps_diagnostics::{
+        DiagnosticEndpointCandidatesQuery, DiagnosticEndpointCandidatesResponse,
         DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticScopeQuery, DiagnosticStartRequest,
     },
 };
 
 impl GatewayClient {
+    /// Read host-normalized candidates and their sources without probing or saving drafts.
+    pub async fn diagnostic_endpoint_candidates(
+        &self,
+        scope: &DiagnosticScopeQuery,
+        query: &DiagnosticEndpointCandidatesQuery,
+        token: &str,
+    ) -> Result<DiagnosticEndpointCandidatesResponse, AgentAppsSettingsError> {
+        self.diagnostic_request(
+            reqwest::Method::POST,
+            &["endpoint-candidates", "query"],
+            scope,
+            Some(query),
+            token,
+        )
+        .await
+    }
+
     /// Submit one probe batch. Acceptance identifies a job, not a successful probe.
     /// An ambiguous failure must not be retried automatically.
     pub async fn diagnostic_start(
@@ -17,7 +35,7 @@ impl GatewayClient {
         request: &DiagnosticStartRequest,
         token: &str,
     ) -> Result<DiagnosticJobIdentity, AgentAppsSettingsError> {
-        self.diagnostic_request(reqwest::Method::POST, &[], scope, Some(request), token).await
+        self.diagnostic_request(reqwest::Method::POST, &["jobs"], scope, Some(request), token).await
     }
 
     /// Read the original task's progress and partial/final evidence in its authorized scope.
@@ -54,7 +72,7 @@ impl GatewayClient {
                 "invalid diagnostic job identity".into(),
             ));
         }
-        let segments = if cancel { vec![id, "cancel"] } else { vec![id] };
+        let segments = if cancel { vec!["jobs", id, "cancel"] } else { vec!["jobs", id] };
         self.diagnostic_request::<(), _>(
             if cancel { reqwest::Method::POST } else { reqwest::Method::GET },
             &segments,
@@ -73,11 +91,9 @@ impl GatewayClient {
         body: Option<&B>,
         token: &str,
     ) -> Result<T, AgentAppsSettingsError> {
-        let mut url = reqwest::Url::parse(&format!(
-            "{}/v1/agent-apps/diagnostics/jobs",
-            self.endpoint.base_url()
-        ))
-        .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;
+        let mut url =
+            reqwest::Url::parse(&format!("{}/v1/agent-apps/diagnostics", self.endpoint.base_url()))
+                .map_err(|err| AgentAppsSettingsError::Transport(err.to_string()))?;
         url.path_segments_mut()
             .map_err(|_| AgentAppsSettingsError::Transport("invalid gateway URL".into()))?
             .extend(segments);

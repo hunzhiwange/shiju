@@ -281,3 +281,116 @@ async fn diagnostic_sdk_preserves_job_identity_rejects_invalid_responses_and_ids
         );
     }
 }
+
+#[tokio::test]
+async fn diagnostic_endpoints_sdk_uses_scoped_body() {
+    use std::{
+        io::{BufRead, Read, Write},
+        net::TcpListener,
+        time::{Duration, Instant},
+    };
+    let query = DiagnosticEndpointCandidatesQuery {
+        provider_id: "provider /?中文".into(),
+        draft_urls: vec!["https://draft.example/私有/".into()],
+        preset_name: Some("preset /?中文".into()),
+    };
+    let expected = DiagnosticEndpointCandidatesResponse {
+        candidates: vec![DiagnosticEndpointCandidate {
+            id: DiagnosticEndpointId("host-issued-id".into()),
+            display_url: "https://draft.example/私有".into(),
+            sources: vec![
+                DiagnosticEndpointSource::Draft,
+                DiagnosticEndpointSource::SavedConfig,
+                DiagnosticEndpointSource::Preset,
+                DiagnosticEndpointSource::Custom,
+            ],
+        }],
+    };
+    for status in [200, 403] {
+        let body = if status == 200 {
+            serde_json::to_value(&expected).unwrap()
+        } else {
+            json!({"error":{"code":"forbidden","details":{"correlationId":"denied"}}})
+        };
+        let response_body = body.to_string();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        // Observe every connection, including unexpected save/probe/retry requests.
+        let handle = std::thread::spawn(move || {
+            listener.set_nonblocking(true).unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let mut first = None;
+            let mut requests = Vec::new();
+            while Instant::now() < deadline {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+                        let mut reader = std::io::BufReader::new(&mut stream);
+                        let mut lines = Vec::new();
+                        let mut length = 0;
+                        loop {
+                            let mut line = String::new();
+                            assert!(reader.read_line(&mut line).unwrap() > 0);
+                            if line == "\r\n" {
+                                break;
+                            }
+                            if let Some(value) =
+                                line.to_ascii_lowercase().strip_prefix("content-length:")
+                            {
+                                length = value.trim().parse::<usize>().unwrap();
+                            }
+                            lines.push(line.trim().to_string());
+                        }
+                        let mut bytes = vec![0; length];
+                        reader.read_exact(&mut bytes).unwrap();
+                        requests.push((lines, serde_json::from_slice::<Value>(&bytes).unwrap()));
+                        first.get_or_insert(Instant::now());
+                        write!(stream, "HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{response_body}", response_body.len()).unwrap();
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        if first
+                            .is_some_and(|at: Instant| at.elapsed() > Duration::from_millis(350))
+                        {
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("{error}"),
+                }
+            }
+            requests
+        });
+        let endpoint = crate::GatewayEndpoint::new("127.0.0.1", port)
+            .with_auth(crate::GatewayAuth { skey: Some("fixture-gateway-auth".into()) });
+        let client = GatewayClient::new(endpoint).unwrap();
+        let result =
+            client.diagnostic_endpoint_candidates(&scope(), &query, "fixture-member").await;
+        let requests = handle.join().unwrap();
+        assert_eq!(requests.len(), 1, "candidate query must not probe, save, or retry");
+        let (lines, recorded_body) = &requests[0];
+        assert_eq!(
+            lines[0],
+            "POST /v1/agent-apps/diagnostics/endpoint-candidates/query?projectId=project+%2F%3F%E4%B8%AD%E6%96%87&targetHostId=host+%2F%3F%E4%B8%AD%E6%96%87&appId=claude HTTP/1.1",
+            "candidate query must use its read-only endpoint with only scope in the URL"
+        );
+        assert_eq!(*recorded_body, serde_json::to_value(&query).unwrap());
+        for (name, value) in [
+            ("x-agent-apps-token", "fixture-member"),
+            ("authorization", "Bearer fixture-gateway-auth"),
+            ("x-platform-id", client.endpoint().tenant_scope().platform_id().as_ref()),
+            ("x-company-id", client.endpoint().tenant_scope().company_id().as_ref()),
+        ] {
+            assert!(
+                lines.iter().any(|line| line.split_once(':').is_some_and(|(key, actual)| key
+                    .eq_ignore_ascii_case(name)
+                    && actual.trim() == value)),
+                "missing {name}"
+            );
+        }
+        if status == 200 {
+            assert_eq!(result.unwrap(), expected);
+        } else {
+            assert_eq!(result.unwrap_err(), AgentAppsSettingsError::Http { status, body });
+        }
+    }
+}

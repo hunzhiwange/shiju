@@ -99,6 +99,16 @@ pub struct McpUpdateRequest {
     pub connection: McpConnectionDefinition,
 }
 
+/// Retire an expected catalog revision. Native cleanup is reported separately per target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpDeleteRequest {
+    pub target_host_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<ProjectId>,
+    pub expected_revision: u64,
+}
+
 /// Stable within the catalog scope.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]

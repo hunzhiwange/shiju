@@ -562,3 +562,27 @@ pub(super) fn authorize_mcp_native_read(
 
 #[cfg(target_os = "macos")]
 pub(super) use access::authorize_aggregation_read;
+
+/// Native cleanup uses the same administrator-owned roots and write grant as provider edits.
+#[cfg(target_os = "macos")]
+pub(super) fn authorize_mcp_native_write(
+    path: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    target: &str,
+) -> Result<
+    (vw_agent_apps::apps::discovery::read::LocalReadEnvironment, std::path::PathBuf),
+    axum::http::StatusCode,
+> {
+    let host = access::authorize_provider_write(path, headers, tenant, target)?;
+    let root = host.credential_root.ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((
+        vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
+            host_id: host.id,
+            home: host.home,
+            search_paths: host.search_paths,
+            applications: host.applications,
+        },
+        root,
+    ))
+}

@@ -53,7 +53,8 @@ pub(super) fn router() -> Router {
         )
         .route(
             "/agent-apps/mcp/{id}",
-            axum::routing::put(super::mcp_management_update::update_catalog_record),
+            axum::routing::put(super::mcp_management_update::update_catalog_record)
+                .delete(super::mcp_management_delete::delete_catalog_record),
         )
         .route("/agent-apps/mcp/presets", get(read_presets))
         .route("/agent-apps/mcp/native", get(read_native))

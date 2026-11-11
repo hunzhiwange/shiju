@@ -320,6 +320,9 @@ mod model_discovery_tests;
 mod mcp_management_create;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_create_tests;
+mod mcp_management_delete;
+#[cfg(all(test, target_os = "macos"))]
+mod mcp_management_delete_tests;
 mod mcp_management_read;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_read_tests;

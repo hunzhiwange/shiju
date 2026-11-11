@@ -793,3 +793,25 @@ SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__
 实际绝对目标目录为：槽位 3 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`（行为测试与第三次 Clippy），槽位 2 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，槽位 1 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，槽位 7 `/Users/xiangmin/worker/code/shiju/target/rust-slot-7`。各阶段 `CARGO_BUILD_BUILD_DIR` 与 `CARGO_TARGET_DIR` 相同。全部 Cargo 子进程已退出，自己的槽位锁已释放，缓存保留；未执行全量单元测试或跨平台验收。
 
 当前状态仍为 **已完成，待回归**。本轮有效行为测试 **6 项通过，0 失败**，全仓 Clippy 未通过，不删除任务卡。恢复条件是原生事务生产者完成 `Pending.project_preimage` 对已有调用者夹具的契约对齐，归档 UI 完成编译与 lint 接线，再在稳定的集成工作区重新执行上面两条聚焦测试和全仓 Clippy。按 AGENTS.md 不扩展修改其他会话的无关实现；未发现本项扫描用例失败，未改动只读 `plan.md`。
+
+### 独立生产网关验收与回归重试（2026-11-11）
+
+本轮基线为 `a3dd368a6ebb97dcf7b8abef669d2f56e2ab7b21` 及当前集成工作区已有变更。重新核对了任务卡的 AISDK E0382 证据；相关改动随后已在异步闭包之前计算协议，旧错误已修复，不再作为本项阻塞条件。扫描生产实现、DTO 和 SDK 均未改动。
+
+为避免无关 `cfg(test)` 模块的编译故障阻断生产路径验收，参考已有 `cc04_accept_transactions` 的公开 Gateway 子进程模式，新增显式集成目标 `crates/vw-agent/tests/cc_route_030_outbound_scan.rs`。该目标使用正常生产库的 `gateway::run_gateway`、真实授权策略、路由和 SDK，使用临时 HOME、策略和凭证目录，不 mock 内部边界，不新增依赖或 feature，也不删除原四项单元测试。子进程只监听动态控制端口；扫描保持来源八个固定回环候选，不占用这些端口、不发送应用数据、不改出口配置。
+
+| 阶段 | 确切命令 | 槽位、退出码与有效测试 |
+| --- | --- | --- |
+| 格式化 | `cargo fmt --all -- --emit stdout`，再仅对新测试执行绝对路径 `rustfmt --edition 2024 --config skip_children=true` | 槽位 5，退出 0；全仓只读输出，未写其他会话文件。 |
+| SDK | `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 槽位 5，退出 0，2 项通过、0 失败或忽略，0.02 秒。 |
+| 首次集成构建 | `cargo test -p vw-agent --test cc_route_030_outbound_scan cc_route_030_ -- --nocapture` | 槽位 5，退出 101，0 项运行；范围外 `app_providers/generation_target.rs` 的 `UnsupportedSavedTarget` 移动后复用导致 7 个 E0382。相关改动补入 Clone/Copy 后重试。 |
+| 同轮原聚焦构建 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 槽位 5，退出 101，0 项运行；同一生产库 E0382 快照。 |
+| 真实生产 Gateway 验收 | `cargo test -p vw-agent --test cc_route_030_outbound_scan cc_route_030_ -- --nocapture` | 槽位 10，退出 0，1 项通过、0 失败或忽略，1 项子进程辅助入口被前缀过滤，0.69 秒；构建 43 分 46 秒。 |
+| 原聚焦重试 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 槽位 10，退出 101，0 项运行；约 27 分钟后主机交换内存升至约 66GB，编译进程处于 U/I/O 等待且 CPU 进展显著降低，因此仅向自己的 rustc 发送 SIGTERM 撤回资源受阻构建。没有代码编译诊断，不计为行为失败或通过。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 3，退出 101；`vw-gateway-client/src/client/session_api.rs:467` 的归档删除调用只传 2 个参数，`request_helpers.rs:123` 的 delete_json 要求 3 个，E0061。未修改此范围外调用。 |
+
+真实 Gateway 验收覆盖：只读主体、未授权项目、其他执行主机/租户拒绝；任意 IP、端口、URL 和自定义时限字段拒绝；202/no-store；不同主体、项目和诊断类别不能读同一任务；八候选结果与进度完整，协议字段仅来源提示且不泄漏令牌；取消和重复取消保持终态。父测试结束时已 kill/wait 回收子进程。新增测试 SHA256 为 `f635cd4d7463dd08d6160eeae4ccab42231f61237d2120f21cd871ab04198249`。
+
+本轮有效行为测试 **3 项通过，0 失败**。原四项单元测试历史通过记录仍保留，但不冒充本轮运行结果。槽位 5 的绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`，槽位 10 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-10`；各自 `CARGO_BUILD_BUILD_DIR` 同目标目录，`CARGO_BUILD_JOBS=2`。全仓 Clippy 另使用槽位 3，绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR` 同该路径，`CARGO_BUILD_JOBS=2`。三个阶段均已结束、自己的锁已释放，缓存保留。
+
+当前为 **已完成，待回归**，不需要新增权限、用户决策或外部业务产物；保留任务卡，待归档 SDK 调用者完成 delete_json 参数契约对齐，在稳定的集成工作区与资源窗口重跑两条原聚焦测试、独立 Gateway 验收及全仓 Clippy，全部通过后才删除卡片。未修改 `plan.md` 或其他任务实现。

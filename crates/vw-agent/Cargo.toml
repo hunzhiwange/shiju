@@ -190,3 +190,7 @@ whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", 
 [[test]]
 name = "cc04_accept_transactions"
 path = "tests/cc04_accept_transactions.rs"
+
+[[test]]
+name = "cc_route_030_outbound_scan"
+path = "tests/cc_route_030_outbound_scan.rs"

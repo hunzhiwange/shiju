@@ -662,3 +662,26 @@ SQLite 使用临时文件库，PostgreSQL 使用独立本机 18.4 实例和隔�
 | 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读 `plan.md` 无差异。 |
 
 测试链接报告既有的 macOS `__eh_frame` 大小警告。本任务持有的槽位锁均已释放，编译缓存保留。状态为 **已完成**。
+
+## 任务 27　拒绝不安全 TLS 与转发回环
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 26 的 `b3d2ef58a`。CC Switch 4.0.25 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/upstream_guard.rs`、`proxy/http_client.rs` 与仓库快照和来源映射的 SHA256 一致。核对了 `forwarder.rs` 的目标校验和来源相邻测试。沿用母任务 2、3 的网关运行时、执行主机授权和应用身份。原生配置事务和账号租约沿用母任务 4、6 的契约。
+
+- 授权的 `POST /v1/chat/completions` 经 `dispatch::forward_json` 使用 `SharedTransport::forward_ordered`。`transport_security::check_origin` 以已绑定回环监听器的实际地址和端口校验目标，统一比较 IPv4 映射地址。同端口直连域名在拨号前检查全部解析结果，有序 TCP 和 reqwest 均复用核验过的地址，并保留原始 HTTP 主机及 TLS 身份。单独绑定在另一地址的服务仍可使用相同端口。
+- 代理需要独立解析同端口域名时，在发出代理连接前返回脱敏 502。现有系统代理已知自指时继续绕过，显式代理已知自指时拒绝。HTTPS 按原始目标校验证书链与主机名，生产传输沿用平台信任。reqwest 禁用自动重定向，有序传输只执行一次 HTTP 交换。
+- 真实回环 TCP/TLS 夹具验证未受信证书、信任同一证书链时名称匹配与不匹配、携凭据的 307 原请求和重定向目的端零连接、解析到本监听器时零拨号、同端口代理端零拨号及同端口 IPv6 上游成功。Windows、Linux、WSL 范围外且未验证，WSL 连接地址保留在来源映射。
+
+### 验证记录
+
+红灯、首次格式化、首次绿灯、相邻回归和首轮 Clippy 使用共享槽位 **2**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。移除未使用的导入后，复跑格式化、聚焦测试及第二轮 Clippy 使用共享槽位 **1**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。并行改动补齐后第三轮 Clippy 使用共享槽位 **5**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`。各阶段的 `CARGO_BUILD_BUILD_DIR` 同对应目标路径，回环测试使用独立临时目录。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| 行为红灯 | `cargo test -p vw-agent --lib cc_route_027_ -- --nocapture` | 退出 101，3 项通过，2 项失败。未核验的同端口域名到达代理，独立 IPv6 上游被误拒为 502。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`，随后 `rustfmt --edition 2024 --config skip_children=true crates/vw-agent/src/app_routing/{mod,outbound_custom_tests,outbound_system,shared_transport,transport_security,transport_security_tests}.rs` | 退出 0，只写入本项 Rust 文件。移除未使用的导入后以相同的 Cargo 命令复跑，并仅对 `outbound_system.rs` 执行相同参数的 rustfmt，两条命令均退出 0。 |
+| 聚焦绿灯 | `cargo test -p vw-agent --lib cc_route_027_ -- --nocapture` | 槽位 2 和 1 均退出 0，每轮 7 项通过，0 项失败或忽略。 |
+| 相邻回归 | `cargo test -p vw-agent --lib -- cc_route_002_ cc_route_017_ cc_route_024_ cc_route_025_ cc_route_026_ --test-threads=1 --nocapture` | 退出 0，22 项通过，0 项失败或忽略。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 2 退出 101，定位并移除旧的 `SocketAddr` 导入。槽位 1 退出 101，由并行 MCP 改动的未使用导出和 Responses 测试的 `StatusCode` 导入阻断。相关改动补齐后，槽位 5 退出 0。 |
+| 差异审查 | `git diff --cached --check`（限定本项提交路径） | 退出 0。只读 `plan.md` 无差异。 |
+
+测试链接报告既有 macOS `__eh_frame` 大小警告。本项占用的槽位锁均已释放，保留编译缓存。状态为 **已完成**。

@@ -1,6 +1,12 @@
 #[cfg(target_os = "macos")]
 use super::outbound_system::{self, SystemProxy};
-use super::{header_wire::HeaderWire, outbound_custom};
+#[cfg(target_os = "macos")]
+use super::transport_security::{check_origin, proxy_is_listener};
+use super::{
+    header_wire::HeaderWire,
+    outbound_custom,
+    transport_security::{connect_tls, tls_connector},
+};
 use crate::model_relay::upstream;
 use axum::{
     body::Body,
@@ -12,18 +18,15 @@ use hyper::body::Incoming;
 #[cfg(not(target_os = "macos"))]
 use hyper_util::client::proxy::matcher::Matcher;
 use hyper_util::{client::proxy::matcher::Intercept, rt::TokioIo};
-use rustls_platform_verifier::BuilderVerifierExt;
-use std::{
-    net::SocketAddr,
-    sync::{Arc, OnceLock},
-};
+use std::net::SocketAddr;
+#[cfg(target_os = "macos")]
+use std::sync::Arc;
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, join, sink, split},
     net::TcpStream,
     task::JoinSet,
     time::{Instant, timeout_at},
 };
-use tokio_rustls::TlsConnector;
 use tokio_util::{either::Either, sync::CancellationToken};
 
 enum Egress {
@@ -148,21 +151,18 @@ impl SharedTransport {
             .or_insert(HeaderValue::from_static("zstd,gzip,deflate,br"));
         #[cfg(target_os = "macos")]
         let (client, proxy) = {
-            if outbound_system::is_listener(&uri, listener) {
-                return Err(StatusCode::BAD_GATEWAY);
-            }
             if uri.host().is_some_and(outbound_system::is_loopback) {
                 (&self.direct.encoded, None)
             } else {
                 match &self.egress {
                     Egress::System(system) => match system.intercept(authorized_target) {
-                        Some(proxy) if !outbound_system::is_listener(proxy.uri(), listener) => {
+                        Some(proxy) if !proxy_is_listener(proxy.uri(), listener)? => {
                             (&self.encoded_client, Some(proxy))
                         }
                         _ => (&self.direct.encoded, None),
                     },
                     Egress::Custom(proxy) => {
-                        if outbound_system::is_listener(proxy.uri(), listener) {
+                        if proxy_is_listener(proxy.uri(), listener)? {
                             return Err(StatusCode::BAD_GATEWAY);
                         }
                         (&self.encoded_client, Some(proxy))
@@ -187,10 +187,32 @@ impl SharedTransport {
                 Egress::Custom(proxy) => (&self.encoded_client, Some(proxy)),
             }
         };
+        #[cfg(target_os = "macos")]
+        let resolved = tokio::select! {
+            biased;
+            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT),
+            result = timeout_at(
+                Instant::now() + upstream::CONNECT_TIMEOUT,
+                check_origin(authorized_target, listener, proxy.is_some()),
+            ) => result.map_err(|_| StatusCode::BAD_GATEWAY)??,
+        };
+        #[cfg(not(target_os = "macos"))]
+        let resolved: Option<Vec<SocketAddr>> = None;
         if wire.is_empty()
             || proxy
                 .is_some_and(|proxy| !matches!(proxy.uri().scheme_str(), Some("http" | "https")))
         {
+            #[cfg(target_os = "macos")]
+            if let Some(addresses) = &resolved {
+                // Reuse the checked addresses without changing Host or TLS identity.
+                let host = authorized_target.host_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                let pinned = encoded_client_builder()
+                    .no_proxy()
+                    .resolve_to_addrs(host, addresses)
+                    .build()
+                    .map_err(|_| StatusCode::BAD_GATEWAY)?;
+                return forward_with_client(&pinned, authorized_target, request, cancel).await;
+            }
             return forward_with_client(client, authorized_target, request, cancel).await;
         }
         let method = request.method().clone();
@@ -205,7 +227,7 @@ impl SharedTransport {
         tokio::select! {
             biased;
             () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
-            result = send_ordered(outgoing, wire, proxy, cancel.clone()) => result,
+            result = send_ordered(outgoing, wire, proxy, resolved.as_deref(), cancel.clone()) => result,
         }
     }
 }
@@ -238,6 +260,7 @@ async fn send_ordered(
     request: Request<reqwest::Body>,
     wire: HeaderWire,
     tunnel: Option<&Intercept>,
+    resolved: Option<&[SocketAddr]>,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
     let (parts, body) = request.into_parts();
@@ -261,22 +284,20 @@ async fn send_ordered(
         if let Some(proxy) = tunnel {
             outbound_custom::connect_tunnel(proxy, &parts.uri, tls_connector()?).await
         } else {
-            TcpStream::connect((host, port))
-                .await
-                .map(Either::Left)
-                .map_err(|_| StatusCode::BAD_GATEWAY)
+            let socket = match resolved {
+                Some(addresses) => TcpStream::connect(addresses).await,
+                None => TcpStream::connect((host, port)).await,
+            };
+            socket.map(Either::Left).map_err(|_| StatusCode::BAD_GATEWAY)
         }
     })
     .await
     .map_err(|_| StatusCode::BAD_GATEWAY)??;
     let mut driver = JoinSet::new();
     let response = if https {
-        let name = rustls_pki_types::ServerName::try_from(host.to_owned())
-            .map_err(|_| StatusCode::BAD_GATEWAY)?;
-        let socket = timeout_at(connect_deadline, tls_connector()?.connect(name, socket))
+        let socket = timeout_at(connect_deadline, connect_tls(tls_connector()?, host, socket))
             .await
-            .map_err(|_| StatusCode::BAD_GATEWAY)?
-            .map_err(|_| StatusCode::BAD_GATEWAY)?;
+            .map_err(|_| StatusCode::BAD_GATEWAY)??;
         exchange(socket, &head, body, parts.method, &mut driver).await?
     } else {
         exchange(socket, &head, body, parts.method, &mut driver).await?
@@ -294,24 +315,6 @@ async fn send_ordered(
             },
         ))
     }))
-}
-
-fn tls_connector() -> Result<&'static TlsConnector, StatusCode> {
-    static CONNECTOR: OnceLock<Option<TlsConnector>> = OnceLock::new();
-    CONNECTOR
-        .get_or_init(|| {
-            let mut config = rustls::ClientConfig::builder_with_provider(Arc::new(
-                rustls::crypto::ring::default_provider(),
-            ))
-            .with_safe_default_protocol_versions()
-            .and_then(|builder| builder.with_platform_verifier())
-            .ok()?
-            .with_no_client_auth();
-            config.alpn_protocols.push(b"http/1.1".to_vec());
-            Some(TlsConnector::from(Arc::new(config)))
-        })
-        .as_ref()
-        .ok_or(StatusCode::BAD_GATEWAY)
 }
 
 async fn exchange(

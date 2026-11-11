@@ -4,7 +4,7 @@ use axum::http::Uri;
 use glob::{MatchOptions, Pattern};
 use hyper_util::client::proxy::matcher::{Intercept, Matcher};
 use reqwest::Url;
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
 use system_configuration::{
     core_foundation::{
         ConcreteCFType,
@@ -176,20 +176,4 @@ pub(super) fn is_loopback(host: &str) -> bool {
             .trim_end_matches(']')
             .parse::<IpAddr>()
             .is_ok_and(|ip| ip.to_canonical().is_loopback())
-}
-
-pub(super) fn is_listener(uri: &Uri, listener: SocketAddr) -> bool {
-    let port = uri.port_u16().or(match uri.scheme_str() {
-        Some("http") => Some(80),
-        Some("https") => Some(443),
-        Some("socks4" | "socks4a" | "socks5" | "socks5h") => Some(1080),
-        _ => None,
-    });
-    port == Some(listener.port())
-        && uri.host().is_some_and(|host| {
-            is_loopback(host)
-                || host.trim_start_matches('[').trim_end_matches(']').parse::<IpAddr>().is_ok_and(
-                    |ip| ip.is_unspecified() || ip.to_canonical() == listener.ip().to_canonical(),
-                )
-        })
 }

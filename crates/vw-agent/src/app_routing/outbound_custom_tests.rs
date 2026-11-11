@@ -314,7 +314,7 @@ async fn cc_route_025_proxy_auth_failure_never_falls_back() {
     .expect("proxy authentication failure fixture timed out");
 }
 
-fn tls_fixture() -> (tokio_rustls::TlsAcceptor, tokio_rustls::TlsConnector) {
+pub(super) fn tls_fixture() -> (tokio_rustls::TlsAcceptor, tokio_rustls::TlsConnector) {
     use rustls_pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
     use std::sync::Arc;
 
@@ -396,7 +396,7 @@ async fn cc_route_025_https_proxy_rejects_an_untrusted_certificate() {
 }
 
 // Loopback-only TLS material. The private key is generated for this fixture.
-const PROXY_CA: &[u8] = br#"-----BEGIN CERTIFICATE-----
+pub(super) const PROXY_CA: &[u8] = br#"-----BEGIN CERTIFICATE-----
 MIIBgDCCASagAwIBAgIUZ4RQcJ7xL+MjSgafZyvVx4KQzbEwCgYIKoZIzj0EAwIw
 HjEcMBoGA1UEAwwTU2hpSnUgVGVzdCBQcm94eSBDQTAeFw0yMDAxMDEwMDAwMDBa
 Fw00NTAxMDEwMDAwMDBaMB4xHDAaBgNVBAMME1NoaUp1IFRlc3QgUHJveHkgQ0Ew

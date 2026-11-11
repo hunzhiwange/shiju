@@ -20,6 +20,7 @@ mod route_auth;
 mod shared_transport;
 mod shutdown;
 mod timeouts;
+mod transport_security;
 pub use listener::{ListenerError, RoutingListener};
 #[cfg(target_os = "macos")]
 pub(crate) use route_auth::VerifiedRouteBinding;
@@ -63,3 +64,6 @@ mod capacity_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod protocol_errors_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod transport_security_tests;

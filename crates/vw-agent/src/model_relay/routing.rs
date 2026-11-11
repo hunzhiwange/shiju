@@ -287,7 +287,7 @@ pub(crate) fn relay_conversions(codex: bool) -> [ConversionSupport<'static>; 3] 
         C::StructuredOutput,
     ];
     [
-        ConversionSupport { source: P::Messages, target: P::Chat, capabilities: BASIC },
+        ConversionSupport { source: P::Messages, target: P::Chat, capabilities: RESPONSES },
         ConversionSupport {
             source: P::Responses,
             target: P::Chat,

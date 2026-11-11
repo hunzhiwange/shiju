@@ -22,6 +22,10 @@ mod chat_tests;
 mod transport_tests;
 
 mod messages;
+#[cfg(test)]
+mod messages_request_http_tests;
+#[cfg(test)]
+mod messages_request_tests;
 mod messages_stream;
 #[cfg(test)]
 mod messages_tests;

@@ -1,5 +1,6 @@
 //! Messages ↔ Chat text/tool boundary. No response references or tool execution state.
 use axum::http::StatusCode;
+use base64::Engine as _;
 use serde_json::{Value, json};
 
 const UNSUPPORTED: StatusCode = StatusCode::UNPROCESSABLE_ENTITY;
@@ -44,6 +45,42 @@ fn text(value: &Value) -> Result<String, StatusCode> {
     Ok(result)
 }
 
+// Images stay in the user's ordered content. Model-aware relay callers apply
+// chat::prepare after conversion; this layer never fetches URLs.
+fn image(block: &Value) -> Result<Value, StatusCode> {
+    object_keys(block, &["type", "source", "cache_control"])?;
+    let source = &block["source"];
+    let url = match string(source, "type")? {
+        "url" => {
+            object_keys(source, &["type", "url"])?;
+            let raw = string(source, "url")?;
+            let url = reqwest::Url::parse(raw).map_err(|_| StatusCode::BAD_REQUEST)?;
+            if !matches!(url.scheme(), "http" | "https")
+                || !url.username().is_empty()
+                || url.password().is_some()
+                || url.fragment().is_some()
+            {
+                return Err(UNSUPPORTED);
+            }
+            raw.to_owned()
+        }
+        "base64" => {
+            object_keys(source, &["type", "media_type", "data"])?;
+            let media = string(source, "media_type")?;
+            if !matches!(media, "image/jpeg" | "image/png" | "image/gif" | "image/webp") {
+                return Err(UNSUPPORTED);
+            }
+            let data = string(source, "data")?;
+            if data.is_empty() || base64::engine::general_purpose::STANDARD.decode(data).is_err() {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            format!("data:{media};base64,{data}")
+        }
+        _ => return Err(UNSUPPORTED),
+    };
+    Ok(json!({"type":"image_url","image_url":{"url":url}}))
+}
+
 pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
     object_keys(
         body,
@@ -59,8 +96,12 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             "tool_choice",
             "metadata",
             "thinking",
+            "stop_sequences",
+            "cache_control",
+            "output_config",
         ],
     )?;
+    cache_hint(body)?;
     if let Some(thinking) = body.get("thinking") {
         object_keys(thinking, &["type"])?;
         if thinking["type"] != "disabled" {
@@ -92,6 +133,33 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             output["stream_options"] = json!({"include_usage":true});
         }
     }
+    if let Some(stops) = body.get("stop_sequences") {
+        let stops = stops.as_array().ok_or(StatusCode::BAD_REQUEST)?;
+        if stops.iter().any(|stop| stop.as_str().is_none_or(str::is_empty)) {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        // Chat can express at most four sequences. Never truncate user stops.
+        if stops.len() > 4 {
+            return Err(UNSUPPORTED);
+        }
+        if !stops.is_empty() {
+            output["stop"] = stops.clone().into();
+        }
+    }
+    if let Some(config) = body.get("output_config") {
+        // Effort has model-specific semantics; it is not a generic Chat knob.
+        object_keys(config, &["format"])?;
+        let format = &config["format"];
+        object_keys(format, &["type", "schema"])?;
+        if format["type"] != "json_schema" {
+            return Err(UNSUPPORTED);
+        }
+        if !format["schema"].is_object() {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        output["response_format"] = json!({"type":"json_schema","json_schema":{
+            "name":"messages_output","strict":true,"schema":format["schema"]}});
+    }
     let mut messages = Vec::new();
     if let Some(system) = body.get("system") {
         messages.push(json!({"role":"system","content":text(system)?}));
@@ -107,6 +175,26 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             continue;
         }
         let blocks = message["content"].as_array().ok_or(StatusCode::BAD_REQUEST)?;
+        if blocks.iter().any(|block| block["type"] == "image") {
+            if role != "user" {
+                return Err(UNSUPPORTED);
+            }
+            let mut parts = Vec::new();
+            for block in blocks {
+                cache_hint(block)?;
+                parts.push(match block["type"].as_str() {
+                    Some("text") => {
+                        object_keys(block, &["type", "text", "cache_control"])?;
+                        json!({"type":"text","text":string(block, "text")?})
+                    }
+                    Some("image") => image(block)?,
+                    // Chat tool results cannot carry an arbitrary image block.
+                    _ => return Err(UNSUPPORTED),
+                });
+            }
+            messages.push(json!({"role":role,"content":parts}));
+            continue;
+        }
         let mut content = String::new();
         let mut calls = Vec::new();
         for block in blocks {
@@ -163,13 +251,19 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         let tools = tools.as_array().ok_or(StatusCode::BAD_REQUEST)?;
         let mut converted = Vec::new();
         for tool in tools {
-            object_keys(tool, &["name", "description", "input_schema", "cache_control"])?;
+            object_keys(tool, &["name", "description", "input_schema", "cache_control", "strict"])?;
             cache_hint(tool)?;
             if !tool["input_schema"].is_object() {
                 return Err(StatusCode::BAD_REQUEST);
             }
             let mut function =
                 json!({"name":string(tool,"name")?,"parameters":tool["input_schema"]});
+            if let Some(strict) = tool.get("strict") {
+                if !strict.is_boolean() {
+                    return Err(StatusCode::BAD_REQUEST);
+                }
+                function["strict"] = strict.clone();
+            }
             if let Some(description) = tool.get("description") {
                 function["description"] = description.clone();
             }
@@ -350,12 +444,14 @@ pub(super) fn prepare_hosted_native(body: &mut Value) -> Result<(), StatusCode> 
             "thinking",
             "output_config",
             "context_management",
+            "stop_sequences",
+            "cache_control",
         ],
     )?;
     body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("metadata");
     if let Some(tools) = body.get("tools") {
         for tool in tools.as_array().ok_or(StatusCode::BAD_REQUEST)? {
-            object_keys(tool, &["name", "description", "input_schema", "cache_control"])?;
+            object_keys(tool, &["name", "description", "input_schema", "cache_control", "strict"])?;
         }
     }
     Ok(())

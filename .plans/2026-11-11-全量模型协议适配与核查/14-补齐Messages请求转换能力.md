@@ -2,7 +2,7 @@
 
 批次：【批次 8】 依赖批次 7；直接依赖任务 13
 
-状态：未开始
+状态：已完成，待回归
 
 目的：根据全量核查结果补齐Messages请求的可表达字段和目标协议转换。
 
@@ -70,3 +70,38 @@
 - 遇到问题先调查并在既有授权内处理实现原目标所需的相邻依赖；仍有实际依赖缺失则在本文件标记`已阻塞`，记录复现、已尝试路径和所需输入。
 - 无关既有问题导致回归无法执行，可标记`已完成，待回归`并保留任务文件；按上述规则提交实际变更。缺少完成本任务本身所必需的实现或验证，不能据此宣称完成。
 - plan.md为只读，prompt.md不是进度来源；正式证据写入本任务列明的产物。
+
+## 执行记录（2026-11-11）
+
+- 已读取执行、RustCodeGraph、提交技能及计划和两份基线。依赖13实现提交 `4a604e91d` 已存在，9项启动测试因构建资源/中断保留待回归；本任务复用其共享选择器和实际转换能力列表，不将前置待回归当成验证通过。
+- 当前Messages模块已有其它任务的可见性修改，mod.rs、messages_stream.rs、server.rs及工作区大量文件有其它变更，只提交本任务增量。plan.md只读。
+- 官方字段依据（核查2026-11-11）：https://platform.claude.com/docs/en/api/messages/create （stop_sequences、顶层cache_control）；https://platform.claude.com/docs/en/build-with-claude/structured-outputs （output_config.format与工具strict）；https://developers.openai.com/api/reference/resources/chat （stop、image_url、response_format与function.strict）。夹具为公开协议形状的合成脱敏数据，不冒充真实供应商捕获。
+- 约定任务15输入：thinking enabled/adaptive、thinking/redacted_thinking签名与回放仍明确422；不删除、不伪造、不改为disabled。本任务只扩展现有Messages→Chat请求字段，另两种目标协议引擎不在范围。Chat响应无法区分自然stop与命中哪个停止词，此响应侧差异留给后续响应/流式任务，不能伪造stop_sequence。
+- 范围调整依据：routing.rs::relay_conversions为ACP与relay共用事实来源，需登记StructuredOutput；Chat已有媒体能力门禁，图像转换复用该门禁。
+- 首次动态领取槽位10，CARGO_TARGET_DIR及CARGO_BUILD_BUILD_DIR均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-10`，CARGO_BUILD_JOBS=1。`cargo fmt --all`退出0后开始规定红灯命令，日志 `/tmp/shiju-task14-red.log`；测试尚在编译中，不能声称行为红灯。
+- 当前新增9项`model_protocol_014_`测试，覆盖文本/停止词、结构化Schema、缓存提示、工具选择/strict、图像顺序/模型能力门禁、未知字段/思考拒绝、共享能力登记、真实HTTP工具续轮与负例；代码仍为原始转换器以取得红灯证据。实现草稿暂存在 `/tmp/shiju-task14-messages-after.rs`，未写入生产源。红灯编译进程51721采样（`sample 51721 1 1 -file /tmp/shiju-task14-rustc-sample.txt`）显示Rust analysis/privacy检查仍在工作，physical footprint约8.6G，尚无Rust源码诊断，未把编译进展算成测试结果。
+- 根据后续无人值守恢复指令，停止重复重型构建：核对自有rustc PID51721/父cargo51260后发送SIGTERM。规定lib测试命令退出101（signal15），有效测试0；这不是行为红灯，也没有归因OOM。该轮约27分钟、CPU约9分钟，第二次采样进入单态化收集、physical footprint约12.4G。自有槽位10已由退出trap释放。
+- 调查替代路径：仓库已有`tests/cc04_accept_transactions.rs`和`tests/cc_route_030_outbound_scan.rs`通过公共API运行真实生产库。沿用该模式新增`tests/model_protocol_014_messages.rs`，复用同一HTTP断言模块走完整RelayServer→ProviderRelayBackend→选择器→转换→真实HTTP边界；不替换内部逻辑。7项纯转换断言移到共享core测试模块，由lib测试和集成目标共同包含，集成目标直接包含原始messages.rs/chat.rs，并重导出真实provider模块，未复制生产转换算法、未伪造模型类型。
+- 范围调整：新增共享测试文件`messages_request_core_tests.rs`、`messages_request_http_tests.rs`和集成目标，Cargo.toml只追加本目标注册。首次发现`autotests=false`导致未注册目标退出101、有效测试0，已补显式注册，不计为红灯。替代阶段动态领取槽位3，绝对CARGO_TARGET_DIR及CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；命令`cargo fmt --all`及`cargo test -p vw-agent --test model_protocol_014_messages -- --nocapture`，日志`/tmp/shiju-task14-focused-red.log`。
+- 资源与证据修正：首次临时Rustc core运行器误读取了另一个任务slot6/build的编译参数，其结果撤回、不作为验收证据；当时误向该另一任务rustc PID65295发送SIGTERM，关联`/tmp/shiju-t40-two-recheck.log`（聚合任务40），该次回归需由对应任务重新执行。已承认错误，并改为联合核对占用记录、完整父链及`--out-dir`。未启动另一任务的重构建、未删除其锁/缓存。
+- 正确本任务生产库父链为64683→64691→64910→72459，完整`--out-dir`为slot3/debug/deps，核对后停止自有旧快照的普通库构建。聚焦HTTP集成命令退出101（SIGTERM），有效测试0；保留完整测试而不宣称HTTP验收通过。参数中的依赖部分为.rmeta，独立test链接要求.rlib；已经仅切换为同哈希且实际存在的.rlib，第一次缺rlib形式的编译错误不计红灯。
+- 重新动态领取槽位3，运行`/tmp/shiju-task14-claim.sh python3 /tmp/shiju-task14-core-corrected.py`。运行器完整Rustc命令分别存`/tmp/shiju-task14-corrected-red-command.json`和`/tmp/shiju-task14-corrected-green-command.json`，使用本任务正确Cargo编译参数、同槽位依赖和原始生产messages.rs/chat.rs；Model仅重导出真实vw_shared::provider::types::Model，与生产provider的类型一致，没有替代实现。
+- 有效行为红灯：编译退出0，测试退出101；7项中5失败/2通过，失败均为原始转换器对stop_sequences、顶层缓存、output_config、strict工具和图像返回422。有效绿灯：编译退出0，测试退出0，7项通过/0失败/0忽略。日志`/tmp/shiju-task14-corrected-{red,green}.log`。这是7项纯请求转换/模型门禁证据，不冒充完整relay HTTP或规定lib目标验收。
+- 修改：Messages→Chat新增停止词映射（拒绝超过4项，不截断）、顶层缓存形状校验、结构化Schema严格映射、工具strict及用户图像有序映射；未知字段、无法表达的输入/思考状态继续拒绝；模型门禁仍由Chat准备和共享选择器执行。Hosted原生保留对应新字段。共享转换格子登记StructuredOutput，沿用既有消费者。
+- `cargo fmt --all`退出0，`git diff --check`退出0；已有不支持字段测试移除stop_sequences（非法形状400由新增测试覆盖）。9项lib测试仍保留；聚焦集成目标共8项有效断言测试及1个仅由父测试启动的ignored子进程入口。来源文件、基线与当前源码SHA-256及测试计数记录`/tmp/shiju-task14-provenance.json`。
+- 全仓Clippy动态领取槽位6：CARGO_TARGET_DIR及CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；确切命令`cargo clippy --all-targets --all-features -- -D warnings`，使用10分钟进程组上限避免无界等待，日志`/tmp/shiju-task14-clippy.log`。该阶段尚在进行，不提前声称通过。
+
+## 最终验证状态（2026-11-11）
+
+- 全仓`cargo clippy --all-targets --all-features -- -D warnings`退出0，实际耗时9分41秒；已覆盖本任务集成目标和lib测试目标的类型及警告检查。不是行为测试通过。
+- 正确槽位3的源码级行为验证：红灯编译0/测试101，7项中2通过5失败；绿灯编译0/测试0，7通过0失败。`cargo fmt --all`及本任务`git diff --check`均退出0。
+- 实际槽位：初次lib尝试10；生产库集成尝试及修正后的源码验证3；全仓Clippy 6。绝对CARGO_TARGET_DIR分别为`/Users/xiangmin/worker/code/shiju/target/rust-slot-10`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；所有Cargo阶段CARGO_BUILD_BUILD_DIR与相应CARGO_TARGET_DIR相同，jobs=1。自有Cargo和源码测试均已结束，锁已释放，缓存保留。
+- 保留“已完成，待回归”：前置13已交付实现；本项真实转换逻辑取得7项源码行为证据、全部目标Clippy通过，但完整HTTP请求/响应链及规定lib命令均未运行到测试执行阶段，不能把类型检查、编译进展或SIGTERM当成功。按恢复指令避免继续重复重型代码生成，保留9项lib及8项集成测试的原始断言，资源恢复后运行下列命令：
+  - `cargo test -p vw-agent --lib model_protocol_013_ -- --nocapture`
+  - `cargo test -p vw-agent --lib model_protocol_014_ -- --nocapture`
+  - `cargo test -p vw-agent --test model_protocol_014_messages -- --nocapture`
+  - `cargo test -p vw-agent --lib model_relay::messages_tests -- --nocapture`
+- 意外中断交接：聚合任务40的`/tmp/shiju-t40-two-recheck.log`对应rustc PID65295因本项误判父链被SIGTERM结束；原Cargo通过临时manifest执行`aggregation_t40_`过滤回归。此失败不能归为任务40源码问题，建议对应任务在资源允许时重跑。首次引用该缓存的本项临时core结果全部撤回，已在正确自有槽位3重做并验证。未恢复或重启其未知调度流程，避免再次干扰其它任务。
+
+- 最终格式化复核：动态领取槽位1，CARGO_TARGET_DIR及CARGO_BUILD_BUILD_DIR为`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，`cargo fmt --all`退出0；该阶段自有锁已释放。仅清理新测试文件末尾多余空行，未改变已通过的7项断言或生产逻辑。
+- 提交隔离复核：只提交本项10个文件；messages.rs/mod.rs原有pub(crate)可见性改动及Cargo.toml的toml_edit依赖保留为其它任务未提交变更。`git diff --cached --check`退出0，状态保持“已完成，待回归”，不删除任务卡。

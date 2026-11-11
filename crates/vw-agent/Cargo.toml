@@ -194,3 +194,7 @@ path = "tests/cc04_accept_transactions.rs"
 [[test]]
 name = "cc_route_030_outbound_scan"
 path = "tests/cc_route_030_outbound_scan.rs"
+
+[[test]]
+name = "model_protocol_014_messages"
+path = "tests/model_protocol_014_messages.rs"

@@ -521,7 +521,7 @@ fn acp_model_source_relay_messages_response_stop_usage_and_capability_errors() {
     let mut invalid = response.clone();
     invalid["choices"][0]["finish_reason"] = "content_filter".into();
     assert_eq!(messages::from_chat(&invalid, "selected"), Err(StatusCode::UNPROCESSABLE_ENTITY));
-    for field in ["previous_response_id", "container", "stop_sequences"] {
+    for field in ["previous_response_id", "container"] {
         let mut request = json!({"model":"selected","max_tokens":64,"messages":[{"role":"user","content":"hello"}]});
         request[field] = json!("unrepresentable state");
         assert_eq!(messages::to_chat(&request), Err(StatusCode::UNPROCESSABLE_ENTITY));

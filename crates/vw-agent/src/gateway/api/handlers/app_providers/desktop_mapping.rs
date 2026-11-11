@@ -6,17 +6,37 @@ use axum::{
 };
 use std::path::PathBuf;
 use vw_api_types::app_providers::{claude_desktop::*, desktop_mapping::*};
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum FormRequest {
+    Scoped(vw_api_types::agent_apps::aggregation::AggregationQuery),
+    Legacy(ClaudeDesktopTarget),
+}
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum MappingRequest {
+    Scoped(vw_api_types::agent_apps::aggregation::DesktopMappingChange),
+    Legacy(DesktopMappingWrite),
+}
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 pub(super) fn router() -> Router {
-    router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
+    let router =
+        router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from));
+    match GlobalDatabase::for_home(&crate::global::paths().home) {
+        Ok(database) => router.layer(Extension(database)),
+        Err(_) => router,
+    }
 }
-pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
+pub(in super::super) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/claude-desktop/{id}/form/read", post(read_form))
         .route("/app-providers/claude-desktop/model-mapping/defaults", post(defaults))
         .route("/app-providers/claude-desktop/providers/import-claude", post(import))
-        .route("/app-providers/claude-desktop/{id}/model-mapping", put(save))
+        .route(
+            "/app-providers/claude-desktop/{id}/model-mapping",
+            put(save).layer(DefaultBodyLimit::max(256 * 1024)),
+        )
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(Extension(Policy(path)))
 }
@@ -62,11 +82,48 @@ async fn save(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     Path(id): Path<String>,
-    body: Result<Json<DesktopMappingWrite>, JsonRejection>,
+    #[cfg(target_os = "macos")] control: Option<
+        Extension<super::super::app_routing::RoutingControl>,
+    >,
+    body: Result<Json<MappingRequest>, JsonRejection>,
 ) -> Response {
-    let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    let Ok(Json(request)) = body else {
+        return super::super::aggregation_desktop::failure(
+            StatusCode::BAD_REQUEST,
+            "invalid_request",
+        );
+    };
+    let request = match request {
+        MappingRequest::Scoped(request) => {
+            #[cfg(target_os = "macos")]
+            return super::super::aggregation_desktop::finish(
+                tokio::task::spawn_blocking(move || {
+                    super::super::aggregation_desktop::save_mapping(
+                        policy.0.as_deref(),
+                        tenant,
+                        db,
+                        headers,
+                        id,
+                        request,
+                        control,
+                    )
+                })
+                .await,
+            );
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = request;
+                return super::super::aggregation_desktop::failure(
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    "unsupported_target",
+                );
+            }
+        }
+        MappingRequest::Legacy(request) => request,
+    };
     finish(
         tokio::task::spawn_blocking(move || {
+            legacy_unbound(&policy, &tenant, &headers, &request.target_host_id, true)?;
             let store = authorized_store(&policy, &tenant, db, &headers, &request.target_host_id)?;
             store
                 .desktop_mapping_save(&tenant, &id, &request.mapping)
@@ -115,11 +172,35 @@ async fn read_form(
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
     Path(id): Path<String>,
-    body: Result<Json<ClaudeDesktopTarget>, JsonRejection>,
+    body: Result<Json<FormRequest>, JsonRejection>,
 ) -> Response {
-    let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
+    let Ok(Json(request)) = body else {
+        return super::super::aggregation_desktop::failure(
+            StatusCode::BAD_REQUEST,
+            "invalid_request",
+        );
+    };
+    let request = match request {
+        FormRequest::Scoped(request) => {
+            return super::super::aggregation_desktop::finish(
+                tokio::task::spawn_blocking(move || {
+                    super::super::aggregation_desktop::read_form(
+                        policy.0.as_deref(),
+                        tenant,
+                        db,
+                        headers,
+                        id,
+                        request,
+                    )
+                })
+                .await,
+            );
+        }
+        FormRequest::Legacy(request) => request,
+    };
     finish(
         tokio::task::spawn_blocking(move || {
+            legacy_unbound(&policy, &tenant, &headers, &request.target_host_id, false)?;
             super::super::agent_apps::provider_editor_context(
                 policy.0.as_deref(),
                 &headers,
@@ -143,4 +224,43 @@ async fn read_form(
         })
         .await,
     )
+}
+
+fn legacy_unbound(
+    policy: &Policy,
+    tenant: &TenantScope,
+    headers: &HeaderMap,
+    host: &str,
+    write: bool,
+) -> Result<(), StatusCode> {
+    let (_, root) = super::super::agent_apps::provider_editor_context(
+        policy.0.as_deref(),
+        headers,
+        tenant,
+        host,
+        write,
+    )?;
+    #[cfg(target_os = "macos")]
+    {
+        use vw_agent_apps::providers::live::commit::{ExecutionHostId, ProviderTransactions};
+        if let Some(tx) = ProviderTransactions::open_existing(
+            &root,
+            ExecutionHostId::new(host).map_err(|_| StatusCode::BAD_REQUEST)?,
+        )
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+        {
+            let app = vw_api_types::agent_apps::AppId::ClaudeDesktop;
+            if tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?.project_scope.is_some()
+                || tx
+                    .pending(app)
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                    .is_some_and(|pending| pending.target.project_scope.is_some())
+            {
+                return Err(StatusCode::CONFLICT);
+            }
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = root;
+    Ok(())
 }

@@ -21,12 +21,12 @@ mod chat_tests;
 #[cfg(test)]
 mod transport_tests;
 
-mod messages;
+pub(crate) mod messages;
 #[cfg(test)]
 mod messages_request_http_tests;
 #[cfg(test)]
 mod messages_request_tests;
-mod messages_stream;
+pub(crate) mod messages_stream;
 #[cfg(test)]
 mod messages_tests;
 

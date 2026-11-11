@@ -66,9 +66,12 @@ pub fn validate(mapping: &DesktopMapping) -> Result<(), String> {
     }
     Ok(())
 }
-/// Convert only stored, compatible rows. Unsupported auth is never promoted to direct.
-/// Caller inserts if absent; no files, routing service or current pointers are touched.
-pub fn import_row(source: &Value) -> Result<Option<Value>, String> {
+fn compatible_source(
+    source: &Value,
+) -> Result<
+    Option<(Value, vw_api_types::app_providers::claude_desktop::ClaudeDesktopProfile)>,
+    String,
+> {
     use serde_json::json;
     use vw_api_types::app_providers::{AppProviderWrite, claude_desktop::*};
     let mut source = source.clone();
@@ -148,6 +151,21 @@ pub fn import_row(source: &Value) -> Result<Option<Value>, String> {
     {
         return Ok(None);
     }
+    Ok(Some((source, profile)))
+}
+
+/// Convert only stored, compatible rows. Unsupported auth is never promoted to direct.
+/// Caller inserts if absent; no files, routing service or current pointers are touched.
+pub fn import_row(source: &Value) -> Result<Option<Value>, String> {
+    use serde_json::json;
+    let Some((mut source, profile)) = compatible_source(source)? else { return Ok(None) };
+    let env = source
+        .pointer("/settingsConfig/env")
+        .and_then(Value::as_object)
+        .ok_or("invalid provider environment")?;
+    let get =
+        |key: &str| env.get(key).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty());
+    let format = source.pointer("/meta/apiFormat").and_then(Value::as_str).unwrap_or("anthropic");
     let specs = defaults();
     for key in specs.iter().map(|s| s.env_key.as_str()).chain(["ANTHROPIC_MODEL"]) {
         if env.get(key).is_some_and(|v| !v.is_string()) {
@@ -296,7 +314,45 @@ pub fn form_view(row: &Value) -> Result<DesktopFormView, String> {
         base_url,
         official,
         direct_editable,
-        mapping_editable: !official && import_row(row)?.is_some(),
+        mapping_editable: !official && compatible_source(row)?.is_some(),
         mapping,
     })
+}
+
+/// Plan a mapping in the saved row; the execution owner commits the candidate
+/// through the existing provider/native publication transaction.
+pub fn with_mapping(source: &Value, mapping: &DesktopMapping) -> Result<Value, String> {
+    validate(mapping)?;
+    if compatible_source(source)?.is_none() {
+        return Err("unsupported provider".into());
+    }
+    if mapping.mode == DesktopMappingMode::Direct {
+        let format =
+            source.pointer("/meta/apiFormat").and_then(Value::as_str).unwrap_or("anthropic");
+        if !matches!(format, "" | "anthropic")
+            || source
+                .pointer("/settingsConfig/env/ANTHROPIC_AUTH_TOKEN")
+                .and_then(Value::as_str)
+                .is_none()
+        {
+            return Err("direct provider requires native bearer credentials".into());
+        }
+    }
+    let mut row = source.clone();
+    let meta = row
+        .as_object_mut()
+        .ok_or("invalid provider record")?
+        .entry("meta")
+        .or_insert(serde_json::json!({}))
+        .as_object_mut()
+        .ok_or("invalid provider metadata")?;
+    meta.insert(
+        "claudeDesktopMode".into(),
+        serde_json::to_value(mapping.mode).map_err(|_| "invalid mapping mode")?,
+    );
+    meta.insert(
+        "claudeDesktopModelRoutes".into(),
+        serde_json::to_value(&mapping.routes).map_err(|_| "invalid mapping routes")?,
+    );
+    Ok(row)
 }

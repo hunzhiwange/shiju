@@ -18,6 +18,7 @@ pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(read::router())
         .merge(super::aggregation_read::router())
+        .merge(super::aggregation_desktop::router())
         .merge(super::aggregation_omo::router())
         .merge(super::aggregation_codex_settings::router())
         .merge(super::aggregation_members::router())

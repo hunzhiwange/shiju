@@ -266,6 +266,48 @@ pub struct OmoSlimState {
     pub other_fields: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
+/// Independent Claude Desktop resource, never a Claude Code projection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopInstallation {
+    Installed,
+    NotInstalled,
+    Unsupported,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopProfileMode {
+    Official,
+    DirectGateway,
+    Routing,
+    Aggregation,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopProfileStatus {
+    pub revision: String,
+    pub installation: DesktopInstallation,
+    pub configured: bool,
+    pub mode: DesktopProfileMode,
+    pub applied_provider_id: Option<String>,
+    pub notices: Vec<AggregationNotice>,
+    pub recovery: RecoveryState,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DesktopMappingChange {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub mapping: crate::app_providers::desktop_mapping::DesktopMapping,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopMappingView {
+    pub revision: String,
+    pub form: crate::app_providers::desktop_mapping::DesktopFormView,
+}
+
 /// Optional scope for existing provider-write routes. Active aggregation requires
 /// both fields; legacy unbound catalog-only edits retain their existing shape.
 #[derive(Clone, Default, Serialize, Deserialize)]

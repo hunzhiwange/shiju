@@ -446,6 +446,9 @@ impl RecordPublicationContext {
                 result.map(|_| true)
             }
             AppId::Codex => self.codex(&tx, &store, &state, &candidate, &rows, &change, target),
+            AppId::ClaudeDesktop => super::aggregation_desktop_record::replace(
+                self, &tx, &store, &state, &candidate, &rows, &change, target, active,
+            ),
             _ => Err(StatusCode::UNPROCESSABLE_ENTITY),
         }
     }

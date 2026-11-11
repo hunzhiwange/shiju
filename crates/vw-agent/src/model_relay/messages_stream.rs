@@ -199,8 +199,23 @@ pub(super) async fn response(
     native: bool,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
+    let headers = response.headers().clone();
+    let mut adapted = Response::new(Body::from_stream(response.bytes_stream()));
+    // The native relay has already validated the upstream status. The shared
+    // adapter below only consumes bounded Messages/Chat entities.
+    *adapted.headers_mut() = headers;
+    response_body(adapted, model, streaming, native, cancel).await
+}
+
+pub(crate) async fn response_body(
+    response: Response,
+    model: String,
+    streaming: bool,
+    native: bool,
+    cancel: CancellationToken,
+) -> Result<Response, StatusCode> {
     if !streaming {
-        let mut stream = response.bytes_stream();
+        let mut stream = response.into_body().into_data_stream();
         let mut bytes = Vec::new();
         loop {
             let next = tokio::select! { biased; () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT), next = stream.next() => next };
@@ -239,7 +254,7 @@ pub(super) async fn response(
     }
     let stream = futures_util::stream::unfold(
         (
-            response.bytes_stream(),
+            response.into_body().into_data_stream(),
             Decoder {
                 model,
                 native,

@@ -56,6 +56,22 @@ impl SavedProfile {
                 };
                 (base_url, profile.model, api_key, GenerationProtocol::Messages, !api_key_header)
             }
+            AppId::ClaudeDesktop => {
+                // The Desktop mapping owner treats this as a managed identity.
+                // A static saved token cannot stand in for its account proof.
+                if row.pointer("/meta/providerType").is_some() {
+                    return Err(unsupported);
+                }
+                let env = row.pointer("/settingsConfig/env").ok_or(unsupported)?;
+                let endpoint = env["ANTHROPIC_BASE_URL"].as_str().ok_or(unsupported)?.to_owned();
+                let (credential, bearer) = if let Some(token) = env["ANTHROPIC_AUTH_TOKEN"].as_str()
+                {
+                    (token.to_owned(), true)
+                } else {
+                    (env["ANTHROPIC_API_KEY"].as_str().ok_or(unsupported)?.to_owned(), false)
+                };
+                (endpoint, None, credential, GenerationProtocol::Messages, bearer)
+            }
             AppId::Gemini if let Some(native) = row.get("gemini") => {
                 let profile: GeminiProfile =
                     serde_json::from_value(native.clone()).map_err(|_| unsupported)?;
@@ -95,8 +111,12 @@ impl SavedProfile {
         let protocol = match row.pointer("/meta/apiFormat") {
             None | Some(Value::Null) => default,
             Some(format) => match format.as_str() {
-                Some("anthropic") if app == AppId::Claude => GenerationProtocol::Messages,
-                Some("openai_chat") if matches!(app, AppId::Claude | AppId::Codex) => {
+                Some("anthropic") if matches!(app, AppId::Claude | AppId::ClaudeDesktop) => {
+                    GenerationProtocol::Messages
+                }
+                Some("openai_chat")
+                    if matches!(app, AppId::Claude | AppId::Codex | AppId::ClaudeDesktop) =>
+                {
                     GenerationProtocol::Chat
                 }
                 Some("openai_responses") if matches!(app, AppId::Claude | AppId::Codex) => {

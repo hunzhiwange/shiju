@@ -86,3 +86,6 @@ mod failover_routing_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod provider_publication;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod desktop_routing;

@@ -74,6 +74,40 @@ fn aggregation_t49_directory_wire_contract_rejects_profile_selectors_and_mcp() {
 }
 
 #[test]
+fn aggregation_t46_desktop_wire_contract() {
+    let body = json!({"targetHostId":"host","projectId":"project","expectedRevision":"opaque","mapping":{"mode":"proxy","routes":{"claude-sonnet-5":{"model":"upstream","supports1m":true}}}});
+    let request: DesktopMappingChange = serde_json::from_value(body.clone()).unwrap();
+    assert_eq!(request.project_id.as_ref(), "project");
+    assert!(request.mapping.routes["claude-sonnet-5"].supports_1m);
+    for key in ["path", "accountId", "command", "app"] {
+        let mut invalid = body.clone();
+        invalid[key] = json!("untrusted");
+        assert!(serde_json::from_value::<DesktopMappingChange>(invalid).is_err());
+    }
+    for key in ["projectId", "expectedRevision"] {
+        let mut invalid = body.clone();
+        invalid.as_object_mut().unwrap().remove(key);
+        assert!(serde_json::from_value::<DesktopMappingChange>(invalid).is_err());
+    }
+    let value = serde_json::to_value(DesktopProfileStatus {
+        revision: "opaque".into(),
+        installation: DesktopInstallation::Installed,
+        configured: true,
+        mode: DesktopProfileMode::DirectGateway,
+        applied_provider_id: Some("provider".into()),
+        notices: vec![],
+        recovery: RecoveryState::Pending,
+    })
+    .unwrap();
+    assert_eq!(value["installation"], "installed");
+    assert_eq!(value["mode"], "direct_gateway");
+    assert_eq!(value["appliedProviderId"], "provider");
+    assert_eq!(value["recovery"], "pending");
+    assert!(value.get("profilePath").is_none());
+    assert!(value.get("apiKey").is_none());
+}
+
+#[test]
 fn aggregation_t48_pi_requests_reject_native_settings_and_extra_payloads() {
     let base = json!({"targetHostId":"host","projectId":"project","expectedRevision":"revision","change":{"kind":"remove"}});
     assert!(serde_json::from_value::<PiDirectoryWrite>(base.clone()).is_ok());

@@ -257,6 +257,23 @@ impl ClaudeDesktopFiles {
         target: super::live::commit::PendingTarget,
         unchanged: impl Fn() -> bool,
     ) -> Result<(), WriteError> {
+        self.commit_profile_record(tx, tenant, state, fields, target, unchanged, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn commit_profile_record(
+        &mut self,
+        tx: &super::live::commit::ProviderTransactions,
+        tenant: &vw_api_types::id::TenantScope,
+        state: &super::live::commit::AppState,
+        fields: &Map<String, Value>,
+        target: super::live::commit::PendingTarget,
+        unchanged: impl Fn() -> bool,
+        record: Option<(
+            &super::live::record_publication::ProviderRecordChange,
+            &dyn super::live::record_publication::ProviderRecordParticipant,
+        )>,
+    ) -> Result<(), WriteError> {
         use super::live::{
             stage::{FileChange, WholeFile},
             write_guard::FilePrivacy,
@@ -281,13 +298,42 @@ impl ClaudeDesktopFiles {
                 patch,
             })
             .collect();
-        tx.commit_checked(tenant, &mut self.guard, &changes, target, || {
+        let validate = || {
             if unchanged() && tx.state(AppId::ClaudeDesktop)? == *state {
                 Ok(())
             } else {
                 Err(WriteError::Conflict)
             }
-        })
+        };
+        if let Some((change, participant)) = record {
+            let project = target.project_scope.as_ref().ok_or(WriteError::Conflict)?;
+            return tx.commit_project_record(
+                project,
+                &mut self.guard,
+                state,
+                &changes,
+                target.clone(),
+                change,
+                participant,
+                validate,
+            );
+        }
+        if let Some(project) = &target.project_scope {
+            if project.tenant_scope() != tenant {
+                return Err(WriteError::Conflict);
+            }
+            tx.commit_project_checked(
+                project,
+                &mut self.guard,
+                state,
+                false,
+                &changes,
+                target.clone(),
+                validate,
+            )
+        } else {
+            tx.commit_checked(tenant, &mut self.guard, &changes, target, validate)
+        }
     }
 }
 
@@ -368,3 +414,7 @@ fn lock_profiles(
 #[cfg(all(test, target_os = "macos"))]
 #[path = "claude_desktop/publish_tests.rs"]
 mod publish_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "claude_desktop/project_tests.rs"]
+mod project_tests;

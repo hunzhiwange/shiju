@@ -145,6 +145,12 @@ impl AuthorizedRoute {
         if let Some(provider) = &self.provider {
             provider.apply_headers(headers);
         }
+        if let Some(JsonRoute::Desktop(snapshot)) = &self.json_target
+            && snapshot.messages_api_key(&self.binding, model)?
+            && let Some(key) = headers.remove(header::AUTHORIZATION)
+        {
+            headers.insert("x-api-key", key);
+        }
         if self.binding.app == AppId::Claude
             && let Some(JsonRoute::Aggregation(snapshot)) = &self.json_target
         {
@@ -156,6 +162,22 @@ impl AuthorizedRoute {
             headers.insert("anthropic-version", axum::http::HeaderValue::from_static("2023-06-01"));
         }
         Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn desktop_native_messages(&self, model: Option<&str>) -> Result<bool, StatusCode> {
+        match &self.json_target {
+            Some(JsonRoute::Desktop(snapshot)) => snapshot.native_messages(model),
+            _ => Err(StatusCode::SERVICE_UNAVAILABLE),
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn desktop_discovery(&self) -> Option<serde_json::Value> {
+        match &self.json_target {
+            Some(JsonRoute::Desktop(snapshot)) => Some(snapshot.discovery()),
+            _ => None,
+        }
     }
 
     pub(super) fn json_app(&self) -> Option<AppId> {
@@ -177,6 +199,8 @@ impl AuthorizedRoute {
             },
             #[cfg(target_os = "macos")]
             JsonRoute::Aggregation(snapshot) => snapshot.select(&self.binding, model)?,
+            #[cfg(target_os = "macos")]
+            JsonRoute::Desktop(snapshot) => snapshot.select(&self.binding, model)?,
         };
         Ok((target, model, self.cancelled.clone()))
     }
@@ -216,6 +240,8 @@ enum JsonRoute {
     Plain(Box<JsonTarget>),
     #[cfg(target_os = "macos")]
     Aggregation(Box<AggregationSnapshot>),
+    #[cfg(target_os = "macos")]
+    Desktop(Box<super::desktop_routing::DesktopSnapshot>),
 }
 
 type TokenDigest = [u8; 32];
@@ -344,6 +370,36 @@ impl RouteAuth {
             |token| commit(token).map(|()| None),
         )?;
         Ok(issued.revocation)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn desktop_revision(&self, binding: &VerifiedRouteBinding) -> Option<String> {
+        self.active.lock().grants.values().find_map(|route| {
+            if !route.binding.same_route(binding) || route.cancelled.is_cancelled() {
+                return None;
+            }
+            match &route.json_target {
+                Some(JsonRoute::Desktop(snapshot)) => Some(snapshot.revision().to_owned()),
+                _ => None,
+            }
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn publish_desktop(
+        &self,
+        binding: VerifiedRouteBinding,
+        snapshot: super::desktop_routing::DesktopSnapshot,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
+    ) -> Result<RouteRevocation, StatusCode> {
+        self.issue_route(
+            binding,
+            Some(JsonRoute::Desktop(Box::new(snapshot))),
+            expected_revision,
+            |token| commit(token).map(|()| None),
+        )
+        .map(|issued| issued.revocation)
     }
 
     #[cfg(target_os = "macos")]
@@ -492,10 +548,12 @@ impl RouteAuth {
                     active.grants.values().find(|route| route.binding.same_route(&binding));
                 let previous_revision = previous.and_then(|route| match &route.json_target {
                     Some(JsonRoute::Aggregation(snapshot)) => Some(snapshot.revision.as_str()),
+                    Some(JsonRoute::Desktop(snapshot)) => Some(snapshot.revision()),
                     _ => None,
                 });
                 if previous_revision != expected_revision
                     || matches!(&json_target, Some(JsonRoute::Aggregation(next)) if previous_revision == Some(next.revision.as_str()))
+                    || matches!(&json_target, Some(JsonRoute::Desktop(next)) if previous_revision == Some(next.revision()))
                     || previous.is_some_and(|route| {
                         route.binding.account == binding.account
                             && route.binding.account_generation > binding.account_generation

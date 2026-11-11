@@ -55,9 +55,20 @@ pub(super) struct AggregationSnapshot {
 
 impl AggregationPublication {
     pub(super) fn validate(self) -> Result<AggregationSnapshot, StatusCode> {
+        self.validate_inner(false)
+    }
+
+    pub(super) fn validate_desktop(self) -> Result<AggregationSnapshot, StatusCode> {
+        self.validate_inner(true)
+    }
+
+    fn validate_inner(self, desktop: bool) -> Result<AggregationSnapshot, StatusCode> {
         let app = self.binding.app();
-        if !matches!(app, AppId::Codex | AppId::Claude) {
-            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        // Native Messages and Chat share the listener and exact member selector.
+        match app {
+            AppId::Codex | AppId::Claude => {}
+            AppId::ClaudeDesktop if desktop => {}
+            _ => return Err(StatusCode::UNPROCESSABLE_ENTITY),
         }
         if self.revision.trim().is_empty() {
             return Err(StatusCode::BAD_REQUEST);

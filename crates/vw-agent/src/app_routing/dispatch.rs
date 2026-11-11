@@ -50,10 +50,37 @@ pub(super) async fn forward_json(
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
     let app = route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    #[cfg(target_os = "macos")]
+    if app == AppId::ClaudeDesktop && request.uri().path() == "/claude-desktop/v1/models" {
+        if request.uri().query().is_some() {
+            return Err(StatusCode::NOT_FOUND.into());
+        }
+        if request.method() != Method::GET {
+            return Err(StatusCode::METHOD_NOT_ALLOWED.into());
+        }
+        if request.headers().contains_key(header::TRANSFER_ENCODING)
+            || request.headers().get(header::CONTENT_LENGTH).is_some_and(|value| value != "0")
+        {
+            return Err(StatusCode::BAD_REQUEST.into());
+        }
+        if let Some(disconnect) = request.extensions().get::<ClientDisconnect>() {
+            disconnect.request_body_read();
+        }
+        let buffer = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
+        let catalog = route.desktop_discovery().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let bytes = body_limits::encode_json(&catalog, MAX_JSON_BYTES)
+            .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        let mut response = Response::new(body_limits::buffered_response(bytes.into(), permit));
+        response.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
+        response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        return Ok(response);
+    }
     let responses = request.uri().path() == RESPONSES_PATH;
     let supported = match app {
         AppId::Codex => matches!(request.uri().path(), CHAT_PATH | RESPONSES_PATH),
         AppId::Claude => request.uri().path() == "/v1/messages",
+        AppId::ClaudeDesktop => request.uri().path() == "/claude-desktop/v1/messages",
         _ => false,
     };
     if !supported || request.uri().query().is_some() {
@@ -107,6 +134,14 @@ pub(super) async fn forward_json(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
+    #[cfg(target_os = "macos")]
+    let native_messages = if app == AppId::ClaudeDesktop {
+        route.desktop_native_messages(client_model.as_deref())?
+    } else {
+        app == AppId::Claude
+    };
+    #[cfg(not(target_os = "macos"))]
+    let native_messages = app == AppId::Claude;
     let native_responses =
         responses && target.url.path().trim_end_matches('/').ends_with("/responses");
     if app == AppId::Codex
@@ -125,6 +160,12 @@ pub(super) async fn forward_json(
         let outgoing = prepare_request_inner(&bridge.chat, target, model, Some(&bridge))?;
         (outgoing, Some(bridge))
     } else {
+        #[cfg(target_os = "macos")]
+        let body = if app == AppId::ClaudeDesktop {
+            super::desktop_routing::request(&body, native_messages)?
+        } else {
+            body
+        };
         let outgoing = prepare_request(&body, target, model)?;
         drop(body);
         (outgoing, None)
@@ -133,6 +174,10 @@ pub(super) async fn forward_json(
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
     route.provider_headers(outgoing.headers_mut(), client_model.as_deref())?;
+    #[cfg(target_os = "macos")]
+    if app == AppId::ClaudeDesktop {
+        super::desktop_routing::headers(native_messages, outgoing.headers_mut());
+    }
     #[cfg(target_os = "macos")]
     let timeouts = route.timeouts().await?;
     #[cfg(not(target_os = "macos"))]
@@ -168,7 +213,7 @@ pub(super) async fn forward_json(
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(
                 body,
-                if app == AppId::Claude {
+                if native_messages {
                     crate::model_relay::generation::GenerationProtocol::Messages
                 } else if native_responses {
                     crate::model_relay::generation::GenerationProtocol::Responses
@@ -180,7 +225,7 @@ pub(super) async fn forward_json(
         } else {
             body
         };
-        let protocol = if app == AppId::Claude {
+        let protocol = if native_messages {
             Protocol::Messages
         } else if native_responses {
             Protocol::Responses
@@ -189,20 +234,52 @@ pub(super) async fn forward_json(
         };
         let body = timeouts::stream_body(body, deadline, idle, permit, protocol).await?;
         let body = match bridge {
-            Some(bridge) => bridge.response_body(body, cancelled),
+            Some(bridge) => bridge.response_body(body, cancelled.clone()),
             None => body,
         };
         parts.headers.clear();
         parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(SSE));
-        return Ok(Response::from_parts(parts, body));
+        return finish_messages(
+            Response::from_parts(parts, body),
+            app,
+            client_model,
+            true,
+            native_messages,
+            cancelled,
+        )
+        .await;
     }
 
     let deadline = started + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
     timeouts::before(deadline, async {
         let response = forward.await?;
-        buffer_json_response(response, permit).await
+        let response = buffer_json_response(response, permit).await?;
+        finish_messages(response, app, client_model, false, native_messages, cancelled).await
     })
     .await?
+}
+
+async fn finish_messages(
+    response: Response,
+    app: AppId,
+    model: Option<String>,
+    streaming: bool,
+    native: bool,
+    cancel: tokio_util::sync::CancellationToken,
+) -> Result<Response, RouteError> {
+    if app == AppId::ClaudeDesktop {
+        crate::model_relay::messages_stream::response_body(
+            response,
+            model.ok_or(StatusCode::BAD_REQUEST)?,
+            streaming,
+            native,
+            cancel,
+        )
+        .await
+        .map_err(Into::into)
+    } else {
+        Ok(response)
+    }
 }
 
 async fn buffer_json_response(

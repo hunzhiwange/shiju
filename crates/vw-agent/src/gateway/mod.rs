@@ -152,3 +152,6 @@ mod recovery_window_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod aggregation_resync;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod aggregation_desktop_record;

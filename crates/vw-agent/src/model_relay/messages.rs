@@ -81,7 +81,7 @@ fn image(block: &Value) -> Result<Value, StatusCode> {
     Ok(json!({"type":"image_url","image_url":{"url":url}}))
 }
 
-pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
+pub(crate) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
     object_keys(
         body,
         &[

@@ -102,6 +102,48 @@ pub fn run(
     target: DesktopTarget<'_>,
     unchanged: impl Fn() -> bool,
 ) -> Result<(), DesktopPublicationError> {
+    run_inner(home, installation, tx, tenant, expected, target, unchanged, None)
+}
+
+/// A saved mapping and its effective client files share the original durable intent.
+#[allow(clippy::too_many_arguments)]
+pub fn run_record(
+    home: &Path,
+    installation: DesktopInstallation,
+    tx: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &AppState,
+    target: DesktopTarget<'_>,
+    unchanged: impl Fn() -> bool,
+    change: &crate::providers::live::record_publication::ProviderRecordChange,
+    participant: &dyn crate::providers::live::record_publication::ProviderRecordParticipant,
+) -> Result<(), DesktopPublicationError> {
+    run_inner(
+        home,
+        installation,
+        tx,
+        tenant,
+        expected,
+        target,
+        unchanged,
+        Some((change, participant)),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_inner(
+    home: &Path,
+    installation: DesktopInstallation,
+    tx: &ProviderTransactions,
+    tenant: &TenantScope,
+    expected: &AppState,
+    target: DesktopTarget<'_>,
+    unchanged: impl Fn() -> bool,
+    record: Option<(
+        &crate::providers::live::record_publication::ProviderRecordChange,
+        &dyn crate::providers::live::record_publication::ProviderRecordParticipant,
+    )>,
+) -> Result<(), DesktopPublicationError> {
     if installation != DesktopInstallation::Installed {
         return Err(DesktopPublicationError::UnsupportedTarget);
     }
@@ -126,10 +168,12 @@ pub fn run(
             let default = models.first().ok_or(DesktopPublicationError::InvalidConfiguration)?;
             match stack.as_ref() {
                 Some(stack)
-                    if stack.enabled
-                        && models
-                            .iter()
-                            .all(|model| stack.members.contains(&model.provider_id)) => {}
+                    if models.iter().all(|model| stack.members.contains(&model.provider_id))
+                        && (stack.enabled
+                            || !expected.stack.enabled
+                                && models
+                                    .iter()
+                                    .all(|model| model.provider_id == default.provider_id)) => {}
                 None if !expected.stack.enabled
                     && models.iter().all(|model| model.provider_id == default.provider_id) => {}
                 _ => return Err(DesktopPublicationError::InvalidConfiguration),
@@ -176,6 +220,7 @@ pub fn run(
     let configuration =
         ClientConfiguration::ClaudeDesktop { profile: Value::Object(fields.clone()) };
     let next = PendingTarget {
+        project_scope: expected.project_scope.clone(),
         mode: Some(ModeState {
             mode,
             attached: mode == Mode::Proxy,
@@ -187,7 +232,7 @@ pub fn run(
     };
     let mut files =
         ClaudeDesktopFiles::open(home).map_err(|_| DesktopPublicationError::TargetFailed)?;
-    files.commit_profile(tx, tenant, expected, &fields, next, unchanged)?;
+    files.commit_profile_record(tx, tenant, expected, &fields, next, unchanged, record)?;
     Ok(())
 }
 

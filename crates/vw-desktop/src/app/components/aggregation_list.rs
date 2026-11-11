@@ -9,6 +9,9 @@ use iced::{
 };
 
 pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(session) = &form.clients {
+        return clients::overlay(session, base);
+    }
     if let Some(session) = &form.publish {
         return publish::overlay(session, base);
     }
@@ -16,6 +19,18 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
     let header =
         settings_modal_header(text("聚合目录").size(20), settings_close_button(close.clone()));
     let mut body = column![].spacing(12);
+    if form.selection.scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Codex {
+        body = body.push(
+            button(text("Codex 客户端状态"))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!form.loading).then(|| {
+                    message(Event::Clients(
+                        crate::app::message::settings::aggregation_list::clients::Event::Open,
+                    ))
+                })),
+        );
+    }
     if form.loading {
         body = body.push(settings_panel(text("正在加载聚合目录…")));
     }
@@ -194,3 +209,10 @@ fn notice_label(
 
 #[path = "aggregation_publish.rs"]
 mod publish;
+
+#[cfg(test)]
+#[path = "agent_apps/aggregation_clients_tests.rs"]
+mod client_tests;
+
+#[path = "agent_apps/aggregation_clients.rs"]
+mod clients;

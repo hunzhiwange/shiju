@@ -33,15 +33,25 @@ pub(crate) struct Form {
     pub snapshot: Option<Snapshot>,
     pub error: Option<&'static str>,
     pub publish: Option<publish::Session>,
+    pub clients: Option<clients::Session>,
 }
 impl Form {
     pub fn new(selection: Selection, generation: u64) -> Self {
-        Self { selection, generation, loading: true, snapshot: None, error: None, publish: None }
+        Self {
+            selection,
+            generation,
+            loading: true,
+            snapshot: None,
+            error: None,
+            publish: None,
+            clients: None,
+        }
     }
     pub fn invalidate_selection(&mut self, current: &Selection) {
         if &self.selection != current {
             self.loading = false;
             self.publish = None;
+            self.clients = None;
             self.snapshot = None;
             self.error = Some("项目或执行主机上下文已改变，请刷新目录");
         }
@@ -73,6 +83,7 @@ impl Form {
 pub enum Event {
     Open,
     Publish(publish::Event),
+    Clients(clients::Event),
     Refresh,
     Close,
     Act(Action),
@@ -119,6 +130,12 @@ fn current(app: &App) -> Option<(GatewayClient, Selection)> {
     ))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Clients(event) = event {
+        return clients::update(app, event);
+    }
+    if app.app_providers.aggregation.as_ref().is_some_and(|f| f.clients.is_some()) {
+        return Task::none();
+    }
     if let Event::Publish(event) = event {
         return publish::update(app, event);
     }
@@ -375,3 +392,6 @@ pub(crate) async fn mutate(
 
 #[path = "aggregation_publish.rs"]
 pub(crate) mod publish;
+
+#[path = "aggregation_clients.rs"]
+pub(crate) mod clients;

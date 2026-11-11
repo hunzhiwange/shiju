@@ -2,7 +2,13 @@
 
 批次：【批次 20】 依赖：批次 19 的任务 61。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
+
+2026-11-12：本任务桌面聚焦7项、真实Codex原生管理器回归1项、相邻目录回归5项全部通过；明暗真实绘制与真实重启/ACK证据齐全。原实现同一过滤命令实际1项断言失败，退出101；实现后7项通过，退出0。实际入口为`--lib`，不使用旧卡片`--bin`零测试验收。
+
+必需 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：并行新增且未跟踪的 `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model_state.rs` 第6、13/20、29、41/52、62行共5项dead_code错误（ModelContext、query/matches、ModelRun、terminal/accept、ModelState）。未修改无关代码、未添加allow。待其所有者完成接线后原样回归Clippy；全targets检查尚未通过，不算母任务完成，保留本卡。
+
+所有Cargo均动态领取槽1，绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同值CARGO_BUILD_BUILD_DIR；单并行、关闭增量，沿用任务59低内存环境。各阶段自有消费者结束后核对完整owner并释放锁，缓存保留。完整命令、数量、真实客户端与渲染边界见 `docs/shiju/agent-apps/aggregation/任务62-验证.md`。日志 `/tmp/t62-red.log`、`/tmp/t62-green.log`、`/tmp/t62-native.log`、`/tmp/t62-directory.log`、`/tmp/t62-clippy.log`。未修改只读plan或创建工作树。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 

@@ -409,3 +409,7 @@ pub(super) fn lifecycle_result(
 #[cfg(test)]
 #[path = "daemon_restart_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "daemon_restart_desktop_tests.rs"]
+mod desktop_tests;

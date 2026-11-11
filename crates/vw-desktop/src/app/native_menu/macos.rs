@@ -58,9 +58,15 @@ fn native_menu_events() -> impl iced::futures::Stream<Item = Message> {
         32,
         |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
             loop {
-                let received = tokio::task::spawn_blocking(|| MenuEvent::receiver().recv()).await;
-                let Ok(Ok(event)) = received else {
-                    break;
+                // Tokio waits for blocking tasks on shutdown, even after cancellation.
+                let received = tokio::task::spawn_blocking(|| {
+                    MenuEvent::receiver().recv_timeout(std::time::Duration::from_millis(100))
+                })
+                .await;
+                let event = match received {
+                    Ok(Ok(event)) => event,
+                    Ok(Err(error)) if error.is_timeout() => continue,
+                    _ => break,
                 };
                 let message = if let Some(tab_id) = parse_window_tab_menu_id(event.id.as_ref()) {
                     Message::View(ViewMessage::TabSelected(tab_id.to_string()))

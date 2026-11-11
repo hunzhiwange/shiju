@@ -2,6 +2,22 @@ use super::parse_shortcut;
 use muda::accelerator::{Code, Modifiers};
 
 #[test]
+fn mini_companion_menu_subscription_allows_runtime_shutdown() {
+    use iced::futures::StreamExt;
+    use std::time::{Duration, Instant};
+    let runtime =
+        tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+    runtime.block_on(async {
+        let events = super::native_menu_events();
+        iced::futures::pin_mut!(events);
+        let _ = tokio::time::timeout(Duration::from_millis(20), events.next()).await;
+    });
+    let start = Instant::now();
+    drop(runtime);
+    assert!(start.elapsed() < Duration::from_secs(2));
+}
+
+#[test]
 fn parse_shortcut_maps_command_and_shift_combinations() {
     let redo = parse_shortcut("⇧⌘Z").expect("redo");
     assert_eq!(redo.key(), Code::KeyZ);

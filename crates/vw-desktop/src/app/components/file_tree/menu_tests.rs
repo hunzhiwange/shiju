@@ -2,16 +2,18 @@
 //! 复制和剪切共享粘贴入口，但无剪贴板内容时不得出现不可执行菜单项。
 
 use super::menu::{
-    build_file_tree_menu, duplicate_shortcut, file_tree_menu_button_style,
-    file_tree_menu_container_style, file_tree_menu_separator_style,
+    build_file_tree_menu, file_tree_menu_button_style, file_tree_menu_container_style,
+    file_tree_menu_separator_style, file_tree_menu_shortcut,
 };
 use crate::app::App;
 use crate::app::Message;
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::state::{FileTreeClipboard, FileTreeClipboardMode};
-use iced::keyboard::{Key, Modifiers};
+use iced::advanced::renderer::{Headless, Style};
+use iced::advanced::{Layout, layout, mouse, widget::Tree};
+use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::button;
-use iced::{Background, Color, Element, Theme, Vector};
+use iced::{Background, Color, Element, Font, Pixels, Rectangle, Size, Theme, Vector};
 
 fn app_with_clipboard(mode: FileTreeClipboardMode) -> App {
     let mut app = App::new().0;
@@ -26,14 +28,87 @@ fn menu_item_count(element: &Element<'_, crate::app::Message>) -> usize {
 }
 
 #[test]
-fn duplicate_shortcut_requires_only_the_platform_command_modifier() {
-    let key = Key::Character("d".into());
-    assert!(matches!(
-        duplicate_shortcut(&key, Modifiers::COMMAND),
-        Some(Message::Project(ProjectMessage::FileTreeAction(FileTreeAction::Duplicate)))
-    ));
-    assert!(duplicate_shortcut(&key, Modifiers::COMMAND | Modifiers::SHIFT).is_none());
-    assert!(duplicate_shortcut(&key, Modifiers::NONE).is_none());
+fn file_tree_menu_shortcuts_require_the_bound_key_and_modifiers() {
+    let command = Modifiers::COMMAND;
+    let none = Modifiers::NONE;
+    let platform_keys = if cfg!(target_os = "macos") {
+        [
+            (Named::ArrowDown, command, FileTreeAction::Open),
+            (Named::Enter, none, FileTreeAction::Rename),
+            (Named::Backspace, command, FileTreeAction::Delete),
+        ]
+    } else {
+        [
+            (Named::Enter, none, FileTreeAction::Open),
+            (Named::F2, none, FileTreeAction::Rename),
+            (Named::Delete, none, FileTreeAction::Delete),
+        ]
+    };
+    let clipboard_keys = [
+        ("x", FileTreeAction::Cut),
+        ("C", FileTreeAction::Copy),
+        ("d", FileTreeAction::Duplicate),
+        ("v", FileTreeAction::Paste),
+    ];
+
+    let bindings = clipboard_keys
+        .into_iter()
+        .map(|(key, action)| (Key::Character(key.into()), command, action))
+        .chain(
+            platform_keys
+                .into_iter()
+                .map(|(key, modifiers, action)| (Key::Named(key), modifiers, action)),
+        );
+    for (key, modifiers, expected) in bindings {
+        assert!(matches!(
+            file_tree_menu_shortcut(&key, modifiers, true),
+            Some(Message::Project(ProjectMessage::FileTreeAction(action))) if action == expected
+        ));
+        assert!(file_tree_menu_shortcut(&key, modifiers | Modifiers::SHIFT, true).is_none());
+    }
+    assert!(file_tree_menu_shortcut(&Key::Character("d".into()), none, true).is_none());
+    assert!(file_tree_menu_shortcut(&Key::Character("v".into()), command, false).is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn file_tree_menu_renders_shortcuts_in_light_and_dark_themes() {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer should be available");
+    let app = app_with_clipboard(FileTreeClipboardMode::Copy);
+    let mut menu = build_file_tree_menu(&app, true);
+    let size = Size::new(220.0, 600.0);
+    let mut tree = Tree::new(menu.as_widget());
+    let node =
+        menu.as_widget_mut().layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, size));
+    let viewport = Rectangle::with_size(size);
+    let menu_column = Layout::new(&node).children().next().unwrap();
+    let shortcut_bounds: Vec<_> = menu_column
+        .children()
+        .filter_map(|item| item.children().next()?.children().next()?.children().nth(1))
+        .map(|shortcut| shortcut.bounds())
+        .collect();
+
+    assert_eq!(shortcut_bounds.len(), 7);
+    let right_edge = shortcut_bounds[0].x + shortcut_bounds[0].width;
+    assert!(
+        shortcut_bounds.iter().all(|bounds| (bounds.x + bounds.width - right_edge).abs() < 0.01)
+    );
+
+    for theme in [Theme::Light, Theme::Dark] {
+        menu.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(220, 600), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] == 255));
+    }
 }
 
 #[test]

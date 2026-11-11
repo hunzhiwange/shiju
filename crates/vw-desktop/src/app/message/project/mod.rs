@@ -40,7 +40,7 @@ mod mod_tests;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// FileTreeAction 表示该流程中可枚举的状态或用户动作。
 ///
 /// 变体与界面事件或后台任务结果保持对应，便于在消息分发时显式匹配。

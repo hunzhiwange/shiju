@@ -18,13 +18,79 @@
 //! - **路径操作**：复制路径、复制相对路径
 //! - **文件管理**：重命名、删除
 
-use iced::keyboard::{Key, Modifiers};
+use iced::keyboard::{Key, Modifiers, key::Named};
 use iced::widget::{Space, button, column, container, row, text};
 use iced::{Background, Color, Element, Length, Point, Theme, Vector};
 
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::project::{FileTreeAction, ProjectMessage};
 use crate::app::{App, Message};
+
+struct MenuShortcut {
+    action: FileTreeAction,
+    key: Key<&'static str>,
+    modifiers: Modifiers,
+    label: &'static str,
+}
+
+impl MenuShortcut {
+    const fn command(
+        action: FileTreeAction,
+        key: &'static str,
+        mac: &'static str,
+        other: &'static str,
+    ) -> Self {
+        Self {
+            action,
+            key: Key::Character(key),
+            modifiers: Modifiers::COMMAND,
+            label: if cfg!(target_os = "macos") { mac } else { other },
+        }
+    }
+}
+
+const MENU_SHORTCUTS: &[MenuShortcut] = &[
+    if cfg!(target_os = "macos") {
+        MenuShortcut {
+            action: FileTreeAction::Open,
+            key: Key::Named(Named::ArrowDown),
+            modifiers: Modifiers::COMMAND,
+            label: "⌘↓",
+        }
+    } else {
+        MenuShortcut {
+            action: FileTreeAction::Open,
+            key: Key::Named(Named::Enter),
+            modifiers: Modifiers::NONE,
+            label: "Enter",
+        }
+    },
+    MenuShortcut::command(FileTreeAction::Cut, "x", "⌘X", "Ctrl+X"),
+    MenuShortcut::command(FileTreeAction::Copy, "c", "⌘C", "Ctrl+C"),
+    MenuShortcut::command(FileTreeAction::Duplicate, "d", "⌘D", "Ctrl+D"),
+    MenuShortcut::command(FileTreeAction::Paste, "v", "⌘V", "Ctrl+V"),
+    MenuShortcut {
+        action: FileTreeAction::Rename,
+        key: Key::Named(if cfg!(target_os = "macos") { Named::Enter } else { Named::F2 }),
+        modifiers: Modifiers::NONE,
+        label: if cfg!(target_os = "macos") { "↩" } else { "F2" },
+    },
+    if cfg!(target_os = "macos") {
+        MenuShortcut {
+            action: FileTreeAction::Delete,
+            key: Key::Named(Named::Backspace),
+            modifiers: Modifiers::COMMAND,
+            label: "⌘⌫",
+        }
+    } else {
+        MenuShortcut {
+            action: FileTreeAction::Delete,
+            key: Key::Named(Named::Delete),
+            modifiers: Modifiers::NONE,
+            label: "Delete",
+        }
+    },
+];
 
 pub(super) fn file_tree_menu_overlay<'a>(
     app: &'a App,
@@ -35,15 +101,30 @@ pub(super) fn file_tree_menu_overlay<'a>(
         .show(true)
         .anchor(app.file_tree_menu_anchor.unwrap_or(Point::ORIGIN))
         .on_close(Message::Project(ProjectMessage::FileTreeMenuClose))
-        .on_key_press(duplicate_shortcut)
+        .on_key_press(|key, modifiers| {
+            file_tree_menu_shortcut(key, modifiers, app.file_tree_clipboard.is_some())
+        })
         .capture_keyboard()
         .into()
 }
 
-pub(super) fn duplicate_shortcut(key: &Key, modifiers: Modifiers) -> Option<Message> {
-    (modifiers == Modifiers::COMMAND
-        && matches!(key, Key::Character(c) if c.eq_ignore_ascii_case("d")))
-    .then_some(Message::Project(ProjectMessage::FileTreeAction(FileTreeAction::Duplicate)))
+pub(super) fn file_tree_menu_shortcut(
+    key: &Key,
+    modifiers: Modifiers,
+    can_paste: bool,
+) -> Option<Message> {
+    let key = key.as_ref();
+    let shortcut = MENU_SHORTCUTS.iter().find(|shortcut| {
+        shortcut.modifiers == modifiers
+            && (can_paste || shortcut.action != FileTreeAction::Paste)
+            && match (&shortcut.key, &key) {
+                (Key::Character(expected), Key::Character(actual)) => {
+                    expected.eq_ignore_ascii_case(actual)
+                }
+                (expected, actual) => expected == actual,
+            }
+    })?;
+    Some(Message::Project(ProjectMessage::FileTreeAction(shortcut.action.clone())))
 }
 
 pub(super) fn file_tree_menu_button_style(
@@ -122,10 +203,10 @@ pub fn build_file_tree_menu<'a>(
     // 封装按钮的创建逻辑，包括样式、布局和交互行为
     let menu_btn = |label: &str, action: FileTreeAction| -> Element<'a, Message> {
         let label = crate::app::i18n::I18n::new(app.desktop_locale).__(label).to_string();
-        let mut content = row![text(label).size(13).width(Length::Fill)].align_y(iced::Center);
-        if matches!(action, FileTreeAction::Duplicate) {
-            let shortcut = if cfg!(target_os = "macos") { "⌘D" } else { "Ctrl+D" };
-            content = content.push(text(shortcut).size(12));
+        let mut content =
+            row![text(label).size(13).width(Length::Fill)].align_y(iced::Center).spacing(12);
+        if let Some(shortcut) = MENU_SHORTCUTS.iter().find(|shortcut| shortcut.action == action) {
+            content = content.push(text(shortcut.label).size(12));
         }
         button(container(content).width(Length::Fill).padding([2, 8]))
             .on_press(Message::Project(ProjectMessage::FileTreeAction(action)))

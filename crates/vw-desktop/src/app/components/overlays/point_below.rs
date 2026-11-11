@@ -8,8 +8,8 @@ use iced::{Element, Length};
 /// 重新导出 use iced::{Event, Point, Rectangle, Size, Theme, Vector}，让上层模块通过稳定路径访问。
 use iced::{Event, Point, Rectangle, Size, Theme, Vector};
 
-type KeyPressHandler<Message> =
-    fn(&iced::keyboard::Key, iced::keyboard::Modifiers) -> Option<Message>;
+type KeyPressHandler<'a, Message> =
+    dyn Fn(&iced::keyboard::Key, iced::keyboard::Modifiers) -> Option<Message> + 'a;
 
 fn compute_point_below_position(
     anchor: Point,
@@ -73,7 +73,7 @@ pub struct PointBelowOverlay<'a, Message, ThemeT = Theme, RendererT = iced::Rend
     // anchor_is_global 表示锚点已经是 overlay 坐标系中的位置。
     anchor_is_global: bool,
     capture_keyboard: bool,
-    on_key_press: Option<KeyPressHandler<Message>>,
+    on_key_press: Option<Box<KeyPressHandler<'a, Message>>>,
 }
 
 impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, RendererT> {
@@ -237,8 +237,11 @@ impl<'a, Message, ThemeT, RendererT> PointBelowOverlay<'a, Message, ThemeT, Rend
     }
 
     /// Handle a shortcut while this overlay is open.
-    pub(crate) fn on_key_press(mut self, handler: KeyPressHandler<Message>) -> Self {
-        self.on_key_press = Some(handler);
+    pub(crate) fn on_key_press(
+        mut self,
+        handler: impl Fn(&iced::keyboard::Key, iced::keyboard::Modifiers) -> Option<Message> + 'a,
+    ) -> Self {
+        self.on_key_press = Some(Box::new(handler));
         self
     }
 
@@ -579,7 +582,7 @@ where
                 // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 close_on_target_click: self.close_on_target_click,
                 capture_keyboard: self.capture_keyboard,
-                on_key_press: self.on_key_press,
+                on_key_press: self.on_key_press.as_deref(),
             })))
         } else {
             None
@@ -652,7 +655,7 @@ struct PointBelowOverlayElement<'a, 'b, Message, ThemeT, RendererT> {
     // close_on_target_click 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     close_on_target_click: bool,
     capture_keyboard: bool,
-    on_key_press: Option<KeyPressHandler<Message>>,
+    on_key_press: Option<&'b KeyPressHandler<'a, Message>>,
 }
 
 impl<Message, ThemeT, RendererT> overlay::Overlay<Message, ThemeT, RendererT>

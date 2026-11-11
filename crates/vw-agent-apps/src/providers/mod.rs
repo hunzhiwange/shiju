@@ -246,3 +246,9 @@ mod operations_tests;
 pub mod basic;
 
 pub mod request_options;
+
+#[cfg(target_os = "macos")]
+mod mode_apply_publication;
+
+#[cfg(all(test, target_os = "macos"))]
+mod mode_apply_publication_tests;

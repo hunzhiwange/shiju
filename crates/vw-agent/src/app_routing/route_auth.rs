@@ -35,6 +35,11 @@ use {
     crate::global_database::GlobalDatabase,
 };
 
+#[cfg(target_os = "macos")]
+type ProviderPublication = super::provider_publication::PublishedProvider;
+#[cfg(not(target_os = "macos"))]
+type ProviderPublication = ();
+
 const TOKEN_PREFIX: &str = "sra_";
 const TOKEN_BYTES: usize = 32;
 const API_KEY: &str = "x-api-key";
@@ -99,6 +104,8 @@ impl VerifiedRouteBinding {
 
 /// Neither the accepted binding nor its epoch can be changed by a handler.
 pub(super) struct AuthorizedRoute {
+    #[cfg(target_os = "macos")]
+    provider: Option<super::provider_publication::PublishedProvider>,
     binding: VerifiedRouteBinding,
     generation: u64,
     cancelled: CancellationToken,
@@ -109,6 +116,33 @@ pub(super) struct AuthorizedRoute {
 }
 
 impl AuthorizedRoute {
+    #[cfg(target_os = "macos")]
+    pub(super) async fn check_provider(
+        self: &Arc<Self>,
+        address: std::net::SocketAddr,
+    ) -> Result<(), StatusCode> {
+        let Some(provider) = &self.provider else {
+            return Ok(());
+        };
+        if provider.address != address {
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
+        }
+        let route = Arc::clone(self);
+        tokio::task::spawn_blocking(move || match &route.provider {
+            Some(provider) => provider.check_current(),
+            None => Ok(()),
+        })
+        .await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn provider_headers(&self, headers: &mut HeaderMap) {
+        if let Some(provider) = &self.provider {
+            provider.apply_headers(headers);
+        }
+    }
+
     pub(super) fn json_app(&self) -> Option<AppId> {
         self.json_target.as_ref().map(|_| self.binding.app)
     }
@@ -237,7 +271,7 @@ impl RouteAuth {
 
     #[cfg_attr(
         not(test),
-        expect(dead_code, reason = "production issuance awaits the authorized attach transaction")
+        expect(dead_code, reason = "unready grants are exercised by authorization tests")
     )]
     fn issue(&self, binding: VerifiedRouteBinding) -> anyhow::Result<IssuedRoute> {
         self.issue_with_target(binding, None)
@@ -275,7 +309,7 @@ impl RouteAuth {
             binding,
             json_target.map(|target| JsonRoute::Plain(Box::new(target))),
             None,
-            |_| Ok(()),
+            |_| Ok(None),
         )
         .map_err(|status| anyhow::anyhow!("application route issuance failed: {status}"))
     }
@@ -292,7 +326,7 @@ impl RouteAuth {
             binding,
             Some(JsonRoute::Aggregation(Box::new(snapshot))),
             expected_revision,
-            commit,
+            |token| commit(token).map(|()| None),
         )?;
         Ok(issued.revocation)
     }
@@ -311,9 +345,78 @@ impl RouteAuth {
             binding,
             Some(JsonRoute::Plain(Box::new(target))),
             expected_revision,
-            commit,
+            |token| commit(token).map(|()| None),
         )
         .map(|issued| issued.revocation)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn publish_provider(
+        &self,
+        binding: VerifiedRouteBinding,
+        target: JsonTarget,
+        commit: impl FnOnce(
+            &str,
+        )
+            -> Result<super::provider_publication::PublishedProvider, RouteCommitError>,
+    ) -> Result<(), StatusCode> {
+        self.issue_route(binding, Some(JsonRoute::Plain(Box::new(target))), None, |token| {
+            commit(token).map(Some)
+        })
+        .map(|_| ())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn with_provider<T>(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        operation: impl FnOnce(
+            &super::provider_publication::PublishedProvider,
+            u64,
+        ) -> anyhow::Result<T>,
+    ) -> anyhow::Result<T> {
+        let _publication = self.publication.lock();
+        let active = self.active.lock();
+        let route = active
+            .grants
+            .values()
+            .find(|route| {
+                route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id)
+                    && !route.cancelled.is_cancelled()
+            })
+            .ok_or_else(|| anyhow::anyhow!("application route is not published"))?;
+        let provider = route
+            .provider
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("application route has no provider snapshot"))?;
+        operation(provider, route.generation)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn restore_provider(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        commit: impl FnOnce() -> Result<(), RouteCommitError>,
+    ) -> Result<(), StatusCode> {
+        let _publication = self.publication.lock();
+        let retire = || {
+            self.active.lock().grants.retain(|_, route| {
+                if route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id) {
+                    route.cancelled.cancel();
+                    false
+                } else {
+                    true
+                }
+            });
+        };
+        if let Err(error) = commit() {
+            if error.recovery_pending {
+                retire();
+            }
+            return Err(error.status);
+        }
+        retire();
+        Ok(())
     }
 
     fn issue_route(
@@ -321,7 +424,7 @@ impl RouteAuth {
         binding: VerifiedRouteBinding,
         json_target: Option<JsonRoute>,
         expected_revision: Option<&str>,
-        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
+        commit: impl FnOnce(&str) -> Result<Option<ProviderPublication>, RouteCommitError>,
     ) -> Result<IssuedRoute, StatusCode> {
         binding.validate().map_err(|_| StatusCode::FORBIDDEN)?;
         #[cfg(not(target_os = "macos"))]
@@ -373,19 +476,26 @@ impl RouteAuth {
             }
             active.generation.checked_add(1).ok_or(StatusCode::SERVICE_UNAVAILABLE)?
         };
-        if let Err(error) = commit(&token) {
-            if error.recovery_pending {
-                drop(self.active.lock().retire(&binding));
+        let provider = match commit(&token) {
+            Ok(provider) => provider,
+            Err(error) => {
+                if error.recovery_pending {
+                    drop(self.active.lock().retire(&binding));
+                }
+                return Err(error.status);
             }
-            return Err(error.status);
-        }
+        };
 
+        #[cfg(not(target_os = "macos"))]
+        let _ = provider;
         let mut active = self.active.lock();
         let capacity = active.retire(&binding);
         active.generation = generation;
         active.grants.insert(
             digest,
             Arc::new(AuthorizedRoute {
+                #[cfg(target_os = "macos")]
+                provider,
                 binding,
                 generation,
                 cancelled: CancellationToken::new(),
@@ -400,6 +510,19 @@ impl RouteAuth {
             token,
             revocation: RouteRevocation { digest, generation },
         })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn revoke_providers(&self) {
+        let _publication = self.publication.lock();
+        self.active.lock().grants.retain(|_, route| {
+            if route.provider.is_some() {
+                route.cancelled.cancel();
+                false
+            } else {
+                true
+            }
+        });
     }
 
     pub(super) fn revoke(&self, issued: &RouteRevocation) {

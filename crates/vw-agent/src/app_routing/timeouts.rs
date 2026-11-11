@@ -61,9 +61,17 @@ pub(super) async fn stream_body(
     first_byte_deadline: Instant,
     idle: Duration,
     permit: RequestPermit,
+    protocol: Protocol,
 ) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
-    let mut observer = OutputObserver::default();
+    let mut observer = OutputObserver {
+        messages: matches!(protocol, Protocol::Messages).then(|| {
+            crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Messages,
+            )
+        }),
+        ..Default::default()
+    };
     let mut prelude = OutputBatch::default();
     let mut remaining = MAX_JSON_BYTES;
     before(first_byte_deadline, async {
@@ -78,7 +86,7 @@ pub(super) async fn stream_body(
                     return Err(error);
                 }
                 // Output and the error may arrive together in one TCP read.
-                prelude.append_terminal(error);
+                prelude.append_terminal(error, protocol);
             }
             if prelude.activity != Activity::Quiet {
                 return Ok(());
@@ -90,6 +98,7 @@ pub(super) async fn stream_body(
         prelude: Some(prelude.bytes.into()),
         upstream: (prelude.activity != Activity::End).then_some(stream),
         observer,
+        protocol,
         idle,
         idle_deadline: (!idle.is_zero()).then(|| Instant::now() + idle),
         _permit: permit,
@@ -101,6 +110,7 @@ struct TimedStream {
     prelude: Option<Bytes>,
     upstream: Option<BodyDataStream>,
     observer: OutputObserver,
+    protocol: Protocol,
     idle: Duration,
     idle_deadline: Option<Instant>,
     _permit: RequestPermit,
@@ -124,7 +134,7 @@ impl TimedStream {
                 Err(status) => Err(status.into()),
             };
             if let Err(error) = result {
-                batch.append_terminal(error);
+                batch.append_terminal(error, self.protocol);
             }
             match batch.activity {
                 Activity::Output if !self.idle.is_zero() => {
@@ -155,8 +165,8 @@ struct OutputBatch {
 }
 
 impl OutputBatch {
-    fn append_terminal(&mut self, error: RouteError) {
-        self.bytes.extend_from_slice(Protocol::Chat.terminal(error, 0).as_bytes());
+    fn append_terminal(&mut self, error: RouteError, protocol: Protocol) {
+        self.bytes.extend_from_slice(protocol.terminal(error, 0).as_bytes());
         self.activity = Activity::End;
     }
 }
@@ -165,6 +175,7 @@ impl OutputBatch {
 /// and metadata frames are relayed verbatim, in their original order.
 #[derive(Default)]
 struct OutputObserver {
+    messages: Option<crate::model_relay::stream_observer::StreamObserver>,
     frame: Vec<u8>,
     line_start: usize,
 }
@@ -180,7 +191,10 @@ impl OutputObserver {
                 continue;
             }
             if matches!(self.frame[self.line_start..], [b'\n'] | [b'\r', b'\n']) {
-                let activity = frame_activity(&self.frame)?;
+                let activity = match &mut self.messages {
+                    Some(observer) => messages_activity(&self.frame, observer)?,
+                    None => frame_activity(&self.frame)?,
+                };
                 batch.bytes.extend_from_slice(&self.frame);
                 self.frame.clear();
                 if activity != Activity::Quiet {
@@ -194,6 +208,38 @@ impl OutputObserver {
         }
         Ok(())
     }
+}
+
+fn messages_activity(
+    frame: &[u8],
+    observer: &mut crate::model_relay::stream_observer::StreamObserver,
+) -> Result<Activity, RouteError> {
+    let update = observer.push(frame).map_err(|_| RouteError::StreamFailed)?;
+    if update.completed {
+        return Ok(Activity::End);
+    }
+    let frame = std::str::from_utf8(frame).map_err(|_| RouteError::StreamFailed)?;
+    let payload =
+        frame.lines().filter_map(|line| sse_field(line, "data")).collect::<Vec<_>>().join("\n");
+    if payload.is_empty() {
+        return Ok(Activity::Quiet);
+    }
+    let value: Value = serde_json::from_str(&payload).map_err(|_| RouteError::StreamFailed)?;
+    let output = update.text_events > 0
+        || match value["type"].as_str() {
+            Some("content_block_start") => {
+                value["content_block"]["name"].as_str().is_some_and(|name| !name.is_empty())
+                    || value["content_block"]["text"].as_str().is_some_and(|text| !text.is_empty())
+            }
+            Some("content_block_delta") => value["delta"].as_object().is_some_and(|delta| {
+                delta.iter().any(|(key, value)| {
+                    key != "type" && value.as_str().is_some_and(|value| !value.is_empty())
+                })
+            }),
+            Some("message_delta") => true,
+            _ => false,
+        };
+    Ok(if output { Activity::Output } else { Activity::Quiet })
 }
 
 fn frame_activity(frame: &[u8]) -> Result<Activity, RouteError> {

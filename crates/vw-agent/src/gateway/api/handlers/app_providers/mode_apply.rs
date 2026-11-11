@@ -47,6 +47,66 @@ async fn apply(
     let result = tokio::task::spawn_blocking(move || {
         #[cfg(target_os = "macos")]
         if (!cfg!(test) || runtime.is_none())
+            && request.project_id.is_some()
+            && app == AppId::Claude
+        {
+            let project = vw_api_types::id::ProjectScope::new(
+                tenant.clone(),
+                request.project_id.clone().ok_or(StatusCode::BAD_REQUEST)?,
+            )
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            let Extension(control) = control.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+            let (root, _) =
+                control.authorize_mode(&headers, &project, &request.target_host_id, app)?;
+            let (home, provider_root) = super::super::agent_apps::provider_editor_context(
+                policy.0.as_deref(),
+                &headers,
+                &tenant,
+                &request.target_host_id,
+                true,
+            )?;
+            if root != provider_root {
+                return Err(StatusCode::CONFLICT);
+            }
+            let store =
+                super::store(database.clone()).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            let third_party = match &request.action {
+                ModeApplyAction::Proxy { provider_id } => {
+                    vw_agent_apps::providers::validate_identity(provider_id)
+                        .map_err(|_| StatusCode::BAD_REQUEST)?;
+                    store
+                        .claude_record(&tenant, provider_id)
+                        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
+                        .is_some_and(|row| require_direct(&row).is_ok())
+                }
+                _ => true,
+            };
+            if third_party {
+                let database = match database {
+                    Some(Extension(database)) => database,
+                    None => crate::global_database::GlobalDatabase::for_home(
+                        &crate::global::paths().home,
+                    )
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+                };
+                let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+                    project,
+                    target_host_id: request.target_host_id.clone(),
+                    app_id: app,
+                };
+                return crate::app_routing::provider_publication::apply(
+                    database,
+                    &control.routing,
+                    &home,
+                    &root,
+                    &scope,
+                    &request.action,
+                )
+                .map(|result| Json(result).into_response());
+            }
+        }
+        #[cfg(target_os = "macos")]
+        if (!cfg!(test) || runtime.is_none())
             && let ModeApplyAction::Proxy { provider_id } = &request.action
         {
             let Some(project_id) = request.project_id else {

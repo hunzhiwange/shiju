@@ -110,11 +110,12 @@ impl PostgresGatewaySettingsStore {
     }
 
     /// Serialize changes to a scoped setting, including its first write.
-    pub(super) fn update<T>(
+    pub(super) fn update_with_preimages<T>(
         &self,
         tenant: &TenantScope,
         namespace: &str,
         config_key: &str,
+        preimages: &[super::GatewaySettingPreimage],
         update: impl FnOnce(Option<&str>) -> Result<(T, Option<String>)>,
     ) -> Result<T> {
         let mut connection = self.database.connect_postgres()?;
@@ -122,6 +123,31 @@ impl PostgresGatewaySettingsStore {
             .build_transaction()
             .isolation_level(IsolationLevel::ReadCommitted)
             .start()?;
+        // A stable lock order also applies when independent host queues share providers.
+        let mut ordered = preimages.iter().collect::<Vec<_>>();
+        ordered.sort_unstable_by(|left, right| {
+            (left.namespace, &left.config_key).cmp(&(right.namespace, &right.config_key))
+        });
+        for preimage in ordered {
+            let current = transaction
+                .query_opt(
+                    "SELECT payload_json FROM gateway_settings
+                 WHERE platform_id = $1 AND company_id = $2
+                   AND namespace = $3 AND config_key = $4 FOR SHARE",
+                    &[
+                        &tenant.platform_id().as_ref(),
+                        &tenant.company_id().as_ref(),
+                        &preimage.namespace,
+                        &preimage.config_key,
+                    ],
+                )?
+                .map(|row| row.try_get::<_, String>(0))
+                .transpose()?;
+            ensure!(
+                current.as_deref() == Some(preimage.payload_json.as_str()),
+                "referenced configuration changed"
+            );
+        }
         let key: &[&(dyn ToSql + Sync)] = &[
             &tenant.platform_id().as_ref(),
             &tenant.company_id().as_ref(),

@@ -83,3 +83,6 @@ pub(crate) mod failover_routing;
 
 #[cfg(all(test, target_os = "macos"))]
 mod failover_routing_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod provider_publication;

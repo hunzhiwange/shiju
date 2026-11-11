@@ -4,7 +4,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use vw_api_types::id::TenantScope;
 
@@ -37,6 +37,13 @@ pub(crate) struct GatewaySetting {
     /// 命名空间内的配置键。
     pub(crate) config_key: String,
     /// 原始 JSON 载荷。
+    pub(crate) payload_json: String,
+}
+
+/// Executor-owned preimage. Never serialized or logged because payloads may contain credentials.
+pub(crate) struct GatewaySettingPreimage {
+    pub(crate) namespace: &'static str,
+    pub(crate) config_key: String,
     pub(crate) payload_json: String,
 }
 
@@ -146,24 +153,38 @@ impl GatewaySettingsStore {
         }
     }
 
-    /// Read and optionally replace a scoped setting in one write transaction.
-    pub(super) fn update<T>(
+    /// Hold referenced configurations stable through the same write transaction.
+    pub(super) fn update_with_preimages<T>(
         &self,
         tenant: &TenantScope,
         namespace: &str,
         config_key: &str,
+        preimages: &[GatewaySettingPreimage],
         update: impl FnOnce(Option<&str>) -> Result<(T, Option<String>)>,
     ) -> Result<T> {
         validate_identifier(namespace, "gateway settings namespace")?;
         validate_identifier(config_key, "gateway settings config key")?;
+        for preimage in preimages {
+            validate_identifier(preimage.namespace, "gateway settings namespace")?;
+            validate_identifier(&preimage.config_key, "gateway settings config key")?;
+        }
         let database = match &self.provider {
             GatewaySettingsStoreProvider::Sqlite(database) => database,
             GatewaySettingsStoreProvider::Postgres(store) => {
-                return store.update(tenant, namespace, config_key, update);
+                return store
+                    .update_with_preimages(tenant, namespace, config_key, preimages, update);
             }
         };
 
         database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+            for preimage in preimages {
+                let current =
+                    get_sqlite(transaction, tenant, preimage.namespace, &preimage.config_key)?;
+                ensure!(
+                    current.as_deref() == Some(preimage.payload_json.as_str()),
+                    "referenced configuration changed"
+                );
+            }
             let current = get_sqlite(transaction, tenant, namespace, config_key)?;
             let (result, replacement) = update(current.as_deref())?;
             if let Some(payload) = replacement {

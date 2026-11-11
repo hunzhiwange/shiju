@@ -662,3 +662,92 @@ async fn cc_route_109_missing_project_or_stale_account_generation_never_writes()
         assert!(!f.state.with_file_name("claude.pending.json").exists());
     }
 }
+
+#[tokio::test]
+async fn ha_enable_requires_routing_mode_and_keeps_queue_http() {
+    use super::super::app_routing::lifecycle_api_tests::{HOST, MANAGER};
+    use crate::app_providers::AppProviderStore;
+    use vw_api_types::app_providers::claude::{ClaudeConfig, ClaudeProfile};
+
+    let f = ProductionFixture::new(4_000_000_000_000).await;
+    let db = GlobalDatabase::for_home(f.home.path()).unwrap();
+    let store = AppProviderStore::new(db).unwrap();
+    let tenant = TenantScope::new("p", "owner").unwrap();
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}", upstream.local_addr().unwrap());
+    let requests = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = Arc::clone(&requests);
+    let server = tokio::spawn(async move {
+        let app = Router::new().route("/v1/messages", post(move |headers: axum::http::HeaderMap| {
+            let observed = Arc::clone(&observed);
+            async move {
+                assert_eq!(headers["x-api-key"], "fixture-route-key");
+                observed.fetch_add(1, Ordering::SeqCst);
+                Json(json!({"type":"message","role":"assistant","content":[{"type":"text","text":"OK"}]}))
+            }
+        }));
+        axum::serve(upstream, app).await.unwrap();
+    });
+    for id in ["direct", "third-party", "replacement"] {
+        let before = store.claude_record(&tenant, id).unwrap();
+        store
+            .claude_save(
+                &tenant,
+                id,
+                &ClaudeProfile {
+                    name: id.into(),
+                    config: ClaudeConfig::ThirdParty {
+                        base_url: endpoint.clone(),
+                        api_key: "fixture-route-key".into(),
+                        api_key_header: true,
+                    },
+                    model: Some("fixture".into()),
+                },
+                before.as_ref(),
+                before.is_none(),
+            )
+            .unwrap();
+    }
+    let proxy = |id| json!({"kind":"proxy","providerId":id});
+    assert_eq!(f.mode(None, proxy("third-party")).await.status(), 403);
+    assert_eq!(f.mode(Some("denied"), proxy("third-party")).await.status(), 403);
+    let binding = f.client.app_routing_start(HOST, MANAGER).await.unwrap();
+    let route_url = format!("http://127.0.0.1:{}/v1/messages", binding.bound_port.unwrap());
+    assert_eq!(f.mode(Some("allowed"), proxy("third-party")).await.status(), 200);
+    let read_token = || {
+        let config: Value =
+            serde_json::from_slice(&std::fs::read(f.configuration()).unwrap()).unwrap();
+        config["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap().to_owned()
+    };
+    let token = read_token();
+    let request = |token: &str| {
+        f.http
+            .post(&route_url)
+            .header("x-api-key", token)
+            .json(&json!({"model":"fixture","messages":[{"role":"user","content":"hello"}]}))
+    };
+    assert_eq!(request("PROXY_MANAGED").send().await.unwrap().status(), 401);
+    assert_eq!(request(&token).send().await.unwrap().status(), 200);
+    let before = std::fs::read(f.configuration()).unwrap();
+    assert_eq!(f.mode(Some("allowed"), proxy("missing")).await.status(), 404);
+    assert_eq!(std::fs::read(f.configuration()).unwrap(), before);
+    assert_eq!(request(&token).send().await.unwrap().status(), 200);
+    assert_eq!(f.mode(Some("allowed"), proxy("replacement")).await.status(), 200);
+    assert_ne!(read_token(), token);
+    assert_eq!(request(&token).send().await.unwrap().status(), 401);
+    let token = read_token();
+    assert_eq!(request(&token).send().await.unwrap().status(), 200);
+    assert_eq!(f.mode(Some("allowed"), json!({"kind":"detach"})).await.status(), 200);
+    assert_eq!(request(&token).send().await.unwrap().status(), 401);
+    let state: AppState = serde_json::from_slice(&std::fs::read(&f.state).unwrap()).unwrap();
+    assert!(!state.mode.as_ref().unwrap().attached);
+    assert!(state.mode.as_ref().unwrap().mode == Mode::Proxy);
+    assert_eq!(f.mode(Some("allowed"), proxy("replacement")).await.status(), 200);
+    let token = read_token();
+    assert_eq!(f.mode(Some("allowed"), json!({"kind":"direct"})).await.status(), 200);
+    assert_eq!(request(&token).send().await.unwrap().status(), 401);
+    assert_eq!(requests.load(Ordering::SeqCst), 3);
+    f.client.app_routing_stop(HOST, MANAGER).await.unwrap();
+    server.abort();
+    let _ = server.await;
+}

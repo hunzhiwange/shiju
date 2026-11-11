@@ -7,7 +7,7 @@ use vw_agent_apps::{
 };
 use vw_api_types::agent_apps_high_availability::{FailoverQueueScope, FailoverQueueVersion};
 
-use super::settings_store::GatewaySettingsStore;
+use super::settings_store::{GatewaySettingPreimage, GatewaySettingsStore};
 use crate::global_database::GlobalDatabase;
 
 pub(super) const NAMESPACE: &str = "agent_apps.high_availability";
@@ -51,27 +51,43 @@ impl FailoverQueueStore {
         expected_version: FailoverQueueVersion,
         change: impl FnOnce(&mut Queue, &mut bool) -> Result<()>,
     ) -> Result<FailoverQueueState> {
+        self.update_with_preimages(scope, expected_version, &[], change)
+    }
+
+    pub(crate) fn update_with_preimages(
+        &self,
+        scope: &FailoverQueueScope,
+        expected_version: FailoverQueueVersion,
+        preimages: &[GatewaySettingPreimage],
+        change: impl FnOnce(&mut Queue, &mut bool) -> Result<()>,
+    ) -> Result<FailoverQueueState> {
         let key = config_key(scope)?;
-        self.0.update(scope.project.tenant_scope(), NAMESPACE, &key, |payload| {
-            let mut state = decode(payload)?;
-            if state.version != expected_version {
-                bail!(FailoverQueueVersionConflict);
-            }
+        self.0.update_with_preimages(
+            scope.project.tenant_scope(),
+            NAMESPACE,
+            &key,
+            preimages,
+            |payload| {
+                let mut state = decode(payload)?;
+                if state.version != expected_version {
+                    bail!(FailoverQueueVersionConflict);
+                }
 
-            let mut queue = Queue::new(scope.app_id, state.members.clone());
-            let mut enabled = state.enabled;
-            change(&mut queue, &mut enabled)?;
-            if queue.members() == state.members && enabled == state.enabled {
-                return Ok((state, None));
-            }
+                let mut queue = Queue::new(scope.app_id, state.members.clone());
+                let mut enabled = state.enabled;
+                change(&mut queue, &mut enabled)?;
+                if queue.members() == state.members && enabled == state.enabled {
+                    return Ok((state, None));
+                }
 
-            state.version.0 =
-                state.version.0.checked_add(1).context("failover queue version exhausted")?;
-            state.members = queue.members().to_vec();
-            state.enabled = enabled;
-            let replacement = serde_json::to_string(&state)?;
-            Ok((state, Some(replacement)))
-        })
+                state.version.0 =
+                    state.version.0.checked_add(1).context("failover queue version exhausted")?;
+                state.members = queue.members().to_vec();
+                state.enabled = enabled;
+                let replacement = serde_json::to_string(&state)?;
+                Ok((state, Some(replacement)))
+            },
+        )
     }
 }
 

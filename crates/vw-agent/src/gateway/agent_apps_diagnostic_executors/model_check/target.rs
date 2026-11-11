@@ -6,17 +6,12 @@ use sha2::{Digest, Sha256};
 use vw_agent_apps::{
     auth::{copilot::CopilotAuth, flow::AuthAccountScope},
     models::edits,
-    providers::{self, validation},
+    providers::validation,
 };
 use vw_api_types::{
     agent_apps::AppId,
     agent_apps_auth::{AuthErrorCode, AuthService},
     agent_apps_diagnostics::DiagnosticFailureCode,
-    app_providers::{
-        ProviderProtocol,
-        claude::{ClaudeConfig, ClaudeProfile},
-        gemini::{GeminiConfig, GeminiProfile},
-    },
     id::{ModelId, ProviderId},
     model_catalog::ModelCatalogIdentity,
 };
@@ -107,7 +102,13 @@ impl ModelTarget {
                 }));
                 (endpoint, None, protocol, destination)
             } else {
-                let profile = SavedProfile::read(app, &owner, &provider_id, &row)?;
+                let profile = crate::app_providers::generation_target::SavedProfile::read_for_host(
+                    app,
+                    &owner.scope.target_host_id,
+                    &provider_id,
+                    &row,
+                )
+                .map_err(|_| ModelPrepareError::Unsupported)?;
                 let protocol = profile.protocol;
                 let full_url = row.pointer("/meta/isFullUrl") == Some(&Value::Bool(true));
                 let url = protocol
@@ -271,101 +272,5 @@ fn copilot_scope(owner: &DiagnosticJobOwner) -> AuthAccountScope<'_> {
         principal: &owner.principal,
         host: &owner.scope.target_host_id,
         service: AuthService::GithubCopilot,
-    }
-}
-
-struct SavedProfile {
-    endpoint: String,
-    model: Option<String>,
-    credential: String,
-    protocol: GenerationProtocol,
-    messages_bearer: bool,
-}
-
-impl SavedProfile {
-    fn read(
-        app: AppId,
-        _owner: &DiagnosticJobOwner,
-        _id: &ProviderId,
-        row: &Value,
-    ) -> Result<Self> {
-        let unsupported = ModelPrepareError::Unsupported;
-        if row["category"] == "official"
-            || row.pointer("/meta/liveConfigManaged") == Some(&Value::Bool(true))
-            || [
-                "/meta/authBinding",
-                "/meta/githubAccountId",
-                "/managedCodexLogin",
-                "/managedClaudeLogin",
-            ]
-            .iter()
-            .any(|path| row.pointer(path).is_some_and(|value| !value.is_null()))
-        {
-            return Err(unsupported);
-        }
-        let (endpoint, model, credential, default, messages_bearer) = match app {
-            AppId::Claude if let Some(native) = row.get("claude") => {
-                let profile: ClaudeProfile =
-                    serde_json::from_value(native.clone()).map_err(|_| unsupported)?;
-                let ClaudeConfig::ThirdParty { base_url, api_key, api_key_header } = profile.config
-                else {
-                    return Err(unsupported);
-                };
-                (base_url, profile.model, api_key, GenerationProtocol::Messages, !api_key_header)
-            }
-            AppId::Gemini if let Some(native) = row.get("gemini") => {
-                let profile: GeminiProfile =
-                    serde_json::from_value(native.clone()).map_err(|_| unsupported)?;
-                let GeminiConfig::ThirdParty { base_url, api_key } = profile.config else {
-                    return Err(unsupported);
-                };
-                (base_url, profile.model, api_key, GenerationProtocol::Gemini, false)
-            }
-            #[cfg(target_os = "macos")]
-            AppId::Codex if row.get("codex").is_some() => {
-                use vw_agent_apps::providers::codex_catalog;
-                let profile =
-                    codex_catalog::form::editable_profile(_id.as_ref(), row).ok_or(unsupported)?;
-                let identity =
-                    codex_catalog::identity(&_owner.scope.target_host_id, _id.as_ref(), &profile)
-                        .map_err(|_| unsupported)?;
-                let config: toml::Table = profile.config.parse().map_err(|_| unsupported)?;
-                let model = config.get("model").and_then(toml::Value::as_str).map(str::to_owned);
-                (
-                    identity.endpoint,
-                    model,
-                    profile.api_key.ok_or(unsupported)?,
-                    GenerationProtocol::Responses,
-                    false,
-                )
-            }
-            _ => {
-                let profile = providers::update::profile(row).map_err(|_| unsupported)?;
-                providers::validate_profile(app, &profile).map_err(|_| unsupported)?;
-                let protocol = match profile.protocol {
-                    ProviderProtocol::Anthropic => GenerationProtocol::Messages,
-                    ProviderProtocol::OpenaiResponses => GenerationProtocol::Responses,
-                    ProviderProtocol::Gemini => GenerationProtocol::Gemini,
-                };
-                (profile.base_url, Some(profile.model), profile.api_key, protocol, false)
-            }
-        };
-        let protocol = match row.pointer("/meta/apiFormat") {
-            None | Some(Value::Null) => default,
-            Some(format) => match format.as_str() {
-                Some("anthropic") if app == AppId::Claude => GenerationProtocol::Messages,
-                Some("openai_chat") if matches!(app, AppId::Claude | AppId::Codex) => {
-                    GenerationProtocol::Chat
-                }
-                Some("openai_responses") if matches!(app, AppId::Claude | AppId::Codex) => {
-                    GenerationProtocol::Responses
-                }
-                Some("gemini_native") if matches!(app, AppId::Claude | AppId::Gemini) => {
-                    GenerationProtocol::Gemini
-                }
-                _ => return Err(unsupported),
-            },
-        };
-        Ok(Self { endpoint, model, credential, protocol, messages_bearer })
     }
 }

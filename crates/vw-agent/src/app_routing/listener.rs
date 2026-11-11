@@ -92,6 +92,56 @@ impl RoutingListener {
         self.auth.prepare(binding)
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn publish_provider(
+        &self,
+        binding: super::VerifiedRouteBinding,
+        target: super::dispatch::JsonTarget,
+        commit: impl FnOnce(
+            SocketAddr,
+            &str,
+        ) -> Result<
+            super::provider_publication::PublishedProvider,
+            super::RouteCommitError,
+        >,
+    ) -> Result<(), axum::http::StatusCode> {
+        let _permit = self.try_control().map_err(|_| axum::http::StatusCode::CONFLICT)?;
+        let address = self.bound_address().ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
+        if !address.ip().is_loopback() {
+            return Err(axum::http::StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        self.auth.publish_provider(binding, target, |token| commit(address, token))
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn with_provider<T>(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        operation: impl FnOnce(
+            &super::provider_publication::PublishedProvider,
+            u64,
+        ) -> anyhow::Result<T>,
+    ) -> anyhow::Result<T> {
+        let _permit = self.try_control()?;
+        let address = self
+            .bound_address()
+            .ok_or_else(|| anyhow::anyhow!("application listener is stopped"))?;
+        self.auth.with_provider(scope, |provider, generation| {
+            anyhow::ensure!(provider.address == address, "application route listener changed");
+            operation(provider, generation)
+        })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn restore_provider(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+        commit: impl FnOnce() -> Result<(), super::RouteCommitError>,
+    ) -> Result<(), axum::http::StatusCode> {
+        let _permit = self.try_control().map_err(|_| axum::http::StatusCode::CONFLICT)?;
+        self.auth.restore_provider(scope, commit)
+    }
+
     /// Commit the private client token before making this snapshot reachable.
     /// The configuration owner must validate the same revision and use its existing
     /// atomic write transaction in the callback. It must not reenter the listener.
@@ -384,6 +434,8 @@ impl RoutingListener {
     pub async fn stop(&self) -> Result<(), ListenerError> {
         let running =
             self.lifecycle.lock().begin_stop().map_err(|_| ListenerError::TransitionInProgress)?;
+        #[cfg(target_os = "macos")]
+        self.auth.revoke_providers();
         if let Some(RunningListener { shutdown, exited, .. }) = running {
             drop(shutdown);
             let _ = timeout(shutdown::STOP_TIMEOUT, exited)

@@ -14,6 +14,10 @@
 mod agent;
 pub mod agent_apps_diagnostic_executors;
 pub mod agent_apps_diagnostic_jobs;
+#[cfg(target_os = "macos")]
+pub mod agent_apps_high_availability_service;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_high_availability_service_tests;
 pub mod agent_apps_high_availability_store;
 #[cfg(test)]
 mod agent_apps_high_availability_store_tests;

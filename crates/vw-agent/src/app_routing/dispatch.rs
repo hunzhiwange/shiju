@@ -9,7 +9,7 @@ use super::{
     decode_response,
     header_wire::{self, HeaderWire},
     override_apply,
-    protocol_errors::RouteError,
+    protocol_errors::{Protocol, RouteError},
     route_auth::AuthorizedRoute,
     timeouts,
 };
@@ -21,7 +21,7 @@ use axum::{
 };
 use hyper::body::Incoming;
 use serde_json::Value;
-use std::{net::SocketAddr, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
@@ -42,17 +42,21 @@ pub(crate) struct JsonTarget {
 
 pub(super) async fn forward_json(
     mut request: Request<Incoming>,
-    route: &AuthorizedRoute,
+    route: &Arc<AuthorizedRoute>,
     limits: &BodyLimits,
     listener: SocketAddr,
     #[cfg(target_os = "macos")] egress: &super::outbound_config::EgressState,
 ) -> Result<Response, RouteError> {
+    #[cfg(target_os = "macos")]
+    route.check_provider(listener).await?;
     let app = route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     let responses = request.uri().path() == RESPONSES_PATH;
-    if app != AppId::Codex
-        || !matches!(request.uri().path(), CHAT_PATH | RESPONSES_PATH)
-        || request.uri().query().is_some()
-    {
+    let supported = match app {
+        AppId::Codex => matches!(request.uri().path(), CHAT_PATH | RESPONSES_PATH),
+        AppId::Claude => request.uri().path() == "/v1/messages",
+        _ => false,
+    };
+    if !supported || request.uri().query().is_some() {
         return Err(StatusCode::NOT_FOUND.into());
     }
     if request.method() != Method::POST {
@@ -100,6 +104,8 @@ pub(super) async fn forward_json(
     // Wait only after the upload so disconnect detection can cancel a queued
     // request, and keep the listener-wide buffer reservation while it waits.
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
+    #[cfg(target_os = "macos")]
+    route.check_provider(listener).await?;
     let (mut outgoing, bridge) = if responses {
         if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
@@ -114,6 +120,8 @@ pub(super) async fn forward_json(
     };
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
+    #[cfg(target_os = "macos")]
+    route.provider_headers(outgoing.headers_mut());
     #[cfg(target_os = "macos")]
     let timeouts = route.timeouts().await?;
     #[cfg(not(target_os = "macos"))]
@@ -149,13 +157,18 @@ pub(super) async fn forward_json(
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(
                 body,
-                crate::model_relay::generation::GenerationProtocol::Chat,
+                if app == AppId::Claude {
+                    crate::model_relay::generation::GenerationProtocol::Messages
+                } else {
+                    crate::model_relay::generation::GenerationProtocol::Chat
+                },
                 cancelled.clone(),
             )
         } else {
             body
         };
-        let body = timeouts::stream_body(body, deadline, idle, permit).await?;
+        let protocol = if app == AppId::Claude { Protocol::Messages } else { Protocol::Chat };
+        let body = timeouts::stream_body(body, deadline, idle, permit, protocol).await?;
         let body = match bridge {
             Some(bridge) => bridge.response_body(body, cancelled),
             None => body,

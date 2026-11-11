@@ -172,10 +172,11 @@ pub struct ChannelExecutionChoices {
 #[derive(Debug, Clone)]
 /// 表示 ChannelsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct ChannelsSettingsState {
-    pub(crate) execution_choices: Option<(String, ChannelExecutionChoices)>,
-    pub(crate) execution_request: Option<(String, String, u64)>,
+    pub(crate) execution_provider: std::collections::BTreeMap<String, String>,
+    pub(crate) execution_choices: std::collections::BTreeMap<String, ChannelExecutionChoices>,
+    pub(crate) execution_request: std::collections::BTreeMap<String, (String, u64)>,
     pub(crate) execution_generation: u64,
-    pub(crate) execution_error: Option<String>,
+    pub(crate) execution_error: std::collections::BTreeMap<String, String>,
     pub(crate) instance_execution:
         std::collections::BTreeMap<String, vw_config_types::channels::ChannelExecutionConfig>,
     pub(crate) instance_default_projects: std::collections::BTreeMap<String, String>,
@@ -223,10 +224,11 @@ impl Default for ChannelsSettingsState {
         Self {
             instance_default_projects: Default::default(),
             instance_execution: Default::default(),
-            execution_choices: None,
-            execution_request: None,
+            execution_provider: Default::default(),
+            execution_choices: Default::default(),
+            execution_request: Default::default(),
             execution_generation: 0,
-            execution_error: None,
+            execution_error: Default::default(),
             project_choices: Vec::new(),
             project_choices_error: None,
             project_choices_request: None,

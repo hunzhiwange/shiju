@@ -63,10 +63,41 @@ impl ChannelsSettingsState {
         Ok(())
     }
 
+    pub(crate) fn begin_execution_choices(&mut self, tenant: &str, instance: &str) -> u64 {
+        self.execution_generation = self.execution_generation.wrapping_add(1);
+        self.execution_request.insert(instance.into(), (tenant.into(), self.execution_generation));
+        self.execution_provider.remove(instance);
+        self.execution_choices.remove(instance);
+        self.execution_error.remove(instance);
+        self.execution_generation
+    }
+
+    pub(crate) fn finish_execution_choices(
+        &mut self,
+        tenant: &str,
+        instance: &str,
+        generation: u64,
+        result: Result<super::ChannelExecutionChoices, String>,
+    ) -> bool {
+        if self.execution_request.get(instance) != Some(&(tenant.into(), generation)) {
+            return false;
+        }
+        match result {
+            Ok(choices) => {
+                self.execution_choices.insert(instance.into(), choices);
+            }
+            Err(error) => {
+                self.execution_error.insert(instance.into(), error);
+            }
+        }
+        true
+    }
+
     pub(crate) fn invalidate_execution_choices(&mut self) {
-        self.execution_request = None;
-        self.execution_choices = None;
-        self.execution_error = None;
+        self.execution_provider.clear();
+        self.execution_request.clear();
+        self.execution_choices.clear();
+        self.execution_error.clear();
     }
 
     pub(crate) fn invalidate_project_choices(&mut self) {

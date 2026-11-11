@@ -214,11 +214,72 @@ fn channel_default_project_load_failure_keeps_deleted_binding_and_unbinds_explic
 #[test]
 fn channel_execution_choices_invalidated_with_project_or_instance() {
     let mut state = project_settings();
-    state.execution_choices = Some(("wechat:default".into(), ChannelExecutionChoices::default()));
-    state.execution_request = Some(("tenant".into(), "wechat:default".into(), 1));
-    state.execution_error = Some("error".into());
+    state.execution_provider.insert("wechat:default".into(), "provider".into());
+    state.execution_choices.insert("wechat:default".into(), ChannelExecutionChoices::default());
+    state.execution_request.insert("wechat:default".into(), ("tenant".into(), 1));
+    state.execution_error.insert("wechat:default".into(), "error".into());
     state.invalidate_project_choices();
-    assert!(state.execution_choices.is_none());
-    assert!(state.execution_request.is_none());
-    assert!(state.execution_error.is_none());
+    assert!(state.execution_provider.is_empty());
+    assert!(state.execution_choices.is_empty());
+    assert!(state.execution_request.is_empty());
+    assert!(state.execution_error.is_empty());
+}
+
+#[test]
+fn channel_execution_loading_keeps_instances_independent() {
+    let mut state = project_settings();
+    let a = state.begin_execution_choices("tenant", "feishu:one");
+    let b = state.begin_execution_choices("tenant", "feishu:two");
+    assert!(state.finish_execution_choices(
+        "tenant",
+        "feishu:one",
+        a,
+        Ok(ChannelExecutionChoices::default())
+    ));
+    assert!(state.execution_choices.contains_key("feishu:one"));
+    assert!(!state.execution_choices.contains_key("feishu:two"));
+    assert!(state.finish_execution_choices(
+        "tenant",
+        "feishu:two",
+        b,
+        Ok(ChannelExecutionChoices::default())
+    ));
+    assert_eq!(state.execution_choices.len(), 2);
+}
+
+#[test]
+fn channel_execution_loading_rejects_stale_results_and_recovers_after_failure() {
+    let mut state = project_settings();
+    let old = state.begin_execution_choices("tenant", "wechat:default");
+    let current = state.begin_execution_choices("tenant", "wechat:default");
+    assert!(!state.finish_execution_choices(
+        "tenant",
+        "wechat:default",
+        old,
+        Ok(ChannelExecutionChoices::default())
+    ));
+    assert!(!state.finish_execution_choices(
+        "other",
+        "wechat:default",
+        current,
+        Ok(ChannelExecutionChoices::default())
+    ));
+    assert!(state.execution_choices.is_empty());
+    assert!(state.finish_execution_choices(
+        "tenant",
+        "wechat:default",
+        current,
+        Err("加载失败".into())
+    ));
+    assert!(state.execution_choices.is_empty());
+    assert!(state.execution_error.contains_key("wechat:default"));
+    let retry = state.begin_execution_choices("tenant", "wechat:default");
+    assert!(state.execution_error.is_empty());
+    assert!(state.finish_execution_choices(
+        "tenant",
+        "wechat:default",
+        retry,
+        Ok(ChannelExecutionChoices::default())
+    ));
+    assert!(state.execution_choices.contains_key("wechat:default"));
 }

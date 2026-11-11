@@ -152,18 +152,23 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
-    if matches!(
+    let reload_bindings = matches!(
         &message,
         ChannelsMessage::InstanceAdded(_)
             | ChannelsMessage::InstanceRemoved(_, _)
             | ChannelsMessage::EnabledToggled(_, _)
             | ChannelsMessage::TabSelected(_)
             | ChannelsMessage::Refresh
-    ) || matches!(&message, ChannelsMessage::TextChanged(key, _) if key.ends_with(".id"))
-    {
+    ) || matches!(&message, ChannelsMessage::TextChanged(key, _) if key.ends_with(".id"));
+    let reload_execution = reload_bindings
+        || matches!(
+            &message,
+            ChannelsMessage::ProjectDirChanged(_) | ChannelsMessage::QrSaveConfirmed
+        );
+    if reload_bindings {
         app.channels_settings.invalidate_project_choices();
     }
-    match message {
+    let task = match message {
         ChannelsMessage::ExecutionChoicesRequested(instance) => {
             super::execution::load(app, instance)
         }
@@ -172,6 +177,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         ChannelsMessage::ExecutionAgentSelected { instance, agent } => {
             super::execution::select_agent(app, instance, agent)
+        }
+        ChannelsMessage::ExecutionProviderSelected { instance, provider } => {
+            super::execution::select_provider(app, instance, provider)
         }
         ChannelsMessage::ExecutionModelSelected { instance, model } => {
             super::execution::select_model(app, instance, model)
@@ -423,7 +431,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.channels_settings.qr_flow.close();
             task
         }
-    }
+    };
+    if reload_execution { Task::batch([task, super::execution::load_active(app)]) } else { task }
 }
 
 #[cfg(test)]

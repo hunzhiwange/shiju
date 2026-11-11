@@ -245,13 +245,13 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
             }),
         },
     );
-    app.channels_settings.execution_choices = Some((
+    app.channels_settings.execution_choices.insert(
         "qq:default".into(),
         crate::app::state::ChannelExecutionChoices {
             agents: vec![("acp-research".into(), "研究助手（ACP）".into())],
             models: vec![],
         },
-    ));
+    );
     for (theme, width) in
         [(Theme::Dark, 960), (Theme::Light, 960), (Theme::Dark, 420), (Theme::Light, 420)]
     {

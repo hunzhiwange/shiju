@@ -140,8 +140,8 @@ pub(super) fn select(app: &mut App, instance: String, project: Option<String>) -
     };
     match app.channels_settings.select_default_project(&scope, &instance, project.as_deref()) {
         Ok(()) => {
-            app.channels_settings.invalidate_execution_choices();
-            persist_channels_settings(app).unwrap_or_else(Task::none)
+            let save = persist_channels_settings(app).unwrap_or_else(Task::none);
+            Task::batch([save, super::execution::load(app, instance)])
         }
         Err(source) => {
             app.show_localized_toast(crate::app::state::ToastKind::Error, source, vec![])

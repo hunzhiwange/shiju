@@ -275,6 +275,10 @@ pub enum ChannelsMessage {
         instance: String,
         agent: Option<String>,
     },
+    ExecutionProviderSelected {
+        instance: String,
+        provider: Option<String>,
+    },
     ExecutionModelSelected {
         instance: String,
         model: Option<vw_config_types::agent::AgentModelReference>,

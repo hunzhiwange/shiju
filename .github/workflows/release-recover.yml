@@ -52,7 +52,7 @@ jobs:
           assert tag['type'] == 'commit' and run['head_sha'] == tag['sha'], 'Source commit mismatch'
           print(f"Verified {os.environ['RELEASE_TAG']} at {tag['sha']}")
           PY
-          gh api --paginate "repos/$GH_REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name == "build-global-artifacts" or (.name | startswith("build-local-artifacts ("))) | .conclusion' > "$RUNNER_TEMP/build-results.txt"
+          gh api --paginate "repos/$GH_REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name == "build-global-artifacts" or (.name | startswith("build-local-artifacts (")) or (.name | startswith("build-web-artifacts"))) | .conclusion' > "$RUNNER_TEMP/build-results.txt"
           test "$(wc -l < "$RUNNER_TEMP/build-results.txt")" -gt 0
           if grep -vx 'success' "$RUNNER_TEMP/build-results.txt"; then
             echo 'Source builds did not all succeed' >&2
@@ -91,9 +91,21 @@ jobs:
               assert actual == expected, f'Checksum mismatch: {name}'
               checked += 1
           assert checked > 0, 'No checksums verified'
+          web_archives = list(root.glob('shiju-web-*.zip'))
+          assert len(web_archives) == 1, 'Expected one complete Web archive'
+          for archive in web_archives:
+              checksum = archive.with_suffix('.zip.sha256').read_text().split()
+              assert len(checksum) == 2 and checksum[1] == archive.name, 'Invalid Web checksum file'
+              digest = hashlib.sha256()
+              with archive.open('rb') as source:
+                  for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              assert digest.hexdigest() == checksum[0], 'Web archive checksum mismatch'
           for path in root.glob('*-dist-manifest.json'):
               path.unlink()
-          pathlib.Path(os.environ['RUNNER_TEMP'], 'notes.txt').write_text(manifest['announcement_github_body'])
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'notes.txt').write_text(
+              manifest['announcement_github_body'] + '\n\n### Web 静态版\n下载 shiju-web-*.zip，解压后执行 npm run start；详见包内 README.md。\n'
+          )
           print(f'Verified {len(manifest["artifacts"])} manifest artifacts and {checked} checksums')
           for path in sorted(root.iterdir()):
               assert path.is_file(), f'Unexpected artifact directory: {path}'

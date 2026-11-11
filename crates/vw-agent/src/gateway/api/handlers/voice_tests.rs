@@ -6,6 +6,8 @@ use vw_api_types::id::TenantScope;
 const TOKEN: &str = "sk-voice-fixture-06-private-token";
 struct Server {
     url: String,
+    platform: String,
+    _workspace: tempfile::TempDir,
     task: tokio::task::JoinHandle<()>,
 }
 impl Drop for Server {
@@ -14,18 +16,22 @@ impl Drop for Server {
     }
 }
 async fn server() -> Server {
-    let owner = TenantScope::new("voice06", "owner").unwrap();
+    let platform = format!("voice06-{}", uuid::Uuid::new_v4());
+    let owner = TenantScope::new(&platform, "owner").unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let (project, _) = crate::project::from_directory(&owner, workspace.path()).await.unwrap();
     crate::config::update_global_for_tenant(
         &owner,
         json!({"gateway":{"auth_enabled":true,"skeys":[{"skey":TOKEN,"name":"fixture"}]}}),
     )
     .await
     .unwrap();
-    let info=serde_json::from_value(json!({"id":"chat06","slug":"fixture","projectID":"voice06-project","directory":"/fixture","title":"fixture","version":"1","time":{"created":1,"updated":1}})).unwrap();
+    // Register the real project first: session rows enforce its tenant/project foreign key.
+    let info = serde_json::from_value(json!({"id":"chat06","slug":"fixture","projectID":project.id,"directory":project.worktree,"title":"fixture","version":"1","time":{"created":1,"updated":1}})).unwrap();
     crate::session::ui_store::save_agent_session_scoped_for_tenant(
         &owner,
         &info,
-        Some("voice06-project"),
+        Some(&project.id),
     )
     .unwrap();
     let app = router::<()>()
@@ -35,7 +41,7 @@ async fn server() -> Server {
     let task = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    Server { url, task }
+    Server { url, platform, _workspace: workspace, task }
 }
 fn metadata() -> String {
     json!({"request_id":"req06","chat_session_id":"chat06","generation":1,"provider_id":"openai"})
@@ -56,7 +62,7 @@ async fn voice_task_06_transcription_rejects_cross_tenant_request() {
     let response = reqwest::Client::new()
         .post(format!("{}/voice/transcriptions", server.url))
         .bearer_auth(TOKEN)
-        .header("x-platform-id", "voice06")
+        .header("x-platform-id", &server.platform)
         .header("x-company-id", "other")
         .multipart(form(vec![0; 44]))
         .send()
@@ -74,7 +80,7 @@ async fn voice_task_06_transcription_rejects_oversized_body() {
     let response = reqwest::Client::new()
         .post(format!("{}/voice/transcriptions", server.url))
         .bearer_auth(TOKEN)
-        .header("x-platform-id", "voice06")
+        .header("x-platform-id", &server.platform)
         .header("x-company-id", "owner")
         .multipart(form(vec![0; 24_100_001]))
         .send()
@@ -105,7 +111,7 @@ fn request(client: &reqwest::Client, server: &Server, company: &str) -> reqwest:
     client
         .post(format!("{}/voice/transcriptions", server.url))
         .bearer_auth(TOKEN)
-        .header("x-platform-id", "voice06")
+        .header("x-platform-id", &server.platform)
         .header("x-company-id", company)
 }
 #[tokio::test]
@@ -126,7 +132,7 @@ async fn voice_task_06_transcription_rejects_anonymous_and_disabled_auth() {
     let client = reqwest::Client::new();
     let response = client
         .post(format!("{}/voice/transcriptions", server.url))
-        .header("x-platform-id", "voice06")
+        .header("x-platform-id", &server.platform)
         .header("x-company-id", "owner")
         .multipart(form(wav()))
         .send()
@@ -134,7 +140,7 @@ async fn voice_task_06_transcription_rejects_anonymous_and_disabled_auth() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     crate::config::update_global_for_tenant(
-        &TenantScope::new("voice06", "owner").unwrap(),
+        &TenantScope::new(&server.platform, "owner").unwrap(),
         json!({"gateway":{"auth_enabled":false}}),
     )
     .await
@@ -164,7 +170,7 @@ async fn voice_task_06_transcription_rejects_media_and_unknown_fields() {
 #[tokio::test]
 async fn voice_task_06_authenticated_foreign_session_is_not_found() {
     let server = server().await;
-    let tenant = TenantScope::new("voice06", "other").unwrap();
+    let tenant = TenantScope::new(&server.platform, "other").unwrap();
     crate::config::update_global_for_tenant(&tenant,json!({"gateway":{"auth_enabled":true,"skeys":[{"skey":TOKEN,"name":"fixture"}]},"app_ui":{"voice":{"provider_id":"openai"}}})).await.unwrap();
     let response = request(&reqwest::Client::new(), &server, "other")
         .multipart(form(wav()))
@@ -193,14 +199,22 @@ async fn round_trip() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     let calls = Arc::new(AtomicUsize::new(0));
     let count = calls.clone();
+    let cancelled_response = Arc::new(tokio::sync::Notify::new());
+    let response_gate = cancelled_response.clone();
     let upstream = axum::Router::new().route(
         "/v1/audio/transcriptions",
         axum::routing::post(move |body: axum::body::Bytes| {
             let count = count.clone();
+            let response_gate = response_gate.clone();
             async move {
                 assert!(body.windows(4).any(|b| b == b"RIFF"));
-                count.fetch_add(1, Ordering::SeqCst);
-                tokio::time::sleep(Duration::from_millis(150)).await;
+                let number = count.fetch_add(1, Ordering::SeqCst) + 1;
+                if number == 2 {
+                    // Keep work pending until DELETE has acknowledged cancellation.
+                    response_gate.notified().await;
+                } else {
+                    tokio::time::sleep(Duration::from_millis(150)).await;
+                }
                 axum::Json(json!({"text":"你好","languages":[{"code":"zh"}]}))
             }
         }),
@@ -211,15 +225,8 @@ async fn round_trip() {
         axum::serve(listener, upstream).await.unwrap();
     });
     let server = server().await;
-    let tenant = TenantScope::new("voice06", "owner").unwrap();
+    let tenant = TenantScope::new(&server.platform, "owner").unwrap();
     crate::config::update_global_for_tenant(&tenant,json!({"app_ui":{"voice":{"dictation_enabled":true,"provider_id":"voice06-fixture"}},"providers":{"voice06-fixture":{"api":format!("http://{address}/v1"),"env":["VOICE06_SERVICE_KEY"],"options":{"baseURL":format!("http://{address}/v1")},"models":{"gpt-transcribe":{"status":"active"}}}}})).await.unwrap();
-    let info=serde_json::from_value(json!({"id":"chat06","slug":"fixture","projectID":"voice06-project","directory":"/fixture","title":"fixture","version":"1","time":{"created":1,"updated":1}})).unwrap();
-    crate::session::ui_store::save_agent_session_scoped_for_tenant(
-        &tenant,
-        &info,
-        Some("voice06-project"),
-    )
-    .unwrap();
     let client = reqwest::Client::new();
     let form_for = |id: &str| {
         let metadata = json!({"request_id":id,"chat_session_id":"chat06","generation":1,"provider_id":"voice06-fixture"});
@@ -250,12 +257,13 @@ async fn round_trip() {
         let response = client
             .delete(format!("{}/voice/transcriptions/cancelled", server.url))
             .bearer_auth(TOKEN)
-            .header("x-platform-id", "voice06")
+            .header("x-platform-id", &server.platform)
             .header("x-company-id", "owner")
             .send()
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        cancelled_response.notify_one();
     };
     let (response, ()) = tokio::join!(pending, cancel);
     assert_eq!(response.unwrap().status(), StatusCode::CONFLICT);
@@ -272,7 +280,8 @@ async fn voice_task_07_config_requires_owner_and_excludes_credentials() {
     let task = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    let server = Server { url, task };
+    let server =
+        Server { url, platform: "voice07".into(), _workspace: tempfile::tempdir().unwrap(), task };
     let client = reqwest::Client::new();
     let url = format!("{}/voice/config", server.url);
     let response = client

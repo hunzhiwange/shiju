@@ -43,7 +43,7 @@ async fn voice_task_12_existing_session_duplicate_uses_real_producer_once() {
     )
     .await;
     let _streams = processor::test_llm_stream_guard();
-    crate::config::update(json!({"agents":{"main":{"provider":"model-recovery","model":"original","allowed_tools":["file_read"]}}})).await.unwrap();
+    crate::config::update(json!({"agents":{"main":{"provider":"model-recovery","model":"original","allowed_tools":["file_read"],"defaults":{"full_access":false}}}})).await.unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let binding =
         binding(workspace.path().canonicalize().unwrap().to_string_lossy().into_owned()).await;
@@ -98,10 +98,30 @@ async fn voice_task_12_existing_session_desktop_approval_rejection_prevents_writ
     )
     .await;
     let _streams = processor::test_llm_stream_guard();
-    crate::config::update(json!({"agents":{"main":{"provider":"model-recovery","model":"original","allowed_tools":["file_write"],"permission":{"*":"ask"}}},"autonomy":{"always_ask":["file_write"]}})).await.unwrap();
+    crate::config::update(json!({"agents":{"main":{"provider":"model-recovery","model":"original","allowed_tools":["file_write"],"defaults":{"full_access":false},"permission":{"*":"ask"}}},"autonomy":{"level":"supervised","always_ask":["file_write"]},"providers":{"model-recovery":{"models":{"original":{"tool_call":true}}}}})).await.unwrap();
     let workspace = tempfile::tempdir().unwrap();
     let binding =
         binding(workspace.path().canonicalize().unwrap().to_string_lossy().into_owned()).await;
+    // Exercise handoff from an existing conversation, with persisted history/model binding.
+    let session = binding.chat_session.as_ref().to_owned();
+    answer("会话已准备好");
+    super::session::stream::collect_gateway_chat_stream(
+        binding.directory.clone(),
+        vw_api_types::chat::GatewayChatStreamRequest {
+            session_id: Some(session.clone().into()),
+            messages: vec![json!({"role":"user","content":"准备语音交接验收"})],
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    let initial = processor::take_test_llm_messages(&session);
+    assert_eq!(initial.len(), 1);
+    assert_eq!(initial[0].options["full_access"], false, "the original session must use approvals");
+    assert!(
+        initial[0].tool_specs.iter().any(|tool| tool.name == "file_write"),
+        "fixture must offer the real write tool before a scripted call"
+    );
     let target = workspace.path().join("must-not-exist.txt");
     let manager = crate::gateway::instance::with_instance(binding.directory.clone(), || {
         Box::pin(async {
@@ -112,6 +132,7 @@ async fn voice_task_12_existing_session_desktop_approval_rejection_prevents_writ
     })
     .await
     .unwrap();
+    assert!(manager.needs_approval("file_write"), "fixture must require desktop approval");
     let session = binding.chat_session.as_ref().to_owned();
     processor::enqueue_test_llm_stream(vec![
         StreamEvent::ToolCalls(vec![crate::session::llm::ToolCall {
@@ -141,7 +162,7 @@ async fn voice_task_12_existing_session_desktop_approval_rejection_prevents_writ
             if matches!(update.status, HandoffStatus::Completed | HandoffStatus::Failed) {
                 assert!(
                     saw_waiting && rejected,
-                    "must reject a real request from the desktop approval queue"
+                    "must reject a real request from the desktop approval queue: status={:?}, text={}", update.status, update.text
                 );
                 break update;
             }

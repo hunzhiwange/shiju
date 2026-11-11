@@ -6,6 +6,7 @@ const TOKEN: &str = "voice10-synthetic-gateway-key";
 struct Server {
     base: String,
     platform: String,
+    _workspace: tempfile::TempDir,
     task: tokio::task::JoinHandle<()>,
 }
 impl Drop for Server {
@@ -26,11 +27,14 @@ async fn server() -> Server {
         .await
         .unwrap();
     }
-    let info=serde_json::from_value(json!({"id":"chat10","slug":"fixture","projectID":"voice10-project","directory":"/fixture","title":"fixture","version":"1","time":{"created":1,"updated":1}})).unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let owner = TenantScope::new(&platform, "owner").unwrap();
+    let (project, _) = crate::project::from_directory(&owner, workspace.path()).await.unwrap();
+    let info=serde_json::from_value(json!({"id":"chat10","slug":"fixture","projectID":project.id,"directory":project.worktree,"title":"fixture","version":"1","time":{"created":1,"updated":1}})).unwrap();
     crate::session::ui_store::save_agent_session_scoped_for_tenant(
         &TenantScope::new(&platform, "owner").unwrap(),
         &info,
-        Some("voice10-project"),
+        Some(&project.id),
     )
     .unwrap();
     let app = router::<()>()
@@ -40,7 +44,7 @@ async fn server() -> Server {
     let task = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    Server { base, platform, task }
+    Server { base, platform, _workspace: workspace, task }
 }
 async fn create(server: &Server, company: &str) -> reqwest::Response {
     reqwest::Client::new().post(format!("{}/voice/sessions",server.base)).bearer_auth(TOKEN)

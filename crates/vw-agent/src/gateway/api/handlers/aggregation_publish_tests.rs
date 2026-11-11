@@ -387,6 +387,8 @@ async fn aggregation_t41_initial_publication_reuses_catalog_transaction_and_live
     assert_eq!(f.request("GET", &missing_scope, None, json!({})).await.0, 401);
     assert_eq!(f.request("GET", &missing_scope, Some(TOKEN), json!({})).await.0, 404);
     let path = format!("/app-providers/operations/{id}?targetHostId=host&projectId=other");
+    assert_eq!(f.request("GET", &path, None, json!({})).await.0, 401);
+    assert_eq!(f.request("DELETE", &path, None, json!({})).await.0, 401);
     assert_eq!(f.request("GET", &path, Some(TOKEN), json!({})).await.0, 404);
     let path = format!("/app-providers/operations/{id}?targetHostId=host&projectId=project");
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();

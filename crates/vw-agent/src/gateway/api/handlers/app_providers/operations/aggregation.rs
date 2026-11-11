@@ -156,31 +156,32 @@ impl State {
         let Some((owner, restart)) = owner else {
             return Ok(None);
         };
-        let requested = project.ok_or(StatusCode::NOT_FOUND)?;
-        if owner.project != requested || owner.host != host {
-            return Err(StatusCode::NOT_FOUND);
-        }
-        // Authorize each lookup/cancel, with no existence disclosure to another scope.
+        // Authenticate against the recorded action before rejecting selectors.
+        // Missing or foreign selectors must not reveal an operation to an
+        // unauthenticated caller. Restart retains its independent permission.
         let principal = if restart {
             super::super::super::agent_apps::authorize_codex_restart(
                 self.policy.as_deref(),
                 headers,
-                &requested,
-                host,
+                &owner.project,
+                &owner.host,
             )?
             .2
         } else {
             super::super::super::agent_apps::authorize_aggregation_write(
                 self.policy.as_deref(),
                 headers,
-                &requested,
-                host,
+                &owner.project,
+                &owner.host,
                 owner.app,
                 true,
             )?
             .2
         };
-        if owner.project != requested || owner.host != host || owner.principal != principal {
+        if project.as_ref() != Some(&owner.project)
+            || owner.host != host
+            || owner.principal != principal
+        {
             return Err(StatusCode::NOT_FOUND);
         }
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;

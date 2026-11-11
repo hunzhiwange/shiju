@@ -75,3 +75,12 @@
 - 最终 `cargo clippy --all-targets --all-features -- -D warnings` 退出101，仅其他任务 `crates/vw-desktop/src/app/voice/hotkeys.rs` 的Config(7)、Shortcut(14)、Action(19)、Machine(21)、press/release(23/27)共5项dead_code。未修改或抑制该文件诊断，不宣告Clippy通过或母能力完成。
 - 最终槽位2：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。全部自有Cargo消费者退出，完整owner核对后已释放锁，保留缓存；未创建工作树，未改plan.md。
 - 解除条件：语音热键所有者修复上述生产接线后，重新动态领取共享槽位并执行该确切Clippy命令；通过后补记新槽位/绝对路径/退出码，标记已完成，再删除本卡。无需重复无过滤全量测试，也不把本机HTTP/隔离文件验收称为真实客户端实机验收。
+
+## 延后回归进度（2026-11-12）
+
+本轮共享操作鉴权已由后续退出/重启任务扩展，旧聚焦证据不能覆盖认证顺序回退。当前源码受控副本执行11项，10通过1失败，退出101：匿名且缺projectId时返回404，既有断言要求401。本轮仅修改原operations/aggregation.rs的认证/选择器核验顺序及原发布测试的匿名异域GET/DELETE断言；保留Codex重启独立权限，不重建进度或配置授权。
+
+最终代码及源码SHA-256、红/绿日志交接位于 `/tmp/shiju-t41-deferred-handoff.json`，原15及调度可直接读取。聚焦通过前不宣告本轮完成。全仓Clippy由原任务15统一执行，必须覆盖该交接文件的最终源码散列；本会话不重复启动全仓Clippy。
+
+
+本轮聚焦结果：修复后同一过滤11项全部通过（21过滤）、退出0；相邻独立重启权限1项通过（31过滤）、退出0。槽位3，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3，build目录同路径，所有自有消费者已退出并核对完整owner释放。最终散列和日志结果已写入 `/tmp/shiju-t41-deferred-handoff.json`，原15已确认读取交接。尚待原15统一Clippy覆盖最终修复散列的通过结果；收到并核对后更新正式证据、删除本卡。本会话不追加全仓Clippy。

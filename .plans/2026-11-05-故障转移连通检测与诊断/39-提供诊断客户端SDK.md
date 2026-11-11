@@ -2,7 +2,7 @@
 
 批次：【批次 8】 依赖：批次 7 的任务 38。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,13 @@
 - 阻塞和进度只写本任务文件，不改只读 `plan.md`，不把 `prompt.md` 当进度来源；不静默删减来源需求。发现新需求先询问是否记录回来源产物。
 - 有实际代码/测试/配置/正式文档变更时，使用 `$git-commit` 审查并仅提交本任务变更；只有本编号文件状态更新或删除时无需提交。不要提交其他任务或工作区变更。
 - 最终回复报告完成证据与推荐下一步；完成且非待回归时按执行技能删除本任务文件，正式证据文档保留。只生成本计划不会完成母任务9。
+
+## 本轮实现与验证（2026-11-12）
+
+- 当前目录实施，未创建工作树、未修改只读 plan.md；直接依赖任务38提交 `9cb5aaa84` 的真实查询/取消路由及授权、任务 DTO 已核实。
+- 新增卡片指定 SDK 和独立测试文件；父模块仅追加原生 SDK 与测试注册。`diagnostic_start/status/cancel` 复用现有 DTO、租户与应用授权，支持全部五种启动类型；禁重定向和自动重发。
+- `cargo test -p vw-gateway-client --lib diagnostic_sdk_preserves_job_identity -- --nocapture`：初版普通客户端红灯退出101，2项（1通过/1失败），307导致实际请求2次、预期1次；修复后退出0，2通过/0失败/446 filtered。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出101，无关新增 `crates/vw-desktop/src/app/message/settings/mcp_management_form.rs:293` 的保存future不满足Send，163行持有非Sync的 `&Draft`。没有接管或修改该文件。全仓Clippy尚未通过，保留卡片待回归。
+- 实际原子领取槽位2；`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；使用用户要求的单job、incremental=0、无测试LTO、测试opt-level=0等环境，未缩减features。格式化仅回写本任务两文件，遵循用户最新并行约束。
+- 正式验证记录：`docs/vibewindow/agent-apps/diagnostics/sdk-39.md`。推荐修复MCP表单Send错误后补全仓Clippy，通过后删除本卡。
+- 补充 `cargo clippy -p vw-gateway-client --all-targets --all-features -- -D warnings`：退出0，SDK全部目标无警告；全部验证进程结束，释放自己的槽位2锁并保留缓存。

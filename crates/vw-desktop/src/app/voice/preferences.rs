@@ -9,8 +9,14 @@ pub struct Preferences {
     pub microphone: Option<String>,
     // Explicit opt-in; local archive policy is independent of tenant/service settings.
     pub retain_recordings: bool,
+    pub hotkeys: super::hotkeys::Config,
 }
 impl Preferences {
+    pub(crate) fn disable_hotkeys_at(path: &Path) -> Result<(), String> {
+        let mut local = Self::read(path)?;
+        local.hotkeys.enabled = false;
+        local.write(path)
+    }
     pub(crate) fn path() -> Result<PathBuf, String> {
         crate::app::project_dirs()
             .map(|d| d.config_dir().join("voice-preferences.json"))
@@ -28,6 +34,7 @@ impl Preferences {
         }
     }
     pub(crate) fn write(&self, path: &Path) -> Result<(), String> {
+        self.hotkeys.validate()?;
         let parent = path.parent().ok_or("无法定位本机语音设置目录。")?;
         std::fs::create_dir_all(parent).map_err(|_| "无法创建本机语音设置目录。")?;
         let mut file =

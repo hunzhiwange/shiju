@@ -16,6 +16,7 @@ pub(crate) struct State {
     pub devices: Vec<InputDevice>,
     pub dictionary: String,
     pub busy: bool,
+    pub recording_hotkey: Option<bool>,
     pub preview: Option<Preview>,
     generation: u64,
     endpoint: Option<GatewayEndpoint>,
@@ -44,6 +45,11 @@ pub enum Event {
     Dictation(bool),
     RetainRecordings(bool),
     Realtime(bool),
+    HotkeysEnabled(bool),
+    RecordHotkey(Option<bool>),
+    RecordedHotkey(crate::app::voice::hotkeys::Shortcut),
+    HotkeyPermission,
+    DisableHotkeys,
     Dictionary(String),
     AddWord,
     RemoveWord(usize),
@@ -74,6 +80,7 @@ pub(crate) fn invalidate(app: &mut App) {
     {
         state.preview.take();
         state.edit = None;
+        state.recording_hotkey = None;
         state.endpoint = None;
         state.busy = false;
         state.generation = state.generation.wrapping_add(1);
@@ -85,6 +92,36 @@ fn tick(generation: u64) -> Task<Message> {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::DisableHotkeys => {
+            if app.voice.hotkeys.machine.active {
+                super::super::voice::cancel(app);
+            }
+            // Stopping a local capability must work even if the gateway is offline.
+            app.voice.hotkeys.stop_session();
+            app.voice.settings.recording_hotkey = None;
+            if let Some(edit) = &mut app.voice.settings.edit {
+                edit.local.hotkeys.enabled = false;
+            }
+            match Preferences::path().and_then(|path| Preferences::disable_hotkeys_at(&path)) {
+                Ok(()) => {
+                    app.show_toast(crate::app::state::ToastKind::Success, "全局语音快捷键已停用。")
+                }
+                Err(error) => {
+                    let error = format!("本次运行已停用全局热键，但停用设置保存失败：{error}");
+                    app.voice.hotkeys.error = Some(error.clone());
+                    app.show_error_toast(error)
+                }
+            }
+        }
+        Event::HotkeyPermission => {
+            use crate::app::voice::permissions::{Permission, SystemPermissions, VoicePermissions};
+            match VoicePermissions::new(SystemPermissions)
+                .request_from_user_action(Permission::InputMonitoring)
+            {
+                Ok(()) => Task::none(),
+                Err(error) => app.show_error_toast(error.to_string()),
+            }
+        }
         Event::Open => {
             if app.voice.settings.busy {
                 return Task::none();
@@ -93,6 +130,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let state = &mut app.voice.settings;
             state.preview.take();
             state.edit = None;
+            state.recording_hotkey = None;
             state.busy = true;
             state.generation = state.generation.wrapping_add(1);
             state.endpoint = Some(endpoint.clone());
@@ -147,6 +185,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             }
             state.preview.take();
+            state.recording_hotkey = None;
             if let Some(edit) = state.edit.take() {
                 let _ = edit.cancel();
             }
@@ -162,6 +201,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let (Some(edit), Some(endpoint)) = (&state.edit, state.endpoint.clone()) else {
                 return Task::none();
             };
+            if let Err(error) = app.voice.hotkeys.check(&edit.local.hotkeys) {
+                return app.show_error_toast(error);
+            }
             let patch = match edit.patch() {
                 Ok(p) => p,
                 Err(e) => return app.show_error_toast(e),
@@ -191,7 +233,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             match result {
                 Ok(()) => {
                     state.edit = None;
+                    state.recording_hotkey = None;
                     state.endpoint = None;
+                    app.voice.hotkeys.resume_after_save();
                     app.show_toast(
                         crate::app::state::ToastKind::Success,
                         "语音设置已保存，新音色将在下次语音聊天生效。",
@@ -253,6 +297,35 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             };
             match event {
+                Event::HotkeysEnabled(value) => edit.local.hotkeys.enabled = value,
+                Event::RecordHotkey(value) => {
+                    state.recording_hotkey = value;
+                    return iced::advanced::widget::operate(
+                        iced::advanced::widget::operation::focusable::unfocus(),
+                    );
+                }
+                Event::RecordedHotkey(value) => {
+                    let Some(chat) = state.recording_hotkey else {
+                        return Task::none();
+                    };
+                    if let Err(error) = value.validate() {
+                        return app.show_error_toast(error);
+                    }
+                    let mut config = edit.local.hotkeys.clone();
+                    if chat {
+                        config.chat = Some(value);
+                    } else {
+                        config.dictation = Some(value);
+                    }
+                    // Both keys may still be unset while the dialog is being filled.
+                    let mut validation = config.clone();
+                    validation.enabled = false;
+                    if let Err(error) = validation.validate() {
+                        return app.show_error_toast(error);
+                    }
+                    edit.local.hotkeys = config;
+                    state.recording_hotkey = None;
+                }
                 Event::Microphone(value) => edit.local.microphone = value,
                 Event::Provider(value) => {
                     edit.config.provider_id =

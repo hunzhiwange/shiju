@@ -175,7 +175,16 @@ impl App {
             .unwrap_or_else(Subscription::none);
 
         let events = Subscription::batch([
-            iced::event::listen_with(map_global_event),
+            {
+                #[cfg(not(target_arch = "wasm32"))]
+                if self.voice.settings.recording_hotkey.is_some() {
+                    crate::app::voice::hotkeys::record_subscription()
+                } else {
+                    iced::event::listen_with(map_global_event)
+                }
+                #[cfg(target_arch = "wasm32")]
+                iced::event::listen_with(map_global_event)
+            },
             crate::app::components::system_settings_apps::drag::subscription(
                 &self.apps_catalog.drag,
                 self.main_window_id,
@@ -304,6 +313,9 @@ impl App {
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
         Subscription::batch(vec![
+            #[cfg(not(target_arch = "wasm32"))]
+            iced::time::every(self.voice.hotkeys.interval())
+                .map(|_| Message::Voice(message::voice::Event::HotkeyTick)),
             #[cfg(not(target_arch = "wasm32"))]
             if self.voice.conversation.is_some() {
                 iced::time::every(std::time::Duration::from_millis(50))

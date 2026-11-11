@@ -12,6 +12,8 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub hotkeys: crate::app::voice::hotkeys::Runtime,
+    finish_requested: bool,
     pub recordings: super::voice_recordings::State,
     audio: Option<Vec<u8>>,
     retain_requested: bool,
@@ -35,6 +37,7 @@ pub enum Event {
     ChatInterrupt,
     ChatEnd,
     ChatTick,
+    HotkeyTick,
     Start,
     Finish,
     Cancel,
@@ -59,6 +62,7 @@ impl std::fmt::Debug for Event {
             Self::ChatInterrupt => "VoiceChatInterrupt",
             Self::ChatEnd => "VoiceChatEnd",
             Self::ChatTick => "VoiceChatTick",
+            Self::HotkeyTick => "VoiceHotkeyTick",
             Self::Start => "VoiceStart",
             Self::Finish => "VoiceFinish",
             Self::Cancel => "VoiceCancel",
@@ -87,6 +91,7 @@ fn stop(state: &mut State) {
     {
         drop(device.take());
     }
+    state.finish_requested = false;
     state.metadata = None;
     state.audio = None;
     state.retain_requested = false;
@@ -97,6 +102,7 @@ pub(crate) fn end_conversation(app: &mut App) {
     app.voice.conversation_endpoint = None;
 }
 pub(crate) fn cancel(app: &mut App) {
+    app.voice.hotkeys.machine.reset();
     app.voice.recordings.stop();
     end_conversation(app);
     stop(&mut app.voice);
@@ -156,6 +162,7 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::HotkeyTick => super::voice_hotkeys::tick(app),
         Event::Recordings(event) => super::voice_recordings::update(app, event),
         Event::Transcribed(generation, result) => {
             if app.voice.draft.generation != generation
@@ -287,6 +294,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Ok((device, metadata)) => {
                     app.voice.device = Some(device);
                     app.voice.metadata = Some(metadata);
+                    if app.voice.finish_requested {
+                        return update(app, Event::Finish);
+                    }
                     tick(generation)
                 }
                 Err(error) => fail(app, error),
@@ -308,9 +318,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             tick(generation)
         }
         Event::Finish => {
+            app.voice.hotkeys.machine.reset();
             if app.voice.draft.phase != Phase::Recording {
                 return Task::none();
             }
+            if app.voice.device.is_none() {
+                app.voice.finish_requested = true;
+                return Task::none();
+            }
+            app.voice.finish_requested = false;
             let (Some(device), Some(metadata), Some(endpoint)) =
                 (app.voice.device.take(), app.voice.metadata.take(), app.voice.endpoint.clone())
             else {
@@ -465,3 +481,7 @@ async fn transcribe(
 #[cfg(test)]
 #[path = "voice_composer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "voice_hotkey_lifecycle_tests.rs"]
+mod hotkey_lifecycle_tests;

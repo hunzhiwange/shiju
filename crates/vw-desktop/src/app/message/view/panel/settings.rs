@@ -778,6 +778,8 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
         return Task::none();
     }
 
+    app.voice.hotkeys.reload();
+    crate::app::message::voice::cancel(app);
     arm_shutdown_exit_watchdog();
     let requests = take_shutdown_stream_requests(app);
     let editor_commit = crate::app::message::editor::metrics::commit(app, None);

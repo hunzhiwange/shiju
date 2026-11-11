@@ -1030,6 +1030,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 /// 在 MCP 设置页上叠加服务器表单或删除确认。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(draft) = &app.mcp_settings.connection_form {
+        use crate::app::message::settings::mcp_management_form::{FormMessage, message};
+        return settings_modal_overlay(
+            Some(dialog),
+            message(FormMessage::Close),
+            container(connection_form_panel(draft)).padding(12),
+        );
+    }
     let locale = app.desktop_locale;
     if app.mcp_settings.active_tab != McpSettingsTab::Servers {
         return dialog;
@@ -1077,10 +1085,31 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[path = "system_settings_mcp_tests.rs"]
 mod system_settings_mcp_tests;
 
-/// Read-only managed directory; the surrounding settings page owns scrolling.
+/// Managed catalog and connection editing; the surrounding page owns scrolling.
 fn managed_catalog_panel(app: &App) -> Element<'_, Message> {
+    use crate::app::message::settings::mcp_management_form::{FormMessage, message};
     use crate::app::message::settings::mcp_management_list as catalog;
-    managed_catalog_content(catalog::visible(app), catalog::loading(app))
+    let mut body = column![
+        managed_catalog_content(catalog::visible(app), catalog::loading(app)),
+        toolbar_button("新增受管连接", Some(message(FormMessage::Open(None)))),
+    ]
+    .spacing(8);
+    if let Some(Ok(response)) = catalog::visible(app) {
+        for record in &response.records {
+            body = body.push(
+                row![
+                    text(record.name.clone()),
+                    toolbar_button(
+                        "替换连接定义",
+                        Some(message(FormMessage::Open(Some(record.clone()))))
+                    )
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            );
+        }
+    }
+    body.into()
 }
 
 pub(crate) fn managed_catalog_content(
@@ -1135,3 +1164,7 @@ pub(crate) fn managed_catalog_content(
     }
     settings_panel(body).into()
 }
+
+#[path = "system_settings_mcp_connection.rs"]
+mod connection;
+pub(crate) use connection::connection_form_panel;

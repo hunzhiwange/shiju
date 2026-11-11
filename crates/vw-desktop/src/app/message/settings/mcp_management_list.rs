@@ -6,9 +6,9 @@ use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::mcp_man
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
-    endpoint: AgentAppsContext,
-    host: String,
-    credentials_generation: u64,
+    pub(crate) endpoint: AgentAppsContext,
+    pub(crate) host: String,
+    pub(crate) credentials_generation: u64,
 }
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CatalogState {
@@ -22,7 +22,7 @@ pub enum CatalogMessage {
     Refresh,
     Loaded { context: Context, generation: u64, result: Result<McpCatalogResponse, String> },
 }
-fn context(app: &App) -> Option<Context> {
+pub(crate) fn context(app: &App) -> Option<Context> {
     let client = crate::app::config::gateway_client().ok()?;
     Some(Context {
         endpoint: AgentAppsContext {

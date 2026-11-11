@@ -166,6 +166,7 @@ impl std::fmt::Display for McpNewServerTransport {
 #[derive(Debug, Clone)]
 pub(crate) struct McpSettingsState {
     pub(crate) catalog: crate::app::message::settings::mcp_management_list::CatalogState,
+    pub(crate) connection_form: Option<crate::app::message::settings::mcp_management_form::Draft>,
     pub(crate) active_tab: McpSettingsTab,
     pub(crate) editor: text_editor::Content,
     pub(crate) runtime_overrides: Vec<serde_json::Value>,
@@ -197,6 +198,7 @@ impl Default for McpSettingsState {
     fn default() -> Self {
         Self {
             catalog: Default::default(),
+            connection_form: None,
             active_tab: McpSettingsTab::Servers,
             editor: text_editor::Content::with_text("[]"),
             runtime_overrides: Vec::new(),

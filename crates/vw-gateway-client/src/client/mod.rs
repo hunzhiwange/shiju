@@ -389,3 +389,8 @@ mod aggregation_native_api_tests;
 mod agent_apps_diagnostics_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_diagnostics_api_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod aggregation_codex_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod aggregation_codex_api_tests;

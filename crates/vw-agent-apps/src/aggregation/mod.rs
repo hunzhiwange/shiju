@@ -118,3 +118,8 @@ pub mod stale_clients;
 
 #[cfg(all(test, target_os = "macos"))]
 mod stale_clients_tests;
+
+#[cfg(target_os = "macos")]
+pub mod catalog_ack;
+#[cfg(all(test, target_os = "macos"))]
+mod catalog_ack_tests;

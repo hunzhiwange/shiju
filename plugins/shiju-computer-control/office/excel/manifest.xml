@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Serve office/ at https://localhost:3000/office/ with a trusted local certificate.
+     The transport must approve exactly https://localhost:3000 as its task-pane origin.
+     Sideload only; this manifest does not install or provision an HTTPS server. -->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:type="TaskPaneApp">
+  <Id>7de99e42-d8a4-4dfc-8293-c915c3389372</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>ShiJu</ProviderName>
+  <DefaultLocale>zh-CN</DefaultLocale>
+  <DisplayName DefaultValue="ShiJu Excel 控制"/>
+  <Description DefaultValue="在明确批准的临时工作簿范围内执行读写与回读。"/>
+  <IconUrl DefaultValue="https://localhost:3000/office/excel/icon.png"/>
+  <SupportUrl DefaultValue="https://github.com/hunzhiwange/shiju/issues"/>
+  <Hosts><Host Name="Workbook"/></Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.2"><Set Name="ExcelApi" MinVersion="1.2"/></Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/office/excel/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>

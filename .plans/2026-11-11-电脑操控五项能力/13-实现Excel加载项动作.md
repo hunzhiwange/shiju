@@ -2,7 +2,21 @@
 
 批次：【批次 13】 依赖：批次 12；线性前置任务 12
 
-状态：未开始
+状态：已阻塞
+
+## 本次实现与检查记录（2026-11-12）
+
+- 当前为批次 13。依赖批次 12 实际产物已核对：`2098d43dc` 提供共享安全连接与传输，`97929c882` 提供文档会话生命周期；未仅凭前置任务文件已删除判定满足。
+- 已实现四个列明文件。`createExcelActions` 沿用宿主现有 `read_range` / `write_range(values)` 协议；用户在窗格批准固定工作表、矩形范围、覆盖、受限公式与数字格式。公式通过现有字符串单元格传入，格式由连接时用户选择，不添加宿主不支持的命令或参数。返回实际地址、值、公式和数字格式；显式 load/sync，写入后重新加载回读。
+- 默认拒绝覆盖、公式及改变格式；最多 1024 单元格、48 KiB 请求/结果、4096 字符单元格。拒绝保护表、只读、越界、危险公式、未知字段及手动计算模式下公式写入。仅支持 ExcelApi 1.2；本次未扩展 Rust 协议，不执行 Cargo（按本任务显式约定）。
+- 每次配对使用新文档标识，代次由真实共享连接验证；URL 变化、另存为、保存未命名文档、窗格卸载或停止会使旧执行器失效。每条命令及异步阶段检查身份，连接关闭同步关闭执行器；不保存令牌或文件 URL，不启用宏。
+- TDD 失败命令：`node --test plugins/shiju-computer-control/office/excel/actions.test.mjs`，退出码 1，缺少 `actions.mjs`，有效行为测试 0。实现后同一确切命令退出码 0，14 项有效测试通过、0 跳过，成功和拒绝断言均已执行。
+- 集成验证命令：`node --test plugins/shiju-computer-control/office/excel/actions.test.mjs plugins/shiju-computer-control/office/shared/connection.test.mjs`，最终退出码 0，22 项通过、0 跳过。使用真实本地范围策略与共享传输实现，仅模拟 Office.js 与外部 WebSocket 边界，未将模拟当实机证据。
+- `node --check plugins/shiju-computer-control/office/excel/actions.mjs` 及 `node --check plugins/shiju-computer-control/office/excel/actions.test.mjs` 均退出码 0。`npx --yes office-addin-manifest validate plugins/shiju-computer-control/office/excel/manifest.xml` 初次退出码 1（缺 SupportUrl/IconUrl），补齐后退出码 0，明确返回 `The manifest is valid`。为使清单资源完整，额外复制仓库现有 64px 图标至 `excel/icon.png`；未添加重型运行依赖。清单校验不是加载项实际运行证据。
+- 已审查本任务差异：仅 Excel 加载项目录与本任务记录；未修改 plan.md、共享协议或其他任务文件。清单指定可信 `https://localhost:3000/office/excel/taskpane.html`，页面内提供静态资源映射、精确 Origin、WSS 一次性配对和临时公式回读步骤；服务启动、证书信任及 Office 侧载尚未实机验证。
+- 实机功能阻塞：`find /Applications "$HOME/Applications" -maxdepth 3 -iname '*excel*' -print` 与 `mdfind 'kMDItemCFBundleIdentifier == "com.microsoft.Excel"'` 无匹配；`ps -axo comm= | rg -i 'Microsoft Excel|Excel.app'` 退出码 1，无 Excel 进程。`list_document_sessions({surface:"excel"})` 返回 `executors: []`。浏览器检查 Excel 网页版后点击“创建空白工作簿”，实际导航至 Microsoft 登录页，显示空的帐户输入框，没有可用的已登录会话。WPS 未当作 Office 成功；未购买、创建账号或输入凭证。
+- 唯一必要外部条件：一个可侧载本加载项的已授权 Microsoft Excel 会话（桌面版或已登录网页版）。取得会话后，按窗格步骤在临时 A1:B2 写入值、`=SUM(A1:B1)` 与 0.00 数字格式，记录真实 Excel 版本、脱敏回读结果 3，以及关闭文档后旧命令失败。该证据尚缺，属于 Office 功能阻塞而非无关构建失败，因此保留本文件与“已阻塞”，不能标记完成或删除。
+
 
 目的：在活动工作簿中完成结构化读取、写入和回读。
 

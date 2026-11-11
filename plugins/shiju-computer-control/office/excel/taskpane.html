@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appsforoffice.microsoft.com; style-src 'unsafe-inline'; connect-src wss://localhost:* wss://127.0.0.1:* wss://[::1]:*; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>ShiJu Excel 控制</title>
+  <style>
+    :root { color-scheme: light dark; font: 14px system-ui, sans-serif; }
+    body { margin: 0; padding: 16px; background: Canvas; color: CanvasText; }
+    main { max-width: 440px; margin: auto; }
+    h1 { font-size: 20px; }
+    label { display: block; margin: 14px 0 5px; }
+    input:not([type=checkbox]), select { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid GrayText; border-radius: 6px; font: inherit; background: Field; color: FieldText; }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    button { padding: 9px 14px; margin: 16px 8px 0 0; border: 1px solid GrayText; border-radius: 6px; font: inherit; background: ButtonFace; color: ButtonText; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: default; }
+    small { display: block; margin-top: 5px; }
+    #status { overflow-wrap: anywhere; border-top: 1px solid GrayText; padding-top: 12px; }
+    * { scrollbar-width: thin; } ::-webkit-scrollbar { width: 4px; }
+  </style>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script type="module" src="./actions.mjs"></script>
+</head>
+<body><main>
+  <h1>ShiJu Excel 控制</h1>
+  <p>只在你批准的工作表范围内读写。请先使用临时工作簿；停止或关闭窗格会终止连接。</p>
+  <form id="pair" autocomplete="off">
+    <label for="endpoint">本机安全连接地址</label>
+    <input id="endpoint" type="url" placeholder="wss://localhost:端口/office" required spellcheck="false">
+    <label for="token">宿主提供的一次性配对令牌</label>
+    <input id="token" type="password" required pattern="[a-f0-9]{64}" maxlength="64" autocomplete="off">
+    <small>令牌只用于本次配对，不会保存。HTTPS 站点证书必须已获系统信任。</small>
+    <label for="sheet">批准的工作表名称</label>
+    <input id="sheet" required maxlength="31" placeholder="Sheet1">
+    <label for="range">批准的 A1 范围（最多 1024 个单元格）</label>
+    <input id="range" required maxlength="40" placeholder="A1:B2" spellcheck="false">
+    <label><input id="overwrite" type="checkbox"> 允许覆盖范围内已有内容（包括清空）</label>
+    <label><input id="formulas" type="checkbox"> 允许范围内受限公式</label>
+    <small>需工作簿已使用自动计算。支持范围内引用、基本算术，以及 SUM、MIN、MAX、AVERAGE、COUNT；不允许宏、外部引用或网络函数。</small>
+    <label for="format">每次写入时应用的数字格式</label>
+    <select id="format">
+      <option value="">保留格式</option><option>General</option><option>0</option><option>0.00</option><option>0%</option><option>0.00%</option><option>yyyy-mm-dd</option><option>@</option>
+    </select>
+    <small>批准内容在连接时固定；更改后须重新配对。另存为、保存未命名文件或重新打开文档后也须重新配对。</small>
+    <button id="connect" type="submit" disabled>批准范围并配对</button>
+    <button id="stop" type="button">停止</button>
+  </form>
+  <p id="status" role="status" aria-live="polite">正在等待 Microsoft Excel…</p>
+  <details><summary>侧载与验证准备</summary>
+    <p>使用可信 HTTPS 服务将 office 目录映射到 https://localhost:3000/office/，保留 excel 与 shared 的相邻路径；在 Excel 中侧载 manifest.xml。该页面不提供 TLS 服务，不包含证书或私钥。</p>
+    <p>ShiJu 宿主须将允许来源精确配置为 https://localhost:3000，并提供一次性令牌及 WSS 端口。批准临时工作簿范围后，使用显示的临时文档标识选择目标。</p>
+    <p>临时验收：批准 A1:B2、覆盖、公式及 0.00 格式，以 write_range 写入 [[1,2],["=SUM(A1:B1)",""]]；结果应回读 3、原公式及 0.00。再执行 read_range，关闭文档后确认旧命令失败。记录真实 Excel 版本和脱敏回读。</p>
+  </details>
+</main></body>
+</html>

@@ -12,6 +12,9 @@ use std::sync::{
 use tokio_util::sync::CancellationToken;
 use vw_api_types::computer_control::*;
 
+#[cfg(test)]
+mod input_tests;
+mod macos_input;
 #[cfg(target_os = "macos")]
 mod macos_observation;
 #[cfg(test)]
@@ -231,6 +234,8 @@ fn enumerate_with(
 struct StoredScreenshot {
     reference: ScreenshotReference,
     png: Vec<u8>,
+    window: WindowGeometry,
+    geometry: ScreenshotGeometry,
 }
 /// Created only by trusted host code after issuing its target-bound session.
 /// Drop on disconnect/stop. Cancellation, lock state and live policy are rechecked
@@ -335,7 +340,8 @@ impl NativeObserver {
                 result = self.backend.capture(&self.app,window) => result?,
             };
             let (png, width, height) = bounded_png(&bytes)?;
-            geometry = Some(ScreenshotGeometry::new(window, width, height)?);
+            let screenshot_geometry = ScreenshotGeometry::new(window, width, height)?;
+            geometry = Some(screenshot_geometry);
             let reference = ScreenshotReference::new(
                 uuid::Uuid::new_v4().to_string(),
                 ScreenshotMimeType::Png,
@@ -345,7 +351,8 @@ impl NativeObserver {
             )
             .map_err(|_| NativeObservationError::Control(ControlErrorCode::BackendFailure))?;
             screenshots.push(reference.clone());
-            media = Some(StoredScreenshot { reference, png });
+            media =
+                Some(StoredScreenshot { reference, png, window, geometry: screenshot_geometry });
         }
         let text = serde_json::to_string(&serde_json::json!({"session_id": self.session_id, "application":self.app,"tree":observed.tree,"screenshot_geometry":geometry})).map_err(|_| NativeObservationError::Control(ControlErrorCode::BackendFailure))?;
         if text.len() > 128 * 1024 {

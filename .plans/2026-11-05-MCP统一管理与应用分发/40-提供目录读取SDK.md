@@ -2,7 +2,7 @@
 
 批次：【批次 29】 依赖：批次 28 的任务 39。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,14 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮执行记录（2026-11-12）
+
+- 新增 `mcp_management_read.rs` 三个类型化读取方法及独立测试父模块连线；复用 `AgentAppsReadError`，提取现有 `agent_apps_read_request` 保持认证、租户、禁止重定向/重试、错误合同一致。
+- 核实任务32实际 GET 目录/预设/原生预览与 DTO，能力随目录返回，无新造接口。任务39探测路由待回归不影响本任务读取。固定来源快照比对退出0。
+- 共享槽位1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，同值 `CARGO_BUILD_BUILD_DIR`，`CARGO_BUILD_JOBS=1`。所有 Cargo 在同一阶段连续运行，阶段结束仅释放自己的锁，保留缓存。
+- 两轮 `cargo fmt --all` 均退出0。`cargo test -p vw-gateway-client --lib cc_mcp_t40_ -- --nocapture` 红灯退出101：2项中1通过、1在真实请求缺少成员令牌处断言失败；补齐后绿灯退出0：4通过、0失败。
+- `cargo test -p vw-gateway-client --lib agent_apps_read_api_tests -- --nocapture` 退出0：4通过、0失败。`cargo test -p vw-gateway-client --lib mcp_api_tests -- --nocapture` 退出101：mcp_app_call通过，旧mcp_inspect夹具缺失ToolSpecDto当前必需的identity/source/exposure而解码失败；这几处文件均未改动。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出101：无关 `agent_apps_high_availability.rs:173/175/194` 的ProviderId未实现Display，不能to_string（3处E0599）。按调度要求不等待或修复无关任务，保留本卡供统一回归。
+- 正式证据：`docs/vibewindow/agent-apps/mcp/evidence/任务40.md`。复验条件：既有夹具按当前ToolSpecDto更新、无关高可用错误修复后，重跑聚焦/既有MCP回归、全仓Clippy和差异检查，再删除本卡。
+- 补充 `cargo clippy -p vw-gateway-client --all-targets --all-features -- -D warnings` 退出0；`git diff --check` 退出0。自身子进程全部结束后退出持有shell，确认slot-1.lock已释放，缓存保留。

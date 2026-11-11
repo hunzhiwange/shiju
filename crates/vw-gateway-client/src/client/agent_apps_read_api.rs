@@ -85,6 +85,15 @@ impl GatewayClient {
             };
             query.push(("appId", id));
         }
+        self.agent_apps_read_request(&format!("/v1/agent-apps/{resource}"), &query, token).await
+    }
+
+    pub(super) async fn agent_apps_read_request<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, String)],
+        token: Option<&str>,
+    ) -> Result<T, AgentAppsReadError> {
         #[cfg(target_arch = "wasm32")]
         if token.is_some() {
             return Err(AgentAppsReadError::Transport(
@@ -95,9 +104,7 @@ impl GatewayClient {
         let transport = &self.dynamic_host_client;
         #[cfg(target_arch = "wasm32")]
         let transport = &self.client;
-        let request = transport
-            .get(format!("{}/v1/agent-apps/{resource}", self.endpoint.base_url()))
-            .query(&query);
+        let request = transport.get(format!("{}{path}", self.endpoint.base_url())).query(query);
         let request = if let Some(token) = token {
             let mut value = reqwest::header::HeaderValue::from_str(token).map_err(|_| {
                 AgentAppsReadError::Transport("invalid application credential".into())

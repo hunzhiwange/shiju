@@ -88,6 +88,9 @@ mod git_api;
 mod inference_api;
 mod knowledge_api;
 mod mcp_api;
+mod mcp_management_read;
+#[cfg(test)]
+mod mcp_management_read_tests;
 mod operations_api;
 #[cfg(test)]
 #[path = "operations_api_tests.rs"]

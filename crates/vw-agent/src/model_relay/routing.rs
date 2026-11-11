@@ -21,13 +21,21 @@ pub(crate) fn configured_protocol(model: &Model) -> Result<ModelProtocol, Status
     if super::responses::is_native(model) {
         return Ok(ModelProtocol::Responses);
     }
-    match model.api.adapter.trim() {
+    configured_api_protocol(&model.api)
+}
+
+pub(crate) fn configured_api_protocol(
+    api: &crate::provider::provider::ApiInfo,
+) -> Result<ModelProtocol, StatusCode> {
+    match api.adapter.trim() {
         "openai"
         | "openai-compatible"
         | "acp"
         | "agent-client-protocol"
         | "agent_client_protocol" => {
-            if model.api.url.trim_end_matches('/').ends_with("/responses") {
+            if reqwest::Url::parse(&api.url)
+                .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses"))
+            {
                 Ok(ModelProtocol::Responses)
             } else {
                 Ok(ModelProtocol::Chat)
@@ -47,57 +55,6 @@ pub(crate) fn select(
     conversions: &[ConversionSupport<'_>],
     execution: Execution,
 ) -> Result<ProtocolRoute, StatusCode> {
-    let invalid = StatusCode::UNPROCESSABLE_ENTITY;
-    let base = reqwest::Url::parse(model.api.url.trim()).map_err(|_| invalid)?;
-    if !matches!(base.scheme(), "http" | "https")
-        || !base.username().is_empty()
-        || base.password().is_some()
-        || base.fragment().is_some()
-    {
-        return Err(invalid);
-    }
-    let fallback;
-    let endpoints = match model.api.protocols.as_deref() {
-        Some(endpoints) => endpoints,
-        None => {
-            // Preserve the explicitly configured adapter/URL contract. Unknown SDK
-            // identities never acquire an inferred OpenAI implementation.
-            let protocol = configured_protocol(model)?;
-            fallback = vec![ProtocolEndpoint {
-                protocol,
-                url: protocol.url(&model.api.url, &model.api.id, false)?.to_string(),
-                deployment: model.api.url.clone(),
-                authentication: default_authentication(protocol),
-                models: ProtocolModelScope::Models { ids: vec![model.api.id.clone()] },
-                evidence: vec![ProtocolEvidence {
-                    kind: ProtocolEvidenceKind::Configuration,
-                    source: "selected model API configuration".into(),
-                    reference: "api.url and api.adapter".into(),
-                    checked_at: chrono::Utc::now().date_naive().to_string(),
-                }],
-            }];
-            &fallback
-        }
-    };
-    let same_origin = |endpoint: &&ProtocolEndpoint| {
-        reqwest::Url::parse(&endpoint.url).is_ok_and(|url| url.origin() == base.origin())
-    };
-    let candidates: Vec<_> = endpoints.iter().filter(same_origin).collect();
-    // An exact operation URL disambiguates deployments. A base URL can only
-    // authorize one deployment on this origin, never union multiple accounts.
-    let anchors: Vec<_> =
-        candidates.iter().copied().filter(|endpoint| endpoint.url == base.as_str()).collect();
-    let scope = if anchors.is_empty() { &candidates } else { &anchors };
-    let deployment = scope.first().ok_or(invalid)?.deployment.clone();
-    if scope.iter().any(|endpoint| endpoint.deployment != deployment) {
-        return Err(invalid);
-    }
-    let binding = RouteBinding {
-        provider: model.provider_id.clone(),
-        model: model.api.id.clone(),
-        deployment,
-        account: model.provider_id.clone(),
-    };
     // Native catalogs preserve unknown media/tool declarations. Their existing
     // execution gate rejects explicit Unsupported values before SDK conversion.
     let catalog = model.capabilities.catalog_execution.as_ref();
@@ -121,6 +78,81 @@ pub(crate) fn select(
             _ => true,
         })
         .collect();
+    select_api(&model.api, &model.provider_id, source, required, &available, conversions, execution)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)
+}
+
+/// ACP has the same selected API identity but does not carry catalog pricing or media.
+/// The caller grants only the capabilities it actually needs at startup.
+pub(crate) fn select_api(
+    api: &crate::provider::provider::ApiInfo,
+    provider: &str,
+    source: ModelProtocol,
+    required: &[RouteCapability],
+    available: &[RouteCapability],
+    conversions: &[ConversionSupport<'_>],
+    execution: Execution,
+) -> Result<ProtocolRoute, vw_provider_resolver::protocol_routes::RouteError> {
+    use vw_provider_resolver::protocol_routes::{RouteError, RouteRejection};
+    let invalid = || RouteError { reasons: vec![RouteRejection::InvalidEndpoint] };
+    let base = reqwest::Url::parse(api.url.trim()).map_err(|_| invalid())?;
+    if !matches!(base.scheme(), "http" | "https")
+        || !base.username().is_empty()
+        || base.password().is_some()
+        || base.fragment().is_some()
+    {
+        return Err(invalid());
+    }
+    let fallback;
+    let endpoints = match api.protocols.as_deref() {
+        Some(endpoints) => endpoints,
+        None => {
+            // Preserve the explicitly configured adapter/URL contract. Unknown SDK
+            // identities never acquire an inferred OpenAI implementation.
+            let protocol = configured_api_protocol(api)
+                .map_err(|_| RouteError { reasons: vec![RouteRejection::UnknownProtocols] })?;
+            fallback = vec![ProtocolEndpoint {
+                protocol,
+                url: protocol.url(&api.url, &api.id, false).map_err(|_| invalid())?.to_string(),
+                deployment: api.url.clone(),
+                authentication: default_authentication(protocol),
+                models: ProtocolModelScope::Models { ids: vec![api.id.clone()] },
+                evidence: vec![ProtocolEvidence {
+                    kind: ProtocolEvidenceKind::Configuration,
+                    source: "selected model API configuration".into(),
+                    reference: "api.url and api.adapter".into(),
+                    checked_at: chrono::Utc::now().date_naive().to_string(),
+                }],
+            }];
+            &fallback
+        }
+    };
+    if endpoints.is_empty() {
+        return Err(RouteError { reasons: vec![RouteRejection::NoEndpoints] });
+    }
+    let same_origin = |endpoint: &&ProtocolEndpoint| {
+        reqwest::Url::parse(&endpoint.url).is_ok_and(|url| url.origin() == base.origin())
+    };
+    let candidates: Vec<_> = endpoints.iter().filter(same_origin).collect();
+    // An exact operation URL disambiguates deployments. A base URL can only
+    // authorize one deployment on this origin, never union multiple accounts.
+    let anchors: Vec<_> =
+        candidates.iter().copied().filter(|endpoint| endpoint.url == base.as_str()).collect();
+    let scope = if anchors.is_empty() { &candidates } else { &anchors };
+    let deployment = scope
+        .first()
+        .ok_or_else(|| RouteError { reasons: vec![RouteRejection::EndpointNotGranted] })?
+        .deployment
+        .clone();
+    if scope.iter().any(|endpoint| endpoint.deployment != deployment) {
+        return Err(RouteError { reasons: vec![RouteRejection::WrongDeployment] });
+    }
+    let binding = RouteBinding {
+        provider: provider.to_owned(),
+        model: api.id.clone(),
+        deployment,
+        account: provider.to_owned(),
+    };
     let grants: Vec<_> = candidates
         .into_iter()
         .filter(|endpoint| match execution {
@@ -136,7 +168,7 @@ pub(crate) fn select(
                     && endpoint.url.ends_with(suffix)
             }
         })
-        .map(|endpoint| EndpointGrant { binding: &binding, endpoint, capabilities: &available })
+        .map(|endpoint| EndpointGrant { binding: &binding, endpoint, capabilities: available })
         .collect();
     select_route(&RouteRequest {
         binding: &binding,
@@ -146,7 +178,6 @@ pub(crate) fn select(
         grants: &grants,
         conversions,
     })
-    .map_err(|_| invalid)
 }
 
 pub(crate) fn default_authentication(protocol: ModelProtocol) -> ProtocolAuthentication {
@@ -238,4 +269,30 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
         }
     }
     result
+}
+
+/// Complete conversion directions currently implemented by ProviderRelayBackend.
+pub(crate) fn relay_conversions(codex: bool) -> [ConversionSupport<'static>; 3] {
+    use ModelProtocol as P;
+    use RouteCapability as C;
+    const BASIC: &[C] = &[C::Text, C::Tools, C::Streaming, C::Image];
+    const RESPONSES: &[C] = &[C::Text, C::Tools, C::Streaming, C::Image, C::StructuredOutput];
+    const CODEX: &[C] = &[
+        C::Text,
+        C::Tools,
+        C::Streaming,
+        C::Image,
+        C::Thinking,
+        C::ThinkingReplay,
+        C::StructuredOutput,
+    ];
+    [
+        ConversionSupport { source: P::Messages, target: P::Chat, capabilities: BASIC },
+        ConversionSupport {
+            source: P::Responses,
+            target: P::Chat,
+            capabilities: if codex { CODEX } else { RESPONSES },
+        },
+        ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: BASIC },
+    ]
 }

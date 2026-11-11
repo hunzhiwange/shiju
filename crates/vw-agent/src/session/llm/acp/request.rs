@@ -772,9 +772,11 @@ pub(crate) async fn do_stream_request_acp(
         let now = vw_acp::iso_now();
         if let Some(profile) = launch_profile.as_ref()
             && profile.model_api.as_ref().is_some_and(|api| match acp_agent_name.as_str() {
-                "codex" => super::model_source::drivers::codex::uses_native_responses(api),
+                "codex" | "claude" => {
+                    super::model_source::drivers::launch_route(&acp_agent_name, profile)
+                        .is_ok_and(|route| !route.conversion_required)
+                }
                 "opencode" => crate::model_relay::chat_url(api).is_ok(),
-                "claude" => api.adapter == "anthropic",
                 "copilot" => {
                     profile.model_reasoning_options.is_some()
                         && crate::model_relay::chat_url(api).is_ok()

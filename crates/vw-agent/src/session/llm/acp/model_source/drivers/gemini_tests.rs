@@ -2,7 +2,7 @@ use super::*;
 use crate::{config::schema::AcpAgentConfig, model_relay::RelayIdentity};
 
 fn profile() -> AcpLaunchProfile {
-    AcpLaunchProfile::new(
+    let mut profile = AcpLaunchProfile::new(
         &AcpAgentConfig {
             command: "gemini".into(),
             args: vec!["--experimental-acp".into()],
@@ -17,7 +17,15 @@ fn profile() -> AcpLaunchProfile {
             generation: 1,
         },
     )
-    .unwrap()
+    .unwrap();
+    profile.model_supports_tool_call = true;
+    profile.model_api = Some(crate::provider::provider::ApiInfo {
+        id: "selected-model".into(),
+        url: "https://example.invalid/v1beta".into(),
+        adapter: "google".into(),
+        protocols: None,
+    });
+    profile
 }
 
 #[test]
@@ -110,9 +118,12 @@ fn acp_model_source_gemini_rejects_configuration_conflicts_before_publication() 
             env: std::collections::HashMap::from([(key.into(), "conflict".into())]),
             ..Default::default()
         };
-        let mut profile =
-            AcpLaunchProfile::new(&config, profile().binding.identity.clone()).unwrap();
-        assert!(configure(&mut profile, "http://127.0.0.1:1234").is_err());
+        let fixture = profile();
+        let mut profile = AcpLaunchProfile::new(&config, fixture.binding.identity.clone()).unwrap();
+        profile.model_api = fixture.model_api.clone();
+        profile.model_supports_tool_call = fixture.model_supports_tool_call;
+        let error = configure(&mut profile, "http://127.0.0.1:1234").unwrap_err().to_string();
+        assert!(error.contains("conflicting Gemini model or authentication environment"));
         assert_eq!(std::fs::read_dir(profile.directory()).unwrap().count(), 0);
     }
 }
@@ -145,4 +156,20 @@ async fn acp_model_source_gemini_project_cli_override_reaches_actual_subprocess(
         assert!(result.is_err(), "probe exits before ACP handshake");
         assert_eq!(std::fs::read_to_string(&marker).unwrap(), "PROJECT_OVERRIDE_USED");
     }).await;
+}
+
+#[test]
+fn model_protocol_013_gemini_startup_accepts_native_and_chat_but_refuses_messages() {
+    for (adapter, accepted) in [("google", true), ("openai-compatible", true), ("anthropic", false)]
+    {
+        let mut launch = profile();
+        launch.model_api.as_mut().unwrap().adapter = adapter.into();
+        let result = configure(&mut launch, "http://127.0.0.1:12345");
+        assert_eq!(result.is_ok(), accepted, "{adapter}");
+        assert_eq!(launch.directory().join("managed-settings.json").exists(), accepted);
+        if accepted {
+            assert_eq!(launch.config().env["GEMINI_MODEL"], "selected-model");
+            assert_eq!(launch.config().env["GOOGLE_GEMINI_BASE_URL"], "http://127.0.0.1:12345");
+        }
+    }
 }

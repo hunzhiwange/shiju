@@ -22,25 +22,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         program == Some("claude-agent-acp") && config.args.is_empty(),
         "Claude managed launch requires verified ACP adapter arguments"
     );
-    let api = profile
-        .model_api
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Claude requires selected model transport metadata"))?;
-    let native_messages = match api.adapter.as_str() {
-        "anthropic" => true,
-        "openai" | "openai-compatible" => {
-            let url = reqwest::Url::parse(&api.url)
-                .map_err(|_| anyhow::anyhow!("Claude selected model endpoint is invalid"))?;
-            anyhow::ensure!(
-                !url.path().trim_end_matches('/').ends_with("/responses")
-                    && !url.path().trim_end_matches('/').ends_with("/messages"),
-                "Claude selected model requires an unsupported protocol conversion"
-            );
-            crate::model_relay::official_deepseek_messages_url(api).is_some()
-                || crate::model_relay::official_alibaba_messages_url(api).is_some()
-        }
-        _ => anyhow::bail!("Claude selected model protocol is unsupported"),
-    };
+    let native_messages = !super::launch_route("claude", profile)?.conversion_required;
     anyhow::ensure!(
         profile.model_supports_temperature && profile.model_supports_tool_call,
         "Claude requires a selected model supporting temperature and tools"

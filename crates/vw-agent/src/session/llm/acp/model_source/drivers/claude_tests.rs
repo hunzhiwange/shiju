@@ -218,7 +218,7 @@ fn acp_model_source_claude_chat_reasoning_model_disables_signed_thinking() {
 }
 
 #[test]
-fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
+fn acp_model_source_claude_does_not_infer_deepseek_native_without_catalog() {
     let mut launch = profile(&Default::default());
     launch.model_api = Some(crate::provider::provider::ApiInfo {
         protocols: None,
@@ -228,11 +228,11 @@ fn acp_model_source_claude_enables_thinking_for_official_deepseek_messages() {
     });
     launch.model_supports_reasoning = true;
     configure(&mut launch, "http://127.0.0.1:12345").unwrap();
-    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+    assert_eq!(launch.config().env["MAX_THINKING_TOKENS"], "0");
 }
 
 #[test]
-fn acp_model_source_claude_keeps_alibaba_token_plan_on_native_messages() {
+fn acp_model_source_claude_does_not_infer_alibaba_native_without_catalog() {
     let mut launch = profile(&Default::default());
     launch.model_api = Some(crate::provider::provider::ApiInfo {
         protocols: None,
@@ -242,8 +242,8 @@ fn acp_model_source_claude_keeps_alibaba_token_plan_on_native_messages() {
     });
     launch.model_supports_reasoning = true;
     configure(&mut launch, "http://127.0.0.1:12345").unwrap();
-    assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "1");
-    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+    assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
+    assert_eq!(launch.config().env["MAX_THINKING_TOKENS"], "0");
     assert_eq!(launch.config().env["ANTHROPIC_BASE_URL"], "http://127.0.0.1:12345");
     assert_eq!(launch.config().env["ANTHROPIC_MODEL"], "selected-model");
 }
@@ -323,4 +323,40 @@ fn acp_model_source_claude_history_survives_credential_revocation_and_is_scoped(
     let mut other = AcpLaunchProfile::new(&config, other.binding.identity.clone()).unwrap();
     other.state_root = Some(root.path().to_path_buf());
     assert_ne!(other.claude_state_directory().unwrap(), state);
+}
+
+#[test]
+fn model_protocol_013_claude_catalog_native_preserves_thinking() {
+    let mut launch = profile(&Default::default());
+    launch.model_supports_reasoning = true;
+    let api = launch.model_api.as_mut().unwrap();
+    api.protocols = Some(serde_json::from_value(serde_json::json!([{
+        "protocol":"messages", "url":"https://example.invalid/v1/messages",
+        "deployment":"selected", "authentication":{"kind":"api_key_header", "name":"x-api-key"},
+        "models":{"kind":"models", "ids":["selected-model"]},
+        "evidence":[{"kind":"configuration", "source":"fixture", "reference":"explicit", "checked_at":"2026-11-11"}]
+    }])).unwrap());
+    configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "1");
+    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+}
+
+#[test]
+fn model_protocol_013_claude_explicit_empty_protocols_rejected_before_files() {
+    let mut launch = profile(&Default::default());
+    launch.model_api.as_mut().unwrap().protocols = Some(vec![]);
+    let result = configure(&mut launch, "http://127.0.0.1:12345");
+    assert!(result.is_err());
+    assert!(!launch.directory().join("settings.json").exists());
+}
+
+#[test]
+fn model_protocol_013_claude_explicit_thinking_is_not_silently_disabled_for_conversion() {
+    let mut launch = profile(&AcpAgentConfig {
+        env: std::collections::HashMap::from([("MAX_THINKING_TOKENS".into(), "1024".into())]),
+        ..Default::default()
+    });
+    launch.model_supports_reasoning = true;
+    assert!(configure(&mut launch, "http://127.0.0.1:12345").is_err());
+    assert!(!launch.directory().join("settings.json").exists());
 }

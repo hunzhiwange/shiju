@@ -14,6 +14,7 @@ fn profile(config: &AcpAgentConfig) -> AcpLaunchProfile {
         },
     )
     .unwrap();
+    profile.model_supports_tool_call = true;
     profile.model_api = Some(crate::provider::provider::ApiInfo {
         protocols: None,
         id: "selected-model".into(),
@@ -147,7 +148,11 @@ fn acp_model_source_codex_rejects_unsupported_transport_before_launch() {
         api.adapter = adapter.into();
         api.url = url.into();
         let error = configure(&mut profile, "http://127.0.0.1:12345").unwrap_err().to_string();
-        assert!(error.contains("Responses or Chat Completions model"));
+        assert!(error.contains(if adapter == "openai-compatible" {
+            "InvalidEndpoint"
+        } else {
+            "ConversionUnavailable"
+        }));
         assert!(!profile.directory().join("config.toml").exists());
         assert!(!profile.config().env.contains_key("CODEX_HOME"));
     }
@@ -164,7 +169,10 @@ fn acp_model_source_codex_chat_accepts_tool_capable_models_and_disables_hosted_s
     api.adapter = "openai-compatible".into();
     api.url = "https://example.invalid/v1/chat/completions".into();
     let relay = "http://127.0.0.1:12345";
-    assert!(configure(&mut profile, relay).unwrap_err().to_string().contains("tool calls"));
+    profile.model_supports_tool_call = false;
+    assert!(
+        configure(&mut profile, relay).unwrap_err().to_string().contains("CapabilityUnavailable")
+    );
 
     profile.model_supports_tool_call = true;
     configure(&mut profile, relay).unwrap();
@@ -643,4 +651,26 @@ fn acp_model_source_codex_history_rejects_symlinks_and_broad_permissions() {
     std::os::unix::fs::symlink(target.path(), &linked).unwrap();
     assert!(ensure_private_history(&profile, &linked.join("session")).is_err());
     assert!(!target.path().join("session").exists());
+}
+
+#[test]
+fn model_protocol_013_codex_catalog_native_responses_preserves_hosted_tools() {
+    let mut launch = profile(&Default::default());
+    let api = launch.model_api.as_mut().unwrap();
+    api.adapter = "openai-compatible".into();
+    api.url = "https://example.invalid/v1".into();
+    api.protocols = Some(serde_json::from_value(serde_json::json!([{
+        "protocol":"responses", "url":"https://example.invalid/v1/responses",
+        "deployment":"selected", "authentication":{"kind":"bearer"},
+        "models":{"kind":"models", "ids":["selected-model"]},
+        "evidence":[{"kind":"configuration", "source":"fixture", "reference":"explicit", "checked_at":"2026-11-11"}]
+    }])).unwrap());
+    configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    let config: serde_json::Value =
+        serde_json::from_str(&launch.config().env["CODEX_CONFIG"]).unwrap();
+    assert!(config.get("web_search").is_none());
+    assert_eq!(
+        config["model_providers"][config["model_provider"].as_str().unwrap()]["wire_api"],
+        "responses"
+    );
 }

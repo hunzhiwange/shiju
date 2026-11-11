@@ -28,6 +28,7 @@ pub(super) fn configure(
     profile: &mut AcpLaunchProfile,
     endpoint: &str,
 ) -> anyhow::Result<()> {
+    launch_route(agent, profile)?;
     match agent {
         "auggie" => auggie::configure(profile, endpoint),
         "claude" => claude::configure(profile, endpoint),
@@ -55,7 +56,9 @@ pub(super) fn configure(
     }
 }
 
-/// Only native routes with actual Darwin arm64 model-request evidence are published.
+/// This advertises reviewed CLI binding support, not availability for every model.
+/// Each selected model must pass launch_route before private configuration is written.
+/// Only routes with actual Darwin arm64 model-request evidence are published.
 /// Patched adapters stay unavailable until their reviewed artifact is installed.
 pub(in crate::session::llm::acp) fn capabilities(
     agent: &str,
@@ -105,3 +108,74 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         _ => return None,
     })
 }
+
+/// The source is the reviewed CLI's actual wire format, never the upstream target.
+fn source_protocol(
+    agent: &str,
+    api: &crate::provider::provider::ApiInfo,
+) -> anyhow::Result<vw_shared::provider::protocols::ModelProtocol> {
+    use vw_shared::provider::protocols::ModelProtocol as P;
+    Ok(match agent {
+        "claude" => P::Messages,
+        "codex" | "kiro" => P::Responses,
+        "gemini" => P::Gemini,
+        "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qwen" => {
+            P::Chat
+        }
+        "snow" | "opencode" | "kimi" => {
+            crate::model_relay::routing::configured_api_protocol(api)
+                .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?
+        }
+        "copilot" => match api.adapter.as_str() {
+            "anthropic" => P::Messages,
+            "openai" | "openai-compatible" => {
+                let protocol = crate::model_relay::routing::configured_api_protocol(api)
+                    .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?;
+                anyhow::ensure!(
+                    protocol == P::Chat,
+                    "Copilot Responses conversion is not verified"
+                );
+                P::Chat
+            }
+            _ => anyhow::bail!("Copilot selected model protocol is unsupported"),
+        },
+        "vibe" => match crate::model_relay::routing::configured_api_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?
+        {
+            P::Gemini => P::Chat,
+            protocol => protocol,
+        },
+        _ => anyhow::bail!("ACP session_model driver is not verified"),
+    })
+}
+
+/// Startup uses the same deployment/authentication selector as the relay. Dynamic
+/// payload capabilities are checked again when each actual request is dispatched.
+pub(in crate::session::llm::acp) fn launch_route(
+    agent: &str,
+    profile: &AcpLaunchProfile,
+) -> anyhow::Result<vw_provider_resolver::protocol_routes::ProtocolRoute> {
+    use vw_provider_resolver::protocol_routes::RouteCapability as C;
+    let api = profile
+        .model_api
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("ACP requires selected model transport metadata"))?;
+    let source = source_protocol(agent, api)?;
+    let required = [C::Text, C::Streaming, C::Tools];
+    let available = if profile.model_supports_tool_call { &required[..] } else { &required[..2] };
+    let conversions = crate::model_relay::routing::relay_conversions(agent == "codex");
+    crate::model_relay::routing::select_api(
+        api,
+        &profile.binding.identity.provider,
+        source,
+        &required,
+        available,
+        &conversions,
+        crate::model_relay::routing::Execution::Relay,
+    )
+    .map_err(anyhow::Error::from)
+}
+
+#[cfg(all(test, unix))]
+#[path = "drivers_tests.rs"]
+mod tests;

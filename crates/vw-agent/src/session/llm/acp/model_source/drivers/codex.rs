@@ -1,14 +1,5 @@
 use super::AcpLaunchProfile;
 
-pub(in crate::session::llm::acp) fn uses_native_responses(
-    api: &crate::provider::provider::ApiInfo,
-) -> bool {
-    api.adapter == "openai-responses"
-        || (matches!(api.adapter.as_str(), "openai" | "openai-compatible")
-            && reqwest::Url::parse(&api.url)
-                .is_ok_and(|url| url.path().trim_end_matches('/').ends_with("/responses")))
-}
-
 pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyhow::Result<()> {
     anyhow::ensure!(
         profile.config().args.is_empty(),
@@ -30,19 +21,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "Codex requires an owned loopback relay"
     );
     anyhow::ensure!(!profile.model_alias.is_empty(), "Codex requires a selected model");
-    let api = profile
-        .model_api
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("Codex requires selected model transport metadata"))?;
-    let native_responses = uses_native_responses(api);
-    anyhow::ensure!(
-        native_responses || crate::model_relay::chat_url(api).is_ok(),
-        "Codex requires a Responses or Chat Completions model"
-    );
-    anyhow::ensure!(
-        native_responses || profile.model_supports_tool_call,
-        "Codex requires a Chat Completions model supporting tool calls"
-    );
+    let native_responses = !super::launch_route("codex", profile)?.conversion_required;
     use sha2::Digest;
     // Project config cannot predefine routing headers for this request-owned provider key.
     let provider = format!(

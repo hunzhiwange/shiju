@@ -15,9 +15,7 @@ pub(crate) mod generation;
 pub(crate) mod routing;
 mod transport;
 pub use transport::ProviderRelayBackend;
-pub(crate) use transport::{
-    chat_url, official_alibaba_messages_url, official_deepseek_messages_url,
-};
+pub(crate) use transport::{chat_url, official_deepseek_messages_url};
 #[cfg(test)]
 mod chat_tests;
 #[cfg(test)]

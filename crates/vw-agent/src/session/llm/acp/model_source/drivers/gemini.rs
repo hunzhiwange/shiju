@@ -16,6 +16,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
             && url.fragment().is_none(),
         "Gemini requires a loopback relay endpoint"
     );
+    super::launch_route("gemini", profile)?;
     let config = profile.config();
     let command = std::path::Path::new(config.command.trim()).file_name().and_then(|v| v.to_str());
     anyhow::ensure!(

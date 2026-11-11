@@ -352,31 +352,7 @@ impl RelayBackend for ProviderRelayBackend {
         let streaming_requested =
             if gemini_request { gemini_streaming } else { input["stream"] == true };
         let required = super::routing::required(&input, streaming_requested);
-        let convertible = [C::Text, C::Tools, C::Streaming, C::Image];
-        let codex_capabilities = [
-            C::Text,
-            C::Tools,
-            C::Streaming,
-            C::Image,
-            C::Thinking,
-            C::ThinkingReplay,
-            C::StructuredOutput,
-        ];
-        let responses_capabilities =
-            [C::Text, C::Tools, C::Streaming, C::Image, C::StructuredOutput];
-        let conversions = [
-            ConversionSupport { source: P::Messages, target: P::Chat, capabilities: &convertible },
-            ConversionSupport {
-                source: P::Responses,
-                target: P::Chat,
-                capabilities: if identity.session.ends_with(":codex") {
-                    &codex_capabilities
-                } else {
-                    &responses_capabilities
-                },
-            },
-            ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: &convertible },
-        ];
+        let conversions = super::routing::relay_conversions(identity.session.ends_with(":codex"));
         let route = super::routing::select(
             model,
             source,

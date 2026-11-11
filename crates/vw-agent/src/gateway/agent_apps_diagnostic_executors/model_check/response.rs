@@ -5,7 +5,7 @@ use vw_api_types::{agent_apps_diagnostics::DiagnosticFailureCode, id::ModelId};
 
 use crate::model_relay::generation::GenerationProtocol;
 
-pub(super) trait GenerationEvidence {
+pub(in crate::gateway::agent_apps_diagnostic_executors) trait GenerationEvidence {
     fn prompt(self, model: &str) -> Value;
     fn actual_model(self, response: &Value) -> Result<ModelId, DiagnosticFailureCode>;
 }

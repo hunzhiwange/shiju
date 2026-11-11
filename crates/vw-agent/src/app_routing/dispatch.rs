@@ -145,6 +145,16 @@ pub(super) async fn forward_json(
             return Err(StatusCode::BAD_GATEWAY.into());
         }
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
+        // The Responses bridge validates its Chat source in the shared decoder.
+        let body = if bridge.is_none() {
+            crate::model_relay::stream_observer::validated_body(
+                body,
+                crate::model_relay::generation::GenerationProtocol::Chat,
+                cancelled.clone(),
+            )
+        } else {
+            body
+        };
         let body = timeouts::stream_body(body, deadline, idle, permit).await?;
         let body = match bridge {
             Some(bridge) => bridge.response_body(body, cancelled),

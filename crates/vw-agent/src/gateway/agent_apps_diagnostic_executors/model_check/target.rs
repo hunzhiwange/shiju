@@ -40,13 +40,13 @@ pub enum ModelPrepareError {
 
 type Result<T> = std::result::Result<T, ModelPrepareError>;
 
-pub(super) struct ModelTarget {
+pub(in crate::gateway::agent_apps_diagnostic_executors) struct ModelTarget {
     database: GlobalDatabase,
     owner: DiagnosticJobOwner,
     revision: [u8; 32],
-    pub(super) provider_id: ProviderId,
-    pub(super) model_id: ModelId,
-    pub(super) protocol: GenerationProtocol,
+    pub(in crate::gateway::agent_apps_diagnostic_executors) provider_id: ProviderId,
+    pub(in crate::gateway::agent_apps_diagnostic_executors) model_id: ModelId,
+    pub(in crate::gateway::agent_apps_diagnostic_executors) protocol: GenerationProtocol,
     destination: Destination,
 }
 
@@ -62,7 +62,7 @@ struct CopilotBinding {
 }
 
 impl ModelTarget {
-    pub(super) fn prepare(
+    pub(in crate::gateway::agent_apps_diagnostic_executors) fn prepare(
         database: &GlobalDatabase,
         accounts: &AuthAccountStore,
         owner: DiagnosticJobOwner,
@@ -167,7 +167,7 @@ impl ModelTarget {
         })
     }
 
-    pub(super) fn check_current(
+    pub(in crate::gateway::agent_apps_diagnostic_executors) fn check_current(
         &self,
         accounts: &AuthAccountStore,
     ) -> std::result::Result<(), DiagnosticFailureCode> {
@@ -194,7 +194,7 @@ impl ModelTarget {
         Ok(true)
     }
 
-    pub(super) async fn destination(
+    pub(in crate::gateway::agent_apps_diagnostic_executors) async fn destination(
         &self,
         accounts: &AuthAccountStore,
         copilot: &CopilotAuth,

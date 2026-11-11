@@ -480,11 +480,31 @@ impl RelayBackend for ProviderRelayBackend {
             )
             .await;
         }
+        if streaming
+            && !response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| value.split(';').next())
+                .is_some_and(|value| value.trim().eq_ignore_ascii_case("text/event-stream"))
+        {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
         let mut result = Response::builder().status(response.status());
         if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {
             result = result.header(header::CONTENT_TYPE, content_type);
         }
         // Preserve SSE deltas, parallel call indexes, finish reasons and usage byte-for-byte.
-        result.body(upstream::response_body(response, cancel)).map_err(|_| StatusCode::BAD_GATEWAY)
+        let body = upstream::response_body(response, cancel.clone());
+        let body = if streaming {
+            super::stream_observer::validated_body(
+                body,
+                super::generation::GenerationProtocol::Chat,
+                cancel,
+            )
+        } else {
+            body
+        };
+        result.body(body).map_err(|_| StatusCode::BAD_GATEWAY)
     }
 }

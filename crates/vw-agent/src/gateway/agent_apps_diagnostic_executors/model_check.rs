@@ -23,8 +23,8 @@ use crate::{
 
 use response::GenerationEvidence;
 
-mod response;
-mod target;
+pub(super) mod response;
+pub(super) mod target;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;

@@ -18,6 +18,7 @@ fn event(value: Value) -> String {
     format!("event: {}\ndata: {value}\n\n", value["type"].as_str().unwrap_or("error"))
 }
 struct Decoder {
+    observer: super::stream_observer::StreamObserver,
     pending: Vec<u8>,
     data: String,
     retained: usize,
@@ -48,7 +49,13 @@ struct Native {
 
 impl Decoder {
     fn new(model: String, tool_names: ChatTools, codex_chat: bool, native: Option<Native>) -> Self {
+        let protocol = if native.is_some() {
+            super::generation::GenerationProtocol::Responses
+        } else {
+            super::generation::GenerationProtocol::Chat
+        };
         Self {
+            observer: super::stream_observer::StreamObserver::new(protocol),
             pending: Vec::new(),
             data: String::new(),
             retained: 0,
@@ -414,6 +421,10 @@ impl Decoder {
         Ok(out)
     }
     fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
+        self.observer.push(bytes).map_err(|error| match error {
+            super::stream_observer::InvalidStream::LimitExceeded => StatusCode::PAYLOAD_TOO_LARGE,
+            super::stream_observer::InvalidStream::Malformed => StatusCode::BAD_GATEWAY,
+        })?;
         let mut out = String::new();
         for line in bytes.split_inclusive(|byte| *byte == b'\n') {
             // Bound the pending event independently of the bytes already consumed.

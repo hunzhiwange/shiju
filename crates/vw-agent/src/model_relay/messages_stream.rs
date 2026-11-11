@@ -19,6 +19,7 @@ fn event(value: Value) -> String {
 }
 #[derive(Default)]
 struct Decoder {
+    observer: super::stream_observer::StreamObserver,
     pending: Vec<u8>,
     data: String,
     started: bool,
@@ -165,6 +166,7 @@ impl Decoder {
         Ok(out)
     }
     fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
+        self.observer.push(bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
         self.size += bytes.len();
         if self.size > LIMIT {
             return Err(StatusCode::BAD_GATEWAY);
@@ -236,7 +238,20 @@ pub(super) async fn response(
         return Err(StatusCode::BAD_GATEWAY);
     }
     let stream = futures_util::stream::unfold(
-        (response.bytes_stream(), Decoder { model, native, ..Default::default() }, cancel),
+        (
+            response.bytes_stream(),
+            Decoder {
+                model,
+                native,
+                observer: super::stream_observer::StreamObserver::new(if native {
+                    super::generation::GenerationProtocol::Messages
+                } else {
+                    super::generation::GenerationProtocol::Chat
+                }),
+                ..Default::default()
+            },
+            cancel,
+        ),
         |(mut stream, mut decoder, cancel)| async move {
             if decoder.done {
                 return None;

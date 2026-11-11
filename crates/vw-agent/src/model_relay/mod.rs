@@ -46,3 +46,5 @@ mod gemini;
 mod gemini_stream;
 
 mod kiro;
+
+pub(crate) mod stream_observer;

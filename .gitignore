@@ -62,3 +62,8 @@ target-dir/
 examples/
 
 __pycache__/
+
+# Local Iced runtime patch and its acceptance fixture.
+!/vendor/iced_winit/
+!/vendor/iced_winit/examples/
+/vendor/iced_winit/Cargo.lock

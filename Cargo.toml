@@ -14,6 +14,7 @@ members = [
   "crates/vw-provider-resolver",
 ]
 exclude = [
+  "vendor/iced_winit",
   "vendor/block",
   "vendor/block/test_utils",
   "vendor/iced_term",
@@ -37,3 +38,6 @@ lto = "thin"
 [patch.crates-io]
 # block 0.1.6 declares an uninhabited extern static (rust-lang/rust#74840).
 block = { path = "vendor/block" }
+
+# Iced 0.14 Web IME bridge; upstream desktop paths remain unchanged.
+iced_winit = { path = "vendor/iced_winit" }

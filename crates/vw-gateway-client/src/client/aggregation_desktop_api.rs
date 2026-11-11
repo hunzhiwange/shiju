@@ -1,9 +1,13 @@
 //! Project-scoped Desktop resources; native configuration remains gateway-owned.
 use super::{AgentAppsSettingsError, GatewayClient};
-use serde::de::DeserializeOwned;
+use serde::{Serialize, de::DeserializeOwned};
 use vw_api_types::agent_apps::aggregation::{
-    AggregationQuery, DesktopMappingChange, DesktopMappingView, DesktopProfileStatus,
+    AggregationExitRequest, AggregationPreview, AggregationPreviewRequest,
+    AggregationPublishRequest, AggregationQuery, DesktopMappingChange, DesktopMappingView,
+    DesktopProfileStatus,
 };
+
+use vw_api_types::app_providers::operations::ProviderOperationProgress;
 
 impl GatewayClient {
     /// Read installation, applied mode and recovery without local file access.
@@ -39,6 +43,44 @@ impl GatewayClient {
     ) -> Result<DesktopMappingView, AgentAppsSettingsError> {
         let url = self.aggregation_desktop_mapping_url(provider_id, "model-mapping")?;
         self.aggregation_desktop_response(self.dynamic_host_client.put(url).json(change)).await
+    }
+
+    /// Preview the Desktop catalog on the gateway; never issue a publish implicitly.
+    pub async fn aggregation_desktop_preview(
+        &self,
+        intent: &AggregationPreviewRequest,
+    ) -> Result<AggregationPreview, AgentAppsSettingsError> {
+        self.aggregation_desktop_action("preview", intent).await
+    }
+
+    /// Submit a confirmed, revision-bound preview once. Poll the returned operation
+    /// with `provider_aggregation_operation_get`; acceptance is not publication.
+    pub async fn aggregation_desktop_publish(
+        &self,
+        intent: &AggregationPublishRequest,
+    ) -> Result<ProviderOperationProgress, AgentAppsSettingsError> {
+        self.aggregation_desktop_action("publish", intent).await
+    }
+
+    /// Request restoration using gateway-owned state; do not retry an ambiguous write.
+    /// The returned operation retains its typed outcome, including recovery failures.
+    pub async fn aggregation_desktop_exit(
+        &self,
+        intent: &AggregationExitRequest,
+    ) -> Result<ProviderOperationProgress, AgentAppsSettingsError> {
+        self.aggregation_desktop_action("exit", intent).await
+    }
+
+    async fn aggregation_desktop_action<B: Serialize, T: DeserializeOwned>(
+        &self,
+        action: &str,
+        intent: &B,
+    ) -> Result<T, AgentAppsSettingsError> {
+        let url = format!(
+            "{}/v1/agent-apps/claude-desktop/aggregation/{action}",
+            self.endpoint.base_url()
+        );
+        self.aggregation_desktop_response(self.dynamic_host_client.post(url).json(intent)).await
     }
 
     fn aggregation_desktop_mapping_url(

@@ -10,6 +10,7 @@ pub(in crate::gateway::api::handlers) struct Owner {
 }
 pub(super) struct Owned {
     owner: Owner,
+    exit: bool,
     outcome: Arc<Mutex<Option<AggregationOutcome>>>,
 }
 impl Running {
@@ -42,7 +43,7 @@ impl State {
         fingerprint: &[u8; 32],
     ) -> Result<Option<serde_json::Value>, StatusCode> {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        replay(&registry, owner, request, fingerprint)
+        replay(&registry, owner, request, fingerprint, false)
     }
     pub(in crate::gateway::api::handlers) fn aggregation_start(
         &self,
@@ -51,8 +52,36 @@ impl State {
         fingerprint: [u8; 32],
         work: impl FnOnce() -> AggregationOutcome + Send + 'static,
     ) -> Result<serde_json::Value, StatusCode> {
+        self.aggregation_start_action(owner, request, fingerprint, false, work)
+    }
+    pub(in crate::gateway::api::handlers) fn aggregation_exit_replay(
+        &self,
+        owner: &Owner,
+        request: &str,
+        fingerprint: &[u8; 32],
+    ) -> Result<Option<serde_json::Value>, StatusCode> {
+        let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        replay(&registry, owner, request, fingerprint, true)
+    }
+    pub(in crate::gateway::api::handlers) fn aggregation_exit_start(
+        &self,
+        owner: Owner,
+        request: String,
+        fingerprint: [u8; 32],
+        work: impl FnOnce() -> AggregationOutcome + Send + 'static,
+    ) -> Result<serde_json::Value, StatusCode> {
+        self.aggregation_start_action(owner, request, fingerprint, true, work)
+    }
+    fn aggregation_start_action(
+        &self,
+        owner: Owner,
+        request: String,
+        fingerprint: [u8; 32],
+        exit: bool,
+        work: impl FnOnce() -> AggregationOutcome + Send + 'static,
+    ) -> Result<serde_json::Value, StatusCode> {
         let mut registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        if let Some(progress) = replay(&registry, &owner, &request, &fingerprint)? {
+        if let Some(progress) = replay(&registry, &owner, &request, &fingerprint, exit)? {
             return Ok(progress);
         }
         // Do not evict terminal requests: retry must never reapply a publication.
@@ -66,7 +95,10 @@ impl State {
         operation
             .start(move || {
                 let result = work();
-                let succeeded = matches!(result, AggregationOutcome::Published { .. });
+                let succeeded = matches!(
+                    result,
+                    AggregationOutcome::Published { .. } | AggregationOutcome::Exited { .. }
+                );
                 *worker.lock().unwrap_or_else(|e| e.into_inner()) = Some(result);
                 if succeeded { Ok(()) } else { Err("aggregation publication failed".into()) }
             })
@@ -78,7 +110,7 @@ impl State {
             fingerprint,
             operation,
             editor_outcome: Default::default(),
-            aggregation: Some(Owned { owner, outcome }),
+            aggregation: Some(Owned { owner, exit, outcome }),
         };
         let progress = running.aggregation_progress();
         registry.insert(id, running);
@@ -127,9 +159,11 @@ fn replay(
     owner: &Owner,
     request: &str,
     fingerprint: &[u8; 32],
+    exit: bool,
 ) -> Result<Option<serde_json::Value>, StatusCode> {
     if let Some(running) = registry.values().find(|r| {
-        r.aggregation.as_ref().is_some_and(|r| &r.owner == owner) && r.request_id == request
+        r.aggregation.as_ref().is_some_and(|r| &r.owner == owner && r.exit == exit)
+            && r.request_id == request
     }) {
         if &running.fingerprint != fingerprint {
             return Err(StatusCode::CONFLICT);
@@ -138,3 +172,7 @@ fn replay(
     }
     Ok(None)
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "../../aggregation_exit_operation_tests.rs"]
+mod exit_tests;

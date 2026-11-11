@@ -51,6 +51,7 @@ pub(super) fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Rou
         )
         .route("/app-providers/operations/{id}", get(read).delete(cancel))
         .merge(super::super::aggregation_publish::router())
+        .merge(super::super::aggregation_exit::router())
         .layer(Extension(State {
             policy,
             editor,

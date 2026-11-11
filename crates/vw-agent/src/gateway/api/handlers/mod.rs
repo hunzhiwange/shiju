@@ -409,3 +409,5 @@ mod mcp_management_probe_tests;
 mod aggregation_clients_tests;
 
 mod aggregation_clients;
+
+mod aggregation_exit;

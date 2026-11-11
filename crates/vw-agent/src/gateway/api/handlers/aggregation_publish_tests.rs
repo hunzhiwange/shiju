@@ -438,3 +438,6 @@ mod failure_contract;
 
 #[path = "../../aggregation_lifecycle_tests.rs"]
 mod lifecycle_tests;
+
+#[path = "aggregation_exit_tests.rs"]
+mod exit_contract;

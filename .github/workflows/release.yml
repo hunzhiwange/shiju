@@ -488,6 +488,14 @@ jobs:
               lock.rmdir()
           PYTHON
 
+  # Project-specific job; dist-workspace.toml allows maintained CI additions.
+  build-web-artifacts:
+    needs: [plan, release-preflight]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.release-preflight.result == 'success' || github.event_name == 'pull_request') && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-web.yml
+
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:
     needs:
@@ -542,8 +550,9 @@ jobs:
       - publish-access
       - build-local-artifacts
       - build-global-artifacts
+      - build-web-artifacts
     # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
-    if: ${{ always() && needs.publish-access.result == 'success' && needs.release-preflight.result == 'success' && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
+    if: ${{ always() && needs.publish-access.result == 'success' && needs.release-preflight.result == 'success' && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && needs.build-web-artifacts.result == 'success' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-22.04"
@@ -599,6 +608,12 @@ jobs:
         run: |
           # Write and read notes from a file to avoid quoting breaking things
           echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
+          cat >> "$RUNNER_TEMP/notes.txt" <<'WEB_NOTES'
+
+          ### Web 静态版
+          下载 `shiju-web-*.zip` 及对应 `.sha256`，解压后执行 `npm run start`，打开 http://127.0.0.1:8765/。
+          仅需 Node.js，无需 Rust 或 npm 依赖。代理业务功能需另行连接 ShiJu 网关，详见压缩包中的 README.md。
+          WEB_NOTES
 
           # The push event already provides the tag. Avoid target_commitish, which
           # can require workflow-write permission unavailable to GITHUB_TOKEN.

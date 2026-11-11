@@ -1,6 +1,32 @@
-# Build & Package (macOS / Windows)
+# Build & Package (macOS / Windows / Web)
 
 This document is located under `scripts/` for daily development and release.
+
+## Web static archive
+
+Tag releases also build the complete `vw-desktop` / `shi-ju` application for
+`wasm32-unknown-unknown` using the `dist` profile. The shared `build-web.yml`
+workflow pins wasm-bindgen CLI to the version in Cargo.lock, generates all local
+bindings and snippets, and uploads `shiju-web-<version>.zip` plus `.zip.sha256`.
+The Release host waits for this job; recovery validates the Web checksum before
+uploading. The existing `allow-dirty = ["ci"]` keeps this custom release job.
+
+After downloading and extracting the ZIP, run:
+
+```sh
+npm run start
+```
+
+Node.js 22+ with npm is sufficient; no npm dependencies, Python, Rust or source checkout
+are needed to serve the archive at <http://127.0.0.1:8765/>. The UI is static;
+agent operations still require a configured ShiJu gateway. See the bundled
+README.md and [WASM local usage](../docs/dev/WASM本地运行.md).
+
+Local packaging and relocated Node server checks (no publishing):
+
+```sh
+python3 -m unittest discover -s scripts/tests -p test_package_shiju_web.py
+```
 
 ## Release permission preflight (no build)
 

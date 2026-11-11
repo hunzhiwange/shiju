@@ -1,0 +1,12 @@
+{
+  "name": "shiju-web",
+  "version": "@VERSION@",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

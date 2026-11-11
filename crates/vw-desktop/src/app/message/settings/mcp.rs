@@ -501,6 +501,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
     match message {
         McpMessage::ConnectionForm(message) => super::mcp_management_form::update(app, message),
+        McpMessage::Bindings(message) => super::mcp_management_bindings::update(app, message),
         McpMessage::Catalog(message) => super::mcp_management_list::update(app, message),
         McpMessage::TabSelected(tab) => {
             app.mcp_settings.active_tab = tab;

@@ -450,6 +450,7 @@ pub enum AcpMessage {
 pub enum McpMessage {
     Catalog(super::mcp_management_list::CatalogMessage),
     ConnectionForm(super::mcp_management_form::FormMessage),
+    Bindings(super::mcp_management_bindings::BindingsMessage),
     TabSelected(McpSettingsTab),
     Refresh,
     Loaded(Result<serde_json::Value, String>),

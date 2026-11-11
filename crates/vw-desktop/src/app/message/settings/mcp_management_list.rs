@@ -153,6 +153,10 @@ pub(crate) fn rows(catalog: &McpCatalogResponse) -> Vec<String> {
         rows.push("识矩运行时：项目选择状态未提供；ACP：会话挂载状态未提供".into());
     }
     for capability in &catalog.capabilities {
+        if let Some(reason) = super::mcp_management_bindings::unsupported_reason(capability.app_id)
+        {
+            rows.push(format!("{:?}：{reason}", capability.app_id));
+        }
         let label = |support| match support {
             McpSupport::Supported => "支持",
             McpSupport::Unsupported => "不支持",

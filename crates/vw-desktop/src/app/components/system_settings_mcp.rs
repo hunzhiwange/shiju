@@ -873,6 +873,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。"),
         ),
         managed_catalog_panel(app),
+        bindings::panel(app),
         action_row.wrap(),
         row![
             settings_value_badge(
@@ -1168,3 +1169,6 @@ pub(crate) fn managed_catalog_content(
 #[path = "system_settings_mcp_connection.rs"]
 mod connection;
 pub(crate) use connection::connection_form_panel;
+
+#[path = "system_settings_mcp_bindings.rs"]
+mod bindings;

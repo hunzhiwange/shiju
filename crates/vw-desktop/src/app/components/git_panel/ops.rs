@@ -301,9 +301,9 @@ pub fn get_diff_file_metas_for_repo_path(path: &str) -> Vec<DiffFileMeta> {
         return vec![];
     };
 
-    // 配置差异选项：包含未跟踪的文件
+    // 展开未跟踪目录，确保差异列表与变更文件计数使用相同的文件粒度。
     let mut opts = git2::DiffOptions::new();
-    opts.include_untracked(true);
+    opts.include_untracked(true).recurse_untracked_dirs(true);
     // 合并 index 信息，面板才能区分已暂存新增和未跟踪文件。
     let Ok(diff) = repo.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut opts)) else {
         return vec![];

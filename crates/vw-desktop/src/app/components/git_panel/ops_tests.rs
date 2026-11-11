@@ -138,6 +138,37 @@ fn diff_metas_cover_modified_added_untracked_deleted_and_content_loading() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
+fn diff_metas_include_nested_untracked_files_and_match_changed_paths() {
+    let temp = tempfile::tempdir().expect("temp repo");
+    let repo = git2::Repository::init(temp.path()).expect("init repo");
+    std::fs::write(temp.path().join("tracked.txt"), "base\n").expect("tracked");
+    commit_file(&repo, "tracked.txt", "initial");
+    std::fs::write(temp.path().join("tracked.txt"), "changed\n").expect("modify");
+    std::fs::write(temp.path().join(".gitignore"), "ignored/\n").expect("ignore rules");
+    for path in ["demo/new/src", "skills copy/nested", "ignored"] {
+        std::fs::create_dir_all(temp.path().join(path)).expect("directory");
+    }
+    for path in ["demo/new/src/App.tsx", "skills copy/nested/SKILL.md", "ignored/file.txt"] {
+        std::fs::write(temp.path().join(path), "first\nsecond\n").expect("untracked file");
+    }
+
+    let path = temp.path().to_str().expect("utf8 path");
+    let metas = get_diff_file_metas_for_repo_path(path);
+    let mut paths: Vec<_> = metas.iter().map(|meta| meta.path.clone()).collect();
+    paths.sort();
+    assert_eq!(paths, get_changed_file_paths(path));
+    assert_eq!(paths.len(), 4);
+    for file in ["demo/new/src/App.tsx", "skills copy/nested/SKILL.md"] {
+        let meta = metas.iter().find(|meta| meta.path == file).expect("nested file");
+        assert_eq!(meta.status, FileStatus::Untracked);
+        assert!(meta.new_exists);
+        assert_eq!((meta.insertions, meta.deletions), (2, 0));
+        assert_eq!(load_diff_content_for_repo_path(path, meta).1, "first\nsecond\n");
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
 fn changed_paths_filter_ignored_directories_and_ds_store() {
     let temp = tempfile::tempdir().expect("temp repo");
     let repo = git2::Repository::init(temp.path()).expect("init repo");

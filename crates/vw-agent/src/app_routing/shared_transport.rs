@@ -34,7 +34,11 @@ enum Egress {
     System(Matcher),
     #[cfg(target_os = "macos")]
     System(Arc<SystemProxy>),
-    Custom(Intercept),
+    Custom {
+        intercept: Intercept,
+        #[cfg(target_os = "macos")]
+        proxy: Box<reqwest::Proxy>,
+    },
 }
 
 /// HTTP transport for the application router, independent of session relay bindings.
@@ -80,8 +84,12 @@ impl SharedTransport {
                 .no_proxy()
                 .proxy(proxy.clone())
                 .build()?,
-            encoded_client: encoded_client_builder().no_proxy().proxy(proxy).build()?,
-            egress: Egress::Custom(intercept),
+            encoded_client: encoded_client_builder().no_proxy().proxy(proxy.clone()).build()?,
+            egress: Egress::Custom {
+                intercept,
+                #[cfg(target_os = "macos")]
+                proxy: Box::new(proxy),
+            },
             #[cfg(target_os = "macos")]
             direct: DirectClients::new()?,
         })
@@ -114,6 +122,41 @@ impl SharedTransport {
             egress: Egress::System(system),
             direct: DirectClients::new()?,
         })
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn probe_client(
+        &self,
+        target: &reqwest::Url,
+        listener: Option<SocketAddr>,
+    ) -> Result<Option<reqwest::Client>, StatusCode> {
+        let (intercept, proxy) = match &self.egress {
+            Egress::Custom { intercept, proxy } => (intercept, proxy.as_ref().clone()),
+            Egress::System(system) => {
+                let (Some(intercept), Some(url)) = (system.intercept(target), system.url(target))
+                else {
+                    return Ok(None);
+                };
+                let proxy =
+                    reqwest::Proxy::all(url.clone()).map_err(|_| StatusCode::BAD_GATEWAY)?;
+                (intercept, proxy)
+            }
+        };
+        if let Some(listener) = listener
+            && (target.port_or_known_default() == Some(listener.port())
+                || proxy_is_listener(intercept.uri(), listener)?)
+        {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+        upstream::upstream_http_client_builder_without_total_timeout()
+            .https_only(true)
+            .retry(reqwest::retry::never())
+            .no_proxy()
+            .proxy(proxy)
+            .pool_max_idle_per_host(0)
+            .build()
+            .map(Some)
+            .map_err(|_| StatusCode::BAD_GATEWAY)
     }
 
     /// Send a prepared request to the exact target authorized by the application router.
@@ -163,7 +206,7 @@ impl SharedTransport {
                         }
                         _ => (&self.direct.encoded, None),
                     },
-                    Egress::Custom(proxy) => {
+                    Egress::Custom { intercept: proxy, .. } => {
                         if proxy_is_listener(proxy.uri(), listener)? {
                             return Err(StatusCode::BAD_GATEWAY);
                         }
@@ -186,7 +229,7 @@ impl SharedTransport {
                     .await;
                 }
                 Egress::System(_) => (&self.encoded_client, None),
-                Egress::Custom(proxy) => (&self.encoded_client, Some(proxy)),
+                Egress::Custom { intercept, .. } => (&self.encoded_client, Some(intercept)),
             }
         };
         #[cfg(target_os = "macos")]

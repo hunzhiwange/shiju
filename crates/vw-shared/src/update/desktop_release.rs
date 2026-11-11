@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 const SHIJU_ROOT: &str = "https://www.shiju.cloud/agents/shiju-agent";
-const SHIJU_MANIFEST: &str = "https://www.shiju.cloud/agents/shiju-agent/latest/manifest.json";
+/// Public ShiJu release resource, also used as a fixed proxy reachability target.
+pub const SHIJU_MANIFEST: &str = "https://www.shiju.cloud/agents/shiju-agent/latest/manifest.json";
 const GITHUB_ROOT: &str = "https://github.com/hunzhiwange/shiju/releases";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

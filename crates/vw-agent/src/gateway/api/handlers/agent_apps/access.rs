@@ -1187,7 +1187,7 @@ pub(crate) fn authorize_routing_control(
     scope: &RoutingControlScope,
     app: Option<(&ProjectId, AppId)>,
     manage: bool,
-) -> Result<Option<PathBuf>, StatusCode> {
+) -> Result<(Option<PathBuf>, String), StatusCode> {
     authorize_scoped(
         Some(path),
         headers,
@@ -1196,7 +1196,7 @@ pub(crate) fn authorize_routing_control(
         None,
         Capability::RoutingControl { scope, app, manage, provider_write: false },
     )
-    .map(|authorized| authorized.host.credential_root)
+    .map(|authorized| (authorized.host.credential_root, authorized.principal))
 }
 
 /// Authorize the provider write and the exact project/application route in one policy snapshot.

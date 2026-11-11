@@ -89,6 +89,33 @@ struct JobMetadata {
 }
 
 impl DiagnosticJobs {
+    #[cfg(target_os = "macos")]
+    pub(crate) fn open_on_execution_host() -> Option<Self> {
+        use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+
+        let directory = crate::global::paths().state.join("agent-app-diagnostics");
+        let result = (|| {
+            if let Err(error) = fs::DirBuilder::new().mode(0o700).create(&directory)
+                && error.kind() != ErrorKind::AlreadyExists
+            {
+                return None;
+            }
+            let metadata = fs::symlink_metadata(&directory).ok()?;
+            // SAFETY: geteuid reads the current process identity and takes no pointers.
+            if !metadata.is_dir()
+                || metadata.mode() & 0o077 != 0
+                || metadata.uid() != unsafe { libc::geteuid() }
+            {
+                return None;
+            }
+            Self::open(&directory).ok()
+        })();
+        if result.is_none() {
+            tracing::warn!("Application diagnostic job storage unavailable");
+        }
+        result
+    }
+
     /// Open a registry in an agent-owned private directory on the execution host.
     /// Call on a blocking thread. Unfinished entries are recovered without replaying probes.
     pub fn open(directory: &Path) -> Result<Self, DiagnosticJobError> {
@@ -494,6 +521,9 @@ fn valid_result(kind: DiagnosticProbeKind, result: &DiagnosticResult) -> bool {
             return kind == DiagnosticProbeKind::Mcp
                 && valid_id(&item.id.0)
                 && item.connection_revision > 0;
+        }
+        DiagnosticResult::OutboundProxy { report } => {
+            (DiagnosticProbeKind::OutboundProxy, &report.timings, true)
         }
     };
     result_kind == kind && timings.len() <= MAX_TIMINGS_PER_RESULT && ids_valid

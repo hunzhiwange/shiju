@@ -142,7 +142,16 @@ impl RoutingListener {
         tenant: &TenantScope,
         host: &str,
     ) -> Option<RoutingEgressStatus> {
-        self.egress.for_scope(tenant, host).ok().flatten().map(|egress| egress.status.clone())
+        self.configured_egress(tenant, host).map(|egress| egress.status.clone())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn configured_egress(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+    ) -> Option<Arc<RoutingEgress>> {
+        self.egress.for_scope(tenant, host).ok().flatten()
     }
 
     pub fn state(&self) -> LifecycleState {

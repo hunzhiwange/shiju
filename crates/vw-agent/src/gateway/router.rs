@@ -149,8 +149,9 @@ pub(super) fn app_routing_router() -> Router {
         routing::{get, post},
     };
     use handlers::app_routing::{
-        get_app_config, get_config, get_egress, health, put_app_config, put_config, put_egress,
-        start, status, stop,
+        cancel_outbound_probe, get_app_config, get_config, get_egress, health,
+        outbound_probe_status, put_app_config, put_config, put_egress, start, start_outbound_probe,
+        status, stop,
     };
 
     Router::new()
@@ -160,6 +161,14 @@ pub(super) fn app_routing_router() -> Router {
         .route("/app-routing/hosts/{host}/stop", post(stop))
         .route("/app-routing/hosts/{host}/config", get(get_config).put(put_config))
         .route("/app-routing/hosts/{host}/egress", get(get_egress).put(put_egress))
+        .route(
+            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/probes",
+            post(start_outbound_probe),
+        )
+        .route(
+            "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/probes/{task}",
+            get(outbound_probe_status).delete(cancel_outbound_probe),
+        )
         .route(
             "/app-routing/hosts/{host}/projects/{project}/apps/{app}/config",
             get(get_app_config).put(put_app_config),

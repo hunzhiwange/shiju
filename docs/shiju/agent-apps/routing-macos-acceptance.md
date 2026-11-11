@@ -711,3 +711,33 @@ SDK 红灯、初次网关红灯构建和基线 HTTP 复现使用共享槽位 **6
 | 差异审查 | `git diff --cached --check` | 退出 0。仅暂存本项改动。 |
 
 测试链接报告既有 macOS `__eh_frame` 大小警告。聚焦复验与 Clippy 已各自返回 0，外层临时槽位脚本在三条命令结束后因运行期间编辑脚本退出 2。已核对本项槽位锁全部释放，编译缓存保留。状态为 **已完成**。
+
+## 任务 29　接通可取消代理连接测试
+
+2026-11-11，macOS 27.0（26A428），arm64。直接依赖任务 28 的 `7039ab326`。固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `commands/global_proxy.rs`、`hooks/useGlobalProxy.ts` 与冻结快照、来源映射的 SHA256 一致。检查了 `GlobalProxySettings.tsx`、SDK 包装和相邻代理测试。复用母任务 2、3 的网关、执行主机和项目应用授权，以及母任务 4、6 的配置与账号契约。
+
+- `POST /v1/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/probes` 接受空 JSON，返回 202 和既有 `DiagnosticJobIdentity`。同路径追加 `/{task}`，GET 查询，DELETE 取消。三者均重新核验租户、成员、执行主机、项目应用和 routing_manage 权限。任务身份绑定授权主体，其他成员、项目和任务类别不可读写该任务。
+- DTO 使用 `app_routing/outbound_probe.rs` 和既有任务协议新增的 `outbound_proxy` 类别。SDK 提供 `app_routing_start_outbound_probe`、`app_routing_outbound_probe_status`、`app_routing_cancel_outbound_probe`，保留任务状态、阶段、延迟、HTTP 状态及稳定错误码。父模块和现有分域路由直接注册，沿用现有 lib 导出。
+- 探测读取任务 28 已发布的出口快照，固定对 ShiJu 发布清单 `https://www.shiju.cloud/agents/shiju-agent/latest/manifest.json` 发起 HTTPS HEAD。该目标复用现有 `vw_shared::update::desktop_release::SHIJU_MANIFEST`。每项使用独立短期客户端、平台 TLS 校验、禁止重试与重定向，沿用监听器回环检查。直接出口或系统例外返回 unsupported，不发起直连。调用者提供 URL、代理 URL 或时限字段均返回 400。
+- 复用 `DiagnosticJobs` 的宿主并发、检查点、保留期和取消协议。路由控制持有一个宿主注册表，存放在仅当前用户可访问的状态子目录。10 秒期限在提交前确定，排队后再次检查期限；运行中取消或超时丢弃请求及独立客户端，终态在资源退出后发布。原始网络错误、代理 URL、密码和成员令牌不进入结果。
+- 隔离网关、动态回环代理及 HEAD 夹具验证授权边界、固定 CONNECT 目标、代理认证、取消后的 EOF、重复取消、超时后的 EOF、无重试、407 分类、脱敏及 HEAD 302 返回后不跟随重定向。成功响应分支由真实回环 HEAD 验证，SDK 通过真实 HTTP 验证结构化成功结果。Windows、Linux、WSL 范围外且未验证，WSL 地址映射保持原记录。
+
+### 验证记录
+
+共享槽位 **2** 用于 SDK 红灯和网关基线复现，**6** 用于格式化、SDK 通过验证、首次网关通过验证尝试和全仓 Clippy，**1** 用于网关通过验证及依赖回归。对应绝对 `CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-6`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，各实际执行阶段的 `CARGO_BUILD_BUILD_DIR` 与该目录相同。
+
+| 阶段 | 确切命令 | 退出码与有效测试 |
+| --- | --- | --- |
+| SDK 红灯 | `cargo test -p vw-gateway-client --lib cc_route_029_ -- --nocapture` | 槽位 2，退出 101，1 项失败。现有任务 DTO 拒绝 outbound_proxy 类别。 |
+| 网关红灯构建 | `cargo test -p vw-agent --lib cc_route_029_ -- --nocapture` | 槽位 2，退出 101，0 项运行。旧基线编译在独立 HTTP 红灯取证后主动终止，未将构建退出用作行为证据。 |
+| 网关 HTTP 红灯 | `python3 /tmp/shiju-task29-baseline.py`，使用槽位 2 的 `vw_agent-e6259d379726497c` | 退出 1，1 条行为断言失败。缓存二进制包含任务 28，生命周期与出口配置均返回 200，已授权项目探测返回 401，预期 202。独立 HOME、策略、动态端口，子进程已回收。 |
+| 格式化 | `cargo fmt --all -- --emit stdout`，本项文件再执行 `rustfmt --edition 2024 --config skip_children=true` | 槽位 6，退出 0。全仓输出只读，实际写入仅本项文件，排除相邻未提交改动。 |
+| SDK 通过验证 | `cargo test -p vw-gateway-client --lib cc_route_029_ -- --nocapture` | 槽位 6，退出 0，2 项通过，0 失败。 |
+| 首次网关通过验证尝试 | `cargo test -p vw-agent --lib cc_route_029_ -- --nocapture` | 槽位 6，退出 101，0 项运行。并行模型诊断的租约入参、ProviderId、delete 入参与移动值共 11 项编译错误；对应任务修复后重跑。本任务未修改这些文件。 |
+| 网关通过验证 | `cargo test -p vw-agent --lib cc_route_029_ -- --nocapture` | 槽位 1，退出 0，2 项通过，0 失败或忽略，运行 10.66 秒。 |
+| 自定义出口回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-e6259d379726497c" cc_route_025_ --nocapture` | 槽位 1，退出 0，6 项通过，覆盖 HTTP、SOCKS、认证和 HTTPS 代理证书。 |
+| 出口配置回归 | `"$CARGO_TARGET_DIR/debug/deps/vw_agent-e6259d379726497c" cc_route_028_ --nocapture` | 槽位 1，退出 0，2 项通过。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 6，退出 0。 |
+| 提交审查 | `git diff --cached --check`，逐个暂存 Rust 文件经 `rustfmt --edition 2024 --config skip_children=true --emit stdout` 解析并逐字节比对 | 退出 0，18 个任务文件通过核对。共享文件仅包含本项补丁，相邻聚合和 MCP 改动保留在工作区。 |
+
+网关测试链接出现既有 macOS `__eh_frame` 大小警告，聚焦测试退出 0。SDK、网关和依赖回归共 12 项通过。状态为 **已完成**，仅本项差异进入提交，自己的槽位锁已释放并保留缓存。

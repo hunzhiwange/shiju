@@ -7,6 +7,7 @@ use crate::{
         ListenerError, RoutingListener,
         config_apply::{ListenerConfig, RoutingConfigStore},
     },
+    gateway::agent_apps_diagnostic_jobs::DiagnosticJobs,
     global_database::GlobalDatabase,
 };
 use axum::{
@@ -34,6 +35,7 @@ pub(crate) struct RoutingControl {
     scope: Arc<RoutingControlScope>,
     policy: PathBuf,
     pub(super) policy_default: ListenerConfig,
+    pub(super) diagnostic_jobs: Option<DiagnosticJobs>,
 }
 
 pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Router {
@@ -67,6 +69,10 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
         scope: Arc::new(scope),
         policy,
         policy_default,
+        diagnostic_jobs: tokio::task::spawn_blocking(DiagnosticJobs::open_on_execution_host)
+            .await
+            .ok()
+            .flatten(),
     };
     let tenant = control.scope.tenant.clone();
     let host = control.scope.host.clone();
@@ -131,10 +137,23 @@ impl RoutingControl {
         app: Option<(ProjectId, AppId)>,
         manage: bool,
     ) -> Result<(Self, Option<PathBuf>), ControlError> {
+        let (control, root, _) =
+            Self::authorize_member(control, headers, tenant, host, app, manage).await?;
+        Ok((control, root))
+    }
+
+    pub(super) async fn authorize_member(
+        control: Option<Extension<Self>>,
+        headers: HeaderMap,
+        tenant: TenantScope,
+        host: String,
+        app: Option<(ProjectId, AppId)>,
+        manage: bool,
+    ) -> Result<(Self, Option<PathBuf>, String), ControlError> {
         let Extension(control) = control.ok_or(ControlError::Unavailable)?;
         let policy = control.policy.clone();
         let scope = Arc::clone(&control.scope);
-        let root = tokio::task::spawn_blocking(move || {
+        let (root, principal) = tokio::task::spawn_blocking(move || {
             authorize_routing_control(
                 &policy,
                 &headers,
@@ -148,7 +167,7 @@ impl RoutingControl {
         })
         .await
         .map_err(|_| ControlError::Unavailable)??;
-        Ok((control, root))
+        Ok((control, root, principal))
     }
 
     fn status(&self) -> RoutingStatus {
@@ -268,6 +287,8 @@ pub(crate) enum ControlError {
     UnsupportedApp,
     ConfigNotApplied,
     EgressNotApplied,
+    DiagnosticCapacity,
+    DiagnosticNotFound,
     Unauthenticated,
     Forbidden,
     NotFound,
@@ -326,6 +347,14 @@ impl IntoResponse for ControlError {
                 "egress_not_applied",
                 "Routing egress change could not be applied",
             ),
+            Self::DiagnosticCapacity => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "diagnostic_capacity",
+                "The execution host has reached diagnostic capacity",
+            ),
+            Self::DiagnosticNotFound => {
+                (StatusCode::NOT_FOUND, "not_found", "Diagnostic task not found")
+            }
             Self::Unauthenticated => {
                 (StatusCode::UNAUTHORIZED, "unauthenticated", "Application membership is required")
             }

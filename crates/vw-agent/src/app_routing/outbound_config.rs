@@ -24,6 +24,14 @@ pub(crate) enum EgressError {
 }
 
 impl RoutingEgress {
+    pub(crate) fn probe_client(
+        &self,
+        target: &reqwest::Url,
+        listener: Option<SocketAddr>,
+    ) -> Result<Option<reqwest::Client>, EgressError> {
+        self.transport.probe_client(target, listener).map_err(|_| EgressError::NotApplied)
+    }
+
     pub(crate) fn prepare(
         update: &RoutingEgressUpdate,
         listener: Option<SocketAddr>,

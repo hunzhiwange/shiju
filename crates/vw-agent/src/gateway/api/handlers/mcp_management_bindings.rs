@@ -76,7 +76,7 @@ async fn execute(
 ) -> Result<Json<McpDistributionResult>, McpHttpError> {
     let scope = match request.project_id {
         Some(id) => McpCatalogScope::Project {
-            scope: ProjectScope::new(tenant.clone(), id)
+            scope: ProjectScope::new(tenant.clone(), id.into())
                 .map_err(|_| access_error(StatusCode::BAD_REQUEST))?,
         },
         None => McpCatalogScope::Tenant { scope: tenant.clone() },

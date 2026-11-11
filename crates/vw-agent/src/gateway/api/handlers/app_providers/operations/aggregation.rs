@@ -10,6 +10,7 @@ pub(in crate::gateway::api::handlers) struct Owner {
 }
 pub(super) struct Owned {
     owner: Owner,
+    restart: bool,
     exit: bool,
     outcome: Arc<Mutex<Option<AggregationOutcome>>>,
 }
@@ -43,7 +44,7 @@ impl State {
         fingerprint: &[u8; 32],
     ) -> Result<Option<serde_json::Value>, StatusCode> {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        replay(&registry, owner, request, fingerprint, false)
+        replay(&registry, owner, request, fingerprint, false, false)
     }
     pub(in crate::gateway::api::handlers) fn aggregation_start(
         &self,
@@ -52,7 +53,25 @@ impl State {
         fingerprint: [u8; 32],
         work: impl FnOnce() -> AggregationOutcome + Send + 'static,
     ) -> Result<serde_json::Value, StatusCode> {
-        self.aggregation_start_action(owner, request, fingerprint, false, work)
+        self.aggregation_start_action(owner, request, fingerprint, false, false, work)
+    }
+    pub(in crate::gateway::api::handlers) fn aggregation_restart_replay(
+        &self,
+        owner: &Owner,
+        request: &str,
+        fingerprint: &[u8; 32],
+    ) -> Result<Option<serde_json::Value>, StatusCode> {
+        let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        replay(&registry, owner, request, fingerprint, true, false)
+    }
+    pub(in crate::gateway::api::handlers) fn aggregation_restart_start(
+        &self,
+        owner: Owner,
+        request: String,
+        fingerprint: [u8; 32],
+        work: impl FnOnce() -> AggregationOutcome + Send + 'static,
+    ) -> Result<serde_json::Value, StatusCode> {
+        self.aggregation_start_action(owner, request, fingerprint, true, false, work)
     }
     pub(in crate::gateway::api::handlers) fn aggregation_exit_replay(
         &self,
@@ -61,7 +80,7 @@ impl State {
         fingerprint: &[u8; 32],
     ) -> Result<Option<serde_json::Value>, StatusCode> {
         let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        replay(&registry, owner, request, fingerprint, true)
+        replay(&registry, owner, request, fingerprint, false, true)
     }
     pub(in crate::gateway::api::handlers) fn aggregation_exit_start(
         &self,
@@ -70,18 +89,19 @@ impl State {
         fingerprint: [u8; 32],
         work: impl FnOnce() -> AggregationOutcome + Send + 'static,
     ) -> Result<serde_json::Value, StatusCode> {
-        self.aggregation_start_action(owner, request, fingerprint, true, work)
+        self.aggregation_start_action(owner, request, fingerprint, false, true, work)
     }
     fn aggregation_start_action(
         &self,
         owner: Owner,
         request: String,
         fingerprint: [u8; 32],
+        restart: bool,
         exit: bool,
         work: impl FnOnce() -> AggregationOutcome + Send + 'static,
     ) -> Result<serde_json::Value, StatusCode> {
         let mut registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-        if let Some(progress) = replay(&registry, &owner, &request, &fingerprint, exit)? {
+        if let Some(progress) = replay(&registry, &owner, &request, &fingerprint, restart, exit)? {
             return Ok(progress);
         }
         // Do not evict terminal requests: retry must never reapply a publication.
@@ -97,7 +117,9 @@ impl State {
                 let result = work();
                 let succeeded = matches!(
                     result,
-                    AggregationOutcome::Published { .. } | AggregationOutcome::Exited { .. }
+                    AggregationOutcome::Published { .. }
+                        | AggregationOutcome::Exited { .. }
+                        | AggregationOutcome::Restarted { .. }
                 );
                 *worker.lock().unwrap_or_else(|e| e.into_inner()) = Some(result);
                 if succeeded { Ok(()) } else { Err("aggregation publication failed".into()) }
@@ -110,7 +132,7 @@ impl State {
             fingerprint,
             operation,
             editor_outcome: Default::default(),
-            aggregation: Some(Owned { owner, exit, outcome }),
+            aggregation: Some(Owned { owner, restart, exit, outcome }),
         };
         let progress = running.aggregation_progress();
         registry.insert(id, running);
@@ -123,26 +145,41 @@ impl State {
         id: &str,
         cancel: bool,
         project: Option<ProjectScope>,
-        authenticated: &str,
     ) -> Result<Option<serde_json::Value>, StatusCode> {
         let owner = {
             let registry = self.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-            registry.get(id).and_then(|r| r.aggregation.as_ref()).map(|r| r.owner.clone())
+            registry
+                .get(id)
+                .and_then(|r| r.aggregation.as_ref())
+                .map(|r| (r.owner.clone(), r.restart))
         };
-        let Some(owner) = owner else { return Ok(None) };
+        let Some((owner, restart)) = owner else {
+            return Ok(None);
+        };
         let requested = project.ok_or(StatusCode::NOT_FOUND)?;
-        if owner.project != requested || owner.host != host || owner.principal != authenticated {
+        if owner.project != requested || owner.host != host {
             return Err(StatusCode::NOT_FOUND);
         }
         // Authorize each lookup/cancel, with no existence disclosure to another scope.
-        let (_, _, principal) = super::super::super::agent_apps::authorize_aggregation_write(
-            self.policy.as_deref(),
-            headers,
-            &requested,
-            host,
-            owner.app,
-            true,
-        )?;
+        let principal = if restart {
+            super::super::super::agent_apps::authorize_codex_restart(
+                self.policy.as_deref(),
+                headers,
+                &requested,
+                host,
+            )?
+            .2
+        } else {
+            super::super::super::agent_apps::authorize_aggregation_write(
+                self.policy.as_deref(),
+                headers,
+                &requested,
+                host,
+                owner.app,
+                true,
+            )?
+            .2
+        };
         if owner.project != requested || owner.host != host || owner.principal != principal {
             return Err(StatusCode::NOT_FOUND);
         }
@@ -159,10 +196,13 @@ fn replay(
     owner: &Owner,
     request: &str,
     fingerprint: &[u8; 32],
+    restart: bool,
     exit: bool,
 ) -> Result<Option<serde_json::Value>, StatusCode> {
     if let Some(running) = registry.values().find(|r| {
-        r.aggregation.as_ref().is_some_and(|r| &r.owner == owner && r.exit == exit)
+        r.aggregation
+            .as_ref()
+            .is_some_and(|r| &r.owner == owner && r.restart == restart && r.exit == exit)
             && r.request_id == request
     }) {
         if &running.fingerprint != fingerprint {
@@ -172,6 +212,10 @@ fn replay(
     }
     Ok(None)
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "../../aggregation_restart_operation_tests.rs"]
+mod restart_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../aggregation_exit_operation_tests.rs"]

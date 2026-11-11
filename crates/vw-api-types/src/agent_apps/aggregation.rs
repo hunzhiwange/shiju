@@ -357,6 +357,7 @@ pub enum AggregationErrorCode {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AggregationOutcome {
+    Restarted { result: CodexRestartResult },
     Published { state: AggregationState },
     Exited { state: AggregationState },
     Failed { status: u16, code: AggregationErrorCode, recovery: RecoveryState },
@@ -384,6 +385,22 @@ pub struct CodexClientsAckRequest {
     pub expected_revision: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CodexRestartResult {
+    Restarted,
+    NotRunning,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexRestartRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub request_id: String,
+    pub confirmed: bool,
+}
+
 /// Restore direct client settings using only the server-owned saved configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -398,3 +415,7 @@ pub struct AggregationExitRequest {
 #[cfg(test)]
 #[path = "aggregation_exit_tests.rs"]
 mod exit_tests;
+
+#[cfg(test)]
+#[path = "aggregation_restart_tests.rs"]
+mod restart_tests;

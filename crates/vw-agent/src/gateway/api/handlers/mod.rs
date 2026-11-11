@@ -410,4 +410,9 @@ mod aggregation_clients_tests;
 
 mod aggregation_clients;
 
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_restart_tests;
+
+mod aggregation_restart;
+
 mod aggregation_exit;

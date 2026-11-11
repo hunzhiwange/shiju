@@ -48,6 +48,9 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     aggregation_write: Vec<RoutingAppPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    aggregation_codex_restart: Vec<RoutingAppPermit>,
     #[serde(default)]
     provider_config_write: bool,
     #[serde(default)]
@@ -603,6 +606,8 @@ enum Capability<'a> {
     AggregationRead(&'a ProjectId, AppId),
     #[cfg(target_os = "macos")]
     AggregationWrite(&'a ProjectId, AppId, bool),
+    #[cfg(target_os = "macos")]
+    CodexRestart(&'a ProjectId),
     McpCatalogWrite(Option<&'a vw_api_types::id::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
@@ -898,6 +903,11 @@ fn authorize_digest(
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
+                    #[cfg(target_os = "macos")]
+                    Capability::CodexRestart(project) => g
+                        .aggregation_codex_restart
+                        .iter()
+                        .any(|p| &p.project_id == project && p.app_id == AppId::Codex),
                     #[cfg(target_os = "macos")]
                     Capability::AggregationRead(project, app) => {
                         g.provider_config_read
@@ -1491,7 +1501,14 @@ pub(in super::super) fn authorize_aggregation_read(
     target: &str,
     app: AppId,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
-    authorize_aggregation(path, headers, project, target, app, None).map(|authorization| {
+    authorize_aggregation(
+        path,
+        headers,
+        project,
+        target,
+        Capability::AggregationRead(project.project_id(), app),
+    )
+    .map(|authorization| {
         (authorization.host.home, authorization.host.credential_root, authorization.principal)
     })
 }
@@ -1504,11 +1521,16 @@ pub(in super::super) fn authorize_aggregation_write(
     app: AppId,
     attached: bool,
 ) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
-    authorize_aggregation(path, headers, project, target, app, Some(attached)).map(
-        |authorization| {
-            (authorization.host.home, authorization.host.credential_root, authorization.principal)
-        },
+    authorize_aggregation(
+        path,
+        headers,
+        project,
+        target,
+        Capability::AggregationWrite(project.project_id(), app, attached),
     )
+    .map(|authorization| {
+        (authorization.host.home, authorization.host.credential_root, authorization.principal)
+    })
 }
 #[cfg(target_os = "macos")]
 fn authorize_aggregation(
@@ -1516,8 +1538,7 @@ fn authorize_aggregation(
     headers: &HeaderMap,
     project: &vw_api_types::id::ProjectScope,
     target: &str,
-    app: AppId,
-    write: Option<bool>,
+    capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
     // These routes accept a single Bearer credential under the existing policy.
     let mut values = headers.get_all(axum::http::header::AUTHORIZATION).iter();
@@ -1536,10 +1557,7 @@ fn authorize_aggregation(
         project.tenant_scope(),
         target,
         None,
-        match write {
-            Some(attached) => Capability::AggregationWrite(project.project_id(), app, attached),
-            None => Capability::AggregationRead(project.project_id(), app),
-        },
+        capability,
     )
     .map_err(|status| {
         if status == StatusCode::NOT_IMPLEMENTED {
@@ -1636,14 +1654,23 @@ pub(in super::super) fn authorize_pi_directory(
     target: &str,
     write: bool,
 ) -> Result<PiDirectoryContext, StatusCode> {
-    authorize_aggregation(path, headers, project, target, AppId::Pi, write.then_some(false)).map(
-        |authorization| PiDirectoryContext {
-            home: authorization.host.home,
-            credential_root: authorization.host.credential_root,
-            directory: authorization.host.pi_directory,
-            principal: authorization.principal,
+    authorize_aggregation(
+        path,
+        headers,
+        project,
+        target,
+        if write {
+            Capability::AggregationWrite(project.project_id(), AppId::Pi, false)
+        } else {
+            Capability::AggregationRead(project.project_id(), AppId::Pi)
         },
     )
+    .map(|authorization| PiDirectoryContext {
+        home: authorization.host.home,
+        credential_root: authorization.host.credential_root,
+        directory: authorization.host.pi_directory,
+        principal: authorization.principal,
+    })
 }
 
 #[cfg(target_os = "macos")]
@@ -1653,3 +1680,33 @@ mod aggregation_lifecycle;
 pub(crate) use aggregation_lifecycle::{
     aggregation_lifecycle_host, authorize_aggregation_lifecycle,
 };
+
+/// Independent restart grant; configuration write never implies process control.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_codex_restart(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    target: &str,
+) -> Result<
+    (vw_agent_apps::apps::discovery::read::LocalReadEnvironment, Option<PathBuf>, String),
+    StatusCode,
+> {
+    let a = authorize_aggregation(
+        path,
+        headers,
+        project,
+        target,
+        Capability::CodexRestart(project.project_id()),
+    )?;
+    Ok((
+        vw_agent_apps::apps::discovery::read::LocalReadEnvironment {
+            host_id: a.host.id,
+            home: a.host.home,
+            search_paths: a.host.search_paths,
+            applications: a.host.applications,
+        },
+        a.host.credential_root,
+        a.principal,
+    ))
+}

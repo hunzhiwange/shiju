@@ -599,3 +599,6 @@ pub(super) use access::{authorize_diagnostic_job, authorize_diagnostic_probe};
 
 #[cfg(target_os = "macos")]
 pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecycle};
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_codex_restart;

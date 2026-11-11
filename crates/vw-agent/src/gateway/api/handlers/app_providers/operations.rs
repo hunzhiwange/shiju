@@ -52,6 +52,7 @@ pub(super) fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Rou
         .route("/app-providers/operations/{id}", get(read).delete(cancel))
         .merge(super::super::aggregation_publish::router())
         .merge(super::super::aggregation_exit::router())
+        .merge(super::super::aggregation_restart::router())
         .layer(Extension(State {
             policy,
             editor,
@@ -261,6 +262,15 @@ async fn owned(
     cancel: bool,
     project: Option<vw_api_types::id::ProjectId>,
 ) -> Result<serde_json::Value, StatusCode> {
+    let project = project
+        .map(|id| {
+            vw_api_types::id::ProjectScope::new(tenant.clone(), id)
+                .map_err(|_| StatusCode::BAD_REQUEST)
+        })
+        .transpose()?;
+    if let Some(progress) = state.aggregation_owned(&headers, &host, id, cancel, project)? {
+        return Ok(progress);
+    }
     // Authenticate before lookup, without changing legacy Basic/admin callers.
     #[cfg(target_os = "macos")]
     let authentication = if headers
@@ -274,18 +284,7 @@ async fn owned(
     };
     #[cfg(not(target_os = "macos"))]
     let authentication = headers.clone();
-    let principal = authorize(state, authentication, tenant.clone(), host.clone(), false).await?;
-    let project = project
-        .map(|id| {
-            vw_api_types::id::ProjectScope::new(tenant.clone(), id)
-                .map_err(|_| StatusCode::BAD_REQUEST)
-        })
-        .transpose()?;
-    if let Some(progress) =
-        state.aggregation_owned(&headers, &host, id, cancel, project, &principal)?
-    {
-        return Ok(progress);
-    }
+    authorize(state, authentication, tenant.clone(), host.clone(), false).await?;
     let registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     registry
         .get(id)

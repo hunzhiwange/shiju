@@ -169,8 +169,9 @@ pub(super) fn load(
         let bytes = read_native(home, path)?;
         if let Some(bytes) = &bytes {
             if path.ends_with(".toml") {
-                let _: toml::Value =
-                    std::str::from_utf8(bytes).map_err(invalid)?.parse().map_err(invalid)?;
+                vw_agent_apps::providers::live::patch_toml::TomlPatch::default()
+                    .apply(Some(bytes))
+                    .map_err(invalid)?;
             } else {
                 // Reuse the native owner grammar, including comments/trailing commas.
                 vw_agent_apps::providers::live::patch_json::JsonPatch::default()

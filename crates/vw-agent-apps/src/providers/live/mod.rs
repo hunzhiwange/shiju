@@ -40,3 +40,8 @@ mod recovery_tests;
 pub mod concurrency;
 #[cfg(all(test, target_os = "macos"))]
 mod concurrency_tests;
+
+#[cfg(target_os = "macos")]
+pub mod project_binding;
+#[cfg(all(test, target_os = "macos"))]
+mod project_binding_tests;

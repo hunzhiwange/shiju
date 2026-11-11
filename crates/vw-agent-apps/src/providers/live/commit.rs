@@ -50,6 +50,9 @@ pub struct ModeState {
 /// None preserves that part of state; direct pointer and proxy route are independent.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PendingTarget {
+    /// Set only by the executor after authorizing the physical project slot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<crate::providers::mode_state::StackState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -85,6 +88,8 @@ pub struct ScopedProvider {
 }
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "crate::providers::mode_state::StackState::is_empty")]
     pub stack: crate::providers::mode_state::StackState,
     #[serde(default)]
@@ -121,6 +126,8 @@ pub struct PendingFile {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pending {
+    #[serde(default)]
+    pub project_preimage: Option<vw_api_types::id::ProjectScope>,
     pub version: u32,
     pub host: ExecutionHostId,
     pub app: AppId,
@@ -213,9 +220,12 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=6)
-                || (p.version == 6) != p.target.claude_managed_login.is_some()
-                || (p.version == 5) != p.target.kimi_binding.is_some()
+            !matches!(p.version, 1..=7)
+                || (p.version == 7) != p.target.project_scope.is_some()
+                || (p.version == 6 && p.target.claude_managed_login.is_none())
+                || (p.version < 6 && p.target.claude_managed_login.is_some())
+                || (p.version == 5 && p.target.kimi_binding.is_none())
+                || (p.version < 5 && p.target.kimi_binding.is_some())
                 || (p.version < 4 && p.target.stack.is_some())
                 || (p.version < 3 && p.files.iter().any(|f| f.directory != 0))
                 || (p.version == 1 && p.files.iter().any(|f| f.planned.is_none()))
@@ -242,6 +252,7 @@ impl ProviderTransactions {
         let app = guard.app();
         let _lock = self.lock(app)?;
         self.check_pending_owner(app, tenant)?;
+        self.check_pending_project(app, None)?;
         self.recover_locked(guard)
     }
 
@@ -278,6 +289,7 @@ impl ProviderTransactions {
         self.validate_claude_login(tenant, &target)?;
         let _lock = self.lock(app)?;
         self.check_pending_owner(app, tenant)?;
+        self.check_pending_project(app, target.project_scope.as_ref())?;
         if self.recover_locked(guard)?.is_some() {
             // Recovery can move state. The caller must re-read and replan.
             return Err(WriteError::Recovered);
@@ -285,6 +297,7 @@ impl ProviderTransactions {
         self.register(guard)?;
         let mut state = self.state(app)?;
         validate_stack_update(&state, tenant, &target)?;
+        super::project_binding::validate_update(&state, tenant, &target)?;
         let metadata = guard.directory.metadata().map_err(|_| WriteError::Io)?;
         let multi = guard.directories().count() > 1;
         crate::providers::operations::planned(changes.len());
@@ -304,8 +317,11 @@ impl ProviderTransactions {
             write.directory.sync_all().map_err(|_| WriteError::Io)?;
         }
         let mut pending = Pending {
+            project_preimage: state.project_scope.clone(),
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if target.claude_managed_login.is_some() {
+            version: if target.project_scope.is_some() {
+                7
+            } else if target.claude_managed_login.is_some() {
                 6
             } else if target.kimi_binding.is_some() {
                 5
@@ -559,6 +575,9 @@ pub(super) fn validate_stack_update(
     Ok(())
 }
 pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
+    if let Some(scope) = &target.project_scope {
+        state.project_scope = Some(scope.clone());
+    }
     if let Some(id) = &target.pointer {
         state.pointer = Some(ScopedProvider { tenant: tenant.clone(), id: id.clone() });
     }

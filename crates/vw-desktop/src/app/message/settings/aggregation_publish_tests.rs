@@ -14,7 +14,7 @@ fn aggregation_t58_aggregation_publish_preserves_contract() {
     session.preview = Some(preview());
     assert!(session.can_confirm(), "server preview must enable explicit confirmation");
 }
-fn server(
+pub(super) fn server(
     responses: Vec<(u16, serde_json::Value)>,
 ) -> (GatewayClient, std::thread::JoinHandle<Vec<(String, serde_json::Value)>>) {
     use std::io::{Read, Write};
@@ -67,7 +67,7 @@ fn server(
     (GatewayClient::new(endpoint).unwrap(), handle)
 }
 
-fn selection(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> Selection {
+pub(super) fn selection(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> Selection {
     use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
     Selection {
         scope: Scope {
@@ -83,7 +83,7 @@ fn selection(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> Selecti
         catalog_generation: 1,
     }
 }
-fn progress(status: TaskStatus, cancelled: bool) -> ProviderOperationProgress {
+pub(super) fn progress(status: TaskStatus, cancelled: bool) -> ProviderOperationProgress {
     use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationPhase;
     ProviderOperationProgress {
         operation_id: "operation".into(),

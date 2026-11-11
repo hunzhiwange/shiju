@@ -151,6 +151,11 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
                 crate::app::message::settings::aggregation_list::publish::Event::Open
             )))
         ),
+        button(text("回到直连"))
+            .padding([8, 14]).style(rounded_action_btn_style)
+            .on_press_maybe((!form.loading && form.snapshot.as_ref().is_some_and(|s|
+                s.state.mode != vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationMode::Direct))
+                .then(|| message(Event::Publish(crate::app::message::settings::aggregation_list::publish::Event::OpenExit)))),
         button(text("刷新"))
             .padding([8, 14])
             .style(rounded_action_btn_style)

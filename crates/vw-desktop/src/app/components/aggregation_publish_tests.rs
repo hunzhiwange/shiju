@@ -214,3 +214,184 @@ impl iced::advanced::widget::Operation for Geometry {
         self.scrolls.push((bounds, content));
     }
 }
+
+#[tokio::test]
+async fn aggregation_t59_exit_shapes_draws_and_dispatches_in_both_themes() {
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+            .await
+            .expect("native renderer");
+    for theme in [Theme::Light, Theme::Dark] {
+        for case in 0..5 {
+            let state = AggregationState {
+                revision: "saved-r1".into(),
+                mode: AggregationMode::Aggregation,
+                attached: true,
+                default_provider_id: Some("default".into()),
+                direct_provider_id: None,
+                members: preview().members,
+                notices: vec![],
+                recovery: RecoveryState::None,
+            };
+            let mut session = Session { exit_state: Some(state.clone()), ..Session::default() };
+            if case > 0 {
+                let mut result_state = state;
+                result_state.mode = AggregationMode::Direct;
+                result_state.attached = false;
+                result_state.recovery = RecoveryState::Restored;
+                result_state.notices =
+                    vec![AggregationNotice::ModelReselect, AggregationNotice::RestartDesktop];
+                session.finish(Ok(
+                    crate::app::message::settings::aggregation_list::publish::Reply::Operation(
+                        ProviderOperationProgress {
+                            operation_id: "exit-op".into(),
+                            request_id: "exit-request".into(),
+                            status: if case == 1 {
+                                TaskStatus::Running
+                            } else if case == 2 {
+                                TaskStatus::Failed
+                            } else {
+                                TaskStatus::Completed
+                            },
+                            phase: if case == 1 {
+                                ProviderOperationPhase::Preparing
+                            } else {
+                                ProviderOperationPhase::Terminal
+                            },
+                            completed: 1,
+                            total: 1,
+                            cancellation_requested: false,
+                            editor_outcome: None,
+                            aggregation_outcome: if case == 1 {
+                                None
+                            } else if case == 2 {
+                                Some(AggregationOutcome::Failed {
+                                    status: 502,
+                                    code: AggregationErrorCode::RecoveryFailed,
+                                    recovery: RecoveryState::Pending,
+                                })
+                            } else if case == 4 {
+                                result_state.recovery = RecoveryState::Failed;
+                                Some(AggregationOutcome::Exited { state: result_state })
+                            } else {
+                                Some(AggregationOutcome::Exited { state: result_state })
+                            },
+                        },
+                    ),
+                ));
+            }
+            let element = overlay(
+                &session,
+                container(text("目录页面"))
+                    .width(iced::Length::Fill)
+                    .height(iced::Length::Fill)
+                    .into(),
+            );
+            let mut ui =
+                UserInterface::build(element, Size::new(820.0, 720.0), Cache::new(), &mut renderer);
+            let mut geometry = Geometry::default();
+            ui.operate(&mut renderer, &mut geometry);
+            let has = |s: &str| geometry.labels.iter().any(|(label, _)| label == s);
+            assert!(has("回到直连"));
+            assert!(has("保留成员：动态中文供应商 0 😀"));
+            assert_eq!(has("已回到直连，恢复成功"), case == 3);
+            assert_eq!(has("刷新后重试"), case == 2 || case == 4);
+            if case == 3 {
+                assert!(has("请重新选择模型"));
+                assert!(has("请重启桌面客户端以刷新目录"));
+                assert!(has("保留聚合名单：30 项"));
+            }
+            let (viewport, content) = geometry
+                .scrolls
+                .iter()
+                .find(|(v, c)| c.height > v.height)
+                .expect("long retained list scrolls");
+            assert!(content.height > viewport.height);
+            let bounds =
+                |name: &str| geometry.labels.iter().find(|(label, _)| label == name).unwrap().1;
+            assert!(bounds("回到直连").y < viewport.y);
+            if case == 2 {
+                assert!(
+                    bounds("操作失败，请刷新实际状态并检查恢复情况").y
+                        < viewport.y + viewport.height
+                );
+            }
+            if case == 3 {
+                assert!(bounds("已回到直连，恢复成功").y < viewport.y + viewport.height);
+                assert!(bounds("请重新选择模型").y < viewport.y + viewport.height);
+                assert!(bounds("请重启桌面客户端以刷新目录").y < viewport.y + viewport.height);
+            }
+
+            assert!(bounds("保留成员：动态中文供应商 0 😀").x >= viewport.x + 7.0);
+            let button_name = if case == 0 {
+                "确认回到直连"
+            } else if case == 1 {
+                "取消恢复"
+            } else if case == 3 {
+                "返回目录"
+            } else {
+                "刷新后重试"
+            };
+            assert!(bounds(button_name).y >= viewport.y + viewport.height);
+            let mut messages = vec![];
+            ui.update(
+                &[
+                    iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                    iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                ],
+                mouse::Cursor::Available(bounds(button_name).center()),
+                &mut renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut messages,
+            );
+            assert_eq!(messages.len(), 1, "{button_name} case={case}");
+            assert!(format!("{:?}", messages[0]).contains(if case == 0 {
+                "Confirm"
+            } else if case == 1 {
+                "Cancel"
+            } else if case == 3 {
+                "Dismiss"
+            } else {
+                "ExitRetry"
+            }));
+            messages.clear();
+            ui.update(
+                &[iced::Event::Window(iced::window::Event::RedrawRequested(
+                    iced::time::Instant::now(),
+                ))],
+                mouse::Cursor::Unavailable,
+                &mut renderer,
+                &mut iced::advanced::clipboard::Null,
+                &mut messages,
+            );
+            ui.draw(
+                &mut renderer,
+                &theme,
+                &Style { text_color: theme.palette().text },
+                mouse::Cursor::Unavailable,
+            );
+            let pixels = renderer.screenshot(Size::new(820, 720), 1.0, theme.palette().background);
+            assert_eq!(pixels.len(), 820 * 720 * 4);
+            assert!(pixels.chunks_exact(4).any(|p| p != &pixels[0..4]));
+            if case == 2 {
+                image::save_buffer(
+                    format!(
+                        "/tmp/t59-exit-{}.png",
+                        if theme == Theme::Dark { "dark" } else { "light" }
+                    ),
+                    &pixels,
+                    820,
+                    720,
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+            }
+        }
+    }
+}

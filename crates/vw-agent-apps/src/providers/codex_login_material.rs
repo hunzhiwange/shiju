@@ -17,7 +17,7 @@ enum CodexResolvedAuthMode {
     Unrecognized,
 }
 
-pub(super) fn extract_codex_auth_user_identity(auth: &Value) -> Option<String> {
+pub(crate) fn extract_codex_auth_user_identity(auth: &Value) -> Option<String> {
     let id_token = auth.pointer("/tokens/id_token")?.as_str()?;
     extract_codex_id_token_user_identity(id_token)
 }

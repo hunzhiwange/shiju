@@ -93,3 +93,9 @@ mod codex_publish_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod claude_refresh_tests;
+
+#[cfg(target_os = "macos")]
+pub mod catalog_generation;
+
+#[cfg(all(test, target_os = "macos"))]
+mod catalog_generation_tests;

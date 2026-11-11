@@ -605,6 +605,8 @@ enum Capability<'a> {
     },
     #[cfg(target_os = "macos")]
     McpProbe(&'a DiagnosticScope, &'a McpRecordId),
+    #[cfg(target_os = "macos")]
+    DiagnosticProbe(&'a DiagnosticScope),
     ProviderConfigWrite,
     AuthAccountRead {
         service: AuthService,
@@ -912,6 +914,15 @@ fn authorize_digest(
                     #[cfg(target_os = "macos")]
                     Capability::McpProbe(scope, id) => {
                         g.mcp_probe.iter().any(|permit| permit.matches(scope, id))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::DiagnosticProbe(scope) => {
+                        g.provider_config_read
+                            && g.routing_manage
+                            && g.routing_apps.iter().any(|permit| {
+                                permit.project_id == *scope.project.project_id()
+                                    && permit.app_id == scope.app_id
+                            })
                     }
                     Capability::ProviderConfigWrite => g.provider_config_write,
                     Capability::AuthBindingWrite(service) => {
@@ -1468,4 +1479,55 @@ pub(in super::super) fn authorize_aggregation_read(
     .map(|authorization| {
         (authorization.host.home, authorization.host.credential_root, authorization.principal)
     })
+}
+
+/// Diagnostics use the existing application management and saved-provider read grants.
+/// Model selection is additionally checked against the saved deployment by the executor.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_diagnostic_probe(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    scope: &DiagnosticScope,
+    request: &vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest,
+) -> Result<(Option<PathBuf>, String), StatusCode> {
+    if let vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest::Mcp { server_ids } =
+        request
+    {
+        if server_ids.is_empty()
+            || server_ids.len() > crate::gateway::agent_apps_diagnostic_jobs::MAX_PROBES_PER_JOB
+        {
+            return Err(StatusCode::BAD_REQUEST);
+        }
+        // Authorize the entire batch before any configuration or credential lookup.
+        let mut authorized = None;
+        let mut unique = HashSet::new();
+        for id in server_ids {
+            if !unique.insert(id) {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+            let current = authorize_scoped(
+                path,
+                headers,
+                scope.project.tenant_scope(),
+                &scope.target_host_id,
+                None,
+                Capability::McpProbe(scope, id),
+            )?;
+            authorized = Some(current);
+        }
+        return authorized
+            .map(|authorization: Authorization| {
+                (authorization.host.credential_root, authorization.principal)
+            })
+            .ok_or(StatusCode::BAD_REQUEST);
+    }
+    authorize_scoped(
+        path,
+        headers,
+        scope.project.tenant_scope(),
+        &scope.target_host_id,
+        None,
+        Capability::DiagnosticProbe(scope),
+    )
+    .map(|authorization| (authorization.host.credential_root, authorization.principal))
 }

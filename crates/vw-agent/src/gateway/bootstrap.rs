@@ -436,6 +436,12 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/status", "runtime status"),
         client_route("GET", "/v1/tools", "tool catalog"),
         client_route("GET", "/v1/mcp/inspect", "MCP inspection"),
+        #[cfg(target_os = "macos")]
+        client_route(
+            "POST",
+            "/v1/agent-apps/diagnostics/jobs",
+            "start authorized application diagnostics",
+        ),
         client_route("GET", "/v1/agent-apps/mcp", "managed MCP catalog and capabilities"),
         client_route("POST", "/v1/agent-apps/mcp", "create managed MCP catalog record"),
         client_route("GET", "/v1/agent-apps/mcp/presets", "managed MCP presets"),
@@ -869,7 +875,10 @@ pub(super) fn client_router(
 }
 
 pub(super) fn stateful_handler_router() -> Router<AppState> {
-    Router::<AppState>::new()
+    let router = Router::<AppState>::new();
+    #[cfg(target_os = "macos")]
+    let router = router.merge(api::handlers::agent_apps_diagnostics::router().with_state(()));
+    router
         .merge(api::handlers::agent_apps::router().with_state(()))
         .merge(api::handlers::app_providers::router().with_state(()))
         .merge(api::handlers::model_catalog::router().with_state(()))

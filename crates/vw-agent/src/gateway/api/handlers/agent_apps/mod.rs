@@ -586,3 +586,6 @@ pub(super) fn authorize_mcp_native_write(
         root,
     ))
 }
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_diagnostic_probe;

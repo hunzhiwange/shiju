@@ -40,7 +40,14 @@ pub(crate) struct RoutingControl {
 
 pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Router {
     let Some(path) = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from) else {
-        return app;
+        return match tokio::task::spawn_blocking(DiagnosticJobs::open_on_execution_host)
+            .await
+            .ok()
+            .flatten()
+        {
+            Some(jobs) => app.layer(Extension(jobs)),
+            None => app,
+        };
     };
     configure_with_policy(app, routing, path).await
 }
@@ -50,6 +57,14 @@ pub(crate) async fn configure_with_policy(
     routing: &Arc<RoutingListener>,
     policy: PathBuf,
 ) -> Router {
+    // One host registry is shared by diagnostics and outbound routing checks, even
+    // when this deployment does not enable listener management.
+    let diagnostic_jobs =
+        tokio::task::spawn_blocking(DiagnosticJobs::open_on_execution_host).await.ok().flatten();
+    let app = match diagnostic_jobs.as_ref() {
+        Some(jobs) => app.layer(Extension(jobs.clone())),
+        None => app,
+    };
     let Ok((policy, Ok(setup))) = tokio::task::spawn_blocking(move || {
         let setup = routing_setup(&policy);
         (policy, setup)
@@ -77,10 +92,7 @@ pub(crate) async fn configure_with_policy(
         scope: Arc::new(scope),
         policy,
         policy_default,
-        diagnostic_jobs: tokio::task::spawn_blocking(DiagnosticJobs::open_on_execution_host)
-            .await
-            .ok()
-            .flatten(),
+        diagnostic_jobs,
     };
     let tenant = control.scope.tenant.clone();
     let host = control.scope.host.clone();

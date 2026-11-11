@@ -108,3 +108,9 @@ pub use types::{
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+/// Independently authenticated voice routes, mounted at the contract's /api prefix.
+pub(crate) fn voice_router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
+    handlers::voice::router()
+        .layer(axum::middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware))
+}

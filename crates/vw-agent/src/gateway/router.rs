@@ -133,6 +133,7 @@ pub(super) fn build_router_with_auth(cors_whitelist: Vec<String>, auth: Router) 
         // CORS（最外层）-> Basic 认证 -> 租户解析 -> 客户端业务路由。
         .merge(handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
         .nest("/v1", handler_router().layer(middleware::from_fn(tenant_scope_middleware)))
+        .nest("/api", super::api::voice_router())
         // Basic 认证在租户解析前执行；OPTIONS 由各中间件放行。
         .layer(middleware::from_fn(basic_auth_middleware))
         .merge(auth)

@@ -197,3 +197,6 @@ pub use client::{
     ShijuKnowledgePageQuery, ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest,
     ShijuKnowledgeRecordDto, ShijuKnowledgeSearchDto, ShijuKnowledgeSearchRequest,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::VoiceApiError;

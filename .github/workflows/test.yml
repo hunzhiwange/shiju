@@ -13,10 +13,6 @@ on:
       - ".config/nextest.toml"
       - "rust-toolchain.toml"
       - ".github/workflows/test.yml"
-      - ".github/workflows/build-web.yml"
-      - "scripts/package_shiju_web.py"
-      - "scripts/web/**"
-      - "scripts/tests/test_package_shiju_web.py"
   pull_request:
     paths:
       - "**/*.rs"
@@ -26,10 +22,6 @@ on:
       - ".config/nextest.toml"
       - "rust-toolchain.toml"
       - ".github/workflows/test.yml"
-      - ".github/workflows/build-web.yml"
-      - "scripts/package_shiju_web.py"
-      - "scripts/web/**"
-      - "scripts/tests/test_package_shiju_web.py"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
@@ -88,6 +80,9 @@ jobs:
 
   build-wasm:
     name: Build wasm desktop
-    permissions:
-      contents: read
-    uses: ./.github/workflows/build-web.yml
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: Swatinem/rust-cache@v2
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju

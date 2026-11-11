@@ -1,20 +1,5 @@
 # ShiJu WASM 本地运行
 
-## 下载发布包运行
-
-从 GitHub Release 下载 `shiju-web-<版本>.zip` 和同名 `.zip.sha256`，校验并解压后进入包目录：
-
-```sh
-npm run start
-```
-
-运行环境为 Node.js 22 或以上版本（含 npm），无需 npm install、Python 或 Rust。
-打开 <http://127.0.0.1:8765/>；更换端口执行 `npm run start -- --port 8080`。
-可直接将文件交给已有静态 HTTP 服务器；不要用 file:// 打开 index.html。
-压缩包内 README.md 包含浏览器、网关连接和静态部署说明。
-
-## 从源码生成 Web 文件
-
 完整应用入口是 `vw-desktop` 的 `shi-ju`，不是 `web_ime` 输入法验收示例。
 需要 Rust 的 `wasm32-unknown-unknown` target、Python 3，以及与依赖匹配的
 `wasm-bindgen 0.2.126`。在仓库根目录执行以下命令。
@@ -41,21 +26,15 @@ cargo build -p vw-desktop --target wasm32-unknown-unknown --bin shi-ju
 Cargo、绑定工具及其子进程全部退出，再删除自己写入的占用记录，并用 `rmdir` 释放
 自己的锁目录，保留编译缓存。不得清理其他任务的锁或缓存。
 
-## 打包和预览
+## 启动
 
-在源码构建环境中执行：
-
-```sh
-python3 scripts/package_shiju_web.py --bindgen-dir /tmp/shiju-wasm-dist \
-  --out-dir /tmp/shiju-web-release --version 0.6.0
-unzip /tmp/shiju-web-release/shiju-web-0.6.0.zip -d /tmp/shiju-web-preview
-cd /tmp/shiju-web-preview/shiju-web-0.6.0
-npm run start
+```bash
+python3 scripts/serve_shiju_wasm.py /tmp/shiju-wasm-dist
 ```
 
-版本应与 `crates/vw-desktop/Cargo.toml` 一致。打包时会生成相对路径的 index.html、
-ZIP 和 SHA-256，并收齐 snippets 中的输入法模块。发布包启动仅使用 Node 内置模块，
-不依赖仓库路径。`wasm-bindgen` 初始化时已调用应用入口，无需再次调用 main。
+打开 <http://127.0.0.1:8765/>，按 `Ctrl+C` 停止。可用 `--port` 指定端口。
+脚本从应用的 HTML 模板生成开发入口，只监听回环地址。
+`wasm-bindgen` 初始化时已经调用应用入口，不要再次调用导出的 `main`。
 
 Web 端沿用客户端网关配置，默认连接本机网关；如需认证，在设置中配置。
 浏览器不提供本机账户存储、原生技能安装、桌面更新安装器或独立 MCP WebView 进程。

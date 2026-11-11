@@ -327,3 +327,6 @@ mod mcp_management_read_tests;
 mod mcp_management_update;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_update_tests;
+
+/// Authenticated recording transcription.
+pub(crate) mod voice;

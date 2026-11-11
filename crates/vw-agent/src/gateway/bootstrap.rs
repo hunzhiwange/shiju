@@ -865,7 +865,7 @@ pub(super) fn client_router(
         // 未使用 skey 的客户端入口也必须解析租户。
         .layer(from_fn(middleware::tenant_scope_middleware));
 
-    standalone_client_router.nest("/v1", handler_router)
+    standalone_client_router.nest("/api", api::voice_router()).nest("/v1", handler_router)
 }
 
 pub(super) fn stateful_handler_router() -> Router<AppState> {

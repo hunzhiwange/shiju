@@ -144,10 +144,6 @@ fn leaf_widgets_and_status_icons_build() {
     )));
     keep_element(human_pet_sprite(PET_BEAUTY_HANDLE.clone(), PET_COLLAPSED_SIZE, 4.0));
     keep_element(code_effect(7));
-    keep_element(avatar_cycle_button());
-    keep_element(badge_button(12));
-    keep_element(expand_collapse_button(true));
-    keep_element(expand_collapse_button(false));
     keep_element(reply_button(
         crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
         1,
@@ -224,7 +220,6 @@ fn human_motion_and_handle_follow_walking_hover_and_work_state() {
 
 #[test]
 fn style_functions_distinguish_default_hover_and_focus_states() {
-    assert_eq!(expanded_pet_window_style(&Theme::Dark).text_color, Some(Color::WHITE));
     assert_eq!(transparent_pet_window_style(&Theme::Dark).text_color, Some(Color::WHITE));
     assert_eq!(task_card_style(&Theme::Dark).text_color, Some(Color::WHITE));
 
@@ -240,13 +235,89 @@ fn style_functions_distinguish_default_hover_and_focus_states() {
         background_color(borderless_icon_button_style(&Theme::Dark, button::Status::Active)),
         background_color(borderless_icon_button_style(&Theme::Dark, button::Status::Hovered))
     );
-    assert_ne!(
-        background_color(green_badge_button_style(&Theme::Dark, button::Status::Active)),
-        background_color(green_badge_button_style(&Theme::Dark, button::Status::Pressed))
-    );
 
     let active = reply_input_style(&Theme::Dark, text_input::Status::Active);
     let focused =
         reply_input_style(&Theme::Dark, text_input::Status::Focused { is_hovered: false });
     assert_ne!(active.border.color, focused.border.color);
+}
+
+async fn mini_click(app: &App, point: iced::Point) -> Vec<Message> {
+    use iced::advanced::{clipboard, renderer::Headless};
+    use iced::{Event, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let mut renderer =
+        iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let mut ui =
+        UserInterface::build(window(app), app.task_pet_window_size(), Cache::new(), &mut renderer);
+    for theme in [Theme::Light, Theme::Dark] {
+        ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
+        let size = app.task_pet_window_size();
+        let pixels = renderer.screenshot(
+            iced::Size::new(size.width as u32, size.height as u32),
+            1.0,
+            Color::TRANSPARENT,
+        );
+        assert!(
+            pixels.chunks_exact(4).any(|pixel| pixel[3] > 0),
+            "Mini must render visible controls"
+        );
+        if let Some(directory) = std::env::var_os("SHIJU_MINI_TASK2_SCREENSHOTS") {
+            let directory = std::path::PathBuf::from(directory);
+            std::fs::create_dir_all(&directory).unwrap();
+            ::image::save_buffer(
+                directory.join(format!("{:?}-{theme}.png", app.task_pet_avatar_kind)),
+                &pixels,
+                size.width as u32,
+                size.height as u32,
+                ::image::ColorType::Rgba8,
+            )
+            .unwrap();
+        }
+    }
+    let mut messages = Vec::new();
+    ui.update(
+        &[
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        mouse::Cursor::Available(point),
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    messages
+}
+
+#[tokio::test]
+async fn mini_companion_toolbar_actions_do_not_start_drag() {
+    let app = test_app();
+    let messages = mini_click(&app, iced::Point::new(65.0, 127.0)).await;
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::View(message::ViewMessage::TaskPetWriteMessage)]
+    ));
+    let messages = mini_click(&app, iced::Point::new(116.0, 127.0)).await;
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::View(message::ViewMessage::TaskPetToggleCollapsed)]
+    ));
+}
+
+#[tokio::test]
+async fn mini_companion_none_renders_toolbar() {
+    let mut app = test_app();
+    app.task_pet_avatar_kind = TaskPetAvatarKind::None;
+    let messages = mini_click(&app, iced::Point::new(65.0, 127.0)).await;
+    assert!(matches!(
+        messages.as_slice(),
+        [Message::View(message::ViewMessage::TaskPetWriteMessage)]
+    ));
+    assert!(mini_click(&app, iced::Point::new(80.0, 45.0)).await.is_empty());
 }

@@ -581,3 +581,21 @@ async fn terminal_subscription_project_switch_distinguishes_reused_tab_ids() {
         "project switch must replace the PTY receiver instead of retaining the old recipe"
     );
 }
+
+#[test]
+fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
+    let mut app = test_app();
+    app.screen = Screen::Home;
+    app.task_pet_window_id = Some(window_id());
+    app.task_pet_visible = true;
+    assert!(needs_activity_animation_tick(&app, false));
+    app.task_pet_visible = false;
+    app.task_pet_expand_target = Some(1.0);
+    assert!(!needs_activity_animation_tick(&app, false));
+    app.task_pet_visible = true;
+    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.task_pet_expand_target = None;
+    assert!(!needs_activity_animation_tick(&app, false));
+    app.task_pet_expand_target = Some(1.0);
+    assert!(needs_activity_animation_tick(&app, false));
+}

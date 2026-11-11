@@ -423,17 +423,9 @@ impl App {
 
     pub fn theme_for_window(&self, window: iced::window::Id) -> Theme {
         if self.task_pet_window_id == Some(window) {
-            Theme::custom(
-                "VibeWindow Pet",
-                iced::theme::Palette {
-                    background: Color::TRANSPARENT,
-                    text: Color::WHITE,
-                    primary: Color::from_rgb8(88, 122, 255),
-                    success: Color::from_rgb8(70, 208, 120),
-                    warning: Color::from_rgb8(255, 193, 78),
-                    danger: Color::from_rgb8(255, 90, 90),
-                },
-            )
+            let mut palette = self.app_theme.palette();
+            palette.background = Color::TRANSPARENT;
+            Theme::custom_with_fn("VibeWindow Pet", palette, |_| *self.app_theme.extended_palette())
         } else {
             self.theme()
         }

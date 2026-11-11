@@ -34,8 +34,9 @@ pub mod theme;
 fn task_pet_window_settings(size: iced::Size, position: iced::Point) -> iced::window::Settings {
     iced::window::Settings {
         size,
-        min_size: Some(size),
-        max_size: Some(size),
+        // 禁止用户缩放，但允许展开动画和伙伴大小设置调整原生窗口。
+        min_size: None,
+        max_size: None,
         position: iced::window::Position::Specific(position),
         resizable: false,
         decorations: false,
@@ -194,6 +195,11 @@ pub enum ViewMessage {
     ActivityAnimationTick,
     /// 开启或关闭独立小宠物窗口
     TaskPetToggleWindow,
+    /// 幂等显示或隐藏 Mini；关闭回调前保留窗口 ID。
+    TaskPetShowWindow,
+    TaskPetHideWindow,
+    /// 聚焦主窗口当前会话输入，不创建会话或发送内容。
+    TaskPetWriteMessage,
     /// 打开小宠物右键菜单
     TaskPetContextMenuOpened(f32, f32),
     /// 关闭小宠物右键菜单
@@ -724,7 +730,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
-            if let Some(window_id) = app.task_pet_window_id
+            if app.task_pet_visible
+                && let Some(window_id) = app.task_pet_window_id
                 && let Some((size, position)) = app.advance_task_pet_expand_animation()
             {
                 iced::window::resize(window_id, size)
@@ -734,14 +741,53 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         }
         ViewMessage::TaskPetToggleWindow => {
+            let intent = if app.task_pet_visible {
+                ViewMessage::TaskPetHideWindow
+            } else {
+                ViewMessage::TaskPetShowWindow
+            };
+            update(app, intent)
+        }
+        ViewMessage::TaskPetShowWindow => {
+            #[cfg(target_arch = "wasm32")]
+            {
+                return app.show_error_toast("当前平台不支持独立伙伴窗口");
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.task_pet_context_menu_pos = None;
+                app.task_pet_visible = true;
+                let open = sync_task_pet_window(app);
+                let focus =
+                    app.task_pet_window_id.map_or_else(Task::none, iced::window::gain_focus);
+                Task::batch([open.chain(focus), app.save_task_pet_preferences()])
+            }
+        }
+        ViewMessage::TaskPetHideWindow => {
             app.task_pet_context_menu_pos = None;
-            // 关闭中的 ID 保留至 Closed；期间不再次创建窗口。
-            app.task_pet_visible = app.task_pet_window_id.is_none();
+            app.task_pet_visible = false;
+            app.task_pet_robot_hovered = false;
             Task::batch([sync_task_pet_window(app), app.save_task_pet_preferences()])
         }
         ViewMessage::CloseRequested(id) if app.task_pet_window_id == Some(id) => {
-            app.task_pet_visible = false;
-            Task::batch([iced::window::close(id), app.save_task_pet_preferences()])
+            update(app, ViewMessage::TaskPetHideWindow)
+        }
+        ViewMessage::WindowClosed(id) if app.task_pet_window_id == Some(id) => {
+            app.task_pet_window_id = None;
+            sync_task_pet_window(app)
+        }
+        ViewMessage::TaskPetWriteMessage => {
+            app.task_pet_context_menu_pos = None;
+            app.show_system_settings = false;
+            app.show_settings = false;
+            app.screen = crate::app::Screen::Project;
+            #[cfg(not(target_arch = "wasm32"))]
+            let focus = app.main_window_id.map_or_else(Task::none, |id| {
+                iced::window::minimize(id, false).chain(iced::window::gain_focus(id))
+            });
+            #[cfg(target_arch = "wasm32")]
+            let focus = Task::none();
+            focus.chain(iced::widget::operation::focus(app.input_editor_id.clone()))
         }
         ViewMessage::TaskPetContextMenuOpened(x, y) => {
             app.task_pet_context_menu_pos = Some((x, y));

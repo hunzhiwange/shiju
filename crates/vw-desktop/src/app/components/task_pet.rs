@@ -6,6 +6,8 @@ use iced::widget::{
 use iced::{Alignment, Background, Border, Color, Element, Length, Point, Theme};
 use once_cell::sync::Lazy;
 
+mod controls;
+
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::status_animation::spinner_frame;
@@ -14,8 +16,6 @@ use crate::app::state::{TaskPetAvatarKind, TaskPetItem, TaskPetStatus};
 use crate::app::{App, Message, message};
 
 const PET_CARD_BACKGROUND: Color = Color::from_rgb8(22, 22, 22);
-const PET_PANEL_WIDTH: f32 = 360.0;
-const PET_PANEL_PADDING: f32 = 10.0;
 const PET_CARD_HEIGHT: f32 = 72.0;
 const PET_CARD_REPLY_HEIGHT: f32 = 120.0;
 const PET_CARD_SPACING: f32 = 8.0;
@@ -26,7 +26,6 @@ const PET_COLLAPSED_SIZE: f32 = 74.0;
 const PET_EXPANDED_SIZE: f32 = PET_COLLAPSED_SIZE;
 const PET_CONTROL_SIZE: f32 = 104.0;
 const PET_CONTROL_GAP: f32 = 6.0;
-const PET_AVATAR_SWITCH_SIZE: f32 = 18.0;
 const TASK_STATUS_SLOT_WIDTH: f32 = 20.0;
 const TASK_STATUS_SLOT_HEIGHT: f32 = 52.0;
 const TASK_STATUS_ICON_SIZE: f32 = 18.0;
@@ -247,124 +246,65 @@ fn expanded_window(app: &App) -> Element<'_, Message> {
     let list = scrollable(cards)
         .id(app.task_pet_scroll_id.clone())
         .height(Length::Fixed(PET_LIST_HEIGHT))
-        .width(Length::Fixed(PET_PANEL_WIDTH - PET_PANEL_PADDING * 2.0))
+        .width(Length::Fill)
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)));
 
     let list_layer = container(list)
         .width(Length::Fill)
         .height(Length::Fixed(PET_LIST_HEIGHT))
-        .padding(iced::Padding::default().top(0).right(4).bottom(0).left(4));
+        .padding(iced::Padding::default().top(0).right(7).bottom(0).left(7));
 
-    let pet = row![Space::new().width(Length::Fill), pet_control(app, PET_EXPANDED_SIZE, false)]
-        .align_y(Alignment::End)
-        .width(Length::Fill);
-
-    let content =
-        column![list_layer, pet].spacing(PET_CONTROL_GAP).width(Length::Fill).height(Length::Fill);
-    let content: Element<'_, Message> = if app.task_pet_robot_hovered {
-        iced::widget::stack![
-            container(content).width(Length::Fill).height(Length::Fill),
-            container(avatar_cycle_button())
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Bottom)
-                .padding(iced::Padding::default().top(0).right(0).bottom(12).left(0)),
-        ]
-        .into()
-    } else {
-        content.into()
-    };
-    let content = mouse_area(content)
-        .on_enter(Message::View(message::ViewMessage::TaskPetRobotHover(true)))
-        .on_exit(Message::View(message::ViewMessage::TaskPetRobotHover(false)));
-
+    let content = column![pet_control(app, PET_EXPANDED_SIZE, false), list_layer]
+        .spacing(PET_CONTROL_GAP)
+        .align_x(Alignment::Center);
     container(content)
         .width(Length::Fill)
         .height(Length::Fill)
-        .padding(iced::Padding::default().top(4).right(4).bottom(0).left(8))
-        .style(expanded_pet_window_style)
-        .into()
-}
-
-fn collapsed_window(app: &App) -> Element<'_, Message> {
-    let content = pet_control(app, PET_COLLAPSED_SIZE, true);
-
-    container(content)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
+        .padding(8)
         .style(transparent_pet_window_style)
         .into()
 }
 
-fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
-    let pet_hit_area = mouse_area(
-        container(pet_sprite(app, size))
-            .width(Length::Fixed(PET_CONTROL_SIZE))
-            .height(Length::Fixed(PET_CONTROL_SIZE))
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
-    )
-    .on_press(Message::View(message::ViewMessage::TaskPetDragStarted));
-    let pet_hit_area = if collapsed {
-        pet_hit_area
-            .on_enter(Message::View(message::ViewMessage::TaskPetRobotHover(true)))
-            .on_exit(Message::View(message::ViewMessage::TaskPetRobotHover(false)))
+fn collapsed_window(app: &App) -> Element<'_, Message> {
+    container(pet_control(app, PET_COLLAPSED_SIZE, true))
+        .center_x(Length::Fill)
+        .height(Length::Fill)
+        .padding(8)
+        .style(transparent_pet_window_style)
+        .into()
+}
+
+fn pet_control(app: &App, size: f32, _collapsed: bool) -> Element<'_, Message> {
+    let avatar: Element<'_, Message> = if app.task_pet_avatar_kind == TaskPetAvatarKind::None {
+        Space::new().height(PET_CONTROL_SIZE).into()
     } else {
-        pet_hit_area
-    };
-
-    let mut pet_stack = iced::widget::stack![
-        container(pet_hit_area)
-            .width(Length::Fixed(PET_CONTROL_SIZE))
-            .height(Length::Fixed(PET_CONTROL_SIZE))
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center)
-    ];
-
-    if app.task_pet_avatar_kind == TaskPetAvatarKind::Robot
-        && app.task_pet_active_count() > 0
-        && !app.task_pet_is_walking()
-    {
-        pet_stack = pet_stack.push(
-            container(code_effect(app.status_animation_frame))
-                .width(Length::Fixed(PET_CONTROL_SIZE))
-                .height(Length::Fixed(PET_CONTROL_SIZE))
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Bottom)
-                .padding(iced::Padding::default().top(0).right(0).bottom(7).left(0)),
-        );
-    }
-
-    if collapsed && !app.task_pet_robot_hovered {
-        let count = app.task_pet_active_count().max(app.task_pet_visible_count());
-        if count > 0 {
-            pet_stack = pet_stack.push(
-                container(badge_button(count))
-                    .width(Length::Fixed(PET_CONTROL_SIZE))
-                    .height(Length::Fixed(PET_CONTROL_SIZE))
-                    .align_x(iced::alignment::Horizontal::Right)
-                    .align_y(iced::alignment::Vertical::Top)
-                    .padding(iced::Padding::default().top(14).right(12).bottom(0).left(0)),
+        let mut sprite = iced::widget::stack![pet_sprite(app, size * app.task_pet_scale)];
+        if app.task_pet_avatar_kind == TaskPetAvatarKind::Robot
+            && app.task_pet_active_count() > 0
+            && !app.task_pet_is_walking()
+        {
+            sprite = sprite.push(
+                container(code_effect(app.status_animation_frame))
+                    .center_x(Length::Fill)
+                    .height(Length::Fill)
+                    .align_y(iced::alignment::Vertical::Bottom),
             );
         }
-    }
-
-    if app.task_pet_robot_hovered || app.task_pet_avatar_kind == TaskPetAvatarKind::None {
-        pet_stack = pet_stack.push(
-            container(expand_collapse_button(collapsed))
-                .width(Length::Fixed(PET_CONTROL_SIZE))
-                .height(Length::Fixed(PET_CONTROL_SIZE))
-                .align_x(iced::alignment::Horizontal::Right)
-                .align_y(iced::alignment::Vertical::Top),
-        );
-    }
-
-    let pet_control = Element::new(
+        let avatar = mouse_area(
+            container(sprite)
+                .center_x(Length::Fixed(PET_CONTROL_SIZE * app.task_pet_scale))
+                .center_y(Length::Fixed(PET_CONTROL_SIZE * app.task_pet_scale)),
+        )
+        .on_press(Message::View(message::ViewMessage::TaskPetDragStarted))
+        .on_enter(Message::View(message::ViewMessage::TaskPetRobotHover(true)))
+        .on_exit(Message::View(message::ViewMessage::TaskPetRobotHover(false)));
+        avatar.into()
+    };
+    let content =
+        column![avatar, controls::toolbar(app)].spacing(PET_CONTROL_GAP).align_x(Alignment::Center);
+    let content = Element::new(
         RightClickArea::new(
-            pet_stack.into(),
+            content.into(),
             Box::new(|position| {
                 Message::View(message::ViewMessage::TaskPetContextMenuOpened(
                     position.x, position.y,
@@ -373,10 +313,9 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
         )
         .preserve_on_right_click(),
     );
-
     if let Some((x, y)) = app.task_pet_context_menu_pos {
         PointBelowOverlay::new(
-            pet_control,
+            content,
             task_pet_context_menu(crate::app::i18n::I18n::new(app.desktop_locale)),
         )
         .show(true)
@@ -385,14 +324,14 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
         .on_close(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
         .into()
     } else {
-        pet_control
+        content
     }
 }
 
 fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     mouse_area(
         button(
-            container(text(i18n.__("关闭宠物")).size(13))
+            container(text(i18n.__("隐藏伙伴")).size(13))
                 .width(Length::Fill)
                 .padding([6, 10])
                 .align_x(iced::alignment::Horizontal::Left),
@@ -409,7 +348,7 @@ fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Messa
                 ..Default::default()
             }
         })
-        .on_press(Message::View(message::ViewMessage::TaskPetToggleWindow)),
+        .on_press(Message::View(message::ViewMessage::TaskPetHideWindow)),
     )
     .on_exit(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
     .into()
@@ -516,65 +455,6 @@ fn code_effect(frame: usize) -> Element<'static, Message> {
         .width(Length::Fixed(48.0))
         .height(Length::Fixed(28.0))
         .into()
-}
-
-fn avatar_cycle_button() -> Element<'static, Message> {
-    button(
-        svg::Svg::new(assets::get_icon(Icon::ArrowRepeat))
-            .width(Length::Fixed(9.0))
-            .height(Length::Fixed(9.0))
-            .style(|_theme: &Theme, _status| svg::Style {
-                color: Some(Color::from_rgb8(196, 206, 220)),
-            }),
-    )
-    .width(Length::Fixed(PET_AVATAR_SWITCH_SIZE))
-    .height(Length::Fixed(PET_AVATAR_SWITCH_SIZE))
-    .padding(0)
-    .style(borderless_icon_button_style)
-    .on_press(Message::View(message::ViewMessage::TaskPetAvatarCycle))
-    .into()
-}
-
-/// 收起态计数圆形徽标尺寸：较常规按钮缩小约 1/3，避免在小窗里喧宾夺主。
-const BADGE_BUTTON_SIZE: f32 = 16.0;
-
-fn badge_button(count: usize) -> Element<'static, Message> {
-    let label = container(
-        text(count.to_string()).size(8).line_height(1.0).color(Color::from_rgb8(2, 36, 24)),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .center_x(Length::Fill)
-    .center_y(Length::Fill);
-
-    button(label)
-        .width(Length::Fixed(BADGE_BUTTON_SIZE))
-        .height(Length::Fixed(BADGE_BUTTON_SIZE))
-        .padding(0)
-        .style(green_badge_button_style)
-        .on_press(Message::View(message::ViewMessage::TaskPetToggleCollapsed))
-        .into()
-}
-
-fn expand_collapse_button(collapsed: bool) -> Element<'static, Message> {
-    button(
-        svg::Svg::new(assets::get_icon(if collapsed {
-            Icon::ChevronUp
-        } else {
-            Icon::ChevronDown
-        }))
-        .width(Length::Fixed(13.0))
-        .height(Length::Fixed(13.0))
-        .style(|_theme: &Theme, _status| svg::Style {
-            color: Some(Color::from_rgb8(190, 190, 190)),
-        }),
-    )
-    .width(Length::Fixed(24.0))
-    .height(Length::Fixed(24.0))
-    .padding(0)
-    .style(borderless_icon_button_style)
-    .on_press(Message::View(message::ViewMessage::TaskPetToggleCollapsed))
-    .into()
 }
 
 fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
@@ -768,14 +648,6 @@ fn task_status_slot(status_icon: Element<'static, Message>) -> Element<'static, 
         .into()
 }
 
-fn expanded_pet_window_style(_theme: &Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color::TRANSPARENT)),
-        text_color: Some(Color::WHITE),
-        ..Default::default()
-    }
-}
-
 fn transparent_pet_window_style(_theme: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
@@ -851,24 +723,6 @@ fn borderless_icon_button_style(_theme: &Theme, status: button::Status) -> butto
         background: Some(Background::Color(background)),
         text_color: Color::WHITE,
         border: Border { radius: 12.0.into(), width: 0.0, color: Color::TRANSPARENT },
-        ..Default::default()
-    }
-}
-
-fn green_badge_button_style(_theme: &Theme, status: button::Status) -> button::Style {
-    let background = if matches!(status, button::Status::Hovered | button::Status::Pressed) {
-        Color::from_rgb8(80, 220, 130)
-    } else {
-        Color::from_rgb8(70, 208, 120)
-    };
-    button::Style {
-        background: Some(Background::Color(background)),
-        text_color: Color::from_rgb8(2, 36, 24),
-        border: Border {
-            radius: (BADGE_BUTTON_SIZE / 2.0).into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
         ..Default::default()
     }
 }

@@ -6,9 +6,9 @@ use std::cmp::Reverse;
 use std::path::Path;
 
 const PET_PANEL_WIDTH: f32 = 360.0;
-const PET_PANEL_HEIGHT: f32 = 346.0;
-const PET_COLLAPSED_WIDTH: f32 = 112.0;
-const PET_COLLAPSED_HEIGHT: f32 = 104.0;
+const PET_PANEL_HEIGHT: f32 = 404.0;
+const PET_COLLAPSED_WIDTH: f32 = 160.0;
+const PET_COLLAPSED_HEIGHT: f32 = 168.0;
 const PET_MARGIN: f32 = 12.0;
 const PET_DOUBLE_CLICK_MS: u128 = 500;
 const PET_EXPAND_ANIMATION_STEP: f32 = 0.24;
@@ -196,7 +196,11 @@ impl App {
     }
 
     pub fn task_pet_window_size(&self) -> iced::Size {
-        task_pet_window_size_for_progress(self.task_pet_expand_progress)
+        let mut size = task_pet_window_size_for_progress(self.task_pet_expand_progress);
+        let extra = 104.0 * (self.task_pet_scale - 1.0).max(0.0);
+        size.width = size.width.max(160.0 + extra);
+        size.height += extra;
+        size
     }
 
     pub(crate) fn task_pet_render_collapsed(&self) -> bool {
@@ -267,10 +271,6 @@ impl App {
 
     pub(crate) fn task_pet_active_count(&self) -> usize {
         self.task_pet_items.iter().filter(|item| item.status == TaskPetStatus::Running).count()
-    }
-
-    pub(crate) fn task_pet_visible_count(&self) -> usize {
-        self.task_pet_items.len()
     }
 
     pub(crate) fn toggle_task_pet_collapsed(&mut self) {

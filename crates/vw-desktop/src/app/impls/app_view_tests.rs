@@ -254,3 +254,24 @@ fn project_shell_keeps_tab_bar_in_code_and_work_modes() {
     app.workspace_mode = WorkspaceMode::Work;
     std::hint::black_box(app.view());
 }
+
+#[test]
+fn mini_companion_routes_none_avatar_without_changing_main_window() {
+    let mut app = crate::app::App::new().0;
+    let main = iced::window::Id::unique();
+    let mini = iced::window::Id::unique();
+    app.register_window_ids(main, Some(mini));
+    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    for collapsed in [true, false] {
+        app.task_pet_collapsed = collapsed;
+        app.task_pet_expand_progress = if collapsed { 0.0 } else { 1.0 };
+        let _ = app.view_window(mini);
+        let _ = app.view_window(main);
+        assert_eq!(app.main_window_id, Some(main));
+        assert_eq!(app.theme_for_window(mini).palette().background, iced::Color::TRANSPARENT);
+        assert_eq!(
+            app.theme_for_window(mini).extended_palette().background.strong.color,
+            app.app_theme.extended_palette().background.strong.color
+        );
+    }
+}

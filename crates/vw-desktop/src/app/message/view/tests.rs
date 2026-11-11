@@ -17,8 +17,8 @@ fn task_pet_window_settings_are_fixed_transparent_and_always_on_top() {
     let settings = super::task_pet_window_settings(size, position);
 
     assert_eq!(settings.size, size);
-    assert_eq!(settings.min_size, Some(size));
-    assert_eq!(settings.max_size, Some(size));
+    assert_eq!(settings.min_size, None);
+    assert_eq!(settings.max_size, None);
     match settings.position {
         iced::window::Position::Specific(actual) => assert_eq!(actual, position),
         other => panic!("expected specific position, got {other:?}"),
@@ -388,4 +388,77 @@ fn mini_companion_invalid_scale_does_not_enqueue_a_save() {
     let mut late = serde_json::json!({"mini_companion":{"scale":1.5}});
     app.retain_unedited_desktop_preferences(&mut late);
     assert!(late.get("mini_companion").is_some());
+}
+
+#[test]
+fn mini_companion_show_is_idempotent() {
+    use super::ViewMessage;
+    let mut app = crate::app::App::new().0;
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    let id = app.task_pet_window_id.expect("native Mini opens");
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    assert!(app.task_pet_visible);
+    assert_eq!(app.task_pet_window_id, Some(id));
+}
+
+#[test]
+fn mini_companion_hide_preserves_avatar_and_tasks() {
+    use super::ViewMessage;
+    let mut app = crate::app::App::new().0;
+    app.main_window_id = Some(iced::window::Id::unique());
+    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    app.task_pet_scale = 1.25;
+    app.task_pet_dismissed_request_ids.insert(42);
+    app.task_pet_items.push(crate::app::state::TaskPetItem {
+        request_id: 7,
+        session_id: "current".into(),
+        title: "任务".into(),
+        detail: "执行中".into(),
+        detail_feedback: None,
+        project: None,
+        status: crate::app::state::TaskPetStatus::Running,
+        last_click_at: None,
+    });
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    let id = app.task_pet_window_id.unwrap();
+    let _ = super::update(&mut app, ViewMessage::TaskPetHideWindow);
+    assert!(!app.task_pet_visible);
+    let _ = super::update(&mut app, ViewMessage::WindowClosed(id));
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    assert_ne!(app.task_pet_window_id, Some(id));
+    assert_eq!(app.task_pet_avatar_kind, crate::app::state::TaskPetAvatarKind::None);
+    assert_eq!(app.task_pet_scale, 1.25);
+    assert!(app.task_pet_dismissed_request_ids.contains(&42));
+    assert_eq!(app.task_pet_items.len(), 1);
+    assert_eq!(app.task_pet_items[0].request_id, 7);
+}
+
+#[test]
+fn mini_companion_show_while_closing_reopens_after_callback() {
+    use super::ViewMessage;
+    let mut app = crate::app::App::new().0;
+    let main = iced::window::Id::unique();
+    app.main_window_id = Some(main);
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    let old = app.task_pet_window_id.unwrap();
+    let _ = super::update(&mut app, ViewMessage::TaskPetHideWindow);
+    let _ = super::update(&mut app, ViewMessage::TaskPetShowWindow);
+    assert_eq!(app.task_pet_window_id, Some(old));
+    let _ = super::update(&mut app, ViewMessage::WindowClosed(old));
+    assert!(app.task_pet_visible);
+    assert_ne!(app.task_pet_window_id, Some(old));
+    assert!(app.task_pet_window_id.is_some());
+    assert_eq!(app.main_window_id, Some(main));
+}
+
+#[test]
+fn mini_companion_write_keeps_current_session_and_draft() {
+    use super::ViewMessage;
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("current".into());
+    app.task_pet_reply_input = "draft".into();
+    let _ = super::update(&mut app, ViewMessage::TaskPetWriteMessage);
+    assert_eq!(app.active_session_id.as_deref(), Some("current"));
+    assert_eq!(app.task_pet_reply_input, "draft");
+    assert!(!app.task_pet_dragging);
 }

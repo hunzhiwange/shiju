@@ -211,12 +211,12 @@ fn task_pet_window_size_clamps_progress_and_eases_midpoint() {
     let midpoint = task_pet_window_size_for_progress(0.5);
     let expanded = task_pet_window_size_for_progress(2.0);
 
-    assert!((collapsed.width - 112.0).abs() < f32::EPSILON);
-    assert!((collapsed.height - 104.0).abs() < f32::EPSILON);
-    assert!((midpoint.width - 236.0).abs() < f32::EPSILON);
-    assert!((midpoint.height - 225.0).abs() < f32::EPSILON);
+    assert!((collapsed.width - 160.0).abs() < f32::EPSILON);
+    assert!((collapsed.height - 168.0).abs() < f32::EPSILON);
+    assert!((midpoint.width - 260.0).abs() < f32::EPSILON);
+    assert!((midpoint.height - 286.0).abs() < f32::EPSILON);
     assert!((expanded.width - 360.0).abs() < f32::EPSILON);
-    assert!((expanded.height - 346.0).abs() < f32::EPSILON);
+    assert!((expanded.height - 404.0).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn sync_task_pet_from_runtime_adds_updates_completes_and_sorts_items() {
     app.sync_task_pet_from_runtime();
 
     assert_eq!(app.task_pet_active_count(), 1);
-    assert_eq!(app.task_pet_visible_count(), 1);
+    assert_eq!(app.task_pet_items.len(), 1);
     assert_eq!(app.task_pet_items[0].request_id, 7);
     assert_eq!(app.task_pet_items[0].title, "Session Title");
     assert_eq!(app.task_pet_items[0].detail, "正在检查文件");
@@ -390,7 +390,7 @@ fn mini_companion_none_keeps_controls() {
     app.task_pet_avatar_kind = TaskPetAvatarKind::None;
     app.task_pet_visible = true;
     assert!(app.task_pet_visible);
-    assert_eq!(app.task_pet_window_size(), iced::Size::new(112.0, 104.0));
+    assert_eq!(app.task_pet_window_size(), iced::Size::new(160.0, 168.0));
     let _ = crate::app::components::task_pet::window(&app);
     app.toggle_task_pet_collapsed();
     assert!(!app.task_pet_collapsed);

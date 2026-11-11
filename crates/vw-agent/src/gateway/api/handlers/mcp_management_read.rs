@@ -51,6 +51,10 @@ pub(super) fn router() -> Router {
             "/agent-apps/mcp",
             get(read_catalog).post(super::mcp_management_create::create_catalog_record),
         )
+        .route(
+            "/agent-apps/mcp/{id}",
+            axum::routing::put(super::mcp_management_update::update_catalog_record),
+        )
         .route("/agent-apps/mcp/presets", get(read_presets))
         .route("/agent-apps/mcp/native", get(read_native))
         .layer(Extension(PolicyFile(

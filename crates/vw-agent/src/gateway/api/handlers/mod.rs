@@ -323,3 +323,7 @@ mod mcp_management_create_tests;
 mod mcp_management_read;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_read_tests;
+
+mod mcp_management_update;
+#[cfg(all(test, target_os = "macos"))]
+mod mcp_management_update_tests;

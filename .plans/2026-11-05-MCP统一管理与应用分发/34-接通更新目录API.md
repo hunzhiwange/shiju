@@ -2,7 +2,7 @@
 
 批次：【批次 23】 依赖：批次 22 的任务 33。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,15 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮实施与待回归（2026-11-11）
+
+- 已实现 `PUT /v1/agent-apps/mcp/{id}`、`McpUpdateRequest`、真实认证 router/SQLite 的独立 `cc_mcp_t34_` 行为测试，复用目录写授权及 `McpCatalogStore::update_connection`。入口复用 `mcp_management_read::router`，已经同时接入 Basic 与 bootstrap skey，无需重复修改 bootstrap。
+- 正式证据：`docs/vibewindow/agent-apps/mcp/evidence/任务34.md`。未修改只读 plan.md 或其它任务源码。
+- 原实现前红灯验证三轮被并行工作区编译错误阻断，有效测试 0；没有把编译错误当作有效行为红灯。
+- 最终聚焦命令 `cargo test -p vw-agent --lib cc_mcp_t34_ -- --nocapture` 仍诊断三个无关测试初始化器缺少 `Pending.project_preimage`：`app_providers/preview_tests.rs:194`、`codex_catalog_tests.rs:285`、`gemini_tests.rs:202`。按仓库约定未修复无关源码。
+- 已执行临时副本 `cargo fmt --all`，退出 0，仅回写本任务文件；已运行 `git diff --check`，退出 0。最终聚焦退出 101、有效测试 0；Clippy 退出 101，详见正式证据。
+- 全仓 Clippy 退出 101：`vw-desktop/src/app/state/settings.rs:23` 及 `settings/archived_chats.rs` 有 7 个既有未使用导入/死代码错误，详见正式证据。
+- 恢复条件：供应商事务任务补齐上述测试初始化器、桌面归档聊天任务修复既有 lint 后，重新取得真实缺失路由/行为的红灯及完整绿灯证据，执行聚焦测试与 `cargo clippy --all-targets --all-features -- -D warnings`。至少一个有效行为测试通过且无本任务引入问题后方可标记已完成并删除任务文件。
+
+本轮最终聚焦槽位 1，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1；格式化及 Clippy 槽位 5，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5。相关进程均已结束，本任务锁已清理，缓存保留。

@@ -87,6 +87,18 @@ pub struct McpCreateRequest {
     pub connection: McpConnectionDefinition,
 }
 
+/// Replace the private connection definition while preserving display metadata.
+/// A successful save does not imply native distribution or a connection check.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpUpdateRequest {
+    pub target_host_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<ProjectId>,
+    pub expected_revision: u64,
+    pub connection: McpConnectionDefinition,
+}
+
 /// Stable within the catalog scope.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]

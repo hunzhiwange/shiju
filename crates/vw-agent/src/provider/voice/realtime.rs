@@ -45,7 +45,7 @@ struct Item {
     audio: HashMap<u32, (u64, u64)>, // delivered samples, played milliseconds
 }
 impl RealtimeSession {
-    pub(super) async fn connect(
+    pub(crate) async fn connect(
         base: &str,
         key: &str,
         builder: reqwest::ClientBuilder,

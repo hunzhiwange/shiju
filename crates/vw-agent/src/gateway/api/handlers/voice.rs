@@ -27,16 +27,17 @@ use upload::{MAX_BODY, read_upload};
 /// One shared registry per running router, including cancellation and bounded deduplication.
 pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
     Router::new()
+        .merge(super::voice_realtime::router())
         .route("/voice/config", get(voice_config))
         .route("/voice/transcriptions", post(transcribe))
         .route("/voice/transcriptions/{request_id}", delete(cancel))
         .layer(DefaultBodyLimit::max(MAX_BODY))
         .layer(Extension(Arc::new(Requests::default())))
 }
-fn fallback_id() -> VoiceId {
+pub(super) fn fallback_id() -> VoiceId {
     "invalid-request".to_owned().try_into().expect("static ID")
 }
-fn failure(code: Code, id: VoiceId) -> Response {
+pub(super) fn failure(code: Code, id: VoiceId) -> Response {
     (
         StatusCode::from_u16(code.http_status()).expect("voice status"),
         [(axum::http::header::CACHE_CONTROL, "no-store")],
@@ -66,6 +67,12 @@ async fn authenticate(
         Owner { tenant: tenant.clone(), principal: Sha256::digest(token.as_bytes()).into() },
         config.app_ui.voice,
     ))
+}
+pub(super) async fn realtime_identity(
+    tenant: &TenantScope,
+    headers: &axum::http::HeaderMap,
+) -> Result<([u8; 32], vw_config_types::voice::VoiceConfig), Code> {
+    authenticate(tenant, headers).await.map(|(owner, config)| (owner.principal, config))
 }
 async fn voice_config(
     Extension(tenant): Extension<TenantScope>,
@@ -191,3 +198,7 @@ async fn cancel(
 #[cfg(test)]
 #[path = "voice_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "voice_realtime_http_tests.rs"]
+mod realtime_http_tests;

@@ -340,6 +340,7 @@ mod aggregation_read_snapshot;
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
+pub(crate) mod voice_realtime;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod agent_apps_diagnostics;

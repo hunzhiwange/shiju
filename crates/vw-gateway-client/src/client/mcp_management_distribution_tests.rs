@@ -311,3 +311,148 @@ async fn cc_mcp_t42_redirect_does_not_forward_application_credentials() {
     worker.join().unwrap();
     assert_eq!(destination.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
 }
+
+#[tokio::test]
+async fn cc_mcp_t42_resync_status_retains_target_reports_and_batch_outcome() {
+    let terminal = json!({"operationId":"job /?","status":"failed","phase":"terminal",
+    "outcome":"partially_succeeded","targets":[
+        {"appId":"codex","distribution":result()},
+        {"appId":"claude","code":"credential_unavailable"}
+    ]});
+    let running = json!({"operationId":"job /?","status":"running","phase":"executing",
+        "outcome":null,"targets":[{"appId":"codex","distribution":result()}]});
+    let cancelled = json!({"operationId":"job /?","status":"cancelled","phase":"terminal",
+    "outcome":"cancelled","targets":[
+        {"appId":"codex","distribution":result()},
+        {"appId":"gemini","distribution":{"outcome":"cancelled","items":[]}}
+    ]});
+    let server = test_support::server_with_tenant_scope(
+        vec![
+            (200, running.clone()),
+            (200, terminal.clone()),
+            (200, cancelled.clone()),
+            (200, terminal.clone()),
+            (200, terminal.clone()),
+        ],
+        TenantScope::new("p", "c").unwrap(),
+    );
+    let client = GatewayClient::new(
+        server
+            .client()
+            .endpoint()
+            .clone()
+            .with_auth(GatewayAuth { skey: Some("fixture-skey".into()) }),
+    )
+    .unwrap();
+    let host = "remote /?中文";
+    let id = "job /?".into();
+    let actual = client.mcp_management_resync_status(host, &id, "fixture-grant").await.unwrap();
+    assert_eq!(actual.operation.status, TaskStatus::Running);
+    assert_eq!(actual.outcome, None);
+    assert_eq!(actual.targets.len(), 1);
+    assert_eq!(serde_json::to_value(actual).unwrap(), running);
+    let actual = client.mcp_management_resync_status(host, &id, "fixture-grant").await.unwrap();
+    assert_eq!(actual.operation.status, TaskStatus::Failed);
+    assert_eq!(actual.outcome, Some(McpBatchOutcome::PartiallySucceeded));
+    assert_eq!(
+        actual.targets[0].distribution,
+        Some(serde_json::from_value::<McpDistributionResult>(result()).unwrap())
+    );
+    assert_eq!(actual.targets[1].code, Some(McpFailureCode::CredentialUnavailable));
+    assert_eq!(serde_json::to_value(actual).unwrap(), terminal);
+    let actual = client.mcp_management_resync_cancel(host, &id, "fixture-grant").await.unwrap();
+    assert_eq!(actual.operation.status, TaskStatus::Cancelled);
+    assert_eq!(actual.outcome, Some(McpBatchOutcome::Cancelled));
+    assert_eq!(serde_json::to_value(actual).unwrap(), cancelled);
+    let completed_cancel =
+        client.mcp_management_resync_cancel(host, &id, "fixture-grant").await.unwrap();
+    assert_eq!(serde_json::to_value(completed_cancel).unwrap(), terminal);
+    // Existing generic callers retain their original state-only contract.
+    let generic = client.agent_apps_operation_authorized(host, &id, "fixture-grant").await.unwrap();
+    assert_eq!(
+        serde_json::to_value(generic).unwrap(),
+        json!({"operationId":"job /?","status":"failed","phase":"terminal"})
+    );
+    for method in ["GET", "GET", "DELETE", "DELETE", "GET"] {
+        let request = server.take_request();
+        assert_eq!(request.method, method);
+        assert!(request.body.is_null());
+        let url = reqwest::Url::parse(&format!("http://fixture{}", request.path)).unwrap();
+        assert_eq!(url.path(), "/v1/agent-apps/operations/job%20%2F%3F");
+        assert_eq!(
+            url.query_pairs().collect::<Vec<_>>(),
+            vec![("targetHostId".into(), host.into())]
+        );
+        for (name, value) in [
+            ("authorization", "Bearer fixture-skey"),
+            ("x-agent-apps-token", "fixture-grant"),
+            ("x-platform-id", "p"),
+            ("x-company-id", "c"),
+        ] {
+            assert_eq!(request.header(name), Some(value));
+        }
+    }
+    server.join();
+}
+
+#[tokio::test]
+async fn cc_mcp_t42_resync_status_preserves_errors_and_rejects_missing_reports() {
+    use super::AgentAppsLifecycleError;
+    let id = "job".into();
+    for status in [401, 403, 404, 503, 307] {
+        let body = json!({"code":"permission_denied"});
+        let server = test_support::server(vec![(status, body.clone())]);
+        assert_eq!(
+            server
+                .client()
+                .mcp_management_resync_status("remote", &id, "fixture-grant")
+                .await
+                .unwrap_err(),
+            AgentAppsLifecycleError::Http { status, body }
+        );
+        server.join();
+    }
+    let server = test_support::server_raw(vec![
+        (503, "unavailable".into()),
+        (200, json!({"operationId":"job","status":"running","phase":"executing"}).to_string()),
+        (200, json!({"operationId":"job","status":"failed","phase":"terminal","targets":[],"outcome":"unknown"}).to_string()),
+        (200, "not JSON".into()),
+    ]);
+    assert_eq!(
+        server
+            .client()
+            .mcp_management_resync_cancel("remote", &id, "fixture-grant")
+            .await
+            .unwrap_err(),
+        AgentAppsLifecycleError::Http { status: 503, body: json!("unavailable") }
+    );
+    for _ in 0..3 {
+        assert!(matches!(
+            server.client().mcp_management_resync_status("remote", &id, "fixture-grant").await,
+            Err(AgentAppsLifecycleError::Decode(_))
+        ));
+    }
+    server.join();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let client =
+        GatewayClient::new(crate::endpoint::GatewayEndpoint::new("127.0.0.1", port)).unwrap();
+    for value in ["", ".", ".."] {
+        assert_eq!(
+            client
+                .mcp_management_resync_status("remote", &value.into(), "fixture-grant")
+                .await
+                .unwrap_err(),
+            AgentAppsLifecycleError::Transport("invalid MCP resync operation identity".into())
+        );
+    }
+    assert_eq!(
+        client.mcp_management_resync_status("remote", &id, "bad\ncredential").await.unwrap_err(),
+        AgentAppsLifecycleError::Transport("invalid application credential".into())
+    );
+    assert!(matches!(
+        client.mcp_management_resync_cancel("remote", &id, "fixture-grant").await,
+        Err(AgentAppsLifecycleError::Transport(_))
+    ));
+}

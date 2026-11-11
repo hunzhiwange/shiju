@@ -352,3 +352,25 @@ pub struct McpNativePreviewEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transport: Option<McpTransport>,
 }
+
+/// Reconciliation progress, including per-application reports already produced by the host.
+/// A running job has no batch outcome yet; completed targets remain visible on failure/cancel.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpResyncOperationStatus {
+    #[serde(flatten)]
+    pub operation: crate::agent_apps::AppOperationStatus,
+    pub targets: Vec<McpResyncTargetResult>,
+    pub outcome: Option<McpBatchOutcome>,
+}
+
+/// Public report shape returned by the existing reconciliation operation endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct McpResyncTargetResult {
+    pub app_id: AppId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub distribution: Option<McpDistributionResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<McpFailureCode>,
+}

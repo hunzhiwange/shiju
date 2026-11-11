@@ -177,7 +177,7 @@ impl GatewayClient {
         )
         .await
     }
-    async fn agent_apps_lifecycle_request<B: Serialize, T: DeserializeOwned>(
+    pub(super) async fn agent_apps_lifecycle_request<B: Serialize, T: DeserializeOwned>(
         &self,
         method: reqwest::Method,
         resource: &str,

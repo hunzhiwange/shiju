@@ -1,12 +1,13 @@
 //! Typed wire contracts for the delivered MCP distribution routes.
 //! Native paths, credential resolution and transactions remain on the execution host.
-use super::{AgentAppsSettingsError, GatewayClient};
+use super::{AgentAppsLifecycleError, AgentAppsSettingsError, GatewayClient};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use vw_api_types::{
-    ProjectId,
+    ProjectId, TaskId,
     agent_apps::{AppActionExecutionResult, AppId, AppInstallationId},
     mcp_management::{
         McpAppTarget, McpDistributionResult, McpFailureCode, McpRecordId, McpRecordRef,
+        McpResyncOperationStatus,
     },
 };
 
@@ -119,14 +120,56 @@ impl GatewayClient {
     }
 
     /// Accept a reconciliation job. Queued is not native success.
-    /// Recover/cancel with `agent_apps_operation_authorized` and
-    /// `agent_apps_operation_cancel_authorized`, using the same host and token.
+    /// Recover/cancel with `mcp_management_resync_status` and
+    /// `mcp_management_resync_cancel` to retain the full per-target snapshot.
     pub async fn mcp_management_resync(
         &self,
         request: &McpResyncRequest,
         token: &str,
     ) -> Result<AppActionExecutionResult, AgentAppsSettingsError> {
         self.mcp_distribution_request(reqwest::Method::POST, &["resync"], request, token).await
+    }
+
+    /// Read the original reconciliation job without discarding per-target results.
+    pub async fn mcp_management_resync_status(
+        &self,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<McpResyncOperationStatus, AgentAppsLifecycleError> {
+        self.mcp_resync_operation(reqwest::Method::GET, host, id, token).await
+    }
+
+    /// Cancel the original reconciliation job and retain its completed target reports.
+    pub async fn mcp_management_resync_cancel(
+        &self,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<McpResyncOperationStatus, AgentAppsLifecycleError> {
+        self.mcp_resync_operation(reqwest::Method::DELETE, host, id, token).await
+    }
+
+    async fn mcp_resync_operation(
+        &self,
+        method: reqwest::Method,
+        host: &str,
+        id: &TaskId,
+        token: &str,
+    ) -> Result<McpResyncOperationStatus, AgentAppsLifecycleError> {
+        if id.0.is_empty() || matches!(id.0.as_str(), "." | "..") {
+            return Err(AgentAppsLifecycleError::Transport(
+                "invalid MCP resync operation identity".into(),
+            ));
+        }
+        self.agent_apps_lifecycle_request::<(), _>(
+            method,
+            &super::agent_apps_lifecycle_api::operation_path(id, false),
+            host,
+            None,
+            Some(token),
+        )
+        .await
     }
 
     async fn mcp_distribution_request<B: Serialize, T: DeserializeOwned>(

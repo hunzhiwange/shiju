@@ -9,7 +9,7 @@ use axum::{
     extract::rejection::JsonRejection,
     http::{HeaderMap, StatusCode},
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -33,27 +33,17 @@ pub(super) struct Job {
     reports: Mutex<Vec<TargetResult>>,
     outcome: Mutex<Option<McpBatchOutcome>>,
 }
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TargetResult {
-    app_id: AppId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    distribution: Option<McpDistributionResult>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    code: Option<McpFailureCode>,
-}
+type TargetResult = McpResyncTargetResult;
 impl Job {
     pub(super) fn response(&self, id: String) -> axum::response::Response {
         use axum::response::IntoResponse;
         let result = (|| {
-            let mut value =
-                serde_json::to_value(agent_apps::lifecycle::status(id, &self.operation))
-                    .map_err(unavailable)?;
-            value["targets"] = serde_json::to_value(&*self.reports.lock().map_err(unavailable)?)
-                .map_err(unavailable)?;
-            value["outcome"] = serde_json::to_value(&*self.outcome.lock().map_err(unavailable)?)
-                .map_err(unavailable)?;
-            Ok::<_, McpHttpError>(Json(value))
+            let snapshot = McpResyncOperationStatus {
+                operation: agent_apps::lifecycle::status(id, &self.operation),
+                targets: self.reports.lock().map_err(unavailable)?.clone(),
+                outcome: *self.outcome.lock().map_err(unavailable)?,
+            };
+            Ok::<_, McpHttpError>(Json(snapshot))
         })();
         ([(axum::http::header::CACHE_CONTROL, "no-store")], result).into_response()
     }

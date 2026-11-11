@@ -770,4 +770,26 @@ SDK 红灯、初次网关红灯构建和基线 HTTP 复现使用共享槽位 **6
 | 全仓 Clippy 复验 | `cargo clippy --all-targets --all-features -- -D warnings` | 等已有 Clippy 全部退出后领取槽位 2，退出 101。并行渠道配置改动中的 `crates/vw-config-types/src/channels/chat_tests.rs:81–109` 存在 12 个 E0422/E0609/E0599：`ChannelExecutionConfig`、`instance_execution`、`validate_instance_execution` 缺失。本项不修改这些文件。 |
 | 差异审查 | `git diff --cached --check` | 退出 0，仅暂存扫描实现、注册、独立测试与本项证据。 |
 
-SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__eh_frame` 大小警告；Clippy 的依赖 `iced_winit` 报告弃用警告。全仓 Clippy 因无关并行改动未通过，因此状态为 **已完成，待回归**，保留任务 30 卡。恢复条件：渠道配置实现与测试对齐后，重新领取共享槽位并运行相同全仓 Clippy 命令。自己的槽位 3、2 均已释放，缓存保留。未修改 `plan.md`，未宣称母任务 8 完成。
+SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__eh_frame` 大小警告；Clippy 的依赖 `iced_winit` 报告弃用警告。首次交付的全仓 Clippy 因无关并行改动未通过，当时状态为 **已完成，待回归**，保留任务 30 卡。当次恢复条件：渠道配置实现与测试对齐后，重新领取共享槽位并运行相同全仓 Clippy 命令。自己的槽位 3、2 均已释放，缓存保留。未修改 `plan.md`，未宣称母任务 8 完成。
+
+### 集成工作区追加回归（2026-11-11）
+
+本轮从集成工作区开始时的 HEAD `37a8de813f70e7f62c6281c3c2fc1a4e5fa76726` 执行，包含该工作区已有未提交改动；未修改任务 30 的 Rust 实现或测试。SDK 和网关行为用例先通过，随后其他会话继续更新提供商事务、模型目录和桌面归档 UI，全仓检查记录了这些后续集成错误。以下结果替代上文的待回归恢复条件。
+
+| 命令 | 共享槽位 | 退出码与有效测试 |
+| --- | --- | --- |
+| `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 3 | 退出 0，2 项通过，0 失败，运行 0.01 秒。 |
+| `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 3 | 退出 0，4 项通过，0 失败或忽略，运行 0.67 秒。 |
+
+四次全仓检查均实际执行 `cargo clippy --all-targets --all-features -- -D warnings`，等待已有 Clippy 退出后按顺序动态领取槽位，未修改无关失败文件：
+
+| 次序与槽位 | 退出码 | 检查时的失败及后续核对 |
+| --- | --- | --- |
+| 1，槽位 2 | 101 | `vw-provider-resolver/src/provider.rs` 的 E0382，`api_id` 移动后借用。相关改动随后已将借用改为 `api.id`，据此重跑。 |
+| 2，槽位 1 | 101 | 原生事务 `project_binding.rs` / `project_binding_tests.rs` 尚未落盘、`check_pending_project` 缺失、聚合测试未使用导入，以及桌面 fixture 缺 `Provider.protocols`。文件、方法与 fixture 随后由其所属改动补入，据此重跑。 |
+| 3，槽位 3 | 101 | `aggregation/claude_publish.rs:15` 引用私有的 `providers::projection`，E0603。其所属改动随后改用公开的 `claude::patch_with_residue`，据此重跑。 |
+| 4，槽位 7 | 101 | 归档 UI 的 `archived_chats.rs` / `archived_chats_tests.rs` 中 Info/TimeInfo 导入错误和 `state/settings.rs:23` 未使用 re-export；同时 `app_providers/preview_tests.rs:194`、`codex_catalog_tests.rs:285`、`gemini_tests.rs:202` 的 `Pending` fixture 缺新增 `project_preimage` 字段。归档导入在检查期间已由其所属改动修正，仍无完整全仓通过证据。 |
+
+实际绝对目标目录为：槽位 3 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`（行为测试与第三次 Clippy），槽位 2 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，槽位 1 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，槽位 7 `/Users/xiangmin/worker/code/shiju/target/rust-slot-7`。各阶段 `CARGO_BUILD_BUILD_DIR` 与 `CARGO_TARGET_DIR` 相同。全部 Cargo 子进程已退出，自己的槽位锁已释放，缓存保留；未执行全量单元测试或跨平台验收。
+
+当前状态仍为 **已完成，待回归**。本轮有效行为测试 **6 项通过，0 失败**，全仓 Clippy 未通过，不删除任务卡。恢复条件是原生事务生产者完成 `Pending.project_preimage` 对已有调用者夹具的契约对齐，归档 UI 完成编译与 lint 接线，再在稳定的集成工作区重新执行上面两条聚焦测试和全仓 Clippy。按 AGENTS.md 不扩展修改其他会话的无关实现；未发现本项扫描用例失败，未改动只读 `plan.md`。

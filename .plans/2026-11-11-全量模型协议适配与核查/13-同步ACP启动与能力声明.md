@@ -2,7 +2,7 @@
 
 批次：【批次 7】 依赖批次 6；直接依赖任务 12
 
-状态：未开始
+状态：执行中
 
 目的：使ACP启动配置、模型来源能力与中继最终路由一致。
 
@@ -71,3 +71,17 @@
 - 遇到问题先调查并在既有授权内处理实现原目标所需的相邻依赖；仍有实际依赖缺失则在本文件标记`已阻塞`，记录复现、已尝试路径和所需输入。
 - 无关既有问题导致回归无法执行，可标记`已完成，待回归`并保留任务文件；按上述规则提交实际变更。缺少完成本任务本身所必需的实现或验证，不能据此宣称完成。
 - plan.md为只读，prompt.md不是进度来源；正式证据写入本任务列明的产物。
+
+## 执行记录（2026-11-11）
+
+- 已读取本任务、plan.md、调研基线.md、目录基线.json及执行、代码导航技能；plan.md保持只读。
+- 直接依赖12实现已提交 `2f8c876b5`，统一选择器与真实调用点均存在；任务12最新5项测试因当时任务外编译错误待回归，本任务不把历史结果当新证据。任务11选择器提交 `6974e46fc`。
+- 使用RustCodeGraph status/explore核对调用链，补读索引之外的最新路由文件。工作区其它任务改动保留。
+- 新增可编译行为用例：Claude目录原生Messages保留thinking、显式空协议目录在写文件前拒绝。动态领取槽位6，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-6`，同时设置`CARGO_BUILD_BUILD_DIR`，jobs=1，已先运行`cargo fmt --all`，正在运行规定红灯命令。日志 `/tmp/shiju-task13-red.log`。
+- 调整范围依据：中继 `routing.rs` 拥有部署、origin、认证授权收敛，`transport.rs` 拥有当前真实转换能力列表；将最小选择入口与能力列表共享给ACP，避免驱动重新猜测和能力列表漂移。ACP request.rs仍有按adapter推断原生能力的相邻消费者，需同步改为已选启动结果。
+
+- 已实现公共ACP预检：22个注册驱动声明实际出站协议；复用中继`select_api`及`relay_conversions`，不再以DeepSeek/阿里特例或Codex adapter猜原生路由；Claude按选中路由保留原生thinking，Codex按选中路由设置托管搜索，Gemini写配置前拒绝不可执行来源。`request.rs`思考选项同步改用同一选择结果。
+- 当前共9项`model_protocol_013_`测试（Claude 3、Codex 1、Gemini 1、公共驱动4），覆盖22个注册驱动、四种来源协议的原生/转换/拒绝，以及模型范围、认证、工具能力、空目录和跨域拒绝。显式请求thinking的转换场景拒绝，不静默关闭用户请求。14—18继续扩展转换并更新真实消费者用例；未扩展的Vibe Chat→Gemini路径现由启动预检明确拒绝。
+- 首次全仓Clippy（槽位2）退出101，仅报告本项移除Claude特例后留下的`model_relay/mod.rs`未使用阿里重导出；已移除该重导出。日志 `/tmp/shiju-task13-clippy.log`。其后主工作区验证在`cargo fmt --all`退出1，因其它任务注册的`gateway/api/handlers/aggregation_omo.rs`及`vw-agent-apps/src/aggregation/codex_settings.rs`当时不存在，未进入该轮测试；日志 `/tmp/shiju-task13-final.log`。未修改或补造这些无关模块。
+- 替代验证：通过`create_worktree`创建稳定检出 `/Users/xiangmin/.codex/worktrees/acp-protocol-validation/shiju`，基于直接依赖12提交`2f8c876b5`，只应用本任务12个文件的补丁。Cargo槽位仍从主仓库原子领取，当前槽位2，绝对`CARGO_TARGET_DIR`与`CARGO_BUILD_BUILD_DIR`均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；不另建构建目录。该检出`cargo fmt --all`退出0。默认features，单作业，测试只对`vw-agent`包使用`--config 'profile.test.package.vw-agent.opt-level=0'`降低代码生成耗时；未改仓库profile配置。日志 `/tmp/shiju-task13-isolated.log`。
+- 12个本任务文件在主工作区与验证检出的SHA-256均一致，记录 `/tmp/shiju-task13-provenance.json`。夹具对带Drop的`AcpLaunchProfile.model_api`使用clone，避免移出字段的编译错误。当前稳定检出已进入vw-agent测试产物构建；修改前槽位6快照仍在代码生成，尚无行为红灯/绿灯最终计数，不提前宣称验证通过。

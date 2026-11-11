@@ -2,7 +2,7 @@
 
 批次：【批次 12】 依赖：批次 3 的任务 23、24、25、批次 9 的任务 22、批次 11 的任务 39。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：进行中
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,16 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+
+## 2026-11-11 执行中核对
+
+当前检出实施，未创建工作树，plan.md 未修改。依赖正式证据及提交：22=`2d9124b79`、23=`b76aa315f`、24=`75678574d`、25=`dacacbee1`、39=`4f0f1b5b9`。复用任务14项目槽位及任务39聚合读授权/快照/修订。
+
+已实现但仍在验证：Codex设置DTO、原生投影、GET/PUT设置API，原ProviderTransactions的AppState/PendingTarget持久请求意图（版本8），在同一commit_project_checked提交配置、目录和意图。按短合入锁注册；其他任务现已使用同一authorize_aggregation_write，未新建存储或操作体系。
+
+正常入口过滤命令 `cargo test -p vw-agent --lib aggregation_t43_ -- --nocapture`：动态槽位12，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-12，CARGO_BUILD_BUILD_DIR为该路径/build；jobs=1、test opt-level=0/debug=0。遇无关aggregation_omp_tests.rs:72调用私有router_with_policy（E0603）；确认错误后精确终止自有失败rustc，Cargo退出101、执行0项，非行为红灯。锁已释放，缓存保留。
+
+受控源码副本 `/tmp/shiju-t43-focused-source` 关闭无关vw-agent test-only分支，只保留本任务测试；未替换生产文件。`cargo test --manifest-path /tmp/shiju-t43-focused-source/Cargo.toml -p vw-agent --lib aggregation_t43_ -- --nocapture`：动态槽位4，同上绝对根下rust-slot-4及/build，退出101、执行0。副本快照中的并行任务16 aggregation_resync尚有E0603/E0616/E0624（lifecycle_api、patch_with_residue、ClaudeFile.guard/name、AppWriteGuard.read）和E0433（toml_edit未声明）。确认错误后只停止自有失败rustc并释放锁，未修改这些无关生产模块。记录 `/tmp/shiju-t43-harness-record.json`。
+
+现正常入口必需Clippy运行中，动态槽位19，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-19；每次只运行一组重型Cargo。尚无行为红灯、通过或真实客户端API产物读取证据，不宣告完成。源TS及相邻StackSettingsSheet.test.tsx已核对；本机Codex CLI 0.167.0-alpha.3.2可运行，客户端协议探测仅确认config/read可读子代理模型/推理字段，尚未计入本任务API通过证据。

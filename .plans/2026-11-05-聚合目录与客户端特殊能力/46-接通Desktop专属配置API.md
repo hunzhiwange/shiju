@@ -2,7 +2,7 @@
 
 批次：【批次 12】 依赖：批次 4 的任务 31、批次 11 的任务 39。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：实施中
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,37 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+
+## 2026-11-11 当前检出前置核对
+
+在原检出 `/Users/xiangmin/worker/code/shiju` 执行，未创建工作树，未修改只读 plan.md。读取仓内 `skills/do-task-plans/SKILL.md`、`skills/rustcodegraph/SKILL.md`、执行分线、任务卡、接口契约与来源 `cc-switch/src-tauri/src/claude_desktop_config.rs` 的 run/get_status、发布及恢复测试定位。直接依赖任务31由 `b6aaab1c2` 和《任务31-验证.md》交付；任务39的生产接口由 `4f0f1b5b9` 交付，正式证据记录受控副本11项通过，但原任务仍为“已完成，待回归”，不能当作全仓回归通过。读取二者证据，不将前置测试计入本任务。
+
+### 实际生产缺口
+
+契约同时要求独立 Desktop 状态、带修订的映射，以及 `POST /v1/agent-apps/claude-desktop/aggregation/publish` 和 `/exit` 的真实发布/恢复结果。当前不具备完整接通所需的执行链：
+
+- `crates/vw-agent/src/app_routing/aggregation_routing.rs::AggregationPublication::validate` 显式仅接受 `AppId::Codex`，其他应用返回422。纯规则 `aggregation::resolve` 已支持 Desktop 数字目录，但常驻发布器尚不消费其 Desktop 目录和目标。
+- `crates/vw-agent/src/app_routing/dispatch.rs::forward_json` 仅接受 Codex Chat/Responses 和 Claude `/v1/messages`，Desktop 走不支持分支；尚无 Desktop `/claude-desktop/v1/models` 的目录响应实现。`protocol_errors.rs` 对路径识别和 `route_auth.rs` 的 Desktop Origin 限制不等于对应业务转发与发现已经实现。将 Desktop 绑定改为 Claude 会违反独立应用作用域。
+- `crates/vw-agent-apps/src/providers/claude_desktop/publication.rs::run` 使用 `ClaudeDesktopFiles::commit_profile`，其 PendingTarget 不带 project_scope。`live/project_binding.rs::validate_update` 会拒绝已绑定项目的槽位使用无项目目标；未绑定槽位直接调用该路径又不会持久认领项目。此处需要在原 Desktop 文件所有者上接入 commit_project_checked/作用域恢复，不能靠 API 先后分开写状态和文件。
+- 既有 `handlers/app_providers/desktop_mapping.rs` 仅目录保存，接收无 projectId/expectedRevision 的旧 DTO，不能代替本任务要求的项目授权、有修订的映射与生效重发布。任务39只提供读授权、快照、修订及令牌签发，未交付 aggregation_write 或发布/退出执行器。
+- 契约的发布与退出 API 所有者为后续任务41/42（卡片仍在，分别批次13/15）；目前 handlers 下仅有 aggregation_read、aggregation_read_snapshot 及测试。为本卡另写一个异步发布/退出执行体系会重复该所有者。
+
+### 最小解除条件与范围判断
+
+已经调查原有事务、原生 Desktop、常驻路由和现有 Gateway 映射所有者。项目事务接线本身可以是小修，但仅修它仍无法验证真正发布后的请求和目录发现；只加状态/表单或返回 unsupported 的发布占位也不满足本卡完整目标。补齐整条链需要同时实现 Desktop 数据面、发布/退出授权及操作生命周期，超出本卡“一个窄接口”和“不能吞并整个前置母能力”的限制。本轮未添加重复执行器、拒绝占位路由或无法使用的客户端配置。
+
+解除条件：在原有所有者交付 Desktop 常驻目录发现/消息转发和项目事务发布/恢复接口，并由任务41/42交付或明确归并通用发布/退出生命周期；随后本卡接状态、映射修订与专属类型、运行真实 router/权限/事务聚焦验收。任务39既有接口优先复用，无需重建其项目绑定、HMAC修订或令牌体系。若调度将这些生产缺口明确归入本卡，需要相应扩大实施范围和验收集合，不能只以编译通过认定完成。
+
+### 已执行与未执行的检查
+
+- `rustcodegraph status`：退出0，索引存在（7522文件）；`rustcodegraph explore 'aggregation_read desktop_mapping claude_desktop publication'`：退出0，返回原生 Desktop 的 run/get_status 调用者和映射所有者。当前未索引新增/改动代码及文档以 rg/文件读取复核。
+- `git show --no-patch --format='%h %s' b6aaab1c2 4f0f1b5b9`：退出0，确认依赖提交；`uname -sm`：退出0，Darwin arm64。
+- `rg` 核对上述常驻发布/转发、项目事务、API注册与卡片职责，退出0；未以源码搜索代替行为测试。
+- 未修改 Rust、测试、配置或正式文档；未运行 Cargo、格式化、聚焦测试或 Clippy。新增有效测试0，无红灯/绿灯证据，不声明完成或待回归。
+- Cargo槽位未领取，CARGO_TARGET_DIR未设置（无Cargo阶段）；未触碰其他任务锁、进程或缓存。仅本编号卡状态和阻塞记录有变更，无需 git-commit，不删除任务文件。
+
+
+## 2026-11-11 扩展范围后恢复
+
+协调明确将 Desktop 独立数据面、原文件所有者项目事务/恢复及专属状态映射纳入本卡；通用发布/退出生命周期仍由41/42接续。任务16拥有共同候选记录恢复及通用监听/校验核心，本卡以独立Desktop职责模块接入并保留其改动；不另建监听、操作生命周期或存储。原阻塞记录为历史调查，不代表恢复后的最终状态。

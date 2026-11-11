@@ -99,3 +99,5 @@ pub mod catalog_generation;
 
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_generation_tests;
+
+pub mod codex_settings;

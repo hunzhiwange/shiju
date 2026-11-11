@@ -54,6 +54,8 @@ pub struct PendingTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex_aggregation_settings: Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<crate::providers::mode_state::StackState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kimi_binding: Option<KimiBinding>,
@@ -90,6 +92,8 @@ pub struct ScopedProvider {
 pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub codex_aggregation_settings: Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
     #[serde(default, skip_serializing_if = "crate::providers::mode_state::StackState::is_empty")]
     pub stack: crate::providers::mode_state::StackState,
     #[serde(default)]
@@ -220,8 +224,10 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=7)
-                || (p.version == 7) != p.target.project_scope.is_some()
+            !matches!(p.version, 1..=8)
+                || (p.version >= 7) != p.target.project_scope.is_some()
+                || (p.version == 8 && p.target.codex_aggregation_settings.is_none())
+                || (p.version < 8 && p.target.codex_aggregation_settings.is_some())
                 || (p.version == 6 && p.target.claude_managed_login.is_none())
                 || (p.version < 6 && p.target.claude_managed_login.is_some())
                 || (p.version == 5 && p.target.kimi_binding.is_none())
@@ -319,7 +325,9 @@ impl ProviderTransactions {
         let mut pending = Pending {
             project_preimage: state.project_scope.clone(),
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if target.project_scope.is_some() {
+            version: if target.codex_aggregation_settings.is_some() {
+                8
+            } else if target.project_scope.is_some() {
                 7
             } else if target.claude_managed_login.is_some() {
                 6
@@ -509,6 +517,11 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     Ok(file)
 }
 pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), WriteError> {
+    if target.codex_aggregation_settings.is_some()
+        && (app != AppId::Codex || target.project_scope.is_none())
+    {
+        return Err(WriteError::InvalidResource);
+    }
     if let Some(login) = &target.claude_managed_login {
         if app != AppId::Claude
             || target.kimi_binding.is_some()
@@ -575,6 +588,9 @@ pub(super) fn validate_stack_update(
     Ok(())
 }
 pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
+    if let Some(settings) = &target.codex_aggregation_settings {
+        state.codex_aggregation_settings = Some(settings.clone());
+    }
     if let Some(scope) = &target.project_scope {
         state.project_scope = Some(scope.clone());
     }

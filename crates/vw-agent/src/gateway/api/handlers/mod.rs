@@ -356,3 +356,8 @@ mod mcp_management_bindings;
 
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omp_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_codex_settings_tests;
+
+mod aggregation_codex_settings;

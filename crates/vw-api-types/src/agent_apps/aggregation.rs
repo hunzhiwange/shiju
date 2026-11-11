@@ -169,3 +169,47 @@ pub enum PiDirectoryRead {
     Scoped(AggregationQuery),
     Legacy(crate::app_providers::pi::PiTarget),
 }
+
+/// Requested intent is retained when a published member disappears.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexSettingsValues {
+    pub subagent_model_id: Option<String>,
+    pub subagent_effort: Option<crate::ReasoningEffortDto>,
+    pub auto_review_model_id: Option<String>,
+    pub classic_tools: bool,
+}
+impl Default for CodexSettingsValues {
+    fn default() -> Self {
+        Self {
+            subagent_model_id: None,
+            subagent_effort: None,
+            auto_review_model_id: None,
+            classic_tools: true,
+        }
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexSettingsChoice {
+    pub model_id: String,
+    pub label: String,
+    pub efforts: Vec<crate::ReasoningEffortDto>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexAggregationSettings {
+    pub revision: String,
+    pub requested: CodexSettingsValues,
+    pub effective: CodexSettingsValues,
+    pub choices: Vec<CodexSettingsChoice>,
+    pub notices: Vec<AggregationNotice>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexSettingsRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub requested: CodexSettingsValues,
+}

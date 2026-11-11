@@ -412,3 +412,17 @@ fn read_native(home: &Path, relative: &str) -> Result<Option<Vec<u8>>, StatusCod
     }
     Err(StatusCode::UNPROCESSABLE_ENTITY)
 }
+
+/// Fixed Codex inputs already validated and included in the scoped revision.
+/// Official defaults require their account owner's verified login generation.
+pub(super) fn codex_inputs(
+    snapshot: &Snapshot,
+) -> Result<(Option<&[u8]>, Option<&[u8]>), StatusCode> {
+    if snapshot.rows.iter().any(|(_, row)| row["category"] == "official") {
+        return Err(StatusCode::SERVICE_UNAVAILABLE);
+    }
+    Ok((
+        snapshot.native.first().and_then(|v| v.as_deref()),
+        snapshot.native.get(2).and_then(|v| v.as_deref()),
+    ))
+}

@@ -2,7 +2,7 @@
 
 use super::health::HealthSnapshot;
 use std::{
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 use vw_api_types::agent_apps_high_availability::{CircuitBreakerPolicy, FailoverHealthState};
@@ -45,6 +45,22 @@ enum CircuitPhase {
 }
 
 impl CircuitBreaker {
+    /// Keep the admission alive while an owned response body is being consumed.
+    pub fn allow_owned_request(
+        self: &Arc<Self>,
+        policy: &CircuitBreakerPolicy,
+        now: Instant,
+    ) -> Option<OwnedCircuitAttempt> {
+        let mut attempt = self.allow_request(policy, now)?;
+        let owned = OwnedCircuitAttempt {
+            breaker: Arc::clone(self),
+            generation: attempt.generation,
+            policy: attempt.policy,
+            is_probe: std::mem::take(&mut attempt.is_probe),
+        };
+        Some(owned)
+    }
+
     /// Inspect admission without occupying a half-open probe slot.
     pub fn is_available(&self, policy: &CircuitBreakerPolicy, now: Instant) -> bool {
         let state = self.state.lock().expect("circuit state lock poisoned");
@@ -249,6 +265,37 @@ impl Drop for CircuitAttempt<'_> {
         {
             *probe_in_flight = false;
         }
+    }
+}
+
+/// An admission that can move into an asynchronous response body.
+pub struct OwnedCircuitAttempt {
+    breaker: Arc<CircuitBreaker>,
+    generation: u64,
+    policy: CircuitBreakerPolicy,
+    is_probe: bool,
+}
+
+impl OwnedCircuitAttempt {
+    pub fn record(mut self, outcome: AttemptOutcome, now: Instant) {
+        let attempt = CircuitAttempt {
+            breaker: &self.breaker,
+            generation: self.generation,
+            policy: self.policy,
+            is_probe: std::mem::take(&mut self.is_probe),
+        };
+        attempt.record(outcome, now);
+    }
+}
+
+impl Drop for OwnedCircuitAttempt {
+    fn drop(&mut self) {
+        drop(CircuitAttempt {
+            breaker: &self.breaker,
+            generation: self.generation,
+            policy: self.policy,
+            is_probe: std::mem::take(&mut self.is_probe),
+        });
     }
 }
 

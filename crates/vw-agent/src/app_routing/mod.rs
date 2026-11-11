@@ -92,3 +92,6 @@ pub(crate) mod desktop_routing;
 
 #[cfg(target_os = "macos")]
 pub mod adapter_selection;
+
+#[cfg(target_os = "macos")]
+mod failover_execution;

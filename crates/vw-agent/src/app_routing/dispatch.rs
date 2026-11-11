@@ -127,6 +127,11 @@ pub(super) async fn forward_json(
         _ => return Err(StatusCode::BAD_REQUEST.into()),
     };
 
+    #[cfg(target_os = "macos")]
+    let failover = super::failover_execution::prepare(Arc::clone(route)).await?;
+    #[cfg(target_os = "macos")]
+    let failover_body = failover.as_ref().map(|_| body.clone());
+
     let client_model = body.get("model").and_then(Value::as_str).map(str::to_owned);
     let (target, model, cancelled) =
         route.select_json(body.get("model").and_then(Value::as_str))?;
@@ -210,9 +215,29 @@ pub(super) async fn forward_json(
     let transport = &target.transport;
     #[cfg(target_os = "macos")]
     let transport = selected_egress.as_ref().map_or(transport, |egress| &egress.transport);
-    let forward =
-        transport.forward_ordered(&target.url, outgoing, wire, cancelled.clone(), listener);
     let started = Instant::now();
+    let forward = async {
+        #[cfg(target_os = "macos")]
+        if let (Some(plan), Some(body)) = (&failover, &failover_body) {
+            let duration = if streaming {
+                timeouts.first_byte_timeout_secs
+            } else {
+                timeouts.non_streaming_timeout_secs
+            };
+            return plan
+                .forward(super::failover_execution::AttemptRequest {
+                    route,
+                    body,
+                    headers: &parts.headers,
+                    wire: &wire,
+                    transport: selected_egress.as_ref().map(|egress| &egress.transport),
+                    listener,
+                    deadline: started + Duration::from_secs(duration.into()),
+                })
+                .await;
+        }
+        transport.forward_ordered(&target.url, outgoing, wire, cancelled.clone(), listener).await
+    };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
         let response = timeouts::before(deadline, forward).await??;
@@ -270,7 +295,8 @@ pub(super) async fn forward_json(
     timeouts::before(deadline, async {
         let response = forward.await?;
         let response = buffer_json_response(response, permit).await?;
-        finish_messages(response, app, client_model, false, native_messages, cancelled).await
+        finish_messages(response, app, client_model, false, native_messages, cancelled.clone())
+            .await
     })
     .await?
 }

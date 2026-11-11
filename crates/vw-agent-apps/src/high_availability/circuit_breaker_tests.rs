@@ -113,3 +113,32 @@ fn ha_half_open_releases_permit_and_recovers() {
     stale_failure.record(ProviderFailure, recovered_at);
     assert_eq!(breaker.state(), Closed, "an older failure cannot reopen a recovered circuit");
 }
+
+#[test]
+fn ha_runtime_owned_probe_releases_and_ignores_retired_generations() {
+    use AttemptOutcome::{ProviderFailure, Success};
+    use FailoverHealthState::{Closed, HalfOpen, Open};
+    let breaker = std::sync::Arc::new(CircuitBreaker::default());
+    let now = Instant::now();
+    let policy = CircuitBreakerPolicy {
+        failure_threshold: 1,
+        success_threshold: 1,
+        cooldown_secs: 1,
+        error_rate_threshold: 1.0,
+        min_requests: 5,
+    };
+    breaker.allow_owned_request(&policy, now).unwrap().record(ProviderFailure, now);
+    assert_eq!(breaker.state(), Open);
+    let later = now + Duration::from_secs(1);
+    let probe = breaker.allow_owned_request(&policy, later).unwrap();
+    assert_eq!(breaker.state(), HalfOpen);
+    assert!(breaker.allow_owned_request(&policy, later).is_none());
+    drop(probe); // A dropped response must release the only half-open slot.
+    let probe = breaker.allow_owned_request(&policy, later).unwrap();
+    probe.record(Success, later);
+    assert_eq!(breaker.state(), Closed);
+    let stale = breaker.allow_owned_request(&policy, later).unwrap();
+    breaker.reset();
+    stale.record(ProviderFailure, later);
+    assert_eq!(breaker.state(), Closed);
+}

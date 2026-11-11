@@ -29,6 +29,25 @@ use tokio::{
 };
 use tokio_util::{either::Either, sync::CancellationToken};
 
+/// Only a transport-observed connect failure proves that no provider request was sent.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct AttemptFailure {
+    pub(super) status: StatusCode,
+    pub(super) before_send: bool,
+}
+
+impl From<StatusCode> for AttemptFailure {
+    fn from(status: StatusCode) -> Self {
+        Self { status, before_send: false }
+    }
+}
+
+impl AttemptFailure {
+    fn connect() -> Self {
+        Self { status: StatusCode::BAD_GATEWAY, before_send: true }
+    }
+}
+
 enum Egress {
     #[cfg(not(target_os = "macos"))]
     System(Matcher),
@@ -181,11 +200,24 @@ impl SharedTransport {
     pub(super) async fn forward_ordered(
         &self,
         authorized_target: &reqwest::Url,
-        mut request: reqwest::Request,
+        request: reqwest::Request,
         wire: HeaderWire,
         cancel: CancellationToken,
         listener: SocketAddr,
     ) -> Result<Response, StatusCode> {
+        self.forward_attempt(authorized_target, request, wire, cancel, listener)
+            .await
+            .map_err(|error| error.status)
+    }
+
+    pub(super) async fn forward_attempt(
+        &self,
+        authorized_target: &reqwest::Url,
+        mut request: reqwest::Request,
+        wire: HeaderWire,
+        cancel: CancellationToken,
+        listener: SocketAddr,
+    ) -> Result<Response, AttemptFailure> {
         upstream::validate_target(authorized_target, &request)?;
         let uri: Uri = authorized_target.as_str().parse().map_err(|_| StatusCode::BAD_GATEWAY)?;
         // Leave decoding to the JSON handler so it can enforce the wire and
@@ -208,7 +240,7 @@ impl SharedTransport {
                     },
                     Egress::Custom { intercept: proxy, .. } => {
                         if proxy_is_listener(proxy.uri(), listener)? {
-                            return Err(StatusCode::BAD_GATEWAY);
+                            return Err(StatusCode::BAD_GATEWAY.into());
                         }
                         (&self.encoded_client, Some(proxy))
                     }
@@ -220,7 +252,7 @@ impl SharedTransport {
             let _ = listener;
             match &self.egress {
                 Egress::System(matcher) if matcher.intercept(&uri).is_some() => {
-                    return forward_with_client(
+                    return forward_with_evidence(
                         &self.encoded_client,
                         authorized_target,
                         request,
@@ -235,7 +267,7 @@ impl SharedTransport {
         #[cfg(target_os = "macos")]
         let resolved = tokio::select! {
             biased;
-            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT),
+            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT.into()),
             result = timeout_at(
                 Instant::now() + upstream::CONNECT_TIMEOUT,
                 check_origin(authorized_target, listener, proxy.is_some()),
@@ -256,9 +288,9 @@ impl SharedTransport {
                     .resolve_to_addrs(host, addresses)
                     .build()
                     .map_err(|_| StatusCode::BAD_GATEWAY)?;
-                return forward_with_client(&pinned, authorized_target, request, cancel).await;
+                return forward_with_evidence(&pinned, authorized_target, request, cancel).await;
             }
-            return forward_with_client(client, authorized_target, request, cancel).await;
+            return forward_with_evidence(client, authorized_target, request, cancel).await;
         }
         let method = request.method().clone();
         let mut headers = std::mem::take(request.headers_mut());
@@ -271,7 +303,7 @@ impl SharedTransport {
 
         tokio::select! {
             biased;
-            () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT),
+            () = cancel.cancelled() => Err(StatusCode::REQUEST_TIMEOUT.into()),
             result = send_ordered(outgoing, wire, proxy, resolved.as_deref(), cancel.clone()) => result,
         }
     }
@@ -284,6 +316,29 @@ fn encoded_client_builder() -> reqwest::ClientBuilder {
         .no_brotli()
         .no_deflate()
         .no_zstd()
+}
+
+async fn forward_with_evidence(
+    client: &reqwest::Client,
+    authorized_target: &reqwest::Url,
+    request: reqwest::Request,
+    cancel: CancellationToken,
+) -> Result<Response, AttemptFailure> {
+    upstream::validate_target(authorized_target, &request)?;
+    let mut response = tokio::select! {
+        biased;
+        () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT.into()),
+        response = client.execute(request) => response.map_err(|error| {
+            if error.is_connect() { AttemptFailure::connect() }
+            else { StatusCode::BAD_GATEWAY.into() }
+        })?,
+    };
+    let status = response.status();
+    let headers = std::mem::take(response.headers_mut());
+    let mut result = Response::new(upstream::response_body(response, cancel));
+    *result.status_mut() = status;
+    *result.headers_mut() = headers;
+    Ok(result)
 }
 
 async fn forward_with_client(
@@ -307,7 +362,7 @@ async fn send_ordered(
     tunnel: Option<&Intercept>,
     resolved: Option<&[SocketAddr]>,
     cancel: CancellationToken,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, AttemptFailure> {
     let (parts, body) = request.into_parts();
     let body = body.as_bytes().ok_or(StatusCode::BAD_GATEWAY)?;
     let authority = parts.uri.authority().ok_or(StatusCode::BAD_GATEWAY)?;
@@ -337,12 +392,14 @@ async fn send_ordered(
         }
     })
     .await
-    .map_err(|_| StatusCode::BAD_GATEWAY)??;
+    .map_err(|_| AttemptFailure::connect())?
+    .map_err(|_| AttemptFailure::connect())?;
     let mut driver = JoinSet::new();
     let response = if https {
         let socket = timeout_at(connect_deadline, connect_tls(tls_connector()?, host, socket))
             .await
-            .map_err(|_| StatusCode::BAD_GATEWAY)??;
+            .map_err(|_| AttemptFailure::connect())?
+            .map_err(|_| AttemptFailure::connect())?;
         exchange(socket, &head, body, parts.method, &mut driver).await?
     } else {
         exchange(socket, &head, body, parts.method, &mut driver).await?

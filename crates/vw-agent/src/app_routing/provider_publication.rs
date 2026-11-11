@@ -28,14 +28,14 @@ use vw_api_types::{
 
 /// Executor-only proof. Saved credentials are never projected in observations.
 pub(crate) struct PublishedProvider {
-    database: GlobalDatabase,
+    pub(super) database: GlobalDatabase,
     root: PathBuf,
     home: PathBuf,
-    scope: FailoverQueueScope,
+    pub(super) scope: FailoverQueueScope,
     pub(crate) provider_id: String,
     pub(crate) address: std::net::SocketAddr,
     row: Value,
-    state: AppState,
+    pub(super) state: AppState,
     native_digest: [u8; 32],
     messages_api_key: bool,
 }

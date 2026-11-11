@@ -105,10 +105,12 @@ impl VerifiedRouteBinding {
 /// Neither the accepted binding nor its epoch can be changed by a handler.
 pub(super) struct AuthorizedRoute {
     #[cfg(target_os = "macos")]
-    provider: Option<super::provider_publication::PublishedProvider>,
+    pub(super) provider: Option<super::provider_publication::PublishedProvider>,
+    #[cfg(target_os = "macos")]
+    pub(super) failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
     binding: VerifiedRouteBinding,
     generation: u64,
-    cancelled: CancellationToken,
+    pub(super) cancelled: CancellationToken,
     json_target: Option<JsonRoute>,
     pub(super) capacity: Arc<RouteCapacity>,
     #[cfg(target_os = "macos")]
@@ -304,6 +306,8 @@ impl ActiveRoutes {
 
 #[derive(Default)]
 pub(super) struct RouteAuth {
+    #[cfg(target_os = "macos")]
+    failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
     active: Mutex<ActiveRoutes>,
     publication: Mutex<()>,
 }
@@ -599,6 +603,8 @@ impl RouteAuth {
         active.grants.insert(
             digest,
             Arc::new(AuthorizedRoute {
+                #[cfg(target_os = "macos")]
+                failover: Arc::clone(&self.failover),
                 #[cfg(target_os = "macos")]
                 provider,
                 binding,

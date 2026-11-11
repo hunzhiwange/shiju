@@ -1,6 +1,33 @@
 use super::*;
 use crate::app_routing::reference_scope::{ReferenceScope, References};
+use axum::http::StatusCode;
 use serde_json::json;
+
+#[test]
+fn aggregation_t25_codex_chat_replays_summary_and_isolates_foreign_ciphertext() {
+    let request = json!({"model":"selected","input":[
+        {"type":"compaction","id":"cmp_local","encrypted_content":"ccswitch-compaction-v1:5bey5L-d5a2Y"},
+        {"type":"compaction_summary","id":"cmp_foreign","encrypted_content":"opaque-foreign"},
+        {"type":"context_compaction"},
+        {"role":"user","content":"continue"}
+    ]});
+
+    let (chat, _) = super::responses::to_chat(&request, true).unwrap();
+    let messages = chat["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 3);
+    assert_eq!(messages[0]["role"], "user");
+    assert!(messages[0]["content"].as_str().unwrap().ends_with("\n已保存"));
+    assert_eq!(
+        messages[1],
+        json!({
+            "role":"user",
+            "content":"[earlier conversation was compacted; the summary is stored in a format this model cannot read]"
+        })
+    );
+    assert_eq!(messages[2], json!({"role":"user","content":"continue"}));
+    assert!(!chat.to_string().contains("opaque-foreign"));
+    assert_eq!(super::responses::to_chat(&request, false), Err(StatusCode::UNPROCESSABLE_ENTITY));
+}
 
 #[test]
 fn acp_model_source_relay_responses_codex_replays_namespaced_and_custom_tools() {

@@ -53,6 +53,102 @@ fn sse(wire: String, wait: bool) -> Response {
     };
     Response::builder().header("content-type", "text/event-stream").body(body).unwrap()
 }
+
+#[tokio::test]
+async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let _env = EnvGuard(
+        std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
+        std::env::var_os("SHIJU_RELAY_RESPONSES_TEST_KEY"),
+    );
+    unsafe {
+        std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
+        std::env::set_var("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+        crate::env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let (record, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let router = Router::new().route(
+        "/v1/chat/completions",
+        post(move |axum::Json(body): axum::Json<Value>| async move {
+            record.send(body).unwrap();
+            reply(json!({"id":"chat-id","choices":[{"message":{
+                "role":"assistant","content":"continued"
+            },"finish_reason":"stop"}],"usage":{"prompt_tokens":2,"completion_tokens":1}}))
+        }),
+    );
+    let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let tenant = vw_api_types::id::TenantScope::new("compaction", "fixture").unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
+    crate::config::update_project_for_tenant(
+        &tenant,
+        &root,
+        json!({"providers":{"relay-responses":{
+            "api":format!("http://{address}/v1/chat/completions"),
+            "env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],
+            "models":{"selected":{"id":"wire-model","status":"active"}}
+        }}}),
+    )
+    .await
+    .unwrap();
+    let context = crate::project::instance::Context {
+        directory: root.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project: project.clone(),
+    };
+    let binding = RelayBinding::new(
+        RelayIdentity {
+            tenant,
+            project: project.id,
+            session: "fixture:codex".into(),
+            provider: "relay-responses".into(),
+            model: "selected".into(),
+            generation: 1,
+        },
+        Duration::from_secs(60),
+    )
+    .unwrap();
+    let backend = Arc::new(ProviderRelayBackend::new().unwrap());
+    let server = RelayServer::start(binding.clone(), backend, context).await.unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    let url = format!("http://{}/v1/responses", server.address());
+    let body = json!({"model":"selected","input":[
+        {"type":"compaction","encrypted_content":"ccswitch-compaction-v1:5bey5L-d5a2Y"},
+        {"type":"compaction","encrypted_content":"foreign-fixture"}
+    ]});
+    assert_eq!(
+        client.post(&url).json(&body).send().await.unwrap().status(),
+        reqwest::StatusCode::UNAUTHORIZED
+    );
+    assert!(requests.try_recv().is_err());
+    let response: Value = client
+        .post(&url)
+        .bearer_auth(binding.bearer_token())
+        .json(&body)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(response["output"][0]["content"][0]["text"], "continued");
+    let sent = requests.try_recv().unwrap();
+    assert_eq!(sent["model"], "wire-model");
+    assert!(sent["messages"][0]["content"].as_str().unwrap().ends_with("\n已保存"));
+    assert!(sent["messages"][1]["content"].as_str().unwrap().contains("cannot read"));
+    assert!(!sent.to_string().contains("foreign-fixture"));
+    server.shutdown().await.unwrap();
+    upstream.abort();
+    assert!(upstream.await.unwrap_err().is_cancelled());
+}
+
 #[tokio::test]
 async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_and_ownership() {
     let _lock = crate::test_support::global_async_env_lock().lock().await;

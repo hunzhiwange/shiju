@@ -1,7 +1,17 @@
-//! Codex request controls that are specific to a Chat upstream.
+//! Codex Responses request adaptation for a Chat upstream.
 use super::{UNSUPPORTED, object_keys};
 use axum::http::StatusCode;
 use serde_json::{Value, json};
+use vw_agent_apps::routing::compaction_replay::replay_text;
+
+pub(super) fn replay_compaction(item: &Value) -> Result<Option<Value>, StatusCode> {
+    object_keys(item, &["type", "id", "encrypted_content"])?;
+    let Some(payload) = item.get("encrypted_content").filter(|value| !value.is_null()) else {
+        return Ok(None);
+    };
+    let payload = payload.as_str().ok_or(StatusCode::BAD_REQUEST)?;
+    Ok(replay_text(payload).map(|content| json!({"role":"user","content":content})))
+}
 
 /// Codex sends these response-only hints even with a third-party provider.
 pub(in crate::model_relay) fn codex_chat_effort(

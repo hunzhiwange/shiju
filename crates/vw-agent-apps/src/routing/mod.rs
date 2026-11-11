@@ -1,3 +1,8 @@
+pub mod compaction_replay;
+
+#[cfg(test)]
+mod compaction_replay_tests;
+
 pub mod lifecycle_state;
 
 #[cfg(test)]

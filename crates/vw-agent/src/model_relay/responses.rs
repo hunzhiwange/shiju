@@ -154,7 +154,20 @@ pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), S
         for item in body["input"].as_array().ok_or(StatusCode::BAD_REQUEST)? {
             match item["type"].as_str() {
                 None | Some("message") => {
-                    object_keys(item, &["type", "id", "role", "content", "status", "phase"])?;
+                    let fields: &[&str] = if codex {
+                        &[
+                            "type",
+                            "id",
+                            "role",
+                            "content",
+                            "status",
+                            "phase",
+                            "internal_chat_message_metadata_passthrough",
+                        ]
+                    } else {
+                        &["type", "id", "role", "content", "status", "phase"]
+                    };
+                    object_keys(item, fields)?;
                     let role = string(item, "role")?;
                     if !matches!(role, "system" | "developer" | "user" | "assistant") {
                         return Err(UNSUPPORTED);
@@ -173,6 +186,9 @@ pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), S
                     } else {
                         messages.push(json!({"role":role,"content":content}));
                     }
+                }
+                Some("compaction" | "compaction_summary" | "context_compaction") if codex => {
+                    messages.extend(codex_chat::replay_compaction(item)?);
                 }
                 Some("reasoning") if codex => {
                     // Only plain reasoning produced by Chat can be replayed to Chat.

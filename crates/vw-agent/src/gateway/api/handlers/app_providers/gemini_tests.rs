@@ -200,6 +200,7 @@ async fn cc04_gemini_sdk_api_recovers_both_files_before_replanning() {
         });
     }
     let pending = Pending {
+        project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),
         app: vw_api_types::agent_apps::AppId::Gemini,

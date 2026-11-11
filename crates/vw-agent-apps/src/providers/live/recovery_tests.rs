@@ -177,7 +177,10 @@ fn cc04_recovery_state_failure_retains_intent_and_retry_is_idempotent() {
     fs::create_dir(&state).unwrap();
     assert!(s.recover(&mut guard).is_err());
     assert!(s.pending(AppId::Claude).unwrap().is_some());
-    assert_eq!(fs::read(live.path().join("b")).unwrap(), b"new");
+    assert!(
+        !live.path().join("b").exists(),
+        "unreadable project ownership must stop recovery before native publication"
+    );
     fs::remove_dir(state).unwrap();
     assert_eq!(s.recover(&mut guard).unwrap(), Some(RecoveryOutcome::RolledForward));
     assert_eq!(s.recover(&mut guard).unwrap(), None);

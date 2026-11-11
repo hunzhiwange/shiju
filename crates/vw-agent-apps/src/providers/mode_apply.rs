@@ -49,7 +49,7 @@ pub struct RouteScope<'a> {
 }
 /// A readiness result contains only the trusted local client address. No upstream secret.
 pub struct ClientEndpoint {
-    url: String,
+    pub(crate) url: String,
 }
 impl ClientEndpoint {
     pub fn new(url: &str) -> Result<Self, ModeApplyError> {

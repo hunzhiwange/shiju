@@ -80,6 +80,12 @@ pub mod preview;
 mod preview_tests;
 
 #[cfg(target_os = "macos")]
+pub mod claude_publish;
+
+#[cfg(all(test, target_os = "macos"))]
+mod claude_publish_tests;
+
+#[cfg(target_os = "macos")]
 pub mod codex_publish;
 
 #[cfg(all(test, target_os = "macos"))]

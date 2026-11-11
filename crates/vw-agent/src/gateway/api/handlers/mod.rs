@@ -404,3 +404,8 @@ mod mcp_management_resync_tests;
 mod mcp_management_probe;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_probe_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_clients_tests;
+
+mod aggregation_clients;

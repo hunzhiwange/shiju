@@ -364,3 +364,21 @@ pub enum AggregationOutcome {
 #[cfg(test)]
 #[path = "aggregation_publish_tests.rs"]
 mod publish_tests;
+
+/// Only opaque revisions and bounded hints are public; no process or credential payloads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexClientsState {
+    pub revision: String,
+    pub daemon: bool,
+    pub others: bool,
+    pub auth: bool,
+    pub unverified: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CodexClientsAckRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+}

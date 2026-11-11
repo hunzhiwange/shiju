@@ -120,3 +120,27 @@ fn aggregation_t48_pi_requests_reject_native_settings_and_extra_payloads() {
     request["change"]["profile"] = json!({"name":"bad","declaration":{}});
     assert!(serde_json::from_value::<PiDirectoryWrite>(request).is_err());
 }
+
+#[test]
+fn aggregation_t44_ack_rejects_process_and_path_inputs() {
+    let valid = json!({"targetHostId":"host","projectId":"project","expectedRevision":"revision"});
+    let parsed: CodexClientsAckRequest = serde_json::from_value(valid.clone()).unwrap();
+    assert_eq!(parsed.expected_revision, "revision");
+    for field in ["daemonPid", "path", "command", "credentials"] {
+        let mut value = valid.clone();
+        value[field] = json!("untrusted");
+        assert!(serde_json::from_value::<CodexClientsAckRequest>(value).is_err());
+    }
+    let state = CodexClientsState {
+        revision: "revision".into(),
+        daemon: true,
+        others: true,
+        auth: false,
+        unverified: false,
+    };
+    let value = serde_json::to_value(state).unwrap();
+    assert_eq!(
+        value,
+        json!({"revision":"revision","daemon":true,"others":true,"auth":false,"unverified":false})
+    );
+}

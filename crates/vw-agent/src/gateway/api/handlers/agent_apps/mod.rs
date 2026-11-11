@@ -21,6 +21,7 @@ pub(crate) fn router() -> Router {
         .merge(super::aggregation_desktop::router())
         .merge(super::aggregation_omo::router())
         .merge(super::aggregation_codex_settings::router())
+        .merge(super::aggregation_clients::router())
         .merge(super::aggregation_members::router())
         .merge(super::mcp_management_read::router())
         .merge(lifecycle::router())

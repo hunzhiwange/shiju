@@ -37,9 +37,14 @@ pub struct Snapshot {
     history: History,
     binding: String,
     catalog: String,
+    catalog_is_external: bool,
     login: Option<String>,
 }
 impl Snapshot {
+    /// A validated foreign pointer is never followed; the gateway can suppress catalog-only hints.
+    pub fn catalog_is_external(&self) -> bool {
+        self.catalog_is_external
+    }
     pub fn revision(&self) -> String {
         digest(
             &serde_json::to_vec(&(&self.binding, &self.catalog, &self.login))
@@ -108,6 +113,7 @@ pub fn read(
         .map_err(|_| WriteError::InvalidResource)?
         .parse()
         .map_err(|_| WriteError::InvalidResource)?;
+    let mut catalog_is_external = false;
     let catalog = match config.get("model_catalog_json") {
         None => NONE.into(),
         Some(value) => {
@@ -123,6 +129,7 @@ pub fn read(
                     .map(|b| digest(&b))
                     .ok_or(WriteError::InvalidResource)?
             } else {
+                catalog_is_external = true;
                 NONE.into()
             }
         }
@@ -139,7 +146,7 @@ pub fn read(
         &serde_json::to_vec(&(scope, transactions.execution_host(), AppId::Codex))
             .map_err(|_| WriteError::InvalidResource)?,
     );
-    Ok(Snapshot { history, binding, catalog, login })
+    Ok(Snapshot { history, binding, catalog, catalog_is_external, login })
 }
 
 /// Called by publication/reconnect lifecycle, never by a state GET.

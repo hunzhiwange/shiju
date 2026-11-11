@@ -39,7 +39,7 @@ pub fn content(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center)
     .wrap();
     let preview = column![
-        avatar_preview(app.task_pet_avatar_kind, 96.0 * app.task_pet_scale),
+        avatar_preview(app.task_pet_avatar_kind, 96.0 * app.task_pet_preview_scale()),
         // 预览只显示外观，不接受工具栏或操作系统窗口事件。
         container(text(i18n.__("迷你工具栏")).size(13))
             .padding([8, 16])
@@ -104,6 +104,13 @@ pub fn content(app: &App) -> Element<'_, Message> {
         header,
         text(i18n.__("选择伙伴会立即同步预览与迷你界面。显示与隐藏单独控制。")).size(13),
         preview,
+        container(
+            button(text(i18n.__("自定义伙伴大小")).size(13))
+                .on_press(Message::View(ViewMessage::TaskPetSizeOpen))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+        )
+        .align_right(Length::Fill),
         text(i18n.__("我的智能伙伴")).size(18),
         cards,
     ]
@@ -114,3 +121,5 @@ pub fn content(app: &App) -> Element<'_, Message> {
 #[cfg(test)]
 #[path = "system_settings_companion_tests.rs"]
 mod tests;
+
+pub(crate) mod size_modal;

@@ -224,9 +224,12 @@ pub fn window(app: &App) -> Element<'_, Message> {
 }
 
 fn expanded_window(app: &App) -> Element<'_, Message> {
-    let content = column![pet_control(app, PET_EXPANDED_SIZE, false), cards::expanded_list(app)]
+    let mut content = column![pet_control(app, PET_EXPANDED_SIZE, false)]
         .spacing(PET_CONTROL_GAP)
         .align_x(Alignment::Center);
+    if !app.task_pet_items.is_empty() {
+        content = content.push(cards::expanded_list(app));
+    }
     container(content)
         .width(Length::Fill)
         .height(Length::Fill)
@@ -236,23 +239,25 @@ fn expanded_window(app: &App) -> Element<'_, Message> {
 }
 
 fn collapsed_window(app: &App) -> Element<'_, Message> {
-    container(
-        column![pet_control(app, PET_COLLAPSED_SIZE, true), cards::collapsed_stack(app)]
-            .spacing(PET_CONTROL_GAP)
-            .align_x(Alignment::Center),
-    )
-    .center_x(Length::Fill)
-    .height(Length::Fill)
-    .padding(8)
-    .style(transparent_pet_window_style)
-    .into()
+    let mut content = column![pet_control(app, PET_COLLAPSED_SIZE, true)]
+        .spacing(PET_CONTROL_GAP)
+        .align_x(Alignment::Center);
+    if !app.task_pet_items.is_empty() {
+        content = content.push(cards::collapsed_stack(app));
+    }
+    container(content)
+        .center_x(Length::Fill)
+        .height(Length::Fill)
+        .padding(8)
+        .style(transparent_pet_window_style)
+        .into()
 }
 
 fn pet_control(app: &App, size: f32, _collapsed: bool) -> Element<'_, Message> {
     let avatar: Element<'_, Message> = if app.task_pet_avatar_kind == TaskPetAvatarKind::None {
         Space::new().height(PET_CONTROL_SIZE).into()
     } else {
-        let mut sprite = iced::widget::stack![pet_sprite(app, size * app.task_pet_scale)];
+        let mut sprite = iced::widget::stack![pet_sprite(app, size * app.task_pet_preview_scale())];
         if app.task_pet_avatar_kind == TaskPetAvatarKind::Robot
             && app.task_pet_active_count() > 0
             && !app.task_pet_is_walking()
@@ -266,8 +271,8 @@ fn pet_control(app: &App, size: f32, _collapsed: bool) -> Element<'_, Message> {
         }
         let avatar = mouse_area(
             container(sprite)
-                .center_x(Length::Fixed(PET_CONTROL_SIZE * app.task_pet_scale))
-                .center_y(Length::Fixed(PET_CONTROL_SIZE * app.task_pet_scale)),
+                .center_x(Length::Fixed(app.task_pet_avatar_bounds()))
+                .center_y(Length::Fixed(app.task_pet_avatar_bounds())),
         )
         .on_press(Message::View(message::ViewMessage::TaskPetDragStarted))
         .on_enter(Message::View(message::ViewMessage::TaskPetRobotHover(true)))
@@ -314,6 +319,7 @@ fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Messa
     mouse_area(
         column![
             action("选择智能伙伴", message::ViewMessage::TaskPetOpenSettings),
+            action("自定义伙伴大小", message::ViewMessage::TaskPetSizeOpen),
             action("隐藏伙伴", message::ViewMessage::TaskPetHideWindow),
         ]
         .spacing(4)

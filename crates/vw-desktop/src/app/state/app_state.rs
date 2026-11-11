@@ -805,6 +805,9 @@ pub struct App {
     pub(crate) task_pet_avatar_kind: TaskPetAvatarKind,
     /// 伙伴比例，有限值限制在 0.5–2.0。
     pub(crate) task_pet_scale: f32,
+    /// 弹窗预览独立于持久化值；保存期间禁止重复提交和取消。
+    pub(crate) task_pet_size_draft: Option<f32>,
+    pub(crate) task_pet_size_pending: Option<crate::app::config::PreferencesScope>,
     /// Mini 显示偏好，与头像选择独立。
     pub(crate) task_pet_visible: bool,
     /// 鼠标是否悬停在小宠物本体上

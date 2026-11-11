@@ -5541,5 +5541,8 @@
   "温柔陪伴，与你一起整理思绪。": "A gentle companion to help gather your thoughts.",
   "识矩小朗": "ShiJu Xiaolang",
   "从容同行，与你一起完成任务。": "A calm companion to help you finish tasks.",
-  "选择伙伴": "Choose companion"
+  "选择伙伴": "Choose companion",
+  "自定义伙伴大小": "Customize companion size",
+  "当前未选择伙伴，选择伙伴后可调整大小。": "Select a companion to adjust its size.",
+  "拖动滑杆实时预览，工具栏与任务卡片大小保持不变。": "Drag to preview the size. Toolbar and task cards keep their size."
 }

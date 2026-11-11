@@ -1137,3 +1137,92 @@ fn mini_companion_defaults_and_loaded_scale_are_bounded() {
     assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Handsome);
     assert_eq!(app.task_pet_scale, 0.5);
 }
+
+#[test]
+fn mini_companion_size_failure_keeps_draft_and_retry_commits_once() {
+    use crate::app::{
+        App, Message,
+        message::{ViewMessage, view},
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let calls = AtomicUsize::new(0);
+    let server = TestServer::start(2, move |request| {
+        assert_eq!(request.method, "PATCH");
+        let value: serde_json::Value = serde_json::from_str(&request.body).unwrap();
+        assert_eq!(value["mini_companion"]["scale"], 1.5);
+        if calls.fetch_add(1, Ordering::SeqCst) == 0 { (500, "{}") } else { (200, "{}") }
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut app = App::new().0;
+    let _ = view::update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let _ = view::update(&mut app, ViewMessage::TaskPetSizePreview(1.5));
+    for success in [false, true] {
+        let save = view::update(&mut app, ViewMessage::TaskPetSizeSave);
+        let duplicate = view::update(&mut app, ViewMessage::TaskPetSizeSave);
+        assert!(iced_runtime::task::into_stream(duplicate).is_none());
+        let messages = super::super::gateway::run_gateway_call(async {
+            Ok(collect_preference_messages(save).await)
+        })
+        .unwrap();
+        assert_eq!(messages.len(), 1);
+        assert!(
+            matches!(&messages[0], Message::View(ViewMessage::TaskPetSizeSaved(_, result)) if result.is_ok() == success)
+        );
+        for message in messages {
+            let _ = app.update(message);
+        }
+        assert!(app.task_pet_size_pending.is_none());
+        if !success {
+            assert_eq!(app.task_pet_size_draft, Some(1.5));
+            assert_eq!(app.task_pet_scale, 1.0);
+            assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+        }
+    }
+    assert!(app.task_pet_size_draft.is_none());
+    assert_eq!(app.task_pet_scale, 1.5);
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn mini_companion_size_queued_save_waits_for_its_own_response() {
+    use crate::app::{
+        App, Message,
+        message::{ViewMessage, view},
+    };
+    let server = TestServer::start(2, |request| {
+        assert_eq!(request.method, "PATCH");
+        (200, "{}")
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let mut app = App::new().0;
+    let earlier = app.save_desktop_preference("theme", serde_json::json!("dark"));
+    let _ = view::update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let _ = view::update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
+    let queued = view::update(&mut app, ViewMessage::TaskPetSizeSave);
+    assert!(iced_runtime::task::into_stream(queued).is_none());
+    let messages = super::super::gateway::run_gateway_call(async {
+        Ok(collect_preference_messages(earlier).await)
+    })
+    .unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(&messages[0], Message::DesktopPreferencesSaved(_, Ok(()))));
+    for message in messages {
+        let next = app.update(message);
+        assert_eq!(app.task_pet_size_draft, Some(2.0));
+        assert_eq!(app.task_pet_scale, 1.0);
+        let messages = super::super::gateway::run_gateway_call(async {
+            Ok(collect_preference_messages(next).await)
+        })
+        .unwrap();
+        assert_eq!(messages.len(), 1);
+        for message in messages {
+            let _ = app.update(message);
+        }
+    }
+    assert!(app.task_pet_size_draft.is_none());
+    assert_eq!(app.task_pet_scale, 2.0);
+    let requests = server.take_requests();
+    assert_eq!(requests.len(), 2);
+    let patch: serde_json::Value = serde_json::from_str(&requests[1].body).unwrap();
+    assert_eq!(patch["mini_companion"]["scale"], 2.0);
+}

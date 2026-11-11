@@ -549,6 +549,8 @@ impl App {
             task_pet_walk_until_ms: 0,
             task_pet_avatar_kind: state::TaskPetAvatarKind::Robot,
             task_pet_scale: 1.0,
+            task_pet_size_draft: None,
+            task_pet_size_pending: None,
             task_pet_visible: false,
             task_pet_robot_hovered: false,
             task_pet_context_menu_pos: None,

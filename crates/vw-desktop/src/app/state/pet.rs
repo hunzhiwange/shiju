@@ -203,6 +203,35 @@ impl App {
         self.task_pet_window_id = task_pet_window_id;
     }
 
+    pub(crate) fn task_pet_preview_scale(&self) -> f32 {
+        self.task_pet_size_draft.unwrap_or(self.task_pet_scale)
+    }
+
+    pub(crate) fn task_pet_avatar_bounds(&self) -> f32 {
+        let scale = if self.task_pet_avatar_kind == TaskPetAvatarKind::None {
+            1.0
+        } else {
+            self.task_pet_preview_scale().max(1.0)
+        };
+        104.0 * scale
+    }
+
+    pub(crate) fn resize_task_pet_preview(
+        &mut self,
+        previous_size: iced::Size,
+    ) -> iced::Task<crate::app::Message> {
+        self.task_pet_robot_hovered = false;
+        let Some(id) = self.task_pet_window_id else {
+            return iced::Task::none();
+        };
+        let size = self.task_pet_window_size();
+        self.task_pet_position = iced::Point::new(
+            (self.task_pet_position.x + previous_size.width - size.width).max(0.0),
+            (self.task_pet_position.y + previous_size.height - size.height).max(0.0),
+        );
+        iced::window::resize(id, size).chain(iced::window::move_to(id, self.task_pet_position))
+    }
+
     pub fn task_pet_window_size(&self) -> iced::Size {
         let progress = smooth_progress(self.task_pet_expand_progress.clamp(0.0, 1.0));
         let mut size = task_pet_window_size_for_progress(self.task_pet_expand_progress);
@@ -234,8 +263,8 @@ impl App {
                 + collapsed_height * (1.0 - progress)
                 + expanded_height * progress;
         }
-        let extra = 104.0 * (self.task_pet_scale - 1.0).max(0.0);
-        size.width = size.width.max(160.0 + extra);
+        let extra = self.task_pet_avatar_bounds() - 104.0;
+        size.width = size.width.max(self.task_pet_avatar_bounds() + 16.0);
         size.height += extra;
         size
     }

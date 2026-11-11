@@ -35,6 +35,7 @@ enum PatchTarget {
 struct PreferencesPatch {
     endpoint: GatewayEndpoint,
     fields: Map<String, Value>,
+    companion_size_save: bool,
 }
 
 #[derive(Default)]
@@ -55,7 +56,7 @@ impl DesktopPreferencesPersistence {
             .entry(preferences_scope(&endpoint))
             .or_default()
             .extend(fields.keys().filter(|key| key.as_str() != REASONING_EFFORTS).cloned());
-        self.enqueue_patch(endpoint, PatchTarget::Desktop, fields)
+        self.enqueue_patch(endpoint, PatchTarget::Desktop, fields, false)
     }
 
     pub(super) fn enqueue_system_settings(
@@ -68,7 +69,7 @@ impl DesktopPreferencesPersistence {
             .entry(preferences_scope(&endpoint))
             .or_default()
             .insert(section);
-        self.enqueue_patch(endpoint, PatchTarget::System(section), fields)
+        self.enqueue_patch(endpoint, PatchTarget::System(section), fields, false)
     }
 
     pub(in crate::app) fn has_system_settings_write(
@@ -84,16 +85,22 @@ impl DesktopPreferencesPersistence {
         endpoint: GatewayEndpoint,
         target: PatchTarget,
         mut fields: Map<String, Value>,
+        companion_size_save: bool,
     ) -> Task<Message> {
         let scope = preferences_scope(&endpoint);
         match self.in_flight.entry((scope.clone(), target)) {
             Entry::Vacant(entry) => {
                 entry.insert(None);
-                Self::send(scope, target, PreferencesPatch { endpoint, fields })
+                Self::send(
+                    scope,
+                    target,
+                    PreferencesPatch { endpoint, fields, companion_size_save },
+                )
             }
             Entry::Occupied(mut entry) => {
                 if let Some(pending) = entry.get_mut() {
                     pending.endpoint = endpoint;
+                    pending.companion_size_save |= companion_size_save;
                     if target == PatchTarget::Desktop
                         && let Some(Value::Object(edits)) = fields.get_mut(REASONING_EFFORTS)
                         && let Some(Value::Object(mut earlier)) =
@@ -104,7 +111,7 @@ impl DesktopPreferencesPersistence {
                     }
                     pending.fields.extend(fields);
                 } else {
-                    entry.insert(Some(PreferencesPatch { endpoint, fields }));
+                    entry.insert(Some(PreferencesPatch { endpoint, fields, companion_size_save }));
                 }
                 Task::none()
             }
@@ -116,6 +123,7 @@ impl DesktopPreferencesPersistence {
         target: PatchTarget,
         patch: PreferencesPatch,
     ) -> Task<Message> {
+        let companion_size_save = patch.companion_size_save;
         Task::perform(
             async move {
                 let client = GatewayClient::new(patch.endpoint)?;
@@ -148,6 +156,9 @@ impl DesktopPreferencesPersistence {
                 reasoning_result
             },
             move |result| match target {
+                PatchTarget::Desktop if companion_size_save => {
+                    Message::View(crate::app::message::ViewMessage::TaskPetSizeSaved(scope, result))
+                }
                 PatchTarget::Desktop => Message::DesktopPreferencesSaved(scope, result),
                 PatchTarget::System(section) => {
                     Message::SystemSettingsSaved(scope, section, result)
@@ -224,12 +235,26 @@ impl App {
         }
     }
 
+    pub(crate) fn save_task_pet_size(&mut self, scale: f32) -> Task<Message> {
+        let endpoint = gateway_client_endpoint();
+        self.task_pet_size_pending = Some(preferences_scope(&endpoint));
+        self.desktop_preferences_persistence
+            .edited_desktop_fields
+            .entry(preferences_scope(&endpoint))
+            .or_default()
+            .insert("mini_companion".into());
+        self.desktop_preferences_persistence.enqueue_patch(endpoint, PatchTarget::Desktop,
+            Map::from_iter([("mini_companion".into(), serde_json::json!({
+                "avatar": self.task_pet_avatar_kind, "scale": scale, "visible": self.task_pet_visible,
+            }))]), true)
+    }
+
     pub(crate) fn save_task_pet_preferences(&mut self) -> Task<Message> {
         self.save_desktop_preference(
             "mini_companion",
             serde_json::json!({
                 "avatar": self.task_pet_avatar_kind,
-                "scale": self.task_pet_scale,
+                "scale": if self.task_pet_size_pending.is_some() { self.task_pet_preview_scale() } else { self.task_pet_scale },
                 "visible": self.task_pet_visible,
             }),
         )

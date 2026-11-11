@@ -493,3 +493,64 @@ async fn mini_companion_reply_route_preserves_target_session() {
     assert_eq!(app.active_session_id.as_deref(), Some("unrelated"));
     assert!(app.task_pet_reply_input.is_empty());
 }
+
+#[test]
+fn mini_companion_size_cancel_restores_committed_value() {
+    use super::{ViewMessage, update};
+    let mut app = crate::app::App::new().0;
+    app.task_pet_scale = 1.25;
+    let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let _ = update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
+    assert_eq!(app.task_pet_preview_scale(), 2.0);
+    assert_eq!(app.task_pet_scale, 1.25);
+    let _ = update(&mut app, ViewMessage::TaskPetSizeCancel);
+    assert_eq!(app.task_pet_preview_scale(), 1.25);
+    assert!(app.task_pet_size_draft.is_none());
+}
+
+#[test]
+fn mini_companion_size_save_persists_once() {
+    use super::{ViewMessage, update};
+    let mut app = crate::app::App::new().0;
+    let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let preview = update(&mut app, ViewMessage::TaskPetSizePreview(1.5));
+    assert!(iced_runtime::task::into_stream(preview).is_none());
+    let save = update(&mut app, ViewMessage::TaskPetSizeSave);
+    assert!(iced_runtime::task::into_stream(save).is_some());
+    let again = update(&mut app, ViewMessage::TaskPetSizeSave);
+    assert!(iced_runtime::task::into_stream(again).is_none());
+    assert_eq!(app.task_pet_scale, 1.0);
+    assert!(app.task_pet_size_pending.is_some());
+}
+
+#[test]
+fn mini_companion_size_escape_rolls_back_and_modal_blocks_actions() {
+    use super::{ViewMessage, update};
+    use crate::app::state::TaskPetAvatarKind;
+    let mut app = crate::app::App::new().0;
+    let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let _ = update(&mut app, ViewMessage::TaskPetSizePreview(0.5));
+    let _ = update(&mut app, ViewMessage::TaskPetAvatarSelected(TaskPetAvatarKind::None));
+    let _ = update(&mut app, ViewMessage::TaskPetDragStarted);
+    assert_eq!(app.task_pet_avatar_kind, TaskPetAvatarKind::Robot);
+    assert!(!app.task_pet_dragging);
+    let _ = update(
+        &mut app,
+        ViewMessage::GlobalKeyPressed(
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+            iced::keyboard::Modifiers::default(),
+        ),
+    );
+    assert!(app.task_pet_size_draft.is_none());
+    assert_eq!(app.task_pet_preview_scale(), 1.0);
+}
+
+#[test]
+fn mini_companion_size_none_ignores_slider() {
+    use super::{ViewMessage, update};
+    let mut app = crate::app::App::new().0;
+    app.task_pet_avatar_kind = crate::app::state::TaskPetAvatarKind::None;
+    let _ = update(&mut app, ViewMessage::TaskPetSizeOpen);
+    let _ = update(&mut app, ViewMessage::TaskPetSizePreview(2.0));
+    assert_eq!(app.task_pet_preview_scale(), 1.0);
+}

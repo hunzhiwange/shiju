@@ -218,6 +218,12 @@ pub enum ViewMessage {
     TaskPetAvatarSelected(crate::app::state::TaskPetAvatarKind),
     /// 更新并保存伙伴比例。
     TaskPetScaleChanged(f32),
+    TaskPetSizeOpen,
+    TaskPetSizePreview(f32),
+    TaskPetSizeReset,
+    TaskPetSizeCancel,
+    TaskPetSizeSave,
+    TaskPetSizeSaved(crate::app::config::PreferencesScope, Result<(), String>),
     /// 点击小宠物任务条目
     TaskPetItemClicked(u64),
     /// 主动删除小宠物任务条目
@@ -671,6 +677,28 @@ pub enum ViewMessage {
 /// // task 可能包含需要在事件循环中执行的命令
 /// ```
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
+    if app.task_pet_size_draft.is_some()
+        && matches!(
+            &message,
+            ViewMessage::TaskPetAvatarSelected(_)
+                | ViewMessage::TaskPetAvatarCycle
+                | ViewMessage::TaskPetScaleChanged(_)
+                | ViewMessage::TaskPetDragStarted
+                | ViewMessage::TaskPetShowWindow
+                | ViewMessage::TaskPetHideWindow
+                | ViewMessage::TaskPetToggleWindow
+                | ViewMessage::TaskPetWriteMessage
+                | ViewMessage::TaskPetToggleCollapsed
+                | ViewMessage::TaskPetContextMenuOpened(_, _)
+                | ViewMessage::TaskPetReplyPressed(_)
+                | ViewMessage::TaskPetReplySubmit
+                | ViewMessage::TaskPetItemClicked(_)
+                | ViewMessage::TaskPetRemove(_)
+        )
+    {
+        return Task::none();
+    }
+
     let sync_work_browser = matches!(
         &message,
         ViewMessage::WorkspaceModeSelected(_)
@@ -833,6 +861,60 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     .chain(iced::window::gain_focus(id))
             });
             Task::batch([open, focus])
+        }
+        ViewMessage::TaskPetSizeOpen => {
+            if app.task_pet_size_draft.is_some() {
+                return Task::none();
+            }
+            app.task_pet_size_draft = Some(app.task_pet_scale);
+            app.task_pet_dragging = false;
+            update(app, ViewMessage::TaskPetOpenSettings)
+        }
+        ViewMessage::TaskPetSizePreview(scale) => {
+            if app.task_pet_size_draft.is_none()
+                || app.task_pet_size_pending.is_some()
+                || app.task_pet_avatar_kind == crate::app::state::TaskPetAvatarKind::None
+            {
+                return Task::none();
+            }
+            if !scale.is_finite() {
+                return app.show_error_toast("伙伴大小必须是有限数值");
+            }
+            let previous_size = app.task_pet_window_size();
+            app.task_pet_size_draft = Some(scale.clamp(0.5, 2.0));
+            app.resize_task_pet_preview(previous_size)
+        }
+        ViewMessage::TaskPetSizeReset => update(app, ViewMessage::TaskPetSizePreview(1.0)),
+        ViewMessage::TaskPetSizeCancel => {
+            if app.task_pet_size_pending.is_some() {
+                return Task::none();
+            }
+            let previous_size = app.task_pet_window_size();
+            app.task_pet_size_draft = None;
+            app.resize_task_pet_preview(previous_size)
+        }
+        ViewMessage::TaskPetSizeSave => {
+            if app.task_pet_size_pending.is_some() {
+                return Task::none();
+            }
+            let Some(scale) = app.task_pet_size_draft else {
+                return Task::none();
+            };
+            if scale == app.task_pet_scale {
+                return update(app, ViewMessage::TaskPetSizeCancel);
+            }
+            app.save_task_pet_size(scale)
+        }
+        ViewMessage::TaskPetSizeSaved(scope, result) => {
+            if app.task_pet_size_pending.as_ref() == Some(&scope) {
+                app.task_pet_size_pending = None;
+                if result.is_ok()
+                    && let Some(scale) = app.task_pet_size_draft.take()
+                {
+                    app.task_pet_scale = scale;
+                }
+            }
+            app.desktop_preferences_saved(scope, result)
         }
         ViewMessage::TaskPetAvatarCycle => {
             app.cycle_task_pet_avatar();
@@ -1067,6 +1149,13 @@ fn handle_global_key(
     key: iced::keyboard::Key,
     modifiers: iced::keyboard::Modifiers,
 ) -> Task<Message> {
+    if app.task_pet_size_draft.is_some() {
+        return if key == iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape) {
+            update(app, ViewMessage::TaskPetSizeCancel)
+        } else {
+            Task::none()
+        };
+    }
     if app.screen == crate::app::Screen::WorkflowTool {
         if let Some(workflow_message) =
             workflow_key_message(&key, modifiers, app.workflow_state.selected_node_id.is_some())

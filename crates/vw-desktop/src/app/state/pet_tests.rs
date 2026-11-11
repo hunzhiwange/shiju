@@ -484,3 +484,35 @@ fn mini_companion_double_click_opens_without_dismissing_completed_card() {
     assert_eq!(app.task_pet_item_clicked(2), Some("session-2".into()));
     assert_eq!(app.task_pet_items.len(), 1);
 }
+
+#[test]
+fn mini_companion_scaled_bounds_include_controls() {
+    let mut app = app();
+    for scale in [0.5, 1.0, 2.0] {
+        app.task_pet_scale = scale;
+        let bounds = app.task_pet_window_size();
+        assert!(bounds.width >= 160.0);
+        assert!(bounds.height >= 104.0 * scale.max(1.0) + 6.0 + 36.0 + 16.0);
+    }
+}
+
+#[test]
+fn mini_companion_size_preview_preserves_bottom_edge_and_card_dimensions() {
+    let mut app = app();
+    app.task_pet_window_id = Some(iced::window::Id::unique());
+    app.task_pet_position = iced::Point::new(500.0, 500.0);
+    app.task_pet_items = vec![mini_task(1, TaskPetStatus::Running)];
+    for progress in [0.0, 0.5, 1.0] {
+        app.task_pet_expand_progress = progress;
+        app.task_pet_scale = 1.0;
+        let original = app.task_pet_window_size();
+        let bottom = app.task_pet_position.y + original.height;
+        app.task_pet_size_draft = Some(2.0);
+        let _ = app.resize_task_pet_preview(original);
+        let enlarged = app.task_pet_window_size();
+        assert_eq!(enlarged.height - original.height, 104.0);
+        assert_eq!(enlarged.width, original.width);
+        assert_eq!(app.task_pet_position.y + enlarged.height, bottom);
+        app.task_pet_size_draft = None;
+    }
+}

@@ -4,6 +4,8 @@
 use super::message;
 use super::{App, Message};
 
+pub(crate) use crate::app::components::system_settings_companion::size_modal::with_size_modal;
+
 #[cfg(not(target_arch = "wasm32"))]
 mod account_details;
 mod chat_fork;

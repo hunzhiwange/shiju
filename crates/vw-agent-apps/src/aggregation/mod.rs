@@ -78,3 +78,9 @@ pub mod preview;
 
 #[cfg(all(test, target_os = "macos"))]
 mod preview_tests;
+
+#[cfg(target_os = "macos")]
+pub mod codex_publish;
+
+#[cfg(all(test, target_os = "macos"))]
+mod codex_publish_tests;

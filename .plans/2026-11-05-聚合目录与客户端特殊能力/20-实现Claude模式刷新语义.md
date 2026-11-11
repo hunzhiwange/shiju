@@ -74,3 +74,9 @@
 复用任务14 `claude_publish::publish`、`preview::preview` 与原 Claude 字段投影，无重复刷新体系。新增独立 claude_refresh_tests 两项真实文件/事务回归；任务20过滤测试2通过、任务14过滤复验10通过，均退出0。槽位8及1，绝对 CARGO_TARGET_DIR 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8` 和 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
 
 全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：其他任务新增 `crates/vw-agent-apps/src/providers/live/recovery.rs:252` 嵌套if触发 clippy::collapsible_if；未改该无关文件。详细编译纠正、非行为失败、环境与真实客户端边界见 `docs/shiju/agent-apps/aggregation/任务20-验证.md`。解除条件：恢复所有者修复该警告后重新执行必需检查，成功后才删除任务卡。现不宣称完整验收通过。
+
+## 2026-11-12 延后回归
+
+本轮无代码修改。当前源码 `aggregation_t20_` 过滤命令退出0，2通过、1187过滤；动态槽位2，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2，采用任务59单并行、关闭增量的低内存环境。自有消费者与锁均已释放。
+
+任务15统一Clippy退出101，其他在途MCP工具页五处 column! 宏歧义阻断；全仓源码变化，但任务20七个直接相关文件与聚焦/统一前后快照一致。证据见 docs/shiju/agent-apps/aggregation/任务20-验证.md。按调度要求维持“已完成，待回归”，保留本卡并结束本轮；统一检查成功后调度将恢复原会话核对并删除卡片。

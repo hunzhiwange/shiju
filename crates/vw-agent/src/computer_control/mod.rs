@@ -1,4 +1,4 @@
-//! Local computer-control authorization, independent of backend readiness.
+//! Trusted local computer-control policy, IPC and application observations.
 
 pub mod policy;
 
@@ -10,3 +10,5 @@ mod policy_tests;
 
 #[cfg(all(test, unix))]
 mod host_tests;
+
+pub mod native;

@@ -153,6 +153,51 @@ impl RoutingControl {
         })
     }
 
+    /// Ordinary routing and aggregation share the authorization and token owner.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "awaits native client configuration publication")
+    )]
+    pub(crate) fn publish_failover_route(
+        &self,
+        headers: &HeaderMap,
+        project: &ProjectScope,
+        host: &str,
+        expected_revision: Option<&str>,
+        prepare: impl FnOnce(
+            &std::path::Path,
+            &str,
+        ) -> Result<
+            crate::app_routing::failover_routing::FailoverPublication,
+            StatusCode,
+        >,
+        commit: impl FnOnce(
+            &std::path::Path,
+            SocketAddr,
+            &str,
+            &crate::gateway::agent_apps_high_availability_store::FailoverQueueState,
+            &str,
+        ) -> Result<(), crate::app_routing::RouteCommitError>,
+    ) -> Result<crate::app_routing::RouteRevocation, StatusCode> {
+        let app = AppId::Codex;
+        let (root, principal) = self.authorize_mode(headers, project, host, app)?;
+        let publication = prepare(&root, &principal)?;
+        if !publication.binding.has_scope(project, host, app) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        let database = GlobalDatabase::for_home(&crate::global::paths().home)
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let store =
+            crate::gateway::agent_apps_high_availability_store::FailoverQueueStore::new(database)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        self.routing.publish_failover_route(
+            publication,
+            &store,
+            expected_revision,
+            |address, token, queue, provider| commit(&root, address, token, queue, provider),
+        )
+    }
+
     pub(super) async fn with_config_store<T: Send + 'static>(
         &self,
         operation: impl FnOnce(RoutingConfigStore) -> anyhow::Result<T> + Send + 'static,

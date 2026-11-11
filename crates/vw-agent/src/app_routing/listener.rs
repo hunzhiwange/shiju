@@ -112,6 +112,42 @@ impl RoutingListener {
         })
     }
 
+    /// Publish an ordinary queue-selected route through the same credential owner.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn publish_failover_route(
+        &self,
+        publication: super::failover_routing::FailoverPublication,
+        queue_store: &crate::gateway::agent_apps_high_availability_store::FailoverQueueStore,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(
+            SocketAddr,
+            &str,
+            &crate::gateway::agent_apps_high_availability_store::FailoverQueueState,
+            &str,
+        ) -> Result<(), super::RouteCommitError>,
+    ) -> Result<super::RouteRevocation, axum::http::StatusCode> {
+        use axum::http::StatusCode;
+        let _permit = self.try_control().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let address = self.bound_address().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        let binding = publication.binding.clone();
+        let scope = vw_api_types::agent_apps_high_availability::FailoverQueueScope {
+            project: binding.project().clone(),
+            target_host_id: binding.host().into(),
+            app_id: binding.app(),
+        };
+        let queue = queue_store.get(&scope).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+        let (provider, target) = publication.select(&queue)?;
+        self.auth.publish_plain(binding, target, expected_revision, |token| {
+            if queue_store.get(&scope).ok().as_ref() != Some(&queue) {
+                return Err(super::RouteCommitError {
+                    status: StatusCode::CONFLICT,
+                    recovery_pending: false,
+                });
+            }
+            commit(address, token, &queue, &provider)
+        })
+    }
+
     #[cfg(target_os = "macos")]
     #[cfg_attr(
         not(test),

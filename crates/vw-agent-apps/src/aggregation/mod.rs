@@ -66,3 +66,9 @@ pub mod resolve;
 
 #[cfg(all(test, target_os = "macos"))]
 mod resolve_tests;
+
+#[cfg(target_os = "macos")]
+pub mod failover_guard;
+
+#[cfg(all(test, target_os = "macos"))]
+mod failover_guard_tests;

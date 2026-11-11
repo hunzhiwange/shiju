@@ -77,6 +77,11 @@ impl VerifiedRouteBinding {
         &self.project
     }
 
+    #[cfg(target_os = "macos")]
+    pub(super) fn host(&self) -> &str {
+        &self.host
+    }
+
     fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
             !self.host.trim().is_empty()
@@ -292,6 +297,25 @@ impl RouteAuth {
         Ok(issued.revocation)
     }
 
+    #[cfg(target_os = "macos")]
+    pub(super) fn publish_plain(
+        &self,
+        binding: VerifiedRouteBinding,
+        target: JsonTarget,
+        expected_revision: Option<&str>,
+        commit: impl FnOnce(&str) -> Result<(), RouteCommitError>,
+    ) -> Result<RouteRevocation, StatusCode> {
+        // Serialize the transition against aggregation publication and revocation.
+        // Revision validation below applies to both directions of the transition.
+        self.issue_route(
+            binding,
+            Some(JsonRoute::Plain(Box::new(target))),
+            expected_revision,
+            commit,
+        )
+        .map(|issued| issued.revocation)
+    }
+
     fn issue_route(
         &self,
         binding: VerifiedRouteBinding,
@@ -327,7 +351,7 @@ impl RouteAuth {
         let generation = {
             let active = self.active.lock();
             #[cfg(target_os = "macos")]
-            if let Some(JsonRoute::Aggregation(next)) = &json_target {
+            if json_target.is_some() {
                 let previous =
                     active.grants.values().find(|route| route.binding.same_route(&binding));
                 let previous_revision = previous.and_then(|route| match &route.json_target {
@@ -335,7 +359,7 @@ impl RouteAuth {
                     _ => None,
                 });
                 if previous_revision != expected_revision
-                    || previous_revision == Some(next.revision.as_str())
+                    || matches!(&json_target, Some(JsonRoute::Aggregation(next)) if previous_revision == Some(next.revision.as_str()))
                     || previous.is_some_and(|route| {
                         route.binding.account == binding.account
                             && route.binding.account_generation > binding.account_generation

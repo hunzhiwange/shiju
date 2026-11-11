@@ -77,3 +77,9 @@ mod transport_security_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod compaction_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod failover_routing;
+
+#[cfg(all(test, target_os = "macos"))]
+mod failover_routing_tests;

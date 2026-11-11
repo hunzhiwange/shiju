@@ -94,19 +94,26 @@ impl std::fmt::Debug for Recording {
 pub(super) struct CaptureSink {
     pub(super) generation: u64,
     sender: SyncSender<Frame>,
+    epoch: Arc<AtomicU64>,
     state: Arc<AtomicU8>,
 }
 struct Frame {
     generation: u64,
+    epoch: u64,
     samples: [i16; FRAME_SAMPLES],
     len: usize,
 }
 impl CaptureSink {
+    #[cfg(test)]
     pub(super) fn send(&self, samples: [i16; FRAME_SAMPLES], len: usize) {
+        self.send_epoch(samples, len, self.epoch.load(Ordering::Acquire));
+    }
+    fn send_epoch(&self, samples: [i16; FRAME_SAMPLES], len: usize, epoch: u64) {
         if self.state.load(Ordering::Acquire) != RUNNING {
             return;
         }
-        if self.sender.try_send(Frame { generation: self.generation, samples, len }).is_err() {
+        if self.sender.try_send(Frame { generation: self.generation, epoch, samples, len }).is_err()
+        {
             self.fail(BACKPRESSURE);
         }
     }
@@ -127,6 +134,67 @@ pub(super) trait CaptureBackend: Send + 'static {
     type Stream;
     fn open(self, device_id: Option<String>, sink: CaptureSink) -> Result<Self::Stream>;
 }
+fn device_lease() -> Arc<AtomicBool> {
+    static LEASE: OnceLock<Arc<AtomicBool>> = OnceLock::new();
+    LEASE.get_or_init(|| Arc::new(AtomicBool::new(false))).clone()
+}
+
+/// Bounded live PCM, using the same exclusive microphone lease as dictation.
+/// No complete recording is retained for a conversation.
+pub struct LiveCapture {
+    pub capture: Capture,
+    frames: Receiver<LiveFrame>,
+}
+impl LiveCapture {
+    pub fn start() -> Result<Self> {
+        use super::permissions::{SystemPermissions, VoiceCapability, VoicePermissions};
+        VoicePermissions::new(SystemPermissions)
+            .start(VoiceCapability::Recording, || {
+                Self::start_backend(super::capture_native::NativeCapture, device_lease())
+                    .map_err(anyhow::Error::from)
+            })
+            .map_err(|error| error.downcast::<CaptureError>().unwrap_or(CaptureError::Permission))
+    }
+    pub(super) fn start_backend<B: CaptureBackend>(
+        backend: B,
+        lease: Arc<AtomicBool>,
+    ) -> Result<Self> {
+        let (sender, frames) = mpsc::sync_channel(QUEUE_FRAMES);
+        let capture =
+            Capture::open_backend(backend, None, Duration::from_secs(1800), lease, Some(sender))?;
+        Ok(Self { capture, frames })
+    }
+    pub fn into_parts(self) -> (Capture, LiveFrames) {
+        {
+            let epoch = self.capture.epoch.clone();
+            (self.capture, LiveFrames { frames: self.frames, epoch })
+        }
+    }
+}
+struct LiveFrame {
+    epoch: u64,
+    samples: Vec<i16>,
+}
+pub struct LiveFrames {
+    frames: Receiver<LiveFrame>,
+    epoch: Arc<AtomicU64>,
+}
+impl LiveFrames {
+    pub fn next_frame(&self) -> Option<Vec<i16>> {
+        while let Ok(frame) = self.frames.try_recv() {
+            if frame.epoch == self.epoch.load(Ordering::Acquire) {
+                return Some(frame.samples);
+            }
+        }
+        None
+    }
+    /// Invalidate both the callback queue and the consumer queue, including in-flight frames.
+    pub fn clear(&self) {
+        self.epoch.fetch_add(1, Ordering::AcqRel);
+        while self.frames.try_recv().is_ok() {}
+    }
+}
+
 struct Lease(Arc<AtomicBool>);
 impl Drop for Lease {
     fn drop(&mut self) {
@@ -138,6 +206,7 @@ pub struct Capture {
     pub generation: u64,
     state: Arc<AtomicU8>,
     result: Receiver<Result<Recording>>,
+    epoch: Arc<AtomicU64>,
     worker: Option<JoinHandle<()>>,
 }
 impl Capture {
@@ -145,14 +214,14 @@ impl Capture {
     /// Recording and realtime chat must both acquire through this entry point.
     pub fn start(device_id: Option<String>) -> Result<Self> {
         use super::permissions::{SystemPermissions, VoiceCapability, VoicePermissions};
-        static LEASE: OnceLock<Arc<AtomicBool>> = OnceLock::new();
+
         VoicePermissions::new(SystemPermissions)
             .start(VoiceCapability::Recording, || {
                 Self::start_backend(
                     super::capture_native::NativeCapture,
                     device_id,
                     Duration::from_secs(MAX_SECONDS),
-                    LEASE.get_or_init(|| Arc::new(AtomicBool::new(false))).clone(),
+                    device_lease(),
                 )
                 .map_err(anyhow::Error::from)
             })
@@ -167,6 +236,15 @@ impl Capture {
         if limit.is_zero() || limit > Duration::from_secs(MAX_SECONDS) {
             return Err(CaptureError::Limit);
         }
+        Self::open_backend(backend, device_id, limit, lease, None)
+    }
+    fn open_backend<B: CaptureBackend>(
+        backend: B,
+        device_id: Option<String>,
+        limit: Duration,
+        lease: Arc<AtomicBool>,
+        live: Option<SyncSender<LiveFrame>>,
+    ) -> Result<Self> {
         lease
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| CaptureError::Busy)?;
@@ -175,7 +253,8 @@ impl Capture {
         let generation = GENERATION.fetch_add(1, Ordering::Relaxed);
         let state = Arc::new(AtomicU8::new(RUNNING));
         let (sender, frames) = mpsc::sync_channel(QUEUE_FRAMES);
-        let sink = CaptureSink { generation, sender, state: state.clone() };
+        let epoch = Arc::new(AtomicU64::new(1));
+        let sink = CaptureSink { generation, sender, state: state.clone(), epoch: epoch.clone() };
         let (ready_tx, ready) = mpsc::sync_channel(1);
         let (result_tx, result) = mpsc::sync_channel(1);
         let worker_state = state.clone();
@@ -191,7 +270,7 @@ impl Capture {
                     }
                 };
                 let _ = ready_tx.send(Ok(()));
-                let outcome = collect(generation, limit, &worker_state, frames);
+                let outcome = collect(generation, limit, &worker_state, frames, live);
                 worker_state.store(CANCEL, Ordering::Release);
                 drop(stream);
                 drop(lease_guard);
@@ -202,7 +281,7 @@ impl Capture {
             let _ = worker.join();
             return Err(error);
         }
-        Ok(Self { generation, state, result, worker: Some(worker) })
+        Ok(Self { generation, state, result, worker: Some(worker), epoch })
     }
     pub fn finish(mut self) -> Result<Recording> {
         let _ = self.state.compare_exchange(RUNNING, FINISH, Ordering::AcqRel, Ordering::Acquire);
@@ -236,10 +315,11 @@ fn collect(
     limit: Duration,
     state: &AtomicU8,
     frames: Receiver<Frame>,
+    live: Option<SyncSender<LiveFrame>>,
 ) -> Result<Recording> {
     let deadline = Instant::now() + limit;
     let max_samples = (limit.as_secs_f64() * SAMPLE_RATE as f64) as usize;
-    let mut pcm = Vec::with_capacity(max_samples);
+    let mut pcm = Vec::with_capacity(if live.is_some() { 0 } else { max_samples });
     loop {
         match state.load(Ordering::Acquire) {
             FINISH => {
@@ -262,7 +342,23 @@ fn collect(
             return Err(CaptureError::Timeout);
         }
         match frames.recv_timeout(Duration::from_millis(5)) {
-            Ok(frame) => append(&mut pcm, frame, generation, max_samples)?,
+            Ok(frame) => {
+                if let Some(sender) = &live {
+                    if frame.generation == generation {
+                        if frame.len > FRAME_SAMPLES {
+                            return Err(CaptureError::Limit);
+                        }
+                        sender
+                            .try_send(LiveFrame {
+                                epoch: frame.epoch,
+                                samples: frame.samples[..frame.len].to_vec(),
+                            })
+                            .map_err(|_| CaptureError::Backpressure)?;
+                    }
+                } else {
+                    append(&mut pcm, frame, generation, max_samples)?;
+                }
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => return Err(CaptureError::DeviceRemoved),
         }
@@ -283,6 +379,7 @@ fn append(pcm: &mut Vec<i16>, frame: Frame, generation: u64, max_samples: usize)
 /// Handles non-integer rates across callbacks with fixed storage, no IO or allocation.
 pub(super) struct PcmConverter {
     sink: CaptureSink,
+    epoch: u64,
     rate: u32,
     remaining: u32,
     sum: f64,
@@ -294,9 +391,25 @@ impl PcmConverter {
         if !(8_000..=192_000).contains(&rate) {
             return Err(CaptureError::UnsupportedFormat);
         }
-        Ok(Self { sink, rate, remaining: rate, sum: 0.0, samples: [0; FRAME_SAMPLES], len: 0 })
+        let epoch = sink.epoch.load(Ordering::Acquire);
+        Ok(Self {
+            sink,
+            epoch,
+            rate,
+            remaining: rate,
+            sum: 0.0,
+            samples: [0; FRAME_SAMPLES],
+            len: 0,
+        })
     }
     pub(super) fn mono(&mut self, sample: f32) {
+        let epoch = self.sink.epoch.load(Ordering::Acquire);
+        if epoch != self.epoch {
+            self.epoch = epoch;
+            self.remaining = self.rate;
+            self.sum = 0.0;
+            self.len = 0;
+        }
         let sample = if sample.is_finite() { sample.clamp(-1.0, 1.0) } else { 0.0 };
         let mut width = SAMPLE_RATE;
         while width > 0 {
@@ -311,7 +424,7 @@ impl PcmConverter {
                 self.remaining = self.rate;
                 self.sum = 0.0;
                 if self.len == FRAME_SAMPLES {
-                    self.sink.send(self.samples, self.len);
+                    self.sink.send_epoch(self.samples, self.len, self.epoch);
                     self.len = 0;
                 }
             }
@@ -319,7 +432,7 @@ impl PcmConverter {
     }
     pub(super) fn flush(&mut self) {
         if self.len > 0 {
-            self.sink.send(self.samples, self.len);
+            self.sink.send_epoch(self.samples, self.len, self.epoch);
             self.len = 0;
         }
     }

@@ -298,6 +298,8 @@ impl App {
         };
 
         let root_content = app_view_modals::with_size_modal(self, root_content);
+        #[cfg(not(target_arch = "wasm32"))]
+        let root_content = app_view_modals::with_voice_chat(self, root_content);
 
         // 保留固定的 toast 宿主，避免提示显隐改变根树结构并重置页面滚动、焦点等状态。
         let root_content: Element<'_, Message> = {

@@ -795,6 +795,7 @@ impl App {
             if matches!(
                 &message,
                 Message::View(message::ViewMessage::CloseRequested(_))
+                    | Message::View(message::ViewMessage::WindowClosed(_))
                     | Message::View(message::ViewMessage::GlobalKeyPressed(
                         iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
                         _

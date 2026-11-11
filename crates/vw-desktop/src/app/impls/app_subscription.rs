@@ -111,6 +111,14 @@ fn map_global_event(
                 return Some(Message::Batch(messages));
             }
 
+            #[cfg(not(target_arch = "wasm32"))]
+            if modifiers.command()
+                && modifiers.shift()
+                && matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Space))
+            {
+                return Some(Message::Voice(message::voice::Event::ChatInterrupt));
+            }
+
             if modifiers.command() && modifiers.alt() && !modifiers.shift() {
                 let shortcut = match &key {
                     iced::keyboard::Key::Character(c) if c.eq_ignore_ascii_case("c") => {
@@ -296,6 +304,13 @@ impl App {
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
         Subscription::batch(vec![
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.voice.conversation.is_some() {
+                iced::time::every(std::time::Duration::from_millis(50))
+                    .map(|_| Message::Voice(message::voice::Event::ChatTick))
+            } else {
+                Subscription::none()
+            },
             agent,
             #[cfg(not(target_arch = "wasm32"))]
             if self

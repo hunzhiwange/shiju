@@ -57,5 +57,11 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
                 .on_press(Message::Voice(Event::Cancel)),
         );
     }
+    controls = controls.push(
+        button(text("语音聊天").size(12))
+            .padding([4, 6])
+            .style(|theme, status| square_icon_button_style(theme, status, true))
+            .on_press(Message::Voice(Event::ChatStart)),
+    );
     controls.into()
 }

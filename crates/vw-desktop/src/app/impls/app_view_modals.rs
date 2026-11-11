@@ -44,3 +44,6 @@ pub(crate) use rename::{with_file_tree_rename, with_session_rename};
 #[cfg(test)]
 #[path = "app_view_modals_tests.rs"]
 mod app_view_modals_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use crate::app::components::voice_chat::with_voice_chat;

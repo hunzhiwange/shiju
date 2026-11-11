@@ -442,3 +442,6 @@ mod apps_usage_script;
 pub(crate) mod apps_usage_settings;
 
 pub mod system_settings_companion;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod voice_chat;

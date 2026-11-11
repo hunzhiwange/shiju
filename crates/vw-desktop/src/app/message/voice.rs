@@ -12,6 +12,10 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub conversation: Option<crate::app::voice::conversation::Conversation>,
+    conversation_scope: Option<Scope>,
+    conversation_error_reported: bool,
+    conversation_endpoint: Option<GatewayEndpoint>,
     endpoint: Option<GatewayEndpoint>,
     cursor: Option<text_editor::Cursor>,
     device: Option<Device>,
@@ -20,6 +24,11 @@ pub(crate) struct State {
 }
 #[derive(Clone)]
 pub enum Event {
+    ChatStart,
+    ChatMute,
+    ChatInterrupt,
+    ChatEnd,
+    ChatTick,
     Start,
     Finish,
     Cancel,
@@ -37,6 +46,11 @@ impl State {
 impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::ChatStart => "VoiceChatStart",
+            Self::ChatMute => "VoiceChatMute",
+            Self::ChatInterrupt => "VoiceChatInterrupt",
+            Self::ChatEnd => "VoiceChatEnd",
+            Self::ChatTick => "VoiceChatTick",
             Self::Start => "VoiceStart",
             Self::Finish => "VoiceFinish",
             Self::Cancel => "VoiceCancel",
@@ -67,7 +81,13 @@ fn stop(state: &mut State) {
     }
     state.metadata = None;
 }
+pub(crate) fn end_conversation(app: &mut App) {
+    app.voice.conversation.take();
+    app.voice.conversation_scope = None;
+    app.voice.conversation_endpoint = None;
+}
 pub(crate) fn cancel(app: &mut App) {
+    end_conversation(app);
     stop(&mut app.voice);
     app.voice.draft.cancel();
     app.voice.endpoint = None;
@@ -75,6 +95,16 @@ pub(crate) fn cancel(app: &mut App) {
 }
 /// Called before and after dispatch so a switch away and back cannot revive old work.
 pub(crate) fn invalidate(app: &mut App) {
+    if app.voice.conversation.is_some() {
+        let endpoint = crate::app::gateway_client_endpoint();
+        let auth_changed = app.voice.conversation_endpoint.as_ref().is_some_and(|old| {
+            old.auth.as_ref().and_then(|a| a.skey.as_ref())
+                != endpoint.auth.as_ref().and_then(|a| a.skey.as_ref())
+        });
+        if app.voice.conversation_scope != scope(app) || auth_changed {
+            end_conversation(app);
+        }
+    }
     if app.voice.draft.scope.is_none() {
         return;
     }
@@ -113,11 +143,71 @@ fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::ChatStart => {
+            if app.voice.conversation.is_some() {
+                return Task::none();
+            }
+            if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing) {
+                return app.show_toast(
+                    crate::app::state::ToastKind::Info,
+                    "请先结束听写再开始语音聊天。",
+                );
+            }
+            let Some(scope) = scope(app) else {
+                return fail(app, "请先选择聊天会话。".into());
+            };
+            let endpoint = crate::app::gateway_client_endpoint();
+            match crate::app::voice::conversation::Conversation::start(
+                endpoint.clone(),
+                scope.session.clone(),
+            ) {
+                Ok(conversation) => {
+                    app.voice.conversation_error_reported = false;
+                    app.voice.conversation = Some(conversation);
+                    app.voice.conversation_scope = Some(scope);
+                    app.voice.conversation_endpoint = Some(endpoint);
+                    Task::none()
+                }
+                Err(error) => app.show_toast(crate::app::state::ToastKind::Error, error),
+            }
+        }
+        Event::ChatMute => {
+            if let Some(chat) = &app.voice.conversation {
+                chat.mute();
+            }
+            Task::none()
+        }
+        Event::ChatInterrupt => {
+            if let Some(chat) = &app.voice.conversation {
+                chat.interrupt();
+            }
+            Task::none()
+        }
+        Event::ChatEnd => {
+            end_conversation(app);
+            Task::none()
+        }
+        Event::ChatTick => {
+            if !app.voice.conversation_error_reported
+                && let Some(error) =
+                    app.voice.conversation.as_ref().and_then(|c| c.snapshot().error)
+            {
+                app.voice.conversation_error_reported = true;
+                return app.show_toast(crate::app::state::ToastKind::Error, error);
+            }
+            Task::none()
+        }
         Event::Cancel => {
             cancel(app);
             Task::none()
         }
         Event::Start => {
+            if app.voice.conversation.is_some() {
+                return app.show_toast(
+                    crate::app::state::ToastKind::Info,
+                    "请先结束语音聊天再开始听写。",
+                );
+            }
             let Some(scope) = scope(app) else {
                 return fail(app, "请先选择聊天会话。".into());
             };

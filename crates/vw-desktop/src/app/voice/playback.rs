@@ -16,6 +16,8 @@ type Result<T> = std::result::Result<T, PlaybackError>;
 struct Buffer {
     samples: VecDeque<i16>,
     active: bool,
+    played: u64,
+    submitted: u64,
     error: Option<PlaybackError>,
 }
 #[derive(Clone)]
@@ -35,6 +37,8 @@ impl Output {
             buffer: Arc::new(Mutex::new(Buffer {
                 samples: VecDeque::with_capacity(CAPACITY),
                 active: true,
+                played: 0,
+                submitted: 0,
                 error: None,
             })),
             rate,
@@ -73,10 +77,12 @@ impl Output {
             self.phase += RATE;
             while self.phase >= self.rate {
                 self.phase -= self.rate;
-                if self.phase >= self.rate {
-                    buffer.samples.pop_front();
+                if self.current.take().is_some() {
+                    buffer.played += 1;
                 }
-                self.current = None;
+                if self.phase >= self.rate && buffer.samples.pop_front().is_some() {
+                    buffer.played += 1;
+                }
             }
         }
     }
@@ -127,8 +133,16 @@ impl<S> Playback<S> {
             self.stream.take();
             return Err(error);
         }
+        b.submitted += (bytes.len() / 2) as u64;
         b.samples.extend(bytes.chunks_exact(2).map(|s| i16::from_le_bytes([s[0], s[1]])));
         Ok(())
+    }
+    pub fn played_ms(&self) -> u64 {
+        self.output.buffer.lock().played / 24
+    }
+    pub fn pending(&self) -> bool {
+        let b = self.output.buffer.lock();
+        b.played < b.submitted
     }
     /// Poll on the owning thread to release a failed native stream.
     pub fn error(&mut self) -> Option<PlaybackError> {

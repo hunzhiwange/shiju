@@ -18,7 +18,9 @@ pub(super) use super::*;
 
 mod acp_diagnostic;
 mod agents;
+mod archived_chats;
 pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
+pub(crate) use archived_chats::*;
 mod channels;
 mod cron_frequency;
 pub(crate) use cron_frequency::CronFrequency;

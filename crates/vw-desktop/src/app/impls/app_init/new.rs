@@ -774,6 +774,7 @@ impl App {
             settings_tab: SettingsTab::Sessions,
             system_settings_tab: components::system_settings::SystemTab::General,
             general_settings_tab: super::state::GeneralSettingsTab::default(),
+            archived_chats: super::state::ArchivedChatsState::default(),
             system_settings_query: String::new(),
             system_settings_help_tab: None,
             top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),

@@ -854,6 +854,8 @@ pub struct App {
     pub(crate) system_settings_tab: crate::app::components::system_settings::SystemTab,
     /// 常规配置页内标签
     pub(crate) general_settings_tab: GeneralSettingsTab,
+    /// 独立的原生归档聊天元数据与查询状态。
+    pub(crate) archived_chats: ArchivedChatsState,
     /// 系统设置分类搜索词
     pub(crate) system_settings_query: String,
     /// 当前打开的系统设置帮助标签页

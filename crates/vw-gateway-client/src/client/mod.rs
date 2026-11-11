@@ -348,3 +348,8 @@ mod model_discovery_api_tests;
 mod voice_api;
 #[cfg(not(target_arch = "wasm32"))]
 pub use voice_api::VoiceApiError;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod aggregation_desktop_api;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod aggregation_desktop_api_tests;

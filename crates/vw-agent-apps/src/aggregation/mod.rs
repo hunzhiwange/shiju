@@ -129,3 +129,6 @@ mod lifecycle_restore_tests;
 
 #[cfg(target_os = "macos")]
 pub mod lifecycle_restore;
+
+#[cfg(target_os = "macos")]
+pub mod daemon_restart;

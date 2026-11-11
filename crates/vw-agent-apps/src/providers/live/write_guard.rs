@@ -139,6 +139,11 @@ impl Drop for AppWriteGuard {
 }
 
 impl AppWriteGuard {
+    /// Retained physical directory for the restricted host-side Codex daemon probe.
+    pub(crate) fn retained_directory(&self) -> &File {
+        &self.directory
+    }
+
     pub(crate) fn app(&self) -> AppId {
         match self.keys[0] {
             LockKey::App(app) => app,

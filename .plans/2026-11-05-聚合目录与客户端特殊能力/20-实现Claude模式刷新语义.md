@@ -2,7 +2,7 @@
 
 批次：【批次 12】 依赖：批次 11 的任务 14。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,9 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本次实施证据（2026-11-11）
+
+复用任务14 `claude_publish::publish`、`preview::preview` 与原 Claude 字段投影，无重复刷新体系。新增独立 claude_refresh_tests 两项真实文件/事务回归；任务20过滤测试2通过、任务14过滤复验10通过，均退出0。槽位8及1，绝对 CARGO_TARGET_DIR 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8` 和 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+
+全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：其他任务新增 `crates/vw-agent-apps/src/providers/live/recovery.rs:252` 嵌套if触发 clippy::collapsible_if；未改该无关文件。详细编译纠正、非行为失败、环境与真实客户端边界见 `docs/shiju/agent-apps/aggregation/任务20-验证.md`。解除条件：恢复所有者修复该警告后重新执行必需检查，成功后才删除任务卡。现不宣称完整验收通过。

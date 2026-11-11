@@ -90,3 +90,6 @@ pub mod codex_publish;
 
 #[cfg(all(test, target_os = "macos"))]
 mod codex_publish_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod claude_refresh_tests;

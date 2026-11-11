@@ -2182,6 +2182,16 @@
       "log": "/tmp/shiju-companion-native-clippy.log"
     },
     "workspace_clippy": {
+      "exit_code": 0,
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "log": "/tmp/shiju-companion-closeout-clippy.log",
+      "receipt": "clippy-closeout.txt",
+      "behavior_and_native_repeated": false
+    },
+    "previous_workspace_failure": {
       "exit_code": 255,
       "reason": "Unrelated untracked app/voice/preferences.rs dead-code errors; stopped after diagnostics",
       "log": "/tmp/shiju-companion-workspace-clippy.log"

@@ -1,0 +1,11 @@
+command: cargo clippy --all-targets --all-features -- -D warnings
+exit_code: 0
+slot: 1
+CARGO_TARGET_DIR: /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+CARGO_BUILD_BUILD_DIR: /Users/xiangmin/worker/code/shiju/target/rust-slot-1
+
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 9m 51s

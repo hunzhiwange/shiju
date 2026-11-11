@@ -68,7 +68,11 @@ fn state() -> AppState {
 }
 
 pub(super) fn test_app() -> Router {
-    router().layer(Extension(TenantScope::default())).with_state(state())
+    test_app_for_tenant(TenantScope::default())
+}
+
+pub(super) fn test_app_for_tenant(tenant: TenantScope) -> Router {
+    router().layer(Extension(tenant)).with_state(state())
 }
 
 async fn response_status(method: Method, uri: &str) -> StatusCode {

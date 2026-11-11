@@ -1053,6 +1053,64 @@ pub fn load_agent_sessions_all_for_tenant(tenant: &TenantScope) -> Vec<agent_ses
     .unwrap_or_default()
 }
 
+pub(crate) fn load_agent_session_strict(
+    tenant: &TenantScope,
+    project_id: &str,
+    session_id: &str,
+) -> anyhow::Result<Option<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation_fallible(
+            "load session lifecycle metadata",
+            tenant,
+            Some(project_id),
+            |store, scope| store.load_agent_session(scope, session_id),
+        )
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(load_agent_session_scoped_for_tenant(tenant, session_id, Some(project_id)))
+    }
+}
+
+pub(crate) fn load_agent_deletion_candidates(
+    tenant: &TenantScope,
+) -> anyhow::Result<Vec<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        runtime_session_store()?.load_agent_deletion_candidates(tenant)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = tenant;
+        anyhow::bail!("archived tree deletion requires native session storage")
+    }
+}
+
+pub(crate) fn delete_agent_session_strict(
+    tenant: &TenantScope,
+    project_id: &str,
+    session_id: &str,
+) -> anyhow::Result<bool> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
+        let asset_scope = ImageAssetScope::new(project_id)?;
+        ImageAssetStore::from_global_paths().release_session_refs(&asset_scope, session_id)?;
+        run_project_operation_fallible(
+            "delete archived session",
+            tenant,
+            Some(project_id),
+            |store, scope| store.delete_agent_session_with_ui(scope, session_id),
+        )
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (tenant, project_id, session_id);
+        anyhow::bail!("archived tree deletion requires native session storage")
+    }
+}
+
 /// 执行 load_agent_session_any 操作，并返回调用方需要的结果。
 pub fn load_agent_session_any(session_id: &str) -> Option<agent_session::Info> {
     load_agent_session_any_for_tenant(&current_tenant_scope(), session_id)

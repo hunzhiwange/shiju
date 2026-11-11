@@ -8,6 +8,7 @@
 //! - `shared`: 多个处理器共享的查询体与辅助函数
 
 mod acp_options;
+mod archived_delete;
 mod message_ops;
 mod raw_commit;
 mod session_ops;
@@ -67,6 +68,7 @@ pub(crate) fn router() -> Router<AppState> {
             get(ui_session_get).patch(ui_session_patch).delete(ui_session_delete),
         )
         .route("/session/{session_id}/children", get(session_children))
+        .route("/session/{session_id}/archived", axum::routing::delete(archived_delete::delete))
         .route(
             "/session/{session_id}/full-access",
             axum::routing::put(session_ops::session_full_access_put),
@@ -127,3 +129,7 @@ mod fork_acceptance_tests;
 #[cfg(test)]
 #[path = "session/acp_source_tests.rs"]
 mod acp_source_tests;
+
+#[cfg(test)]
+#[path = "session/archived_delete_tests.rs"]
+mod archived_delete_tests;

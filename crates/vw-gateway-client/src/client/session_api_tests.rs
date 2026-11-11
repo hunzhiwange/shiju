@@ -16,6 +16,29 @@ use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
 use super::{session_diff_query, session_message_list_query, session_message_page_query};
 use crate::client::test_support;
 
+#[tokio::test]
+async fn archived_chat_delete_encodes_id_directory_and_reads_deleted_ids() {
+    let server = test_support::server(vec![(200, json!({"deleted_ids": ["child", "s/one"]}))]);
+    let result =
+        server.client().session_delete_archived("s/one", Some("/repo path")).await.unwrap();
+    assert_eq!(result.deleted_ids, ["child", "s/one"]);
+    let request = server.take_request();
+    assert_eq!(request.method, "DELETE");
+    assert_eq!(request.path, "/v1/session/s%2Fone/archived?directory=%2Frepo+path");
+    server.join();
+}
+
+#[tokio::test]
+async fn archived_chat_delete_surfaces_failure_and_rejects_blank_id() {
+    let server = test_support::server(vec![(500, json!({"message": "storage failed"}))]);
+    let client = server.client();
+    assert!(client.session_delete_archived(" ", None).await.is_err());
+    let error = client.session_delete_archived("root", None).await.unwrap_err();
+    assert!(error.contains("storage failed"), "{error}");
+    assert_eq!(server.take_request().path, "/v1/session/root/archived");
+    server.join();
+}
+
 fn chat_session() -> ChatSession {
     ChatSession {
         id: "s1".to_string(),

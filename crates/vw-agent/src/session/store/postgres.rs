@@ -1155,6 +1155,28 @@ impl PostgresSessionStore {
         Ok(sessions)
     }
 
+    pub(super) fn load_agent_deletion_candidates(
+        &self,
+        tenant: &TenantScope,
+    ) -> Result<Vec<AgentSessionInfo>> {
+        self.database
+            .connect_postgres()?
+            .query(
+                "SELECT project_id, session_id, info_json FROM session_agent_sessions
+             WHERE platform_id = $1 AND company_id = $2 ORDER BY project_id, session_id",
+                &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+            )?
+            .into_iter()
+            .map(|row| {
+                parse_agent_info(
+                    &row.try_get::<_, String>(2)?,
+                    &row.try_get::<_, String>(0)?,
+                    &row.try_get::<_, String>(1)?,
+                )
+            })
+            .collect()
+    }
+
     /// 在租户内读取最近更新的同标识代理会话。
     pub(super) fn load_agent_session_any(
         &self,
@@ -1178,6 +1200,35 @@ impl PostgresSessionStore {
             parse_agent_info(&info_json, &project_id, session_id)
         })
         .transpose()
+    }
+
+    pub(super) fn delete_agent_session_with_ui(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<bool> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if load_agent_info(&mut transaction, scope, session_id)?.is_none() {
+            return Ok(false);
+        }
+        if first_response_state(&mut transaction, scope, session_id)?.is_some() {
+            delete_managed_session(&mut transaction, scope, session_id)?;
+        } else {
+            transaction.execute(
+                "DELETE FROM session_index
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, session_id),
+            )?;
+            transaction.execute(
+                "DELETE FROM session_agent_sessions
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+                scoped_id_params!(scope, session_id),
+            )?;
+        }
+        transaction.commit()?;
+        Ok(true)
     }
 
     /// 删除项目作用域内的代理会话。

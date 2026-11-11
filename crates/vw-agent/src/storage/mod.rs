@@ -351,6 +351,16 @@ pub async fn update<T: DeserializeOwned + Serialize>(
 ///
 /// 阻塞枚举任务 join 失败时返回 `Error::Join`。
 pub async fn list(prefix: &[&str]) -> Result<Vec<Vec<String>>, Error> {
+    list_impl(prefix, false).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn list_strict(prefix: &[&str]) -> Result<Vec<Vec<String>>, Error> {
+    list_impl(prefix, true).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn list_impl(prefix: &[&str], strict: bool) -> Result<Vec<Vec<String>>, Error> {
     let dir = state().await.dir.clone();
     let mut base = dir.clone();
     for p in prefix {
@@ -359,11 +369,28 @@ pub async fn list(prefix: &[&str]) -> Result<Vec<Vec<String>>, Error> {
     let prefix_vec: Vec<String> = prefix.iter().map(|s| s.to_string()).collect();
 
     let result = tokio::task::spawn_blocking(move || {
+        if strict {
+            match std::fs::metadata(&base) {
+                Ok(metadata) if metadata.is_dir() => {}
+                Ok(_) => {
+                    return Err(Error::Io(std::io::Error::other(
+                        "storage prefix is not a directory",
+                    )));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+                Err(error) => return Err(Error::Io(error)),
+            }
+        }
         if !base.is_dir() {
-            return Vec::<Vec<String>>::new();
+            return Ok(Vec::<Vec<String>>::new());
         }
         let mut out: Vec<Vec<String>> = Vec::new();
-        for entry in WalkDir::new(&base).into_iter().flatten() {
+        for entry in WalkDir::new(&base) {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(error) if strict => return Err(Error::Io(std::io::Error::other(error))),
+                Err(_) => continue,
+            };
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -385,11 +412,19 @@ pub async fn list(prefix: &[&str]) -> Result<Vec<Vec<String>>, Error> {
             out.push(parts);
         }
         out.sort();
-        out
+        Ok(out)
     })
     .await?;
 
-    Ok(result)
+    result
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) async fn list_strict(_prefix: &[&str]) -> Result<Vec<Vec<String>>, Error> {
+    Err(Error::Io(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "strict storage enumeration requires native storage",
+    )))
 }
 
 #[cfg(target_arch = "wasm32")]

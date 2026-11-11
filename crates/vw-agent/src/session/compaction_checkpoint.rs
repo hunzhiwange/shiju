@@ -139,6 +139,22 @@ async fn copy_scoped(
     Ok(())
 }
 
+pub(crate) async fn remove_strict(session: &str, directory: &str) -> Result<(), String> {
+    validate_session(session)?;
+    let scope = scope_for_directory(directory);
+    for prefix in ["skill_checkpoint", "context_checkpoint"] {
+        for key in storage::list_strict(&[prefix, &scope, session])
+            .await
+            .map_err(|error| error.to_string())?
+        {
+            storage::remove(&key.iter().map(String::as_str).collect::<Vec<_>>())
+                .await
+                .map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) async fn remove(session: &str, directory: &str) -> Result<(), String> {
     super::skill_checkpoint::remove(session, directory).await?;
     validate_session(session)?;

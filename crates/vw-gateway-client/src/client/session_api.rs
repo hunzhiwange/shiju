@@ -458,6 +458,20 @@ impl GatewayClient {
         self.delete_empty(&session_path(session_id)?, &directory_query(directory)).await
     }
 
+    /// Delete an archived root and its descendants, with server-side scope validation.
+    pub async fn session_delete_archived(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<vw_api_types::session::ArchivedChatDeleteResponse, String> {
+        self.delete_json(
+            &format!("{}/archived", session_path(session_id)?),
+            &directory_query(directory),
+            &serde_json::json!({}),
+        )
+        .await
+    }
+
     /// 从现有会话派生一个新会话。
     pub async fn session_fork<T: DeserializeOwned>(
         &self,

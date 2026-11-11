@@ -1358,6 +1358,37 @@ impl SessionStore {
         }
     }
 
+    /// Keep pending records and duplicate IDs across projects for lifecycle validation.
+    pub(crate) fn load_agent_deletion_candidates(
+        &self,
+        tenant: &TenantScope,
+    ) -> Result<Vec<AgentSessionInfo>> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT project_id, session_id, info_json FROM session_agent_sessions
+                     WHERE platform_id = ?1 AND company_id = ?2
+                     ORDER BY project_id, session_id",
+                )?;
+                let mut rows = statement
+                    .query(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(),])?;
+                let mut sessions = Vec::new();
+                while let Some(row) = rows.next()? {
+                    sessions.push(parse_agent_info(
+                        &row.get::<_, String>(2)?,
+                        &row.get::<_, String>(0)?,
+                        &row.get::<_, String>(1)?,
+                    )?);
+                }
+                Ok(sessions)
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.load_agent_deletion_candidates(tenant))
+            }
+        }
+    }
+
     pub fn load_agent_session_any(
         &self,
         tenant: &TenantScope,
@@ -1388,6 +1419,43 @@ impl SessionStore {
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.load_agent_session_any(tenant, session_id))
+            }
+        }
+    }
+
+    pub(crate) fn delete_agent_session_with_ui(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+    ) -> Result<bool> {
+        validate_id("agent session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if load_agent_info(transaction, scope, session_id)?.is_none() {
+                        return Ok(false);
+                    }
+                    if first_response_state(transaction, scope, session_id)?.is_some() {
+                        delete_managed_session(transaction, scope, session_id)?;
+                    } else {
+                        transaction.execute(
+                            "DELETE FROM session_index
+                             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                               AND session_id = ?4",
+                            scoped_id_params(scope, session_id),
+                        )?;
+                        transaction.execute(
+                            "DELETE FROM session_agent_sessions
+                             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
+                               AND session_id = ?4",
+                            scoped_id_params(scope, session_id),
+                        )?;
+                    }
+                    Ok(true)
+                })
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.delete_agent_session_with_ui(scope, session_id))
             }
         }
     }

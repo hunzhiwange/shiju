@@ -412,6 +412,8 @@ pub(super) async fn reserve_child_agent(input: CreateInput) -> Result<Info, Erro
 #[cfg(not(target_arch = "wasm32"))]
 async fn reserve_info(info: Info) -> Result<Info, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
+    let _metadata = lock_metadata_writes(&tenant).await;
+    validate_parent(&tenant, &info).await?;
     Ok(crate::global_database::run_isolated(move || {
         crate::session::ui_store::reserve_pending_session(&tenant, &info)
     })
@@ -440,6 +442,8 @@ fn new_info(input: CreateInput) -> Result<Info, Error> {
 
 async fn persist_info(info: &Info) -> Result<(), Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
+    let _metadata = lock_metadata_writes(&tenant).await;
+    validate_parent(&tenant, info).await?;
     let save_info = info.clone();
     crate::global_database::run_isolated(move || {
         crate::session::ui_store::save_agent_session_scoped_for_tenant(
@@ -455,6 +459,33 @@ async fn persist_info(info: &Info) -> Result<(), Error> {
         }))
     })?;
 
+    Ok(())
+}
+
+/// Acquire after any history guards; never acquire history while holding this guard.
+pub(crate) async fn lock_metadata_writes(
+    tenant: &vw_api_types::id::TenantScope,
+) -> tokio::sync::OwnedMutexGuard<()> {
+    super::message::lock_history(&format!("session-metadata/{}", json!(tenant))).await
+}
+
+async fn validate_parent(tenant: &vw_api_types::id::TenantScope, info: &Info) -> Result<(), Error> {
+    let Some(parent_id) = info.parent_id.clone() else {
+        return Ok(());
+    };
+    let tenant = tenant.clone();
+    let project_id = info.project_id.clone();
+    let parent = crate::global_database::run_isolated(move || {
+        super::ui_store::load_agent_session_strict(&tenant, &project_id, &parent_id)
+    })
+    .await??
+    .ok_or_else(|| anyhow::anyhow!("parent session no longer exists"))?;
+    let canonical = |directory: &str| {
+        std::fs::canonicalize(directory).unwrap_or_else(|_| std::path::PathBuf::from(directory))
+    };
+    if canonical(&parent.directory) != canonical(&info.directory) {
+        return Err(anyhow::anyhow!("parent session belongs to another directory").into());
+    }
     Ok(())
 }
 
@@ -681,15 +712,27 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
 
 async fn apply_update(
     tenant: vw_api_types::id::TenantScope,
-    mut info: Info,
+    info: Info,
     update: impl FnOnce(&mut Info),
 ) -> Result<Info, Error> {
+    let metadata = lock_metadata_writes(&tenant).await;
+    let mut info = crate::global_database::run_isolated({
+        let tenant = tenant.clone();
+        move || super::ui_store::load_agent_session_strict(&tenant, &info.project_id, &info.id)
+    })
+    .await??
+    .ok_or_else(|| anyhow::anyhow!("session no longer exists"))?;
     let session_id = info.id.clone();
     let project_id = info.project_id.clone();
     let previous_title = info.title.clone();
+    let previous_parent = info.parent_id.clone();
+    let previous_directory = info.directory.clone();
     update(&mut info);
     if info.id != session_id || info.project_id != project_id {
         return Err(anyhow::anyhow!("session identity cannot change during an update").into());
+    }
+    if info.parent_id != previous_parent || info.directory != previous_directory {
+        validate_parent(&tenant, &info).await?;
     }
     let explicit_title = info.title != previous_title;
     info.time.updated = now_ms();
@@ -702,6 +745,7 @@ async fn apply_update(
             message: format!("session not found: {session_id}"),
         }))
     })?;
+    drop(metadata);
     if result.time.archived.is_some() {
         crate::plugins::hook_session::close(&result.id, std::path::Path::new(&result.directory))
             .await;
@@ -858,6 +902,52 @@ pub async fn remove_any(session_id: &str) -> Result<(), Error> {
         ])),
     );
     let _ = bus::publish(event::DELETED, json!({ "info": info }), instance_directory_opt());
+    Ok(())
+}
+
+/// Strict lifecycle cleanup for callers already holding history and metadata guards.
+pub(crate) async fn remove_archived_locked(info: Info) -> Result<(), Error> {
+    let tenant = super::ui_store::current_tenant_scope();
+    crate::plugins::hook_session::close(&info.id, std::path::Path::new(&info.directory)).await;
+    crate::plugins::close_session_mcp_connections(&info.id, std::path::Path::new(&info.directory));
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::tools::shell::processes::cancel_session(
+        &serde_json::to_string(&tenant).expect("tenant serialization"),
+        std::path::Path::new(&info.directory),
+        &info.id,
+    )
+    .map_err(Error::Runtime)?;
+    super::compaction_checkpoint::remove_strict(&info.id, &info.directory)
+        .await
+        .map_err(|error| Error::Runtime(anyhow::anyhow!(error)))?;
+    storage::remove(&["share", &info.id]).await?;
+    remove_messages_and_parts_strict(&info.id).await?;
+    let deleted = crate::global_database::run_isolated({
+        let info = info.clone();
+        move || super::ui_store::delete_agent_session_strict(&tenant, &info.project_id, &info.id)
+    })
+    .await??;
+    if !deleted {
+        return Err(anyhow::anyhow!("session disappeared during archived deletion").into());
+    }
+    let _ = bus::publish(event::DELETED, json!({ "info": info }), instance_directory_opt());
+    Ok(())
+}
+
+async fn remove_messages_and_parts_strict(session_id: &str) -> Result<(), Error> {
+    for key in storage::list_strict(&["message", session_id]).await? {
+        if let Some(message_id) = key.get(2) {
+            for prefix in
+                [vec!["part", message_id.as_str()], vec!["part", session_id, message_id.as_str()]]
+            {
+                for part_key in storage::list_strict(&prefix).await? {
+                    let refs = part_key.iter().map(String::as_str).collect::<Vec<_>>();
+                    storage::remove(&refs).await?;
+                }
+            }
+            super::message::remove_message(session_id, message_id).await?;
+        }
+    }
     Ok(())
 }
 

@@ -19,6 +19,13 @@ use crate::id::{MessageId, ProjectId, RequestId, SessionId, WorktreeId};
 use crate::todo::{TodoPriority, TodoStatus};
 use serde::{Deserialize, Serialize};
 
+/// IDs actually removed by the restricted archived-chat deletion endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchivedChatDeleteResponse {
+    /// Descendants precede their root; failures never return a successful tree response.
+    pub deleted_ids: Vec<String>,
+}
+
 /// 会话当前所处状态。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

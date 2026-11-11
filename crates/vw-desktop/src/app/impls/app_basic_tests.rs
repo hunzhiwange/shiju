@@ -378,3 +378,28 @@ fn theme_helpers_select_app_editor_and_pet_themes() {
     assert_eq!(app.theme_for_window(main_window).to_string(), Theme::Dark.to_string());
     assert_eq!(app.theme_for_window(pet_window).to_string(), "VibeWindow Pet");
 }
+
+#[test]
+fn mini_companion_native_theme_clears_transparently_in_both_modes() {
+    use iced::theme::Base;
+    let mut app = new_app();
+    let mini = iced::window::Id::unique();
+    let main = iced::window::Id::unique();
+    app.task_pet_window_id = Some(mini);
+    for theme in [Theme::Dark, Theme::Light] {
+        app.app_theme = theme.clone();
+        let mini_theme = app.theme_for_window(mini);
+        assert_eq!(App::window_style(&app, &mini_theme).background_color, iced::Color::TRANSPARENT);
+        // Menus and input backgrounds must remain opaque even on the transparent surface.
+        assert_eq!(mini_theme.base().background_color, theme.base().background_color);
+        assert_eq!(mini_theme.base().text_color, theme.base().text_color);
+        assert_eq!(
+            app.theme_for_window(main).base().background_color,
+            theme.base().background_color
+        );
+        assert_eq!(
+            mini_theme.extended_palette().background.strong.color,
+            theme.extended_palette().background.strong.color
+        );
+    }
+}

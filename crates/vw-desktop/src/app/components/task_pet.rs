@@ -317,13 +317,17 @@ fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Messa
             .on_press(Message::View(intent))
     };
     mouse_area(
-        column![
-            action("选择智能伙伴", message::ViewMessage::TaskPetOpenSettings),
-            action("自定义伙伴大小", message::ViewMessage::TaskPetSizeOpen),
-            action("隐藏伙伴", message::ViewMessage::TaskPetHideWindow),
-        ]
-        .spacing(4)
-        .width(180),
+        container(
+            column![
+                action("选择智能伙伴", message::ViewMessage::TaskPetOpenSettings),
+                action("自定义伙伴大小", message::ViewMessage::TaskPetSizeOpen),
+                action("隐藏伙伴", message::ViewMessage::TaskPetHideWindow),
+            ]
+            .spacing(4)
+            .width(180),
+        )
+        .padding(4)
+        .style(container::rounded_box),
     )
     .on_exit(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
     .into()

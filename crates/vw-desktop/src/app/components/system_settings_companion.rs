@@ -36,8 +36,7 @@ pub fn content(app: &App) -> Element<'_, Message> {
         .style(rounded_action_btn_style),
     ]
     .spacing(12)
-    .align_y(Alignment::Center)
-    .wrap();
+    .align_y(Alignment::Center);
     let preview = column![
         avatar_preview(app.task_pet_avatar_kind, 96.0 * app.task_pet_preview_scale()),
         // 预览只显示外观，不接受工具栏或操作系统窗口事件。

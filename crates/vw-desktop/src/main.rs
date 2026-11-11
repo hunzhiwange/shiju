@@ -236,6 +236,7 @@ pub fn main() -> iced::Result {
     let result = iced::daemon(boot_app, app::App::update, app::App::view_window)
         .title(app::App::title_for_window)
         .theme(app::App::theme_for_window)
+        .style(app::App::window_style)
         .subscription(app::App::subscription)
         .settings(iced_settings())
         .run();

@@ -1,0 +1,2201 @@
+{
+  "date": "2026-11-11",
+  "slot": 2,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "behavior_tests": {
+    "passed": 43,
+    "failed": 0,
+    "log": "/tmp/shiju-companion-final-test.log"
+  },
+  "cases": {
+    "dark3": {
+      "exit_code": 0,
+      "scene_count": 43,
+      "frame_count": 33,
+      "log": "/tmp/shiju-companion-native-dark3.log",
+      "scenes": {
+        "0": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404086006-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "47fde265d80f266e509ad7a48bd0fa1906b4471d37658b46ae5dde922aa22256"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404086006-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "1be2a49c2a1f98e170ea93e064c7da785d5f04e37c22f04252c26a863375edf5"
+          }
+        },
+        "1": {},
+        "2": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404088807-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "ddc5fd0c8bb1fa3ee2c1b6ee8dcbe20c8ab2fdabcf9d3433b0af88a9d961ccca"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404088807-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "fd2c913ca9bf7436fb95b3ba676d2ee1d4b82e3f362da5763ae9c12ab54ed18f"
+          }
+        },
+        "3": {},
+        "4": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404091612-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "5e9b8785e561ad4e2e01ffc010bc2427a33409c7206c1a372775703ccc23716d"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404091612-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "8f7d8f38ec7e0b9d0c2a6ebf17fbd6faca7be66eed6a719e982d098ef110e136"
+          }
+        },
+        "5": {},
+        "6": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404094406-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "56bda74eb8e63d6c910cbd55693f4ef752195ca12da30711fd8787314ff5b2b9"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404094406-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "ff65e706592ae5ce1ccb06142db24bb55d8b0abe7fcb5ebb5eac918a0a42ef14"
+          }
+        },
+        "7": {},
+        "8": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404097207-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "6b5f1c8284f2269e7c0c0c657649c4f7a769fcf79e4e71b500e10ed46d3496a1"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404097207-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "725ee7f516deae724ab314dd26eaf8fef0a5d9003c4201ac302ae9134604beea"
+          }
+        },
+        "9": {},
+        "10": {},
+        "11": {},
+        "12": {},
+        "13": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404104807-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "59ed36b1871516d0da1caa02548ba176f212f042bb8bc19725a06ea8ab93319c"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404104807-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a2bbd23db3fabd2dd8e5453b02548b6d4812956c7bb294b1a55f620caab2431c"
+          }
+        },
+        "14": {},
+        "15": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404107607-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "471d69c9366fee60b3d6eb4399af963c6397ef1ca6457fed0589282a4548fd4f"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404107607-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "8bc749913994efeec06637f151ce728eb6cec598e40baf83855a0cfced932fc0"
+          }
+        },
+        "16": {},
+        "17": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404110407-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "71ed5575dd461c31c4986e4e0e294e600312b1960733e80e7489084a1e99045d"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404110407-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "bdddc2a9c1cc847156ce793a0d98b567236c25350d389bcbdde50ff3110483ac"
+          }
+        },
+        "18": {},
+        "19": {},
+        "20": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404114806-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              30,
+              255
+            ],
+            "sha256": "ea2a8048ef60c452b844db1df69c5978714553b246212b78849a1b31c636da41"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404114806-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "8bc749913994efeec06637f151ce728eb6cec598e40baf83855a0cfced932fc0"
+          }
+        },
+        "21": {},
+        "22": {},
+        "23": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404119207-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "537bdf315ccecb90e89319fe43759c89c52d7bbcdaa6e830a940718939b2e97c"
+          }
+        },
+        "24": {},
+        "25": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404122007-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "0196b956d46432050716f64b70a9e6952c2b81b980267e15c614a7c84753b540"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404122007-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "1be2a49c2a1f98e170ea93e064c7da785d5f04e37c22f04252c26a863375edf5"
+          }
+        },
+        "26": {},
+        "27": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404124806-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404124806-mini.png",
+            "size": [
+              720,
+              812
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "1fd72e7146d10e9e6703083be5ba236354b16d477a1056a18d56ab7e7922ed58"
+          }
+        },
+        "28": {},
+        "29": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404127607-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404127607-mini.png",
+            "size": [
+              720,
+              812
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "ade47b6b570a43d1033d48f8e10ee6337198030c25cfa65bbd077bc1f2308ade"
+          }
+        },
+        "30": {},
+        "31": {},
+        "32": {},
+        "33": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404133607-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404133607-mini.png",
+            "size": [
+              720,
+              812
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "6c1f143fdd0fbcdf7cf9ee6e095e47aa2021b40248bfa659fffbc3442be28ceb"
+          }
+        },
+        "34": {},
+        "35": {},
+        "36": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404138007-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404138007-mini.png",
+            "size": [
+              720,
+              812
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "c4121c39b40614245286b2db77d2aeb329e3384a65396ce059e6e65c85c1430c"
+          }
+        },
+        "37": {},
+        "38": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404140807-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404140807-mini.png",
+            "size": [
+              720,
+              812
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "d075de7e9d613388c49179af2b702b04e5207fc73c7cbbe23c5fb4927e59ac4d"
+          }
+        },
+        "39": {},
+        "40": {},
+        "41": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404145207-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "a60bd6e16c4ba69194da784dbd87d826ef9f3e083a1bb992b57c8ad72c2ff48b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404145207-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "647220cea4979ae478845f871f3e75e4b7d91a633f6e4543a7cf370c4a9cca4d"
+          }
+        },
+        "42": {}
+      }
+    },
+    "light20": {
+      "exit_code": 0,
+      "scene_count": 43,
+      "frame_count": 33,
+      "log": "/tmp/shiju-companion-native-light20.log",
+      "scenes": {
+        "0": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404150215-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404150215-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "e8ab26b576464ba0211896edf98773765db30b0eac0034a47fb0e8749d47f23d"
+          }
+        },
+        "1": {},
+        "2": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404153014-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "1baceb4cb6ae06fe9e7cd2b70a64352b3163ef878bafaa47085e26f269a8ec2d"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404153014-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "58e97d99cb31d754e2827a881fedefba2ef8f9a5a96c3a07ff83300854b065cb"
+          }
+        },
+        "3": {},
+        "4": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404155814-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "cfc3220caaed09072c4990a17deb858aba51e983c0eae5002f1aa15120cfee9c"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404155814-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "88470c5884d20f9a2ca1b5b2fe43bef85290d64a8f2eca3734d552d0c40f0b3c"
+          }
+        },
+        "5": {},
+        "6": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404158615-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "e96f5e87239f87627ab6a42b4f8babc0a769b5c9c9f78ab6c8eb6cf6a496a925"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404158615-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "69f62b7e44d1e4f6b68866db483df1f7f61946d1abe8be93b82045440bbd90d6"
+          }
+        },
+        "7": {},
+        "8": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404161414-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "cf03dd4b7755f54928d97c7b5e518b0119fe8eaa108ae52fb029a863dc3ecb58"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404161414-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "7e415def12aca532f49fb6f34b7c4e99b4717fbea5c84b39803570d3e469ef8b"
+          }
+        },
+        "9": {},
+        "10": {},
+        "11": {},
+        "12": {},
+        "13": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404169014-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "0cbf76a53213a01dc9f2170d1ed4a8226ba1d12f296efbfd8f0038142bbc2015"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404169014-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "349ab699d4f74ed96f249eebe69ed1e07ac627bd6c8fd154237de4165aecffd3"
+          }
+        },
+        "14": {},
+        "15": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404171815-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "f09b878eaf6bada5e90f63ecf2eb74c9ff0e3393d6539470f124752c752a9fcb"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404171815-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "e8ab26b576464ba0211896edf98773765db30b0eac0034a47fb0e8749d47f23d"
+          }
+        },
+        "16": {},
+        "17": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404174614-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "b82ab04b5941aff683db90afc1d197b05369b79918631ccf4bce2bd6bc1446c3"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404174614-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "b6b245c66600e4d6480c702ffb4269e8d45572f51281c694f92ce0b712213ee4"
+          }
+        },
+        "18": {},
+        "19": {},
+        "20": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404179014-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              182,
+              184,
+              190,
+              255
+            ],
+            "sha256": "c7c4210b790776a028cfe44f88fdf5ae789df7a99ab9a900e5add020bebdfcdd"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404179014-mini.png",
+            "size": [
+              640,
+              524
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "f6ee7942c1f66edd89fc9b210ed361328bbdb9701eac3962817e2ba271b42e53"
+          }
+        },
+        "21": {},
+        "22": {},
+        "23": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404183414-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "595200d0a63db327fe3faa6cc4a3e2bb43fc471619e531b19dc544b7230f2627"
+          }
+        },
+        "24": {},
+        "25": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404186214-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "d6d3ce265b10b678de111ec465ec448ab3d731fab6dcbb5adc6939acf776182d"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404186214-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "e8ab26b576464ba0211896edf98773765db30b0eac0034a47fb0e8749d47f23d"
+          }
+        },
+        "26": {},
+        "27": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404189014-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404189014-mini.png",
+            "size": [
+              720,
+              1020
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "3504465f93568c4a04a3a4a11953e93ac841d6c74266b3767ae943f9b1bb1b96"
+          }
+        },
+        "28": {},
+        "29": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404191814-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404191814-mini.png",
+            "size": [
+              720,
+              1020
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "c96eeba5bffb9771fc98c72496263cdcf32e3ecf6b5fd0cf1daa149b7d80c795"
+          }
+        },
+        "30": {},
+        "31": {},
+        "32": {},
+        "33": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404197814-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404197814-mini.png",
+            "size": [
+              720,
+              1020
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "4db79c1e8624cc0363f3eea0f9906e3fb26db04f39a15e952b08370f0d9eb061"
+          }
+        },
+        "34": {},
+        "35": {},
+        "36": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404202215-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404202215-mini.png",
+            "size": [
+              720,
+              1020
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "2117df9c3c772c122ff5f5265719df0a1abe584ebf921717cc807933839b014f"
+          }
+        },
+        "37": {},
+        "38": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404205014-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404205014-mini.png",
+            "size": [
+              720,
+              1020
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "2470f070c7df5751fecdcfe7267bfe887320f6b9ec9424fbe43a787e24ab506a"
+          }
+        },
+        "39": {},
+        "40": {},
+        "41": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404209414-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "4a9bead7a0b221bc6a65b2447dd51e2101dade3bb5d89512ebb21bb0d3ed6156"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404209414-mini.png",
+            "size": [
+              640,
+              732
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "69d6df780b2ca38d821cc380c8b6dc104c1b578018c7e029865ad9ca48075e41"
+          }
+        },
+        "42": {}
+      }
+    },
+    "dark0": {
+      "exit_code": 0,
+      "scene_count": 43,
+      "frame_count": 33,
+      "log": "/tmp/shiju-companion-native-dark0.log",
+      "scenes": {
+        "0": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404214878-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404214878-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a53cfe228c53cebaae7a9035de22c824387dd2775cefc84741a3505b6cfa749d"
+          }
+        },
+        "1": {},
+        "2": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404217677-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "be24a752cead5d5c99fef2d0d360c2db7548a53e8831fdff1bdde467d5f375c5"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404217677-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "48454bf6b624b9dfee42ab1e00bde8200607596f9b217262b9315d651b6111bc"
+          }
+        },
+        "3": {},
+        "4": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404220478-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "689c6b57036d62ffbe93d61a439cee2312368ac3d958f615af24ecacb6d8b3e2"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404220478-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "fdbd58d5e52a168ad75400d45e7351fd23116a578737b498d11eae31f64af990"
+          }
+        },
+        "5": {},
+        "6": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404223278-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "b45ca96b77333328f38854941a838c897d8f9d16bc549f6b3e50549a6de96009"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404223278-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "e89d9da8e4d9905478bc6df185c4b96e23f0ea90176722a238bc6881cb7489c2"
+          }
+        },
+        "7": {},
+        "8": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404226077-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "21eb07b9fb814c094a015b2be7146f081b3959145257a7a811e01ae0d79dc415"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404226077-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "e89d9da8e4d9905478bc6df185c4b96e23f0ea90176722a238bc6881cb7489c2"
+          }
+        },
+        "9": {},
+        "10": {},
+        "11": {},
+        "12": {},
+        "13": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404233677-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "709a1d44fd6601a905a337400896e4e0663035ac73b2befc4c741a8a3d4420f9"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404233677-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a53cfe228c53cebaae7a9035de22c824387dd2775cefc84741a3505b6cfa749d"
+          }
+        },
+        "14": {},
+        "15": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404236478-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "a36166523c8ea9451c3ad381959b75de6bd6ba583d95a89e68e857f9eaa535ea"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404236478-mini.png",
+            "size": [
+              448,
+              544
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "bf14e86f7f5af31781050b6c98ff6d16eeb33db3b5d0f1b1a06d00070022a230"
+          }
+        },
+        "16": {},
+        "17": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404239278-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              31,
+              255
+            ],
+            "sha256": "3fb1a9e1f7c666acda4012e2660c0dd12e2041498cc4db1b0741b906dde22f3b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404239278-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a05df3b02426dda66ce220f86f0cf7260d69ecdeabb461ebde3ba8ef9e7e4dd0"
+          }
+        },
+        "18": {},
+        "19": {},
+        "20": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404243678-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              14,
+              18,
+              30,
+              255
+            ],
+            "sha256": "aa35343bf157551f768cfa5c5c37888206ea69a52bf65548df52f6020d936b39"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404243678-mini.png",
+            "size": [
+              448,
+              544
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "bf14e86f7f5af31781050b6c98ff6d16eeb33db3b5d0f1b1a06d00070022a230"
+          }
+        },
+        "21": {},
+        "22": {},
+        "23": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404248078-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "02467a507bf4658ccd7e70923e0b111bd644b86e33fcc7222468f3c039204daf"
+          }
+        },
+        "24": {},
+        "25": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404250877-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              42,
+              44,
+              48,
+              255
+            ],
+            "sha256": "ab629e06164a2f9f78585dbbfec55710b12ceef5c7a721ac48217a3e3011e661"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404250877-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a53cfe228c53cebaae7a9035de22c824387dd2775cefc84741a3505b6cfa749d"
+          }
+        },
+        "26": {},
+        "27": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404253677-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404253677-mini.png",
+            "size": [
+              720,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "650b78ae31f50cd168d134f0465c29efdc02580b9d546610a43f44b7a2c39f27"
+          }
+        },
+        "28": {},
+        "29": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404256478-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404256478-mini.png",
+            "size": [
+              720,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "650b78ae31f50cd168d134f0465c29efdc02580b9d546610a43f44b7a2c39f27"
+          }
+        },
+        "30": {},
+        "31": {},
+        "32": {},
+        "33": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404262478-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404262478-mini.png",
+            "size": [
+              720,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "650b78ae31f50cd168d134f0465c29efdc02580b9d546610a43f44b7a2c39f27"
+          }
+        },
+        "34": {},
+        "35": {},
+        "36": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404266878-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404266878-mini.png",
+            "size": [
+              720,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "650b78ae31f50cd168d134f0465c29efdc02580b9d546610a43f44b7a2c39f27"
+          }
+        },
+        "37": {},
+        "38": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404269678-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404269678-mini.png",
+            "size": [
+              720,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "6df68901c8695571b44b1e166f711db70e658df6e12e408bcb66400979bbd011"
+          }
+        },
+        "39": {},
+        "40": {},
+        "41": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404274078-settings.png",
+            "size": [
+              840,
+              1560
+            ],
+            "corner_rgba": [
+              43,
+              45,
+              49,
+              255
+            ],
+            "sha256": "e1ebc49c1da73d181a1c8f4896c58aa0a135db179782560d75fb54bd130f1342"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404274078-mini.png",
+            "size": [
+              320,
+              336
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "a53cfe228c53cebaae7a9035de22c824387dd2775cefc84741a3505b6cfa749d"
+          }
+        },
+        "42": {}
+      }
+    },
+    "light1": {
+      "exit_code": 0,
+      "scene_count": 43,
+      "frame_count": 33,
+      "log": "/tmp/shiju-companion-native-light1.log",
+      "scenes": {
+        "0": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404279152-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404279152-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "2f01e5f7987ccfd4c63dd72f1f16d060b3ac9b794718d882920175c5a3eabcca"
+          }
+        },
+        "1": {},
+        "2": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404281952-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "9135d4c5ba1e2d1fd9b51db8f5142e9c4db0f7516d60f29738a97ffb4ef49675"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404281952-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "6a61ccabf710d850d3bc2921e9ad07d476132944de849923e80e5a7fbf5df1ac"
+          }
+        },
+        "3": {},
+        "4": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404284752-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "1d2f1c6277b10e57c3b13ea19d5c8d55b63d7d317ef44fe4d780ddddac46ee2b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404284752-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "53c6335e9b5a5ed02b6aef998156b18002ed994c36176429a51af51f1e915795"
+          }
+        },
+        "5": {},
+        "6": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404287552-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "1cf536e3442a0f8576e3e47183df1140c8733bbc2f15b255f5a7f27c4f8ac949"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404287552-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "9ec2677143830bb348fd829ca0528c6fdbf80779cef9eb03b0d0d9738019f87f"
+          }
+        },
+        "7": {},
+        "8": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404290353-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "dc1868ddcee08e6812923a9683ec6879fbbe02940006a9de33e15c2a8672db2b"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404290353-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "8250f1bd859eb680926ebcf5a2007885b31835976cb9bb54282006acd5d01a73"
+          }
+        },
+        "9": {},
+        "10": {},
+        "11": {},
+        "12": {},
+        "13": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404297952-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "47e8c9705e0fb00310431a0fa8c9d7aad9401a3bb766bb41b8aae6bd90bcac3a"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404297952-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "79ea297acdf6b91790e2de329cc7e8bee00bfcdb325be8dfff6da33bb84be539"
+          }
+        },
+        "14": {},
+        "15": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404300752-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "a692d61a8b78776bb3db12878cce18311a46a3b25c67b3e00b564f044c7e6bec"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404300752-mini.png",
+            "size": [
+              640,
+              700
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "536001965b4213498a811aed843b76e3565ea74eb07bafa1d51a719f0a376e5b"
+          }
+        },
+        "16": {},
+        "17": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404303571-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              183,
+              185,
+              191,
+              255
+            ],
+            "sha256": "135a6c1695bc0bdd43f96577fef36af68f1b17d4fcbeb97913b9cc4a26619c8a"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404303571-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "036d97cf527e1749905b259af82c17fb94e5920dd43bc5ace304fc9e12a26578"
+          }
+        },
+        "18": {},
+        "19": {},
+        "20": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404307974-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              182,
+              184,
+              190,
+              255
+            ],
+            "sha256": "fe268d91f4009d93590ee87a1520e266d3e6a9d1e7faff0554d936a4c561fd9a"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404307974-mini.png",
+            "size": [
+              640,
+              700
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "b2a191a6b1c7843c2efefd963ccc7d30d0fffd8c775f14563dbefb48c730374a"
+          }
+        },
+        "21": {},
+        "22": {},
+        "23": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404312353-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "d0aaf507b7dd87e8ae27ba9e7825204805e2ed755a605442f962a14ecc755f53"
+          }
+        },
+        "24": {},
+        "25": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404315153-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              253,
+              253,
+              253,
+              255
+            ],
+            "sha256": "9784f0e352a2c66d5ad083c3f67ca9d5f02ee455c12f0568a72a1ff117f9e1d8"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404315153-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "2f01e5f7987ccfd4c63dd72f1f16d060b3ac9b794718d882920175c5a3eabcca"
+          }
+        },
+        "26": {},
+        "27": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404317953-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404317953-mini.png",
+            "size": [
+              720,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "576cf61863e3bbf768bcf36e7cb325a7354c874ab93f1ae7897f6a4dd9776584"
+          }
+        },
+        "28": {},
+        "29": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404320752-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404320752-mini.png",
+            "size": [
+              720,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "86515ec89f3848b07e15fd418d0ae1deb19f156fc32f670a926e5099b56b5b39"
+          }
+        },
+        "30": {},
+        "31": {},
+        "32": {},
+        "33": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404326753-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404326753-mini.png",
+            "size": [
+              720,
+              588
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "26579319d31e73d959236607cf0e81d611bf19eebf88760d1b786743bde8b4b7"
+          }
+        },
+        "34": {},
+        "35": {},
+        "36": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404331153-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404331153-mini.png",
+            "size": [
+              720,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "71a8d97cb2fac093654313955dbf6d9e12ab221f28710354fc0a9c89a89a9e08"
+          }
+        },
+        "37": {},
+        "38": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404333953-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404333953-mini.png",
+            "size": [
+              720,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "4d153ec5b2a322f0914f26da8c9790ada1467b2daa127db42a921c94c373745e"
+          }
+        },
+        "39": {},
+        "40": {},
+        "41": {
+          "settings": {
+            "path": "/tmp/shiju-companion-native/1794404338358-settings.png",
+            "size": [
+              1960,
+              1560
+            ],
+            "corner_rgba": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "sha256": "f34d6e171052957635c344d1eb3e784872bd9d12462a37e8d233eab532aca693"
+          },
+          "mini": {
+            "path": "/tmp/shiju-companion-native/1794404338358-mini.png",
+            "size": [
+              640,
+              492
+            ],
+            "corner_rgba": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sha256": "2a4175118ca254d3575ecbd9409e97a6be275e8f62df0c4cc72a900bbc8a511c"
+          }
+        },
+        "42": {}
+      }
+    }
+  },
+  "selected": {
+    "dark-mini.png": {
+      "case": "dark3",
+      "scene": 41,
+      "window": "mini"
+    },
+    "light-selection.png": {
+      "case": "light1",
+      "scene": 0,
+      "window": "settings"
+    },
+    "dark-size-min.png": {
+      "case": "dark0",
+      "scene": 13,
+      "window": "settings"
+    },
+    "light-size-max.png": {
+      "case": "light20",
+      "scene": 15,
+      "window": "settings"
+    },
+    "light-scroll-20.png": {
+      "case": "light20",
+      "scene": 29,
+      "window": "mini"
+    },
+    "dark-reply.png": {
+      "case": "dark3",
+      "scene": 33,
+      "window": "mini"
+    },
+    "dark-menu.png": {
+      "case": "dark3",
+      "scene": 38,
+      "window": "mini"
+    },
+    "light-menu.png": {
+      "case": "light20",
+      "scene": 38,
+      "window": "mini"
+    }
+  },
+  "checks": {
+    "fmt": {
+      "exit_code": 0,
+      "log": "/tmp/shiju-companion-native-fmt.log"
+    },
+    "desktop_clippy": {
+      "exit_code": 0,
+      "log": "/tmp/shiju-companion-native-clippy.log"
+    },
+    "workspace_clippy": {
+      "exit_code": 255,
+      "reason": "Unrelated untracked app/voice/preferences.rs dead-code errors; stopped after diagnostics",
+      "log": "/tmp/shiju-companion-workspace-clippy.log"
+    }
+  },
+  "source_sha256": {
+    "crates/vw-desktop/src/companion_window_main.rs": "b97b366d3428821bcde9a4223e59969ef7b67e19c906e4aad347e166173935a1",
+    "crates/vw-desktop/src/main.rs": "99711a5c6acd69c141e9777beaa1880e7662d6b3eb8ec48d21898a4aa8f193c0",
+    "crates/vw-desktop/src/app/impls/app_basic.rs": "675ad97fe637dc0d690d03dd61b2ecb073f7c8454cd51ffec6c14113cd8539c8",
+    "crates/vw-desktop/src/app/impls/app_basic_tests.rs": "a02afb5c67e4784334aafbfefb7719af7e2d64deeb552b26ee285d0e53dedb76",
+    "crates/vw-desktop/src/app/components/system_settings_companion.rs": "164f51da3a9ce7b6dbbbf496b8ffbf04b6f4695d1711ac0d5f30478431668524",
+    "crates/vw-desktop/src/app/components/system_settings_companion/size_modal.rs": "9b37ea2b6102610e8f5b44c73c46159a9cd92509e5e34c935248de6725a26aa4",
+    "crates/vw-desktop/src/app/components/task_pet.rs": "cb2d379b675a8c488026ced4d1356012f0178964324fe076040cc12c0603fe2d",
+    "crates/vw-desktop/src/app/native_menu/macos.rs": "43cd28bc102c45b6793bcc58233754378d2866dba1ceba34af4d22967c5b4409",
+    "crates/vw-desktop/src/app/native_menu/macos_tests.rs": "f793f331f6d0fb432ddef8b45b38840561d001a007fbcb1365ce7ffc5782a7f5"
+  }
+}

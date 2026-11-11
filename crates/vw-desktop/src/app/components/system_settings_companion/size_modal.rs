@@ -76,7 +76,11 @@ pub(crate) fn with_size_modal<'a>(
         .max_width(480)
         .height(Length::Fill)
         .max_height(440);
-    settings_modal_overlay_with_escape(base, cancel, container(card).padding(12))
+    settings_modal_overlay_with_escape(
+        base,
+        cancel,
+        container(card).padding(12).max_width(504).max_height(464),
+    )
 }
 
 #[cfg(test)]

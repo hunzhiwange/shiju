@@ -13,7 +13,8 @@ fn main() -> iced::Result {
     iced::daemon(boot, update, view)
         .title(|_: &App, _| "迷你伙伴原生验收 — 隔离网关".to_owned())
         .theme(App::theme_for_window)
-        .subscription(App::subscription)
+        .style(app::App::window_style)
+        .subscription(subscription)
         .settings(iced::Settings {
             fonts: fonts::load_all(),
             default_font: iced::Font::with_name("PingFang SC"),
@@ -68,6 +69,73 @@ fn argument<T: std::str::FromStr>(prefix: &str) -> Option<T> {
 }
 
 fn update(app: &mut App, message: Message) -> Task<Message> {
+    if scripted() && matches!(&message, Message::None) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static TICKS: AtomicUsize = AtomicUsize::new(0);
+        let tick = TICKS.fetch_add(1, Ordering::Relaxed);
+        if tick % 8 == 7 {
+            return scripted_scene(app, tick / 8);
+        }
+    }
+    if matches!(
+        &message,
+        Message::View(app::message::ViewMessage::GlobalKeyPressed(
+            iced::keyboard::Key::Named(iced::keyboard::key::Named::F12),
+            _
+        ))
+    ) {
+        let stamp =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis();
+        return Task::batch(
+            [("settings", app.main_window_id), ("mini", app.task_pet_window_id)]
+                .into_iter()
+                .filter_map(|(name, id)| {
+                    id.map(|id| {
+                        iced::window::screenshot(id).map(move |frame| {
+                            let directory = std::path::Path::new("/tmp/shiju-companion-native");
+                            std::fs::create_dir_all(directory)
+                                .expect("create native evidence directory");
+                            let path = directory.join(format!("{stamp}-{name}.png"));
+                            image::save_buffer(
+                                &path,
+                                &frame.rgba,
+                                frame.size.width,
+                                frame.size.height,
+                                image::ColorType::Rgba8,
+                            )
+                            .expect("save native evidence frame");
+                            eprintln!("native frame: {}", path.display());
+                            Message::None
+                        })
+                    })
+                }),
+        );
+    }
+    // Native acceptance shortcuts publish the same messages as the visible production controls.
+    if let Message::View(app::message::ViewMessage::GlobalKeyPressed(
+        iced::keyboard::Key::Named(key),
+        _,
+    )) = &message
+    {
+        use app::message::ViewMessage;
+        use iced::keyboard::key::Named;
+        let action = match key {
+            Named::F2 => Some(ViewMessage::TaskPetAvatarCycle),
+            Named::F3 => Some(ViewMessage::TaskPetSizeOpen),
+            Named::F4 => Some(ViewMessage::TaskPetSizePreview(0.5)),
+            Named::F5 => Some(ViewMessage::TaskPetSizePreview(2.0)),
+            Named::F6 => Some(ViewMessage::TaskPetSizeReset),
+            Named::F7 => Some(ViewMessage::TaskPetSizeCancel),
+            Named::F8 => Some(ViewMessage::TaskPetSizeSave),
+            Named::F9 => Some(ViewMessage::TaskPetToggleWindow),
+            Named::F10 => Some(ViewMessage::TaskPetToggleCollapsed),
+            Named::F11 => return iced::exit(),
+            _ => None,
+        };
+        if let Some(action) = action {
+            return app.update(Message::View(action));
+        }
+    }
     // Keep production UI/window routing; fixture sessions must never dispatch agent requests.
     if matches!(message, Message::Chat(_) | Message::Project(_)) {
         return Task::none();
@@ -88,6 +156,151 @@ fn view(app: &App, window: iced::window::Id) -> Element<'_, Message> {
     )
     .padding(20)
     .into();
-    let base = iced::widget::stack![base, app::components::toast::view(app)].into();
-    app::components::system_settings_companion::size_modal::with_size_modal(app, base)
+    let modal = app::components::system_settings_companion::size_modal::with_size_modal(app, base);
+    iced::widget::stack![modal, app::components::toast::view(app)].into()
+}
+
+fn scripted() -> bool {
+    std::env::args().any(|arg| arg == "--script")
+}
+
+fn subscription(app: &App) -> iced::Subscription<Message> {
+    let production = app.subscription();
+    if scripted() {
+        iced::Subscription::batch([
+            production,
+            iced::time::every(std::time::Duration::from_millis(200)).map(|_| Message::None),
+        ])
+    } else {
+        production
+    }
+}
+
+// Drive actual production messages between native frames; never dispatch fixture agent work.
+fn scripted_scene(app: &mut App, scene: usize) -> Task<Message> {
+    use app::message::ViewMessage as V;
+    use app::state::TaskPetAvatarKind as Avatar;
+    let committed = argument::<f32>("--scale=").unwrap_or(1.0);
+    let preview = if committed == 2.0 { 0.5 } else { 2.0 };
+    eprintln!("native scene {scene}");
+    let capture = |app: &mut App| {
+        update(
+            app,
+            Message::View(V::GlobalKeyPressed(
+                iced::keyboard::Key::Named(iced::keyboard::key::Named::F12),
+                iced::keyboard::Modifiers::empty(),
+            )),
+        )
+    };
+    let action = match scene {
+        0 => return capture(app),
+        1 => Some(V::TaskPetAvatarSelected(Avatar::Beauty)),
+        2 => {
+            assert_eq!(app.task_pet_avatar_kind, Avatar::Beauty);
+            return capture(app);
+        }
+        3 => Some(V::TaskPetAvatarSelected(Avatar::Handsome)),
+        4 => {
+            assert_eq!(app.task_pet_avatar_kind, Avatar::Handsome);
+            return capture(app);
+        }
+        5 => Some(V::TaskPetAvatarSelected(Avatar::None)),
+        6 => {
+            assert_eq!(app.task_pet_avatar_kind, Avatar::None);
+            return capture(app);
+        }
+        7 => Some(V::TaskPetSizeOpen),
+        8 => {
+            assert_eq!(app.task_pet_size_draft, Some(committed));
+            return capture(app);
+        }
+        9 => Some(V::TaskPetSizeCancel),
+        10 => Some(V::TaskPetAvatarSelected(Avatar::Robot)),
+        11 => Some(V::TaskPetSizeOpen),
+        12 => Some(V::TaskPetSizePreview(0.5)),
+        13 => {
+            assert_eq!(app.task_pet_size_draft, Some(0.5));
+            return capture(app);
+        }
+        14 => Some(V::TaskPetSizePreview(2.0)),
+        15 => {
+            assert_eq!(app.task_pet_size_draft, Some(2.0));
+            return capture(app);
+        }
+        16 => Some(V::TaskPetSizeReset),
+        17 => {
+            assert_eq!(app.task_pet_size_draft, Some(1.0));
+            return capture(app);
+        }
+        18 => Some(V::TaskPetSizePreview(preview)),
+        19 => Some(V::TaskPetSizeSave),
+        20 => {
+            assert_eq!(app.task_pet_scale, committed);
+            assert_eq!(app.task_pet_size_draft, Some(preview));
+            assert!(app.task_pet_size_pending.is_none());
+            assert!(app.active_toast.is_some());
+            return capture(app);
+        }
+        21 => Some(V::TaskPetSizeCancel),
+        22 => {
+            assert!(app.task_pet_size_draft.is_none());
+            Some(V::TaskPetHideWindow)
+        }
+        23 => {
+            assert!(!app.task_pet_visible);
+            assert!(app.task_pet_window_id.is_none());
+            return capture(app);
+        }
+        24 => Some(V::TaskPetShowWindow),
+        25 => {
+            assert!(app.task_pet_visible);
+            assert!(app.task_pet_window_id.is_some());
+            return capture(app);
+        }
+        26 => Some(V::TaskPetToggleCollapsed),
+        27 => {
+            assert!(!app.task_pet_collapsed);
+            return capture(app);
+        }
+        28 => return iced::widget::operation::snap_to_end(app.task_pet_scroll_id.clone()),
+        29 => return capture(app),
+        30 => {
+            return iced::widget::operation::snap_to(
+                app.task_pet_scroll_id.clone(),
+                iced::widget::operation::RelativeOffset::START,
+            );
+        }
+        31 if !app.task_pet_items.is_empty() => Some(V::TaskPetReplyPressed(1)),
+        32 if !app.task_pet_items.is_empty() => {
+            Some(V::TaskPetReplyInputChanged("中文原生回复输入验收，禁止发送真实代理。".into()))
+        }
+        33 => return capture(app),
+        34 if !app.task_pet_items.is_empty() => Some(V::TaskPetReplySubmit),
+        35 => {
+            assert!(app.task_pet_reply_request_id.is_none());
+            return Task::batch(
+                [
+                    (app.main_window_id, iced::Point::new(150.0, 100.0)),
+                    (app.task_pet_window_id, iced::Point::new(600.0, 180.0)),
+                ]
+                .into_iter()
+                .filter_map(|(id, position)| id.map(|id| iced::window::move_to(id, position))),
+            );
+        }
+        36 => return capture(app),
+        37 => Some(V::TaskPetContextMenuOpened(15.0, 15.0)),
+        38 => {
+            assert!(app.task_pet_context_menu_pos.is_some());
+            return capture(app);
+        }
+        39 => Some(V::TaskPetContextMenuClosed),
+        40 => Some(V::TaskPetToggleCollapsed),
+        41 => {
+            assert!(app.task_pet_collapsed);
+            return capture(app);
+        }
+        42 => return iced::exit(),
+        _ => None,
+    };
+    action.map_or_else(Task::none, |action| app.update(Message::View(action)))
 }

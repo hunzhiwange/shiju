@@ -431,6 +431,16 @@ impl App {
         }
     }
 
+    /// Clear the native Mini surface without making menus or form controls transparent.
+    pub fn window_style(_: &Self, theme: &Theme) -> iced::theme::Style {
+        use iced::theme::Base;
+        let mut style = theme.base();
+        if theme.palette().background == Color::TRANSPARENT {
+            style.background_color = Color::TRANSPARENT;
+        }
+        style
+    }
+
     /// 公开函数，执行 effective_editor_theme 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn effective_editor_theme(&self) -> Theme {

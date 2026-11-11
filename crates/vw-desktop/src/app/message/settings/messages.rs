@@ -452,6 +452,7 @@ pub enum McpMessage {
     Catalog(super::mcp_management_list::CatalogMessage),
     ConnectionForm(super::mcp_management_form::FormMessage),
     Bindings(super::mcp_management_bindings::BindingsMessage),
+    Resync(super::mcp_management_resync::ResyncMessage),
     Import(super::mcp_management_import::ImportMessage),
     TabSelected(McpSettingsTab),
     Refresh,

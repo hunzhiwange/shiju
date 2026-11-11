@@ -874,6 +874,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
         managed_catalog_panel(app),
         bindings::panel(app),
+        resync::panel(app),
         crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
         action_row.wrap(),
         row![
@@ -1032,6 +1033,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 /// 在 MCP 设置页上叠加服务器表单或删除确认。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if crate::app::message::settings::mcp_management_resync::visible(app).is_some_and(|s| s.open) {
+        return resync::overlay(app, dialog);
+    }
     if let Some(state) = crate::app::message::settings::mcp_management_import::visible(app) {
         return settings_modal_overlay(
             Some(dialog),
@@ -1191,3 +1195,6 @@ mod bindings;
 
 #[path = "system_settings_mcp_import.rs"]
 pub(crate) mod import;
+
+#[path = "system_settings_mcp_resync.rs"]
+mod resync;

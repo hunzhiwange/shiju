@@ -78,3 +78,12 @@
 - 必需检查：`cargo clippy --all-targets --all-features -- -D warnings`，槽位 2，退出 101。无关 `stream_check.rs` 的 trait 可见性/`prompt`、其测试参数类型，以及网关 `preview_tests.rs:194`、`codex_catalog_tests.rs:285`、`gemini_tests.rs:202` 未补 `Pending.project_preimage` 阻断全仓。lib 已失败后中断仍在收集无关错误的本命令 lib test 子进程；不计完整检查通过。
 - 所有 Cargo 继承绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-N`（实际 N=3、6、2）及槽位内 `CARGO_BUILD_BUILD_DIR`；自有锁已清理，缓存保留。正式证据：`docs/shiju/agent-apps/aggregation/任务15-验证.md`。
 - 本任务代码/10 项行为已交付，因其他任务在途编译错误保留为待回归。最小解除条件：归属所有者修复上述集成错误后，重跑原过滤测试及全 features Clippy；全部通过后删除本卡。未修改只读 plan，未进行真实客户端验收，不宣告母任务完成。
+
+
+## 2026-11-12 延后回归与统一检查
+
+任务15原会话承担本轮统一全仓Clippy。正式完整日志、阶段源码摘要、保留缓存低内存环境和退出码位于同目录 `统一Clippy-2026-11-12/README.md` 及 `result.json`（任务卡对应路径为 `docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/`）。
+
+本轮动态槽位2，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；单并行、关闭增量并完全参考任务59最终通过的临时profile。现有发布代码后来抽出共享plan及事务接线，故本轮重新执行原过滤命令，10项通过、退出0，起止源码摘要一致。随后MCP无关修复未涉及本卡发布器/目录/事务所有者，保留这份适用行为证据，不机械重复。
+
+统一Clippy第一轮退出101，MCP工具详情页5处column宏歧义；原所有者修复后，对变化且短暂稳定的源码重试一次，第二轮退出101，同页SessionId/ToolId缺少Display。完整错误分别保存在round1-clippy.log与round2-clippy.log，两个阶段都有其他在途源码变化，均不宣告通过。等待原MCP所有者交付及任务41共享操作认证顺序修复的绿色交接后，再执行最终统一检查；必须覆盖 `/tmp/shiju-t41-deferred-handoff.json` 最终源散列并保持Codex重启独立授权。当前仍为“已完成，待回归”，任务卡保留，不改其他所有者代码。

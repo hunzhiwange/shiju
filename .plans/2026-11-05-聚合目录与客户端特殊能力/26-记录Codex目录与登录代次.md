@@ -74,3 +74,9 @@
 当前检出实现已提交；正式记录见 `docs/shiju/agent-apps/aggregation/任务26-验证.md`。受控副本失败验证6项中5失败，修复后副本及正常入口6项均通过（退出0）。全仓Clippy退出101：其他在途改动的 `providers/live/recovery.rs:252` 触发collapsible_if，未修改无关所有者。保留本卡，待所有者修复后回归原过滤命令与全仓Clippy。
 
 实际Cargo槽位9、1、5、4，对应绝对目录 `/Users/xiangmin/worker/code/shiju/target/rust-slot-{9,1,5,4}`（每阶段使用单个实际编号，未把花括号字面量用作目录）；最后正常入口测试及Clippy均使用槽位4。全部自有锁已核对释放，缓存保留；无工作树，无真实客户端验收。
+
+## 2026-11-12 延后回归
+
+核对任务59最终低内存环境；本轮未修改代码。任务44仅追加外部目录标记，故补跑正常入口 `cargo test -p vw-agent-apps --lib aggregation_t26_ -- --nocapture`，退出0，6项全部通过、1183过滤。实际动态槽位4，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，`CARGO_BUILD_BUILD_DIR`同路径；单并行、关闭增量及任务59临时profile。源码及直接依赖在测试前后摘要一致，自有锁完整核对后释放，缓存保留。日志 `/tmp/shiju-t26-regression-20261112.log`，摘要 `/tmp/shiju-t26-regression-source-20261112.json`。
+
+按调度，本轮不重复启动全仓Clippy。统一检查仍受其他MCP页面错误阻断，最终结果需覆盖任务41认证顺序修复；本轮聚焦证据已核对适用。调度明确要求结束活动轮询，维持“已完成，待回归”并保留本卡。正式证据已追加本轮检查；后续恢复原会话，取得当前源码统一通过结果后确认适用性并删除卡片。

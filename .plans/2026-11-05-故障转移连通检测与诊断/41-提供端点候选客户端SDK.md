@@ -2,7 +2,7 @@
 
 批次：【批次 9】 依赖：批次 8 的任务 39、40。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,17 @@
 - 阻塞和进度只写本任务文件，不改只读 `plan.md`，不把 `prompt.md` 当进度来源；不静默删减来源需求。发现新需求先询问是否记录回来源产物。
 - 有实际代码/测试/配置/正式文档变更时，使用 `$git-commit` 审查并仅提交本任务变更；只有本编号文件状态更新或删除时无需提交。不要提交其他任务或工作区变更。
 - 最终回复报告完成证据与推荐下一步；完成且非待回归时按执行技能删除本任务文件，正式证据文档保留。只生成本计划不会完成母任务9。
+
+## 本次执行记录（2026-11-12）
+
+- 直接依赖任务 39 `2b5362db5`、任务 40 `3619f2233` 和公开 DTO/API 已核实。直接在原仓库完成，无新工作树，无修改 plan.md。
+- 实现：既有 `agent_apps_diagnostics_api.rs::GatewayClient::diagnostic_endpoint_candidates`；独立测试复用原注册，不改共享 client/mod.rs。请求正文携带供应商、草稿和预设，三项作用域留在查询；保留候选 ID、URL、全部来源和 403 错误。
+- 红灯：`cargo test -p vw-gateway-client --lib diagnostic_endpoints_sdk_uses_scoped_body -- --nocapture` 退出 101，编译成功后 1 项行为断言失败，实际路径 /diagnostics/jobs 而非候选查询。
+- 绿灯：同一命令退出 0，1 passed、0 failed、460 filtered。真实本地 HTTP 观察 200/403 各一次请求，无额外探测、保存或重试，服务线程 join 退出。
+- 共享 helper 回归：`cargo test -p vw-gateway-client --lib diagnostic_sdk_preserves_job_identity -- --nocapture` 退出 0，2 passed、0 failed、459 filtered。
+- `cargo fmt --all -- --emit stdout --config skip_children=true` 退出 0；仅 rustfmt 回写本任务两文件，未格式化其他会话文件。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出 101；其他会话未跟踪桌面文件 `crates/vw-desktop/src/app/message/agent_apps_diagnostics.rs:24–28` 的 Handshake/Succeeded/Failed/Cancelled 从未构造触发 dead_code。未修改无关文件或降低检查。
+- 实际原子领取槽位 2；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；按要求应用低内存环境参数，未改变 Cargo 配置或 features。
+- 正式证据见 `docs/vibewindow/agent-apps/diagnostics/endpoint-candidates-sdk-41.md`。全仓检查缺少通过证据，保留本卡等待桌面所有者接线后回归。
+
+- 局部补充：`cargo clippy -p vw-gateway-client --all-targets --all-features -- -D warnings` 退出 0，32.35s；不替代全仓检查。验证进程结束，已释放自己的槽位 2 锁，缓存保留。

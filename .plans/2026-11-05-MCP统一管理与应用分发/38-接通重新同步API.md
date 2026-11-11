@@ -2,7 +2,9 @@
 
 批次：【批次 27】 依赖：批次 26 的任务 37。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
+
+本轮交接：实现与最终聚焦行为验证完成。`cargo --config 'profile.test.package.vw-agent.opt-level=0' test -p vw-agent --lib cc_mcp_t38_ -- --nocapture` 退出0，1个有效用例通过、0失败。最终 `cargo clippy --all-targets --all-features -- -D warnings` 退出101，被无关 `crates/vw-agent/src/tools/computer_control.rs:410/417` 的E0308阻断（Arc<ToolUseContext>与ToolUseContext不匹配）；未修改该模块。按计划调度明确要求，本实现批次不再等待其它计划修复或提前反复回归，保留本文件供统一回归。正式证据：`docs/vibewindow/agent-apps/mcp/evidence/任务38.md`。实际槽位9，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-9`，`CARGO_BUILD_JOBS=1`；自身子进程结束后释放自身锁并保留缓存。恢复条件：统一回归时重新执行上述聚焦命令与全仓Clippy并取得通过证据。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 

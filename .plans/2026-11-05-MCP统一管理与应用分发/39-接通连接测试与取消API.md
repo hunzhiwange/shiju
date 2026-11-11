@@ -2,7 +2,7 @@
 
 批次：【批次 28】 依赖：批次 27 的任务 38。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,37 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮执行记录
+
+- 已完成macOS POST /v1/agent-apps/mcp/checks最小接线、独立cc_mcp_t39_测试及正式证据；复用agent_apps_diagnostics::start、network_probe::start_handshakes与DiagnosticJobs，不另造查询/取消接口、不弱化断言。plan.md未修改。
+- 必需HTTP依赖为 `.plans/2026-11-05-故障转移连通检测与诊断/38-提供诊断结果与取消API.md`。核实当前正式router仅有POST启动路由，read_job/cancel_job尚未交付；DiagnosticJobs::snapshot/cancel已存在。按最新调度授权将本任务标记“已完成，待回归”，不在本批次等待其交付或重复已知无法通过的构建。
+- 实际动态槽位6；CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-6，CARGO_BUILD_BUILD_DIR同值，CARGO_BUILD_JOBS=1。自身Cargo、测试及受控stdio子进程全部结束后已退出持有shell PID13857，确认自身slot-6.lock已释放，缓存保留。
+- T=`cargo --config 'profile.test.package.vw-agent.opt-level=0' test -p vw-agent --lib cc_mcp_t39_ -- --nocapture`。红灯退出101，1个有效用例在真实router观察405、预期422。两次cargo fmt --all均退出0。首次绿灯因编译快照缺少上述前置路由而主动停止自身rustc，退出101、0测试，不计行为绿灯。新增HTTP用例尚未获得通过证据。
+- `cargo clippy --all-targets --all-features -- -D warnings`已实际执行，自然退出101，被无关agent_apps_high_availability.rs:173/175/194的ProviderId.to_string E0599阻断；未修改该文件。
+- 安全补充验证使用本轮红灯实际生成的 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6/debug/deps/vw_agent-7d22e0df937b4289`：`diagnostic_mcp_ --nocapture`退出0、5通过0失败；`cc_mcp_t31_ --nocapture`退出0、5通过0失败。覆盖真实loopback握手授权、取消、进程回收与修订隔离，不冒充任务39的HTTP绿灯。
+- git diff --check退出0；固定来源commands/mcp.rs的git show|cmp退出0。正式完整证据：`docs/vibewindow/agent-apps/mcp/evidence/任务39.md`。
+- 恢复条件：诊断任务38正式路由落地且高可用模块无关编译错误解决后，动态领取空闲槽位运行T、完整Clippy及git diff --check。至少1个有效任务39用例通过且Clippy通过后补齐证据、删除本任务文件。
+
+## 实现阶段可见性修复
+
+- 按调度要求修复任务42报告的E0603；共享诊断补丁将start退回私有。将正式共用提交边界明确为pub(super) async fn submit，诊断POST路由及MCP适配一并指向它，授权与执行函数体逐字比较不变。未修改诊断查询/取消或其他任务的临时验证补丁。
+- 动态原子领取槽位2，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2，CARGO_BUILD_BUILD_DIR同值，CARGO_BUILD_JOBS=1，持有脚本PID66165。
+- cargo fmt --all -- --emit stdout --config skip_children=true退出0；函数体/适配器一致性断言退出0；git diff --check退出0。cargo clippy --all-targets --all-features -- -D warnings退出0（3分36秒），原私有函数E0603已消除。脚本自然结束并释放自身slot-2.lock，保留缓存。
+- 本轮仅恢复实现连线，不提前执行完整延后行为回归；保留本任务“已完成，待回归”状态。
+
+## 管理连接检查结果契约修复
+
+- 按任务43反馈核对任务31和实际DTO：原管理入口错误复用了DiagnosticResult::Mcp握手报告，不携带connectionRevision。新增SubmissionRequest::McpConnectionChecks内部提交种类，复用原整批授权/执行主机解析；原DiagnosticStartRequest::Mcp仍走原握手报告，保留既有诊断调用者。
+- 管理结果使用现有DiagnosticResult::McpConnectionCheck {scope, generation, item: McpConnectionCheckItem {id, connectionRevision, outcome}}；connectionRevision来自经当前目录验证的实际授权连接修订，generation为管理请求可选u64、默认0。执行复用任务30/31的McpCatalogStore::check_connection_inner与CheckRevision::Connection、真实工具发现及DiagnosticJobs；不在SDK造修订或成功结果。
+- 保留McpProbeAccess的逐项授权、凭据/端点/stdio许可检查与发布前复核。底座ConnectionCheckHost增加可选账户存储（无凭据连接不强制建立账号库）和调用者重新授权回调；既有可信领域调用者保持原授权责任。新增独立connection_probe_tests.rs验证非初始修订、工具发现、旧诊断兼容、撤销权限、取消；原完整HTTP用例更新正式结果断言，仍延后统一回归。
+- 本轮动态槽位8，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-8，CARGO_BUILD_BUILD_DIR同值，CARGO_BUILD_JOBS=1，持有脚本PID10481。cargo fmt --all -- --emit stdout --config skip_children=true退出0；仅格式化本次负责文件的rustfmt退出0。
+- 聚焦命令cargo --config 'profile.test.package.vw-agent.opt-level=0' test -p vw-agent --lib cc_mcp_t39_revision_ -- --nocapture正在执行，首轮出现无关聚合退出依赖快照错误（AggregationExitRequest/Exited缺失；实际新API源码已有定义），不修改聚合模块，不冒充行为红灯。首轮完整Clippy随后顺序执行退出0（5分30秒）。
+
+- 新增契约复验已执行：动态原子重新领取兼容槽位8，CARGO_TARGET_DIR同上，持有脚本PID55590；同一聚焦命令退出0，2通过0失败（构建40分54秒，运行0.26秒）。实际二进制target/rust-slot-8/debug/deps/vw_agent-7d22e0df937b4289分别执行diagnostic_mcp_和cc_mcp_t31_，均退出0，各5通过0失败，保留旧诊断及取消/修订语义。
+- 原延后HTTP用例已按最新调度要求同步强类型解码DiagnosticJobIdentity/DiagnosticJobSnapshot，按McpConnectionCheck断言generation=17和真实connectionRevision；省略代次的独立批次断言0，另从旧诊断HTTP入口断言Mcp握手报告。原授权、批次隔离和取消断言保留，完整HTTP用例未提前运行。
+- 最终检查动态原子领取槽位8，CARGO_TARGET_DIR同上，持有脚本PID2182；cargo fmt --all -- --emit stdout --config skip_children=true退出0，最终cargo clippy --all-targets --all-features -- -D warnings退出0（2分32秒），覆盖最新HTTP强类型断言的编译检查。所有自身进程自然结束，slot-8.lock已释放，缓存保留。任务状态仍为已完成，待回归。
+
+- 本轮交接：正式McpConnectionCheck结果带实际scope、generation和item.connectionRevision/outcome；新增2项契约+旧诊断5项+批次5项均通过，最终全仓Clippy退出0。完整延后HTTP行为用例只做必要契约调整和编译检查，保留任务卡供计划末尾统一执行。
+
+- 已隔离提交：25ac2d5a4（共享提交入口可见性）、f358714ed（正式修订结果及测试契约）。最终标准索引已刷新，本任务之外的工作区改动保留，未纳入提交。

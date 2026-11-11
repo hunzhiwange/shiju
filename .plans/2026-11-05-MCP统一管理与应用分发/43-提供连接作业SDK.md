@@ -2,7 +2,7 @@
 
 批次：【批次 32】 依赖：批次 31 的任务 42。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,19 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮进度
+
+- 已实现SDK三个正式入口：mcp_management_check、mcp_management_check_status、mcp_management_check_cancel；复用DiagnosticScopeQuery、DiagnosticJobIdentity、DiagnosticJobSnapshot与AgentAppsSettingsError。仅修改客户端及本任务证据。
+- 有效红灯：槽位3，聚焦命令退出101，1项真实断言失败（明确未实现返回）；首次绿灯退出0，3通过0失败，随后补充独立重定向与失败状态用例。最终验证进行中。
+- 修订缺口：HTTP checks → agent_apps_diagnostics::submit → network_probe::start_handshakes → DiagnosticResult::Mcp{server_id,report}，缺少connectionRevision。既有McpConnectionCheck{scope,generation,item}具备服务修订但该HTTP路径未使用。主会话已安排任务39处理；本任务不修改底座或虚构字段。详见正式证据 docs/vibewindow/agent-apps/mcp/evidence/任务43.md。
+
+## 最终验证与交接
+
+- 已按任务39最新正式合同显式传递generation:u64，使用原有McpConnectionCheck解码服务修订，不引入第二结果类型。SDK代码、独立测试及3行父模块注册完成。
+- 本轮第二次真实红灯：请求仅有serverIds，而断言要求generation=9，聚焦命令退出101，4通过1失败；补齐后cargo fmt --all退出0，cargo test -p vw-gateway-client --lib cc_mcp_t43_ -- --nocapture退出0，5通过0失败。前置cc_mcp_t41_回归退出0，5通过0失败，包含既有inspect/call路径。
+- cargo clippy -p vw-gateway-client --all-targets -- -D warnings退出0。规定全仓Clippy两次实际执行均自然退出101：首次Office transport的7处State clone/UUID Serde错误；最终aggregation_exit缺少AggregationExitRequest、AggregationOutcome::Exited及agent_apps/access.rs:1657授权调用参数不匹配，共5处范围外错误。未修改这些模块，不等待无关修复或重复提前回归。
+- 最初动态领取槽位4（格式化及夹具编译尝试），CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4；有效红灯至最终验证连续持有槽位3，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3，CARGO_BUILD_BUILD_DIR同路径，CARGO_BUILD_JOBS=1。runner PID88575及全部子进程结束后，已释放自己的slot-3.lock，槽位4也已由原runner退出清理，保留缓存。
+- git diff --check与git diff --cached --check均退出0；正式证据docs/vibewindow/agent-apps/mcp/evidence/任务43.md。只提交SDK、测试、3行注册及正式证据，保留本卡。统一回归时重新运行本任务聚焦测试和全仓Clippy，取得通过证据后再删除本卡。plan.md保持只读。
+
+- 已提交：6c4986835 feat(mcp): 新增类型化连接作业SDK，4个文件；提交后其余工作区并发改动保持原样。

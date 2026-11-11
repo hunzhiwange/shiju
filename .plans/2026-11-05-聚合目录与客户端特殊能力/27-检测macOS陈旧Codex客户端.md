@@ -2,7 +2,7 @@
 
 批次：【批次 13】 依赖：批次 12 的任务 26。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,17 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本次执行证据（2026-11-11）
+
+当前检出完成 `aggregation/stale_clients.rs` 原生检测及独立测试；正式证据为 `docs/shiju/agent-apps/aggregation/任务27-验证.md`。同一过滤命令失败验证4项（1过3预期断言失败，退出101），通过验证7项全过（退出0），包含隔离HOME启动真实已安装Codex并由原生ps发现、自有进程回收。未把编译、零测试或缺失客户端当通过。
+
+全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出101；其他任务未跟踪的 `crates/vw-agent/src/gateway/api/handlers/aggregation_publish_operation_tests.rs:4,22` 发生 E0432/E0433（`super::aggregation_read_snapshot` 导入路径错误）。未修改或提交这些无关文件，不宣称全仓通过。
+
+槽位11：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-11`（失败验证与Clippy）；槽位12：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-12`（7项通过）。正式阶段同时令 `CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR`，使用jobs=1、test opt-level=0/debug=0；全部自有进程结束后完整核对owner释放锁并保留缓存。仅格式化本任务源码。
+
+下一步：由导入错误所有者修复后，重新动态领取槽位，设置真实CLI的测试环境 `T27_CODEX_BINARY`，运行上述聚焦命令及全仓Clippy；全仓通过后再删除本任务卡。本次保留卡片供回归，不修改只读plan.md。
+
+## 延后回归核对（2026-11-12）
+
+实现/测试摘要与38860cae4和原7项聚焦通过证据一致；核对直接前置后仍适用，详情见正式证据。本轮无改码、Cargo或槽位。统一Clippy由任务15执行，本轮被其他MCP文件5处column!宏歧义阻断且期间源码变化，不作通过证据。按调度停止轮询，继续“已完成，待回归”，保留卡片待统一结果就绪后核对；不标真实阻塞。

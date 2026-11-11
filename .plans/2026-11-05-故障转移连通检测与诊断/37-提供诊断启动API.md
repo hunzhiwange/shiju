@@ -2,7 +2,7 @@
 
 批次：【批次 6】 依赖：批次 3 的任务 6、28、批次 4 的任务 36、批次 5 的任务 31、34。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,27 @@
 - 阻塞和进度只写本任务文件，不改只读 `plan.md`，不把 `prompt.md` 当进度来源；不静默删减来源需求。发现新需求先询问是否记录回来源产物。
 - 有实际代码/测试/配置/正式文档变更时，使用 `$git-commit` 审查并仅提交本任务变更；只有本编号文件状态更新或删除时无需提交。不要提交其他任务或工作区变更。
 - 最终回复报告完成证据与推荐下一步；完成且非待回归时按执行技能删除本任务文件，正式证据文档保留。只生成本计划不会完成母任务9。
+
+## 本次执行记录
+
+- 按最新授权直接在原仓库工作，未创建工作树；只读 plan.md 未修改。已读执行技能、来源映射、任务 1–3 合同，核对 DTO、DiagnosticJobs、ReachabilityProbe、speedtest::start、ModelProbe、StreamProbe、network_probe::start_handshakes 真实产物；任务 34/36 的旧待回归状态不作为接口缺失。
+- 已接 POST /v1/agent-apps/diagnostics/jobs，强类型 kind 仅接受已有最小字段。供应商诊断沿用现有出站诊断的 routing_manage / routing_apps 与 provider_config_read，模型由保存部署核对；MCP 沿用配置级 mcp_probe。未新增权限配置项或人工批准。
+- 独立测试覆盖五类启动、本地真实协议、持久任务身份、越权无网络/stdio 哨兵副作用、无效模型、容量 429，并补充真实 gateway 子进程入口。
+- 领取槽位 7，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-7，同时 CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR。
+- 首次 cargo fmt --all -- --emit stdout 完成；再次 cargo fmt --all -- --emit stdout --config skip_children=true 退出 0，随后只格式化负责文件。
+- 红灯尝试 cargo test -p vw-agent --lib diagnostic_api_start_authorizes_before_execution -- --nocapture 在测试前被无关 aggregation_pi.rs 的 PiDirectoryRead/Write/State 缺失与 serde 属性错误阻断。其他所有者随后补齐类型，旧快照无重跑价值，停止自己的 Cargo 与残留 rustc（退出 130；0 项测试），未将其当作行为红灯。最新源码聚焦验证及规定 Clippy 正在执行。
+
+- 新授权要求突破重复 ACP 阻断：复核 `session/llm/acp/model_source/drivers/drivers_tests.rs:57,85` 已有 `.model_api.clone().unwrap()`，直接复用、保留，未写入或纳入诊断提交。旧快照 Clippy 观察到 E0509 后中断退出 130；0 项行为测试。
+- 增量测试构建运行约 55 分钟仍在单态化/MIR；一次 1 秒 sample 退出 0，未见依赖图保存栈。随后内存压力 2、逻辑压缩页约 48 GiB、自己 rustc footprint 9.5 GB / 驻留约 1.5 GiB。按新授权仅停止自己的进程（测试与排队旧 Clippy 均 130），保留缓存；19:52:56 起在槽位 7 以 CARGO_INCREMENTAL=0、CARGO_BUILD_JOBS=1 重跑聚焦测试，成功后顺次完整 Clippy。采样与精确检查记录见正式证据草稿 `docs/vibewindow/agent-apps/diagnostics/start-api-37.md`。
+
+- 会话管理接口中断后，20:58 核实原 shell/Cargo/rustc 均已结束、工具会话失效，未取得测试输出和可恢复退出码。校验旧持有进程 54011 已结束后只释放本任务 slot-7.lock，保留缓存；动态顺次重新领取仍为槽位 7。21:00:46 起以 CARGO_INCREMENTAL=0、CARGO_BUILD_JOBS=1、CARGO_PROFILE_TEST_DEBUG=0、CARGO_PROFILE_DEV_DEBUG=0、CARGO_PROFILE_TEST_CODEGEN_UNITS=256 重跑，实际 CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-7。未改仓库配置；当前仍在验证。
+
+- 22:50:59 首次完成聚焦测试：退出 101，2 项执行，网关用例通过，主用例因无效模型 503 != 404 失败。定位为夹具 tempfile 根目录未显式 0700，被 CredentialFileStore 拒绝。原二进制在 umask 077 下两项通过（退出 0，1.55 秒）；只修复独立测试目录权限，未弱化安全检查。该失败不作为行为红灯。
+- 原槽位全部进程结束后释放自己的槽位 7 锁并保留缓存；22:53:23 顺次重新原子领取到槽位 2，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-2，继续相同低内存环境。fmt 输出检查退出 0；修复后聚焦测试和规定完整 Clippy 正在顺序执行。
+
+- 槽位 2 聚焦测试退出 101、0 项：无关 ProviderOperationProgress 快照缺少 aggregation_outcome（E0560），当前 DTO 已由其他任务补齐，本任务未改。随后完整规定 Clippy 退出 0，12 分 46 秒完成，含本任务测试源码。
+- 用户允许优先复用先前实际领取槽位。槽位 2 重领时已被其他任务占用；短暂进入冷缓存 3 后，原子取得空闲旧槽位 7，仅停止自己的槽位 3 启动进程（143、0 测试）并核实释放。23:23:44 起复用槽位 7 同阶段运行聚焦测试及完整 Clippy；两个绝对目录均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-7，其他低内存变量不变。
+
+- 最终默认 features 聚焦 Cargo 命令退出 0：2 passed、0 failed、12303 filtered，2.05 秒。完整 Clippy（槽位 2）退出 0，覆盖 0700 修复；相关源码未再变更，按用户指示复用并停止重复 Clippy（143）。已确认自己的进程结束、锁释放、缓存保留。历史行为红灯未取得和 __eh_frame 链接警告如实保留在正式证据。
+
+- 收尾补充要求有效行为失败证据仍必需。当前其他任务有 15 个活动 Cargo/编译器进程；本任务变更涉及共享授权、父模块、bootstrap 与生命周期，不能在其构建期间倒退源码影响快照。本轮不伪造前置基线，也不把夹具错误当作行为红灯。状态保留“已完成，待回归”，剩余项是在本会话取得受保护回放窗口，仅精确回放并恢复本任务块，取得真实调用链缺失行为的断言失败（标为基线回放证据），必要绿灯回归后再删除本卡。

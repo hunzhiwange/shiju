@@ -2,7 +2,7 @@
 
 批次：【批次 7】 依赖：批次 6 的任务 10、11、24。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,29 @@
 - 阻塞和进度只写本任务文件，不改只读 `plan.md`，不把 `prompt.md` 当进度来源；不静默删减来源需求。发现新需求先询问是否记录回来源产物。
 - 有实际代码/测试/配置/正式文档变更时，使用 `$git-commit` 审查并仅提交本任务变更；只有本编号文件状态更新或删除时无需提交。不要提交其他任务或工作区变更。
 - 最终回复报告完成证据与推荐下一步；完成且非待回归时按执行技能删除本任务文件，正式证据文档保留。只生成本计划不会完成母任务9。
+
+
+## 本会话执行记录
+
+- 直接依赖：任务10 `944a3e897`、任务11 `ae2e7d82f`、任务24 `96b1c174a`；已核对生产服务、队列事务与现有网关注册，原工作区直接实施，未创建工作树。
+- 动态原子领取槽位7；`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-7`，同时设置 `CARGO_BUILD_BUILD_DIR` 为同一绝对路径；`CARGO_INCREMENTAL=0 CARGO_BUILD_JOBS=1 CARGO_PROFILE_TEST_DEBUG=0 CARGO_PROFILE_TEST_CODEGEN_UNITS=256 CARGO_PROFILE_DEV_DEBUG=0`。
+- 已注册独立真实网关红灯测试；`cargo fmt --all -- --emit stdout` 退出0，仅回写自己的测试文件。红灯命令 `cargo test -p vw-agent --lib ha_api_queue_write_rejects_conflicts -- --nocapture` 仍在编译，尚无测试结果。
+- 首次构建遗漏仓库 build-dir 覆盖，已只停止本任务Cargo/OpenSSL进程树（退出143、0项），补齐绝对 `CARGO_BUILD_BUILD_DIR` 后复用槽位缓存继续；该次中断不视作行为红灯。
+
+- 行为红灯已取得：槽位7，标准聚焦命令退出101，实际1项失败、12316项过滤；授权POST返回401而预期200，断言位于测试文件214行；编译62m56s，运行0.58s。既有macOS紧凑展开表链接警告未影响断言运行。红灯进程及网关子进程已结束，原槽位锁释放。
+- 已写入四类强类型写入路由与最小队列领域服务扩展；绿灯阶段重新原子领取槽位7，额外设置 `CARGO_PROFILE_TEST_LTO=off`（保留opt-level=1、默认features与调试断言）。格式化仍只回写自己的三个Rust文件。
+
+- 按追加核对要求，401已用前实现二进制复核归因：同一身份/租户/项目/主机/应用GET queue=200/version0；POST未交付写路由401，与确认不存在路径的响应相同；再GET仍200且无写入。独立真实协议探针退出0、网关退出-9。前实现router源码仅有两个GET；非凭据夹具错误。当前验收测试已增加“先读成功”的前置断言，未弱化任何认证。
+
+- 首次LTO=off绿灯编译退出101、0项测试，发现本任务三处ProviderId错误使用to_string（类型未实现Display）；已改为取出已有新类型中的String，不新增Display实现、不改共有DTO。旧日志保存在本机会话临时文件，后续复用槽位缓存重新验证。
+
+- ProviderId修复后的全仓 `cargo fmt --all -- --emit stdout` 退出1：无关 `crates/vw-gateway-client/src/client/mcp_management_write_tests.rs` 被父模块引用但文件尚不存在。未修补他人模块；本任务三个Rust文件单独rustfmt退出0，继续原聚焦测试，不将格式化失败当行为红灯。
+
+- 无关缺失模块由对应任务创建后，最终 `cargo fmt --all -- --emit stdout` 退出0；逐个比对本任务三个文件与全仓格式化输出一致，未写回他人文件。当前聚焦测试继续执行，仍未生成绿灯结论。
+
+- 聚焦绿灯：槽位7，`cargo test -p vw-agent --lib ha_api_queue_write_rejects_conflicts -- --nocapture` 退出0；2项通过、0失败、12360项过滤，运行0.55s，编译31m20s。真实网关与持久状态覆盖全部计划写入行为；仅既有macOS紧凑展开表链接警告。未使用opt-level=0，实际仍opt-level=1、LTO=off。槽位已正常释放、缓存保留，正在继续规定完整Clippy。
+
+- 首轮完整Clippy退出101，阻于无关聚合退出DTO的4处E0425/E0599（aggregation_exit.rs:71/113/275、app_providers/operations/aggregation.rs:121）。进程结束后核对共享DTO，原任务已补回AggregationExitRequest和AggregationOutcome::Exited，属于真实外部状态变化；未修改其文件，保留失败日志，并在新状态上复跑一次原完整Clippy。首轮槽位7锁正常释放、缓存保留。
+
+- 第二轮完整 `cargo clippy --all-targets --all-features -- -D warnings` 退出101，已越过聚合类型问题，最终阻于无关 `crates/vw-desktop/src/app/voice/acceptance_fixture.rs:57/82/92` 的3处E0433：未声明tokio_tungstenite依赖。本任务文件没有该依赖，也未修改语音夹具/Cargo清单；不处理他人改动，不声称Clippy通过。按用户约定转为“已完成，待回归”，保留本任务卡，推荐原任务修复依赖后重跑完整Clippy。
+- 正式证据：`docs/shiju/agent-apps/high-availability-evidence/任务25.md`。实际Cargo槽位均为7，绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-7`，`CARGO_BUILD_BUILD_DIR`同路径；所有本任务验证进程已退出、槽位锁已释放、缓存保留。只读plan.md未修改。

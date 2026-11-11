@@ -2,7 +2,7 @@
 
 批次：【批次 15】 依赖：批次 12 的任务 43、批次 13 的任务 27、批次 14 的任务 28。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,21 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+
+## 本次执行证据
+
+正式证据：`docs/shiju/agent-apps/aggregation/任务44-验证.md`。已接通clients/ack真实router及授权，复用原生代次/确认/有界ps；Snapshot仅增补已校验外部目录布尔观察。正常过滤命令红灯2项实际执行、均因404断言失败，退出101；接线后正常入口因无关高可用ProviderId::to_string编译错误退出101、0项执行。按调度授权只在受控普通源码副本回退该无关模块及匹配测试；关键源码哈希、Cargo指纹、dep-info及新产物时间戳已核对。副本8项API测试及1项DTO测试全过，均退出0；包含真实隔离Codex发现、确认后原进程仍存活、已知陈旧保留及自有目录/关闭聚合边界，不冒充内存账号或模型调用验收。
+
+必需正常全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：其他任务 `handlers/mcp_management_probe.rs:34` 调用 `agent_apps_diagnostics.rs:109` 私有start（E0603）。未修改或提交无关模块。保留本卡，不宣称全仓通过或母能力完成。
+
+槽位4：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`（正常红灯及首次接线检查）。槽位1：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`（受控副本8+1通过及正常全仓Clippy）。同时设置CARGO_BUILD_BUILD_DIR为同一绝对目录，jobs=1、test opt=0/debug=0；完整核对owner后释放自有锁，保留缓存。未创建或启动工作树；只格式化任务文件或临时源码片段；只读plan.md未改。
+
+下一步：原所有者修复MCP私有函数调用后，当前检出设置真实CLI的T44_CODEX_BINARY，重跑正常过滤测试与全仓Clippy，全部通过再删除本卡。
+
+
+## 延后回归核对（2026-11-12）
+
+本轮无代码变更。handler、8项测试、DTO独立测试、catalog_generation与代次/确认/进程检测、事务/文件保护/CodexFiles/租户中间件均与通过时源码一致；另核对17份底层生产依赖，无变化。DTO追加的重启/退出类型不改本任务两个DTO，读写授权由Option转换为直接传Capability，原AggregationRead/Write条件及Bearer/作用域校验等价；本任务模块和router注册各保留一次。因此原8项API、1项DTO（含真实隔离Codex）的通过证据仍适用，按调度要求不机械重复Cargo。
+
+全仓Clippy由任务15统一执行，参考 docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/。本轮统一检查退出101，source_unchanged=false（645b62a0726c812452df95b1fd2917adb94988df0247e16b268d8f4011f58e63 → 7b2c82ec5fcec390be431a77130c0d82251be390a5b3ee2825ee3614a6fbacf4），仍有无关MCP页面SessionId/ToolId使用Display错误；尚需覆盖任务41修复并在源码稳定后取得最终退出0结果。当前不可复用为通过证据，verify_source.py退出2。保留“已完成，待回归”，核对统一结果通过后再补正式证据并删除本卡。本轮未新增Cargo消费者或槽位，不重复执行全仓Clippy，不修改只读plan.md。

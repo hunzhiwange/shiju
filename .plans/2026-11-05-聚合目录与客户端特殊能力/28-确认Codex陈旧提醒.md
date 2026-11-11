@@ -2,7 +2,7 @@
 
 批次：【批次 14】 依赖：批次 13 的任务 27。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,21 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本次执行证据
+
+已完成原生 `aggregation/catalog_ack.rs::{acknowledge, reminder}` 和独立 `catalog_ack_tests.rs`；正式证据 `docs/shiju/agent-apps/aggregation/任务28-验证.md`。同一过滤命令失败验证2项业务断言失败（退出101），最终4项全过（退出0），包含真实已安装Codex隔离启动、原生ps发现、ACK后同一PID仍存活并回收自有子进程。覆盖目录/登录变化重新提醒、私有摘要持久化、其他文件字节不变、修订/项目冲突和符号链接拒绝；ACK不重启，不清除已推断陈旧状态。原生提示要求桌面彻底退出、编辑器重开窗口，不宣称后续UI入口已接线。
+
+全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：其他任务未跟踪的 `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:30–31` 两字段 `selection` / `generation` 未读取，未处理无关文件。补充 `cargo clippy -p vw-agent-apps --all-targets --all-features -- -D warnings` 退出0。
+
+全部Cargo使用动态槽位10，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-10`，同时设置 `CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR`、jobs=1和测试opt-level=0/debug=0。仅格式化本任务源码；自有进程结束后完整核对owner释放槽位，保留缓存。使用当前检出，无工作树，不修改只读plan.md。
+
+下一步：桌面表单所有者修复字段使用后，重新领取槽位，设置 `T28_CODEX_BINARY` 为真实CLI并重跑过滤测试及全仓Clippy；成功后删除本卡。当前状态保留供回归，不将全仓检查冒充通过。
+
+## 2026-11-12 延后回归适用性核对
+
+本轮没有修改Rust源码、测试、配置或正式证据文档，没有启动Cargo、领取构建槽位或创建工作树。遵照调度，由任务15统一执行全仓Clippy；任务28不再并行启动全仓检查。已读任务59最终通过证据：后续如需Cargo，采用单并行、关闭增量、临时低内存profile，动态领取匹配的保留缓存并设置绝对CARGO_TARGET_DIR与同路径CARGO_BUILD_BUILD_DIR。
+
+当前检出核对基线 `b7e6d71856c84839c80c9feed5b708a2a0d623ce`。与已通过提交 `36c3d26d9` 比较，catalog_ack.rs、catalog_ack_tests.rs、stale_clients.rs、codex_login_material.rs逐字节不变，模块注册保留；本任务文件无未提交源码改动。任务28生产文件SHA256为 `a79986ff6e3e214f6ee3df5459bd3c25f1588349aa53a3f2338759ee5c2cbc58`，测试文件为 `cc3447c27836212bbe120e772b4d9f6bda945a8d0361c9bf2ee115a1221e555c`。依赖差异已核对：catalog_generation新增外部指针标志但既有修订/身份摘要保持原语义；事务新增可选恢复字段和校验，现有默认None路径保留；write_guard只新增保留目录只读访问器；Cargo.lock仅新增桌面tokio-tungstenite依赖。原4项测试仍适用，包含真实Codex进程发现和ACK后同一PID存活；按最新调度不机械重复聚焦测试。旧槽位10及确切命令、退出0与4项有效数量见《任务28-验证.md》。
+
+任务15统一检查会话 `01a1c8cc-d1ed-7c92-850c-8ce691aad463` 在槽位2运行首轮Clippy，退出101，报告其他在途MCP文件 system_settings_mcp_tools.rs 的5处column!宏歧义，且检查期间源码有变化。本任务不将此轮视为通过，不引用旧任务59检查冒充当前统一回归，不修改无关MCP源码。调度明确要求结束本轮等待恢复：状态继续“已完成，待回归”，保留任务卡；并非需要用户授权、决策或外部状态的真实阻塞。本轮只更新本卡核对记录，无需提交。没有自有Cargo、客户端进程或槽位需要释放；短合入锁核对完整owner后释放。下一步由调度在统一全仓检查成功后恢复本会话，核对最终源码摘要适用性、更新正式证据并删除卡片。

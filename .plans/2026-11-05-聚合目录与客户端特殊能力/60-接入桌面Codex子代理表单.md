@@ -2,7 +2,7 @@
 
 批次：【批次 18】 依赖：批次 17 的任务 52。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -44,9 +44,9 @@ Iced必须参考 `crates/vw-desktop/src/app/components/system_settings_common/` 
 
 - 行为：专属弹窗列已发布模型及支持强度，跟随主模型/模型默认能清空；已移除模型和新会话生效提示准确。
 - 失败验证测试：在 `crates/vw-desktop/src/app/message/settings/aggregation_subagent_tests.rs` 新增 `aggregation_t60_aggregation_subagent_preserves_contract`；用该前缀为边界用例命名，测试业务输出/实际副作用，不断言源码文本。
-- 失败验证命令：`cargo test -p vw-desktop --bin shi-ju aggregation_t60_ -- --nocapture`。
+- 失败验证命令：`cargo test -p vw-desktop --lib aggregation_t60_ -- --nocapture`。
 - 预期失败原因：当前实现尚未具备上述行为或缺少接入；先把测试接入真实编译入口，再确认断言失败。若等价实现已通过，则新增此前未覆盖的实际失败边界，不制造人为失败。
-- 通过验证命令：`cargo test -p vw-desktop --bin shi-ju aggregation_t60_ -- --nocapture`；使用crate默认features、macOS原生target，不添加臆测feature或交叉平台目标。
+- 通过验证命令：`cargo test -p vw-desktop --lib aggregation_t60_ -- --nocapture`；使用crate默认features、macOS原生target，不添加臆测feature或交叉平台目标。
 - 模拟策略：规则直接传入真实结构；文件用临时目录，事务使用真实前置存储，API走实际router/权限中间件，SDK走本机HTTP测试服务核对线协议。外部模型上游、时钟、进程表及重启可替代，记录输入/输出形状和不能证明的真实客户端行为。
 
 ## 步骤
@@ -59,7 +59,7 @@ Iced必须参考 `crates/vw-desktop/src/app/components/system_settings_common/` 
 
 ## 验证
 
-- 聚焦命令：`cargo test -p vw-desktop --bin shi-ju aggregation_t60_ -- --nocapture`，预期至少1项匹配测试、全部通过、退出码0。
+- 聚焦命令：`cargo test -p vw-desktop --lib aggregation_t60_ -- --nocapture`，预期至少1项匹配测试、全部通过、退出码0。
 - 必需检查：`cargo clippy --all-targets --all-features -- -D warnings`，修复本次引入的问题；既有或其他任务错误不得顺手修复，保留路径/诊断/退出码。
 - 不执行无过滤全量单测、`cargo fmt --all -- --check`、wasm检查或Makefile；无需其他平台验收。
 - 所需证据：失败/通过的同一过滤命令、有效数量、失败原因、退出码、实际实现路径/符号、权限与失败场景、槽位与绝对CARGO_TARGET_DIR；证据写入 `docs/shiju/agent-apps/aggregation/任务60-验证.md`，不含密钥、原始账号/进程载荷。
@@ -69,3 +69,16 @@ Iced必须参考 `crates/vw-desktop/src/app/components/system_settings_common/` 
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本轮执行记录（2026-11-12）
+
+- 当前main只引用vw_desktop库，原卡--bin命令实跑0项，未计通过；上文修正为真实所有者--lib。同一--lib过滤命令先1项断言失败（清空模型仍保留High，退出101），再6项通过（退出0），包括SDK HTTP及macOS明暗主题实际排版、绘制和保存按钮事件。
+- Clippy退出101，唯一诊断为无关并行新增crates/vw-desktop/src/app/message/agent_apps_diagnostics.rs:24的Handshake/Succeeded/Failed/Cancelled未构造（dead_code）。未修改无关模块，不视为全仓检查通过。
+- 有效失败槽2：CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2；最终通过和Clippy槽1：CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1。阶段进程已结束，核对完整owner后已释放自己的锁，保留缓存。
+- 完整证据见docs/shiju/agent-apps/aggregation/任务60-验证.md。真实Codex客户端新会话生效按母计划人工验收。无关诊断模块所有者补齐后重跑全仓Clippy，通过后再标已完成并删除本任务卡。未改只读plan，未创建或启动工作树。
+
+## 延后回归核对（2026-11-12）
+
+- 本轮无代码改动、无Cargo启动、无新构建槽位。任务61提交a66b487f2之后的本任务相邻回归为6项通过、退出0（/tmp/shiju-t61-t60-regression.log，槽4，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4）。当前本任务三个Rust文件和SDK逐字节匹配该提交，统一控件/字体/清单无后续差异，模块接线仍存在，既有证据适用，不机械重复测试。
+- 当前全仓Clippy由任务15统一执行，仍受其他MCP页面在途错误阻挡，且须覆盖任务41认证顺序修复；没有本轮当前快照通过证据，不能解除待回归。不重复启动全仓检查。
+- 遵照调度指令，本轮保留正式证据与本卡后结束，不活动轮询。调度取得统一通过证据后恢复本会话，确认源码适用性并删除卡片；不修改只读plan。

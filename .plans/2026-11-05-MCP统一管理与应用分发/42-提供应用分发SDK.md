@@ -2,7 +2,7 @@
 
 批次：【批次 31】 依赖：批次 30 的任务 41。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,22 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮执行记录（2026-11-12）
+
+- 实现类型化导入、绑定、批量启停及重同步 SDK；底座任务ID可复用既有授权查询/取消，公开DTO与真实网关合同对应。
+- 动态原子领取槽位2，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2，CARGO_BUILD_BUILD_DIR同值，CARGO_BUILD_JOBS=1。阶段结束确认自身子进程退出后释放自己的锁，保留缓存。
+- cargo fmt --all 三次退出0。首轮夹具编译E0277退出101不计红灯；修正后 cargo test -p vw-gateway-client --lib cc_mcp_t42_ -- --nocapture 真实红灯4通过、1绑定方法POST/PUT断言失败（退出101）；最终6通过、0失败（退出0）。
+- cargo test -p vw-gateway-client --lib cc_mcp_t41_ -- --nocapture 退出0，5通过，包含既有mcp_inspect/mcp_app_call生产路径。git diff --check 退出0。
+- cargo clippy --all-targets --all-features -- -D warnings 已执行，范围外 mcp_management_probe.rs:34 调用被并发改为私有的 agent_apps_diagnostics::start，E0603；诊断后停止本任务自身clippy-driver，Cargo退出101，不宣称全仓检查通过。
+- 保留本卡供统一回归；恢复条件是诊断模块所有者修复可见性后，重跑全仓Clippy及本任务聚焦命令。正式证据：docs/vibewindow/agent-apps/mcp/evidence/任务42.md。未修改只读plan.md或其它任务内容。
+
+## 桌面48反馈：完整作业快照契约修复（2026-11-12）
+
+- 新增 `mcp_management_resync_status` / `mcp_management_resync_cancel`，返回正式 `vw_api_types::mcp_management::McpResyncOperationStatus`（operation/targets/outcome），复用原生命周期传输、认证及AgentAppsLifecycleError；旧通用SDK行为不变。网关Job::response使用同一DTO，保持GET与取消后的真实完整快照形状。
+- 分别审查生命周期read和cancel：前者直接返回OwnedOperation::Mcp快照，后者cancel_and_wait并重新授权后调用同一响应函数；终态取消保留已有结果。正式证据记录了实际来源函数及现有后端router断言，不以手写成功夹具推测合同。
+- 动态原子领取槽位16，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-16，CARGO_BUILD_BUILD_DIR同值，CARGO_BUILD_JOBS=1；同槽连续验证，保留缓存，仅阶段结束后释放自有锁。
+- 两次cargo fmt --all退出0；新增真实loopback红灯执行1项、targets解码后丢失断言失败（退出101）。修复后cargo test -p vw-gateway-client --lib cc_mcp_t42_ -- --nocapture退出0，8通过；cargo test -p vw-gateway-client --lib agent_apps_lifecycle_api_tests -- --nocapture退出0，4通过。
+- 按追加指令，原卡继续保留已完成，待回归；完整回归留到计划末尾。正式证据仍为docs/vibewindow/agent-apps/mcp/evidence/任务42.md。
+- 本轮全仓Clippy已实际执行，推进到vw-agent后逾16分钟未完成，无Rust错误/警告诊断；共享环境交换区使用63430.31MB，自身driver处于I/O等待。按完整回归延后的追加要求，确认PID链和槽位16输出路径后，仅SIGTERM停止本任务自身driver，Cargo退出101（signal15），不计通过，不冒称源码错误。自身子进程结束后已释放自有锁并保留缓存。
+- 统一回归需重跑cargo clippy --all-targets --all-features -- -D warnings、cc_mcp_t42_及已有cc_mcp_t38_生产router场景；本轮SDK证据为8项分发测试及4项通用兼容性回归通过，网关序列化改动未取得当前全仓检查完成证据。git diff --check退出0；完整记录见正式证据。

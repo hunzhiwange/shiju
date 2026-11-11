@@ -2,7 +2,7 @@
 
 批次：【批次 30】 依赖：批次 29 的任务 40。外部前置：核实母任务 1 的快照、母任务 2 的对应网关能力、母任务 3 的应用实例与路径。实际原生写入复用母任务 4 的事务，凭据解析复用母任务 6。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,12 @@
 - 获得证据后标记已完成；有实际代码/测试/配置/文档变更时使用`$git-commit`只提交本任务内容；仅编号任务状态或删除无需提交。最终报告证据后删除本任务文件，正式证据保留。
 - 尽力突破本任务阻塞；确实无法解决只在本任务标记已阻塞，记录缺失依赖、已运行检查与恢复条件。无关既有错误导致验证受阻可标已完成，待回归，保留任务文件，不能宣称通过。
 - 不修改本计划或母计划的plan.md，不更新历史来源清单，不覆盖/提交工作区其它变更。新增需求或范围变化先询问是否记录回来源产物，不静默扩大母需求。
+
+## 本轮执行记录（2026-11-12）
+
+- 实现三个类型化目录写入 SDK 方法，复用原生无重定向/无重试传输、认证租户及 AgentAppsSettingsError；独立测试已注册。
+- 动态原子领取槽位3，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3，CARGO_BUILD_BUILD_DIR 同值，CARGO_BUILD_JOBS=1。验证阶段连续持有，仅在自身进程全部结束后释放自己的锁、保留缓存。
+- 两轮 cargo fmt --all 退出0。cargo test -p vw-gateway-client --lib cc_mcp_t41_ -- --nocapture：红灯退出101，1项真实成员令牌缺失断言失败；绿灯退出0，5通过、0失败。
+- cargo test -p vw-gateway-client --lib cc_mcp_t40_ -- --nocapture 退出0，4通过；cargo test -p vw-gateway-client --lib mcp_api_tests -- --nocapture 退出101，1通过、1因旧工具fixture缺少当前必填字段解码失败。新增旧接口生产路径回归通过，不更改无关fixture。
+- cargo clippy --all-targets --all-features -- -D warnings 已运行，无关 computer_control/office/mod.rs 注册的 sessions 模块文件缺失 E0583。全仓退出101；cargo clippy -p vw-gateway-client --all-targets -- -D warnings 退出0，git diff --check 退出0。完整证据见 docs/vibewindow/agent-apps/mcp/evidence/任务41.md。
+- 状态为已完成，待回归；保留本卡，待Office模块及旧MCP fixture由对应所有者修复后统一复跑上述命令和差异检查，不修改只读plan.md。

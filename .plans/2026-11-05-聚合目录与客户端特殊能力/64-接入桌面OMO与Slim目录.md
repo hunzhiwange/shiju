@@ -2,7 +2,7 @@
 
 批次：【批次 14】 依赖：批次 13 的任务 54。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -69,3 +69,15 @@ Iced必须参考 `crates/vw-desktop/src/app/components/system_settings_common/` 
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+## 本会话交接（2026-11-12）
+
+- 已实现标准/Slim独立入口、当前项、停用、供应商引用应用及失败刷新重试；正式证据：`docs/shiju/agent-apps/aggregation/任务64-验证.md`。
+- macOS默认features库目标 `cargo test -p vw-desktop --lib aggregation_t64_ -- --nocapture`：有效红灯4项（3过1失败，退出101），修复后4项全部通过（退出0）；补齐首帧RedrawRequested后同一过滤命令4项再次通过，四张明暗主题图片逐张复核。二进制不装配库内业务测试，依调度明确许可使用--lib；无零测试冒充通过。
+- 必需 `cargo clippy --all-targets --all-features -- -D warnings` 未通过：首次遇到外部Chrome模块origin_policy缺失，记录E0583后主动停止自有driver，退出101；原所有者补齐后复跑，仍因 `crates/vw-agent/src/tools/computer_control/chrome_tests.rs:135:103` 的E0308失败（回调要求NativeObservationError，bail返回anyhow::Error），退出101。未修改无关文件。
+- 实际共享槽位：红灯6，绿灯/首帧复验/Clippy3；绝对CARGO_TARGET_DIR分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。自有锁已按完整所有者释放，缓存保留。
+- 最小回归条件：由原所有者修复Chrome测试类型，再运行全仓Clippy；共享源码若再变更影响入口，复跑上述四项过滤测试。未启动真实OpenCode/OMO插件或原生桌面窗口；真实Iced整形/绘制证据不等于外部客户端验收。任务卡保留，不宣告母能力完成。
+
+## 本轮延后回归（2026-11-12）
+
+状态保持“已完成，待回归”。本轮无代码/测试修改；核对四份OMO源码、专属SDK、四种OMO DTO、HTTP/样式/字体及原生所有者后，原4项全部通过的聚焦证据仍适用，详见正式证据“延后回归适用性核对”。本轮未新增Cargo调用或领取槽位，不重复全仓Clippy。原Chrome编译错误仅为历史快照；当前剩余关口为调度统一的任务15当前源码全仓检查，调度状态仍报告无关MCP编译错误影响，尚无适用的通过证据。待调度提供退出0结果并核对覆盖后删除本卡；不改只读plan.md，不宣告母能力完成。

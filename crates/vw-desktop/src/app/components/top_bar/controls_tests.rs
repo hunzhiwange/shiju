@@ -12,11 +12,11 @@ use iced::{Color, Element, Event, Font, Length, Rectangle, Renderer, Size, Theme
 #[cfg(not(target_arch = "wasm32"))]
 const PROJECT_CONTROL_COUNT: usize = 6;
 #[cfg(target_arch = "wasm32")]
-const PROJECT_CONTROL_COUNT: usize = 5;
+const PROJECT_CONTROL_COUNT: usize = 4;
 #[cfg(not(target_arch = "wasm32"))]
 const WORK_PROJECT_CONTROL_COUNT: usize = 5;
 #[cfg(target_arch = "wasm32")]
-const WORK_PROJECT_CONTROL_COUNT: usize = 4;
+const WORK_PROJECT_CONTROL_COUNT: usize = 3;
 
 fn test_app() -> App {
     let (app, _task) = App::new();
@@ -228,6 +228,10 @@ async fn terminal_modes_toolbar_click_emits_toggle_in_both_modes() {
                 })
                 .count();
         }
-        assert_eq!(toggles, 1, "{mode:?} must expose exactly one terminal button");
+        assert_eq!(
+            toggles,
+            usize::from(!cfg!(target_arch = "wasm32")),
+            "{mode:?} terminal visibility must follow platform support"
+        );
     }
 }

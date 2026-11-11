@@ -273,7 +273,10 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
             .align_y(Vertical::Center)
             .wrapping(iced::widget::text::Wrapping::None),
     )
-    .on_press(Message::View(message::ViewMessage::OpenTerminalPressed))
+    .on_press_maybe(
+        (!cfg!(target_arch = "wasm32"))
+            .then_some(Message::View(message::ViewMessage::OpenTerminalPressed)),
+    )
     .height(Length::Fixed(21.0))
     .padding([0, 10])
     .style(|theme: &iced::Theme, status| {

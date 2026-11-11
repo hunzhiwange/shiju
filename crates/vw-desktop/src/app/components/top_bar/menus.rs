@@ -238,6 +238,7 @@ pub(crate) fn view_menu_entries(
             None,
             Message::View(message::ViewMessage::ToggleDiffPanel),
         ),
+        #[cfg(not(target_arch = "wasm32"))]
         MenuEntry::item(
             NativeMenuAction::ViewToggleTerminalPanel,
             "切换终端面板",

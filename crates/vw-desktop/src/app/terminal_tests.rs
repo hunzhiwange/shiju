@@ -77,8 +77,8 @@ fn default_terminal_state_uses_expected_settings() {
 }
 
 #[test]
-fn blank_with_settings_preserves_user_preferences() {
-    let state = super::TerminalState::blank_with_settings(
+fn blank_with_settings_preserves_preferences_and_gates_visibility() {
+    let mut state = super::TerminalState::blank_with_settings(
         true,
         super::Shell::Zsh,
         super::TerminalTheme::System,
@@ -87,7 +87,11 @@ fn blank_with_settings_preserves_user_preferences() {
         240.0,
     );
 
-    assert!(state.is_visible);
+    assert_eq!(state.is_visible, !cfg!(target_arch = "wasm32"));
+    state.set_visible(false);
+    assert!(!state.is_visible);
+    state.set_visible(true);
+    assert_eq!(state.is_visible, !cfg!(target_arch = "wasm32"));
     assert_eq!(state.shell, super::Shell::Zsh);
     assert_eq!(state.font_family, "Fira Code");
     assert_eq!(state.font_size, 16.0);

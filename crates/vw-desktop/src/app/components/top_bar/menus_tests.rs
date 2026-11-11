@@ -130,7 +130,7 @@ fn non_project_edit_menu_entries_are_empty() {
 fn view_menu_entries_request_visible_panel_and_changed_files() {
     let entries = view_menu_entries(WorkspaceMode::Code, false, false);
 
-    assert_eq!(entries.len(), 5);
+    assert_eq!(entries.len(), if cfg!(target_arch = "wasm32") { 4 } else { 5 });
     assert_eq!(item(&entries[0]).0, "切换左侧面板");
     assert!(matches!(
         item(&entries[0]).2,
@@ -148,18 +148,26 @@ fn view_menu_entries_request_visible_panel_and_changed_files() {
     ));
     assert_eq!(item(&entries[3]).0, "切换 Diff 面板");
     assert!(matches!(item(&entries[3]).2, Message::View(message::ViewMessage::ToggleDiffPanel)));
-    assert_eq!(item(&entries[4]).0, "切换终端面板");
-    assert!(matches!(
-        item(&entries[4]).2,
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assert_eq!(item(&entries[4]).0, "切换终端面板");
+        assert!(matches!(
+            item(&entries[4]).2,
+            Message::View(message::ViewMessage::ToggleTerminalPanel)
+        ));
+    }
+    #[cfg(target_arch = "wasm32")]
+    assert!(entries.iter().all(|entry| !matches!(
+        item(entry).2,
         Message::View(message::ViewMessage::ToggleTerminalPanel)
-    ));
+    )));
 }
 
 #[test]
 fn view_menu_entries_request_hidden_panel_and_all_files() {
     let entries = view_menu_entries(WorkspaceMode::Code, true, true);
 
-    assert_eq!(entries.len(), 5);
+    assert_eq!(entries.len(), if cfg!(target_arch = "wasm32") { 4 } else { 5 });
     assert_eq!(item(&entries[1]).0, "隐藏右侧面板");
     assert!(matches!(
         item(&entries[1]).2,

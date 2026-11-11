@@ -340,7 +340,7 @@ impl TerminalState {
         height: f32,
     ) -> Self {
         Self {
-            is_visible,
+            is_visible: is_visible && !cfg!(target_arch = "wasm32"),
             is_fullscreen: false,
             tabs: vec![],
             #[cfg(not(target_arch = "wasm32"))]
@@ -693,8 +693,8 @@ fi
     }
 
     pub(crate) fn set_visible(&mut self, visible: bool) {
-        self.is_visible = visible;
-        if !visible {
+        self.is_visible = visible && !cfg!(target_arch = "wasm32");
+        if !self.is_visible {
             self.set_fullscreen(false);
         }
     }

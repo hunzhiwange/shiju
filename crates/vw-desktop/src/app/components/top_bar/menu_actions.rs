@@ -23,6 +23,7 @@ pub enum NativeMenuAction {
     ViewToggleFileManager,
     ViewToggleFileManagerChanges,
     ViewToggleDiffPanel,
+    #[cfg(not(target_arch = "wasm32"))]
     ViewToggleTerminalPanel,
     ViewToggleWorkSidebar,
     ViewWorkOverview,
@@ -58,6 +59,7 @@ impl NativeMenuAction {
             Self::ViewToggleFileManager => "native.view.toggle_file_manager",
             Self::ViewToggleFileManagerChanges => "native.view.toggle_file_manager_changes",
             Self::ViewToggleDiffPanel => "native.view.toggle_diff_panel",
+            #[cfg(not(target_arch = "wasm32"))]
             Self::ViewToggleTerminalPanel => "native.view.toggle_terminal_panel",
             Self::ViewToggleWorkSidebar => "native.view.toggle_work_sidebar",
             Self::ViewWorkOverview => "native.view.work_overview",
@@ -92,6 +94,7 @@ impl NativeMenuAction {
             "native.view.toggle_file_manager" => Self::ViewToggleFileManager,
             "native.view.toggle_file_manager_changes" => Self::ViewToggleFileManagerChanges,
             "native.view.toggle_diff_panel" => Self::ViewToggleDiffPanel,
+            #[cfg(not(target_arch = "wasm32"))]
             "native.view.toggle_terminal_panel" => Self::ViewToggleTerminalPanel,
             "native.view.toggle_work_sidebar" => Self::ViewToggleWorkSidebar,
             "native.view.work_overview" => Self::ViewWorkOverview,

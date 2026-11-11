@@ -227,14 +227,15 @@ pub fn build_file_tree_menu<'a>(
 
     // 构建菜单内容
     // 基础菜单项：打开、在 Finder 中显示、在终端中打开、添加到对话
-    let mut content = column![
+    let content = column![
         menu_btn("打开", FileTreeAction::Open),
         separator(),
         menu_btn("在 Finder 中显示", FileTreeAction::RevealInFinder),
-        menu_btn("在集成终端中打开", FileTreeAction::OpenInTerminal),
-        separator(),
-        menu_btn("添加到对话", FileTreeAction::AddToChat),
     ];
+    #[cfg(not(target_arch = "wasm32"))]
+    let content = content.push(menu_btn("在集成终端中打开", FileTreeAction::OpenInTerminal));
+    let mut content =
+        content.push(separator()).push(menu_btn("添加到对话", FileTreeAction::AddToChat));
 
     // 条件添加：在文件夹中查找（仅当参数为 true 时显示）
     if include_find_in_folder {

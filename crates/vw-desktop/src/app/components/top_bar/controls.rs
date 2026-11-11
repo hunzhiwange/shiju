@@ -95,6 +95,7 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
             }
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
         let tools = tools.push(icon_toggle_button(
             Icon::Terminal,
             crate::app::i18n::I18n::new(app.desktop_locale).__("切换终端"),

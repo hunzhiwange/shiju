@@ -75,6 +75,20 @@ impl HealthRegistry {
         Some(circuit)
     }
 
+    /// Inspect admission independently of the display observation TTL.
+    pub fn is_available(
+        &self,
+        key: &HealthKey,
+        policy: &CircuitBreakerPolicy,
+        now: Instant,
+    ) -> bool {
+        self.circuits
+            .lock()
+            .expect("health registry lock poisoned")
+            .get(key)
+            .is_none_or(|circuit| circuit.is_available(policy, now))
+    }
+
     /// Read recent production evidence without admitting a probe or creating a circuit.
     pub fn snapshot(
         &self,

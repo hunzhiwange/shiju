@@ -133,3 +133,93 @@ pub(crate) fn update_queue(
         }),
     }
 }
+
+pub struct SelectedRouteCandidates {
+    pub generation: u64,
+    pub queue_version: FailoverQueueVersion,
+    pub provider_ids: Vec<String>,
+}
+
+/// Read candidates under the native and publication locks. The caller has
+/// authorized this project, host and app and retains the policy for this request.
+/// The execution owner must acquire a circuit permit and revalidate publication
+/// before sending, as selection itself neither sends nor commits a route.
+pub fn select_candidates(
+    database: GlobalDatabase,
+    routing: &RoutingListener,
+    home: &std::path::Path,
+    root: &std::path::Path,
+    scope: &FailoverQueueScope,
+    health: &vw_agent_apps::high_availability::health::HealthRegistry,
+    policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+) -> Result<SelectedRouteCandidates> {
+    use vw_agent_apps::high_availability::{
+        health::{HealthAccount, HealthKey},
+        selection::{SelectionSnapshot, select},
+    };
+    ensure!(scope.app_id == vw_api_types::agent_apps::AppId::Claude, "unsupported published mode");
+    let tx = transactions(root, scope).map_err(mode_unavailable)?;
+    let _directory = tx.lock_claude_directory().map_err(mode_unavailable)?;
+    let state = tx.state(scope.app_id).map_err(mode_unavailable)?;
+    state.require_project(&scope.project).map_err(mode_unavailable)?;
+    ensure!(
+        tx.pending(scope.app_id).map_err(mode_unavailable)?.is_none(),
+        "mode publication pending"
+    );
+    let directory = tx.claude_directory(scope.project.tenant_scope()).map_err(mode_unavailable)?;
+    let file =
+        ClaudeFile::open_selected(home, directory.as_ref(), false).map_err(mode_unavailable)?;
+    routing.with_provider(scope, |provider, generation| {
+        ensure!(provider.matches_native(&state, file.bytes.as_deref()), "route snapshot changed");
+        let store = FailoverQueueStore::new(database.clone())?;
+        let queue = store.get(scope)?;
+        let configuration = AppProviderStore::new(database)
+            .map_err(anyhow::Error::msg)?
+            .failover_configuration(&scope.project, scope.app_id)
+            .map_err(anyhow::Error::msg)?;
+        let current = configuration
+            .iter()
+            .find(|entry| entry.provider.provider.id == provider.provider_id)
+            .ok_or_else(|| anyhow::anyhow!("current provider is missing"))?;
+        ensure!(
+            provider.matches_record(&current.preimage.payload_json),
+            "provider configuration changed"
+        );
+        let providers = configuration.into_iter().map(|entry| entry.provider).collect::<Vec<_>>();
+        let snapshot = SelectionSnapshot {
+            app: scope.app_id,
+            tenant: scope.project.tenant_scope(),
+            state: &state,
+            enabled: queue.enabled,
+            members: &queue.members,
+            providers: &providers,
+        };
+        let now = std::time::Instant::now();
+        let candidates = select(&snapshot, |id| {
+            // Selection calls availability only for ThirdParty snapshots from
+            // AppProviderStore::failover_configuration. That owner excludes
+            // official/managed accounts and unresolved bindings, so these
+            // candidates use the contract's explicit unbound identity.
+            health.is_available(
+                &HealthKey {
+                    project: scope.project.clone(),
+                    target_host_id: scope.target_host_id.clone(),
+                    app_id: scope.app_id,
+                    provider_id: id.into(),
+                    account: HealthAccount::Unbound,
+                },
+                policy,
+                now,
+            )
+        })
+        .map_err(anyhow::Error::new)?;
+        Ok(SelectedRouteCandidates {
+            generation,
+            queue_version: queue.version,
+            provider_ids: candidates
+                .into_iter()
+                .map(|entry| entry.provider.id.to_string())
+                .collect(),
+        })
+    })
+}

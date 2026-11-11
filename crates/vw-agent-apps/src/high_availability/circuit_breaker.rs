@@ -45,6 +45,20 @@ enum CircuitPhase {
 }
 
 impl CircuitBreaker {
+    /// Inspect admission without occupying a half-open probe slot.
+    pub fn is_available(&self, policy: &CircuitBreakerPolicy, now: Instant) -> bool {
+        let state = self.state.lock().expect("circuit state lock poisoned");
+        match state.phase {
+            CircuitPhase::Closed => true,
+            CircuitPhase::Open { opened_at } => {
+                now.checked_duration_since(opened_at).is_some_and(|elapsed| {
+                    elapsed >= Duration::from_secs(u64::from(policy.cooldown_secs))
+                })
+            }
+            CircuitPhase::HalfOpen { probe_in_flight, .. } => !probe_in_flight,
+        }
+    }
+
     pub fn state(&self) -> FailoverHealthState {
         self.state.lock().expect("circuit state lock poisoned").phase.health_state()
     }

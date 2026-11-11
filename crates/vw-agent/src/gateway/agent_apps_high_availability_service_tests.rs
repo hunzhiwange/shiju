@@ -195,6 +195,130 @@ async fn ha_enable_requires_routing_mode_and_keeps_queue() -> anyhow::Result<()>
     assert!(update(FailoverQueueVersion(0), true).is_err());
     assert_eq!(queues.get(&scope)?, persisted);
 
+    // Selection consumes the real published mode and saved queue without
+    // changing native configuration or using the display observation TTL.
+    {
+        use vw_agent_apps::high_availability::{
+            circuit_breaker::AttemptOutcome,
+            health::{HealthAccount, HealthKey, HealthRegistry},
+            selection::SelectionError,
+        };
+        use vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy;
+        let health =
+            HealthRegistry::new(std::num::NonZeroUsize::new(8).unwrap(), std::time::Duration::ZERO);
+        let policy = CircuitBreakerPolicy {
+            failure_threshold: 1,
+            success_threshold: 1,
+            cooldown_secs: 60,
+            error_rate_threshold: 0.5,
+            min_requests: 5,
+        };
+        let select = || {
+            super::agent_apps_high_availability_service::select_candidates(
+                database.clone(),
+                &routing,
+                home.path(),
+                &root,
+                &scope,
+                &health,
+                &policy,
+            )
+            .map(|selection| {
+                assert_eq!(selection.generation, generation);
+                assert_eq!(selection.queue_version, queues.get(&scope).unwrap().version);
+                selection.provider_ids
+            })
+        };
+        assert_eq!(select()?, ["route", "backup"]);
+        // These saved third-party cards have no account binding. Observations
+        // for a bound account, its replacement, or a new generation stay isolated.
+        for (account, generation) in [("account-a", 1), ("account-b", 1), ("account-a", 2)] {
+            let key = HealthKey {
+                project: scope.project.clone(),
+                target_host_id: scope.target_host_id.clone(),
+                app_id: scope.app_id,
+                provider_id: "route".into(),
+                account: HealthAccount::Bound { id: account.into(), generation },
+            };
+            let now = std::time::Instant::now();
+            health
+                .circuit(&key, now)
+                .unwrap()
+                .allow_request(&policy, now)
+                .unwrap()
+                .record(AttemptOutcome::ProviderFailure, now);
+            assert_eq!(select()?, ["route", "backup"]);
+        }
+        let before = store.claude_record(tenant, "route").map_err(anyhow::Error::msg)?.unwrap();
+        let official = store
+            .claude_save(
+                tenant,
+                "route",
+                &ClaudeProfile {
+                    name: "route".into(),
+                    config: ClaudeConfig::Official { account: None },
+                    model: None,
+                },
+                Some(&before),
+                false,
+            )
+            .map_err(anyhow::Error::msg)?;
+        assert!(select().is_err(), "changing the account kind invalidates the published proof");
+        let original: ClaudeProfile = serde_json::from_value(before["claude"].clone())?;
+        store
+            .claude_save(tenant, "route", &original, Some(&official), false)
+            .map_err(anyhow::Error::msg)?;
+        assert_eq!(select()?, ["route", "backup"]);
+        let backup_key = "\"claude\":backup";
+        let backup = settings.get(tenant, "app_providers.records", backup_key)?.unwrap();
+        let mut invalid: Value = serde_json::from_str(&backup)?;
+        invalid["managedClaudeLogin"] = serde_json::to_value(ClaudeManagedLogin {
+            tenant: tenant.clone(),
+            principal: "manager".into(),
+            host: scope.target_host_id.clone(),
+            account_id: "account-a".into(),
+        })?;
+        settings.upsert(tenant, "app_providers.records", backup_key, &invalid.to_string())?;
+        assert!(
+            select().is_err(),
+            "a managed account marker on a third-party card must fail owner validation"
+        );
+        settings.upsert(tenant, "app_providers.records", backup_key, &backup)?;
+        let mut legacy: Value = serde_json::from_str(&backup)?;
+        legacy["meta"] = json!({"claudeAccountId":"account-a"});
+        settings.upsert(tenant, "app_providers.records", backup_key, &legacy.to_string())?;
+        assert_eq!(select()?, ["route"], "unresolved legacy binding cannot use unbound health");
+        settings.upsert(tenant, "app_providers.records", backup_key, &backup)?;
+        let open = |id: &str| {
+            let key = HealthKey {
+                project: scope.project.clone(),
+                target_host_id: scope.target_host_id.clone(),
+                app_id: scope.app_id,
+                provider_id: id.into(),
+                account: HealthAccount::Unbound,
+            };
+            let now = std::time::Instant::now();
+            health
+                .circuit(&key, now)
+                .unwrap()
+                .allow_request(&policy, now)
+                .unwrap()
+                .record(AttemptOutcome::ProviderFailure, now);
+        };
+        open("route");
+        assert_eq!(select()?, ["backup"]);
+        open("backup");
+        assert_eq!(
+            select().unwrap_err().downcast_ref::<SelectionError>(),
+            Some(&SelectionError::AllProvidersCircuitOpen)
+        );
+        let disabled = update(persisted.version, false)?;
+        assert_eq!(select()?, ["route"], "disabled selection ignores open circuits");
+        update(disabled.version, true)?;
+        assert_eq!(fs::read(&path)?, configuration);
+    }
+    let persisted = queues.get(&scope)?;
+
     apply(&proxy("backup")).expect("switch must commit and publish the replacement");
     routing.with_provider(&scope, |provider, next_generation| {
         assert_eq!(provider.provider_id, "backup");

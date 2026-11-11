@@ -37,6 +37,7 @@ pub fn snapshot(
         auth = ProviderAuth::OfficialAccount;
     } else if auth == ProviderAuth::ThirdParty
         && (row.pointer("/meta/authBinding").is_some()
+            || row.pointer("/meta/claudeAccountId").is_some()
             || row.pointer("/meta/codexAccountId").is_some()
             || row.pointer("/meta/liveConfigManaged").is_some_and(|v| v == true)
             || row["category"].as_str().is_some_and(|value| value.eq_ignore_ascii_case("official")))

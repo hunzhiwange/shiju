@@ -48,6 +48,11 @@ impl AppProviderStore {
                     return Err("application provider publication is pending".into());
                 }
                 #[cfg(target_os = "macos")]
+                if app == AppId::Claude {
+                    super::claude_binding::managed_claude_binding(&row)
+                        .map_err(|_| "invalid managed Claude account binding".to_owned())?;
+                }
+                #[cfg(target_os = "macos")]
                 let managed = app == AppId::Codex && super::has_codex_binding(&row);
                 #[cfg(not(target_os = "macos"))]
                 let managed = false;

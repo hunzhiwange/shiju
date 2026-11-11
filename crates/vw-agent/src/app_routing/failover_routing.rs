@@ -6,7 +6,10 @@ use crate::gateway::agent_apps_high_availability_store::FailoverQueueState;
 use axum::http::StatusCode;
 use vw_agent_apps::{
     aggregation::failover_guard::{FailoverError, admit},
-    high_availability::queue::Queue,
+    high_availability::{
+        queue::Queue,
+        selection::{SelectionError, SelectionSnapshot, select},
+    },
     providers::{failover::ProviderSnapshot, live::commit::AppState},
 };
 
@@ -70,18 +73,30 @@ impl FailoverPublication {
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
         }
         // Stale/ineligible entries remain saved, but are never request targets.
-        let chosen = if queue.enabled {
-            queue
-                .members
-                .iter()
-                .find(|id| targets.iter().any(|target| &target.provider_id == *id))
-                .ok_or(StatusCode::SERVICE_UNAVAILABLE)?
-        } else {
-            &targets[0].provider_id
+        let snapshot = SelectionSnapshot {
+            app: self.binding.app(),
+            tenant: self.binding.project().tenant_scope(),
+            state: &self.state,
+            enabled: queue.enabled,
+            members: &queue.members,
+            providers: &self.providers,
         };
+        // Initial publication has no admitted attempts. Production request
+        // selection uses the same rule with the execution owner's registry.
+        let candidates = select(&snapshot, |_| true).map_err(|error| match error {
+            SelectionError::Forbidden => StatusCode::FORBIDDEN,
+            SelectionError::UnsupportedMode => StatusCode::CONFLICT,
+            SelectionError::NoProvidersConfigured | SelectionError::AllProvidersCircuitOpen => {
+                StatusCode::SERVICE_UNAVAILABLE
+            }
+        })?;
+        let chosen = candidates
+            .iter()
+            .find(|entry| targets.iter().any(|target| target.provider_id == entry.provider.id))
+            .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let index = targets
             .iter()
-            .position(|target| &target.provider_id == chosen)
+            .position(|target| target.provider_id == chosen.provider.id)
             .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let selected = targets.into_iter().nth(index).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         Ok((selected.provider_id, selected.target))

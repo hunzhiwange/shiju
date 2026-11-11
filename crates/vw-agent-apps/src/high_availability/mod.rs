@@ -10,3 +10,5 @@ mod queue_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod retry;
+
+pub mod selection;

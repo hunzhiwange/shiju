@@ -441,3 +441,5 @@ mod apps_usage_details_tests;
 mod apps_usage_script;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod apps_usage_settings;
+
+pub mod system_settings_companion;

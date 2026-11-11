@@ -303,32 +303,45 @@ fn pet_control(app: &App, size: f32, _collapsed: bool) -> Element<'_, Message> {
 }
 
 fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
+    use crate::app::components::system_settings_common::rounded_action_btn_style;
+    let action = |label, intent| {
+        button(text(i18n.__(label)).size(13))
+            .width(Length::Fill)
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press(Message::View(intent))
+    };
     mouse_area(
-        button(
-            container(text(i18n.__("隐藏伙伴")).size(13))
-                .width(Length::Fill)
-                .padding([6, 10])
-                .align_x(iced::alignment::Horizontal::Left),
-        )
-        .width(Length::Fixed(112.0))
-        .padding(0)
-        .style(|theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            iced::widget::button::Style {
-                background: matches!(status, iced::widget::button::Status::Hovered)
-                    .then_some(Background::Color(palette.danger.base.color.scale_alpha(0.16))),
-                text_color: theme.palette().text,
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 5.0.into() },
-                ..Default::default()
-            }
-        })
-        .on_press(Message::View(message::ViewMessage::TaskPetHideWindow)),
+        column![
+            action("选择智能伙伴", message::ViewMessage::TaskPetOpenSettings),
+            action("隐藏伙伴", message::ViewMessage::TaskPetHideWindow),
+        ]
+        .spacing(4)
+        .width(180),
     )
     .on_exit(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
     .into()
 }
 
+/// 设置预览与 Mini 共用素材；不绑定窗口、拖动或悬停事件。
+pub(super) fn avatar_preview(avatar: TaskPetAvatarKind, size: f32) -> Element<'static, Message> {
+    match avatar {
+        TaskPetAvatarKind::None => Space::new().width(size).height(size).into(),
+        TaskPetAvatarKind::Robot => {
+            svg::Svg::new(PET_WINK_HANDLE.clone()).width(size).height(size).into()
+        }
+        TaskPetAvatarKind::Beauty => human_pet_sprite(PET_BEAUTY_LEFT_HANDLE.clone(), size, 0.0),
+        TaskPetAvatarKind::Handsome => {
+            human_pet_sprite(PET_HANDSOME_LEFT_HANDLE.clone(), size, 0.0)
+        }
+    }
+}
+
 fn pet_sprite(app: &App, size: f32) -> Element<'_, Message> {
+    if !app.task_pet_is_walking() && !app.task_pet_robot_hovered && app.task_pet_active_count() == 0
+    {
+        return avatar_preview(app.task_pet_avatar_kind, size);
+    }
     match app.task_pet_avatar_kind {
         TaskPetAvatarKind::None => Space::new().into(),
         TaskPetAvatarKind::Robot => robot_pet_sprite(app, size),

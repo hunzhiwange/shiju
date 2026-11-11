@@ -5526,5 +5526,20 @@
   "勾选结果后可保存到此部署。": "Select results to save them to this deployment.",
   "节点格式": "Node format",
   "V1 节点使用 npm、options 与 models。": "V1 nodes use npm, options, and models.",
-  "V2 节点使用 package、settings 与 models。": "V2 nodes use package, settings, and models."
+  "V2 节点使用 package、settings 与 models。": "V2 nodes use package, settings, and models.",
+  "迷你界面和智能伙伴": "Mini and companions",
+  "隐藏 Mini": "Hide Mini",
+  "显示 Mini": "Show Mini",
+  "选择智能伙伴": "Choose companion",
+  "选择伙伴会立即同步预览与迷你界面。显示与隐藏单独控制。": "Your selection updates the preview and Mini immediately. Show or hide Mini separately.",
+  "我的智能伙伴": "My companions",
+  "迷你工具栏": "Mini toolbar",
+  "仅保留迷你工具栏与任务卡片。": "Keep the Mini toolbar and task cards.",
+  "识矩小机器人": "ShiJu Robot",
+  "陪你专注工作的蓝色伙伴。": "A blue companion for focused work.",
+  "识矩小雅": "ShiJu Xiaoya",
+  "温柔陪伴，与你一起整理思绪。": "A gentle companion to help gather your thoughts.",
+  "识矩小朗": "ShiJu Xiaolang",
+  "从容同行，与你一起完成任务。": "A calm companion to help you finish tasks.",
+  "选择伙伴": "Choose companion"
 }

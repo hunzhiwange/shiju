@@ -34,6 +34,11 @@ pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
         "主题",
         &["themes", "gallery", "palette", "custom", "builtin", "画廊", "配色", "色板"],
     ),
+    SettingsTabDescriptor::new(
+        GeneralSettingsTab::Companion,
+        "迷你界面和智能伙伴",
+        &["mini", "companion", "pet", "伙伴", "头像"],
+    ),
 ];
 
 fn general_field_with_help<'a>(
@@ -389,6 +394,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         GeneralSettingsTab::Editor => crate::app::components::system_settings_editor::content(app),
+        GeneralSettingsTab::Companion => crate::app::components::system_settings_companion::content(app),
         GeneralSettingsTab::Themes => crate::app::components::system_settings_themes::view(app),
     };
 

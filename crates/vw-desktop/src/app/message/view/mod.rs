@@ -212,6 +212,8 @@ pub enum ViewMessage {
     TaskPetRobotHover(bool),
     /// 切换小宠物形态
     TaskPetAvatarCycle,
+    /// 从 Mini 打开常规设置中的伙伴页面。
+    TaskPetOpenSettings,
     /// 选择伙伴头像，不改变 Mini 显示偏好。
     TaskPetAvatarSelected(crate::app::state::TaskPetAvatarKind),
     /// 更新并保存伙伴比例。
@@ -680,6 +682,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::WorkResourceFullscreenToggled
             | ViewMessage::WorkResourceHalfFullscreenToggled
             | ViewMessage::ToggleSystemSettings
+            | ViewMessage::TaskPetOpenSettings
             | ViewMessage::OpenAcpSettings
             | ViewMessage::OpenSystemSettingsTab(_)
             | ViewMessage::OpenSystemSettingsModelDetail(_, _)
@@ -814,6 +817,22 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::TaskPetRobotHover(hovered) => {
             app.set_task_pet_robot_hovered(hovered);
             Task::none()
+        }
+        ViewMessage::TaskPetOpenSettings => {
+            app.task_pet_context_menu_pos = None;
+            app.general_settings_tab = crate::app::state::GeneralSettingsTab::Companion;
+            app.system_settings_tab = crate::app::components::system_settings::SystemTab::General;
+            let open = update(
+                app,
+                ViewMessage::OpenSystemSettingsTab(
+                    crate::app::components::system_settings::SystemTab::General,
+                ),
+            );
+            let focus = app.main_window_id.map_or_else(Task::none, |id| {
+                iced::window::set_mode(id, iced::window::Mode::Windowed)
+                    .chain(iced::window::gain_focus(id))
+            });
+            Task::batch([open, focus])
         }
         ViewMessage::TaskPetAvatarCycle => {
             app.cycle_task_pet_avatar();

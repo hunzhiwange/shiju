@@ -89,6 +89,7 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
         VerifiedRouteBinding::new(project.clone(), "host".into(), AppId::Codex, "account".into(), 1)
     };
     let target = |index: usize, id: &str, revision: &str| AggregationTarget {
+        messages_api_key: false,
         binding: binding(),
         revision: revision.into(),
         provider_id: id.into(),

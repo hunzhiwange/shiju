@@ -24,7 +24,7 @@ impl Policy {
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
-pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
+pub(in crate::gateway::api::handlers) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     router_with_context(Policy::new(policy))
 }
 pub(super) fn router_with_context(policy: Policy) -> Router {
@@ -44,6 +44,7 @@ pub(super) enum WriteKind {
     Save,
     Update,
 }
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn write(
     tenant: TenantScope,
     db: Option<Extension<GlobalDatabase>>,
@@ -52,22 +53,13 @@ pub(super) async fn write(
     id: String,
     req: ClaudeWrite,
     kind: WriteKind,
+    publication: PublicationInput,
 ) -> Response {
     let policy = policy.map(|Extension(p)| p).unwrap_or_else(|| {
         Policy::new(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
     });
-    write_with_policy(tenant, db, headers, id, req, kind, policy).await
-}
-pub(super) async fn write_with_policy(
-    tenant: TenantScope,
-    db: Option<Extension<GlobalDatabase>>,
-    headers: HeaderMap,
-    id: String,
-    req: ClaudeWrite,
-    kind: WriteKind,
-    policy: Policy,
-) -> Response {
-    write_input(tenant, db, headers, id, WriteInput::Profile(req), kind, policy).await
+    write_input_scoped(tenant, db, headers, id, WriteInput::Profile(req), kind, policy, publication)
+        .await
 }
 
 enum WriteInput {
@@ -82,7 +74,8 @@ impl WriteInput {
         }
     }
 }
-async fn write_input(
+#[allow(clippy::too_many_arguments)]
+async fn write_input_scoped(
     tenant: TenantScope,
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
@@ -90,11 +83,12 @@ async fn write_input(
     req: WriteInput,
     kind: WriteKind,
     policy: Policy,
+    publication: PublicationInput,
 ) -> Response {
     let status =
         if matches!(kind, WriteKind::Create) { StatusCode::CREATED } else { StatusCode::OK };
     match tokio::task::spawn_blocking(move || -> Result<ClaudeResult, StatusCode> {
-        write_sync(tenant, db, headers, id, req, kind, policy)
+        write_sync(tenant, db, headers, id, req, kind, policy, publication)
     })
     .await
     {
@@ -104,6 +98,7 @@ async fn write_input(
     }
 }
 #[cfg(target_os = "macos")]
+#[allow(clippy::too_many_arguments)]
 fn write_sync(
     tenant: TenantScope,
     db: Option<Extension<GlobalDatabase>>,
@@ -112,7 +107,9 @@ fn write_sync(
     input: WriteInput,
     kind: WriteKind,
     policy: Policy,
+    publication: PublicationInput,
 ) -> Result<ClaudeResult, StatusCode> {
+    let headers = publication.headers(headers)?;
     let (home, root, principal, owns_slot) = super::super::agent_apps::claude_editor_authorization(
         policy.0.as_deref(),
         &headers,
@@ -128,6 +125,21 @@ fn write_sync(
         vw_agent_apps::providers::validate_identity(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
     }
     let store = store(db).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let store = publication_store(
+        store,
+        policy.0.as_deref(),
+        &headers,
+        &tenant,
+        input.target(),
+        AppId::Claude,
+        publication,
+    )?;
+    let scoped = store.resync_configured();
+    let resync_published = store.resync_context().is_some_and(|context| {
+        context.expected.stack.enabled
+            && context.expected.stack.members.contains(&id)
+            && context.expected.mode.as_ref().is_some_and(|mode| mode.attached)
+    });
     let before = store.claude_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if matches!(kind, WriteKind::Update) && before.is_none() {
         return Err(StatusCode::NOT_FOUND);
@@ -135,7 +147,7 @@ fn write_sync(
     if matches!(kind, WriteKind::Create) && before.is_some() {
         return Err(StatusCode::CONFLICT);
     }
-    let (req, metadata) = match input {
+    let (mut req, metadata) = match input {
         WriteInput::Profile(req) => (req, None),
         WriteInput::Form(req) => {
             let claude = vw_agent_apps::providers::claude::form::profile(&req, before.as_ref())
@@ -155,6 +167,9 @@ fn write_sync(
             (ClaudeWrite { target_host_id: req.target_host_id, claude, activation }, Some(metadata))
         }
     };
+    if scoped {
+        req.activation = ClaudeActivation::CatalogOnly;
+    }
     let host = Host::open(&home, &root, &req.target_host_id, &tenant, req.activation, &store, &id)?;
     let row = store
         .claude_save_with_metadata(
@@ -165,7 +180,7 @@ fn write_sync(
             matches!(kind, WriteKind::Create),
             metadata,
         )
-        .map_err(|_| StatusCode::CONFLICT)?;
+        .map_err(|_| store.publication_error().unwrap_or(StatusCode::CONFLICT))?;
     let live = if let Some(host) = host {
         host.apply(
             &store,
@@ -176,12 +191,15 @@ fn write_sync(
             req.activation,
             policy.1.as_ref(),
         )
+    } else if resync_published {
+        ClaudeLiveResult::Applied
     } else {
         ClaudeLiveResult::NotAttempted
     };
     Ok(ClaudeResult { catalog_saved: true, live })
 }
 #[cfg(not(target_os = "macos"))]
+#[allow(clippy::too_many_arguments)]
 fn write_sync(
     _: TenantScope,
     _: Option<Extension<GlobalDatabase>>,
@@ -190,6 +208,7 @@ fn write_sync(
     req: WriteInput,
     _: WriteKind,
     _: Policy,
+    _: PublicationInput,
 ) -> Result<ClaudeResult, StatusCode> {
     let _ = req.target();
     Err(StatusCode::NOT_IMPLEMENTED)

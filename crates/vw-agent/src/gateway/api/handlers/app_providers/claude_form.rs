@@ -46,11 +46,18 @@ pub(super) async fn read(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn write(
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<
+        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    >,
+    #[cfg(target_os = "macos")] control: Option<
+        Extension<super::super::super::app_routing::RoutingControl>,
+    >,
     Path(id): Path<String>,
     method: axum::http::Method,
     body: Result<Json<ClaudeFormWrite>, JsonRejection>,
@@ -60,5 +67,19 @@ pub(super) async fn write(
     };
     let kind =
         if method == axum::http::Method::POST { WriteKind::Create } else { WriteKind::Update };
-    write_input(tenant, db, headers, id, WriteInput::Form(req), kind, policy).await
+    write_input_scoped(
+        tenant,
+        db,
+        headers,
+        id,
+        WriteInput::Form(req),
+        kind,
+        policy,
+        PublicationInput {
+            query,
+            #[cfg(target_os = "macos")]
+            routing: control.map(|Extension(c)| c),
+        },
+    )
+    .await
 }

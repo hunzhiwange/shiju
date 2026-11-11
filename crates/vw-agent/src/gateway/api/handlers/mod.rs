@@ -338,7 +338,7 @@ mod aggregation_read;
 mod aggregation_read_tests;
 
 #[cfg(target_os = "macos")]
-mod aggregation_read_snapshot;
+pub(crate) mod aggregation_read_snapshot;
 
 /// Authenticated recording transcription.
 pub(crate) mod voice;
@@ -361,3 +361,12 @@ mod aggregation_omp_tests;
 mod aggregation_codex_settings_tests;
 
 mod aggregation_codex_settings;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod aggregation_resync;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_resync_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_resync_codex_tests;

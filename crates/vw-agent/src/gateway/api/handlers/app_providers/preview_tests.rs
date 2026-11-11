@@ -192,6 +192,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     ));
     assert!(!root.path().join(".claude").exists());
     let pending = vw_agent_apps::providers::live::commit::Pending {
+        provider_record: None,
         project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),

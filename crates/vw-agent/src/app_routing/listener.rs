@@ -142,6 +142,16 @@ impl RoutingListener {
         self.auth.restore_provider(scope, commit)
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn aggregation_revision(
+        &self,
+        project: &vw_api_types::id::ProjectScope,
+        host: &str,
+        app: vw_api_types::agent_apps::AppId,
+    ) -> Option<String> {
+        self.auth.aggregation_revision(project, host, app)
+    }
+
     /// Commit the private client token before making this snapshot reachable.
     /// The configuration owner must validate the same revision and use its existing
     /// atomic write transaction in the callback. It must not reenter the listener.

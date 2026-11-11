@@ -200,6 +200,7 @@ async fn cc04_gemini_sdk_api_recovers_both_files_before_replanning() {
         });
     }
     let pending = Pending {
+        provider_record: None,
         project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),

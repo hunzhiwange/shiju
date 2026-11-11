@@ -98,6 +98,7 @@ pub(super) async fn forward_json(
         _ => return Err(StatusCode::BAD_REQUEST.into()),
     };
 
+    let client_model = body.get("model").and_then(Value::as_str).map(str::to_owned);
     let (target, model, cancelled) =
         route.select_json(body.get("model").and_then(Value::as_str))?;
 
@@ -106,7 +107,17 @@ pub(super) async fn forward_json(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
-    let (mut outgoing, bridge) = if responses {
+    let native_responses =
+        responses && target.url.path().trim_end_matches('/').ends_with("/responses");
+    if app == AppId::Codex
+        && !responses
+        && target.url.path().trim_end_matches('/').ends_with("/responses")
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+    }
+    let (mut outgoing, bridge) = if native_responses {
+        (prepare_request(&body, target, model)?, None)
+    } else if responses {
         if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
         }
@@ -121,7 +132,7 @@ pub(super) async fn forward_json(
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
-    route.provider_headers(outgoing.headers_mut());
+    route.provider_headers(outgoing.headers_mut(), client_model.as_deref())?;
     #[cfg(target_os = "macos")]
     let timeouts = route.timeouts().await?;
     #[cfg(not(target_os = "macos"))]
@@ -159,6 +170,8 @@ pub(super) async fn forward_json(
                 body,
                 if app == AppId::Claude {
                     crate::model_relay::generation::GenerationProtocol::Messages
+                } else if native_responses {
+                    crate::model_relay::generation::GenerationProtocol::Responses
                 } else {
                     crate::model_relay::generation::GenerationProtocol::Chat
                 },
@@ -167,7 +180,13 @@ pub(super) async fn forward_json(
         } else {
             body
         };
-        let protocol = if app == AppId::Claude { Protocol::Messages } else { Protocol::Chat };
+        let protocol = if app == AppId::Claude {
+            Protocol::Messages
+        } else if native_responses {
+            Protocol::Responses
+        } else {
+            Protocol::Chat
+        };
         let body = timeouts::stream_body(body, deadline, idle, permit, protocol).await?;
         let body = match bridge {
             Some(bridge) => bridge.response_body(body, cancelled),

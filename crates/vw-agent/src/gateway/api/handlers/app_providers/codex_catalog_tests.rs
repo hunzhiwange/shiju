@@ -283,6 +283,7 @@ async fn cc04_codex_catalog_sdk_api_recovers_marked_catalog_and_pointer_before_r
         });
     }
     let pending = Pending {
+        provider_record: None,
         project_preimage: None,
         version: 1,
         host: ExecutionHostId::new("host").unwrap(),

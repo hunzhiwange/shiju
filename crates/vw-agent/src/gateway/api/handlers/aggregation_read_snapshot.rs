@@ -12,7 +12,7 @@ use vw_api_types::{
 };
 
 #[derive(Serialize)]
-pub(super) struct Snapshot {
+pub(crate) struct Snapshot {
     rows: Vec<(String, Value)>,
     catalogs: Vec<Option<SavedCodexCatalog>>,
     queue: Option<String>,
@@ -27,7 +27,7 @@ fn invalid<T>(_: T) -> StatusCode {
     StatusCode::UNPROCESSABLE_ENTITY
 }
 
-pub(super) fn load(
+pub(crate) fn load(
     db: &GlobalDatabase,
     project: &ProjectScope,
     host: &str,
@@ -184,7 +184,7 @@ pub(super) fn load(
     Ok(Snapshot { rows, catalogs, queue, route, native, direct_restorable })
 }
 
-pub(super) fn project(
+pub(crate) fn project(
     app: AppId,
     tenant: &TenantScope,
     state: &AppState,
@@ -324,7 +324,7 @@ pub(super) fn sign(bytes: &[u8]) -> Result<String, StatusCode> {
     let key = KEY.as_ref().map_err(|status| *status)?;
     Ok(hex::encode(ring::hmac::sign(key, bytes).as_ref()))
 }
-pub(super) fn revision(
+pub(crate) fn revision(
     project: &ProjectScope,
     host: &str,
     app: AppId,

@@ -107,12 +107,17 @@ async fn read(
         Err(_) => error("application provider storage unavailable"),
     }
 }
+#[allow(clippy::too_many_arguments)]
 async fn save(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     Path((app, id)): Path<(AppId, String)>,
     policy: Option<Extension<claude::Policy>>,
     headers: axum::http::HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<
+        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    >,
+    #[cfg(target_os = "macos")] control: Option<Extension<super::app_routing::RoutingControl>>,
     body: Result<
         Json<vw_api_types::app_providers::claude::ClaudeOr<AppProviderWrite>>,
         JsonRejection,
@@ -134,6 +139,11 @@ async fn save(
                 id,
                 request,
                 claude::WriteKind::Save,
+                PublicationInput {
+                    query,
+                    #[cfg(target_os = "macos")]
+                    routing: control.map(|Extension(c)| c),
+                },
             )
             .await;
         }
@@ -228,14 +238,14 @@ mod snippets;
 #[path = "app_providers/snippets_tests.rs"]
 mod snippets_tests;
 
-mod claude;
+pub(super) mod claude;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod codex_tests;
 
-mod codex_catalog;
+pub(super) mod codex_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod codex_catalog_tests;
 
@@ -328,3 +338,43 @@ mod basic_tests;
 mod request_options;
 #[cfg(all(test, target_os = "macos"))]
 mod request_options_tests;
+
+#[derive(Default)]
+struct PublicationInput {
+    query: vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    #[cfg(target_os = "macos")]
+    routing: Option<super::app_routing::RoutingControl>,
+}
+#[cfg(target_os = "macos")]
+impl PublicationInput {
+    fn headers(&self, headers: axum::http::HeaderMap) -> Result<axum::http::HeaderMap, StatusCode> {
+        if self.query.project_id.is_some() || self.query.expected_revision.is_some() {
+            super::aggregation_resync::provider_headers(headers)
+        } else {
+            Ok(headers)
+        }
+    }
+}
+#[cfg(target_os = "macos")]
+fn publication_store(
+    store: AppProviderStore,
+    policy: Option<&std::path::Path>,
+    headers: &axum::http::HeaderMap,
+    tenant: &TenantScope,
+    host: &str,
+    app: AppId,
+    input: PublicationInput,
+) -> Result<AppProviderStore, StatusCode> {
+    let database = store.database();
+    super::aggregation_resync::configure(
+        store,
+        &database,
+        policy,
+        headers,
+        tenant,
+        host,
+        app,
+        input.query,
+        input.routing,
+    )
+}

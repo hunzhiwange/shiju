@@ -31,7 +31,7 @@ impl Write {
 pub(super) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
-pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
+pub(in crate::gateway::api::handlers) fn router_with_policy(path: Option<PathBuf>) -> Router {
     Router::new()
         .route("/app-providers/codex/{id}/config", put(save))
         .route("/app-providers/codex/{id}/form/read", post(read_form))
@@ -41,18 +41,42 @@ pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
         .layer(DefaultBodyLimit::max(512 * 1024))
         .layer(Extension(Policy(path)))
 }
+#[allow(clippy::too_many_arguments)]
 async fn save(
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<
+        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    >,
+    #[cfg(target_os = "macos")] control: Option<
+        Extension<super::super::app_routing::RoutingControl>,
+    >,
     Path(id): Path<String>,
     body: Result<Json<CodexWrite>, JsonRejection>,
 ) -> Response {
     let Ok(Json(request)) = body else { return StatusCode::BAD_REQUEST.into_response() };
     respond(
         tokio::task::spawn_blocking(move || {
-            execute(policy, tenant, db, headers, id, Some(Write::Config(request)), None)
+            #[cfg(target_os = "macos")]
+            {
+                execute_scoped(
+                    policy,
+                    tenant,
+                    db,
+                    headers,
+                    id,
+                    Some(Write::Config(request)),
+                    None,
+                    PublicationInput { query, routing: control.map(|Extension(c)| c) },
+                )
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = query;
+                execute(policy, tenant, db, headers, id, Some(Write::Config(request)), None)
+            }
         })
         .await,
     )
@@ -137,11 +161,26 @@ fn execute(
     write: Option<Write>,
     operation: Option<(CodexTarget, ClaudeActivation)>,
 ) -> Result<CodexResult, StatusCode> {
+    execute_scoped(policy, tenant, db, headers, id, write, operation, PublicationInput::default())
+}
+#[cfg(target_os = "macos")]
+#[allow(clippy::too_many_arguments)]
+fn execute_scoped(
+    policy: Policy,
+    tenant: TenantScope,
+    db: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    id: String,
+    write: Option<Write>,
+    operation: Option<(CodexTarget, ClaudeActivation)>,
+    publication: PublicationInput,
+) -> Result<CodexResult, StatusCode> {
     use vw_agent_apps::providers::{
         codex_catalog::{CodexFiles, form, identity},
         live::{commit::*, write_guard::WriteError},
     };
-    let (host, activation) = match (&write, &operation) {
+    let headers = publication.headers(headers)?;
+    let (host, mut activation) = match (&write, &operation) {
         (Some(w), _) => w.target_and_activation(),
         (_, Some((t, a))) => (t.target_host_id.as_str(), *a),
         _ => return Err(StatusCode::BAD_REQUEST),
@@ -162,6 +201,23 @@ fn execute(
     let models = crate::model_catalog::ModelCatalogStore::new(database.clone())
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     let store = AppProviderStore::new(database).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let store = publication_store(
+        store,
+        policy.0.as_deref(),
+        &headers,
+        &tenant,
+        host,
+        AppId::Codex,
+        publication,
+    )?;
+    let resync_published = store.resync_context().is_some_and(|context| {
+        context.expected.stack.enabled
+            && context.expected.stack.members.contains(&id)
+            && context.expected.mode.as_ref().is_some_and(|mode| mode.attached)
+    });
+    if store.resync_configured() {
+        activation = ClaudeActivation::CatalogOnly;
+    }
     let before = store.codex_record(&tenant, &id).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if before.as_ref().is_some_and(managed) {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -296,7 +352,7 @@ fn execute(
                 revision.as_deref(),
                 metadata,
             )
-            .map_err(|_| StatusCode::CONFLICT)?
+            .map_err(|_| store.publication_error().unwrap_or(StatusCode::CONFLICT))?
     } else {
         before.ok_or(StatusCode::NOT_FOUND)?
     };
@@ -306,7 +362,11 @@ fn execute(
     let Some((mut files, tx, state)) = live else {
         return Ok(CodexResult {
             catalog_saved: write.is_some(),
-            live: CodexLiveResult::NotAttempted,
+            live: if resync_published {
+                CodexLiveResult::Applied
+            } else {
+                CodexLiveResult::NotAttempted
+            },
         });
     };
     let unchanged = || {
@@ -408,11 +468,18 @@ async fn read_form(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn write_form(
     Extension(policy): Extension<Policy>,
     Extension(tenant): Extension<TenantScope>,
     db: Option<Extension<GlobalDatabase>>,
     headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<
+        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    >,
+    #[cfg(target_os = "macos")] control: Option<
+        Extension<super::super::app_routing::RoutingControl>,
+    >,
     Path(id): Path<String>,
     method: Method,
     body: Result<Json<CodexFormWrite>, JsonRejection>,
@@ -421,7 +488,24 @@ async fn write_form(
     let create = method == Method::POST;
     respond(
         tokio::task::spawn_blocking(move || {
-            execute(policy, tenant, db, headers, id, Some(Write::Form(body, create)), None)
+            #[cfg(target_os = "macos")]
+            {
+                execute_scoped(
+                    policy,
+                    tenant,
+                    db,
+                    headers,
+                    id,
+                    Some(Write::Form(body, create)),
+                    None,
+                    PublicationInput { query, routing: control.map(|Extension(c)| c) },
+                )
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = query;
+                execute(policy, tenant, db, headers, id, Some(Write::Form(body, create)), None)
+            }
         })
         .await,
     )

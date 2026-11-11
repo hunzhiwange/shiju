@@ -154,7 +154,39 @@ impl RoutingControl {
             &str,
         ) -> Result<(), crate::app_routing::RouteCommitError>,
     ) -> Result<crate::app_routing::RouteRevocation, StatusCode> {
-        let app = AppId::Codex;
+        self.publish_aggregation_app(
+            headers,
+            project,
+            host,
+            AppId::Codex,
+            expected_revision,
+            prepare,
+            commit,
+        )
+    }
+
+    /// Application-specific publication retains the same policy and unique listener.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn publish_aggregation_app(
+        &self,
+        headers: &HeaderMap,
+        project: &ProjectScope,
+        host: &str,
+        app: AppId,
+        expected_revision: Option<&str>,
+        prepare: impl FnOnce(
+            &std::path::Path,
+            &str,
+        ) -> Result<
+            crate::app_routing::aggregation_routing::AggregationPublication,
+            StatusCode,
+        >,
+        commit: impl FnOnce(
+            &std::path::Path,
+            SocketAddr,
+            &str,
+        ) -> Result<(), crate::app_routing::RouteCommitError>,
+    ) -> Result<crate::app_routing::RouteRevocation, StatusCode> {
         let (root, principal) = self.authorize_mode(headers, project, host, app)?;
         let publication = prepare(&root, &principal)?;
         if !publication.binding.has_scope(project, host, app) {

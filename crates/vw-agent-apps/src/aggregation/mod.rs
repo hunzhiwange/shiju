@@ -101,3 +101,6 @@ pub mod catalog_generation;
 mod catalog_generation_tests;
 
 pub mod codex_settings;
+
+#[cfg(all(test, target_os = "macos"))]
+mod codex_resync_tests;

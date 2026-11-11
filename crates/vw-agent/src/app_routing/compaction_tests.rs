@@ -83,6 +83,7 @@ async fn aggregation_t25_aggregation_compaction_preserves_contract() {
             })
             .collect(),
         default: AggregationTarget {
+            messages_api_key: false,
             binding,
             revision: revision.into(),
             provider_id: "member".into(),

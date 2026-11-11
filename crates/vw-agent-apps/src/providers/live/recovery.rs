@@ -132,10 +132,24 @@ impl ProviderTransactions {
         &self,
         guard: &mut AppWriteGuard,
     ) -> Result<Option<RecoveryOutcome>, WriteError> {
+        self.recover_locked_with_record(guard, None)
+    }
+
+    pub(super) fn recover_locked_with_record(
+        &self,
+        guard: &mut AppWriteGuard,
+        participant: Option<&dyn super::record_publication::ProviderRecordParticipant>,
+    ) -> Result<Option<RecoveryOutcome>, WriteError> {
         let app = guard.app();
         let Some(pending) = self.pending(app)? else {
             return Ok(None);
         };
+        if let Some(change) = &pending.provider_record {
+            change.validate(&self.host, app, &pending.tenant, &pending.target)?;
+            if participant.is_none() {
+                return Err(WriteError::Conflict);
+            }
+        }
         let registered = self.registered(app)?;
         verify(&registered, &guard.directory)?;
         if pending.directory_device != registered.device
@@ -221,12 +235,24 @@ impl ProviderTransactions {
                 write.publish()?;
                 guard.directory_at(file.directory)?.sync_all().map_err(|_| WriteError::Io)?;
             }
+            // A joint record cannot settle against a partially recovered projection.
+            if pending.provider_record.is_some() && !skipped.is_empty() {
+                return Err(WriteError::Conflict);
+            }
+            if let (Some(change), Some(participant)) = (&pending.provider_record, participant) {
+                participant.finish(change, true)?;
+            }
             let mut state = self.state(app)?;
             // A Kimi binding is contingent on publishing its native selection.
             if pending.target.kimi_binding.is_none() || skipped.is_empty() {
                 apply_target(&mut state, &pending.tenant, &pending.target);
                 self.save(app, "state", &state)?;
             }
+        }
+        if !pending.published
+            && let (Some(change), Some(participant)) = (&pending.provider_record, participant)
+        {
+            participant.finish(change, false)?;
         }
         for file in &pending.files {
             unlink(guard.directory_at(file.directory)?, &file.staged)?;

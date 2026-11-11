@@ -45,3 +45,6 @@ mod concurrency_tests;
 pub mod project_binding;
 #[cfg(all(test, target_os = "macos"))]
 mod project_binding_tests;
+
+#[cfg(target_os = "macos")]
+pub mod record_publication;

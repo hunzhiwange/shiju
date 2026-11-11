@@ -137,10 +137,25 @@ impl AuthorizedRoute {
     }
 
     #[cfg(target_os = "macos")]
-    pub(super) fn provider_headers(&self, headers: &mut HeaderMap) {
+    pub(super) fn provider_headers(
+        &self,
+        headers: &mut HeaderMap,
+        model: Option<&str>,
+    ) -> Result<(), StatusCode> {
         if let Some(provider) = &self.provider {
             provider.apply_headers(headers);
         }
+        if self.binding.app == AppId::Claude
+            && let Some(JsonRoute::Aggregation(snapshot)) = &self.json_target
+        {
+            if snapshot.messages_api_key(&self.binding, model)?
+                && let Some(key) = headers.remove(header::AUTHORIZATION)
+            {
+                headers.insert("x-api-key", key);
+            }
+            headers.insert("anthropic-version", axum::http::HeaderValue::from_static("2023-06-01"));
+        }
+        Ok(())
     }
 
     pub(super) fn json_app(&self) -> Option<AppId> {
@@ -417,6 +432,24 @@ impl RouteAuth {
         }
         retire();
         Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn aggregation_revision(
+        &self,
+        project: &ProjectScope,
+        host: &str,
+        app: AppId,
+    ) -> Option<String> {
+        self.active
+            .lock()
+            .grants
+            .values()
+            .find(|route| route.binding.has_scope(project, host, app))
+            .and_then(|route| match &route.json_target {
+                Some(JsonRoute::Aggregation(snapshot)) => Some(snapshot.revision.clone()),
+                _ => None,
+            })
     }
 
     fn issue_route(

@@ -148,6 +148,7 @@ async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
             upstream_model: upstream_model.into(),
         };
         let target = |index: usize, provider: &str| AggregationTarget {
+            messages_api_key: false,
             binding: owned(generation),
             revision: revision.into(),
             provider_id: provider.into(),

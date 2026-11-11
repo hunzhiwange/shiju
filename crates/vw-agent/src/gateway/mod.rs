@@ -149,3 +149,6 @@ fn is_public_skey_auth_path(path: &str) -> bool {
 
 #[cfg(test)]
 mod recovery_window_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod aggregation_resync;

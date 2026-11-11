@@ -100,33 +100,7 @@ fn publish_inner(
     };
     check().map_err(write_error)?;
     let before = files.guard.read(OsStr::new("config.toml")).map_err(write_error)?;
-    let live = std::str::from_utf8(before.as_deref().unwrap_or_default())
-        .map_err(|_| InvalidConfiguration)?;
-    let mut doc: DocumentMut = live.parse().map_err(|_| InvalidConfiguration)?;
-    let default_config = match &default {
-        CodexCatalogDefault::ThirdParty(row) => row.config,
-        CodexCatalogDefault::Official { config, .. } => config,
-    };
-    let foreign = foreign_pointer(default_config)?.or(foreign_pointer(&doc)?).map(str::to_owned);
-    let preserve = policy == CatalogPolicy::Preserve && foreign.is_some();
-    let catalog = if preserve {
-        // Never read the external path or replace its catalog as a side effect.
-        doc.insert("model_catalog_json", toml_edit::value(foreign.expect("checked pointer")));
-        None
-    } else {
-        let catalog = plan_codex_stack_catalog(default, members).map_err(|error| match error {
-            CodexCatalogError::NativeCatalogUnavailable => UnsupportedTarget,
-            CodexCatalogError::MissingDefaultModel | CodexCatalogError::InvalidCatalog => {
-                InvalidConfiguration
-            }
-        })?;
-        // Global window overrides would replace every member's per-row windows.
-        doc.remove("model_context_window");
-        doc.remove("model_auto_compact_token_limit");
-        doc.insert("model_catalog_json", toml_edit::value(CATALOG_FILENAME));
-        Some(serde_json::to_vec_pretty(&catalog).map_err(|_| InvalidConfiguration)?)
-    };
-    let config_bytes = doc.to_string().into_bytes();
+    let (config_bytes, catalog) = plan(before.as_deref(), policy, default, members)?;
     let old_catalog = if catalog.is_some() {
         files.guard.read(OsStr::new(CATALOG_FILENAME)).map_err(write_error)?
     } else {
@@ -176,6 +150,44 @@ fn publish_inner(
         return Err(write_error(error));
     }
     Ok(true)
+}
+
+/// Shared read-only projection for callers composing records, mode and native
+/// files in the original transaction. Foreign catalog pointers remain protected.
+pub fn plan(
+    before: Option<&[u8]>,
+    policy: CatalogPolicy,
+    default: CodexCatalogDefault<'_>,
+    members: &[CodexCatalogMember<'_>],
+) -> Result<(Vec<u8>, Option<Vec<u8>>), CodexPublishError> {
+    use CodexPublishError::*;
+    let live = std::str::from_utf8(before.unwrap_or_default()).map_err(|_| InvalidConfiguration)?;
+    let mut doc: DocumentMut = live.parse().map_err(|_| InvalidConfiguration)?;
+    let default_config = match &default {
+        CodexCatalogDefault::ThirdParty(row) => row.config,
+        CodexCatalogDefault::Official { config, .. } => config,
+    };
+    let foreign = foreign_pointer(default_config)?.or(foreign_pointer(&doc)?).map(str::to_owned);
+    let preserve = policy == CatalogPolicy::Preserve && foreign.is_some();
+    let catalog = if preserve {
+        // Never read the external path or replace its catalog as a side effect.
+        doc.insert("model_catalog_json", toml_edit::value(foreign.expect("checked pointer")));
+        None
+    } else {
+        let catalog = plan_codex_stack_catalog(default, members).map_err(|error| match error {
+            CodexCatalogError::NativeCatalogUnavailable => UnsupportedTarget,
+            CodexCatalogError::MissingDefaultModel | CodexCatalogError::InvalidCatalog => {
+                InvalidConfiguration
+            }
+        })?;
+        // Global window overrides would replace every member's per-row windows.
+        doc.remove("model_context_window");
+        doc.remove("model_auto_compact_token_limit");
+        doc.insert("model_catalog_json", toml_edit::value(CATALOG_FILENAME));
+        Some(serde_json::to_vec_pretty(&catalog).map_err(|_| InvalidConfiguration)?)
+    };
+    let config_bytes = doc.to_string().into_bytes();
+    Ok((config_bytes, catalog))
 }
 
 fn foreign_pointer(doc: &DocumentMut) -> Result<Option<&str>, CodexPublishError> {

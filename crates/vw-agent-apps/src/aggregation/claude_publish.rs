@@ -63,74 +63,15 @@ pub fn publish(
     if state != *expected || !unchanged() {
         return Err(WriteError::Conflict.into());
     }
-    let providers = input.providers;
-    let planned =
-        preview::preview(AppId::Claude, mode.scope.tenant, &state, input).map_err(|e| match e {
-            preview::PreviewError::Forbidden => ModeApplyError::Ownership,
-            preview::PreviewError::RecoveryPending => WriteError::Conflict.into(),
-            _ => ModeApplyError::InvalidInput,
-        })?;
-    if planned.issues.iter().any(|issue| issue.blocking) {
-        return Err(ModeApplyError::InvalidInput);
-    }
-    let default = planned.default_provider_id.as_deref().ok_or(ModeApplyError::InvalidInput)?;
-    let members = planned
-        .members
-        .iter()
-        .map(|member| {
-            let provider = providers
-                .iter()
-                .find(|p| p.id == member.provider_id)
-                .ok_or(ModeApplyError::InvalidInput)?;
-            let Catalog::Claude(record) = &provider.catalog else {
-                return Err(ModeApplyError::InvalidInput);
-            };
-            let key = state
-                .stack
-                .keys
-                .iter()
-                .find_map(|(key, id)| (id == provider.id).then_some(key.as_str()))
-                .ok_or(ModeApplyError::InvalidInput)?;
-            Ok(ClaudeCatalogMember { provider_id: provider.id, key, record })
-        })
-        .collect::<Result<Vec<_>, ModeApplyError>>()?;
-    let catalog = ClaudeModelCatalog::new(&members, Some(default))
-        .map_err(|_| ModeApplyError::InvalidInput)?;
-    let role = catalog.default_model().ok_or(ModeApplyError::InvalidInput)?;
+    let default = input
+        .candidate_default
+        .map(str::to_owned)
+        .or_else(|| state.mode.as_ref().and_then(|mode| mode.proxy_route.clone()))
+        .ok_or(ModeApplyError::InvalidInput)?;
+    let default = default.as_str();
     let runtime = mode.runtime.ok_or(ModeApplyError::Unavailable)?;
     let endpoint = runtime.prepare(&mode.scope)?;
-    let mut env = Map::new();
-    let route = members
-        .iter()
-        .find(|member| member.provider_id == default)
-        .ok_or(ModeApplyError::InvalidInput)?;
-    let saved = route.record.get("settingsConfig").ok_or(ModeApplyError::InvalidInput)?;
-    env.extend(
-        ClientConfiguration::saved(AppId::Claude, saved, false)
-            .map_err(|_| ModeApplyError::InvalidInput)?
-            .contract()
-            .exclusive,
-    );
-    merge_switches(&mut env, &members, default);
-    env.remove("CLAUDE_CODE_MAX_CONTEXT_TOKENS");
-    if let Some(window) = catalog
-        .models()
-        .iter()
-        .filter(|m| !m.supports_1m)
-        .map(|m| m.window)
-        .min()
-        .filter(|window| *window != CLAUDE_DEFAULT_WINDOW)
-    {
-        env.insert("CLAUDE_CODE_MAX_CONTEXT_TOKENS".into(), json!(window.to_string()));
-    }
-    env.insert("ANTHROPIC_BASE_URL".into(), json!(endpoint.url));
-    env.insert("ANTHROPIC_AUTH_TOKEN".into(), json!(CLIENT_TOKEN_PLACEHOLDER));
-    for tier in ["HAIKU", "SONNET", "OPUS", "FABLE"] {
-        env.insert(format!("ANTHROPIC_DEFAULT_{tier}_MODEL"), json!(role.id));
-        env.insert(format!("ANTHROPIC_DEFAULT_{tier}_MODEL_NAME"), json!(role.name));
-    }
-    let target = json!({"env":env,"modelPicker":{"replaceBuiltInOptions":true,
-        "options":catalog.models().iter().map(|m|json!({"model":m.id,"label":m.label,"description":m.description})).collect::<Vec<_>>()}});
+    let target = plan(mode.scope.tenant, &state, input, &endpoint.url, CLIENT_TOKEN_PLACEHOLDER)?;
     let contract = ClientConfiguration::saved(AppId::Claude, &target, false)
         .map_err(|_| ModeApplyError::InvalidInput)?
         .contract();
@@ -188,6 +129,83 @@ pub fn publish(
         attached: true,
         target_publication: publication,
     })
+}
+
+/// Plan a candidate state without saving it. The listener supplies its private
+/// endpoint and credential inside its guarded publication callback.
+pub fn plan(
+    tenant: &vw_api_types::id::TenantScope,
+    state: &AppState,
+    input: PreviewInput<'_>,
+    url: &str,
+    token: &str,
+) -> Result<Value, ModeApplyError> {
+    let providers = input.providers;
+    let planned = preview::preview(AppId::Claude, tenant, state, input).map_err(|e| match e {
+        preview::PreviewError::Forbidden => ModeApplyError::Ownership,
+        preview::PreviewError::RecoveryPending => WriteError::Conflict.into(),
+        _ => ModeApplyError::InvalidInput,
+    })?;
+    if planned.issues.iter().any(|issue| issue.blocking) {
+        return Err(ModeApplyError::InvalidInput);
+    }
+    let default = planned.default_provider_id.as_deref().ok_or(ModeApplyError::InvalidInput)?;
+    let members = planned
+        .members
+        .iter()
+        .map(|member| {
+            let provider = providers
+                .iter()
+                .find(|p| p.id == member.provider_id)
+                .ok_or(ModeApplyError::InvalidInput)?;
+            let Catalog::Claude(record) = &provider.catalog else {
+                return Err(ModeApplyError::InvalidInput);
+            };
+            let key = state
+                .stack
+                .keys
+                .iter()
+                .find_map(|(key, id)| (id == provider.id).then_some(key.as_str()))
+                .ok_or(ModeApplyError::InvalidInput)?;
+            Ok(ClaudeCatalogMember { provider_id: provider.id, key, record })
+        })
+        .collect::<Result<Vec<_>, ModeApplyError>>()?;
+    let catalog = ClaudeModelCatalog::new(&members, Some(default))
+        .map_err(|_| ModeApplyError::InvalidInput)?;
+    let role = catalog.default_model().ok_or(ModeApplyError::InvalidInput)?;
+    let mut env = Map::new();
+    let route = members
+        .iter()
+        .find(|member| member.provider_id == default)
+        .ok_or(ModeApplyError::InvalidInput)?;
+    let saved = route.record.get("settingsConfig").ok_or(ModeApplyError::InvalidInput)?;
+    env.extend(
+        ClientConfiguration::saved(AppId::Claude, saved, false)
+            .map_err(|_| ModeApplyError::InvalidInput)?
+            .contract()
+            .exclusive,
+    );
+    merge_switches(&mut env, &members, default);
+    env.remove("CLAUDE_CODE_MAX_CONTEXT_TOKENS");
+    if let Some(window) = catalog
+        .models()
+        .iter()
+        .filter(|m| !m.supports_1m)
+        .map(|m| m.window)
+        .min()
+        .filter(|window| *window != CLAUDE_DEFAULT_WINDOW)
+    {
+        env.insert("CLAUDE_CODE_MAX_CONTEXT_TOKENS".into(), json!(window.to_string()));
+    }
+    env.insert("ANTHROPIC_BASE_URL".into(), json!(url));
+    env.insert("ANTHROPIC_AUTH_TOKEN".into(), json!(token));
+    for tier in ["HAIKU", "SONNET", "OPUS", "FABLE"] {
+        env.insert(format!("ANTHROPIC_DEFAULT_{tier}_MODEL"), json!(role.id));
+        env.insert(format!("ANTHROPIC_DEFAULT_{tier}_MODEL_NAME"), json!(role.name));
+    }
+    let target = json!({"env":env,"modelPicker":{"replaceBuiltInOptions":true,
+        "options":catalog.models().iter().map(|m|json!({"model":m.id,"label":m.label,"description":m.description})).collect::<Vec<_>>()}});
+    Ok(target)
 }
 
 fn switch(value: &Value) -> Option<bool> {

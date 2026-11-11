@@ -54,7 +54,8 @@ pub struct PendingTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_aggregation_settings: Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
+    pub codex_aggregation_settings:
+        Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<crate::providers::mode_state::StackState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -93,7 +94,8 @@ pub struct AppState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_scope: Option<vw_api_types::id::ProjectScope>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub codex_aggregation_settings: Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
+    pub codex_aggregation_settings:
+        Option<vw_api_types::agent_apps::aggregation::CodexSettingsValues>,
     #[serde(default, skip_serializing_if = "crate::providers::mode_state::StackState::is_empty")]
     pub stack: crate::providers::mode_state::StackState,
     #[serde(default)]
@@ -130,6 +132,8 @@ pub struct PendingFile {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Pending {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_record: Option<super::record_publication::ProviderRecordChange>,
     #[serde(default)]
     pub project_preimage: Option<vw_api_types::id::ProjectScope>,
     pub version: u32,
@@ -224,7 +228,8 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=8)
+            !matches!(p.version, 1..=8 | 10)
+                || (p.version == 10) != p.provider_record.is_some()
                 || (p.version >= 7) != p.target.project_scope.is_some()
                 || (p.version == 8 && p.target.codex_aggregation_settings.is_none())
                 || (p.version < 8 && p.target.codex_aggregation_settings.is_some())
@@ -290,7 +295,26 @@ impl ProviderTransactions {
         target: PendingTarget,
         validate: impl Fn() -> Result<(), WriteError>,
     ) -> Result<(), WriteError> {
+        self.commit_with_record(tenant, guard, changes, target, validate, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn commit_with_record(
+        &self,
+        tenant: &TenantScope,
+        guard: &mut AppWriteGuard,
+        changes: &[FileChange<'_>],
+        target: PendingTarget,
+        validate: impl Fn() -> Result<(), WriteError>,
+        record: Option<(
+            &super::record_publication::ProviderRecordChange,
+            &dyn super::record_publication::ProviderRecordParticipant,
+        )>,
+    ) -> Result<(), WriteError> {
         let app = guard.app();
+        if let Some((change, _)) = record {
+            change.validate(&self.host, app, tenant, &target)?;
+        }
         validate_target(app, &target)?;
         self.validate_claude_login(tenant, &target)?;
         let _lock = self.lock(app)?;
@@ -309,7 +333,7 @@ impl ProviderTransactions {
         crate::providers::operations::planned(changes.len());
         let mut batch = guard.stage(changes)?;
         validate()?;
-        if batch.is_empty() {
+        if batch.is_empty() && record.is_none() {
             crate::providers::operations::publication().map_err(|_| WriteError::Conflict)?;
             apply_target(&mut state, tenant, &target);
             self.save(app, "state", &state)?;
@@ -323,9 +347,12 @@ impl ProviderTransactions {
             write.directory.sync_all().map_err(|_| WriteError::Io)?;
         }
         let mut pending = Pending {
+            provider_record: record.map(|(change, _)| change.clone()),
             project_preimage: state.project_scope.clone(),
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if target.codex_aggregation_settings.is_some() {
+            version: if record.is_some() {
+                10
+            } else if target.codex_aggregation_settings.is_some() {
                 8
             } else if target.project_scope.is_some() {
                 7
@@ -370,12 +397,18 @@ impl ProviderTransactions {
             write.retain = true;
         }
         checkpoint(self, app, Phase::Intent)?;
+        if let Some((change, participant)) = record {
+            participant.reserve(change)?;
+        }
         validate()?;
         pending.published = true;
         self.save(app, "pending", &pending)?;
         checkpoint(self, app, Phase::Marked)?;
         self.publish_checked(&mut batch, changes, &mut pending)?;
         checkpoint(self, app, Phase::Published)?;
+        if let Some((change, participant)) = record {
+            participant.finish(change, true)?;
+        }
         apply_target(&mut state, tenant, &pending.target);
         self.save(app, "state", &state)?;
         checkpoint(self, app, Phase::Settled)?;

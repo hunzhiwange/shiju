@@ -87,7 +87,9 @@ pub fn patch(
 ) -> Result<Vec<u8>, WriteError> {
     patch_with_residue(pre, previous, target, true)
 }
-pub(crate) fn patch_with_residue(
+/// Pure managed-field projection for an authorized executor composing the original
+/// publication transaction. This function does no I/O.
+pub fn patch_with_residue(
     pre: Option<&[u8]>,
     previous: Option<&Value>,
     target: &Value,
@@ -191,8 +193,8 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<ClaudeProfile, WriteError> {
 
 #[cfg(target_os = "macos")]
 pub struct ClaudeFile {
-    pub(crate) guard: super::live::write_guard::AppWriteGuard,
-    pub(crate) name: &'static str,
+    pub guard: super::live::write_guard::AppWriteGuard,
+    pub name: &'static str,
     pub bytes: Option<Vec<u8>>,
 }
 #[cfg(target_os = "macos")]

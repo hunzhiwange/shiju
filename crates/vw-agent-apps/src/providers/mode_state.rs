@@ -12,7 +12,7 @@ pub struct StackState {
     pub keys: BTreeMap<String, String>,
 }
 impl StackState {
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         !self.enabled && self.members.is_empty() && self.keys.is_empty()
     }
 }

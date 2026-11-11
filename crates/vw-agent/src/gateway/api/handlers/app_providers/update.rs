@@ -1,11 +1,18 @@
 use super::*;
 use vw_api_types::app_providers::update::AppProviderUpdate;
+#[allow(clippy::too_many_arguments)]
 pub(super) async fn update(
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     Path((app, id)): Path<(AppId, String)>,
     policy: Option<Extension<super::claude::Policy>>,
     headers: axum::http::HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<
+        vw_api_types::agent_apps::aggregation::AggregationWriteQuery,
+    >,
+    #[cfg(target_os = "macos")] control: Option<
+        Extension<super::super::app_routing::RoutingControl>,
+    >,
     body: Result<
         Json<vw_api_types::app_providers::claude::ClaudeOr<AppProviderUpdate>>,
         JsonRejection,
@@ -27,6 +34,11 @@ pub(super) async fn update(
                 id,
                 request,
                 super::claude::WriteKind::Update,
+                PublicationInput {
+                    query,
+                    #[cfg(target_os = "macos")]
+                    routing: control.map(|Extension(c)| c),
+                },
             )
             .await;
         }

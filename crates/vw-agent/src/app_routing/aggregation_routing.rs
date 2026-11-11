@@ -28,6 +28,7 @@ impl AggregationModel {
 
 /// The transaction resolves the target from the same authorized scope and revision.
 pub(crate) struct AggregationTarget {
+    pub(crate) messages_api_key: bool,
     pub(crate) binding: VerifiedRouteBinding,
     pub(crate) revision: String,
     pub(crate) provider_id: String,
@@ -49,13 +50,13 @@ pub(super) struct AggregationSnapshot {
     models: Vec<AggregationModel>,
     default: String,
     members: HashMap<String, JsonTarget>,
+    api_keys: HashSet<String>,
 }
 
 impl AggregationPublication {
     pub(super) fn validate(self) -> Result<AggregationSnapshot, StatusCode> {
         let app = self.binding.app();
-        // The existing data plane supports native Chat on the Codex route.
-        if app != AppId::Codex {
+        if !matches!(app, AppId::Codex | AppId::Claude) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         if self.revision.trim().is_empty() {
@@ -84,8 +85,15 @@ impl AggregationPublication {
         }
 
         let mut members = HashMap::with_capacity(self.members.len());
+        let mut api_keys = HashSet::new();
+        if self.default.messages_api_key {
+            api_keys.insert(self.default.provider_id.clone());
+        }
         for member in self.members {
             validate_target(&member)?;
+            if member.messages_api_key {
+                api_keys.insert(member.provider_id.clone());
+            }
             if !self.state.stack.members.contains(&member.provider_id)
                 || member.provider_id == self.default.provider_id
                 || members.insert(member.provider_id, member.target).is_some()
@@ -127,11 +135,31 @@ impl AggregationPublication {
             models: self.models,
             default,
             members,
+            api_keys,
         })
     }
 }
 
 impl AggregationSnapshot {
+    pub(super) fn messages_api_key(
+        &self,
+        binding: &VerifiedRouteBinding,
+        model: Option<&str>,
+    ) -> Result<bool, StatusCode> {
+        let provider = match resolve(
+            binding.app(),
+            binding.project().tenant_scope(),
+            &self.state,
+            model.unwrap_or_default(),
+            self.models.iter().map(AggregationModel::published),
+        )
+        .map_err(resolve_status)?
+        {
+            Resolved::Plain => self.default.as_str(),
+            Resolved::Exact(row) => row.provider_id,
+        };
+        Ok(self.api_keys.contains(provider))
+    }
     pub(super) fn select<'a>(
         &'a self,
         binding: &VerifiedRouteBinding,

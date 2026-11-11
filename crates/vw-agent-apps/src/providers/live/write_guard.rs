@@ -181,7 +181,7 @@ impl AppWriteGuard {
             .map(|t| (t.directory, t.name.as_os_str()))
             .ok_or(WriteError::InvalidResource)
     }
-    pub(crate) fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
+    pub fn read(&self, name: &OsStr) -> Result<Option<Vec<u8>>, WriteError> {
         let (index, name) = self.resolve(name)?;
         read_from(self.directory_at(index)?, name)
     }

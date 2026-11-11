@@ -18,13 +18,16 @@ const NAMESPACE: &str = "app_providers.records";
 
 /// Fixed domain namespace; no global auth, host environment, upstream database or arbitrary key access.
 pub struct AppProviderStore {
-    settings: GatewaySettingsStore,
+    settings: record_publication::ProviderRecordStore,
     database: GlobalDatabase,
 }
 impl AppProviderStore {
     pub fn new(database: GlobalDatabase) -> Result<Self, String> {
         GatewaySettingsStore::new(database.clone())
-            .map(|settings| Self { settings, database })
+            .map(|settings| Self {
+                settings: record_publication::ProviderRecordStore::new(settings),
+                database,
+            })
             .map_err(|_| "application provider storage unavailable".into())
     }
     fn prefix(app: AppId) -> String {
@@ -351,7 +354,11 @@ impl AppProviderStore {
             GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &Self::key(app, id)?)
                 .map_err(|_| "application provider storage unavailable")?
                 .ok_or("application provider not found")?;
-        serde_json::from_str(&raw).map_err(|_| "invalid stored application provider profile".into())
+        serde_json::from_str(
+            &record_publication::ProviderRecordStore::committed(raw)
+                .map_err(|_| "application provider storage unavailable")?,
+        )
+        .map_err(|_| "invalid stored application provider profile".into())
     }
     /// Read the executor record with a typed missing/storage boundary for usage reads.
     #[cfg(target_os = "macos")]
@@ -366,7 +373,11 @@ impl AppProviderStore {
         let raw = GatewaySettingsStore::read_existing(database, tenant, NAMESPACE, &key)
             .map_err(|_| AuthErrorCode::StorageUnavailable)?
             .ok_or(AuthErrorCode::NotFound)?;
-        serde_json::from_str(&raw).map_err(|_| AuthErrorCode::StorageUnavailable)
+        serde_json::from_str(
+            &record_publication::ProviderRecordStore::committed(raw)
+                .map_err(|_| AuthErrorCode::StorageUnavailable)?,
+        )
+        .map_err(|_| AuthErrorCode::StorageUnavailable)
     }
     fn read(&self, tenant: &TenantScope, app: AppId, id: &str) -> Result<AppProviderWrite, String> {
         let key = Self::key(app, id)?;
@@ -747,3 +758,47 @@ mod agy_form;
 mod request_options;
 
 pub(crate) mod generation_target;
+
+mod record_publication;
+#[cfg(all(test, target_os = "macos"))]
+mod record_publication_tests;
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub(crate) fn with_resync(
+        mut self,
+        context: crate::gateway::aggregation_resync::RecordPublicationContext,
+    ) -> Self {
+        self.settings.1 = Some(std::sync::Arc::new(context));
+        self
+    }
+}
+
+impl AppProviderStore {
+    pub(crate) fn database(&self) -> GlobalDatabase {
+        self.database.clone()
+    }
+    #[cfg(target_os = "macos")]
+    pub(crate) fn resync_configured(&self) -> bool {
+        self.settings.1.is_some()
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub(crate) fn resync_context(
+        &self,
+    ) -> Option<std::sync::Arc<crate::gateway::aggregation_resync::RecordPublicationContext>> {
+        self.settings.1.clone()
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl AppProviderStore {
+    pub(crate) fn publication_error(&self) -> Option<axum::http::StatusCode> {
+        self.settings
+            .1
+            .as_ref()
+            .and_then(|context| context.failure.lock().ok().and_then(|failure| *failure))
+    }
+}

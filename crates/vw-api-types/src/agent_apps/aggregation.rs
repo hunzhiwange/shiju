@@ -213,3 +213,13 @@ pub struct CodexSettingsRequest {
     pub expected_revision: String,
     pub requested: CodexSettingsValues,
 }
+
+/// Optional scope for existing provider-write routes. Active aggregation requires
+/// both fields; legacy unbound catalog-only edits retain their existing shape.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AggregationWriteQuery {
+    pub target_host_id: Option<String>,
+    pub project_id: Option<ProjectId>,
+    pub expected_revision: Option<String>,
+}

@@ -1,4 +1,4 @@
-//! Read-only aggregation directory. All native observations come through the SDK.
+//! Scoped aggregation directory. All native observations come through the SDK.
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
@@ -55,8 +55,14 @@ impl Form {
         }
         self.loading = false;
         match result {
-            Ok(snapshot) => self.snapshot = Some(snapshot),
-            Err(error) => self.error = Some(error_label(&error)),
+            Ok(snapshot) => {
+                self.snapshot = Some(snapshot);
+                self.error = None;
+            }
+            Err(error) => {
+                self.snapshot = None;
+                self.error = Some(error_label(&error));
+            }
         }
         true
     }
@@ -66,6 +72,8 @@ pub enum Event {
     Open,
     Refresh,
     Close,
+    Act(Action),
+    Acted { selection: Selection, generation: u64, outcome: MutationOutcome },
     Loaded { selection: Selection, generation: u64, result: Result<Snapshot, AggregationApiError> },
 }
 pub(crate) fn message(event: Event) -> Message {
@@ -116,6 +124,39 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         app.app_providers.aggregation = None;
         return app.show_error_toast("请先选择项目并连接执行主机");
     };
+    if let Event::Act(action) = event {
+        let Some(form) = &mut app.app_providers.aggregation else {
+            return Task::none();
+        };
+        let Some(revision) = form.begin_action(&selection, &action) else {
+            return Task::none();
+        };
+        app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
+        let generation = app.app_providers.generation;
+        form.generation = generation;
+        let token = app.apps_catalog.token.clone();
+        return Task::perform(
+            mutate(client, selection.clone(), token, action, revision),
+            move |outcome| {
+                message(Event::Acted { selection: selection.clone(), generation, outcome })
+            },
+        );
+    }
+    if let Event::Acted { selection: completed, generation, outcome } = event {
+        if completed != selection {
+            if let Some(form) = &mut app.app_providers.aggregation {
+                form.invalidate_selection(&selection);
+            }
+            return Task::none();
+        }
+        if let Some(form) = &mut app.app_providers.aggregation
+            && form.finish_mutation(&completed, generation, outcome)
+            && let Some(error) = form.error
+        {
+            return app.show_error_toast(error);
+        }
+        return Task::none();
+    }
     if let Event::Loaded { selection: completed, generation, result } = event {
         if completed != selection {
             if let Some(form) = &mut app.app_providers.aggregation {
@@ -197,3 +238,127 @@ pub(crate) async fn load(
 #[cfg(test)]
 #[path = "aggregation_list_tests.rs"]
 mod tests;
+
+#[derive(Clone, Debug)]
+pub enum Action {
+    Member { provider_id: String, enabled: bool },
+    Default { provider_id: String },
+}
+impl Form {
+    pub(crate) fn begin_action(
+        &mut self,
+        selection: &Selection,
+        action: &Action,
+    ) -> Option<String> {
+        self.invalidate_selection(selection);
+        if self.loading || &self.selection != selection || !supported(selection.scope.app) {
+            return None;
+        }
+        let snapshot = self.snapshot.as_ref()?;
+        let member = |id: &str| snapshot.state.members.iter().any(|m| m.provider_id == id);
+        let candidate = |id: &str| snapshot.candidates.iter().any(|p| p.id == id);
+        let default = snapshot.state.default_provider_id.as_deref();
+        let allowed = match action {
+            Action::Member { provider_id, enabled: false } => {
+                member(provider_id) && default != Some(provider_id.as_str())
+            }
+            Action::Member { provider_id, enabled: true } => candidate(provider_id),
+            Action::Default { provider_id } => {
+                default != Some(provider_id.as_str())
+                    && (member(provider_id) || candidate(provider_id))
+            }
+        };
+        if !allowed {
+            return None;
+        }
+        let revision = snapshot.state.revision.clone();
+        self.loading = true;
+        self.error = None;
+        Some(revision)
+    }
+    pub(crate) fn finish_mutation(
+        &mut self,
+        selection: &Selection,
+        generation: u64,
+        outcome: MutationOutcome,
+    ) -> bool {
+        if !self.finish(selection, generation, outcome.result) {
+            return false;
+        }
+        if let Some(error) = outcome.write_error {
+            self.error = Some(error_label(&error));
+        }
+        true
+    }
+}
+#[cfg(test)]
+#[path = "aggregation_members_tests.rs"]
+mod member_tests;
+
+#[derive(Clone, Debug)]
+pub struct MutationOutcome {
+    pub result: Result<Snapshot, AggregationApiError>,
+    pub write_error: Option<AggregationApiError>,
+}
+pub(crate) async fn mutate(
+    client: GatewayClient,
+    selection: Selection,
+    token: String,
+    action: Action,
+    revision: String,
+) -> MutationOutcome {
+    let endpoint = client
+        .endpoint()
+        .clone()
+        .with_auth(vw_gateway_client::GatewayAuth { skey: Some(token.clone()) });
+    let writer = match GatewayClient::new(endpoint) {
+        Ok(writer) => writer,
+        Err(error) => {
+            return MutationOutcome {
+                result: Err(AggregationApiError::Transport(error)),
+                write_error: None,
+            };
+        }
+    };
+    let target_host_id = selection.scope.host.clone();
+    let project_id = selection.project.clone();
+    let write = match action {
+        Action::Member { provider_id, enabled } => {
+            writer
+                .aggregation_member_set(
+                    selection.scope.app,
+                    &provider_id,
+                    &AggregationMemberRequest {
+                        target_host_id,
+                        project_id,
+                        expected_revision: revision,
+                        enabled,
+                    },
+                )
+                .await
+        }
+        Action::Default { provider_id } => {
+            writer
+                .aggregation_default_set(
+                    selection.scope.app,
+                    &AggregationDefaultRequest {
+                        target_host_id,
+                        project_id,
+                        expected_revision: revision,
+                        provider_id,
+                    },
+                )
+                .await
+        }
+    };
+    match write {
+        Ok(_) => {
+            MutationOutcome { result: load(client, selection, token).await, write_error: None }
+        }
+        Err(error @ AggregationApiError::Http { status: 409, .. }) => MutationOutcome {
+            result: load(client, selection, token).await,
+            write_error: Some(error),
+        },
+        Err(error) => MutationOutcome { result: Err(error), write_error: None },
+    }
+}

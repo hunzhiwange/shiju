@@ -16,6 +16,13 @@ use vw_gateway_client::vw_api_types::{
 
 #[tokio::test]
 async fn aggregation_t56_chinese_directory_shapes_and_draws_in_both_themes() {
+    draw_directory().await;
+}
+#[tokio::test]
+async fn aggregation_t57_member_actions_shape_and_draw_in_both_themes() {
+    draw_directory().await;
+}
+async fn draw_directory() {
     {
         let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
         for font in crate::fonts::load_all() {
@@ -119,6 +126,21 @@ async fn aggregation_t56_chinese_directory_shapes_and_draws_in_both_themes() {
                     "label={:?}, viewport={viewport:?}",
                     bounds("动态中文供应商 0 😀")
                 );
+            }
+            if case == 4 {
+                let bounds = geometry.labels.iter().find(|(label, _)| label == "移除").unwrap().1;
+                let mut messages = Vec::new();
+                ui.update(
+                    &[
+                        iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                        iced::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                    ],
+                    mouse::Cursor::Available(bounds.center()),
+                    &mut renderer,
+                    &mut iced::advanced::clipboard::Null,
+                    &mut messages,
+                );
+                assert!(messages.is_empty(), "default removal button must be disabled");
             }
             ui.draw(
                 &mut renderer,

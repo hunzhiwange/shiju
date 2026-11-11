@@ -1,7 +1,7 @@
 use super::system_settings_common::*;
 use crate::app::{
     Message,
-    message::settings::aggregation_list::{Event, Form, message},
+    message::settings::aggregation_list::{Action, Event, Form, message},
 };
 use iced::{
     Element,
@@ -73,7 +73,37 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
                 "模型数待发布后确认".into()
             };
             body = body.push(settings_panel(
-                column![text(&member.name).size(17), text(format!("{role} · {count}"))].spacing(6),
+                column![
+                    text(&member.name).size(17),
+                    text(format!("{role} · {count}")),
+                    row![
+                        button(text("设为默认"))
+                            .padding([8, 14])
+                            .style(primary_action_btn_style)
+                            .on_press_maybe(
+                                (!form.loading
+                                    && state.default_provider_id.as_deref()
+                                        != Some(&member.provider_id))
+                                .then(|| message(Event::Act(Action::Default {
+                                    provider_id: member.provider_id.clone()
+                                })))
+                            ),
+                        button(text("移除"))
+                            .padding([8, 14])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe(
+                                (!form.loading
+                                    && state.default_provider_id.as_deref()
+                                        != Some(&member.provider_id))
+                                .then(|| message(Event::Act(Action::Member {
+                                    provider_id: member.provider_id.clone(),
+                                    enabled: false
+                                })))
+                            ),
+                    ]
+                    .spacing(12),
+                ]
+                .spacing(6),
             ));
         }
         body = body.push(settings_field_label("可添加候选"));
@@ -86,7 +116,27 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
             body = body.push(text("没有可添加候选").style(settings_muted_text_style));
         }
         for provider in &snapshot.candidates {
-            body = body.push(settings_panel(text(&provider.name)));
+            body = body.push(settings_panel(
+                column![
+                    text(&provider.name),
+                    row![
+                        button(text("添加"))
+                            .padding([8, 14])
+                            .style(primary_action_btn_style)
+                            .on_press_maybe((!form.loading).then(|| message(Event::Act(
+                                Action::Member { provider_id: provider.id.clone(), enabled: true }
+                            )))),
+                        button(text("设为默认"))
+                            .padding([8, 14])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe((!form.loading).then(|| message(Event::Act(
+                                Action::Default { provider_id: provider.id.clone() }
+                            )))),
+                    ]
+                    .spacing(12),
+                ]
+                .spacing(6),
+            ));
         }
         for notice in &state.notices {
             body = body.push(text(notice_label(*notice)).style(settings_muted_text_style));

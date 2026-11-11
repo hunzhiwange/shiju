@@ -6,3 +6,10 @@ mod permissions_macos;
 
 #[cfg(test)]
 mod permissions_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod capture;
+#[cfg(not(target_arch = "wasm32"))]
+mod capture_native;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod capture_tests;

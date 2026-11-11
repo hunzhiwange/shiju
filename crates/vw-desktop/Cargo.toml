@@ -70,6 +70,7 @@ vw-shared = { path = "../vw-shared", version = "0.6.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = "3.4"
+cpal = { version = "0.18.2", default-features = false }
 auto-launch = "0.6"
 tray-icon = { version = "0.26.1", default-features = false, features = ["ksni"] }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }

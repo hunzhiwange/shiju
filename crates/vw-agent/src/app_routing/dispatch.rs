@@ -1,4 +1,4 @@
-//! Authorized Chat request path for the application listener.
+//! Authorized Chat and Codex compaction paths for the application listener.
 
 use super::{
     SharedTransport,
@@ -13,6 +13,7 @@ use super::{
     route_auth::AuthorizedRoute,
     timeouts,
 };
+use crate::model_relay::responses_compaction;
 use axum::{
     body::Body,
     http::{HeaderMap, HeaderValue, Method, Request, StatusCode, header},
@@ -26,6 +27,7 @@ use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
 const CHAT_PATH: &str = "/v1/chat/completions";
+const RESPONSES_PATH: &str = "/v1/responses";
 const JSON: &str = "application/json";
 const SSE: &str = "text/event-stream";
 
@@ -46,7 +48,11 @@ pub(super) async fn forward_json(
     #[cfg(target_os = "macos")] egress: &super::outbound_config::EgressState,
 ) -> Result<Response, RouteError> {
     let app = route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    if app != AppId::Codex || request.uri().path() != CHAT_PATH || request.uri().query().is_some() {
+    let responses = request.uri().path() == RESPONSES_PATH;
+    if app != AppId::Codex
+        || !matches!(request.uri().path(), CHAT_PATH | RESPONSES_PATH)
+        || request.uri().query().is_some()
+    {
         return Err(StatusCode::NOT_FOUND.into());
     }
     if request.method() != Method::POST {
@@ -94,9 +100,18 @@ pub(super) async fn forward_json(
     // Wait only after the upload so disconnect detection can cancel a queued
     // request, and keep the listener-wide buffer reservation while it waits.
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
-    // Native Chat uses the parsed document unchanged at the conversion step.
-    let mut outgoing = prepare_request(&body, target, model)?;
-    drop(body);
+    let (mut outgoing, bridge) = if responses {
+        if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+        }
+        let bridge = responses_compaction::Request::from_responses(body)?;
+        let outgoing = prepare_request_inner(&bridge.chat, target, model, Some(&bridge))?;
+        (outgoing, Some(bridge))
+    } else {
+        let outgoing = prepare_request(&body, target, model)?;
+        drop(body);
+        (outgoing, None)
+    };
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
@@ -115,7 +130,8 @@ pub(super) async fn forward_json(
     let transport = &target.transport;
     #[cfg(target_os = "macos")]
     let transport = selected_egress.as_ref().map_or(transport, |egress| &egress.transport);
-    let forward = transport.forward_ordered(&target.url, outgoing, wire, cancelled, listener);
+    let forward =
+        transport.forward_ordered(&target.url, outgoing, wire, cancelled.clone(), listener);
     let started = Instant::now();
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
@@ -130,6 +146,10 @@ pub(super) async fn forward_json(
         }
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
         let body = timeouts::stream_body(body, deadline, idle, permit).await?;
+        let body = match bridge {
+            Some(bridge) => bridge.response_body(body, cancelled),
+            None => body,
+        };
         parts.headers.clear();
         parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(SSE));
         return Ok(Response::from_parts(parts, body));
@@ -170,11 +190,24 @@ pub(super) fn prepare_request(
     target: &JsonTarget,
     exact_model: Option<&str>,
 ) -> Result<reqwest::Request, StatusCode> {
+    prepare_request_inner(converted, target, exact_model, None)
+}
+
+fn prepare_request_inner(
+    converted: &Value,
+    target: &JsonTarget,
+    exact_model: Option<&str>,
+    bridge: Option<&responses_compaction::Request>,
+) -> Result<reqwest::Request, StatusCode> {
     let mut body = converted.clone();
     filter_private_params(&mut body);
     let mut outgoing = reqwest::Request::new(Method::POST, target.url.clone());
     if let Some(overrides) = &target.request_options.local_proxy_request_overrides {
         override_apply::apply(&mut body, outgoing.headers_mut(), overrides)?;
+    }
+    if let Some(bridge) = bridge {
+        bridge.apply_wire_controls(body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?);
+        filter_private_params(&mut body);
     }
     if let Some(model) = exact_model {
         body["model"] = Value::String(model.into());

@@ -74,3 +74,6 @@ mod protocol_errors_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod transport_security_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod compaction_tests;

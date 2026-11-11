@@ -9,7 +9,7 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
@@ -25,29 +25,60 @@ struct Decoder {
     started: bool,
     sequence: u64,
     id: String,
-    identity: RelayIdentity,
-    native: bool,
+    model: String,
+    native: Option<Native>,
     codex_chat: bool,
+    compact: bool,
     tool_names: ChatTools,
     reasoning: String,
     late_reasoning: String,
     upstream_id: Option<String>,
-    store: bool,
-    references: Arc<References>,
     text: String,
     text_open: bool,
     tools: BTreeMap<u64, Value>,
     usage: Value,
     reason: Value,
 }
+
+struct Native {
+    identity: RelayIdentity,
+    store: bool,
+    references: Arc<References>,
+}
+
 impl Decoder {
+    fn new(model: String, tool_names: ChatTools, codex_chat: bool, native: Option<Native>) -> Self {
+        Self {
+            pending: Vec::new(),
+            data: String::new(),
+            retained: 0,
+            done: false,
+            started: false,
+            sequence: 0,
+            id: responses::response_id(),
+            model,
+            native,
+            codex_chat,
+            compact: false,
+            tool_names,
+            reasoning: String::new(),
+            late_reasoning: String::new(),
+            upstream_id: None,
+            text: String::new(),
+            text_open: false,
+            tools: BTreeMap::new(),
+            usage: Value::Null,
+            reason: Value::Null,
+        }
+    }
+
     fn emit(&mut self, mut value: Value) -> String {
         value["sequence_number"] = self.sequence.into();
         self.sequence += 1;
         event(value)
     }
     fn initial(&self) -> Value {
-        json!({"id":self.id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":self.identity.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
+        json!({"id":self.id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":self.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
     }
     fn failure(&mut self, message: &str) -> String {
         self.done = true;
@@ -84,15 +115,13 @@ impl Decoder {
         if !self.started || self.reason.is_null() {
             return Err(StatusCode::BAD_GATEWAY);
         }
+        if self.compact {
+            return self.finish_compaction();
+        }
         let calls = self.tools.values().cloned().collect::<Vec<_>>();
         let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
-        let mut response = responses::from_chat(
-            &body,
-            &self.identity.model,
-            &self.id,
-            &self.tool_names,
-            self.codex_chat,
-        )?;
+        let mut response =
+            responses::from_chat(&body, &self.model, &self.id, &self.tool_names, self.codex_chat)?;
         let items = response["output"].as_array_mut().ok_or(StatusCode::BAD_GATEWAY)?;
         let reasoning_id = format!("{}_rs", self.id);
         if !self.reasoning.is_empty() {
@@ -154,12 +183,51 @@ impl Decoder {
         self.done = true;
         Ok(out)
     }
+
+    fn finish_compaction(&mut self) -> Result<String, StatusCode> {
+        let mut response = self.initial();
+        self.done = true;
+        if let (Some(input), Some(output)) =
+            (self.usage["prompt_tokens"].as_u64(), self.usage["completion_tokens"].as_u64())
+            && let Some(total) = input.checked_add(output)
+        {
+            response["usage"] =
+                json!({"input_tokens":input,"output_tokens":output,"total_tokens":total});
+        }
+        let incomplete = match self.reason.as_str() {
+            Some("stop") => None,
+            Some("length") => Some("max_output_tokens"),
+            Some("content_filter") => Some("content_filter"),
+            _ => return Err(StatusCode::BAD_GATEWAY),
+        };
+        if let Some(reason) = incomplete {
+            response["status"] = "incomplete".into();
+            response["incomplete_details"] = json!({"reason":reason});
+            return Ok(self.emit(json!({"type":"response.incomplete","response":response})));
+        }
+        if self.text.trim().is_empty() {
+            return Err(StatusCode::BAD_GATEWAY);
+        }
+        let item = json!({
+            "type": "compaction",
+            "id": format!("cmp_{}", uuid::Uuid::new_v4().simple()),
+            "encrypted_content": vw_agent_apps::routing::compaction_replay::encode_summary(&self.text),
+        });
+        let mut out = self.emit(json!({
+            "type":"response.output_item.done","output_index":0,"item":item
+        }));
+        response["status"] = "completed".into();
+        response["output"] = json!([item]);
+        out.push_str(&self.emit(json!({"type":"response.completed","response":response})));
+        Ok(out)
+    }
+
     fn frame(&mut self, data: &str) -> Result<String, StatusCode> {
         if self.done {
             return Err(StatusCode::BAD_GATEWAY);
         }
         if data == "[DONE]" {
-            if self.native {
+            if self.native.is_some() {
                 return Err(StatusCode::BAD_GATEWAY);
             }
             return self.finish();
@@ -170,7 +238,7 @@ impl Decoder {
         {
             return Err(StatusCode::BAD_GATEWAY);
         }
-        if self.native {
+        if let Some(native) = &self.native {
             let kind = chunk["type"].as_str().ok_or(StatusCode::BAD_GATEWAY)?.to_owned();
             if !kind.starts_with("response.")
                 || !self.started && kind != "response.created"
@@ -195,10 +263,10 @@ impl Decoder {
                 }
                 chunk["response"] = responses::native_output(
                     chunk["response"].take(),
-                    &self.identity,
+                    &native.identity,
                     &self.id,
-                    &self.references,
-                    terminal && self.store,
+                    &native.references,
+                    terminal && native.store,
                 )?;
                 if terminal {
                     self.done = true;
@@ -217,6 +285,9 @@ impl Decoder {
         let choices = chunk["choices"].as_array().ok_or(StatusCode::BAD_GATEWAY)?;
         if choices.len() > 1 {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        if self.compact && !self.reason.is_null() && !choices.is_empty() {
+            return Err(StatusCode::BAD_GATEWAY);
         }
         let mut out = String::new();
         if !self.started {
@@ -243,7 +314,7 @@ impl Decoder {
                     delta.get("reasoning_content").filter(|value| !value.is_null())
                 {
                     let reasoning = reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
-                    if !reasoning.is_empty() {
+                    if !self.compact && !reasoning.is_empty() {
                         self.retained += reasoning.len();
                         if self.text_open {
                             // Codex tracks one active item. Defer late reasoning until text closes.
@@ -272,7 +343,7 @@ impl Decoder {
                     self.retained += text.len();
                     let item_id = format!("{}_msg_0", self.id);
                     let index = usize::from(!self.reasoning.is_empty());
-                    if !self.text_open {
+                    if !self.compact && !self.text_open {
                         if index == 1 {
                             let item = responses::reasoning_item(
                                 &format!("{}_rs", self.id),
@@ -285,13 +356,18 @@ impl Decoder {
                         self.text_open = true;
                     }
                     self.text.push_str(text);
-                    out.push_str(&self.emit(json!({"type":"response.output_text.delta","item_id":item_id,"output_index":index,"content_index":0,"delta":text,"logprobs":[]})));
+                    if !self.compact {
+                        out.push_str(&self.emit(json!({"type":"response.output_text.delta","item_id":item_id,"output_index":index,"content_index":0,"delta":text,"logprobs":[]})));
+                    }
                 }
             } else if !delta["content"].is_null() {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
             if let Some(calls) = delta.get("tool_calls") {
                 for call in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)? {
+                    if self.compact {
+                        return Err(StatusCode::BAD_GATEWAY);
+                    }
                     super::messages::object_keys(call, &["index", "id", "type", "function"])?;
                     if call.get("type").is_some_and(|v| v != "function") {
                         return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -326,7 +402,9 @@ impl Decoder {
                 }
             }
             if !choice["finish_reason"].is_null() {
-                super::messages::finish(&choice["finish_reason"])?;
+                if !(self.compact && choice["finish_reason"] == "content_filter") {
+                    super::messages::finish(&choice["finish_reason"])?;
+                }
                 self.reason = choice["finish_reason"].clone();
             }
         }
@@ -377,8 +455,8 @@ pub(super) async fn response(
     output: Output,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
-    let id = responses::response_id();
     if !output.streaming {
+        let id = responses::response_id();
         let mut stream = response.bytes_stream();
         let mut bytes = Vec::new();
         loop {
@@ -417,31 +495,38 @@ pub(super) async fn response(
     {
         return Err(StatusCode::BAD_GATEWAY);
     }
-    let decoder = Decoder {
-        pending: Vec::new(),
-        data: String::new(),
-        retained: 0,
-        done: false,
-        started: false,
-        sequence: 0,
-        id,
+    let model = output.identity.model.clone();
+    let native = output.native.then_some(Native {
         identity: output.identity,
-        native: output.native,
-        codex_chat: output.codex_chat,
-        tool_names: output.tool_names,
-        reasoning: String::new(),
-        late_reasoning: String::new(),
-        upstream_id: None,
         store: output.store,
         references: output.references,
-        text: String::new(),
-        text_open: false,
-        tools: BTreeMap::new(),
-        usage: Value::Null,
-        reason: Value::Null,
-    };
+    });
+    let decoder = Decoder::new(model, output.tool_names, output.codex_chat, native);
+    Response::builder()
+        .header("content-type", "text/event-stream")
+        .body(decoded_body(response.bytes_stream(), decoder, cancel))
+        .map_err(|_| StatusCode::BAD_GATEWAY)
+}
+
+pub(super) fn codex_chat_body(
+    body: Body,
+    model: String,
+    tools: ChatTools,
+    compact: bool,
+    cancel: CancellationToken,
+) -> Body {
+    let mut decoder = Decoder::new(model, tools, true, None);
+    decoder.compact = compact;
+    decoded_body(body.into_data_stream(), decoder, cancel)
+}
+
+fn decoded_body<E: Send + 'static>(
+    upstream: impl Stream<Item = Result<Bytes, E>> + Send + 'static,
+    decoder: Decoder,
+    cancel: CancellationToken,
+) -> Body {
     let stream = futures_util::stream::unfold(
-        (response.bytes_stream(), decoder, cancel),
+        (Box::pin(upstream), decoder, cancel),
         |(mut stream, mut decoder, cancel)| async move {
             if decoder.done {
                 return None;
@@ -470,8 +555,5 @@ pub(super) async fn response(
             }
         },
     );
-    Response::builder()
-        .header("content-type", "text/event-stream")
-        .body(Body::from_stream(stream))
-        .map_err(|_| StatusCode::BAD_GATEWAY)
+    Body::from_stream(stream)
 }

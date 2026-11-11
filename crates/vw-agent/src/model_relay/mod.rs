@@ -30,6 +30,9 @@ mod messages_tests;
 mod responses_tests;
 
 mod responses;
+pub(crate) mod responses_compaction;
+#[cfg(test)]
+mod responses_compaction_tests;
 mod responses_stream;
 
 #[cfg(test)]

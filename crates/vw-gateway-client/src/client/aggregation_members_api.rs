@@ -72,7 +72,7 @@ impl GatewayClient {
             .extend(resource.iter().copied());
         Ok(url)
     }
-    async fn aggregation_write<B: Serialize, T: DeserializeOwned>(
+    pub(super) async fn aggregation_write<B: Serialize, T: DeserializeOwned>(
         &self,
         method: reqwest::Method,
         app: AppId,

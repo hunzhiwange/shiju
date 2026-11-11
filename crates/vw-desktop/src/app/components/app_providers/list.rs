@@ -380,6 +380,13 @@ pub(crate) fn overlay<'a>(
     if paths::available(scope.app) {
         actions = actions.push(action("配置目录", ListMessage::Paths(PathsEvent::Open), ready));
     }
+    if scope.app == AppId::Pi {
+        actions = actions.push(action(
+            "Pi 模型条目",
+            ListMessage::PiDirectory(crate::app::message::settings::aggregation_pi::Event::Open),
+            ready,
+        ));
+    }
     let actions = actions
         .push(action("关闭", ListMessage::Close, true))
         .spacing(10)
@@ -387,6 +394,9 @@ pub(crate) fn overlay<'a>(
         .wrap();
     let card = settings_modal_layout(header, body, Some(actions.into())).width(800).height(650);
     let list = settings_modal_overlay(Some(base), close, container(card).padding(12));
+    if let Some(form) = &state.pi_directory {
+        return crate::app::components::aggregation_pi::overlay(form, list);
+    }
     if let Some(form) = &state.model_catalog {
         return crate::app::components::system_settings_providers::catalog::deployments(
             form,

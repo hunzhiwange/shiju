@@ -53,6 +53,7 @@ pub enum ListMessage {
     Mode(super::mode::Event),
     ModelCatalog(crate::app::message::settings::providers::catalog_api::Event),
     Paths(super::paths::Event),
+    PiDirectory(crate::app::message::settings::aggregation_pi::Event),
     Open(AppId),
     Close,
     Refresh,
@@ -181,6 +182,9 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         ListMessage::UsageSettings(event) => {
             return crate::app::components::apps_usage_settings::update(app, event);
+        }
+        ListMessage::PiDirectory(event) => {
+            return crate::app::message::settings::aggregation_pi::update(app, event);
         }
         ListMessage::Icons(event) => return super::icons::update(app, event),
         ListMessage::Universal(event) => return super::universal::update(app, event),

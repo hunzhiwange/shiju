@@ -249,7 +249,7 @@ fn route_classification_and_heartbeat_defaults_are_ready_to_edit() {
 fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert_eq!(CronSettingsTab::default(), CronSettingsTab::Jobs);
     assert_eq!(CronSettingsTab::Scheduler, CronSettingsTab::Scheduler);
-    assert_eq!(CronAddJobType::default(), CronAddJobType::Shell);
+    assert_eq!(CronAddJobType::default(), CronAddJobType::Agent);
     assert_eq!(CronAddJobType::Shell.as_api_value(), "shell");
     assert_eq!(CronAddJobType::Agent.as_api_value(), "agent");
     assert_eq!(CronAddScheduleKind::default(), CronAddScheduleKind::Cron);
@@ -259,7 +259,7 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
 
     let draft = CronJobDraft::default();
     assert!(draft.name.is_empty());
-    assert_eq!(draft.job_type, CronAddJobType::Shell);
+    assert_eq!(draft.job_type, CronAddJobType::Agent);
     assert_eq!(draft.schedule_kind, CronAddScheduleKind::Cron);
     assert_eq!(draft.session_target, "isolated");
     assert_eq!(draft.agent, "main");

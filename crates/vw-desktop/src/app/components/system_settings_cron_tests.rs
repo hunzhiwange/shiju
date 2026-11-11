@@ -88,28 +88,6 @@ fn option_helpers_preserve_selected_values() {
         with_selected_option(vec!["b".to_string(), "b".to_string()], " "),
         vec!["b".to_string()]
     );
-    assert_eq!(
-        selected_acp_agent_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, ""),
-        NO_ACP_AGENT_LABEL
-    );
-    assert_eq!(
-        selected_acp_agent_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "agent-a"),
-        "agent-a"
-    );
-    assert_eq!(
-        acp_agent_value_from_label(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-            NO_ACP_AGENT_LABEL.to_string()
-        ),
-        ""
-    );
-    assert_eq!(
-        acp_agent_value_from_label(
-            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-            "agent-a".to_string()
-        ),
-        "agent-a"
-    );
 }
 
 #[test]
@@ -121,8 +99,6 @@ fn app_backed_option_helpers_include_current_selection() {
 
     assert!(project_options(&app, "/tmp/selected").contains(&"/tmp/selected".to_string()));
     assert!(project_options(&app, "").contains(&"/tmp/current".to_string()));
-    assert!(acp_agent_options(&app, "acp-b").contains(&"acp-b".to_string()));
-    assert!(acp_agent_options(&app, "").contains(&NO_ACP_AGENT_LABEL.to_string()));
     assert!(models_for_provider(&app, "missing").is_empty());
 }
 

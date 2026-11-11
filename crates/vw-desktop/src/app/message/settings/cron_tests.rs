@@ -614,3 +614,39 @@ fn common_frequency_selection_updates_both_drafts_and_advanced_preserves_express
     assert_eq!(app.cron_settings.add_draft.schedule, expression);
     assert_eq!(app.cron_settings.add_draft.frequency, CronFrequency::Advanced);
 }
+
+#[test]
+fn model_selection_stays_consistent_with_provider_in_both_drafts() {
+    let mut app = app();
+    for edit in [false, true] {
+        let model_message = |value: &str| {
+            if edit {
+                SettingsMessage::CronJobEditModelChanged(value.into())
+            } else {
+                SettingsMessage::CronAddModelChanged(value.into())
+            }
+        };
+        let provider_message = |value: &str| {
+            if edit {
+                SettingsMessage::CronJobEditModelProviderChanged(value.into())
+            } else {
+                SettingsMessage::CronAddModelProviderChanged(value.into())
+            }
+        };
+        let _ = update(&mut app, model_message("provider-a/model-a"));
+        let _ = update(&mut app, provider_message("provider-a"));
+        let draft = if edit { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
+        assert_eq!(draft.model_provider, "provider-a");
+        assert_eq!(draft.model, "provider-a/model-a");
+
+        let _ = update(&mut app, provider_message("provider-b"));
+        let draft = if edit { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
+        assert_eq!(draft.model_provider, "provider-b");
+        assert!(draft.model.is_empty());
+
+        let _ = update(&mut app, model_message("provider-b/model-b"));
+        let draft = if edit { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
+        assert_eq!(draft.model_provider, "provider-b");
+        assert_eq!(draft.model, "provider-b/model-b");
+    }
+}

@@ -585,7 +585,7 @@ impl CronAddJobType {
 
 impl Default for CronAddJobType {
     fn default() -> Self {
-        Self::Shell
+        Self::Agent
     }
 }
 

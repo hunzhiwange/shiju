@@ -425,6 +425,7 @@ async fn ui_refresh_27_preserves_values_and_disabled_states() {
     let mut app = fixture();
     app.cron_settings.active_tab = CronSettingsTab::Add;
     app.cron_settings.add_draft.project_path = PROJECT.into();
+    app.cron_settings.add_draft.job_type = CronAddJobType::Shell;
     app.cron_settings.add_draft.delivery_enabled = true;
     app.cron_settings.add_draft.delivery_channel = "telegram".into();
     app.heartbeat_settings.enabled = false;
@@ -1201,8 +1202,7 @@ async fn settings_help_gap_10_edit_agent_hides_fallback_explanation() {
     let mut ui = scene(gap_10_view(&app), &mut renderer, size);
     for help in [
         ("回退模型", FALLBACK_HELP),
-        ("委托代理", "默认使用 Main，套用代理配置中的 provider、模型和温度。"),
-        ("ACP 智能体", "默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
+        ("智能体", "默认使用 Main，套用代理配置中的 provider、模型和温度。"),
         ("Agent 提示词", "创建 Agent 类型定时任务。"),
         ("模型提供商", "与智能体配置中的模型选择一致。"),
         ("模型下拉", "从当前提供商的模型列表选择，会写入 provider/model。"),
@@ -1324,5 +1324,68 @@ async fn settings_help_gap_10_advanced_hides_workday_example() {
                 "unexpected input message: {messages:?}"
             );
         }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cron_agent_and_model_choices_render_below_project() {
+    if !isolated("cron_agent_and_model_choices_render_below_project") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.cron_settings.active_tab = CronSettingsTab::Add;
+    app.cron_settings.add_draft.project_path = PROJECT.into();
+    app.acp_agents = vec!["codex".into(), "claude".into()];
+    assert_eq!(app.cron_settings.add_draft.job_type, CronAddJobType::Agent);
+    let size = Size::new(960, 2800);
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut ui = scene(frame(view(&app)), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        assert!(!positions.labels.iter().any(|(label, _)| label == "ACP 智能体"));
+        let mut previous = positions.label("项目路径");
+        for label in ["智能体", "模型提供商", "模型下拉", "模型手工输入", "Agent 提示词"]
+        {
+            let bounds = positions.label(label);
+            assert_fits(bounds, size);
+            assert!(bounds.y > previous.y, "{label} must follow the project execution choices");
+            previous = bounds;
+        }
+        capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            "cron-agent-choices",
+            mouse::Cursor::Unavailable,
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cron_edit_form_omits_separate_acp_selector() {
+    if !isolated("cron_edit_form_omits_separate_acp_selector") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.acp_agents = vec!["codex".into(), "claude".into()];
+    app.cron_settings.edit_draft.job_type = CronAddJobType::Agent;
+    let size = Size::new(960, 2800);
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut ui = scene(frame(edit_form(&app)), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        assert!(!positions.labels.iter().any(|(label, _)| label == "ACP 智能体"));
+        assert_fits(positions.label("智能体"), size);
+        capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            "cron-edit-agent-choices",
+            mouse::Cursor::Unavailable,
+        );
     }
 }

@@ -25,7 +25,6 @@ use vw_gateway_client::CronJobDto;
 
 mod schedule;
 
-const NO_ACP_AGENT_LABEL: &str = "不使用 ACP";
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
 const CRON_FORM_CONTROL_WIDTH: f32 = 460.0;
 
@@ -239,31 +238,6 @@ fn project_field<'a>(
     })
     .width(Length::Fill)
     .into()
-}
-
-fn acp_agent_options(app: &App, selected: &str) -> Vec<String> {
-    let mut options = Vec::with_capacity(app.acp_agents.len() + 1);
-    options
-        .push(crate::app::i18n::I18n::new(app.desktop_locale).__(NO_ACP_AGENT_LABEL).to_string());
-    options.extend(app.acp_agents.iter().cloned());
-    with_selected_option(options, selected)
-}
-
-fn selected_acp_agent_label(locale: vw_config_types::ui::DesktopLocale, value: &str) -> String {
-    let value = value.trim();
-    if value.is_empty() {
-        crate::app::i18n::I18n::new(locale).__(NO_ACP_AGENT_LABEL).to_string()
-    } else {
-        value.to_string()
-    }
-}
-
-fn acp_agent_value_from_label(locale: vw_config_types::ui::DesktopLocale, value: String) -> String {
-    if value == crate::app::i18n::I18n::new(locale).__(NO_ACP_AGENT_LABEL) {
-        String::new()
-    } else {
-        value
-    }
 }
 
 fn pick_field<'a>(
@@ -521,7 +495,6 @@ fn edit_form(app: &App) -> Element<'_, Message> {
             .collect(),
         &draft.agent,
     );
-    let acp_agent_options = acp_agent_options(app, &draft.acp_agent);
     let provider_options = with_selected_option(
         app.agents_settings.provider_models.iter().map(|provider| provider.id.clone()).collect(),
         &draft.model_provider,
@@ -654,40 +627,13 @@ fn edit_form(app: &App) -> Element<'_, Message> {
         CronAddJobType::Agent => form
             .push(field_row_with_help(
                 app,
-                "委托代理",
+                "智能体",
                 i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
                 pick_field(
                     agent_options,
                     (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
                     |v| Message::Settings(message::SettingsMessage::CronJobEditAgentChanged(v)),
                 ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "ACP 智能体",
-                i18n.__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
-                pick_field(
-                    acp_agent_options,
-                    Some(selected_acp_agent_label(app.desktop_locale, &draft.acp_agent)),
-                    |v| {
-                        Message::Settings(message::SettingsMessage::CronJobEditAcpAgentChanged(
-                            acp_agent_value_from_label(app.desktop_locale, v),
-                        ))
-                    },
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "Agent 提示词",
-                i18n.__("创建 Agent 类型定时任务。"),
-                settings_text_editor(&draft.prompt_editor)
-                    .placeholder(i18n.__("要让 Agent 执行的任务"))
-                    .on_action(|action| {
-                        Message::Settings(message::SettingsMessage::CronJobEditPromptEditorAction(
-                            action,
-                        ))
-                    })
-                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row_with_help(
                 app,
@@ -727,6 +673,19 @@ fn edit_form(app: &App) -> Element<'_, Message> {
                 text_field("provider/model", &draft.model, |v| {
                     Message::Settings(message::SettingsMessage::CronJobEditModelChanged(v))
                 }),
+            ))
+            .push(field_row_with_help(
+                app,
+                "Agent 提示词",
+                i18n.__("创建 Agent 类型定时任务。"),
+                settings_text_editor(&draft.prompt_editor)
+                    .placeholder(i18n.__("要让 Agent 执行的任务"))
+                    .on_action(|action| {
+                        Message::Settings(message::SettingsMessage::CronJobEditPromptEditorAction(
+                            action,
+                        ))
+                    })
+                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row_with_help(
                 app,
@@ -995,7 +954,6 @@ fn add_tab(app: &App) -> Element<'_, Message> {
             .collect(),
         &draft.agent,
     );
-    let acp_agent_options = acp_agent_options(app, &draft.acp_agent);
     let provider_options = with_selected_option(
         app.agents_settings.provider_models.iter().map(|provider| provider.id.clone()).collect(),
         &draft.model_provider,
@@ -1131,40 +1089,13 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         CronAddJobType::Agent => form
             .push(field_row_with_help(
                 app,
-                "委托代理",
+                "智能体",
                 i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
                 pick_field(
                     agent_options,
                     (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
                     |v| Message::Settings(message::SettingsMessage::CronAddAgentChanged(v)),
                 ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "ACP 智能体",
-                i18n.__("默认不使用 ACP；选择后通过对应 ACP 智能体执行。"),
-                pick_field(
-                    acp_agent_options,
-                    Some(selected_acp_agent_label(app.desktop_locale, &draft.acp_agent)),
-                    |v| {
-                        Message::Settings(message::SettingsMessage::CronAddAcpAgentChanged(
-                            acp_agent_value_from_label(app.desktop_locale, v),
-                        ))
-                    },
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "Agent 提示词",
-                i18n.__("创建 Agent 类型定时任务。"),
-                settings_text_editor(&draft.prompt_editor)
-                    .placeholder(i18n.__("要让 Agent 执行的任务"))
-                    .on_action(|action| {
-                        Message::Settings(message::SettingsMessage::CronAddPromptEditorAction(
-                            action,
-                        ))
-                    })
-                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row_with_help(
                 app,
@@ -1202,6 +1133,19 @@ fn add_tab(app: &App) -> Element<'_, Message> {
                 text_field("provider/model", &draft.model, |v| {
                     Message::Settings(message::SettingsMessage::CronAddModelChanged(v))
                 }),
+            ))
+            .push(field_row_with_help(
+                app,
+                "Agent 提示词",
+                i18n.__("创建 Agent 类型定时任务。"),
+                settings_text_editor(&draft.prompt_editor)
+                    .placeholder(i18n.__("要让 Agent 执行的任务"))
+                    .on_action(|action| {
+                        Message::Settings(message::SettingsMessage::CronAddPromptEditorAction(
+                            action,
+                        ))
+                    })
+                    .height(Length::Fixed(140.0)),
             ))
             .push(field_row_with_help(
                 app,

@@ -408,11 +408,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditModelProviderChanged(value) => {
-            app.cron_settings.edit_draft.model_provider = value;
+            let draft = &mut app.cron_settings.edit_draft;
+            if draft.model_provider != value {
+                draft.model.clear();
+                draft.model_provider = value;
+            }
             Task::none()
         }
         SettingsMessage::CronJobEditModelChanged(value) => {
-            app.cron_settings.edit_draft.model = value;
+            let draft = &mut app.cron_settings.edit_draft;
+            draft.model_provider = model_provider_from_model(&value);
+            draft.model = value;
             Task::none()
         }
         SettingsMessage::CronJobEditWakeToggled(value) => {
@@ -629,11 +635,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronAddModelProviderChanged(value) => {
-            app.cron_settings.add_draft.model_provider = value;
+            let draft = &mut app.cron_settings.add_draft;
+            if draft.model_provider != value {
+                draft.model.clear();
+                draft.model_provider = value;
+            }
             Task::none()
         }
         SettingsMessage::CronAddModelChanged(value) => {
-            app.cron_settings.add_draft.model = value;
+            let draft = &mut app.cron_settings.add_draft;
+            draft.model_provider = model_provider_from_model(&value);
+            draft.model = value;
             Task::none()
         }
         SettingsMessage::CronAddWakeToggled(value) => {

@@ -166,6 +166,8 @@ pub(crate) fn replace(
                 revision: revision.clone(),
                 provider_id: id.clone(),
                 target: JsonTarget {
+                    #[cfg(target_os = "macos")]
+                    managed: None,
                     url,
                     authorization,
                     transport: SharedTransport::new().map_err(unavailable)?,

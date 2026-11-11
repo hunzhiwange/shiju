@@ -64,6 +64,8 @@ async fn cc_route_017_header_wire_expected_behavior() {
                     account_generation: 1,
                 },
                 Some(JsonTarget {
+                    #[cfg(target_os = "macos")]
+                    managed: None,
                     url,
                     authorization: "Bearer provider-fixture".parse().unwrap(),
                     transport: SharedTransport::new().unwrap(),

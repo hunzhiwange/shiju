@@ -35,6 +35,8 @@ pub(super) fn issue(
                 1,
             ),
             JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: url.parse().unwrap(),
                 authorization: "Bearer provider-fixture".parse().unwrap(),
                 transport,

@@ -106,6 +106,8 @@ async fn aggregation_t46_desktop_discovery_and_messages_use_one_scoped_listener(
             revision: "revision-one".into(),
             provider_id: id.into(),
             target: JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: format!("http://{upstream_address}/{path}").parse().unwrap(),
                 authorization: if id == "alpha" {
                     "fixture-alpha".parse().unwrap()

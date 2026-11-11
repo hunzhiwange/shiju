@@ -117,6 +117,20 @@ pub(super) struct AuthorizedRoute {
 
 impl AuthorizedRoute {
     #[cfg(target_os = "macos")]
+    pub(super) fn validate_managed(
+        &self,
+        credential: &super::adapter_selection::ManagedCredential,
+    ) -> Result<(), StatusCode> {
+        if &credential.tenant != self.binding.project.tenant_scope()
+            || credential.host != self.binding.host
+            || credential.account != self.binding.account
+        {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "macos")]
     pub(super) async fn check_provider(
         self: &Arc<Self>,
         address: std::net::SocketAddr,
@@ -760,3 +774,7 @@ mod decode_request_tests;
 #[cfg(test)]
 #[path = "decode_response_tests.rs"]
 mod decode_response_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "adapter_selection_tests.rs"]
+mod adapter_selection_tests;

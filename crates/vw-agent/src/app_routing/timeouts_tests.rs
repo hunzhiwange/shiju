@@ -72,6 +72,8 @@ impl Fixture {
                     1,
                 ),
                 JsonTarget {
+                    #[cfg(target_os = "macos")]
+                    managed: None,
                     url: format!("http://{}/fixture", upstream.local_addr().unwrap())
                         .parse()
                         .unwrap(),

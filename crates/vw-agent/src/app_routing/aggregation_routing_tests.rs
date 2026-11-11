@@ -38,6 +38,8 @@ async fn aggregation_t11_aggregation_routing_preserves_contract() {
         .issue_test_token(
             binding,
             JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: url.parse().unwrap(),
                 authorization: "Bearer fixture".parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),
@@ -153,6 +155,8 @@ async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
             revision: revision.into(),
             provider_id: provider.into(),
             target: JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: upstreams[index].0.parse().unwrap(),
                 authorization: format!("Bearer fixture-{provider}").parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),

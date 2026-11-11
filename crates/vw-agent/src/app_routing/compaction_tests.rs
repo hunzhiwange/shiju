@@ -88,6 +88,8 @@ async fn aggregation_t25_aggregation_compaction_preserves_contract() {
             revision: revision.into(),
             provider_id: "member".into(),
             target: JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: format!("http://{address}/v1/chat/completions").parse().unwrap(),
                 authorization: "Bearer upstream-fixture".parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),

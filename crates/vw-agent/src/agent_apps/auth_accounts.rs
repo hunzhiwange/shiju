@@ -1111,3 +1111,6 @@ impl AuthAccountStore {
         material.archive(dir.path(), keychain)
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod gemini;

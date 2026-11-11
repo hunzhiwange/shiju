@@ -94,6 +94,8 @@ async fn aggregation_t12_listener_preserves_queue_and_resumes_ordered_selection(
         revision: revision.into(),
         provider_id: id.into(),
         target: JsonTarget {
+            #[cfg(target_os = "macos")]
+            managed: None,
             url: upstreams[index].0.parse().unwrap(),
             authorization: "Bearer fixture".parse().unwrap(),
             transport: SharedTransport::new().unwrap(),

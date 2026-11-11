@@ -208,6 +208,9 @@ pub fn prepare_account_launch_with_model(
     }
     let mut codex_auth = None;
     match credential {
+        AccountCredential::GeminiOauth(_) => {
+            return Err("Gemini OAuth credentials are routing-only".into());
+        }
         AccountCredential::CopilotToken(_) => {
             return Err("Copilot authorization has no launch application".into());
         }

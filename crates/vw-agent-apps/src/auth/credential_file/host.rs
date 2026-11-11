@@ -250,6 +250,9 @@ pub(in crate::auth) fn decode_credential(
         CredentialKind::App(AppId::Codex) => AccountCredential::CodexAuth(
             serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
         ),
+        CredentialKind::App(AppId::Gemini) => AccountCredential::GeminiOauth(
+            serde_json::from_slice(&bytes).map_err(|_| INVALID_MATERIAL)?,
+        ),
         CredentialKind::Copilot => {
             AccountCredential::CopilotToken(String::from_utf8(bytes).map_err(|_| INVALID_MATERIAL)?)
         }
@@ -395,6 +398,7 @@ pub(in crate::auth) fn write_to(
     if let Some(file) = &previous {
         match (decode(directory, path, kind, file)?, credential) {
             (AccountCredential::ClaudeToken(_), AccountCredential::ClaudeToken(_))
+            | (AccountCredential::GeminiOauth(_), AccountCredential::GeminiOauth(_))
             | (AccountCredential::CopilotToken(_), AccountCredential::CopilotToken(_))
             | (AccountCredential::XaiOauth(_), AccountCredential::XaiOauth(_))
             | (AccountCredential::ClaudeDirectory(_), AccountCredential::ClaudeDirectory(_)) => {}

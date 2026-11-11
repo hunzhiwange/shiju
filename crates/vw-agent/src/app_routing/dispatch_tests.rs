@@ -66,6 +66,8 @@ async fn cc_route_014_listener_filters_the_authorized_outgoing_json() {
         .issue_with_target(
             binding,
             Some(JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
                 url: target,
                 authorization: "Bearer provider-fixture".parse().unwrap(),
                 transport: SharedTransport::new().unwrap(),

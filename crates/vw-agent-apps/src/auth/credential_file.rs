@@ -61,7 +61,21 @@ pub struct KimiCredential {
     pub device_id: String,
 }
 
+/// Imported OAuth grant; no Debug implementation exposes token material.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeminiCredential {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub expires_at: TimestampMs,
+    #[serde(default)]
+    pub requires_reauth: bool,
+}
+
 pub enum AccountCredential {
+    GeminiOauth(GeminiCredential),
     ClaudeToken(String),
     ClaudeDirectory(ClaudeAccountDirectory),
     CodexAuth(serde_json::Value),
@@ -143,6 +157,21 @@ impl AccountCredential {
                 }
                 Ok(())
             }
+            (AppId::Gemini, Self::GeminiOauth(tokens))
+                if tokens.expires_at.0 > 0
+                    && [
+                        &tokens.access_token,
+                        &tokens.refresh_token,
+                        &tokens.client_id,
+                        &tokens.client_secret,
+                    ]
+                    .into_iter()
+                    .all(|s| {
+                        !s.is_empty() && s.len() <= 16384 && s.bytes().all(|b| b.is_ascii_graphic())
+                    }) =>
+            {
+                Ok(())
+            }
             (AppId::Agy, _) => {
                 Err("agy official accounts require an isolated OS keychain execution host".into())
             }
@@ -159,6 +188,9 @@ impl AccountCredential {
                 .ok()
                 .filter(|bytes| bytes.len() <= MAX_BYTES)
                 .ok_or(INVALID_MATERIAL)?,
+            Self::GeminiOauth(tokens) => {
+                serde_json::to_vec(tokens).map_err(|_| INVALID_MATERIAL)?
+            }
             Self::KimiOauth(tokens) => serde_json::to_vec(tokens)
                 .ok()
                 .filter(|bytes| bytes.len() <= MAX_BYTES)
@@ -231,6 +263,7 @@ impl CredentialFileStore {
         let service = match app {
             AppId::Claude => "claude",
             AppId::Codex => "codex",
+            AppId::Gemini => "gemini_oauth",
             AppId::Agy => {
                 return Err(
                     "agy official accounts require an isolated OS keychain execution host".into()

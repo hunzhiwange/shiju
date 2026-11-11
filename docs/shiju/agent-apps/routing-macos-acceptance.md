@@ -835,3 +835,47 @@ SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__
 槽位 11 的绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-11`，槽位 3 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；各阶段 `CARGO_BUILD_BUILD_DIR` 与该阶段目标目录相同。最后的格式化/SDK 阶段 `CARGO_BUILD_JOBS=1`，最后的 Clippy/网关验证阶段为 2。使用原子锁依次领取首个空闲槽位，未删除其他会话锁。验证进程和 Gateway 子进程均已退出，自己的槽位锁已释放，缓存保留。网关 lib-test 链接器报告既有 macOS linker_messages 警告，测试退出 0；全仓 Clippy 退出 0。
 
 本项最终 **7 项有效测试通过，0 失败，状态为已完成**。固定候选、拒绝任意目标、进度/取消/期限、连接释放、主体与任务作用域隔离和真实生产启动路径均已有有效证据；任务 30 卡按契约删除。不修改 `plan.md`，不宣称其他任务或跨平台验收完成。共享工作区其他会话的未提交变更保持原状。
+
+## 任务 31：选择适配器与认证策略（2026-11-11）
+
+本项只验收 macOS 的九类 ProviderType 选择、目标 URL 与认证头，以及受托管账号作用域约束的按请求读取。原生 Gemini 请求体/响应转换、其余协议和母任务 8 总体验收不在本项结论内；Windows、Linux、WSL 未构建、未验证。
+
+来源固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`。已将仓库 upstream 快照与相邻 cc-switch 仓库的固定 Git 对象逐字节比较，退出 0：providers/mod.rs SHA256 `4df3d5b8875c1007181b5a7236a0a13edd394ee79088b5d38734db66d71bf6b7`，adapter.rs `245515ef2139fa22e2b9fa29ce98273d0f1dde3865e20826d5f070cbc3d716fb`，auth.rs `502aa4624ea17f0f19c9c1036878d9c5b8a45cbff18f224752fde61ad0915aa4`。
+
+### 实现与取舍
+
+- `app_routing/adapter_selection.rs::{ProviderType, adapter, auth_headers, target_url}` 按来源显式映射九类：Codex 使用 Codex 家族，Gemini/GeminiCli 使用 Gemini 家族，其余使用 Claude 家族。认证头敏感位保留；空值、CRLF、控制字符、非 ASCII 或过长 token 返回认证错误，不 panic、不在错误中回显凭据。URL 拒绝用户信息、query/fragment、歧义端点与路径遍历；基础 `/v1` 和端点 `/v1/...` 去重。
+- `AccountAdapter` 在发布时创建并复用现有 GeminiRefresh、CodexRefresh、CopilotAuth、XaiRefresh，保留账号缓存；`managed_target` 每次通过现有 AuthAccountStore 获取 token，Copilot 使用同一会话的上游地址，Codex account-id 来自同一 owner 租约。未新增登录流程或读取环境/原生 CLI 全局凭据。静态 API key 仍沿用现有 provider 快照及当前记录校验。
+- `dispatch::JsonTarget.managed` 将托管凭据接入真实 `forward_json`；转发前检查 tenant/host/account 绑定及已授权 URL，替换旧凭据头。`ManagedCredential::resolve` 使用 boxed future 限制认证交换状态对连接 future 的膨胀。该契约供配置发布调用；本项没有新增公开 Gemini 登录服务或独立控制面 API。
+- 经用户明确扩展授权，最小 Gemini 契约复用 `CredentialFileStore` 的 owner/tenant/host/app/account 私有文件、CredentialLease、刷新代次与 publication lease。`AuthAccountStore::{import_gemini_grant,gemini_access_token}` 复用现有数据库 owner 元数据命名空间；导入要求调用者已验证 scope/材料，禁止覆盖既有账号。`GeminiRefresh` 固定 Google token endpoint、禁跳转、限制时限及响应体；刷新失败需重新认证时持久化标记，后续读取直接拒绝，代次校验阻止过期刷新重新发布。无新 AuthService 枚举或登录入口。
+- 独立测试 `adapter_selection_tests.rs` 由 `route_auth.rs` 的显式 cfg(test) 路径注册，以使用已有真实授权发布能力。回环测试走 RoutingListener、授权能力和真实私有文件/元数据，捕获线上 bearer 与 Gemini 客户端头并验证凭据轮换。使用 Codex 通用聊天入口仅测试认证线协议，不代表 Gemini 原生协议转换已验收。账号包回环用例只替换外部 Google 服务，不 mock 内部存储或授权。
+
+### 真实红灯与边界
+
+`cargo test -p vw-agent --lib cc_route_031_ -- --nocapture` 在槽位 13 实际运行 6 项，4 通过、2 失败，退出 101。目标行为红灯为 `/v1` 基础路径产生 `/v1/v1/chat/completions`，期望 `/v1/chat/completions`，随后以去重修复。另一失败是测试夹具只写凭据文件、遗漏账号元数据导致 NotFound，已改为先通过真实 import_gemini_grant 导入，再轮换文件；不将夹具错误伪称产品行为。该轮真实 HTTP 线协议轮换已通过。较早的缺符号、聚合类型、字段可见性等编译诊断均为 0 项运行，不算行为红灯。
+
+### 最终版本验证
+
+格式化执行 `cargo fmt --all -- --emit stdout` 及 `cargo fmt --all -- --config skip_children=true --emit stdout`，退出 0；只读输出后对本项文件定向运行 `rustfmt --edition 2024 --config skip_children=true`，不写其他会话文件。未执行全量单元测试、fmt --check、wasm 或 Makefile 命令。
+
+| 环境与命令 | 槽位 | 退出码、有效测试与耗时 |
+| --- | --- | --- |
+| 稳定副本：`cargo test -p vw-agent --lib cc_route_031_ -- --nocapture` | 6 | 退出 0；6 项通过，0 失败/忽略，运行 0.31 秒，构建 102 分 31 秒。 |
+| 稳定副本：`cargo test -p vw-agent-apps --lib cc_route_031_ -- --nocapture` | 6 | 退出 0；1 项通过，0 失败/忽略，运行 0.07 秒，构建 5 分 10 秒。 |
+| 稳定副本：`cargo clippy --all-targets --all-features -- -D warnings` | 6 | 退出 0，耗时 5 分 12 秒。 |
+| 原工作区：`cargo test -p vw-agent --lib cc_route_031_ -- --nocapture` | 6 | 退出 0；6 项通过，0 失败/忽略，运行 0.28 秒，构建 55 分 45 秒。 |
+| 原工作区：`cargo clippy --all-targets --all-features -- -D warnings` | 6 | 退出 101；本项 agent/apps 已检查，桌面其他会话的 Pi/OMP 接线报 8 个 lint 错误，无测试执行。 |
+
+路由六项覆盖九类适配器/敏感认证头、CRLF 等坏 token、九类默认目标/危险路径、协议前缀去重、真实 owner 读取及不同主体/主机拒绝、真实监听器线上凭据轮换。账号用例覆盖刷新请求表单、更新保存、invalid_grant 失效持久化和后续拒绝网络请求。路由测试链接器报告既有 macOS `__eh_frame` 大小警告，测试退出 0。
+
+交付前再次逐字节核对 selector/独立测试、dispatch、route_auth、父 mod、auth_accounts/其 gemini 模块、credential_file/host、刷新模块/测试、auth/mod 和 launch/account 共 13 个关键文件，副本与真实集成目录全部一致。实际工作区六项测试也已执行通过，不以副本通过替代真实接线验证。测试编译读到其他会话早期 computer_control.rs 的 unused_mut 警告；当前文件已由所属改动移除该 mut，本项未重复编辑。
+
+集成 Clippy 的 8 项阻断具体为：`settings/aggregation_omp.rs` 未使用 `core::*` re-export；`ListMessage::PiDirectory` 暴露较私有的 Pi Event；`aggregation_list::Form.selection/generation` 未读取；Pi Event 多个 UI 变体未构造；OMP core 的 `read`、`Form`、`finish`、`error` 未使用。核对发现这些模块和 UI 正由其他会话新增，OMP core 尚无实际调用者，目录 Form.finish 仍丢弃 selection/generation；接通完整 UI 或用 allow 掩盖均超出本项最小编译兼容范围，因此保留现场，不改动其功能。
+
+历史辅助检查：`cargo test -p vw-agent-apps --lib cc_route_031_ -- --nocapture` 在槽位 12 与 13 各实际通过 1 项，退出 0；最后一轮验证成功刷新、invalid_grant 持久化和后续不再发起网络请求。较早版本的全仓 `cargo clippy --all-targets --all-features -- -D warnings` 在槽位 13 退出 0（42 分 25 秒），该记录早于最终 URL/客户端复用修正，不代替最终版本检查。后续共享目录编译还遭遇过无关聚合 AppState Debug 断言及 voice 可见性错误，均已由所属改动修正；不把这些编译失败算作本项行为失败。
+
+使用过的动态共享槽位为 12、13、6，对应绝对 `CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-12`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-13`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-6`，每轮 `CARGO_BUILD_BUILD_DIR` 与目标目录相同。最后阶段 `CARGO_BUILD_JOBS=1`。全部本任务 Cargo 子进程已退出，脚本 EXIT trap 已释放自己的锁，保留缓存；不删除其他会话的锁。
+
+为避免共享源码持续变动影响有效验证，经用户授权从真实工作区复制到 `/private/tmp/shiju-routing31-verify.Xdg44d`，排除 Git、target 和索引缓存；没有创建 Git worktree。该副本验证仍使用原仓库槽位 6 的绝对构建目录。交付前逐字节核对本项源码和真实集成接线，并分别记录副本及实际工作区验证结果，不用副本通过隐藏实际集成失败。源码仅在原工作区修改。
+
+本项 7 个不同用例通过，实际集成路由六项复验通过，状态为 **已完成，待回归**。保留任务 31 卡；恢复条件为 Pi/OMP 桌面所有者完成生产调用与 UI 接线、消除上述 lint 后，重新动态领取共享槽位，在原工作区运行相同全仓 Clippy。未修改 plan.md，未宣称母任务 8 或跨平台验收完成。

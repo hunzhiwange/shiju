@@ -34,6 +34,8 @@ const SSE: &str = "text/event-stream";
 /// The publication owner supplies the destination, credential and stored request
 /// options for the same selected provider.
 pub(crate) struct JsonTarget {
+    #[cfg(target_os = "macos")]
+    pub(crate) managed: Option<std::sync::Arc<super::adapter_selection::ManagedCredential>>,
     pub(crate) url: reqwest::Url,
     pub(crate) authorization: HeaderValue,
     pub(crate) transport: SharedTransport,
@@ -180,6 +182,20 @@ pub(super) async fn forward_json(
     }
     #[cfg(target_os = "macos")]
     let timeouts = route.timeouts().await?;
+    #[cfg(target_os = "macos")]
+    if let Some(credential) = &target.managed {
+        route.validate_managed(credential)?;
+        let selected = credential.resolve().await.map_err(|_| StatusCode::UNAUTHORIZED)?;
+        // Endpoint changes need a new authorized publication, never a silent redirect.
+        if selected.url != target.url {
+            return Err(StatusCode::CONFLICT.into());
+        }
+        for name in ["authorization", "x-api-key", "x-goog-api-key", "chatgpt-account-id"] {
+            outgoing.headers_mut().remove(name);
+        }
+        outgoing.headers_mut().extend(selected.headers);
+    }
+
     #[cfg(not(target_os = "macos"))]
     let timeouts = timeouts::AppTimeouts::default();
     if streaming {

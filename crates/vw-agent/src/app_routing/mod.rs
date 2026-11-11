@@ -89,3 +89,6 @@ pub(crate) mod provider_publication;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod desktop_routing;
+
+#[cfg(target_os = "macos")]
+pub mod adapter_selection;

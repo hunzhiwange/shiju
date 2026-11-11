@@ -32,6 +32,8 @@ fn binding() -> VerifiedRouteBinding {
 
 fn target(url: &str, authorization: &'static str, options: ProviderRequestOptions) -> JsonTarget {
     JsonTarget {
+        #[cfg(target_os = "macos")]
+        managed: None,
         url: url.parse().unwrap(),
         authorization: authorization.parse().unwrap(),
         transport: SharedTransport::new().unwrap(),

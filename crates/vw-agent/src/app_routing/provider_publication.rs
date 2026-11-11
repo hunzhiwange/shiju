@@ -312,6 +312,8 @@ pub(crate) fn apply(
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
             .unwrap_or_default();
         let target = JsonTarget {
+            #[cfg(target_os = "macos")]
+            managed: None,
             url,
             authorization,
             transport: SharedTransport::new().map_err(unavailable)?,

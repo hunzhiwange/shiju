@@ -538,6 +538,8 @@ impl RecordPublicationContext {
                 revision: revision.into(),
                 provider_id: id.into(),
                 target: JsonTarget {
+                    #[cfg(target_os = "macos")]
+                    managed: None,
                     url,
                     authorization,
                     transport: SharedTransport::new().map_err(failed)?,

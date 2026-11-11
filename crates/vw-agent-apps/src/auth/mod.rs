@@ -127,3 +127,8 @@ mod dsh_account_tests;
 pub mod logout;
 #[cfg(all(test, target_os = "macos"))]
 mod logout_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod gemini_refresh;
+#[cfg(all(test, unix, not(target_arch = "wasm32")))]
+mod gemini_refresh_tests;

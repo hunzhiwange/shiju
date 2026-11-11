@@ -7,14 +7,20 @@ use super::file_search::{
     format_drop_mentions, fuzzy_subsequence_score, handle_file_search_input_changed,
     handle_file_search_navigate_down, handle_file_search_navigate_up, handle_file_search_select,
     handle_file_search_select_current, handle_input_area_drag_drop, handle_input_editor_action,
-    handle_input_editor_backspace, handle_input_editor_commit, handle_input_editor_delete,
-    handle_input_editor_motion, handle_remove_file_reference, is_file_search_char,
-    normalized_lower_path, ranked_file_search_entries, ranked_file_search_results,
-    replace_or_append_file_mention, trailing_token,
+    handle_remove_file_reference, is_file_search_char, normalized_lower_path,
+    ranked_file_search_entries, ranked_file_search_results, replace_or_append_file_mention,
+    trailing_token,
 };
 use crate::app::{App, FocusArea};
 use iced::widget::text_editor;
 use std::sync::Arc;
+
+fn paste(app: &mut App, value: String) -> iced::Task<crate::app::Message> {
+    handle_input_editor_action(
+        app,
+        text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(value))),
+    )
+}
 
 fn test_app() -> App {
     App::new().0
@@ -204,7 +210,7 @@ fn input_editor_actions_open_and_clear_file_search() {
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/main.rs".to_string(), "tests/input.rs".to_string()]);
 
-    handle_input_editor_commit(&mut app, "@src".to_string());
+    paste(&mut app, "@src".to_string());
 
     assert!(app.show_file_search);
     assert_eq!(app.file_search_query, "src");
@@ -218,21 +224,27 @@ fn input_editor_actions_open_and_clear_file_search() {
     assert!(!app.show_file_search);
     assert!(app.file_search_query.is_empty());
 
-    handle_input_editor_commit(&mut app, String::new());
-    handle_input_editor_backspace(&mut app);
-    handle_input_editor_delete(&mut app);
-    handle_input_editor_motion(&mut app, text_editor::Motion::DocumentEnd, false);
-    handle_input_editor_motion(&mut app, text_editor::Motion::DocumentStart, true);
+    paste(&mut app, String::new());
+    handle_input_editor_action(&mut app, text_editor::Action::Edit(text_editor::Edit::Backspace));
+    handle_input_editor_action(&mut app, text_editor::Action::Edit(text_editor::Edit::Delete));
+    handle_input_editor_action(
+        &mut app,
+        text_editor::Action::Move(text_editor::Motion::DocumentEnd),
+    );
+    handle_input_editor_action(
+        &mut app,
+        text_editor::Action::Select(text_editor::Motion::DocumentStart),
+    );
 }
 
 #[test]
 fn input_editor_invalid_search_character_clears_active_search() {
     let mut app = test_app();
 
-    handle_input_editor_commit(&mut app, "@src".to_string());
+    paste(&mut app, "@src".to_string());
     assert!(app.show_file_search);
 
-    handle_input_editor_commit(&mut app, "!".to_string());
+    paste(&mut app, "!".to_string());
 
     assert!(!app.show_file_search);
     assert!(app.file_search_query.is_empty());

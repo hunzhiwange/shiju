@@ -57,11 +57,6 @@ pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
         message,
         ChatMessage::InputChanged(_)
             | ChatMessage::InputEditorAction(_)
-            | ChatMessage::WasmImeCommit(_)
-            | ChatMessage::WasmImeFocus
-            | ChatMessage::WasmImeBackspace
-            | ChatMessage::WasmImeDelete
-            | ChatMessage::WasmImeMove { .. }
             | ChatMessage::OpenInputContextMenu { .. }
             | ChatMessage::CloseInputContextMenu
             | ChatMessage::CopyInputSelection
@@ -331,13 +326,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::SelectAllInput => context_menus::handle_select_all_input(app),
         ChatMessage::InputEditorAction(action) => {
             file_search::handle_input_editor_action(app, action)
-        }
-        ChatMessage::WasmImeCommit(value) => file_search::handle_input_editor_commit(app, value),
-        ChatMessage::WasmImeFocus => handle_wasm_ime_focus(),
-        ChatMessage::WasmImeBackspace => file_search::handle_input_editor_backspace(app),
-        ChatMessage::WasmImeDelete => file_search::handle_input_editor_delete(app),
-        ChatMessage::WasmImeMove { motion, select } => {
-            file_search::handle_input_editor_motion(app, motion, select)
         }
         ChatMessage::MessageEditorAction(idx, action) => {
             editor_actions::handle_message_editor_action(app, idx, action)
@@ -900,15 +888,4 @@ pub(crate) fn apply_chat_message_measurements(
     }
 
     changed
-}
-
-#[cfg(target_arch = "wasm32")]
-fn handle_wasm_ime_focus() -> Task<Message> {
-    crate::app::wasm_ime::focus_textarea();
-    Task::none()
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn handle_wasm_ime_focus() -> Task<Message> {
-    Task::none()
 }

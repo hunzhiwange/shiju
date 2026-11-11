@@ -19,8 +19,6 @@
 //! let (input_element, height) = build_input_editor(&app, &content, false, false);
 //! ```
 
-#[cfg(target_arch = "wasm32")]
-use iced::widget::mouse_area;
 use iced::widget::{button, column, container, text, text_editor};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
@@ -325,10 +323,6 @@ pub fn build_input_editor<'a>(
         }),
     )
     .into();
-
-    #[cfg(target_arch = "wasm32")]
-    let input: Element<'a, Message> =
-        mouse_area(input).on_press(Message::Chat(message::ChatMessage::WasmImeFocus)).into();
 
     let input = if let Some((x, y)) = app.input_context_menu_pos {
         if app.input_context_menu_open {

@@ -1,6 +1,6 @@
 //! Slash palette 状态机与选中应用测试。
 
-use super::file_search::{handle_input_editor_action, handle_input_editor_commit};
+use super::file_search::handle_input_editor_action;
 use super::slash_palette::{handle_slash_palette_select, handle_slash_palette_select_current};
 use crate::app::state::{
     ModelSummary, ProviderModelsSummary, SkillsCatalogItem, SkillsCatalogKind, SlashPaletteKind,
@@ -9,6 +9,13 @@ use crate::app::{App, FocusArea};
 use iced::widget::text_editor;
 use serde_json::json;
 use std::sync::Arc;
+
+fn paste(app: &mut App, value: String) -> iced::Task<crate::app::Message> {
+    handle_input_editor_action(
+        app,
+        text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(value))),
+    )
+}
 
 fn test_app() -> App {
     App::new().0
@@ -32,7 +39,7 @@ fn catalog_skill(id: &str, title: &str) -> SkillsCatalogItem {
 fn slash_palette_opens_on_trailing_slash_and_closes_on_whitespace() {
     let mut app = test_app();
 
-    let _ = handle_input_editor_commit(&mut app, "/".to_string());
+    let _ = paste(&mut app, "/".to_string());
 
     assert!(app.show_slash_palette);
     assert_eq!(app.slash_palette_query, "");
@@ -65,7 +72,7 @@ fn slash_palette_select_model_applies_and_clears_token() {
         }],
     }];
 
-    let _ = handle_input_editor_commit(&mut app, "hello /gpt".to_string());
+    let _ = paste(&mut app, "hello /gpt".to_string());
     assert!(app.show_slash_palette);
 
     let _ = handle_slash_palette_select(
@@ -84,7 +91,7 @@ fn slash_palette_select_skill_toggles_manual_skill_and_clears_token() {
     let mut app = test_app();
     app.skills_settings.catalog = vec![catalog_skill("review", "代码审查")];
 
-    let _ = handle_input_editor_commit(&mut app, "/review".to_string());
+    let _ = paste(&mut app, "/review".to_string());
     assert!(app.show_slash_palette);
 
     let _ = handle_slash_palette_select_current(&mut app);
@@ -103,7 +110,7 @@ fn slash_palette_and_file_search_are_mutually_exclusive() {
     app.project_path = Some("/workspace".to_string());
     app.set_file_index("/workspace", vec!["src/main.rs".to_string()]);
 
-    let _ = handle_input_editor_commit(&mut app, "@src".to_string());
+    let _ = paste(&mut app, "@src".to_string());
     assert!(app.show_file_search);
     assert!(!app.show_slash_palette);
 
@@ -113,7 +120,7 @@ fn slash_palette_and_file_search_are_mutually_exclusive() {
         runtime.input_editor = text_editor::Content::with_text("");
         runtime.input_editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
     }
-    let _ = handle_input_editor_commit(&mut app, "/gpt".to_string());
+    let _ = paste(&mut app, "/gpt".to_string());
     assert!(app.show_slash_palette);
     assert!(!app.show_file_search);
 
@@ -122,7 +129,7 @@ fn slash_palette_and_file_search_are_mutually_exclusive() {
         runtime.input_editor = text_editor::Content::with_text("");
         runtime.input_editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
     }
-    let _ = handle_input_editor_commit(&mut app, "@src".to_string());
+    let _ = paste(&mut app, "@src".to_string());
     assert!(app.show_file_search);
     assert!(!app.show_slash_palette);
 }

@@ -934,16 +934,6 @@ fn chat_measurement_rejects_stale_revision() {
 }
 
 #[test]
-fn wasm_focus_message_is_noop_on_native_targets() {
-    let (mut app, _) = crate::app::App::new();
-    app.input_text = "unchanged".to_string();
-
-    let _ = super::update(&mut app, ChatMessage::WasmImeFocus);
-
-    assert_eq!(app.input_text, "unchanged");
-}
-
-#[test]
 fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
     use crate::app::components::chat_panel::performance;
     use iced::widget::text_editor;

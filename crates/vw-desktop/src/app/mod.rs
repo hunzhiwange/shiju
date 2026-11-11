@@ -60,9 +60,6 @@ pub mod ui;
 mod ui_types;
 /// views 子模块，拆分当前领域的局部职责。
 pub mod views;
-#[cfg(target_arch = "wasm32")]
-#[path = "impls/wasm_ime.rs"]
-pub(crate) mod wasm_ime;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod webview_runtime;
 

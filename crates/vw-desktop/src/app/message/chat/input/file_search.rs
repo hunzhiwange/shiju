@@ -7,7 +7,6 @@ use super::shared::{
 use crate::app::{App, FocusArea, Message};
 use iced::{Task, widget::operation, widget::text_editor};
 use std::collections::BTreeSet;
-use std::sync::Arc;
 
 /// 模块内可见结构体，承载 FileSearchResult 对应的状态数据。
 /// 字段保持与相邻业务流程和序列化格式一致。
@@ -80,38 +79,6 @@ pub(super) fn handle_input_editor_action(app: &mut App, act: text_editor::Action
     match act {
         text_editor::Action::Edit(edit) => handle_input_editor_edit(app, edit),
         other => handle_input_editor_non_edit(app, other),
-    }
-}
-
-/// 模块内可见函数，执行 wasm IME 提交文本对应的输入流程。
-pub(super) fn handle_input_editor_commit(app: &mut App, value: String) -> Task<Message> {
-    if value.is_empty() {
-        return Task::none();
-    }
-
-    handle_input_editor_edit(app, text_editor::Edit::Paste(Arc::new(value)))
-}
-
-/// 模块内可见函数，执行 wasm 输入桥 Backspace 对应的输入流程。
-pub(super) fn handle_input_editor_backspace(app: &mut App) -> Task<Message> {
-    handle_input_editor_edit(app, text_editor::Edit::Backspace)
-}
-
-/// 模块内可见函数，执行 wasm 输入桥 Delete 对应的输入流程。
-pub(super) fn handle_input_editor_delete(app: &mut App) -> Task<Message> {
-    handle_input_editor_edit(app, text_editor::Edit::Delete)
-}
-
-/// 模块内可见函数，执行 wasm 输入桥光标移动对应的输入流程。
-pub(super) fn handle_input_editor_motion(
-    app: &mut App,
-    motion: text_editor::Motion,
-    select: bool,
-) -> Task<Message> {
-    if select {
-        handle_input_editor_non_edit(app, text_editor::Action::Select(motion))
-    } else {
-        handle_input_editor_non_edit(app, text_editor::Action::Move(motion))
     }
 }
 

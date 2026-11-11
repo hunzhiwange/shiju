@@ -806,26 +806,6 @@ pub enum ChatMessage {
     /// 对主输入框文本编辑器执行的操作
     InputEditorAction(text_editor::Action),
 
-    /// wasm IME 已提交文本
-    ///
-    /// 隐藏 textarea 的 input 事件提交的最终文本。
-    WasmImeCommit(String),
-
-    /// wasm 输入桥请求聚焦隐藏 textarea。
-    WasmImeFocus,
-
-    /// wasm 输入桥请求删除前一个字符。
-    WasmImeBackspace,
-
-    /// wasm 输入桥请求删除后一个字符。
-    WasmImeDelete,
-
-    /// wasm 输入桥请求移动或选择文本。
-    WasmImeMove {
-        motion: text_editor::Motion,
-        select: bool,
-    },
-
     /// 打开输入框右键菜单
     OpenInputContextMenu {
         /// 菜单锚点 X 坐标
@@ -1246,11 +1226,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ToggleShijuSkillMenu
         | ChatMessage::SelectShijuSkill(_)
         | ChatMessage::InputEditorAction(_)
-        | ChatMessage::WasmImeCommit(_)
-        | ChatMessage::WasmImeFocus
-        | ChatMessage::WasmImeBackspace
-        | ChatMessage::WasmImeDelete
-        | ChatMessage::WasmImeMove { .. }
         | ChatMessage::OpenInputContextMenu { .. }
         | ChatMessage::CloseInputContextMenu
         | ChatMessage::CopyInputSelection

@@ -60,6 +60,8 @@ pub mod ui;
 mod ui_types;
 /// views 子模块，拆分当前领域的局部职责。
 pub mod views;
+/// 本机语音能力与权限边界。
+pub mod voice;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod webview_runtime;
 

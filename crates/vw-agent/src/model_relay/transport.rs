@@ -181,9 +181,9 @@ pub(crate) fn official_alibaba_messages_url(api: &provider::ApiInfo) -> Option<r
     Some(url)
 }
 
-fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
+pub(super) fn messages_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
     let mut url =
-        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if !matches!(url.scheme(), "http" | "https")
         || !url.username().is_empty()
         || url.password().is_some()
@@ -206,9 +206,9 @@ fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     Ok(url)
 }
 
-fn responses_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
+pub(super) fn responses_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCode> {
     let mut url =
-        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if !matches!(url.scheme(), "http" | "https")
         || !url.username().is_empty()
         || url.password().is_some()
@@ -231,9 +231,12 @@ fn responses_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     Ok(url)
 }
 
-fn gemini_url(model: &provider::Model, streaming: bool) -> Result<reqwest::Url, StatusCode> {
+pub(super) fn gemini_url(
+    api: &provider::ApiInfo,
+    streaming: bool,
+) -> Result<reqwest::Url, StatusCode> {
     let mut url =
-        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+        reqwest::Url::parse(api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
     if !matches!(url.scheme(), "http" | "https")
         || !url.username().is_empty()
         || url.password().is_some()
@@ -248,7 +251,7 @@ fn gemini_url(model: &provider::Model, streaming: bool) -> Result<reqwest::Url, 
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     let base = if base.is_empty() { "/v1beta" } else { base };
-    let id = model.api.id.strip_prefix("models/").unwrap_or(&model.api.id);
+    let id = api.id.strip_prefix("models/").unwrap_or(&api.id);
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)) {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
@@ -382,13 +385,13 @@ impl RelayBackend for ProviderRelayBackend {
         };
         let streaming = if gemini_request { gemini_streaming } else { body["stream"] == true };
         let url = if native_gemini {
-            gemini_url(model, streaming)?
+            gemini_url(&model.api, streaming)?
         } else if native_responses {
-            responses_url(model)?
+            responses_url(&model.api)?
         } else if let Some(url) = deepseek_messages.or(alibaba_messages) {
             url
         } else if native {
-            messages_url(model)?
+            messages_url(&model.api)?
         } else {
             chat_url(&model.api)?
         };

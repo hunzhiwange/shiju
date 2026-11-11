@@ -11,6 +11,7 @@ mod binding_tests;
 mod server_tests;
 
 mod chat;
+pub(crate) mod generation;
 mod transport;
 pub use transport::ProviderRelayBackend;
 pub(crate) use transport::{

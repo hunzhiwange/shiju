@@ -26,6 +26,13 @@ const ENTERPRISE_ENDPOINT_TTL_SECONDS: i64 = 300;
 pub struct CopilotSession {
     pub endpoint: Url,
     pub authorization: header::HeaderValue,
+    credential_generation: [u8; 32],
+}
+
+impl CopilotSession {
+    pub fn matches_credential_generation(&self, generation: &[u8; 32]) -> bool {
+        self.credential_generation == *generation
+    }
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -165,7 +172,8 @@ impl CopilotAuth {
         let mut authorization = header::HeaderValue::from_str(&format!("Bearer {token}"))
             .map_err(|_| AuthErrorCode::UpstreamFailure)?;
         authorization.set_sensitive(true);
-        let session = CopilotSession { endpoint, authorization };
+        let session =
+            CopilotSession { endpoint, authorization, credential_generation: oauth_digest };
         *cached = Some(CachedSession { oauth_digest, refresh_at, session: session.clone() });
         Ok(session)
     }

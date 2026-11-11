@@ -178,6 +178,27 @@ impl AuthAccountStore {
         adapter.session(&self.credentials, scope, account_id, &authority).await
     }
 
+    /// Pin the login metadata and OAuth credential used by a managed model probe.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn copilot_diagnostic_generation(
+        &self,
+        scope: &AuthAccountScope<'_>,
+        account_id: &str,
+    ) -> Result<(AuthAccountMetadata, [u8; 32]), AuthErrorCode> {
+        self.read_metadata(scope, account_id)?;
+        let lease = self
+            .credentials
+            .lease_copilot(*scope, account_id, false)
+            .map_err(|_| AuthErrorCode::StorageUnavailable)?;
+        let metadata = self.read_metadata(scope, account_id)?;
+        let AccountCredential::CopilotToken(token) =
+            lease.read().map_err(|_| AuthErrorCode::StorageUnavailable)?
+        else {
+            return Err(AuthErrorCode::ReauthRequired);
+        };
+        Ok((metadata, Sha256::digest(token.as_bytes()).into()))
+    }
+
     /// Resolve a managed Codex account's access token on the authorized execution host.
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn codex_access_token(

@@ -164,7 +164,7 @@ fn account_scope(owner: &DiagnosticJobOwner) -> AuthAccountScope<'_> {
     }
 }
 
-fn is_copilot(row: &Value, configured: Option<&str>) -> bool {
+pub(super) fn is_copilot(row: &Value, configured: Option<&str>) -> bool {
     row.pointer("/meta/providerType").and_then(Value::as_str) == Some("github_copilot")
         || row.pointer("/meta/authBinding/authProvider").and_then(Value::as_str)
             == Some("github_copilot")
@@ -175,7 +175,7 @@ fn is_copilot(row: &Value, configured: Option<&str>) -> bool {
         })
 }
 
-fn copilot_binding(row: &Value) -> Result<Option<&str>, ReachabilityPrepareError> {
+pub(super) fn copilot_binding(row: &Value) -> Result<Option<&str>, ReachabilityPrepareError> {
     let invalid = ReachabilityPrepareError::Account(AuthErrorCode::InvalidInput);
     let account = match row.pointer("/meta/authBinding").filter(|value| !value.is_null()) {
         Some(binding) => {
@@ -193,7 +193,11 @@ fn copilot_binding(row: &Value) -> Result<Option<&str>, ReachabilityPrepareError
     }
 }
 
-fn configured_url(owner: &DiagnosticJobOwner, _provider_id: &str, row: &Value) -> Option<String> {
+pub(super) fn configured_url(
+    owner: &DiagnosticJobOwner,
+    _provider_id: &str,
+    row: &Value,
+) -> Option<String> {
     if row["category"] == "official" {
         return None;
     }

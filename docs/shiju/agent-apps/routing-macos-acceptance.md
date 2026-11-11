@@ -815,3 +815,23 @@ SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__
 本轮有效行为测试 **3 项通过，0 失败**。原四项单元测试历史通过记录仍保留，但不冒充本轮运行结果。槽位 5 的绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5`，槽位 10 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-10`；各自 `CARGO_BUILD_BUILD_DIR` 同目标目录，`CARGO_BUILD_JOBS=2`。全仓 Clippy 另使用槽位 3，绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR` 同该路径，`CARGO_BUILD_JOBS=2`。三个阶段均已结束、自己的锁已释放，缓存保留。
 
 当前为 **已完成，待回归**，不需要新增权限、用户决策或外部业务产物；保留任务卡，待归档 SDK 调用者完成 delete_json 参数契约对齐，在稳定的集成工作区与资源窗口重跑两条原聚焦测试、独立 Gateway 验收及全仓 Clippy，全部通过后才删除卡片。未修改 `plan.md` 或其他任务实现。
+
+### 最终回归与最小编译适配收尾（2026-11-11）
+
+用户授权在当前集成工作区修复阻断本项验收的最小编译适配，并明确允许本次只读 Clippy 在独占 Cargo 槽位中与其他检查并行。本轮最终验证开始基线为 `e341b1df26a26b353db254aba2a858ba7a63e1d4` 及共享工作区已有变更；验证期间其他会话继续提交聚合和桌面改动，不将结果描述成干净 HEAD 的验收。
+
+旧归档 SDK 缺参已由所属改动修复。为读到真实行为结果，本会话还修正了实际编译阻断：provider 两个夹具路由仅公开至 handlers；MCP String 转 ProjectId、OMO 测试 ProjectId 构造、desktop_mapping 的 PathBuf 分支；既有跨 crate 调用者所需的 ClaudeFile.guard/name、StackState.is_empty、AppWriteGuard.read 可见性；重复 managed 字段；voice 请求主体摘要仅公开至 handlers；Gemini 测试两处传入现有 AuthAccountStore。文件读取仍使用原 resolve 和名称检查，未改鉴权、路径校验或扫描行为。多数适配已随其模块所属的集成提交合入（包括 `e341b1df2`、`4c82f1d56`）；剩余 voice 可见性与本项证据单独提交。Gemini 的两行测试适配保留在所属会话未跟踪的 `app_routing/adapter_selection_tests.rs` 中，不将其他会话整份新文件纳入本项提交；这些验证包含共享工作区的该文件。
+
+先前槽位 11 的失败快照分别记录了原 lib-test 的 24 个诊断、独立验收生产库的 9 个诊断，以及 voice/授权 helper/Gemini 类型契约问题；取得诊断后结束了自己的失败驱动，均不算行为通过。修正后的首次长时间 lib-test 构建又被工具更新中断，0 项运行。后续重新领取槽位，取得以下完整有效结果，替代上文所有“待回归”恢复条件：
+
+| 阶段 | 确切命令 | 槽位、退出码与有效测试 |
+| --- | --- | --- |
+| 最后一次源码修改后的格式化 | `cargo fmt --all -- --emit stdout` | 槽位 11，退出 0；全仓只读输出，未写其他会话文件。 |
+| SDK 聚焦复验 | `cargo test -p vw-gateway-client --lib cc_route_030_ -- --nocapture` | 槽位 11，退出 0，2 项通过、0 失败或忽略，0.01 秒。 |
+| 全仓 Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 槽位 3，退出 0，2 分 16 秒。 |
+| 原网关聚焦复验 | `cargo test -p vw-agent --lib cc_route_030_ -- --nocapture` | 槽位 3，退出 0，4 项通过、0 失败或忽略，0.93 秒；构建 55 分 50 秒。 |
+| 独立生产 Gateway 复验 | `cargo test -p vw-agent --test cc_route_030_outbound_scan cc_route_030_ -- --nocapture` | 槽位 3，退出 0，1 项通过、0 失败或忽略，0.35 秒；1 项辅助子进程入口被前缀过滤，构建 14 分 41 秒。 |
+
+槽位 11 的绝对 `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-11`，槽位 3 为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；各阶段 `CARGO_BUILD_BUILD_DIR` 与该阶段目标目录相同。最后的格式化/SDK 阶段 `CARGO_BUILD_JOBS=1`，最后的 Clippy/网关验证阶段为 2。使用原子锁依次领取首个空闲槽位，未删除其他会话锁。验证进程和 Gateway 子进程均已退出，自己的槽位锁已释放，缓存保留。网关 lib-test 链接器报告既有 macOS linker_messages 警告，测试退出 0；全仓 Clippy 退出 0。
+
+本项最终 **7 项有效测试通过，0 失败，状态为已完成**。固定候选、拒绝任意目标、进度/取消/期限、连接释放、主体与任务作用域隔离和真实生产启动路径均已有有效证据；任务 30 卡按契约删除。不修改 `plan.md`，不宣称其他任务或跨平台验收完成。共享工作区其他会话的未提交变更保持原状。

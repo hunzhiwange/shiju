@@ -14,7 +14,7 @@ pub(super) type Outcome = Result<TranscriptionResponse, Code>;
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct Owner {
     pub(super) tenant: TenantScope,
-    pub(super) principal: [u8; 32],
+    pub(in crate::gateway::api::handlers) principal: [u8; 32],
 }
 struct Record {
     digest: Option<[u8; 32]>,

@@ -131,7 +131,7 @@ async fn cc_control_09_authenticated_host_and_live_revocation() {
     .unwrap();
     assert_eq!(read_frame::<_, HostReply>(&mut client).await.unwrap(), HostReply::Ready);
     let extension_task = tokio::spawn(async move {
-        for action in ["enumerate", "read"] {
+        for action in ["enumerate", "read", "enumerate"] {
             let request: Value = read_frame(&mut extension).await.unwrap();
             assert_eq!(request["action"], action);
             let data = if action == "enumerate" {

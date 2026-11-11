@@ -6,7 +6,7 @@
 // Native host registration / authenticated ControlHost binding belongs to task 9.
 export const HOST_NAME = 'com.shiju.computer_control';
 const VERSION = 1;
-const ACTIONS = new Set(['enumerate', 'open', 'read', 'click', 'input', 'screenshot']);
+const ACTIONS = new Set(['enumerate', 'open', 'read', 'click', 'input', 'screenshot', 'navigate', 'upload', 'download']);
 const fail = code => { throw new Error(code); };
 const token = value => typeof value === 'string' && value.length > 0 && value.length <= 128;
 
@@ -20,15 +20,46 @@ function httpUrl(value) {
 
 // Serialized by Chrome into the isolated world; never accepts source code.
 // All selectors address the top-level document only. Sensitive/file inputs fail closed.
-function pageAction(action, args, expectedUrl) {
+async function pageAction(action, args, expectedUrl) {
   if (location.href !== expectedUrl) throw new Error('stale_target');
   if (action === 'identify') return { url: location.href };
   if (action === 'read') return { text: (document.body?.innerText ?? '').slice(0, 64000) };
   const element = document.querySelector(args.selector);
   if (!(element instanceof HTMLElement) || !element.isConnected || !element.getClientRects().length ||
       element.closest('[inert]') || element.matches(':disabled')) throw new Error('invalid_element');
+  if (action === 'upload') {
+    if (!(element instanceof HTMLInputElement) || element.type !== 'file' || args.approved !== true ||
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(args.fileName) || args.contentBase64.length > 349528) throw new Error('restricted_element');
+    const bytes = Uint8Array.from(atob(args.contentBase64), c => c.charCodeAt(0));
+    if (bytes.length > 262144) throw new Error('transfer_too_large');
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([bytes], args.fileName, {type:'application/octet-stream'}));
+    element.files = transfer.files;
+    element.dispatchEvent(new Event('input', {bubbles:true}));
+    element.dispatchEvent(new Event('change', {bubbles:true}));
+    return {uploaded:true};
+  }
+  if (action === 'download') {
+    if (!(element instanceof HTMLAnchorElement) || args.approved !== true) throw new Error('restricted_element');
+    const url = new URL(element.href);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== location.origin || url.href !== args.url || url.username || url.password) throw new Error('restricted_element');
+    const response = await fetch(url.href, {redirect:'error',credentials:'same-origin',signal:AbortSignal.timeout(5000)});
+    if (!response.ok || !response.body) throw new Error('download_failed');
+    const reader=response.body.getReader();
+    const chunks=[];let size=0;
+    try {
+      while (true) {
+        const {done,value}=await reader.read();if(done)break;
+        size+=value.length;if(size>262144)throw new Error('transfer_too_large');chunks.push(value);
+      }
+    } finally { await reader.cancel(); }
+    const bytes=new Uint8Array(size);let offset=0;
+    for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+    let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+    return {contentBase64:btoa(binary)};
+  }
   if (action === 'click') {
-    if (element.closest('input[type=file],input[type=password],a[download]')) throw new Error('restricted_element');
+    if (element.closest('input[type=file],input[type=password],a[download]') || element.closest('form')?.querySelector('input[type=file]')) throw new Error('restricted_element');
     element.click();
     return { clicked: true };
   }
@@ -56,7 +87,7 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
   function invalidate(tabId) {
     versions.set(tabId, (versions.get(tabId) ?? 0) + 1);
     grants.delete(tabId);
-    for (const entry of pending.values()) if (entry.tabId === tabId) entry.reject(new Error('stale_target'));
+    for (const entry of pending.values()) if (entry.tabId === tabId && !entry.navigation) entry.reject(new Error('stale_target'));
   }
   function clear() {
     epoch++;
@@ -96,7 +127,7 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
       });
       const result = results[0];
       if (grantEpoch !== epoch || navigationVersion !== (versions.get(tab.id) ?? 0) ||
-          !result?.documentId || result.result?.url !== url) fail('stale_target');
+          results.length !== 1 || result?.frameId !== 0 || !result?.documentId || result.result?.url !== url) fail('stale_target');
       connect();
       grants.set(tab.id, { tabId: tab.id, documentId: result.documentId, navigationVersion, url });
       await api.action.setBadgeText({ tabId: tab.id, text: 'ON' });
@@ -121,10 +152,12 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
   }
   function argsFor(action, args = {}) {
     if (!args || typeof args !== 'object' || Array.isArray(args)) fail('invalid_arguments');
-    const keys = action === 'open' ? ['url'] : action === 'input' ? ['selector', 'text'] : action === 'click' ? ['selector'] : [];
+    if (['upload','download'].includes(action) && args.approved !== true) fail('transfer_not_approved');
+    const keys = ['open','navigate'].includes(action) ? ['url'] : action === 'upload' ? ['selector','fileName','contentBase64','approved'] : action === 'download' ? ['selector','url','approved'] : action === 'input' ? ['selector', 'text'] : action === 'click' ? ['selector'] : [];
     if (Object.keys(args).some(key => !keys.includes(key))) fail('invalid_arguments');
     if (keys.includes('selector') && (typeof args.selector !== 'string' || !args.selector || args.selector.length > 2048)) fail('invalid_arguments');
     if (action === 'input' && (typeof args.text !== 'string' || args.text.length > 16000)) fail('invalid_arguments');
+    if (action === 'upload' && (typeof args.fileName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(args.fileName) || typeof args.contentBase64 !== 'string' || args.contentBase64.length > 349528)) fail('invalid_arguments');
     return args;
   }
   async function execute(message, requestEpoch) {
@@ -136,6 +169,12 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
     }
     const tab = await currentTab(target);
     if (requestEpoch !== epoch) fail('disconnected');
+    if (action === 'navigate') {
+      const url=httpUrl(args.url);
+      invalidate(target.tabId);
+      await api.tabs.update(target.tabId,{url});
+      return {navigated:true};
+    }
     if (action === 'screenshot') {
       if (!tab.active || !(await api.windows.get(tab.windowId)).focused) fail('target_not_visible');
       bound(target);
@@ -151,10 +190,10 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
       world: 'ISOLATED', func: pageAction, args: [action, args, target.url],
     });
     bound(target);
-    if (results.length !== 1 || results[0].documentId !== target.documentId || results[0].error) fail('stale_target');
+    if (results.length !== 1 || results[0].documentId !== target.documentId || results[0].frameId !== 0 || results[0].error) fail('stale_target');
     const result = results[0].result;
     if (!result || (action === 'read' && typeof result.text !== 'string') ||
-        (action === 'click' && result.clicked !== true) || (action === 'input' && result.entered !== true)) fail('chrome_api_error');
+        (action === 'click' && result.clicked !== true) || (action === 'input' && result.entered !== true) || (action === 'upload' && result.uploaded !== true) || (action === 'download' && (typeof result.contentBase64 !== 'string' || result.contentBase64.length > 349528))) fail('chrome_api_error');
     return result;
   }
   async function receive(current, message) {
@@ -183,7 +222,7 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
       if (message.target) bound(message.target);
       entryKey = message.seq;
       const ended = new Promise((_, reject) => {
-        pending.set(entryKey, { tabId: message.target?.tabId, screenshot: message.action === 'screenshot', reject });
+        pending.set(entryKey, { tabId: message.target?.tabId, screenshot: message.action === 'screenshot', navigation: message.action === 'navigate', reject });
         timer = setTimeout(() => { timedOut = true; reject(new Error('timeout')); }, timeoutMs);
       });
       const data = await Promise.race([execute(message, requestEpoch), ended]);
@@ -192,7 +231,7 @@ export function createController(api, { nonce = () => crypto.randomUUID(), timeo
       response.ok = false;
       // Chrome / page exceptions can contain sensitive URLs or page text.
       const errors = new Set(['unpaired', 'wrong_version', 'wrong_session', 'invalid_sequence', 'unsupported_action',
-        'duplicate_id', 'busy', 'stale_target', 'invalid_arguments', 'invalid_url', 'disconnected', 'timeout', 'target_not_visible', 'screenshot_too_large']);
+        'transfer_not_approved', 'duplicate_id', 'busy', 'stale_target', 'invalid_arguments', 'invalid_url', 'disconnected', 'timeout', 'target_not_visible', 'screenshot_too_large']);
       response.error = errors.has(error.message) ? error.message : 'chrome_api_error';
     } finally {
       clearTimeout(timer);

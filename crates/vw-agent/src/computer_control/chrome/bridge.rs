@@ -1,7 +1,9 @@
 //! Native messaging over a same-user Unix stream from the bounded Python relay.
 //! Pairing proves transport readiness only. `serve` routes every action through
 //! ControlHost's one-use ticket, live policy, target/version and cancellation checks.
+use super::origin_policy::{DocumentBinding, canonical_origin};
 use crate::computer_control::host::{ControlHost, read_frame, write_frame};
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::sync::{
@@ -47,6 +49,7 @@ struct Command {
 
 pub struct ChromeBridge {
     session_id: ControlSessionId,
+    binding: Mutex<DocumentBinding>,
     commands: mpsc::Sender<Command>,
     available: Arc<AtomicBool>,
     worker: tokio::task::JoinHandle<()>,
@@ -162,14 +165,24 @@ impl ChromeBridge {
                 let result = if reply["ok"] == true {
                     reply.get("data").cloned().ok_or(ControlErrorCode::BackendFailure)
                 } else {
-                    Err(ControlErrorCode::BackendFailure)
+                    Err(match reply["error"].as_str() {
+                        Some("stale_target") => ControlErrorCode::TargetChanged,
+                        Some("transfer_not_approved") => ControlErrorCode::PermissionDenied,
+                        _ => ControlErrorCode::BackendFailure,
+                    })
                 };
                 if command.reply.send(result).is_err() {
                     break;
                 }
             }
         });
-        Ok(Self { session_id, commands, available, worker })
+        Ok(Self {
+            session_id,
+            binding: Mutex::new(DocumentBinding::default()),
+            commands,
+            available,
+            worker,
+        })
     }
 
     pub fn is_available(&self) -> bool {
@@ -196,33 +209,23 @@ impl ChromeBridge {
         self.exchange("enumerate", None, json!({})).await
     }
 
-    async fn execute(
+    pub(super) async fn execute(
         &self,
         request: ComputerControlRequest,
+        host: &ControlHost,
     ) -> Result<ControlOutput, ControlErrorCode> {
+        host.recheck(&request)?;
         if request.session_id != self.session_id {
             return Err(ControlErrorCode::PermissionDenied);
         }
-        let ComputerControlTarget::ChromeTab { tab_id, origin } = request.target else {
+        let ComputerControlTarget::ChromeTab { tab_id, ref origin } = request.target else {
             return Err(ControlErrorCode::InvalidRequest);
         };
-        let ComputerControlAction::Chrome { command } = request.action else {
+        let ComputerControlAction::Chrome { ref command } = request.action else {
             return Err(ControlErrorCode::InvalidRequest);
         };
-        let targets: Vec<ChromeTarget> = serde_json::from_value(self.enumerate().await?)
-            .map_err(|_| ControlErrorCode::BackendFailure)?;
-        let target = targets
-            .into_iter()
-            .find(|target| target.tab_id == tab_id)
-            .ok_or(ControlErrorCode::TargetChanged)?;
-        let url = url::Url::parse(&target.url).map_err(|_| ControlErrorCode::TargetChanged)?;
-        if !matches!(url.scheme(), "http" | "https")
-            || !url.username().is_empty()
-            || url.password().is_some()
-            || url.origin().ascii_serialization() != origin
-        {
-            return Err(ControlErrorCode::TargetChanged);
-        }
+        let target = self.current_target(tab_id, origin).await?;
+        host.recheck(&request)?;
         let (action, args) = match command {
             ChromeCommand::Snapshot => ("read", json!({})),
             ChromeCommand::Click { selector } if !selector.is_empty() && selector.len() <= 2048 => {
@@ -233,15 +236,46 @@ impl ChromeBridge {
             {
                 ("input", json!({"selector":selector,"text":text}))
             }
-            // Navigation needs destination authorization; media delivery needs the
-            // host-owned screenshot resolver. Neither is fabricated by this relay.
+            ChromeCommand::Navigate { url } => {
+                host.authorize_destination(&request, canonical_origin(url)?)?;
+                ("navigate", json!({"url":url}))
+            }
+            ChromeCommand::Upload { selector, file_name, content_base64 } => {
+                validate_upload(selector, file_name, content_base64)?;
+                host.consume_transfer(&request)?;
+                (
+                    "upload",
+                    json!({"selector":selector,"fileName":file_name,"contentBase64":content_base64,"approved":true}),
+                )
+            }
+            ChromeCommand::Download { selector, url }
+                if !selector.is_empty() && selector.len() <= 2048 =>
+            {
+                if canonical_origin(url)? != *origin {
+                    return Err(ControlErrorCode::PermissionDenied);
+                }
+                host.consume_transfer(&request)?;
+                ("download", json!({"selector":selector,"url":url,"approved":true}))
+            }
+            // Screenshots require the host-owned media resolver.
             ChromeCommand::Screenshot
-            | ChromeCommand::Navigate { .. }
             | ChromeCommand::Press { .. }
             | ChromeCommand::Scroll { .. } => return Err(ControlErrorCode::Unsupported),
             _ => return Err(ControlErrorCode::InvalidRequest),
         };
-        let data = self.exchange(action, Some(target), args).await?;
+        host.recheck(&request)?;
+        let result = self.exchange(action, Some(target), args).await;
+        if action == "navigate" {
+            self.binding.lock().invalidate();
+        }
+        let data = result?;
+        host.recheck(&request)?;
+        // Readback is discarded when an action navigated, redirected or lost its
+        // document. Navigation deliberately invalidates the old lease instead.
+        if action != "navigate" {
+            self.current_target(tab_id, origin).await?;
+        }
+        host.recheck(&request)?;
         match action {
             "read" => {
                 let text = data["text"]
@@ -252,14 +286,67 @@ impl ChromeBridge {
             }
             "click" if data["clicked"] == true => Ok(ControlOutput::Acknowledged),
             "input" if data["entered"] == true => Ok(ControlOutput::Acknowledged),
+            "navigate" if data["navigated"] == true => Ok(ControlOutput::Acknowledged),
+            "upload" if data["uploaded"] == true => Ok(ControlOutput::Acknowledged),
+            "download" => {
+                use base64::Engine;
+                let content = data["contentBase64"]
+                    .as_str()
+                    .filter(|s| s.len() <= 349528)
+                    .ok_or(ControlErrorCode::BackendFailure)?;
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(content)
+                    .map_err(|_| ControlErrorCode::BackendFailure)?;
+                if bytes.len() > 262144 {
+                    return Err(ControlErrorCode::BackendFailure);
+                }
+                Ok(ControlOutput::ChromeDownload { content_base64: content.into() })
+            }
             _ => Err(ControlErrorCode::BackendFailure),
         }
+    }
+
+    async fn current_target(
+        &self,
+        tab_id: u64,
+        origin: &str,
+    ) -> Result<ChromeTarget, ControlErrorCode> {
+        let targets: Vec<ChromeTarget> = serde_json::from_value(self.enumerate().await?)
+            .map_err(|_| ControlErrorCode::BackendFailure)?;
+        let Some(target) = targets.into_iter().find(|target| target.tab_id == tab_id) else {
+            self.binding.lock().invalidate();
+            return Err(ControlErrorCode::TargetChanged);
+        };
+        self.binding.lock().check(&target, origin)?;
+        Ok(target)
     }
 
     /// The controller must send ControlHost's Hello with its out-of-band ticket.
     /// No credential is delivered to the extension or persisted by Python.
     /// Own the bridge so controller EOF, stop or abort also closes the native port.
     pub async fn serve(self, host: &ControlHost, controller: UnixStream) -> std::io::Result<()> {
-        host.serve(controller, |request, _cancel| self.execute(request)).await
+        host.serve(controller, |request, _cancel| self.execute(request, host)).await
     }
+}
+
+/// No filesystem paths, MIME-dependent executable payloads or unbounded frames.
+pub fn validate_upload(selector: &str, name: &str, content: &str) -> Result<(), ControlErrorCode> {
+    use base64::Engine;
+    if selector.is_empty()
+        || selector.len() > 2048
+        || name.is_empty()
+        || name.len() > 128
+        || !name.as_bytes()[0].is_ascii_alphanumeric()
+        || !name.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
+        || content.len() > 349528
+    {
+        return Err(ControlErrorCode::InvalidRequest);
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(content)
+        .map_err(|_| ControlErrorCode::InvalidRequest)?;
+    if bytes.len() > 262144 {
+        return Err(ControlErrorCode::InvalidRequest);
+    }
+    Ok(())
 }

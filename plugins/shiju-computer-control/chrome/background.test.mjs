@@ -7,7 +7,7 @@ function event() {
   const listeners = new Set();
   return { addListener: f => listeners.add(f), emit: (...args) => [...listeners].map(f => f(...args)) };
 }
-function fixture() {
+export function fixture() {
   const sent = [], scripts = [], created = [];
   const tab = { id: 7, windowId: 3, active: true, status: 'complete', url: 'https://example.test/' };
   const port = { onMessage: event(), onDisconnect: event(), postMessage: m => sent.push(m), disconnect() { this.onDisconnect.emit(); } };

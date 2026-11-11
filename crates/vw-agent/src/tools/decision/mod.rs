@@ -173,18 +173,31 @@ async fn resolve_permission_decision(
         return initial;
     }
 
+    let display = (spec.id.as_str() == "computer_control")
+        .then(|| tool.to_audit_input(initial.updated_input().unwrap_or(&Value::Null)));
     if agent_action == Action::Ask {
         let restricted = context.clone().with_bypass_non_cli_approval_for_turn(false);
-        request_interactive_approval(spec.id.as_str(), initial, &restricted).await
+        request_interactive_approval_with_display(spec.id.as_str(), initial, &restricted, display)
+            .await
     } else {
-        request_interactive_approval(spec.id.as_str(), initial, context).await
+        request_interactive_approval_with_display(spec.id.as_str(), initial, context, display).await
     }
 }
 
+#[cfg(any(unix, test))]
 async fn request_interactive_approval(
     tool_name: &str,
     pending: PermissionDecision,
     context: &ToolUseContext,
+) -> PermissionDecision {
+    request_interactive_approval_with_display(tool_name, pending, context, None).await
+}
+
+async fn request_interactive_approval_with_display(
+    tool_name: &str,
+    pending: PermissionDecision,
+    context: &ToolUseContext,
+    display: Option<Value>,
 ) -> PermissionDecision {
     if let Some(runner) = context.hook_runner() {
         let input = pending.updated_input().cloned().unwrap_or(Value::Null);
@@ -216,15 +229,17 @@ async fn request_interactive_approval(
 
     let updated_input =
         pending.updated_input().cloned().unwrap_or_else(|| Value::Object(Default::default()));
+    // Host-controlled display metadata prevents inline file bytes or page text
+    // entering generic prompts/audit logs. Execution still uses the exact input.
+    let display = display.unwrap_or_else(|| updated_input.clone());
     let channel_name = context.channel().unwrap_or("cli");
 
     if context.bypass_non_cli_approval_for_turn() && channel_name != "cli" {
-        manager.record_decision(tool_name, &updated_input, ApprovalResponse::Yes, channel_name);
+        manager.record_decision(tool_name, &display, ApprovalResponse::Yes, channel_name);
         return approve_after_decision(tool_name, updated_input, pending, context);
     }
 
-    let request =
-        ApprovalRequest { tool_name: tool_name.to_string(), arguments: updated_input.clone() };
+    let request = ApprovalRequest { tool_name: tool_name.to_string(), arguments: display.clone() };
 
     let decision = if channel_name == "cli" {
         manager.prompt_cli(&request)
@@ -240,14 +255,14 @@ async fn request_interactive_approval(
                     .unwrap_or("interactive approval required for tool execution")
                     .to_string(),
             ),
-            updated_input.clone(),
+            display.clone(),
             context.message_id().map(ToOwned::to_owned),
             context.tool_call_id().map(ToOwned::to_owned),
         );
         let sent = non_cli.prompt_tx.send(NonCliApprovalPrompt {
             request_id: pending_request.request_id.clone(),
             tool_name: tool_name.to_string(),
-            arguments: updated_input.clone(),
+            arguments: display.clone(),
             call_id: context.tool_call_id().map(ToOwned::to_owned),
             sender: non_cli.sender.clone(),
             channel: channel_name.to_string(),
@@ -278,7 +293,7 @@ async fn request_interactive_approval(
         ApprovalResponse::No
     };
 
-    manager.record_decision(tool_name, &updated_input, decision, channel_name);
+    manager.record_decision(tool_name, &display, decision, channel_name);
     if decision == ApprovalResponse::No {
         return PermissionDecision::deny("Denied by user.")
             .with_warning(pending.warning().map(ToOwned::to_owned))
@@ -473,3 +488,18 @@ fn classify_message(error: anyhow::Error) -> ToolCallError {
 }
 #[cfg(test)]
 mod tests;
+
+/// Force a fresh approval for a concrete host scope. Full-access mode, a generic
+/// tool allowlist and turn-level bypass do not authorize website/file access.
+#[cfg(unix)]
+pub(super) async fn request_control_scope_approval(
+    name: &str,
+    input: Value,
+    context: &ToolUseContext,
+) -> bool {
+    let strict = context.clone().with_bypass_non_cli_approval_for_turn(false);
+    matches!(
+        request_interactive_approval(name, PermissionDecision::allow(input), &strict).await,
+        PermissionDecision::Allow { .. }
+    )
+}

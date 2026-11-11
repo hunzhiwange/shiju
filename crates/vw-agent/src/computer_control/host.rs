@@ -58,6 +58,7 @@ struct Session {
     expires: Instant,
     next_sequence: u64,
     attached: bool,
+    transfer: Option<ComputerControlRequest>,
     cancelled: CancellationToken,
 }
 
@@ -112,6 +113,7 @@ impl ControlHost {
                 expires: Instant::now() + lifetime,
                 next_sequence: 1,
                 attached: false,
+                transfer: None,
                 cancelled: CancellationToken::new(),
             },
         );
@@ -204,6 +206,88 @@ impl ControlHost {
         )?;
         session.next_sequence += 1;
         Ok(())
+    }
+
+    /// Backend rechecks after each asynchronous Chrome boundary, including before
+    /// returning page contents. The model cannot choose the OS user or mint grants.
+    pub(crate) fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
+        let sessions = self.sessions.lock();
+        let session = sessions.get(&request.session_id).ok_or(ControlErrorCode::Disconnected)?;
+        if session.cancelled.is_cancelled() || session.expires <= Instant::now() {
+            return Err(ControlErrorCode::Cancelled);
+        }
+        if session.target != request.target {
+            return Err(ControlErrorCode::TargetChanged);
+        }
+        if session.version != request.permission_version {
+            return Err(ControlErrorCode::StalePermission);
+        }
+        self.policy.read().authorize(
+            &self.local_user,
+            &request.target,
+            self.locked.load(Ordering::SeqCst),
+            request.permission_version,
+        )
+    }
+
+    pub(crate) fn authorize_destination(
+        &self,
+        request: &ComputerControlRequest,
+        origin: String,
+    ) -> Result<(), ControlErrorCode> {
+        self.recheck(request)?;
+        let ComputerControlTarget::ChromeTab { tab_id, .. } = request.target else {
+            return Err(ControlErrorCode::InvalidRequest);
+        };
+        self.policy.read().authorize(
+            &self.local_user,
+            &ComputerControlTarget::ChromeTab { tab_id, origin },
+            self.locked.load(Ordering::SeqCst),
+            request.permission_version,
+        )
+    }
+
+    /// Trusted tool code calls this only after a fresh scope-specific approval.
+    /// The exact request, bytes, target, version and ID are bound; there is no wire
+    /// flag that can grant authority and each session holds at most one permit.
+    pub(crate) fn approve_transfer(
+        &self,
+        request: &ComputerControlRequest,
+    ) -> Result<(), ControlErrorCode> {
+        self.recheck(request)?;
+        if !matches!(
+            request.action,
+            ComputerControlAction::Chrome {
+                command: ChromeCommand::Upload { .. } | ChromeCommand::Download { .. }
+            }
+        ) {
+            return Err(ControlErrorCode::InvalidRequest);
+        }
+        let mut sessions = self.sessions.lock();
+        let session =
+            sessions.get_mut(&request.session_id).ok_or(ControlErrorCode::Disconnected)?;
+        if session.transfer.is_some() {
+            return Err(ControlErrorCode::PermissionDenied);
+        }
+        session.transfer = Some(request.clone());
+        Ok(())
+    }
+
+    pub(crate) fn consume_transfer(
+        &self,
+        request: &ComputerControlRequest,
+    ) -> Result<(), ControlErrorCode> {
+        self.recheck(request)?;
+        let approved = self
+            .sessions
+            .lock()
+            .get_mut(&request.session_id)
+            .and_then(|session| session.transfer.take());
+        if approved.as_ref() == Some(request) {
+            Ok(())
+        } else {
+            Err(ControlErrorCode::PermissionDenied)
+        }
     }
 
     /// One in-flight action per connection. While waiting, only an authenticated

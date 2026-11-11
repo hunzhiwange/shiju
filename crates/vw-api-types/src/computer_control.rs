@@ -172,11 +172,35 @@ pub enum KeyModifier {
 pub enum ChromeCommand {
     Snapshot,
     Screenshot,
-    Navigate { url: String },
-    Click { selector: String },
-    Fill { selector: String, text: String },
-    Press { key: String, modifiers: Vec<KeyModifier> },
-    Scroll { delta_x: i32, delta_y: i32 },
+    Navigate {
+        url: String,
+    },
+    Click {
+        selector: String,
+    },
+    Fill {
+        selector: String,
+        text: String,
+    },
+    Press {
+        key: String,
+        modifiers: Vec<KeyModifier>,
+    },
+    Scroll {
+        delta_x: i32,
+        delta_y: i32,
+    },
+    /// Bounded bytes supplied by an independently authorized caller; never a local path.
+    Upload {
+        selector: String,
+        file_name: String,
+        content_base64: String,
+    },
+    /// Read a same-origin link into bounded bytes; redirects and filesystem writes are forbidden.
+    Download {
+        selector: String,
+        url: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -233,6 +257,7 @@ pub enum ControlOutcome {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ControlOutput {
     Acknowledged,
+    ChromeDownload { content_base64: String },
     Observation { text: String, screenshots: Vec<ScreenshotReference> },
     ExcelRange { sheet: String, range: String, values: Vec<Vec<OfficeCellValue>> },
     WordText { text: String },

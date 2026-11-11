@@ -4,6 +4,8 @@
 
 状态：已完成，待回归
 
+延后回归（2026-11-12）：核对实现提交264a130b7，本任务九份源码及Codex直接依赖仍适用，原13项通过证据无需重复。本轮无Rust修改、未运行Cargo或领取槽位。统一全仓检查由任务15执行；当前result.json为Clippy退出101、source_unchanged=false且task41闸口未放行，只读verify_source.py退出2，不能引用为通过。等待统一检查退出0且当前源码摘要核对通过后，再完成并删除本卡。详情见正式证据“延后回归核对”节。
+
 2026-11-12：本任务桌面聚焦7项、真实Codex原生管理器回归1项、相邻目录回归5项全部通过；明暗真实绘制与真实重启/ACK证据齐全。原实现同一过滤命令实际1项断言失败，退出101；实现后7项通过，退出0。实际入口为`--lib`，不使用旧卡片`--bin`零测试验收。
 
 必需 `cargo clippy --all-targets --all-features -- -D warnings` 退出101：并行新增且未跟踪的 `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model_state.rs` 第6、13/20、29、41/52、62行共5项dead_code错误（ModelContext、query/matches、ModelRun、terminal/accept、ModelState）。未修改无关代码、未添加allow。待其所有者完成接线后原样回归Clippy；全targets检查尚未通过，不算母任务完成，保留本卡。

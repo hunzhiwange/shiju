@@ -10,7 +10,8 @@ impl RecordPublicationContext {
         candidate: &AppState,
         rows: &[(String, Value)],
         change: &ProviderRecordChange,
-        target: PendingTarget,
+        mut target: PendingTarget,
+        catalog_policy: codex_publish::CatalogPolicy,
     ) -> Result<bool, StatusCode> {
         if !std::fs::symlink_metadata(self.home.join(".codex"))
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
@@ -72,7 +73,7 @@ impl RecordPublicationContext {
         let before = files.guard.read(OsStr::new("config.toml")).map_err(failed)?;
         let (config, catalog) = codex_publish::plan(
             before.as_deref(),
-            codex_publish::CatalogPolicy::Preserve,
+            catalog_policy,
             CodexCatalogDefault::ThirdParty(row(default_index)),
             &members,
         )
@@ -153,6 +154,20 @@ impl RecordPublicationContext {
                     status: StatusCode::UNPROCESSABLE_ENTITY,
                     recovery_pending: false,
                 })?;
+                let contract = ClientConfiguration::Codex {
+                    config: toml::from_str(projection.config()).map_err(|_| RouteCommitError {
+                        status: StatusCode::UNPROCESSABLE_ENTITY,
+                        recovery_pending: false,
+                    })?,
+                    auth: serde_json::json!({"OPENAI_API_KEY":token}),
+                }
+                .contract();
+                target.mode = Some(ModeState {
+                    mode: Mode::Proxy,
+                    attached: true,
+                    proxy_route: Some(default.into()),
+                    contract: Some(contract),
+                });
                 let config_patch = WholeFile::new(
                     before.as_deref(),
                     Some(projection.config().as_bytes().to_vec()),

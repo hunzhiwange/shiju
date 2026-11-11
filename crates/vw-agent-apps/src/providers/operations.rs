@@ -20,6 +20,7 @@ impl ProviderOperation {
                 total: 0,
                 cancellation_requested: false,
                 editor_outcome: None,
+                aggregation_outcome: None,
             })),
         }
     }

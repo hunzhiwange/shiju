@@ -390,3 +390,8 @@ mod aggregation_desktop;
 mod aggregation_desktop_tests;
 
 mod voice_settings;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_publish_tests;
+
+mod aggregation_publish;

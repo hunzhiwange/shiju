@@ -35,6 +35,8 @@ pub struct ProviderOperationProgress {
     pub cancellation_requested: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub editor_outcome: Option<ProviderEditorOutcome>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aggregation_outcome: Option<crate::agent_apps::aggregation::AggregationOutcome>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

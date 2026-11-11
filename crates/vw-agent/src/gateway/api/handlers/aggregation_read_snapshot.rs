@@ -426,3 +426,55 @@ pub(super) fn codex_inputs(
         snapshot.native.get(2).and_then(|v| v.as_deref()),
     ))
 }
+
+/// Verify the exact signed intent before using any preview options. HMAC
+/// verification is constant-time and restart invalidates every outstanding token.
+pub(super) fn verify_token(
+    token: &str,
+    principal: &str,
+    project: &ProjectScope,
+    host: &str,
+    app: AppId,
+    revision: &str,
+) -> Result<AggregationPreviewRequest, StatusCode> {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase", deny_unknown_fields)]
+    struct Payload {
+        kind: String,
+        principal: String,
+        scope: ProjectScope,
+        target_host_id: String,
+        app: AppId,
+        revision: String,
+        default_provider_id: Option<String>,
+        catalog_policy: CatalogPolicy,
+        expires_at: i64,
+    }
+    let conflict = StatusCode::CONFLICT;
+    if token.len() > 16 * 1024 {
+        return Err(conflict);
+    }
+    let (encoded, signature) = token.split_once('.').ok_or(conflict)?;
+    let bytes = URL_SAFE_NO_PAD.decode(encoded).map_err(|_| conflict)?;
+    let signature = hex::decode(signature).map_err(|_| conflict)?;
+    let key = KEY.as_ref().map_err(|status| *status)?;
+    ring::hmac::verify(key, &bytes, &signature).map_err(|_| conflict)?;
+    let value: Payload = serde_json::from_slice(&bytes).map_err(|_| conflict)?;
+    if value.kind != "aggregation_preview_v1"
+        || value.principal != principal
+        || value.scope != *project
+        || value.target_host_id != host
+        || value.app != app
+        || value.revision != revision
+        || value.expires_at <= chrono::Utc::now().timestamp()
+    {
+        return Err(conflict);
+    }
+    Ok(AggregationPreviewRequest {
+        target_host_id: host.into(),
+        project_id: project.project_id().clone(),
+        default_provider_id: value.default_provider_id,
+        catalog_policy: value.catalog_policy,
+    })
+}

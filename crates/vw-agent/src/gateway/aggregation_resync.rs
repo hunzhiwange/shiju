@@ -98,7 +98,7 @@ impl RecordPublicationContext {
         Ok(())
     }
     pub(crate) fn replace(&self, key: &str, before: &str, after: &str) -> Result<bool, StatusCode> {
-        self.replace_candidate(key, before, after, None)
+        self.replace_candidate(key, before, after, None, codex_publish::CatalogPolicy::Preserve)
     }
     /// The membership/default API uses this same planner rather than first saving
     /// a candidate state. The unchanged record participates in crash recovery.
@@ -142,7 +142,13 @@ impl RecordPublicationContext {
             .map_err(failed)?
             .publication_record(self.project.tenant_scope(), self.app, id)
             .map_err(failed)?;
-        self.replace_candidate(&key, &row, &row, Some(candidate))
+        self.replace_candidate(
+            &key,
+            &row,
+            &row,
+            Some(candidate),
+            codex_publish::CatalogPolicy::Preserve,
+        )
     }
     fn replace_candidate(
         &self,
@@ -150,6 +156,7 @@ impl RecordPublicationContext {
         before: &str,
         after: &str,
         candidate_override: Option<&AppState>,
+        catalog_policy: codex_publish::CatalogPolicy,
     ) -> Result<bool, StatusCode> {
         let prefix = format!("{}:", serde_json::to_string(&self.app).map_err(failed)?);
         let id = key.strip_prefix(&prefix).ok_or(StatusCode::BAD_REQUEST)?;
@@ -286,10 +293,13 @@ impl RecordPublicationContext {
             mode: candidate_override.and_then(|_| candidate.mode.clone()),
             ..Default::default()
         };
-        let active = state.stack.enabled
-            && state.mode.as_ref().is_some_and(|m| m.attached && m.mode == Mode::Proxy);
-        let ordinary = !state.stack.enabled
-            && state.mode.as_ref().is_some_and(|mode| mode.attached && mode.mode == Mode::Proxy);
+        let active = candidate.stack.enabled
+            && candidate.mode.as_ref().is_some_and(|m| m.attached && m.mode == Mode::Proxy);
+        let ordinary = !candidate.stack.enabled
+            && candidate
+                .mode
+                .as_ref()
+                .is_some_and(|mode| mode.attached && mode.mode == Mode::Proxy);
         if ordinary
             && matches!(self.app, AppId::Claude | AppId::Codex)
             && candidate.mode.as_ref().and_then(|mode| mode.proxy_route.as_deref()) == Some(id)
@@ -453,7 +463,9 @@ impl RecordPublicationContext {
                 );
                 result.map(|_| true)
             }
-            AppId::Codex => self.codex(&tx, &store, &state, &candidate, &rows, &change, target),
+            AppId::Codex => {
+                self.codex(&tx, &store, &state, &candidate, &rows, &change, target, catalog_policy)
+            }
             AppId::ClaudeDesktop => super::aggregation_desktop_record::replace(
                 self,
                 &tx,
@@ -551,3 +563,5 @@ impl RecordPublicationContext {
 
 mod codex;
 mod route;
+
+mod publish;

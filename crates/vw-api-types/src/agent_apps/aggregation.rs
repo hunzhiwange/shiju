@@ -317,3 +317,50 @@ pub struct AggregationWriteQuery {
     pub project_id: Option<ProjectId>,
     pub expected_revision: Option<String>,
 }
+
+/// Publish only a server-issued preview; no native configuration crosses the API.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AggregationPublishRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub request_id: String,
+    pub preview_token: String,
+    pub confirmed: bool,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AggregationErrorCode {
+    InvalidRequest,
+    Unauthenticated,
+    Forbidden,
+    NotFound,
+    RevisionConflict,
+    RequestConflict,
+    DefaultMemberRequired,
+    FailoverConflict,
+    RecoveryPending,
+    AlreadyExists,
+    VariantConflict,
+    UnsupportedApp,
+    UnsupportedTarget,
+    InvalidMember,
+    InvalidModel,
+    InvalidConfiguration,
+    ConfirmationRequired,
+    TargetFailed,
+    RecoveryFailed,
+    TargetUnavailable,
+    TargetTimeout,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum AggregationOutcome {
+    Published { state: AggregationState },
+    Failed { status: u16, code: AggregationErrorCode, recovery: RecoveryState },
+}
+
+#[cfg(test)]
+#[path = "aggregation_publish_tests.rs"]
+mod publish_tests;

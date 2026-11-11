@@ -324,7 +324,7 @@ mod env_restore;
 #[cfg(test)]
 mod env_restore_tests;
 
-mod operations;
+pub(super) mod operations;
 #[cfg(all(test, target_os = "macos"))]
 mod operations_tests;
 

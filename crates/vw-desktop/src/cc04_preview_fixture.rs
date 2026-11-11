@@ -92,6 +92,7 @@ impl Fixture {
                     total: 1,
                     cancellation_requested: false,
                     editor_outcome: None,
+                    aggregation_outcome: None,
                 };
                 self.operation = Some(Operation {
                     progress: progress.clone(),

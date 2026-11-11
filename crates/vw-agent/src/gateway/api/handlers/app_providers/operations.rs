@@ -18,7 +18,7 @@ use std::{
 use vw_agent_apps::providers::operations::ProviderOperation;
 use vw_api_types::{app_providers::operations::*, id::TaskId, task::TaskStatus};
 #[derive(Clone)]
-struct State {
+pub(in crate::gateway::api::handlers) struct State {
     policy: Option<PathBuf>,
     editor: Editor,
     operations: Arc<Mutex<HashMap<String, Running>>>,
@@ -30,14 +30,16 @@ struct Running {
     fingerprint: [u8; 32],
     operation: ProviderOperation,
     editor_outcome: Arc<Mutex<Option<ProviderEditorOutcome>>>,
+    aggregation: Option<aggregation::Owned>,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Target {
     target_host_id: String,
+    project_id: Option<vw_api_types::id::ProjectId>,
 }
 #[cfg(test)]
-pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
+pub(in crate::gateway::api::handlers) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     router_with_editor(policy.clone(), Editor::new(policy))
 }
 pub(super) fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Router {
@@ -48,6 +50,7 @@ pub(super) fn router_with_editor(policy: Option<PathBuf>, editor: Editor) -> Rou
             post(submit).layer(DefaultBodyLimit::max(128 * 1024)),
         )
         .route("/app-providers/operations/{id}", get(read).delete(cancel))
+        .merge(super::super::aggregation_publish::router())
         .layer(Extension(State {
             policy,
             editor,
@@ -70,10 +73,10 @@ async fn authorize(
     tenant: TenantScope,
     host: String,
     read: bool,
-) -> Result<(), StatusCode> {
+) -> Result<String, StatusCode> {
     let policy = state.policy.clone();
     tokio::task::spawn_blocking(move || {
-        super::super::agent_apps::provider_editor_context(
+        let (_, _, principal) = super::super::agent_apps::provider_editor_authorization(
             policy.as_deref(),
             &headers,
             &tenant,
@@ -89,7 +92,7 @@ async fn authorize(
                 false,
             )?;
         }
-        Ok(())
+        Ok(principal)
     })
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
@@ -141,7 +144,10 @@ async fn submit(
         .await?;
     let mut registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     if let Some(r) = registry.values().find(|r| {
-        r.tenant == tenant && r.host == request.target_host_id && r.request_id == request.request_id
+        r.aggregation.is_none()
+            && r.tenant == tenant
+            && r.host == request.target_host_id
+            && r.request_id == request.request_id
     }) {
         if r.fingerprint != fingerprint {
             return Err(StatusCode::CONFLICT);
@@ -150,7 +156,8 @@ async fn submit(
     }
     if registry.len() >= 1024 {
         registry.retain(|_, r| {
-            matches!(r.operation.snapshot().status, TaskStatus::Queued | TaskStatus::Running)
+            r.aggregation.is_some()
+                || matches!(r.operation.snapshot().status, TaskStatus::Queued | TaskStatus::Running)
         });
     }
     if registry.len() >= 1024 {
@@ -238,6 +245,7 @@ async fn submit(
         fingerprint,
         operation,
         editor_outcome,
+        aggregation: None,
     };
     let progress = running.progress(running.operation.snapshot());
     registry.insert(id, running);
@@ -250,14 +258,57 @@ async fn owned(
     host: String,
     id: &str,
     cancel: bool,
-) -> Result<ProviderOperationProgress, StatusCode> {
-    authorize(state, headers, tenant.clone(), host.clone(), false).await?;
+    project: Option<vw_api_types::id::ProjectId>,
+) -> Result<serde_json::Value, StatusCode> {
+    // Authenticate before lookup, without changing legacy Basic/admin callers.
+    #[cfg(target_os = "macos")]
+    let authentication = if headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .is_some_and(|h| h.starts_with("Bearer "))
+    {
+        super::super::aggregation_resync::provider_headers(headers.clone())?
+    } else {
+        headers.clone()
+    };
+    #[cfg(not(target_os = "macos"))]
+    let authentication = headers.clone();
+    let principal = authorize(state, authentication, tenant.clone(), host.clone(), false).await?;
+    let project = project
+        .map(|id| {
+            vw_api_types::id::ProjectScope::new(tenant.clone(), id)
+                .map_err(|_| StatusCode::BAD_REQUEST)
+        })
+        .transpose()?;
+    if let Some(progress) =
+        state.aggregation_owned(&headers, &host, id, cancel, project, &principal)?
+    {
+        return Ok(progress);
+    }
     let registry = state.operations.lock().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     registry
         .get(id)
-        .filter(|r| r.tenant == tenant && r.host == host)
-        .map(|r| r.progress(if cancel { r.operation.cancel() } else { r.operation.snapshot() }))
-        .ok_or(StatusCode::NOT_FOUND)
+        .filter(|r| r.aggregation.is_none() && r.tenant == tenant && r.host == host)
+        .map(|r| {
+            serde_json::to_value(r.progress(if cancel {
+                r.operation.cancel()
+            } else {
+                r.operation.snapshot()
+            }))
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+        })
+        .ok_or(StatusCode::NOT_FOUND)?
+}
+fn operation_response(result: Result<serde_json::Value, StatusCode>) -> Response {
+    let mut response = match result {
+        Ok(value) => Json(value).into_response(),
+        Err(status) => super::super::aggregation_publish::operation_error(status),
+    };
+    response.headers_mut().insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
+    response
 }
 async fn read(
     Extension(state): Extension<State>,
@@ -265,8 +316,10 @@ async fn read(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
-) -> Result<Json<ProviderOperationProgress>, StatusCode> {
-    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id, false).await?))
+) -> Response {
+    operation_response(
+        owned(&state, tenant, headers, target.target_host_id, &id, false, target.project_id).await,
+    )
 }
 async fn cancel(
     Extension(state): Extension<State>,
@@ -274,6 +327,10 @@ async fn cancel(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
-) -> Result<Json<ProviderOperationProgress>, StatusCode> {
-    Ok(Json(owned(&state, tenant, headers, target.target_host_id, &id, true).await?))
+) -> Response {
+    operation_response(
+        owned(&state, tenant, headers, target.target_host_id, &id, true, target.project_id).await,
+    )
 }
+
+pub(in crate::gateway::api::handlers) mod aggregation;

@@ -15,6 +15,30 @@ impl ModelCatalogStore {
         }
         serde_json::to_string(&(identity, revision)).map_err(|_| "invalid model identity".into())
     }
+    /// Read immutable catalog content without provisioning schemas during preview.
+    pub(crate) fn read_existing(
+        db: &GlobalDatabase,
+        tenant: &TenantScope,
+        identity: &ModelCatalogIdentity,
+        revision: Option<&str>,
+    ) -> Result<Option<SavedCodexCatalog>, String> {
+        let Some(revision) = revision else { return Ok(None) };
+        let raw = GatewaySettingsStore::read_existing(
+            db,
+            tenant,
+            NAMESPACE,
+            &Self::key(identity, revision)?,
+        )
+        .map_err(|_| "model catalog unavailable")?
+        .ok_or("saved model catalog missing")?;
+        if hex::encode(Sha256::digest(raw.as_bytes())) != revision {
+            return Err("saved model catalog changed".into());
+        }
+        let catalog: SavedCodexCatalog =
+            serde_json::from_str(&raw).map_err(|_| "invalid saved model catalog")?;
+        vw_agent_apps::models::validate(identity, Some(&catalog))?;
+        Ok(Some(catalog))
+    }
     pub fn read(
         &self,
         tenant: &TenantScope,

@@ -89,3 +89,7 @@ mod launch_tests;
 
 mod read;
 pub use read::*;
+
+pub mod aggregation;
+#[cfg(test)]
+mod aggregation_tests;

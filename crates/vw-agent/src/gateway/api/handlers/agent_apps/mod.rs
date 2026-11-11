@@ -17,6 +17,7 @@ use vw_api_types::{
 pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(read::router())
+        .merge(super::aggregation_read::router())
         .merge(super::mcp_management_read::router())
         .merge(lifecycle::router())
         .merge(preferences::router())
@@ -558,3 +559,6 @@ pub(super) fn authorize_mcp_native_read(
         }
     })
 }
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_aggregation_read;

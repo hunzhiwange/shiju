@@ -328,5 +328,12 @@ mod mcp_management_update;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_update_tests;
 
+mod aggregation_read;
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_read_tests;
+
+#[cfg(target_os = "macos")]
+mod aggregation_read_snapshot;
+
 /// Authenticated recording transcription.
 pub(crate) mod voice;

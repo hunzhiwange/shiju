@@ -42,6 +42,9 @@ struct Grant {
     preferences_write: bool,
     #[serde(default)]
     provider_config_read: bool,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    aggregation_read: Vec<RoutingAppPermit>,
     #[serde(default)]
     provider_config_write: bool,
     #[serde(default)]
@@ -590,6 +593,8 @@ enum Capability<'a> {
     PreferencesWrite,
     Launch,
     ProviderConfigRead,
+    #[cfg(target_os = "macos")]
+    AggregationRead(&'a ProjectId, AppId),
     McpCatalogWrite(Option<&'a vw_api_types::id::ProjectId>),
     #[cfg(target_os = "macos")]
     RoutingControl {
@@ -881,6 +886,13 @@ fn authorize_digest(
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
                     Capability::ProviderConfigRead => g.provider_config_read,
+                    #[cfg(target_os = "macos")]
+                    Capability::AggregationRead(project, app) => {
+                        g.provider_config_read
+                            && g.aggregation_read
+                                .iter()
+                                .any(|permit| &permit.project_id == project && permit.app_id == app)
+                    }
                     Capability::McpCatalogWrite(project) => match project {
                         Some(project) => g.mcp_catalog_write_projects.contains(project),
                         None => g.mcp_catalog_write,
@@ -1416,4 +1428,44 @@ pub(super) fn import_provider_policy(
         }
     }
     Ok(())
+}
+
+/// Read authorization never grants native slot ownership or permission to publish.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_aggregation_read(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope,
+    target: &str,
+    app: AppId,
+) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
+    // These routes accept a single Bearer credential under the existing policy.
+    let mut values = headers.get_all(axum::http::header::AUTHORIZATION).iter();
+    let token = values
+        .next()
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .filter(|v| v.len() >= 32 && v.len() <= 512 && v.bytes().all(|b| b.is_ascii_graphic()))
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if values.next().is_some() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    authorize_digest(
+        path,
+        &hex::encode(Sha256::digest(token)),
+        project.tenant_scope(),
+        target,
+        None,
+        Capability::AggregationRead(project.project_id(), app),
+    )
+    .map_err(|status| {
+        if status == StatusCode::NOT_IMPLEMENTED {
+            StatusCode::UNPROCESSABLE_ENTITY
+        } else {
+            status
+        }
+    })
+    .map(|authorization| {
+        (authorization.host.home, authorization.host.credential_root, authorization.principal)
+    })
 }

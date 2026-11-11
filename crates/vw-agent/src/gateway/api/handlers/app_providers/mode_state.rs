@@ -68,6 +68,11 @@ fn read_authorized(
         }
         state = tx.state(app).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     }
+    // This legacy route has no project selector or aggregation permission.
+    // Project-owned slots must be read through the scoped aggregation API.
+    if state.project_scope.is_some() {
+        return Err(StatusCode::FORBIDDEN);
+    }
     let mut status = mode_state::observe(&state, tenant).map_err(map_error)?;
     if let Some(id) = &query.provider_id {
         if query.mode == ProviderMode::Proxy {

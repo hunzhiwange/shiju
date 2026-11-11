@@ -215,3 +215,29 @@ async fn cc04_mode_state_forged_contract_foreign_owner_and_pending_are_rejected(
     assert_eq!(std::fs::read(&path).unwrap(), before);
     assert!(pending.exists());
 }
+
+#[tokio::test]
+async fn aggregation_t39_legacy_mode_read_rejects_project_owned_state() {
+    let f = Fixture::new().await;
+    let (tx, path, _) = seed(&f);
+    let scope =
+        vw_api_types::id::ProjectScope::new(tenant(), vw_api_types::id::ProjectId::from("project"))
+            .unwrap();
+    let expected = tx.state(AppId::Claude).unwrap();
+    let mut guard = lock_app(AppId::Claude, f.root.path()).unwrap();
+    tx.commit_project_checked(
+        &scope,
+        &mut guard,
+        &expected,
+        true,
+        &[],
+        PendingTarget::default(),
+        || Ok(()),
+    )
+    .unwrap();
+    drop(guard);
+    let before = std::fs::read(&path).unwrap();
+    let error = f.client.provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
+    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert_eq!(std::fs::read(path).unwrap(), before);
+}

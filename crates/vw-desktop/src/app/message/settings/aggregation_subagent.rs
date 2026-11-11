@@ -65,6 +65,21 @@ impl Form {
             self.saved = false;
         }
     }
+    pub(crate) fn select_review(&mut self, id: Option<String>) {
+        let Some(state) = &self.snapshot else { return };
+        if id.as_ref().is_some_and(|id| !state.choices.iter().any(|c| &c.model_id == id)) {
+            return;
+        }
+        self.draft.auto_review_model_id = id;
+        self.saved = false;
+    }
+    pub(crate) fn select_classic(&mut self, enabled: bool) {
+        if self.snapshot.is_none() {
+            return;
+        }
+        self.draft.classic_tools = enabled;
+        self.saved = false;
+    }
     pub(crate) fn write(&self, context: &Context) -> Option<CodexSettingsRequest> {
         let s = self.snapshot.as_ref().filter(|s| !s.revision.is_empty())?;
         Some(CodexSettingsRequest {
@@ -107,6 +122,8 @@ pub enum Event {
     Refresh,
     Model(Option<String>),
     Effort(Option<ReasoningEffortDto>),
+    Review(Option<String>),
+    Classic(bool),
     Save,
     Finished {
         context: Context,
@@ -130,6 +147,9 @@ pub(crate) fn feedback(e: &AgentAppsSettingsError) -> &'static str {
         }
         AgentAppsSettingsError::Http { status: 400 | 404 | 422, .. } => {
             "模型、强度或目标不受支持，请刷新已发布目录。"
+        }
+        AgentAppsSettingsError::Http { status: 429, .. } => {
+            "外部账号额度或请求频率受限，请检查账号限制后刷新；客户端不能绕过。"
         }
         AgentAppsSettingsError::Http { status: 501, .. } => "当前执行主机不支持此 Codex 设置。",
         AgentAppsSettingsError::Http { status: 502..=504, .. } => {
@@ -209,7 +229,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return if let Some(e) = form.error {
             app.show_error_toast(e)
         } else if saved {
-            app.show_info_toast("子代理设置已保存，请新建 Codex 会话后使用。")
+            app.show_info_toast("Codex 设置已保存，请新建 Codex 会话后使用。")
         } else {
             Task::none()
         };
@@ -228,6 +248,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::Effort(e) if form.snapshot.is_some() => {
             form.select_effort(e);
+            return Task::none();
+        }
+        Event::Review(id) => {
+            form.select_review(id);
+            return Task::none();
+        }
+        Event::Classic(enabled) => {
+            form.select_classic(enabled);
             return Task::none();
         }
         Event::Refresh => {
@@ -250,3 +278,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         message(Event::Finished { context: context.clone(), generation, saved, result })
     })
 }
+
+#[cfg(test)]
+#[path = "aggregation_review_tests.rs"]
+mod aggregation_review_tests;

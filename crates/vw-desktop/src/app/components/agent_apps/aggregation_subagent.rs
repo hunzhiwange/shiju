@@ -6,7 +6,7 @@ use crate::app::{
 };
 use iced::{
     Element, Length,
-    widget::{button, column, container, row, text},
+    widget::{button, checkbox, column, container, row, text},
 };
 use vw_gateway_client::vw_api_types::{
     ReasoningEffortDto, agent_apps::aggregation::AggregationNotice,
@@ -91,6 +91,35 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
                 .width(Length::Fill)
                 .disabled(!editable || choice.is_none()),
         );
+        let mut reviewers =
+            vec![ModelOption { id: None, label: "Codex 默认审批模型".into() }];
+        reviewers.extend(state.choices.iter().map(|c| ModelOption {
+            id: Some(c.model_id.clone()),
+            label: format!("{} · {}", c.label, c.model_id),
+        }));
+        if let Some(id) = form
+            .draft
+            .auto_review_model_id
+            .as_ref()
+            .filter(|id| !state.choices.iter().any(|c| &c.model_id == *id))
+        {
+            reviewers
+                .push(ModelOption { id: Some(id.clone()), label: format!("已移除：{id}") });
+            body = body.push(settings_error_banner(
+                "审批模型已不在发布目录中，当前使用 Codex 默认审批。请重新选择或清空后保存。",
+            ));
+        }
+        let reviewer = reviewers.iter().find(|c| c.id == form.draft.auto_review_model_id).cloned();
+        body = body.push(settings_field_label("自动审批模型")).push(
+            settings_select(reviewers, reviewer, |v| message(Event::Review(v.id)))
+                .width(Length::Fill).disabled(!editable),
+        ).push(text("默认审批模型由 Codex 与执行主机目录决定。外部账号额度、模型访问权限及计费限制仍适用；此处不能绕过。")
+            .size(13).style(settings_muted_text_style))
+        .push(checkbox(form.draft.classic_tools).label("经典工具（默认开启）")
+            .style(settings_checkbox_style)
+            .on_toggle_maybe(editable.then_some(|enabled| message(Event::Classic(enabled)))))
+        .push(text("关闭经典工具后，新版工具可能携带加密任务，跨供应商子代理可能无法解密。")
+            .size(13).style(settings_muted_text_style));
         if state.choices.is_empty() {
             body = body.push(text("暂无可选的已发布成员模型。"));
         }
@@ -99,6 +128,15 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
             column![
                 settings_field_label("当前生效设置"),
                 text(effective_model),
+                text(format!(
+                    "审批模型：{}",
+                    state.effective.auto_review_model_id.as_deref().unwrap_or("Codex 默认审批模型")
+                )),
+                text(if state.effective.classic_tools {
+                    "经典工具：已生效"
+                } else {
+                    "经典工具：未生效"
+                }),
                 text(format!("推理强度：{}", EffortOption(state.effective.subagent_effort))),
                 text("此处显示执行主机返回的已保存状态；草稿需保存后生效。").size(13)
             ]
@@ -106,7 +144,7 @@ pub(crate) fn overlay<'a>(form: &'a Form, base: Element<'a, Message>) -> Element
         ));
         if state.notices.contains(&AggregationNotice::MultiAgentV2Forced) {
             body = body.push(settings_error_banner(
-                "Codex 强制启用了 multi_agent_v2，经典工具设置可能不生效。",
+                "Codex 强制启用了 multi_agent_v2，经典工具设置无法覆盖此配置；请在执行主机中确认客户端配置。",
             ));
         }
         if state.notices.contains(&AggregationNotice::EncryptedTaskCrossProvider)

@@ -6,6 +6,7 @@ pub(crate) mod aggregation_pi;
 mod aggregation_pi_tests;
 pub(in crate::app) mod agents;
 pub(crate) mod aggregation_list;
+pub(crate) mod aggregation_omo;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 #[cfg(not(target_arch = "wasm32"))]

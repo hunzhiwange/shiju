@@ -37,6 +37,7 @@ pub(crate) struct ListState {
     pub endpoints: Option<super::endpoints::Form>,
     pub model_catalog: Option<super::model_catalog::CatalogForm>,
     pub desktop: Option<super::desktop::Form>,
+    pub omo: Option<crate::app::state::aggregation_omo::Form>,
     pub new_draft:
         Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,
     pub error: Option<String>,
@@ -64,6 +65,7 @@ impl ListState {
         self.editor = None;
         self.form = None;
         self.desktop = None;
+        self.omo = None;
         self.endpoints = None;
         self.model_catalog = None;
         self.icons = None;

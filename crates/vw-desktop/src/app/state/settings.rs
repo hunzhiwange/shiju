@@ -19,6 +19,7 @@ pub(super) use super::*;
 
 mod acp_diagnostic;
 mod agents;
+pub(crate) mod aggregation_omo;
 mod archived_chats;
 pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 pub(crate) use archived_chats::*;

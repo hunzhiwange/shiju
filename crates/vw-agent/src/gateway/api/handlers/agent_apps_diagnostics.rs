@@ -36,7 +36,7 @@ use vw_api_types::{
 };
 
 #[derive(Clone)]
-struct PolicyFile(Option<PathBuf>);
+pub(super) struct PolicyFile(pub(super) Option<PathBuf>);
 
 pub(crate) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
@@ -49,7 +49,7 @@ pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
         .layer(Extension(PolicyFile(policy)))
 }
 
-async fn start(
+pub(super) async fn start(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,

@@ -446,6 +446,8 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
             "/v1/agent-apps/diagnostics/jobs",
             "start authorized application diagnostics",
         ),
+        #[cfg(target_os = "macos")]
+        client_route("POST", "/v1/agent-apps/mcp/checks", "start authorized MCP connection checks"),
         client_route("GET", "/v1/agent-apps/mcp", "managed MCP catalog and capabilities"),
         client_route("POST", "/v1/agent-apps/mcp", "create managed MCP catalog record"),
         client_route("GET", "/v1/agent-apps/mcp/presets", "managed MCP presets"),

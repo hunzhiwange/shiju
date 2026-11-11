@@ -46,7 +46,7 @@ struct NativeQuery {
 }
 
 pub(super) fn router() -> Router {
-    Router::new()
+    let router = Router::new()
         .route(
             "/agent-apps/mcp",
             get(read_catalog).post(super::mcp_management_create::create_catalog_record),
@@ -64,7 +64,14 @@ pub(super) fn router() -> Router {
         .route("/agent-apps/mcp/import", axum::routing::post(super::mcp_management_import::import))
         .route("/agent-apps/mcp/resync", axum::routing::post(super::mcp_management_resync::submit))
         .route("/agent-apps/mcp/presets", get(read_presets))
-        .route("/agent-apps/mcp/native", get(read_native))
+        .route("/agent-apps/mcp/native", get(read_native));
+    #[cfg(target_os = "macos")]
+    let router = router.route(
+        "/agent-apps/mcp/checks",
+        axum::routing::post(super::mcp_management_probe::submit)
+            .layer(axum::extract::DefaultBodyLimit::max(32 * 1024)),
+    );
+    router
         .layer(Extension(PolicyFile(
             std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from),
         )))

@@ -399,3 +399,8 @@ mod aggregation_publish;
 mod mcp_management_resync;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_resync_tests;
+
+#[cfg(target_os = "macos")]
+mod mcp_management_probe;
+#[cfg(all(test, target_os = "macos"))]
+mod mcp_management_probe_tests;

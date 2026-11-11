@@ -395,6 +395,13 @@ pub(crate) fn overlay<'a>(
             ready,
         ));
     }
+    if scope.app == AppId::Omp {
+        actions = actions.push(action(
+            "OMP 独立模型条目",
+            ListMessage::OmpDirectory(crate::app::message::settings::aggregation_omp::Event::Open),
+            ready,
+        ));
+    }
     let actions = actions
         .push(action("关闭", ListMessage::Close, true))
         .spacing(10)
@@ -407,6 +414,9 @@ pub(crate) fn overlay<'a>(
     }
     if let Some(form) = &state.pi_directory {
         return crate::app::components::aggregation_pi::overlay(form, list);
+    }
+    if let Some(form) = &state.omp_directory {
+        return crate::app::components::aggregation_omp::overlay(form, list);
     }
     if let Some(form) = &state.model_catalog {
         return crate::app::components::system_settings_providers::catalog::deployments(

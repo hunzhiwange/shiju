@@ -36,6 +36,7 @@ pub(crate) struct ListState {
     pub preview: Option<super::preview::Form>,
     pub endpoints: Option<super::endpoints::Form>,
     pub model_catalog: Option<super::model_catalog::CatalogForm>,
+    pub omp_directory: Option<crate::app::message::settings::aggregation_omp::Form>,
     pub desktop: Option<super::desktop::Form>,
     pub omo: Option<crate::app::state::aggregation_omo::Form>,
     pub new_draft:
@@ -64,6 +65,7 @@ impl ListState {
         self.usage.clear();
         self.editor = None;
         self.form = None;
+        self.omp_directory = None;
         self.desktop = None;
         self.omo = None;
         self.endpoints = None;

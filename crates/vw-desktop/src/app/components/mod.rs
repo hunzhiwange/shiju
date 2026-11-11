@@ -432,6 +432,8 @@ pub(crate) mod system_settings_auth;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod system_settings_auth_tests;
 
+#[path = "agent_apps/aggregation_omp.rs"]
+pub(crate) mod aggregation_omp;
 pub(crate) mod app_providers;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod apps_usage_cards;

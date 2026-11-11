@@ -11,7 +11,13 @@ use vw_api_types::{agent_apps_auth::AuthService, id::TenantScope};
 #[cfg(target_os = "macos")]
 use {
     crate::agent_apps::usage_settings::{UsageCredentialId, UsageSigningCredentialRefs},
-    vw_api_types::{agent_apps::AppId, apps_usage::UsageSnapshotQuery, id::ProjectId},
+    vw_api_types::{
+        agent_apps::AppId,
+        agent_apps_diagnostics::DiagnosticScope,
+        apps_usage::UsageSnapshotQuery,
+        id::ProjectId,
+        mcp_management::{McpCatalogScope, McpConnectionDefinition, McpCredentialRef, McpRecordId},
+    },
 };
 
 #[derive(Deserialize)]
@@ -88,6 +94,9 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     routing_apps: Vec<RoutingAppPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    mcp_probe: Vec<McpProbePermit>,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -98,6 +107,105 @@ struct Grant {
 struct RoutingAppPermit {
     project_id: ProjectId,
     app_id: AppId,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct McpProbePermit {
+    project_id: ProjectId,
+    app_id: AppId,
+    record_id: McpRecordId,
+    pub connection_revision: u64,
+    // SHA-256 of the canonical URL, including path and query.
+    endpoint_sha256: String,
+    #[serde(default)]
+    tenant_catalog: bool,
+    #[serde(default)]
+    credentials: Vec<McpCredentialRef>,
+}
+
+#[cfg(target_os = "macos")]
+impl McpProbePermit {
+    fn matches(&self, scope: &DiagnosticScope, id: &McpRecordId) -> bool {
+        self.project_id == *scope.project.project_id()
+            && self.app_id == scope.app_id
+            && self.record_id == *id
+            && self.connection_revision > 0
+    }
+
+    pub fn catalog_scope(&self, scope: &DiagnosticScope) -> McpCatalogScope {
+        if self.tenant_catalog {
+            McpCatalogScope::Tenant { scope: scope.project.tenant_scope().clone() }
+        } else {
+            McpCatalogScope::Project { scope: scope.project.clone() }
+        }
+    }
+
+    pub fn permits_endpoint(&self, url: &str) -> bool {
+        reqwest_012::Url::parse(url).is_ok_and(|endpoint| self.matches_endpoint(&endpoint))
+    }
+
+    fn matches_endpoint(&self, endpoint: &reqwest_012::Url) -> bool {
+        hex::encode(Sha256::digest(endpoint.as_str())) == self.endpoint_sha256
+    }
+
+    pub fn permits_credential(
+        &self,
+        definition: &McpConnectionDefinition,
+        reference: &McpCredentialRef,
+    ) -> bool {
+        let url = match definition {
+            McpConnectionDefinition::StreamableHttp { url, .. }
+            | McpConnectionDefinition::Sse { url, .. } => url,
+            _ => return false,
+        };
+        self.credentials.contains(reference)
+            && reqwest_012::Url::parse(url).is_ok_and(|endpoint| {
+                endpoint.scheme() == "https" && self.matches_endpoint(&endpoint)
+            })
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) struct McpProbeAccess {
+    policy: Option<PathBuf>,
+    digest: String,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(PartialEq, Eq)]
+pub(crate) struct AuthorizedMcpProbe {
+    pub principal: String,
+    pub credential_root: Option<PathBuf>,
+    pub permit: McpProbePermit,
+}
+
+#[cfg(target_os = "macos")]
+impl McpProbeAccess {
+    pub fn new(policy: Option<PathBuf>, headers: &HeaderMap) -> Result<Self, StatusCode> {
+        Ok(Self { policy, digest: membership_digest(headers)? })
+    }
+
+    pub fn authorize(
+        &self,
+        scope: &DiagnosticScope,
+        id: &McpRecordId,
+    ) -> Result<AuthorizedMcpProbe, StatusCode> {
+        let authorized = authorize_digest(
+            self.policy.as_deref(),
+            &self.digest,
+            scope.project.tenant_scope(),
+            &scope.target_host_id,
+            None,
+            Capability::McpProbe(scope, id),
+        )?;
+        Ok(AuthorizedMcpProbe {
+            principal: authorized.principal,
+            credential_root: authorized.host.credential_root,
+            permit: authorized.mcp_probe.ok_or(StatusCode::FORBIDDEN)?,
+        })
+    }
 }
 
 #[derive(Deserialize)]
@@ -314,6 +422,8 @@ pub(super) struct Authorization {
     #[cfg(target_os = "macos")]
     pub(super) usage_script_origins: Vec<reqwest::Url>,
     pub identities: Vec<IdentityPermit>,
+    #[cfg(target_os = "macos")]
+    mcp_probe: Option<McpProbePermit>,
     native_slots: Vec<(AuthService, bool)>,
     pub(super) auth_browser_local: bool,
     pub(super) can_set_default: bool,
@@ -462,6 +572,8 @@ enum Capability<'a> {
         manage: bool,
         provider_write: bool,
     },
+    #[cfg(target_os = "macos")]
+    McpProbe(&'a DiagnosticScope, &'a McpRecordId),
     ProviderConfigWrite,
     AuthAccountRead {
         service: AuthService,
@@ -659,6 +771,10 @@ fn authorize_scoped(
     action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
+    authorize_digest(path, &membership_digest(headers)?, tenant, target, action, capability)
+}
+
+fn membership_digest(headers: &HeaderMap) -> Result<String, StatusCode> {
     let mut values = headers.get_all("x-agent-apps-token").iter();
     let token = values
         .next()
@@ -668,6 +784,17 @@ fn authorize_scoped(
     if values.next().is_some() {
         return Err(StatusCode::UNAUTHORIZED);
     }
+    Ok(hex::encode(Sha256::digest(token)))
+}
+
+fn authorize_digest(
+    path: Option<&Path>,
+    digest: &str,
+    tenant: &TenantScope,
+    target: &str,
+    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    capability: Capability<'_>,
+) -> Result<Authorization, StatusCode> {
     let local_path;
     let path = match path {
         Some(path) => path,
@@ -677,12 +804,11 @@ fn authorize_scoped(
         }
     };
     let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let digest = hex::encode(Sha256::digest(token));
     let principal = policy
         .principals
         .iter()
         .find(|principal| {
-            crate::security::pairing::constant_time_eq(&principal.token_sha256, &digest)
+            crate::security::pairing::constant_time_eq(&principal.token_sha256, digest)
         })
         .ok_or(StatusCode::UNAUTHORIZED)?;
     // Do not reveal whether an unauthorized host exists.
@@ -741,6 +867,10 @@ fn authorize_scoped(
                                 })
                             })
                     }
+                    #[cfg(target_os = "macos")]
+                    Capability::McpProbe(scope, id) => {
+                        g.mcp_probe.iter().any(|permit| permit.matches(scope, id))
+                    }
                     Capability::ProviderConfigWrite => g.provider_config_write,
                     Capability::AuthBindingWrite(service) => {
                         g.provider_config_write && g.auth_binding_write.contains(&service)
@@ -785,6 +915,18 @@ fn authorize_scoped(
             .collect(),
         _ => Vec::new(),
     };
+    #[cfg(target_os = "macos")]
+    let mcp_probe = if let Capability::McpProbe(scope, id) = capability {
+        let mut permits = grants
+            .iter()
+            .flat_map(|grant| &grant.mcp_probe)
+            .filter(|permit| permit.matches(scope, id));
+        let permit =
+            permits.next().filter(|_| permits.next().is_none()).ok_or(StatusCode::FORBIDDEN)?;
+        Some(permit.clone())
+    } else {
+        None
+    };
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let native_slots = policy
         .hosts
@@ -812,6 +954,8 @@ fn authorize_scoped(
         #[cfg(target_os = "macos")]
         usage_script_origins,
         identities,
+        #[cfg(target_os = "macos")]
+        mcp_probe,
         native_slots,
         auth_browser_local,
         can_set_default,

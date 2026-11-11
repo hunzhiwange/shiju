@@ -12,7 +12,11 @@ use rmcp::{
     },
 };
 use serde_json::Value;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Default)]
@@ -41,6 +45,31 @@ impl HttpProtocol {
     }
 }
 
+/// Observe rmcp's detached Streamable HTTP session deletion for a bounded probe.
+#[derive(Clone, Default)]
+pub(crate) struct ConnectionCheckCleanup {
+    state: Arc<CleanupState>,
+    cancellation: CancellationToken,
+}
+
+#[derive(Default)]
+struct CleanupState {
+    session: AtomicBool,
+    done: Notify,
+}
+
+impl ConnectionCheckCleanup {
+    pub(crate) async fn wait(&self) {
+        if self.state.session.load(Ordering::Acquire) {
+            self.state.done.notified().await;
+        }
+    }
+
+    pub(crate) fn cancellation(&self) -> &CancellationToken {
+        &self.cancellation
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct HttpClient {
     client: reqwest_012::Client,
@@ -48,6 +77,7 @@ pub(super) struct HttpClient {
     protocol: Arc<Mutex<HttpProtocol>>,
     check_origin: Option<url::Origin>,
     check_cancellation: Option<CancellationToken>,
+    check_cleanup: Option<ConnectionCheckCleanup>,
 }
 
 impl HttpClient {
@@ -61,6 +91,7 @@ impl HttpClient {
             protocol: Default::default(),
             check_origin: None,
             check_cancellation: None,
+            check_cleanup: None,
         }
     }
 
@@ -74,6 +105,11 @@ impl HttpClient {
         self
     }
 
+    pub(super) fn with_check_cleanup(mut self, cleanup: Option<ConnectionCheckCleanup>) -> Self {
+        self.check_cleanup = cleanup;
+        self
+    }
+
     async fn check_io<T>(
         &self,
         operation: impl Future<Output = Result<T, reqwest_012::Error>>,
@@ -82,10 +118,28 @@ impl HttpClient {
             tokio::select! {
                 biased;
                 () = cancel.cancelled() => Err(StreamableHttpError::TransportChannelClosed),
-                result = operation => Ok(result?),
+                result = operation => Ok(result.map_err(reqwest_012::Error::without_url)?),
             }
         } else {
             Ok(operation.await?)
+        }
+    }
+
+    async fn check_sse_io<T>(
+        &self,
+        operation: impl Future<Output = Result<T, SseTransportError<reqwest_012::Error>>>,
+    ) -> Result<T, SseTransportError<reqwest_012::Error>> {
+        if let Some(cancel) = &self.check_cancellation {
+            tokio::select! {
+                biased;
+                () = cancel.cancelled() => Err(std::io::Error::from(std::io::ErrorKind::Interrupted).into()),
+                result = operation => result.map_err(|error| match error {
+                    SseTransportError::Client(error) => SseTransportError::Client(error.without_url()),
+                    other => other,
+                }),
+            }
+        } else {
+            operation.await
         }
     }
 
@@ -150,8 +204,10 @@ impl StreamableHttpClient for HttpClient {
         session: Option<Arc<str>>,
         auth: Option<String>,
     ) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
+        let mut initializing = false;
         if let ClientJsonRpcMessage::Request(request) = &message {
             if matches!(request.request, ClientRequest::InitializeRequest(_)) {
+                initializing = true;
                 let mut protocol =
                     self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 protocol.initialize_id = Some(request.id.clone());
@@ -191,6 +247,12 @@ impl StreamableHttpClient for HttpClient {
             .get("mcp-session-id")
             .and_then(|value| value.to_str().ok())
             .map(ToOwned::to_owned);
+        if initializing
+            && session.is_some()
+            && let Some(cleanup) = &self.check_cleanup
+        {
+            cleanup.state.session.store(true, Ordering::Release);
+        }
         let kind = response
             .headers()
             .get("content-type")
@@ -233,11 +295,23 @@ impl StreamableHttpClient for HttpClient {
         if let Some(auth) = auth {
             request = request.bearer_auth(auth);
         }
-        let response = request.send().await?;
-        if response.status() != reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
-            response.error_for_status()?;
+        let delete = async {
+            let response = request.send().await?;
+            if response.status() != reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
+                response.error_for_status()?;
+            }
+            Ok::<_, reqwest_012::Error>(())
+        };
+        if let Some(cleanup) = &self.check_cleanup {
+            let result = tokio::select! {
+                biased;
+                () = cleanup.cancellation.cancelled() => Ok(()),
+                result = delete => result.map_err(reqwest_012::Error::without_url),
+            };
+            cleanup.state.done.notify_one();
+            return Ok(result?);
         }
-        Ok(())
+        Ok(delete.await?)
     }
 
     async fn get_stream(
@@ -297,7 +371,7 @@ impl SseClient for HttpClient {
                 .into());
             }
         }
-        SseClient::post_message(&self.client, uri, message, auth).await
+        self.check_sse_io(SseClient::post_message(&self.client, uri, message, auth)).await
     }
 
     async fn get_stream(
@@ -306,8 +380,15 @@ impl SseClient for HttpClient {
         last: Option<String>,
         auth: Option<String>,
     ) -> Result<BoxedSseResponse, SseTransportError<Self::Error>> {
-        SseClient::get_stream(&self.client, uri, last, auth)
-            .await
-            .map(|stream| events(stream, self.responses.clone(), self.protocol.clone(), false))
+        self.check_sse_io(SseClient::get_stream(&self.client, uri, last, auth)).await.map(
+            |stream| {
+                events(
+                    self.check_stream(stream),
+                    self.responses.clone(),
+                    self.protocol.clone(),
+                    false,
+                )
+            },
+        )
     }
 }

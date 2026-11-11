@@ -178,7 +178,7 @@ mod execution {
                     &expected.id,
                     |record| record.record.revision == expected.revision,
                     execution_host,
-                    accounts,
+                    Some(accounts),
                     authorize_credential_use,
                 )
                 .await?;
@@ -191,7 +191,7 @@ mod execution {
             id: &McpRecordId,
             revision_matches: impl FnOnce(&McpCatalogRecord) -> bool + Send,
             execution_host: &str,
-            accounts: &AuthAccountStore,
+            accounts: Option<&AuthAccountStore>,
             authorize_credential_use: impl Fn(
                 &McpConnectionDefinition,
                 &McpCredentialRef,
@@ -306,7 +306,7 @@ mod execution {
         fields: &BTreeMap<String, McpConfigValue>,
         tenant: &TenantScope,
         execution_host: &str,
-        accounts: &AuthAccountStore,
+        accounts: Option<&AuthAccountStore>,
         authorize: &(impl Fn(&McpCredentialRef) -> Option<AuthAccountScope<'a>> + Sync),
     ) -> Result<Vec<(String, String, bool)>, McpFailureCode> {
         let mut approved = Vec::with_capacity(fields.len());
@@ -333,6 +333,7 @@ mod execution {
                 McpConfigValue::Literal { value } => (value.clone(), false),
                 McpConfigValue::Credential { reference } => {
                     let scope = scope.ok_or(McpFailureCode::PermissionDenied)?;
+                    let accounts = accounts.ok_or(McpFailureCode::CredentialUnavailable)?;
                     (resolve_access_token(accounts, scope, &reference.account_id).await?, true)
                 }
             };

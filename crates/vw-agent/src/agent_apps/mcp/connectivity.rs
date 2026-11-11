@@ -90,7 +90,7 @@ impl McpCatalogStore {
                         }
                     },
                     host.execution_host,
-                    host.accounts,
+                    Some(host.accounts),
                     authorize_credential_use,
                 )
                 .await?;
@@ -112,6 +112,7 @@ impl McpCatalogStore {
                     deadline.saturating_duration_since(Instant::now()),
                     http_io.clone(),
                     cancellation.map(|_| &mut child),
+                    None,
                 )
                 .await
                 .map_err(|_| McpFailureCode::ConnectionFailed)?,

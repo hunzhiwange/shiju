@@ -152,6 +152,8 @@ mod read_tests;
 
 mod access;
 pub(super) use access::AccountTermination;
+#[cfg(target_os = "macos")]
+pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};
 
 pub(super) struct AuthAccountHost {
     pub id: String,

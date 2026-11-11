@@ -669,8 +669,11 @@ pub(crate) async fn open_server_peer(
     closed: tokio_util::sync::CancellationToken,
     form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
 ) -> anyhow::Result<RunningMcpPeer> {
-    open_server_peer_inner(server, timeout, closed, form_owner, None, None).await
+    open_server_peer_inner(server, timeout, closed, form_owner, None, None, None).await
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use wire_http::ConnectionCheckCleanup;
 
 /// Open a short-lived peer for an explicit catalog check, with no session privileges.
 #[cfg(not(target_arch = "wasm32"))]
@@ -679,6 +682,7 @@ pub(crate) async fn open_connection_check_peer(
     timeout: Duration,
     http_io: tokio_util::sync::CancellationToken,
     child: Option<&mut Option<ProbeChild>>,
+    cleanup: Option<ConnectionCheckCleanup>,
 ) -> anyhow::Result<RunningMcpPeer> {
     open_server_peer_inner(
         server,
@@ -687,6 +691,7 @@ pub(crate) async fn open_connection_check_peer(
         None,
         Some(http_io),
         child,
+        cleanup,
     )
     .await
 }
@@ -698,6 +703,7 @@ async fn open_server_peer_inner(
     form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
     check_http_io: Option<tokio_util::sync::CancellationToken>,
     child: Option<&mut Option<wire_stdio::ProbeChild>>,
+    cleanup: Option<wire_http::ConnectionCheckCleanup>,
 ) -> anyhow::Result<RunningMcpPeer> {
     let connection_check = check_http_io.is_some();
     let mut peer_client = NoopClient::with_cancellation(closed);
@@ -745,8 +751,10 @@ async fn open_server_peer_inner(
             let mut client = wire_http::HttpClient::new(client, responses);
             let mut config =
                 SseClientConfig { sse_endpoint: server.url.clone().into(), ..Default::default() };
-            if connection_check {
-                client = client.with_check_origin(reqwest_012::Url::parse(&server.url)?.origin());
+            if let Some(http_io) = check_http_io {
+                client = client
+                    .with_check_origin(reqwest_012::Url::parse(&server.url)?.origin())
+                    .with_check_cancellation(http_io);
                 config.retry_policy =
                     std::sync::Arc::new(rmcp::transport::common::client_side_sse::NeverRetry);
             }
@@ -797,7 +805,8 @@ async fn open_server_peer_inner(
             if let Some(http_io) = check_http_io {
                 client = client
                     .with_check_origin(reqwest_012::Url::parse(&server.url)?.origin())
-                    .with_check_cancellation(http_io);
+                    .with_check_cancellation(http_io)
+                    .with_check_cleanup(cleanup);
             }
             let transport = StreamableHttpClientTransport::with_client(client, config);
             with_connect_timeout(

@@ -47,6 +47,7 @@ pub mod app_routing;
 pub mod apps_usage;
 pub mod chat;
 pub mod common;
+pub mod computer_control;
 pub mod error;
 pub mod file;
 pub mod git;
@@ -157,3 +158,6 @@ mod app_providers_tests;
 pub mod model_catalog;
 #[cfg(test)]
 mod model_catalog_tests;
+
+#[cfg(test)]
+mod computer_control_tests;

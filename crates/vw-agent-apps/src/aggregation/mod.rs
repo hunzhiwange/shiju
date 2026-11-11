@@ -123,3 +123,9 @@ mod stale_clients_tests;
 pub mod catalog_ack;
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_ack_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod lifecycle_restore_tests;
+
+#[cfg(target_os = "macos")]
+pub mod lifecycle_restore;

@@ -81,13 +81,13 @@ fn authorize(
     }
     Ok(())
 }
-fn target(input: &Restore<'_>, contract: Contract) -> PendingTarget {
+fn target(input: &Restore<'_>, contract: Contract, keep_intent: bool) -> PendingTarget {
     let mut stack = input.expected.stack.clone();
-    stack.enabled = false;
+    stack.enabled = keep_intent;
     PendingTarget {
         stack: Some(stack),
         mode: Some(ModeState {
-            mode: Mode::Direct,
+            mode: if keep_intent { Mode::Proxy } else { Mode::Direct },
             attached: false,
             proxy_route: input.expected.mode.as_ref().and_then(|m| m.proxy_route.clone()),
             contract: Some(contract),
@@ -129,6 +129,16 @@ pub fn restore_claude(
     file: &mut ClaudeFile,
     tx: &ProviderTransactions,
     input: Restore<'_>,
+    unchanged: impl Fn() -> bool,
+) -> Result<(), RestoreError> {
+    restore_claude_with_intent(file, tx, input, false, unchanged)
+}
+
+pub(crate) fn restore_claude_with_intent(
+    file: &mut ClaudeFile,
+    tx: &ProviderTransactions,
+    input: Restore<'_>,
+    keep_intent: bool,
     unchanged: impl Fn() -> bool,
 ) -> Result<(), RestoreError> {
     authorize(tx, &file.guard, &input, AppId::Claude)?;
@@ -190,7 +200,7 @@ pub fn restore_claude(
         input.expected,
         false,
         &[FileChange { name: OsStr::new(file.name), privacy: FilePrivacy::Private, patch: &write }],
-        target(&input, contract),
+        target(&input, contract, keep_intent),
         || unchanged_check(tx, AppId::Claude, &input, &unchanged),
     )?;
     Ok(())
@@ -205,6 +215,18 @@ pub fn restore_codex(
     input: Restore<'_>,
     login: LoginInput<'_>,
     catalog: Option<&vw_api_types::model_catalog::SavedCodexCatalog>,
+    unchanged: impl Fn() -> bool,
+) -> Result<(), RestoreError> {
+    restore_codex_with_intent(files, tx, input, login, catalog, false, unchanged)
+}
+
+pub(crate) fn restore_codex_with_intent(
+    files: &mut CodexFiles,
+    tx: &ProviderTransactions,
+    input: Restore<'_>,
+    login: LoginInput<'_>,
+    catalog: Option<&vw_api_types::model_catalog::SavedCodexCatalog>,
+    keep_intent: bool,
     unchanged: impl Fn() -> bool,
 ) -> Result<(), RestoreError> {
     authorize(tx, &files.guard, &input, AppId::Codex)?;
@@ -311,7 +333,7 @@ pub fn restore_codex(
         input.expected,
         false,
         &changes,
-        target(&input, contract),
+        target(&input, contract, keep_intent),
         || unchanged_check(tx, AppId::Codex, &input, &unchanged),
     )?;
     Ok(())

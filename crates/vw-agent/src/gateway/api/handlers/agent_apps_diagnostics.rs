@@ -18,10 +18,10 @@ use crate::{
 };
 use axum::{
     Extension, Json, Router,
-    extract::{DefaultBodyLimit, Query, rejection::JsonRejection},
+    extract::{DefaultBodyLimit, Path, Query, rejection::JsonRejection},
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{get, post},
 };
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
@@ -32,7 +32,7 @@ use vw_api_types::{
         DiagnosticStartRequest,
     },
     error::{ApiErrorBody, ApiErrorDetail},
-    id::{ProjectScope, TenantScope},
+    id::{ProjectScope, TaskId, TenantScope},
 };
 
 #[derive(Clone)]
@@ -45,8 +45,65 @@ pub(crate) fn router() -> Router {
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new()
         .route("/agent-apps/diagnostics/jobs", post(submit))
+        .route("/agent-apps/diagnostics/jobs/{id}", get(read_job))
+        .route("/agent-apps/diagnostics/jobs/{id}/cancel", post(cancel_job))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .layer(Extension(PolicyFile(policy)))
+}
+
+async fn read_job(
+    Extension(policy): Extension<PolicyFile>,
+    Extension(tenant): Extension<TenantScope>,
+    jobs: Option<Extension<DiagnosticJobs>>,
+    headers: HeaderMap,
+    Query(query): Query<DiagnosticScopeQuery>,
+    Path(id): Path<TaskId>,
+) -> Response {
+    job_request(policy, tenant, jobs, headers, query, id, false).await
+}
+
+async fn cancel_job(
+    Extension(policy): Extension<PolicyFile>,
+    Extension(tenant): Extension<TenantScope>,
+    jobs: Option<Extension<DiagnosticJobs>>,
+    headers: HeaderMap,
+    Query(query): Query<DiagnosticScopeQuery>,
+    Path(id): Path<TaskId>,
+) -> Response {
+    job_request(policy, tenant, jobs, headers, query, id, true).await
+}
+
+async fn job_request(
+    policy: PolicyFile,
+    tenant: TenantScope,
+    jobs: Option<Extension<DiagnosticJobs>>,
+    headers: HeaderMap,
+    query: DiagnosticScopeQuery,
+    id: TaskId,
+    cancel: bool,
+) -> Response {
+    let result = tokio::task::spawn_blocking(move || {
+        let scope = DiagnosticScope {
+            project: ProjectScope::new(tenant, query.project_id)
+                .map_err(|_| StatusCode::BAD_REQUEST)?,
+            target_host_id: query.target_host_id,
+            app_id: query.app_id,
+        };
+        let principal =
+            super::agent_apps::authorize_diagnostic_job(policy.0.as_deref(), &headers, &scope)?;
+        let owner = DiagnosticJobOwner { scope, principal };
+        let jobs = jobs.ok_or(StatusCode::SERVICE_UNAVAILABLE)?.0;
+        if cancel { jobs.cancel(&owner, &id) } else { jobs.snapshot(&owner, &id) }
+            .map_err(job_status)
+    })
+    .await
+    .unwrap_or(Err(StatusCode::SERVICE_UNAVAILABLE));
+    match result {
+        Ok(snapshot) => {
+            (StatusCode::OK, [(header::CACHE_CONTROL, "no-store")], Json(snapshot)).into_response()
+        }
+        Err(status) => failure(status),
+    }
 }
 
 /// Existing diagnostics keep their original reports and request contract.

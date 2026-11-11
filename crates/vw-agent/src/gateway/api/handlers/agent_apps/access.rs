@@ -615,6 +615,8 @@ enum Capability<'a> {
     McpProbe(&'a DiagnosticScope, &'a McpRecordId),
     #[cfg(target_os = "macos")]
     DiagnosticProbe(&'a DiagnosticScope),
+    #[cfg(target_os = "macos")]
+    DiagnosticJob(&'a DiagnosticScope),
     ProviderConfigWrite,
     AuthAccountRead {
         service: AuthService,
@@ -934,6 +936,22 @@ fn authorize_digest(
                     #[cfg(target_os = "macos")]
                     Capability::McpProbe(scope, id) => {
                         g.mcp_probe.iter().any(|permit| permit.matches(scope, id))
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::DiagnosticJob(scope) => {
+                        // Reuse existing diagnostic grants, without requiring a new permission.
+                        // The registry separately requires the exact submitting principal and scope.
+                        (g.provider_config_read
+                            && g.routing_manage
+                            && g.routing_apps.iter().any(|permit| {
+                                permit.project_id == *scope.project.project_id()
+                                    && permit.app_id == scope.app_id
+                            }))
+                            || g.mcp_probe.iter().any(|permit| {
+                                permit.project_id == *scope.project.project_id()
+                                    && permit.app_id == scope.app_id
+                                    && permit.connection_revision > 0
+                            })
                     }
                     #[cfg(target_os = "macos")]
                     Capability::DiagnosticProbe(scope) => {
@@ -1530,6 +1548,24 @@ fn authorize_aggregation(
             status
         }
     })
+}
+
+/// Resolve current diagnostic membership before looking up a task. An ID grants no access.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_diagnostic_job(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    scope: &DiagnosticScope,
+) -> Result<String, StatusCode> {
+    authorize_scoped(
+        path,
+        headers,
+        scope.project.tenant_scope(),
+        &scope.target_host_id,
+        None,
+        Capability::DiagnosticJob(scope),
+    )
+    .map(|authorization| authorization.principal)
 }
 
 /// Diagnostics use the existing application management and saved-provider read grants.

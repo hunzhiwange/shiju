@@ -595,7 +595,7 @@ pub(super) fn authorize_mcp_native_write(
 }
 
 #[cfg(target_os = "macos")]
-pub(super) use access::authorize_diagnostic_probe;
+pub(super) use access::{authorize_diagnostic_job, authorize_diagnostic_probe};
 
 #[cfg(target_os = "macos")]
 pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecycle};

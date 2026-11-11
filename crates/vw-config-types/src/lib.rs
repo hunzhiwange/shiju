@@ -24,6 +24,10 @@ pub mod security;
 pub mod skills;
 pub mod tools;
 pub mod ui;
+pub mod voice;
 
 #[cfg(test)]
 mod agent_profile_tests;
+
+#[cfg(test)]
+mod voice_tests;

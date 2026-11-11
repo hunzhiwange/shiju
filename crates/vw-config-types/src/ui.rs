@@ -172,6 +172,9 @@ pub struct QuickMessageConfig {
 /// Desktop app UI configuration (`[app_ui]` section).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default, PartialEq)]
 pub struct AppUiConfig {
+    /// Gateway service configuration, independent of local desktop device preferences.
+    #[serde(default)]
+    pub voice: crate::voice::VoiceConfig,
     /// System settings values managed by the desktop UI.
     #[serde(default)]
     pub system_settings: AppSystemSettingsConfig,

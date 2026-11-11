@@ -65,6 +65,7 @@ pub mod task;
 pub mod task_lifecycle;
 pub mod todo;
 pub mod tools;
+pub mod voice;
 pub mod workflow;
 pub mod worktree;
 
@@ -161,3 +162,6 @@ mod model_catalog_tests;
 
 #[cfg(test)]
 mod computer_control_tests;
+
+#[cfg(test)]
+mod voice_tests;

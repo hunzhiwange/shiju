@@ -2436,6 +2436,8 @@
   "累计 Token: %u": "Total tokens: %u",
   "预估成本: $%.4f": "Estimated cost: $%.4f",
   "正在恢复会话": "Restoring chat",
+  "取消归档": "Unarchive",
+  "取消归档失败，请重试。": "Could not unarchive the chat. Please try again.",
   "识矩软件智能体": "ShiJu software agent",
   "您的专属 AI 工作助理": "Your personal AI work assistant",
   "分支 %s": "Branch %s",

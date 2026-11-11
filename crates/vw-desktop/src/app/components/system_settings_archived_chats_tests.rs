@@ -92,6 +92,95 @@ mod rendering {
     }
 
     #[tokio::test]
+    async fn archived_chats_restore_renders_and_disables_duplicate_clicks() {
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+                .await
+                .unwrap();
+        for locale in [
+            DesktopLocale::SimplifiedChinese,
+            DesktopLocale::TraditionalChinese,
+            DesktopLocale::English,
+        ] {
+            for (theme_name, theme) in [("dark", Theme::Dark), ("light", Theme::Light)] {
+                for width in [320_u32, 860] {
+                    for operating in [false, true] {
+                        let mut state = fixture();
+                        state.sessions.truncate(1);
+                        let id = state.sessions[0].id.clone();
+                        if operating {
+                            state.operating_ids.insert(id.clone());
+                        }
+                        let mut ui = UserInterface::build(
+                            page(&state, locale),
+                            Size::new(width as f32, 620.0),
+                            Cache::new(),
+                            &mut renderer,
+                        );
+                        ui.update(
+                            &[Event::Window(iced::window::Event::RedrawRequested(
+                                iced::time::Instant::now(),
+                            ))],
+                            mouse::Cursor::Unavailable,
+                            &mut renderer,
+                            &mut clipboard::Null,
+                            &mut Vec::new(),
+                        );
+                        ui.draw(
+                            &mut renderer,
+                            &theme,
+                            &Style { text_color: theme.palette().text },
+                            mouse::Cursor::Unavailable,
+                        );
+                        let mut geometry = Geometry::default();
+                        ui.operate(&mut renderer, &mut geometry);
+                        let label = I18n::new(locale).__(if operating {
+                            "正在恢复会话"
+                        } else {
+                            "取消归档"
+                        });
+                        let bounds =
+                            geometry.labels.iter().find(|(text, _)| text == label).unwrap().1;
+                        assert!(bounds.x >= 0.0 && bounds.x + bounds.width <= width as f32);
+                        let messages = click(&mut ui, &mut renderer, bounds.center());
+                        assert_eq!(
+                            messages.iter().filter(|message| matches!(
+                                message,
+                                Message::Settings(SettingsMessage::ArchivedChats(ArchivedChatsMessage::Restore(target))) if target == &id
+                            )).count(),
+                            usize::from(!operating),
+                        );
+                        let pixels = renderer.screenshot(
+                            Size::new(width, 620),
+                            1.0,
+                            theme.palette().background,
+                        );
+                        assert_eq!(pixels.len(), width as usize * 620 * 4);
+                        if let Some(path) = std::env::var_os("SHIJU_ARCHIVED_SCREENSHOTS") {
+                            image::save_buffer(
+                                std::path::PathBuf::from(path).join(format!(
+                                    "restore-{locale:?}-{theme_name}-{width}-{operating}.png"
+                                )),
+                                &pixels,
+                                width,
+                                620,
+                                image::ColorType::Rgba8,
+                            )
+                            .unwrap();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn archived_chats_browse_renders_themes_locales_states_and_interactions() {
         {
             let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();

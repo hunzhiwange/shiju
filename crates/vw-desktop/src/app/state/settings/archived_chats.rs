@@ -32,6 +32,7 @@ pub(crate) struct ArchivedChatsState {
     pub(crate) error: Option<String>,
     pub(crate) request_generation: u64,
     pub(crate) operating_ids: HashSet<String>,
+    pub(crate) restore_requests: HashMap<String, u64>,
     pub(crate) delete_confirmation: Option<ArchivedChatsDeleteConfirmation>,
     pub(crate) identity: Option<ArchivedChatsIdentity>,
     pub(crate) menu: Option<ArchivedChatsMenu>,

@@ -27,10 +27,14 @@ fn icon(icon: Icon, size: f32) -> iced::widget::svg::Svg<'static> {
 }
 
 fn action(label: &str, message: ArchivedChatsMessage) -> Element<'_, Message> {
+    optional_action(label, Some(message))
+}
+
+fn optional_action(label: &str, message: Option<ArchivedChatsMessage>) -> Element<'_, Message> {
     button(text(label).size(13))
         .padding([8, 12])
         .style(rounded_action_btn_style)
-        .on_press(event(message))
+        .on_press_maybe(message.map(event))
         .into()
 }
 
@@ -169,7 +173,10 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
     let i18n = I18n::new(locale);
     let heading = row![
         text(i18n.__("已归档的聊天")).size(24).width(Length::Fill),
-        action(i18n.__("刷新"), ArchivedChatsMessage::Refresh),
+        optional_action(
+            i18n.__("刷新"),
+            state.operating_ids.is_empty().then_some(ArchivedChatsMessage::Refresh),
+        ),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -236,25 +243,35 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                 let title_view = container(text(title).size(14).wrapping(text::Wrapping::None))
                     .width(Length::Fill)
                     .clip(true);
+                let operating = state.operating_ids.contains(&session.id);
                 rows = rows.push(
-                    column![
-                        tooltip(
-                            title_view,
-                            container(text(title).size(13))
-                                .padding(8)
-                                .max_width(420)
-                                .style(settings_modal_card_style),
-                            tooltip::Position::Top
+                    row![
+                        column![
+                            tooltip(
+                                title_view,
+                                container(text(title).size(13))
+                                    .padding(8)
+                                    .max_width(420)
+                                    .style(settings_modal_card_style),
+                                tooltip::Position::Top
+                            ),
+                            text(settings_extensions::archived_chat_updated(
+                                locale,
+                                session.time.updated
+                            ))
+                            .size(12)
+                            .style(settings_muted_text_style),
+                        ]
+                        .spacing(4)
+                        .width(Length::Fill),
+                        optional_action(
+                            i18n.__(if operating { "正在恢复会话" } else { "取消归档" }),
+                            (!operating && state.delete_confirmation.is_none())
+                                .then(|| ArchivedChatsMessage::Restore(session.id.clone())),
                         ),
-                        text(settings_extensions::archived_chat_updated(
-                            locale,
-                            session.time.updated
-                        ))
-                        .size(12)
-                        .style(settings_muted_text_style),
                     ]
-                    .spacing(4)
-                    .width(Length::Fill),
+                    .spacing(8)
+                    .align_y(Alignment::Center),
                 );
             }
             list = list.push(

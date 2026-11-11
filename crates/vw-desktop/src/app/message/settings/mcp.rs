@@ -505,6 +505,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             crate::app::message::agent_apps_diagnostics::update(app, message)
         }
         McpMessage::Bindings(message) => super::mcp_management_bindings::update(app, message),
+        McpMessage::Import(message) => super::mcp_management_import::update(app, message),
         McpMessage::Catalog(message) => super::mcp_management_list::update(app, message),
         McpMessage::TabSelected(tab) => {
             app.mcp_settings.active_tab = tab;

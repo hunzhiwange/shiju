@@ -29,6 +29,7 @@ mod http_request;
 mod mcp;
 pub(crate) mod mcp_management_bindings;
 pub(crate) mod mcp_management_form;
+pub(crate) mod mcp_management_import;
 pub(crate) mod mcp_management_list;
 mod memory;
 mod messages;

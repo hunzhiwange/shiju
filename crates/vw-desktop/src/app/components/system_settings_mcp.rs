@@ -1032,6 +1032,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 /// 在 MCP 设置页上叠加服务器表单或删除确认。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if let Some(state) = crate::app::message::settings::mcp_management_import::visible(app) {
+        return settings_modal_overlay(
+            Some(dialog),
+            crate::app::message::settings::mcp_management_import::message(
+                crate::app::message::settings::mcp_management_import::ImportMessage::Close,
+            ),
+            import::panel(app, state),
+        );
+    }
     if let Some(draft) = &app.mcp_settings.connection_form {
         use crate::app::message::settings::mcp_management_form::{FormMessage, message};
         return settings_modal_overlay(
@@ -1094,6 +1103,12 @@ fn managed_catalog_panel(app: &App) -> Element<'_, Message> {
     let mut body = column![
         managed_catalog_content(catalog::visible(app), catalog::loading(app)),
         toolbar_button("新增受管连接", Some(message(FormMessage::Open(None)))),
+        toolbar_button(
+            "从原生应用导入",
+            Some(crate::app::message::settings::mcp_management_import::message(
+                crate::app::message::settings::mcp_management_import::ImportMessage::Open
+            ))
+        ),
     ]
     .spacing(8);
     if let Some(Ok(response)) = catalog::visible(app) {
@@ -1173,3 +1188,6 @@ pub(crate) use connection::connection_form_panel;
 
 #[path = "system_settings_mcp_bindings.rs"]
 mod bindings;
+
+#[path = "system_settings_mcp_import.rs"]
+pub(crate) mod import;

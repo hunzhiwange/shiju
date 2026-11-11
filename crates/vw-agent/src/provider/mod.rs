@@ -32,6 +32,9 @@ pub mod provider;
 
 pub mod transform;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod voice;
+
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

@@ -992,7 +992,7 @@ struct WorkflowNodeDeltaStreamEvent {
 struct WorkflowNodeOutputBuffer {
     text: String,
     pending_chars: usize,
-    last_flush: std::time::Instant,
+    last_flush: web_time::Instant,
     truncated: bool,
 }
 
@@ -1002,7 +1002,7 @@ impl WorkflowNodeOutputBuffer {
         Self {
             text: String::new(),
             pending_chars: 0,
-            last_flush: std::time::Instant::now(),
+            last_flush: web_time::Instant::now(),
             truncated: false,
         }
     }
@@ -1025,7 +1025,7 @@ impl WorkflowNodeOutputBuffer {
             || self.last_flush.elapsed().as_millis() >= WORKFLOW_NODE_STREAM_FLUSH_MS
         {
             self.pending_chars = 0;
-            self.last_flush = std::time::Instant::now();
+            self.last_flush = web_time::Instant::now();
             return true;
         }
         false
@@ -2153,7 +2153,8 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
             let mut plan_run_cancelled = false;
             let mut attempt = 0_u64;
             let mut plan_run_delta_buffer = PlanRunDeltaBuffer::default();
-            let plan_run_delta_clock = std::time::Instant::now();
+            // 即使普通聊天也会经过这里；浏览器不支持 std::time::Instant。
+            let plan_run_delta_clock = web_time::Instant::now();
 
             info!(
                 target: "vw_desktop",

@@ -8,6 +8,7 @@ pub mod agent;
 pub mod agent_profile;
 pub mod automation;
 pub mod channels;
+pub mod computer_control;
 pub mod config;
 pub mod gateway;
 pub mod hooks;
@@ -31,3 +32,6 @@ mod agent_profile_tests;
 
 #[cfg(test)]
 mod voice_tests;
+
+#[cfg(test)]
+mod computer_control_tests;

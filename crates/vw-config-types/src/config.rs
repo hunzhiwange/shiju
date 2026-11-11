@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use crate::agent::{DelegateAgentConfig, WorkspacesConfig};
 use crate::automation::{CronConfig, HeartbeatConfig, SchedulerConfig};
 use crate::channels::ChannelsConfig;
+use crate::computer_control::ComputerControlConfig;
 use crate::gateway::GatewayConfig;
 use crate::gateway::TunnelConfig;
 use crate::hooks::HooksConfig;
@@ -200,6 +201,10 @@ pub struct Config {
     #[serde(default)]
     pub browser: BrowserConfig,
 
+    /// Independent, user-scoped computer-control grants.
+    #[serde(default)]
+    pub computer_control: ComputerControlConfig,
+
     #[serde(default)]
     pub http_request: HttpRequestConfig,
 
@@ -363,6 +368,7 @@ impl Default for Config {
             gateway: GatewayConfig::default(),
             secrets: SecretsConfig::default(),
             browser: BrowserConfig::default(),
+            computer_control: ComputerControlConfig::default(),
             http_request: HttpRequestConfig::default(),
             multimodal: MultimodalConfig::default(),
             web_fetch: WebFetchConfig::default(),

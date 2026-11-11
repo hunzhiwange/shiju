@@ -176,6 +176,7 @@ pub mod bus;
 
 // 通道集成
 pub mod channels;
+pub mod computer_control;
 
 // 配置管理
 pub mod config;

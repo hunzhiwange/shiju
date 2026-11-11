@@ -163,9 +163,21 @@ impl ChannelsSettingsTab {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ChannelExecutionChoices {
+    pub(crate) agents: Vec<(String, String)>,
+    pub(crate) models: Vec<vw_config_types::agent::AgentModelReference>,
+}
+
 #[derive(Debug, Clone)]
 /// 表示 ChannelsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct ChannelsSettingsState {
+    pub(crate) execution_choices: Option<(String, ChannelExecutionChoices)>,
+    pub(crate) execution_request: Option<(String, String, u64)>,
+    pub(crate) execution_generation: u64,
+    pub(crate) execution_error: Option<String>,
+    pub(crate) instance_execution:
+        std::collections::BTreeMap<String, vw_config_types::channels::ChannelExecutionConfig>,
     pub(crate) instance_default_projects: std::collections::BTreeMap<String, String>,
     pub(crate) project_choices: Vec<(String, String)>,
     pub(crate) project_choices_error: Option<String>,
@@ -210,6 +222,11 @@ impl Default for ChannelsSettingsState {
     fn default() -> Self {
         Self {
             instance_default_projects: Default::default(),
+            instance_execution: Default::default(),
+            execution_choices: None,
+            execution_request: None,
+            execution_generation: 0,
+            execution_error: None,
             project_choices: Vec::new(),
             project_choices_error: None,
             project_choices_request: None,

@@ -21,3 +21,18 @@ fn project_choices_uses_directory_name_when_managed_name_is_blank() {
     app.recent_projects_meta.clear();
     assert_eq!(project_choices(&app), vec![("/data/one".into(), "one".into())]);
 }
+
+#[test]
+fn channel_execution_binding_is_removed_with_channel_instance() {
+    let mut app = App::new().0;
+    app.channels_settings.instance_execution.insert(
+        "wechat:default".into(),
+        vw_config_types::channels::ChannelExecutionConfig {
+            agent: Some("acp-codex".into()),
+            model: None,
+        },
+    );
+    app.channels_settings.wechat = None;
+    super::retain_configured_bindings(&mut app);
+    assert!(!app.channels_settings.instance_execution.contains_key("wechat:default"));
+}

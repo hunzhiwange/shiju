@@ -235,13 +235,32 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
     app.channels_settings
         .instance_default_projects
         .insert("qq:default".into(), "project-one".into());
-    for theme in [Theme::Dark, Theme::Light] {
+    app.channels_settings.instance_execution.insert(
+        "qq:default".into(),
+        vw_config_types::channels::ChannelExecutionConfig {
+            agent: Some("acp-research".into()),
+            model: Some(vw_config_types::agent::AgentModelReference {
+                provider: "provider".into(),
+                model: "model/name".into(),
+            }),
+        },
+    );
+    app.channels_settings.execution_choices = Some((
+        "qq:default".into(),
+        crate::app::state::ChannelExecutionChoices {
+            agents: vec![("acp-research".into(), "研究助手（ACP）".into())],
+            models: vec![],
+        },
+    ));
+    for (theme, width) in
+        [(Theme::Dark, 960), (Theme::Light, 960), (Theme::Dark, 420), (Theme::Light, 420)]
+    {
         let mut element = super::common::default_project_selector(&app, "qq:default".into());
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await
                 .expect("headless renderer");
-        let bounds = Size::new(960.0, 500.0);
+        let bounds = Size::new(width as f32, 500.0);
         let mut tree = Tree::new(element.as_widget());
         let node = element.as_widget_mut().layout(
             &mut tree,
@@ -257,7 +276,7 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
             mouse::Cursor::Unavailable,
             &Rectangle::with_size(bounds),
         );
-        let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
+        let pixels = renderer.screenshot(Size::new(width, 500), 1.0, Color::TRANSPARENT);
         assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
     }
 }

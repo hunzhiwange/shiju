@@ -123,6 +123,17 @@ pub(crate) async fn run_message_execution(
             Ok(id) => id,
             Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
         };
+    let options = match super::execution_binding::execution_options(
+        snapshot,
+        &session_id,
+        route,
+        channel_session_options(route, ctx.session_full_access),
+    )
+    .await
+    {
+        Ok(options) => options,
+        Err(error) => return LlmExecutionResult::Completed(Ok(Err(error))),
+    };
     if let Err(err) = persist_current_route(ctx, route).await {
         return LlmExecutionResult::Completed(Ok(Err(err)));
     }
@@ -149,7 +160,7 @@ pub(crate) async fn run_message_execution(
                         // 指定使用的模型
                         model: Some(channel_model_request_model(&route.provider, &route.model)),
                         reliability: channel_request_reliability(ctx),
-                        options: channel_session_options(route, ctx.session_full_access),
+                        options,
                         approval: Some(ctx.approval_manager.clone()),
                         channel_name: Some(msg.channel.clone()),
                         non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {

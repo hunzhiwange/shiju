@@ -98,6 +98,14 @@ impl fmt::Display for ChannelInstanceProfileError {
 
 impl std::error::Error for ChannelInstanceProfileError {}
 
+/// 每个通道实例使用的智能体与完整模型引用；空值继承现有默认选择。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct ChannelExecutionConfig {
+    pub agent: Option<String>,
+    pub model: Option<crate::agent::AgentModelReference>,
+}
+
 /// 通道配置总表。
 ///
 /// 该结构把所有可选消息通道集中到一个位置，调用方可以按需启用其中任意子通道。
@@ -164,6 +172,9 @@ pub struct ChannelsConfig {
     /// 实例稳定标识（channel_type:instance_id）到注册项目 ID 的默认绑定。
     #[serde(default)]
     pub instance_default_projects: BTreeMap<String, String>,
+    /// 实例稳定标识到任务执行配置的绑定。
+    #[serde(default)]
+    pub instance_execution: BTreeMap<String, ChannelExecutionConfig>,
     /// 通道运行时可选的项目目录覆盖值。
     pub project_dir: Option<PathBuf>,
 }
@@ -200,6 +211,7 @@ impl Default for ChannelsConfig {
             message_timeout_secs: default_channel_message_timeout_secs(),
             project_dir: None,
             instance_default_projects: BTreeMap::new(),
+            instance_execution: BTreeMap::new(),
         }
     }
 }
@@ -231,6 +243,7 @@ impl ChannelsConfig {
         }
         next.instance_default_projects
             .retain(|profile, _| !self.unavailable_channels.contains(profile));
+        next.instance_execution.retain(|profile, _| !self.unavailable_channels.contains(profile));
         next.feishu_instances.retain(|instance| {
             !self.unavailable_channels.contains(&format!("feishu:{}", instance.id))
         });
@@ -274,6 +287,26 @@ impl ChannelsConfig {
         let profiles = self.resolve_channel_instance_profiles().map_err(|err| err.to_string())?;
         if !profiles.iter().any(|profile| profile.profile_ref == key) {
             return Err(format!("unknown channel instance binding: {key}"));
+        }
+        Ok(())
+    }
+
+    /// 拒绝不存在的实例与空白引用；可用性在所属项目的执行边界校验。
+    pub fn validate_instance_execution(&self) -> Result<(), String> {
+        let profiles = self.resolve_channel_instance_profiles().map_err(|err| err.to_string())?;
+        for (key, execution) in &self.instance_execution {
+            if !profiles.iter().any(|profile| &profile.profile_ref == key) {
+                return Err(format!("unknown channel execution binding: {key}"));
+            }
+            let valid = |value: &str| !value.trim().is_empty() && value == value.trim();
+            if execution.agent.as_deref().is_some_and(|agent| !valid(agent))
+                || execution
+                    .model
+                    .as_ref()
+                    .is_some_and(|model| !valid(&model.provider) || !valid(&model.model))
+            {
+                return Err(format!("invalid channel agent or model reference: {key}"));
+            }
         }
         Ok(())
     }

@@ -71,7 +71,12 @@ pub(super) async fn process_channel_message_inner(
     scoped_ctx.workspace_dir = Arc::new(snapshot.directory.clone());
     scoped_ctx.message_snapshot = Some(snapshot.clone());
     let ctx = Arc::new(scoped_ctx);
-    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
+    let project_context = crate::project::instance::Context {
+        directory: snapshot.directory.to_string_lossy().into_owned(),
+        worktree: snapshot.project.worktree.clone(),
+        project: snapshot.project.clone(),
+    };
+    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), crate::project::instance::provide_context(project_context, async {
     // 运行时命令需要优先截获，避免 `/approve`、`/model` 等控制指令进入模型上下文。
     if handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await {
         return;
@@ -91,13 +96,22 @@ pub(super) async fn process_channel_message_inner(
     let history_key = snapshot.scope.key();
     let route = classify_message_route(ctx.as_ref(), &msg.content)
         .unwrap_or_else(|| get_route_selection(ctx.as_ref(), &history_key));
-    let active_provider = match get_or_create_provider(ctx.as_ref(), &route.provider).await {
+    let (route, acp) = match super::execution_binding::resolve_execution_route(&snapshot, route).await {
+        Ok(selection) => selection,
+        Err(error) => {
+            if let Some(channel) = &target_channel {
+                let _ = channel.send(&SendMessage::new(format!("执行配置不可用：{error}"), &msg.reply_target).in_thread(msg.thread_ts.clone())).await;
+            }
+            return;
+        }
+    };
+    let active_provider = if acp { ctx.provider.clone() } else { match get_or_create_provider(ctx.as_ref(), &route.provider).await {
         Ok(provider) => provider,
         Err(err) => {
             notify_provider_init_failure(&msg, target_channel.as_ref(), &route.provider, err).await;
             return;
         }
-    };
+    } };
     maybe_auto_save_message(ctx.as_ref(), &msg).await;
 
     println!("  ⏳ Processing message...");
@@ -201,7 +215,7 @@ pub(super) async fn process_channel_message_inner(
         &canary_guard,
     )
     .await;
-    }).await;
+    })).await;
 }
 
 struct StreamingUiState {

@@ -264,6 +264,21 @@ pub enum HttpRequestMessage {
 /// 渠道设置页消息。
 #[derive(Debug, Clone)]
 pub enum ChannelsMessage {
+    ExecutionChoicesRequested(String),
+    ExecutionChoicesLoaded {
+        tenant: String,
+        instance: String,
+        generation: u64,
+        result: Result<crate::app::state::ChannelExecutionChoices, String>,
+    },
+    ExecutionAgentSelected {
+        instance: String,
+        agent: Option<String>,
+    },
+    ExecutionModelSelected {
+        instance: String,
+        model: Option<vw_config_types::agent::AgentModelReference>,
+    },
     ProjectChoicesRequested(String),
     ProjectChoicesLoaded {
         tenant: String,

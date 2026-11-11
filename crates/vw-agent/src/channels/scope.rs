@@ -54,6 +54,7 @@ pub(crate) struct ChannelMessageSnapshot {
     pub(crate) directory: PathBuf,
     pub(crate) project: crate::project::Info,
     pub(crate) source: ChannelProjectSource,
+    pub(crate) execution: Option<vw_config_types::channels::ChannelExecutionConfig>,
 }
 
 #[derive(Default, Clone)]
@@ -75,7 +76,7 @@ pub(crate) async fn resolve_channel_message_snapshot(
         anyhow::ensure!(snapshot.scope.chat == chat, "channel message snapshot identity mismatch");
         return Ok(snapshot.clone());
     }
-    let (selected, source, fallback) = {
+    let (selected, source, fallback, execution) = {
         let state = ctx.project_state.lock().unwrap_or_else(|e| e.into_inner());
         let instance_key = format!("{}:{}", chat.channel, chat.instance);
         let (selected, source) = if let Some(id) = state.selections.get(&chat) {
@@ -85,7 +86,12 @@ pub(crate) async fn resolve_channel_message_snapshot(
         } else {
             (None, ChannelProjectSource::Workspace)
         };
-        (selected, source, state.config.project_dir.clone())
+        (
+            selected,
+            source,
+            state.config.project_dir.clone(),
+            state.config.instance_execution.get(&instance_key).cloned(),
+        )
     };
     let (project, directory) = if let Some(id) = selected {
         let scope = ProjectScope::new(chat.tenant.clone(), ProjectId::from(id.clone()))?;
@@ -115,6 +121,7 @@ pub(crate) async fn resolve_channel_message_snapshot(
         directory,
         project,
         source,
+        execution,
     })
 }
 

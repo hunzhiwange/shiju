@@ -746,6 +746,7 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
     let s = &app.channels_settings;
     let active =
         s.project_choices_request.as_ref().is_some_and(|(_, instance, _)| instance == &key);
+    let execution_key = key.clone();
     let current = s.instance_default_projects.get(&key);
     let mut options =
         vec![ProjectOption { id: None, label: tr(app.desktop_locale, "不指定项目").into() }];
@@ -822,5 +823,5 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
     } else if active && s.project_choices.is_empty() {
         content = content.push(hint_row(tr(app.desktop_locale, "暂无项目，请先创建项目。")));
     }
-    content.into()
+    content.push(super::execution::selectors(app, execution_key)).into()
 }

@@ -76,7 +76,11 @@ pub(crate) fn collect_configured_channels(
     _skip_context: &str,
 ) -> Vec<ConfiguredChannel> {
     let mut channels = Vec::new();
-    if let Err(err) = config.channels_config.validate_instance_default_projects() {
+    if let Err(err) = config
+        .channels_config
+        .validate_instance_default_projects()
+        .and_then(|()| config.channels_config.validate_instance_execution())
+    {
         tracing::warn!("Channel default project config is invalid: {err}; skipping channels.");
         return channels;
     }

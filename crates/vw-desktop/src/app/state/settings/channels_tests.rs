@@ -210,3 +210,15 @@ fn channel_default_project_load_failure_keeps_deleted_binding_and_unbinds_explic
     state.select_default_project("tenant", "qq:default", None).unwrap();
     assert!(!state.instance_default_projects.contains_key("qq:default"));
 }
+
+#[test]
+fn channel_execution_choices_invalidated_with_project_or_instance() {
+    let mut state = project_settings();
+    state.execution_choices = Some(("wechat:default".into(), ChannelExecutionChoices::default()));
+    state.execution_request = Some(("tenant".into(), "wechat:default".into(), 1));
+    state.execution_error = Some("error".into());
+    state.invalidate_project_choices();
+    assert!(state.execution_choices.is_none());
+    assert!(state.execution_request.is_none());
+    assert!(state.execution_error.is_none());
+}

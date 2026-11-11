@@ -164,6 +164,18 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         app.channels_settings.invalidate_project_choices();
     }
     match message {
+        ChannelsMessage::ExecutionChoicesRequested(instance) => {
+            super::execution::load(app, instance)
+        }
+        ChannelsMessage::ExecutionChoicesLoaded { tenant, instance, generation, result } => {
+            super::execution::loaded(app, tenant, instance, generation, result)
+        }
+        ChannelsMessage::ExecutionAgentSelected { instance, agent } => {
+            super::execution::select_agent(app, instance, agent)
+        }
+        ChannelsMessage::ExecutionModelSelected { instance, model } => {
+            super::execution::select_model(app, instance, model)
+        }
         ChannelsMessage::ProjectChoicesRequested(instance) => super::projects::load(app, instance),
         ChannelsMessage::ProjectChoicesLoaded { tenant, instance, generation, result } => {
             super::projects::loaded(app, tenant, instance, generation, result)
@@ -187,6 +199,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
         ChannelsMessage::ProjectDirChanged(value) => {
+            app.channels_settings.invalidate_execution_choices();
             app.channels_settings.project_dir_input = value;
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }

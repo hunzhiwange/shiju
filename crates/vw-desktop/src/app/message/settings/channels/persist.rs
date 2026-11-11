@@ -88,6 +88,7 @@ pub(crate) fn build_channels_config_from_settings(
         unavailable_channels: Default::default(),
         project_dir: settings.project_dir(),
         instance_default_projects: settings.instance_default_projects.clone(),
+        instance_execution: settings.instance_execution.clone(),
         cli: settings.cli,
         telegram: settings.telegram.clone(),
         discord: settings.discord.clone(),
@@ -142,6 +143,10 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
         }
     };
 
+    if let Err(error) = channels_config.validate_instance_execution() {
+        app.channels_settings.save_error = Some(error);
+        return None;
+    }
     app.channels_settings.save_error = None;
     Some(update_channels_config_async(move |channels| {
         *channels = channels_config;

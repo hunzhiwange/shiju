@@ -74,3 +74,37 @@ fn channel_project_binding_legacy_configuration_defaults_to_empty_bindings() {
     assert!(config.instance_default_projects.is_empty());
     config.validate_instance_default_projects().unwrap();
 }
+
+#[test]
+fn channel_execution_bindings_round_trip_and_reject_unknown_instances() {
+    let mut config = configured();
+    let binding = ChannelExecutionConfig {
+        agent: Some("acp-codex".into()),
+        model: Some(crate::agent::AgentModelReference {
+            provider: "provider".into(),
+            model: "model/name".into(),
+        }),
+    };
+    config.instance_execution.insert("dingtalk:team".into(), binding.clone());
+    config.validate_instance_execution().unwrap();
+    let restored: ChannelsConfig =
+        serde_json::from_value(serde_json::to_value(&config).unwrap()).unwrap();
+    assert_eq!(restored.instance_execution["dingtalk:team"], binding);
+    assert!(!restored.instance_execution.contains_key("dingtalk:default"));
+    config.dingtalk_instances.clear();
+    assert!(config.validate_instance_execution().is_err());
+}
+
+#[test]
+fn channel_execution_bindings_reject_blank_references() {
+    let mut config = configured();
+    config.instance_execution.insert(
+        "dingtalk:default".into(),
+        ChannelExecutionConfig { agent: Some(" ".into()), model: None },
+    );
+    assert!(config.validate_instance_execution().is_err());
+    config.instance_execution.get_mut("dingtalk:default").unwrap().agent = None;
+    config.instance_execution.get_mut("dingtalk:default").unwrap().model =
+        Some(crate::agent::AgentModelReference { provider: "provider".into(), model: " ".into() });
+    assert!(config.validate_instance_execution().is_err());
+}

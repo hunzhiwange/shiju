@@ -9,6 +9,7 @@ mod channels_config;
 mod command;
 mod dispatch;
 mod errors;
+mod execution_binding;
 mod execution_control;
 mod health;
 mod listener;

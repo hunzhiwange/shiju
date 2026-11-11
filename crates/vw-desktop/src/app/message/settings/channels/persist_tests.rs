@@ -42,3 +42,23 @@ fn channel_default_project_saved_config_preserves_independent_bindings_and_secre
     assert_eq!(loaded.instance_default_projects["qq:default"], "project-two");
     assert_eq!(loaded.qq.unwrap().app_secret, "secret");
 }
+
+#[test]
+fn channel_execution_settings_preserve_agent_and_model() {
+    let mut settings = ChannelsSettingsState::default();
+    settings.wechat = Some(vw_config_types::channels::WeChatConfig {
+        bot_token: "token".into(),
+        base_url: "https://example.test".into(),
+    });
+    let binding = vw_config_types::channels::ChannelExecutionConfig {
+        agent: Some("acp-codex".into()),
+        model: Some(vw_config_types::agent::AgentModelReference {
+            provider: "provider".into(),
+            model: "model".into(),
+        }),
+    };
+    settings.instance_execution.insert("wechat:default".into(), binding.clone());
+    let config = build_channels_config_from_settings(&settings).unwrap();
+    assert_eq!(config.instance_execution["wechat:default"], binding);
+    config.validate_instance_execution().unwrap();
+}

@@ -145,7 +145,10 @@ async fn commit_channel_turn(
         session_id: id.clone(),
         time: message::UserTime { created: now },
         summary: None,
-        agent: msg.channel.clone(),
+        agent: snapshot.execution.as_ref().map_or_else(
+            || msg.channel.clone(),
+            |execution| execution.agent.clone().unwrap_or_else(|| "main".into()),
+        ),
         model: message::ModelRef {
             provider_id: route.provider.clone(),
             model_id: route.model.clone(),
@@ -168,7 +171,10 @@ async fn commit_channel_turn(
         model_id: route.model.clone(),
         provider_id: route.provider.clone(),
         mode: "chat".into(),
-        agent: msg.channel.clone(),
+        agent: snapshot.execution.as_ref().map_or_else(
+            || msg.channel.clone(),
+            |execution| execution.agent.clone().unwrap_or_else(|| "main".into()),
+        ),
         path: message::PathInfo {
             cwd: snapshot.directory.to_string_lossy().into(),
             root: snapshot.project.worktree.clone(),

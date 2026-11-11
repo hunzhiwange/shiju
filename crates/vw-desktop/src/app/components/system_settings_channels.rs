@@ -6,6 +6,7 @@
 mod basic_channels;
 mod common;
 mod enterprise_channels;
+mod execution;
 mod extended_channels;
 
 #[cfg(test)]

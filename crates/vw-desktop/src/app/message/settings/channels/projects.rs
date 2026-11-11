@@ -139,7 +139,10 @@ pub(super) fn select(app: &mut App, instance: String, project: Option<String>) -
         Err(error) => return app.show_error_toast(error),
     };
     match app.channels_settings.select_default_project(&scope, &instance, project.as_deref()) {
-        Ok(()) => persist_channels_settings(app).unwrap_or_else(Task::none),
+        Ok(()) => {
+            app.channels_settings.invalidate_execution_choices();
+            persist_channels_settings(app).unwrap_or_else(Task::none)
+        }
         Err(source) => {
             app.show_localized_toast(crate::app::state::ToastKind::Error, source, vec![])
         }
@@ -151,6 +154,9 @@ pub(super) fn retain_configured_bindings(app: &mut App) {
     if let Ok(config) = build_channels_config_from_settings(&app.channels_settings)
         && let Ok(profiles) = config.resolve_channel_instance_profiles()
     {
+        app.channels_settings
+            .instance_execution
+            .retain(|key, _| profiles.iter().any(|profile| &profile.profile_ref == key));
         app.channels_settings
             .instance_default_projects
             .retain(|key, _| profiles.iter().any(|profile| &profile.profile_ref == key));

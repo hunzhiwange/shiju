@@ -63,7 +63,14 @@ impl ChannelsSettingsState {
         Ok(())
     }
 
+    pub(crate) fn invalidate_execution_choices(&mut self) {
+        self.execution_request = None;
+        self.execution_choices = None;
+        self.execution_error = None;
+    }
+
     pub(crate) fn invalidate_project_choices(&mut self) {
+        self.invalidate_execution_choices();
         self.project_choices_request = None;
         self.project_choices.clear();
         self.project_choices_error = None;

@@ -462,3 +462,34 @@ fn mini_companion_write_keeps_current_session_and_draft() {
     assert_eq!(app.task_pet_reply_input, "draft");
     assert!(!app.task_pet_dragging);
 }
+
+#[tokio::test]
+async fn mini_companion_reply_route_preserves_target_session() {
+    use crate::app::{
+        App, Message,
+        message::{ChatMessage, ViewMessage},
+        state::{TaskPetItem, TaskPetStatus},
+    };
+    use iced_runtime::futures::futures::StreamExt;
+    let mut app = App::new().0;
+    app.active_session_id = Some("unrelated".into());
+    app.task_pet_items.push(TaskPetItem {
+        request_id: 7,
+        session_id: "target".into(),
+        title: "中文任务".into(),
+        detail: "已完成".into(),
+        detail_feedback: None,
+        project: None,
+        status: TaskPetStatus::Completed,
+        last_click_at: None,
+    });
+    let _ = super::update(&mut app, ViewMessage::TaskPetReplyPressed(7));
+    let _ = super::update(&mut app, ViewMessage::TaskPetReplyInputChanged(" 继续处理 ".into()));
+    let task = super::update(&mut app, ViewMessage::TaskPetReplySubmit);
+    let mut stream = iced_runtime::task::into_stream(task).unwrap();
+    assert!(
+        matches!(stream.next().await, Some(iced_runtime::Action::Output(Message::Chat(ChatMessage::SendToSession {session_id, input}))) if session_id == "target" && input == "继续处理")
+    );
+    assert_eq!(app.active_session_id.as_deref(), Some("unrelated"));
+    assert!(app.task_pet_reply_input.is_empty());
+}

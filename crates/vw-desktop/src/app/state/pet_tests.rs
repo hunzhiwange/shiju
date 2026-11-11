@@ -369,10 +369,12 @@ fn task_pet_reply_dismiss_refresh_and_completed_click_behaviors() {
     assert!(app.task_pet_reply_input.is_empty());
 
     assert_eq!(app.task_pet_item_clicked(99), None);
+    assert_eq!(app.task_pet_item_clicked(1), None);
     assert_eq!(app.task_pet_item_clicked(1), Some("s1".to_string()));
-    assert_eq!(app.task_pet_item_clicked(2), Some("s2".to_string()));
     assert_eq!(app.task_pet_item_clicked(2), None);
-    assert!(app.task_pet_items.iter().all(|item| item.request_id != 2));
+    assert_eq!(app.task_pet_item_clicked(2), Some("s2".to_string()));
+    assert!(app.task_pet_items.iter().any(|item| item.request_id == 2));
+    app.dismiss_task_pet_item(2);
 
     app.open_task_pet_reply(1);
     app.update_task_pet_reply_input("draft".to_string());
@@ -409,4 +411,76 @@ fn mini_companion_scale_rejects_non_finite_and_bounds_values() {
     assert_eq!(app.task_pet_scale, 0.5);
     app.set_task_pet_scale(8.0).unwrap();
     assert_eq!(app.task_pet_scale, 2.0);
+}
+
+fn mini_task(id: u64, status: TaskPetStatus) -> TaskPetItem {
+    TaskPetItem {
+        request_id: id,
+        session_id: format!("session-{id}"),
+        title: format!("任务 {id}"),
+        detail: "正在整理上下文".into(),
+        detail_feedback: None,
+        project: None,
+        status,
+        last_click_at: None,
+    }
+}
+
+#[test]
+fn mini_companion_stack_prioritizes_running_tasks() {
+    let mut app = app();
+    app.task_pet_items = vec![mini_task(99, TaskPetStatus::Completed)];
+    for id in [1, 3, 2] {
+        let mut runtime = SessionRuntimeState::default();
+        runtime.is_requesting = true;
+        runtime.active_agent_request =
+            Some(agent_request(id, &format!("session-{id}"), "任务", None));
+        app.session_runtime_states.insert(format!("session-{id}"), runtime);
+    }
+    app.sync_task_pet_from_runtime();
+    assert_eq!(app.task_pet_items.iter().map(|i| i.request_id).collect::<Vec<_>>(), [3, 2, 1, 99]);
+    app.session_runtime_states.get_mut("session-3").unwrap().is_requesting = false;
+    app.sync_task_pet_from_runtime();
+    assert_eq!(app.task_pet_items[0].request_id, 2);
+    assert_eq!(app.task_pet_items[2].status, TaskPetStatus::Completed);
+}
+
+#[test]
+fn mini_companion_dismiss_updates_top_card() {
+    let mut app = app();
+    app.task_pet_items =
+        vec![mini_task(3, TaskPetStatus::Running), mini_task(2, TaskPetStatus::Completed)];
+    app.open_task_pet_reply(3);
+    app.update_task_pet_reply_input("草稿".into());
+    app.dismiss_task_pet_item(3);
+    assert_eq!(app.task_pet_items[0].request_id, 2);
+    assert!(app.task_pet_reply_request_id.is_none());
+    assert!(app.task_pet_reply_input.is_empty());
+    app.sync_task_pet_from_runtime();
+    assert_eq!(app.task_pet_items[0].request_id, 2);
+}
+
+#[test]
+fn mini_companion_reply_stays_in_target_session() {
+    let mut app = app();
+    app.active_session_id = Some("unrelated".into());
+    app.task_pet_items =
+        vec![mini_task(3, TaskPetStatus::Running), mini_task(2, TaskPetStatus::Completed)];
+    app.open_task_pet_reply(2);
+    app.update_task_pet_reply_input("仅发给第二项".into());
+    app.task_pet_items.swap(0, 1);
+    assert_eq!(app.take_task_pet_reply(), Some(("session-2".into(), "仅发给第二项".into())));
+    app.open_task_pet_reply(2);
+    app.update_task_pet_reply_input("不应串到另一会话".into());
+    app.open_task_pet_reply(3);
+    assert!(app.task_pet_reply_input.is_empty());
+}
+
+#[test]
+fn mini_companion_double_click_opens_without_dismissing_completed_card() {
+    let mut app = app();
+    app.task_pet_items = vec![mini_task(2, TaskPetStatus::Completed)];
+    assert_eq!(app.task_pet_item_clicked(2), None);
+    assert_eq!(app.task_pet_item_clicked(2), Some("session-2".into()));
+    assert_eq!(app.task_pet_items.len(), 1);
 }

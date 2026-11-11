@@ -5,6 +5,14 @@ use crate::app::models::ChatRole;
 use std::cmp::Reverse;
 use std::path::Path;
 
+pub(crate) const TASK_PET_CARD_HEIGHT: f32 = 72.0;
+pub(crate) const TASK_PET_CARD_REPLY_HEIGHT: f32 = 120.0;
+pub(crate) const TASK_PET_CARD_SPACING: f32 = 8.0;
+pub(crate) const TASK_PET_LIST_HEIGHT: f32 =
+    TASK_PET_CARD_HEIGHT * 3.0 + TASK_PET_CARD_SPACING * 2.0;
+pub(crate) const TASK_PET_STACK_DEPTH: usize = 3;
+pub(crate) const TASK_PET_STACK_OFFSET: f32 = 8.0;
+
 const PET_PANEL_WIDTH: f32 = 360.0;
 const PET_PANEL_HEIGHT: f32 = 404.0;
 const PET_COLLAPSED_WIDTH: f32 = 160.0;
@@ -196,7 +204,36 @@ impl App {
     }
 
     pub fn task_pet_window_size(&self) -> iced::Size {
+        let progress = smooth_progress(self.task_pet_expand_progress.clamp(0.0, 1.0));
         let mut size = task_pet_window_size_for_progress(self.task_pet_expand_progress);
+        let count = self.task_pet_items.len();
+        if count == 0 {
+            size.height = PET_COLLAPSED_HEIGHT;
+        } else {
+            size.width = 320.0 + (PET_PANEL_WIDTH - 320.0) * progress;
+            let reply_extra = if self.task_pet_reply_request_id.is_some() {
+                TASK_PET_CARD_REPLY_HEIGHT - TASK_PET_CARD_HEIGHT
+            } else {
+                0.0
+            };
+            let collapsed_height = TASK_PET_CARD_HEIGHT
+                + (count.min(TASK_PET_STACK_DEPTH) - 1) as f32 * TASK_PET_STACK_OFFSET
+                + if self.task_pet_items.first().map(|item| item.request_id)
+                    == self.task_pet_reply_request_id
+                {
+                    reply_extra
+                } else {
+                    0.0
+                };
+            let expanded_height = (count as f32 * (TASK_PET_CARD_HEIGHT + TASK_PET_CARD_SPACING)
+                - TASK_PET_CARD_SPACING
+                + reply_extra)
+                .min(TASK_PET_LIST_HEIGHT);
+            size.height = PET_COLLAPSED_HEIGHT
+                + 6.0
+                + collapsed_height * (1.0 - progress)
+                + expanded_height * progress;
+        }
         let extra = 104.0 * (self.task_pet_scale - 1.0).max(0.0);
         size.width = size.width.max(160.0 + extra);
         size.height += extra;
@@ -204,11 +241,12 @@ impl App {
     }
 
     pub(crate) fn task_pet_render_collapsed(&self) -> bool {
-        self.task_pet_collapsed && self.task_pet_expand_target.is_none()
+        self.task_pet_collapsed && self.task_pet_expand_progress <= 0.0
     }
 
     /// 从运行时请求重建宠物条目，同时保留仍有效的完成项与交互选择。
     pub(crate) fn sync_task_pet_from_runtime(&mut self) {
+        let previous_size = self.task_pet_window_size();
         let active = self
             .session_runtime_states
             .values()
@@ -267,6 +305,16 @@ impl App {
 
         self.task_pet_items
             .sort_by_key(|item| (item.status != TaskPetStatus::Running, Reverse(item.request_id)));
+        if self.task_pet_window_size() != previous_size {
+            self.request_task_pet_resize();
+        }
+    }
+
+    fn request_task_pet_resize(&mut self) {
+        // Reuse the existing animation subscription for one geometry update.
+        if self.task_pet_expand_target.is_none() {
+            self.task_pet_expand_target = Some(self.task_pet_expand_progress);
+        }
     }
 
     pub(crate) fn task_pet_active_count(&self) -> usize {
@@ -318,7 +366,8 @@ impl App {
         let anchor = self.task_pet_drag_anchor.unwrap_or(iced::Point::new(x, y));
         let panel_width = self.task_pet_window_size().width;
         let max_x = (self.window_size.0 - panel_width - PET_MARGIN).max(PET_MARGIN);
-        let max_y = (self.window_size.1 - PET_PANEL_HEIGHT - PET_MARGIN).max(PET_MARGIN);
+        let max_y =
+            (self.window_size.1 - self.task_pet_window_size().height - PET_MARGIN).max(PET_MARGIN);
         let position = iced::Point::new(
             (self.task_pet_drag_start.x + x - anchor.x).clamp(PET_MARGIN, max_x),
             (self.task_pet_drag_start.y + y - anchor.y).clamp(PET_MARGIN, max_y),
@@ -384,6 +433,7 @@ impl App {
             self.task_pet_reply_request_id = None;
             self.task_pet_reply_input.clear();
         }
+        self.request_task_pet_resize();
     }
 
     pub(crate) fn set_task_pet_hovered(&mut self, request_id: Option<u64>) {
@@ -391,11 +441,13 @@ impl App {
     }
 
     pub(crate) fn open_task_pet_reply(&mut self, request_id: u64) {
+        self.request_task_pet_resize();
         if self.task_pet_reply_request_id == Some(request_id) {
             self.task_pet_reply_request_id = None;
             self.task_pet_reply_input.clear();
             return;
         }
+        self.task_pet_reply_input.clear();
         self.task_pet_reply_request_id = Some(request_id);
         self.task_pet_hovered_request_id = Some(request_id);
     }
@@ -415,6 +467,7 @@ impl App {
         let session_id = item.session_id.clone();
         self.task_pet_reply_request_id = None;
         self.task_pet_reply_input.clear();
+        self.request_task_pet_resize();
         Some((session_id, input))
     }
 
@@ -426,20 +479,11 @@ impl App {
             return None;
         };
         let session_id = item.session_id.clone();
-        if item.status != TaskPetStatus::Completed {
-            item.last_click_at = Some(now);
-            return Some(session_id);
-        }
-        let remove = item
+        let double_clicked = item
             .last_click_at
             .is_some_and(|last| now.duration_since(last).as_millis() <= PET_DOUBLE_CLICK_MS);
-        if remove {
-            self.dismiss_task_pet_item(request_id);
-            None
-        } else {
-            item.last_click_at = Some(now);
-            Some(session_id)
-        }
+        item.last_click_at = if double_clicked { None } else { Some(now) };
+        double_clicked.then_some(session_id)
     }
 
     fn task_pet_snapshot_for_request(&self, request: &AgentRequest) -> TaskPetSnapshot {

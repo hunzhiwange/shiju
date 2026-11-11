@@ -29,3 +29,9 @@ pub(crate) mod preview;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod preview_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod recordings;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod recordings_playback;

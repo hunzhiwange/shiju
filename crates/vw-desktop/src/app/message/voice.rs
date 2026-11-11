@@ -12,6 +12,9 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub recordings: super::voice_recordings::State,
+    audio: Option<Vec<u8>>,
+    retain_requested: bool,
     pub settings: super::settings::voice::State,
     pub conversation: Option<crate::app::voice::conversation::Conversation>,
     conversation_scope: Option<Scope>,
@@ -25,6 +28,8 @@ pub(crate) struct State {
 }
 #[derive(Clone)]
 pub enum Event {
+    Recordings(super::voice_recordings::Event),
+    Transcribed(u64, Result<(String, Vec<u8>), String>),
     ChatStart,
     ChatMute,
     ChatInterrupt,
@@ -47,6 +52,8 @@ impl State {
 impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Recordings(..) => "VoiceRecordings",
+            Self::Transcribed(..) => "VoiceTranscribed",
             Self::ChatStart => "VoiceChatStart",
             Self::ChatMute => "VoiceChatMute",
             Self::ChatInterrupt => "VoiceChatInterrupt",
@@ -62,7 +69,7 @@ impl std::fmt::Debug for Event {
         })
     }
 }
-fn scope(app: &App) -> Option<Scope> {
+pub(super) fn scope(app: &App) -> Option<Scope> {
     let endpoint = crate::app::gateway_client_endpoint();
     Some(Scope {
         endpoint: endpoint.base_url(),
@@ -81,6 +88,8 @@ fn stop(state: &mut State) {
         drop(device.take());
     }
     state.metadata = None;
+    state.audio = None;
+    state.retain_requested = false;
 }
 pub(crate) fn end_conversation(app: &mut App) {
     app.voice.conversation.take();
@@ -88,6 +97,7 @@ pub(crate) fn end_conversation(app: &mut App) {
     app.voice.conversation_endpoint = None;
 }
 pub(crate) fn cancel(app: &mut App) {
+    app.voice.recordings.stop();
     end_conversation(app);
     stop(&mut app.voice);
     app.voice.draft.cancel();
@@ -97,6 +107,7 @@ pub(crate) fn cancel(app: &mut App) {
 /// Called before and after dispatch so a switch away and back cannot revive old work.
 pub(crate) fn invalidate(app: &mut App) {
     super::settings::voice::invalidate(app);
+    super::voice_recordings::invalidate(app);
     if app.voice.conversation.is_some() {
         let endpoint = crate::app::gateway_client_endpoint();
         let auth_changed = app.voice.conversation_endpoint.as_ref().is_some_and(|old| {
@@ -134,7 +145,7 @@ fn fail(app: &mut App, message: String) -> Task<Message> {
 fn tick(generation: u64) -> Task<Message> {
     super::after(Duration::from_millis(100), Message::Voice(Event::Tick(generation)))
 }
-fn paste(app: &mut App, text: String, restore_cursor: bool) {
+pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
     let cursor = app.voice.cursor;
     let editor = &mut app.current_session_runtime_mut().input_editor;
     if restore_cursor && let Some(cursor) = cursor {
@@ -145,7 +156,26 @@ fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::Recordings(event) => super::voice_recordings::update(app, event),
+        Event::Transcribed(generation, result) => {
+            if app.voice.draft.generation != generation
+                || app.voice.draft.phase != Phase::Transcribing
+            {
+                return Task::none();
+            }
+            let result = result.map(|(text, wav)| {
+                app.voice.audio = Some(wav);
+                text
+            });
+            update(app, Event::Completed(generation, result))
+        }
         Event::ChatStart => {
+            if app.voice.recordings.replay.is_some()
+                || app.voice.settings.preview.is_some()
+                || app.voice.recordings.busy
+            {
+                return app.show_error_toast("请先停止回放或试听再开始语音聊天。");
+            }
             if app.voice.conversation.is_some() {
                 return Task::none();
             }
@@ -204,6 +234,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Start => {
+            if app.voice.recordings.replay.is_some()
+                || app.voice.settings.preview.is_some()
+                || app.voice.recordings.busy
+            {
+                return app.show_error_toast("请先结束回放、试听或重新识别再开始听写。");
+            }
             if app.voice.conversation.is_some() {
                 return app.show_toast(
                     crate::app::state::ToastKind::Info,
@@ -222,6 +258,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             };
             app.voice.cursor = Some(cursor);
+            app.voice.retain_requested = crate::app::voice::preferences::Preferences::load()
+                .map(|p| p.retain_recordings)
+                .unwrap_or(false);
             let endpoint = crate::app::gateway_client_endpoint();
             app.voice.endpoint = Some(endpoint.clone());
             let (tx, mut rx) = tokio::sync::watch::channel(false);
@@ -288,7 +327,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         result = transcribe(device, endpoint, metadata) => result,
                     }
                 },
-                move |result| Message::Voice(Event::Completed(generation, result)),
+                move |result| Message::Voice(Event::Transcribed(generation, result)),
             )
         }
         Event::Completed(generation, result) => {
@@ -310,11 +349,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         .current_session_runtime_ref()
                         .map(|r| r.input_editor.text())
                         .unwrap_or_default();
+                    let retention_error = retain_completed(&mut app.voice);
                     if let Some(text) = app.voice.draft.complete(generation, &scope, &current, text)
                     {
                         paste(app, text, true);
                     }
                     stop(&mut app.voice);
+                    if let Some(error) = retention_error {
+                        return app.show_error_toast(error);
+                    }
                     if app.voice.draft.pending.is_some() {
                         return app.show_toast(
                             crate::app::state::ToastKind::Info,
@@ -333,6 +376,22 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
     }
+}
+fn retain_completed(state: &mut State) -> Option<String> {
+    let audio = state.audio.take()?;
+    if !state.retain_requested {
+        return None;
+    }
+    let result = (|| {
+        let preferences = crate::app::voice::preferences::Preferences::load()?;
+        if preferences.retain_recordings {
+            let store = crate::app::voice::recordings::Store::local()?;
+            store.save(true, &audio)?;
+            state.recordings.entries = store.list()?;
+        }
+        Ok::<_, String>(())
+    })();
+    result.err()
 }
 async fn start(
     endpoint: GatewayEndpoint,
@@ -385,7 +444,7 @@ async fn transcribe(
     device: Device,
     endpoint: GatewayEndpoint,
     metadata: TranscriptionRequest,
-) -> Result<String, String> {
+) -> Result<(String, Vec<u8>), String> {
     let wav = tokio::task::spawn_blocking(move || {
         let capture =
             device.lock().map_err(|_| "录音状态不可用。")?.take().ok_or("录音已取消。")?;
@@ -397,10 +456,10 @@ async fn transcribe(
     .await
     .map_err(|_| "无法完成录音。")??;
     let client = GatewayClient::new(endpoint).map_err(|_| "无法连接语音网关。")?;
-    tokio::time::timeout(Duration::from_secs(90), client.voice_transcribe(&metadata, wav))
+    tokio::time::timeout(Duration::from_secs(90), client.voice_transcribe(&metadata, wav.clone()))
         .await
         .map_err(|_| "听写请求超时。")?
-        .map(|result| result.text)
+        .map(|result| (result.text, wav))
         .map_err(|error| error.to_string())
 }
 #[cfg(test)]

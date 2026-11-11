@@ -7,7 +7,7 @@ use vw_config_types::voice::VoiceConfig;
 #[serde(default, deny_unknown_fields)]
 pub struct Preferences {
     pub microphone: Option<String>,
-    // These capabilities remain unavailable until their dedicated tasks are implemented.
+    // Explicit opt-in; local archive policy is independent of tenant/service settings.
     pub retain_recordings: bool,
 }
 impl Preferences {

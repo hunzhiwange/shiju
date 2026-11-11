@@ -260,3 +260,6 @@ mod voice_tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod voice;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod voice_recordings;

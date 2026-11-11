@@ -42,6 +42,7 @@ pub enum Event {
     Language(RecognitionLanguage),
     Voice(VoiceName),
     Dictation(bool),
+    RetainRecordings(bool),
     Realtime(bool),
     Dictionary(String),
     AddWord,
@@ -204,8 +205,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if state.busy || state.preview.is_some() {
                 return Task::none();
             }
-            if app.voice.conversation.is_some() {
-                return app.show_error_toast("请先结束语音聊天再试听。");
+            if app.voice.conversation.is_some()
+                || app.voice.recordings.replay.is_some()
+                || matches!(
+                    app.voice.draft.phase,
+                    super::super::voice_draft::Phase::Recording
+                        | super::super::voice_draft::Phase::Transcribing
+                )
+            {
+                return app.show_error_toast("请先结束当前语音活动再试听。");
             }
             let (Some(edit), Some(endpoint)) = (&state.edit, state.endpoint.clone()) else {
                 return Task::none();
@@ -255,6 +263,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     state.preview.take();
                     edit.config.voice = value;
                 }
+                Event::RetainRecordings(value) => edit.local.retain_recordings = value,
                 Event::Dictation(value) => edit.config.dictation_enabled = value,
                 Event::Realtime(value) => edit.config.realtime_enabled = value,
                 Event::Dictionary(value) => state.dictionary = value,

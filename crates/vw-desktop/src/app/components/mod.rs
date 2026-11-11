@@ -448,3 +448,6 @@ pub(crate) mod voice_chat;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod system_settings_voice;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod voice_recordings;

@@ -28,7 +28,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             if app.voice.settings.busy { b } else { b.on_press(msg(Event::Open)) }
         },
         text(i18n.__("全局热键：未启用")).style(settings_muted_text_style),
-        text(i18n.__("本机录音留存：未启用")).style(settings_muted_text_style),
+        super::voice_recordings::view(app),
         text(i18n.__("屏幕上下文：未启用")).style(settings_muted_text_style),
     ]
     .spacing(14)
@@ -101,6 +101,12 @@ pub(super) fn modal<'a>(
             .label(i18n.__("启用语音聊天"))
             .on_toggle(|v| msg(Event::Realtime(v)))
             .style(settings_checkbox_style),
+        checkbox(edit.local.retain_recordings)
+            .label("仅在本机留存最近二十段听写录音（最多 64 MiB）")
+            .on_toggle(|v| msg(Event::RetainRecordings(v)))
+            .style(settings_checkbox_style),
+        text("默认关闭；保存位置见语音设置页。关闭停止新增，已有录音请在最近本机录音中删除。")
+            .style(settings_muted_text_style),
         settings_field_label(i18n.__("音色：推荐")),
         voices(&[VoiceName::Marin, VoiceName::Cedar], edit.config.voice),
         settings_field_label(i18n.__("音色：其他")),

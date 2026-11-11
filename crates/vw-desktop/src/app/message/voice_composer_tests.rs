@@ -59,3 +59,23 @@ fn voice_task_07_escape_invalidates_before_late_completion() {
     let _ = update(&mut app, Event::Completed(generation, Ok("迟到".into())));
     assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
 }
+#[test]
+fn voice_task_14_recordings_cancel_and_failure_discard_audio() {
+    let mut app = app_with_draft();
+    app.voice.retain_requested = true;
+    app.voice.audio = Some(vec![1, 2]);
+    let generation = app.voice.draft.generation;
+    let _ = update(&mut app, Event::Cancel);
+    assert!(app.voice.audio.is_none());
+    assert!(!app.voice.retain_requested);
+    let _ = update(&mut app, Event::Transcribed(generation, Ok(("迟到".into(), vec![1, 2]))));
+    assert!(app.voice.audio.is_none());
+    assert_eq!(app.voice.draft.phase, Phase::Idle);
+    let mut app = app_with_draft();
+    app.voice.audio = Some(vec![1, 2]);
+    app.voice.retain_requested = true;
+    let generation = app.voice.draft.generation;
+    let _ = update(&mut app, Event::Completed(generation, Err("服务失败".into())));
+    assert!(app.voice.audio.is_none());
+    assert!(!app.voice.retain_requested);
+}

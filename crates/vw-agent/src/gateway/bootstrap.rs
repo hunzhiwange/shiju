@@ -450,6 +450,12 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/agent-apps/mcp/checks", "start authorized MCP connection checks"),
         #[cfg(target_os = "macos")]
         client_route(
+            "POST",
+            "/v1/agent-apps/diagnostics/endpoint-candidates/query",
+            "query authorized endpoint candidates without probing",
+        ),
+        #[cfg(target_os = "macos")]
+        client_route(
             "GET",
             "/v1/agent-apps/diagnostics/jobs/{id}",
             "read scoped diagnostic progress and results",

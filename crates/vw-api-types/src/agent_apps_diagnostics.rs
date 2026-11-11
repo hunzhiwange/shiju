@@ -268,6 +268,9 @@ pub struct DiagnosticEndpointCandidatesQuery {
     /// The host validates these before issuing references to any draft candidates.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub draft_urls: Vec<String>,
+    /// Optional editor selection, resolved against the application preset catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset_name: Option<String>,
 }
 
 impl fmt::Debug for DiagnosticEndpointCandidatesQuery {

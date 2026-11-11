@@ -28,8 +28,9 @@ use std::path::PathBuf;
 use vw_agent_apps::{auth::copilot::CopilotAuth, diagnostics::endpoints};
 use vw_api_types::{
     agent_apps_diagnostics::{
-        DiagnosticJobIdentity, DiagnosticProbeKind, DiagnosticScope, DiagnosticScopeQuery,
-        DiagnosticStartRequest,
+        DiagnosticEndpointCandidate, DiagnosticEndpointCandidatesQuery,
+        DiagnosticEndpointCandidatesResponse, DiagnosticEndpointId, DiagnosticJobIdentity,
+        DiagnosticProbeKind, DiagnosticScope, DiagnosticScopeQuery, DiagnosticStartRequest,
     },
     error::{ApiErrorBody, ApiErrorDetail},
     id::{ProjectScope, TaskId, TenantScope},
@@ -44,11 +45,89 @@ pub(crate) fn router() -> Router {
 
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
     Router::new()
+        .route("/agent-apps/diagnostics/endpoint-candidates/query", post(endpoint_candidates))
         .route("/agent-apps/diagnostics/jobs", post(submit))
         .route("/agent-apps/diagnostics/jobs/{id}", get(read_job))
         .route("/agent-apps/diagnostics/jobs/{id}/cancel", post(cancel_job))
         .layer(DefaultBodyLimit::max(32 * 1024))
         .layer(Extension(PolicyFile(policy)))
+}
+
+/// Read authorized editor candidates without resolving credentials or starting work.
+async fn endpoint_candidates(
+    Extension(policy): Extension<PolicyFile>,
+    Extension(tenant): Extension<TenantScope>,
+    database: Option<Extension<GlobalDatabase>>,
+    headers: HeaderMap,
+    Query(query): Query<DiagnosticScopeQuery>,
+    request: Result<Json<DiagnosticEndpointCandidatesQuery>, JsonRejection>,
+) -> Response {
+    let request = match request {
+        Ok(Json(request)) => request,
+        Err(error) => {
+            return failure(if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
+                StatusCode::PAYLOAD_TOO_LARGE
+            } else {
+                StatusCode::BAD_REQUEST
+            });
+        }
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        let scope = DiagnosticScope {
+            project: ProjectScope::new(tenant, query.project_id)
+                .map_err(|_| StatusCode::BAD_REQUEST)?,
+            target_host_id: query.target_host_id,
+            app_id: query.app_id,
+        };
+        super::agent_apps::authorize_diagnostic_probe(
+            policy.0.as_deref(),
+            &headers,
+            &scope,
+            &DiagnosticStartRequest::Speed {
+                provider_id: request.provider_id.clone(),
+                endpoint_ids: Vec::new(),
+            },
+        )?;
+        let database = match database {
+            Some(Extension(database)) => database,
+            None => GlobalDatabase::for_home(&crate::global::paths().home)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+        };
+        let stored = AppProviderStore::preview_record(
+            &database,
+            scope.project.tenant_scope(),
+            scope.app_id,
+            request.provider_id.as_ref(),
+        )
+        .map_err(|error| match error.as_str() {
+            "application provider storage unavailable" => StatusCode::SERVICE_UNAVAILABLE,
+            "application provider not found" => StatusCode::NOT_FOUND,
+            _ => StatusCode::UNPROCESSABLE_ENTITY,
+        })?;
+        let candidates = endpoints::collect(
+            scope.app_id,
+            &request.draft_urls,
+            &stored,
+            request.preset_name.as_deref(),
+        )
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?
+        .into_iter()
+        .map(|candidate| DiagnosticEndpointCandidate {
+            id: DiagnosticEndpointId(hex::encode(Sha256::digest(candidate.url.as_bytes()))),
+            display_url: candidate.url,
+            sources: candidate.sources,
+        })
+        .collect();
+        Ok(DiagnosticEndpointCandidatesResponse { candidates })
+    })
+    .await
+    .unwrap_or(Err(StatusCode::SERVICE_UNAVAILABLE));
+    match result {
+        Ok(response) => {
+            (StatusCode::OK, [(header::CACHE_CONTROL, "no-store")], Json(response)).into_response()
+        }
+        Err(status) => failure(status),
+    }
 }
 
 async fn read_job(

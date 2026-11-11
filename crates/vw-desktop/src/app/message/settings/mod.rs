@@ -31,6 +31,7 @@ pub(crate) mod mcp_management_bindings;
 pub(crate) mod mcp_management_form;
 pub(crate) mod mcp_management_import;
 pub(crate) mod mcp_management_list;
+pub(crate) mod mcp_management_probe;
 pub(crate) mod mcp_management_resync;
 mod memory;
 mod messages;
@@ -571,3 +572,6 @@ mod aggregation_subagent_tests;
 
 #[cfg(test)]
 mod mcp_management_resync_tests;
+
+#[cfg(test)]
+mod mcp_management_probe_tests;

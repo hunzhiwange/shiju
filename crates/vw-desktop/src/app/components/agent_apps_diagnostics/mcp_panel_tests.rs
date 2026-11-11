@@ -6,6 +6,20 @@ use vw_gateway_client::vw_api_types::{
 fn context() -> Context {
     Context {
         records: vec![],
+        connections: ["first", "second"]
+            .into_iter()
+            .map(|id| McpCatalogRecord {
+                record: McpRecordRef { id: McpRecordId(id.into()), revision: 1 },
+                scope: McpCatalogScope::Tenant { scope: Default::default() },
+                name: id.into(),
+                description: None,
+                homepage: None,
+                documentation: None,
+                tags: vec![],
+                transport: McpTransport::Stdio,
+                connection_revision: 1,
+            })
+            .collect(),
         gateway: "http://localhost:1".into(),
         tenant: Default::default(),
         project_path: Some("/fixture".into()),
@@ -34,7 +48,20 @@ fn job(context: &Context) -> DiagnosticJobIdentity {
     }
 }
 fn snapshot(context: &Context, status: &str) -> DiagnosticJobSnapshot {
-    serde_json::from_value(json!({"job": job(context), "state": {"status": status}, "progress": {"completed": 1, "total": 2}, "results": [{"kind":"mcp", "serverId":"second", "report":{"source":"controlled_fixture", "timings":[], "outcome":{"status":"succeeded", "evidence":{"transport":"stdio"}}}}]})).unwrap()
+    DiagnosticJobSnapshot {
+        job: job(context),
+        state: serde_json::from_value(json!({"status": status})).unwrap(),
+        progress: DiagnosticProgress { completed: 1, total: Some(2) },
+        results: Some(vec![DiagnosticResult::McpConnectionCheck {
+            scope: McpCatalogScope::Tenant { scope: context.tenant.clone() },
+            generation: 1,
+            item: McpConnectionCheckItem {
+                id: McpRecordId("second".into()),
+                connection_revision: 1,
+                outcome: McpConnectionOutcome::Connected { tool_count: None },
+            },
+        }]),
+    }
 }
 #[tokio::test]
 async fn diagnostic_desktop_mcp_results_keep_server_identity() {
@@ -152,16 +179,10 @@ async fn diagnostic_desktop_mcp_results_keep_server_identity() {
     );
     failed.job = Some(job(&context));
     let mut failure = snapshot(&context, "succeeded");
-    if let Some(DiagnosticResult::Mcp { report, .. }) =
+    if let Some(DiagnosticResult::McpConnectionCheck { item, .. }) =
         failure.results.as_mut().and_then(|r| r.first_mut())
     {
-        report.outcome = DiagnosticOutcome::Failed {
-            error: DiagnosticFailure {
-                phase: DiagnosticPhase::Handshake,
-                code: DiagnosticFailureCode::Timeout,
-            },
-            http_status: None,
-        };
+        item.outcome = McpConnectionOutcome::Failed { code: McpFailureCode::TargetUnavailable };
     }
     assert!(failed.accept(&context, &context, failed.generation, failed.request_serial, failure));
     assert_eq!(
@@ -267,7 +288,7 @@ async fn protocol_roundtrip(context: &Context) {
     });
     let ids = vec![McpRecordId("first".into()), McpRecordId("second".into())];
     assert_eq!(
-        submit(client.clone(), context, ids.clone(), "fixture-token").await.unwrap(),
+        submit(client.clone(), context, ids.clone(), "fixture-token", 1).await.unwrap(),
         identity
     );
     assert_eq!(
@@ -282,18 +303,18 @@ async fn protocol_roundtrip(context: &Context) {
         client.diagnostic_status(&context.query, &identity.task_id, "fixture-token").await.unwrap(),
         cancelled
     );
-    submit(client, context, vec![ids[0].clone()], "fixture-token").await.unwrap();
+    submit(client, context, vec![ids[0].clone()], "fixture-token", 1).await.unwrap();
     let requests = server.join().unwrap();
     assert_eq!(requests.len(), 5, "only submit, status and cancellation requests are allowed");
-    assert!(requests[0].0.starts_with("POST /v1/agent-apps/diagnostics/jobs?"));
+    assert!(requests[0].0.starts_with("POST /v1/agent-apps/mcp/checks?"));
     assert!(requests[2].0.starts_with("POST /v1/agent-apps/diagnostics/jobs/job/cancel?"));
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&requests[0].1).unwrap(),
-        json!({"kind":"mcp", "serverIds":["first", "second"]})
+        json!({"generation":1, "serverIds":["first", "second"]})
     );
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&requests[4].1).unwrap(),
-        json!({"kind":"mcp", "serverIds":["first"]})
+        json!({"generation":1, "serverIds":["first"]})
     );
     assert!(
         requests.iter().all(|(headers, _)| headers.contains("x-agent-apps-token: fixture-token"))

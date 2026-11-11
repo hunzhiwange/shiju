@@ -27,7 +27,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         app.apps_catalog.rows.iter().map(|r| AppChoice(r.entry.id, r.entry.name.clone())).collect();
     let mut body = column![
         text("MCP 连通检测").size(16),
-        text("仅隔离握手，不执行工具；检测结果不代表生产连接状态。")
+        text("仅点击才检查连接并发现工具，不执行工具；结果属于当前连接修订。")
             .size(12)
             .style(settings_muted_text_style),
         settings_select(choices, state.app.clone(), |choice| diagnostics::message(Event::Select(
@@ -46,7 +46,21 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         for record in &catalog.records {
             body = body.push(
                 row![
-                    text(format!("{} · {}", record.name, record.record.id.0)),
+                    text(format!(
+                        "{} · {} · {}",
+                        record.name,
+                        record.record.id.0,
+                        if visible {
+                            state
+                                .targets
+                                .iter()
+                                .find(|(r, _)| r.id == record.record.id)
+                                .map(|(_, p)| p.label())
+                                .unwrap_or("unchecked · 未检查")
+                        } else {
+                            "unchecked · 未检查"
+                        }
+                    )),
                     control(
                         "检测",
                         (!active).then(|| Event::Start(vec![record.record.id.clone()]))
@@ -61,10 +75,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         if active {
             body = body.push(
                 row![
-                    control(
-                        "取消检测",
-                        (!state.cancelling && state.job.is_some()).then_some(Event::Cancel)
-                    ),
+                    control("取消检测", (!state.cancelling).then_some(Event::Cancel)),
                     control("刷新检测", state.error.as_ref().map(|_| Event::Refresh))
                 ]
                 .spacing(8),

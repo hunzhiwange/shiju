@@ -1217,6 +1217,8 @@ impl App {
         }
         #[cfg(not(target_arch = "wasm32"))]
         message::voice::invalidate(self);
+        let cleanup = message::settings::mcp_management_probe::invalidate(self);
+        let task = Task::batch([task, cleanup]);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

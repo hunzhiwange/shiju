@@ -4,7 +4,7 @@ use vw_gateway_client::{
     vw_api_types::{
         agent_apps::AppId,
         agent_apps_diagnostics::*,
-        mcp_management::{McpRecordId, McpRecordRef},
+        mcp_management::{McpCatalogRecord, McpConnectionOutcome, McpRecordId, McpRecordRef},
     },
 };
 
@@ -16,6 +16,7 @@ pub struct Context {
     pub(crate) credentials_generation: u64,
     pub(crate) query: DiagnosticScopeQuery,
     pub(crate) records: Vec<McpRecordRef>,
+    pub(crate) connections: Vec<McpCatalogRecord>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Phase {
@@ -30,13 +31,13 @@ pub(crate) enum Phase {
 impl Phase {
     pub(crate) fn label(self) -> &'static str {
         match self {
-            Self::Queued => "排队中",
-            Self::Handshake => "握手中",
-            Self::Succeeded => "握手成功",
-            Self::Failed => "检测失败",
-            Self::Cancelling => "正在取消，等待清理",
-            Self::Cancelled => "已取消",
-            Self::Unverified => "未验证",
+            Self::Queued => "checking · 排队中",
+            Self::Handshake => "checking · 握手中",
+            Self::Succeeded => "connected · 已连通",
+            Self::Failed => "error · 检测失败",
+            Self::Cancelling => "checking · 正在取消，等待清理",
+            Self::Cancelled => "cancelled · 已取消",
+            Self::Unverified => "unchecked · 未验证",
         }
     }
 }
@@ -51,6 +52,7 @@ pub(crate) struct McpState {
     pub(crate) terminal: bool,
     pub(crate) cancelling: bool,
     pub(crate) error: Option<String>,
+    pub(crate) transport: Option<super::ProbeTransport>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppChoice(pub AppId, pub String);
@@ -68,6 +70,7 @@ impl McpState {
         self.context = Some(context);
         self.targets = targets.into_iter().map(|r| (r, Phase::Queued)).collect();
         self.job = None;
+        self.transport = None;
         self.terminal = false;
         self.cancelling = false;
         self.error = None;
@@ -110,24 +113,41 @@ impl McpState {
         };
         // Results are joined by stable server ID, never by response order.
         for (record, phase) in &mut self.targets {
-            let outcome =
-                snapshot.results.as_deref().unwrap_or_default().iter().find_map(|result| {
-                    match result {
-                        DiagnosticResult::Mcp { server_id, report } if server_id == &record.id => {
-                            Some(&report.outcome)
-                        }
-                        _ => None,
+            let matches: Vec<_> = snapshot
+                .results
+                .iter()
+                .flatten()
+                .filter_map(|result| match result {
+                    DiagnosticResult::McpConnectionCheck {
+                        scope,
+                        generation: result_generation,
+                        item,
+                    } if item.id == record.id
+                        && *result_generation == generation
+                        && current.connections.iter().any(|r| {
+                            r.record.id == item.id
+                                && r.connection_revision == item.connection_revision
+                                && &r.scope == scope
+                        }) =>
+                    {
+                        Some(item.outcome)
                     }
-                });
-            match outcome {
-                Some(DiagnosticOutcome::Succeeded { .. }) => *phase = Phase::Succeeded,
-                Some(DiagnosticOutcome::Failed { .. }) => *phase = Phase::Failed,
-                Some(DiagnosticOutcome::Cancelled {}) => *phase = Phase::Cancelled,
-                None if matches!(phase, Phase::Queued | Phase::Handshake | Phase::Cancelling) => {
-                    *phase = pending
+                    _ => None,
+                })
+                .collect();
+            *phase = match matches.as_slice() {
+                [McpConnectionOutcome::Connected { .. }] => Phase::Succeeded,
+                [McpConnectionOutcome::Failed { .. } | McpConnectionOutcome::Unsupported] => {
+                    Phase::Failed
                 }
-                None => {}
-            }
+                [McpConnectionOutcome::Cancelled] => Phase::Cancelled,
+                [McpConnectionOutcome::NotVerified] => Phase::Unverified,
+                [] if matches!(phase, Phase::Succeeded | Phase::Failed | Phase::Cancelled) => {
+                    *phase
+                }
+                [] => pending,
+                _ => Phase::Unverified,
+            };
         }
         self.error = None;
         true
@@ -138,9 +158,10 @@ pub(crate) async fn submit(
     context: &Context,
     ids: Vec<McpRecordId>,
     token: &str,
+    generation: u64,
 ) -> Result<DiagnosticJobIdentity, String> {
     client
-        .diagnostic_start(&context.query, &DiagnosticStartRequest::Mcp { server_ids: ids }, token)
+        .mcp_management_check(&context.query, &ids, generation, token)
         .await
         .map_err(|_| "MCP 检测请求失败，结果未验证；请检查授权和目标主机".to_owned())
 }

@@ -448,6 +448,7 @@ pub enum AcpMessage {
 /// MCP 设置页消息。
 #[derive(Debug, Clone)]
 pub enum McpMessage {
+    Catalog(super::mcp_management_list::CatalogMessage),
     TabSelected(McpSettingsTab),
     Refresh,
     Loaded(Result<serde_json::Value, String>),

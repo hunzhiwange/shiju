@@ -27,6 +27,7 @@ mod heartbeat;
 mod hooks;
 mod http_request;
 mod mcp;
+pub(crate) mod mcp_management_list;
 mod memory;
 mod messages;
 mod model_routes;

@@ -872,6 +872,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             tr(locale, "MCP 配置"),
             tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。"),
         ),
+        managed_catalog_panel(app),
         action_row.wrap(),
         row![
             settings_value_badge(
@@ -1075,3 +1076,62 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_mcp_tests.rs"]
 mod system_settings_mcp_tests;
+
+/// Read-only managed directory; the surrounding settings page owns scrolling.
+fn managed_catalog_panel(app: &App) -> Element<'_, Message> {
+    use crate::app::message::settings::mcp_management_list as catalog;
+    managed_catalog_content(catalog::visible(app), catalog::loading(app))
+}
+
+pub(crate) fn managed_catalog_content(
+    result: Option<
+        &Result<vw_gateway_client::vw_api_types::mcp_management::McpCatalogResponse, String>,
+    >,
+    loading: bool,
+) -> Element<'_, Message> {
+    use crate::app::message::settings::mcp_management_list as catalog;
+    let mut body = column![
+        text("受管 MCP 目录").size(16),
+        toolbar_button(
+            if loading { "刷新中..." } else { "刷新目录" },
+            Some(Message::Settings(SettingsMessage::Mcp(McpMessage::Catalog(
+                catalog::CatalogMessage::Refresh
+            ))))
+        ),
+        text("原生应用：独立配置分发；识矩运行时：项目选择；ACP：会话挂载。三种使用范围独立。")
+            .size(12)
+            .style(settings_muted_text_style),
+    ]
+    .spacing(10)
+    .width(Length::Fill);
+    match result {
+        Some(Ok(response)) => {
+            if response.records.is_empty() {
+                body = body.push(text("当前目录为空").size(12));
+            }
+            for label in catalog::rows(response) {
+                body = body.push(text(label).size(13));
+            }
+            body = body.push(
+                text("原生状态为上次观察；刷新目录不执行连接或重新核验原生文件。")
+                    .size(12)
+                    .style(settings_muted_text_style),
+            );
+        }
+        Some(Err(error)) => {
+            body = body.push(settings_error_banner(error.clone()));
+        }
+        None => {
+            body = body.push(
+                text(if loading {
+                    "正在加载目录"
+                } else {
+                    "尚未加载，请先在应用管理连接目标主机后刷新目录"
+                })
+                .size(12)
+                .style(settings_muted_text_style),
+            );
+        }
+    }
+    settings_panel(body).into()
+}

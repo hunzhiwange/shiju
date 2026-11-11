@@ -500,6 +500,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
 
     match message {
+        McpMessage::Catalog(message) => super::mcp_management_list::update(app, message),
         McpMessage::TabSelected(tab) => {
             app.mcp_settings.active_tab = tab;
             app.mcp_settings.delete_pending = None;

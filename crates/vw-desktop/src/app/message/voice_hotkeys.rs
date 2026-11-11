@@ -15,6 +15,7 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
         app.voice.hotkeys.reload();
         return if active { voice::update(app, Event::Cancel) } else { Task::none() };
     }
+    app.voice.insertion.poll();
     let previous_error = app.voice.hotkeys.error.clone();
     let actions = app.voice.hotkeys.poll();
     let mut tasks = vec![dispatch(app, actions)];
@@ -28,6 +29,7 @@ pub(super) fn tick(app: &mut App) -> Task<Message> {
 pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
     let mut tasks = Vec::new();
     for action in actions {
+        let mut external = None;
         let event = match action {
             Action::Start => {
                 if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
@@ -38,6 +40,16 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
                     // It must not finish a capture started by the foreground button.
                     break;
                 }
+                if app.voice.insertion.pending.is_some() {
+                    app.voice.hotkeys.machine.reset();
+                    tasks.push(app.show_error_toast("请先复制或丢弃上次未插入的听写结果。"));
+                    break;
+                }
+                external = match crate::app::voice::insertion::capture_external() {
+                    Ok(None) => None,
+                    Ok(Some(target)) => Some(Ok(target)),
+                    Err(error) => Some(Err(error)),
+                };
                 Event::Start
             }
             Action::Finish => Event::Finish,
@@ -45,6 +57,9 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
             Action::Chat => Event::ChatStart,
         };
         tasks.push(voice::update(app, event));
+        if external.is_some() && app.voice.draft.phase == Phase::Recording {
+            app.voice.insertion.target = external;
+        }
     }
     if app.voice.hotkeys.machine.active && app.voice.draft.phase != Phase::Recording {
         app.voice.hotkeys.machine.reset();

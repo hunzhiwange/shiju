@@ -79,3 +79,48 @@ fn voice_task_14_recordings_cancel_and_failure_discard_audio() {
     assert!(app.voice.audio.is_none());
     assert!(!app.voice.retain_requested);
 }
+
+#[test]
+fn voice_task_16_external_failure_preserves_result_without_touching_chat_or_sending() {
+    let mut app = app_with_draft();
+    let generation = app.voice.draft.generation;
+    app.voice.insertion.target = Some(Err("焦点已变化".into()));
+    let _ = update(&mut app, Event::Completed(generation, Ok("你好，\n外部目标！".into())));
+    assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
+    assert!(!app.current_session_runtime_ref().unwrap().is_requesting);
+    assert_eq!(app.voice.insertion.pending.as_deref(), Some("你好，\n外部目标！"));
+    assert_eq!(app.voice.draft.phase, Phase::Idle);
+    let _ = update(&mut app, Event::Completed(generation, Ok("重复结果".into())));
+    assert_eq!(app.voice.insertion.pending.as_deref(), Some("你好，\n外部目标！"));
+    let _ = update(&mut app, Event::Onboarding(OnboardingEvent::Discard));
+    assert!(app.voice.insertion.pending.is_none());
+}
+#[test]
+fn voice_task_16_external_cancel_and_service_error_reject_late_results() {
+    for event in [Event::Cancel, Event::Completed(1, Err("服务失败".into()))] {
+        let mut app = app_with_draft();
+        let generation = app.voice.draft.generation;
+        assert_eq!(generation, 1);
+        app.voice.insertion.target = Some(Err("辅助功能权限不足".into()));
+        let _ = update(&mut app, event);
+        assert!(app.voice.insertion.target.is_none());
+        let _ = update(&mut app, Event::Completed(generation, Ok("迟到".into())));
+        assert!(app.voice.insertion.pending.is_none());
+        assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "前后");
+    }
+}
+
+#[test]
+fn voice_task_16_external_pending_remains_scoped_and_prevents_overwrite() {
+    let mut app = app_with_draft();
+    let generation = app.voice.draft.generation;
+    app.voice.insertion.target = Some(Err("权限不足".into()));
+    let _ = update(&mut app, Event::Completed(generation, Ok("待复制".into())));
+    assert!(app.voice.draft.scope.is_some());
+    let _ = update(&mut app, Event::Start);
+    assert_eq!(app.voice.draft.generation, generation);
+    assert_eq!(app.voice.insertion.pending.as_deref(), Some("待复制"));
+    app.active_session_id = Some("other-session".into());
+    invalidate(&mut app);
+    assert!(app.voice.insertion.pending.is_none());
+}

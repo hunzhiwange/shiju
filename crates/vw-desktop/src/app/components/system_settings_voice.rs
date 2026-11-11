@@ -27,6 +27,12 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
                 .style(primary_action_btn_style);
             if app.voice.settings.busy { b } else { b.on_press(msg(Event::Open)) }
         },
+        button(text("跨应用听写：权限与试用"))
+            .on_press(Message::Voice(crate::app::message::voice::Event::Onboarding(
+                crate::app::message::voice::OnboardingEvent::Open
+            )))
+            .style(rounded_action_btn_style)
+            .padding([8, 14]),
         text(app.voice.hotkeys.status()).style(settings_muted_text_style),
         action("立即停用全局热键（本机）".into(), Event::DisableHotkeys),
         super::voice_recordings::view(app),

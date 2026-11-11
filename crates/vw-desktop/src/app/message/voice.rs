@@ -12,6 +12,7 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub insertion: crate::app::voice::insertion::State,
     pub hotkeys: crate::app::voice::hotkeys::Runtime,
     finish_requested: bool,
     pub recordings: super::voice_recordings::State,
@@ -28,8 +29,18 @@ pub(crate) struct State {
     cancel: Option<tokio::sync::watch::Sender<bool>>,
     metadata: Option<TranscriptionRequest>,
 }
+#[derive(Debug, Clone)]
+pub enum OnboardingEvent {
+    Open,
+    Close,
+    Refresh,
+    Copy,
+    Discard,
+    Permission(crate::app::voice::permissions::Permission),
+}
 #[derive(Clone)]
 pub enum Event {
+    Onboarding(OnboardingEvent),
     Recordings(super::voice_recordings::Event),
     Transcribed(u64, Result<(String, Vec<u8>), String>),
     ChatStart,
@@ -55,6 +66,7 @@ impl State {
 impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Onboarding(..) => "VoiceOnboarding",
             Self::Recordings(..) => "VoiceRecordings",
             Self::Transcribed(..) => "VoiceTranscribed",
             Self::ChatStart => "VoiceChatStart",
@@ -91,6 +103,7 @@ fn stop(state: &mut State) {
     {
         drop(device.take());
     }
+    state.insertion.target = None;
     state.finish_requested = false;
     state.metadata = None;
     state.audio = None;
@@ -102,6 +115,7 @@ pub(crate) fn end_conversation(app: &mut App) {
     app.voice.conversation_endpoint = None;
 }
 pub(crate) fn cancel(app: &mut App) {
+    app.voice.insertion.pending = None;
     app.voice.hotkeys.machine.reset();
     app.voice.recordings.stop();
     end_conversation(app);
@@ -162,6 +176,38 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::Onboarding(event) => {
+            use OnboardingEvent::*;
+            match event {
+                Open => {
+                    app.voice.insertion.onboarding = true;
+                    app.voice.insertion.refresh();
+                }
+                Close => app.voice.insertion.onboarding = false,
+                Refresh => app.voice.insertion.refresh(),
+                Discard => {
+                    if app.voice.insertion.pending.take().is_some() {
+                        app.voice.draft.cancel();
+                        app.voice.endpoint = None;
+                    }
+                }
+                Copy => {
+                    if let Some(text) = &app.voice.insertion.pending {
+                        return iced::clipboard::write(text.clone());
+                    }
+                }
+                Permission(permission) => {
+                    use crate::app::voice::permissions::{SystemPermissions, VoicePermissions};
+                    if let Err(error) = VoicePermissions::new(SystemPermissions)
+                        .request_from_user_action(permission)
+                    {
+                        return app.show_error_toast(error.to_string());
+                    }
+                    app.voice.insertion.refresh();
+                }
+            }
+            Task::none()
+        }
         Event::HotkeyTick => super::voice_hotkeys::tick(app),
         Event::Recordings(event) => super::voice_recordings::update(app, event),
         Event::Transcribed(generation, result) => {
@@ -241,6 +287,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Start => {
+            if app.voice.insertion.pending.is_some() {
+                return app.show_error_toast("请先复制或丢弃未插入的跨应用听写结果。");
+            }
             if app.voice.recordings.replay.is_some()
                 || app.voice.settings.preview.is_some()
                 || app.voice.recordings.busy
@@ -357,6 +406,23 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Ok(text) => {
                     if text.trim().is_empty() {
                         return fail(app, "没有识别到文字，请重试。".into());
+                    }
+                    if let Some(target) = app.voice.insertion.target.take() {
+                        let outcome = target.and_then(|target| target.insert(&text));
+                        let retention_error = retain_completed(&mut app.voice);
+                        app.voice.draft.phase = Phase::Idle;
+                        stop(&mut app.voice);
+                        if let Err(error) = outcome {
+                            app.voice.insertion.pending = Some(text);
+                            return app.show_error_toast(format!(
+                                "{error} 听写结果已保留，请在语音设置的跨应用听写试用中显式复制。"
+                            ));
+                        }
+                        app.voice.draft.cancel();
+                        if let Some(error) = retention_error {
+                            return app.show_error_toast(error);
+                        }
+                        return Task::none();
                     }
                     let Some(scope) = scope(app) else {
                         return Task::none();

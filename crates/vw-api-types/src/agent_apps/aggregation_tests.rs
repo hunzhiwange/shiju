@@ -21,6 +21,33 @@ fn aggregation_t39_requests_reject_unknown_inputs_and_use_contract_names() {
 }
 
 #[test]
+fn aggregation_t40_membership_requests_require_revision_and_reject_untrusted_inputs() {
+    let member = json!({"targetHostId":"host","projectId":"project","expectedRevision":"revision","enabled":true});
+    let parsed: AggregationMemberRequest = serde_json::from_value(member.clone()).unwrap();
+    assert!(parsed.enabled);
+    assert_eq!(parsed.expected_revision, "revision");
+    let default = json!({"targetHostId":"host","projectId":"project","expectedRevision":"revision","providerId":"provider"});
+    assert_eq!(
+        serde_json::from_value::<AggregationDefaultRequest>(default.clone()).unwrap().provider_id,
+        "provider"
+    );
+    for key in ["path", "accountId", "command", "catalogPolicy"] {
+        let mut value = member.clone();
+        value[key] = json!("untrusted");
+        assert!(serde_json::from_value::<AggregationMemberRequest>(value).is_err());
+        let mut value = default.clone();
+        value[key] = json!("untrusted");
+        assert!(serde_json::from_value::<AggregationDefaultRequest>(value).is_err());
+    }
+    let mut value = member.clone();
+    value.as_object_mut().unwrap().remove("expectedRevision");
+    assert!(serde_json::from_value::<AggregationMemberRequest>(value).is_err());
+    let mut value = member;
+    value["enabled"] = json!("true");
+    assert!(serde_json::from_value::<AggregationMemberRequest>(value).is_err());
+}
+
+#[test]
 fn aggregation_t49_directory_wire_contract_rejects_profile_selectors_and_mcp() {
     let body = json!({"targetHostId":"host","projectId":"project","expectedRevision":"opaque","change":{"kind":"remove"}});
     let request: OmpDirectoryWrite = serde_json::from_value(body.clone()).unwrap();

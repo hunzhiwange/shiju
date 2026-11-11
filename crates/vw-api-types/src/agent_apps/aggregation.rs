@@ -170,6 +170,24 @@ pub enum PiDirectoryRead {
     Legacy(crate::app_providers::pi::PiTarget),
 }
 
+/// Save a membership target at the exact observed scoped revision.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AggregationMemberRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub enabled: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AggregationDefaultRequest {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub provider_id: String,
+}
+
 /// Requested intent is retained when a published member disappears.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

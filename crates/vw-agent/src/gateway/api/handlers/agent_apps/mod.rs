@@ -19,6 +19,7 @@ pub(crate) fn router() -> Router {
         .merge(read::router())
         .merge(super::aggregation_read::router())
         .merge(super::aggregation_codex_settings::router())
+        .merge(super::aggregation_members::router())
         .merge(super::mcp_management_read::router())
         .merge(lifecycle::router())
         .merge(preferences::router())

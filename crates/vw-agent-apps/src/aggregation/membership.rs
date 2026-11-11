@@ -72,6 +72,41 @@ pub fn set_member(
     change: MembershipChange<'_>,
     unchanged: impl Fn() -> bool,
 ) -> Result<bool, MembershipError> {
+    set_member_inner(transactions, guard, tenant, None, expected, change, unchanged)
+}
+
+/// Project-bound callers must present the persisted project owner. The legacy
+/// tenant-only entry remains unable to change a claimed physical slot.
+pub fn set_member_project(
+    transactions: &ProviderTransactions,
+    guard: &mut AppWriteGuard,
+    project: &vw_api_types::id::ProjectScope,
+    expected: &AppState,
+    change: MembershipChange<'_>,
+    unchanged: impl Fn() -> bool,
+) -> Result<bool, MembershipError> {
+    expected.require_project(project).map_err(|_| MembershipError::Forbidden)?;
+    set_member_inner(
+        transactions,
+        guard,
+        project.tenant_scope(),
+        Some(project),
+        expected,
+        change,
+        unchanged,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn set_member_inner(
+    transactions: &ProviderTransactions,
+    guard: &mut AppWriteGuard,
+    tenant: &TenantScope,
+    project: Option<&vw_api_types::id::ProjectScope>,
+    expected: &AppState,
+    change: MembershipChange<'_>,
+    unchanged: impl Fn() -> bool,
+) -> Result<bool, MembershipError> {
     let app = guard.app();
     validate_provider(app, None, ProviderRole::Member)?;
     let current = transactions.state(app)?;
@@ -95,6 +130,32 @@ pub fn set_member(
         Ok(())
     };
 
+    let mut target = plan_member(app, &current, change)?;
+    if target.stack.is_none() && target.mode.is_none() {
+        return Ok(false);
+    }
+    target.project_scope = project.cloned();
+
+    // Attached routes need coordinated publication with their live client projection.
+    if current.mode.as_ref().is_some_and(|active| {
+        active.attached
+            && (target.mode.is_some() || current.stack.enabled && active.mode == Mode::Proxy)
+    }) {
+        return Err(MembershipError::UnsupportedTarget);
+    }
+
+    transactions.commit_checked(tenant, guard, &[], target, check_revision)?;
+    Ok(true)
+}
+
+/// Pure intent planning. Publication owners can include this target and native
+/// files in one scoped transaction without saving an intermediate member list.
+pub fn plan_member(
+    app: vw_api_types::agent_apps::AppId,
+    current: &AppState,
+    change: MembershipChange<'_>,
+) -> Result<PendingTarget, MembershipError> {
+    validate_provider(app, None, ProviderRole::Member)?;
     let mut stack = current.stack.clone();
     let mode = match change {
         MembershipChange::Add { provider_id, saved } => {
@@ -109,7 +170,7 @@ pub fn set_member(
         }
         MembershipChange::Remove { provider_id } => {
             validate_identity(provider_id).map_err(|_| MemberValidationError::InvalidMember)?;
-            validate_member_removal(app, &current, provider_id)?;
+            validate_member_removal(app, current, provider_id)?;
             stack.members.retain(|id| id != provider_id);
             None
         }
@@ -140,23 +201,5 @@ pub fn set_member(
         }
     };
     let stack = (stack != current.stack).then_some(stack);
-    if stack.is_none() && mode.is_none() {
-        return Ok(false);
-    }
-
-    // Attached routes need coordinated publication with their live client projection.
-    if current.mode.as_ref().is_some_and(|active| {
-        active.attached && (mode.is_some() || current.stack.enabled && active.mode == Mode::Proxy)
-    }) {
-        return Err(MembershipError::UnsupportedTarget);
-    }
-
-    transactions.commit_checked(
-        tenant,
-        guard,
-        &[],
-        PendingTarget { stack, mode, ..Default::default() },
-        check_revision,
-    )?;
-    Ok(true)
+    Ok(PendingTarget { stack, mode, ..Default::default() })
 }

@@ -115,3 +115,41 @@
 首次正常入口命令 `cargo test -p vw-agent --lib aggregation_t40_ -- --nocapture` 使用槽位4，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4，出现其他任务OMP私有router及Desktop测试Debug等错误；本任务断言使用了不具备Debug的AppState/ScopedProvider，已改为真实相等性断言。该次执行0项，不是行为红灯。收到编译诊断后仅终止自有编译；自有包装器在信号处理中的重入wait阻塞，确认Cargo已结束、无消费者后终止包装器，执行137，精确核对owner后释放槽位4，缓存保留。
 
 受控源码副本 `/tmp/shiju-t40-focused-source` 保留真实生产路由/授权/存储，只把vw-agent无关test条件切至非测试生产分支，保留aggregation_members_tests注册。确切命令 `cargo test --manifest-path /tmp/shiju-t40-focused-source/Cargo.toml -p vw-agent --lib aggregation_t40_ -- --nocapture` 首次在动态槽位1（CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1）取得真实红灯：4项执行，全部因缺少写路由返回404而失败，退出101；已正常释放锁。实现及扩充后的6项同一过滤命令正在动态槽位13验证，未提前记录通过。各Cargo阶段jobs=1、test opt-level=0/debug=0，构建目录为本槽位内build；一次仅一组重型Cargo。
+
+
+### 后续新增证据与接线状态
+
+- 动态槽位13的受控副本同一过滤命令已退出0：6项全部通过，编译42分44秒、行为0.97秒。仅覆盖该阶段未附着保存、默认项、权限/修订/默认移除拒绝、真实资源登记写入失败；未将后续附着接线算入这6项。包装器正常结束并精确清理自有锁，保留缓存。
+- 正常检出动态槽位9，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-9：`cargo test -p vw-api-types --lib aggregation_t40_ -- --nocapture` 退出0、1项通过；`cargo test -p vw-agent-apps --lib aggregation_t07_ -- --nocapture` 退出0、5项通过（验证原规则提取未破坏旧行为，不计入新增40用例数量）。
+- 同一槽位9执行必需 `cargo clippy --all-targets --all-features -- -D warnings`，退出101，首个诊断为共享任务16的 `crates/vw-agent-apps/src/providers/live/recovery.rs:252` 的 `clippy::collapsible_if`。本任务未修改该文件，也未添加allow绕过。此轮未到达全部网关代码，不宣称全仓通过。阶段已结束，自有锁精确释放，未触碰随后重新领取槽位的其他任务。
+- 已消费任务16实际 `gateway/aggregation_resync.rs::RecordPublicationContext::publish_candidate`，不提前落定名单；附着路径校验额外路由授权和执行根，释放外层app guard让原生所有者取锁，完成后重新取锁读取结果。共享入口返回false视为409，不伪造成功。共享恢复接口仍在所有者验证中。
+- 后续新增真实监听与回环Messages上游、Codex原生默认选择、Desktop无监听时新默认拒绝以及failover拒绝边界，并增加Codex/Desktop未附着真实API覆盖。当前最新测试集合11项尚未运行；6项通过不能替代这些新场景。客户端专项在独立 `aggregation_members_client_tests.rs`，非业务文件内嵌测试。
+- 当前所有实现和测试尚未提交；任务保持执行中、保留卡片。待共享入口稳定后刷新受控副本验证最新11项，修复本任务诊断并重跑必需检查，按实际结果收尾。不得把未实测真实客户端或旧版本测试算作最新接线通过。
+
+
+### 资源协调后的等待点
+
+收到主调度要求：保留已运行有效构建，当前结束后新增附着大测试等待16共享接口稳定/通过，不叠加Cargo或新建全局锁。最新11项构建已自然结束，退出101、执行0；四项诊断均为快照内Pi字段布局（access.rs:213/237/1106/1607），当前检出已修正。槽位4自有消费者结束并正常清锁；不立即启动新一轮附着大构建。
+
+独立证据整理于 `docs/shiju/agent-apps/aggregation/任务40-验证.md`。等待16稳定/通过后重新冻结最新源代码，验证新增附着场景及本任务诊断，再完成收尾。当前不是已完成，也不能仅因Pi编译错误就将未验证附着实现算作已完成待回归；保留卡片和未提交实现。
+
+
+### 当前交接状态
+
+状态为已阻塞，唯一当前调度解除条件为任务16的共同发布接口稳定并通过其行为验证，再恢复本任务最新11项附着回归；无需新增用户授权。不再以历史母能力缺口或已修正的Pi字段错误要求用户补信息。独立部分已取得6项HTTP、1项DTO、5项旧规则回归证据；当前全部自有Cargo消费者已结束，按完整会话标识核对没有遗留自有槽位锁，缓存保留。未提交未验收的附着实现，未删除此卡，正式证据已保存。
+
+后续还须核对实际支持边界：已附着但非聚合模式的默认变更目前仍由原成员规则明确返回UnsupportedTarget，未作为成功场景验收；与已冻结接口契约及16/普通路由发布所有者核对，不能隐藏为成功或以新名单先落库绕过。
+
+
+## 接口冻结后恢复
+主调度确认任务16生产cargo check退出0、签名字段冻结，授权恢复未完成行为验证。已核对任务16接线说明及8项源码哈希；编译快照不当作行为证据。刷新受控副本，优先运行5项尚未通过的新场景，保留此前6项独立HTTP、1项DTO及5项规则回归证据。
+
+
+## 三项附着失败的定位及恢复验证
+
+接口冻结后5项实际执行，2通过3失败（slot1，退出101），正式证据已记录；Desktop真实缺监听误成功沿原发布入口最小修正，Claude使用真实供应商保存fixture，Codex复用43共享TOML文档解析修复。当前只重跑三项失败场景（动态slot12，日志 `/tmp/shiju-t40-three-recheck.log`），保留此卡直至取得完整证据；不把编译或前置通过算成本卡完成。
+
+
+## 增量检查及普通routing继续实现
+
+最后两项slot6构建收到SIGTERM，执行0；未记通过。全仓Clippy已在slot5退出0（5分19秒），详情见正式证据。共同发布 `e341b1df2` 已含Codex默认模型修正。先提交有界API/规则/测试增量；状态保持执行中，保留本卡，继续完成契约第36行和任务7明确留给本卡的普通routing附着默认切换，取得真实请求、旧令牌/目标拒绝及失败保留原修订证据。

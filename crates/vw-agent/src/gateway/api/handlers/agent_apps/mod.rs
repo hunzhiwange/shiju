@@ -44,7 +44,7 @@ pub(crate) fn router() -> Router {
             .merge(apps_usage_refresh::router_with_policy(policy.clone()))
             .merge(apps_usage_script::router_with_policy(policy))
     };
-    router
+    router.layer(Extension(super::mcp_management_resync::Jobs::default()))
 }
 
 async fn read_icons(
@@ -323,7 +323,7 @@ pub(super) fn authorize_auth_flow_start(
     })
 }
 
-mod lifecycle;
+pub(super) mod lifecycle;
 #[cfg(all(test, unix))]
 mod lifecycle_tests;
 

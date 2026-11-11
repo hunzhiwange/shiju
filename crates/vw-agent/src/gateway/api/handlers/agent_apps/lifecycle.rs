@@ -55,7 +55,7 @@ struct Running {
 struct Target {
     target_host_id: String,
 }
-pub(super) fn status(id: String, op: &Operation) -> AppOperationStatus {
+pub(in crate::gateway::api::handlers) fn status(id: String, op: &Operation) -> AppOperationStatus {
     let p = op.snapshot();
     AppOperationStatus {
         operation_id: TaskId::from(id),
@@ -256,6 +256,7 @@ async fn owned(
     Ok(operation)
 }
 enum OwnedOperation {
+    Mcp(Arc<super::super::mcp_management_resync::Job>),
     Lifecycle(Operation),
     #[cfg(target_os = "macos")]
     Usage(Arc<super::apps_usage_refresh::RefreshOperation>),
@@ -265,6 +266,7 @@ impl OwnedOperation {
     fn operation(&self) -> &Operation {
         match self {
             Self::Lifecycle(operation) => operation,
+            Self::Mcp(entry) => &entry.operation,
             #[cfg(target_os = "macos")]
             Self::Usage(entry) => &entry.operation,
         }
@@ -273,24 +275,42 @@ impl OwnedOperation {
     fn response(&self, id: String) -> Response {
         match self {
             Self::Lifecycle(operation) => Json(status(id, operation)).into_response(),
+            Self::Mcp(entry) => entry.response(id),
             #[cfg(target_os = "macos")]
             Self::Usage(entry) => entry.response(),
         }
     }
 }
 
+type McpJobs = Option<Extension<super::super::mcp_management_resync::Jobs>>;
+
 #[cfg(target_os = "macos")]
 type UsageService = Option<Extension<Arc<super::usage_refresh::UsageRefresh>>>;
 
+#[allow(clippy::too_many_arguments)]
 async fn resolve_operation(
     state: &State,
     tenant: TenantScope,
     headers: HeaderMap,
     host: &str,
     id: &str,
+    mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
     #[cfg(target_os = "macos")] cancel: bool,
 ) -> Result<OwnedOperation, Response> {
+    if let Some(Extension(jobs)) = mcp
+        && let Some(entry) = jobs
+            .owned(
+                id,
+                &tenant,
+                host,
+                &headers,
+                &super::super::mcp_management_read::PolicyFile(state.policy.clone()),
+            )
+            .map_err(IntoResponse::into_response)?
+    {
+        return Ok(OwnedOperation::Mcp(entry));
+    }
     #[cfg(target_os = "macos")]
     if let Some(Extension(service)) = usage
         && let Some(entry) = service.operations.get(id)
@@ -313,6 +333,7 @@ async fn read(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
     let entry = resolve_operation(
@@ -321,6 +342,7 @@ async fn read(
         headers,
         &target.target_host_id,
         &id,
+        mcp.clone(),
         #[cfg(target_os = "macos")]
         usage,
         #[cfg(target_os = "macos")]
@@ -335,6 +357,7 @@ async fn events(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
     let entry = resolve_operation(
@@ -343,6 +366,7 @@ async fn events(
         headers.clone(),
         &target.target_host_id,
         &id,
+        mcp.clone(),
         #[cfg(target_os = "macos")]
         usage.clone(),
         #[cfg(target_os = "macos")]
@@ -361,6 +385,7 @@ async fn events(
         headers,
         &target.target_host_id,
         &id,
+        mcp.clone(),
         #[cfg(target_os = "macos")]
         usage,
         #[cfg(target_os = "macos")]
@@ -375,6 +400,7 @@ async fn cancel(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
     let entry = resolve_operation(
@@ -383,6 +409,7 @@ async fn cancel(
         headers.clone(),
         &target.target_host_id,
         &id,
+        mcp.clone(),
         #[cfg(target_os = "macos")]
         usage.clone(),
         #[cfg(target_os = "macos")]
@@ -390,11 +417,23 @@ async fn cancel(
     )
     .await?;
     entry.operation().cancel_and_wait().await;
-    #[cfg(target_os = "macos")]
-    let entry = if matches!(entry, OwnedOperation::Usage(_)) {
-        resolve_operation(&state, tenant, headers, &target.target_host_id, &id, usage, true).await?
-    } else {
-        entry
+    let entry = match entry {
+        OwnedOperation::Lifecycle(_) => entry,
+        _ => {
+            resolve_operation(
+                &state,
+                tenant,
+                headers,
+                &target.target_host_id,
+                &id,
+                mcp,
+                #[cfg(target_os = "macos")]
+                usage,
+                #[cfg(target_os = "macos")]
+                true,
+            )
+            .await?
+        }
     };
     Ok(entry.response(id))
 }

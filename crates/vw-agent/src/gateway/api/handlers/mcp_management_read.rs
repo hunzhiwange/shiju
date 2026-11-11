@@ -62,6 +62,7 @@ pub(super) fn router() -> Router {
         )
         .route("/agent-apps/mcp/bulk", axum::routing::post(super::mcp_management_bindings::bulk))
         .route("/agent-apps/mcp/import", axum::routing::post(super::mcp_management_import::import))
+        .route("/agent-apps/mcp/resync", axum::routing::post(super::mcp_management_resync::submit))
         .route("/agent-apps/mcp/presets", get(read_presets))
         .route("/agent-apps/mcp/native", get(read_native))
         .layer(Extension(PolicyFile(

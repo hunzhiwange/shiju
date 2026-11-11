@@ -632,3 +632,20 @@ async fn acp_install_posts_only_agent_name_with_tenant_headers() {
     assert_tenant_headers(&request, &scope);
     server.join();
 }
+
+#[tokio::test]
+async fn browser_install_posts_allowed_backend_with_tenant_headers() {
+    let scope = TenantScope::new("desktop-platform", "desktop-company").unwrap();
+    let server =
+        test_support::server_with_tenant_scope(vec![(200, json!("installed"))], scope.clone());
+    for backend in ["native", "computer_use", "auto/../../other"] {
+        assert!(server.client().browser_install(backend).await.is_err());
+    }
+    assert_eq!(server.client().browser_install("auto").await.unwrap(), "installed");
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/desktop/browser-install/auto");
+    assert_eq!(request.body, json!({}));
+    assert_tenant_headers(&request, &scope);
+    server.join();
+}

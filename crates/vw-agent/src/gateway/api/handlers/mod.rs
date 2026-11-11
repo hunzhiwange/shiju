@@ -59,6 +59,7 @@ pub mod desktop;
 pub(crate) mod desktop_skills;
 
 mod desktop_acp_install;
+mod desktop_browser_install;
 /// Gateway 插件目录与本地管理处理器模块
 pub(crate) mod plugins;
 

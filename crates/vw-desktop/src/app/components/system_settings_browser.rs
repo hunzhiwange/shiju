@@ -4,15 +4,15 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_control_with_hint, settings_divider,
-    settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
-    settings_page_heading_with_help, settings_row_with_flexible_control, settings_select,
-    settings_text_editor, settings_text_input,
+    primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
+    settings_control_with_hint, settings_divider, settings_flexible_row_with_help,
+    settings_group_card, settings_group_heading_with_help, settings_page_heading_with_help,
+    settings_row_with_flexible_control, settings_select, settings_text_editor, settings_text_input,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::settings::{BrowserMessage, SettingsMessage};
 use crate::app::{App, Message};
-use iced::widget::{checkbox, column, container};
+use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Element, Length};
 
 #[derive(Clone, PartialEq)]
@@ -207,6 +207,33 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
         }
         _ => backend_pick.into(),
     };
+    let mut install_button = button(text(i18n.__(if s.installing {
+        "安装中…"
+    } else if matches!(s.backend.as_str(), "agent_browser" | "auto") {
+        "一键安装"
+    } else {
+        "手工安装"
+    })))
+    .padding([8, 14])
+    .style(primary_action_btn_style);
+    if !s.installing && matches!(s.backend.as_str(), "agent_browser" | "auto") {
+        install_button = install_button
+            .on_press(Message::Settings(SettingsMessage::Browser(BrowserMessage::Install)));
+    }
+    if !s.installing && !matches!(s.backend.as_str(), "agent_browser" | "auto") {
+        install_button =
+            install_button.on_press(Message::Settings(SettingsMessage::SystemHelpOpen(
+                crate::app::components::system_settings::SystemTab::Browser,
+            )));
+    }
+    let install_help = button(text(i18n.__("安装帮助")))
+        .padding([8, 14])
+        .style(rounded_action_btn_style)
+        .on_press(Message::Settings(SettingsMessage::SystemHelpOpen(
+            crate::app::components::system_settings::SystemTab::Browser,
+        )));
+    let backend_control =
+        column![backend_control, row![install_button, install_help].spacing(8)].spacing(8);
     let backend_row = field_row(
         app,
         i18n.__("后端实现"),

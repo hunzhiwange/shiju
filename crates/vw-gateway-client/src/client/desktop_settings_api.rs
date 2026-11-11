@@ -225,6 +225,25 @@ impl TryFrom<&str> for DesktopServiceCommand {
 }
 
 impl GatewayClient {
+    /// 在网关主机安装浏览器依赖，沿用认证上下文并允许下载时间。
+    pub async fn browser_install(&self, backend: &str) -> Result<String, String> {
+        if !matches!(backend, "agent_browser" | "auto") {
+            return Err("该后端需要手工准备服务，请查看安装帮助".into());
+        }
+        let path = format!("/v1/desktop/browser-install/{backend}");
+        let request = self
+            .client
+            .post(format!("{}{}", self.endpoint.base_url(), path))
+            .json(&serde_json::json!({}));
+        #[cfg(not(target_arch = "wasm32"))]
+        let request = request.timeout(std::time::Duration::from_secs(630));
+        let response = crate::http::apply_request_context(request, &self.endpoint)
+            .send()
+            .await
+            .map_err(|err| crate::http::transport_error("POST", &self.endpoint, &path, err))?;
+        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+    }
+
     /// 安装可能需要下载较大的包，使用独立请求超时。
     pub async fn acp_install(&self, agent: &str) -> Result<String, String> {
         if agent.is_empty() || !agent.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-') {

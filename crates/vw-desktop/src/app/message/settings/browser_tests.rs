@@ -300,3 +300,17 @@ fn persist_browser_settings_accepts_explicit_optional_fields() {
 
     assert!(persist_browser_settings(&mut app).is_ok());
 }
+
+#[test]
+fn browser_install_releases_busy_state_on_failure() {
+    let mut app = app();
+    app.browser_settings.save_error = Some("existing validation error".into());
+    let _ = update(&mut app, SettingsMessage::Browser(BrowserMessage::Install));
+    assert!(app.browser_settings.installing);
+    assert!(app.browser_settings.save_error.is_some());
+    let _ = update(
+        &mut app,
+        SettingsMessage::Browser(BrowserMessage::InstallCompleted(Err("fixture failure".into()))),
+    );
+    assert!(!app.browser_settings.installing);
+}

@@ -297,6 +297,7 @@ pub(super) fn build_browser_settings(
     let allowed_domains = browser_cfg.allowed_domains.join("\n");
 
     crate::app::state::BrowserSettingsState {
+        installing: false,
         enabled: browser_cfg.enabled,
         allowed_domains_input: allowed_domains.clone(),
         allowed_domains_editor: iced::widget::text_editor::Content::with_text(&allowed_domains),

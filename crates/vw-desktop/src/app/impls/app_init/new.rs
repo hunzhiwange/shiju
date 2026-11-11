@@ -1004,6 +1004,7 @@ impl App {
             },
 
             browser_settings: super::state::BrowserSettingsState {
+                installing: false,
                 enabled: browser_cfg.enabled,
                 allowed_domains_input: browser_cfg.allowed_domains.join("\n"),
                 allowed_domains_editor: iced::widget::text_editor::Content::with_text(

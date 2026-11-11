@@ -44,6 +44,10 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
+        .route(
+            "/desktop/browser-install/{backend}",
+            post(super::desktop_browser_install::install_post),
+        )
         .route("/desktop/acp-install/{agent}", post(super::desktop_acp_install::install_post))
         .route(
             "/desktop/acp-diagnostic/{id}",

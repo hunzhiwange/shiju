@@ -172,6 +172,8 @@ pub enum RuntimeMessage {
 #[derive(Debug, Clone)]
 pub enum BrowserMessage {
     Refresh,
+    Install,
+    InstallCompleted(Result<String, String>),
     EnabledToggled(bool),
     AllowedDomainsChanged(String),
     AllowedDomainsEditorAction(text_editor::Action),

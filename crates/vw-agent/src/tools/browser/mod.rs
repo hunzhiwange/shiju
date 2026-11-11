@@ -31,6 +31,7 @@ mod agent_browser;
 mod backend;
 mod computer_use;
 mod helpers;
+pub(crate) mod installation;
 mod tool;
 
 #[cfg(feature = "browser-native")]

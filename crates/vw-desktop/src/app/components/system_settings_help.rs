@@ -305,6 +305,29 @@ const BROWSER_HELP: &str = r#"浏览器配置说明
 三、建议
 - 先限制 allowed_domains，再决定是否启用更高权限的后端。
 - `computer_use.allow_remote_endpoint` 仅在可信内网环境下开启。
+
+四、安装与排错
+安装发生在当前连接的网关主机；远程网关请在远程主机上准备环境。
+
+代理浏览器 / 自动：
+先安装 Node.js 22 或更高版本（含 npm）：https://nodejs.org/
+点击一键安装，会在 ShiJu 用户目录下载固定版本 agent-browser 与 Chrome，并启动无头浏览器验证。无需管理员权限，不修改系统 PATH。下载可能需要数分钟。自动模式安装的是代理浏览器。
+
+手工安装（macOS、Windows PowerShell、Linux 终端）：
+npm install -g agent-browser@0.42.0
+agent-browser install
+agent-browser --version
+Windows 使用 PowerShell，若脚本策略阻止 npm，请使用 npm.cmd。macOS 也可使用 brew install agent-browser，再运行 agent-browser install。
+Linux 若缺少浏览器系统库，运行 agent-browser install --with-deps；该步骤可能需要管理员权限，请在终端完成后重试。
+手工全局安装后，请确保网关进程能找到 agent-browser，必要时重启网关。
+官方说明：https://agent-browser.dev/installation
+
+原生浏览器（WebDriver）：
+需要启用 browser-native 的 ShiJu 构建，以及 Chrome/Chromium 和版本匹配的 ChromeDriver。
+在 https://googlechromelabs.github.io/chrome-for-testing/ 选择 macOS、Windows 或 Linux 对应架构下载。解压后在终端运行 chromedriver --port=9515（Windows 使用 .\chromedriver.exe --port=9515），保持服务运行，将 WebDriver 地址设为 http://127.0.0.1:9515。必要时指定 Chrome 路径。仅安装驱动不会启动服务。
+
+系统控制（Sidecar）：
+需要单独部署兼容 ShiJu 动作协议的 Sidecar 服务，再填写操作端点和访问密钥。当前没有统一的官方安装包，暂不提供一键安装。不要填入普通 WebDriver 地址。macOS 可能需要授予 Sidecar 辅助功能与屏幕录制权限，Linux 需要可用桌面会话，Windows 需要交互式桌面。默认保持远程端点关闭。
 "#;
 
 fn help_content(tab: SystemTab) -> Option<(&'static str, &'static str)> {

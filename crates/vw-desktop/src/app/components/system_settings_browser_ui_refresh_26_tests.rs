@@ -718,3 +718,31 @@ async fn ui_refresh_26_proxy_scope_hover_and_help() {
         [Message::Settings(SettingsMessage::ProxyHelpClose)]
     ));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn browser_install_help_renders_chinese_in_light_and_dark_themes() {
+    if !isolated("browser_install_help_renders_chinese_in_light_and_dark_themes") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    app.browser_settings.backend = "agent_browser".into();
+    app.system_settings_tab = SystemTab::Browser;
+    let size = Size::new(1000, 800);
+    for (theme, name) in
+        [(Theme::Light, "browser-install-light"), (Theme::Dark, "browser-install-dark")]
+    {
+        app.app_theme = theme.clone();
+        let help = super::super::system_settings_help::with_help_modal(
+            &app,
+            page(&app),
+            SystemTab::Browser,
+            Some(SystemTab::Browser),
+        );
+        let mut ui = scene(help, &mut renderer, size);
+        let pixels =
+            capture(&mut ui, &mut renderer, &theme, size, name, mouse::Cursor::Unavailable);
+        assert_eq!(pixels.len(), size.width as usize * size.height as usize * 4);
+    }
+}

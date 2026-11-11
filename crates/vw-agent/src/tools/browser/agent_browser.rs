@@ -26,7 +26,6 @@
 //! ```
 
 use super::BrowserTool;
-use crate::app::agent::shell::tokio_command;
 use crate::app::agent::tools::browser::actions::BrowserAction;
 use crate::app::agent::tools::traits::ToolResult;
 use serde::Deserialize;
@@ -107,7 +106,7 @@ fn response_from_output(status_success: bool, stdout: &str, stderr: &str) -> Age
 impl BrowserTool {
     /// 检查 `agent-browser` CLI 工具是否已安装并可用
     ///
-    /// 通过执行 `agent-browser --version` 命令来验证工具是否在系统 PATH 中可用。
+    /// 优先验证用户目录中的托管安装，否则在系统 PATH 中查找 `agent-browser`。
     /// 此方法不会检查具体版本，仅确认工具可执行。
     ///
     /// # 返回值
@@ -130,7 +129,7 @@ impl BrowserTool {
     /// - 使用 `Stdio::null()` 丢弃版本输出
     /// - 任何执行错误（如命令未找到）都会返回 `false`
     pub async fn is_agent_browser_available() -> bool {
-        tokio_command("agent-browser")
+        super::installation::agent_browser_command()
             .arg("--version")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -179,7 +178,7 @@ impl BrowserTool {
     /// - 对于非 JSON 输出的旧版本 CLI，会根据命令退出码构造兼容响应
     /// - 标准错误输出会通过 debug 日志记录
     pub(crate) async fn run_command(&self, args: &[&str]) -> anyhow::Result<AgentBrowserResponse> {
-        let mut cmd = tokio_command("agent-browser");
+        let mut cmd = super::installation::agent_browser_command();
         let existing_launch_args = std::env::var("AGENT_BROWSER_ARGS").ok();
         cmd.env("AGENT_BROWSER_ARGS", agent_browser_launch_args(existing_launch_args.as_deref()));
 

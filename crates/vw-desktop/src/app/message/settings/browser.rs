@@ -136,6 +136,35 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
+    match message {
+        BrowserMessage::Install => {
+            if app.browser_settings.installing {
+                return Task::none();
+            }
+            let backend = app.browser_settings.backend.clone();
+            if !matches!(backend.as_str(), "agent_browser" | "auto") {
+                return app.show_error_toast("该后端需要手工准备服务，请查看安装帮助");
+            }
+            app.browser_settings.installing = true;
+            return Task::perform(
+                async move { crate::app::config::gateway_client()?.browser_install(&backend).await },
+                |result| {
+                    Message::Settings(SettingsMessage::Browser(BrowserMessage::InstallCompleted(
+                        result,
+                    )))
+                },
+            );
+        }
+        BrowserMessage::InstallCompleted(result) => {
+            app.browser_settings.installing = false;
+            return match result {
+                Ok(status) => app.show_success_toast(status),
+                Err(error) => app.show_error_toast(error),
+            };
+        }
+        _ => {}
+    }
+
     if matches!(message, BrowserMessage::Refresh) {
         app.browser_settings.save_error = None;
         app.browser_settings.save_error_translation = None;
@@ -196,7 +225,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         BrowserMessage::ComputerUseMaxCoordinateYChanged(value) => {
             app.browser_settings.computer_use_max_coordinate_y_input = value
         }
-        BrowserMessage::Refresh => unreachable!(),
+        BrowserMessage::Refresh | BrowserMessage::Install | BrowserMessage::InstallCompleted(_) => {
+            unreachable!()
+        }
     }
 
     match persist_browser_settings(app) {

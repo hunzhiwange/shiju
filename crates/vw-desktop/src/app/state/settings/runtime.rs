@@ -283,6 +283,7 @@ impl Default for WebSearchSettingsState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct BrowserSettingsState {
+    pub(crate) installing: bool,
     pub(crate) enabled: bool,
     pub(crate) allowed_domains_input: String,
     pub(crate) allowed_domains_editor: text_editor::Content,
@@ -308,6 +309,7 @@ impl Default for BrowserSettingsState {
         let config = vw_config_types::tools::BrowserConfig::default();
         let allowed_domains_input = config.allowed_domains.join("\n");
         Self {
+            installing: false,
             enabled: config.enabled,
             allowed_domains_editor: text_editor::Content::with_text(&allowed_domains_input),
             allowed_domains_input,

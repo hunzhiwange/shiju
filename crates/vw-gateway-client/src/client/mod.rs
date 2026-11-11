@@ -353,3 +353,10 @@ pub use voice_api::VoiceApiError;
 mod aggregation_desktop_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_desktop_api_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod aggregation_omo_api;
+#[cfg(not(target_arch = "wasm32"))]
+pub use aggregation_omo_api::AggregationOmoError;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod aggregation_omo_api_tests;

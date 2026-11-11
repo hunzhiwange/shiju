@@ -15,3 +15,5 @@ pub mod native;
 
 #[cfg(unix)]
 pub mod chrome;
+
+pub mod office;

@@ -122,7 +122,12 @@ pub(crate) struct McpProbePermit {
     record_id: McpRecordId,
     pub connection_revision: u64,
     // SHA-256 of the canonical URL, including path and query.
+    #[serde(default)]
     endpoint_sha256: String,
+    #[serde(default)]
+    stdio_sha256: Option<String>,
+    #[serde(default)]
+    pub stdio_workspace: Option<PathBuf>,
     #[serde(default)]
     tenant_catalog: bool,
     #[serde(default)]
@@ -146,7 +151,20 @@ impl McpProbePermit {
         }
     }
 
+    pub fn permits_stdio(&self, definition: &McpConnectionDefinition) -> bool {
+        matches!(definition, McpConnectionDefinition::Stdio { .. })
+            && self.endpoint_sha256.is_empty()
+            && self.stdio_workspace.as_ref().is_some_and(|path| path.is_absolute() && path.is_dir())
+            && self.stdio_sha256.as_ref().is_some_and(|digest| {
+                serde_json::to_vec(definition)
+                    .is_ok_and(|bytes| hex::encode(Sha256::digest(bytes)) == *digest)
+            })
+    }
+
     pub fn permits_endpoint(&self, url: &str) -> bool {
+        if self.stdio_sha256.is_some() || self.stdio_workspace.is_some() {
+            return false;
+        }
         reqwest_012::Url::parse(url).is_ok_and(|endpoint| self.matches_endpoint(&endpoint))
     }
 
@@ -159,6 +177,9 @@ impl McpProbePermit {
         definition: &McpConnectionDefinition,
         reference: &McpCredentialRef,
     ) -> bool {
+        if matches!(definition, McpConnectionDefinition::Stdio { .. }) {
+            return self.credentials.contains(reference) && self.permits_stdio(definition);
+        }
         let url = match definition {
             McpConnectionDefinition::StreamableHttp { url, .. }
             | McpConnectionDefinition::Sse { url, .. } => url,

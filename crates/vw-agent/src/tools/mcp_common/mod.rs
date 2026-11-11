@@ -718,6 +718,9 @@ async fn open_server_peer_inner(
     let running = match server {
         McpServer::Stdio(server) => {
             let mut command = Command::new(&server.command);
+            if connection_check && !server.env.iter().any(|env| env.name == "PATH") {
+                vw_shared::shell::apply_augmented_path_tokio_command(&mut command);
+            }
             if let Some(cwd) = runtime_stdio_cwd(server)? {
                 command.current_dir(cwd);
             }

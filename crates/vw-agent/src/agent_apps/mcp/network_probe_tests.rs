@@ -43,19 +43,19 @@ use crate::{
     global_database::{GlobalDatabase, run_sync_database},
 };
 
-const TOKEN: &str = "fixture-member-token-for-mcp-probe";
+pub(super) const TOKEN: &str = "fixture-member-token-for-mcp-probe";
 const OTHER_TOKEN: &str = "fixture-other-token-for-mcp-probe";
 
-struct Fixture {
-    root: tempfile::TempDir,
+pub(super) struct Fixture {
+    pub(super) root: tempfile::TempDir,
     db: GlobalDatabase,
-    catalog: McpCatalogStore,
-    jobs: DiagnosticJobs,
-    owner: DiagnosticJobOwner,
+    pub(super) catalog: McpCatalogStore,
+    pub(super) jobs: DiagnosticJobs,
+    pub(super) owner: DiagnosticJobOwner,
 }
 
 impl Fixture {
-    fn new(db: GlobalDatabase) -> anyhow::Result<Self> {
+    pub(super) fn new(db: GlobalDatabase) -> anyhow::Result<Self> {
         let root = tempfile::tempdir()?;
         let project =
             ProjectScope::new(TenantScope::new("platform", "company")?, "project".into())?;
@@ -75,7 +75,7 @@ impl Fixture {
         })
     }
 
-    fn catalog_scope(&self) -> McpCatalogScope {
+    pub(super) fn catalog_scope(&self) -> McpCatalogScope {
         McpCatalogScope::Project { scope: self.owner.scope.project.clone() }
     }
 
@@ -91,7 +91,7 @@ impl Fixture {
         })
     }
 
-    fn policy(&self, permits: &[Value]) -> anyhow::Result<()> {
+    pub(super) fn policy(&self, permits: &[Value]) -> anyhow::Result<()> {
         let grant =
             json!({"platform_id":"platform", "company_id":"company", "host_id":"local-fixture"});
         let mut mcp_grant = grant.clone();
@@ -121,7 +121,7 @@ impl Fixture {
         Ok(run_sync_database(|| Ok(self.catalog.create(&self.catalog_scope(), draft)))?.unwrap())
     }
 
-    fn start(
+    pub(super) fn start(
         &self,
         token: &'static str,
         scope: DiagnosticScope,
@@ -142,7 +142,10 @@ impl Fixture {
         )
     }
 
-    async fn finish(&self, job: &DiagnosticJobIdentity) -> anyhow::Result<DiagnosticJobSnapshot> {
+    pub(super) async fn finish(
+        &self,
+        job: &DiagnosticJobIdentity,
+    ) -> anyhow::Result<DiagnosticJobSnapshot> {
         Ok(timeout(Duration::from_secs(10), async {
             loop {
                 let snapshot = self.jobs.snapshot(&self.owner, &job.task_id).unwrap();

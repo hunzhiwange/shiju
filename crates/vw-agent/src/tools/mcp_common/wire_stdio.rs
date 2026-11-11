@@ -171,12 +171,27 @@ impl ProbeChild {
         let _ = self.0.kill().await;
     }
 
+    pub(crate) async fn close_and_reap(mut self) {
+        // Retain the group identity while allowing the leader to handle stdin EOF.
+        // Descendants can outlive a normally exiting launcher.
+        let group = self.0.id();
+        let _ = tokio::time::timeout(Duration::from_secs(3), self.0.wait()).await;
+        Self::kill_process_group(group);
+        let _ = self.0.kill().await;
+    }
+
     fn kill_group(&self) {
+        Self::kill_process_group(self.0.id());
+    }
+
+    fn kill_process_group(group: Option<u32>) {
         #[cfg(unix)]
-        if let Some(pid) = self.0.id() {
-            // SAFETY: the unreaped child owns the private group created with process_group(0).
+        if let Some(pid) = group {
+            // SAFETY: this probe owns the private group created with process_group(0).
             unsafe { libc::kill(-(pid as i32), libc::SIGKILL) };
         }
+        #[cfg(not(unix))]
+        let _ = group;
     }
 }
 

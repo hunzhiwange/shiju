@@ -111,7 +111,7 @@ impl McpCatalogStore {
                     server,
                     deadline.saturating_duration_since(Instant::now()),
                     http_io.clone(),
-                    cancellation.map(|_| &mut child),
+                    Some(&mut child),
                     None,
                 )
                 .await
@@ -148,11 +148,18 @@ impl McpCatalogStore {
         };
         // rmcp can still be awaiting a Streamable HTTP response during initialization.
         http_io.cancel();
-        if let Some(child) = child {
-            child.kill_and_reap().await;
+        if result.is_err() {
+            if let Some(child) = child.take() {
+                child.kill_and_reap().await;
+            }
         }
         if let Some(client) = running {
             let _ = timeout(CLOSE_TIMEOUT, client.cancel()).await;
+        }
+        // Successful checks first allow the server to observe EOF. A launcher may
+        // exit while leaving descendants behind, so retire the private group too.
+        if let Some(child) = child {
+            child.close_and_reap().await;
         }
         if cancellation.is_some_and(CancellationToken::is_cancelled) {
             return McpConnectionOutcome::Cancelled;

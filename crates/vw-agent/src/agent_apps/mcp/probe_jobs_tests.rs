@@ -117,6 +117,7 @@ fn cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes() -> anyhow::Resu
     with_database(|database| {
         let fixture = BatchFixture::new(database)?;
         let survivor = fixture.stdio("survivor", "discovery");
+        let replacement = fixture.stdio("replacement", "complete");
         let first = fixture.stdio("initializing", "handshake");
         let second = fixture.stdio("discovering", "discovery");
         let queued = fixture.stdio("queued", "handshake");
@@ -159,6 +160,12 @@ fn cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes() -> anyhow::Resu
             })
             .await?;
 
+            // Two cancelled probes must release their permits after process cleanup.
+            let replacement_job = fixture.start(4, [&replacement])?;
+            assert_eq!(
+                fixture.terminal(&replacement_job).await?.state,
+                DiagnosticJobState::Succeeded {}
+            );
             let (survivor_pid, survivor_child) = fixture.wait_for_stdio(&survivor).await?;
             assert!(process_exists(survivor_pid) && process_exists(survivor_child));
             assert_eq!(fixture.snapshot(&survivor_job).state, DiagnosticJobState::Running {});
@@ -227,6 +234,48 @@ fn cc_mcp_t31_only_current_task_generation_and_connection_revision_apply() -> an
             Ok(())
         })
     })
+}
+
+#[test]
+fn diagnostic_mcp_stdio_cancellation_reaps_process_tree() -> anyhow::Result<()> {
+    // Exercise the same authorized catalog path without an optional cancellation token:
+    // timeout must retain ownership of the entire process group as well.
+    with_database(|database| {
+        let fixture = BatchFixture::new(database)?;
+        let record = fixture.stdio("standalone-deadline", "handshake");
+        fixture.runtime()?.block_on(async {
+            let check = fixture.catalog.check_connection(
+                &fixture.scope,
+                &record.record,
+                "local-fixture",
+                fixture.workspace.path(),
+                &fixture.accounts,
+                |_, _| None,
+            );
+            let observe = async {
+                let pids = fixture.wait_for_stdio(&record).await?;
+                tokio::time::pause();
+                tokio::time::advance(Duration::from_secs(31)).await;
+                tokio::time::resume();
+                Ok::<_, anyhow::Error>(pids)
+            };
+            let (outcome, pids) = tokio::join!(check, observe);
+            let (pid, child) = pids?;
+            assert_eq!(outcome, McpConnectionOutcome::Failed { code: McpFailureCode::TimedOut });
+            let exited =
+                wait_until(|| (!process_exists(pid) && !process_exists(child)).then_some(())).await;
+            if exited.is_err() {
+                // Clean up the deliberately exposed leak even in the red run.
+                unsafe {
+                    libc::kill(pid, libc::SIGKILL);
+                    libc::kill(child, libc::SIGKILL);
+                }
+            }
+            assert!(exited.is_ok(), "timed-out stdio probe left a live process tree");
+            Ok(())
+        })
+    })?;
+    cc_mcp_t31_cancel_stops_only_owned_active_and_queued_probes()
 }
 
 #[test]

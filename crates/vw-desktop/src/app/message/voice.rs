@@ -124,6 +124,7 @@ pub(crate) fn end_conversation(app: &mut App) {
     app.voice.conversation_endpoint = None;
 }
 pub(crate) fn cancel(app: &mut App) {
+    app.voice.settings.preview.take();
     app.voice.insertion.pending = None;
     app.voice.hotkeys.machine.reset();
     app.voice.recordings.stop();

@@ -194,7 +194,14 @@ pub(super) fn modal<'a>(
     let modal = settings_modal_overlay(
         Some(base),
         close,
-        settings_modal_layout(header, form, Some(footer.into())).width(660).height(Length::Fill),
+        settings_modal_layout_with_scroll_id(
+            header,
+            form,
+            Some(footer.into()),
+            Some("voice-settings-body"),
+        )
+        .width(660)
+        .height(Length::Fill),
     );
     if let Some(chat) = state.recording_hotkey {
         let cancel = msg(Event::RecordHotkey(None));

@@ -40,7 +40,7 @@ pub(crate) fn with_voice_chat<'a>(
 fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Message> {
     overlay_screen(base, state, None)
 }
-fn overlay_screen<'a>(
+pub(crate) fn overlay_screen<'a>(
     base: Element<'a, Message>,
     state: Snapshot,
     screen: Option<&crate::app::voice::screen_context::State>,

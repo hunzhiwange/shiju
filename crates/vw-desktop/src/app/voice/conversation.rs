@@ -57,7 +57,7 @@ impl Snapshot {
         self.caption(TranscriptRole::Assistant, call_id, 0, text, true);
     }
 
-    fn caption(
+    pub(crate) fn caption(
         &mut self,
         role: TranscriptRole,
         item: VoiceId,

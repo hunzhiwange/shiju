@@ -51,3 +51,9 @@ mod insertion_macos;
 pub(crate) mod screen_context;
 #[cfg(target_os = "macos")]
 mod screen_context_macos;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod acceptance_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) mod acceptance_fixture;

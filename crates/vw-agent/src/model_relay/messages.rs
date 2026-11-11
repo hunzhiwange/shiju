@@ -58,8 +58,15 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             "tools",
             "tool_choice",
             "metadata",
+            "thinking",
         ],
     )?;
+    if let Some(thinking) = body.get("thinking") {
+        object_keys(thinking, &["type"])?;
+        if thinking["type"] != "disabled" {
+            return Err(UNSUPPORTED);
+        }
+    }
     if let Some(metadata) = body.get("metadata") {
         object_keys(metadata, &["user_id"])?;
         if metadata.get("user_id").is_some_and(|value| !value.is_string()) {
@@ -156,7 +163,8 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         let tools = tools.as_array().ok_or(StatusCode::BAD_REQUEST)?;
         let mut converted = Vec::new();
         for tool in tools {
-            object_keys(tool, &["name", "description", "input_schema"])?;
+            object_keys(tool, &["name", "description", "input_schema", "cache_control"])?;
+            cache_hint(tool)?;
             if !tool["input_schema"].is_object() {
                 return Err(StatusCode::BAD_REQUEST);
             }
@@ -201,10 +209,11 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
     }
     let choice = &choices[0];
     let message = &choice["message"];
-    object_keys(message, &["role", "content", "tool_calls", "refusal"])?;
+    object_keys(message, &["role", "content", "tool_calls", "refusal", "reasoning_content"])?;
     if message["role"] != "assistant" || !message["refusal"].is_null() {
         return Err(UNSUPPORTED);
     }
+    validate_chat_reasoning(message)?;
     let mut content = Vec::new();
     if let Some(s) = message["content"].as_str() {
         if !s.is_empty() {
@@ -213,7 +222,7 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
     } else if !message["content"].is_null() {
         return Err(UNSUPPORTED);
     }
-    if let Some(calls) = message.get("tool_calls") {
+    if let Some(calls) = message.get("tool_calls").filter(|calls| !calls.is_null()) {
         for call in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)? {
             object_keys(call, &["id", "type", "function"])?;
             object_keys(&call["function"], &["name", "arguments"])?;
@@ -232,6 +241,16 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
     Ok(
         json!({"id":string(body,"id")?,"type":"message","role":"assistant","model":model,"content":content,"stop_reason":finish(&choice["finish_reason"])? ,"stop_sequence":null,"usage":{"input_tokens":usage["prompt_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?,"output_tokens":usage["completion_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?}}),
     )
+}
+
+pub(super) fn validate_chat_reasoning(message: &Value) -> Result<(), StatusCode> {
+    if message
+        .get("reasoning_content")
+        .is_some_and(|reasoning| !reasoning.is_null() && reasoning.as_str() != Some(""))
+    {
+        return Err(UNSUPPORTED);
+    }
+    Ok(())
 }
 
 pub(super) fn error(status: StatusCode) -> axum::response::Response {

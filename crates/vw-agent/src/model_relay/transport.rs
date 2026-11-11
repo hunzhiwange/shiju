@@ -80,11 +80,48 @@ pub(crate) fn chat_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCo
     Ok(url)
 }
 
-pub(super) fn configure_messages_chat(body: &mut serde_json::Value, url: &reqwest::Url) {
-    // DeepSeek enables reasoning by default. The Messages bridge cannot carry
-    // Chat reasoning as signed Anthropic thinking or replay it across tool turns.
-    if url.scheme() == "https" && url.host_str() == Some("api.deepseek.com") {
+pub(super) fn configure_messages_chat(body: &mut serde_json::Value, model: &provider::Model) {
+    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
+
+    // Claude's Chat launch disables thinking. Apply the same mode upstream so
+    // provider defaults cannot introduce signed thinking state into this bridge.
+    if official_deepseek_messages_url(&model.api).is_some() {
         body["thinking"] = serde_json::json!({"type": "disabled"});
+        return;
+    }
+    let api = &model.api;
+    let profile = reasoning_profile(&api.id, &api.adapter, &model.provider_id, &api.url);
+    let levels = reasoning_levels(
+        &api.id,
+        &api.adapter,
+        &model.provider_id,
+        &api.url,
+        model.capabilities.reasoning_options.as_deref(),
+    );
+    let supports_disabled = match &model.capabilities.reasoning_options {
+        Some(options) => options.iter().any(|option| match option {
+            vw_shared::provider::reasoning::ReasoningOption::Toggle => true,
+            vw_shared::provider::reasoning::ReasoningOption::Effort { values } => {
+                values.iter().any(|value| value == "none")
+            }
+            _ => false,
+        }),
+        None => profile.levels.contains(&"none"),
+    };
+    if supports_disabled {
+        match profile.format {
+            ReasoningFormat::DashScope => body["enable_thinking"] = false.into(),
+            ReasoningFormat::DeepSeek => {
+                body["thinking"] = serde_json::json!({"type": "disabled"});
+            }
+            ReasoningFormat::OpenAi
+                if profile.levels.contains(&"none")
+                    || levels.iter().any(|level| level == "none") =>
+            {
+                body["reasoning_effort"] = "none".into();
+            }
+            _ => {}
+        }
     }
 }
 
@@ -356,7 +393,7 @@ impl RelayBackend for ProviderRelayBackend {
             chat_url(&model.api)?
         };
         if messages_request && !native {
-            configure_messages_chat(&mut body, &url);
+            configure_messages_chat(&mut body, model);
         }
         let key = bearer(&info)?;
         let mut headers = axum::http::HeaderMap::new();

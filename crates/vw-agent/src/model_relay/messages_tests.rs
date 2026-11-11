@@ -3,6 +3,37 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 #[test]
+fn acp_model_source_messages_chat_accepts_disabled_thinking_and_tool_cache_hints() {
+    let mut request = json!({"model":"selected","max_tokens":64,
+        "thinking":{"type":"disabled"},
+        "messages":[{"role":"user","content":"hello"}],
+        "tools":[{"name":"Read","input_schema":{"type":"object"},
+            "cache_control":{"type":"ephemeral","ttl":"1h"}}]
+    });
+    let converted = messages::to_chat(&request).unwrap();
+    assert!(converted.get("thinking").is_none());
+    assert_eq!(converted["tools"][0]["function"]["name"], "Read");
+    request["tools"][0]["cache_control"]["type"] = "persistent".into();
+    assert_eq!(messages::to_chat(&request), Err(StatusCode::UNPROCESSABLE_ENTITY));
+}
+
+#[test]
+fn acp_model_source_messages_chat_accepts_empty_reasoning_without_losing_state() {
+    let mut response = json!({"id":"response","choices":[{"message":{
+        "role":"assistant","content":"answer","reasoning_content":null,"tool_calls":null},
+        "finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}});
+    for empty in [serde_json::Value::Null, json!("")] {
+        response["choices"][0]["message"]["reasoning_content"] = empty;
+        assert_eq!(
+            messages::from_chat(&response, "selected").unwrap()["content"][0]["text"],
+            "answer"
+        );
+    }
+    response["choices"][0]["message"]["reasoning_content"] = "requires replay".into();
+    assert_eq!(messages::from_chat(&response, "selected"), Err(StatusCode::UNPROCESSABLE_ENTITY));
+}
+
+#[test]
 fn acp_model_source_alibaba_native_preserves_thinking_and_tool_cache_hints() {
     let mut request = json!({
         "model":"deepseek-v4.1-flash-1017", "max_tokens":4096,

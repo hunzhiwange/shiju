@@ -61,25 +61,79 @@ fn acp_model_source_messages_selects_the_official_deepseek_native_endpoint() {
     assert!(super::transport::official_deepseek_messages_url(&api).is_none());
 }
 
+fn chat_model(provider_id: &str, id: &str, url: &str) -> provider::Model {
+    provider::Model {
+        id: id.into(),
+        provider_id: provider_id.into(),
+        api: provider::ApiInfo {
+            id: id.into(),
+            url: url.into(),
+            adapter: "openai-compatible".into(),
+        },
+        name: id.into(),
+        family: None,
+        capabilities: provider::default_model_capabilities(),
+        cost: provider::ModelCost {
+            input: 0.0,
+            output: 0.0,
+            cache: provider::ModelCostCache { read: 0.0, write: 0.0 },
+            experimental_over_200k: None,
+        },
+        limit: provider::ModelLimit { context: 4096, input: None, output: 1024 },
+        status: "active".into(),
+        options: Default::default(),
+        headers: Default::default(),
+        release_date: String::new(),
+        variants: Default::default(),
+    }
+}
+
 #[test]
-fn acp_model_source_messages_chat_disables_default_thinking_for_official_deepseek() {
-    let request = serde_json::json!({"model":"deepseek-flash","messages":[]});
-    for url in [
-        "https://api.deepseek.com/v1/chat/completions",
-        "https://api.deepseek.com/chat/completions",
+fn acp_model_source_messages_chat_matches_the_client_thinking_mode() {
+    use vw_shared::provider::reasoning::ReasoningOption;
+    let request = serde_json::json!({"model":"selected","messages":[]});
+    for (provider, id, url, field, expected) in [
+        (
+            "deepseek",
+            "deepseek-flash",
+            "https://api.deepseek.com/v1",
+            "thinking",
+            serde_json::json!({"type":"disabled"}),
+        ),
+        (
+            "alibaba-token-plan-cn",
+            "deepseek-v4.1-flash-1017",
+            "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "enable_thinking",
+            serde_json::json!(false),
+        ),
+        (
+            "custom",
+            "gpt-5.4",
+            "https://example.invalid/v1",
+            "reasoning_effort",
+            serde_json::json!("none"),
+        ),
     ] {
+        let mut model = chat_model(provider, id, url);
+        model.capabilities.reasoning = true;
+        model.capabilities.reasoning_options = Some(vec![ReasoningOption::Toggle]);
         let mut body = request.clone();
-        super::transport::configure_messages_chat(&mut body, &url.parse().unwrap());
-        assert_eq!(body["thinking"], serde_json::json!({"type":"disabled"}));
+        super::transport::configure_messages_chat(&mut body, &model);
+        assert_eq!(body[field], expected);
     }
-    for url in [
-        "https://api.deepseek.com.example.invalid/v1/chat/completions",
-        "https://example.invalid/v1/chat/completions",
-    ] {
-        let mut body = request.clone();
-        super::transport::configure_messages_chat(&mut body, &url.parse().unwrap());
-        assert_eq!(body, request);
-    }
+    let mut model = chat_model("custom", "custom-model", "https://example.invalid/v1");
+    let mut body = request.clone();
+    super::transport::configure_messages_chat(&mut body, &model);
+    assert_eq!(body, request);
+    model.capabilities.reasoning_options = Some(vec![ReasoningOption::Toggle]);
+    super::transport::configure_messages_chat(&mut body, &model);
+    assert_eq!(body, request);
+    model.api.id = "deepseek-v4.1-flash-1017".into();
+    model.provider_id = "alibaba-token-plan-cn".into();
+    model.capabilities.reasoning_options = Some(Vec::new());
+    super::transport::configure_messages_chat(&mut body, &model);
+    assert_eq!(body, request);
 }
 
 #[test]

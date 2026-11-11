@@ -11,6 +11,9 @@ use std::collections::BTreeMap;
 use tokio_util::sync::CancellationToken;
 
 const LIMIT: usize = 4 * 1024 * 1024;
+#[cfg(test)]
+#[path = "messages_stream_tests.rs"]
+mod tests;
 fn event(value: Value) -> String {
     format!("event: {}\ndata: {value}\n\n", value["type"].as_str().unwrap_or("error"))
 }
@@ -98,12 +101,15 @@ impl Decoder {
             }
             let delta = &choice["delta"];
             if delta.as_object().is_none_or(|m| {
-                m.keys()
-                    .any(|k| !["role", "content", "tool_calls", "refusal"].contains(&k.as_str()))
+                m.keys().any(|k| {
+                    !["role", "content", "tool_calls", "refusal", "reasoning_content"]
+                        .contains(&k.as_str())
+                })
             }) || !delta["refusal"].is_null()
             {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
+            super::messages::validate_chat_reasoning(delta)?;
             if let Some(text) = delta["content"].as_str() {
                 if !text.is_empty() {
                     if !self.text_open {
@@ -115,7 +121,7 @@ impl Decoder {
             } else if !delta["content"].is_null() {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
-            if let Some(calls) = delta.get("tool_calls") {
+            if let Some(calls) = delta.get("tool_calls").filter(|calls| !calls.is_null()) {
                 for call in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)? {
                     object_keys(call, &["index", "id", "type", "function"])?;
                     if let Some(function) = call.get("function") {

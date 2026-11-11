@@ -23,6 +23,7 @@
 //! - 同时兼容异步与少量阻塞调用场景
 
 mod client;
+pub use client::mcp_management_distribution;
 mod endpoint;
 mod http;
 mod session;

@@ -165,6 +165,7 @@ impl std::fmt::Display for McpNewServerTransport {
 
 #[derive(Debug, Clone)]
 pub(crate) struct McpSettingsState {
+    pub(crate) diagnostics: crate::app::message::agent_apps_diagnostics::McpState,
     pub(crate) catalog: crate::app::message::settings::mcp_management_list::CatalogState,
     pub(crate) bindings: crate::app::message::settings::mcp_management_bindings::BindingsState,
     pub(crate) connection_form: Option<crate::app::message::settings::mcp_management_form::Draft>,
@@ -198,6 +199,7 @@ pub enum McpSettingsTab {
 impl Default for McpSettingsState {
     fn default() -> Self {
         Self {
+            diagnostics: Default::default(),
             catalog: Default::default(),
             bindings: Default::default(),
             connection_form: None,

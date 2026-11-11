@@ -874,6 +874,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ),
         managed_catalog_panel(app),
         bindings::panel(app),
+        crate::app::components::agent_apps_diagnostics::mcp_panel::view(app),
         action_row.wrap(),
         row![
             settings_value_badge(

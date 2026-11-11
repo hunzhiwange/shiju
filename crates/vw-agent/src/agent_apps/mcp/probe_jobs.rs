@@ -87,7 +87,8 @@ pub fn start_connection_checks(
                     scope: &scope,
                     execution_host: &owner.scope.target_host_id,
                     workspace: &workspace,
-                    accounts: &accounts,
+                    accounts: Some(&accounts),
+                    authorize: &|| Ok(()),
                 };
                 let outcome = catalog
                     .check_connection_inner(

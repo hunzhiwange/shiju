@@ -1,4 +1,4 @@
-//! Short-lived MCP handshakes on the authorized execution host.
+//! Authorized MCP handshakes and revision-bound connection checks.
 
 use std::{
     path::{Path, PathBuf},
@@ -17,12 +17,16 @@ use vw_api_types::{
         DiagnosticResult, DiagnosticScope, DiagnosticTiming, McpHandshakeEvidence,
     },
     mcp_management::{
-        McpCatalogScope, McpConfigValue, McpConnectionDefinition, McpFailureCode, McpRecordId,
-        McpTransport,
+        McpCatalogScope, McpConfigValue, McpConnectionCheckItem, McpConnectionDefinition,
+        McpConnectionOutcome, McpFailureCode, McpRecordId, McpTransport,
     },
 };
 
-use super::{McpCatalogStore, McpExecutionConnection, runtime::runtime_server};
+use super::{
+    McpCatalogStore, McpExecutionConnection,
+    connectivity::{CheckRevision, ConnectionCheckHost},
+    runtime::runtime_server,
+};
 use crate::{
     agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
     gateway::{
@@ -76,6 +80,45 @@ pub(super) fn start_with_source(
     ids: Vec<McpRecordId>,
     source: DiagnosticEvidenceSource,
 ) -> Result<DiagnosticJobIdentity, McpHandshakeStartError> {
+    start_probes(jobs, database, policy, headers, scope, ids, ProbeReport::Handshake(source))
+}
+
+/// Managed checks retain the authorized connection revision and caller generation.
+pub fn start_connection_checks(
+    jobs: &DiagnosticJobs,
+    database: GlobalDatabase,
+    policy: Option<PathBuf>,
+    headers: &HeaderMap,
+    scope: DiagnosticScope,
+    ids: Vec<McpRecordId>,
+    generation: u64,
+) -> Result<DiagnosticJobIdentity, McpHandshakeStartError> {
+    start_probes(
+        jobs,
+        database,
+        policy,
+        headers,
+        scope,
+        ids,
+        ProbeReport::ConnectionCheck { generation },
+    )
+}
+
+#[derive(Clone, Copy)]
+enum ProbeReport {
+    Handshake(DiagnosticEvidenceSource),
+    ConnectionCheck { generation: u64 },
+}
+
+fn start_probes(
+    jobs: &DiagnosticJobs,
+    database: GlobalDatabase,
+    policy: Option<PathBuf>,
+    headers: &HeaderMap,
+    scope: DiagnosticScope,
+    ids: Vec<McpRecordId>,
+    report: ProbeReport,
+) -> Result<DiagnosticJobIdentity, McpHandshakeStartError> {
     use McpHandshakeStartError::{Access, Job, Record};
 
     let mut unique = std::collections::HashSet::new();
@@ -104,13 +147,20 @@ pub(super) fn start_with_source(
     let catalog = run_sync_database(|| Ok(McpCatalogStore::new(database.clone())))
         .map_err(|_| Record(McpFailureCode::StorageUnavailable))?
         .map_err(Record)?;
-    let context = Arc::new(ProbeContext { access, scope, catalog, database, source });
+    let context = Arc::new(ProbeContext { access, scope, catalog, database });
     let probes = grants
         .into_iter()
         .map(|(id, grant)| {
             let probe = McpHandshakeProbe { context: context.clone(), id, grant };
             probe.authorize_record().map_err(Record)?;
-            Ok(move |cancel| probe.run(cancel))
+            Ok(move |cancel| async move {
+                match report {
+                    ProbeReport::Handshake(source) => probe.run(cancel, source).await,
+                    ProbeReport::ConnectionCheck { generation } => {
+                        probe.run_connection_check(cancel, generation).await
+                    }
+                }
+            })
         })
         .collect::<Result<Vec<_>, McpHandshakeStartError>>()?;
     let owner = DiagnosticJobOwner { scope: context.scope.clone(), principal };
@@ -122,7 +172,6 @@ struct ProbeContext {
     scope: DiagnosticScope,
     catalog: McpCatalogStore,
     database: GlobalDatabase,
-    source: DiagnosticEvidenceSource,
 }
 
 struct McpHandshakeProbe {
@@ -195,9 +244,78 @@ impl McpHandshakeProbe {
         Ok((stored.record.transport, needs_credentials))
     }
 
+    async fn run_connection_check(
+        self,
+        cancel: CancellationToken,
+        generation: u64,
+    ) -> Result<DiagnosticResult, DiagnosticProbeError> {
+        let scope = self.catalog_scope();
+        let outcome = async {
+            let (_, needs_credentials) = self.authorize_record()?;
+            let accounts = if needs_credentials {
+                let root =
+                    self.grant.credential_root.as_ref().ok_or(McpFailureCode::PermissionDenied)?;
+                Some(
+                    run_sync_database(|| {
+                        Ok(AuthAccountStore::new(self.context.database.clone(), root))
+                    })
+                    .map_err(|_| McpFailureCode::CredentialUnavailable)?
+                    .map_err(|_| McpFailureCode::CredentialUnavailable)?,
+                )
+            } else {
+                None
+            };
+            let authorize = || self.authorize_record().map(|_| ());
+            let host = &self.context.scope.target_host_id;
+            let workspace = self.grant.permit.stdio_workspace.as_deref().unwrap_or(Path::new("/"));
+            Ok::<_, McpFailureCode>(
+                self.context
+                    .catalog
+                    .check_connection_inner(
+                        ConnectionCheckHost {
+                            scope: &scope,
+                            execution_host: host,
+                            workspace,
+                            accounts: accounts.as_ref(),
+                            authorize: &authorize,
+                        },
+                        &self.id,
+                        CheckRevision::Connection(self.grant.permit.connection_revision),
+                        Some(&cancel),
+                        |definition, reference| {
+                            self.grant.permit.permits_credential(definition, reference).then_some(
+                                AuthAccountScope {
+                                    tenant: self.context.scope.project.tenant_scope(),
+                                    principal: &self.grant.principal,
+                                    host,
+                                    service: reference.service,
+                                },
+                            )
+                        },
+                    )
+                    .await,
+            )
+        }
+        .await
+        .unwrap_or_else(|code| McpConnectionOutcome::Failed { code });
+        if cancel.is_cancelled() {
+            return Err(DiagnosticProbeError::Cancelled);
+        }
+        Ok(DiagnosticResult::McpConnectionCheck {
+            scope,
+            generation,
+            item: McpConnectionCheckItem {
+                id: self.id,
+                connection_revision: self.grant.permit.connection_revision,
+                outcome,
+            },
+        })
+    }
+
     async fn run(
         self,
         cancel: CancellationToken,
+        source: DiagnosticEvidenceSource,
     ) -> Result<DiagnosticResult, DiagnosticProbeError> {
         let start = Instant::now();
         let deadline = start + CHECK_TIMEOUT;
@@ -310,7 +428,7 @@ impl McpHandshakeProbe {
         Ok(DiagnosticResult::Mcp {
             server_id: self.id,
             report: DiagnosticReport {
-                source: self.context.source,
+                source,
                 timings: vec![DiagnosticTiming {
                     phase: DiagnosticPhase::Handshake,
                     elapsed_ms: start.elapsed().as_millis().try_into().unwrap_or(u64::MAX),

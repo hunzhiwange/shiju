@@ -25,7 +25,9 @@ pub(super) struct ConnectionCheckHost<'a> {
     pub scope: &'a McpCatalogScope,
     pub execution_host: &'a str,
     pub workspace: &'a Path,
-    pub accounts: &'a AuthAccountStore,
+    pub accounts: Option<&'a AuthAccountStore>,
+    /// Revalidate caller-owned grants before transport I/O and result publication.
+    pub authorize: &'a (dyn Fn() -> Result<(), McpFailureCode> + Send + Sync),
 }
 
 pub(super) enum CheckRevision {
@@ -51,7 +53,13 @@ impl McpCatalogStore {
         + Sync,
     ) -> McpConnectionOutcome {
         self.check_connection_inner(
-            ConnectionCheckHost { scope, execution_host, workspace, accounts },
+            ConnectionCheckHost {
+                scope,
+                execution_host,
+                workspace,
+                accounts: Some(accounts),
+                authorize: &|| Ok(()),
+            },
             &expected.id,
             CheckRevision::Record(expected.revision),
             None,
@@ -79,6 +87,7 @@ impl McpCatalogStore {
         let http_io = CancellationToken::new();
         let _cancel_http_io = http_io.clone().drop_guard();
         let check = async {
+            (host.authorize)()?;
             let (mut connection, revision) = self
                 .resolve_execution_connection(
                     host.scope,
@@ -90,10 +99,11 @@ impl McpCatalogStore {
                         }
                     },
                     host.execution_host,
-                    Some(host.accounts),
+                    host.accounts,
                     authorize_credential_use,
                 )
                 .await?;
+            (host.authorize)()?;
             if let McpExecutionConnection::Stdio { cwd, .. } = &mut connection {
                 // Relative and omitted working directories resolve on the trusted local host.
                 if !host.workspace.is_absolute() {
@@ -127,6 +137,7 @@ impl McpCatalogStore {
                 } else {
                     0
                 };
+            (host.authorize)()?;
             Ok((tool_count, revision))
         };
         let cancelled = async {
@@ -163,6 +174,9 @@ impl McpCatalogStore {
         }
         if cancellation.is_some_and(CancellationToken::is_cancelled) {
             return McpConnectionOutcome::Cancelled;
+        }
+        if let Err(code) = (host.authorize)() {
+            return McpConnectionOutcome::Failed { code };
         }
         match result {
             Ok((tool_count, revision)) => match self.current_connection_revision(host.scope, id) {

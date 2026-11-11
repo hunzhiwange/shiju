@@ -9,15 +9,15 @@ use axum::{
 };
 use serde::Deserialize;
 use vw_api_types::{
-    TenantScope,
-    agent_apps_diagnostics::{DiagnosticScopeQuery, DiagnosticStartRequest},
-    mcp_management::McpRecordId,
+    TenantScope, agent_apps_diagnostics::DiagnosticScopeQuery, mcp_management::McpRecordId,
 };
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct ChecksRequest {
     server_ids: Vec<McpRecordId>,
+    #[serde(default)]
+    generation: u64,
 }
 
 pub(super) async fn submit(
@@ -31,7 +31,7 @@ pub(super) async fn submit(
 ) -> Response {
     // Keep authentication, whole-batch authorization, trusted execution-host
     // resolution, credential lookup and scheduling on the existing diagnostic path.
-    agent_apps_diagnostics::submit(
+    agent_apps_diagnostics::submit_request(
         Extension(agent_apps_diagnostics::PolicyFile(policy.0)),
         tenant,
         database,
@@ -39,7 +39,10 @@ pub(super) async fn submit(
         headers,
         query,
         request.map(|Json(request)| {
-            Json(DiagnosticStartRequest::Mcp { server_ids: request.server_ids })
+            agent_apps_diagnostics::SubmissionRequest::McpConnectionChecks {
+                server_ids: request.server_ids,
+                generation: request.generation,
+            }
         }),
     )
     .await

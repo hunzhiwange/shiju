@@ -24,7 +24,10 @@ use std::{
 use tower::ServiceExt;
 use vw_api_types::{
     ProjectScope, TenantScope,
-    mcp_management::{McpCatalogScope, McpConnectionDefinition},
+    agent_apps_diagnostics::{
+        DiagnosticJobIdentity, DiagnosticJobSnapshot, DiagnosticJobState, DiagnosticResult,
+    },
+    mcp_management::{McpCatalogScope, McpConnectionDefinition, McpConnectionOutcome},
 };
 
 const TOKEN: &str = "fixture-mcp39-member-token-with-no-secrets";
@@ -93,6 +96,9 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
         axum::serve(listener, Router::new().fallback(move |request: Request<Body>| {
             let requests = requests.clone();
             async move {
+                if request.method() != axum::http::Method::POST {
+                    return StatusCode::METHOD_NOT_ALLOWED.into_response();
+                }
                 let slow = request.uri().path() == "/slow";
                 let body = to_bytes(request.into_body(), 32768).await.unwrap();
                 let payload: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
@@ -149,7 +155,7 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
         .layer(Extension(database))
         .layer(Extension(jobs));
     let uri = format!("/v1/agent-apps/mcp/checks?{QUERY}");
-    let payload = json!({"serverIds":["fast","slow"]});
+    let payload = json!({"serverIds":["fast","slow"],"generation":17});
     assert_eq!(
         send(&app, "POST", &uri, "a", TOKEN, false, &payload).await.0,
         StatusCode::UNAUTHORIZED
@@ -194,7 +200,8 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
     assert_eq!(status, StatusCode::ACCEPTED, "{submitted}");
     assert_eq!(submitted["kind"], "mcp");
     assert!(submitted["correlationId"].as_str().is_some_and(|id| !id.is_empty()));
-    let id = submitted["taskId"].as_str().unwrap();
+    let identity: DiagnosticJobIdentity = serde_json::from_value(submitted.clone()).unwrap();
+    let id = identity.task_id.as_ref();
     let read = format!("/v1/agent-apps/diagnostics/jobs/{id}?{QUERY}");
     let cancel = format!("/v1/agent-apps/diagnostics/jobs/{id}/cancel?{QUERY}");
     let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
@@ -203,8 +210,18 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
         let (status, body) = send(&app, "GET", &read, "a", TOKEN, true, &Value::Null).await;
         assert_eq!(status, StatusCode::OK, "{body}");
         if body["progress"]["completed"] == 1 && observed.load(Ordering::SeqCst) == 2 {
-            assert_eq!(body["results"][0]["serverId"], "fast");
-            assert_eq!(body["results"][0]["report"]["outcome"]["status"], "succeeded");
+            let snapshot: DiagnosticJobSnapshot = serde_json::from_value(body).unwrap();
+            assert_eq!(snapshot.job, identity);
+            let [DiagnosticResult::McpConnectionCheck { scope: result_scope, generation, item }] =
+                snapshot.results.as_deref().unwrap()
+            else {
+                panic!("management API must return the formal revision-bound result");
+            };
+            assert_eq!(result_scope, &scope);
+            assert_eq!(*generation, 17);
+            assert_eq!(item.id.0, "fast");
+            assert_eq!(item.connection_revision, expected_catalog[0].connection_revision);
+            assert_eq!(item.outcome, McpConnectionOutcome::Connected { tool_count: Some(0) });
             break;
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -234,6 +251,10 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
     };
+    let cancelled_snapshot: DiagnosticJobSnapshot =
+        serde_json::from_value(final_state.clone()).unwrap();
+    assert_eq!(cancelled_snapshot.state, DiagnosticJobState::Cancelled {});
+    assert_eq!(cancelled_snapshot.job, identity);
     assert_eq!(final_state["progress"]["completed"], 1);
     assert_eq!(final_state["results"].as_array().unwrap().len(), 1);
     assert_eq!(send(&app, "POST", &cancel, "a", TOKEN, true, &Value::Null).await.1, final_state);
@@ -247,11 +268,55 @@ async fn cc_mcp_t39_checks_reuse_scoped_jobs_and_cancel_only_the_owned_batch() {
             send(&app, "GET", &independent_read, "a", TOKEN, true, &Value::Null).await;
         assert_eq!(status, StatusCode::OK);
         if body["state"]["status"] == "succeeded" {
+            let snapshot: DiagnosticJobSnapshot = serde_json::from_value(body).unwrap();
+            let [DiagnosticResult::McpConnectionCheck { generation, item, .. }] =
+                snapshot.results.as_deref().unwrap()
+            else {
+                panic!("independent batch must keep the same result contract");
+            };
+            assert_eq!(*generation, 0, "omitted request generation defaults to zero");
+            assert_eq!(item.connection_revision, expected_catalog[0].connection_revision);
             break;
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     assert_eq!(observed.load(Ordering::SeqCst), 3, "poll/cancel must not replay probes");
+    // The original diagnostic HTTP entry point retains its handshake report contract.
+    let (status, legacy) = send(
+        &app,
+        "POST",
+        &format!("/v1/agent-apps/diagnostics/jobs?{QUERY}"),
+        "a",
+        TOKEN,
+        true,
+        &json!({"kind":"mcp", "serverIds":["fast"]}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+    let legacy: DiagnosticJobIdentity = serde_json::from_value(legacy).unwrap();
+    let legacy_read =
+        format!("/v1/agent-apps/diagnostics/jobs/{}?{QUERY}", legacy.task_id.as_ref());
+    loop {
+        assert!(tokio::time::Instant::now() < deadline, "legacy diagnostic deadline");
+        let (status, body) = send(&app, "GET", &legacy_read, "a", TOKEN, true, &Value::Null).await;
+        assert_eq!(status, StatusCode::OK);
+        let snapshot: DiagnosticJobSnapshot = serde_json::from_value(body).unwrap();
+        if snapshot.state == (DiagnosticJobState::Succeeded {}) {
+            let [DiagnosticResult::Mcp { server_id, report }] =
+                snapshot.results.as_deref().unwrap()
+            else {
+                panic!("legacy diagnostics must keep the handshake report contract");
+            };
+            assert_eq!(server_id.0, "fast");
+            assert!(matches!(
+                report.outcome,
+                vw_api_types::agent_apps_diagnostics::DiagnosticOutcome::Succeeded { .. }
+            ));
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(observed.load(Ordering::SeqCst), 4);
     assert_eq!(catalog.list(&scope).unwrap(), expected_catalog);
     let persisted = fs::read_to_string(root.join("diagnostics.json")).unwrap();
     assert!(persisted.contains(id));

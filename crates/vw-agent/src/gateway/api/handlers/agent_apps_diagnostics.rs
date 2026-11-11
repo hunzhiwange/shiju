@@ -49,24 +49,60 @@ pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
         .layer(Extension(PolicyFile(policy)))
 }
 
-/// Shared submission boundary for diagnostic and managed MCP HTTP entry points.
+/// Existing diagnostics keep their original reports and request contract.
 pub(super) async fn submit(
+    policy: Extension<PolicyFile>,
+    tenant: Extension<TenantScope>,
+    database: Option<Extension<GlobalDatabase>>,
+    jobs: Option<Extension<DiagnosticJobs>>,
+    headers: HeaderMap,
+    query: Query<DiagnosticScopeQuery>,
+    request: Result<Json<DiagnosticStartRequest>, JsonRejection>,
+) -> Response {
+    submit_request(
+        policy,
+        tenant,
+        database,
+        jobs,
+        headers,
+        query,
+        request.map(|Json(request)| SubmissionRequest::Diagnostic(request)),
+    )
+    .await
+}
+
+pub(super) enum SubmissionRequest {
+    Diagnostic(DiagnosticStartRequest),
+    McpConnectionChecks {
+        server_ids: Vec<vw_api_types::mcp_management::McpRecordId>,
+        generation: u64,
+    },
+}
+
+/// Both HTTP resources pass through the same whole-batch authorization and host resolution.
+pub(super) async fn submit_request(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
     jobs: Option<Extension<DiagnosticJobs>>,
     headers: HeaderMap,
     Query(query): Query<DiagnosticScopeQuery>,
-    request: Result<Json<DiagnosticStartRequest>, JsonRejection>,
+    request: Result<SubmissionRequest, JsonRejection>,
 ) -> Response {
     let request = match request {
-        Ok(Json(request)) => request,
+        Ok(request) => request,
         Err(error) => {
             return failure(if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
                 StatusCode::PAYLOAD_TOO_LARGE
             } else {
                 StatusCode::BAD_REQUEST
             });
+        }
+    };
+    let (request, generation) = match request {
+        SubmissionRequest::Diagnostic(request) => (request, None),
+        SubmissionRequest::McpConnectionChecks { server_ids, generation } => {
+            (DiagnosticStartRequest::Mcp { server_ids }, Some(generation))
         }
     };
     let result = tokio::task::spawn_blocking(move || {
@@ -90,9 +126,14 @@ pub(super) async fn submit(
                 .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
         };
         if let DiagnosticStartRequest::Mcp { server_ids } = request {
-            return network_probe::start_handshakes(
-                &jobs, database, policy.0, &headers, scope, server_ids,
-            )
+            return match generation {
+                Some(generation) => network_probe::start_connection_checks(
+                    &jobs, database, policy.0, &headers, scope, server_ids, generation,
+                ),
+                None => network_probe::start_handshakes(
+                    &jobs, database, policy.0, &headers, scope, server_ids,
+                ),
+            }
             .map_err(|error| match error {
                 McpHandshakeStartError::Access(status) => status,
                 McpHandshakeStartError::Job(error) => job_status(error),

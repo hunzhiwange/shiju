@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 fn raw_provider() -> RawProvider {
     RawProvider {
+        protocols: None,
         npm: None,
         api: Some("https://api.example.test/v1".to_string()),
         name: "Example".to_string(),
@@ -20,6 +21,7 @@ fn raw_provider() -> RawProvider {
 
 fn raw_model(id: &str) -> RawModel {
     RawModel {
+        protocols: None,
         id: id.to_string(),
         canonical_model_id: None,
         name: "Example Model".to_string(),
@@ -145,6 +147,7 @@ fn from_models_dev_model_uses_model_adapter_before_provider_adapter() {
     let provider = raw_provider();
     let mut model = raw_model("model-a");
     model.provider = Some(models::ModelProviderInfo {
+        protocols: None,
         adapter: "model-adapter".to_string(),
         npm: None,
         api: None,
@@ -487,4 +490,85 @@ fn model_protocol_008_known_sdks_and_blank_declarations() {
             serde_json::from_value(json!({"provider": {"adapter": "  ", "npm": " "}})).unwrap();
         assert_eq!(from_models_dev_model(&provider, &model).api.adapter, expected);
     }
+}
+
+#[test]
+fn model_protocol_010_projection_preserves_explicit_empty_protocols() {
+    let raw: RawProvider = serde_json::from_value(serde_json::json!({
+        "id":"fixture", "api":"https://provider.example", "protocols":[],
+        "models":{"m":{"id":"m", "provider":{"api":"https://model.example"}, "protocols":[]}}
+    }))
+    .unwrap();
+    let model = from_models_dev_model(&raw, &raw.models["m"]);
+    assert_eq!(model.api.url, "https://model.example");
+    assert_eq!(model.api.protocols, Some(vec![]));
+}
+
+#[test]
+fn model_protocol_010_invalid_explicit_facts_disable_inference() {
+    let mut api = super::ApiInfo {
+        id: "m".into(),
+        url: "https://private.example".into(),
+        adapter: "openai-compatible".into(),
+        protocols: None,
+    };
+    apply_api_overrides(&mut api, &json!({"protocols":[{"protocol":"unknown"}]}), None);
+    assert_eq!(api.protocols, Some(vec![]));
+}
+
+#[test]
+fn model_protocol_010_explicit_model_facts_override_provider_and_catalog() {
+    let endpoint = json!({
+        "protocol":"messages", "url":"https://private.example/v1/messages", "deployment":"private",
+        "authentication":{"kind":"bearer"}, "models":{"kind":"models","ids":["m"]},
+        "evidence":[{"kind":"configuration","source":"user","reference":"provider.models.m", "checked_at":"2026-11-11"}]
+    });
+    let mut api: ApiInfo = serde_json::from_value(json!({"id":"m","url":"https://catalog.example", "adapter":"anthropic", "protocols":[endpoint.clone()]})).unwrap();
+    apply_api_overrides(
+        &mut api,
+        &json!({"api":"https://provider.example", "protocols":[]}),
+        Some(
+            &json!({"provider":{"api":"https://private.example", "protocols":[endpoint.clone()]}}),
+        ),
+    );
+    assert_eq!(api.url, "https://private.example");
+    assert_eq!(serde_json::to_value(&api.protocols).unwrap(), json!([endpoint]));
+    apply_api_overrides(&mut api, &json!({"api":"https://another.example"}), None);
+    assert_eq!(api.protocols, None);
+}
+
+#[test]
+fn model_protocol_010_model_provider_can_explicitly_disable_protocols() {
+    let raw: RawProvider = serde_json::from_value(json!({
+        "id":"fixture", "api":"https://provider.example",
+        "models":{"m":{"id":"m", "provider":{"protocols":[]}}}
+    }))
+    .unwrap();
+    assert_eq!(from_models_dev_model(&raw, &raw.models["m"]).api.protocols, Some(vec![]));
+}
+
+#[test]
+fn model_protocol_010_provider_empty_protocols_survive_model_endpoint_override() {
+    let raw: RawProvider = serde_json::from_value(json!({
+        "id":"fixture", "api":"https://provider.example", "protocols":[],
+        "models":{"m":{"id":"m", "provider":{"api":"https://model.example"}}}
+    }))
+    .unwrap();
+    assert_eq!(from_models_dev_model(&raw, &raw.models["m"]).api.protocols, Some(vec![]));
+}
+
+#[test]
+fn model_protocol_010_null_model_overrides_preserve_provider_configuration() {
+    let mut api: ApiInfo = serde_json::from_value(
+        json!({"id":"m","url":"https://catalog.example", "adapter":"openai-compatible"}),
+    )
+    .unwrap();
+    apply_api_overrides(
+        &mut api,
+        &json!({"api":"https://configured.example", "adapter":"anthropic", "protocols":[]}),
+        Some(&json!({"protocols":null, "provider":{"api":null, "adapter":null}})),
+    );
+    assert_eq!(api.url, "https://configured.example");
+    assert_eq!(api.adapter, "anthropic");
+    assert_eq!(api.protocols, Some(vec![]));
 }

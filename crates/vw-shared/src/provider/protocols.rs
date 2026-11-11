@@ -126,7 +126,7 @@ impl ProtocolEndpoint {
 
 /// Missing/null means unknown; an explicit empty array forbids inferred candidates.
 /// Ambiguous declarations within the same deployment are rejected before selection.
-pub(super) fn deserialize_protocols<'de, D>(
+pub fn deserialize_protocols<'de, D>(
     deserializer: D,
 ) -> Result<Option<Vec<ProtocolEndpoint>>, D::Error>
 where

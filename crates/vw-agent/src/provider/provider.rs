@@ -520,29 +520,21 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
                     .unwrap_or_else(|| model_id.to_string());
 
                 // 解析 API URL
-                let api_url = provider
-                    .get("api")
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| base.as_ref().map(|m| m.api.url.clone()))
-                    .or_else(|| inherited_api.as_ref().map(|(url, _)| url.clone()))
-                    .unwrap_or_default();
+                let mut api =
+                    base.as_ref().map(|model| model.api.clone()).unwrap_or_else(|| ApiInfo {
+                        id: api_id.clone(),
+                        url: inherited_api.as_ref().map(|(url, _)| url.clone()).unwrap_or_default(),
+                        adapter: inherited_api
+                            .as_ref()
+                            .map(|(_, adapter)| adapter.clone())
+                            .unwrap_or_else(default_adapter),
+                        protocols: None,
+                    });
+                if api.id != api_id {
+                    api.protocols = None;
+                }
+                api.id = api_id;
 
-                // 解析适配器类型（优先级：模型配置 > 提供商配置 > 基础模型）
-                let api_adapter = model_cfg
-                    .get("provider")
-                    .and_then(|p| p.get("adapter"))
-                    .and_then(Value::as_str)
-                    .map(|s| s.to_string())
-                    .or_else(|| {
-                        provider.get("adapter").and_then(Value::as_str).map(|s| s.to_string())
-                    })
-                    .or_else(|| base.as_ref().map(|m| m.api.adapter.clone()))
-                    .or_else(|| inherited_api.as_ref().map(|(_, adapter)| adapter.clone()))
-                    .unwrap_or_else(default_adapter);
-                let api_adapter = normalize_adapter(&api_adapter);
-
-                // 解析状态（默认为 disabled，需要显式设置为 active）
                 let status = model_cfg
                     .get("status")
                     .and_then(Value::as_str)
@@ -611,7 +603,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
                 let cap = resolve_model_capabilities(
                     &model_cfg,
                     base.as_ref().map(|model| &model.capabilities),
-                    reasoning_model_ids.contains(&api_id),
+                    reasoning_model_ids.contains(&api.id),
                 );
 
                 // 解析成本配置（使用基础模型或默认值）
@@ -626,12 +618,7 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
                 let model = Model {
                     id: model_id.to_string(),
                     provider_id: provider_id.to_string(),
-                    api: ApiInfo {
-                        protocols: None,
-                        id: api_id,
-                        url: api_url,
-                        adapter: api_adapter,
-                    },
+                    api,
                     name,
                     family,
                     capabilities: cap,
@@ -648,6 +635,12 @@ async fn load_state_from_config(config: config::Config, apply_enabled_filter: bo
         }
 
         // 更新数据库中的提供商信息
+        for (id, model) in models.iter_mut() {
+            let configured =
+                provider.get("models").and_then(Value::as_object).and_then(|models| models.get(id));
+            vw_shared::provider::state::apply_api_overrides(&mut model.api, provider, configured);
+        }
+
         database.insert(
             provider_id.to_string(),
             Info {

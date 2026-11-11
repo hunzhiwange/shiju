@@ -141,8 +141,18 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
 fn bundled_models(label: &str) -> HashMap<String, Provider> {
     let mut providers = parse_models_text(label, BUNDLED_MODELS_TEXT).unwrap_or_default();
     merge_bundled_shiju(&mut providers, label);
+    merge_bundled_protocols(&mut providers);
     providers
 }
+
+/// Supplement independently from the Shiju-only overlay. This is also applied to
+/// disk snapshots and refreshes; source bytes are never rewritten with local facts.
+fn merge_bundled_protocols(providers: &mut HashMap<String, Provider>) {
+    protocol_catalog::merge(providers);
+}
+
+#[path = "protocol_catalog.rs"]
+mod protocol_catalog;
 
 fn merge_bundled_shiju(providers: &mut HashMap<String, Provider>, label: &str) {
     let overlay_label = format!("{label}_shiju");

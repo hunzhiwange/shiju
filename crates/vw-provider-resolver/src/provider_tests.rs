@@ -909,3 +909,48 @@ async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
         assert!(!models[id].capabilities.reasoning, "{id}");
     }
 }
+
+#[test]
+fn model_protocol_010_model_endpoint_precedes_provider_default() {
+    let raw: models::Provider = serde_json::from_value(json!({
+        "id":"fixture", "api":"https://provider.example/v1", "npm":"@ai-sdk/openai",
+        "models":{"m":{"id":"m", "provider":{"api":"https://model.example/v1", "npm":"@ai-sdk/anthropic"}}}
+    })).unwrap();
+    let model = from_models_dev_model(&raw, &raw.models["m"]);
+    assert_eq!(model.api.url, "https://model.example/v1");
+    assert_eq!(model.api.adapter, "anthropic");
+}
+
+#[tokio::test]
+async fn model_protocol_010_config_preserves_or_replaces_catalog_deployment() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(config_with_default(
+        Value::Null,
+        json!({"deepseek": {
+            "models": {"deepseek-v4-flash":{"status":"active"}}
+        }}),
+    ))
+    .await;
+    let original = list_for_settings().await;
+    assert!(
+        original["deepseek"].models["deepseek-v4-flash"]
+            .api
+            .protocols
+            .as_ref()
+            .is_some_and(|p| !p.is_empty())
+    );
+    env.write_config(config_with_default(Value::Null, json!({"deepseek": {
+        "api":"https://private.example/v1",
+        "models": {"deepseek-v4-flash":{"status":"active", "provider":{"api":"https://model.example/v1", "protocols":[]}}}
+    }}))).await;
+    let configured = list_for_settings().await;
+    let model = &configured["deepseek"].models["deepseek-v4-flash"];
+    assert_eq!(model.api.url, "https://model.example/v1");
+    assert_eq!(model.api.protocols, Some(vec![]));
+    for (id, model) in &configured["deepseek"].models {
+        if id != "deepseek-v4-flash" {
+            assert_eq!(model.api.url, "https://private.example/v1");
+            assert_eq!(model.api.protocols, None);
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use super::{ModelsRefresh, ModelsRefreshStatus, ModelsSnapshot, Provider};
-use super::{bundled_models, merge_bundled_shiju, parse_models_text};
+use super::{bundled_models, merge_bundled_protocols, merge_bundled_shiju, parse_models_text};
 use crate::installation;
 use std::collections::HashMap;
 use std::fs::File;
@@ -165,6 +165,7 @@ fn read_snapshot(path: &Path, custom: bool) -> Option<ModelsSnapshot> {
         file.metadata().and_then(|metadata| metadata.modified()).ok()
     };
     merge_bundled_shiju(&mut providers, "load_cache");
+    merge_bundled_protocols(&mut providers);
     Some(ModelsSnapshot { providers, fetched_at })
 }
 
@@ -186,6 +187,7 @@ fn install_snapshot(path: &Path, body: &[u8]) -> Result<ModelsSnapshot, String> 
         .filter(usable_catalog)
         .ok_or("models.dev response does not contain a usable model catalog")?;
     merge_bundled_shiju(&mut providers, "refresh_cache");
+    merge_bundled_protocols(&mut providers);
     let fetched_at = replace_snapshot(path, body)
         .map_err(|error| format!("Could not replace models.json ({})", error.kind()))?;
     Ok(ModelsSnapshot { providers, fetched_at: Some(fetched_at) })

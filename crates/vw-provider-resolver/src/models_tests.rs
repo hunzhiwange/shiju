@@ -627,3 +627,53 @@ fn model_protocol_008_real_catalog_overrides_remain_distinct() {
     );
     assert_eq!(from_models_dev_model(alibaba, model).api.adapter, "openai-compatible");
 }
+
+#[test]
+fn model_protocol_010_overlay_respects_custom_and_explicit_empty_deployments() {
+    let mut catalog = bundled_models("protocol_test");
+    let original = from_models_dev_model(
+        &catalog["deepseek"],
+        &catalog["deepseek"].models["deepseek-v4-flash"],
+    );
+    assert!(original.api.protocols.as_ref().is_some_and(|endpoints| endpoints.iter().any(
+        |endpoint| endpoint.protocol == vw_shared::provider::protocols::ModelProtocol::Messages
+    )));
+    for (api, protocols) in
+        [("https://private.example", Value::Null), ("https://api.deepseek.com", json!([]))]
+    {
+        let mut custom = parse_models_text("custom", &json!({"deepseek":{"id":"deepseek","api":api,"models":{"deepseek-v4-flash":{"id":"deepseek-v4-flash","protocols":protocols}}}}).to_string()).unwrap();
+        merge_bundled_protocols(&mut custom);
+        let model = from_models_dev_model(
+            &custom["deepseek"],
+            &custom["deepseek"].models["deepseek-v4-flash"],
+        );
+        assert_eq!(model.api.url, api);
+        assert_eq!(serde_json::to_value(model.api.protocols).unwrap(), protocols);
+    }
+    let shiju =
+        from_models_dev_model(&catalog["shiju"], catalog["shiju"].models.values().next().unwrap());
+    assert!(shiju.api.protocols.is_none());
+    merge_bundled_protocols(&mut catalog);
+    let again = from_models_dev_model(
+        &catalog["deepseek"],
+        &catalog["deepseek"].models["deepseek-v4-flash"],
+    );
+    assert_eq!(original.api.protocols, again.api.protocols);
+}
+
+#[test]
+fn model_protocol_010_sdk_defaults_and_deployment_templates_remain_distinct() {
+    let catalog = bundled_models("sdk_defaults");
+    assert_eq!(catalog["anthropic"].api.as_deref(), Some("https://api.anthropic.com/v1"));
+    assert!(catalog["amazon-bedrock"].api.is_none());
+    assert!(catalog["azure"].api.is_none());
+    let model = from_models_dev_model(
+        &catalog["amazon-bedrock"],
+        catalog["amazon-bedrock"].models.values().next().unwrap(),
+    );
+    assert_eq!(model.api.adapter, "@ai-sdk/amazon-bedrock");
+    assert!(model.api.protocols.is_none());
+    let asset: Value =
+        serde_json::from_str(include_str!("../assets/model/protocols.json")).unwrap();
+    assert_eq!(asset["sdk_default_reviews"].as_object().unwrap().len(), 25);
+}

@@ -197,6 +197,50 @@ pub fn normalize_adapter(s: &str) -> String {
     }
 }
 
+/// Apply explicit deployment configuration after catalog projection. Custom routes
+/// clear inherited endpoint facts; explicit empty declarations remain authoritative.
+pub fn apply_api_overrides(api: &mut ApiInfo, provider: &Value, model: Option<&Value>) {
+    let model_provider = model.and_then(|value| value.get("provider"));
+    let configured_url = model_provider
+        .and_then(|value| value.get("api"))
+        .and_then(Value::as_str)
+        .or_else(|| model.and_then(|value| value.get("api")).and_then(Value::as_str))
+        .or_else(|| provider.get("api").and_then(Value::as_str));
+    let configured_adapter = model_provider
+        .and_then(|value| value.get("adapter"))
+        .and_then(Value::as_str)
+        .or_else(|| provider.get("adapter").and_then(Value::as_str));
+    if configured_url.is_some() || configured_adapter.is_some() {
+        api.protocols = None;
+    }
+    if let Some(url) = configured_url {
+        api.url = url.to_string();
+    }
+    if let Some(adapter) = configured_adapter {
+        api.adapter = normalize_adapter(adapter);
+    }
+    let protocols = model
+        .and_then(|value| value.get("protocols"))
+        .filter(|value| !value.is_null())
+        .or_else(|| {
+            model_provider.and_then(|value| value.get("protocols")).filter(|value| !value.is_null())
+        })
+        .or_else(|| provider.get("protocols").filter(|value| !value.is_null()));
+    if let Some(protocols) = protocols {
+        // Validate through ApiInfo's shared deserializer. Invalid explicit facts
+        // fail closed rather than restoring inferred candidates.
+        match serde_json::from_value::<ApiInfo>(serde_json::json!({
+            "id": api.id, "url": api.url, "adapter": api.adapter, "protocols": protocols
+        })) {
+            Ok(configured) => api.protocols = configured.protocols,
+            Err(_) => {
+                tracing::warn!("invalid configured protocol declaration; candidates disabled");
+                api.protocols = Some(Vec::new());
+            }
+        }
+    }
+}
+
 /// 将原始模型定义转换为对外暴露的模型结构。
 pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model {
     let model_provider = model.provider.as_ref();
@@ -234,9 +278,28 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
     };
 
     let api = ApiInfo {
-        protocols: None,
+        protocols: model
+            .protocols
+            .clone()
+            .or_else(|| model_provider.and_then(|value| value.protocols.clone()))
+            .or_else(|| {
+                // Model endpoint/SDK overrides identify another deployment. Provider facts
+                // cannot authorize endpoints or credentials for that deployment.
+                if provider.protocols.as_ref().is_some_and(Vec::is_empty) {
+                    provider.protocols.clone()
+                } else if model_provider.is_some_and(|value| {
+                    value.api.is_some() || value.npm.is_some() || !value.adapter.trim().is_empty()
+                }) {
+                    None
+                } else {
+                    provider.protocols.clone()
+                }
+            }),
         id: model.id.clone(),
-        url: provider.api.clone().unwrap_or_default(),
+        url: model_provider
+            .and_then(|value| value.api.clone())
+            .or_else(|| provider.api.clone())
+            .unwrap_or_default(),
         adapter: normalize_adapter(&adapter),
     };
 

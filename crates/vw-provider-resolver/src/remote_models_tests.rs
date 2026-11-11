@@ -363,3 +363,77 @@ fn shiju_discovery_prefers_own_catalog_and_does_not_enrich_unrelated_providers()
     assert_eq!(provider.models["known"].name, "Shiju metadata");
     assert!(!provider.models["known"].capabilities.reasoning);
 }
+
+#[test]
+fn model_protocol_010_discovery_requires_unambiguous_deployment() {
+    let raw: crate::models::Provider = serde_json::from_value(json!({
+        "id":"fixture", "api":"https://one.example/v1", "models":{
+            "one":{"id":"one"},"two":{"id":"two", "provider":{"api":"https://two.example/v1"}}
+        }
+    }))
+    .unwrap();
+    let provider = crate::provider::from_models_dev_provider(raw);
+    assert_eq!(crate::remote_models::resolve_api_base(&provider, None), None);
+    assert_eq!(crate::remote_models::resolve_api_base(&provider, Some("")), None);
+    assert_eq!(
+        crate::remote_models::resolve_api_base(&provider, Some("https://explicit.example/v1/")),
+        Some("https://explicit.example/v1".into())
+    );
+}
+
+#[tokio::test]
+async fn model_protocol_010_remote_discovery_preserves_explicit_protocols_and_status() {
+    let server = serve_once(
+        "200 OK",
+        &[("Content-Type", "application/json")],
+        r#"{"data":[{"id":"m"},{"id":"new"}]}"#,
+        Duration::ZERO,
+    );
+    let raw: crate::models::Provider = serde_json::from_value(json!({
+        "id":"fixture", "api":server.api_base, "npm":"@ai-sdk/openai-compatible",
+        "models":{"m":{"id":"m","protocols":[]}}
+    }))
+    .unwrap();
+    let mut provider = crate::provider::from_models_dev_provider(raw);
+    provider.models.get_mut("m").unwrap().status = "disabled".into();
+    let explicit = HashSet::from(["m".to_string()]);
+    assert_eq!(
+        crate::remote_models::discover_and_merge_provider(
+            &mut provider,
+            Some(&server.api_base),
+            &explicit,
+            "fixture-key"
+        )
+        .await
+        .unwrap(),
+        1
+    );
+    let request = server.request.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(request.starts_with("GET /models HTTP/1.1"));
+    assert!(request.to_ascii_lowercase().contains("authorization: bearer fixture-key"));
+    assert_eq!(provider.models["m"].status, "disabled");
+    assert_eq!(provider.models["m"].api.protocols, Some(vec![]));
+    assert_eq!(provider.models["new"].api.url, server.api_base);
+    assert_eq!(provider.models["new"].api.protocols, None);
+}
+
+#[tokio::test]
+async fn model_protocol_010_dedicated_sdk_skips_bearer_discovery() {
+    let raw: crate::models::Provider = serde_json::from_value(json!({
+        "id":"fixture", "npm":"@ai-sdk/amazon-bedrock",
+        "api":"https://never-request.example", "models":{"m":{"id":"m"}}
+    }))
+    .unwrap();
+    let mut provider = crate::provider::from_models_dev_provider(raw);
+    assert_eq!(
+        crate::remote_models::discover_and_merge_provider(
+            &mut provider,
+            None,
+            &HashSet::new(),
+            "fixture-key"
+        )
+        .await
+        .unwrap(),
+        0
+    );
+}

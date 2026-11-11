@@ -323,3 +323,24 @@ async fn catalog_modelsdev_cache_keeps_bundled_snapshot_when_publish_fails() {
     assert_eq!(fs::read_to_string(marker).unwrap(), "existing file");
     assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
 }
+
+#[tokio::test]
+async fn model_protocol_010_refresh_and_reopen_restore_protocol_overlay() {
+    let raw = serde_json::json!({"deepseek": {"id":"deepseek", "api":"https://api.deepseek.com", "npm":"@ai-sdk/openai-compatible", "models":{"deepseek-v4-flash":{"id":"deepseek-v4-flash"}}}}).to_string();
+    let (url, server) = spawn_response("200 OK", &raw);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("models.json");
+    let cache = Arc::new(ModelsCache::new(path.clone(), None, url.clone()));
+    assert_eq!(cache.refresh(false).await.status, ModelsRefreshStatus::Updated);
+    server.join().unwrap();
+    for snapshot in [
+        cache.snapshot().await,
+        Arc::new(ModelsCache::new(path.clone(), None, url)).snapshot().await,
+    ] {
+        let provider = &snapshot.providers["deepseek"];
+        let model = from_models_dev_model(provider, &provider.models["deepseek-v4-flash"]);
+        assert!(model.api.protocols.as_ref().is_some_and(|p| !p.is_empty()));
+        assert!(snapshot.providers.contains_key("shiju"));
+    }
+    assert_eq!(fs::read_to_string(path).unwrap(), raw);
+}

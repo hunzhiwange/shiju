@@ -232,21 +232,23 @@ fn request_error(error: reqwest::Error) -> DiscoveryError {
     if error.is_timeout() { DiscoveryError::new("timeout") } else { DiscoveryError::new("request") }
 }
 
-/// 选择配置 API 基址；未配置时使用模型元数据中的确定性非空候选。
+/// 选择配置 API 基址；未配置时仅接受唯一明确的兼容模型部署。
 pub fn resolve_api_base(provider: &Info, configured_api: Option<&str>) -> Option<String> {
-    if let Some(api) = configured_api.map(str::trim).filter(|api| !api.is_empty()) {
-        return Some(api.trim_end_matches('/').to_string());
+    if let Some(api) = configured_api {
+        let api = api.trim().trim_end_matches('/');
+        return (!api.is_empty()).then(|| api.to_string());
     }
-
-    provider
+    let candidates: BTreeSet<_> = provider
         .models
         .values()
-        .map(|model| model.api.url.trim())
+        .filter(|model| {
+            matches!(model.api.adapter.as_str(), "openai-compatible" | "openai-responses")
+        })
+        .map(|model| model.api.url.trim().trim_end_matches('/'))
         .filter(|url| !url.is_empty())
-        .map(|url| url.trim_end_matches('/').to_string())
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .next()
+        .collect();
+    // Multiple model deployments are not a provider-wide discovery authorization.
+    (candidates.len() == 1).then(|| candidates.first().unwrap().to_string())
 }
 
 /// 合并远端模型；显式配置状态优先，静态元数据保持不变。
@@ -284,12 +286,22 @@ pub fn merge_remote_models(
         }
 
         let mut model = safe_remote_model(&provider.id, api_base, remote_id.clone());
+        if let Some(raw_provider) = catalog.get(&provider.id)
+            && let Some(metadata) = raw_provider.models.values().find(|model| model.id == remote_id)
+        {
+            let matched = crate::provider::from_models_dev_model(raw_provider, metadata);
+            if matched.api.url.trim_end_matches('/') == api_base.trim_end_matches('/') {
+                model = matched;
+                model.status = "active".to_string();
+            }
+        }
         if provider.id == "shiju"
             && let Some(metadata) = crate::models::shiju_model_metadata(catalog, &remote_id)
         {
             // Only model metadata crosses providers. Routing, credentials, prices,
             // headers and provider-specific request options stay on Shiju.
             let raw_provider = crate::models::Provider {
+                protocols: None,
                 npm: None,
                 id: provider.id.clone(),
                 api: Some(api_base.to_string()),
@@ -321,11 +333,17 @@ pub async fn discover_and_merge_provider(
     if !is_real_bearer(bearer) {
         return Ok(0);
     }
+    if provider.models.values().any(|model| {
+        !matches!(model.api.adapter.as_str(), "openai-compatible" | "openai-responses")
+    }) {
+        // Dedicated authentication and SDK discovery paths must not receive guessed Bearer requests.
+        return Ok(0);
+    }
     let Some(api_base) = resolve_api_base(provider, configured_api) else {
         return Ok(0);
     };
     let remote_ids = discover_openai_compatible_models(&api_base, bearer).await?;
-    let catalog = if provider.id == "shiju" { crate::models::get().await } else { HashMap::new() };
+    let catalog = crate::models::get().await;
     Ok(merge_remote_models(provider, &api_base, explicit_model_ids, remote_ids, &catalog))
 }
 

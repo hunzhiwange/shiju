@@ -155,6 +155,10 @@ async fn serve_gateway(
         &config.workspace_dir,
     ));
 
+    #[cfg(unix)]
+    let _computer_control =
+        tools::computer_control::NativeControlRuntime::start(config.computer_control.clone())?;
+
     let tools_registry_exec: Arc<Vec<Box<dyn Tool>>> = Arc::new(tools::all_tools_with_runtime(
         Arc::new(config.clone()),
         &security,

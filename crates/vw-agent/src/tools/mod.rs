@@ -36,6 +36,10 @@ pub mod browser_open;
 pub mod catalog;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod codesearch;
+#[cfg(unix)]
+pub mod computer_control;
+#[cfg(all(test, unix))]
+mod computer_control_tests;
 pub mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod content_search;

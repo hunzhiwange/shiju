@@ -1609,3 +1609,11 @@ pub(in super::super) fn authorize_pi_directory(
         },
     )
 }
+
+#[cfg(target_os = "macos")]
+#[path = "aggregation_lifecycle_access.rs"]
+mod aggregation_lifecycle;
+#[cfg(target_os = "macos")]
+pub(crate) use aggregation_lifecycle::{
+    aggregation_lifecycle_host, authorize_aggregation_lifecycle,
+};

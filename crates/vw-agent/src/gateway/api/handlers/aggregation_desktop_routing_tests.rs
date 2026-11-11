@@ -222,6 +222,7 @@ async fn aggregation_t46_desktop_discovery_and_messages_use_one_scoped_listener(
         f.router(),
         &control_listener,
         f.policy.clone(),
+        f.db.clone(),
     )
     .await;
     let request=Request::builder().method("PUT").uri("/app-providers/claude-desktop/beta/model-mapping").header(PLATFORM_ID_HEADER,"p").header(COMPANY_ID_HEADER,"c").header("authorization",format!("Bearer {TOKEN}")).header("content-type","application/json").body(Body::from(json!({"targetHostId":"host","projectId":"project","expectedRevision":form["revision"],"mapping":{"mode":"proxy","routes":{"claude-sonnet-5":{"model":"upstream-two","labelOverride":"Updated member"}}}}).to_string())).unwrap();

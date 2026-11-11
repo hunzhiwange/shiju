@@ -71,6 +71,24 @@ impl RecordPublicationContext {
             })
             .collect::<Result<Vec<_>, StatusCode>>()?;
         let before = files.guard.read(OsStr::new("config.toml")).map_err(failed)?;
+        let before_config: toml::Value = toml::from_str(
+            std::str::from_utf8(before.as_deref().unwrap_or_default()).map_err(failed)?,
+        )
+        .map_err(failed)?;
+        let old_pointer = before_config.get("model_catalog_json").and_then(toml::Value::as_str);
+        let accepted_external_catalog = match old_pointer {
+            Some(pointer)
+                if pointer != CATALOG_FILENAME
+                    && catalog_policy == codex_publish::CatalogPolicy::UseManaged =>
+            {
+                Some(pointer.to_owned())
+            }
+            Some(CATALOG_FILENAME) if state.stack.enabled => state
+                .aggregation_recovery
+                .as_ref()
+                .and_then(|proof| proof.accepted_external_catalog.clone()),
+            _ => None,
+        };
         let (config, catalog) = codex_publish::plan(
             before.as_deref(),
             catalog_policy,
@@ -167,6 +185,11 @@ impl RecordPublicationContext {
                     attached: true,
                     proxy_route: Some(default.into()),
                     contract: Some(contract),
+                });
+                target.aggregation_recovery = Some(AggregationRecovery {
+                    principal: self.principal.clone(),
+                    published: serde_json::json!({"config":projection.config(),"catalog":value}),
+                    accepted_external_catalog: accepted_external_catalog.clone(),
                 });
                 let config_patch = WholeFile::new(
                     before.as_deref(),

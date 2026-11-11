@@ -47,6 +47,9 @@ pub enum ListenerError {
     #[cfg(target_os = "macos")]
     #[error("application routes are attached")]
     AppsAttached,
+    #[cfg(target_os = "macos")]
+    #[error("aggregation lifecycle recovery failed ({0})")]
+    AggregationRecovery(axum::http::StatusCode),
     #[error("could not bind the routing listener: {0}")]
     Bind(#[from] io::Error),
     #[error("the routing listener timed out waiting for connection tasks to stop")]
@@ -75,12 +78,71 @@ pub struct RoutingListener {
     control_closed: Arc<tokio::sync::Mutex<bool>>,
     pub(super) auth: Arc<RouteAuth>,
     #[cfg(target_os = "macos")]
+    aggregation_lifecycle:
+        Mutex<Option<crate::gateway::aggregation_lifecycle::AggregationLifecycle>>,
+    #[cfg(target_os = "macos")]
+    aggregation_resume: Arc<tokio::sync::Mutex<()>>,
+    #[cfg(target_os = "macos")]
     egress: Arc<EgressState>,
     body_limits: BodyLimits,
     logging_enabled: Arc<AtomicBool>,
 }
 
 impl RoutingListener {
+    #[cfg(target_os = "macos")]
+    pub(crate) fn set_aggregation_lifecycle(
+        &self,
+        context: crate::gateway::aggregation_lifecycle::AggregationLifecycle,
+    ) {
+        *self.aggregation_lifecycle.lock() = Some(context);
+    }
+
+    /// Each publisher obtains the existing control permit itself. Do not hold
+    /// that permit while resuming. Closing the gateway prevents late publication.
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn resume_aggregations(self: &Arc<Self>) -> Result<(), ListenerError> {
+        let context = self.aggregation_lifecycle.lock().clone();
+        let Some(context) = context else {
+            return Ok(());
+        };
+        let permit = Arc::clone(&self.aggregation_resume).lock_owned().await;
+        let routing = Arc::clone(self);
+        tokio::task::spawn_blocking(move || {
+            let _permit = permit;
+            context.resume(routing)
+        })
+        .await
+        .map_err(|_| {
+            ListenerError::AggregationRecovery(axum::http::StatusCode::SERVICE_UNAVAILABLE)
+        })?
+        .map_err(ListenerError::AggregationRecovery)
+    }
+
+    /// The management caller holds its control permit throughout detach/drain;
+    /// gateway shutdown closes that permit before reaching this hook.
+    #[cfg(target_os = "macos")]
+    pub(crate) async fn detach_aggregations(
+        &self,
+    ) -> Result<Vec<vw_api_types::agent_apps_high_availability::FailoverQueueScope>, ListenerError>
+    {
+        let context = self.aggregation_lifecycle.lock().clone();
+        let Some(context) = context else {
+            return Ok(vec![]);
+        };
+        let result = tokio::task::spawn_blocking(move || context.detach()).await.map_err(|_| {
+            ListenerError::AggregationRecovery(axum::http::StatusCode::SERVICE_UNAVAILABLE)
+        })?;
+        for scope in &result.retired {
+            self.auth
+                .restore_provider(scope, || Ok(()))
+                .map_err(ListenerError::AggregationRecovery)?;
+        }
+        if let Some(status) = result.failure {
+            return Err(ListenerError::AggregationRecovery(status));
+        }
+        Ok(result.retired)
+    }
+
     /// Check the current listener and its credential owner without issuing or starting anything.
     #[cfg(target_os = "macos")]
     pub(crate) fn prepare_route(
@@ -225,7 +287,7 @@ impl RoutingListener {
     pub(super) async fn shutdown(&self) -> Result<(), ListenerError> {
         let mut closed = self.control_closed.lock().await;
         *closed = true;
-        self.stop().await
+        self.stop_controlled().await
     }
 
     #[cfg(target_os = "macos")]
@@ -442,6 +504,14 @@ impl RoutingListener {
     }
 
     pub async fn stop(&self) -> Result<(), ListenerError> {
+        let _permit = self.control_closed.lock().await;
+        self.stop_controlled().await
+    }
+
+    /// Only callers already holding the gateway control permit use this entry.
+    pub(crate) async fn stop_controlled(&self) -> Result<(), ListenerError> {
+        #[cfg(target_os = "macos")]
+        let restore = self.detach_aggregations().await;
         let running =
             self.lifecycle.lock().begin_stop().map_err(|_| ListenerError::TransitionInProgress)?;
         #[cfg(target_os = "macos")]
@@ -452,6 +522,8 @@ impl RoutingListener {
                 .await
                 .map_err(|_| ListenerError::StopTimeout)?;
         }
+        #[cfg(target_os = "macos")]
+        restore?;
         Ok(())
     }
 

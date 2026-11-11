@@ -118,7 +118,7 @@ async fn aggregation_t16_codex_catalog_pointer_record_and_native_responses_settl
     listener.start(0).unwrap();
     let router = super::aggregation_read::router_with_policy(Some(policy.clone()))
         .merge(super::app_providers::codex_catalog::router_with_policy(Some(policy.clone())));
-    let router = configure_with_policy(router, &listener, policy)
+    let router = configure_with_policy(router, &listener, policy, db.clone())
         .await
         .layer(Extension(db))
         .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));

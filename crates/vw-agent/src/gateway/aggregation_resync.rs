@@ -63,7 +63,7 @@ fn commit_status(error: vw_agent_apps::providers::live::write_guard::WriteError)
     }
 }
 impl RecordPublicationContext {
-    fn validate_inputs(
+    pub(super) fn validate_inputs(
         &self,
     ) -> Result<(), vw_agent_apps::providers::live::write_guard::WriteError> {
         use vw_agent_apps::providers::live::write_guard::WriteError;
@@ -430,6 +430,11 @@ impl RecordPublicationContext {
                             )
                         };
                         let target = PendingTarget {
+                            aggregation_recovery: Some(AggregationRecovery {
+                                principal: self.principal.clone(),
+                                published: target_config.clone(),
+                                accepted_external_catalog: None,
+                            }),
                             stack: Some(candidate.stack.clone()),
                             mode: Some(ModeState {
                                 mode: Mode::Proxy,

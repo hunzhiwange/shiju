@@ -120,7 +120,7 @@ impl Fixture {
                     }
                 }),
             );
-        let router = configure_with_policy(router, &listener, policy.clone())
+        let router = configure_with_policy(router, &listener, policy.clone(), db.clone())
             .await
             .layer(Extension(db.clone()))
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));

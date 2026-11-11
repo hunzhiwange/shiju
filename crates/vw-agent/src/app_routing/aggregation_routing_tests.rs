@@ -231,6 +231,7 @@ async fn aggregation_t11_published_revision_routes_and_revokes_exact_targets() {
         ),
         &listener,
         policy_path,
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap(),
     )
     .await;
     assert_eq!(router.oneshot(Request::new(Body::empty())).await.unwrap().status(), StatusCode::OK);

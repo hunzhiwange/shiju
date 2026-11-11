@@ -31,6 +31,7 @@ use vw_api_types::{
 
 #[derive(Clone)]
 pub(crate) struct RoutingControl {
+    database: GlobalDatabase,
     pub(crate) routing: Arc<RoutingListener>,
     scope: Arc<RoutingControlScope>,
     policy: PathBuf,
@@ -49,13 +50,18 @@ pub(crate) async fn configure(app: Router, routing: &Arc<RoutingListener>) -> Ro
             None => app,
         };
     };
-    configure_with_policy(app, routing, path).await
+    let Ok(database) = GlobalDatabase::for_home(&crate::global::paths().home) else {
+        tracing::warn!("Application aggregation lifecycle storage unavailable");
+        return app;
+    };
+    configure_with_policy(app, routing, path, database).await
 }
 
 pub(crate) async fn configure_with_policy(
     app: Router,
     routing: &Arc<RoutingListener>,
     policy: PathBuf,
+    database: GlobalDatabase,
 ) -> Router {
     // One host registry is shared by diagnostics and outbound routing checks, even
     // when this deployment does not enable listener management.
@@ -88,6 +94,7 @@ pub(crate) async fn configure_with_policy(
         logging_enabled: false,
     };
     let control = RoutingControl {
+        database: database.clone(),
         routing: Arc::clone(routing),
         scope: Arc::new(scope),
         policy,
@@ -114,6 +121,19 @@ pub(crate) async fn configure_with_policy(
             Ok(_) => {}
             Err(_) => tracing::warn!("Application routing settings unavailable"),
         }
+    }
+    routing.set_aggregation_lifecycle(
+        crate::gateway::aggregation_lifecycle::AggregationLifecycle {
+            database,
+            policy: control.policy.clone(),
+            tenant: control.scope.tenant.clone(),
+            host: control.scope.host.clone(),
+        },
+    );
+    if routing.bound_address().is_some()
+        && let Err(error) = routing.resume_aggregations().await
+    {
+        tracing::warn!(%error, "Application aggregation startup failed");
     }
     app.layer(Extension(control))
 }
@@ -247,9 +267,10 @@ impl RoutingControl {
         operation: impl FnOnce(RoutingConfigStore) -> anyhow::Result<T> + Send + 'static,
     ) -> Result<T, ControlError> {
         let scope = Arc::clone(&self.scope);
+        let database = self.database.clone();
         tokio::task::spawn_blocking(move || {
-            let db = GlobalDatabase::for_home(&crate::global::paths().home)?;
-            let settings = RoutingConfigStore::new(db, scope.tenant.clone(), scope.host.clone())?;
+            let settings =
+                RoutingConfigStore::new(database, scope.tenant.clone(), scope.host.clone())?;
             operation(settings)
         })
         .await
@@ -356,9 +377,11 @@ pub(crate) async fn start(
     let (control, _) =
         RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
-    let _permit = control.routing.try_control()?;
+    let permit = control.routing.try_control()?;
     let config = control.config().await?;
     control.routing.start_configured(config)?;
+    drop(permit);
+    control.routing.resume_aggregations().await?;
     Ok(Json(control.status()))
 }
 
@@ -373,20 +396,21 @@ pub(crate) async fn stop(
         RoutingControl::authorize(control, headers, tenant, host, None, true).await?;
     let Json(_) = body.map_err(|_| ControlError::InvalidInput)?;
     let permit = control.routing.try_control()?;
-    if !matches!(control.routing.state(), LifecycleState::Stopped | LifecycleState::Failed) {
-        let host = control.scope.host.clone();
-        let attached = tokio::task::spawn_blocking(move || apps_attached(root, &host))
-            .await
-            .map_err(|_| ControlError::Unavailable)??;
-        if attached || control.routing.has_active_routes() {
-            return Err(ControlError::AppsAttached);
-        }
-    }
-    // A disconnected HTTP caller must still finish stopping and release the
-    // control permit only after the listener has drained.
+    // Keep both file restoration and draining alive if the HTTP caller leaves.
     tokio::spawn(async move {
         let _permit = permit;
-        control.routing.stop().await?;
+        let detached = control.routing.detach_aggregations().await?;
+        if !matches!(control.routing.state(), LifecycleState::Stopped | LifecycleState::Failed) {
+            let host = control.scope.host.clone();
+            let attached =
+                tokio::task::spawn_blocking(move || apps_attached_except(root, &host, &detached))
+                    .await
+                    .map_err(|_| ControlError::Unavailable)??;
+            if attached || control.routing.has_active_routes() {
+                return Err(ControlError::AppsAttached);
+            }
+        }
+        control.routing.stop_controlled().await?;
         Ok(Json(control.status()))
     })
     .await
@@ -394,6 +418,14 @@ pub(crate) async fn stop(
 }
 
 pub(super) fn apps_attached(root: Option<PathBuf>, host: &str) -> Result<bool, ControlError> {
+    apps_attached_except(root, host, &[])
+}
+
+fn apps_attached_except(
+    root: Option<PathBuf>,
+    host: &str,
+    detached: &[vw_api_types::agent_apps_high_availability::FailoverQueueScope],
+) -> Result<bool, ControlError> {
     let Some(root) = root else { return Ok(false) };
     let host = ExecutionHostId::new(host).map_err(|_| ControlError::Unavailable)?;
     let Some(store) =
@@ -405,6 +437,17 @@ pub(super) fn apps_attached(root: Option<PathBuf>, host: &str) -> Result<bool, C
         let app = app.metadata.id;
         let state = store.state(app).map_err(|_| ControlError::Unavailable)?;
         let pending = store.pending(app).map_err(|_| ControlError::Unavailable)?;
+        // Desktop retains its projection by design. Only a scope actually
+        // authorized and retired by this stop may bypass the attachment check.
+        if app == AppId::ClaudeDesktop
+            && state.stack.enabled
+            && pending.is_none()
+            && detached.iter().any(|scope| {
+                scope.app_id == app && state.project_scope.as_ref() == Some(&scope.project)
+            })
+        {
+            continue;
+        }
         if state.mode.is_some_and(|mode| mode.attached)
             || pending.and_then(|pending| pending.target.mode).is_some_and(|mode| mode.attached)
         {
@@ -427,6 +470,9 @@ pub(crate) enum ControlError {
     NotFound,
     UnsupportedHost,
     AppsAttached,
+    AggregationConflict,
+    AggregationUnsupported,
+    AggregationTargetFailed,
     AddressInUse,
     TransitionInProgress,
     NotReady,
@@ -450,6 +496,12 @@ impl From<ListenerError> for ControlError {
         match error {
             ListenerError::AddressInUse => Self::AddressInUse,
             ListenerError::AppsAttached => Self::AppsAttached,
+            ListenerError::AggregationRecovery(status) => match status {
+                StatusCode::CONFLICT => Self::AggregationConflict,
+                StatusCode::UNPROCESSABLE_ENTITY => Self::AggregationUnsupported,
+                StatusCode::BAD_GATEWAY => Self::AggregationTargetFailed,
+                _ => Self::from(status),
+            },
             ListenerError::TransitionInProgress => Self::TransitionInProgress,
             _ => Self::Unavailable,
         }
@@ -499,6 +551,21 @@ impl IntoResponse for ControlError {
             Self::AppsAttached => {
                 (StatusCode::CONFLICT, "apps_attached", "Applications are still attached")
             }
+            Self::AggregationConflict => (
+                StatusCode::CONFLICT,
+                "revision_conflict",
+                "Application aggregation changed or requires recovery",
+            ),
+            Self::AggregationUnsupported => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unsupported_target",
+                "Application aggregation recovery is unsupported",
+            ),
+            Self::AggregationTargetFailed => (
+                StatusCode::BAD_GATEWAY,
+                "target_failed",
+                "Application aggregation restoration failed",
+            ),
             Self::AddressInUse => {
                 (StatusCode::CONFLICT, "address_in_use", "Routing address is in use")
             }

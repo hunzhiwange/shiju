@@ -1,6 +1,6 @@
 use super::*;
 
-fn client(app: AppId, name: &str) -> Fixture {
+pub(super) fn client(app: AppId, name: &str) -> Fixture {
     let f = Fixture::new();
     f.policy(true, true, true);
     let mut policy: Value = serde_json::from_slice(&std::fs::read(&f.policy).unwrap()).unwrap();
@@ -60,7 +60,7 @@ fn client(app: AppId, name: &str) -> Fixture {
     drop(guard);
     f
 }
-async fn intent(f: &Fixture, name: &str, policy: &str) -> Value {
+pub(super) async fn intent(f: &Fixture, name: &str, policy: &str) -> Value {
     let (status, preview) = f
         .request(
             "POST",

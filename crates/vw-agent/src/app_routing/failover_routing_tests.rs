@@ -284,6 +284,7 @@ async fn aggregation_t12_queue_publication_rejects_unauthorized_scope() {
         ),
         &listener,
         path,
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home).unwrap(),
     )
     .await;
     assert_eq!(router.oneshot(Request::new(Body::empty())).await.unwrap().status(), StatusCode::OK);

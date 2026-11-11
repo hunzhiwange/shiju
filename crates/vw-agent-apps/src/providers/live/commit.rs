@@ -47,9 +47,23 @@ pub struct ModeState {
     pub proxy_route: Option<String>,
     pub contract: Option<Contract>,
 }
+/// Private executor proof of the last accepted aggregation projection. It can
+/// contain a listener credential, so it deliberately has no Debug implementation.
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AggregationRecovery {
+    pub principal: String,
+    pub published: serde_json::Value,
+    /// A previously confirmed takeover applies only to this exact external pointer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_external_catalog: Option<String>,
+}
+
 /// None preserves that part of state; direct pointer and proxy route are independent.
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct PendingTarget {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aggregation_recovery: Option<AggregationRecovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub omo: Option<OmoSelection>,
     /// Set only by the executor after authorizing the physical project slot.
@@ -100,6 +114,8 @@ pub enum OmoSelection {
 }
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aggregation_recovery: Option<AggregationRecovery>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub omo: Option<OmoSelection>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -239,8 +255,9 @@ impl ProviderTransactions {
             .map(|b| serde_json::from_slice(&b).map_err(|_| WriteError::InvalidResource))
             .transpose()?;
         if pending.as_ref().is_some_and(|p| {
-            !matches!(p.version, 1..=10)
-                || (p.version == 10) != p.provider_record.is_some()
+            !matches!(p.version, 1..=11)
+                || (p.version >= 10) != p.provider_record.is_some()
+                || (p.version == 11) != p.target.aggregation_recovery.is_some()
                 || (p.version >= 7) != p.target.project_scope.is_some()
                 || (p.version == 8 && p.target.codex_aggregation_settings.is_none())
                 || (p.version < 8 && p.target.codex_aggregation_settings.is_some())
@@ -324,6 +341,9 @@ impl ProviderTransactions {
         )>,
     ) -> Result<(), WriteError> {
         let app = guard.app();
+        if target.aggregation_recovery.is_some() && record.is_none() {
+            return Err(WriteError::InvalidResource);
+        }
         if let Some((change, _)) = record {
             change.validate(&self.host, app, tenant, &target)?;
         }
@@ -362,7 +382,9 @@ impl ProviderTransactions {
             provider_record: record.map(|(change, _)| change.clone()),
             project_preimage: state.project_scope.clone(),
             // Older executors must reject multi-directory intents and actual deletions.
-            version: if record.is_some() {
+            version: if target.aggregation_recovery.is_some() {
+                11
+            } else if record.is_some() {
                 10
             } else if target.omo.is_some() {
                 9
@@ -564,6 +586,18 @@ fn private_child(parent: &File, name: &str) -> Result<File, WriteError> {
     Ok(file)
 }
 pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), WriteError> {
+    if let Some(recovery) = &target.aggregation_recovery
+        && (!matches!(app, AppId::Claude | AppId::Codex)
+            || target.project_scope.is_none()
+            || !target.stack.as_ref().is_some_and(|stack| stack.enabled)
+            || !target.mode.as_ref().is_some_and(|mode| mode.attached && mode.mode == Mode::Proxy)
+            || recovery.principal.trim().is_empty()
+            || recovery.principal.chars().any(char::is_control)
+            || !recovery.published.is_object())
+    {
+        return Err(WriteError::InvalidResource);
+    }
+
     if let Some(selection) = &target.omo {
         if app != AppId::OpenCode || target.project_scope.is_none() {
             return Err(WriteError::InvalidResource);
@@ -624,7 +658,13 @@ pub(super) fn validate_target(app: AppId, target: &PendingTarget) -> Result<(), 
             crate::providers::validate_identity(id).map_err(|_| WriteError::InvalidResource)?;
         }
     }
-    if serde_json::to_vec(target).map_err(|_| WriteError::InvalidResource)?.len() > 65536 {
+    // Keep the original control-state bound. Only the frozen projection may use
+    // the remaining private journal budget; all persisted files remain <= 1 MiB.
+    let mut control = target.clone();
+    control.aggregation_recovery = None;
+    if serde_json::to_vec(&control).map_err(|_| WriteError::InvalidResource)?.len() > 65536
+        || serde_json::to_vec(target).map_err(|_| WriteError::InvalidResource)?.len() > 900_000
+    {
         return Err(WriteError::InvalidResource);
     }
     Ok(())
@@ -646,6 +686,10 @@ pub(super) fn validate_stack_update(
     Ok(())
 }
 pub(super) fn apply_target(state: &mut AppState, tenant: &TenantScope, target: &PendingTarget) {
+    if let Some(recovery) = &target.aggregation_recovery {
+        state.aggregation_recovery = Some(recovery.clone());
+    }
+
     if let Some(selection) = &target.omo {
         state.omo = Some(selection.clone());
     }

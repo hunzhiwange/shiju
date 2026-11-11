@@ -93,8 +93,13 @@ impl Fixture {
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
         match &self.routing {
             Some(routing) => {
-                super::app_routing::configure_with_policy(router, routing, self.policy.clone())
-                    .await
+                super::app_routing::configure_with_policy(
+                    router,
+                    routing,
+                    self.policy.clone(),
+                    self.db.clone(),
+                )
+                .await
             }
             None => router,
         }

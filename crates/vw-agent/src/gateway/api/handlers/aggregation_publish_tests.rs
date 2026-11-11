@@ -97,8 +97,13 @@ impl Fixture {
             .layer(middleware::from_fn(crate::gateway::middleware::tenant_scope_middleware));
         match &self.routing {
             Some(routing) => {
-                super::app_routing::configure_with_policy(router, routing, self.policy.clone())
-                    .await
+                super::app_routing::configure_with_policy(
+                    router,
+                    routing,
+                    self.policy.clone(),
+                    self.db.clone(),
+                )
+                .await
             }
             None => router,
         }
@@ -398,6 +403,7 @@ async fn aggregation_t41_initial_publication_reuses_catalog_transaction_and_live
 
     assert_eq!(f.request("GET", &path, Some(TOKEN), json!({})).await.0, 403);
     assert_eq!(f.request("DELETE", &path, Some(TOKEN), json!({})).await.0, 403);
+    f.policy(true, true, true);
     listener.stop().await.unwrap();
     server.abort();
 }
@@ -429,3 +435,6 @@ mod operation_contract;
 
 #[path = "aggregation_publish_failure_tests.rs"]
 mod failure_contract;
+
+#[path = "../../aggregation_lifecycle_tests.rs"]
+mod lifecycle_tests;

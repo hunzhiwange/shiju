@@ -2,7 +2,7 @@
 
 批次：【批次 4】 依赖：批次 3 的任务 35。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：已完成，待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -68,3 +68,14 @@
 - 阻塞和进度只写本任务文件，不改只读 `plan.md`，不把 `prompt.md` 当进度来源；不静默删减来源需求。发现新需求先询问是否记录回来源产物。
 - 有实际代码/测试/配置/正式文档变更时，使用 `$git-commit` 审查并仅提交本任务变更；只有本编号文件状态更新或删除时无需提交。不要提交其他任务或工作区变更。
 - 最终回复报告完成证据与推荐下一步；完成且非待回归时按执行技能删除本任务文件，正式证据文档保留。只生成本计划不会完成母任务9。
+
+## 本次实施与待回归证据
+
+- 在当前工作区实施，未创建工作树，未修改只读 plan.md。已核对任务 1–3 正式合同及依赖提交 `06e95ff46`。
+- 实际等价路径：`agent_apps/mcp/{network_probe,connectivity,probe_jobs}.rs`；独立测试 `stdio_probe_tests.rs` 与 `probe_jobs_tests.rs`。复用 `tools/mcp_common/wire_stdio.rs::ProbeChild`，不新建 gateway 第二实现。
+- 已实现目录配置摘要/可信工作区的独立 stdio 许可、短期初始化、授权 cwd/env/PATH 及进程组回收，保留常规目录检查成功时的正常关闭机会。
+- 聚焦命令 `cargo test -p vw-agent --lib diagnostic_mcp_stdio_cancellation_reaps_process_tree -- --nocapture`：红灯退出 101，1 项执行，预期“超时后存活进程树”断言失败；最终绿灯构建退出 101，0 项执行。
+- `cargo fmt --all -- --emit stdout` 退出 0，仅写回本任务文件。`cargo clippy --all-targets --all-features -- -D warnings` 最终退出 101，阻断点为无关 `crates/vw-agent-apps/src/aggregation/claude_publish.rs:11` 访问私有 `providers::projection`（E0603）。未修复无关代码，未声称绿灯或真实退出已验证。
+- 动态使用槽位 1、3、7，绝对 `CARGO_TARGET_DIR` 分别为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`、`/Users/xiangmin/worker/code/shiju/target/rust-slot-7`。各验证阶段结束后自己的锁已释放，缓存保留。
+- 红灯发现仓库 build.build-dir 覆盖中间产物输出；后续验证同时设置 `CARGO_BUILD_BUILD_DIR="$CARGO_TARGET_DIR"`，回归必须沿用。未修改仓库配置。
+- 正式证据：`docs/vibewindow/agent-apps/diagnostics/mcp-stdio-36.md`。保留本卡；共享编译错误修复后重跑聚焦测试、正常 stdio/网络相邻过滤与规定 Clippy，取得非零绿灯后再删除本卡。

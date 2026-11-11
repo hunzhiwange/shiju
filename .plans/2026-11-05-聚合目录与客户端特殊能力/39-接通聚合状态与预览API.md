@@ -2,7 +2,7 @@
 
 批次：【批次 11】 依赖：批次 10 的任务 13。同批实施与资源规则见 prompt.md。
 
-状态：未开始
+状态：实施中
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -67,3 +67,50 @@
 只有本任务所列新证据齐全才标为 `已完成`。有实际代码、测试、配置或文档变更，使用 `$git-commit` 审查并只提交本任务；仅编号任务状态/删除不调用该技能、不单独提交。最终报告证据并删除已完成任务文件，正式证据文档保留。
 
 无法满足真实前置或必需环境时，只在本任务记录 `已阻塞`、缺失文件/契约、已运行检查及最小解除条件；先尝试在本任务范围解决，不能吞并整个前置母能力或修改只读plan。无关既有编译错误阻止回归时可标 `已完成，待回归` 并保留任务文件，必须说明尚缺证据，不算母任务完成。不修改、不提交其他任务或既有工作区变更。
+
+
+## 2026-11-11 前置核对与阻塞记录
+
+在项目当前检出执行，未创建或启动工作树；只读 `plan.md` 未修改。使用 `skills/do-task-plans/SKILL.md` 与 `skills/rustcodegraph/SKILL.md` 核对。直接依赖任务 13 已由提交 `1ee788f05` 和 `docs/shiju/agent-apps/aggregation/任务13-验证.md` 交付，其 7 项原生预览测试属于前置证据，未作为本任务通过证据。
+
+### 具体缺口
+
+接口契约要求原生槽位在同一事务内绑定项目，并禁止仅凭租户一致推断既有配置的项目归属。本次检查实际生产所有者：
+
+- `crates/vw-agent-apps/src/providers/live/commit.rs::AppState` 仅有 `stack_tenant`、`mode_tenant` 和租户范围 `pointer`；`PendingTarget`、`Pending` 亦未保存项目归属。`ProviderTransactions::open_existing` 可以无副作用读取，但不能证明所读物理槽位属于请求项目。
+- `crates/vw-agent/src/app_providers.rs::AppProviderStore` 的供应商档案按租户保存，没有原生槽位到项目的绑定。
+- `crates/vw-agent/src/app_routing/route_auth.rs::VerifiedRouteBinding` 有项目和账号代次，但仅用于监听内的已验证发布；现有 `RoutingListener::snapshot` 只返回监听生命周期、地址和启动时间，不提供原生配置槽位的归属证明，未附着时也不能从运行时推断持久槽位的项目。
+- `crates/vw-agent-apps/src/aggregation/preview.rs::PreviewInput` 明确要求调用方事先完成 host/project/read 授权；任务 13 是纯规则计算，不交付项目槽位归属。现有 `agent_apps/access.rs` 的项目路由权限只能证明主体允许操作某项目，无法证明既有配置属于该项目。新增 `aggregation_read` 权限本身也不能补齐资源归属。
+
+如果直接把租户状态与请求 `projectId` 拼装，会把同租户另一项目的配置作为本项目状态读取并签发预览令牌；若所有非空状态一律拒绝，则无法满足本任务“读取当前状态与预览”的成功行为。只读 API 不能在读取时补写归属，因为这违反禁止持久化及发布副作用的要求。此次未添加仅空状态成功或恒返回拒绝的伪接线。
+
+最小解除条件：由现有配置事务所有者提供可验证、持久的主机/应用原生槽位项目归属及受控认领/写入路径，并明确旧的仅租户状态如何拒绝或经授权认领；提交正式接口和行为证据后，本任务消费该接口接通读权限、类型化 DTO、修订和短时完整性令牌。该前置属于共享事务及写入所有者，不能在本只读 API 卡中另建旁路所有者或未经确认重定义既有状态归属。
+
+### 已运行检查与未运行验证
+
+- `rustcodegraph status`：退出 0，索引存在；`rustcodegraph explore 'aggregation preview AggregationPreviewInput mode_state authorized_app'`：退出 0；新任务 13 代码及索引未覆盖的接口用 `rg`、文件读取核对。
+- 读取只读计划、任务卡、执行分线、来源核对、接口契约和任务 11/12/13 正式证据；`git show --no-patch --format='%h %s' 1ee788f05`：退出 0。
+- 读取来源 `mode/controller.rs::stack_view_with_clients`、相邻测试定位与 `src/lib/api/proxy.ts::getProxyStack`，确认客户端进程探测不属于本次状态读取。
+- `rg` 检查上述事务、供应商和路由所有者；`uname -sm`：退出 0，Darwin arm64。
+- 未修改 Rust、测试、配置或正式文档；未执行 Cargo、格式化、聚焦测试或 Clippy。有效新增测试数量为 0，未取得行为红灯或通过证据，不宣告完成。
+- Cargo 槽位：未领取；`CARGO_TARGET_DIR`：未设置（本次没有 Cargo 阶段）。未触碰其他会话的锁、进程或缓存。
+- 本次仅更新本编号任务文件状态及阻塞记录，依要求不提交、不删除任务卡。
+
+
+## 恢复安排
+2026-11-11 收到协调指令：任务14负责现有事务所有者的持久项目绑定与授权首次认领，本任务先交付独立 DTO、授权及只读接线；待接口实际落地后接入并验证，不新建归属所有者。旧状态缺归属返回冲突，读取不补写。
+
+
+## 共享锁事故核对（2026-11-11）
+
+任务39一次共享写入命令在 `mkdir merge.lock` 失败后，因为后续 Python 和清理未处于同一成功分支，仍追加代码并误删原占用记录。已停止共享写入，未隐瞒事故。核对其他会话历史与进程树，原持有者为任务15会话 `01a1c8cc-d1ed-7c92-850c-8ce691aad463` 的 `cargo fmt --all`，持有 shell PID 63665，cargo-fmt/rustfmt 为 63672/63681；其命令写入 `task15 formatting PID=63665`（含换行28字节），与任务36领取失败时看到的原 owner 文件大小一致。原会话已自行终止这组进程；`ps` 确认三者全部不存在。
+
+现锁随后由任务36会话 `01a1c8b4-040b-77e0-8541-99bea2ae7126` 的 PID 64008 重新原子领取，owner 为 `task=36 session=01a1c8b4 pid=64008`，操作为持锁等待提交。核查时该进程仍活跃。恢复检查程序遇到该新锁后未写入、未覆盖或释放它；没有把原任务15记录覆盖回新锁。任务36暂存的10个MCP路径不含任务39注册，随后由其自行提交；任务39未执行任何暂存或提交命令。
+
+共享差异检查：对开始前保存的5个文件快照，`handlers/agent_apps/access.rs`、`handlers/agent_apps/mod.rs`、`handlers/mod.rs`、API类型父模块和 `model_catalog.rs` 均无既有非空行删除。聚合3个模块与MCP update两个模块注册分别仅1次；`gateway/router.rs` 对 HEAD 无差异。`git diff --check`、`git diff --cached --check` 退出0，`git ls-files -u` 无冲突。未恢复或回滚其他会话内容。
+
+后续共享操作使用单一 Python 控制块：mkdir 失败立即退出75、不发生写入；领取成功后记录任务/完整会话/PID及随机nonce；finally仅在owner精确匹配自有记录时释放。Cargo自有锁清理也加入精确所有权验证。事故核对完成后恢复本任务。
+
+
+## 最新格式化约束
+2026-11-11 主调度要求覆盖原全仓格式化步骤：当前共享检出后续仅格式化本任务文件并skip_children，或临时副本全仓格式化后仅取回本任务文件；不在共享检出运行全仓格式化，不批量还原，提交前复核共享差异和暂存范围。本任务采用本任务文件的聚焦rustfmt流程。

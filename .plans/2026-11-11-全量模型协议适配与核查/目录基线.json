@@ -1,0 +1,1680 @@
+{
+  "date": "2026-11-11",
+  "sources": {
+    "crates/vw-provider-resolver/assets/model/api.json": {
+      "sha256": "347b23758b2122f2fbfa723319a8670e59a7f164862d48177effefc1cc8dd272",
+      "providers": 230,
+      "models": 8909
+    },
+    "crates/vw-provider-resolver/assets/model/shiju.json": {
+      "sha256": "19d231eb5580c1a8af5176694a74ab7f68ccbd42d9c40bbf496ff017bc5ca7dd",
+      "providers": 1,
+      "models": 40
+    }
+  },
+  "provider_count": 231,
+  "model_record_count": 8949,
+  "research_groups": [
+    {
+      "group": 1,
+      "task": 2,
+      "providers": [
+        "302ai",
+        "abacus",
+        "abliteration-ai",
+        "above",
+        "agentrouter",
+        "agnes",
+        "ai-router",
+        "ai21",
+        "aiand",
+        "aihubmix",
+        "aimlapi",
+        "ainetcafe",
+        "aixy",
+        "aki-io",
+        "alibaba",
+        "alibaba-cn",
+        "alibaba-coding-plan",
+        "alibaba-coding-plan-cn",
+        "alibaba-token-plan",
+        "alibaba-token-plan-cn",
+        "amazon-bedrock",
+        "ambient",
+        "amd",
+        "anthropic",
+        "anyapi",
+        "arcee",
+        "atomic-chat",
+        "auriko",
+        "azure",
+        "azure-cognitive-services",
+        "bailing",
+        "baseten",
+        "bee",
+        "berget",
+        "blueclaw",
+        "bothub",
+        "boundless",
+        "cerebras",
+        "chutes"
+      ],
+      "model_count": 1399
+    },
+    {
+      "group": 2,
+      "task": 3,
+      "providers": [
+        "clarifai",
+        "claudinio",
+        "cline-pass",
+        "cloudferro-sherlock",
+        "cloudflare-ai-gateway",
+        "cloudflare-workers-ai",
+        "cohere",
+        "commandcode",
+        "coralbricks",
+        "cortecs",
+        "crossmodel",
+        "crusoe",
+        "daoxe",
+        "databricks",
+        "deepinfra",
+        "deepseek",
+        "digitalocean",
+        "dinference",
+        "drun",
+        "ebcloud",
+        "echo",
+        "edenai",
+        "empiriolabs",
+        "engy",
+        "evroc",
+        "fastrouter",
+        "fireworks-ai",
+        "freemodel",
+        "friendli",
+        "frogbot",
+        "github-copilot",
+        "gitlab",
+        "gmicloud",
+        "google",
+        "google-vertex",
+        "google-vertex-anthropic",
+        "greenpt",
+        "groq",
+        "helicone"
+      ],
+      "model_count": 1537
+    },
+    {
+      "group": 3,
+      "task": 4,
+      "providers": [
+        "hetzner",
+        "hpc-ai",
+        "huggingface",
+        "hyper",
+        "impossibl",
+        "inception",
+        "inceptron",
+        "inco",
+        "infer",
+        "inference",
+        "inferx",
+        "infomaniak",
+        "io-net",
+        "iteracompute",
+        "jalapeno",
+        "jiekou",
+        "kenari",
+        "kilo",
+        "kimi-code-plan-cn",
+        "kimi-code-plan-global",
+        "klokintegration",
+        "kosmik",
+        "kuae-cloud-coding-plan",
+        "lilac",
+        "liquid",
+        "llmgateway",
+        "llmgateway-providers",
+        "llmtech",
+        "llmtr",
+        "lmstudio",
+        "longcat",
+        "lowrouter",
+        "lucidquery",
+        "lynkr",
+        "meganova",
+        "melious",
+        "merge-gateway",
+        "meta",
+        "minimax"
+      ],
+      "model_count": 1775
+    },
+    {
+      "group": 4,
+      "task": 5,
+      "providers": [
+        "minimax-cn",
+        "minimax-cn-coding-plan",
+        "minimax-coding-plan",
+        "mistral",
+        "mixlayer",
+        "moark",
+        "modal",
+        "model-oracle-ai",
+        "modelis",
+        "modelscope",
+        "moonshotai",
+        "moonshotai-cn",
+        "morph",
+        "nan",
+        "nano-gpt",
+        "nearai",
+        "nebius",
+        "neon",
+        "neosmith",
+        "neuralwatt",
+        "nova",
+        "novita-ai",
+        "nvidia",
+        "oci",
+        "ofox",
+        "ollama-cloud",
+        "openai",
+        "opencode",
+        "opencode-go",
+        "openreason",
+        "openrouter",
+        "opper",
+        "orcarouter",
+        "ovhcloud",
+        "pareto",
+        "pendra",
+        "perplexity",
+        "perplexity-agent",
+        "pioneer"
+      ],
+      "model_count": 2155
+    },
+    {
+      "group": 5,
+      "task": 6,
+      "providers": [
+        "poe",
+        "poolside",
+        "prime",
+        "privatemode-ai",
+        "qihang-ai",
+        "qiniu-ai",
+        "qvac",
+        "reflection",
+        "regolo-ai",
+        "requesty",
+        "routing-run",
+        "runinfra",
+        "sakana",
+        "salad-cloud",
+        "sambanova",
+        "sap-ai-core",
+        "sarvam",
+        "scaleway",
+        "scnet-token-plan",
+        "scx-ai",
+        "sensenova",
+        "shiju",
+        "siliconflow",
+        "siliconflow-cn",
+        "snowflake-cortex",
+        "stackit",
+        "standardcompute",
+        "stepfun",
+        "stepfun-ai",
+        "stepfun-ai-step-plan",
+        "stepfun-step-plan",
+        "subconscious",
+        "submodel",
+        "synthetic",
+        "tempr",
+        "tencent-coding-plan",
+        "tencent-token-plan",
+        "tencent-tokenhub",
+        "tensorx"
+      ],
+      "model_count": 1035
+    },
+    {
+      "group": 6,
+      "task": 7,
+      "providers": [
+        "the-grid-ai",
+        "thinkingmachines",
+        "tinfoil",
+        "togetherai",
+        "tokengo",
+        "tokenrouter",
+        "trustedrouter",
+        "umans-ai",
+        "umans-ai-coding-plan",
+        "unorouter",
+        "upstage",
+        "vancine",
+        "venice",
+        "vercel",
+        "vispark",
+        "vivgrid",
+        "volcengine",
+        "volcengine-coding-plan",
+        "vultr",
+        "wafer.ai",
+        "wallaby",
+        "wandb",
+        "watsonx",
+        "xai",
+        "xiaomi",
+        "xiaomi-token-plan-ams",
+        "xiaomi-token-plan-cn",
+        "xiaomi-token-plan-sgp",
+        "xpersona",
+        "zai",
+        "zai-coding-plan",
+        "zeldoc",
+        "zenifra",
+        "zenmux",
+        "zhipuai",
+        "zhipuai-coding-plan"
+      ],
+      "model_count": 1048
+    }
+  ],
+  "providers": {
+    "deepinfra": {
+      "models": 77,
+      "sdk": "@ai-sdk/deepinfra",
+      "doc": "https://deepinfra.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "pareto": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.paretoinference.com/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "hyper": {
+      "models": 23,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://hyper.charm.land",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba-cn": {
+      "models": 80,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "digitalocean": {
+      "models": 82,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "qvac": {
+      "models": 9,
+      "sdk": "@qvac/ai-sdk-provider",
+      "doc": "https://www.npmjs.com/package/@qvac/ai-sdk-provider",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tencent-coding-plan": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://cloud.tencent.com/document/product/1772/128947",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "liquid": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://inference.ai.exchange/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "stepfun-ai": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.stepfun.ai/docs/en/overview/concept",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "sensenova": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.sensenova.cn/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cloudferro-sherlock": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.sherlock.cloudferro.com/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tokenrouter": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.tokenrouter.com/docs/tokenrouter-feature-guide/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "sambanova": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.sambanova.ai/cloud/docs/get-started/supported-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xiaomi-token-plan-sgp": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.xiaomimimo.com/#/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ovhcloud": {
+      "models": 12,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "volcengine": {
+      "models": 16,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.volcengine.com/docs/82379/1330310",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "hpc-ai": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.hpc-ai.com/doc/docs/quickstart/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "minimax": {
+      "models": 8,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://platform.minimax.io/docs/guides/quickstart",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "siliconflow": {
+      "models": 57,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://cloud.siliconflow.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ainetcafe": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://ainetcafe.com/k3/guides/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "lowrouter": {
+      "models": 31,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://lowrouter.ai/docs/models/available",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "stepfun-step-plan": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.stepfun.com/docs/zh/step-plan/integrations/reasoning-api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "inference": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://inference.net/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "scaleway": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.scaleway.com/en/docs/generative-apis/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "anthropic": {
+      "models": 17,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://docs.anthropic.com/en/docs/about-claude/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tempr": {
+      "models": 82,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://temprhq.io/docs/gateway-reference.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "inceptron": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.inceptron.io",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "crossmodel": {
+      "models": 68,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.crossmodel.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "fastrouter": {
+      "models": 39,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://fastrouter.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "llmtr": {
+      "models": 32,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://llmtr.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "stepfun": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.stepfun.com/docs/zh/overview/concept",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "wafer.ai": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.wafer.ai/wafer-pass",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "amazon-bedrock": {
+      "models": 199,
+      "sdk": "@ai-sdk/amazon-bedrock",
+      "doc": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "databricks": {
+      "models": 31,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "google-vertex": {
+      "models": 61,
+      "sdk": "@ai-sdk/google-vertex",
+      "doc": "https://cloud.google.com/vertex-ai/generative-ai/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "commandcode": {
+      "models": 71,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://commandcode.ai/docs/provider",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "umans-ai": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://app.umans.ai/offers/code/docs/orgs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba": {
+      "models": 53,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "oci": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/pretrained-models.htm",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "perplexity": {
+      "models": 4,
+      "sdk": "@ai-sdk/perplexity",
+      "doc": "https://docs.perplexity.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba-token-plan": {
+      "models": 29,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.alibabacloud.com/help/en/model-studio/token-plan-overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "model-oracle-ai": {
+      "models": 15,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://modeloracle.com/setup/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "lilac": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.getlilac.com/inference/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nvidia": {
+      "models": 52,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.api.nvidia.com/nim/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "aixy": {
+      "models": 13,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.aixy-gateway.com/integrations/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tensorx": {
+      "models": 25,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.tensorx.ai/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "wandb": {
+      "models": 23,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.wandb.ai/inference",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nan": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://nan.builders/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nearai": {
+      "models": 57,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.near.ai/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "submodel": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://submodel.gitbook.io",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "deepseek": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://api-docs.deepseek.com/quick_start/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nova": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://nova.amazon.com/dev/documentation",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "scx-ai": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.scx.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "empiriolabs": {
+      "models": 63,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.empiriolabs.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "google": {
+      "models": 38,
+      "sdk": "@ai-sdk/google",
+      "doc": "https://ai.google.dev/gemini-api/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "inco": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.inco.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "moark": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://moark.com/docs/openapi/v1#tag/%E6%96%87%E6%9C%AC%E7%94%9F%E6%88%90",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "bothub": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://bothub.ru/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zenmux": {
+      "models": 110,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.zenmux.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "stepfun-ai-step-plan": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.stepfun.ai/docs/en/step-plan/integrations/reasoning-api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "opencode-go": {
+      "models": 34,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://opencode.ai/v2/docs/console/go/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "opper": {
+      "models": 55,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://opper.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kenari": {
+      "models": 64,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://kenari.id/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ebcloud": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.ebtech.com/ai/model-api.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tokengo": {
+      "models": 13,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.tokengo.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zhipuai": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.bigmodel.cn/cn/guide/start/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kuae-cloud-coding-plan": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.mthreads.com/kuaecloud/kuaecloud-doc-online/coding_plan/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zhipuai-coding-plan": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.bigmodel.cn/cn/coding-plan/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "dinference": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://dinference.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "siliconflow-cn": {
+      "models": 40,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://cloud.siliconflow.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "standardcompute": {
+      "models": 40,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.standardcompute.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "sap-ai-core": {
+      "models": 51,
+      "sdk": "@jerome-benoit/sap-ai-provider-v2",
+      "doc": "https://help.sap.com/docs/sap-ai-core",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ollama-cloud": {
+      "models": 23,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.ollama.com/cloud",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "amd": {
+      "models": 11,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://developer.amd.com.cn/radeon/tokenfactory",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "minimax-cn": {
+      "models": 8,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://platform.minimaxi.com/docs/guides/quickstart",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "llmgateway-providers": {
+      "models": 423,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://llmgateway.io/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zai-coding-plan": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.z.ai/devpack/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "baseten": {
+      "models": 14,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.baseten.co/inference/model-apis/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "perplexity-agent": {
+      "models": 45,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://docs.perplexity.ai/docs/agent-api/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "boundless": {
+      "models": 20,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://inference.boundless.network/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "qihang-ai": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.qhaigc.net/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "klokintegration": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://klokintegration.se/docs/ai-api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "routing-run": {
+      "models": 15,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.routing.run/api-reference/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "jalapeno": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.jalapeno-cloud.ai/docs/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "aihubmix": {
+      "models": 154,
+      "sdk": "@aihubmix/ai-sdk-provider",
+      "doc": "https://docs.aihubmix.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "neon": {
+      "models": 57,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://neon.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "privatemode-ai": {
+      "models": 11,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.privatemode.ai/api/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "sarvam": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.sarvam.ai/api-reference-docs/getting-started/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xpersona": {
+      "models": 13,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.xpersona.co/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tencent-tokenhub": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://cloud.tencent.com/document/product/1823/130050",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "qiniu-ai": {
+      "models": 87,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://developer.qiniu.com/aitokenapi",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cloudflare-ai-gateway": {
+      "models": 75,
+      "sdk": "ai-gateway-provider",
+      "doc": "https://developers.cloudflare.com/ai-gateway/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "reflection": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://developers.reflection.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "lucidquery": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://lucidquery.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "frogbot": {
+      "models": 26,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.frogbot.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "jiekou": {
+      "models": 61,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.jiekou.ai/docs/support/quickstart?utm_source=github_models.dev",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "bee": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://bee.heossi.com/docs/sdks",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba-token-plan-cn": {
+      "models": 29,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.alibabacloud.com/help/zh/model-studio/token-plan-overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "poolside": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.poolside.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "inferx": {
+      "models": 12,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://model.inferx.net/endpoints",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cerebras": {
+      "models": 2,
+      "sdk": "@ai-sdk/cerebras",
+      "doc": "https://inference-docs.cerebras.ai/models/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xiaomi": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.xiaomimimo.com/#/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "runinfra": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://runinfra.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "aiand": {
+      "models": 13,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.aiand.com/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "claudinio": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://claudin.io",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "huggingface": {
+      "models": 81,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://huggingface.co/docs/inference-providers",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "openai": {
+      "models": 51,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://platform.openai.com/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "vivgrid": {
+      "models": 38,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://docs.vivgrid.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "minimax-coding-plan": {
+      "models": 9,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://platform.minimax.io/docs/token-plan/intro",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "modelis": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://modelishub.com/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zeldoc": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.zeldoc.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "anyapi": {
+      "models": 30,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.anyapi.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ai21": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.ai21.com/docs/jamba-foundation-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "subconscious": {
+      "models": 2,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://docs.subconscious.dev",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "umans-ai-coding-plan": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://app.umans.ai/offers/code/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xiaomi-token-plan-ams": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.xiaomimimo.com/#/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "auriko": {
+      "models": 15,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.auriko.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "togetherai": {
+      "models": 32,
+      "sdk": "@ai-sdk/togetherai",
+      "doc": "https://docs.together.ai/docs/serverless-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "helicone": {
+      "models": 90,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://helicone.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cortecs": {
+      "models": 106,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://api.cortecs.ai/v1/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "stackit": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.stackit.cloud/products/data-and-ai/ai-model-serving/basics/available-shared-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "venice": {
+      "models": 124,
+      "sdk": "venice-ai-sdk-provider",
+      "doc": "https://docs.venice.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "lynkr": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://github.com/Fast-Editor/Lynkr",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "io-net": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://io.net/docs/guides/intelligence/io-intelligence",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tencent-token-plan": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://cloud.tencent.com/document/product/1823/130060",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kimi-code-plan-cn": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.kimi.com/code/docs/en/kimi-code/models.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "impossibl": {
+      "models": 76,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://impossibl.com/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "github-copilot": {
+      "models": 35,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.github.com/en/copilot",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "modal": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://modal.com/docs/guide/endpoints",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "llmgateway": {
+      "models": 205,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://llmgateway.io/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "novita-ai": {
+      "models": 87,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://novita.ai/docs/guides/introduction",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "abliteration-ai": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.abliteration.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "above": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://above.dev/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "tinfoil": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.tinfoil.sh",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "openreason": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://openreason.app/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "mistral": {
+      "models": 34,
+      "sdk": "@ai-sdk/mistral",
+      "doc": "https://docs.mistral.ai/getting-started/models/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kosmik": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://api.koscompute.com/docs/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "melious": {
+      "models": 15,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://melious.ai/docs/reference/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "friendli": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "requesty": {
+      "models": 180,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://requesty.ai/solution/llm-routing/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "longcat": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://longcat.chat/platform/docs/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "clarifai": {
+      "models": 12,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.clarifai.com/compute/inference/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "watsonx": {
+      "models": 5,
+      "sdk": "watsonx-ai-provider",
+      "doc": "https://www.ibm.com/docs/en/watsonx/saas?topic=solutions-supported-foundation-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ofox": {
+      "models": 148,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://ofox.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "302ai": {
+      "models": 125,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://doc.302.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "pendra": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://pendra.ai/docs/integrations/opencode",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zenifra": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.zenifra.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "coralbricks": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.coralbricks.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kimi-code-plan-global": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.kimi.ai/code/docs/en/kimi-code/models.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "infomaniak": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.infomaniak.com/en/hosting/ai-services/open-source-models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "berget": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://api.berget.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cline-pass": {
+      "models": 18,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.cline.bot/getting-started/clinepass",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "freemodel": {
+      "models": 10,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://freemodel.dev",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "regolo-ai": {
+      "models": 18,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.regolo.ai/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nano-gpt": {
+      "models": 631,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.nano-gpt.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "abacus": {
+      "models": 108,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://abacus.ai/help/api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "vercel": {
+      "models": 428,
+      "sdk": "@ai-sdk/gateway",
+      "doc": "https://github.com/vercel/ai/tree/5eb85cc45a259553501f535b8ac79a77d0e79223/packages/gateway",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "gmicloud": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "engy": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://engy.ai/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "zai": {
+      "models": 18,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.z.ai/guides/overview/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "synthetic": {
+      "models": 12,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://synthetic.new/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ambient": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://ambient.xyz",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "openrouter": {
+      "models": 420,
+      "sdk": "@openrouter/ai-sdk-provider",
+      "doc": "https://openrouter.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "iteracompute": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://iteracompute.com/docs.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "llmtech": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://llmtech.eu/models/qwen3.8-27b",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "lmstudio": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://lmstudio.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "scnet-token-plan": {
+      "models": 19,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.scnet.cn/ac/openapi/doc/2.0/moduleapi/plans/token-plan.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "google-vertex-anthropic": {
+      "models": 17,
+      "sdk": "@ai-sdk/google-vertex/anthropic",
+      "doc": "https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/claude",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "crusoe": {
+      "models": 11,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.crusoecloud.com/managed-inference/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "trustedrouter": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://trustedrouter.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "orcarouter": {
+      "models": 117,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.orcarouter.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "vispark": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://lab.vispark.in/#vision",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "agentrouter": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://agentrouter.org/docs/opencode.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "vultr": {
+      "models": 15,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://api.vultrinference.com/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba-coding-plan-cn": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://help.aliyun.com/zh/model-studio/coding-plan",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "poe": {
+      "models": 139,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "ai-router": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://ai-router.dev/openai-compatible-api-gateway/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xiaomi-token-plan-cn": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.xiaomimimo.com/#/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "atomic-chat": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://atomic.chat",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "mixlayer": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.mixlayer.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "vancine": {
+      "models": 8,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://vancine.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "drun": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.d.run",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "unorouter": {
+      "models": 23,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://unorouter.com/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "greenpt": {
+      "models": 41,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.greenpt.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "blueclaw": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://blueclaw.network",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "inception": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.inceptionlabs.ai/get-started/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "chutes": {
+      "models": 14,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://llm.chutes.ai/v1/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "aimlapi": {
+      "models": 177,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.aimlapi.com",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "nebius": {
+      "models": 24,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.tokenfactory.nebius.com/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "meta": {
+      "models": 6,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://dev.meta.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "pioneer": {
+      "models": 25,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://agent.pioneer.ai/llms.txt",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "wallaby": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://wallabytoken.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "moonshotai": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.moonshot.ai/docs/api/chat",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cohere": {
+      "models": 17,
+      "sdk": "@ai-sdk/cohere",
+      "doc": "https://docs.cohere.com/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "kilo": {
+      "models": 397,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://kilo.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "modelscope": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://modelscope.cn/docs/model-service/API-Inference/intro",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "neuralwatt": {
+      "models": 23,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://portal.neuralwatt.com/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "merge-gateway": {
+      "models": 200,
+      "sdk": "merge-gateway-ai-sdk-provider",
+      "doc": "https://docs.merge.dev/merge-gateway",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "thinkingmachines": {
+      "models": 38,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "echo": {
+      "models": 1,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://echo.tracerml.ai/docs/api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "agnes": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://agnes-ai.com/doc",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "evroc": {
+      "models": 16,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.evroc.com/products/think/overview.html",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "xai": {
+      "models": 13,
+      "sdk": "@ai-sdk/xai",
+      "doc": "https://docs.x.ai/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "hetzner": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://experiments.hetzner.com/docs/inference",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "alibaba-coding-plan": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.alibabacloud.com/help/en/model-studio/coding-plan",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "volcengine-coding-plan": {
+      "models": 10,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://www.volcengine.com/docs/82379/1928261",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "minimax-cn-coding-plan": {
+      "models": 9,
+      "sdk": "@ai-sdk/anthropic",
+      "doc": "https://platform.minimaxi.com/docs/token-plan/intro",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "groq": {
+      "models": 14,
+      "sdk": "@ai-sdk/groq",
+      "doc": "https://console.groq.com/docs/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "snowflake-cortex": {
+      "models": 25,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "bailing": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://alipaytbox.yuque.com/sxs0ba/ling/intro",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "salad-cloud": {
+      "models": 1,
+      "sdk": "@saladtechnologies-oss/ai-sdk-provider",
+      "doc": "https://docs.salad.com/ai-gateway/explanation/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "fireworks-ai": {
+      "models": 29,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://fireworks.ai/docs/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "aki-io": {
+      "models": 7,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://aki.io/docs/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "edenai": {
+      "models": 361,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.edenai.co",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "infer": {
+      "models": 2,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://infer.flow7.org/opencode",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "azure-cognitive-services": {
+      "models": 95,
+      "sdk": "@ai-sdk/azure",
+      "doc": "https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "azure": {
+      "models": 95,
+      "sdk": "@ai-sdk/azure",
+      "doc": "https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "opencode": {
+      "models": 132,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://opencode.ai/v2/docs/console/models/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "prime": {
+      "models": 69,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.primeintellect.ai/inference/overview",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "neosmith": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai",
+      "doc": "https://neosmith.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "moonshotai-cn": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://platform.moonshot.cn/docs/api/chat",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "arcee": {
+      "models": 11,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.arcee.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "morph": {
+      "models": 3,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.morphllm.com/api-reference/introduction",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "the-grid-ai": {
+      "models": 17,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://thegrid.ai/docs",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "meganova": {
+      "models": 19,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://docs.meganova.ai",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "cloudflare-workers-ai": {
+      "models": 32,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://developers.cloudflare.com/workers-ai/models/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "daoxe": {
+      "models": 9,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://daoxe.com/pricing",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "sakana": {
+      "models": 4,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://console.sakana.ai/models",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "gitlab": {
+      "models": 30,
+      "sdk": "gitlab-ai-provider",
+      "doc": "https://docs.gitlab.com/user/duo_agent_platform/",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "upstage": {
+      "models": 5,
+      "sdk": "@ai-sdk/openai-compatible",
+      "doc": "https://developers.upstage.ai/docs/apis/chat",
+      "source": "crates/vw-provider-resolver/assets/model/api.json"
+    },
+    "shiju": {
+      "models": 40,
+      "sdk": "openai-compatible",
+      "doc": null,
+      "source": "crates/vw-provider-resolver/assets/model/shiju.json"
+    }
+  }
+}

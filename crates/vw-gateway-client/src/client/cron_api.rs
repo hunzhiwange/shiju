@@ -77,6 +77,27 @@ pub struct CronRunDto {
     pub duration_ms: Option<i64>,
 }
 
+/// 汇总记录独立于旧单任务 DTO，未知 status 保留原值。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CronHistoryRunDto {
+    pub id: Option<i64>,
+    pub execution_id: Option<String>,
+    pub job_id: String,
+    pub name: Option<String>,
+    pub started_at: String,
+    pub finished_at: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub status: String,
+    pub output: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CronHistoryResponse {
+    pub runs: Vec<CronHistoryRunDto>,
+    pub finished_limit: usize,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CronRunsResponse {
     #[serde(default)]
@@ -371,6 +392,10 @@ impl GatewayClient {
     pub async fn cron_jobs_get(&self) -> Result<Vec<CronJobDto>, String> {
         let response: CronJobsResponse = self.get_json("/v1/cron", &[]).await?;
         Ok(response.jobs)
+    }
+
+    pub async fn cron_history_get(&self) -> Result<CronHistoryResponse, String> {
+        self.get_json("/v1/cron/history", &[]).await
     }
 
     pub async fn cron_job_runs_get(&self, job_id: &str) -> Result<Vec<CronRunDto>, String> {

@@ -604,6 +604,52 @@ fn truncate_cron_output(output: &str) -> String {
     truncated
 }
 
+/// 跨任务历史窗口中的已结束记录及当前任务名。
+#[derive(Debug)]
+pub struct CronHistoryRecord {
+    pub run: CronRun,
+    pub name: Option<String>,
+}
+
+/// 多取一条用于判断最近 200 条窗口是否截断。
+pub const CRON_HISTORY_LIMIT: usize = 200;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn list_history(config: &Config) -> Result<Vec<CronHistoryRecord>> {
+    with_connection(config, |conn| {
+        let mut stmt = conn.prepare(
+            "SELECT r.id, r.job_id, r.started_at, r.finished_at, r.status, r.output,
+                    r.duration_ms, j.name
+             FROM cron_runs r JOIN cron_jobs j ON j.id = r.job_id
+             ORDER BY r.started_at DESC, r.id DESC LIMIT ?1",
+        )?;
+        let rows = stmt.query_map(params![(CRON_HISTORY_LIMIT + 1) as i64], |row| {
+            Ok(CronHistoryRecord {
+                run: CronRun {
+                    id: row.get(0)?,
+                    job_id: row.get(1)?,
+                    started_at: parse_rfc3339(&row.get::<_, String>(2)?)
+                        .map_err(sql_conversion_error)?,
+                    finished_at: parse_rfc3339(&row.get::<_, String>(3)?)
+                        .map_err(sql_conversion_error)?,
+                    status: row.get(4)?,
+                    output: row
+                        .get::<_, Option<String>>(5)?
+                        .map(|value| truncate_cron_output(&value)),
+                    duration_ms: row.get(6)?,
+                },
+                name: row.get(7)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>().map_err(Into::into)
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn list_history(_config: &Config) -> Result<Vec<CronHistoryRecord>> {
+    anyhow::bail!("Cron history is not supported on WASM")
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 /// 按开始时间倒序列出指定任务的运行历史，最少查询一条。
 pub fn list_runs(config: &Config, job_id: &str, limit: usize) -> Result<Vec<CronRun>> {

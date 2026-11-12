@@ -55,8 +55,8 @@ pub use client::{
 /// Channel QR-code authorization transport contract.
 pub use client::{ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto};
 pub use client::{
-    CronAddRequest, CronJobDto, CronPreviewRequest, CronPreviewResponse, CronRunDto,
-    CronUpdateRequest,
+    CronAddRequest, CronHistoryResponse, CronHistoryRunDto, CronJobDto, CronPreviewRequest,
+    CronPreviewResponse, CronRunDto, CronUpdateRequest,
 };
 /// 桌面端可用外部应用状态的精简传输对象。
 ///

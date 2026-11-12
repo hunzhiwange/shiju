@@ -147,8 +147,8 @@ pub use self::channel_qr_api::{
     ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
 };
 pub use self::cron_api::{
-    CronAddRequest, CronJobDto, CronPreviewRequest, CronPreviewResponse, CronRunDto,
-    CronUpdateRequest,
+    CronAddRequest, CronHistoryResponse, CronHistoryRunDto, CronJobDto, CronPreviewRequest,
+    CronPreviewResponse, CronRunDto, CronUpdateRequest,
 };
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDependencyDto,

@@ -269,6 +269,76 @@ pub async fn handle_api_cron_list(
     }
 }
 
+/// 当前进程工作区的运行快照与最近结束记录；执行器必须与 API 同进程。
+pub async fn handle_api_cron_history(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> axum::response::Response {
+    if let Err(error) = super::super::auth::require_auth(&state, &headers) {
+        return error.into_response();
+    }
+    use crate::app::agent::cron;
+    let config = state.config.lock().clone();
+    // 先复制快照，再查询结束记录；交接窗口优先展示真实持久化结果。
+    let active = cron::active_runs::snapshot(&config);
+    let result = (|| -> anyhow::Result<serde_json::Value> {
+        let mut history = cron::list_history(&config)?;
+        let jobs = cron::list_jobs(&config)?;
+        let truncated = history.len() > cron::CRON_HISTORY_LIMIT;
+        let completed: std::collections::HashSet<_> =
+            history.iter().map(|entry| (entry.run.job_id.clone(), entry.run.started_at)).collect();
+        history.truncate(cron::CRON_HISTORY_LIMIT);
+        let mut rows = Vec::new();
+        for entry in history {
+            let run = entry.run;
+            rows.push((
+                run.started_at,
+                Some(run.id),
+                String::new(),
+                serde_json::json!({
+                    "id": run.id, "execution_id": null, "job_id": run.job_id,
+                    "name": entry.name, "status": run.status,
+                    "started_at": run.started_at.to_rfc3339(),
+                    "finished_at": run.finished_at.to_rfc3339(),
+                    "duration_ms": run.duration_ms, "output": run.output,
+                }),
+            ));
+        }
+        for run in active {
+            if !jobs.iter().any(|job| job.id == run.job_id)
+                || completed.contains(&(run.job_id.clone(), run.started_at))
+            {
+                continue;
+            }
+            rows.push((
+                run.started_at,
+                None,
+                run.execution_id.clone(),
+                serde_json::json!({
+                    "id": null, "execution_id": run.execution_id, "job_id": run.job_id,
+                    "name": run.name, "status": "running",
+                    "started_at": run.started_at.to_rfc3339(),
+                    "finished_at": null, "duration_ms": null, "output": null,
+                }),
+            ));
+        }
+        rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)).then_with(|| b.2.cmp(&a.2)));
+        let runs: Vec<_> = rows.into_iter().map(|(_, _, _, value)| value).collect();
+        Ok(
+            serde_json::json!({"runs": runs, "finished_limit": cron::CRON_HISTORY_LIMIT, "truncated": truncated}),
+        )
+    })();
+    match result {
+        Ok(value) => JsonResponse(value).into_response(),
+        // 数据库错误可能携带路径或损坏的载荷；不向客户端或日志透出原值。
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            JsonResponse(serde_json::json!({"error": "Failed to query cron history"})),
+        )
+            .into_response(),
+    }
+}
+
 /// 处理定时任务历史执行记录请求。
 pub async fn handle_api_cron_runs(
     State(state): State<AppState>,

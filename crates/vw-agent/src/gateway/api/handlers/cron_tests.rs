@@ -793,3 +793,107 @@ async fn cron_update_handler_reports_missing_job_after_valid_patch() {
 
 #[path = "cron_schedule_tests.rs"]
 mod cron_schedule_tests;
+
+async fn history_request(state: AppState) -> (StatusCode, serde_json::Value) {
+    use tower::ServiceExt;
+    let router = crate::app::agent::gateway::bootstrap::client_router(
+        state.clone(),
+        axum::Router::new(),
+        axum::Router::new(),
+    )
+    .with_state(state);
+    response_json(
+        router
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/v1/cron/history")
+                    .header(vw_api_types::id::PLATFORM_ID_HEADER, "test-platform")
+                    .header(vw_api_types::id::COMPANY_ID_HEADER, "test-company")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap(),
+    )
+    .await
+}
+
+#[tokio::test]
+async fn cron_history_endpoint_requires_auth() {
+    let tmp = tempfile::tempdir().unwrap();
+    let config = temp_config(tmp.path());
+    let (status, _) = history_request(state_with_config(config, true)).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn cron_history_endpoint_merges_active_and_finished() {
+    use crate::app::agent::cron;
+    let tmp = tempfile::tempdir().unwrap();
+    let config = temp_config(tmp.path());
+    let cfg = config.lock().clone();
+    let state = state_with_config(config.clone(), false);
+    let (status, empty) = history_request(state.clone()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(empty["runs"], serde_json::json!([]));
+    let job = cron::add_shell_job(
+        &cfg,
+        Some("任务名".into()),
+        Schedule::Every { every_ms: 60_000 },
+        "echo ok",
+    )
+    .unwrap();
+    let now = Utc::now();
+    let guard = cron::active_runs::register(&cfg, &job, now);
+    let (_, active) = history_request(state.clone()).await;
+    assert_eq!(active["runs"].as_array().unwrap().len(), 1);
+    assert_eq!(active["runs"][0]["status"], "running");
+    assert_eq!(active["runs"][0]["name"], "任务名");
+    assert!(active["runs"][0]["execution_id"].is_string());
+    for field in ["id", "finished_at", "duration_ms", "output"] {
+        assert!(active["runs"][0][field].is_null());
+    }
+    cron::record_run(&cfg, &job.id, now, now, "error", Some(&"文".repeat(20000)), 4).unwrap();
+    let (_, finished) = history_request(state.clone()).await;
+    assert_eq!(finished["runs"].as_array().unwrap().len(), 1);
+    assert_eq!(finished["runs"][0]["status"], "error");
+    assert!(finished["runs"][0]["execution_id"].is_null());
+    assert!(finished["runs"][0]["output"].as_str().unwrap().len() <= 16 * 1024);
+    assert_eq!(finished["finished_limit"], 200);
+    assert_eq!(finished["truncated"], false);
+    drop(guard);
+    let deleted = cron::active_runs::register(&cfg, &job, now + chrono::Duration::seconds(1));
+    cron::remove_job(&cfg, &job.id).unwrap();
+    assert_eq!(history_request(state).await.1["runs"], serde_json::json!([]));
+    drop(deleted);
+}
+
+#[tokio::test]
+async fn cron_history_endpoint_reports_finished_window_and_workspace_isolation() {
+    use crate::app::agent::cron;
+    let tmp = tempfile::tempdir().unwrap();
+    let config = temp_config(tmp.path());
+    config.lock().cron.max_run_history = 300;
+    let cfg = config.lock().clone();
+    let state = state_with_config(config, false);
+    let job = cron::add_job(&cfg, "0 0 * * * *", "echo ok").unwrap();
+    let now = Utc::now();
+    for i in 0..200 {
+        let at = now + chrono::Duration::seconds(i);
+        cron::record_run(&cfg, &job.id, at, at, "ok", None, 0).unwrap();
+    }
+    let (_, window) = history_request(state.clone()).await;
+    assert_eq!(window["runs"].as_array().unwrap().len(), 200);
+    assert_eq!(window["truncated"], false);
+    cron::record_run(&cfg, &job.id, now - chrono::Duration::seconds(1), now, "unknown", None, 0)
+        .unwrap();
+    let guard = cron::active_runs::register(&cfg, &job, now + chrono::Duration::seconds(201));
+    let (_, window) = history_request(state).await;
+    assert_eq!(window["runs"].as_array().unwrap().len(), 201);
+    assert_eq!(window["truncated"], true);
+    assert_eq!(window["runs"][0]["status"], "running");
+    let other = tempfile::tempdir().unwrap();
+    let (_, isolated) = history_request(state_with_config(temp_config(other.path()), false)).await;
+    assert_eq!(isolated["runs"], serde_json::json!([]));
+    drop(guard);
+}

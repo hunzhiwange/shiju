@@ -535,3 +535,49 @@ fn wb_schedule_window_agent_creation_is_atomic() {
     );
     assert_eq!(list_jobs(&config).unwrap().len(), 1);
 }
+
+#[test]
+fn cron_history_query_orders_across_jobs() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    assert!(super::list_history(&config).unwrap().is_empty());
+    let a = add_job(&config, "0 0 * * * *", "echo a").unwrap();
+    let b = add_job(&config, "0 0 * * * *", "echo b").unwrap();
+    update_job(
+        &config,
+        &b.id,
+        CronJobPatch { name: Some("最新名字".into()), ..Default::default() },
+    )
+    .unwrap();
+    let now = Utc::now();
+    for job in [&a, &b] {
+        super::record_run(&config, &job.id, now, now, "unrecognized", None, 0).unwrap();
+    }
+    let rows = super::list_history(&config).unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0].run.job_id, b.id);
+    assert_eq!(rows[0].name.as_deref(), Some("最新名字"));
+    assert!(rows[0].run.id > rows[1].run.id);
+    assert_eq!(rows[0].run.status, "unrecognized");
+    let other = TempDir::new().unwrap();
+    assert!(super::list_history(&test_config(&other)).unwrap().is_empty());
+    remove_job(&config, &b.id).unwrap();
+    assert_eq!(super::list_history(&config).unwrap().len(), 1);
+}
+
+#[test]
+fn cron_history_query_is_bounded() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp);
+    config.cron.max_run_history = 300;
+    let job = add_job(&config, "0 0 * * * *", "echo ok").unwrap();
+    let now = Utc::now();
+    for i in 0..202 {
+        let at = now + ChronoDuration::seconds(i);
+        super::record_run(&config, &job.id, at, at, "ok", None, 0).unwrap();
+    }
+    let rows = super::list_history(&config).unwrap();
+    assert_eq!(rows.len(), 201);
+    assert_eq!(rows[0].run.started_at, now + ChronoDuration::seconds(201));
+    assert_eq!(rows[200].run.started_at, now + ChronoDuration::seconds(1));
+}

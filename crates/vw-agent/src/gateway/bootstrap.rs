@@ -471,6 +471,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/agent-apps/mcp/presets", "managed MCP presets"),
         client_route("GET", "/v1/agent-apps/mcp/native", "managed MCP native preview"),
         client_route("POST", "/v1/mcp/apps/call", "session-bound MCP App tool call"),
+        client_route("GET", "/v1/cron/history", "cron history"),
         client_route("GET", "/v1/cron", "cron jobs"),
         client_route("POST", "/v1/cron", "create cron job"),
         client_route("POST", "/v1/cron/preview", "preview cron schedule"),
@@ -871,6 +872,7 @@ pub(super) fn client_router(
         .route("/v1/tools", get(api::handle_api_tools))
         .route("/v1/mcp/inspect", get(api::handle_api_mcp_inspect))
         .route("/v1/mcp/apps/call", post(api::handle_api_mcp_app_call))
+        .route("/v1/cron/history", get(api::handle_api_cron_history))
         .route("/v1/cron", get(api::handle_api_cron_list))
         .route("/v1/cron", post(api::handle_api_cron_add))
         .route("/v1/cron/preview", post(api::handle_api_cron_preview))

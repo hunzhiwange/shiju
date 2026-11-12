@@ -31,9 +31,9 @@ pub use schedule::{
 pub(crate) use store::next_run_in_window;
 #[allow(unused_imports)]
 pub use store::{
-    add_agent_job, add_agent_job_with_window, add_job, add_shell_job, add_shell_job_with_window,
-    due_jobs, get_job, list_jobs, list_runs, record_last_run, record_run, remove_job,
-    reschedule_after_run, update_job,
+    CRON_HISTORY_LIMIT, add_agent_job, add_agent_job_with_window, add_job, add_shell_job,
+    add_shell_job_with_window, due_jobs, get_job, list_history, list_jobs, list_runs,
+    record_last_run, record_run, remove_job, reschedule_after_run, update_job,
 };
 pub(crate) use types::normalize_fallbacks;
 pub use types::{CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget};

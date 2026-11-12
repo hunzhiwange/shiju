@@ -424,3 +424,53 @@ async fn wb_schedule_api_capability_probe_rejects_legacy_before_updates() {
     assert!(error.contains("不支持"), "{error}");
     server.join();
 }
+
+#[tokio::test]
+async fn cron_history_client_decodes_running_and_finished() {
+    let server = test_support::server(vec![(
+        200,
+        json!({"runs":[
+        {"id":null,"execution_id":"active-1","job_id":"a","name":null,"started_at":"start","finished_at":null,"duration_ms":null,"status":"running","output":null},
+        {"id":1,"execution_id":null,"job_id":"b","name":"任务","started_at":"start","finished_at":"end","duration_ms":12,"status":"ok","output":"done"},
+        {"id":2,"execution_id":null,"job_id":"b","name":"任务","started_at":"start","finished_at":"end","duration_ms":12,"status":"error","output":null},
+        {"id":3,"execution_id":null,"job_id":"b","name":"任务","started_at":"start","finished_at":"end","duration_ms":12,"status":"unknown","output":null}
+    ],"finished_limit":200,"truncated":true}),
+    )]);
+    let history = server.client().cron_history_get().await.unwrap();
+    assert_eq!(history.runs.len(), 4);
+    assert_eq!(history.runs[0].execution_id.as_deref(), Some("active-1"));
+    assert!(history.runs[0].finished_at.is_none());
+    assert_eq!(history.runs[1].id, Some(1));
+    assert_eq!(history.runs[2].status, "error");
+    assert_eq!(history.runs[3].status, "unknown");
+    assert!(history.truncated);
+    assert_eq!(history.finished_limit, 200);
+    assert_eq!(server.take_request().path, "/v1/cron/history");
+    server.join();
+}
+
+#[tokio::test]
+async fn cron_history_client_propagates_errors() {
+    let server = test_support::server(vec![
+        (401, json!({"error":"unauthorized"})),
+        (404, json!({"error":"unsupported"})),
+        (500, json!({"error":"failed"})),
+    ]);
+    for code in ["401", "404", "500"] {
+        assert!(server.client().cron_history_get().await.unwrap_err().contains(code));
+        assert_eq!(server.take_request().path, "/v1/cron/history");
+    }
+    server.join();
+}
+
+#[tokio::test]
+async fn cron_history_client_reports_network_and_decode_errors() {
+    let server = test_support::server(vec![]);
+    let client = server.client().clone();
+    server.join();
+    assert!(client.cron_history_get().await.is_err());
+    let server = test_support::server(vec![(200, json!({"runs":[]}))]);
+    assert!(server.client().cron_history_get().await.is_err());
+    assert_eq!(server.take_request().path, "/v1/cron/history");
+    server.join();
+}

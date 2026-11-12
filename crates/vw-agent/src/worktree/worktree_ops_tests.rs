@@ -238,3 +238,63 @@ fn run(command: &mut Command) {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[tokio::test]
+async fn worktree_registry_remove_rejects_unregistered_directory_and_primary() {
+    let fixture = GitWorktreeFixture::new();
+    for path in [fixture.primary.clone(), fixture._root.path().join("external")] {
+        std::fs::create_dir_all(&path).unwrap();
+        std::fs::write(path.join("preserve"), "keep").unwrap();
+        let directory = path.to_string_lossy().to_string();
+        let result = in_project(&fixture.primary, move || {
+            Box::pin(async move { remove(RemoveInput { directory, force: true }).await })
+        })
+        .await;
+        assert!(result.is_err());
+        assert!(path.join("preserve").exists());
+    }
+}
+
+#[tokio::test]
+async fn worktree_registry_fork_creation_registers_and_legacy_remove_checks_owner() {
+    let fixture = GitWorktreeFixture::new();
+    in_project(&fixture.primary, || {
+        Box::pin(async {
+            let project = instance::project().unwrap();
+            let scope = vw_api_types::id::ProjectScope::new(
+                crate::session::ui_store::current_tenant_scope(),
+                vw_api_types::id::ProjectId::from(project.id.as_str()),
+            )
+            .unwrap();
+            let info =
+                super::create_fork_checkout(Some(&format!("registry-{}", uuid::Uuid::new_v4())))
+                    .await
+                    .unwrap();
+            let records =
+                super::registry::list(&scope, Path::new(&project.worktree)).await.unwrap();
+            assert!(
+                records
+                    .iter()
+                    .any(|r| r.directory == std::fs::canonicalize(&info.directory).unwrap())
+            );
+            let other = vw_api_types::id::TenantScope::new("foreign", "foreign").unwrap();
+            assert!(
+                super::ops::remove_for_tenant(
+                    RemoveInput { directory: info.directory.clone(), force: true },
+                    other
+                )
+                .await
+                .is_err()
+            );
+            assert!(Path::new(&info.directory).exists());
+            super::remove_fork_checkout(info.directory).await.unwrap();
+            assert!(
+                super::registry::list(&scope, Path::new(&project.worktree))
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        })
+    })
+    .await;
+}

@@ -6,7 +6,7 @@ use super::event;
 use super::naming::slug;
 #[cfg(not(target_arch = "wasm32"))]
 use super::native::{
-    candidate, canonical, ensure_git_project, find_entry, parse_worktree_list, path_exists,
+    candidate, canonical, ensure_git_project, find_entry, parse_worktree_list,
     resolve_reset_target, run_git, run_start_scripts, worktree_root,
 };
 #[cfg(not(target_arch = "wasm32"))]
@@ -35,16 +35,21 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
         return Err(Error::MissingProject("missing project id".to_string()));
     }
 
-    let info =
+    let (info, lifecycle) =
         add_worktree(&project, input.as_ref().and_then(|input| input.name.as_deref())).await?;
 
-    if let Ok(scope) = project::project_scope_for_default_tenant(project_id.as_str()) {
-        let _ = project::add_sandbox(&scope, &info.directory).await;
-    }
+    let scope = vw_api_types::id::ProjectScope::new(
+        crate::session::ui_store::current_tenant_scope(),
+        vw_api_types::id::ProjectId::from(project_id.as_str()),
+    )
+    .map_err(|e| Error::Invalid(e.to_string()))?;
+    let _ = project::add_sandbox(&scope, &info.directory).await;
+    let primary = instance::worktree();
 
     let extra = input.and_then(|value| value.start_command).unwrap_or_default();
     let ready_info = info.clone();
     tokio::spawn(async move {
+        let _lifecycle = lifecycle;
         let populated = run_git(&["reset", "--hard"], &ready_info.directory).await;
         if populated.as_ref().is_ok_and(|result| result.success) {
             let booted = instance::provide(
@@ -62,6 +67,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
             .await;
 
             if let Err(err) = booted {
+                rollback_checkout(&scope, &primary, &ready_info.directory).await;
                 let _ = bus::publish(
                     event::FAILED,
                     serde_json::json!({ "message": err.to_string() }),
@@ -78,6 +84,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
 
             let _ = run_start_scripts(&ready_info.directory, &project_id, &extra).await;
         } else {
+            rollback_checkout(&scope, &primary, &ready_info.directory).await;
             let message = populated
                 .err()
                 .map(|err| err.to_string())
@@ -94,16 +101,20 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn add_worktree(project: &project::Info, name: Option<&str>) -> Result<Info, Error> {
+async fn add_worktree(
+    project: &project::Info,
+    name: Option<&str>,
+) -> Result<(Info, std::fs::File), Error> {
+    let primary = instance::worktree();
+    if primary.trim().is_empty() {
+        return Err(Error::MissingProject("missing instance worktree".to_string()));
+    }
+    let lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
     let root = worktree_root(project)?;
     tokio::fs::create_dir_all(&root).await?;
     let base = name.map(slug).filter(|base| !base.trim().is_empty());
     let info = candidate(&root, base.as_deref()).await?;
 
-    let primary = instance::worktree();
-    if primary.trim().is_empty() {
-        return Err(Error::MissingProject("missing instance worktree".to_string()));
-    }
     let created = run_git(
         &["worktree", "add", "--no-checkout", "-b", &info.branch, &info.directory],
         &primary,
@@ -112,14 +123,30 @@ async fn add_worktree(project: &project::Info, name: Option<&str>) -> Result<Inf
     if !created.success {
         return Err(Error::Invalid(created.error_text("Failed to create git worktree")));
     }
-    Ok(info)
+    let scope = vw_api_types::id::ProjectScope::new(
+        crate::session::ui_store::current_tenant_scope(),
+        vw_api_types::id::ProjectId::from(project.id.as_str()),
+    )
+    .map_err(|e| Error::Invalid(e.to_string()))?;
+    if let Err(error) = super::registry::register_locked(
+        &scope,
+        std::path::Path::new(&primary),
+        std::path::Path::new(&info.directory),
+    )
+    .await
+    {
+        let _ = run_git(&["worktree", "remove", "--force", &info.directory], &primary).await;
+        let _ = run_git(&["branch", "-D", &info.branch], &primary).await;
+        return Err(error);
+    }
+    Ok((info, lifecycle))
 }
 
 /// Prepare a checked-out worktree before a fork can be published.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
     let project = ensure_git_project()?;
-    let info = add_worktree(&project, name).await?;
+    let (info, lifecycle) = add_worktree(&project, name).await?;
     let populated = run_git(&["reset", "--hard"], &info.directory).await.and_then(|result| {
         if result.success {
             Ok(())
@@ -128,11 +155,15 @@ pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Err
         }
     });
     if let Err(error) = populated {
-        if let Err(cleanup) = remove_fork_checkout(info.directory).await {
-            tracing::warn!(%cleanup, "failed to clean up a fork checkout");
-        }
+        let scope = vw_api_types::id::ProjectScope::new(
+            crate::session::ui_store::current_tenant_scope(),
+            vw_api_types::id::ProjectId::from(project.id.as_str()),
+        )
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+        rollback_checkout(&scope, &instance::worktree(), &info.directory).await;
         return Err(error);
     }
+    drop(lifecycle);
     Ok(info)
 }
 
@@ -154,20 +185,38 @@ pub async fn remove(_input: RemoveInput) -> Result<bool, Error> {
 /// 删除 worktree（原生平台实现）
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn remove(input: RemoveInput) -> Result<bool, Error> {
-    remove_for_tenant(input, project::default_tenant_scope()).await
+    remove_for_tenant(input, crate::session::ui_store::current_tenant_scope()).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn remove_for_tenant(
+pub(super) async fn remove_for_tenant(
     input: RemoveInput,
     tenant: vw_api_types::id::TenantScope,
 ) -> Result<bool, Error> {
     use vw_api_types::id::{ProjectId, ProjectScope};
     let project = ensure_git_project()?;
-    let project_id = project.id.clone();
     let primary = instance::worktree();
+    let scope = ProjectScope::new(tenant, ProjectId::from(project.id.as_str()))
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+    let _lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
+    remove_locked(input, &scope, std::path::Path::new(&primary)).await
+}
 
-    let directory = canonical(&input.directory).await;
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) async fn remove_locked(
+    input: RemoveInput,
+    scope: &vw_api_types::id::ProjectScope,
+    primary: &std::path::Path,
+) -> Result<bool, Error> {
+    let (directory, _, git_dir, _) =
+        super::registry::checkout(primary, std::path::Path::new(&input.directory))?;
+    let managed = super::registry::ownership(&git_dir)?;
+    if let Some(record) = &managed {
+        super::registry::authorize(scope, primary, &record.id).await?;
+    } else if super::registry::record_for_path(scope, &directory).await?.is_some() {
+        return Err(Error::Invalid("Managed checkout credential missing".into()));
+    }
+    let primary = primary.to_string_lossy().into_owned();
     let list = run_git(&["worktree", "list", "--porcelain"], &primary).await?;
     if !list.success {
         return Err(Error::Invalid(list.error_text("Failed to read git worktrees")));
@@ -175,12 +224,7 @@ async fn remove_for_tenant(
     let entries = parse_worktree_list(&list.stdout);
 
     let entry = find_entry(&entries, &directory).await;
-    let Some(entry) = entry else {
-        if path_exists(&directory).await {
-            let _ = tokio::fs::remove_dir_all(&directory).await;
-        }
-        return Ok(true);
-    };
+    let entry = entry.ok_or_else(|| Error::Invalid("Worktree not found".into()))?;
 
     let mut args: Vec<&str> = vec!["worktree", "remove"];
     if input.force {
@@ -192,6 +236,9 @@ async fn remove_for_tenant(
         return Err(Error::Invalid(removed.error_text("Failed to remove git worktree")));
     }
 
+    if let Some(record) = managed {
+        super::registry::mark_deleted(scope, &record.id).await?;
+    }
     if let Some(branch) =
         entry.branch.as_deref().and_then(|value| value.strip_prefix("refs/heads/"))
     {
@@ -201,9 +248,7 @@ async fn remove_for_tenant(
         }
     }
 
-    if let Ok(scope) = ProjectScope::new(tenant, ProjectId::from(project_id.as_str())) {
-        let _ = project::remove_sandbox(&scope, &entry.path).await;
-    }
+    let _ = project::remove_sandbox(scope, &entry.path).await;
     Ok(true)
 }
 
@@ -338,4 +383,17 @@ pub async fn reset(input: ResetInput) -> Result<bool, Error> {
     });
 
     Ok(true)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn rollback_checkout(scope: &vw_api_types::id::ProjectScope, primary: &str, directory: &str) {
+    if let Err(error) = remove_locked(
+        RemoveInput { directory: directory.into(), force: true },
+        scope,
+        std::path::Path::new(primary),
+    )
+    .await
+    {
+        tracing::warn!(%error, "failed to roll back a managed checkout");
+    }
 }

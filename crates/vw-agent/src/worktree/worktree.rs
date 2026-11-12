@@ -36,3 +36,10 @@ mod worktree_ops_tests;
 #[cfg(test)]
 #[path = "worktree_types_tests.rs"]
 mod worktree_types_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "registry.rs"]
+pub mod registry;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "registry_tests.rs"]
+mod registry_tests;

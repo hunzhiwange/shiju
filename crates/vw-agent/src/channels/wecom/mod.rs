@@ -45,6 +45,20 @@ impl WeComChannel {
         Self { endpoint, ..Self::new(bot_id, secret) }
     }
 
+    /// Send Markdown to an explicitly specified userid or chatid on the authenticated connection.
+    pub async fn send_proactive(&self, recipient: &str, content: &str) -> anyhow::Result<()> {
+        if recipient.trim().is_empty() || content.trim().is_empty() {
+            return Err(delivery_error(DeliveryFailureKind::NotSent));
+        }
+        let sender = self
+            .outbound
+            .read()
+            .await
+            .clone()
+            .ok_or_else(|| delivery_error(DeliveryFailureKind::NotSent))?;
+        outbound::send_proactive(&sender, recipient, content).await
+    }
+
     fn subscribe_frame(&self) -> Value {
         json!({
             "cmd": "aibot_subscribe",

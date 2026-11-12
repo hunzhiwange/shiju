@@ -7,7 +7,7 @@ use tokio_tungstenite::{WebSocketStream, accept_async};
 
 type Socket = WebSocketStream<TcpStream>;
 
-async fn fixture_with_callbacks()
+async fn fixture_without_callbacks()
 -> (WeComChannel, Socket, JoinHandle<anyhow::Result<()>>, mpsc::Receiver<ChannelMessage>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let channel = WeComChannel::new_for_test(
@@ -16,12 +16,26 @@ async fn fixture_with_callbacks()
         format!("ws://{}", listener.local_addr().unwrap()),
     );
     let cloned = channel.clone();
-    let (tx, mut rx) = mpsc::channel(8);
+    let (tx, rx) = mpsc::channel(8);
     let listen = tokio::spawn(async move { cloned.listen(tx).await });
     let (stream, _) = timeout(Duration::from_secs(2), listener.accept()).await.unwrap().unwrap();
     let mut socket = accept_async(stream).await.unwrap();
     let subscribe = next_frame(&mut socket).await;
     ack(&mut socket, subscribe["headers"]["req_id"].as_str().unwrap(), json!(0)).await;
+    assert_eq!(subscribe["cmd"], "aibot_subscribe");
+    timeout(Duration::from_secs(2), async {
+        while channel.outbound.read().await.is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    (channel, socket, listen, rx)
+}
+
+async fn fixture_with_callbacks()
+-> (WeComChannel, Socket, JoinHandle<anyhow::Result<()>>, mpsc::Receiver<ChannelMessage>) {
+    let (channel, mut socket, listen, mut rx) = fixture_without_callbacks().await;
     for (recipient, request_id) in [("chat-a", "callback-a"), ("chat-b", "callback-b")] {
         socket
             .send(Message::Text(
@@ -591,6 +605,229 @@ async fn markdown_delivery_wecom_partial_disconnect_reconnect_has_no_old_chunks(
     ack(&mut socket, "callback-new", json!(0)).await;
     timeout(Duration::from_secs(2), task).await.unwrap().unwrap().unwrap();
     assert!(timeout(Duration::from_millis(40), socket.next()).await.is_err());
+    listen.abort();
+    let _ = listen.await;
+}
+
+fn proactive(
+    channel: &WeComChannel,
+    recipient: &str,
+    content: &str,
+) -> JoinHandle<anyhow::Result<()>> {
+    let channel = channel.clone();
+    let recipient = recipient.to_string();
+    let content = content.to_string();
+    tokio::spawn(async move { channel.send_proactive(&recipient, &content).await })
+}
+
+#[tokio::test]
+async fn wecom_proactive_without_callback_waits_for_matching_ack() {
+    let (channel, mut socket, listen, _rx) = fixture_without_callbacks().await;
+    let mut ids = std::collections::HashSet::new();
+    for recipient in ["userid-a", "chatid-b"] {
+        let mut task = proactive(&channel, recipient, "**结果**");
+        let frame = next_frame(&mut socket).await;
+        assert_eq!(frame["cmd"], "aibot_send_msg");
+        assert_eq!(
+            frame["body"],
+            json!({"chatid": recipient, "msgtype": "markdown", "markdown": {"content": "**结果**"}})
+        );
+        let id = frame["headers"]["req_id"].as_str().unwrap();
+        assert!(ids.insert(id.to_string()));
+        ack(&mut socket, "wrong-request", json!(0)).await;
+        pending(&mut task).await;
+        ack(&mut socket, id, json!(0)).await;
+        timeout(Duration::from_secs(2), task).await.unwrap().unwrap().unwrap();
+    }
+    listen.abort();
+    let _ = listen.await;
+}
+
+#[tokio::test]
+async fn wecom_proactive_rejection_disconnect_timeout_and_cancel_do_not_replay() {
+    for outcome in ["reject", "malformed", "disconnect", "timeout", "cancel"] {
+        let (channel, mut socket, listen, _rx) = fixture_without_callbacks().await;
+        let task = proactive(&channel, "userid-a", "fixture response");
+        let frame = next_frame(&mut socket).await;
+        let id = frame["headers"]["req_id"].as_str().unwrap();
+        match outcome {
+            "reject" => {
+                ack(&mut socket, id, json!(45009)).await;
+                result(task, DeliveryFailureKind::Rejected).await;
+            }
+            "malformed" => {
+                ack(&mut socket, id, Value::Null).await;
+                result(task, DeliveryFailureKind::Unknown).await;
+            }
+            "disconnect" => {
+                socket.close(None).await.unwrap();
+                result(task, DeliveryFailureKind::Unknown).await;
+                result(
+                    proactive(&channel, "userid-a", "fixture response"),
+                    DeliveryFailureKind::NotSent,
+                )
+                .await;
+                let _ = listen.await;
+                continue;
+            }
+            "timeout" => {
+                tokio::time::pause();
+                tokio::time::advance(Duration::from_secs(6)).await;
+                result(task, DeliveryFailureKind::Unknown).await;
+                tokio::time::resume();
+                ack(&mut socket, id, json!(0)).await;
+            }
+            "cancel" => {
+                task.abort();
+                let _ = task.await;
+                ack(&mut socket, id, json!(0)).await;
+            }
+            _ => unreachable!(),
+        }
+        assert!(timeout(Duration::from_millis(60), socket.next()).await.is_err());
+        let next = proactive(&channel, "userid-a", "next");
+        let frame = next_frame(&mut socket).await;
+        let next_id = frame["headers"]["req_id"].as_str().unwrap();
+        assert_ne!(id, next_id);
+        ack(&mut socket, next_id, json!(0)).await;
+        timeout(Duration::from_secs(2), next).await.unwrap().unwrap().unwrap();
+        listen.abort();
+        let _ = listen.await;
+    }
+}
+
+#[tokio::test]
+async fn wecom_proactive_chunks_preserve_content_and_partial_failure_evidence() {
+    for fail in [false, true] {
+        let (channel, mut socket, listen, _rx) = fixture_without_callbacks().await;
+        let content = three_chunks();
+        let task = proactive(&channel, "chatid-a", &content);
+        let mut reconstructed = String::new();
+        let mut ids = std::collections::HashSet::new();
+        for index in 0..3 {
+            let frame = next_frame(&mut socket).await;
+            assert_eq!(frame["cmd"], "aibot_send_msg");
+            let id = frame["headers"]["req_id"].as_str().unwrap();
+            assert!(ids.insert(id.to_string()));
+            let part = frame["body"]["markdown"]["content"].as_str().unwrap();
+            assert!(part.len() <= 3000);
+            assert!(serde_json::to_vec(&frame).unwrap().len() <= 16 * 1024);
+            reconstructed.push_str(part);
+            assert!(timeout(Duration::from_millis(40), socket.next()).await.is_err());
+            ack(&mut socket, id, if fail && index == 1 { json!(45009) } else { json!(0) }).await;
+            if fail && index == 1 {
+                break;
+            }
+        }
+        let result = timeout(Duration::from_secs(2), task).await.unwrap().unwrap();
+        if fail {
+            let error = result.unwrap_err();
+            let delivery = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+            assert_eq!(delivery.kind, DeliveryFailureKind::Rejected);
+            assert_eq!(
+                (delivery.confirmed_parts, delivery.total_parts, delivery.failed_part_index),
+                (1, 3, 1)
+            );
+            assert!(timeout(Duration::from_millis(40), socket.next()).await.is_err());
+        } else {
+            result.unwrap();
+            assert_eq!(reconstructed, content);
+        }
+        listen.abort();
+        let _ = listen.await;
+    }
+}
+
+#[tokio::test]
+async fn wecom_proactive_and_passive_acknowledgements_are_isolated() {
+    let (channel, mut socket, listen) = fixture().await;
+    let mut passive = send(&channel, "chat-a");
+    assert_eq!(next_frame(&mut socket).await["cmd"], "aibot_respond_msg");
+    for _ in 0..2 {
+        let mut active = proactive(&channel, "chat-a", "result");
+        let frame = next_frame(&mut socket).await;
+        let id = frame["headers"]["req_id"].as_str().unwrap();
+        assert_ne!(id, "callback-a");
+        ack(&mut socket, "wrong-request", json!(0)).await;
+        pending(&mut active).await;
+        ack(&mut socket, id, json!(0)).await;
+        timeout(Duration::from_secs(2), active).await.unwrap().unwrap().unwrap();
+        pending(&mut passive).await;
+    }
+    ack(&mut socket, "callback-a", json!(0)).await;
+    timeout(Duration::from_secs(2), passive).await.unwrap().unwrap().unwrap();
+    listen.abort();
+    let _ = listen.await;
+}
+
+#[tokio::test]
+async fn wecom_proactive_preflight_rejects_empty_target_content_and_oversized_frames() {
+    let channel = WeComChannel::new("bot".into(), "secret".into());
+    result(proactive(&channel, "userid", "fixture response"), DeliveryFailureKind::NotSent).await;
+    let (channel, mut socket, listen, _rx) = fixture_without_callbacks().await;
+    for (recipient, content) in [
+        (" ".to_string(), "result".to_string()),
+        ("userid".to_string(), " ".to_string()),
+        ("x".repeat(20_000), "result".into()),
+        ("userid".into(), format!("prefix\n\n| 名称 |\n| --- |\n| {} |", "界".repeat(1100))),
+    ] {
+        result(proactive(&channel, &recipient, &content), DeliveryFailureKind::NotSent).await;
+        assert!(timeout(Duration::from_millis(40), socket.next()).await.is_err());
+    }
+    // Passive replies remain explicit: no callback means no implicit proactive fallback.
+    result(send(&channel, "userid"), DeliveryFailureKind::NotSent).await;
+    listen.abort();
+    let _ = listen.await;
+    result(proactive(&channel, "userid", "fixture response"), DeliveryFailureKind::NotSent).await;
+}
+
+#[tokio::test]
+async fn wecom_proactive_requires_subscription_and_drops_ambiguous_send_on_reconnect() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let channel = WeComChannel::new_for_test(
+        "bot".into(),
+        "secret".into(),
+        format!("ws://{}", listener.local_addr().unwrap()),
+    );
+    let cloned = channel.clone();
+    let (tx, _rx) = mpsc::channel(8);
+    let listen = tokio::spawn(async move { cloned.listen(tx).await });
+    let (stream, _) = timeout(Duration::from_secs(2), listener.accept()).await.unwrap().unwrap();
+    let mut socket = accept_async(stream).await.unwrap();
+    let subscribe = next_frame(&mut socket).await;
+    result(proactive(&channel, "userid", "fixture response"), DeliveryFailureKind::NotSent).await;
+    ack(&mut socket, subscribe["headers"]["req_id"].as_str().unwrap(), json!(0)).await;
+    timeout(Duration::from_secs(2), async {
+        while channel.outbound.read().await.is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let task = proactive(&channel, "userid", &three_chunks());
+    let old = next_frame(&mut socket).await;
+    listen.abort();
+    let _ = listen.await;
+    let error = timeout(Duration::from_secs(2), task).await.unwrap().unwrap().unwrap_err();
+    let error = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+    assert_eq!(error.kind, DeliveryFailureKind::Unknown);
+    assert_eq!((error.confirmed_parts, error.total_parts), (0, 3));
+    drop(socket);
+    let cloned = channel.clone();
+    let (tx, _rx) = mpsc::channel(8);
+    let listen = tokio::spawn(async move { cloned.listen(tx).await });
+    let (stream, _) = timeout(Duration::from_secs(2), listener.accept()).await.unwrap().unwrap();
+    let mut socket = accept_async(stream).await.unwrap();
+    let subscribe = next_frame(&mut socket).await;
+    ack(&mut socket, subscribe["headers"]["req_id"].as_str().unwrap(), json!(0)).await;
+    assert!(timeout(Duration::from_millis(60), socket.next()).await.is_err());
+    let mut task = proactive(&channel, "userid", "fresh");
+    let new = next_frame(&mut socket).await;
+    assert_ne!(old["headers"]["req_id"], new["headers"]["req_id"]);
+    ack(&mut socket, old["headers"]["req_id"].as_str().unwrap(), json!(0)).await;
+    pending(&mut task).await;
+    ack(&mut socket, new["headers"]["req_id"].as_str().unwrap(), json!(0)).await;
+    timeout(Duration::from_secs(2), task).await.unwrap().unwrap().unwrap();
     listen.abort();
     let _ = listen.await;
 }

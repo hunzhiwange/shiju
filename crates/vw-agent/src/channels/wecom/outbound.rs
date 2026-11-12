@@ -1,4 +1,4 @@
-//! Connection-local reply acknowledgements. No queued frame survives a reconnect.
+//! Connection-local outbound acknowledgements. No queued frame survives a reconnect.
 
 use super::*;
 use crate::app::agent::channels::markdown_chunk::split_markdown;
@@ -28,10 +28,43 @@ pub(super) async fn send_reply(
     let normalized = format_wecom_markdown_tables(content);
     let chunks = split_markdown(&normalized, BODY_BYTES)
         .map_err(|_| delivery_error(DeliveryFailureKind::NotSent))?;
-    let frames: Vec<_> =
-        chunks.iter().map(|part| WeComChannel::reply_frame(request_id, part)).collect();
+    let frames = chunks
+        .iter()
+        .map(|part| (request_id.to_string(), WeComChannel::reply_frame(request_id, part)))
+        .collect();
+    send_frames(sender, frames).await
+}
+
+pub(super) async fn send_proactive(
+    sender: &mpsc::Sender<OutboundItem>,
+    recipient: &str,
+    content: &str,
+) -> anyhow::Result<()> {
+    let normalized = format_wecom_markdown_tables(content);
+    let chunks = split_markdown(&normalized, BODY_BYTES)
+        .map_err(|_| delivery_error(DeliveryFailureKind::NotSent))?;
+    let frames = chunks
+        .iter()
+        .map(|part| {
+            // Each part has its own ACK identity, independent of inbound callbacks.
+            let request_id = format!("aibot_send_msg_{}", Uuid::new_v4());
+            let frame = json!({
+                "cmd": "aibot_send_msg",
+                "headers": {"req_id": request_id},
+                "body": {"chatid": recipient, "msgtype": "markdown", "markdown": {"content": part}},
+            });
+            (request_id, frame)
+        })
+        .collect();
+    send_frames(sender, frames).await
+}
+
+async fn send_frames(
+    sender: &mpsc::Sender<OutboundItem>,
+    frames: Vec<(String, Value)>,
+) -> anyhow::Result<()> {
     let total_parts = frames.len();
-    for (index, frame) in frames.iter().enumerate() {
+    for (index, (_, frame)) in frames.iter().enumerate() {
         if serde_json::to_vec(frame).map_or(true, |bytes| bytes.len() > FRAME_BYTES) {
             return Err(ChannelDeliveryError {
                 confirmed_parts: 0,
@@ -42,8 +75,8 @@ pub(super) async fn send_reply(
             .into());
         }
     }
-    for (index, frame) in frames.into_iter().enumerate() {
-        let (item, completion) = OutboundItem::new(request_id.to_string(), frame);
+    for (index, (request_id, frame)) in frames.into_iter().enumerate() {
+        let (item, completion) = OutboundItem::new(request_id, frame);
         let result = match sender.send(item).await {
             Ok(()) => completion.await.unwrap_or(Err(DeliveryFailureKind::Unknown)),
             Err(_) => Err(DeliveryFailureKind::NotSent),

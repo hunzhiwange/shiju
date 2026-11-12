@@ -163,3 +163,40 @@ fn voice_task_11_local_screen_share_rejects_before_permission_or_capture() {
     assert!(app.voice.local_conversation.is_some());
     assert!(app.voice.conversation.is_none());
 }
+
+#[test]
+fn voice_task_19_full_app_routes_local_turn_and_discards_completion_after_end() {
+    let mut app = app();
+    let state = app.voice.local_conversation.as_mut().unwrap();
+    state.stage = Stage::Recognizing;
+    let (call, round) = (state.call, state.round);
+    let _ = app.update(Message::Voice(VoiceEvent::Local(Event::Recognized(
+        call,
+        round,
+        Ok("使用当前普通聊天模型".into()),
+    ))));
+    let request = app.current_session_runtime_ref().unwrap().active_agent_request.clone().unwrap();
+    assert_eq!(request.query, "使用当前普通聊天模型");
+    assert!(app.voice.conversation.is_none());
+    app.current_session_runtime_mut().draft = None;
+    let _ = app.update(Message::Chat(ChatMessage::AgentStreamDelta(
+        request.id,
+        "<think>不朗读</think>本机回答。\n```rust\nnot_spoken();\n```".into(),
+    )));
+    assert_eq!(app.voice.local_conversation.as_ref().unwrap().captions.len(), 1);
+    let _ = app.update(Message::Chat(ChatMessage::AgentStreamDone(
+        request.id,
+        Default::default(),
+        None,
+        None,
+    )));
+    let state = app.voice.local_conversation.as_ref().unwrap();
+    assert_eq!(state.stage, Stage::Speaking);
+    assert_eq!(state.captions.last().unwrap().1, "本机回答。");
+    let native = state.native.clone();
+    let _ = app.update(Message::Voice(VoiceEvent::ChatEnd));
+    assert!(native.is_cancelled());
+    let _ = app.update(Message::Voice(VoiceEvent::Local(Event::Spoken(call, round, Ok(())))));
+    assert!(app.voice.local_conversation.is_none());
+    assert!(app.voice.conversation.is_none());
+}

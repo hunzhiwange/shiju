@@ -90,3 +90,37 @@ async fn voice_task_19_gateway_http_ws_roundtrip_releases_connection() {
     assert_eq!(captions[0].1, "中文动态字幕 🌱");
     assert_eq!(captions[1].1, "English caption");
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn voice_task_19_full_app_cancel_releases_local_preview_and_preserves_draft() {
+    use crate::app::Message;
+    let (mut app, _) = App::new();
+    app.active_session_id = Some("acceptance-local".into());
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("保留本机草稿");
+    let (started, ready) = mpsc::channel();
+    let (stopped, done) = mpsc::channel();
+    app.voice.settings.preview = Some(
+        Preview::start_local_worker(None, move |_, cancel| {
+            started.send(()).unwrap();
+            while !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            stopped.send(()).unwrap();
+            Ok(())
+        })
+        .unwrap(),
+    );
+    ready.recv_timeout(Duration::from_secs(2)).unwrap();
+    let _ = app.update(Message::Voice(voice::Event::ChatStart));
+    assert!(app.voice.local_conversation.is_none(), "preview must exclude local chat");
+    assert!(app.voice.conversation.is_none(), "preview must exclude cloud chat");
+    let _ = app.update(Message::Voice(voice::Event::Start));
+    assert_eq!(app.voice.draft.phase, Phase::Idle, "preview must exclude dictation");
+    let _ = app.update(Message::Voice(voice::Event::Cancel));
+    done.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(app.voice.settings.preview.is_none());
+    assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), "保留本机草稿");
+    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+}

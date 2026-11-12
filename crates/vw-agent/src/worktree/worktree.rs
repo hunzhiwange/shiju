@@ -59,3 +59,10 @@ pub mod environment;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "environment_tests.rs"]
 mod environment_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "recovery.rs"]
+pub mod recovery;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "recovery_tests.rs"]
+mod recovery_tests;

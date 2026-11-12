@@ -311,3 +311,27 @@ pnpm exec vite --config acpdemo/kilocode/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/kimi/vite.config.mjs
 ```
+
+# Kiro 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 16，批次 15 Kimi 已结束归档。按最新授权，以完整编辑器文件及运行说明实际落盘为终点；未执行浏览器、编辑器构建或创建后的额外回归，不将这些检查记为通过。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-kiro / kiro`、`session_model`、`full_access=true`；未更换模型、账号或引擎。
+- 原 42617 未监听，使用现有开发配置启动独立网关 `127.0.0.1:49344`。最初复用的旧槽位 1 CLI 安装 HTTP 408、curl 0、30.073425 秒；换用前批含安装超时修复的 CLI 副本后，系统安装 HTTP 200、curl 0、28.699284 秒，状态 false → true。解析入口 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/kiro-3.0.0-model-source-v1/kiro-cli acp`，版本命令退出码 0、`kiro-cli 3.0.0`。独立诊断 HTTP 200、curl 0、0.260415 秒，结果 authentication_required；模型来源 session_model supported，已审查 Darwin arm64 / 3.0.0。普通诊断不代表托管模型连接结果。
+- 实际旧构建会话 HTTP 200、chat.error，内部 HTTP 422，无文件。根因为 Kiro 的 GetFeatureConfiguration 有 5000ms 时限，而中继先解析 provider/model，超时后原生引擎采用默认 GenerateAssistantResponse 旧协议。相同会话的最小文本及工具 Responses 探针均 HTTP 200，排除了指定模型本身不可用。修复仅让有效会话令牌校验后的固定版本静态协议标志直接返回；模型目录、推理的模型状态及原有授权检查保持不变。
+- 使用共享槽位 8 构建当前源码 CLI，`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0、6 分 55 秒。CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8`。45 个中继协议源码及运行时清单哈希在构建期间未变化；实际运行独立 CLI 副本，SHA-256 `ddaeacf1128d6da1e03fe914f0227fc278a2db9bc5956b027e2254c550647255`。本轮未修改 Kiro 引擎、受管补丁或安装器。
+- 新构建安装接口 HTTP 200、curl 0、0.273043 秒，状态 true → true。真实原生日志记录 ExperimentConfigService Resolved、keyCount=1，随后 q.converse.dispatch 使用 CreateResponse；旧协议回退及 HTTP 422 不再出现。
+- 会话 `ses_1d0b802c7001w1GlLIErX0sQb2` 的 ui/summary 与 acp-options 执行期间及请求后均 HTTP 200、curl 0。绑定 acp-kiro / kiro，full_access=true，执行期间 connected=true，选定模型与来源均与请求一致。访问能力报告 partial，不将请求标志解释为所有原生权限均已验证。
+- 真实创建请求 HTTP 200、curl 28、180.002985 秒，客户端达到原 180 秒期限；未收到 chat.done、chat.error 或最终结束事件，不能宣称流式请求正常结束。事件为 chat.context_loaded ×1、chat.step_start ×1、chat.delta ×9、chat.tool ×133。超时前原生工具已实际创建完整文件；依照本轮“实际创建即停止”终点验收，不重试或追加回归。
+- 目标目录原先不存在；实际新增 `acpdemo/kiro/` 下 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。源码导入本仓库 `@rue-js/rue`，包含输入、computed 实时字数/字符/行数、localStorage 防抖保存与初始化恢复逻辑；README 提供运行说明。仅核对文件与源码，不宣称页面行为已验证。
+- 请求前与网关停止后比较 Rue 仓库普通文件 SHA-256（排除 .git、node_modules、target），仅上述 8 个新增文件，目标目录外无内容变化。预设基线 enabled=false；本次启用 HTTP 200、curl 0、9.168435 秒，恢复 HTTP 200、curl 0、8.689470 秒，结束复查 false。临时网关已停止，槽位 8 已释放、缓存保留。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出码 101，仅报告共享工作区 `crates/vw-desktop/src/app/state/settings/cron_frequency.rs:14` 的 `CronFrequency::ALL` dead_code；未修改无关模块，不计完整 Clippy 通过。新增聚焦回归覆盖静态标志无需模型目录、无令牌/撤销令牌拒绝及缺失模型目录拒绝；`cargo test -p vw-agent --lib kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model` 在大型 lib test 编译阶段终止以优先当前构建与真实验收，未执行用例、未取得通过结果。创建后未补跑回归。
+- 原始请求、SSE、配置、探针与文件快照仅存于本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-kiro-7k_kt464/`，未提交凭据、环境值或敏感载荷。
+
+在 Rue.js 仓库根目录启动：
+
+```sh
+pnpm exec vite --config acpdemo/kiro/vite.config.mjs
+```
+
+后续建议：常用网关使用包含本次修复的构建；处理无关 Clippy 错误后补跑该检查与未完成的聚焦回归。

@@ -9,6 +9,101 @@ use std::{
 };
 use tokio_util::sync::CancellationToken;
 
+#[tokio::test]
+async fn kiro_protocol_flag_is_local_but_catalog_still_requires_selected_model() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let _env = EnvGuard(std::env::var_os("VIBEWINDOW_CONFIG_DIR"));
+    unsafe { std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config")) };
+    let tenant = vw_api_types::id::TenantScope::new("kiro", "local-flag").unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
+    let context = crate::project::instance::Context {
+        directory: root.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project: project.clone(),
+    };
+    let binding = RelayBinding::new(
+        RelayIdentity {
+            tenant,
+            project: project.id,
+            session: "flag:kiro".into(),
+            provider: "missing-provider".into(),
+            model: "missing-model".into(),
+            generation: 1,
+        },
+        Duration::from_secs(60),
+    )
+    .unwrap();
+    let backend = Arc::new(ExternalProvider {
+        calls: AtomicUsize::new(0),
+        mode: AtomicUsize::new(0),
+        cancellation: parking_lot::Mutex::new(None),
+    });
+    let server = RelayServer::start(binding.clone(), backend.clone(), context).await.unwrap();
+    let client = reqwest::Client::builder().no_proxy().build().unwrap();
+    let url = format!("http://{}/", server.address());
+    let target = "KiroRuntimeService.GetFeatureConfiguration";
+    assert_eq!(
+        client
+            .post(&url)
+            .header("x-amz-target", target)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    let response = tokio::time::timeout(
+        Duration::from_secs(1),
+        client
+            .post(&url)
+            .bearer_auth(binding.bearer_token())
+            .header("x-amz-target", target)
+            .json(&serde_json::json!({}))
+            .send(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let value: serde_json::Value = response.json().await.unwrap();
+    use sha2::Digest;
+    let key = hex::encode(sha2::Sha256::digest(
+        b"kiro-feature-config-key-salt-3e9b1d7acreate_response_api",
+    ));
+    assert_eq!(value["configuration"][key], "create_response");
+    assert_eq!(
+        client
+            .post(&url)
+            .bearer_auth(binding.bearer_token())
+            .header("x-amz-target", "KiroControlPlaneBearerService.ListAvailableModels")
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(backend.calls.load(Ordering::SeqCst), 0);
+    binding.revoke();
+    assert_eq!(
+        client
+            .post(&url)
+            .bearer_auth(binding.bearer_token())
+            .header("x-amz-target", target)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::UNAUTHORIZED
+    );
+    server.shutdown().await.unwrap();
+}
+
 struct ExternalProvider {
     calls: AtomicUsize,
     mode: AtomicUsize,

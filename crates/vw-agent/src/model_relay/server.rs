@@ -269,6 +269,13 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
             serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
         };
         if kiro_control {
+            // This fixed-version wire-format flag carries no model data or grant.
+            // Kiro falls back to its unsupported legacy protocol if resolving the
+            // provider catalog delays this local response beyond five seconds.
+            if kiro_target == "KiroRuntimeService.GetFeatureConfiguration" {
+                return super::kiro::control(&kiro_target, &json, "")
+                    .map(|value| axum::Json(value).into_response());
+            }
             return crate::session::ui_store::with_tenant_scope(
                 state.binding.identity.tenant.clone(),
                 crate::project::instance::provide_context(state.context.clone(), async {

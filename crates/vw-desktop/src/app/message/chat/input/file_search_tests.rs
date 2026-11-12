@@ -127,10 +127,10 @@ fn file_match_score_rewards_exact_filename_and_rejects_non_subsequences() {
 
 #[test]
 fn file_search_character_policy_accepts_path_syntax_and_rejects_unsafe_punctuation() {
-    for allowed in ['a', 'Z', '7', '/', '\\', '.', '_', '-', ':', '#'] {
+    for allowed in ['a', 'Z', '7', '中', '文', '/', '\\', '.', '_', '-', ':', '#'] {
         assert!(is_file_search_char(allowed), "expected {allowed:?} to be accepted");
     }
-    for rejected in [' ', '@', '!', '?', ';', '\n', '中'] {
+    for rejected in [' ', '@', '!', '?', ';', '\n'] {
         assert!(!is_file_search_char(rejected), "expected {rejected:?} to be rejected");
     }
 }
@@ -481,4 +481,39 @@ fn format_drop_mentions_normalizes_unrooted_paths_and_ignores_directory_position
 #[test]
 fn format_drop_mentions_returns_empty_for_empty_drop() {
     assert!(format_drop_mentions(Some("/workspace"), &[], Some((1, 2))).is_empty());
+}
+
+#[test]
+fn chinese_file_query_replaces_active_mention() {
+    assert_eq!(active_file_search_query("查看 @原始视"), Some("原始视"));
+    assert_eq!(
+        replace_or_append_file_mention("查看 @原始视", "@原始视频.mov"),
+        "查看 @原始视频.mov "
+    );
+}
+
+#[test]
+fn selecting_and_removing_spaced_chinese_file_preserves_other_mentions() {
+    let mut app = test_app();
+    let path = "已粘贴 2026-11-03 下午3.06.58.textClipping";
+    set_input_text(&mut app, "@已");
+    let _ = handle_file_search_select(&mut app, path.to_string());
+    let input = app.current_session_runtime().input_editor.text();
+    assert_eq!(
+        input,
+        format!("{} ", crate::app::components::input_mention_highlighter::file_mention(path))
+    );
+    let _ = handle_remove_file_reference(&mut app, path.to_string());
+    assert!(app.current_session_runtime().input_editor.text().is_empty());
+}
+
+#[test]
+fn removing_chinese_file_keeps_other_quoted_path_whitespace() {
+    let mut app = test_app();
+    set_input_text(&mut app, r#"@原始视频.mov @"目录/两个  空格.txt" @原始视频.mov.bak"#);
+    handle_remove_file_reference(&mut app, "原始视频.mov".to_string());
+    assert_eq!(
+        app.current_session_runtime().input_editor.text(),
+        r#"@"目录/两个  空格.txt" @原始视频.mov.bak"#
+    );
 }

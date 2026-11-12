@@ -168,10 +168,15 @@ fn extract_file_mentions_ignores_bare_at_and_stops_on_spaces() {
 }
 
 #[test]
-fn extract_file_mentions_preserves_order_duplicates_and_ascii_boundaries() {
+fn extract_file_mentions_preserves_order_duplicates_and_unicode_paths() {
     assert_eq!(
         extract_file_mentions("@same.rs,@same.rs; @@last.rs? @目录/file.rs"),
-        vec!["same.rs".to_string(), "same.rs".to_string(), "last.rs".to_string(),]
+        vec![
+            "same.rs".to_string(),
+            "same.rs".to_string(),
+            "last.rs".to_string(),
+            "目录/file.rs".to_string(),
+        ]
     );
     assert!(extract_file_mentions("plain text without mentions").is_empty());
 }
@@ -268,4 +273,29 @@ fn file_reference_cards_accept_empty_paths_and_out_of_range_hover_indices() {
         Some(mentions.len()),
     );
     assert_size(&rendered, Length::Fill, Length::Shrink);
+}
+
+#[test]
+fn extract_file_mentions_keeps_all_five_files_with_chinese_and_spaces() {
+    let paths = [
+        "ocr_oct_bank.txt",
+        "ocr_result.txt",
+        "原始视频.mov",
+        "原始视频_副本.mov",
+        "已粘贴 2026-11-03 下午3.06.58.textClipping",
+    ];
+    let input = paths
+        .iter()
+        .map(|path| crate::app::components::input_mention_highlighter::file_mention(path))
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert_eq!(extract_file_mentions(&input), paths);
+}
+
+#[test]
+fn extract_file_mentions_decodes_quoted_special_characters() {
+    let path = "目录/文件 \"副本\".txt";
+    let mention = crate::app::components::input_mention_highlighter::file_mention(path);
+    assert_eq!(extract_file_mentions(&mention), vec![path]);
+    assert!(extract_file_mentions(r#"@"" @"未闭合"#).is_empty());
 }

@@ -405,12 +405,14 @@ pub(super) fn file_reference_card<'a>(
 /// 从文本中提取所有文件引用
 ///
 /// 扫描文本中所有 `@` 开头的文件引用，支持路径中包含：
-/// - 字母数字
+/// - Unicode 字母数字（包括中文）
 /// - 路径分隔符 (`/`, `\`)
 /// - 文件扩展名点 (`.`)
 /// - 下划线和连字符 (`_`, `-`)
 /// - 冒号（用于行列位置）(`:`)
 /// - 井号（用于锚点）(`#`)
+///
+/// 带空格或特殊字符的路径使用 `@"文件 路径"`。
 ///
 /// # 参数
 ///
@@ -428,41 +430,17 @@ pub(super) fn file_reference_card<'a>(
 /// assert_eq!(mentions, vec!["src/main.rs:10", "lib/utils.rs:5-15"]);
 /// ```
 pub fn extract_file_mentions(text: &str) -> Vec<String> {
-    let mut files = Vec::new();
-    let bytes = text.as_bytes();
-    let mut i = 0usize;
-
-    // 逐字节扫描文本
-    while i < bytes.len() {
-        // 发现 @ 符号，开始提取引用
-        if bytes[i] == b'@' {
-            let start = i;
-            i += 1;
-            // 继续读取直到遇到无效字符
-            while i < bytes.len() {
-                let b = bytes[i];
-                // 检查字符是否有效
-                let is_valid = b.is_ascii_alphanumeric()
-                    || matches!(b, b'/' | b'\\' | b'.' | b'_' | b'-' | b':' | b'#');
-                if !is_valid {
-                    break;
-                }
-                i += 1;
+    crate::app::components::input_mention_highlighter::mention_ranges(text)
+        .into_iter()
+        .filter_map(|range| {
+            let mention = &text[range.start + 1..range.end];
+            if mention.starts_with('"') {
+                serde_json::from_str::<String>(mention).ok()
+            } else {
+                Some(mention.to_string())
             }
-
-            // 确保至少有一个字符（不含 @）
-            if i > start + 1 {
-                let mention = &text[start + 1..i];
-                if !mention.is_empty() {
-                    files.push(mention.to_string());
-                }
-            }
-            continue;
-        }
-        i += 1;
-    }
-
-    files
+        })
+        .collect()
 }
 
 /// 渲染文件引用卡片列表

@@ -4,6 +4,9 @@
 use super::shared::{
     close_input_context_menu, focus_input_editor, sync_global_input_editor_if_needed,
 };
+use crate::app::components::input_mention_highlighter::{
+    file_mention, is_mention_char, mention_ranges,
+};
 use crate::app::{App, FocusArea, Message};
 use iced::{Task, widget::operation, widget::text_editor};
 use std::collections::BTreeSet;
@@ -147,13 +150,25 @@ pub(super) fn handle_file_search_select(app: &mut App, path: String) -> Task<Mes
 pub(super) fn handle_remove_file_reference(app: &mut App, file_path: String) -> Task<Message> {
     let runtime = app.current_session_runtime();
     let text = runtime.input_editor.text().to_string();
-    let mention_pattern = format!("@{}", file_path);
+    let mention_pattern = file_mention(&file_path);
 
-    let new_text = text.replace(&mention_pattern, "");
-    let new_text = new_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut new_text = text.clone();
+    for mut range in mention_ranges(&text).into_iter().rev() {
+        if text[range.clone()] != mention_pattern {
+            continue;
+        }
+        // 删除引用后的分隔空白，保留其它文件名内部的空格。
+        range.end += text[range.end..]
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .map(char::len_utf8)
+            .sum::<usize>();
+        new_text.replace_range(range, "");
+    }
+    let new_text = new_text.trim();
 
     let runtime = app.current_session_runtime_mut();
-    runtime.input_editor = text_editor::Content::with_text(&new_text);
+    runtime.input_editor = text_editor::Content::with_text(new_text);
     runtime.input_editor.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
 
     sync_global_input_editor_if_needed(app);
@@ -250,7 +265,7 @@ fn select_file_search_path(app: &mut App, path: &str) -> Task<Message> {
     } else {
         path.replace('\\', "/")
     };
-    let replacement = format!("@{}", rel_or_full_path);
+    let replacement = file_mention(&rel_or_full_path);
 
     let runtime = app.current_session_runtime();
     let text = replace_or_append_file_mention(&runtime.input_editor.text(), &replacement);
@@ -340,7 +355,7 @@ fn format_drop_mention_path(
 }
 
 fn join_drop_mentions(mentions: &[String]) -> String {
-    mentions.iter().map(|mention| format!("@{} ", mention)).collect()
+    mentions.iter().map(|mention| format!("{} ", file_mention(mention))).collect()
 }
 
 fn clear_drag_drop_state(app: &mut App) {
@@ -441,7 +456,7 @@ pub(super) fn file_match_score(path: &str, query: &str) -> Option<i64> {
 }
 
 pub(super) fn is_file_search_char(c: char) -> bool {
-    c.is_ascii_alphanumeric() || matches!(c, '/' | '\\' | '.' | '_' | '-' | ':' | '#')
+    is_mention_char(c)
 }
 
 pub(super) fn trailing_token(text: &str) -> &str {

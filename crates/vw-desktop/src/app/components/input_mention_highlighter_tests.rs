@@ -1,5 +1,5 @@
 //! 验证输入提及高亮器的字符边界、行跟踪与颜色格式选择。
-//! 相邻提及、裸 `@` 和非 ASCII 分隔符用于约束扫描器的停止位置。
+//! 相邻提及、裸 `@` 和 Unicode 字符用于约束扫描器的停止位置。
 
 use iced::advanced::text::highlighter::Highlighter;
 
@@ -42,14 +42,14 @@ fn highlighter_ignores_bare_at_and_stops_on_invalid_characters() {
 }
 
 #[test]
-fn highlighter_handles_adjacent_mentions_and_non_ascii_boundaries() {
+fn highlighter_handles_adjacent_mentions_and_unicode_paths() {
     let mut highlighter = MentionHighlighter::new(&Settings);
     let ranges: Vec<_> = highlighter.highlight_line("@one@two @ascii中 @").collect();
 
     assert_eq!(ranges.len(), 3);
     assert_eq!(ranges[0].0, 0..4);
     assert_eq!(ranges[1].0, 4..8);
-    assert_eq!(ranges[2].0, 9..15);
+    assert_eq!(ranges[2].0, 9..18);
     assert!(ranges.iter().all(|(_, highlight)| highlight.is_mention));
     assert_eq!(highlighter.current_line(), 1);
 }
@@ -58,7 +58,7 @@ fn highlighter_handles_adjacent_mentions_and_non_ascii_boundaries() {
 fn highlighter_returns_empty_ranges_without_complete_mentions() {
     let mut highlighter = MentionHighlighter::new(&Settings);
 
-    for line in ["", "plain text", "@", "end @", "emoji @中"] {
+    for line in ["", "plain text", "@", "end @", "emoji 中"] {
         let ranges: Vec<_> = highlighter.highlight_line(line).collect();
         assert!(ranges.is_empty(), "{line:?}");
     }
@@ -106,5 +106,22 @@ fn mention_formats_choose_visible_hidden_or_default_colors() {
     assert_eq!(
         mention_display_format(false)(&mention, &theme).color,
         Some(iced::Color::TRANSPARENT)
+    );
+}
+
+#[test]
+fn highlighter_preserves_utf8_ranges_for_chinese_and_quoted_paths() {
+    let line =
+        r#"看 @原始视频.mov @"已粘贴 2026-11-03 下午3.06.58.textClipping" @目录/副本.mov:10"#;
+    let mut highlighter = MentionHighlighter::new(&Settings);
+    let mentions =
+        highlighter.highlight_line(line).map(|(range, _)| &line[range]).collect::<Vec<_>>();
+    assert_eq!(
+        mentions,
+        vec![
+            "@原始视频.mov",
+            r#"@"已粘贴 2026-11-03 下午3.06.58.textClipping""#,
+            "@目录/副本.mov:10"
+        ]
     );
 }

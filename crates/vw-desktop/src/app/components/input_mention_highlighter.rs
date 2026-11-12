@@ -61,7 +61,7 @@ pub struct Highlight {
 /// # 支持的提及字符
 ///
 /// 提及可以包含以下字符：
-/// - 字母和数字（a-z, A-Z, 0-9）
+/// - Unicode 字母和数字（包括中文）
 /// - 路径分隔符：`/` 和 `\`
 /// - 点号：`.`
 /// - 下划线：`_`
@@ -79,21 +79,60 @@ pub struct MentionHighlighter {
     current_line: usize,
 }
 
-/// 判断字节是否为有效的提及字符
-///
-/// 有效的提及字符包括：
-/// - ASCII 字母和数字
-/// - 特殊字符：`/` `\` `.` `_` `-` `:` `#`
-///
-/// # 参数
-///
-/// - `b`: 要检查的字节值
-///
-/// # 返回值
-///
-/// 如果是有效的提及字符返回 `true`，否则返回 `false`
-fn is_mention_char(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || matches!(b, b'/' | b'\\' | b'.' | b'_' | b'-' | b':' | b'#')
+/// Unicode 字母数字与路径、位置后缀字符。
+pub(crate) fn is_mention_char(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c, '/' | '\\' | '.' | '_' | '-' | ':' | '#')
+}
+
+/// 返回提及的 UTF-8 字节范围；带空格或特殊字符的路径使用 JSON 字符串引号。
+pub(crate) fn mention_ranges(text: &str) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut chars = text.char_indices().peekable();
+    while let Some((start, c)) = chars.next() {
+        if c != '@' {
+            continue;
+        }
+        let mut end = start + 1;
+        if chars.peek().is_some_and(|(_, c)| *c == '"') {
+            chars.next();
+            let mut escaped = false;
+            for (index, c) in chars.by_ref() {
+                if c == '\n' || c == '\r' {
+                    break;
+                }
+                if c == '"' && !escaped {
+                    let candidate = &text[start + 1..index + 1];
+                    if serde_json::from_str::<String>(candidate).is_ok_and(|path| !path.is_empty())
+                    {
+                        end = index + 1;
+                    }
+                    break;
+                }
+                escaped = c == '\\' && !escaped;
+            }
+        } else {
+            while let Some(&(index, c)) = chars.peek() {
+                if !is_mention_char(c) {
+                    break;
+                }
+                end = index + c.len_utf8();
+                chars.next();
+            }
+        }
+        if end > start + 1 {
+            ranges.push(start..end);
+        }
+    }
+    ranges
+}
+
+/// 将文件路径编码为可完整提取和删除的提及。
+pub(crate) fn file_mention(path: &str) -> String {
+    if path.chars().all(is_mention_char) {
+        format!("@{path}")
+    } else {
+        format!("@{}", serde_json::to_string(path).expect("file path is serializable"))
+    }
 }
 
 impl iced::advanced::text::highlighter::Highlighter for MentionHighlighter {
@@ -145,7 +184,7 @@ impl iced::advanced::text::highlighter::Highlighter for MentionHighlighter {
     ///
     /// # 算法说明
     ///
-    /// 1. 逐字节扫描文本
+    /// 1. 按 Unicode 字符扫描文本
     /// 2. 遇到 `@` 符号时，开始收集后续的有效提及字符
     /// 3. 收集到至少一个有效字符后，标记为提及并记录范围
     /// 4. 继续扫描直到行尾
@@ -163,35 +202,10 @@ impl iced::advanced::text::highlighter::Highlighter for MentionHighlighter {
     /// 输入: `"Hello @user, meet @admin"`
     /// 输出: `[(6..11, Highlight { is_mention: true }), (18..24, Highlight { is_mention: true })]`
     fn highlight_line(&mut self, line: &str) -> Self::Iterator<'_> {
-        let mut ranges = Vec::new();
-        let bytes = line.as_bytes();
-        let mut i = 0usize;
-
-        // 逐字节扫描文本
-        while i < bytes.len() {
-            // 检测到 @ 符号，可能是提及的开始
-            if bytes[i] == b'@' {
-                let start = i;
-                i += 1;
-
-                // 收集后续的有效提及字符
-                while i < bytes.len() {
-                    let b = bytes[i];
-                    if !is_mention_char(b) {
-                        break;
-                    }
-                    i += 1;
-                }
-
-                // 如果 @ 后面至少有一个有效字符，则识别为提及
-                if i > start + 1 {
-                    ranges.push((start..i, Highlight { is_mention: true }));
-                    continue;
-                }
-            }
-
-            i += 1;
-        }
+        let ranges = mention_ranges(line)
+            .into_iter()
+            .map(|range| (range, Highlight { is_mention: true }))
+            .collect::<Vec<_>>();
 
         // 更新行号（使用 saturating_add 防止溢出）
         self.current_line = self.current_line.saturating_add(1);

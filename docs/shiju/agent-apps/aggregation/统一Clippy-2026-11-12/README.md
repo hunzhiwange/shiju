@@ -2,7 +2,15 @@
 
 **第四轮统一检查已真实通过，适用于记录的本计划最终生产代码及任务41修复。** 实际命令退出0、185.84秒、起止源码摘要相同，首次严格复用脚本也退出0。这是不可变成功事实；之后新增的两处MCP51测试代码不反证该轮通过。
 
-当前整树字节严格校验返回1，只表示成功快照之后有两处测试变化；本计划生产范围核验返回0。原任务应按实际依赖与验收结论独立判断，不把任意后续文件变化自动升级为本计划全部任务未通过。
+后续变更已超出最初两处MCP51测试：最近严格整树及限定范围脚本均返回1；第四轮不覆盖新增的服务端生产代码和测试。原任务应按实际依赖与验收结论独立判断，不把任意后续文件变化自动升级为本计划全部任务未通过。
+
+## 最新适用范围更正
+
+第四轮完整Clippy退出0及首次严格核验0均为真实历史事实，封存文件不变。最初仅两处MCP51测试变化时，限定脚本确实退出0；此后服务端授权、重同步、超时等源码继续变化，限定脚本保守返回1，不声称新代码已经检查。
+
+最新有时点的差异清单见[latest-source-applicability.json](latest-source-applicability.json)。该次观察中，任务15所在`vw-agent-apps`及保守工作区依赖闭包的源码均与第四轮相同；[task15-dependency-closure.json](task15-dependency-closure.json)记录真实退出0的只读Cargo metadata命令、依赖边和槽位2租约清理。任务15保留10项行为通过及第四轮完整检查证据，可按该范围完成。其他原任务独立评估自己的输入；不据后续任意变化自动判16项全部失败，也不自动判全部通过。
+
+依赖核对是带时点的证据，不是对未来工作区状态的保证。`task15-dependency-applicability.json`为较早一次观察；`plan-scope-applicability.json`和`plan-scope-check.log`保存最初限定0，均不代表后续整树状态。检查脚本不扩大白名单。后续若相关依赖变化，由原任务重新判断适用性。
 
 ## 完整结果与复用
 
@@ -24,14 +32,14 @@ python3 docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_source.
 不可变成功结果：`round4-result.json`；完整日志：`round4-clippy.log`；源码快照和工作区补丁：`source-index.json`及其引用的gzip档案；任务41交付：`task41-handoff.json`、`acceptance.json`。
 
 ```bash
-# 限定本计划生产源码/依赖及41交付适用性；当前实际退出0
+# 保守限定核验；首次两处测试差异时退出0，后续更多源码变化时退出1
 python3 /Users/xiangmin/worker/code/shiju/docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_plan_scope.py
 
-# 严格整棵源码树相同；当前因后续MCP51测试添加而退出1
+# 严格整棵源码树相同；后续源码变化时退出1
 python3 /Users/xiangmin/worker/code/shiju/docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_source.py
 ```
 
-具体差异与限制见`plan-scope-applicability.json`、`post-round4-source-change.json`。只有`agent_apps/mcp/mod.rs`末尾新增3行`cfg(all(test,target_os="macos"))`测试模块注册及其`security_tests.rs`文件不同；移除该精确注册块后，mod.rs的SHA-256与成功快照逐字节相同。其他生产源码、Cargo清单/锁文件与Task41散列都相同。该模块生产构建不加载；新增MCP51测试本身的编译、Clippy及行为结果未被第四轮覆盖，由其原所有者独立验收。限定脚本不等于宣告最新整仓字节完全相同，也不替各原任务删卡。
+首次核对的历史差异与限制见`plan-scope-applicability.json`、`post-round4-source-change.json`。当时只有`agent_apps/mcp/mod.rs`末尾新增3行`cfg(all(test,target_os="macos"))`测试模块注册及其`security_tests.rs`文件不同；移除该精确注册块后，mod.rs的SHA-256与成功快照逐字节相同。其他生产源码、Cargo清单/锁文件与Task41散列都相同。该模块生产构建不加载；新增MCP51测试本身的编译、Clippy及行为结果未被第四轮覆盖，由其原所有者独立验收。限定脚本不等于宣告最新整仓字节完全相同，也不替各原任务删卡。
 
 任务15所在`vw-agent-apps`的源码、普通/测试依赖未变，Cargo清单也不依赖`vw-agent`，新增测试不影响其10项行为与本次全仓证据的适用性；任务15正式状态为已完成。
 
@@ -78,7 +86,7 @@ CARGO_PROFILE_TEST_LTO=off
 | 第一轮统一 | 2 | 101；MCP详情页5处column!歧义，阶段另有源码变化。round1-clippy.log、round1-result.json。 |
 | 第二轮统一 | 2 | 原所有者修复导入后再跑，101；同页SessionId/ToolId未实现Display，阶段另有源码变化。round2-clippy.log、round2-result.json。 |
 | 第三轮统一 | 3 | 原所有者修复类型格式化后再跑，101；端点诊断endpoint_state.rs的10处E0433，toml只在dev-dependencies，生产lib无法引用。round3-clippy.log、round3-result.json。 |
-| 第四轮统一 | 5 | 原46将解析改为toml_edit并补正式依赖后，对实质变化的源码真实检查；**0、起止源码不变、当前复用校验0**。clippy.log、result.json。 |
+| 第四轮统一 | 5 | 原46将解析改为toml_edit并补正式依赖后，对实质变化的源码真实检查；**0、起止源码不变、首次复用校验0**。clippy.log、result.json。 |
 
 各历史完整日志均保留原文，失败没有改写为通过。不修改其他错误所有者代码，不在同一失败输入上连续检查；阶段源码变化清单为round1/2/3-source-changes.json。
 
@@ -88,4 +96,4 @@ CARGO_PROFILE_TEST_LTO=off
 
 ## 通过后的新增变更
 
-第四轮退出0及首次复用校验0完成后，MCP原所有者又修改agent_apps/mcp/mod.rs与security_tests.rs。后续当前源码校验实际退出1，见post-round4-source-change.json。历史成功记录完整封存round4-result.json、round4-clippy.log、round4-driver.log，不改写为失败；但不冒称它覆盖后来的新测试注册/实现。该最初保守待核对状态已由上方精确差异审查解除：仅无关后续测试变化，生产范围核验0，任务15自己的10项输入未变，不机械重复其行为测试。
+第四轮退出0及首次复用校验0完成后，MCP原所有者又修改agent_apps/mcp/mod.rs与security_tests.rs。后续当前源码校验实际退出1，见post-round4-source-change.json。历史成功记录完整封存round4-result.json、round4-clippy.log、round4-driver.log，不改写为失败；但不冒称它覆盖后来的新测试注册/实现。最初仅两处测试差异时限定脚本曾退出0；之后生产代码变化使其退出1。完整当前覆盖关系以文首最新核对为准。

@@ -1,0 +1,113 @@
+{
+  "command": [
+    "cargo",
+    "metadata",
+    "--no-deps",
+    "--format-version",
+    "1"
+  ],
+  "exit_code": 0,
+  "slot": 2,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+  "method": "Root crate includes normal/build/dev workspace dependencies; transitive crates include normal/build only; conservatively include optional and all target-specific edges. No compile or test is run.",
+  "root_package": "vw-agent-apps",
+  "workspace_dependency_closure": [
+    "vw-acp",
+    "vw-agent-apps",
+    "vw-api-types",
+    "vw-config-types",
+    "vw-gateway-client",
+    "vw-provider-resolver",
+    "vw-shared"
+  ],
+  "edges": [
+    {
+      "from": "vw-agent-apps",
+      "to": "vw-acp",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-agent-apps",
+      "to": "vw-api-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-agent-apps",
+      "to": "vw-provider-resolver",
+      "kind": null,
+      "target": "cfg(not(target_arch = \"wasm32\"))",
+      "optional": false
+    },
+    {
+      "from": "vw-provider-resolver",
+      "to": "vw-config-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-provider-resolver",
+      "to": "vw-shared",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-provider-resolver",
+      "to": "vw-gateway-client",
+      "kind": null,
+      "target": "cfg(target_arch = \"wasm32\")",
+      "optional": false
+    },
+    {
+      "from": "vw-gateway-client",
+      "to": "vw-api-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-gateway-client",
+      "to": "vw-shared",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-shared",
+      "to": "vw-config-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-acp",
+      "to": "vw-api-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-acp",
+      "to": "vw-config-types",
+      "kind": null,
+      "target": null,
+      "optional": false
+    },
+    {
+      "from": "vw-acp",
+      "to": "vw-shared",
+      "kind": null,
+      "target": null,
+      "optional": false
+    }
+  ],
+  "vw_agent_in_task15_build_or_runtime_closure": false,
+  "own_consumers_ended": true,
+  "lease_released": true
+}

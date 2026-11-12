@@ -1,0 +1,33 @@
+{
+  "historical_command_exit": 0,
+  "historical_source_snapshot": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+  "current_changed_paths": [
+    "crates/vw-agent/src/agent_apps/mcp/host_scope_tests.rs",
+    "crates/vw-agent/src/agent_apps/mcp/mod.rs",
+    "crates/vw-agent/src/agent_apps/mcp/security_tests.rs",
+    "crates/vw-agent/src/app_routing/timeouts.rs",
+    "crates/vw-agent/src/app_routing/timeouts_deadline_tests.rs",
+    "crates/vw-agent/src/gateway/agent_apps_failover_timeouts_tests.rs",
+    "crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs",
+    "crates/vw-agent/src/gateway/api/handlers/agent_apps_diagnostics_acceptance_tests.rs",
+    "crates/vw-agent/src/gateway/api/handlers/mcp_management_resync.rs",
+    "crates/vw-agent/src/gateway/api/handlers/mod.rs"
+  ],
+  "all_changes_in_vw_agent_crate": true,
+  "task15_dependency_closure": [
+    "vw-acp",
+    "vw-agent-apps",
+    "vw-api-types",
+    "vw-config-types",
+    "vw-gateway-client",
+    "vw-provider-resolver",
+    "vw-shared"
+  ],
+  "task15_root_or_dependency_sources_changed": false,
+  "task15_current_applicability_exit": 0,
+  "plan_wide_helper_latest_exit": 1,
+  "all_other_tasks_automatically_passed": false,
+  "note": "Only task15 applicability is concluded from its conservative dependency closure. Other original tasks must evaluate changed server authorization/resync/test sources. Historical full Clippy0 remains immutable.",
+  "observation_kind": "Earlier bounded observation, not a live current-tree assertion",
+  "latest_observation": "latest-source-applicability.json"
+}

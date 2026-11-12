@@ -1,0 +1,21 @@
+{
+  "observed_utc": "2026-11-12T01:03:35.550554+00:00",
+  "historical_clippy_exit": 0,
+  "historical_snapshot": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+  "changed_paths": [
+    "crates/vw-agent/src/agent_apps/mcp/host_scope_tests.rs",
+    "crates/vw-agent/src/agent_apps/mcp/mod.rs",
+    "crates/vw-agent/src/agent_apps/mcp/security_tests.rs",
+    "crates/vw-agent/src/app_routing/timeouts.rs",
+    "crates/vw-agent/src/app_routing/timeouts_deadline_tests.rs",
+    "crates/vw-agent/src/gateway/agent_apps_failover_timeouts_tests.rs",
+    "crates/vw-agent/src/gateway/api/handlers/agent_apps/access.rs",
+    "crates/vw-agent/src/gateway/api/handlers/agent_apps_diagnostics_acceptance_tests.rs",
+    "crates/vw-agent/src/gateway/api/handlers/mcp_management_resync.rs",
+    "crates/vw-agent/src/gateway/api/handlers/mod.rs",
+    "crates/vw-desktop/tests/voice_live_bootstrap_tests.py"
+  ],
+  "task15_conservative_dependency_paths_changed": [],
+  "current_tree_covered_by_round4": false,
+  "note": "Historical pass remains valid for recorded inputs. Scope helpers return 1 for later changes; each original task evaluates its own dependencies. Dependency diff review is documented in README."
+}

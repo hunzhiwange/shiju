@@ -52,12 +52,15 @@
   "task41_delivery_manifest_verified": true,
   "verification_command": "python3 docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_source.py",
   "latest_verification_exit_code": 1,
-  "status": "passed_recorded_plan_snapshot; only subsequent MCP51 test registration/code differ; current plan-production scope verified",
-  "current_plan_production_scope_verified": true,
+  "status": "passed_recorded_snapshot; subsequent source changes require per-task applicability review",
+  "current_plan_production_scope_verified": false,
   "current_task15_source_and_dependencies_verified": true,
   "initial_whole_source_verification_exit_code": 0,
   "strict_current_source_verification_exit_code": 1,
-  "plan_scope_verification_exit_code": 0,
+  "plan_scope_verification_exit_code": 1,
   "plan_scope_command": "python3 /Users/xiangmin/worker/code/shiju/docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_plan_scope.py",
-  "historical_immutable_success": "round4-result.json"
+  "historical_immutable_success": "round4-result.json",
+  "applicability_observed_utc": "2026-11-12T01:03:35.550554+00:00",
+  "latest_applicability": "latest-source-applicability.json",
+  "initial_plan_scope_verification_exit_code": 0
 }

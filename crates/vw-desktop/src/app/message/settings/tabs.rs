@@ -62,7 +62,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     );
                 }
             }
-            if tab == SystemTab::ArchivedChats {
+            if tab == SystemTab::Worktrees {
+                super::worktrees::update(app, super::worktrees::WorktreeSettingsMessage::Refresh)
+            } else if tab == SystemTab::ArchivedChats {
                 super::archived_chats::update(
                     app,
                     super::archived_chats::ArchivedChatsMessage::Refresh,

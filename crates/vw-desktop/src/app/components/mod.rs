@@ -198,6 +198,7 @@ pub mod system_settings_search;
 #[cfg(test)]
 #[path = "system_settings_search_tests.rs"]
 mod system_settings_search_tests;
+pub(crate) mod system_settings_worktrees;
 
 /// 系统设置：多代理配置
 ///
@@ -471,3 +472,6 @@ pub(crate) mod aggregation_desktop;
 
 #[path = "agent_apps/aggregation_subagent.rs"]
 pub(crate) mod aggregation_subagent;
+
+#[cfg(test)]
+mod system_settings_worktrees_tests;

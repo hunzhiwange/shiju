@@ -783,6 +783,7 @@ impl App {
             system_settings_tab: components::system_settings::SystemTab::General,
             general_settings_tab: super::state::GeneralSettingsTab::default(),
             archived_chats: super::state::ArchivedChatsState::default(),
+            worktree_settings: super::settings_builders::build_worktree_settings(),
             system_settings_query: String::new(),
             system_settings_help_tab: None,
             top_bar_gateway_tab: super::state::TopBarGatewayTab::default(),

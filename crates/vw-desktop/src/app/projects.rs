@@ -695,12 +695,21 @@ impl App {
             }));
         let settings_refresh_task = project_settings_refresh_task(path);
         let preferences_task = self.reload_project_chat_preferences(project_changed);
+        let worktree_settings_task = if project_changed {
+            crate::app::message::settings::worktrees::update(
+                self,
+                crate::app::message::settings::worktrees::WorktreeSettingsMessage::ContextChanged,
+            )
+        } else {
+            Task::none()
+        };
         Task::batch(vec![
             reap_task,
             reload_task,
             deferred_task,
             preferences_task,
             settings_refresh_task,
+            worktree_settings_task,
         ])
     }
 

@@ -63,3 +63,8 @@ pub(super) fn build_channels_settings(
 #[cfg(test)]
 #[path = "settings_builders_tests.rs"]
 mod settings_builders_tests;
+
+/// Policy is loaded from the selected gateway, never from client-local config.
+pub(super) fn build_worktree_settings() -> super::state::WorktreeSettingsState {
+    Default::default()
+}

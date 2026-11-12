@@ -79,6 +79,8 @@ pub enum SystemTab {
     Projects,
     /// 当前网关所有项目的原生归档会话。
     ArchivedChats,
+    /// Gateway-owned worktree settings.
+    Worktrees,
     /// 提供商设置标签页
     Providers,
     /// 模型设置标签页
@@ -130,6 +132,7 @@ impl SystemTab {
             SystemTab::Editor => "编辑器",
             SystemTab::Projects => "项目管理",
             SystemTab::ArchivedChats => "已归档的聊天",
+            SystemTab::Worktrees => "工作树",
             SystemTab::Providers => "提供商",
             SystemTab::Models => "模型",
             SystemTab::Cron => "定时任务",
@@ -198,6 +201,7 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         }
         SystemTab::Editor => &["editor", "code", "编辑", "主题与显示", "字体大小", "行高"],
         SystemTab::Projects => &["projects", "workspace", "工作区", "Worktree", "历史项目"],
+        SystemTab::Worktrees => &["worktree", "工作树", "清理", "环境"],
         SystemTab::ArchivedChats => &["archived", "chats", "归档", "聊天", "历史项目"],
         SystemTab::Providers => {
             &["providers", "api key", "model", "模型", "密钥", "base url", "catalog"]
@@ -387,6 +391,7 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         | SystemTab::General
         | SystemTab::Projects
         | SystemTab::ArchivedChats
+        | SystemTab::Worktrees
         | SystemTab::Themes => None,
     }
 }
@@ -429,6 +434,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::Editor => crate::app::components::system_settings_editor::view(app),
         SystemTab::Projects => crate::app::components::system_settings_projects::view(app),
         SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
+        SystemTab::Worktrees => super::system_settings_worktrees::view(app),
         SystemTab::Providers => {
             crate::app::components::system_settings_providers::connected::view(app)
         }
@@ -584,6 +590,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         modal_content.into()
     };
+
+    if active_tab == SystemTab::Worktrees {
+        dialog = super::system_settings_worktrees::view_overlays(app, dialog);
+    }
 
     if editing_theme {
         dialog = super::system_settings_themes::editor_overlay(app, dialog);

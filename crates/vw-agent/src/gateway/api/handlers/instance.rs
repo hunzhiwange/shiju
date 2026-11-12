@@ -38,6 +38,7 @@ where
 #[derive(Debug, Serialize)]
 struct PathInfo {
     home: String,
+    task_worktrees_root: String,
     state: String,
     config: String,
     worktree: String,
@@ -54,6 +55,13 @@ async fn path_get(
             let paths = global::paths();
             Ok(PathInfo {
                 home: paths.home.to_string_lossy().to_string(),
+                task_worktrees_root: vw_config_types::paths::task_worktrees_dir(
+                    directories::UserDirs::new()
+                        .map(|dirs| dirs.home_dir().to_path_buf())
+                        .unwrap_or_else(|| std::path::PathBuf::from(instance::worktree())),
+                )
+                .to_string_lossy()
+                .to_string(),
                 state: paths.state.to_string_lossy().to_string(),
                 config: paths.config.to_string_lossy().to_string(),
                 worktree: instance::worktree(),

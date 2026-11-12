@@ -148,6 +148,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         #[cfg(not(target_arch = "wasm32"))]
         SettingsMessage::Voice(event) => voice::update(app, event),
         SettingsMessage::ArchivedChats(message) => archived_chats::update(app, message),
+        SettingsMessage::Worktrees(message) => worktrees::update(app, message),
         SettingsMessage::AppsCatalog(message) => apps_catalog::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsMessage::AgentAppsAuth(event) => {
@@ -582,3 +583,5 @@ mod mcp_management_probe_tests;
 mod mcp_management_tools_tests;
 
 pub(crate) mod mcp_management_tools;
+
+pub(crate) mod worktrees;

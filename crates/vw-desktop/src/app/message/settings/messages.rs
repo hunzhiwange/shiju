@@ -752,6 +752,7 @@ pub enum SettingsMessage {
     #[cfg(not(target_arch = "wasm32"))]
     Voice(super::voice::Event),
     ArchivedChats(super::archived_chats::ArchivedChatsMessage),
+    Worktrees(super::worktrees::WorktreeSettingsMessage),
     AppsCatalog(super::AppsCatalogMessage),
     #[cfg(not(target_arch = "wasm32"))]
     AgentAppsAuth(crate::app::message::agent_apps_auth::Event),

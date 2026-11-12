@@ -259,7 +259,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         let archived = super::archived_chats::gateway_changed(app);
         app.last_llm_full_access = None;
         app.reset_draft_full_access();
-        Task::batch([archived, app.reload_project_chat_preferences(true)])
+        let worktrees = super::worktrees::gateway_changed(app);
+        Task::batch([archived, worktrees, app.reload_project_chat_preferences(true)])
     } else {
         Task::none()
     };

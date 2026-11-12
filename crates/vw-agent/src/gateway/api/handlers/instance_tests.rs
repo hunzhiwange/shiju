@@ -37,6 +37,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
 fn response_structs_serialize_stable_api_shapes() {
     let path = serde_json::to_value(PathInfo {
         home: "/home/test".to_string(),
+        task_worktrees_root: "/home/test/managed".to_string(),
         state: "/state/test".to_string(),
         config: "/config/test".to_string(),
         worktree: "/worktree/test".to_string(),
@@ -47,6 +48,7 @@ fn response_structs_serialize_stable_api_shapes() {
         path,
         serde_json::json!({
             "home": "/home/test",
+            "task_worktrees_root": "/home/test/managed",
             "state": "/state/test",
             "config": "/config/test",
             "worktree": "/worktree/test",
@@ -177,6 +179,11 @@ async fn path_get_reports_global_and_instance_paths() {
         .expect("path_get should succeed");
 
     assert!(!info.home.is_empty());
+    let home = directories::UserDirs::new().unwrap();
+    assert_eq!(
+        info.task_worktrees_root,
+        vw_config_types::paths::task_worktrees_dir(home.home_dir()).to_string_lossy()
+    );
     assert!(!info.state.is_empty());
     assert!(!info.config.is_empty());
     assert_eq!(info.directory, temp.path().to_string_lossy());

@@ -5602,5 +5602,22 @@
   "静态部署需使用 HTTPS（本机回环地址除外），正确设置 JS/WASM 类型，并另行配置网关地址、认证及跨域来源。": "Static hosting requires HTTPS (except on loopback), correct JS/WASM MIME types, and separate gateway URL, authentication and allowed-origin configuration.",
   "打开 Web 目录": "Open Web folder",
   "正在打开 Web 目录…": "Opening Web folder\u2026",
-  "正在从所选来源下载并安装 Web 版本…": "Downloading and installing the Web version from the selected source\u2026"
+  "正在从所选来源下载并安装 Web 版本…": "Downloading and installing the Web version from the selected source\u2026",
+  "工作树设置": "Worktree settings",
+  "工作树根目录": "Worktree root directory",
+  "创建前获取更新": "Fetch before creating",
+  "自动清理": "Automatic cleanup",
+  "保留数量": "Number to keep",
+  "删除前询问": "Ask before deleting",
+  "环境设置按项目管理。": "Environment settings are managed per project.",
+  "留空使用网关默认目录；更改仅影响以后新建的工作树。": "Leave empty to use the gateway default directory. Changes apply to new worktrees.",
+  "自动清理会提出建议，等待确认后才会删除。": "Automatic cleanup suggests worktrees to remove and waits for confirmation.",
+  "保留数量必须为大于零的整数。": "The number to keep must be a positive integer.",
+  "根目录必须为空或绝对路径。": "The root directory must be empty or an absolute path.",
+  "工作树设置请求失败，未提交的编辑已保留。": "The worktree settings request failed. Unsaved edits have been preserved.",
+  "工作树设置已保存。": "Worktree settings saved.",
+  "环境": "Environment",
+  "正在加载…": "Loading…",
+  "网关未返回工作树设置。": "The gateway did not return worktree settings.",
+  "网关未返回工作树默认目录。": "The gateway did not return the default worktree directory."
 }

@@ -45,3 +45,6 @@ pub(crate) use runtime::*;
 #[cfg(test)]
 #[path = "settings_tests.rs"]
 mod settings_tests;
+
+mod worktrees;
+pub(crate) use worktrees::*;

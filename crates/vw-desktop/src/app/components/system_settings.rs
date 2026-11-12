@@ -488,7 +488,11 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content_column = content_column.push(content);
     let owns_scroll = matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats)
         || (active_tab == SystemTab::Cron
-            && app.cron_settings.active_tab == crate::app::state::CronSettingsTab::Jobs);
+            && matches!(
+                app.cron_settings.active_tab,
+                crate::app::state::CronSettingsTab::Jobs
+                    | crate::app::state::CronSettingsTab::History
+            ));
     #[cfg(not(target_arch = "wasm32"))]
     let owns_scroll = owns_scroll || active_tab == SystemTab::Auth;
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);

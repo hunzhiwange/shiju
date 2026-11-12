@@ -893,3 +893,20 @@ fn wb_schedule_modal_expired_card_ignores_retained_next_run() {
     job.ends_at = Some("2026-01-03T00:00:00Z".into());
     assert!(!list::job_has_ended(&job, now));
 }
+
+#[test]
+fn cron_history_view_covers_loading_error_and_empty() {
+    let mut app = test_app();
+    assert_eq!(history::empty_label(&app.cron_settings.history), Some("此范围内暂无运行记录"));
+    app.cron_settings.history.loading = true;
+    assert_eq!(history::empty_label(&app.cron_settings.history), Some("正在加载运行记录…"));
+    let _ = history::view(&app);
+    app.cron_settings.history.loading = false;
+    app.cron_settings.history.error = Some("连接失败".into());
+    assert_eq!(history::empty_label(&app.cron_settings.history), None);
+    let _ = history::view(&app);
+    app.cron_settings.history.error = None;
+    app.cron_settings.history.search = "不存在".into();
+    assert_eq!(history::empty_label(&app.cron_settings.history), Some("此范围内无匹配记录"));
+    let _ = history::view(&app);
+}

@@ -35,6 +35,9 @@ pub(crate) struct CronHistoryState {
     /// 有错误时已有行仍可查看，但不是最新数据。
     pub error: Option<String>,
     pub search: String,
+    pub search_open: bool,
+    /// Stable single-run key; resolved against current rows on every view.
+    pub selected_run: Option<String>,
     pub status_filter: CronHistoryStatus,
     pub location_filter: CronHistoryLocation,
     pub selected_job_id: Option<String>,
@@ -98,6 +101,7 @@ impl CronHistoryState {
         self.workspace = workspace;
         self.loading = false;
         self.task_picker_open = false;
+        self.selected_run = None;
         if workspace_changed {
             self.runs.clear();
             self.error = None;

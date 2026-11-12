@@ -8,6 +8,10 @@ use vw_gateway_client::{CronHistoryResponse, CronJobDto};
 #[derive(Debug, Clone)]
 pub enum CronHistoryMessage {
     Refresh,
+    SearchToggled,
+    DetailsOpened(String),
+    DetailsClosed,
+    CopyOutput(String),
     Tick(u64),
     Loaded { generation: u64, result: Result<(CronHistoryResponse, Vec<CronJobDto>), String> },
     SearchChanged(String),
@@ -50,6 +54,19 @@ pub(crate) fn update(app: &mut App, event: CronHistoryMessage) -> Task<Message> 
     let context_task = reconcile(app);
     let task = match event {
         CronHistoryMessage::Refresh => refresh(app),
+        CronHistoryMessage::SearchToggled => {
+            app.cron_settings.history.search_open = !app.cron_settings.history.search_open;
+            Task::none()
+        }
+        CronHistoryMessage::DetailsOpened(key) => {
+            app.cron_settings.history.selected_run = Some(key);
+            Task::none()
+        }
+        CronHistoryMessage::DetailsClosed => {
+            app.cron_settings.history.selected_run = None;
+            Task::none()
+        }
+        CronHistoryMessage::CopyOutput(output) => iced::clipboard::write(output),
         CronHistoryMessage::Tick(generation) => {
             if generation == app.cron_settings.history.generation {
                 refresh(app)

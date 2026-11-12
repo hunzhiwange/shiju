@@ -321,8 +321,10 @@ pub(crate) fn session_resume_items(previews: &[ChatSessionMeta]) -> Vec<V3Select
             let last_content = preview.last_content.as_deref().unwrap_or_default().trim();
             let label = if !title.is_empty() {
                 title.to_string()
-            } else if !last_content.is_empty() {
-                last_content.to_string()
+            } else if let Some(line) =
+                vw_shared::session::session_utils::initial_title_from_content(last_content)
+            {
+                line.to_owned()
             } else {
                 preview.id.clone()
             };

@@ -48,6 +48,13 @@ pub fn strip_task_session_source_marker(raw: &str) -> Cow<'_, str> {
         .map_or_else(|| Cow::Borrowed(raw), |source| Cow::Borrowed(source.content))
 }
 
+/// 在正式标题生成前，使用用户正文的首个非空行展示会话。
+pub fn initial_title_from_content(content: &str) -> Option<&str> {
+    let content =
+        parse_task_session_source_marker(content).map_or(content, |source| source.content);
+    content.lines().map(str::trim).find(|line| !line.is_empty())
+}
+
 /// 生成短随机 slug，失败时回退为当前时间戳。
 pub fn create_slug() -> String {
     let mut bytes = [0u8; 8];

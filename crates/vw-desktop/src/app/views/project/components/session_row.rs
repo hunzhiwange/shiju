@@ -85,12 +85,19 @@ impl SessionRowDetails {
 pub(in crate::app::views::project) fn running_draft_sessions(
     app: &App,
 ) -> impl Iterator<Item = (&str, Info)> {
-    let title = I18n::new(app.desktop_locale).__("新会话");
     app.session_runtime_states.iter().filter_map(move |(id, runtime)| {
         let draft = runtime.draft.as_ref()?;
         if !runtime.is_requesting {
             return None;
         }
+        let title = runtime
+            .active_agent_request
+            .as_ref()
+            .and_then(|request| {
+                vw_shared::session::session_utils::initial_title_from_content(&request.query)
+            })
+            .map(|line| crate::app::views::project::utils::truncate_display_width(line, 120))
+            .unwrap_or_else(|| I18n::new(app.desktop_locale).__("新会话").to_owned());
         let started = runtime.request_started_ms;
         let mut info = Info {
             id: id.clone(),
@@ -100,7 +107,7 @@ pub(in crate::app::views::project) fn running_draft_sessions(
             parent_id: None,
             summary: None,
             share: None,
-            title: title.to_owned(),
+            title,
             version: String::new(),
             time: TimeInfo { created: started, updated: started, compacting: None, archived: None },
             permission: None,

@@ -2228,6 +2228,8 @@ impl V3GatewayApp {
             text: query.to_string(),
             attachments: Vec::new(),
         });
+        self.widget
+            .set_session_header(GatewayV3Bridge::session_display_data(&self.runtime, &self.state));
     }
 
     fn begin_workflow_run(&mut self, request_id: &str, query: &str) {
@@ -2241,6 +2243,8 @@ impl V3GatewayApp {
             text: query.to_string(),
             attachments: Vec::new(),
         });
+        self.widget
+            .set_session_header(GatewayV3Bridge::session_display_data(&self.runtime, &self.state));
     }
 
     fn begin_workflow_resume(&mut self) {
@@ -2938,6 +2942,10 @@ impl V3GatewayApp {
                 text: submission.text.clone(),
                 attachments: visible_attachments,
             });
+            self.widget.set_session_header(GatewayV3Bridge::session_display_data(
+                &self.runtime,
+                &self.state,
+            ));
         }
         Ok(command)
     }

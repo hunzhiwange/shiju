@@ -232,18 +232,8 @@ pub fn build_session_previews(
         .into_iter()
         .filter_map(|meta| {
             let content = meta.last_content?;
-            let trimmed = content.trim();
-            if trimmed.is_empty() {
-                None
-            } else {
-                Some((
-                    meta.id,
-                    crate::app::views::project::utils::truncate_display_width(
-                        &trimmed.replace('\n', " "),
-                        120,
-                    ),
-                ))
-            }
+            let line = vw_shared::session::session_utils::initial_title_from_content(&content)?;
+            Some((meta.id, crate::app::views::project::utils::truncate_display_width(line, 120)))
         })
         .collect()
 }

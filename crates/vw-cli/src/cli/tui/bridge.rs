@@ -53,9 +53,25 @@ impl GatewayV3Bridge {
             .unwrap_or_else(|| "default".to_string());
         let permissions = permission_display(state);
         let session_title = summary.title.trim();
-        let session_title = (!session_title.is_empty())
-            .then(|| session_title.to_string())
-            .or_else(|| state.session.first_response_preview.clone());
+        let session_title =
+            (!session_title.is_empty()).then(|| session_title.to_string()).or_else(|| {
+                state
+                    .session
+                    .first_response_preview
+                    .as_deref()
+                    .and_then(vw_shared::session::session_utils::initial_title_from_content)
+                    .or_else(|| {
+                        state.messages.iter().find_map(|message| match message {
+                            UiMessage::User(user) => {
+                                vw_shared::session::session_utils::initial_title_from_content(
+                                    &user.text,
+                                )
+                            }
+                            _ => None,
+                        })
+                    })
+                    .map(str::to_owned)
+            });
         let token_usage = summary.token_usage;
 
         V3SessionDisplayData {

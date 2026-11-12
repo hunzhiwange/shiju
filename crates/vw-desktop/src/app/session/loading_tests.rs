@@ -121,11 +121,13 @@ fn build_session_previews_filters_missing_and_blank_content() {
 }
 
 #[test]
-fn build_session_previews_trims_edges_and_flattens_newlines() {
-    let previews =
-        super::build_session_previews(vec![session_meta("session-1", Some("  first\nsecond  "))]);
+fn build_session_previews_uses_first_non_empty_trimmed_line() {
+    let previews = super::build_session_previews(vec![session_meta(
+        "session-1",
+        Some(" \r\n\t\n  首轮问题  \r\nsecond  "),
+    )]);
 
-    assert_eq!(previews.get("session-1").map(String::as_str), Some("first second"));
+    assert_eq!(previews.get("session-1").map(String::as_str), Some("首轮问题"));
 }
 
 #[test]

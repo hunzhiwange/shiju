@@ -571,10 +571,7 @@ fn session_previews_loaded_builds_only_non_empty_content() {
     let _ = app.update(Message::SessionPreviewsLoaded(Ok(previews)));
 
     assert_eq!(app.session_previews.len(), 1);
-    assert_eq!(
-        app.session_previews.get("kept").map(String::as_str),
-        Some("first line second line")
-    );
+    assert_eq!(app.session_previews.get("kept").map(String::as_str), Some("first line"));
 }
 
 #[test]

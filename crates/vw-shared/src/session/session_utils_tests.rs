@@ -34,6 +34,15 @@ fn default_title_matches_only_generated_titles() {
 }
 
 #[test]
+fn initial_title_uses_first_non_empty_line_without_internal_source() {
+    let content = " \r\n\t\n　首轮中文问题　\r\n补充说明";
+    assert_eq!(super::initial_title_from_content(content), Some("首轮中文问题"));
+    assert_eq!(super::initial_title_from_content(" \r\n\t　"), None);
+    let encoded = super::encode_task_session_source_marker("source", content).unwrap();
+    assert_eq!(super::initial_title_from_content(&encoded), Some("首轮中文问题"));
+}
+
+#[test]
 fn task_session_source_marker_round_trip_preserves_content() {
     let content = "  第一行\n<task_session_source> 是用户正文\n最后一行  ";
     let encoded = super::encode_task_session_source_marker("session-123", content)

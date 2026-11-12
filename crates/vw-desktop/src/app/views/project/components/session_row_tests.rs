@@ -47,7 +47,7 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
             renderer.screenshot(Size::new(360, 40), 1.0, theme.palette().background)
         };
         details.pending = true;
-        details.title = "新会话".into();
+        details.title = "首轮中文问题：修复对话标题".into();
         let running = draw(&details, SessionRowStatus::Running);
         details.pending = false;
         details.title.clear();
@@ -57,6 +57,46 @@ async fn desktop_first_response_chinese_preview_and_title_draw_in_both_themes() 
         assert_ne!(running, preview);
         assert_ne!(preview, title);
     }
+}
+
+#[test]
+fn running_draft_title_uses_first_non_empty_input_line() {
+    use crate::app::state::{AgentRequest, SessionDraft};
+    let (mut app, _) = App::new();
+    let runtime = app.get_session_runtime_mut("draft");
+    runtime.draft = Some(SessionDraft {
+        project_path: "/project".into(),
+        directory: "/project".into(),
+        history_len: 0,
+    });
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(std::sync::Arc::new(AgentRequest {
+        id: 1,
+        session: "draft".into(),
+        query: " \r\n\t\n  首轮中文问题  \r\n补充说明".into(),
+        root: None,
+        model: None,
+        reasoning_effort: None,
+        acp_test: false,
+        acp_model_source: Default::default(),
+        acp_agent: None,
+        acp_allowed_tools: None,
+        agent: None,
+        allowed_tools: None,
+        require_agent_tool: false,
+        acp_force_new_session: false,
+        acp_history_mode: crate::app::state::AcpHistoryReplayMode::Discard,
+        acp_recent_count: 0,
+        full_access_enabled: Some(false),
+        resume_history_only: false,
+        workflow_mode_enabled: false,
+        goal_mode_enabled: false,
+        history: Vec::new(),
+    }));
+    let (_, info) = super::running_draft_sessions(&app).next().unwrap();
+    assert_eq!(info.title, "首轮中文问题");
+    assert!(info.is_first_response_pending());
+    assert!(app.sessions.is_empty());
 }
 
 #[tokio::test]

@@ -23,6 +23,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from model_protocol_acp import acp_result, run_acp
+
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOLS = ('chat', 'messages', 'responses', 'gemini')
 
@@ -419,6 +421,11 @@ def boundary_tests():
 def parser():
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest='command', required=True)
+    acp = commands.add_parser('acp')
+    acp.add_argument('--inventory', type=Path, required=True)
+    acp.add_argument('--output', type=Path, required=True)
+    acp.add_argument('--binary', type=Path)
+    acp.add_argument('--config-root', type=Path, action='append')
     service = commands.add_parser('service')
     service.add_argument('--inventory', type=Path, required=True)
     service.add_argument('--output', type=Path, required=True)
@@ -439,4 +446,6 @@ if __name__ == '__main__':
     if arguments.command == 'compile-relay':
         compile_relay(Path(os.environ['CARGO_TARGET_DIR']).resolve())
         raise SystemExit(0)
+    if arguments.command == 'acp':
+        raise SystemExit(run_acp(arguments))
     run_service(arguments)

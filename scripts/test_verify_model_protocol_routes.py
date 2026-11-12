@@ -20,6 +20,88 @@ def result(fields=None):
 
 
 class ServiceAuditTests(unittest.TestCase):
+    def test_acp_result_requires_binding_and_tool_output(self):
+        evidence = {'connected': True, 'terminal': 'chat.done', 'errors': False,
+                    'binding_verified': True, 'tool_write': True, 'tool_read': True,
+                    'file_sha256': 'a' * 64, 'expected_sha256': 'a' * 64,
+                    'directory_scope': True, 'http_statuses': [200, 200],
+                    'upstream_models': ['wire'], 'expected_model': 'wire', 'upstream_terminal': True, 'stream_requests': 1}
+        self.assertEqual(audit.acp_result(evidence), 'passed')
+        for key in ('connected', 'binding_verified', 'tool_write', 'tool_read', 'directory_scope', 'upstream_terminal'):
+            self.assertNotEqual(audit.acp_result(dict(evidence, **{key: False})), 'passed')
+        for changes in ({'file_sha256': None}, {'terminal': None}, {'errors': True},
+                        {'http_statuses': []}, {'upstream_models': ['other']}):
+            self.assertNotEqual(audit.acp_result(dict(evidence, **changes)), 'passed')
+
+    def test_acp_upstream_requires_finish_and_complete_sse(self):
+        from model_protocol_acp import upstream_terminal
+        row = {'stream': True, 'response': b'data: {"choices":[{"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'}
+        self.assertTrue(upstream_terminal([row]))
+        self.assertFalse(upstream_terminal([dict(row, response=row['response'].replace(b'data: [DONE]', b''))]))
+        self.assertFalse(upstream_terminal([]))
+
+    def test_acp_file_scope_rejects_outside_and_command_tools(self):
+        from model_protocol_acp import tool_scope
+        def rows(name, arguments):
+            return [{'messages': [{'tool_calls': [{'function': {'name': name, 'arguments': json.dumps(arguments)}}]}]}]
+        root = Path('/private/fixture/workspace')
+        self.assertTrue(tool_scope(rows('write_file', {'path': 'acp-proof.txt'}), root))
+        self.assertFalse(tool_scope(rows('write_file', {'path': '../outside.txt'}), root))
+        self.assertFalse(tool_scope(rows('read_file', {'file_path': '/etc/passwd'}), root))
+        self.assertFalse(tool_scope(rows('shell', {'command': 'pwd'}), root))
+        self.assertFalse(tool_scope(rows('write_file', []), root))
+
+    def test_acp_tools_require_correlated_write_and_read_results(self):
+        from model_protocol_acp import wire_tools
+        messages = [
+            {'role': 'assistant', 'tool_calls': [{'id': 'w', 'function': {'name': 'write_file', 'arguments': '{"path":"acp-proof.txt","content":"challenge"}'}},
+                                                {'id': 'r', 'function': {'name': 'read_file', 'arguments': '{"path":"acp-proof.txt"}'}}]},
+            {'role': 'tool', 'tool_call_id': 'w', 'content': 'written'},
+            {'role': 'tool', 'tool_call_id': 'r', 'content': 'challenge'}]
+        self.assertEqual(wire_tools([{'messages': messages}], 'acp-proof.txt', 'challenge'), (True, True))
+        self.assertEqual(wire_tools([{'messages': messages[:1]}], 'acp-proof.txt', 'challenge'), (False, False))
+        messages[-1]['tool_call_id'] = 'unrelated'
+        self.assertEqual(wire_tools([{'messages': messages}], 'acp-proof.txt', 'challenge'), (True, False))
+
+    def test_acp_equivalent_commands_require_exact_allowlist_and_results(self):
+        from model_protocol_acp import tool_scope, wire_tools
+        command = 'python3 -c \'print("acp-proof.txt challenge")\''
+        messages = [{'tool_calls': [{'id': 'w', 'function': {'name': 'exec_command', 'arguments': json.dumps({'cmd': command})}}]},
+                    {'role': 'tool', 'tool_call_id': 'w', 'content': 'completed'}]
+        rows = [{'messages': messages}]
+        self.assertTrue(tool_scope(rows, Path('/workspace'), (command,)))
+        self.assertFalse(tool_scope(rows, Path('/workspace'), (command + '; rm -rf /',)))
+        self.assertEqual(wire_tools(rows, 'acp-proof.txt', 'challenge', (command,)), (True, False))
+
+    def test_acp_native_messages_uses_only_reviewed_same_origin_pairs(self):
+        from model_protocol_acp import native_messages_endpoint, upstream_terminal
+        account = {'endpoint': 'https://api.deepseek.com', 'model_api_id': 'deepseek-v4-pro'}
+        self.assertEqual(native_messages_endpoint(account), 'https://api.deepseek.com/anthropic/v1/messages')
+        self.assertIsNone(native_messages_endpoint(dict(account, endpoint='https://example.com')))
+        body = b'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\ndata: {"type":"message_stop"}\n\n'
+        self.assertTrue(upstream_terminal([{'stream': True, 'response': body}], 'messages'))
+        self.assertTrue(upstream_terminal([{'stream': True, 'response': body.replace(b'data: ', b'data:')}], 'messages'))
+        self.assertFalse(upstream_terminal([{'stream': True, 'response': body.split(b'data: {"type":"message_stop"}')[0]}], 'messages'))
+
+    def test_acp_failure_preserves_upstream_failure_category(self):
+        for code, expected in [(401, 'unauthorized'), (402, 'insufficient_balance'), (403, 'forbidden'), (429, 'rate_limited'), (500, 'upstream_server_error')]:
+            self.assertEqual(audit.acp_result({'http_statuses': [code]}), expected)
+
+    def test_acp_pair_requires_same_account_model_and_successful_tools(self):
+        from model_protocol_acp import acceptance_summary
+        rows = [{'provider_id': 'deepseek', 'model_api_id': 'wire', 'account_binding': 'account',
+                 'status': 'passed', 'route_mode': 'native', 'source_protocol': 'chat'},
+                {'provider_id': 'deepseek', 'model_api_id': 'wire', 'account_binding': 'account',
+                 'status': 'passed', 'route_mode': 'forced_conversion', 'source_protocol': 'responses'}]
+        self.assertTrue(acceptance_summary(rows)['provider_pairs']['deepseek'])
+        for field in ('model_api_id', 'account_binding', 'status'):
+            changed = [rows[0], dict(rows[1], **{field: 'different'})]
+            self.assertFalse(acceptance_summary(changed)['provider_pairs']['deepseek'])
+
+    def test_cli_has_acp_inventory_and_output(self):
+        args = audit.parser().parse_args(['acp', '--inventory', 'i.json', '--output', 'o.json'])
+        self.assertEqual(args.command, 'acp')
+
     def test_service_result_requires_content_and_terminal(self):
         for fields in [[], ['text'], ['terminal_status'], ['model', 'text']]:
             self.assertEqual(audit.service_result(result(fields))['status'], 'invalid_response')

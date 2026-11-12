@@ -1,0 +1,26 @@
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 03s
+     Running unittests src/lib.rs (target/rust-slot-1/debug/deps/vw_desktop-0e4432412a2ce90c)
+
+running 1 test
+
+thread 'app::state::settings::cron_history::tests::cron_history_duplicate_names_with_common_prefix_remain_distinct' (91219075) panicked at crates/vw-desktop/src/app/state/settings/cron_history_tests.rs:58:5:
+assertion `left != right` failed
+  left: "中文重名任务 (job-0000)"
+ right: "中文重名任务 (job-0000)"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test app::state::settings::cron_history::tests::cron_history_duplicate_names_with_common_prefix_remain_distinct ... FAILED
+
+failures:
+
+failures:
+    app::state::settings::cron_history::tests::cron_history_duplicate_names_with_common_prefix_remain_distinct
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9681 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p vw-desktop --lib`

@@ -80,8 +80,7 @@ impl CronHistoryState {
             .filter(|job| name_matches(name(job), &self.task_search))
             .map(|job| {
                 let label = if jobs.iter().filter(|other| name(other) == name(job)).count() > 1 {
-                    let short: String = job.id.chars().take(8).collect();
-                    format!("{} ({short})", name(job))
+                    format!("{} ({})", name(job), job.id)
                 } else {
                     name(job).to_string()
                 };

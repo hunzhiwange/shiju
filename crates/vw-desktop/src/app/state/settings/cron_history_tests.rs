@@ -45,6 +45,22 @@ fn cron_history_duplicate_names_use_ids() {
 }
 
 #[test]
+fn cron_history_duplicate_names_with_common_prefix_remain_distinct() {
+    let first: CronJobDto = serde_json::from_value(serde_json::json!({
+        "id": "job-00000000", "name": "中文重名任务", "next_run": "later", "enabled": true
+    }))
+    .unwrap();
+    let mut second = first.clone();
+    second.id = "job-00000001".into();
+    let jobs = [first, second];
+    let state = CronHistoryState::default();
+    let candidates = state.task_candidates(&jobs);
+    assert_ne!(candidates[0].1, candidates[1].1);
+    assert!(candidates[0].1.contains(&jobs[0].id));
+    assert!(candidates[1].1.contains(&jobs[1].id));
+}
+
+#[test]
 fn cron_history_unknown_status_is_not_success() {
     let mut state = CronHistoryState::default();
     state.runs = vec![run("a", None, "unknown"), run("b", None, "ok"), run("c", None, "error")];

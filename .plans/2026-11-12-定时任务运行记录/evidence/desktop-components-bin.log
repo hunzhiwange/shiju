@@ -1,0 +1,6 @@
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.26s
+     Running unittests src/main.rs (target/rust-slot-1/debug/deps/shi_ju-decfae41b7c14b1d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 0.00s

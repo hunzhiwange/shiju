@@ -899,6 +899,38 @@ async fn cron_history_endpoint_reports_finished_window_and_workspace_isolation()
 }
 
 #[tokio::test]
+async fn cron_history_endpoint_respects_retention_and_cascade_deletion() {
+    use crate::app::agent::cron;
+    let tmp = tempfile::tempdir().unwrap();
+    let config = temp_config(tmp.path());
+    config.lock().cron.max_run_history = 2;
+    let cfg = config.lock().clone();
+    let state = state_with_config(config, false);
+    let job = cron::add_shell_job(
+        &cfg,
+        Some("中文保留上限验收".into()),
+        Schedule::Every { every_ms: 60_000 },
+        "echo local-only",
+    )
+    .unwrap();
+    let now = Utc::now();
+    for i in 0..4 {
+        let at = now + chrono::Duration::seconds(i);
+        cron::record_run(&cfg, &job.id, at, at, "ok", Some(&format!("输出{i}")), 0).unwrap();
+    }
+    let (status, response) = history_request(state.clone()).await;
+    assert_eq!(status, StatusCode::OK);
+    let rows = response["runs"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["output"], "输出3");
+    assert_eq!(rows[1]["output"], "输出2");
+    assert_eq!(response["truncated"], false);
+    cron::remove_job(&cfg, &job.id).unwrap();
+    assert!(cron::list_runs(&cfg, &job.id, 10).unwrap().is_empty());
+    assert_eq!(history_request(state).await.1["runs"], serde_json::json!([]));
+}
+
+#[tokio::test]
 async fn cron_wecom_delivery_add_rejects_invalid_target_without_creating_job() {
     let tmp = tempfile::TempDir::new().unwrap();
     let config = temp_config(tmp.path());

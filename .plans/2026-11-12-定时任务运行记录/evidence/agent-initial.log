@@ -1,0 +1,9 @@
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling chardetng v1.0.0
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)

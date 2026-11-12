@@ -1,0 +1,234 @@
+{
+  "status": "已完成，待回归",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "features": "default（测试与桌面构建）；Clippy --all-features",
+  "profile_adjustment": "首次默认优化的 Agent 编译中断 130，0 用例；后续命令使用包级 opt-level=0，不修改仓库配置。",
+  "checks": [
+    {
+      "label": "agent",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron_history_ -- --nocapture",
+      "passed": 12,
+      "failed": 0,
+      "effective_tests": 12,
+      "log": "agent.log"
+    },
+    {
+      "label": "client",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-gateway-client --lib cron_history_ -- --nocapture",
+      "passed": 3,
+      "failed": 0,
+      "effective_tests": 3,
+      "log": "client.log"
+    },
+    {
+      "label": "desktop-bin",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju cron_history_ -- --nocapture",
+      "passed": 0,
+      "failed": 0,
+      "effective_tests": 0,
+      "log": "desktop-bin.log"
+    },
+    {
+      "label": "desktop-lib",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+      "passed": 19,
+      "failed": 0,
+      "effective_tests": 19,
+      "log": "desktop-lib.log"
+    },
+    {
+      "label": "scheduler",
+      "exit_code": 101,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron::scheduler::tests -- --nocapture",
+      "passed": 65,
+      "failed": 1,
+      "effective_tests": 66,
+      "log": "scheduler.log"
+    },
+    {
+      "label": "desktop-state-bin",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju cron_tests -- --nocapture",
+      "passed": 0,
+      "failed": 0,
+      "effective_tests": 0,
+      "log": "desktop-state-bin.log"
+    },
+    {
+      "label": "desktop-components-bin",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju system_settings_cron_tests -- --nocapture",
+      "passed": 0,
+      "failed": 0,
+      "effective_tests": 0,
+      "log": "desktop-components-bin.log"
+    },
+    {
+      "label": "desktop-state-lib",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+      "passed": 97,
+      "failed": 0,
+      "effective_tests": 97,
+      "log": "desktop-state-lib.log"
+    },
+    {
+      "label": "desktop-components-lib",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+      "passed": 26,
+      "failed": 0,
+      "effective_tests": 26,
+      "log": "desktop-components-lib.log"
+    },
+    {
+      "label": "store-retention",
+      "exit_code": 130,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron::tests::store -- --nocapture",
+      "log": "store-retention.log"
+    },
+    {
+      "label": "build",
+      "exit_code": 0,
+      "command": "cargo build --config profile.dev.package.vw-agent.opt-level=0 --config profile.dev.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju",
+      "log": "build.log"
+    },
+    {
+      "label": "clippy",
+      "exit_code": 0,
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "log": "clippy.log"
+    },
+    {
+      "label": "red",
+      "exit_code": 101,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_duplicate_names_with_common_prefix_remain_distinct -- --nocapture",
+      "passed": 0,
+      "failed": 1,
+      "effective_tests": 1,
+      "log": "red.log"
+    },
+    {
+      "label": "fmt-green",
+      "exit_code": 0,
+      "command": "cargo fmt --all",
+      "log": "fmt-green.log"
+    },
+    {
+      "label": "desktop-green",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+      "passed": 20,
+      "failed": 0,
+      "effective_tests": 20,
+      "log": "desktop-green.log"
+    },
+    {
+      "label": "desktop-state-green",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+      "passed": 97,
+      "failed": 0,
+      "effective_tests": 97,
+      "log": "desktop-state-green.log"
+    },
+    {
+      "label": "desktop-components-green",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+      "passed": 26,
+      "failed": 0,
+      "effective_tests": 26,
+      "log": "desktop-components-green.log"
+    },
+    {
+      "label": "build-green",
+      "exit_code": 0,
+      "command": "cargo build --config profile.dev.package.vw-agent.opt-level=0 --config profile.dev.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju",
+      "log": "build-green.log"
+    },
+    {
+      "label": "clippy-green",
+      "exit_code": 0,
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "log": "clippy-green.log"
+    },
+    {
+      "label": "agent-final",
+      "exit_code": 0,
+      "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron_history_ -- --nocapture",
+      "passed": 13,
+      "failed": 0,
+      "effective_tests": 13,
+      "log": "agent-final.log"
+    }
+  ],
+  "screenshots": [
+    "dark-1100-details-first.png",
+    "dark-1100-details-second.png",
+    "dark-1100-empty.png",
+    "dark-1100-error.png",
+    "dark-1100-list.png",
+    "dark-1100-missing.png",
+    "dark-1100-picker.png",
+    "dark-420-details-first.png",
+    "dark-420-details-second.png",
+    "dark-420-empty.png",
+    "dark-420-error.png",
+    "dark-420-list.png",
+    "dark-420-missing.png",
+    "dark-420-picker.png",
+    "light-1100-details-first.png",
+    "light-1100-details-second.png",
+    "light-1100-empty.png",
+    "light-1100-error.png",
+    "light-1100-list.png",
+    "light-1100-missing.png",
+    "light-1100-picker.png",
+    "light-420-details-first.png",
+    "light-420-details-second.png",
+    "light-420-empty.png",
+    "light-420-error.png",
+    "light-420-list.png",
+    "light-420-missing.png",
+    "light-420-picker.png"
+  ],
+  "rendering": "真实 Iced tiny-skia Renderer + 字体整形、布局、draw、截图及滚轮事件；Light/Dark，420/1100×720；203 行、中文长名称、非 ASCII 长输出、两条详情、消失记录、错误/空态和同前缀重名任务选择器。",
+  "native_ui": {
+    "binary": "target/rust-slot-1/debug/shi-ju",
+    "isolation": "独立临时 VIBEWINDOW_CONFIG_DIR 与 VIBEWINDOW_WORKSPACE；仅 loopback 60333 合成 HTTP 夹具，不调用真实模型或投递。",
+    "observed": [
+      "打开运行记录和状态菜单，操作全部/运行中/成功/失败",
+      "确认类型仅全部类型和本地，并选择本地",
+      "修复前观察到重名任务 ID 前缀碰撞；修复后完整 ID job-00000000/1 可区分",
+      "选择指定任务后分别打开第3次失败、第5次成功详情，输出未串；滚动长中文输出",
+      "候选内搜索无运行任务并选择，出现无匹配空态",
+      "总名称搜索不匹配，空态正确；清空并恢复全部任务",
+      "HTTP 503 后保留已有行，显示过期提示；点击重试恢复",
+      "离开运行记录后请求数68→68，delta=0；返回后恢复列表",
+      "原生 Light/Dark 中文记录均绘制正常，无 panic"
+    ],
+    "screenshots": "本聊天 CUA 工具截图；持久 PNG 为同一组件真实 Renderer 的28张验收图片。",
+    "fixture_limitation": "未模拟 /v1/tools，因此出现工具列表响应解码 toast；与运行记录请求和渲染无关。",
+    "shutdown": "已终止自己的桌面实例与夹具；原用户实例未操作。"
+  },
+  "coverage": {
+    "execution": "Agent 测试的真实本地 Shell 屏障验证调度/手动执行期间可见、完成清理、一次持久化、started_at 一致；取消/unwind 清理。",
+    "http_sqlite": "真实临时 SQLite + handlers 认证、200条窗口、交接去重、跨工作区隔离及 max_run_history/删除级联。",
+    "desktop_state": "筛选取交集、完整ID选择、过期响应丢弃、切工作区清空、离页取消轮询。",
+    "scope_notes": "运行快照仅存在服务进程内存；重启不恢复快照，不伪造结束结果。任务池只展示提交阶段。一次性删除规则由调度器既有 persist_job_result 测试覆盖。"
+  },
+  "known_unrelated_failure": {
+    "test": "cron::scheduler::tests::run_job_command_blocks_tilde_user_path_argument",
+    "result": "66项中65通过、1失败，退出101；期待blocked by security policy文本，实际不包含。",
+    "attribution": "任务1已单独复现；expand_user_path只展开~和~/，不展开~root，默认workspace_only=false；本任务只改桌面候选标签及验收测试，不改安全策略。",
+    "next_step": "维护者处理既有路径策略用例后重跑调度器邻接验证；保留任务5文件。"
+  },
+  "review": "仅提交本任务差异；共享 cron_tests.rs 以补丁暂存自己的保留上限用例，排除他方企微测试和格式化；只读plan.md不修改。"
+}

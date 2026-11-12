@@ -4,7 +4,8 @@
 use super::{App, ForkSessionTarget, Message, with_chat_fork_dialog};
 use crate::app::i18n::I18n;
 use crate::app::impls::app_view_modals::{
-    with_chat_reset_dialog, with_file_tree_delete_confirm, with_file_tree_rename, with_session_rename,
+    with_chat_reset_dialog, with_file_tree_delete_confirm, with_file_tree_rename,
+    with_session_rename,
 };
 use crate::app::message::{ChatMessage, ProjectMessage, chat::ForkSessionAnchor};
 use crate::app::models::{ChatMessage as TranscriptMessage, ChatRole};

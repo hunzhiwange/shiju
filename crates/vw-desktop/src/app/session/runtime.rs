@@ -77,7 +77,10 @@ impl App {
         }
     }
 
-    pub(crate) fn load_session_full_access(&self, session_id: &str) -> iced::Task<crate::app::Message> {
+    pub(crate) fn load_session_full_access(
+        &self,
+        session_id: &str,
+    ) -> iced::Task<crate::app::Message> {
         let Some(directory) = self.known_session_directory(session_id) else {
             return iced::Task::none();
         };

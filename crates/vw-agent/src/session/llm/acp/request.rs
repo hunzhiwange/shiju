@@ -133,7 +133,10 @@ pub(crate) async fn do_stream_request_acp(
     let recovered = if previous_selection.is_some() && locked_selection.is_none() {
         let launch = match source {
             vw_api_types::acp_model_source::AcpModelSource::CliLocal => {
-                super::recovery::Launch::Local { agent: &acp_agent_name, config: &normalized_acp_cfg }
+                super::recovery::Launch::Local {
+                    agent: &acp_agent_name,
+                    config: &normalized_acp_cfg,
+                }
             }
             vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
                 let project = crate::project::instance::project()
@@ -351,8 +354,10 @@ pub(crate) async fn do_stream_request_acp(
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
         let prompt_guard = cached_client.prompt_lock.lock().await;
-        let _approval =
-            super::approval::PromptApproval::bind(&cached_client.permission_confirmation, session_id);
+        let _approval = super::approval::PromptApproval::bind(
+            &cached_client.permission_confirmation,
+            session_id,
+        );
         let record = if let Some(recovered) = &recovered {
             Ok(recovered.record.clone())
         } else {

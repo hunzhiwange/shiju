@@ -1,12 +1,12 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 mod acp;
-pub(crate) mod aggregation_pi;
-#[cfg(test)]
-mod aggregation_pi_tests;
 pub(in crate::app) mod agents;
 pub(crate) mod aggregation_list;
 pub(crate) mod aggregation_omo;
+pub(crate) mod aggregation_pi;
+#[cfg(test)]
+mod aggregation_pi_tests;
 mod apps_catalog;
 pub(crate) mod apps_lifecycle;
 #[cfg(not(target_arch = "wasm32"))]

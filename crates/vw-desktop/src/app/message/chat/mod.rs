@@ -794,7 +794,10 @@ pub enum ChatMessage {
 
     /// 切换完全访问权限自动批准
     ToggleFullAccessPermission,
-    SessionFullAccessLoaded { session_id: String, full_access: bool },
+    SessionFullAccessLoaded {
+        session_id: String,
+        full_access: bool,
+    },
     SessionFullAccessSaved {
         session_id: String,
         previous: bool,

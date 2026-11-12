@@ -337,11 +337,10 @@ pub(in crate::app::views::project) fn session_row(
                 .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) }),
         );
     }
-    content = content
-        .push(SingleLineLabel::new(title.clone(), 13.0).font(iced::Font {
-            weight: if active { iced::font::Weight::Bold } else { iced::font::Weight::Medium },
-            ..Default::default()
-        }));
+    content = content.push(SingleLineLabel::new(title.clone(), 13.0).font(iced::Font {
+        weight: if active { iced::font::Weight::Bold } else { iced::font::Weight::Medium },
+        ..Default::default()
+    }));
     if !details.pending {
         content = content.push(Space::new().width(2.0 * ACTION_SIZE + ACTION_GAP));
     }

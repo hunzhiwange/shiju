@@ -722,11 +722,8 @@ fn stream_payload_for_non_done_event(
             Some(serde_json::json!({ "type": "chat.delta", "delta": delta }))
         }
         agent_session::processor::StreamEvent::Tool(event) => {
-            let separator = if assistant_text.is_empty() || assistant_text.ends_with('\n') {
-                ""
-            } else {
-                "\n"
-            };
+            let separator =
+                if assistant_text.is_empty() || assistant_text.ends_with('\n') { "" } else { "\n" };
             let delta = format!("{separator}tool {}\n{}\n", event.name, event.payload);
             assistant_text.push_str(&delta);
             let Some(step_index) = *current_step_index else {

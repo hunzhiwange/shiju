@@ -355,8 +355,8 @@ async fn settings_tabs_peripheral_appearance_cli_commands() {
 async fn update_modals_hide_explanations_and_draw_hover_help_in_both_themes() {
     use iced::advanced::renderer::Headless;
     use iced::advanced::widget::{Id, Operation};
-    use iced_runtime::user_interface::{Cache, UserInterface};
     use iced::{Event, Font, Point, Rectangle, Size, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
 
     #[derive(Default)]
     struct Labels(Vec<(String, Rectangle)>);

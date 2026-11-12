@@ -33,16 +33,19 @@ async fn permission_list(
     headers: HeaderMap,
 ) -> Result<Json<Vec<permission_next::Request>>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let rows = crate::session::ui_store::with_tenant_scope(tenant, with_instance(dir, move || {
-        Box::pin(async move {
-            let manager = approval_state::approval_manager_for_current_instance().await;
-            Ok(manager
-                .list_non_cli_pending_requests(None, None, None)
-                .into_iter()
-                .map(permission_request_from_pending)
-                .collect::<Vec<_>>())
-        })
-    }))
+    let rows = crate::session::ui_store::with_tenant_scope(
+        tenant,
+        with_instance(dir, move || {
+            Box::pin(async move {
+                let manager = approval_state::approval_manager_for_current_instance().await;
+                Ok(manager
+                    .list_non_cli_pending_requests(None, None, None)
+                    .into_iter()
+                    .map(permission_request_from_pending)
+                    .collect::<Vec<_>>())
+            })
+        }),
+    )
     .await?;
     Ok(Json(rows))
 }
@@ -61,12 +64,15 @@ async fn permission_reply(
     Json(body): Json<PermissionReplyRequest>,
 ) -> Result<Json<bool>, ApiError> {
     let dir = resolve_directory(&query, &headers);
-    let applied = crate::session::ui_store::with_tenant_scope(tenant, with_instance(dir, move || {
-        Box::pin(async move {
-            let manager = approval_state::approval_manager_for_current_instance().await;
-            reply_pending_request(&manager, &request_id, body.reply, body.message).await
-        })
-    }))
+    let applied = crate::session::ui_store::with_tenant_scope(
+        tenant,
+        with_instance(dir, move || {
+            Box::pin(async move {
+                let manager = approval_state::approval_manager_for_current_instance().await;
+                reply_pending_request(&manager, &request_id, body.reply, body.message).await
+            })
+        }),
+    )
     .await?;
 
     if !applied {
@@ -135,10 +141,14 @@ async fn reply_pending_request(
         permission_next::Reply::Always
             if request.requested_channel == approval_state::ACP_APPROVAL_CHANNEL =>
         {
-            return Err(ApiError::bad_request("ACP permission requests allow one-time approval only"));
+            return Err(ApiError::bad_request(
+                "ACP permission requests allow one-time approval only",
+            ));
         }
         permission_next::Reply::Once => {
-            manager.reply_to_non_cli_pending_once(&request, true).map_err(map_pending_approval_error)?;
+            manager
+                .reply_to_non_cli_pending_once(&request, true)
+                .map_err(map_pending_approval_error)?;
         }
         permission_next::Reply::Always => {
             manager
@@ -162,7 +172,9 @@ async fn reply_pending_request(
             manager.record_non_cli_pending_resolution(&request.request_id, ApprovalResponse::Yes);
         }
         permission_next::Reply::Reject => {
-            manager.reply_to_non_cli_pending_once(&request, false).map_err(map_pending_approval_error)?;
+            manager
+                .reply_to_non_cli_pending_once(&request, false)
+                .map_err(map_pending_approval_error)?;
         }
     }
 

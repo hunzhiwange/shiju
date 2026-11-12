@@ -112,64 +112,6 @@ pub struct AggregationPreview {
     pub notices: Vec<AggregationNotice>,
 }
 
-/// The active native profile is selected by the execution host, never the request.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OmpDirectoryState {
-    pub revision: String,
-    pub profile: Option<String>,
-    pub members: Vec<String>,
-    pub default_provider_id: Option<String>,
-    pub default_model_id: Option<String>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum OmpDirectoryChange {
-    Insert { profile: crate::app_providers::omp::OmpProfile },
-    Replace { profile: crate::app_providers::omp::OmpProfile },
-    Remove {},
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct OmpDirectoryWrite {
-    pub target_host_id: String,
-    pub project_id: ProjectId,
-    pub expected_revision: String,
-    pub change: OmpDirectoryChange,
-}
-
-/// Public directory metadata only; native login and active settings remain Pi-owned.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PiDirectoryState {
-    pub revision: String,
-    pub members: Vec<String>,
-    pub default_provider_id: Option<String>,
-    pub default_model_id: Option<String>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
-pub enum PiDirectoryChange {
-    Insert { profile: crate::app_providers::pi::PiProfile },
-    Replace { profile: crate::app_providers::pi::PiProfile },
-    Remove {},
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PiDirectoryWrite {
-    pub target_host_id: String,
-    pub project_id: ProjectId,
-    pub expected_revision: String,
-    pub change: PiDirectoryChange,
-}
-/// Compatibility keeps the existing tenant-only read separate from the scoped view.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PiDirectoryRead {
-    Scoped(AggregationQuery),
-    Legacy(crate::app_providers::pi::PiTarget),
-}
-
 /// Save a membership target at the exact observed scoped revision.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -316,6 +258,64 @@ pub struct AggregationWriteQuery {
     pub target_host_id: Option<String>,
     pub project_id: Option<ProjectId>,
     pub expected_revision: Option<String>,
+}
+
+/// The active native profile is selected by the execution host, never the request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmpDirectoryState {
+    pub revision: String,
+    pub profile: Option<String>,
+    pub members: Vec<String>,
+    pub default_provider_id: Option<String>,
+    pub default_model_id: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OmpDirectoryChange {
+    Insert { profile: crate::app_providers::omp::OmpProfile },
+    Replace { profile: crate::app_providers::omp::OmpProfile },
+    Remove {},
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OmpDirectoryWrite {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub change: OmpDirectoryChange,
+}
+
+/// Public directory metadata only; native login and active settings remain Pi-owned.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PiDirectoryState {
+    pub revision: String,
+    pub members: Vec<String>,
+    pub default_provider_id: Option<String>,
+    pub default_model_id: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PiDirectoryChange {
+    Insert { profile: crate::app_providers::pi::PiProfile },
+    Replace { profile: crate::app_providers::pi::PiProfile },
+    Remove {},
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PiDirectoryWrite {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub expected_revision: String,
+    pub change: PiDirectoryChange,
+}
+/// Compatibility keeps the existing tenant-only read separate from the scoped view.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PiDirectoryRead {
+    Scoped(AggregationQuery),
+    Legacy(crate::app_providers::pi::PiTarget),
 }
 
 /// Publish only a server-issued preview; no native configuration crosses the API.

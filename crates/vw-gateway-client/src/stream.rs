@@ -682,8 +682,10 @@ pub fn stream_chat_blocking(
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
     let builder = reqwest::blocking::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
-        .timeout((!chat_uses_acp(body))
-            .then(|| std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS)));
+        .timeout(
+            (!chat_uses_acp(body))
+                .then(|| std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS)),
+        );
     let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
     let client =
         builder.build().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;

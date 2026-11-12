@@ -59,24 +59,17 @@ fn resolve_link(
 
 fn parse_link(raw: &str) -> Option<reqwest::Url> {
     // A URL parser can normalize input such as backslashes and stripped controls.
-    let authority = raw
-        .strip_prefix("https://")?
-        .split(['/', '?', '#'])
-        .next()?;
+    let authority = raw.strip_prefix("https://")?.split(['/', '?', '#']).next()?;
     if raw.len() > 8192
         || authority.is_empty()
         || authority.contains(['@', '%'])
-        || raw
-            .chars()
-            .any(|ch| ch.is_control() || ch.is_whitespace() || ch == '\\')
+        || raw.chars().any(|ch| ch.is_control() || ch.is_whitespace() || ch == '\\')
     {
         return None;
     }
     for (index, byte) in raw.bytes().enumerate() {
         if byte == b'%'
-            && u8::from_str_radix(raw.get(index + 1..index + 3)?, 16)
-                .ok()?
-                .is_ascii_control()
+            && u8::from_str_radix(raw.get(index + 1..index + 3)?, 16).ok()?.is_ascii_control()
         {
             return None;
         }
@@ -154,9 +147,7 @@ impl McpAppBridge {
         if request["jsonrpc"] != "2.0" || !request.is_object() {
             bail!("invalid JSON-RPC request");
         }
-        let method = request["method"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("missing method"))?;
+        let method = request["method"].as_str().ok_or_else(|| anyhow::anyhow!("missing method"))?;
         if method == "ui/notifications/initialized" {
             if !self.initialized || self.ready || request.get("id").is_some() {
                 bail!("invalid initialized notification");
@@ -192,10 +183,7 @@ impl McpAppBridge {
                 let Some(url) = request["params"]["url"].as_str().and_then(parse_link) else {
                     return denied(id, "Invalid external link URL");
                 };
-                if !self
-                    .redirect_domains
-                    .contains(&url.origin().ascii_serialization())
-                {
+                if !self.redirect_domains.contains(&url.origin().ascii_serialization()) {
                     return denied(id, "External link origin is not allowed");
                 }
                 if self.recent_links.contains(&id) {
@@ -231,9 +219,8 @@ impl McpAppBridge {
                     bail!("app is not initialized");
                 }
                 let params = &request["params"];
-                let name = params["name"]
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("missing tool name"))?;
+                let name =
+                    params["name"].as_str().ok_or_else(|| anyhow::anyhow!("missing tool name"))?;
                 if !self.tools.contains(name) || !params["arguments"].is_object() {
                     bail!("tool or arguments denied");
                 }
@@ -241,9 +228,7 @@ impl McpAppBridge {
             }
             _ => bail!("unsupported MCP app method"),
         };
-        Ok(Admission::Reply(
-            json!({"jsonrpc":"2.0","id":id,"result":result}),
-        ))
+        Ok(Admission::Reply(json!({"jsonrpc":"2.0","id":id,"result":result})))
     }
 
     pub fn close(&mut self) {
@@ -348,15 +333,7 @@ impl McpAppProcess {
             }
             reader_active.store(false, Ordering::Release);
         });
-        Ok(Self {
-            child,
-            input,
-            events,
-            document_active,
-            bridge,
-            session,
-            server,
-        })
+        Ok(Self { child, input, events, document_active, bridge, session, server })
     }
 
     /// Execution is supplied by the owning session's existing approval path, never the page.
@@ -368,9 +345,8 @@ impl McpAppProcess {
         let mut count = 0;
         for raw in self.events.try_iter() {
             let envelope: Value = serde_json::from_str(&raw)?;
-            let origin = envelope["origin"]
-                .as_str()
-                .ok_or_else(|| anyhow::anyhow!("missing origin"))?;
+            let origin =
+                envelope["origin"].as_str().ok_or_else(|| anyhow::anyhow!("missing origin"))?;
             let request = &envelope["message"];
             let response = match self.bridge.receive(
                 &self.session,
@@ -415,9 +391,8 @@ impl McpAppProcess {
                 break;
             }
             let envelope: Value = serde_json::from_str(&raw)?;
-            let origin = envelope["origin"]
-                .as_str()
-                .ok_or_else(|| anyhow::anyhow!("missing origin"))?;
+            let origin =
+                envelope["origin"].as_str().ok_or_else(|| anyhow::anyhow!("missing origin"))?;
             let request = &envelope["message"];
             let mut call = None;
             let admitted = self.bridge.admit(

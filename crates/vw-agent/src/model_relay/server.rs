@@ -105,16 +105,18 @@ impl RelayServer {
         let cancel = binding.cancelled.clone();
         let expires = binding.expires;
         let task = tokio::spawn(async move {
-            axum::serve(listener, router).with_graceful_shutdown(async move {
-                if let Some(expires) = expires {
-                    tokio::select! {
-                        () = cancel.cancelled() => {},
-                        () = tokio::time::sleep_until(expires.into()) => cancel.cancel(),
+            axum::serve(listener, router)
+                .with_graceful_shutdown(async move {
+                    if let Some(expires) = expires {
+                        tokio::select! {
+                            () = cancel.cancelled() => {},
+                            () = tokio::time::sleep_until(expires.into()) => cancel.cancel(),
+                        }
+                    } else {
+                        cancel.cancelled().await;
                     }
-                } else {
-                    cancel.cancelled().await;
-                }
-            }).await
+                })
+                .await
         });
         Ok(Self { address, binding, task: Some(task) })
     }

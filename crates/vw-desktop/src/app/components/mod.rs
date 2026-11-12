@@ -32,9 +32,9 @@
 /// 提供应用程序版本信息、许可协议和致谢信息的模态对话框。
 pub mod about_modal;
 pub(crate) mod agent_apps_diagnostics;
+pub(crate) mod aggregation_list;
 #[path = "agent_apps/aggregation_pi.rs"]
 pub(crate) mod aggregation_pi;
-pub(crate) mod aggregation_list;
 
 /// 动画文本组件
 ///

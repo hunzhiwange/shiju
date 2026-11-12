@@ -404,7 +404,9 @@ impl App {
             }
         }
         self.session_reasoning_efforts = efforts;
-        if let Some(full_access) = cfg.get("last_llm_full_access").and_then(serde_json::Value::as_bool) {
+        if let Some(full_access) =
+            cfg.get("last_llm_full_access").and_then(serde_json::Value::as_bool)
+        {
             self.last_llm_full_access = Some(full_access);
             if let Some(runtime) = self.session_runtime_states.get_mut("__empty__")
                 && runtime.acp_agent.is_none()
@@ -428,7 +430,8 @@ impl App {
         if let Some(collapsed) = cfg.get("work_sidebar_collapsed").and_then(|v| v.as_bool()) {
             self.work_sidebar_collapsed = collapsed;
         }
-        if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array()) {
+        if let Some(ids) = cfg.get("input_model_collapsed_provider_ids").and_then(|v| v.as_array())
+        {
             self.model_settings.input_collapsed_provider_ids =
                 ids.iter().filter_map(|id| id.as_str().map(str::to_owned)).collect();
         }

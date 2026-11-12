@@ -64,10 +64,7 @@ pub(super) fn has_explicit_directory(query: &InstanceQuery, headers: &HeaderMap)
         return true;
     }
 
-    headers
-        .get("x-directory")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|d| !d.trim().is_empty())
+    headers.get("x-directory").and_then(|v| v.to_str().ok()).is_some_and(|d| !d.trim().is_empty())
 }
 
 /// UI 会话列表查询参数。

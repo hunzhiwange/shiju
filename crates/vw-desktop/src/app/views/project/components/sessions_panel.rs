@@ -23,7 +23,9 @@ use super::super::styles::{is_dark_theme, tooltip_bubble};
 use super::super::utils::mix_color;
 use super::new_session::new_session_button;
 use super::projects_list::title_tooltip;
-use super::session_row::{SessionRowDetails, SessionRowStatus, running_draft_sessions, session_row};
+use super::session_row::{
+    SessionRowDetails, SessionRowStatus, running_draft_sessions, session_row,
+};
 
 fn icon_action_button_style(
     theme: &Theme,
@@ -598,11 +600,8 @@ pub fn session_items_list<'a>(
         .collect::<Vec<_>>();
     drafts.sort_unstable_by(|left, right| compare_session_recency(&left, &right, pinned));
     for session in &drafts {
-        session_items = session_items.push(session_tree_row(
-            app,
-            SessionTreeRow { session },
-            project_title,
-        ));
+        session_items =
+            session_items.push(session_tree_row(app, SessionTreeRow { session }, project_title));
     }
 
     if is_loading {

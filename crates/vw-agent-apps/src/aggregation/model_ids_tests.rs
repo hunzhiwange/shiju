@@ -11,31 +11,19 @@ fn aggregation_t04_model_ids_preserves_contract() {
         assert_eq!(id, expected);
         assert_eq!(
             decode(Claude, &id),
-            Ok(Decoded::Stack {
-                key: "relay-2",
-                model: "vendor/model--preview",
-                one_m,
-            })
+            Ok(Decoded::Stack { key: "relay-2", model: "vendor/model--preview", one_m })
         );
     }
     assert_eq!(
         decode(Claude, "ccs-claude-relay--模型 [1m] "),
-        Ok(Decoded::Stack {
-            key: "relay",
-            model: "模型",
-            one_m: true,
-        })
+        Ok(Decoded::Stack { key: "relay", model: "模型", one_m: true })
     );
 
     let id = encode(Codex, "relay", "vendor/model--preview", true).unwrap();
     assert_eq!(id, "ccs-relay/vendor/model--preview");
     assert_eq!(
         decode(Codex, &id),
-        Ok(Decoded::Stack {
-            key: "relay",
-            model: "vendor/model--preview",
-            one_m: false,
-        })
+        Ok(Decoded::Stack { key: "relay", model: "vendor/model--preview", one_m: false })
     );
 }
 
@@ -45,10 +33,7 @@ fn aggregation_t04_desktop_codes_preserve_stable_digits() {
         let id = encode(ClaudeDesktop, "relay", model, true).unwrap();
         assert_eq!(id, format!("claude-fable-ccs-{digits}"));
         assert_eq!(decode(ClaudeDesktop, &id), Ok(Decoded::Code(digits)));
-        assert_eq!(
-            decode(ClaudeDesktop, &format!("{id}[1m]")),
-            Ok(Decoded::Code(digits))
-        );
+        assert_eq!(decode(ClaudeDesktop, &format!("{id}[1m]")), Ok(Decoded::Code(digits)));
     }
 }
 
@@ -78,24 +63,9 @@ fn aggregation_t04_malformed_reserved_ids_are_rejected() {
 fn aggregation_t04_plain_ids_and_unsupported_apps_stay_distinct() {
     assert_eq!(decode(Claude, "claude-sonnet-5"), Ok(Decoded::Plain));
     assert_eq!(decode(Codex, "vendor/model"), Ok(Decoded::Plain));
-    assert_eq!(
-        decode(ClaudeDesktop, "claude-sonnet-5"),
-        Ok(Decoded::Plain)
-    );
-    assert_eq!(
-        decode(Pi, "ccs-relay/model"),
-        Err(ModelIdError::UnsupportedApplication)
-    );
-    assert_eq!(
-        encode(Pi, "relay", "model", false),
-        Err(ModelIdError::UnsupportedApplication)
-    );
-    assert_eq!(
-        encode(Claude, "a--b", "model", false),
-        Err(ModelIdError::InvalidModelId)
-    );
-    assert_eq!(
-        encode(Codex, "relay", "", false),
-        Err(ModelIdError::InvalidModelId)
-    );
+    assert_eq!(decode(ClaudeDesktop, "claude-sonnet-5"), Ok(Decoded::Plain));
+    assert_eq!(decode(Pi, "ccs-relay/model"), Err(ModelIdError::UnsupportedApplication));
+    assert_eq!(encode(Pi, "relay", "model", false), Err(ModelIdError::UnsupportedApplication));
+    assert_eq!(encode(Claude, "a--b", "model", false), Err(ModelIdError::InvalidModelId));
+    assert_eq!(encode(Codex, "relay", "", false), Err(ModelIdError::InvalidModelId));
 }

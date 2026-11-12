@@ -1908,9 +1908,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 /// 模块内可见函数，执行 start 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Message> {
-    if app.current_session_runtime_ref().is_some_and(|runtime| {
-        runtime.full_access_saving || runtime.full_access_save_failed
-    }) {
+    if app
+        .current_session_runtime_ref()
+        .is_some_and(|runtime| runtime.full_access_saving || runtime.full_access_save_failed)
+    {
         let runtime = app.current_session_runtime_mut();
         runtime.queue.push(item);
         if !keep {
@@ -2125,8 +2126,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             acp_force_new_session: item.acp_force_new_session,
             acp_history_mode: item.acp_history_mode,
             acp_recent_count: item.acp_recent_count,
-            full_access_enabled: (is_draft
-                && (runtime.full_access_initialized || item.acp_test))
+            full_access_enabled: (is_draft && (runtime.full_access_initialized || item.acp_test))
                 .then_some(item.full_access_enabled),
             resume_history_only: item.resume_history_only,
             workflow_mode_enabled: item.workflow_mode_enabled,

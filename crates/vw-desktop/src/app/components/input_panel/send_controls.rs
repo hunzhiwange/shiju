@@ -742,10 +742,12 @@ pub fn bottom_bar<'a>(
         utility_controls = utility_controls.push(pool_btn);
     }
 
-    bar = bar.push(
-        container(utility_controls)
-            .padding(iced::Padding { top: 1.0, right: 5.0, bottom: 1.0, left: 5.0 }),
-    );
+    bar = bar.push(container(utility_controls).padding(iced::Padding {
+        top: 1.0,
+        right: 5.0,
+        bottom: 1.0,
+        left: 5.0,
+    }));
 
     // 在非任务模式下，添加取消和发送按钮
     if !task_mode_enabled {

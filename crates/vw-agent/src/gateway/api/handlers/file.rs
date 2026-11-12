@@ -15,10 +15,10 @@
 //! - `GET /file` - 列出目录内容
 //! - `GET /file/content` - 读取文件内容
 //! - `GET /file/status` - 获取 Git 状态
-#[path = "file_import.rs"]
-mod file_import;
 #[path = "file_duplicate.rs"]
 mod file_duplicate;
+#[path = "file_import.rs"]
+mod file_import;
 
 use std::path::{Path, PathBuf};
 

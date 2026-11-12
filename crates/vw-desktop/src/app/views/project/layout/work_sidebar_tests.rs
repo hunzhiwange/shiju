@@ -104,10 +104,7 @@ fn work_sidebar_shows_running_draft_until_history_is_available() {
     assert_eq!(running.task_total, 1);
     assert_eq!(running.tasks[0].id, id);
     assert!(running.tasks[0].details.pending);
-    assert_eq!(
-        running.tasks[0].status,
-        super::super::components::SessionRowStatus::Running
-    );
+    assert_eq!(running.tasks[0].status, super::super::components::SessionRowStatus::Running);
     assert_eq!(running.spaces[0].sessions[0].id, id);
     assert!(matches!(
         &running.tasks[0].message,

@@ -40,8 +40,7 @@ pub(crate) fn resolve_directory(query: &InstanceQuery, headers: &HeaderMap) -> S
         }
     }
     // 请求头用于前端统一附带当前工作区，空值不能覆盖后面的安全默认值。
-    if let Some(d) =
-        headers.get("x-directory").and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+    if let Some(d) = headers.get("x-directory").and_then(|v| v.to_str().ok()).map(|s| s.to_string())
     {
         if !d.trim().is_empty() {
             return d;

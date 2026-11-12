@@ -332,14 +332,14 @@ mod mcp_management_update;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_update_tests;
 
-mod aggregation_omp;
-mod aggregation_pi;
 mod aggregation_members;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_members_tests;
 mod aggregation_omo;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_omo_tests;
+mod aggregation_omp;
+mod aggregation_pi;
 mod aggregation_read;
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_read_tests;
@@ -354,16 +354,19 @@ pub(crate) mod voice_handoff;
 mod voice_handoff_session_tests;
 pub(crate) mod voice_realtime;
 
-#[cfg(target_os = "macos")]
-pub(crate) mod agent_apps_diagnostics;
 #[cfg(all(test, target_os = "macos"))]
-mod agent_apps_diagnostics_tests;
-#[cfg(all(test, target_os = "macos"))]
-mod agent_apps_diagnostics_acceptance_tests;
+mod aggregation_codex_settings_tests;
 
-mod mcp_management_import;
 #[cfg(all(test, target_os = "macos"))]
-mod mcp_management_import_tests;
+mod aggregation_omp_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod aggregation_desktop_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod aggregation_resync;
+
+mod aggregation_codex_settings;
 
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_bindings_tests;
@@ -371,25 +374,23 @@ mod mcp_management_bindings_tests;
 mod mcp_management_bindings;
 
 #[cfg(all(test, target_os = "macos"))]
-mod aggregation_omp_tests;
-
-#[cfg(all(test, target_os = "macos"))]
-mod aggregation_codex_settings_tests;
-
-mod aggregation_codex_settings;
-
-#[cfg(target_os = "macos")]
-pub(crate) mod aggregation_resync;
-
-#[cfg(all(test, target_os = "macos"))]
 mod aggregation_resync_tests;
+
+mod aggregation_desktop;
 
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_resync_codex_tests;
 
-mod aggregation_desktop;
+#[cfg(target_os = "macos")]
+pub(crate) mod agent_apps_diagnostics;
 #[cfg(all(test, target_os = "macos"))]
-mod aggregation_desktop_tests;
+mod agent_apps_diagnostics_acceptance_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_diagnostics_tests;
+
+mod mcp_management_import;
+#[cfg(all(test, target_os = "macos"))]
+mod mcp_management_import_tests;
 
 mod voice_settings;
 
@@ -398,17 +399,19 @@ mod aggregation_publish_tests;
 
 mod aggregation_publish;
 
-mod mcp_management_resync;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_resync_tests;
 
-#[cfg(target_os = "macos")]
-mod mcp_management_probe;
+mod mcp_management_resync;
+
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_probe_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod aggregation_clients_tests;
+
+#[cfg(target_os = "macos")]
+mod mcp_management_probe;
 
 mod aggregation_clients;
 

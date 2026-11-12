@@ -114,8 +114,9 @@ async fn approval_manager_recovers_from_poisoned_cache_lock() {
     .expect("approval manager should load");
 
     let lock = APPROVAL_MANAGERS.lock().unwrap_or_else(|error| error.into_inner());
-    let cached =
-        lock.get(&(current_tenant_scope(), normalize_directory_key(&directory))).expect("recovered manager should be cached");
+    let cached = lock
+        .get(&(current_tenant_scope(), normalize_directory_key(&directory)))
+        .expect("recovered manager should be cached");
     assert!(Arc::ptr_eq(&manager, cached));
     drop(lock);
     APPROVAL_MANAGERS.clear_poison();

@@ -223,7 +223,9 @@ pub(crate) fn with_permission_modal<'a>(
         .style(primary_action_btn_style);
 
     let mut action_row = row![reject].spacing(8).align_y(Alignment::Center);
-    if pending_requests.len() > 1 && pending_requests.iter().all(|request| !request.always.is_empty()) {
+    if pending_requests.len() > 1
+        && pending_requests.iter().all(|request| !request.always.is_empty())
+    {
         action_row = action_row.push(
             button(text(i18n.__("全部始终允许")).size(13))
                 .on_press(Message::Chat(message::ChatMessage::PermissionApproveAllAlways))
@@ -234,13 +236,9 @@ pub(crate) fn with_permission_modal<'a>(
     if !req.always.is_empty() {
         action_row = action_row.push(always);
     }
-    let actions = container(
-        action_row
-            .push(approve_once)
-            .wrap()
-            .align_x(iced::alignment::Horizontal::Right),
-    )
-    .align_right(Length::Fill);
+    let actions =
+        container(action_row.push(approve_once).wrap().align_x(iced::alignment::Horizontal::Right))
+            .align_right(Length::Fill);
     let card = settings_modal_layout(header, content, Some(actions.into())).width(Length::Fill);
     let dialog =
         crate::app::components::toast::modal_with_feedback(app, card).width(584).max_height(620);

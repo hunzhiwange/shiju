@@ -2388,7 +2388,9 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
     super::start(&mut app, queue_item("original question", Queue), false);
     let session_id = app.active_session_id.clone().unwrap();
 
-    for (query, delta) in [("first guidance", "first partial"), ("second guidance", "second partial")] {
+    for (query, delta) in
+        [("first guidance", "first partial"), ("second guidance", "second partial")]
+    {
         let request_id = app.current_session_runtime().active_agent_request.unwrap().id;
         super::stream::update(
             &mut app,

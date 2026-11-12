@@ -604,3 +604,23 @@ fn mini_companion_hidden_stops_avatar_and_expansion_ticks() {
     app.task_pet_expand_target = Some(1.0);
     assert!(needs_activity_animation_tick(&app, false));
 }
+
+#[test]
+fn cron_history_polling_stops_when_page_is_hidden() {
+    use crate::app::components::system_settings::SystemTab;
+    use crate::app::state::CronSettingsTab;
+    use iced::advanced::subscription::into_recipes;
+    let mut app = test_app();
+    app.show_system_settings = true;
+    app.system_settings_tab = SystemTab::Cron;
+    app.cron_settings.active_tab = CronSettingsTab::History;
+    assert_eq!(into_recipes(cron_history_subscription(&app)).len(), 1);
+    app.show_system_settings = false;
+    assert!(into_recipes(cron_history_subscription(&app)).is_empty());
+    app.show_system_settings = true;
+    app.cron_settings.active_tab = CronSettingsTab::Jobs;
+    assert!(into_recipes(cron_history_subscription(&app)).is_empty());
+    app.cron_settings.active_tab = CronSettingsTab::History;
+    app.system_settings_tab = SystemTab::General;
+    assert!(into_recipes(cron_history_subscription(&app)).is_empty());
+}

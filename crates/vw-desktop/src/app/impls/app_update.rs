@@ -1231,7 +1231,8 @@ impl App {
         message::voice::invalidate(self);
         let cleanup = message::settings::mcp_management_probe::invalidate(self);
         let tools_cleanup = message::settings::mcp_management_tools::invalidate(self);
-        let task = Task::batch([task, cleanup, tools_cleanup]);
+        let cron_history = message::settings::cron_history::reconcile(self);
+        let task = Task::batch([task, cleanup, tools_cleanup, cron_history]);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

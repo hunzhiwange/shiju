@@ -25,6 +25,8 @@ pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 pub(crate) use archived_chats::*;
 mod channels;
 mod cron_frequency;
+mod cron_history;
+pub(crate) use cron_history::*;
 mod cron_schedule_draft;
 pub(crate) use cron_frequency::CronFrequency;
 pub(crate) use cron_schedule_draft::*;

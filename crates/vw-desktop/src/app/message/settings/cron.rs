@@ -403,11 +403,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.action_status = None;
+            let history = super::cron_history::reconcile(app);
             if tab == CronSettingsTab::Jobs {
                 app.cron_settings.jobs_loading = true;
-                refresh_cron_jobs_task()
+                Task::batch([refresh_cron_jobs_task(), history])
             } else {
-                Task::none()
+                history
             }
         }
         SettingsMessage::CronListFilterChanged(filter) => {

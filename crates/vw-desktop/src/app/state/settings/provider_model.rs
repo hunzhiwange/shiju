@@ -557,6 +557,7 @@ impl Default for HeartbeatSettingsState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CronSettingsTab {
     Jobs,
+    History,
     Config,
     Scheduler,
     Add,
@@ -719,6 +720,7 @@ pub(crate) struct CronSettingsState {
     pub(crate) max_run_history: u32,
     /// 当前 Cron 设置页签。
     pub(crate) active_tab: CronSettingsTab,
+    pub(crate) history: super::CronHistoryState,
     /// 当前任务列表加载状态。
     pub(crate) jobs_loading: bool,
     /// 当前任务列表。
@@ -781,6 +783,7 @@ impl Default for CronSettingsState {
             enabled: true,
             max_run_history: 50,
             active_tab: CronSettingsTab::default(),
+            history: super::CronHistoryState::default(),
             jobs_loading: false,
             jobs: Vec::new(),
             list_filter: CronListFilter::default(),

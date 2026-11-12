@@ -733,3 +733,12 @@ async fn wb_schedule_draft_typed_rule_clears_stale_legacy_inputs_before_validati
     assert!(requests[0].body.get("every_ms").is_none());
     assert!(requests[0].body.get("at").is_none());
 }
+
+#[test]
+fn cron_history_unsupported_api_requires_upgrade() {
+    for status in ["404 Not Found", "405 Method Not Allowed", "501 Not Implemented"] {
+        assert!(super::cron_history_error(status.into()).contains("请升级"));
+    }
+    assert_eq!(super::cron_history_error("offline".into()), "offline");
+    assert_eq!(super::cron_history_error("401 Unauthorized".into()), "401 Unauthorized");
+}

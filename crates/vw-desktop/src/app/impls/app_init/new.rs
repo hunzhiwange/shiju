@@ -873,6 +873,7 @@ impl App {
                 enabled: cron_cfg.enabled,
                 max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),
                 active_tab: super::state::CronSettingsTab::default(),
+                history: super::state::CronHistoryState::default(),
                 list_filter: super::state::CronListFilter::default(),
                 batch_mode: false,
                 jobs_loading: false,

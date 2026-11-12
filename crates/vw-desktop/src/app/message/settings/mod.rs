@@ -18,6 +18,7 @@ mod autonomy;
 mod browser;
 mod channels;
 mod cron;
+pub(crate) mod cron_history;
 pub(crate) use cron::validate_delivery as validate_cron_delivery;
 mod dialogue_flow;
 mod embedding_routes;
@@ -374,6 +375,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::HeartbeatHelpClose => {
             update_config_panel(app, message, "heartbeat_settings", heartbeat::update)
         }
+        SettingsMessage::CronHistory(event) => cron_history::update(app, event),
         SettingsMessage::CronFullAccessConfirm { .. }
         | SettingsMessage::CronFullAccessCancel { .. }
         | SettingsMessage::CronPickerOpen { .. }

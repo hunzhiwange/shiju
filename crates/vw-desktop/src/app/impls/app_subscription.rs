@@ -18,6 +18,21 @@ fn terminal_subscription(term: &iced_term::Terminal) -> Subscription<Message> {
         .map(|(_, event)| Message::Terminal(message::TerminalMessage::Event(event)))
 }
 
+fn cron_history_subscription(app: &App) -> Subscription<Message> {
+    use crate::app::message::settings::cron_history::{self, CronHistoryMessage};
+    if cron_history::visible(app) {
+        iced::time::every(std::time::Duration::from_secs(3))
+            .with(app.cron_settings.history.generation)
+            .map(|(generation, _)| {
+                Message::Settings(message::SettingsMessage::CronHistory(CronHistoryMessage::Tick(
+                    generation,
+                )))
+            })
+    } else {
+        Subscription::none()
+    }
+}
+
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     startup_transition_active
         || (app.show_cli_install_modal
@@ -315,6 +330,7 @@ impl App {
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
         Subscription::batch(vec![
+            cron_history_subscription(self),
             #[cfg(not(target_arch = "wasm32"))]
             iced::time::every(self.voice.hotkeys.interval())
                 .map(|_| Message::Voice(message::voice::Event::HotkeyTick)),

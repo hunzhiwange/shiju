@@ -106,6 +106,25 @@ pub async fn load_cron_jobs_async() -> Result<Vec<CronJobDto>, String> {
     client.cron_jobs_get().await
 }
 
+/// 汇总历史与完整任务候选使用同一个带认证的客户端，不回退旧 last_run。
+pub async fn load_cron_history_async()
+-> Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String> {
+    let client = gateway_client()?;
+    let history = async { client.cron_history_get().await.map_err(cron_history_error) };
+    iced::futures::try_join!(history, client.cron_jobs_get())
+}
+
+fn cron_history_error(error: String) -> String {
+    if ["404 Not Found", "405 Method Not Allowed", "501 Not Implemented"]
+        .iter()
+        .any(|status| error.contains(status))
+    {
+        "当前网关不支持运行记录汇总接口，请升级并重启 gateway/daemon".to_string()
+    } else {
+        error
+    }
+}
+
 /// 加载指定定时任务的历史运行记录。
 pub async fn load_cron_job_runs_async(job_id: String) -> Result<Vec<CronRunDto>, String> {
     let client = gateway_client()?;

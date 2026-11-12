@@ -1309,3 +1309,137 @@ fn wb_schedule_feedback_save_error_preserves_draft_and_shows_toast() {
     assert_eq!(app.cron_settings.add_draft.prompt, "report");
     assert!(!app.cron_settings.add_draft.submitting);
 }
+
+fn history_app() -> App {
+    let mut app = app();
+    app.show_system_settings = true;
+    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Cron;
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::History));
+    app
+}
+
+fn history_loaded(
+    app: &mut App,
+    generation: u64,
+    result: Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String>,
+) {
+    let _ = super::super::cron_history::update(
+        app,
+        super::super::cron_history::CronHistoryMessage::Loaded { generation, result },
+    );
+}
+
+fn history_response() -> vw_gateway_client::CronHistoryResponse {
+    vw_gateway_client::CronHistoryResponse {
+        runs: vec![vw_gateway_client::CronHistoryRunDto {
+            id: Some(1),
+            execution_id: None,
+            job_id: "a".into(),
+            name: Some("备份".into()),
+            started_at: "start".into(),
+            finished_at: Some("end".into()),
+            duration_ms: Some(1),
+            status: "ok".into(),
+            output: None,
+        }],
+        finished_limit: 200,
+        truncated: false,
+    }
+}
+
+#[test]
+fn cron_history_stale_response_is_ignored() {
+    let mut app = history_app();
+    let generation = app.cron_settings.history.generation;
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Jobs));
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::History));
+    let current = app.cron_settings.history.generation;
+    assert!(current > generation);
+    history_loaded(&mut app, generation, Ok((history_response(), vec![job("old")])));
+    assert!(app.cron_settings.history.runs.is_empty());
+    assert!(app.cron_settings.history.loading);
+    history_loaded(&mut app, current, Ok((history_response(), vec![job("a")])));
+    assert_eq!(app.cron_settings.history.runs.len(), 1);
+    assert_eq!(app.cron_settings.jobs[0].id, "a");
+    // Duplicate completion for the same request cannot overwrite accepted data.
+    history_loaded(&mut app, current, Err("late".into()));
+    assert!(app.cron_settings.history.error.is_none());
+}
+
+#[test]
+fn cron_history_refresh_error_preserves_rows() {
+    use super::super::cron_history::{self, CronHistoryMessage};
+    let mut app = history_app();
+    let generation = app.cron_settings.history.generation;
+    history_loaded(&mut app, generation, Ok((history_response(), vec![job("a")])));
+    app.cron_settings.history.search = "备份".into();
+    let _ = cron_history::update(&mut app, CronHistoryMessage::Refresh);
+    let generation = app.cron_settings.history.generation;
+    let _ = cron_history::update(&mut app, CronHistoryMessage::Refresh);
+    assert_eq!(generation, app.cron_settings.history.generation);
+    history_loaded(&mut app, generation, Err("offline".into()));
+    assert_eq!(app.cron_settings.history.runs.len(), 1);
+    assert_eq!(app.cron_settings.history.search, "备份");
+    assert_eq!(app.cron_settings.history.error.as_deref(), Some("offline"));
+    assert!(!app.cron_settings.history.loading);
+    assert_eq!(app.cron_settings.jobs[0].id, "a");
+}
+
+#[test]
+fn cron_history_close_and_workspace_change_invalidate_responses() {
+    use super::super::cron_history;
+    let mut app = history_app();
+    let first = app.cron_settings.history.generation;
+    app.show_system_settings = false;
+    let _ = app.update(Message::None);
+    assert!(app.cron_settings.history.generation > first);
+    history_loaded(&mut app, first, Ok((history_response(), vec![job("old")])));
+    assert!(app.cron_settings.history.runs.is_empty());
+    app.show_system_settings = true;
+    let _ = app.update(Message::None);
+    let second = app.cron_settings.history.generation;
+    app.project_path = Some("/other".into());
+    let _ = app.update(Message::None);
+    assert!(app.cron_settings.history.generation > second);
+    history_loaded(&mut app, second, Ok((history_response(), vec![job("old")])));
+    assert!(app.cron_settings.history.runs.is_empty());
+    assert!(cron_history::visible(&app));
+}
+
+#[test]
+fn cron_history_candidates_include_unrun_jobs_and_disambiguate_ids() {
+    let mut app = app();
+    let mut first = job("a");
+    first.name = Some("备份".into());
+    let mut second = job("b");
+    second.name = Some("备份".into());
+    let mut third = job("c");
+    third.name = Some(" DAILY ".into());
+    app.cron_settings.jobs = vec![first, second, third];
+    let history = &mut app.cron_settings.history;
+    assert!(history.runs.is_empty());
+    let candidates = history.task_candidates(&app.cron_settings.jobs);
+    assert_eq!(candidates.len(), 3);
+    assert_eq!(candidates[0], ("a", "备份 (a)".into()));
+    assert_eq!(candidates[1], ("b", "备份 (b)".into()));
+    history.task_search = " DaI ".into();
+    assert_eq!(history.task_candidates(&app.cron_settings.jobs), vec![("c", "DAILY".into())]);
+}
+
+#[test]
+fn cron_history_repeated_polling_errors_do_not_repeat_toast() {
+    use super::super::cron_history::{self, CronHistoryMessage};
+    let mut app = history_app();
+    let generation = app.cron_settings.history.generation;
+    history_loaded(&mut app, generation, Err("offline".into()));
+    let toast_id = app.next_toast_id;
+    let _ = cron_history::update(&mut app, CronHistoryMessage::Refresh);
+    let generation = app.cron_settings.history.generation;
+    history_loaded(&mut app, generation, Err("offline".into()));
+    assert_eq!(app.next_toast_id, toast_id);
+    let _ = cron_history::update(&mut app, CronHistoryMessage::Tick(generation));
+    let current = app.cron_settings.history.generation;
+    assert!(current > generation);
+    let _ = cron_history::update(&mut app, CronHistoryMessage::Tick(generation));
+    assert_eq!(app.cron_settings.history.generation, current);
+}

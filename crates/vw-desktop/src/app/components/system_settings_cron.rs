@@ -42,6 +42,11 @@ pub(super) const CRON_TABS: &[SettingsTabDescriptor<CronSettingsTab>] = &[
         &["cron", "schedule", "任务列表", "启用"],
     ),
     SettingsTabDescriptor::new(
+        CronSettingsTab::History,
+        "运行记录",
+        &["history", "运行中", "成功", "失败"],
+    ),
+    SettingsTabDescriptor::new(
         CronSettingsTab::Config,
         "配置",
         &["history retention", "执行历史", "历史留存"],
@@ -395,6 +400,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let tab_content = match s.active_tab {
         CronSettingsTab::Jobs => jobs_tab(app),
+        CronSettingsTab::History => history_tab(app),
         CronSettingsTab::Config => config_tab(app),
         CronSettingsTab::Scheduler => {
             crate::app::components::system_settings_scheduler::embedded_view(app)
@@ -688,3 +694,75 @@ mod system_settings_cron_tests;
 #[cfg(test)]
 #[path = "system_settings_cron_ui_refresh_27_tests.rs"]
 mod ui_refresh_27_tests;
+
+/// 运行记录的筛选入口与当前加载状态。
+fn history_tab(app: &App) -> Element<'_, Message> {
+    use crate::app::message::settings::cron_history::CronHistoryMessage as Event;
+    use crate::app::state::{CronHistoryLocation, CronHistoryStatus};
+    let event = |event| Message::Settings(message::SettingsMessage::CronHistory(event));
+    let history = &app.cron_settings.history;
+    let search = settings_text_input("搜索任务名称", &history.search)
+        .on_input(move |value| event(Event::SearchChanged(value)));
+    let status = settings_select(
+        [
+            CronHistoryStatus::All,
+            CronHistoryStatus::Running,
+            CronHistoryStatus::Success,
+            CronHistoryStatus::Failed,
+        ],
+        Some(history.status_filter),
+        move |value| event(Event::StatusChanged(value)),
+    );
+    let location = settings_select(
+        [CronHistoryLocation::All, CronHistoryLocation::Local],
+        Some(history.location_filter),
+        move |value| event(Event::LocationChanged(value)),
+    );
+    let task_label = history.selected_job_id.as_deref().unwrap_or("全部任务");
+    let task_picker = button(text(task_label))
+        .on_press(event(Event::TaskPickerToggled(!history.task_picker_open)))
+        .padding([8, 12])
+        .style(rounded_action_btn_style);
+    let mut refresh = button(text("刷新")).padding([8, 12]).style(rounded_action_btn_style);
+    if !history.loading {
+        refresh = refresh.on_press(event(Event::Refresh));
+    }
+    let mut content =
+        column![search, status, location, row![task_picker, refresh].spacing(8)].spacing(8);
+    if history.task_picker_open {
+        content = content.push(
+            settings_text_input("搜索任务", &history.task_search)
+                .on_input(move |value| event(Event::TaskSearchChanged(value))),
+        );
+        content = content.push(
+            button(text("全部任务"))
+                .on_press(event(Event::TaskSelected(None)))
+                .padding([8, 12])
+                .style(rounded_action_btn_style),
+        );
+        for (id, label) in history.task_candidates(&app.cron_settings.jobs) {
+            content = content.push(
+                button(text(label))
+                    .on_press(event(Event::TaskSelected(Some(id.into()))))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style),
+            );
+        }
+    }
+    if history.loading {
+        content = content.push(text("正在刷新运行记录…"));
+    }
+    if let Some(error) = &history.error {
+        content = content
+            .push(settings_error_banner(error.clone()))
+            .push(text("刷新失败，以下为上次加载的数据，可能不是最新状态"));
+    }
+    let limit = if history.finished_limit == 0 { 200 } else { history.finished_limit };
+    content = content
+        .push(text(format!("最近 {limit} 条已结束记录及当前运行任务，筛选仅作用于此范围")))
+        .push(text(format!("匹配记录：{}", history.visible_runs().count())));
+    if history.truncated {
+        content = content.push(text("存在更早的运行记录"));
+    }
+    content.into()
+}

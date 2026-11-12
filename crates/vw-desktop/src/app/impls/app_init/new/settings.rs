@@ -121,6 +121,7 @@ pub(super) fn build_cron_settings(
         enabled: cron_cfg.enabled,
         max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),
         active_tab: crate::app::state::CronSettingsTab::default(),
+        history: crate::app::state::CronHistoryState::default(),
         jobs_loading: false,
         jobs: Vec::new(),
         list_filter: crate::app::state::CronListFilter::default(),

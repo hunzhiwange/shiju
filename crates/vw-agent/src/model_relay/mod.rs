@@ -29,6 +29,14 @@ mod messages_request_tests;
 pub(crate) mod messages_stream;
 #[cfg(test)]
 mod messages_tests;
+pub(crate) mod messages_thinking;
+mod messages_thinking_config;
+#[cfg(test)]
+mod messages_thinking_core_tests;
+#[cfg(test)]
+mod messages_thinking_http_tests;
+#[cfg(test)]
+mod messages_thinking_tests;
 
 #[cfg(test)]
 mod responses_tests;

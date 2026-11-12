@@ -67,7 +67,7 @@ fn acp_model_source_alibaba_native_preserves_thinking_and_tool_cache_hints() {
 }
 
 #[test]
-fn acp_model_source_official_deepseek_keeps_legacy_tool_continuations_usable() {
+fn acp_model_source_official_deepseek_rejects_missing_thinking_in_current_tool_turn() {
     let request = json!({
         "thinking":{"type":"adaptive"},
         "metadata":{"user_id":"private"},
@@ -78,8 +78,11 @@ fn acp_model_source_official_deepseek_keeps_legacy_tool_continuations_usable() {
         ]
     });
     let mut legacy = request.clone();
-    messages::prepare_deepseek_native(&mut legacy).unwrap();
-    assert_eq!(legacy["thinking"]["type"], "disabled");
+    assert_eq!(
+        messages::prepare_deepseek_native(&mut legacy),
+        Err(StatusCode::UNPROCESSABLE_ENTITY)
+    );
+    assert_eq!(legacy["thinking"]["type"], "adaptive");
     assert!(legacy.get("metadata").is_none());
     assert_eq!(legacy["messages"], request["messages"]);
 

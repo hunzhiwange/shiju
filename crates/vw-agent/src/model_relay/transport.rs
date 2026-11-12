@@ -83,50 +83,8 @@ pub(crate) fn chat_url(api: &provider::ApiInfo) -> Result<reqwest::Url, StatusCo
     Ok(url)
 }
 
-pub(super) fn configure_messages_chat(body: &mut serde_json::Value, model: &provider::Model) {
-    use vw_shared::provider::reasoning::{ReasoningFormat, reasoning_levels, reasoning_profile};
-
-    // Claude's Chat launch disables thinking. Apply the same mode upstream so
-    // provider defaults cannot introduce signed thinking state into this bridge.
-    if official_deepseek_messages_url(&model.api).is_some() {
-        body["thinking"] = serde_json::json!({"type": "disabled"});
-        return;
-    }
-    let api = &model.api;
-    let profile = reasoning_profile(&api.id, &api.adapter, &model.provider_id, &api.url);
-    let levels = reasoning_levels(
-        &api.id,
-        &api.adapter,
-        &model.provider_id,
-        &api.url,
-        model.capabilities.reasoning_options.as_deref(),
-    );
-    let supports_disabled = match &model.capabilities.reasoning_options {
-        Some(options) => options.iter().any(|option| match option {
-            vw_shared::provider::reasoning::ReasoningOption::Toggle => true,
-            vw_shared::provider::reasoning::ReasoningOption::Effort { values } => {
-                values.iter().any(|value| value == "none")
-            }
-            _ => false,
-        }),
-        None => profile.levels.contains(&"none"),
-    };
-    if supports_disabled {
-        match profile.format {
-            ReasoningFormat::DashScope => body["enable_thinking"] = false.into(),
-            ReasoningFormat::DeepSeek => {
-                body["thinking"] = serde_json::json!({"type": "disabled"});
-            }
-            ReasoningFormat::OpenAi
-                if profile.levels.contains(&"none")
-                    || levels.iter().any(|level| level == "none") =>
-            {
-                body["reasoning_effort"] = "none".into();
-            }
-            _ => {}
-        }
-    }
-}
+#[cfg(test)]
+pub(super) use super::messages_thinking_config::configure_disabled as configure_messages_chat;
 
 /// The official DeepSeek Chat and Messages endpoints share model IDs and credentials.
 pub(crate) fn official_deepseek_messages_url(api: &provider::ApiInfo) -> Option<reqwest::Url> {
@@ -363,6 +321,30 @@ impl RelayBackend for ProviderRelayBackend {
         let native_gemini = source == P::Gemini && !route.conversion_required;
         let native_responses = source == P::Responses && !route.conversion_required;
         let native = source == P::Messages && !route.conversion_required;
+        let key = if matches!(
+            route.endpoint.authentication,
+            vw_shared::provider::protocols::ProtocolAuthentication::None {}
+        ) {
+            String::new()
+        } else {
+            bearer(&info)?
+        };
+        let thinking = (messages_request && !native && model.capabilities.reasoning).then(|| {
+            // Bind receipts to the actual deployment and current credential without retaining it.
+            let credential =
+                hex::encode(ring::digest::digest(&ring::digest::SHA256, key.as_bytes()));
+            let deployment = serde_json::json!([
+                model.api.id,
+                model.api.url,
+                route.endpoint.url,
+                route.endpoint.deployment,
+                credential,
+                model.headers.iter().collect::<std::collections::BTreeMap<_, _>>(),
+                route.endpoint.authentication
+            ])
+            .to_string();
+            super::messages_thinking::Context::new(identity, deployment, self.references.clone())
+        });
         let codex_chat =
             responses_request && !native_responses && identity.session.ends_with(":codex");
         let mut response_tools = super::responses::ChatTools::default();
@@ -407,7 +389,10 @@ impl RelayBackend for ProviderRelayBackend {
         } else if messages_request {
             let input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
-            let converted = super::messages::to_chat(&input)?;
+            let converted = match &thinking {
+                Some(context) => context.request(&input)?,
+                None => super::messages::to_chat(&input)?,
+            };
             chat::prepare(
                 model,
                 &identity.model,
@@ -429,16 +414,13 @@ impl RelayBackend for ProviderRelayBackend {
             url.query_pairs_mut().append_pair("alt", "sse");
         }
         if messages_request && !native {
-            configure_messages_chat(&mut body, model);
+            super::messages_thinking::configure(&mut body, &input, model)?;
+            if thinking.is_some() {
+                // Issue the scoped receipt only after the entire tool result is validated.
+                body["stream"] = false.into();
+                body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("stream_options");
+            }
         }
-        let key = if matches!(
-            route.endpoint.authentication,
-            vw_shared::provider::protocols::ProtocolAuthentication::None {}
-        ) {
-            String::new()
-        } else {
-            bearer(&info)?
-        };
         let mut headers = super::generation::endpoint_headers(&route.endpoint, &key)?;
         for (name, value) in &model.headers {
             let name = header::HeaderName::from_bytes(name.as_bytes())
@@ -499,6 +481,16 @@ impl RelayBackend for ProviderRelayBackend {
             .await;
         }
         if messages_request {
+            if let Some(context) = thinking {
+                return super::messages_thinking::response(
+                    response,
+                    context,
+                    &identity.model,
+                    streaming,
+                    cancel,
+                )
+                .await;
+            }
             return super::messages_stream::response(
                 response,
                 identity.model.clone(),

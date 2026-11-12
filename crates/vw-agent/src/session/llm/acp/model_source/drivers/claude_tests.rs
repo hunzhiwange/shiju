@@ -243,7 +243,7 @@ fn acp_model_source_claude_does_not_infer_alibaba_native_without_catalog() {
     launch.model_supports_reasoning = true;
     configure(&mut launch, "http://127.0.0.1:12345").unwrap();
     assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
-    assert_eq!(launch.config().env["MAX_THINKING_TOKENS"], "0");
+    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
     assert_eq!(launch.config().env["ANTHROPIC_BASE_URL"], "http://127.0.0.1:12345");
     assert_eq!(launch.config().env["ANTHROPIC_MODEL"], "selected-model");
 }
@@ -359,4 +359,14 @@ fn model_protocol_013_claude_explicit_thinking_is_not_silently_disabled_for_conv
     launch.model_supports_reasoning = true;
     assert!(configure(&mut launch, "http://127.0.0.1:12345").is_err());
     assert!(!launch.directory().join("settings.json").exists());
+}
+
+#[test]
+fn model_protocol_015_claude_enables_expressible_converted_thinking() {
+    let mut launch = profile(&Default::default());
+    launch.model_api.as_mut().unwrap().id = "gpt-5.4".into();
+    launch.model_supports_reasoning = true;
+    configure(&mut launch, "http://127.0.0.1:12345").unwrap();
+    assert!(!launch.config().env.contains_key("MAX_THINKING_TOKENS"));
+    assert_eq!(launch.config().env["VW_ACP_CLAUDE_NATIVE_MESSAGES"], "0");
 }

@@ -199,3 +199,7 @@ path = "tests/cc_route_030_outbound_scan.rs"
 [[test]]
 name = "model_protocol_014_messages"
 path = "tests/model_protocol_014_messages.rs"
+
+[[test]]
+name = "model_protocol_015_messages"
+path = "tests/model_protocol_015_messages.rs"

@@ -12,8 +12,8 @@ fn model_protocol_014_shared_selector_advertises_only_executable_messages_capabi
         conversions.iter().find(|c| c.source == P::Messages && c.target == P::Chat).unwrap();
     assert!(conversion.capabilities.contains(&C::Image));
     assert!(conversion.capabilities.contains(&C::StructuredOutput));
-    assert!(!conversion.capabilities.contains(&C::ThinkingReplay));
-    assert!(!conversion.capabilities.contains(&C::Thinking));
+    assert!(conversion.capabilities.contains(&C::ThinkingReplay));
+    assert!(conversion.capabilities.contains(&C::Thinking));
 }
 
 #[tokio::test]

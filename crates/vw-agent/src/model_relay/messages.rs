@@ -82,6 +82,14 @@ fn image(block: &Value) -> Result<Value, StatusCode> {
 }
 
 pub(crate) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
+    convert_to_chat(body, false)
+}
+
+pub(super) fn to_chat_thinking(body: &Value) -> Result<Value, StatusCode> {
+    convert_to_chat(body, true)
+}
+
+fn convert_to_chat(body: &Value, thinking_bridge: bool) -> Result<Value, StatusCode> {
     object_keys(
         body,
         &[
@@ -103,9 +111,21 @@ pub(crate) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
     )?;
     cache_hint(body)?;
     if let Some(thinking) = body.get("thinking") {
-        object_keys(thinking, &["type"])?;
-        if thinking["type"] != "disabled" {
+        if !thinking_bridge && thinking["type"] != "disabled" {
             return Err(UNSUPPORTED);
+        }
+        object_keys(thinking, &["type", "budget_tokens"])?;
+        if !matches!(thinking["type"].as_str(), Some("disabled" | "enabled" | "adaptive")) {
+            return Err(UNSUPPORTED);
+        }
+        if let Some(budget) = thinking.get("budget_tokens") {
+            let budget = budget.as_u64().ok_or(StatusCode::BAD_REQUEST)?;
+            if thinking["type"] != "enabled"
+                || budget < 1024
+                || body["max_tokens"].as_u64().is_none_or(|max| budget >= max)
+            {
+                return Err(StatusCode::BAD_REQUEST);
+            }
         }
     }
     if let Some(metadata) = body.get("metadata") {
@@ -356,7 +376,15 @@ pub(super) fn error(status: StatusCode) -> axum::response::Response {
         400 | 413 | 422 => "invalid_request_error",
         _ => "api_error",
     };
-    (status, axum::Json(json!({"type":"error","error":{"type":kind,"message": if status == UNSUPPORTED {"Unsupported Messages capability"} else {"Messages relay request failed"}}}))).into_response()
+    let message = match status {
+        UNSUPPORTED => "Unsupported Messages capability or missing thinking/tool replay context",
+        StatusCode::FORBIDDEN => {
+            "Messages binding or thinking receipt is invalid, expired, or unavailable; start a new user turn"
+        }
+        _ => "Messages relay request failed",
+    };
+    (status, axum::Json(json!({"type":"error","error":{"type":kind,"message":message}})))
+        .into_response()
 }
 
 /// Same-protocol requests retain native blocks, signatures, cache controls and vendor options.
@@ -459,9 +487,8 @@ pub(super) fn prepare_hosted_native(body: &mut Value) -> Result<(), StatusCode> 
 
 pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode> {
     prepare_hosted_native(body)?;
-    // DeepSeek requires thinking from earlier tool rounds in the current turn.
-    // Old Chat-converted history has none. Resume that turn without inventing
-    // thinking or signatures, then allow thinking again on the next user turn.
+    // DeepSeek requires the real thinking from earlier tool rounds. Missing
+    // history must not silently change the requested inference mode.
     let messages = body["messages"].as_array().ok_or(StatusCode::BAD_REQUEST)?;
     for message in messages.iter().rev() {
         let blocks = message["content"].as_array().into_iter().flatten();
@@ -474,9 +501,9 @@ pub(super) fn prepare_deepseek_native(body: &mut Value) -> Result<(), StatusCode
             && !blocks
                 .filter(|block| block["type"] == "thinking")
                 .any(|block| block["thinking"].as_str().is_some_and(|text| !text.is_empty()))
+            && body["thinking"]["type"] != "disabled"
         {
-            body["thinking"] = json!({"type": "disabled"});
-            break;
+            return Err(UNSUPPORTED);
         }
     }
     Ok(())

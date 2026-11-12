@@ -88,7 +88,7 @@ WINDOWS_ARM := aarch64-pc-windows-msvc
         desktop-check desktop-run desktop-release desktop-wasm \
         ensure-wasm-target \
         cross-install cross-check \
-        clean clean-cargo-cache distclean \
+        clean clean-cargo-cache clean-cargo-cache-preview distclean \
         info check-deps \
         macos macos-dev windows app-macos-with-cli app-windows-with-cli \
         worktree-commit-merge worktree-sync-main worktree-reset-all \
@@ -473,11 +473,16 @@ cloc: ## 用 cloc 按语言统计 crates 各库源代码行数
 ## 清理
 ## ============================================================================
 
-# Cargo 1.88+ 原生 GC：按整个 CARGO_HOME 的使用记录清理，不按本项目锁文件删缓存。
-# 默认回收 3 个月未使用的下载缓存、1 个月未使用的可再生成源码；保留编译缓存。
-# fetch --locked 补齐当前依赖且不修改锁文件；离线配置下 Cargo 会跳过回收。
-clean-cargo-cache: ## 回收 Cargo 过期依赖缓存（需联网），保留近期依赖与编译缓存
-	cargo --config 'cache.auto-clean-frequency="always"' fetch --locked
+# 清理工作区 crate 的各 profile/target 历史产物（含测试程序和增量缓存），保留第三方依赖。
+# 由 Cargo 解析 target-dir/build-dir；下次构建需重新编译工作区代码，dist 发布包不受影响。
+# 同时删除空闲 rust-slot-* 副本（包括副本内依赖）；有锁的槽位不动。
+clean-cargo-cache: ## 强力清理项目产物及空闲构建副本，保留主目录第三方依赖缓存
+	python3 ./scripts/clean_cargo_slots.py
+	cargo clean --workspace --locked
+
+clean-cargo-cache-preview: ## 预览强力清理范围，不删除文件
+	python3 ./scripts/clean_cargo_slots.py --dry-run
+	cargo clean --workspace --locked --dry-run --verbose
 
 clean: ## 清理构建产物
 	cargo clean

@@ -102,7 +102,8 @@ impl GatewayClient {
         })?;
         credential.set_sensitive(true);
         let mut request = self
-            .dynamic_host_client
+            .native_transport()
+            .map_err(AgentAppsSettingsError::Transport)?
             .request(method, url)
             .query(scope)
             .header("x-agent-apps-token", credential);

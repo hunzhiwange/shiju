@@ -244,6 +244,18 @@ impl GatewayClient {
         })
     }
 
+    // Browser fetch cannot enforce the native no-redirect/no-retry transport policy.
+    fn native_transport(&self) -> Result<&reqwest::Client, String> {
+        #[cfg(target_arch = "wasm32")]
+        {
+            Err("authorized application requests require native transport".into())
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(&self.dynamic_host_client)
+        }
+    }
+
     /// 返回当前客户端绑定的网关端点。
     ///
     /// 可用于日志、诊断或生成派生请求配置。
@@ -361,21 +373,16 @@ mod voice_api;
 #[cfg(not(target_arch = "wasm32"))]
 pub use voice_api::VoiceApiError;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_members_api;
-#[cfg(not(target_arch = "wasm32"))]
 pub use aggregation_members_api::AggregationApiError;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_members_api_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_omo_api;
-#[cfg(not(target_arch = "wasm32"))]
 pub use aggregation_omo_api::AggregationOmoError;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_omo_api_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_native_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_native_api_tests;
@@ -383,20 +390,16 @@ mod aggregation_native_api_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_desktop_api_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_desktop_api;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod agent_apps_diagnostics_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod agent_apps_diagnostics_api_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_publish_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_publish_api_tests;
 
-#[cfg(not(target_arch = "wasm32"))]
 mod aggregation_codex_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_codex_api_tests;

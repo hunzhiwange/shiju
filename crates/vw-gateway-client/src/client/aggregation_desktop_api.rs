@@ -16,7 +16,8 @@ impl GatewayClient {
         scope: &AggregationQuery,
     ) -> Result<DesktopProfileStatus, AgentAppsSettingsError> {
         let request = self
-            .dynamic_host_client
+            .native_transport()
+            .map_err(AgentAppsSettingsError::Transport)?
             .get(format!(
                 "{}/v1/agent-apps/claude-desktop/profile/status",
                 self.endpoint.base_url()
@@ -32,7 +33,13 @@ impl GatewayClient {
         scope: &AggregationQuery,
     ) -> Result<DesktopMappingView, AgentAppsSettingsError> {
         let url = self.aggregation_desktop_mapping_url(provider_id, "form/read")?;
-        self.aggregation_desktop_response(self.dynamic_host_client.post(url).json(scope)).await
+        self.aggregation_desktop_response(
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .post(url)
+                .json(scope),
+        )
+        .await
     }
 
     /// Save exactly once at the observed revision. A transport error is never replayed.
@@ -42,7 +49,13 @@ impl GatewayClient {
         change: &DesktopMappingChange,
     ) -> Result<DesktopMappingView, AgentAppsSettingsError> {
         let url = self.aggregation_desktop_mapping_url(provider_id, "model-mapping")?;
-        self.aggregation_desktop_response(self.dynamic_host_client.put(url).json(change)).await
+        self.aggregation_desktop_response(
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .put(url)
+                .json(change),
+        )
+        .await
     }
 
     /// Preview the Desktop catalog on the gateway; never issue a publish implicitly.
@@ -80,7 +93,13 @@ impl GatewayClient {
             "{}/v1/agent-apps/claude-desktop/aggregation/{action}",
             self.endpoint.base_url()
         );
-        self.aggregation_desktop_response(self.dynamic_host_client.post(url).json(intent)).await
+        self.aggregation_desktop_response(
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .post(url)
+                .json(intent),
+        )
+        .await
     }
 
     fn aggregation_desktop_mapping_url(

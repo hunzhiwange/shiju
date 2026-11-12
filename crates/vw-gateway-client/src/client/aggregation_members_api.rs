@@ -28,7 +28,8 @@ impl GatewayClient {
         scope: &AggregationQuery,
     ) -> Result<AggregationState, AggregationApiError> {
         let url = self.aggregation_url(app, &["state"])?;
-        let request = self.dynamic_host_client.get(url).query(scope);
+        let request =
+            self.native_transport().map_err(AggregationApiError::Transport)?.get(url).query(scope);
         self.aggregation_response(request).await
     }
     /// Preview intent without publishing or recalculating membership locally.
@@ -80,7 +81,13 @@ impl GatewayClient {
         body: &B,
     ) -> Result<T, AggregationApiError> {
         let url = self.aggregation_url(app, resource)?;
-        self.aggregation_response(self.dynamic_host_client.request(method, url).json(body)).await
+        self.aggregation_response(
+            self.native_transport()
+                .map_err(AggregationApiError::Transport)?
+                .request(method, url)
+                .json(body),
+        )
+        .await
     }
     async fn aggregation_response<T: DeserializeOwned>(
         &self,

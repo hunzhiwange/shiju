@@ -52,7 +52,8 @@ impl GatewayClient {
             return Err(Error::Transport("invalid provider identity".into()));
         }
         let request = self
-            .dynamic_host_client
+            .native_transport()
+            .map_err(Error::Transport)?
             .request(
                 method,
                 format!("{}/v1/app-providers/{app}/{id}{action}", self.endpoint.base_url()),

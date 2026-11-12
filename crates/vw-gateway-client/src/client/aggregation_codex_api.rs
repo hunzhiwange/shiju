@@ -14,7 +14,10 @@ impl GatewayClient {
         scope: &AggregationQuery,
     ) -> Result<CodexAggregationSettings, AgentAppsSettingsError> {
         self.aggregation_codex_response(
-            self.dynamic_host_client.get(self.aggregation_codex_url("settings")).query(scope),
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .get(self.aggregation_codex_url("settings"))
+                .query(scope),
             reqwest::StatusCode::OK,
         )
         .await
@@ -26,7 +29,10 @@ impl GatewayClient {
         intent: &CodexSettingsRequest,
     ) -> Result<CodexAggregationSettings, AgentAppsSettingsError> {
         self.aggregation_codex_response(
-            self.dynamic_host_client.put(self.aggregation_codex_url("settings")).json(intent),
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .put(self.aggregation_codex_url("settings"))
+                .json(intent),
             reqwest::StatusCode::OK,
         )
         .await
@@ -38,7 +44,10 @@ impl GatewayClient {
         scope: &AggregationQuery,
     ) -> Result<CodexClientsState, AgentAppsSettingsError> {
         self.aggregation_codex_response(
-            self.dynamic_host_client.get(self.aggregation_codex_url("clients")).query(scope),
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .get(self.aggregation_codex_url("clients"))
+                .query(scope),
             reqwest::StatusCode::OK,
         )
         .await
@@ -50,7 +59,10 @@ impl GatewayClient {
         intent: &CodexClientsAckRequest,
     ) -> Result<CodexClientsState, AgentAppsSettingsError> {
         self.aggregation_codex_response(
-            self.dynamic_host_client.post(self.aggregation_codex_url("ack")).json(intent),
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .post(self.aggregation_codex_url("ack"))
+                .json(intent),
             reqwest::StatusCode::OK,
         )
         .await
@@ -65,7 +77,10 @@ impl GatewayClient {
         intent: &CodexRestartRequest,
     ) -> Result<ProviderOperationProgress, AgentAppsSettingsError> {
         self.aggregation_codex_response(
-            self.dynamic_host_client.post(self.aggregation_codex_url("restart")).json(intent),
+            self.native_transport()
+                .map_err(AgentAppsSettingsError::Transport)?
+                .post(self.aggregation_codex_url("restart"))
+                .json(intent),
             reqwest::StatusCode::ACCEPTED,
         )
         .await

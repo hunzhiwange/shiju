@@ -374,6 +374,7 @@ async fn aggregation_t53_ambiguous_writes_are_not_replayed() {
             while !thread_stop.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        stream.set_nonblocking(false).unwrap();
                         stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
                         let mut bytes = [0; 4096];
                         let read = stream.read(&mut bytes).unwrap();

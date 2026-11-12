@@ -90,7 +90,7 @@ impl GatewayClient {
         scope: Option<(&str, &ProjectId)>,
         body: Option<&B>,
     ) -> Result<T, AggregationOmoError> {
-        let mut request = self.dynamic_host_client.request(
+        let mut request = self.native_transport().map_err(AggregationOmoError::Transport)?.request(
             method,
             format!("{}/v1/agent-apps/opencode/{resource}", self.endpoint.base_url()),
         );

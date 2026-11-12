@@ -207,8 +207,6 @@ mod voice_stream;
 #[cfg(not(target_arch = "wasm32"))]
 pub use voice_stream::VoiceStream;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub use client::AggregationOmoError;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub use client::AggregationApiError;

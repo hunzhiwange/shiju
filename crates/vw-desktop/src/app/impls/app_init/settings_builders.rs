@@ -48,6 +48,7 @@ pub(super) fn build_channels_settings(
         dingtalk_instances: channels_cfg.dingtalk_instances.clone(),
         qq: channels_cfg.qq.clone(),
         wecom: channels_cfg.wecom.clone(),
+        wecom_webhook: channels_cfg.wecom_webhook.clone(),
         wechat: channels_cfg.wechat.clone(),
         nostr: channels_cfg.nostr.clone(),
         clawdtalk: channels_cfg.clawdtalk.clone(),

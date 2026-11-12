@@ -484,3 +484,74 @@ fn assert_all_config_secrets_masked(config: &Config) {
     assert_eq!(clawdtalk.api_key, MASKED_SECRET);
     assert_eq!(clawdtalk.webhook_secret.as_deref(), Some(MASKED_SECRET));
 }
+
+#[test]
+fn wecom_delivery_masks_and_restores_bot_secret() {
+    let mut current = Config::default();
+    current.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true, "wecom": {"bot_id": "bot", "secret": "delivery-secret"}
+    }))
+    .unwrap();
+    let masked = mask_sensitive_fields(&current);
+    assert_eq!(masked.channels_config.wecom.as_ref().unwrap().secret, MASKED_SECRET);
+    let restored = hydrate_config_for_save(masked, &current);
+    assert_eq!(restored.channels_config.wecom.unwrap().secret, "delivery-secret");
+}
+
+#[test]
+fn wecom_delivery_webhook_preserves_replaces_clears_and_disables() {
+    let mut current = Config::default();
+    current.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true, "wecom_webhook": {"webhook_url": "https://example.invalid/?key=old"}
+    }))
+    .unwrap();
+    let masked = mask_sensitive_fields(&current);
+    assert_eq!(
+        serde_json::to_value(&masked.channels_config).unwrap()["wecom_webhook"]["webhook_url"],
+        MASKED_SECRET
+    );
+    let restored = hydrate_config_for_save(masked, &current);
+    assert_eq!(
+        serde_json::to_value(&restored.channels_config).unwrap()["wecom_webhook"]["webhook_url"],
+        "https://example.invalid/?key=old"
+    );
+    for value in ["https://example.invalid/?key=new", ""] {
+        let mut incoming = current.clone();
+        incoming.channels_config = serde_json::from_value(serde_json::json!({
+            "cli": true, "wecom_webhook": {"webhook_url": value}
+        }))
+        .unwrap();
+        let saved = hydrate_config_for_save(incoming, &current);
+        assert_eq!(
+            serde_json::to_value(saved.channels_config).unwrap()["wecom_webhook"]["webhook_url"],
+            value
+        );
+    }
+    let disabled = hydrate_config_for_save(Config::default(), &current);
+    assert!(serde_json::to_value(disabled.channels_config).unwrap()["wecom_webhook"].is_null());
+    let mut orphan = current;
+    orphan.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true, "wecom_webhook": {"webhook_url": MASKED_SECRET}
+    }))
+    .unwrap();
+    let saved = hydrate_config_for_save(orphan, &Config::default());
+    let value = serde_json::to_value(saved.channels_config).unwrap();
+    assert_ne!(value["wecom_webhook"]["webhook_url"], MASKED_SECRET);
+}
+
+#[test]
+fn wecom_delivery_bot_replacement_clear_and_disable_are_explicit() {
+    let mut current = Config::default();
+    current.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true, "wecom": {"bot_id": "bot", "secret": "previous-secret"}
+    }))
+    .unwrap();
+    for value in ["replacement-secret", ""] {
+        let mut incoming = current.clone();
+        incoming.channels_config.wecom.as_mut().unwrap().secret = value.into();
+        let saved = hydrate_config_for_save(incoming, &current);
+        assert_eq!(saved.channels_config.wecom.unwrap().secret, value);
+    }
+    let disabled = hydrate_config_for_save(Config::default(), &current);
+    assert!(disabled.channels_config.wecom.is_none());
+}

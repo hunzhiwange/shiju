@@ -23,6 +23,7 @@ pub(crate) fn decrypt_channel_secrets_isolated(
     decrypt_channel(store, channels, "dingtalk:default", |config| &mut config.dingtalk);
     decrypt_channel(store, channels, "qq:default", |config| &mut config.qq);
     decrypt_channel(store, channels, "wecom:default", |config| &mut config.wecom);
+    decrypt_channel(store, channels, "wecom_webhook:default", |config| &mut config.wecom_webhook);
     decrypt_channel(store, channels, "wechat:default", |config| &mut config.wechat);
     decrypt_channel(store, channels, "nostr:default", |config| &mut config.nostr);
     decrypt_channel(store, channels, "clawdtalk:default", |config| &mut config.clawdtalk);

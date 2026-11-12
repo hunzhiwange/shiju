@@ -9,7 +9,7 @@ use super::clawdtalk::ClawdTalkConfig;
 use super::email::EmailConfig;
 use super::lark::{FeishuConfig, FeishuInstanceConfig, LarkConfig};
 use super::wechat::WeChatConfig;
-use super::wecom::WeComConfig;
+use super::wecom::{WeComConfig, WeComWebhookConfig};
 use super::{
     other::{
         DingTalkConfig, DingTalkInstanceConfig, IrcConfig, LinqConfig, NextcloudTalkConfig,
@@ -160,6 +160,9 @@ pub struct ChannelsConfig {
     pub qq: Option<QQConfig>,
     /// 企业微信 AI 机器人通道配置。
     pub wecom: Option<WeComConfig>,
+    /// 仅用于结果投递，不注册接收监听器或项目绑定。
+    #[serde(default)]
+    pub wecom_webhook: Option<WeComWebhookConfig>,
     /// 微信 iLink 机器人通道配置。
     pub wechat: Option<WeChatConfig>,
     /// Nostr 通道配置。
@@ -205,6 +208,7 @@ impl Default for ChannelsConfig {
             dingtalk_instances: Vec::new(),
             qq: None,
             wecom: None,
+            wecom_webhook: None,
             wechat: None,
             nostr: None,
             clawdtalk: None,
@@ -235,6 +239,7 @@ impl ChannelsConfig {
                 "dingtalk:default" => next.dingtalk = None,
                 "qq:default" => next.qq = None,
                 "wecom:default" => next.wecom = None,
+                "wecom_webhook:default" => next.wecom_webhook = None,
                 "wechat:default" => next.wechat = None,
                 "nostr:default" => next.nostr = None,
                 "clawdtalk:default" => next.clawdtalk = None,

@@ -300,3 +300,97 @@ fn channel_secret_isolation_disables_only_failed_named_instance_and_recovers() {
     assert!(channels.unavailable_channels.is_empty());
     assert_eq!(channels.available_channels().feishu_instances.len(), 2);
 }
+
+#[test]
+fn wecom_delivery_webhook_encrypts_and_round_trips() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true, "wecom_webhook": {"webhook_url": "https://example.invalid/hook?key=fixture"}
+    }))
+    .unwrap();
+    encrypt_channel_secrets(&store, &mut channels).unwrap();
+    let persisted = serde_json::to_value(&channels).unwrap();
+    assert!(
+        persisted["wecom_webhook"]["webhook_url"].as_str().is_some_and(SecretStore::is_encrypted)
+    );
+    assert!(!persisted.to_string().contains("key=fixture"));
+    decrypt_channel_secrets(&store, &mut channels).unwrap();
+    assert_eq!(
+        serde_json::to_value(channels).unwrap()["wecom_webhook"]["webhook_url"],
+        "https://example.invalid/hook?key=fixture"
+    );
+}
+
+#[test]
+fn wecom_delivery_corrupt_ciphertext_isolates_only_its_own_channel() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    for failed in ["wecom", "wecom_webhook"] {
+        let mut value = serde_json::json!({
+            "cli": true,
+            "wecom": {"bot_id": "bot", "secret": "healthy-secret"},
+            "wecom_webhook": {"webhook_url": "https://example.invalid/?key=healthy"}
+        });
+        let field = if failed == "wecom" { "secret" } else { "webhook_url" };
+        value[failed][field] = "enc2:not-hex".into();
+        let mut channels: ChannelsConfig = serde_json::from_value(value).unwrap();
+        encrypt_channel_secrets(&store, &mut channels).unwrap();
+        super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+        assert_eq!(
+            channels.unavailable_channels,
+            std::collections::BTreeSet::from([format!("{failed}:default")])
+        );
+        assert_eq!(serde_json::to_value(&channels).unwrap()[failed][field], "enc2:not-hex");
+        let available = serde_json::to_value(channels.available_channels()).unwrap();
+        assert!(available[failed].is_null());
+        let healthy = if failed == "wecom" { "wecom_webhook" } else { "wecom" };
+        assert!(available[healthy].is_object());
+    }
+}
+
+#[test]
+fn wecom_delivery_webhook_rejects_masked_placeholders_before_storage() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    for placeholder in ["***MASKED***", "********"] {
+        let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+            "cli": true, "wecom_webhook": {"webhook_url": placeholder}
+        }))
+        .unwrap();
+        let error = encrypt_channel_secrets(&store, &mut channels).unwrap_err();
+        assert!(!error.to_string().contains(placeholder));
+        super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+        assert!(channels.unavailable_channels.contains("wecom_webhook:default"));
+        assert!(
+            serde_json::to_value(channels.available_channels()).unwrap()["wecom_webhook"].is_null()
+        );
+    }
+}
+
+#[test]
+fn wecom_delivery_foreign_key_isolated_and_recovers_after_replacement() {
+    let tmp = tempfile::tempdir().unwrap();
+    let other_tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let other_store = SecretStore::new(other_tmp.path(), true);
+    let foreign = other_store.encrypt("https://example.invalid/?key=foreign").unwrap();
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "wecom": {"bot_id": "bot", "secret": store.encrypt("healthy-secret").unwrap()},
+        "wecom_webhook": {"webhook_url": foreign}
+    }))
+    .unwrap();
+    super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+    assert!(channels.unavailable_channels.contains("wecom_webhook:default"));
+    assert_eq!(channels.wecom.as_ref().unwrap().secret, "healthy-secret");
+    assert_eq!(channels.wecom_webhook.as_ref().unwrap().webhook_url, foreign);
+    channels.wecom_webhook.as_mut().unwrap().webhook_url =
+        store.encrypt("https://example.invalid/?key=repaired").unwrap();
+    super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+    assert!(channels.unavailable_channels.is_empty());
+    assert_eq!(
+        channels.available_channels().wecom_webhook.unwrap().webhook_url,
+        "https://example.invalid/?key=repaired"
+    );
+}

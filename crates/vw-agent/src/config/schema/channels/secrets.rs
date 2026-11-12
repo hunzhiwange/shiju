@@ -253,6 +253,18 @@ pub fn decrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
     if let Some(ref mut wecom) = channels.wecom {
         decrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
     }
+    if let Some(ref mut wecom_webhook) = channels.wecom_webhook {
+        decrypt_secret(
+            store,
+            &mut wecom_webhook.webhook_url,
+            "config.channels_config.wecom_webhook.webhook_url",
+        )?;
+        if wecom_webhook.webhook_url.contains('*') {
+            anyhow::bail!(
+                "config.channels_config.wecom_webhook.webhook_url contains a masked placeholder"
+            );
+        }
+    }
     if let Some(ref mut wechat) = channels.wechat {
         decrypt_secret(store, &mut wechat.bot_token, "config.channels_config.wechat.bot_token")?;
     }
@@ -492,6 +504,18 @@ pub fn encrypt_channel_secrets(store: &SecretStore, channels: &mut ChannelsConfi
 
     if let Some(ref mut wecom) = channels.wecom {
         encrypt_secret(store, &mut wecom.secret, "config.channels_config.wecom.secret")?;
+    }
+    if let Some(ref mut wecom_webhook) = channels.wecom_webhook {
+        if wecom_webhook.webhook_url.contains('*') {
+            anyhow::bail!(
+                "config.channels_config.wecom_webhook.webhook_url contains a masked placeholder"
+            );
+        }
+        encrypt_secret(
+            store,
+            &mut wecom_webhook.webhook_url,
+            "config.channels_config.wecom_webhook.webhook_url",
+        )?;
     }
     if let Some(ref mut wechat) = channels.wechat {
         encrypt_secret(store, &mut wechat.bot_token, "config.channels_config.wechat.bot_token")?;

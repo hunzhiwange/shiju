@@ -111,6 +111,7 @@ pub(crate) fn build_channels_config_from_settings(
         dingtalk_instances: settings.dingtalk_instances.clone(),
         qq: settings.qq.clone(),
         wecom: settings.wecom.clone(),
+        wecom_webhook: settings.wecom_webhook.clone(),
         wechat: settings.wechat.clone(),
         nostr: settings.nostr.clone(),
         clawdtalk: settings.clawdtalk.clone(),

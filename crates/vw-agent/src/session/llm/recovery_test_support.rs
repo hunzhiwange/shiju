@@ -4,6 +4,7 @@ use std::ffi::OsString;
 pub(crate) struct RecoveryConfig {
     _home: tempfile::TempDir,
     previous: Vec<(&'static str, Option<OsString>)>,
+    previous_runtime_key: Option<String>,
 }
 impl RecoveryConfig {
     pub(crate) async fn new(api: &str, key: Option<&str>) -> Self {
@@ -17,6 +18,7 @@ impl RecoveryConfig {
         .into_iter()
         .map(|key| (key, std::env::var_os(key)))
         .collect();
+        let previous_runtime_key = crate::env::get("VW_MODEL_RECOVERY_TEST_KEY");
         unsafe {
             std::env::set_var("VW_MODEL_RECOVERY_TEST_ROOT", home.path());
             match key {
@@ -26,7 +28,12 @@ impl RecoveryConfig {
             std::env::set_var("VIBEWINDOW_CONFIG_DIR", home.path().join("config"));
             std::env::remove_var("VIBEWINDOW_WORKSPACE");
         }
-        let fixture = Self { _home: home, previous };
+        // Authentication reads the runtime snapshot, which may predate this fixture.
+        match key {
+            Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+            None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+        }
+        let fixture = Self { _home: home, previous, previous_runtime_key };
         crate::config::update(serde_json::json!({"providers": {"model-recovery": {
             "api": api, "env": ["VW_MODEL_RECOVERY_TEST_KEY"], "models": {"original": {"status": "active"}, "disabled": {"status": "inactive"}}
         }}})).await.unwrap();
@@ -44,5 +51,12 @@ impl Drop for RecoveryConfig {
                 }
             }
         }
+        match &self.previous_runtime_key {
+            Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+            None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+        }
     }
 }
+
+#[path = "recovery_test_support_tests.rs"]
+mod tests;

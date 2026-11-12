@@ -1,6 +1,5 @@
-//! 下载独立 Web 发布包，校验后在暂存目录中解压并切换安装目录。
+//! 下载独立 Web 压缩包，在暂存目录中解压并检查内容后切换安装目录。
 use anyhow::{Context, Result, bail};
-use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
@@ -72,7 +71,7 @@ struct ShijuManifest {
     release_url: String,
 }
 
-fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String, String)> {
+fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String)> {
     match source {
         UpdateSource::Github => {
             let release: Release = serde_json::from_slice(payload)?;
@@ -81,8 +80,7 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String,
                 bail!("Web 安装仅支持正式发布版本");
             }
             let zip = asset_url(&release, &name)?.to_owned();
-            let checksum = asset_url(&release, &format!("{name}.sha256"))?.to_owned();
-            Ok((name, zip, checksum))
+            Ok((name, zip))
         }
         UpdateSource::Shiju => {
             // 与桌面更新共用 latest/manifest.json，Web 包使用相同版本目录与 ZIP 格式。
@@ -97,8 +95,7 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String,
                 bail!("ShiJu Web 发布清单格式无效");
             }
             let zip = format!("{SHIJU_ROOT}/releases/{tag}/{name}");
-            let checksum = format!("{zip}.sha256");
-            Ok((name, zip, checksum))
+            Ok((name, zip))
         }
     }
 }
@@ -110,10 +107,8 @@ pub(super) fn install(source: UpdateSource) -> Result<PathBuf> {
         UpdateSource::Github => RELEASE_API,
     };
     let payload = download(&client, endpoint, 4 * 1024 * 1024)?;
-    let (name, zip_url, checksum_url) = release_urls(source, &payload)?;
-    let checksum = download(&client, &checksum_url, 1024)?;
+    let (name, zip_url) = release_urls(source, &payload)?;
     let archive = download(&client, &zip_url, MAX_ARCHIVE_BYTES)?;
-    verify_checksum(&archive, &checksum, &name)?;
 
     let root = root()?;
     fs::create_dir_all(&root)?;
@@ -163,23 +158,6 @@ fn asset_url<'a>(release: &'a Release, name: &str) -> Result<&'a str> {
         bail!("Web 发布包下载地址不符合 ShiJu GitHub 发布路径");
     }
     Ok(&asset.browser_download_url)
-}
-
-fn verify_checksum(archive: &[u8], checksum: &[u8], name: &str) -> Result<()> {
-    let text = std::str::from_utf8(checksum)?;
-    let parts: Vec<_> = text.split_whitespace().collect();
-    if parts.len() != 2
-        || parts[1] != name
-        || parts[0].len() != 64
-        || !parts[0].bytes().all(|b| b.is_ascii_hexdigit())
-    {
-        bail!("Web 发布包 SHA-256 文件格式无效");
-    }
-    let actual = hex::encode(Sha256::digest(archive));
-    if !actual.eq_ignore_ascii_case(parts[0]) {
-        bail!("Web 发布包 SHA-256 校验失败");
-    }
-    Ok(())
 }
 
 fn extract(bytes: &[u8], destination: &Path, stem: &str) -> Result<PathBuf> {

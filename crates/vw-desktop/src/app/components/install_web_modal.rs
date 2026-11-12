@@ -1,8 +1,8 @@
 //! 独立 Web 安装弹窗，复用设置弹窗与主题控件。
 use super::system_settings_common::{
     SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style, rounded_action_btn_style,
-    settings_close_button, settings_field_label, settings_modal_header, settings_modal_layout,
-    settings_modal_overlay, settings_muted_text_style, settings_select,
+    settings_close_button, settings_field_label, settings_hover_help_label, settings_modal_header,
+    settings_modal_layout, settings_modal_overlay, settings_select,
 };
 use crate::app::i18n::I18n;
 use crate::app::message::ViewMessage;
@@ -20,7 +20,18 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     let message = |event| Message::View(ViewMessage::WebInstall(event));
     let close = message(Event::Close);
     let header = settings_modal_header(
-        text(i18n.__("安装 Web 版本")).size(20),
+        settings_hover_help_label(
+            i18n,
+            &app.app_theme,
+            i18n.__("安装 Web 版本"),
+            text(i18n.__("安装 Web 版本")).size(20),
+            [
+                i18n.__("从所选来源下载最新正式版 ZIP 并安装。"),
+                i18n.__("本机启动需要 Node.js 22 或以上版本，仅供本机访问。关闭弹窗后继续运行，退出应用时停止。"),
+                i18n.__("打开 Web 目录可查看文件和 README.md，也可将整个目录部署到静态服务器，无需 Node.js。"),
+                i18n.__("静态部署需使用 HTTPS（本机回环地址除外），正确设置 JS/WASM 类型，并另行配置网关地址、认证及跨域来源。"),
+            ].join("\n\n"),
+        ),
         settings_close_button(close.clone()),
     );
     let label = match app.desktop_update.source {
@@ -43,20 +54,22 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
             .width(Length::Fill)
             .into()
         };
-    let mut body = column![
-        text(i18n.__("Web 版本不随应用打包，将从所选来源下载最新正式版并校验后安装。")).size(14),
-        text(i18n.__("需要 Node.js 22 或以上版本。服务仅供本机访问，业务功能使用 ShiJu 网关。"))
-            .size(13)
-            .style(settings_muted_text_style),
-        text(i18n.__("关闭弹窗后服务继续运行；退出应用时自动停止。"))
-            .size(13)
-            .style(settings_muted_text_style),
-    ]
-    .spacing(14);
-    body = body.push(column![settings_field_label(i18n.__("升级来源")), source_control].spacing(6));
+    let mut body =
+        column![column![settings_field_label(i18n.__("升级来源")), source_control].spacing(6)]
+            .spacing(14);
     if let Some(path) = &state.path {
         body = body
-            .push(text(i18n.__("安装目录")).size(13))
+            .push(
+                row![
+                    text(i18n.__("安装目录")).size(13),
+                    button(text(i18n.__("打开 Web 目录")).size(13))
+                        .style(rounded_action_btn_style)
+                        .padding([6, 12])
+                        .on_press_maybe((!state.busy).then(|| message(Event::OpenDirectory))),
+                ]
+                .spacing(12)
+                .align_y(iced::Alignment::Center),
+            )
             .push(text(path.display().to_string()).size(13));
     } else {
         body = body.push(text(i18n.__("尚未安装 Web 版本")).size(13));

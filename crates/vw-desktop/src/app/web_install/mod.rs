@@ -24,6 +24,7 @@ pub enum Event {
     Open,
     Close,
     InstallAndStart,
+    OpenDirectory,
     Start,
     Stop,
     Finished(Snapshot),
@@ -65,7 +66,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     state.busy = true;
     state.status = match event {
-        Event::InstallAndStart => "正在从所选来源下载、校验并安装 Web 版本…",
+        Event::InstallAndStart => "正在从所选来源下载并安装 Web 版本…",
+        Event::OpenDirectory => "正在打开 Web 目录…",
         Event::Start => "正在启动 Web 服务…",
         Event::Stop => "正在停止 Web 服务…",
         _ => "正在读取 Web 安装状态…",
@@ -115,6 +117,9 @@ fn operate(
         let path = installer::install(source.context("请先选择有效的升级来源")?)?;
         let url = runtime.start(&path)?;
         open::that(&url).context("Web 已启动，打开浏览器失败；请使用弹窗中的访问地址")?;
+    } else if matches!(event, Event::OpenDirectory) {
+        let path = installer::installed()?.context("请先下载安装 Web 版本")?;
+        open::that(&path).context("打开 Web 目录失败")?;
     } else if matches!(event, Event::Start) {
         let path = installer::installed()?.context("请先下载安装 Web 版本")?;
         let url = runtime.start(&path)?;

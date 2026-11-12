@@ -11,12 +11,18 @@ fn archive(files: &[(&str, &[u8])]) -> Vec<u8> {
 }
 
 #[test]
-fn checksum_rejects_corruption_and_wrong_filename() {
-    let name = "shiju-web-1.2.3.zip";
-    let checksum = format!("{}  {name}\n", hex::encode(Sha256::digest(b"archive")));
-    verify_checksum(b"archive", checksum.as_bytes(), name).unwrap();
-    assert!(verify_checksum(b"corrupted", checksum.as_bytes(), name).is_err());
-    assert!(verify_checksum(b"archive", checksum.as_bytes(), "other.zip").is_err());
+fn github_source_requires_only_the_web_archive() {
+    let payload = serde_json::json!({
+        "tag_name": "v1.2.3", "draft": false, "prerelease": false,
+        "assets": [{
+            "name": "shiju-web-1.2.3.zip",
+            "browser_download_url": format!("{DOWNLOAD_ROOT}v1.2.3/shiju-web-1.2.3.zip"),
+        }],
+    });
+    let (name, zip) =
+        release_urls(UpdateSource::Github, &serde_json::to_vec(&payload).unwrap()).unwrap();
+    assert_eq!(name, "shiju-web-1.2.3.zip");
+    assert_eq!(zip, format!("{DOWNLOAD_ROOT}v1.2.3/{name}"));
 }
 
 #[test]
@@ -61,7 +67,6 @@ fn release_requires_matching_official_assets() {
     };
     let name = archive_name(&release.tag_name).unwrap();
     assert!(asset_url(&release, &name).is_ok());
-    assert!(asset_url(&release, &format!("{name}.sha256")).is_err());
     release.assets[0].browser_download_url = "https://example.com/package.zip".into();
     assert!(asset_url(&release, &name).is_err());
     for tag in ["../outside", "v1.2.3/../../x", "v1.2.3-rc.1", ""] {
@@ -76,11 +81,10 @@ fn shiju_source_uses_shared_manifest_and_versioned_web_paths() {
         "release_url": "https://github.com/hunzhiwange/shiju/releases/tag/v1.2.3",
         "assets": [],
     });
-    let (name, zip, checksum) =
+    let (name, zip) =
         release_urls(UpdateSource::Shiju, &serde_json::to_vec(&payload).unwrap()).unwrap();
     assert_eq!(name, "shiju-web-1.2.3.zip");
     assert_eq!(zip, format!("{SHIJU_ROOT}/releases/v1.2.3/{name}"));
-    assert_eq!(checksum, format!("{zip}.sha256"));
     for (key, value) in [
         ("schema_version", serde_json::json!(2)),
         ("version", serde_json::json!("1.2.3/../x")),

@@ -1,5 +1,8 @@
 """Verify downloadable Web bundles serve independently of the source checkout."""
 import hashlib
+import functools
+import http.server
+import threading
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -90,6 +93,34 @@ class PackageShiJuWebTests(unittest.TestCase):
                 if server.poll() is None:
                     os.killpg(server.pid, signal.SIGTERM)
                 server.communicate(timeout=5)
+
+    def test_static_host_serves_complete_package_from_subdirectory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = load_packager().package(self.fixture(root), root / 'out', '0.6.0')
+            site = root / 'site'
+            with zipfile.ZipFile(archive) as bundle:
+                bundle.extractall(site)
+            handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(site))
+            with http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    base = f'http://127.0.0.1:{server.server_port}/shiju-web-0.6.0/'
+                    for filename, expected_type in [
+                        ('', 'text/html'), ('shi_ju.js', 'text/javascript'),
+                        ('shi_ju_bg.wasm', 'application/wasm'),
+                        ('snippets/runtime/ime.js', 'text/javascript'),
+                    ]:
+                        with urllib.request.urlopen(base + filename, timeout=5) as response:
+                            self.assertEqual(response.headers.get_content_type(), expected_type)
+                            self.assertTrue(response.read())
+                    with self.assertRaises(urllib.error.HTTPError) as missing:
+                        urllib.request.urlopen(base + 'missing.js', timeout=5)
+                    self.assertEqual(missing.exception.code, 404)
+                finally:
+                    server.shutdown()
+                    thread.join(timeout=5)
 
     def test_missing_wasm_rejects_package(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -5595,5 +5595,12 @@
   "正在启动 Web 服务…": "Starting Web service…",
   "正在停止 Web 服务…": "Stopping Web service…",
   "正在读取 Web 安装状态…": "Reading Web installation status…",
-  "安装目录": "Installation directory"
+  "安装目录": "Installation directory",
+  "从所选来源下载最新正式版 ZIP 并安装。": "Downloads and installs the latest stable ZIP from the selected source.",
+  "本机启动需要 Node.js 22 或以上版本，仅供本机访问。关闭弹窗后继续运行，退出应用时停止。": "Local startup requires Node.js 22 or later and is accessible only on this computer. Closing the dialog keeps it running; exiting the app stops it.",
+  "打开 Web 目录可查看文件和 README.md，也可将整个目录部署到静态服务器，无需 Node.js。": "Open the Web folder to view its files and README.md. You can also deploy the entire folder to a static server without Node.js.",
+  "静态部署需使用 HTTPS（本机回环地址除外），正确设置 JS/WASM 类型，并另行配置网关地址、认证及跨域来源。": "Static hosting requires HTTPS (except on loopback), correct JS/WASM MIME types, and separate gateway URL, authentication and allowed-origin configuration.",
+  "打开 Web 目录": "Open Web folder",
+  "正在打开 Web 目录…": "Opening Web folder\u2026",
+  "正在从所选来源下载并安装 Web 版本…": "Downloading and installing the Web version from the selected source\u2026"
 }

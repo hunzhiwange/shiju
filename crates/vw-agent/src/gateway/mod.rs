@@ -112,6 +112,12 @@ async fn request_timeout_middleware(req: Request<Body>, next: Next) -> Response 
 fn request_timeout_for_path(path: &str) -> Duration {
     if is_long_running_sse_path(path) {
         Duration::from_secs(WORKFLOW_CHAT_MESSAGES_TIMEOUT_SECS)
+    } else if path
+        .strip_prefix("/v1/desktop/acp-install/")
+        .is_some_and(|agent| !agent.is_empty() && !agent.contains('/'))
+    {
+        // Native installers already enforce a five-minute deadline and kill their process tree.
+        Duration::from_secs(310)
     } else {
         Duration::from_secs(REQUEST_TIMEOUT_SECS)
     }

@@ -194,3 +194,17 @@ pnpm exec vite --config acpdemo/auggie/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/codebuddy/vite.config.mjs
 ```
+
+# Factory Droid 验收
+
+日期：2026-11-12。按最新授权，以指定模型实际创建编辑器文件为本项终点，不执行浏览器或编辑器构建测试。
+
+- 固定 Factory Droid 1.9.0 / Darwin arm64 官方制品，SHA-256 为 `b62ce8de0ed7ffaada1abb2a017fe182021003694e85fe7f3b1136ad43628a5d`。使用原生 `exec --output-format acp`、Airgap 与 BYOK，不修改供应商二进制，不替换模型、账号或引擎。模式依据：[Airgapped Deployment](https://docs.factory.com/enterprise/airgapped-deployment)、[Custom Models](https://docs.factory.com/model-independence/byok)；固定制品实测确认环境入口及 ACP 会话只公布隔离自定义模型。
+- 原普通安装请求 HTTP 408、curl 0、30.005419 秒；直接执行同一官方安装器并通过其校验后安装原生 1.9.0。必要底层修复将 ACP 安装路由的外层时限延至 310 秒，覆盖安装器既有的 300 秒期限。修复版系统安装 HTTP 200、curl 0、30.657898 秒；本次基线已发现原生 CLI，安装后解析到受管制品，安装状态 true → true。受管路径：`/Users/xiangmin/.shiju-harness-dev/acp-runtime/droid-1.9.0-model-source-v1/droid`；版本探测退出码 0，输出 `1.9.0`。
+- 普通 CLI 诊断 HTTP 200、curl 0、2.113923 秒，返回 `authentication_required`，不将其记为已登录。隔离 Airgap 运行时实测 initialize / session/new 成功；真实请求的 `acp-options` 确认 connected=true、版本 1.9.0、来源 session_model，选定模型为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，provider 为 `alibaba-token-plan-cn`。
+- 使用本次构建的独立副本网关 `127.0.0.1:53624`，租户 `10001 / 100010005`，`acp-droid / droid`、session_model、full_access=true。会话 `ses_1d06de20f001XRsXQQZ5yiRurg` 的 summary 确认绑定及完全访问。未重启用户原 42617 服务。
+- 配置根权限 0700、运行设置权限 0600；推理地址仅指向本机会话中继，认证使用短期令牌；不将上游密钥交给 Droid，不修改 HOME 或全局 Factory 配置。子进程不继承云认证、Node/Bun 注入或代理凭据。原生 ACP 默认会自动执行部分工具，因此桌面入口要求当前完全访问授权；不注入跳过审批参数。
+- 真实请求 HTTP 200；180.001459 秒后 curl 28。已收到指定模型的 `chat.step_finish`、finish_reason=stop；事件计数为 context_loaded 1、step_start 1、delta 19、tool 78、session_updated 1、step_finish 1，无 chat.error。连接没有在客户端期限内关闭，未收到 chat.done；这项传输限制单独保留，不表述为 curl 成功。按最新创建文件终点完成验收，不续传、不另跑编辑器测试。
+- 模型实际创建 `acpdemo/droid/index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。App.tsx 引用 `@rue-js/rue` 并包含输入、计数、localStorage 持久化逻辑。请求前后 SHA-256 快照（排除 .git、node_modules、target）只发现这 8 个新增文件，覆盖的 Rue 仓库内容未发现目标目录外变更；未宣称浏览器行为已验证。
+- acp-droid 基线 enabled=false；临时启用和恢复均 HTTP 200、curl 0，结束复查 false。验收网关及其子进程已停止。原始响应、配置及完整文件快照仅存于本机私有临时目录，未提交。
+- 验证：`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0；`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0，二者使用槽位 8，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8`。`cargo test -p vw-acp --lib droid_native_tools_require_current_full_access` 使用槽位 7、对应绝对目录 `/Users/xiangmin/worker/code/shiju/target/rust-slot-7`，退出码 0、1 项通过。驱动聚焦回归在编译期间按用户“创建成功即停止”的最新指示终止，未取得结果；超时/协议聚焦回归及第二轮 Clippy 未运行，不记通过。额外回归进程及本任务槽位锁已清理，缓存保留。

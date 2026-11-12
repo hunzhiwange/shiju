@@ -24,6 +24,17 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'droid':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Droid reviewed runtime is Darwin-arm64 only')
+    runtime.mkdir()
+    native = runtime / 'droid'
+    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, native.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    check_files(runtime, contract['files'])
+    native.chmod(0o700)
+    raise SystemExit(0)
 if contract.get('layout') == 'standalone':
     import platform
     import zipfile

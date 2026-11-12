@@ -14,7 +14,8 @@ impl AcpClient {
         let backend = crate::agent_registry::desktop_permission_agent(agent_name);
         if !unrestricted
             && let Some(
-                backend @ ("auggie" | "hermes" | "kilocode" | "openclaw" | "opencode" | "pi"),
+                backend @ ("auggie" | "droid" | "hermes" | "kilocode" | "openclaw" | "opencode"
+                | "pi"),
             ) = backend
         {
             return Err(AcpError::Initialize(format!(
@@ -76,6 +77,12 @@ impl AcpClient {
         let managed_claude = managed_claude_settings(&self.config).is_some();
         let managed_auggie =
             self.agent_name == "auggie" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        let managed_droid =
+            self.agent_name == "droid" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        if managed_droid {
+            crate::verify_reviewed_agent_executable("droid", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+        }
         if managed_auggie {
             crate::verify_reviewed_agent_executable("auggie", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
@@ -99,7 +106,7 @@ impl AcpClient {
                 ));
             }
         }
-        if !managed_claude && !managed_auggie {
+        if !managed_claude && !managed_auggie && !managed_droid {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
@@ -109,7 +116,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if managed_claude || managed_auggie {
+        if managed_claude || managed_auggie || managed_droid {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths; HOME is preserved, never substituted.
             let runtime = [

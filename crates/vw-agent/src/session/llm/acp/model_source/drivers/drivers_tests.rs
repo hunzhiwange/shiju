@@ -62,6 +62,7 @@ fn model_protocol_013_registered_drivers_declare_actual_wire_protocols() {
         ("kiro", P::Responses),
         ("gemini", P::Gemini),
         ("codebuddy", P::Chat),
+        ("droid", P::Chat),
         ("goose", P::Chat),
         ("hermes", P::Chat),
         ("iflow", P::Chat),

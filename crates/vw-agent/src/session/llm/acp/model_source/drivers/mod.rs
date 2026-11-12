@@ -69,7 +69,16 @@ pub(in crate::session::llm::acp) fn capabilities(
     };
     let patched = matches!(
         agent,
-        "auggie" | "codex" | "gemini" | "iflow" | "qwen" | "pi" | "goose" | "vibe" | "hermes"
+        "auggie"
+            | "droid"
+            | "codex"
+            | "gemini"
+            | "iflow"
+            | "qwen"
+            | "pi"
+            | "goose"
+            | "vibe"
+            | "hermes"
     );
     let verified = cfg!(all(target_os = "macos", target_arch = "aarch64"))
         && verified_release(agent).is_some()
@@ -92,6 +101,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
             "0.26.0 (SDK 0.2.96 / Claude Code 2.1.96); 0.31.0 (SDK 0.2.119 / Claude Code 2.1.119)"
         }
         "auggie" => "0.37.1",
+        "droid" => "1.9.0",
         "codex" => "2.5.0 (Codex 0.165.0)",
         "gemini" => "0.66.0",
         "iflow" => "0.5.19",
@@ -122,8 +132,8 @@ fn source_protocol(
         "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "auggie" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi"
-        | "qwen" => P::Chat,
+        "auggie" | "droid" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode"
+        | "openclaw" | "pi" | "qwen" => P::Chat,
         "opencode" => crate::model_relay::routing::client_protocol(api)
             .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
         "snow" | "kimi" => crate::model_relay::routing::configured_api_protocol(api)

@@ -1261,3 +1261,9 @@ async fn acp_desktop_approval_backend_matrix() {
         }
     }
 }
+
+#[test]
+fn droid_native_tools_require_current_full_access() {
+    assert!(super::AcpClient::ensure_desktop_native_access("droid", false).is_err());
+    assert!(super::AcpClient::ensure_desktop_native_access("droid", true).is_ok());
+}

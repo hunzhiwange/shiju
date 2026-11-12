@@ -340,3 +340,15 @@ async fn skey_auth_middleware_rejects_missing_or_invalid_skey() {
     let response = app.oneshot(bearer_request("/protected", "wrong-token")).await.unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
+
+#[test]
+fn acp_install_timeout_covers_installer_deadline_only_for_single_agent_routes() {
+    assert_eq!(request_timeout_for_path("/v1/desktop/acp-install/droid"), Duration::from_secs(310));
+    for path in [
+        "/v1/desktop/acp-install/",
+        "/v1/desktop/acp-install/droid/extra",
+        "/v1/desktop/acp-diagnostic/droid",
+    ] {
+        assert_eq!(request_timeout_for_path(path), Duration::from_secs(REQUEST_TIMEOUT_SECS));
+    }
+}

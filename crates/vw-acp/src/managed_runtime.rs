@@ -125,7 +125,11 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     if !contract.layout.is_empty() {
         return Ok(Some((
             path.to_string_lossy().into_owned(),
-            if agent == "vibe" { vec![] } else { vec!["acp".into()] },
+            match agent {
+                "vibe" => vec![],
+                "droid" => vec!["exec".into(), "--output-format".into(), "acp".into()],
+                _ => vec!["acp".into()],
+            },
         )));
     }
     let args = match agent {

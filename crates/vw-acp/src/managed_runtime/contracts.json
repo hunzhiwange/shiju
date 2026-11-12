@@ -212,5 +212,15 @@
     "original": {
       "augment.mjs": "7d809fef34f9cb0eae57559ced737e225ec74a390cf325ea453871d847d716c9"
     }
+  },
+  "droid": {
+    "layout": "standalone",
+    "package": "factory-droid",
+    "version": "1.9.0",
+    "bin": "droid",
+    "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.9.0/darwin/arm64/droid",
+    "files": {
+      "droid": "b62ce8de0ed7ffaada1abb2a017fe182021003694e85fe7f3b1136ad43628a5d"
+    }
   }
 }

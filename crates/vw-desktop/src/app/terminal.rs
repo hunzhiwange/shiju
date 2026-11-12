@@ -148,76 +148,6 @@ fn build_font_settings(font_family: &str, font_size: f32) -> iced_term::settings
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn enter_sends_cr_bindings() -> Vec<(
-    iced_term::bindings::Binding<iced_term::bindings::InputKind>,
-    iced_term::bindings::BindingAction,
-)> {
-    use iced::keyboard::key::Named;
-    use iced_term::bindings::{Binding, BindingAction, InputKind};
-
-    let empty = iced::keyboard::Modifiers::empty();
-    let shift = iced::keyboard::Modifiers::SHIFT;
-    let none = iced_term::TermMode::empty();
-
-    vec![
-        (
-            Binding {
-                target: InputKind::KeyCode(Named::Enter),
-                modifiers: empty,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-        (
-            Binding {
-                target: InputKind::KeyCode(Named::Enter),
-                modifiers: shift,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-        (
-            Binding {
-                target: InputKind::Char("\n".to_string()),
-                modifiers: empty,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-        (
-            Binding {
-                target: InputKind::Char("\n".to_string()),
-                modifiers: shift,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-        (
-            Binding {
-                target: InputKind::Char("\r".to_string()),
-                modifiers: empty,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-        (
-            Binding {
-                target: InputKind::Char("\r".to_string()),
-                modifiers: shift,
-                terminal_mode_include: none,
-                terminal_mode_exclude: none,
-            },
-            BindingAction::Char('\n'),
-        ),
-    ]
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 use std::collections::VecDeque;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::{Arc, Mutex};
@@ -460,7 +390,6 @@ impl TerminalState {
         let mut term = iced_term::Terminal::new(id, settings).ok()?;
         let fs = build_font_settings(&self.font_family, self.font_size);
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
-        let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
         Some(TerminalTab {
             id,
             title: format!("终端 {id}"),
@@ -506,7 +435,6 @@ impl TerminalState {
         let mut term = iced_term::Terminal::new(id, settings).ok()?;
         let fs = build_font_settings(&self.font_family, self.font_size);
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
-        let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
         self.push_tab(
             self.panes.focused,
@@ -552,7 +480,6 @@ impl TerminalState {
         let mut term = iced_term::Terminal::new(id, settings).ok()?;
         let fs = build_font_settings(&self.font_family, self.font_size);
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
-        let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
         self.push_tab(
             self.panes.focused,
@@ -631,7 +558,6 @@ fi
         let mut term = iced_term::Terminal::new(id, settings).ok()?;
         let fs = build_font_settings(&self.font_family, self.font_size);
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
-        let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
         self.push_tab(
             self.panes.focused,

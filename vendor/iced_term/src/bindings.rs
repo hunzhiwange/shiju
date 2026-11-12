@@ -1,6 +1,6 @@
 use alacritty_terminal::term::TermMode;
 use iced_core::{
-    keyboard::{key::Named, Modifiers},
+    keyboard::{key::Named, Key, Modifiers},
     mouse::Button,
 };
 
@@ -120,6 +120,45 @@ impl BindingsLayout {
         }
     }
 
+    /// Resolve shortcuts before text, using the modifiers carried by this event.
+    pub(crate) fn key_action(
+        &self,
+        key: &Key,
+        modifiers: Modifiers,
+        text: Option<&str>,
+        terminal_mode: TermMode,
+    ) -> BindingAction {
+        let input = match key {
+            Key::Character(c) if c == "\r" || c == "\n" => {
+                InputKind::KeyCode(Named::Enter)
+            },
+            Key::Character(c) => InputKind::Char(c.to_ascii_lowercase()),
+            Key::Named(code) => InputKind::KeyCode(*code),
+            _ => return BindingAction::Ignore,
+        };
+        let action = self.get_action(input, modifiers, terminal_mode);
+        if action != BindingAction::Ignore {
+            return action;
+        }
+        // Unbound desktop shortcuts must not leak their text into the PTY.
+        if modifiers.logo() {
+            return BindingAction::Ignore;
+        }
+        if let Key::Character(c) = key {
+            if modifiers.alt() && !modifiers.control() && c.is_ascii() {
+                // Preserve Option-produced Unicode on macOS (for example Option+e).
+                let value = text.unwrap_or(c.as_str());
+                if value.is_ascii() {
+                    return BindingAction::Esc(format!("\x1b{value}"));
+                }
+            }
+            if let Some(text) = text {
+                return BindingAction::Esc(text.to_owned());
+            }
+        }
+        BindingAction::Ignore
+    }
+
     pub(crate) fn get_action(
         &self,
         input: InputKind,
@@ -189,19 +228,22 @@ fn default_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         ArrowLeft,  +TermMode::APP_CURSOR; BindingAction::Esc("\x1bOD".into());
         ArrowRight, +TermMode::APP_CURSOR; BindingAction::Esc("\x1bOC".into());
         // CTRL
-        ArrowUp,    Modifiers::COMMAND; BindingAction::Esc("\x1b[1;5A".into());
-        ArrowDown,  Modifiers::COMMAND; BindingAction::Esc("\x1b[1;5B".into());
-        ArrowLeft,  Modifiers::COMMAND; BindingAction::Esc("\x1b[1;5D".into());
-        ArrowRight, Modifiers::COMMAND; BindingAction::Esc("\x1b[1;5C".into());
+        Space,      Modifiers::CTRL; BindingAction::Char('\x00');
+        Backspace,  Modifiers::CTRL; BindingAction::Char('\x08');
+        Enter,      Modifiers::CTRL; BindingAction::Esc("\x1b[13;5u".into());
+        ArrowUp,    Modifiers::CTRL; BindingAction::Esc("\x1b[1;5A".into());
+        ArrowDown,  Modifiers::CTRL; BindingAction::Esc("\x1b[1;5B".into());
+        ArrowLeft,  Modifiers::CTRL; BindingAction::Esc("\x1b[1;5D".into());
+        ArrowRight, Modifiers::CTRL; BindingAction::Esc("\x1b[1;5C".into());
         End,        Modifiers::CTRL; BindingAction::Esc("\x1b[1;5F".into());
         Home,       Modifiers::CTRL; BindingAction::Esc("\x1b[1;5H".into());
         Delete,     Modifiers::CTRL; BindingAction::Esc("\x1b[3;5~".into());
         PageUp,     Modifiers::CTRL; BindingAction::Esc("\x1b[5;5~".into());
         PageDown,   Modifiers::CTRL; BindingAction::Esc("\x1b[6;5~".into());
-        F1,         Modifiers::CTRL; BindingAction::Esc("\x1bO;5P".into());
-        F2,         Modifiers::CTRL; BindingAction::Esc("\x1bO;5Q".into());
-        F3,         Modifiers::CTRL; BindingAction::Esc("\x1bO;5R".into());
-        F4,         Modifiers::CTRL; BindingAction::Esc("\x1bO;5S".into());
+        F1,         Modifiers::CTRL; BindingAction::Esc("\x1b[1;5P".into());
+        F2,         Modifiers::CTRL; BindingAction::Esc("\x1b[1;5Q".into());
+        F3,         Modifiers::CTRL; BindingAction::Esc("\x1b[1;5R".into());
+        F4,         Modifiers::CTRL; BindingAction::Esc("\x1b[1;5S".into());
         F5,         Modifiers::CTRL; BindingAction::Esc("\x1b[15;5~".into());
         F6,         Modifiers::CTRL; BindingAction::Esc("\x1b[17;5~".into());
         F7,         Modifiers::CTRL; BindingAction::Esc("\x1b[18;5~".into());
@@ -238,10 +280,10 @@ fn default_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         "z",        Modifiers::CTRL; BindingAction::Char('\x1a');
         "[",        Modifiers::CTRL; BindingAction::Char('\x1b');
         "]",        Modifiers::CTRL; BindingAction::Char('\x1d');
-        "\'",       Modifiers::CTRL; BindingAction::Char('\x1c');
+        "\\",       Modifiers::CTRL; BindingAction::Char('\x1c');
         "-",        Modifiers::CTRL; BindingAction::Char('\x1f');
         // SHIFT
-        Enter,      Modifiers::SHIFT; BindingAction::Char('\x0d');
+        Enter,      Modifiers::SHIFT; BindingAction::Esc("\x1b[13;2u".into());
         Backspace,  Modifiers::SHIFT; BindingAction::Char('\x7f');
         Tab,        Modifiers::SHIFT; BindingAction::Esc("\x1b[Z".into());
         End,        Modifiers::SHIFT, +TermMode::ALT_SCREEN; BindingAction::Esc("\x1b[1;2F".into());
@@ -253,10 +295,11 @@ fn default_keyboard_bindings() -> Vec<(Binding<InputKind>, BindingAction)> {
         ArrowLeft,  Modifiers::SHIFT; BindingAction::Esc("\x1b[1;2D".into());
         ArrowRight, Modifiers::SHIFT; BindingAction::Esc("\x1b[1;2C".into());
         // ALT
+        Enter,      Modifiers::ALT; BindingAction::Esc("\x1b\r".into());
         Backspace,  Modifiers::ALT; BindingAction::Esc("\x1b\x7f".into());
         End,        Modifiers::ALT; BindingAction::Esc("\x1b[1;3F".into());
         Home,       Modifiers::ALT; BindingAction::Esc("\x1b[1;3H".into());
-        Insert,     Modifiers::ALT; BindingAction::Esc("\x1b[3;2~".into());
+        Insert,     Modifiers::ALT; BindingAction::Esc("\x1b[2;3~".into());
         Delete,     Modifiers::ALT; BindingAction::Esc("\x1b[3;3~".into());
         PageUp,     Modifiers::ALT; BindingAction::Esc("\x1b[5;3~".into());
         PageDown,   Modifiers::ALT; BindingAction::Esc("\x1b[6;3~".into());
@@ -537,3 +580,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "keyboard_tests.rs"]
+mod keyboard_tests;

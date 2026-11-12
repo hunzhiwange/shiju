@@ -234,36 +234,6 @@ fn font_settings_default_blank_family_and_trim_custom_family() {
     assert_eq!(custom.scale_factor, 1.4);
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn enter_bindings_cover_enter_newline_and_carriage_return() {
-    let bindings = super::enter_sends_cr_bindings();
-
-    assert_eq!(bindings.len(), 6);
-    assert!(
-        bindings
-            .iter()
-            .all(|(_, action)| matches!(action, iced_term::bindings::BindingAction::Char('\n')))
-    );
-
-    use iced::keyboard::{Modifiers, key::Named};
-    use iced_term::bindings::InputKind;
-
-    let targets_and_modifiers: Vec<_> =
-        bindings.into_iter().map(|(binding, _)| (binding.target, binding.modifiers)).collect();
-    assert_eq!(
-        targets_and_modifiers,
-        vec![
-            (InputKind::KeyCode(Named::Enter), Modifiers::empty()),
-            (InputKind::KeyCode(Named::Enter), Modifiers::SHIFT),
-            (InputKind::Char("\n".to_string()), Modifiers::empty()),
-            (InputKind::Char("\n".to_string()), Modifiers::SHIFT),
-            (InputKind::Char("\r".to_string()), Modifiers::empty()),
-            (InputKind::Char("\r".to_string()), Modifiers::SHIFT),
-        ]
-    );
-}
-
 #[test]
 fn new_hidden_terminal_state_does_not_spawn_pty_tabs() {
     let state = super::TerminalState::new(

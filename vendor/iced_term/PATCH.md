@@ -8,3 +8,11 @@ The terminal widget requests native IME while focused and anchors the candidate
 area at its caret. Iced renders preedit text separately from the PTY. A commit
 writes the original UTF-8 bytes once through the existing backend. Focus loss,
 window deactivation, and switching terminals clear the pending preedit.
+
+Keyboard bindings use each key event's modifiers rather than cached modifier
+state. Enter sends CR; Ctrl+J remains LF. Shift/Ctrl+Enter use CSI-u sequences,
+and Alt+Enter sends ESC+CR. Ctrl cursor/function keys and Alt+Insert use xterm
+sequences. Unbound Alt+ASCII input gets an ESC prefix, while Option-produced
+Unicode and IME commits retain their UTF-8 bytes. Desktop terminal creation must
+not override these bindings with LF. Kitty keyboard negotiation remains disabled
+in the Alacritty backend; this patch does not advertise full Kitty support.

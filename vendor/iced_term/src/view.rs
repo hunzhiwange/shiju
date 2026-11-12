@@ -16,7 +16,7 @@ use iced::widget::container;
 use iced::{Color, Element, Length, Point, Rectangle, Size, Theme};
 use iced_core::clipboard::Kind as ClipboardKind;
 use iced_core::input_method::{self, InputMethod, Preedit, Purpose};
-use iced_core::keyboard::{Key, Modifiers};
+use iced_core::keyboard::Modifiers;
 use iced_core::mouse::{self, Click};
 use iced_core::text::{Alignment, LineHeight, Shaping};
 use iced_core::widget::operation::{self, Focusable};
@@ -365,31 +365,13 @@ impl<'a> TerminalView<'a> {
                 modifiers,
                 text,
                 ..
-            } => match &key {
-                // Use the physical character key for bindings even when text is None (e.g., Ctrl/Cmd combos)
-                Key::Character(k) => {
-                    let lower = k.to_ascii_lowercase();
-                    binding_action = self.term.bindings.get_action(
-                        InputKind::Char(lower),
-                        state.keyboard_modifiers,
-                        last_content.terminal_mode,
-                    );
-
-                    // If no binding matched, only write printable text (when provided)
-                    if binding_action == BindingAction::Ignore {
-                        if let Some(c) = text {
-                            return Some(Command::Write(c.as_bytes().to_vec()));
-                        }
-                    }
-                },
-                Key::Named(code) => {
-                    binding_action = self.term.bindings.get_action(
-                        InputKind::KeyCode(*code),
-                        *modifiers,
-                        last_content.terminal_mode,
-                    );
-                },
-                _ => {},
+            } => {
+                binding_action = self.term.bindings.key_action(
+                    key,
+                    *modifiers,
+                    text.as_deref(),
+                    last_content.terminal_mode,
+                );
             },
             _ => {},
         }

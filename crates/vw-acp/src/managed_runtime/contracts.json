@@ -232,5 +232,18 @@
       "bundle/qodercli.js": "e812bfd63431758a96d7888fefc7e67a02735e0bf69edf6b5e531a261c7a7ed1",
       "bundle/shiju-session-model.mjs": "27753aa78105ebe8fe19a9ed09b34069c5ca6efaa9388da3c8e699a03169c53c"
     }
+  },
+  "trae": {
+    "layout": "standalone",
+    "package": "trae-cli",
+    "version": "0.121.3",
+    "bin": "traecli",
+    "artifact_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_darwin_arm64.tar.gz",
+    "archive_sha256": "30fd43892949dba6d1bff5fb464c8ec3a936b61cb97ed5a9d5af3a97b6e3f3f8",
+    "files": {
+      "native/trae-cli": "7648c66ffb535e83e4b1f5bbd820f0384d77234763cfb32700b1be3289358758",
+      "native/trae-local": "f77806ca15efea1c33ffc4c3c08ab3f1c57111883dd3313822e673791484adde",
+      "traecli": "de3bb2e987468cfc57023dbf64b8e990ef7228a4253b6f7f0e5e50201d3f1f1c"
+    }
   }
 }

@@ -70,6 +70,7 @@ pub(in crate::session::llm::acp) fn capabilities(
     let patched = matches!(
         agent,
         "auggie"
+            | "trae"
             | "qoder"
             | "droid"
             | "codex"
@@ -103,6 +104,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         }
         "auggie" => "0.37.1",
         "qoder" => "1.1.88",
+        "trae" => "0.121.3",
         "droid" => "1.9.0",
         "codex" => "2.5.0 (Codex 0.165.0)",
         "gemini" => "0.66.0",
@@ -135,7 +137,7 @@ fn source_protocol(
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
         "auggie" | "droid" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode"
-        | "openclaw" | "pi" | "qoder" | "qwen" => P::Chat,
+        | "openclaw" | "pi" | "qoder" | "qwen" | "trae" => P::Chat,
         "opencode" => crate::model_relay::routing::client_protocol(api)
             .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
         "snow" | "kimi" => crate::model_relay::routing::configured_api_protocol(api)

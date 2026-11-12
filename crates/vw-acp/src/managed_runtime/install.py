@@ -24,6 +24,28 @@ def check_files(root, files):
         if digest(root / name) != expected:
             raise RuntimeError('Reviewed artifact checksum mismatch: ' + name)
 
+if agent == 'trae':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('TRAE reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'trae.tar.gz'
+    with urllib.request.urlopen(contract['artifact_url'], timeout=120) as response, archive.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('TRAE fixed archive checksum mismatch')
+    runtime.mkdir()
+    native = runtime / 'native/trae-cli'
+    native.parent.mkdir()
+    with tarfile.open(archive) as package:
+        if package.getnames() != ['trae-cli'] or not package.getmember('trae-cli').isfile():
+            raise RuntimeError('Unexpected TRAE fixed archive layout')
+        native.write_bytes(package.extractfile('trae-cli').read())
+    native.chmod(0o700)
+    run([sys.executable, str(assets / 'trae/apply.py'), str(native), str(runtime / 'native/trae-local')])
+    shutil.copy2(assets / 'trae/launcher.py', runtime / 'traecli')
+    (runtime / 'traecli').chmod(0o700)
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if agent == 'droid':
     import platform
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):

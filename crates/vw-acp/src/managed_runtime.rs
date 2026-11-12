@@ -127,6 +127,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
             path.to_string_lossy().into_owned(),
             match agent {
                 "vibe" => vec![],
+                "trae" => vec!["acp".into(), "serve".into()],
                 "droid" => vec!["exec".into(), "--output-format".into(), "acp".into()],
                 _ => vec!["acp".into()],
             },
@@ -239,6 +240,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("trae/apply.py", include_str!("../../../patches/acp-model-source/trae/apply.py")),
+        ("trae/launcher.py", include_str!("../../../patches/acp-model-source/trae/launcher.py")),
         ("qoder/apply.py", include_str!("../../../patches/acp-model-source/qoder/apply.py")),
         ("qoder/patch.json", include_str!("../../../patches/acp-model-source/qoder/patch.json")),
         (

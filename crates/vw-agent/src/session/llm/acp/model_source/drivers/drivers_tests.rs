@@ -76,10 +76,11 @@ fn model_protocol_013_registered_drivers_declare_actual_wire_protocols() {
         ("kimi", P::Chat),
         ("copilot", P::Chat),
         ("vibe", P::Chat),
+        ("trae", P::Chat),
     ] {
         assert_eq!(source_protocol(agent, &api).unwrap(), expected, "{agent}");
     }
-    for agent in ["cursor", "droid", "trae", "unknown"] {
+    for agent in ["cursor", "droid", "unknown"] {
         assert!(source_protocol(agent, &api).is_err(), "{agent}");
     }
     for (adapter, expected) in

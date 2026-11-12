@@ -18,7 +18,7 @@ fn acp_model_source_defaults_follow_verified_cli_capabilities() {
             options.acp_model_source,
             if supports_client { AcpModelSource::SessionModel } else { AcpModelSource::CliLocal }
         );
-        if matches!(agent, "cursor" | "trae" | "unknown-custom-driver") {
+        if matches!(agent, "cursor" | "unknown-custom-driver") {
             assert!(!supports_client);
         }
     }

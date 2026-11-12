@@ -411,3 +411,23 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 原始配置、SSE、会话查询与文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-snow-za7laocj/`，未提交凭据或配置环境值。
 
 后续建议：按需启动 `pnpm exec vite --config acpdemo/snow/vite.config.mjs` 检查页面行为。
+
+# TRAE CLI 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 21；批次 20 Snow 已完成归档。按最新授权，以完整编辑器文件与运行说明实际落盘为终点；未运行浏览器、编辑器构建或创建后的额外回归，不将页面行为记为通过。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-trae / trae`、`session_model`、`full_access=true`；未更换模型、账号或执行引擎。
+- 初次复验旧网关：系统安装 HTTP 200、curl 0、3.619042 秒，状态 true → true，官方入口版本 0.121.3；诊断 HTTP 200、curl 0、0.454664 秒、connected。真实请求 HTTP 200、curl 0、40.856944 秒，终态 chat.error，仍被未验证驱动拒绝，目标目录不存在且无产物。这些信号不计为指定模型连接成功。
+- 继续调查固定发行物：实际配置文件名为 `.trae/trae_cli.yaml`，与该包内置手册中的 `traecli.yaml` 不同。正确配置后，原生 ACP 可枚举和选择自定义模型；未登录的 session/prompt 在平台账号中间件报 `failed to get value from keyring: secret not found in keyring`，本机模型探针请求数为 0。没有导入 IDE 令牌、交换平台身份或写入登录凭据。
+- 新增 `patches/acp-model-source/trae/`，从官方固定归档生成独立受管本地组合。保留真实 TRAE 原生循环、工具、权限处理、ACP 服务；仅不装配平台模型的 CommercializationPreCheck 与 ReportCustomModelTokenUsage 中间件，并让原生用户目录和缓存目录定位到请求私有目录。未更改登录、账号类型、企业功能或配额检查的实现及返回值；原始官方二进制逐字节保留，未绑定的普通入口仍运行原版。没有替换引擎或伪造平台授权、配额结果。
+- 启动器要求 0700 目录、0600 文件与匹配会话引用，绑定唯一原模型、准确 IPv4 回环中继端点和短期令牌，禁止模型回退；不修改 HOME。Darwin 原生进程启动前加载内核网络策略，仅允许绑定的回环 TCP 端口，拒绝官方平台、DNS、遥测和无关回环连接；策略也覆盖子进程。供应商模型密钥未交给 CLI，原生配置在模型选择后仍保留令牌环境变量占位符。归档、官方二进制、本地组合和启动器摘要均受安装器及启动器校验。官方归档 SHA-256 `30fd43892949dba6d1bff5fb464c8ec3a936b61cb97ed5a9d5af3a97b6e3f3f8`，原始二进制 SHA-256 `7648c66ffb535e83e4b1f5bbd820f0384d77234763cfb32700b1be3289358758`。
+- 创建前验证：`scripts/acp_model_source_trae_tests.py` 三项通过，25.018 秒，覆盖私有文件/会话引用/端点拒绝、真实内核端口隔离、真实原生 ACP initialize/session/new/session/set_model 与模型 HTTP 请求。模型探针故意返回 HTTP 400，仅证明原生请求到达私有端点，不计为编辑器创建。Rust 新增启动拒绝场景由 Clippy all-targets 编译，未单独执行 Rust 单元测试。
+- 使用共享槽位 7，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `target/rust-slot-7` 的绝对路径。`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0，4 分 43 秒；`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0，10 分 40 秒。相关源码摘要在构建期间无变化。真实运行独立 CLI 副本 SHA-256 `49cdde7237d6c3267520f484b36f4d096e41266e49e31f5ece40eea94893c0e2`；槽位已释放、缓存保留。
+- 新构建使用现有开发配置启动临时网关 `127.0.0.1:59563`，未重启用户原服务。固定受管安装器退出码 0，系统安装 API HTTP 200、curl 0、0.082881 秒，状态 true → true，入口 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/trae-0.121.3-model-source-v1/traecli acp serve`，核实版本 0.121.3。普通独立诊断 HTTP 200、curl 0、0.740548 秒、connected；模型来源接口 HTTP 200、curl 0、session_model supported，已审查 Darwin arm64 / 0.121.3。普通诊断与私有模型请求分别记录。
+- 会话 `ses_1d10f575d001coW29r630ktu2X` 的 ui/summary 与 acp-options 在执行期间及结束后均 HTTP 200、curl 0；绑定 acp-trae / trae、full_access=true。执行期间 connected=true，selected_model 的来源、provider_id 与完整模型 ID 均匹配请求。访问能力报告 client_only，仅证明客户端工具审批自动批准，不声称原生工具全部免审批已验证。
+- 真实创建请求 HTTP 200、curl 0、148.020811 秒，终态 chat.done，无 chat.error。事件：chat.context_loaded ×1、chat.step_start ×1、chat.delta ×72、chat.tool ×36、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际调用工具创建文件，完成后简短结束，不运行额外测试。
+- 目标目录原先不存在；实际新增 `acpdemo/trae/` 下 `README.md`、`index.html`、`vite.config.mjs`、`tsconfig.json`、`src/Editor.tsx`、`src/main.tsx`、`src/env.d.ts`、`src/style.css` 共 8 个文件。源码导入本仓库 `@rue-js/rue`，包含 textarea 输入、computed 实时字数/字符/行数统计、localStorage 400ms 防抖保存与初始化恢复；README 提供运行说明。仅核对产物与源码，不宣称浏览器行为通过。
+- 请求前与网关停止后的 Rue 普通文件 SHA-256 快照（排除 .git、node_modules、target），仅上述 8 个文件新增，目标目录外无内容变化。预设基线 enabled=false，临时启用 HTTP 200、curl 0、9.695698 秒；恢复 HTTP 200、curl 0、8.371216 秒，结束 GET agents HTTP 200、curl 0、复查 false。自己的临时网关进程组已停止，端口关闭，未启动编辑器服务。
+- 原始配置、SSE、会话查询、原生探针和文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-trae-3fmuyjp0/`，最终成功证据位于 `acceptance/`。未提交凭据、配置环境值、原始供应商归档或二进制。
+
+后续建议：常用网关切换至包含本次受管入口的构建；按需运行 `pnpm exec vite --config acpdemo/trae/vite.config.mjs` 检查页面行为。

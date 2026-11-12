@@ -396,7 +396,7 @@ async fn acp_model_source_launch_profile_production_request_rejects_unverified_d
     .await;
     match result {
         Err(super::Error::Api(message::AssistantError::Unknown { message })) => {
-            assert!(message.contains("ACP droid session_model launch has not been verified"));
+            assert!(message.contains("ACP session_model driver is not verified"), "{message}");
             assert!(!message.contains("provider-secret-never-distributed"));
         }
         other => panic!("unexpected production result: {other:?}"),

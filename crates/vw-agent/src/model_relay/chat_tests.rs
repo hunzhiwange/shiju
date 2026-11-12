@@ -57,6 +57,14 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
             if value["fixture_error"] == true {
                 return axum::response::Response::builder().status(500).body(axum::body::Body::from("upstream-private-error")).unwrap();
             }
+            if let Some(status) = value["fixture_status"].as_u64() {
+                return axum::response::Response::builder()
+                    .status(u16::try_from(status).unwrap())
+                    .header("x-upstream-secret", "private-header")
+                    .header("location", "https://example.invalid/private")
+                    .body(axum::body::Body::from("upstream-private-error"))
+                    .unwrap();
+            }
             if value["stream"] == true {
                 let chunks = futures_util::stream::iter(wire.as_bytes().chunks(11).map(|c| Ok::<_, std::io::Error>(Bytes::copy_from_slice(c))).collect::<Vec<_>>());
                 axum::response::Response::builder().header("content-type", "text/event-stream").body(axum::body::Body::from_stream(chunks)).unwrap()
@@ -228,6 +236,22 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     assert_eq!(failed.status(), 502);
     assert!(!failed.text().await.unwrap().contains("upstream-private-error"));
     assert_eq!(received.lock().len(), 4, "relay must not retry or duplicate usage");
+
+    body.as_object_mut().unwrap().remove("fixture_error");
+    for (index, (upstream_status, expected)) in
+        [(403, 403), (401, 401), (400, 400), (429, 429), (307, 502), (503, 502)]
+            .into_iter()
+            .enumerate()
+    {
+        body["fixture_status"] = json!(upstream_status);
+        let failed =
+            client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
+        assert_eq!(failed.status().as_u16(), expected, "upstream status {upstream_status}");
+        assert!(failed.headers().get("x-upstream-secret").is_none());
+        assert!(failed.headers().get("location").is_none());
+        assert!(failed.text().await.unwrap().is_empty());
+        assert_eq!(received.lock().len(), 5 + index, "relay must not retry upstream errors");
+    }
 
     server.shutdown().await.unwrap();
     stop.cancel();

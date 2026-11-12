@@ -450,7 +450,13 @@ impl RelayBackend for ProviderRelayBackend {
             .map_err(|_| StatusCode::BAD_GATEWAY)?;
         let response = upstream::execute(&self.client, &url, outgoing, &cancel).await?;
         if !response.status().is_success() {
-            return Err(StatusCode::BAD_GATEWAY);
+            // Keep authentication, access and request failures distinguishable from
+            // transient provider failures without exposing upstream bodies or headers.
+            return Err(if response.status().is_client_error() {
+                response.status()
+            } else {
+                StatusCode::BAD_GATEWAY
+            });
         }
         if gemini_request {
             return super::gemini_stream::response(

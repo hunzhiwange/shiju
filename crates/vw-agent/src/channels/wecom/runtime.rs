@@ -52,6 +52,7 @@ impl WeComRuntimeHandle {
 pub(super) struct Entry {
     generation: Uuid,
     sender: Option<mpsc::Sender<OutboundItem>>,
+    credentials: Option<[u8; 32]>,
 }
 
 pub(super) fn registry() -> &'static Mutex<HashMap<WeComRuntimeScope, Entry>> {
@@ -71,6 +72,37 @@ pub fn connected(scope: &WeComRuntimeScope) -> anyhow::Result<WeComRuntimeHandle
     Ok(WeComRuntimeHandle { sender: sender.clone() })
 }
 
+// 长度分隔，避免不同 ID/Secret 组合产生相同输入；不存储额外明文凭据。
+fn credential_digest(bot_id: &str, secret: &str) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    let mut hash = Sha256::new();
+    hash.update(bot_id.len().to_be_bytes());
+    hash.update(bot_id.as_bytes());
+    hash.update(secret.as_bytes());
+    hash.finalize().into()
+}
+
+/// 配置保存与监听器重连之间也不能借旧连接发送。
+pub(crate) fn connected_with_credentials(
+    scope: &WeComRuntimeScope,
+    bot_id: &str,
+    secret: &str,
+) -> anyhow::Result<WeComRuntimeHandle> {
+    let entries = registry().lock().unwrap_or_else(|e| e.into_inner());
+    let entry = entries
+        .get(scope)
+        .context("当前进程没有已认证的企微连接，请启动同一配置和工作区的 daemon")?;
+    if entry.credentials != Some(credential_digest(bot_id, secret)) {
+        bail!("企微凭据已更新或尚未认证，请等待 daemon 重新连接");
+    }
+    let sender = entry
+        .sender
+        .as_ref()
+        .filter(|sender| !sender.is_closed())
+        .context("当前进程没有已认证的企微连接，请等待 daemon 重新连接")?;
+    Ok(WeComRuntimeHandle { sender: sender.clone() })
+}
+
 pub(super) struct Registration {
     scope: WeComRuntimeScope,
     generation: Uuid,
@@ -83,16 +115,17 @@ impl Registration {
             bail!("此作用域已有企微监听器，请先停止旧监听器");
         }
         let generation = Uuid::new_v4();
-        entries.insert(scope.clone(), Entry { generation, sender: None });
+        entries.insert(scope.clone(), Entry { generation, sender: None, credentials: None });
         Ok(Self { scope, generation })
     }
 
-    pub(super) fn publish(&self, sender: mpsc::Sender<OutboundItem>) {
+    pub(super) fn publish(&self, sender: mpsc::Sender<OutboundItem>, bot_id: &str, secret: &str) {
         let mut entries = registry().lock().unwrap_or_else(|e| e.into_inner());
         if let Some(entry) = entries.get_mut(&self.scope)
             && entry.generation == self.generation
         {
             entry.sender = Some(sender);
+            entry.credentials = Some(credential_digest(bot_id, secret));
         }
     }
 }

@@ -1652,3 +1652,112 @@ async fn wb_schedule_feedback_unavailable_credentials_rejected() {
     let err = deliver_announcement(&config, "slack", "target", "report").await.unwrap_err();
     assert!(err.to_string().contains("credentials unavailable"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_wecom_delivery_none_makes_zero_webhook_requests() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let job =
+        cron::add_shell_job(&config, None, Schedule::Every { every_ms: 60_000 }, "echo result")
+            .unwrap();
+    let mut job = job;
+    job.delivery = DeliveryConfig {
+        mode: "none".into(),
+        channel: Some("wecom_webhook".into()),
+        to: Some("default".into()),
+        best_effort: false,
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = format!("http://{}/", listener.local_addr().unwrap()).parse().unwrap();
+    crate::cron::delivery::TEST_WEBHOOK_ENDPOINT
+        .scope(endpoint, async {
+            deliver_if_configured(&config, &job, "result").await.unwrap();
+        })
+        .await;
+    assert!(tokio::time::timeout(Duration::from_millis(100), listener.accept()).await.is_err());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts() {
+    let tenant =
+        vw_api_types::id::TenantScope::new("cron-trigger-test", uuid::Uuid::new_v4().to_string())
+            .unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        let tmp = TempDir::new().unwrap();
+        let mut config = test_config(&tmp).await;
+        config.channels_config.wecom_webhook = Some(serde_json::from_value(serde_json::json!({"webhook_url":"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture"})).unwrap());
+        crate::config::schema::save_config_for_tenant(&config, &tenant).await.unwrap();
+        let job = cron::add_shell_job(&config, None, Schedule::Every { every_ms:1 }, "echo delivery-result").unwrap();
+        let job = cron::update_job(&config, &job.id, cron::CronJobPatch { delivery:Some(DeliveryConfig { mode:"announce".into(), channel:Some("wecom_webhook".into()), to:Some("default".into()), best_effort:false }), ..Default::default() }).unwrap();
+        let requests = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let captured = requests.clone();
+        let app = axum::Router::new().route("/", axum::routing::post(move |axum::Json(body):axum::Json<serde_json::Value>| {
+            captured.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            async move {
+                assert!(body["markdown"]["content"].as_str().unwrap().contains("delivery-result"));
+                axum::Json(serde_json::json!({"errcode":0}))
+            }
+        }));
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/",listener.local_addr().unwrap()).parse().unwrap();
+        let server = tokio::spawn(async move { axum::serve(listener,app).await.unwrap(); });
+        crate::cron::delivery::TEST_WEBHOOK_ENDPOINT.scope(endpoint, async {
+            let (ok, output) = cron::scheduler::execute_job_now(&config,&job).await;
+            assert!(ok, "{output}");
+            assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 1);
+            assert_eq!(cron::get_job(&config,&job.id).unwrap().next_run,job.next_run);
+            let security = Arc::new(SecurityPolicy::from_configs(&config.autonomy,&config.security,&config.workspace_dir));
+            process_due_jobs(&config,&security,vec![job.clone()],"cron-wecom-test").await;
+            assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 2);
+            let runs = cron::list_runs(&config,&job.id,10).unwrap();
+            assert_eq!(runs.len(),1);
+            assert_eq!(runs[0].status,"ok");
+        }).await;
+        server.abort(); let _ = server.await;
+    }).await;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent() {
+    let tenant = vw_api_types::id::TenantScope::new(
+        "cron-best-effort-test",
+        uuid::Uuid::new_v4().to_string(),
+    )
+    .unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        let tmp = TempDir::new().unwrap();
+        let config = test_config(&tmp).await;
+        crate::config::schema::save_config_for_tenant(&config, &tenant).await.unwrap();
+        for job_type in [JobType::Shell, JobType::Agent] {
+            for best_effort in [false, true] {
+                let job = cron::add_shell_job(
+                    &config,
+                    None,
+                    Schedule::Every { every_ms: 60_000 },
+                    "echo result",
+                )
+                .unwrap();
+                let mut job = job;
+                job.job_type = job_type.clone();
+                job.delivery = DeliveryConfig {
+                    mode: "announce".into(),
+                    channel: Some("wecom".into()),
+                    to: Some("user".into()),
+                    best_effort,
+                };
+                let now = Utc::now();
+                assert_eq!(
+                    persist_job_result(&config, &job, true, "result", now, now).await,
+                    best_effort
+                );
+                let runs = cron::list_runs(&config, &job.id, 10).unwrap();
+                assert_eq!(runs[0].status, if best_effort { "ok" } else { "error" });
+                assert!(runs[0].output.as_deref().unwrap().contains("Bot ID"));
+            }
+        }
+    })
+    .await;
+}

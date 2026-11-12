@@ -212,7 +212,12 @@ pub async fn execute_job_now(config: &Config, job: &CronJob) -> (bool, String) {
     }
     let security =
         SecurityPolicy::from_configs(&config.autonomy, &config.security, &config.workspace_dir);
-    execute_job_with_retry(config, &security, job).await
+    let (success, output) = execute_job_with_retry(config, &security, job).await;
+    if job.delivery.channel.as_deref().is_some_and(super::delivery::is_wecom) {
+        super::delivery::apply_result(config, job, success, &output).await
+    } else {
+        (success, output)
+    }
 }
 
 /// 执行任务并实现自动重试机制
@@ -842,7 +847,7 @@ fn cron_full_access_config(config: &Config) -> Config {
 async fn persist_job_result(
     config: &Config,
     job: &CronJob,
-    mut success: bool,
+    success: bool,
     output: &str,
     started_at: DateTime<Utc>,
     finished_at: DateTime<Utc>,
@@ -850,31 +855,8 @@ async fn persist_job_result(
     // 计算执行时长（毫秒）
     let duration_ms = (finished_at - started_at).num_milliseconds();
 
-    let mut recorded_output = output.to_string();
-    // 尝试投递结果到配置的通道
-    if let Err(e) = deliver_if_configured(config, job, output).await {
-        // 通道网络错误可能包含带令牌的 URL；历史只保留可公开的配置错误或失败摘要。
-        let error = e.to_string();
-        let channel = job.delivery.channel.as_deref().unwrap_or_default().to_ascii_lowercase();
-        let summary = if error == format!("{channel} channel not configured") {
-            error.as_str()
-        } else if error.starts_with("channel credentials unavailable;") {
-            "channel credentials unavailable; repair channel configuration before delivery"
-        } else if error.starts_with("unsupported delivery channel:") {
-            "unsupported delivery channel"
-        } else {
-            "请检查通道凭证、投递目标和网络连接"
-        };
-        recorded_output.push_str(&format!("\nCron delivery failed: {summary}"));
-        if job.delivery.best_effort {
-            // best_effort 模式：投递失败不影响整体状态
-            tracing::warn!("Cron delivery failed (best_effort): {e}");
-        } else {
-            // 非 best_effort 模式：投递失败会导致任务失败
-            success = false;
-            tracing::warn!("Cron delivery failed: {e}");
-        }
-    }
+    let (success, recorded_output) =
+        super::delivery::apply_result(config, job, success, output).await;
 
     // 记录执行历史到数据库
     let _ = record_run(
@@ -1006,7 +988,11 @@ fn is_high_frequency_agent_job(job: &CronJob) -> bool {
 /// # 投递条件
 ///
 /// 只有当 `delivery.mode` 为 "announce"（不区分大小写）时才执行投递
-async fn deliver_if_configured(config: &Config, job: &CronJob, output: &str) -> Result<()> {
+pub(super) async fn deliver_if_configured(
+    config: &Config,
+    job: &CronJob,
+    output: &str,
+) -> Result<()> {
     let delivery: &DeliveryConfig = &job.delivery;
     // 检查是否启用了投递模式
     if !delivery.mode.eq_ignore_ascii_case("announce") {
@@ -1063,6 +1049,9 @@ pub(crate) async fn deliver_announcement(
     output: &str,
 ) -> Result<()> {
     let channel = channel.to_ascii_lowercase();
+    if super::delivery::is_wecom(&channel) {
+        return super::delivery::send(config, &channel, target, output).await;
+    }
     if config.channels_config.unavailable_channels.contains(&format!("{channel}:default")) {
         anyhow::bail!(
             "channel credentials unavailable; repair channel configuration before delivery"
@@ -1355,6 +1344,9 @@ pub(crate) async fn deliver_announcement(
     _target: &str,
     _output: &str,
 ) -> Result<()> {
+    if super::delivery::is_wecom(_channel) {
+        anyhow::bail!("企微投递不支持 WASM，请使用原生 daemon");
+    }
     Ok(())
 }
 

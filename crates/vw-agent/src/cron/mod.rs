@@ -8,6 +8,10 @@ use anyhow::{Result, bail};
 
 pub mod active_runs;
 pub mod consolidation;
+pub(crate) mod delivery;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod delivery_tests;
 
 #[cfg(test)]
 pub(crate) mod active_runs_tests;

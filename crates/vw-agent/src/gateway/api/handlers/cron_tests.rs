@@ -897,3 +897,95 @@ async fn cron_history_endpoint_reports_finished_window_and_workspace_isolation()
     assert_eq!(isolated["runs"], serde_json::json!([]));
     drop(guard);
 }
+
+#[tokio::test]
+async fn cron_wecom_delivery_add_rejects_invalid_target_without_creating_job() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let config = temp_config(tmp.path());
+    let state = state_with_config(config.clone(), false);
+    let mut body = add_body();
+    body.delivery_mode = Some("announce".into());
+    body.delivery_channel = Some("wecom_webhook".into());
+    body.delivery_to =
+        Some("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=must-not-persist".into());
+    let (status, value) = response_json(
+        handle_api_cron_add(State(state), HeaderMap::new(), JsonResponse(body)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{value}");
+    assert!(!value.to_string().contains("must-not-persist"));
+    assert!(crate::cron::list_jobs(&config.lock()).unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn cron_wecom_delivery_add_requires_configuration_but_none_does_not() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let config = temp_config(tmp.path());
+    let state = state_with_config(config.clone(), false);
+    for channel in ["wecom", "wecom_webhook"] {
+        let mut body = add_body();
+        body.delivery_mode = Some("announce".into());
+        body.delivery_channel = Some(channel.into());
+        body.delivery_to = Some(if channel == "wecom" { "userid" } else { "default" }.into());
+        let (status, _) = response_json(
+            handle_api_cron_add(State(state.clone()), HeaderMap::new(), JsonResponse(body)).await,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+    let mut body = add_body();
+    body.delivery_mode = Some("none".into());
+    body.delivery_channel = Some("wecom".into());
+    let (status, _) = response_json(
+        handle_api_cron_add(State(state), HeaderMap::new(), JsonResponse(body)).await,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(crate::cron::list_jobs(&config.lock()).unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn cron_wecom_delivery_api_roundtrip_and_partial_edit_validate_merged_target() {
+    let tenant =
+        vw_api_types::id::TenantScope::new("cron-api-test", uuid::Uuid::new_v4().to_string())
+            .unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let config = temp_config(tmp.path());
+        {
+            let mut c = config.lock();
+            c.config_path = tmp.path().join("config.json");
+            c.channels_config.wecom = Some(serde_json::from_value(serde_json::json!({"bot_id":"bot","secret":"fixture-secret"})).unwrap());
+            c.channels_config.wecom_webhook = Some(serde_json::from_value(serde_json::json!({"webhook_url":"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture-secret"})).unwrap());
+        }
+        let saved = config.lock().clone();
+        crate::config::schema::save_config_for_tenant(&saved, &tenant).await.unwrap();
+        let state = state_with_config(config.clone(), false);
+        for channel in ["wecom", "wecom_webhook"] {
+            let mut body = add_body();
+            body.delivery_mode = Some("announce".into());
+            body.delivery_channel = Some(channel.into());
+            let target = if channel == "wecom" { "user-id" } else { "default" };
+            body.delivery_to = Some(target.into());
+            body.delivery_best_effort = Some(false);
+            let (status, added) = response_json(handle_api_cron_add(State(state.clone()), HeaderMap::new(), JsonResponse(body)).await).await;
+            assert_eq!(status, StatusCode::OK, "{added}");
+            assert!(!added.to_string().contains("fixture-secret"));
+            let id = added["job"]["id"].as_str().unwrap().to_string();
+            let patch = CronUpdateBody { delivery_channel: Some(format!(" {channel} ")), delivery_best_effort:Some(true), ..Default::default() };
+            let (status, updated) = response_json(handle_api_cron_update(State(state.clone()),HeaderMap::new(),Path(id.clone()),JsonResponse(patch)).await).await;
+            assert_eq!(status, StatusCode::OK, "{updated}");
+            assert_eq!(updated["job"]["delivery_mode"], "announce");
+            assert_eq!(updated["job"]["delivery_channel"], channel);
+            assert_eq!(updated["job"]["delivery_to"], target);
+            assert_eq!(updated["job"]["delivery_best_effort"], true);
+            let patch = CronUpdateBody { delivery_to:Some(" ".into()), ..Default::default() };
+            let (status, _) = response_json(handle_api_cron_update(State(state.clone()),HeaderMap::new(),Path(id.clone()),JsonResponse(patch)).await).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST);
+            assert_eq!(crate::cron::get_job(&config.lock(), &id).unwrap().delivery.to.as_deref(), Some(target));
+        }
+        let (_, listed) = response_json(handle_api_cron_list(State(state), HeaderMap::new()).await).await;
+        assert_eq!(listed["jobs"].as_array().unwrap().len(), 2);
+        assert!(!listed.to_string().contains("fixture-secret"));
+    }).await;
+}

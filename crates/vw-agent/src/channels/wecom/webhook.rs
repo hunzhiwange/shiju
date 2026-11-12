@@ -66,7 +66,7 @@ impl WeComWebhook {
     }
 
     #[cfg(test)]
-    fn new_for_test(endpoint: reqwest::Url, timeout: Duration) -> Self {
+    pub(crate) fn new_for_test(endpoint: reqwest::Url, timeout: Duration) -> Self {
         assert_eq!(endpoint.scheme(), "http");
         assert_eq!(endpoint.host_str(), Some("127.0.0.1"));
         let client = reqwest::Client::builder()

@@ -211,7 +211,7 @@ impl Channel for WeComChannel {
         self.reply_requests.write().await.clear();
         *self.outbound.write().await = Some(outbound_tx.clone());
         if let Some(registration) = &registration {
-            registration.publish(outbound_tx);
+            registration.publish(outbound_tx, &self.bot_id, &self.secret);
         }
         let mut heartbeat = tokio::time::interval_at(
             Instant::now() + WECOM_HEARTBEAT_INTERVAL,

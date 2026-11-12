@@ -438,21 +438,43 @@ pub async fn handle_api_cron_update(
         || body.delivery_to.is_some()
         || body.delivery_best_effort.is_some()
     {
-        Some(crate::app::agent::cron::DeliveryConfig {
-            mode: body
-                .delivery_mode
-                .as_deref()
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("none")
-                .to_string(),
-            channel: trimmed_optional(body.delivery_channel.clone()),
-            to: trimmed_optional(body.delivery_to.clone()),
-            best_effort: body.delivery_best_effort.unwrap_or(true),
-        })
+        let is_wecom = body
+            .delivery_channel
+            .as_deref()
+            .or_else(|| current.as_ref().and_then(|job| job.delivery.channel.as_deref()))
+            .map(str::trim)
+            .is_some_and(crate::cron::delivery::is_wecom);
+        let mut merged = if is_wecom {
+            current.as_ref().map(|job| job.delivery.clone()).unwrap_or_default()
+        } else {
+            crate::cron::DeliveryConfig::default()
+        };
+        if let Some(mode) = &body.delivery_mode {
+            merged.mode = mode.trim().to_string();
+            if merged.mode.is_empty() {
+                merged.mode = "none".into();
+            }
+        }
+        if body.delivery_channel.is_some() {
+            merged.channel = trimmed_optional(body.delivery_channel.clone());
+        }
+        if body.delivery_to.is_some() {
+            merged.to = trimmed_optional(body.delivery_to.clone());
+        }
+        if let Some(best_effort) = body.delivery_best_effort {
+            merged.best_effort = best_effort;
+        }
+        Some(merged)
     } else {
         None
     };
+    if let Some(final_delivery) =
+        delivery.as_ref().or_else(|| current.as_ref().map(|job| &job.delivery))
+    {
+        if let Err(error) = crate::cron::delivery::validate_saved(&config, final_delivery).await {
+            return cron_field_error(error.to_string());
+        }
+    }
     let patch = crate::app::agent::cron::CronJobPatch {
         starts_at,
         ends_at,
@@ -595,6 +617,11 @@ pub async fn handle_api_cron_add(
     };
     if let Err(error) = validate_candidates(&schedule, starts_at, ends_at, Utc::now()) {
         return cron_field_error(format!("Failed to add cron job: {error}"));
+    }
+    if let Err(error) =
+        crate::cron::delivery::validate_saved(&config, &cron_add_delivery(&body)).await
+    {
+        return cron_field_error(error.to_string());
     }
     let job_type = cron_add_job_type(&body);
     let result = match job_type.as_str() {

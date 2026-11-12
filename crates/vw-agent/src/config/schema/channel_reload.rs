@@ -46,11 +46,27 @@ impl ChannelConfigWatcher {
 
     /// 读取创建时捕获租户的持久化配置；读取或校验失败时不推进快照；渠道解密失败只隔离故障实例。
     pub(crate) async fn poll(&mut self, current: &Config) -> Result<Option<ChannelsConfig>> {
+        self.poll_inner(current, false).await
+    }
+
+    /// 投递必须有持久化配置；记录删除或读取失败不能继续使用启动时的凭据。
+    pub(crate) async fn load_for_delivery(&mut self, current: &Config) -> Result<ChannelsConfig> {
+        Ok(self.poll_inner(current, true).await?.unwrap_or_else(|| current.channels_config.clone()))
+    }
+
+    async fn poll_inner(
+        &mut self,
+        current: &Config,
+        required: bool,
+    ) -> Result<Option<ChannelsConfig>> {
         let store = self.store.clone();
         let project = self.project.clone();
         let tenant = self.tenant.clone();
         let payload = tokio::task::spawn_blocking(move || {
             let Some(raw) = store.get(&tenant)? else {
+                if required {
+                    bail!("Persisted channel configuration is missing");
+                }
                 return Ok::<_, anyhow::Error>(None);
             };
             let mut payload: Value = serde_json::from_str(&raw)?;

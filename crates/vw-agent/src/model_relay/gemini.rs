@@ -92,7 +92,7 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
         for part in content["parts"].as_array().ok_or(StatusCode::BAD_REQUEST)? {
             if let Some(t) = part.get("text") {
                 object_keys(part, &["text"])?;
-                if awaiting_results {
+                if awaiting_results && !pending.is_empty() {
                     return Err(UNSUPPORTED);
                 }
                 text.push_str(t.as_str().ok_or(StatusCode::BAD_REQUEST)?);
@@ -142,10 +142,15 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             }
         }
         if !results.is_empty() {
-            if !text.is_empty() || !calls.is_empty() {
+            if !calls.is_empty() {
                 return Err(UNSUPPORTED);
             }
             messages.extend(results);
+            // Gemini may append a follow-up user prompt after all tool results.
+            // Chat needs a separate user message to retain that exact order.
+            if !text.is_empty() {
+                messages.push(json!({"role":"user","content":text}));
+            }
         } else {
             let mut message = json!({"role":role,"content":text});
             if !calls.is_empty() {

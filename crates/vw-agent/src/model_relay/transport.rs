@@ -419,8 +419,10 @@ impl RelayBackend for ProviderRelayBackend {
         if messages_request && !native {
             super::messages_thinking::configure(&mut body, &input, model)?;
         }
-        // Map an explicit zero budget through the existing model-specific controls.
-        if gemini_request && !native_gemini && super::gemini::thinking_disabled(&input) {
+        // This conversion carries text and tools, not replayable thinking. A missing
+        // Gemini thinkingConfig must not enable a Chat deployment's default reasoning.
+        // to_chat already rejects explicit thinking requests that cannot be preserved.
+        if gemini_request && !native_gemini {
             super::messages_thinking::configure(
                 &mut body,
                 &serde_json::json!({"thinking":{"type":"disabled"}}),

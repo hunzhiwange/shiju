@@ -26,6 +26,7 @@ fn session(id: &str, title: &str, directory: &str) -> vw_shared::session::info::
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

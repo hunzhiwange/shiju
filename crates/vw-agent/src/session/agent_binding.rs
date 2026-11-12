@@ -97,11 +97,11 @@ fn component(value: &str) -> Result<String> {
     Ok(value.as_bytes().iter().map(|byte| format!("{byte:02x}")).collect())
 }
 
-fn storage_key(project: &str, session: &str) -> Result<String> {
+pub(super) fn storage_key(project: &str, session: &str) -> Result<String> {
     Ok(format!("{}:{}", component(project)?, component(session)?))
 }
 
-fn store() -> Result<crate::gateway::settings_store::GatewaySettingsStore> {
+pub(super) fn store() -> Result<crate::gateway::settings_store::GatewaySettingsStore> {
     let database = crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)?;
     crate::gateway::settings_store::GatewaySettingsStore::new(database)
 }
@@ -308,30 +308,47 @@ pub(crate) async fn prepare(
     use vw_config_types::agent::{AgentDefault, AgentModelReference};
     let _guard = INITIALIZE.lock().await;
     let mut config = crate::config::get_current().await?;
-    if !session.is_empty()
-        && let Some(binding) = load(session).await?
-    {
+    let fork_selectable = if !session.is_empty() {
+        let project = crate::project::instance::project()
+            .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?;
+        super::fork_execution::is_selectable(&project.id, session).await?
+    } else {
+        false
+    };
+    let previous = if session.is_empty() { None } else { load(session).await? };
+    if !fork_selectable && let Some(binding) = previous.as_ref() {
         binding.validate_selection(selected_agent, backend)?;
         let mut definition = crate::agent::catalog::merged_agent_catalog(&config.agents)
             .remove(&binding.agent)
             .unwrap_or_default();
         binding.apply(&mut definition);
         config.agents.insert(binding.agent.clone(), definition);
-        return Ok((binding, config));
+        return Ok((binding.clone(), config));
     }
     let history = if session.is_empty() {
         Vec::new()
     } else {
         super::message::messages(session, Some(1)).await?
     };
-    let recorded_agent = history.first().and_then(|entry| {
+    let recorded_agent = history.first().filter(|_| !fork_selectable).and_then(|entry| {
         let agent = match &entry.info {
             super::message::Info::Assistant(assistant) => &assistant.agent,
             super::message::Info::User(user) => &user.agent,
         };
         (!agent.is_empty() && agent != "gateway").then_some(agent.as_str())
     });
+    let fork_preference = if fork_selectable {
+        selected_agent
+            .map(str::trim)
+            .filter(|key| !key.is_empty())
+            .map(ToOwned::to_owned)
+            .or_else(|| backend.map(|backend| format!("acp-{backend}")))
+            .or_else(|| previous.as_ref().map(|binding| binding.agent.clone()))
+    } else {
+        None
+    };
     let agent = recorded_agent
+        .or(fork_preference.as_deref())
         .or_else(|| selected_agent.map(str::trim).filter(|key| !key.is_empty()))
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| {
@@ -340,6 +357,11 @@ pub(crate) async fn prepare(
     let mut definition = crate::agent::get(&agent)
         .await
         .ok_or_else(|| anyhow::anyhow!("unknown or disabled agent: {agent}"))?;
+    if fork_selectable
+        && let Some(binding) = previous.as_ref().filter(|binding| binding.agent == agent)
+    {
+        binding.apply(&mut definition);
+    }
     let provisional = AgentBinding::from_definition(agent.clone(), &definition);
     provisional.validate_selection(selected_agent, backend)?;
     let mcp = match provisional.runtime {

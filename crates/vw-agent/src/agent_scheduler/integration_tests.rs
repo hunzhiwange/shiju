@@ -180,6 +180,7 @@ fn isolation_agent_session(project_id: &str, label: &str) -> AgentSessionInfo {
         version: "test".to_string(),
         time: AgentSessionTimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

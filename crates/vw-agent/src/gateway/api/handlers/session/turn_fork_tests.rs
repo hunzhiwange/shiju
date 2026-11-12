@@ -380,7 +380,7 @@ async fn fork_history_ui_reads_the_persisted_prefix() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn fork_history_first_sse_request_replays_only_durable_turns() {
+async fn fork_selection_locks_when_own_request_starts() {
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _guard = SESSION_OPS_TEST_LOCK.lock().await;
     ensure_test_home();
@@ -407,14 +407,19 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
         axum::routing::post(move |Json(body): Json<Value>| {
             let captured = Arc::clone(&captured);
             async move {
+                use axum::response::IntoResponse;
+                let reject = body["messages"].as_array().is_some_and(|messages| messages.iter().rev().find(|message| message["role"] == "user").and_then(|message| message["content"].as_str()).is_some_and(|content| content.contains("fork forced failure")));
                 captured.lock().push(body);
+                if reject {
+                    return (StatusCode::BAD_REQUEST, Json(json!({"error":{"message":"fixture rejected request","type":"invalid_request_error"}}))).into_response();
+                }
                 let chunk = json!({"id":"fork-history","object":"chat.completion.chunk","created":0,
                     "model":"original","choices":[{"index":0,"delta":{"content":"fork response"},
                     "finish_reason":"stop"}]});
                 (
                     [("content-type", "text/event-stream")],
                     format!("data: {chunk}\n\ndata: [DONE]\n\n"),
-                )
+                ).into_response()
             }
         }),
     );
@@ -433,6 +438,13 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
     let (_, second) =
         persist_turn(&source.id, "fork omitted second", "fork omitted second response").await;
     persist_turn(&source.id, "fork omitted third", "fork omitted third response").await;
+
+    let mut inherited = message::get(&source.id, &assistant).await.unwrap().info;
+    if let MessageInfo::Assistant(info) = &mut inherited {
+        info.provider_id = "model-recovery".into();
+        info.model_id = "disabled".into();
+    }
+    message::update_message(&inherited).await.unwrap();
     let tool: Part = serde_json::from_value(json!({
         "type":"tool", "id":"part-fork-fixture", "sessionID":source.id, "messageID":assistant,
         "callID":"fork-retained-call", "tool":"read",
@@ -450,7 +462,7 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
         let (status, body) = fork(&source, json!({"beforeTurnId":boundary, "target":target})).await;
         assert_eq!(status, StatusCode::OK, "{body}");
         let branch: agent_session::session::Info = serde_json::from_value(body).unwrap();
-        let request = vw_api_types::chat::GatewayChatStreamRequest {
+        let stream_request = vw_api_types::chat::GatewayChatStreamRequest {
             session_id: Some(branch.id.clone().into()),
             model: Some("model-recovery/original".into()),
             options: Some(json!({"full_access":false})),
@@ -467,20 +479,50 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
             let wrong_directory = super::super::super::stream::chat_stream(
                 Query(query_for(FsPath::new(&source.directory))),
                 headers.clone(),
-                Json(request.clone()),
+                Json(stream_request.clone()),
             )
             .await;
             assert!(
                 matches!(wrong_directory, Err(error) if error.status == StatusCode::BAD_REQUEST)
             );
         }
+        let mut invalid = stream_request.clone();
+        invalid.options = Some(json!({"full_access":"invalid"}));
+        let mut invalid_headers = headers.clone();
+        invalid_headers.insert(
+            "x-vw-stream-request-id",
+            HeaderValue::from_str(&format!("{}-invalid", branch.id)).unwrap(),
+        );
+        let rejected = super::super::super::stream::chat_stream(
+            Query(query_for(FsPath::new(&branch.directory))),
+            invalid_headers,
+            Json(invalid),
+        )
+        .await;
+        assert!(matches!(rejected, Err(error) if error.status == StatusCode::BAD_REQUEST));
+        let (_, pending) = request(
+            Method::GET,
+            &format!("/session/{}", branch.id),
+            &branch.directory,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(pending["fork_execution_started"], false);
         let response = super::super::super::stream::chat_stream(
             Query(query_for(FsPath::new(&branch.directory))),
             headers,
-            Json(request),
+            Json(stream_request),
         )
         .await
         .unwrap();
+        let (_, accepted) = request(
+            Method::GET,
+            &format!("/session/{}", branch.id),
+            &branch.directory,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(accepted["fork_execution_started"], true);
         let bytes = tokio::time::timeout(
             Duration::from_secs(30),
             axum::body::to_bytes(
@@ -491,6 +533,22 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
         .await
         .unwrap()
         .unwrap();
+        let (_, reloaded) = request(
+            Method::GET,
+            &format!("/session/{}", branch.id),
+            &branch.directory,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(reloaded["fork_execution_started"], true);
+        let (status, _) = request(
+            Method::PUT,
+            &format!("/session/{}/acp-model-source", branch.id),
+            &branch.directory,
+            json!({"agent":"claude","selection":{"source":"cli_local"}}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
         let events = String::from_utf8(bytes.to_vec()).unwrap();
         assert!(events.contains("chat.done"), "{events}");
         let provider_request = requests.lock().pop().expect("real provider request");
@@ -545,6 +603,71 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
             worktree_cleanup(&source, branch.directory).await;
         }
     }
+    let (status, body) = fork(&source, json!({"beforeTurnId":second})).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let failed: agent_session::session::Info = serde_json::from_value(body).unwrap();
+    let response = super::super::super::stream::chat_stream(
+        Query(query_for(FsPath::new(&failed.directory))),
+        HeaderMap::new(),
+        Json(vw_api_types::chat::GatewayChatStreamRequest {
+            session_id: Some(failed.id.clone().into()),
+            model: Some("model-recovery/original".into()),
+            options: Some(json!({"full_access":false})),
+            messages: vec![json!({"role":"user","content":"fork forced failure"})],
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    let bytes = tokio::time::timeout(
+        Duration::from_secs(30),
+        axum::body::to_bytes(
+            axum::response::IntoResponse::into_response(response).into_body(),
+            2_000_000,
+        ),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let events = String::from_utf8(bytes.to_vec()).unwrap();
+    assert!(events.contains("chat.error"), "{events}");
+    let (_, reloaded) =
+        request(Method::GET, &format!("/session/{}", failed.id), &failed.directory, Value::Null)
+            .await;
+    assert_eq!(reloaded["fork_execution_started"], true);
+    let (status, _) = request(
+        Method::PUT,
+        &format!("/session/{}/acp-model-source", failed.id),
+        &failed.directory,
+        json!({"agent":"claude","selection":{"source":"cli_local"}}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let retry = super::super::super::stream::chat_stream(
+        Query(query_for(FsPath::new(&failed.directory))),
+        HeaderMap::new(),
+        Json(vw_api_types::chat::GatewayChatStreamRequest {
+            session_id: Some(failed.id.clone().into()),
+            model: Some("model-recovery/original".into()),
+            options: Some(json!({"full_access":false})),
+            messages: vec![json!({"role":"user","content":"fork retry"})],
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    let bytes = tokio::time::timeout(
+        Duration::from_secs(30),
+        axum::body::to_bytes(
+            axum::response::IntoResponse::into_response(retry).into_body(),
+            2_000_000,
+        ),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    let events = String::from_utf8(bytes.to_vec()).unwrap();
+    assert!(events.contains("chat.done"), "{events}");
     server.abort();
 }
 
@@ -610,4 +733,81 @@ async fn worktree_environment_fork_waits_for_setup_and_rejects_failure() {
         worktree_cleanup(&source, directory).await;
     })
     .await;
+}
+
+#[tokio::test]
+async fn fork_selection_before_start_survives_reload() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _guard = SESSION_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let _fixture = agent_session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let repo = repository();
+    let source = create_session_in(repo.path(), "Selection source").await;
+    persist_turn(&source.id, "first", "answer").await;
+    let (_, boundary) = persist_turn(&source.id, "second", "answer").await;
+    let inherited = agent_binding::AgentBinding::from_definition(
+        "acp-claude".into(),
+        &crate::agent::get("acp-claude").await.unwrap(),
+    );
+    agent_binding::save_scoped(&source.project_id, &source.id, &inherited).await.unwrap();
+    for target in
+        [Value::Null, json!({"type":"worktree","name":format!("selection-{}", Uuid::new_v4())})]
+    {
+        let (status, body) = fork(&source, json!({"beforeTurnId":boundary,"target":target})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["fork_execution_started"], false);
+        let forked: agent_session::session::Info = serde_json::from_value(body).unwrap();
+        for _ in 0..2 {
+            let (status, body) = request(
+                Method::GET,
+                &format!("/session/{}", forked.id),
+                &forked.directory,
+                Value::Null,
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{body}");
+            assert_eq!(body["fork_execution_started"], false);
+            assert_eq!(history(&forked).await.len(), 2);
+        }
+        assert!(forked.is_user_navigable());
+        let id = forked.id.clone();
+        let workspace = forked.directory.clone();
+        with_tenant_instance(ui_store::current_tenant_scope(), workspace.clone(), move || {
+            Box::pin(async move {
+                for (agent, backend) in
+                    [("main", None), ("acp-claude", Some("claude")), ("acp-codex", Some("codex"))]
+                {
+                    let (binding, _) = agent_binding::prepare(
+                        &id,
+                        Some(agent),
+                        backend,
+                        Some("model-recovery/original"),
+                        FsPath::new(&workspace),
+                    )
+                    .await
+                    .unwrap();
+                    assert_eq!(binding.agent, agent);
+                }
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            agent_binding::load_scoped(&source.project_id, &source.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .agent,
+            "acp-claude"
+        );
+        if !target.is_null() {
+            worktree_cleanup(&source, forked.directory).await;
+        }
+    }
+    assert_eq!(history(&source).await.len(), 4);
 }

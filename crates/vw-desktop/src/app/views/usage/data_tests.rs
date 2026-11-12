@@ -18,6 +18,7 @@ fn session_info(id: &str, title: &str, created: u64, updated: u64) -> Info {
         version: "0.0.0".to_string(),
         time: TimeInfo { created, updated, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

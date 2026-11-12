@@ -51,6 +51,7 @@ fn session(id: &str, title: &str, directory: &str, archived: bool) -> Info {
             archived: archived.then_some(3),
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

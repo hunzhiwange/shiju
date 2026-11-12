@@ -49,13 +49,27 @@ pub(super) async fn set_source(
     Json(update): Json<vw_api_types::acp_model_source::AcpModelSourceUpdate>,
 ) -> Result<Json<AcpSessionOptions>, ApiError> {
     let session = super::session_ops::ui_session_get(path, query, headers).await?.0;
-    if !session.is_first_response_pending() {
+    let _guard = crate::session::message::lock_stream_prompt(
+        &crate::session::ui_store::current_tenant_scope(),
+        &session.project_id,
+        &session.id,
+    )
+    .await;
+    let fork_state = crate::session::fork_execution::load_scoped(&session.project_id, &session.id)
+        .await
+        .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let fork_selectable = fork_state.as_ref().is_some_and(|state| !state.started);
+    if fork_state.is_some_and(|state| state.started)
+        || (!fork_selectable && !session.is_first_response_pending())
+    {
         return Err(ApiError::bad_request("changing a session model requires a new session"));
     }
-    if let Some(binding) =
+    let previous_binding =
         crate::session::agent_binding::load_scoped(&session.project_id, &session.id)
             .await
-            .map_err(|e| ApiError::bad_request(e.to_string()))?
+            .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    if !fork_selectable
+        && let Some(binding) = previous_binding.as_ref()
         && binding.identity().acp_agent.as_deref() != Some(update.agent.as_str())
     {
         return Err(ApiError::bad_request("ACP agent does not match the session binding"));
@@ -65,14 +79,43 @@ pub(super) async fn set_source(
         session.directory.clone(),
         move || {
             Box::pin(async move {
-                crate::session::llm::select_acp_model_source(
+                let preference = if fork_selectable {
+                    let inherited = previous_binding.filter(|binding| {
+                        binding.identity().acp_agent.as_deref() == Some(update.agent.as_str())
+                    });
+                    let agent = inherited
+                        .as_ref()
+                        .map(|binding| binding.agent.clone())
+                        .unwrap_or_else(|| format!("acp-{}", update.agent));
+                    let definition = crate::agent::get(&agent).await.ok_or_else(|| {
+                        ApiError::bad_request(format!("unknown or disabled agent: {agent}"))
+                    })?;
+                    Some(inherited.unwrap_or_else(|| {
+                        crate::session::agent_binding::AgentBinding::from_definition(
+                            agent,
+                            &definition,
+                        )
+                    }))
+                } else {
+                    None
+                };
+                let options = crate::session::llm::select_acp_model_source(
                     &session.id,
                     &session.directory,
                     update,
                 )
                 .await
-                .map(Json)
-                .map_err(ApiError::bad_request)
+                .map_err(ApiError::bad_request)?;
+                if let Some(preference) = preference {
+                    crate::session::agent_binding::save_scoped(
+                        &session.project_id,
+                        &session.id,
+                        &preference,
+                    )
+                    .await
+                    .map_err(|e| ApiError::bad_request(e.to_string()))?;
+                }
+                Ok(Json(options))
             })
         },
     )

@@ -374,6 +374,7 @@ async fn plan_run_retry_replaces_legacy_failure_history_and_preserves_title() {
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     };
     ui_store::save_agent_session_scoped_for_tenant(&tenant, &info, scope).unwrap();

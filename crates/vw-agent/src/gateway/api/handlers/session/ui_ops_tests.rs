@@ -468,6 +468,7 @@ fn agent_session(id: &str, project_id: &str, title: &str, updated: u64) -> Agent
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

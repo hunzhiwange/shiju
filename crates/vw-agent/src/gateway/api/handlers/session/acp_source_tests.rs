@@ -108,6 +108,80 @@ async fn acp_model_source_ui_http_persists_and_rejects_without_local_fallback() 
         .await
         .unwrap();
     assert_eq!(recovered.selected_model, managed.selected_model);
+    // A durable fork with inherited history can choose a different ACP before running.
+    let source_id = id.to_owned();
+    let forked = crate::project::instance::provide(workspace.path(), None, move || {
+        Box::pin(async move {
+            super::stream::persist_child_agent_turn(
+                &source_id,
+                "retained",
+                "answer",
+                "acp-codex",
+                None,
+            )
+            .await
+            .unwrap();
+            let (_, boundary) = super::stream::persist_child_agent_turn(
+                &source_id,
+                "boundary",
+                "answer",
+                "acp-codex",
+                None,
+            )
+            .await
+            .unwrap();
+            let source = crate::session::session::get(&source_id).await.unwrap();
+            let definition = crate::agent::get("acp-codex").await.unwrap();
+            crate::session::agent_binding::save_scoped(
+                &source.project_id,
+                &source_id,
+                &crate::session::agent_binding::AgentBinding::from_definition(
+                    "acp-codex".into(),
+                    &definition,
+                ),
+            )
+            .await
+            .unwrap();
+            crate::session::session::TurnFork::prepare(&source_id, &boundary)
+                .await
+                .unwrap()
+                .persist()
+                .await
+                .unwrap()
+        })
+    })
+    .await
+    .unwrap();
+    let response = http
+        .put(format!("http://{address}/session/{}/acp-model-source", forked.id))
+        .query(&[("directory", &directory)])
+        .json(&json!({"agent":"claude","selection":{"source":"cli_local"}}))
+        .send()
+        .await
+        .unwrap();
+    let status = response.status();
+    let body = response.text().await.unwrap();
+    assert!(status.is_success(), "fork ACP source: {status}: {body}");
+    let restored = http
+        .get(format!("http://{address}/session/{}/acp-options", forked.id))
+        .query(&[("directory", &directory)])
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json::<vw_api_types::acp_session::AcpSessionOptions>()
+        .await
+        .unwrap();
+    assert_eq!(restored.acp_model_source, vw_api_types::acp_model_source::AcpModelSource::CliLocal);
+    assert_eq!(
+        crate::session::agent_binding::load_scoped(&forked.project_id, &forked.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .agent,
+        "acp-claude"
+    );
     server.abort();
     let _ = server.await;
 }

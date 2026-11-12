@@ -1115,6 +1115,7 @@ fn sample_agent_info(id: &str, project_id: &str, updated: u64) -> AgentSessionIn
             archived: Some(updated.saturating_add(1)),
         },
         permission: None,
+        fork_execution_started: None,
         revert: Some(RevertInfo {
             message_id: "message-1".to_owned(),
             part_id: Some("part-1".to_owned()),

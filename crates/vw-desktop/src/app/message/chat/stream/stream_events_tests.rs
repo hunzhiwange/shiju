@@ -396,6 +396,7 @@ fn session_info(
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

@@ -20,6 +20,8 @@ pub(crate) mod compaction_checkpoint;
 pub(crate) mod compaction_summary;
 /// 声明临时模型上下文装配器，避免 AGENTS 进入可见聊天记录。
 pub mod context_injection;
+/// Persisted inherited boundary and execution latch for turn forks.
+pub(crate) mod fork_execution;
 /// 声明 instruction 子模块，保持当前领域的职责拆分清晰。
 pub mod instruction;
 /// 声明 instruction discovery 子模块，集中确定 AGENTS 文件的来源与优先级。

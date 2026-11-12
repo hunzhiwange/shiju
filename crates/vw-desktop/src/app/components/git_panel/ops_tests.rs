@@ -387,6 +387,7 @@ fn session_info(id: &str, directory: &str) -> Info {
         version: "1".to_string(),
         time: TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

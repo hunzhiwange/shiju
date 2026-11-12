@@ -19,6 +19,7 @@ fn info(id: &str, parent: Option<&str>, archived: bool) -> Info {
             archived: archived.then_some(1),
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

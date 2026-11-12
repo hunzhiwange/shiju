@@ -1221,17 +1221,37 @@ async fn session_model(
     if session.is_empty() {
         return Ok(body.model.clone());
     }
+    let fork_execution = if let Some(project) = instance::project() {
+        agent_session::fork_execution::load_scoped(&project.id, session)
+            .await
+            .map_err(|error| ApiError::internal(error.to_string()))?
+    } else {
+        None
+    };
+    let fork_selectable = fork_execution.as_ref().is_some_and(|state| !state.started);
     let acp = body.acp_agent.is_some();
-    let locked = if acp
+    let locked = if !fork_selectable
+        && acp
         && let Some(locked) = agent_session::llm::locked_acp_model(session, &instance::directory())
             .map_err(ApiError::bad_request)?
     {
         validate_session_model_source(body.acp_model_source, locked.source)?;
         locked.provider_id.zip(locked.model).map(|(provider, model)| format!("{provider}/{model}"))
     } else {
-        let history = agent_session::message::messages(session, Some(2))
-            .await
-            .map_err(|error| ApiError::internal(error.to_string()))?;
+        let history = if fork_selectable {
+            Vec::new()
+        } else {
+            agent_session::message::messages(session, Some(2))
+                .await
+                .map_err(|error| ApiError::internal(error.to_string()))?
+                .into_iter()
+                .filter(|entry| {
+                    fork_execution.as_ref().is_none_or(|state| {
+                        !state.inherited_message_ids.iter().any(|id| id == entry.info.id())
+                    })
+                })
+                .collect()
+        };
         let previous = history.iter().find_map(|entry| {
             let (provider, model) = match &entry.info {
                 agent_session::message::Info::Assistant(assistant) => {
@@ -1443,6 +1463,11 @@ async fn start_gateway_chat_producer(
         .map_err(|error| ApiError::internal(error.to_string()))?
         .map_err(|error| ApiError::bad_request(error.to_string()))?;
     }
+    // The same prompt guard also serializes model-source changes. Rejections above
+    // leave forks selectable; once execution is accepted, errors cannot unlock them.
+    agent_session::fork_execution::start(&project_context.project.id, &stream_session_id)
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?;
     let runtime_handle = tokio::runtime::Handle::current();
     let delegated_context = crate::tools::current_tool_use_context();
 
@@ -2655,6 +2680,7 @@ pub(super) fn reserve_stream_agent_session(
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     };
     crate::session::ui_store::reserve_pending_session(tenant, &info)?;

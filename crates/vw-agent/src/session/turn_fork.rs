@@ -25,7 +25,7 @@ pub(crate) async fn forked_session(session_id: &str) -> Result<Option<Info>, Err
         crate::session::ui_store::load_agent_session_any_for_tenant_fallible(&tenant, &session_id)
     })
     .await??;
-    Ok(info.filter(|info| info.slug.starts_with(FORK_SLUG_PREFIX)))
+    Ok(info.filter(|info| info.source_slug().starts_with(FORK_SLUG_PREFIX)))
 }
 
 pub(crate) async fn load_fork_history(
@@ -276,6 +276,7 @@ impl TurnFork {
         })?;
 
         target.slug = format!("{FORK_SLUG_PREFIX}{}", target.slug);
+        target.fork_execution_started = Some(false);
         let mut current_user = String::new();
         for msg in &mut messages {
             let msg_id = id::ascending(id::Prefix::Message, None)?;
@@ -306,6 +307,11 @@ impl TurnFork {
                 if let Err(error) = storage::remove(&["message", &target.id, msg.info.id()]).await {
                     tracing::warn!(session_id = %target.id, %error, "failed to remove staged fork message");
                 }
+            }
+            if let Err(error) =
+                crate::session::fork_execution::remove(&target.project_id, &target.id).await
+            {
+                tracing::warn!(session_id = %target.id, %error, "failed to remove staged fork execution state");
             }
             if let Err(error) = settings.remove(&target.project_id, &target.id).await {
                 tracing::warn!(session_id = %target.id, %error, "failed to remove staged fork settings");
@@ -360,6 +366,12 @@ async fn persist_history_and_session(
             message::write_part(part).await?;
         }
     }
+    crate::session::fork_execution::create(
+        &target.project_id,
+        &target.id,
+        messages.iter().map(|message| message.info.id().to_owned()).collect(),
+    )
+    .await?;
     settings.save(&target.project_id, &target.id).await?;
     compaction_checkpoint::copy_fork(
         &source.directory,

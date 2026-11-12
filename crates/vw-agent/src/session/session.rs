@@ -439,6 +439,7 @@ fn new_info(input: CreateInput) -> Result<Info, Error> {
         version: installation::version(),
         time: TimeInfo { created: now, updated: now, compacting: None, archived: None },
         permission: input.permission,
+        fork_execution_started: None,
         revert: None,
     })
 }
@@ -508,7 +509,7 @@ pub async fn get(session_id: &str) -> Result<Info, Error> {
     let project_id = project_id()?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     let session_id = session_id.to_string();
-    crate::global_database::run_isolated({
+    let mut info = crate::global_database::run_isolated({
         let session_id = session_id.clone();
         move || {
             crate::session::ui_store::load_agent_session_scoped_for_tenant(
@@ -523,7 +524,9 @@ pub async fn get(session_id: &str) -> Result<Info, Error> {
         Error::Storage(storage::Error::NotFound(storage::NotFoundError {
             message: format!("session not found: {}", session_id),
         }))
-    })
+    })?;
+    super::fork_execution::project(&mut info).await?;
+    Ok(info)
 }
 
 /// 更新会话的最后修改时间
@@ -603,6 +606,9 @@ pub(crate) async fn list_for_project(project_id: String) -> Result<Vec<Info>, Er
         crate::session::ui_store::load_agent_sessions_scoped_for_tenant(&tenant, Some(&project_id))
     })
     .await?;
+    for info in &mut out {
+        super::fork_execution::project(info).await?;
+    }
     out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
     Ok(out)
 }
@@ -651,6 +657,9 @@ pub async fn list_all() -> Result<Vec<Info>, Error> {
         crate::session::ui_store::load_agent_sessions_all_for_tenant(&tenant)
     })
     .await?;
+    for info in &mut out {
+        super::fork_execution::project(info).await?;
+    }
     out.sort_by(|a, b| b.time.updated.cmp(&a.time.updated));
     Ok(out)
 }
@@ -670,7 +679,7 @@ pub async fn list_all() -> Result<Vec<Info>, Error> {
 pub async fn get_any(session_id: &str) -> Result<Info, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let session_id = session_id.to_string();
-    let Some(info) = crate::global_database::run_isolated({
+    let Some(mut info) = crate::global_database::run_isolated({
         let session_id = session_id.clone();
         move || crate::session::ui_store::load_agent_session_any_for_tenant(&tenant, &session_id)
     })
@@ -680,6 +689,7 @@ pub async fn get_any(session_id: &str) -> Result<Info, Error> {
             message: format!("session not found: {}", session_id),
         })));
     };
+    super::fork_execution::project(&mut info).await?;
     Ok(info)
 }
 

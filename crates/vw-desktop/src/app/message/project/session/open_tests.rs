@@ -119,6 +119,7 @@ fn session_info(id: &str, additions: i64, deletions: i64) -> vw_shared::session:
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

@@ -70,6 +70,7 @@ fn session(id: &str, title: &str, directory: &str, updated: u64) -> Info {
         version: "1".to_string(),
         time: TimeInfo { created: 1, updated, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

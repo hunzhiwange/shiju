@@ -73,6 +73,7 @@ fn git_context_path_uses_trimmed_active_session_directory() {
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }];
     app.project_path = Some("/project/root".to_string());

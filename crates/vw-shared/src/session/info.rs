@@ -70,6 +70,9 @@ pub struct Info {
     pub permission: Option<Ruleset>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revert: Option<RevertInfo>,
+    /// Server projection: Some(false) allows a fork to choose its own agent before execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fork_execution_started: Option<bool>,
 }
 
 impl Info {

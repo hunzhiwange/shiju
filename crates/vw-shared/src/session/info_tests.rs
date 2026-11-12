@@ -16,6 +16,7 @@ fn info_serialization_uses_frontend_field_names_and_skips_empty_options() {
         version: "1".to_string(),
         time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: Some(super::RevertInfo {
             message_id: "msg-1".to_string(),
             part_id: None,
@@ -46,6 +47,7 @@ fn plan_run_session_marker_round_trips() {
         version: "1".to_string(),
         time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     };
     assert!(!ordinary.is_plan_run());
@@ -77,6 +79,7 @@ fn visible_task_slug_is_idempotent_and_distinct_from_plan_run() {
         version: "1".to_string(),
         time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     };
 
@@ -102,6 +105,7 @@ fn visible_task_info_round_trip_preserves_parent() {
         version: "1".to_string(),
         time: super::TimeInfo { created: 1, updated: 2, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     };
 

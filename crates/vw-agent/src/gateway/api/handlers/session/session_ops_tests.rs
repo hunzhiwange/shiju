@@ -124,6 +124,7 @@ fn info_with_summary(
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

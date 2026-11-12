@@ -55,6 +55,7 @@ fn session_info(id: &str, directory: &str, updated_ms: u64) -> Info {
         version: "0.0.0".to_string(),
         time: TimeInfo { created: 1, updated: updated_ms, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

@@ -341,6 +341,7 @@ fn test_agent_session(id: &str, project_id: &str, updated: u64) -> AgentSessionI
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: Some(RevertInfo {
             message_id: "message-1".to_owned(),
             part_id: None,

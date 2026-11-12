@@ -50,6 +50,7 @@ fn session_info(id: &str, title: &str, directory: &str) -> vw_shared::session::i
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

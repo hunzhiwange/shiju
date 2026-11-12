@@ -233,6 +233,7 @@ async fn quick_message_selection_dispatches_fill_send_and_session_actions() {
             archived: None,
         },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     });
     app.quick_message_open_group = Some(vw_config_types::ui::QuickMessageGroup::Git);

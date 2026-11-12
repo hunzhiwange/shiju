@@ -27,6 +27,7 @@ fn session(id: &str, parent_id: Option<&str>, title: &str, directory: &str) -> I
         version: "1".to_string(),
         time: TimeInfo { created: 1, updated: 1, compacting: None, archived: None },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

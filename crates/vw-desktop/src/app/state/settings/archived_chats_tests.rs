@@ -14,6 +14,7 @@ fn session(id: &str, project: &str, title: &str, created: u64, updated: u64) -> 
         version: "1".into(),
         time: TimeInfo { created, updated, compacting: None, archived: Some(10) },
         permission: None,
+        fork_execution_started: None,
         revert: None,
     }
 }

@@ -111,6 +111,7 @@ pub(in crate::app::views::project) fn running_draft_sessions(
             version: String::new(),
             time: TimeInfo { created: started, updated: started, compacting: None, archived: None },
             permission: None,
+            fork_execution_started: None,
             revert: None,
         };
         info.mark_first_response_pending();

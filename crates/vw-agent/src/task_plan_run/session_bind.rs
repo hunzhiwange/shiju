@@ -44,6 +44,7 @@ pub(crate) async fn ensure_plan_run_session_info(
             version: installation::version(),
             time: TimeInfo { created: now, updated: now, compacting: None, archived: None },
             permission: None,
+            fork_execution_started: None,
             revert: None,
         };
         let reserved = ui_store::reserve_pending_session(&tenant, &info)

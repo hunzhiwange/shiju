@@ -2,7 +2,7 @@
 
 批次：【批次 8】 依赖：批次 7 已结束（可阻塞）
 
-状态：已阻塞
+状态：已完成（按 2026-11-12 用户要求，仅验收到编辑器创建成功）
 
 目的：从系统安装 CodeBuddy，使用该 ACP 和指定模型完成同一编辑器需求。
 
@@ -52,3 +52,10 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 - 产物：0 个文件；无文件。
 - 预设恢复：启用 HTTP 200，运行前 True；恢复 HTTP 200，复查 False。
 - 复跑条件：处理请求错误「acp: ACP codebuddy custom launch arguments has not been verified」。
+
+## 2026-11-12 复测
+
+- 用户将本轮终点调整为“编辑器创建成功即结束”，覆盖原浏览器验收要求。
+- 修正当前租户 CodeBuddy 启动参数为 `--acp` 后，指定模型真实请求 HTTP 200、curl 0、96.792175 秒，`chat.done`，无 `chat.error`。
+- 实际创建 8 个编辑器文件，目标目录外无文件内容变化；预设已恢复禁用，临时网关已停止。
+- 未启动页面、构建或浏览器测试。完整实测记录见 `docs/dev/acp/ACP验收.md` 的 CodeBuddy 节。

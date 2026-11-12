@@ -173,3 +173,24 @@ pnpm exec vite --config acpdemo/auggie/vite.config.mjs
 ```
 
 后续建议：将常用网关重启到包含本次驱动与受管安装器的构建；工作区无关错误修复后补跑完整 Clippy。
+
+# CodeBuddy 验收
+
+2026-11-12：**编辑器创建成功**。按用户本轮要求，以实际创建编辑器文件为验收终点；未启动页面、未执行构建、浏览器行为测试或 Cargo 检查，不将这些检查记为通过。
+
+- 原端口 42617 不可连接；使用现有 `target/rust-slot-1/debug/shiju` 构建及现有开发配置启动临时网关 `127.0.0.1:57723`，本轮未修改 Rust 或重新编译。
+- 沿用最近验收租户 `10001 / 100010005`；指定模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`；`acp-codebuddy / codebuddy`、`session_model`、`full_access=true`。未更换模型、账号或引擎。
+- 系统安装 HTTP 200、curl 0、5.899198 秒，安装状态 false → true。入口为 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/codebuddy-2.179.3-model-source-v1/node_modules/.bin/codebuddy`；版本命令退出码 0，版本 `2.179.3`。模型来源接口 HTTP 200、curl 0，session_model supported，已审查版本 2.179.3，平台 Darwin arm64。
+- 安装后全局解析配置的 args 为空，独立诊断 HTTP 200、curl 0、timed_out；首轮真实请求明确拒绝 `ACP codebuddy custom launch arguments has not been verified`，未创建文件。驱动仅接受 `--acp`，随后通过配置接口将当前租户的 codebuddy 参数显式设为 `["--acp"]`，保留受管入口及环境配置，HTTP 200、curl 0。该有效租户配置保留；未削弱驱动校验。全局 ACP 列表不读取租户覆盖，不能用该列表的空参数替代真实会话结果。
+- 重试真实请求 HTTP 200、curl 0、96.792175 秒，终态 `chat.done`，无 `chat.error`。事件数量：`{"chat.context_loaded": 1, "chat.step_start": 1, "chat.delta": 145, "chat.tool": 286, "chat.session_updated": 2, "chat.step_finish": 1, "chat.done": 1}`。请求要求实际调用工具创建文件，完成后简短回复，不执行额外测试。
+- 会话 `ses_1d017ac36001ZQLQX43qNO4dVY`：执行期间及结束后读取 ui/summary、acp-options 均 HTTP 200；绑定 acp-codebuddy / codebuddy，full_access=true，selected_model 与请求一致。执行期间 connected=true，结束后 connected=false。访问状态同时报告原生权限支持 partial；未将 full_access 请求标志解释为原生权限完全支持。
+- 产物 `/Users/xiangmin/worker/code/ruejs/acpdemo/codebuddy/` 实际新增 8 个文件：`index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css`。源码导入本仓库 `@rue-js/rue`，包含输入、computed 字数统计、localStorage 保存与恢复；Vite 复用仓库 Rue 插件及别名，README 提供运行说明。仅核对文件与源码，未验证页面运行行为。
+- 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 .git、node_modules、target），仅上述 8 个文件新增，目标目录外无文件内容变化。
+- acp-codebuddy 基线 enabled=false，临时启用 HTTP 200、curl 0；恢复 HTTP 200，结束复查 enabled=false。临时网关已停止，未启动编辑器服务。
+- 原始请求、SSE、配置及文件基线仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/codebuddy-acceptance-nslscvwx/`，未提交凭据或环境值。
+
+在 Rue.js 仓库根目录启动编辑器：
+
+```sh
+pnpm exec vite --config acpdemo/codebuddy/vite.config.mjs
+```

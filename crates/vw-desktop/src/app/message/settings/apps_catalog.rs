@@ -23,6 +23,7 @@ pub enum AppsCatalogMessage {
     HostInput(String),
     TokenInput(String),
     Refresh,
+    EnsureLoaded,
     Loaded {
         context: AgentAppsContext,
         host: String,
@@ -129,6 +130,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
+            app.apps_catalog.loaded_at = None;
             app.apps_catalog.error = None;
         }
         AppsCatalogMessage::TokenInput(token) => {
@@ -149,9 +151,11 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
+            app.apps_catalog.loaded_at = None;
             app.apps_catalog.error = None;
         }
-        AppsCatalogMessage::Refresh => {
+        AppsCatalogMessage::Refresh | AppsCatalogMessage::EnsureLoaded => {
+            let use_cache = matches!(message, AppsCatalogMessage::EnsureLoaded);
             let client = match crate::app::config::gateway_client() {
                 Ok(client) => client,
                 Err(_) => {
@@ -168,6 +172,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 project: app.project_path.clone(),
             };
             app.apps_catalog.reset_if_context_changed(&context);
+            if use_cache && app.apps_catalog.cache_is_fresh() {
+                return Task::none();
+            }
             if app.apps_catalog.host.trim().is_empty() || app.apps_catalog.token.is_empty() {
                 if client.endpoint().is_loopback() && cfg!(unix) {
                     return update(app, AppsCatalogMessage::LocalConnect);

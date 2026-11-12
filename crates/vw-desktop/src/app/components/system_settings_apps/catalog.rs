@@ -1,4 +1,5 @@
 //! Presentation of observations returned by the SDK; no local discovery.
+use iced::futures::{StreamExt, stream};
 use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::agent_apps::*};
 
 #[derive(Debug, Clone)]
@@ -13,12 +14,20 @@ pub(crate) async fn load(
     token: String,
 ) -> Result<Vec<CatalogRow>, AgentAppsReadError> {
     let catalog = client.agent_apps_catalog_authorized(&host, &token).await?;
-    let mut rows = Vec::new();
-    for entry in catalog.apps {
-        let observation = client.agent_apps_installations_authorized(&host, entry.id, &token).await;
-        rows.push(CatalogRow { entry, observation });
-    }
-    Ok(rows)
+    // Version probes can take seconds; bound host load without serializing every app.
+    // buffered preserves catalog order even when requests finish out of order.
+    Ok(stream::iter(catalog.apps)
+        .map(|entry| {
+            let (client, host, token) = (&client, &host, &token);
+            async move {
+                let observation =
+                    client.agent_apps_installations_authorized(host, entry.id, token).await;
+                CatalogRow { entry, observation }
+            }
+        })
+        .buffered(6)
+        .collect()
+        .await)
 }
 
 pub(crate) fn error_label(error: &AgentAppsReadError) -> &'static str {

@@ -68,7 +68,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     super::archived_chats::ArchivedChatsMessage::Refresh,
                 )
             } else if tab == SystemTab::Apps {
-                super::apps_catalog::update(app, super::AppsCatalogMessage::Refresh)
+                super::apps_catalog::update(app, super::AppsCatalogMessage::EnsureLoaded)
             } else if tab == SystemTab::Themes {
                 app.themes_settings.error = None;
                 Task::done(Message::Settings(SettingsMessage::Themes(

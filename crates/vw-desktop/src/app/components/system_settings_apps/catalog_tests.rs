@@ -100,7 +100,7 @@ fn cc_apps_desktop_catalog_state_damaged_runnable_unverified() {
 }
 
 #[tokio::test]
-async fn cc_apps_desktop_catalog_state_sdk_fourteen_and_partial_failure() {
+async fn cc_apps_desktop_catalog_state_sdk_fourteen_concurrent_ordered_and_partial_failure() {
     use std::io::{Read, Write};
     use vw_gateway_client::{GatewayClient, GatewayEndpoint};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -123,8 +123,25 @@ async fn cc_apps_desktop_catalog_state_sdk_fourteen_and_partial_failure() {
     ];
     let server = std::thread::spawn(move || {
         let apps = ids.iter().map(|id| serde_json::json!({"id":id,"name":format!("中文应用 {id}"),"cliCommand":null,"runtimeKinds":[if *id == "claude-desktop" {"desktop_app"} else {"native_cli"}]})).collect::<Vec<_>>();
+        listener.set_nonblocking(true).unwrap();
+        let mut pending = Vec::new();
+        let mut seen = std::collections::HashSet::new();
         for index in 0..15 {
-            let (mut stream, _) = listener.accept().unwrap();
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                        assert!(
+                            std::time::Instant::now() < deadline,
+                            "expected concurrent requests"
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    Err(error) => panic!("accept failed: {error}"),
+                }
+            };
+            stream.set_nonblocking(false).unwrap();
             stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
             let mut request = Vec::new();
             while !request.ends_with(b"\r\n\r\n") {
@@ -136,17 +153,37 @@ async fn cc_apps_desktop_catalog_state_sdk_fourteen_and_partial_failure() {
             assert!(request.contains("x-agent-apps-token: fixture-application-grant"));
             assert!(request.contains("targetHostId=remote"));
             if index > 0 {
-                assert!(request.contains(&format!("appId={}", ids[index - 1])));
+                let id = ids
+                    .iter()
+                    .find(|id| {
+                        request.contains(&format!("appId={id} "))
+                            || request.contains(&format!("appId={id}&"))
+                    })
+                    .unwrap();
+                assert!(seen.insert(*id));
             }
             let (status, body) = if index == 0 {
                 (200, serde_json::json!({"apps": apps}).to_string())
-            } else if index == 3 {
+            } else if request.contains("appId=codex") {
                 (503, "{}".into())
             } else {
                 (200, r#"{"installations":[]}"#.into())
             };
-            write!(stream, "HTTP/1.1 {status} Result\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            pending.push((stream, status, body));
+            // Hold the first wave until all six requests arrive, then reply backwards.
+            if (1..6).contains(&index) {
+                continue;
+            }
+            if index == 6 {
+                assert!(
+                    matches!(listener.accept(), Err(e) if e.kind() == std::io::ErrorKind::WouldBlock)
+                );
+            }
+            for (mut stream, status, body) in pending.drain(..).rev() {
+                write!(stream, "HTTP/1.1 {status} Result\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
         }
+        assert_eq!(seen.len(), 14);
     });
     let rows = load(
         GatewayClient::new(GatewayEndpoint::new("127.0.0.1", port)).unwrap(),
@@ -226,4 +263,78 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
     assert_eq!(app.apps_catalog.token, "current-local-credential");
     assert!(app.apps_catalog.loading);
     assert!(!app.apps_catalog.connection_open);
+}
+
+#[test]
+fn catalog_cache_expires_and_invalidates_after_failure_or_context_change() {
+    use crate::app::state::{AgentAppsContext, AppsCatalogState};
+    let context = AgentAppsContext {
+        gateway: "http://gateway".into(),
+        tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),
+        project: None,
+    };
+    let mut state =
+        AppsCatalogState { host: "host".into(), token: "fixture".into(), ..Default::default() };
+    let generation = state.begin(context.clone());
+    assert!(!state.cache_is_fresh());
+    assert!(state.finish(&context, generation, Ok(vec![row()])));
+    assert!(state.cache_is_fresh());
+    state.loaded_at = Some(web_time::Instant::now() - std::time::Duration::from_secs(31));
+    assert!(!state.cache_is_fresh());
+    let generation = state.begin(context.clone());
+    let mut failed = row();
+    failed.observation = Err(AgentAppsReadError::Http { status: 503, body: serde_json::json!({}) });
+    assert!(state.finish(&context, generation, Ok(vec![failed])));
+    assert!(!state.cache_is_fresh());
+    let generation = state.begin(context.clone());
+    assert!(state.finish(&context, generation, Ok(vec![])));
+    assert!(state.cache_is_fresh());
+    let other = AgentAppsContext { gateway: "http://other".into(), ..context };
+    assert!(state.reset_if_context_changed(&other));
+    assert!(!state.cache_is_fresh());
+}
+
+#[test]
+fn catalog_reopening_reuses_cache_but_manual_refresh_and_credentials_invalidate_it() {
+    use crate::app::{
+        App,
+        message::{SettingsMessage, settings::AppsCatalogMessage},
+        state::AgentAppsContext,
+    };
+    let mut app = App::new().0;
+    let client = crate::app::config::gateway_client().unwrap();
+    let context = AgentAppsContext {
+        gateway: client.endpoint().base_url(),
+        tenant: client.endpoint().tenant_scope().clone(),
+        project: app.project_path.clone(),
+    };
+    app.apps_catalog.host = "remote".into();
+    app.apps_catalog.token = "fixture".into();
+    let generation = app.apps_catalog.begin(context.clone());
+    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    let _ = app.update(crate::app::Message::Settings(SettingsMessage::SystemTabSelected(
+        crate::app::components::system_settings::SystemTab::Apps,
+    )));
+    assert!(!app.apps_catalog.loading);
+    assert_eq!(app.apps_catalog.generation, generation);
+    assert_eq!(app.apps_catalog.rows.len(), 1);
+    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+        AppsCatalogMessage::Refresh,
+    )));
+    assert!(app.apps_catalog.loading);
+    assert!(!app.apps_catalog.cache_is_fresh());
+    let generation = app.apps_catalog.generation;
+    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+        AppsCatalogMessage::TokenInput("replacement".into()),
+    )));
+    assert!(!app.apps_catalog.cache_is_fresh());
+    assert!(app.apps_catalog.rows.is_empty());
+    let generation = app.apps_catalog.begin(context.clone());
+    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
+        AppsCatalogMessage::HostInput("other".into()),
+    )));
+    assert!(!app.apps_catalog.cache_is_fresh());
+    assert!(app.apps_catalog.rows.is_empty());
 }

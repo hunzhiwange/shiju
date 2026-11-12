@@ -222,6 +222,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
                     state.error = None;
                     let operation = state.operation.as_ref().unwrap();
                     if operation.phase == AppOperationPhase::Terminal {
+                        app.apps_catalog.loaded_at = None;
                         return if operation.status == TaskStatus::Failed {
                             app.show_error_toast("应用操作失败，请刷新应用诊断")
                         } else {

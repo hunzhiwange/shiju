@@ -20,6 +20,7 @@ pub(crate) struct AppsCatalogState {
     pub rows: Vec<CatalogRow>,
     pub context: Option<AgentAppsContext>,
     pub generation: u64,
+    pub loaded_at: Option<web_time::Instant>,
 }
 // Credentials must never enter App/Message debug output.
 impl std::fmt::Debug for AppsCatalogState {
@@ -28,6 +29,13 @@ impl std::fmt::Debug for AppsCatalogState {
     }
 }
 impl AppsCatalogState {
+    pub fn cache_is_fresh(&self) -> bool {
+        self.error.is_none()
+            && !self.host.trim().is_empty()
+            && !self.token.is_empty()
+            && self.loaded_at.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(30))
+    }
+
     pub fn reset_if_context_changed(&mut self, context: &AgentAppsContext) -> bool {
         if self.context.as_ref() == Some(context) {
             return false;
@@ -35,6 +43,7 @@ impl AppsCatalogState {
         self.generation = self.generation.wrapping_add(1);
         self.loading = false;
         self.rows.clear();
+        self.loaded_at = None;
         self.drag = Default::default();
         self.expanded = None;
         self.hovered = None;
@@ -55,6 +64,7 @@ impl AppsCatalogState {
         self.context = Some(context);
         self.loading = true;
         self.rows.clear();
+        self.loaded_at = None;
         self.drag = Default::default();
         self.expanded = None;
         self.hovered = None;
@@ -73,7 +83,12 @@ impl AppsCatalogState {
         }
         self.loading = false;
         match result {
-            Ok(rows) => self.rows = rows,
+            Ok(rows) => {
+                // Failed observations should be retried when the page is reopened.
+                self.loaded_at =
+                    rows.iter().all(|row| row.observation.is_ok()).then(web_time::Instant::now);
+                self.rows = rows;
+            }
             Err(error) => self.error = Some(error),
         }
         true

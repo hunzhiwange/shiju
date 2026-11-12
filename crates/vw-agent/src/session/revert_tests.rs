@@ -96,6 +96,7 @@ fn session_info(revert: Option<session_api::RevertInfo>) -> session_api::Info {
         project_id: "project-1".to_string(),
         directory: "/tmp".to_string(),
         parent_id: None,
+        fork_execution_started: None,
         summary: None,
         share: None,
         title: "Session".to_string(),

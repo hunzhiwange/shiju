@@ -37,6 +37,7 @@ mod approval;
 mod config;
 mod content;
 pub(crate) mod controls;
+mod fork_replay;
 pub(super) mod lifecycle;
 mod model_source;
 mod recovery;

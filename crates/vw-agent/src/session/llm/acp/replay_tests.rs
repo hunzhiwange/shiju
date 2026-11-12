@@ -468,3 +468,20 @@ fn summary_replay_prompt_caps_snapshot_lists_and_digest() {
     assert!(prompt.contains("Turn 1 | user | goal 5"));
     assert!(prompt.contains("Turn 8 | assistant | progress 6"));
 }
+
+#[test]
+fn fork_acp_full_replay_preserves_tool_only_messages_and_current_boundary() {
+    let messages = serde_json::json!([
+        {"role":"user","content":"earlier"},
+        {"role":"assistant","content":null,"tool_calls":[{"id":"call-1","type":"function","function":{"name":"read","arguments":"{\"path\":\"a\"}"}}]},
+        {"role":"tool","tool_call_id":"call-1","content":"result"},
+        {"role":"assistant","content":"answer"},
+        {"role":"user","content":"current"},
+        {"role":"assistant","content":"trailing-partial"}
+    ]);
+    let prompt = super::build_replay_prompt(&messages, super::AcpReplayStrategy::Full, 3);
+    assert!(prompt.contains("read"), "tool call lost: {prompt}");
+    assert!(prompt.contains("call-1"));
+    assert_eq!(prompt.matches("\ncurrent\n").count(), 1);
+    assert!(!prompt.contains("trailing-partial"));
+}

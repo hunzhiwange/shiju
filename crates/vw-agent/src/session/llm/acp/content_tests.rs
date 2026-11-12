@@ -55,3 +55,30 @@ fn invalid_images_fail_explicitly() {
         assert!(build_request_content(&messages, false, AcpReplayStrategy::Discard, 3).is_err());
     }
 }
+
+#[test]
+fn fork_acp_full_content_preserves_images_roles_and_tools() {
+    let messages = json!([
+        {"role":"system","content":"rules"},
+        {"role":"system","content":"rules"},
+        {"role":"user","content":[{"type":"text","text":"earlier"},
+            {"type":"image_url","image_url":{"url":"data:image/png;base64,YQ=="}}]},
+        {"role":"assistant","tool_calls":[{"id":"image-call","type":"function","function":{"name":"read","arguments":"{}"}}]},
+        {"role":"tool","tool_call_id":"image-call","content":"result"},
+        {"role":"user","content":"now"}
+    ]);
+    let blocks = build_request_content(&messages, true, AcpReplayStrategy::Full, 3).unwrap();
+    let text = blocks
+        .iter()
+        .filter_map(|block| match block {
+            ContentBlock::Text(text) => Some(text.text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(text.contains("read"));
+    assert!(text.contains("image-call"));
+    assert_eq!(text.matches("rules").count(), 1);
+    assert_eq!(text.matches("\nnow\n").count(), 1);
+    assert_eq!(blocks.iter().filter(|b| matches!(b, ContentBlock::Image(_))).count(), 1);
+}

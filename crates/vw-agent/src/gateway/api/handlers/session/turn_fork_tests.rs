@@ -811,3 +811,7 @@ async fn fork_selection_before_start_survives_reload() {
     }
     assert_eq!(history(&source).await.len(), 4);
 }
+
+#[cfg(unix)]
+#[path = "fork_acp_tests.rs"]
+mod fork_acp_tests;

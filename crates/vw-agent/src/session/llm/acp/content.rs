@@ -78,4 +78,4 @@ pub(super) fn build_request_content(
 
 #[cfg(test)]
 #[path = "content_tests.rs"]
-mod tests;
+mod content_tests;

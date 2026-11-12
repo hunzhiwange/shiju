@@ -218,7 +218,30 @@ pub(crate) fn build_replay_prompt(
     let mut non_system_messages = Vec::<(String, String)>::new();
     for item in items {
         let role = item.get("role").and_then(Value::as_str).unwrap_or_default();
-        let content = content_to_text(&item.get("content").cloned().unwrap_or(Value::Null));
+        let mut content = content_to_text(&item.get("content").cloned().unwrap_or(Value::Null));
+        if strategy == AcpReplayStrategy::Full {
+            // Historical calls are context only, never executable ACP tool requests.
+            if role == "assistant"
+                && let Some(calls) = item.get("tool_calls").and_then(Value::as_array)
+                && !calls.is_empty()
+            {
+                if !content.is_empty() {
+                    content.push('\n');
+                }
+                content.push_str(&format!(
+                    "Historical tool calls (already executed): {}",
+                    Value::Array(calls.clone())
+                ));
+            }
+            if role == "tool"
+                && let Some(id) = item.get("tool_call_id").and_then(Value::as_str)
+            {
+                content = format!(
+                    "Historical tool result for {}:\n{content}",
+                    serde_json::to_string(id).expect("serializable tool call ID")
+                );
+            }
+        }
         if content.is_empty() {
             continue;
         }
@@ -237,23 +260,13 @@ pub(crate) fn build_replay_prompt(
         }
     }
 
-    let latest_user = non_system_messages
-        .iter()
-        .rev()
-        .find(|(role, _)| role == "user")
-        .map(|(_, content)| content.clone())
-        .unwrap_or_default();
-    if latest_user.is_empty() {
+    let Some(current_index) = non_system_messages.iter().rposition(|(role, _)| role == "user")
+    else {
         return extract_prompt(chat_messages);
-    }
-
-    // 当前用户请求会单独放入 `<current_user_request>`，旧历史只取它之前的内容，
-    // 避免同一请求在重放 prompt 中出现两次。
-    let older_messages = if non_system_messages.is_empty() {
-        Vec::new()
-    } else {
-        non_system_messages[..non_system_messages.len().saturating_sub(1)].to_vec()
     };
+    let latest_user = &non_system_messages[current_index].1;
+    // Exclude both the current user and any trailing partial assistant output.
+    let older_messages = non_system_messages[..current_index].to_vec();
 
     let mut sections = Vec::new();
     sections.push(

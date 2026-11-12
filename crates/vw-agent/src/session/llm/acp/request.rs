@@ -84,6 +84,9 @@ pub(crate) async fn do_stream_request_acp(
     let selection_store =
         super::lifecycle::Store::open(session_id, &cwd_text).map_err(to_api_error)?;
     let previous_selection = selection_store.read().map_err(to_api_error)?;
+    let mut fork_replay =
+        super::fork_replay::ForkReplay::load(session_id, &cwd_text).await.map_err(to_api_error)?;
+    let fork_history_needed = fork_replay.as_ref().is_some_and(|state| state.needs_history());
     let source =
         super::super::prompt::acp_model_source(merged_options).map_err(super::acp_option_error)?;
     if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
@@ -273,14 +276,19 @@ pub(crate) async fn do_stream_request_acp(
         }));
     }
 
-    // A desktop rebuild request must not replace the history we just recovered.
-    let requested_force_new_session = recovered.is_none()
+    // Server-owned fork anchors and recovered sessions take precedence over desktop rebuild hints.
+    let requested_force_new_session = fork_replay.is_none()
+        && recovered.is_none()
         && merged_options.get("acp_force_new_session").and_then(Value::as_bool).unwrap_or(false);
-    let replay_strategy = parse_replay_strategy(merged_options);
+    let replay_strategy = if fork_history_needed {
+        super::AcpReplayStrategy::Full
+    } else {
+        parse_replay_strategy(merged_options)
+    };
     let replay_recent_count = parse_recent_count(merged_options);
     let initial_prompt_len = build_request_prompt(
         &chat_messages,
-        requested_force_new_session,
+        requested_force_new_session || fork_history_needed,
         replay_strategy,
         replay_recent_count,
     )
@@ -320,7 +328,7 @@ pub(crate) async fn do_stream_request_acp(
     loop {
         let prompt = super::content::build_request_content(
             &chat_messages,
-            force_new_session,
+            force_new_session || fork_history_needed,
             replay_strategy,
             replay_recent_count,
         )
@@ -385,6 +393,13 @@ pub(crate) async fn do_stream_request_acp(
                 return Err(err);
             }
         };
+
+        if let Some(state) = &fork_replay
+            && let Err(error) = state.validate_record(&record)
+        {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(error));
+        }
 
         let bound_model_id =
             launch_profile.as_ref().and_then(|profile| profile.session_model_id.as_deref());
@@ -600,6 +615,13 @@ pub(crate) async fn do_stream_request_acp(
             return Err(to_api_error(error));
         }
 
+        if let Some(state) = &mut fork_replay
+            && let Err(error) = state.begin(&record)
+        {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(error));
+        }
+
         let (acp_message_tx, mut acp_message_rx) = {
             let (tx, rx) = mpsc::unbounded_channel::<AcpJsonRpcMessage>();
             (tx, rx)
@@ -749,8 +771,16 @@ pub(crate) async fn do_stream_request_acp(
         }
 
         *cached_client.output_tx.lock() = None;
+        if fork_history_needed && finish_reason.as_deref() == Some("cancelled") {
+            acp_error = Some(to_api_error(
+                "fork history delivery is uncertain after a cancelled ACP prompt; create a new fork",
+            ));
+        }
         if let Some(err) = acp_error {
-            if !recovered_session_change && is_acp_session_changed_error(&err) {
+            if !fork_history_needed
+                && !recovered_session_change
+                && is_acp_session_changed_error(&err)
+            {
                 // 会话漂移不是丢弃历史的授权。只重试一次恢复原记录，失败明确上抛。
                 recovered_session_change = true;
                 force_new_session = false;
@@ -821,6 +851,13 @@ pub(crate) async fn do_stream_request_acp(
         // the saved session or the user cancels the first recovery attempt.
         if recovered.is_some()
             && let Err(error) = selection_store.commit(&selection)
+        {
+            close_client_after_request_if_needed(true, &cached_client_entry).await;
+            return Err(to_api_error(error));
+        }
+
+        if let Some(state) = &mut fork_replay
+            && let Err(error) = state.complete(&record)
         {
             close_client_after_request_if_needed(true, &cached_client_entry).await;
             return Err(to_api_error(error));
@@ -906,6 +943,14 @@ async fn apply_default_mode(
     cwd: &std::path::Path,
     mode: String,
 ) -> Result<(), Error> {
+    // The actor restores the original session and validates advertised modes before setting it.
+    // A new connection has no cached capabilities until that restoration finishes.
+    if client.session_capabilities(session_id).is_none() {
+        return client
+            .set_session_mode(session_id.to_string(), cwd, mode)
+            .await
+            .map_err(to_api_error);
+    }
     let supported =
         client.session_capabilities(session_id).and_then(|info| info.modes).is_some_and(|modes| {
             modes.available_modes.iter().any(|candidate| candidate.id.to_string() == mode)

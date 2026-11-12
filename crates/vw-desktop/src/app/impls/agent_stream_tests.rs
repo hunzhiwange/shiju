@@ -1097,6 +1097,26 @@ fn workflow_node_output_buffer_flushes_by_force_replace_and_size() {
 }
 
 #[test]
+fn workflow_node_output_buffer_flushes_after_elapsed_time_and_resets_clock() {
+    let mut output = super::WorkflowNodeOutputBuffer::new();
+    output.push("字", false);
+    assert_eq!(output.pending_chars, 1);
+    output.last_flush = web_time::Instant::now()
+        - std::time::Duration::from_millis(super::WORKFLOW_NODE_STREAM_FLUSH_MS as u64 + 1);
+    let before_flush = web_time::Instant::now();
+
+    assert!(output.should_flush(false));
+    assert_eq!(output.pending_chars, 0);
+    assert_eq!(output.text, "字");
+    assert!(output.last_flush >= before_flush);
+    assert!(output.last_flush <= web_time::Instant::now());
+
+    output.push("a", false);
+    assert_eq!(output.pending_chars, 1);
+    assert!(!output.should_flush(false));
+}
+
+#[test]
 fn compact_workflow_text_preserves_short_text_and_truncates_long_text() {
     let (short, short_truncated) = super::compact_workflow_text("hello");
     assert_eq!(short, "hello");

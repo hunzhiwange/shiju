@@ -6,7 +6,11 @@ use crate::app::agent::config::Config;
 use crate::app::agent::security::SecurityPolicy;
 use anyhow::{Result, bail};
 
+pub mod active_runs;
 pub mod consolidation;
+
+#[cfg(test)]
+pub(crate) mod active_runs_tests;
 mod schedule;
 mod store;
 mod types;

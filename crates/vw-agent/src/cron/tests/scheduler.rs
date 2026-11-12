@@ -1563,3 +1563,81 @@ async fn wb_schedule_window_queued_expiration_never_starts_shell() {
     assert!(!cron::get_job(&config, &job.id).unwrap().enabled);
     assert!(cron::list_runs(&config, &job.id, 10).unwrap().is_empty());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_history_scheduled_run_is_visible_until_completion() {
+    use crate::app::agent::cron::{
+        active_runs::snapshot,
+        active_runs_tests::{release_shell, shell_barrier},
+    };
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.autonomy.allowed_commands.push("curl".into());
+    config.autonomy.block_high_risk_commands = false;
+    let (listener, command) = shell_barrier().await;
+    let delivery_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    config.channels_config.mattermost = Some(MattermostConfig {
+        url: format!("http://{}", delivery_listener.local_addr().unwrap()),
+        bot_token: "test-only".into(),
+        channel_id: None,
+        allowed_users: vec![],
+        thread_replies: None,
+        mention_only: None,
+        group_reply: None,
+    });
+    let job = crate::app::agent::cron::add_job(&config, "*/5 * * * *", &command).unwrap();
+    let job = cron::update_job(
+        &config,
+        &job.id,
+        cron::CronJobPatch {
+            delivery: Some(DeliveryConfig {
+                mode: "announce".into(),
+                channel: Some("mattermost".into()),
+                to: Some("test-channel".into()),
+                best_effort: false,
+            }),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+    let execution = execute_and_persist_job(&config, &security, &job, "active-run-test");
+    let mut execution = Box::pin(execution);
+    let stream = tokio::select! {
+        accepted = listener.accept() => accepted.unwrap().0,
+        _ = &mut execution => panic!("execution ended before reaching the shell barrier"),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => panic!("shell did not start"),
+    };
+    let active = snapshot(&config);
+    assert_eq!(active.len(), 1);
+    assert_eq!(active[0].job_id, job.id);
+    assert!(crate::app::agent::cron::list_runs(&config, &job.id, 10).unwrap().is_empty());
+    release_shell(stream).await;
+    let mut delivery_stream = tokio::select! {
+        accepted = delivery_listener.accept() => accepted.unwrap().0,
+        _ = &mut execution => panic!("execution ended before delivery"),
+        _ = tokio::time::sleep(Duration::from_secs(10)) => panic!("delivery did not start"),
+    };
+    assert_eq!(snapshot(&config), active);
+    assert!(cron::list_runs(&config, &job.id, 10).unwrap().is_empty());
+    let mut request = Vec::new();
+    let mut buffer = [0; 1024];
+    tokio::select! {
+        _ = async {
+            while !http_request_is_complete(&request) {
+                let read = delivery_stream.read(&mut buffer).await.unwrap();
+                assert_ne!(read, 0);
+                request.extend_from_slice(&buffer[..read]);
+            }
+        } => {},
+        _ = &mut execution => panic!("execution ended before delivery response"),
+        _ = tokio::time::sleep(Duration::from_secs(10)) => panic!("delivery request did not arrive"),
+    }
+    delivery_stream.write_all(b"HTTP/1.1 201 Created\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"id\":\"post-1\"}").await.unwrap();
+    assert!(execution.await.1);
+    assert!(snapshot(&config).is_empty());
+    let runs = crate::app::agent::cron::list_runs(&config, &job.id, 10).unwrap();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].started_at, active[0].started_at);
+}

@@ -112,3 +112,61 @@ async fn blocks_run_when_rate_limited() {
     assert!(result.error.unwrap_or_default().contains("Rate limit exceeded"));
     assert!(list_runs(&cfg, &job.id, 10).unwrap().is_empty());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_history_manual_run_is_visible_until_completion() {
+    use crate::app::agent::cron::{
+        active_runs::snapshot,
+        active_runs_tests::{release_shell, shell_barrier},
+    };
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await.as_ref().clone();
+    config.autonomy.allowed_commands.push("curl".into());
+    config.autonomy.block_high_risk_commands = false;
+    let (listener, command) = shell_barrier().await;
+    let job = crate::app::agent::cron::add_job(&config, "*/5 * * * *", &command).unwrap();
+    let config = Arc::new(config);
+    let tool = CronRunTool::new(config.clone(), test_security(&config));
+    let execution = tool.execute(json!({"job_id": job.id, "approved": true}));
+    let mut execution = Box::pin(execution);
+    let stream = tokio::select! {
+        accepted = listener.accept() => accepted.unwrap().0,
+        _ = &mut execution => panic!("execution ended before reaching the shell barrier"),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => panic!("shell did not start"),
+    };
+    let active = snapshot(&config);
+    assert_eq!(active.len(), 1);
+    assert_eq!(active[0].job_id, job.id);
+    assert!(crate::app::agent::cron::list_runs(&config, &job.id, 10).unwrap().is_empty());
+    release_shell(stream).await;
+    assert!(execution.await.unwrap().success);
+    assert!(snapshot(&config).is_empty());
+    let runs = crate::app::agent::cron::list_runs(&config, &job.id, 10).unwrap();
+    assert_eq!(runs.len(), 1);
+    assert_eq!(runs[0].started_at, active[0].started_at);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn cron_history_cancelled_manual_run_leaves_no_history() {
+    use crate::app::agent::cron::{active_runs::snapshot, active_runs_tests::shell_barrier};
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await.as_ref().clone();
+    config.autonomy.allowed_commands.push("curl".into());
+    config.autonomy.block_high_risk_commands = false;
+    let (listener, command) = shell_barrier().await;
+    let job = add_job(&config, "*/5 * * * *", &command).unwrap();
+    let config = Arc::new(config);
+    let tool = CronRunTool::new(config.clone(), test_security(&config));
+    let mut execution = Box::pin(tool.execute(json!({"job_id": job.id, "approved": true})));
+    let _stream = tokio::select! {
+        accepted = listener.accept() => accepted.unwrap().0,
+        _ = &mut execution => panic!("execution ended before the shell barrier"),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => panic!("shell did not start"),
+    };
+    assert_eq!(snapshot(&config).len(), 1);
+    drop(execution);
+    assert!(snapshot(&config).is_empty());
+    assert!(list_runs(&config, &job.id, 10).unwrap().is_empty());
+}

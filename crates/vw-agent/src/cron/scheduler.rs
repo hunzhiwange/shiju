@@ -474,6 +474,7 @@ async fn execute_and_persist_job(
 
     // 记录执行时间用于统计
     let started_at = Utc::now();
+    let _active_run = super::active_runs::register(config, job, started_at);
     // 执行任务（含重试逻辑）
     let (success, output) = execute_job_with_retry(config, security, job).await;
     let finished_at = Utc::now();

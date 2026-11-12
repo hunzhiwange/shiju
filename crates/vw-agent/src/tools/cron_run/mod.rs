@@ -236,6 +236,7 @@ impl Tool for CronRunTool {
 
         // 记录开始时间
         let started_at = Utc::now();
+        let _active_run = cron::active_runs::register(&self.config, &job, started_at);
 
         // 立即执行任务
         let (success, output) = cron::scheduler::execute_job_now(&self.config, &job).await;

@@ -312,35 +312,30 @@ impl Decoder {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
             let delta = &choice["delta"];
-            if self.codex_chat {
-                super::messages::object_keys(
-                    delta,
-                    &["role", "content", "tool_calls", "refusal", "reasoning_content"],
-                )?;
-                if let Some(reasoning) =
-                    delta.get("reasoning_content").filter(|value| !value.is_null())
-                {
-                    let reasoning = reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
-                    if !self.compact && !reasoning.is_empty() {
-                        self.retained += reasoning.len();
-                        if self.text_open {
-                            // Codex tracks one active item. Defer late reasoning until text closes.
-                            self.late_reasoning.push_str(reasoning);
-                        } else {
-                            let item_id = format!("{}_rs", self.id);
-                            self.emit_reasoning_delta(
-                                &mut out,
-                                &item_id,
-                                0,
-                                reasoning,
-                                self.reasoning.is_empty(),
-                            );
-                            self.reasoning.push_str(reasoning);
-                        }
+            super::messages::object_keys(
+                delta,
+                &["role", "content", "tool_calls", "refusal", "reasoning_content"],
+            )?;
+            if let Some(reasoning) = delta.get("reasoning_content").filter(|value| !value.is_null())
+            {
+                let reasoning = reasoning.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                if !self.compact && !reasoning.is_empty() {
+                    self.retained += reasoning.len();
+                    if self.text_open {
+                        // Codex tracks one active item. Defer late reasoning until text closes.
+                        self.late_reasoning.push_str(reasoning);
+                    } else {
+                        let item_id = format!("{}_rs", self.id);
+                        self.emit_reasoning_delta(
+                            &mut out,
+                            &item_id,
+                            0,
+                            reasoning,
+                            self.reasoning.is_empty(),
+                        );
+                        self.reasoning.push_str(reasoning);
                     }
                 }
-            } else {
-                super::messages::object_keys(delta, &["role", "content", "tool_calls", "refusal"])?;
             }
             if !delta["refusal"].is_null() || delta.get("role").is_some_and(|v| v != "assistant") {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);

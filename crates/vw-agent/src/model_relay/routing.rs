@@ -236,7 +236,9 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
     {
         add(&mut result, C::Thinking);
     }
-    if ["response_format", "output_config"].iter().any(|key| body.get(key).is_some()) {
+    if ["response_format", "output_config"].iter().any(|key| body.get(key).is_some())
+        || body["text"].get("format").is_some_and(|format| format["type"] != "text")
+    {
         add(&mut result, C::StructuredOutput);
     }
     let messages = body
@@ -272,12 +274,11 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
 }
 
 /// Complete conversion directions currently implemented by ProviderRelayBackend.
-pub(crate) fn relay_conversions(codex: bool) -> [ConversionSupport<'static>; 3] {
+pub(crate) fn relay_conversions(_codex: bool) -> [ConversionSupport<'static>; 3] {
     use ModelProtocol as P;
     use RouteCapability as C;
     const BASIC: &[C] = &[C::Text, C::Tools, C::Streaming, C::Image];
-    const RESPONSES: &[C] = &[C::Text, C::Tools, C::Streaming, C::Image, C::StructuredOutput];
-    const CODEX: &[C] = &[
+    const THINKING: &[C] = &[
         C::Text,
         C::Tools,
         C::Streaming,
@@ -287,12 +288,8 @@ pub(crate) fn relay_conversions(codex: bool) -> [ConversionSupport<'static>; 3] 
         C::StructuredOutput,
     ];
     [
-        ConversionSupport { source: P::Messages, target: P::Chat, capabilities: CODEX },
-        ConversionSupport {
-            source: P::Responses,
-            target: P::Chat,
-            capabilities: if codex { CODEX } else { RESPONSES },
-        },
+        ConversionSupport { source: P::Messages, target: P::Chat, capabilities: THINKING },
+        ConversionSupport { source: P::Responses, target: P::Chat, capabilities: THINKING },
         ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: BASIC },
     ]
 }

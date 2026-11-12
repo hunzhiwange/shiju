@@ -366,11 +366,14 @@ impl RelayBackend for ProviderRelayBackend {
         } else if responses_request {
             let mut input =
                 serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
-            let effort =
-                if codex_chat { super::responses::codex_chat_effort(&mut input)? } else { None };
+            let effort = if codex_chat {
+                super::responses::codex_chat_effort(&mut input)?
+            } else {
+                super::responses::chat_effort(&mut input, model)?
+            };
             let (mut converted, tools) = super::responses::to_chat(&input, codex_chat)?;
             response_tools = tools;
-            if codex_chat {
+            if codex_chat || effort.is_some() {
                 super::responses::configure_codex_chat(&mut converted, model, effort.as_deref());
             }
             chat::prepare(

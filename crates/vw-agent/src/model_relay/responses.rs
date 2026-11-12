@@ -73,6 +73,33 @@ fn chat_content(value: &Value, role: &str, codex: bool) -> Result<Value, StatusC
     Ok(content(value, role)?.into())
 }
 
+/// Validate an ordinary Responses reasoning request before reusing Chat controls.
+pub(super) fn chat_effort(
+    body: &mut Value,
+    model: &crate::provider::provider::Model,
+) -> Result<Option<String>, StatusCode> {
+    let Some(reasoning) = body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("reasoning")
+    else {
+        return Ok(None);
+    };
+    object_keys(&reasoning, &["effort", "summary"])?;
+    if reasoning.get("summary").is_some_and(|value| !value.is_null() && value != "auto") {
+        return Err(UNSUPPORTED);
+    }
+    let effort = string(&reasoning, "effort")?;
+    let api = &model.api;
+    let profile = vw_shared::provider::reasoning::reasoning_profile(
+        &api.id,
+        &api.adapter,
+        &model.provider_id,
+        &api.url,
+    );
+    if !model.capabilities.reasoning || !profile.levels.contains(&effort) {
+        return Err(UNSUPPORTED);
+    }
+    Ok(Some(effort.into()))
+}
+
 pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), StatusCode> {
     object_keys(
         body,
@@ -174,8 +201,7 @@ pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), S
                     }
                     let content = chat_content(&item["content"], role, codex)?;
                     let role = if codex && role == "developer" { "system" } else { role };
-                    if codex
-                        && role == "assistant"
+                    if role == "assistant"
                         && let Some(last) = messages.last_mut().filter(|m| {
                             m["role"] == "assistant"
                                 && m["content"].is_null()
@@ -190,7 +216,7 @@ pub(super) fn to_chat(body: &Value, codex: bool) -> Result<(Value, ChatTools), S
                 Some("compaction" | "compaction_summary" | "context_compaction") if codex => {
                     messages.extend(codex_chat::replay_compaction(item)?);
                 }
-                Some("reasoning") if codex => {
+                Some("reasoning") => {
                     // Only plain reasoning produced by Chat can be replayed to Chat.
                     object_keys(
                         item,
@@ -282,7 +308,8 @@ pub(super) fn from_chat(
     // Preserve the strict Chat validator for all other response fields.
     let mut normalized;
     let mut reasoning = None;
-    let body = if codex && let Some(value) = body["choices"][0]["message"].get("reasoning_content")
+    let body = if let Some(value) = body["choices"][0]["message"].get("reasoning_content")
+        && (codex || value.is_string() || value.is_null())
     {
         reasoning = if value.is_null() {
             None
@@ -319,8 +346,7 @@ pub(super) fn from_chat(
         });
     }
     if let Some(reasoning) = reasoning.filter(|text| !text.is_empty()) {
-        let index = usize::from(output.first().is_some_and(|item| item["type"] == "message"));
-        output.insert(index, reasoning_item(&format!("{id}_rs"), reasoning));
+        output.insert(0, reasoning_item(&format!("{id}_rs"), reasoning));
     }
     let input = message["usage"]["input_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;
     let tokens = message["usage"]["output_tokens"].as_u64().ok_or(StatusCode::BAD_GATEWAY)?;

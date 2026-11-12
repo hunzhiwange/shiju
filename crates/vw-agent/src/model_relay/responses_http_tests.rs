@@ -150,7 +150,7 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
 }
 
 #[tokio::test]
-async fn acp_model_source_relay_responses_http_roundtrip_stream_errors_cancel_and_ownership() {
+async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ownership() {
     let _lock = crate::test_support::global_async_env_lock().lock().await;
     let dir = tempfile::tempdir().unwrap();
     let _env = EnvGuard(
@@ -750,4 +750,155 @@ fn parse_events(wire: &str) -> Vec<Value> {
         .filter_map(|s| s.strip_prefix("data: "))
         .map(|s| serde_json::from_str(s).unwrap())
         .collect()
+}
+
+#[tokio::test]
+async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_sse() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let _env = EnvGuard(
+        std::env::var_os("VIBEWINDOW_CONFIG_DIR"),
+        std::env::var_os("SHIJU_RELAY_RESPONSES_TEST_KEY"),
+    );
+    unsafe {
+        std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
+        std::env::set_var("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+        crate::env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+    }
+    let (record, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let router = Router::new().route("/v1/chat/completions", post(move |headers: HeaderMap, axum::Json(body): axum::Json<Value>| {
+        record.send((headers, body.clone())).unwrap();
+        async move {
+            if body["stream"] == true {
+                let frames = [
+                    json!({"choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"Inspect first"}}]}),
+                    json!({"choices":[{"index":0,"delta":{"content":"{\"ok\":true}"}}]}),
+                    json!({"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call-next","type":"function","function":{"name":"lookup","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}),
+                    json!({"choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2}}),
+                ];
+                return sse(format!("{}data: [DONE]\n\n", frames.iter().map(|frame| format!("data: {frame}\n\n")).collect::<String>()), false);
+            }
+            reply(json!({"id":"chat-upstream","choices":[{"message":{"role":"assistant","reasoning_content":"Inspect first","content":"{\"ok\":true}","tool_calls":[{"id":"call-next","type":"function","function":{"name":"lookup","arguments":"{}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":3,"completion_tokens":2}}))
+        }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let upstream = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let tenant = vw_api_types::id::TenantScope::new("responses-017", "fixture").unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-responses":{
+        "api":format!("http://{address}/v1/chat/completions"),"env":["SHIJU_RELAY_RESPONSES_TEST_KEY"],
+        "models":{"selected":{"id":"gpt-5","status":"active","reasoning":true,"tool_call":true}}
+    }}})).await.unwrap();
+    let context = crate::project::instance::Context {
+        directory: root.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project: project.clone(),
+    };
+    let binding = RelayBinding::new(
+        RelayIdentity {
+            tenant,
+            project: project.id,
+            session: "ordinary-session".into(),
+            provider: "relay-responses".into(),
+            model: "selected".into(),
+            generation: 1,
+        },
+        Duration::from_secs(60),
+    )
+    .unwrap();
+    let server = RelayServer::start(
+        binding.clone(),
+        Arc::new(ProviderRelayBackend::new().unwrap()),
+        context,
+    )
+    .await
+    .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    let url = format!("http://{}/v1/responses", server.address());
+    let mut body = json!({"model":"selected","input":[
+        {"role":"user","content":"continue"},
+        {"type":"reasoning","summary":[{"type":"summary_text","text":"Prior thought"}]},
+        {"type":"function_call","name":"lookup","call_id":"call-prior","arguments":"{}"},
+        {"type":"function_call_output","call_id":"call-prior","output":"found"}
+    ],"tools":[{"type":"function","name":"lookup","parameters":{"type":"object"}}],"reasoning":{"effort":"high"},"text":{"format":{"type":"json_object"}},"store":false});
+    for streaming in [false, true] {
+        body["stream"] = streaming.into();
+        let response =
+            client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
+        assert_eq!(
+            response.status(),
+            200,
+            "Responses to Chat must support ordinary-session reasoning"
+        );
+        let result = if streaming {
+            let wire = response.text().await.unwrap();
+            let events = wire
+                .lines()
+                .filter_map(|line| line.strip_prefix("data: "))
+                .map(|data| serde_json::from_str::<Value>(data).unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(events[0]["type"], "response.created");
+            assert!(
+                events.iter().any(|event| event["type"] == "response.reasoning_summary_text.delta"
+                    && event["delta"] == "Inspect first")
+            );
+            assert_eq!(events.last().unwrap()["type"], "response.completed");
+            for (index, event) in events.iter().enumerate() {
+                assert_eq!(event["sequence_number"], index);
+            }
+            events.last().unwrap()["response"].clone()
+        } else {
+            response.json::<Value>().await.unwrap()
+        };
+        let output = result["output"].as_array().unwrap();
+        assert_eq!(
+            output.iter().find(|item| item["type"] == "reasoning").unwrap()["summary"][0]["text"],
+            "Inspect first"
+        );
+        assert_eq!(
+            output.iter().find(|item| item["type"] == "message").unwrap()["content"][0]["text"],
+            "{\"ok\":true}"
+        );
+        assert_eq!(
+            output.iter().find(|item| item["type"] == "function_call").unwrap()["call_id"],
+            "call-next"
+        );
+        assert_eq!(result["status"], "completed");
+        assert_eq!(result["usage"]["total_tokens"], 5);
+        let (headers, sent) = requests.try_recv().unwrap();
+        assert_eq!(headers["authorization"], "Bearer fixture-secret");
+        assert_eq!(sent["model"], "gpt-5");
+        assert_eq!(sent["reasoning_effort"], "high");
+        assert_eq!(sent["messages"][1]["reasoning_content"], "Prior thought");
+        assert_eq!(sent["messages"][1]["tool_calls"][0]["id"], "call-prior");
+        assert_eq!(sent["messages"][2]["tool_call_id"], "call-prior");
+        assert_eq!(sent["response_format"], json!({"type":"json_object"}));
+    }
+    for extra in [
+        json!({"previous_response_id":"foreign"}),
+        json!({"input":[{"type":"reasoning","summary":[],"encrypted_content":"opaque"}]}),
+        json!({"reasoning":{"effort":"max"}}),
+    ] {
+        let mut rejected = body.clone();
+        rejected.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        assert_eq!(
+            client
+                .post(&url)
+                .bearer_auth(binding.bearer_token())
+                .json(&rejected)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            422
+        );
+        assert!(requests.try_recv().is_err());
+    }
+    server.shutdown().await.unwrap();
+    upstream.abort();
+    assert!(upstream.await.unwrap_err().is_cancelled());
 }

@@ -265,3 +265,17 @@ fn acp_model_source_relay_responses_native_real_references_remain_identity_bound
         Err(StatusCode::FORBIDDEN)
     );
 }
+
+#[test]
+fn model_protocol_017_plain_reasoning_roundtrip_keeps_one_assistant_turn() {
+    let upstream = json!({"id":"chat-upstream","choices":[{"message":{"role":"assistant","content":"checking","reasoning_content":"inspect","tool_calls":[{"id":"call-a","type":"function","function":{"name":"lookup","arguments":"{ \"n\": 1 }"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":2}});
+    let converted =
+        responses::from_chat(&upstream, "selected", "resp-local", &Default::default(), false)
+            .unwrap();
+    assert_eq!(converted["output"][0]["type"], "reasoning");
+    let (replayed, _) =
+        responses::to_chat(&json!({"model":"selected","input":converted["output"]}), false)
+            .unwrap();
+    assert_eq!(replayed["messages"].as_array().unwrap().len(), 1);
+    assert_eq!(replayed["messages"][0], upstream["choices"][0]["message"]);
+}

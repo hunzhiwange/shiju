@@ -1,0 +1,94 @@
+# 任务 8: 显式编排Git与消息工作流
+
+批次：【批次 8】 依赖批次 7；传递依赖批次 1–7
+
+线性顺序：任务 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14；本任务不可与其他批次并行。
+
+状态：未开始
+
+目的：以现有工作流工具节点完成提交、合并与消息动作；没有步骤就不产生业务副作用。
+
+来源任务：无；来源为用户本轮确认的重构目标。
+
+预计会话范围：围绕“工作流仅执行显式 Git/消息节点并遵守依赖；普通任务与失败上游不自动提交、合并或通知。”一个验收故事。只沿列出的真实调用链修改，必要相邻依赖先调查、记录再修复；不叠加无关重构。
+
+## 文件
+
+- 修改：`crates/vw-agent/src/workflow/native_agent.rs`
+- 修改：`crates/vw-agent/src/workflow/native_tests.rs`
+- 修改：`crates/vw-agent/src/workflow/runner_tests.rs`
+- 修改：`crates/vw-agent/src/gateway/api/handlers/workflow.rs`
+- 测试：`crates/vw-agent/src/gateway/api/handlers/workflow_tests.rs`
+- 参考：`crates/vw-agent/src/tools/thread_tool/mod.rs`
+- 参考：`crates/vw-agent/src/tools/agent_tool/communication.rs`
+- 参考：`crates/vw-agent/src/plugins/compat/mcp_app_execution.rs`
+- 新建：`docs/dev/task-pool/显式动作示例.md`
+
+## 上下文
+
+工作流已有 tool/agent 节点与 NativeTools 权限检查；消息有同项目线程/团队工具及插件 MCP 执行入口。消息渠道必须取自用户已配置工具，不能假设已有通用跨渠道发送工具。
+
+按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
+
+先读根目录 AGENTS.md 与 ./skills/rustcodegraph/SKILL.md，核对当前索引及调用者。现有未提交变更由其他会话持有，不覆盖、不回退、不混入本任务提交。plan.md 只读；关键决定与阻塞证据仅写本文件。
+
+## Cargo 共享槽位规则
+
+1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-20`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
+2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–20。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
+3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 20 个槽位都占用时等待并重试。
+4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
+5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
+6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
+7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
+8. 遗留锁须先核实持有会话及相关进程已结束；无法确认则保持占用，不得删除其他活跃任务的锁、进程或缓存。
+9. 生成或更新计划时，统一移除与这些规则冲突的单一 Rust 共享构建空间、逐任务独立目录和 Cargo 缓存全局独占窗口要求；仍须遵守源码文件占用、真实业务依赖和其他共享验证资源的互斥，不能仅因缓存分槽就把任务判定为可并行。
+10. 最终验证记录包含实际槽位、绝对路径 `CARGO_TARGET_DIR`、确切命令、退出码和有效测试数量；Rust 代码修改后先运行 `cargo fmt --all`，再运行相应验证。编译成功或零测试不能替代行为验收证据。
+
+仓库 `.cargo/config.toml` 当前设置 `target-dir = "target-dir"`、`build-dir = "target"`；必须通过上述环境覆盖目标目录，并将 `CARGO_BUILD_BUILD_DIR` 设为 `"$CARGO_TARGET_DIR/build"`，使中间构建产物也落在已领取槽位内。不要修改全仓 Cargo 配置。领取锁后立即安排退出清理，遇到子进程仍运行先等待其结束；不清理其他人的锁或缓存。
+
+## 测试计划
+
+- 行为：工作流仅执行显式 Git/消息节点并遵守依赖；普通任务与失败上游不自动提交、合并或通知。
+- 新增测试：`task_pool_actions_absent_steps_have_no_side_effects`。
+- 新增测试：`task_pool_actions_explicit_git_steps_use_native_tool_permissions`。
+- 新增测试：`task_pool_actions_explicit_message_requires_authorized_target`。
+- 新增测试：`task_pool_actions_upstream_failure_skips_downstream_send`。
+- 上述测试名为本任务明确要求新增的测试，不是已存在测试；分别落在“文件”列出的对应独立测试文件，并核对模块注册。
+- 失败验证命令与通过验证命令相同，先新增测试再运行：
+
+- `cargo test -p vw-agent --lib task_pool_actions_ -- --nocapture`
+
+- 预期失败原因：尚无这组显式动作链的可执行验收，现有任务池依靠内建收尾与状态推进执行 Git。
+- 聚焦测试 features：使用各 crate 默认 features；vw-agent 默认包含 rag-pdf/firecrawl/web-fetch-html2md/web-fetch-plaintext/shell-ast/channel-lark；vw-desktop 默认空。禁止为避开本次错误临时关闭默认 features。
+- 模拟策略：真实目录、Git 和 SQLite；仅替换 LLM/ACP 协议对端与外部消息网络。使用现有 global_async_env_lock 等夹具隔离全局状态，不调用真实外部收件人或生产服务。
+- 测试命令必须实际命中新增测试；各 crate 分别至少一个非 ignored 测试，合计至少 4 个有效测试。零测试、仅编译或仅 JSON 形状比较不能视为本行为验收成功。
+
+## 步骤
+
+1. 用现有 WorkflowRuntime 解析并运行真实图，真实 Git 操作落临时仓库；外部消息发送只接本地录制传输边界。
+2. 提供可直接使用的节点参数示例：普通非 Git 任务、显式 add/commit/merge、显式发送消息；遵循现有 YAML 解析器，不新增专用 workflow DSL 或全局模板注册。
+3. 原生工作流调用已有工具与插件 MCP 执行链；如边界遗漏当前会话工具能力，最小补齐上下文传递，工具权限取交集，不把工作流输入的 full_access 当授权。
+4. 同项目消息复用 send_message_to_thread 或团队消息语义；外部渠道通过已配置插件工具明确选择目标。未配置渠道/收件人、越租户/项目、工具被禁用均在发送前失败；不添加新的渠道实现。
+5. 已成功副作用节点的重试/恢复不默认重放；用工作流既有运行状态记录结果。外部工具无幂等能力且投递结果未知时，保留待处理状态与证据，禁止声称 exactly-once 或自动重复发送。
+6. 示例文档写明动作需显式授权与绑定工具，测试不得访问真实收件人；不导入用户现有工作流或替其发布。
+
+## 验证
+
+1. 在已领取槽位中记录新增测试的预期失败与原因；不把编译环境错误当作预期业务失败。
+2. Rust 修改完成先运行 `cargo fmt --all`，检查并排除其对无关文件的格式化，不覆盖别人正在编辑的内容。
+3. 运行上述各条通过验证命令，记录测试名称、有效数量、成功/失败/ignored 数和退出码。
+4. 运行 `cargo clippy --all-targets --all-features -- -D warnings`，记录退出码；修复本任务引入的问题，无关既有失败仅记录具体文件与错误。
+5. 审查本任务差异、安全边界、调用者注册及资源释放，确认没有真实对外消息、发布或自动删除用户目录。
+
+
+
+预期：聚焦行为测试有效通过，无本次引入的编译错误或警告；全仓检查如被无关改动阻断，必须提供阻断证据并保留待回归状态。
+
+所需证据：失败前后命令与输出摘要、实际测试数、退出码、相关符号和改动路径；实际槽位和绝对路径 CARGO_TARGET_DIR；涉及 UI 时附实际渲染截图及日志。不得运行无过滤 `cargo test`、`cargo fmt --all -- --check`、wasm 构建或 Makefile 命令。
+
+## 完成
+
+本任务只有 `未开始`、`已完成`、`已阻塞`、`已完成，待回归` 四种状态。每个完成结论必须有当前证据；依赖批次完成后先核对代码与提交，不以已删除任务文件单独证明依赖成功。
+
+有实际代码、测试、配置或文档变更时，使用 `$git-commit` 检查 staged/unstaged/untracked，排除其他任务与用户变更后以中文提交；仅本文件状态更新或删除不提交。证据齐全则标记已完成，在最终回复报告证据后删除本文件；无关环境或既有错误阻断验证则标记已完成，待回归并保留本文件；本任务本身仍不满足目标则标记已阻塞，记录调查、替代路径和所需输入。不要修改 plan.md 或把进度写入 prompt.md。

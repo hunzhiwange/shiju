@@ -135,7 +135,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     let args = match agent {
         "gemini" => vec!["--experimental-acp".into()],
         "iflow" => vec!["--experimental-acp".into()],
-        "auggie" | "qwen" | "snow" => vec!["--acp".into()],
+        "auggie" | "qoder" | "qwen" | "snow" => vec!["--acp".into()],
         "copilot" => vec!["--acp".into(), "--stdio".into()],
         "kilocode" => vec!["acp".into(), "--pure".into()],
         "opencode" | "openclaw" => vec!["acp".into()],
@@ -145,6 +145,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     let bin_name = match agent {
         "codex" => "codex-acp",
         "pi" => "pi-acp",
+        "qoder" => "qodercli",
         other => other,
     };
     let executable =
@@ -238,6 +239,12 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("qoder/apply.py", include_str!("../../../patches/acp-model-source/qoder/apply.py")),
+        ("qoder/patch.json", include_str!("../../../patches/acp-model-source/qoder/patch.json")),
+        (
+            "qoder/session-model.mjs",
+            include_str!("../../../patches/acp-model-source/qoder/session-model.mjs"),
+        ),
         ("auggie/apply.py", include_str!("../../../patches/acp-model-source/auggie/apply.py")),
         ("auggie/patch.json", include_str!("../../../patches/acp-model-source/auggie/patch.json")),
         (

@@ -356,3 +356,28 @@ pnpm exec vite --config acpdemo/kiro/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/pi/vite.config.mjs
 ```
+
+# Qoder CLI 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 18，批次 17 PI 已结束归档。按最新授权，以完整编辑器文件和运行说明落盘为终点；未执行浏览器、编辑器构建或创建后的额外回归，不将这些检查记为通过。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-qoder / qoder`、`session_model`、`full_access=true`。没有更换模型、账号或引擎。
+- 初次复验的普通 Qoder 入口安装成功（HTTP 200、curl 0、8.292494 秒），从 1.1.86 更新为 1.1.88，但原生 status 为 logged_in=false、allow_byok=0，原生 session/new 返回 Authentication required；旧网关真实请求 HTTP 200、curl 0、60.755587 秒，终态 chat.error / `ACP session_model driver is not verified`，无文件。该失败只适用于普通账号入口，不作为必须新增账号授权才能完成本项的结论。
+- 继续调查固定 1.1.88 bundle，发现其本地 ACP 框架 `P7e/ahe` 使用与 Qoder 账号框架相同的 `e5/O1` 原生会话、AgentLoop、工具与权限控制。新增 `patches/acp-model-source/qoder/`，仅在显式私有会话绑定下选择该本地框架，只注册绑定的 OpenAI-compatible Provider；没有换入其他代理引擎，没有使用 fakeResponses，也没有伪造官方身份、模型目录或 BYOK 权益。官方云 Provider/账号框架不在该分支构造，普通未绑定入口保留原逻辑。
+- Rust 驱动通过请求拥有者的 0700 目录、0600 配置文件传入原模型、准确回环端点及短期中继令牌，供应商密钥不交给 CLI；固定 npm 归档完整性、原 bundle、补丁后 bundle 与绑定模块哈希均受校验。仅接受受管入口、固定 ACP 参数和隔离 user 配置源；启动前将 Node TCP 限制在本次准确回环端口并拒绝外部 dns.lookup，阻止上游后台官方网络尝试。官方账号状态及全局 bundle 在实现前后保持原样，普通账号入口仍要求真实登录。
+- 创建前的验证：3 项 Node 边界测试通过（私有文件/会话引用拒绝、官方主机和无关回环端口拒绝、绑定撤销拒绝）；固定受管 CLI 的真实 initialize/session/new 成功，真实推理请求到达本机 HTTP 探针（503 仅是可达性证据）；原生 mode `default → yolo → default` 成功，模型不变。新增 Rust 拒绝场景通过 Clippy 编译检查，未单独执行 Cargo 聚焦测试；创建后未补跑。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出码 0、4 分 45 秒。`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0、11 分 11 秒。使用共享槽位 7，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `target/rust-slot-7` 的绝对路径；槽位已释放、缓存保留。真实运行独立 CLI 副本，SHA-256 `ae98ea828c3d489fd0409ea31d6d6fefb325bb1159f33f28972582e2b5399739`。
+- 新构建使用现有开发配置启动临时网关 `127.0.0.1:49459`，未重启用户原服务。受管安装器固定 npm 安装退出码 0（3 秒）；随后系统安装 API HTTP 200、curl 0、0.016839 秒，状态 true → true，解析入口为 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/qoder-1.1.88-model-source-v1/node_modules/.bin/qodercli --acp`。已核实版本 1.1.88；普通独立诊断 HTTP 200、curl 0、3.748527 秒，authentication_required；模型来源 HTTP 200、curl 0，session_model supported、已审查 Darwin arm64 / 1.1.88。普通诊断与私有绑定会话分别记录。
+- 会话 `ses_1d0dfe692001pft4ovsCg1I26q` 的 ui/summary 与 acp-options 在运行期间及结束后均 HTTP 200、curl 0；绑定 acp-qoder / qoder，full_access=true。真实执行期间 connected=true，selected_model 的 source、provider_id 和完整模型 ID 与请求一致。访问能力报告 partial，不将请求标志解释为全部原生权限均已验证；结束后请求拥有者关闭连接，connected=false 不代表执行失败。
+- 真实创建请求 HTTP 200、curl 0、148.170801 秒，终态 chat.done，无 chat.error。事件为 chat.context_loaded ×1、chat.step_start ×1、chat.delta ×37、chat.tool ×64、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际调用工具创建文件，完成后简短结束，不运行额外测试。
+- 目标目录原先不存在；实际新增 `acpdemo/qoder/` 下 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css` 共 8 个文件。源码导入本仓库 `@rue-js/rue`，包含 textarea 输入、computed 字数统计、localStorage 防抖保存与初始化恢复；Vite 复用仓库 Rue 插件，README 提供运行说明。仅核对文件与源码，不宣称页面行为已验证。
+- 请求前与网关停止后的 Rue 普通文件 SHA-256 快照（排除 .git、node_modules、target）仅发现上述 8 个新增文件，目标目录外无内容变化。预设基线 enabled=false，临时启用 HTTP 200、curl 0、6.116960 秒；恢复 HTTP 200、curl 0、10.305573 秒，结束 GET agents HTTP 200、curl 0、复查 false。临时网关进程组已停止，端口关闭；未启动编辑器服务。
+- 原始请求、配置、SSE、探针、源码证据与文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-qoder-v48l1xmr/`（最终成功证据在 `acceptance/`），未提交凭据、配置环境值或原始供应商 bundle。
+
+在 Rue.js 仓库根目录启动：
+
+```sh
+pnpm exec vite --config acpdemo/qoder/vite.config.mjs
+```
+
+后续建议：常用网关切换到包含本次受管入口的构建；浏览器行为与编辑器构建仍待维护者按需验证。

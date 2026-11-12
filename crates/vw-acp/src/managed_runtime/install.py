@@ -188,7 +188,7 @@ if agent == 'copilot':
 if agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
-elif agent in ('iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie'):
+elif agent in ('iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder'):
     run([sys.executable, str(assets / agent / 'apply.py'), str(root)])
 elif agent == 'pi':
     source = runtime / 'pi-source'

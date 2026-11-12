@@ -66,6 +66,8 @@ pub struct Content {
 pub enum Error {
     AccessDenied(String),
     Io(std::io::Error),
+    BinaryFile(String),
+    InvalidText(String),
 }
 
 impl std::fmt::Display for Error {
@@ -75,6 +77,8 @@ impl std::fmt::Display for Error {
                 write!(f, "Access denied: path escapes project directory: {}", path)
             }
             Self::Io(err) => write!(f, "{}", err),
+            Self::BinaryFile(path) => write!(f, "Binary file cannot be read as text: {path}"),
+            Self::InvalidText(path) => write!(f, "Invalid or unsupported text encoding: {path}"),
         }
     }
 }

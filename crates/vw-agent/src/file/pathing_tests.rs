@@ -185,23 +185,13 @@ fn binary_extension_helper_covers_known_formats() {
         "oat",
         "art",
         "wasm",
-        "wat",
         "bc",
-        "ll",
-        "s",
         "ko",
         "sys",
         "drv",
         "efi",
         "rom",
         "com",
-        "bat",
-        "cmd",
-        "ps1",
-        "sh",
-        "bash",
-        "zsh",
-        "fish",
     ];
 
     for ext in binary_extensions {
@@ -210,4 +200,7 @@ fn binary_extension_helper_covers_known_formats() {
     assert!(is_binary_by_extension("ARCHIVE.ZIP"));
     assert!(!is_binary_by_extension("src/lib.rs"));
     assert!(!is_binary_by_extension("README"));
+    for ext in ["wat", "ll", "s", "bat", "cmd", "ps1", "sh", "bash", "zsh", "fish"] {
+        assert!(!is_binary_by_extension(&format!("source.{ext}")));
+    }
 }

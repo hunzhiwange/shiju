@@ -14,7 +14,11 @@ mod fs_ops;
 mod git_status;
 mod pathing;
 mod search;
+mod text;
 mod types;
+
+#[cfg(test)]
+mod text_tests;
 
 #[cfg(test)]
 #[path = "fs_ops_tests.rs"]
@@ -44,4 +48,5 @@ mod tests;
 pub use fs_ops::{init_preload, list, publish_edited, read};
 pub use git_status::status_git;
 pub use search::search;
+pub use text::read_text;
 pub use types::{Content, ContentType, Error, Info, Node, NodeType, SearchInput, Status};

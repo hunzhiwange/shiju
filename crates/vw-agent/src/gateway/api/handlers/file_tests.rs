@@ -1223,3 +1223,32 @@ async fn file_drag_move_rejects_dangling_links_and_hardlink_equivalence() {
         assert!(!root.join("missing").exists());
     }
 }
+
+#[tokio::test]
+async fn file_read_v1_decodes_legacy_text_and_reports_binary_file() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let root = temp.path().canonicalize().expect("root");
+    let original = "  简体中文文件内容，这是一个编码检测测试。\r\n";
+    let (bytes, _, errors) = encoding_rs::GBK.encode(original);
+    assert!(!errors);
+    std::fs::write(root.join("legacy.txt"), bytes).expect("write text");
+    std::fs::write(root.join("unknown"), b"hello\0world").expect("write binary");
+    for (path, binary) in [("legacy.txt", false), ("unknown", true)] {
+        let result = file_read_v1(
+            axum::http::HeaderMap::new(),
+            Json(FileReadBody {
+                directory: Some(root.to_string_lossy().to_string()),
+                agent_key: None,
+                path: path.to_string(),
+            }),
+        )
+        .await;
+        if binary {
+            let error = result.expect_err("binary rejected");
+            assert_eq!(error.status, axum::http::StatusCode::BAD_REQUEST);
+            assert_eq!(error.message, "Binary file cannot be read as text: unknown");
+        } else {
+            assert_eq!(result.expect("decoded text").0.content, original);
+        }
+    }
+}

@@ -56,7 +56,7 @@ pub fn read(root: impl AsRef<Path>, file: &str) -> Result<Content, Error> {
         });
     }
 
-    if is_binary_by_extension(file) || super::super::tools::is_binary(&full) {
+    if is_binary_by_extension(file) {
         return Ok(Content {
             r#type: ContentType::Binary,
             content: String::new(),
@@ -66,7 +66,23 @@ pub fn read(root: impl AsRef<Path>, file: &str) -> Result<Content, Error> {
         });
     }
 
-    let content = std::fs::read_to_string(&full).unwrap_or_default().trim().to_string();
+    let content = match super::read_text(root, file) {
+        Ok(content) => content.trim().to_string(),
+        Err(Error::BinaryFile(_)) => {
+            return Ok(Content {
+                r#type: ContentType::Binary,
+                content: String::new(),
+                diff: None,
+                encoding: None,
+                mime_type: None,
+            });
+        }
+        // Preserve the legacy content endpoint's missing-file/directory behavior.
+        Err(Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound || full.is_dir() => {
+            String::new()
+        }
+        Err(err) => return Err(err),
+    };
     Ok(Content { r#type: ContentType::Text, content, diff: None, encoding: None, mime_type: None })
 }
 

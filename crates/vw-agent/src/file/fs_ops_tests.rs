@@ -329,3 +329,16 @@ fn init_preload_ignores_missing_directory() {
 
     init_preload(temp.path().join("missing"));
 }
+
+#[test]
+fn read_decodes_utf16_before_binary_detection() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let mut bytes = vec![0xff, 0xfe];
+    for unit in "  中文 text\n".encode_utf16() {
+        bytes.extend(unit.to_le_bytes());
+    }
+    fs::write(temp.path().join("note.txt"), bytes).expect("write text");
+    let content = read(temp.path(), "note.txt").expect("decode text");
+    assert!(matches!(content.r#type, ContentType::Text));
+    assert_eq!(content.content, "中文 text");
+}

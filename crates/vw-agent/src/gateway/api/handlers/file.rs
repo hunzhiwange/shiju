@@ -524,9 +524,11 @@ async fn file_read_v1(
             if !contains_path(&root, &full) {
                 return Err(ApiError::bad_request("path escapes workspace root"));
             }
-            let content = match std::fs::read_to_string(&full) {
+            let content = match file::read_text(&root, &rel) {
                 Ok(content) => content,
-                Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(file::Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+                    String::new()
+                }
                 Err(err) => return Err(ApiError::bad_request(err.to_string())),
             };
             Ok((rel, content))

@@ -165,6 +165,7 @@ impl std::fmt::Display for McpNewServerTransport {
 
 #[derive(Debug, Clone)]
 pub(crate) struct McpSettingsState {
+    pub(crate) tools: crate::app::message::settings::mcp_management_tools::ToolsState,
     pub(crate) diagnostics: crate::app::message::agent_apps_diagnostics::McpState,
     pub(crate) catalog: crate::app::message::settings::mcp_management_list::CatalogState,
     pub(crate) resync: crate::app::message::settings::mcp_management_resync::ResyncState,
@@ -202,6 +203,7 @@ impl Default for McpSettingsState {
     fn default() -> Self {
         Self {
             diagnostics: Default::default(),
+            tools: Default::default(),
             catalog: Default::default(),
             bindings: Default::default(),
             resync: Default::default(),

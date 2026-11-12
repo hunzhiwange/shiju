@@ -416,3 +416,9 @@ mod aggregation_restart_tests;
 mod aggregation_restart;
 
 mod aggregation_exit;
+
+#[cfg(target_os = "macos")]
+mod mcp_management_tools;
+
+#[cfg(all(test, target_os = "macos"))]
+mod mcp_management_tools_tests;

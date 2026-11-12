@@ -165,7 +165,7 @@ pub enum DynamicToolContent {
 }
 
 /// V2 工具规格 DTO。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ToolSpecDto {
     pub identity: ToolIdentity,
     pub source: ToolSource,

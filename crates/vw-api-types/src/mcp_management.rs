@@ -374,3 +374,65 @@ pub struct McpResyncTargetResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<McpFailureCode>,
 }
+
+/// Explicit, revision-bound discovery. The diagnostic query supplies the authorized host/project.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpToolDetailsRequest {
+    pub scope: McpCatalogScope,
+    pub record: McpRecordRef,
+    pub connection_revision: u64,
+    pub generation: u64,
+}
+
+/// Persisted project selection; discovery never changes it or grants invocation permission.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "status",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum McpRuntimeUsage {
+    NotSelected,
+    Selected { record: McpRecordRef, disabled: bool, generation: u64, current: bool },
+}
+
+/// Public discovered specifications and independent, stable diagnostics. No execution configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpToolDetails {
+    pub request: McpToolDetailsRequest,
+    pub tools: Vec<crate::tools::ToolSpecDto>,
+    pub connection_error: Option<McpFailureCode>,
+    pub tools_error: Option<McpFailureCode>,
+    pub runtime: Option<McpRuntimeUsage>,
+    pub runtime_error: Option<McpFailureCode>,
+}
+
+/// Read only one explicitly authorized inbound ACP session, without client-supplied paths.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpAcpUsageQuery {
+    pub target_host_id: String,
+    pub project_id: ProjectId,
+    pub session_id: SessionId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpAcpUsage {
+    pub target_host_id: String,
+    pub project: ProjectScope,
+    pub session_id: SessionId,
+    pub mount_revision: u64,
+    pub mounts: Vec<McpAcpUsageMount>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct McpAcpUsageMount {
+    pub scope: McpCatalogScope,
+    pub record: McpRecordRef,
+    pub failure: Option<McpFailureCode>,
+}

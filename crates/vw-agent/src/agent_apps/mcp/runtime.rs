@@ -86,6 +86,43 @@ impl McpCatalogStore {
         self.save_entry(tenant, &namespace, key, &previous, &next)
     }
 
+    /// Read only this record's selection in the caller-authorized project and catalog.
+    pub(crate) fn runtime_usage(
+        &self,
+        project: &ProjectScope,
+        scope: &McpCatalogScope,
+        id: &vw_api_types::mcp_management::McpRecordId,
+    ) -> Result<vw_api_types::mcp_management::McpRuntimeUsage, McpFailureCode> {
+        use vw_api_types::mcp_management::McpRuntimeUsage;
+        if !scope_belongs_to_project(scope, project) {
+            return Err(McpFailureCode::PermissionDenied);
+        }
+        let namespace = selection_namespace(project)?;
+        let Some(payload) = self
+            .0
+            .get(project.tenant_scope(), &namespace, &id.0)
+            .map_err(|_| McpFailureCode::StorageUnavailable)?
+        else {
+            return Ok(McpRuntimeUsage::NotSelected);
+        };
+        let selection: StoredSelection =
+            serde_json::from_str(&payload).map_err(|_| McpFailureCode::StorageUnavailable)?;
+        if selection.scope != *scope || selection.record.id != *id {
+            return Err(McpFailureCode::Conflict);
+        }
+        let current = match self.connection_for_revision(scope, &selection.record) {
+            Ok(_) => true,
+            Err(McpFailureCode::NotFound | McpFailureCode::StaleRevision) => false,
+            Err(code) => return Err(code),
+        };
+        Ok(McpRuntimeUsage::Selected {
+            record: selection.record,
+            disabled: selection.disabled,
+            generation: selection.generation,
+            current,
+        })
+    }
+
     fn runtime_servers(
         &self,
         project: &ProjectScope,

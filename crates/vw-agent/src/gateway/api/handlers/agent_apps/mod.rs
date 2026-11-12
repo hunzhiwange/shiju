@@ -602,3 +602,6 @@ pub(crate) use access::{aggregation_lifecycle_host, authorize_aggregation_lifecy
 
 #[cfg(target_os = "macos")]
 pub(super) use access::authorize_codex_restart;
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_mcp_acp_read;

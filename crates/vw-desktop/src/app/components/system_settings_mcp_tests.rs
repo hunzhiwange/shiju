@@ -410,9 +410,16 @@ async fn settings_tabs_capabilities_appearance_mcp() {
             app.mcp_settings.active_tab = McpSettingsTab::Servers;
             app.mcp_settings.save_error = Some("fixture MCP error".into());
             let locale = app.desktop_locale;
+            // Match the agents page's real viewport, scrolled to the legacy controls.
+            let page = iced::widget::scrollable(iced::widget::container(view(app)))
+                .direction(iced::widget::scrollable::Direction::Vertical(
+                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+                ))
+                .anchor_bottom()
+                .height(iced::Length::Fill);
             let tab = scene.check(
                 app,
-                view(app),
+                page.into(),
                 &["全局服务器", "运行时 MCP", "高级 JSON"].map(|label| tr(locale, label)),
                 2,
             );

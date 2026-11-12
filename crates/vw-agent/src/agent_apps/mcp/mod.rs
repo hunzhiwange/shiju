@@ -193,3 +193,6 @@ mod runtime_tests;
 pub(crate) mod acp_mount;
 #[cfg(all(test, target_os = "macos"))]
 mod acp_mount_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod tool_details_tests;

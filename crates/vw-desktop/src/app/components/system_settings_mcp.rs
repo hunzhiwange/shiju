@@ -243,6 +243,25 @@ fn preview_section_header(
     text(label).size(12).style(settings_muted_text_style).into()
 }
 
+fn tool_summary(
+    tool: &vw_gateway_client::vw_api_types::tools::ToolSpecDto,
+) -> Element<'static, Message> {
+    row![
+        text(compact_text(&tool.display_name, 42)).size(12).width(Length::Fixed(180.0)),
+        text(compact_text(tool.id.as_ref(), 52))
+            .size(11)
+            .style(settings_muted_text_style)
+            .width(Length::Fixed(220.0)),
+        text(compact_text(&tool.description, 90))
+            .size(11)
+            .style(settings_muted_text_style)
+            .width(Length::Fill),
+    ]
+    .spacing(12)
+    .align_y(Alignment::Center)
+    .into()
+}
+
 fn tools_preview_section(
     locale: DesktopLocale,
     inspect: &McpServerInspectDto,
@@ -269,21 +288,7 @@ fn tools_preview_section(
     }
 
     for tool in inspect.tools.iter().take(8) {
-        content = content.push(
-            row![
-                text(compact_text(&tool.display_name, 42)).size(12).width(Length::Fixed(180.0)),
-                text(compact_text(tool.id.as_ref(), 52))
-                    .size(11)
-                    .style(settings_muted_text_style)
-                    .width(Length::Fixed(220.0)),
-                text(compact_text(&tool.description, 90))
-                    .size(11)
-                    .style(settings_muted_text_style)
-                    .width(Length::Fill),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-        );
+        content = content.push(tool_summary(tool));
     }
 
     let hidden_count = inspect.tools.len().saturating_sub(8);
@@ -1028,11 +1033,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     }
 
+    content = content.push(tools::panel(app));
+
     container(content).padding([0, 7]).width(Length::Fill).into()
 }
 
 /// 在 MCP 设置页上叠加服务器表单或删除确认。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    if crate::app::message::settings::mcp_management_tools::visible(app).is_some() {
+        return settings_modal_overlay(
+            Some(dialog),
+            crate::app::message::settings::mcp_management_tools::message(
+                crate::app::message::settings::mcp_management_tools::ToolsMessage::Close,
+            ),
+            container(tools::card(app)).padding(12),
+        );
+    }
+
     if crate::app::message::settings::mcp_management_resync::visible(app).is_some_and(|s| s.open) {
         return resync::overlay(app, dialog);
     }
@@ -1198,3 +1215,6 @@ pub(crate) mod import;
 
 #[path = "system_settings_mcp_resync.rs"]
 mod resync;
+
+#[path = "system_settings_mcp_tools.rs"]
+pub(crate) mod tools;

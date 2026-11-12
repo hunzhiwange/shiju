@@ -71,6 +71,15 @@ pub(super) fn router() -> Router {
         axum::routing::post(super::mcp_management_probe::submit)
             .layer(axum::extract::DefaultBodyLimit::max(32 * 1024)),
     );
+    #[cfg(target_os = "macos")]
+    let router = router.route(
+        "/agent-apps/mcp/tools/discover",
+        axum::routing::post(super::mcp_management_tools::submit)
+            .layer(axum::extract::DefaultBodyLimit::max(32 * 1024)),
+    );
+    #[cfg(target_os = "macos")]
+    let router = router
+        .route("/agent-apps/mcp/acp-mounts/query", get(super::mcp_management_tools::read_acp));
     router
         .layer(Extension(PolicyFile(
             std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from),

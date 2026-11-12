@@ -132,6 +132,9 @@ pub enum DiagnosticResult {
         server_id: McpRecordId,
         report: DiagnosticReport<McpHandshakeEvidence>,
     },
+    McpToolDetails {
+        details: crate::mcp_management::McpToolDetails,
+    },
     McpConnectionCheck {
         scope: McpCatalogScope,
         generation: u64,

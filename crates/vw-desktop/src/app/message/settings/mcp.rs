@@ -500,6 +500,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
 
     match message {
+        McpMessage::Tools(message) => super::mcp_management_tools::update(app, message),
         McpMessage::ConnectionForm(message) => super::mcp_management_form::update(app, message),
         McpMessage::Diagnostic(message) => {
             crate::app::message::agent_apps_diagnostics::update(app, message)

@@ -448,6 +448,7 @@ pub enum AcpMessage {
 /// MCP 设置页消息。
 #[derive(Debug, Clone)]
 pub enum McpMessage {
+    Tools(super::mcp_management_tools::ToolsMessage),
     Diagnostic(crate::app::message::agent_apps_diagnostics::McpDiagnosticMessage),
     Catalog(super::mcp_management_list::CatalogMessage),
     ConnectionForm(super::mcp_management_form::FormMessage),

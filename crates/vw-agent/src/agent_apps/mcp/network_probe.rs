@@ -454,3 +454,6 @@ fn failed(code: McpFailureCode) -> DiagnosticOutcome<McpHandshakeEvidence> {
         http_status: None,
     }
 }
+
+mod details;
+pub use details::start_details;

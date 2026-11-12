@@ -61,17 +61,25 @@ pub(in crate::app::components) struct Labels {
     scrolls: Vec<(Rectangle, Rectangle, Vector)>,
     inputs: Vec<(String, Rectangle)>,
     select_input: Option<Rectangle>,
+    offset: Vector,
+    pending_scroll: Option<Vector>,
 }
 
 impl Operation for Labels {
     fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn Operation)) {
+        let parent_offset = self.offset;
+        if let Some(translation) = self.pending_scroll.take() {
+            self.offset -= translation;
+        }
         children(self);
+        self.offset = parent_offset;
     }
 
     fn text(&mut self, _: Option<&Id>, bounds: Rectangle, label: &str) {
-        self.text.push((label.into(), bounds));
+        self.text.push((label.into(), self.translated(bounds)));
     }
     fn text_input(&mut self, _: Option<&Id>, bounds: Rectangle, state: &mut dyn TextInput) {
+        let bounds = self.translated(bounds);
         if self.select_input == Some(bounds) {
             state.select_all();
         }
@@ -85,11 +93,18 @@ impl Operation for Labels {
         translation: Vector,
         _: &mut dyn Scrollable,
     ) {
-        self.scrolls.push((bounds, content, translation));
+        self.scrolls.push((self.translated(bounds), self.translated(content), translation));
+        // Iced exposes unscrolled child layout bounds to operations; pixels and pointer
+        // events use the translated viewport. Keep assertions in that same coordinate space.
+        self.pending_scroll = Some(translation);
     }
 }
 
 impl Labels {
+    fn translated(&self, bounds: Rectangle) -> Rectangle {
+        Rectangle { x: bounds.x + self.offset.x, y: bounds.y + self.offset.y, ..bounds }
+    }
+
     pub(in crate::app::components) fn contains(&self, label: &str) -> bool {
         self.text.iter().any(|(text, _)| text == label)
     }

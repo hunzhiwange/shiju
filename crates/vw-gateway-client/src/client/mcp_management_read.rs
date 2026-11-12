@@ -5,6 +5,24 @@ use vw_api_types::mcp_management::{
 };
 
 impl GatewayClient {
+    /// Read committed references for one explicitly authorized inbound ACP session.
+    pub async fn mcp_management_acp_usage(
+        &self,
+        query: &vw_api_types::mcp_management::McpAcpUsageQuery,
+        token: &str,
+    ) -> Result<vw_api_types::mcp_management::McpAcpUsage, AgentAppsReadError> {
+        self.agent_apps_read_request(
+            "/v1/agent-apps/mcp/acp-mounts/query",
+            &[
+                ("targetHostId", query.target_host_id.clone()),
+                ("projectId", query.project_id.as_ref().to_owned()),
+                ("sessionId", query.session_id.as_ref().to_owned()),
+            ],
+            Some(token),
+        )
+        .await
+    }
+
     /// Read public catalog records, desired bindings and native adapter capabilities.
     pub async fn mcp_management_catalog(
         &self,

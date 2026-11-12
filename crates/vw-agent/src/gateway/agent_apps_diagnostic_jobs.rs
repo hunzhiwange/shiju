@@ -517,6 +517,13 @@ fn valid_result(kind: DiagnosticProbeKind, result: &DiagnosticResult) -> bool {
         DiagnosticResult::Mcp { server_id, report } => {
             (DiagnosticProbeKind::Mcp, &report.timings, valid_id(&server_id.0))
         }
+        DiagnosticResult::McpToolDetails { details } => {
+            return kind == DiagnosticProbeKind::Mcp
+                && valid_id(&details.request.record.id.0)
+                && details.request.record.revision > 0
+                && details.request.connection_revision > 0
+                && details.tools.len() <= 2048;
+        }
         DiagnosticResult::McpConnectionCheck { item, .. } => {
             return kind == DiagnosticProbeKind::Mcp
                 && valid_id(&item.id.0)

@@ -8,6 +8,23 @@ use vw_api_types::{
 };
 
 impl GatewayClient {
+    /// Discover exact catalog tools on the authorized host; acceptance does not grant invocation.
+    pub async fn mcp_management_tools(
+        &self,
+        scope: &DiagnosticScopeQuery,
+        request: &vw_api_types::mcp_management::McpToolDetailsRequest,
+        token: &str,
+    ) -> Result<DiagnosticJobIdentity, AgentAppsSettingsError> {
+        self.mcp_probe_request(
+            reqwest::Method::POST,
+            &["mcp", "tools", "discover"],
+            scope,
+            Some(request),
+            token,
+        )
+        .await
+    }
+
     /// Start an explicit connection check for the caller generation.
     /// Acceptance is not connection success; match results by task, generation and revision.
     pub async fn mcp_management_check(

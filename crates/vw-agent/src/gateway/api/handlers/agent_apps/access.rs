@@ -110,6 +110,9 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     mcp_probe: Vec<McpProbePermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    mcp_acp_read: Vec<McpAcpReadPermit>,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -120,6 +123,14 @@ struct Grant {
 struct RoutingAppPermit {
     project_id: ProjectId,
     app_id: AppId,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct McpAcpReadPermit {
+    project_id: ProjectId,
+    session_id: vw_api_types::SessionId,
 }
 
 #[cfg(target_os = "macos")]
@@ -219,6 +230,27 @@ pub(crate) struct AuthorizedMcpProbe {
 impl McpProbeAccess {
     pub fn new(policy: Option<PathBuf>, headers: &HeaderMap) -> Result<Self, StatusCode> {
         Ok(Self { policy, digest: membership_digest(headers)? })
+    }
+
+    /// Discovery also exposes project selection metadata, requiring the existing catalog view grant.
+    pub fn authorize_details(
+        &self,
+        scope: &DiagnosticScope,
+        id: &McpRecordId,
+    ) -> Result<AuthorizedMcpProbe, StatusCode> {
+        let grant = self.authorize(scope, id)?;
+        let view = authorize_digest(
+            self.policy.as_deref(),
+            &self.digest,
+            scope.project.tenant_scope(),
+            &scope.target_host_id,
+            None,
+            Capability::ProviderConfigRead,
+        )?;
+        if view.principal != grant.principal {
+            return Err(StatusCode::FORBIDDEN);
+        }
+        Ok(grant)
     }
 
     pub fn authorize(
@@ -619,6 +651,8 @@ enum Capability<'a> {
     #[cfg(target_os = "macos")]
     McpProbe(&'a DiagnosticScope, &'a McpRecordId),
     #[cfg(target_os = "macos")]
+    McpAcpRead(&'a ProjectId, &'a vw_api_types::SessionId),
+    #[cfg(target_os = "macos")]
     DiagnosticProbe(&'a DiagnosticScope),
     #[cfg(target_os = "macos")]
     DiagnosticJob(&'a DiagnosticScope),
@@ -942,6 +976,12 @@ fn authorize_digest(
                                     &permit.project_id == project_id && permit.app_id == app_id
                                 })
                             })
+                    }
+                    #[cfg(target_os = "macos")]
+                    Capability::McpAcpRead(project, session) => {
+                        g.mcp_acp_read.iter().any(|permit| {
+                            &permit.project_id == project && &permit.session_id == session
+                        })
                     }
                     #[cfg(target_os = "macos")]
                     Capability::McpProbe(scope, id) => {
@@ -1709,4 +1749,27 @@ pub(in super::super) fn authorize_codex_restart(
         a.host.credential_root,
         a.principal,
     ))
+}
+
+/// Session reference reads require their own exact grant, not a connection or catalog grant.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_mcp_acp_read(
+    path: Option<&Path>,
+    headers: &HeaderMap,
+    project: &vw_api_types::ProjectScope,
+    host: &str,
+    session: &vw_api_types::SessionId,
+) -> Result<(), StatusCode> {
+    if session.as_ref().is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+    authorize_scoped(
+        path,
+        headers,
+        project.tenant_scope(),
+        host,
+        None,
+        Capability::McpAcpRead(project.project_id(), session),
+    )
+    .map(|_| ())
 }

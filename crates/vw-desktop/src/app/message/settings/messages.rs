@@ -950,6 +950,12 @@ pub enum SettingsMessage {
         hour: u32,
         minute: u32,
     },
+    CronFullAccessConfirm {
+        editing: bool,
+    },
+    CronFullAccessCancel {
+        editing: bool,
+    },
     CronPickerConfirm,
     CronPickerCancel,
     CronScheduleDraftChanged {

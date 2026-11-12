@@ -181,7 +181,7 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
             ))
             .push(field_row(
                 i18n.__("完全访问"),
-                i18n.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
+                "默认受限：可能等待现有审批或被非交互后台拒绝。ACP 未获授权的调用会被拒绝，不保证离线人工恢复。失败后可从任务列表查看历史并编辑。",
                 checkbox(draft.full_access)
                     .label(i18n.__("获取完全访问权限"))
                     .on_toggle(|v| {
@@ -243,12 +243,12 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
             .push(field_row_with_help(
                 app,
                 "投递通道",
-                i18n.__("例如 telegram、discord、slack、mattermost、email。"),
-                text_field("channel", &draft.delivery_channel, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeliveryChannelChanged(
-                        v,
-                    ))
-                }),
+                "仅支持以下六类通道；已有配置不代表凭证有效或消息已送达。",
+                pick_field(
+                    ["telegram", "discord", "slack", "mattermost", "qq", "email"].into_iter().map(str::to_string).collect(),
+                    (!draft.delivery_channel.is_empty()).then(|| draft.delivery_channel.clone()),
+                    |v| Message::Settings(message::SettingsMessage::CronJobEditDeliveryChannelChanged(v)),
+                ),
             ))
             .push(field_row(
                 i18n.__("投递目标"),
@@ -259,7 +259,7 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
             ))
             .push(field_row(
                 i18n.__("尽力投递"),
-                "",
+                "默认尽力投递：失败不改变任务状态，但会记入历史；关闭后投递失败会将任务标记为失败。保存任务不代表已送达。",
                 checkbox(draft.delivery_best_effort)
                     .label(i18n.__("投递失败不影响任务状态"))
                     .on_toggle(|v| {
@@ -271,6 +271,9 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
             ));
     }
 
+    if let Err(error) = crate::app::message::settings::validate_cron_delivery(app, draft) {
+        form = form.push(settings_error_banner(error));
+    }
     let element: Element<'_, Message> = settings_group_card(form).into();
     let submitting = draft.submitting;
     element.map(move |message| {

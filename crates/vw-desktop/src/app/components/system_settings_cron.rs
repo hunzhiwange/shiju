@@ -508,6 +508,46 @@ fn with_edit_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a
     settings_modal_overlay(Some(dialog), close, container(card).padding([10, 12]))
 }
 
+fn with_access_confirmation<'a>(
+    app: &'a App,
+    dialog: Element<'a, Message>,
+) -> Element<'a, Message> {
+    let state = &app.cron_settings;
+    let editing = state.editing_job_id.is_some();
+    if !editing && !state.show_add_modal {
+        return dialog;
+    }
+    let draft = if editing { &state.edit_draft } else { &state.add_draft };
+    if !draft.full_access_confirmation {
+        return dialog;
+    }
+    let cancel = Message::Settings(message::SettingsMessage::CronFullAccessCancel { editing });
+    let header = settings_modal_header(
+        text("确认完全访问权限").size(20),
+        settings_close_button(cancel.clone()),
+    );
+    let body = column![
+        text("仅为当前 Agent 定时任务启用完全访问。触发后可按完全访问执行工具，包括读写文件、运行命令和网络访问。请只授权可信的提示词与项目。").size(14),
+        text("ACP 额外未授权请求仍可能被非交互后台拒绝。取消会保持受限权限；确认后仍需保存任务才会生效。").size(13).style(settings_muted_text_style),
+    ].spacing(12);
+    let actions = row![
+        secondary_button("取消授权", cancel.clone()),
+        button(text("确认授权").size(13))
+            .padding([8, 14])
+            .style(primary_action_btn_style)
+            .on_press(Message::Settings(message::SettingsMessage::CronFullAccessConfirm {
+                editing
+            })),
+    ]
+    .spacing(10)
+    .wrap();
+    let card = settings_modal_layout(header, body, Some(actions.into()))
+        .style(cron_modal_style)
+        .width(560)
+        .height(360);
+    settings_modal_overlay(Some(dialog), cancel, container(card).padding([10, 12]))
+}
+
 fn with_runs_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.cron_settings;
     let Some(job_id) = s.runs_modal_job_id.as_deref() else {
@@ -564,7 +604,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     let dialog = with_runs_modal(app, dialog);
 
     if !s.show_help_modal {
-        return date_time::view_overlay(app, dialog);
+        return with_access_confirmation(app, date_time::view_overlay(app, dialog));
     }
 
     let help_text = r#"定时任务配置说明

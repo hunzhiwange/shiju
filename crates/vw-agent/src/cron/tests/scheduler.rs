@@ -561,7 +561,7 @@ async fn run_agent_job_returns_error_without_provider_key() {
 /// - AutonomyLevel::ReadOnly 会阻止 Agent 任务执行
 /// - 返回明确的只读模式错误
 #[tokio::test]
-async fn run_agent_job_blocks_readonly_mode() {
+async fn wb_schedule_feedback_security_rejects_readonly_agent() {
     let tmp = TempDir::new().unwrap();
     let mut config = test_config(&tmp).await;
     config.autonomy.level = crate::app::agent::security::AutonomyLevel::ReadOnly;
@@ -735,7 +735,7 @@ async fn cron_gateway_options_close_acp_client_after_request() {
 }
 
 #[tokio::test]
-async fn cron_gateway_options_preserves_disabled_full_access_for_acp() {
+async fn wb_schedule_feedback_acp_restricted_options_keep_deny() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
     let mut job = test_job("");
@@ -1090,7 +1090,7 @@ async fn persist_job_result_failure_disables_one_shot_shell_job() {
 /// - 任务保持启用状态以便重试
 /// - 运行记录中状态为 "error"
 #[tokio::test]
-async fn persist_job_result_delivery_failure_non_best_effort_marks_error() {
+async fn wb_schedule_feedback_persist_job_result_delivery_failure_non_best_effort_marks_error() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
     // 创建带有投递配置的任务，best_effort 为 false
@@ -1124,6 +1124,7 @@ async fn persist_job_result_delivery_failure_non_best_effort_marks_error() {
     let runs = cron::list_runs(&config, &job.id, 10).unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].status, "error");
+    assert!(runs[0].output.as_deref().unwrap().contains("telegram channel not configured"));
 }
 
 /// 测试投递失败在尽力模式下保持成功
@@ -1133,7 +1134,7 @@ async fn persist_job_result_delivery_failure_non_best_effort_marks_error() {
 /// - 任务状态保持为成功
 /// - 适用于非关键通知场景
 #[tokio::test]
-async fn persist_job_result_delivery_failure_best_effort_keeps_success() {
+async fn wb_schedule_feedback_persist_job_result_delivery_failure_best_effort_keeps_success() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
     // 创建带有投递配置的任务，best_effort 为 true
@@ -1166,6 +1167,7 @@ async fn persist_job_result_delivery_failure_best_effort_keeps_success() {
     let runs = cron::list_runs(&config, &job.id, 10).unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].status, "ok");
+    assert!(runs[0].output.as_deref().unwrap().contains("telegram channel not configured"));
 }
 
 /// 测试 At 调度类型且 delete_after_run=false 时不会被删除
@@ -1244,7 +1246,7 @@ async fn deliver_if_configured_handles_none_and_invalid_channel() {
 }
 
 #[tokio::test]
-async fn deliver_announcement_rejects_each_unconfigured_known_channel() {
+async fn wb_schedule_feedback_rejects_each_unconfigured_known_channel() {
     let tmp = TempDir::new().unwrap();
     let config = test_config(&tmp).await;
     let cases = [
@@ -1640,4 +1642,13 @@ async fn cron_history_scheduled_run_is_visible_until_completion() {
     let runs = crate::app::agent::cron::list_runs(&config, &job.id, 10).unwrap();
     assert_eq!(runs.len(), 1);
     assert_eq!(runs[0].started_at, active[0].started_at);
+}
+
+#[tokio::test]
+async fn wb_schedule_feedback_unavailable_credentials_rejected() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.channels_config.unavailable_channels.insert("slack:default".into());
+    let err = deliver_announcement(&config, "slack", "target", "report").await.unwrap_err();
+    assert!(err.to_string().contains("credentials unavailable"));
 }

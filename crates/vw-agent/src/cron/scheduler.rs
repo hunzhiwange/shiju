@@ -850,8 +850,22 @@ async fn persist_job_result(
     // 计算执行时长（毫秒）
     let duration_ms = (finished_at - started_at).num_milliseconds();
 
+    let mut recorded_output = output.to_string();
     // 尝试投递结果到配置的通道
     if let Err(e) = deliver_if_configured(config, job, output).await {
+        // 通道网络错误可能包含带令牌的 URL；历史只保留可公开的配置错误或失败摘要。
+        let error = e.to_string();
+        let channel = job.delivery.channel.as_deref().unwrap_or_default().to_ascii_lowercase();
+        let summary = if error == format!("{channel} channel not configured") {
+            error.as_str()
+        } else if error.starts_with("channel credentials unavailable;") {
+            "channel credentials unavailable; repair channel configuration before delivery"
+        } else if error.starts_with("unsupported delivery channel:") {
+            "unsupported delivery channel"
+        } else {
+            "请检查通道凭证、投递目标和网络连接"
+        };
+        recorded_output.push_str(&format!("\nCron delivery failed: {summary}"));
         if job.delivery.best_effort {
             // best_effort 模式：投递失败不影响整体状态
             tracing::warn!("Cron delivery failed (best_effort): {e}");
@@ -869,7 +883,7 @@ async fn persist_job_result(
         started_at,
         finished_at,
         if success { "ok" } else { "error" },
-        Some(output),
+        Some(&recorded_output),
         duration_ms,
     );
 
@@ -882,7 +896,7 @@ async fn persist_job_result(
             }
         } else {
             // 一次性任务失败：记录失败并禁用（保留任务以便调试）
-            let _ = record_last_run(config, &job.id, finished_at, false, output);
+            let _ = record_last_run(config, &job.id, finished_at, false, &recorded_output);
             if let Err(e) = update_job(
                 config,
                 &job.id,
@@ -895,7 +909,7 @@ async fn persist_job_result(
     }
 
     // 对于周期性任务：更新下次执行时间
-    if let Err(e) = reschedule_after_run(config, job, success, output) {
+    if let Err(e) = reschedule_after_run(config, job, success, &recorded_output) {
         tracing::warn!("Failed to persist scheduler run result: {e}");
     }
 

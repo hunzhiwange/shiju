@@ -504,7 +504,7 @@ mod modal_render {
         }
     }
 
-    fn isolated() -> bool {
+    fn isolated(test: &str) -> bool {
         const CHILD: &str = "SHIJU_CRON_MODAL_RENDER_CHILD";
         if std::env::var_os(CHILD).is_some() {
             return true;
@@ -521,13 +521,7 @@ mod modal_render {
         )
         .unwrap();
         let result = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                &format!(
-                    "{}::wb_schedule_modal_renders_all_rules_and_fixed_actions",
-                    module_path!().split_once("::").unwrap().1
-                ),
-            ])
+            .args(["--exact", &format!("{}::{test}", module_path!().split_once("::").unwrap().1)])
             .env(CHILD, "1")
             .env("HOME", home.path())
             .env("VIBEWINDOW_CONFIG_DIR", home.path())
@@ -546,7 +540,7 @@ mod modal_render {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn wb_schedule_modal_renders_all_rules_and_fixed_actions() {
-        if !isolated() {
+        if !isolated("wb_schedule_modal_renders_all_rules_and_fixed_actions") {
             return;
         }
         {
@@ -762,6 +756,126 @@ mod modal_render {
                                 SettingsMessage::CronAddSubmit | SettingsMessage::CronJobEditSave
                             )
                         )));
+                    }
+                }
+            }
+        }
+    }
+    #[tokio::test(flavor = "multi_thread")]
+    async fn wb_schedule_feedback_renders_permissions_and_delivery() {
+        if !isolated("wb_schedule_feedback_renders_permissions_and_delivery") {
+            return;
+        }
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let mut app = test_app();
+        app.desktop_locale = vw_config_types::ui::DesktopLocale::SimplifiedChinese;
+        app.cron_settings.show_add_modal = true;
+        let draft = &mut app.cron_settings.add_draft;
+        draft.schedule_draft = Some(Default::default());
+        draft.job_type = CronAddJobType::Agent;
+        draft.delivery_enabled = true;
+        draft.delivery_channel = "wecom".into();
+        draft.delivery_to = "旧目标".into();
+        for confirm in [false, true] {
+            app.cron_settings.add_draft.full_access_confirmation = confirm;
+            for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
+                for size in [Size::new(380, 680), Size::new(1100, 900)] {
+                    app.app_theme = theme.clone();
+                    let mut ui = UserInterface::build(
+                        view_overlays(
+                            &app,
+                            iced::widget::container(text("任务列表"))
+                                .width(Length::Fill)
+                                .height(Length::Fill)
+                                .into(),
+                        ),
+                        Size::new(size.width as f32, size.height as f32),
+                        Cache::new(),
+                        &mut renderer,
+                    );
+                    let mut messages = Vec::new();
+                    ui.update(
+                        &[Event::Window(iced::window::Event::RedrawRequested(
+                            iced::time::Instant::now(),
+                        ))],
+                        mouse::Cursor::Unavailable,
+                        &mut renderer,
+                        &mut clipboard::Null,
+                        &mut messages,
+                    );
+                    let mut geometry = Geometry::default();
+                    ui.operate(&renderer, &mut geometry);
+                    if confirm {
+                        let label = geometry
+                            .labels
+                            .iter()
+                            .find(|(label, _)| label == "确认授权")
+                            .expect("confirmation button");
+                        assert!(label.1.x >= 0.0 && label.1.x + label.1.width <= size.width as f32);
+                        assert!(
+                            label.1.y >= 0.0 && label.1.y + label.1.height <= size.height as f32
+                        );
+                        assert!(
+                            geometry
+                                .labels
+                                .iter()
+                                .any(|(label, _)| label.contains("仅为当前 Agent"))
+                        );
+                    } else {
+                        assert!(
+                            geometry.labels.iter().any(|(label, _)| label.contains("默认受限："))
+                        );
+                        assert!(
+                            geometry.labels.iter().any(|(label, _)| label.contains("ACP 未获授权"))
+                        );
+                        assert!(geometry.labels.iter().any(|(label, _)| label.contains("不支持的定时任务投递通道：wecom")));
+                        assert!(
+                            geometry
+                                .labels
+                                .iter()
+                                .any(|(label, _)| label.contains("保存任务不代表已送达"))
+                        );
+                        let scroll = geometry.scrolls[0];
+                        ui.update(
+                            &[Event::Mouse(mouse::Event::WheelScrolled {
+                                delta: mouse::ScrollDelta::Lines { x: 0.0, y: -100.0 },
+                            })],
+                            mouse::Cursor::Available(scroll.center()),
+                            &mut renderer,
+                            &mut clipboard::Null,
+                            &mut messages,
+                        );
+                    }
+                    ui.draw(
+                        &mut renderer,
+                        &theme,
+                        &Style { text_color: theme.palette().text },
+                        mouse::Cursor::Unavailable,
+                    );
+                    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+                    assert_eq!(pixels.len(), (size.width * size.height * 4) as usize);
+                    let colors: std::collections::HashSet<_> = pixels.chunks_exact(4).collect();
+                    assert!(colors.len() > 100, "modal must paint more than its backdrop");
+                    if let Some(dir) = std::env::var_os("SHIJU_CRON_MODAL_SCREENSHOTS") {
+                        let dir = std::path::PathBuf::from(dir);
+                        std::fs::create_dir_all(&dir).unwrap();
+                        ::image::save_buffer(
+                            dir.join(format!("feedback-{confirm}-{name}-{}.png", size.width)),
+                            &pixels,
+                            size.width,
+                            size.height,
+                            ::image::ColorType::Rgba8,
+                        )
+                        .unwrap();
                     }
                 }
             }

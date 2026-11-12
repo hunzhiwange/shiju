@@ -351,7 +351,8 @@ fn add_draft_messages_update_fields_and_enforce_schedule_exclusivity() {
     assert_eq!(app.cron_settings.add_draft.command_editor.text(), "echo hi");
     assert_eq!(app.cron_settings.add_draft.prompt_editor.text(), "prompt");
     assert!(app.cron_settings.add_draft.wake);
-    assert!(app.cron_settings.add_draft.full_access);
+    assert!(!app.cron_settings.add_draft.full_access);
+    assert!(app.cron_settings.add_draft.full_access_confirmation);
     assert!(app.cron_settings.add_draft.delivery_enabled);
 
     let _ = update(&mut app, SettingsMessage::CronAddScheduleKindChanged(CronAddScheduleKind::At));
@@ -568,6 +569,8 @@ fn jobs_tab_selection_starts_loading_and_clears_transient_messages() {
 #[test]
 fn mutation_actions_clear_errors_when_they_can_start() {
     let mut app = app();
+    app.cron_settings.edit_draft.prompt = "report".into();
+    app.cron_settings.add_draft.prompt = "report".into();
 
     app.cron_settings.save_error = Some("old".to_string());
     app.cron_settings.editing_job_id = Some("job-1".to_string());
@@ -1176,4 +1179,133 @@ fn wb_schedule_modal_no_future_trigger_rejects_save() {
     assert!(!app.cron_settings.add_draft.submitting);
     assert_eq!(app.cron_settings.add_draft.prompt, "检查项目");
     assert!(app.cron_settings.save_error.as_deref().unwrap().contains("预览"));
+}
+
+#[test]
+fn wb_schedule_feedback_cancel_keeps_restricted_access() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(true));
+    assert!(!app.cron_settings.add_draft.full_access, "授权确认前必须保持受限");
+    let _ = update(&mut app, SettingsMessage::CronFullAccessCancel { editing: false });
+    assert!(!app.cron_settings.add_draft.full_access);
+    assert!(!app.cron_settings.add_draft.full_access_confirmation);
+    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: false });
+    assert!(!app.cron_settings.add_draft.full_access);
+}
+
+#[test]
+fn wb_schedule_feedback_frequency_keeps_restricted_access() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(CronFrequency::Weekly));
+    assert!(!app.cron_settings.add_draft.full_access);
+}
+
+#[test]
+fn wb_schedule_feedback_missing_target_rejected() {
+    let mut app = app();
+    app.cron_settings.add_draft.prompt = "report".into();
+    app.cron_settings.add_draft.delivery_enabled = true;
+    app.cron_settings.add_draft.delivery_channel = "slack".into();
+    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(app.cron_settings.save_error.as_deref().unwrap().contains("投递目标"));
+}
+
+#[test]
+fn wb_schedule_feedback_unsupported_channel_preserved_and_rejected() {
+    let mut app = app();
+    let mut existing = job("unsupported");
+    existing.delivery_mode = "announce".into();
+    existing.delivery_channel = Some("wecom".into());
+    app.cron_settings.jobs.push(existing);
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted("unsupported".into()));
+    assert_eq!(app.cron_settings.edit_draft.delivery_channel, "wecom");
+    app.cron_settings.edit_draft.schedule_draft = None;
+    let _ = update(&mut app, SettingsMessage::CronJobEditSave);
+    assert!(!app.cron_settings.edit_draft.submitting);
+    assert!(app.cron_settings.save_error.as_deref().unwrap().contains("不支持"));
+}
+
+#[test]
+fn wb_schedule_feedback_execution_error_readable_in_history() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronJobRunsOpen("job-1".into()));
+    let mut denied = run(1, Some("blocked by security policy: read-only"), Some(1));
+    denied.status = "error".into();
+    let _ = update(&mut app, SettingsMessage::CronJobRunsLoaded("job-1".into(), Ok(vec![denied])));
+    assert!(app.cron_settings.runs_modal_editor.text().contains("blocked by security policy"));
+}
+
+#[test]
+fn wb_schedule_feedback_confirm_then_cancel_form_does_not_save_authority() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let _ = update(&mut app, SettingsMessage::CronAddFullAccessToggled(true));
+    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: false });
+    assert!(app.cron_settings.add_draft.full_access);
+    assert!(!app.cron_settings.add_draft.full_access_confirmation);
+    let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(CronFrequency::Weekly));
+    assert!(app.cron_settings.add_draft.full_access);
+    let _ = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    assert!(!app.cron_settings.add_draft.full_access);
+    assert!(app.cron_settings.jobs.is_empty());
+    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: false });
+    assert!(!app.cron_settings.add_draft.full_access);
+}
+
+#[test]
+fn wb_schedule_feedback_existing_authority_does_not_prompt_again() {
+    let mut app = app();
+    let mut existing = job("authorized");
+    existing.full_access = true;
+    app.cron_settings.jobs.push(existing);
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted("authorized".into()));
+    assert!(app.cron_settings.edit_draft.full_access);
+    assert!(!app.cron_settings.edit_draft.full_access_confirmation);
+    let _ = update(&mut app, SettingsMessage::CronJobEditFrequencyChanged(CronFrequency::Weekly));
+    assert!(app.cron_settings.edit_draft.full_access);
+    let _ = update(&mut app, SettingsMessage::CronJobEditFullAccessToggled(false));
+    let _ = update(&mut app, SettingsMessage::CronJobEditFullAccessToggled(true));
+    assert!(!app.cron_settings.edit_draft.full_access);
+    assert!(app.cron_settings.edit_draft.full_access_confirmation);
+    let _ = update(&mut app, SettingsMessage::CronFullAccessCancel { editing: true });
+    assert!(!app.cron_settings.edit_draft.full_access);
+    let _ = update(&mut app, SettingsMessage::CronJobEditFullAccessToggled(true));
+    let _ = update(&mut app, SettingsMessage::CronFullAccessConfirm { editing: true });
+    assert!(app.cron_settings.edit_draft.full_access);
+    let _ = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    assert!(app.cron_settings.jobs[0].full_access);
+}
+
+#[test]
+fn wb_schedule_feedback_unconfigured_channel_is_explicit_error() {
+    let mut app = app();
+    app.channels_settings.slack = None;
+    let draft = &mut app.cron_settings.add_draft;
+    draft.prompt = "report".into();
+    draft.delivery_enabled = true;
+    draft.delivery_channel = "slack".into();
+    draft.delivery_to = "target".into();
+    assert!(draft.delivery_best_effort);
+    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(app.cron_settings.save_error.as_deref().unwrap().contains("未配置"));
+}
+
+#[test]
+fn wb_schedule_feedback_save_error_preserves_draft_and_shows_toast() {
+    let mut app = app();
+    app.cron_settings.add_draft.prompt = "report".into();
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronJobMutationCompleted(Err("permission denied".into())),
+    );
+    assert_eq!(app.cron_settings.save_error.as_deref(), Some("permission denied"));
+    let toast = app.active_toast.as_ref().expect("error toast");
+    assert_eq!(toast.message, "permission denied");
+    assert_eq!(toast.kind, crate::app::state::ToastKind::Error);
+    assert_eq!(app.cron_settings.add_draft.prompt, "report");
+    assert!(!app.cron_settings.add_draft.submitting);
 }

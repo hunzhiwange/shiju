@@ -199,6 +199,29 @@ mod cron_tests;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::CronFullAccessConfirm { editing } => {
+            let state = &mut app.cron_settings;
+            let active = if editing {
+                state.editing_job_id.is_some()
+            } else {
+                state.show_add_modal && state.editing_job_id.is_none()
+            };
+            let draft = if editing { &mut state.edit_draft } else { &mut state.add_draft };
+            if active && !draft.submitting && draft.full_access_confirmation {
+                draft.full_access = true;
+                draft.full_access_confirmation = false;
+            }
+            Task::none()
+        }
+        SettingsMessage::CronFullAccessCancel { editing } => {
+            let draft = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            draft.full_access_confirmation = false;
+            Task::none()
+        }
         SettingsMessage::CronPickerOpen { editing } => {
             let state = &mut app.cron_settings;
             if state.date_time_picker.is_some()
@@ -556,6 +579,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.edit_draft.wake = job.wake;
                 app.cron_settings.edit_draft.fallbacks = job.fallbacks.join("\n");
                 app.cron_settings.edit_draft.full_access = job.full_access;
+                app.cron_settings.edit_draft.full_access_confirmation = false;
                 app.cron_settings.edit_draft.task_pool = job.task_pool;
                 app.cron_settings.edit_draft.delivery_enabled = job.delivery_mode == "announce";
                 app.cron_settings.edit_draft.delivery_channel =
@@ -575,7 +599,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
             app.cron_settings.show_add_modal = false;
-            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let add_revision = app.cron_settings.add_draft.schedule_revision + 1;
+            app.cron_settings.add_draft = Default::default();
+            app.cron_settings.add_draft.schedule_revision = add_revision;
             app.cron_settings.date_time_picker = None;
             app.cron_settings.editing_job_id = None;
             let revision = app.cron_settings.edit_draft.schedule_revision + 1;
@@ -720,7 +746,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditFullAccessToggled(value) => {
-            app.cron_settings.edit_draft.full_access = value;
+            let draft = &mut app.cron_settings.edit_draft;
+            if !draft.submitting {
+                draft.full_access_confirmation = value && !draft.full_access;
+                if !value {
+                    draft.full_access = false;
+                }
+            }
             Task::none()
         }
         SettingsMessage::CronJobEditTaskPoolToggled(value) => {
@@ -766,7 +798,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.save_error = Some("没有正在编辑的定时任务".to_string());
                 return Task::none();
             };
-            if let Err(error) = validate_modal_payload(&app.cron_settings.edit_draft) {
+            if let Err(error) = validate_delivery(app, &app.cron_settings.edit_draft)
+                .and_then(|()| validate_modal_payload(&app.cron_settings.edit_draft))
+            {
                 app.cron_settings.save_error = Some(error.clone());
                 app.cron_settings.save_error_translation = None;
                 return app.show_error_toast(error);
@@ -999,7 +1033,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronAddFullAccessToggled(value) => {
-            app.cron_settings.add_draft.full_access = value;
+            let draft = &mut app.cron_settings.add_draft;
+            if !draft.submitting {
+                draft.full_access_confirmation = value && !draft.full_access;
+                if !value {
+                    draft.full_access = false;
+                }
+            }
             Task::none()
         }
         SettingsMessage::CronAddTaskPoolToggled(value) => {
@@ -1039,7 +1079,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             };
 
-            if let Err(error) = validate_modal_payload(&app.cron_settings.add_draft) {
+            if let Err(error) = validate_delivery(app, &app.cron_settings.add_draft)
+                .and_then(|()| validate_modal_payload(&app.cron_settings.add_draft))
+            {
                 app.cron_settings.save_error = Some(error.clone());
                 app.cron_settings.save_error_translation = None;
                 return app.show_error_toast(error);
@@ -1122,6 +1164,9 @@ pub(crate) fn refresh_run_history_locale(app: &mut App) {
 }
 
 fn validate_modal_payload(draft: &crate::app::state::CronJobDraft) -> Result<(), String> {
+    if draft.full_access_confirmation {
+        return Err("请先确认或取消完全访问授权".into());
+    }
     match draft.job_type {
         CronAddJobType::Shell if draft.command.trim().is_empty() => {
             return Err("请输入执行命令".into());
@@ -1135,6 +1180,39 @@ fn validate_modal_payload(draft: &crate::app::state::CronJobDraft) -> Result<(),
         && !matches!(&draft.preview, Some(Ok(p)) if !p.candidates.is_empty())
     {
         return Err("请先预览当前规则并确认存在未来触发时间".into());
+    }
+    Ok(())
+}
+
+/// 仅校验已知配置；凭证有效性与最终发送结果仍由执行器判定。
+pub(crate) fn validate_delivery(
+    app: &App,
+    draft: &crate::app::state::CronJobDraft,
+) -> Result<(), String> {
+    if !draft.delivery_enabled {
+        return Ok(());
+    }
+    if draft.delivery_to.trim().is_empty() {
+        return Err("请输入投递目标".into());
+    }
+    let channel = draft.delivery_channel.trim().to_ascii_lowercase();
+    let configured = match channel.as_str() {
+        "telegram" => app.channels_settings.telegram.is_some(),
+        "discord" => app.channels_settings.discord.is_some(),
+        "slack" => app.channels_settings.slack.is_some(),
+        "mattermost" => app.channels_settings.mattermost.is_some(),
+        "qq" => app.channels_settings.qq.is_some(),
+        #[cfg(not(target_arch = "wasm32"))]
+        "email" => app.channels_settings.email.is_some(),
+        _ => {
+            return Err(format!(
+                "不支持的定时任务投递通道：{}；请选择受支持通道或关闭结果投递",
+                draft.delivery_channel
+            ));
+        }
+    };
+    if !configured {
+        return Err(format!("投递通道 {channel} 未配置；请先在通道设置中配置凭证"));
     }
     Ok(())
 }

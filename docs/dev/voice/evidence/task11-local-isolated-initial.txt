@@ -1,0 +1,128 @@
+SLOT=5 CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5
+FMT_EXIT=0
+COMMAND=['cargo', 'clippy', '--all-targets', '--all-features', '--', '-D', 'warnings']
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-api-types)
+    Checking block v0.1.6 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/block)
+    Checking iced_winit v0.14.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/iced_winit)
+    Checking vw-tui v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-tui)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-desktop)
+    Checking metal v0.32.0
+    Checking wgpu-hal v27.0.4
+    Checking wgpu-core-deps-apple v27.0.0
+    Checking wgpu-core v27.0.3
+    Checking wgpu v27.0.1
+    Checking cryoglyph v0.1.0
+    Checking iced_wgpu v0.14.0
+    Checking iced_renderer v0.14.0
+    Checking iced_widget v0.14.2
+    Checking iced v0.14.0
+    Checking iced_fonts v0.3.0
+    Checking iced_aw v0.13.1
+    Checking iced_font_awesome v0.4.3
+    Checking iced_term v0.8.1 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/iced_term)
+    Checking iced-code-editor v0.5.2 (https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.4#b1279104)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-gateway-client)
+    Checking vw-webview v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-webview)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-cli)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 8m 05s
+RESULT=0
+COMMAND=['cargo', 'test', '-p', 'vw-desktop', '--lib', 'voice_task_11_', '--', '--nocapture']
+   Compiling block v0.1.6 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/block)
+   Compiling iced_winit v0.14.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/iced_winit)
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-config-types)
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-api-types)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-desktop)
+   Compiling metal v0.32.0
+   Compiling wgpu-hal v27.0.4
+   Compiling wgpu-core-deps-apple v27.0.0
+   Compiling wgpu-core v27.0.3
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-shared)
+   Compiling wgpu v27.0.1
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-provider-resolver)
+   Compiling cryoglyph v0.1.0
+   Compiling iced_wgpu v0.14.0
+   Compiling iced_renderer v0.14.0
+   Compiling iced_widget v0.14.2
+   Compiling iced v0.14.0
+   Compiling iced_fonts v0.3.0
+   Compiling iced_font_awesome v0.4.3
+   Compiling iced_term v0.8.1 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/vendor/iced_term)
+   Compiling iced_aw v0.13.1
+   Compiling iced-code-editor v0.5.2 (https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.4#b1279104)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-gateway-client)
+    Finished `test` profile [optimized + debuginfo] target(s) in 10m 13s
+     Running unittests src/lib.rs (/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_desktop-4c10acd06c04d5d7)
+
+running 21 tests
+test app::voice::conversation::tests::voice_task_11_captions_replace_deltas_and_ignore_repeated_final ... ok
+test app::voice::conversation::tests::voice_task_11_playback_progress_tracks_consumed_samples ... ok
+test app::voice::conversation::tests::voice_task_11_conversation_interrupt_stops_old_audio ... ok
+test app::voice::conversation::tests::voice_task_11_conversation_end_releases_capture ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_long_prose_has_explicit_bounded_prefix ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_does_not_read_inline_code ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_reads_only_final_prose ... ok
+test app::voice::conversation::tests::voice_task_11_end_cancels_pending_gateway_connection ... ok
+test app::voice::conversation::tests::voice_task_11_live_capture_has_bounded_frames_and_clear_discards_pending ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_voice_preference_roundtrips_without_cloud_config ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_playback_paces_pcm_and_cancels_within_bound ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_mute_end_and_switch_discard_late_results ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_rejects_commands_and_preserves_draft ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_screen_share_rejects_before_permission_or_capture ... ok
+test app::message::voice::tests::voice_task_11_local_start_never_opens_cloud_conversation ... ok
+
+thread 'app::message::voice::local_chat::tests::voice_task_11_local_preserves_model_history_and_permission_policy' (86187699) panicked at crates/vw-desktop/src/app/message/voice_local_chat_tests.rs:132:5:
+assertion `left == right` failed
+  left: None
+ right: Some(false)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test app::message::voice::local_chat::tests::voice_task_11_local_preserves_model_history_and_permission_policy ... FAILED
+test app::message::voice::local_chat::tests::voice_task_11_local_interrupt_stops_only_owned_model_request ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_uses_ordinary_request_and_final_completion_once ... ok
+test app::components::voice_chat::tests::voice_task_11_local_overlay_shapes_chinese_in_both_themes ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_playback_drains_more_than_two_second_capacity ... ok
+test app::components::voice_chat::tests::voice_task_11_chat_renders_chinese_in_both_themes_and_routes_controls ... ok
+
+failures:
+
+failures:
+    app::message::voice::local_chat::tests::voice_task_11_local_preserves_model_history_and_permission_policy
+
+test result: FAILED. 20 passed; 1 failed; 0 ignored; 0 measured; 9483 filtered out; finished in 0.45s
+
+error: test failed, to rerun pass `-p vw-desktop --lib`
+RESULT=101
+COMMAND=['cargo', 'test', '-p', 'vw-desktop', '--lib', 'voice_task_07_', '--', '--nocapture']
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_desktop-4c10acd06c04d5d7)
+
+running 22 tests
+test app::components::input_panel::voice_controls_tests::voice_task_07_controls_keep_finish_cancel_and_apply_distinct ... ok
+test app::components::input_panel::voice_controls_tests::voice_task_07_toolbar_style_has_contrast_in_both_themes ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_permission_gate_never_opens_capture_without_speech ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_limits_and_explicit_cloud_are_distinct ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_default_and_legacy_preferences_use_local_on_macos ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_cancelled_prepare_never_requests_permissions ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_route_does_not_require_gateway_or_cloud_provider ... ok
+test app::message::voice_tests::voice_task_07_dictation_cancel_ignores_late_result ... ok
+test app::message::voice_tests::voice_task_07_dictation_fills_original_draft_once ... ok
+test app::message::voice_tests::voice_task_07_edited_draft_retains_result_even_after_undo ... ok
+test app::message::voice_tests::voice_task_07_scope_and_phase_reject_unrelated_completion ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_native_success_does_not_cancel_completed_token ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_native_cancel_discards_late_success ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_archive_over_limit_never_calls_native_or_uploads ... ok
+test app::voice::preferences::tests::voice_task_07_local_preferences_roundtrip_and_legacy_migration ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_archive_retry_passes_pcm_without_gateway ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_timeout_drop_cancels_native_worker ... ok
+test app::message::voice::tests::voice_task_07_composer_inserts_at_original_cursor_without_sending ... ok
+test app::message::voice::tests::voice_task_07_composer_switch_and_cancel_reject_late_reply ... ok
+test app::message::voice::tests::voice_task_07_escape_invalidates_before_late_completion ... ok
+test app::message::voice::tests::voice_task_07_composer_preserves_edit_then_applies_explicitly ... ok
+test app::message::voice::dictation::tests::voice_task_07_local_context_change_cancels_native_and_rejects_completion ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 9482 filtered out; finished in 0.12s
+
+RESULT=0
+EXIT=0

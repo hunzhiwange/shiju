@@ -62,3 +62,6 @@ pub(crate) mod acceptance_fixture;
 pub mod local;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod local_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod local_conversation;

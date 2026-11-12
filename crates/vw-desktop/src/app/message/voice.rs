@@ -1,4 +1,4 @@
-//! Composer dictation. Device capture stays local; only WAV bytes reach the gateway.
+//! Dictation and conversation routing. Local media never reaches the gateway.
 use super::voice_draft::{Draft, Phase, Scope};
 use crate::app::voice::capture::Capture;
 use crate::app::{App, Message};
@@ -14,6 +14,9 @@ pub use screen::ScreenEvent;
 #[path = "voice_dictation.rs"]
 pub(super) mod dictation;
 
+#[path = "voice_local_chat.rs"]
+pub(crate) mod local_chat;
+
 type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
@@ -27,6 +30,8 @@ pub(crate) struct State {
     retain_requested: bool,
     pub settings: super::settings::voice::State,
     pub conversation: Option<crate::app::voice::conversation::Conversation>,
+    pub local_conversation: Option<local_chat::State>,
+    pub local_stop: Option<local_chat::Stop>,
     conversation_scope: Option<Scope>,
     conversation_error_reported: bool,
     conversation_endpoint: Option<GatewayEndpoint>,
@@ -48,6 +53,7 @@ pub enum OnboardingEvent {
 }
 #[derive(Clone)]
 pub enum Event {
+    Local(local_chat::Event),
     Screen(ScreenEvent),
     Onboarding(OnboardingEvent),
     Recordings(super::voice_recordings::Event),
@@ -68,6 +74,11 @@ pub enum Event {
 }
 // Do not log transcripts, endpoint credentials or capture payloads through Message::Debug.
 impl State {
+    pub(crate) fn chat_active(&self) -> bool {
+        self.conversation.is_some()
+            || self.local_conversation.is_some()
+            || self.local_stop.is_some()
+    }
     pub(crate) fn ready(&self) -> bool {
         self.device.is_some()
     }
@@ -75,6 +86,7 @@ impl State {
 impl std::fmt::Debug for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Local(..) => "VoiceLocalChat",
             Self::Screen(..) => "VoiceScreen",
             Self::Onboarding(..) => "VoiceOnboarding",
             Self::Recordings(..) => "VoiceRecordings",
@@ -123,6 +135,7 @@ fn stop(state: &mut State) {
     state.retain_requested = false;
 }
 pub(crate) fn end_conversation(app: &mut App) {
+    local_chat::end(app);
     app.voice.screen.cancel();
     app.voice.screen.enabled = false;
     app.voice.conversation.take();
@@ -167,7 +180,7 @@ pub(crate) fn invalidate(app: &mut App) {
     }
     super::settings::voice::invalidate(app);
     super::voice_recordings::invalidate(app);
-    if app.voice.conversation.is_some() {
+    if app.voice.chat_active() {
         let endpoint = crate::app::gateway_client_endpoint();
         let auth_changed = app.voice.conversation_endpoint.as_ref().is_some_and(|old| {
             old.auth.as_ref().and_then(|a| a.skey.as_ref())
@@ -215,6 +228,7 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::Local(event) => local_chat::update(app, event),
         Event::Screen(event) => screen::update(app, event),
         Event::Onboarding(event) => {
             use OnboardingEvent::*;
@@ -263,13 +277,20 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             update(app, Event::Completed(generation, result))
         }
         Event::ChatStart => {
+            if app.voice.insertion.pending.is_some() {
+                return app.show_error_toast("请先复制或丢弃未插入的跨应用听写结果。");
+            }
             if app.voice.recordings.replay.is_some()
                 || app.voice.settings.preview.is_some()
                 || app.voice.recordings.busy
             {
                 return app.show_error_toast("请先停止回放或试听再开始语音聊天。");
             }
-            if app.voice.conversation.is_some() {
+            if let Some(chat) = app.voice.local_conversation.as_mut() {
+                chat.show = true;
+                return Task::none();
+            }
+            if app.voice.chat_active() {
                 return Task::none();
             }
             if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing) {
@@ -277,6 +298,13 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     crate::app::state::ToastKind::Info,
                     "请先结束听写再开始语音聊天。",
                 );
+            }
+            let preferences = match crate::app::voice::preferences::Preferences::load() {
+                Ok(p) => p,
+                Err(error) => return app.show_error_toast(error),
+            };
+            if preferences.engine == crate::app::voice::preferences::VoiceEngine::Local {
+                return local_chat::start(app, preferences);
             }
             let Some(scope) = scope(app) else {
                 return fail(app, "请先选择聊天会话。".into());
@@ -297,12 +325,18 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::ChatMute => {
+            if app.voice.local_conversation.is_some() {
+                return local_chat::mute(app);
+            }
             if let Some(chat) = &app.voice.conversation {
                 chat.mute();
             }
             Task::none()
         }
         Event::ChatInterrupt => {
+            if app.voice.local_conversation.is_some() {
+                return local_chat::interrupt(app);
+            }
             if let Some(chat) = &app.voice.conversation {
                 chat.interrupt();
             }
@@ -310,9 +344,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         Event::ChatEnd => {
             end_conversation(app);
-            Task::none()
+            local_chat::tick(app)
         }
         Event::ChatTick => {
+            if app.voice.local_conversation.is_some() || app.voice.local_stop.is_some() {
+                return local_chat::tick(app);
+            }
             if !app.voice.conversation_error_reported
                 && let Some(error) =
                     app.voice.conversation.as_ref().and_then(|c| c.snapshot().error)
@@ -336,7 +373,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             {
                 return app.show_error_toast("请先结束回放、试听或重新识别再开始听写。");
             }
-            if app.voice.conversation.is_some() {
+            if app.voice.chat_active() {
                 return app.show_toast(
                     crate::app::state::ToastKind::Info,
                     "请先结束语音聊天再开始听写。",

@@ -31,6 +31,15 @@ pub(crate) fn with_voice_chat<'a>(
     app: &'a App,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    if let Some(chat) = &app.voice.local_conversation {
+        if !chat.show
+            || app.permission_modal_request_id.is_some()
+            || app.question_modal_request_id.is_some()
+        {
+            return base;
+        }
+        return local_overlay(base, chat);
+    }
     let Some(chat) = &app.voice.conversation else {
         return base;
     };
@@ -150,3 +159,80 @@ pub(crate) fn overlay_screen<'a>(
 #[cfg(test)]
 #[path = "voice_chat_tests.rs"]
 mod tests;
+
+fn local_overlay<'a>(
+    base: Element<'a, Message>,
+    chat: &crate::app::message::voice::local_chat::State,
+) -> Element<'a, Message> {
+    use crate::app::message::voice::local_chat::{Event as LocalEvent, Stage};
+    let close = message(Event::ChatEnd);
+    let header =
+        settings_modal_header(text("本机逐轮语音").size(20), settings_close_button(close.clone()));
+    let label = match chat.stage {
+        Stage::Ready => "准备开始下一轮",
+        Stage::Preparing => "正在准备麦克风与系统识别",
+        Stage::Recording => "正在录音（最多60秒）",
+        Stage::Recognizing => "正在本机识别",
+        Stage::WaitingModel => "正在等待聊天模型（审批请查看聊天）",
+        Stage::Speaking => "正在本机朗读",
+    };
+    let mut body = column![
+        text(label).size(18),
+        text("录音与语音处理留在本机；识别文字通过当前聊天模型发送，模型可能在远端运行。").size(13),
+        text("点击开始录音，再点击停止并发送。每轮回复完成后朗读正文；长回复仅朗读开头。").size(13),
+        text("本机逐轮语音暂不支持屏幕分享；请查看聊天并使用附件。").size(13)
+    ]
+    .spacing(12);
+    if let Some(notice) = &chat.notice {
+        body = body.push(text(notice.clone()).size(14));
+    }
+    for (assistant, caption) in &chat.captions {
+        body = body.push(
+            column![
+                text(if *assistant { "ShiJu" } else { "你" }).size(12),
+                text(caption.clone()).size(15)
+            ]
+            .spacing(4),
+        );
+    }
+    let action = |label, event| {
+        button(text(label))
+            .padding([8, 14])
+            .style(rounded_action_btn_style)
+            .on_press(message(event))
+    };
+    let footer = row![
+        button(text(if chat.stage == Stage::Recording {
+            "停止并发送"
+        } else {
+            "开始录音"
+        }))
+        .padding([8, 14])
+        .style(primary_action_btn_style)
+        .on_press_maybe(
+            (!chat.muted && matches!(chat.stage, Stage::Ready | Stage::Recording)).then(
+                || message(Event::Local(if chat.stage == Stage::Recording {
+                    LocalEvent::Finish
+                } else {
+                    LocalEvent::Begin
+                }))
+            )
+        ),
+        action(if chat.muted { "取消静音" } else { "静音" }, Event::ChatMute),
+        action("打断本轮", Event::ChatInterrupt),
+        action("查看聊天", Event::Local(LocalEvent::ViewChat)),
+        action("结束通话", Event::ChatEnd),
+    ]
+    .spacing(8)
+    .wrap();
+    let card = settings_modal_layout(header, body, Some(footer.into()))
+        .width(Length::Fill)
+        .max_width(640)
+        .height(Length::Fill)
+        .max_height(760);
+    settings_modal_overlay_with_escape(
+        base,
+        close,
+        container(card).padding(12).max_width(664).max_height(784),
+    )
+}

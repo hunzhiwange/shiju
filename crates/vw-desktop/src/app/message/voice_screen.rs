@@ -20,6 +20,11 @@ pub enum ScreenEvent {
     AttachmentChat,
 }
 pub(super) fn update(app: &mut App, event: ScreenEvent) -> Task<Message> {
+    if app.voice.local_conversation.is_some()
+        && !matches!(event, ScreenEvent::Cancel | ScreenEvent::AttachmentChat)
+    {
+        return app.show_error_toast("本机逐轮语音暂不支持屏幕分享，请使用普通聊天附件。");
+    }
     match event {
         ScreenEvent::Enable(enabled) => {
             let enabled = enabled

@@ -33,7 +33,7 @@ pub(super) fn dispatch(app: &mut App, actions: Vec<Action>) -> Task<Message> {
         let event = match action {
             Action::Start => {
                 if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-                    || app.voice.conversation.is_some()
+                    || app.voice.chat_active()
                 {
                     app.voice.hotkeys.machine.reset();
                     // The same poll may also contain this rejected press's release.

@@ -245,11 +245,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Preview => {
+            let chat_active = app.voice.chat_active();
             let state = &mut app.voice.settings;
             if state.busy || state.preview.is_some() {
                 return Task::none();
             }
-            if app.voice.conversation.is_some()
+            if chat_active
                 || app.voice.recordings.replay.is_some()
                 || matches!(
                     app.voice.draft.phase,

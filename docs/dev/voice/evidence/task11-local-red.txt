@@ -1,0 +1,36 @@
+SLOT=5 CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5
+FMT_EXIT=0
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+   Compiling vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 48s
+     Running unittests src/lib.rs (target/rust-slot-5/debug/deps/vw_desktop-4c10acd06c04d5d7)
+
+running 2 tests
+
+thread 'app::voice::local_conversation::tests::voice_task_11_local_does_not_read_inline_code' (85896051) panicked at crates/vw-desktop/src/app/voice/local_conversation_tests.rs:8:5:
+assertion `left == right` failed
+  left: "请查看 `secret_token()` 后继续。"
+ right: "请查看  后继续。"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'app::voice::local_conversation::tests::voice_task_11_local_reads_only_final_prose' (85896052) panicked at crates/vw-desktop/src/app/voice/local_conversation_tests.rs:4:5:
+assertion `left == right` failed
+  left: "<think>内部思考</think>你好。\n```rust\nsecret();\n```"
+ right: "你好。"
+test app::voice::local_conversation::tests::voice_task_11_local_reads_only_final_prose ... FAILED
+test app::voice::local_conversation::tests::voice_task_11_local_does_not_read_inline_code ... FAILED
+
+failures:
+
+failures:
+    app::voice::local_conversation::tests::voice_task_11_local_does_not_read_inline_code
+    app::voice::local_conversation::tests::voice_task_11_local_reads_only_final_prose
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 9491 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vw-desktop --lib`
+TEST_EXIT=101
+EXIT=101

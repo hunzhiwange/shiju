@@ -1430,6 +1430,13 @@ pub(super) fn complete_agent_stream(
         let _ = render.complete(&session_id, generation, content);
         app.get_session_runtime_mut(&session_id).stream_render_state = render;
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    let local_voice = crate::app::message::voice::local_chat::model_completed(
+        app,
+        id,
+        &session_id,
+        &persisted_chat,
+    );
     let handoff_task = complete_quick_message_handoff(app, id, &session_id, &persisted_chat);
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()
@@ -1623,7 +1630,13 @@ pub(super) fn complete_agent_stream(
     .chain(trajectory_raw_task)
     .chain(next)
     .chain(handoff_task.unwrap_or_else(Task::none));
-    Task::batch([completion, notification, refresh_title])
+    Task::batch([
+        completion,
+        notification,
+        refresh_title,
+        #[cfg(not(target_arch = "wasm32"))]
+        local_voice,
+    ])
 }
 
 /// 模块内可见函数，执行 handle_agent_post_tool_round 对应的应用流程。

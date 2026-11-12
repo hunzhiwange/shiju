@@ -22,6 +22,8 @@ pub struct Preferences {
     pub engine: VoiceEngine,
     /// None means the system recognition locale, not automatic detection.
     pub local_language: Option<String>,
+    /// Installed macOS system voice identifier; None uses the system voice.
+    pub local_voice: Option<String>,
     pub microphone: Option<String>,
     // Explicit opt-in; local archive policy is independent of tenant/service settings.
     pub retain_recordings: bool,
@@ -30,6 +32,13 @@ pub struct Preferences {
 impl Preferences {
     pub(crate) fn validate(&self) -> Result<(), String> {
         self.hotkeys.validate()?;
+        if self
+            .local_voice
+            .as_ref()
+            .is_some_and(|voice| voice.is_empty() || voice.len() > 512 || voice.contains('\0'))
+        {
+            return Err("本机朗读声音无效，请重新选择系统声音。".into());
+        }
         super::local::language(self.local_language.as_deref()).map_err(|_| {
             "本机识别语言无效，请选择系统语言或有效的 BCP-47 标签（如 zh-CN）。".to_owned()
         })?;

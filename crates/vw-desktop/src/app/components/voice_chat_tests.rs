@@ -154,3 +154,45 @@ async fn voice_task_17_screen_consent_renders_chinese_and_routes_buttons() {
         ));
     }
 }
+
+#[tokio::test]
+async fn voice_task_11_local_overlay_shapes_chinese_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() {
+            fonts.load_font(font);
+        }
+    }
+    let (mut app, _) = App::new();
+    app.project_path = Some("/repo".into());
+    app.active_session_id = Some("local-ui".into());
+    app.current_session_runtime_mut().acp_agent = None;
+    let _ = crate::app::message::voice::update(&mut app, Event::ChatStart);
+    let chat = app.voice.local_conversation.as_mut().unwrap();
+    chat.captions.push((true, "中文正文、非 ASCII 🌱。".into()));
+    let mut renderer =
+        iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let mut ui = UserInterface::build(
+        with_voice_chat(&app, text("当前聊天").into()),
+        iced::Size::new(700.0, 640.0),
+        Cache::new(),
+        &mut renderer,
+    );
+    let mut labels = Labels::default();
+    ui.operate(&renderer, &mut labels);
+    for expected in ["本机逐轮语音", "开始录音", "查看聊天", "结束通话"] {
+        let bounds = labels.0.iter().find(|(s, _)| s == expected).unwrap().1;
+        assert!(bounds.x >= 0.0 && bounds.y >= 0.0 && bounds.y + bounds.height <= 640.0);
+    }
+    for theme in [iced::Theme::Light, iced::Theme::Dark] {
+        ui.draw(&mut renderer, &theme, &Default::default(), iced::mouse::Cursor::Unavailable);
+        assert!(
+            renderer
+                .screenshot(iced::Size::new(700, 640), 1.0, iced::Color::TRANSPARENT)
+                .chunks_exact(4)
+                .any(|p| p[3] != 0)
+        );
+    }
+}

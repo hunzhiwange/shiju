@@ -26,6 +26,7 @@ mod markdown_rich;
 mod markdown_selection;
 pub(in crate::app::components) use markdown_selection::selectable_titled_text;
 mod parse;
+pub(crate) use parse::assistant_speech_text;
 mod render_cache;
 mod styles;
 mod text;

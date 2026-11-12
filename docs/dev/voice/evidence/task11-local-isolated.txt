@@ -1,0 +1,38 @@
+SLOT=5 CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5
+FMT_EXIT=0
+COMMAND=['cargo', 'clippy', '--all-targets', '--all-features', '--', '-D', 'warnings']
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-desktop)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 37.01s
+RESULT=0
+COMMAND=['cargo', 'test', '-p', 'vw-desktop', '--lib', 'voice_task_11_', '--', '--nocapture']
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/.codex/worktrees/voice11-verify/shiju/crates/vw-desktop)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 49s
+     Running unittests src/lib.rs (/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_desktop-4c10acd06c04d5d7)
+
+running 21 tests
+test app::voice::conversation::tests::voice_task_11_captions_replace_deltas_and_ignore_repeated_final ... ok
+test app::voice::conversation::tests::voice_task_11_conversation_interrupt_stops_old_audio ... ok
+test app::voice::conversation::tests::voice_task_11_playback_progress_tracks_consumed_samples ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_long_prose_has_explicit_bounded_prefix ... ok
+test app::voice::conversation::tests::voice_task_11_conversation_end_releases_capture ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_does_not_read_inline_code ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_reads_only_final_prose ... ok
+test app::voice::conversation::tests::voice_task_11_end_cancels_pending_gateway_connection ... ok
+test app::voice::conversation::tests::voice_task_11_live_capture_has_bounded_frames_and_clear_discards_pending ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_voice_preference_roundtrips_without_cloud_config ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_playback_paces_pcm_and_cancels_within_bound ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_rejects_commands_and_preserves_draft ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_mute_end_and_switch_discard_late_results ... ok
+test app::message::voice::tests::voice_task_11_local_start_never_opens_cloud_conversation ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_interrupt_stops_only_owned_model_request ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_screen_share_rejects_before_permission_or_capture ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_uses_ordinary_request_and_final_completion_once ... ok
+test app::message::voice::local_chat::tests::voice_task_11_local_preserves_model_history_and_permission_policy ... ok
+test app::components::voice_chat::tests::voice_task_11_local_overlay_shapes_chinese_in_both_themes ... ok
+test app::voice::local_conversation::tests::voice_task_11_local_playback_drains_more_than_two_second_capacity ... ok
+test app::components::voice_chat::tests::voice_task_11_chat_renders_chinese_in_both_themes_and_routes_controls ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 9483 filtered out; finished in 0.52s
+
+RESULT=0
+EXIT=0

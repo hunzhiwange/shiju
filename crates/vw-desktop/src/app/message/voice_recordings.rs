@@ -120,7 +120,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             app.voice.recordings.refresh()?;
         }
         Event::Play(id) => {
-            if app.voice.conversation.is_some()
+            if app.voice.chat_active()
                 || matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
                 || app.voice.settings.preview.is_some()
             {
@@ -143,7 +143,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             }
         }
         Event::Retry(id) => {
-            if app.voice.conversation.is_some()
+            if app.voice.chat_active()
                 || matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
             {
                 return Err("请先结束当前语音活动再重试识别。".into());
@@ -191,7 +191,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
         }
         Event::Apply => {
             if matches!(app.voice.draft.phase, Phase::Recording | Phase::Transcribing)
-                || app.voice.conversation.is_some()
+                || app.voice.chat_active()
             {
                 return Err("请先结束当前语音活动再回填。".into());
             }

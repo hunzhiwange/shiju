@@ -317,7 +317,7 @@ impl App {
             iced::time::every(self.voice.hotkeys.interval())
                 .map(|_| Message::Voice(message::voice::Event::HotkeyTick)),
             #[cfg(not(target_arch = "wasm32"))]
-            if self.voice.conversation.is_some() {
+            if self.voice.chat_active() {
                 iced::time::every(std::time::Duration::from_millis(50))
                     .map(|_| Message::Voice(message::voice::Event::ChatTick))
             } else {

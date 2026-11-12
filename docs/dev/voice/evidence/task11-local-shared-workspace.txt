@@ -1,0 +1,91 @@
+SLOT=5 CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-5
+FMT_EXIT=0
+COMMAND=['cargo', 'test', '-p', 'vw-desktop', '--lib', 'voice_task_11_', '--', '--nocapture']
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+error: lifetime may not live long enough
+   --> crates/vw-desktop/src/app/components/system_settings.rs:492:13
+    |
+488 |     let page_content = |content: Element<'_, Message>| {
+    |                         -------                      - return type of closure is Container<'2, app::ui_types::Message>
+    |                         |
+    |                         has type `iced_runtime::iced_core::Element<'1, _, Theme, _>`
+...
+492 |             centered_content(content)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
+    |
+    = note: requirement occurs because of the type `Container<'_, app::ui_types::Message>`, which makes the generic argument `'_` invariant
+    = note: the struct `Container<'a, Message, Theme, Renderer>` is invariant over the parameter `'a`
+    = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+
+error: could not compile `vw-desktop` (lib test) due to 1 previous error
+RESULT=101
+COMMAND=['cargo', 'test', '-p', 'vw-desktop', '--lib', 'voice_task_07_', '--', '--nocapture']
+   Compiling iced_term v0.8.1 (/Users/xiangmin/worker/code/shiju/vendor/iced_term)
+   Compiling vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+error[E0277]: the trait bound `app::state::agent::AcpHistoryReplayMode: std::default::Default` is not satisfied
+  --> crates/vw-desktop/src/app/views/project/components/session_row_tests.rs:88:27
+   |
+88 |         acp_history_mode: Default::default(),
+   |                           ^^^^^^^^^^^^^^^^^^ the trait `std::default::Default` is not implemented for `app::state::agent::AcpHistoryReplayMode`
+   |
+help: consider annotating `app::state::agent::AcpHistoryReplayMode` with `#[derive(Default)]`
+  --> crates/vw-desktop/src/app/state/agent.rs:63:1
+   |
+63 + #[derive(Default)]
+64 | pub enum AcpHistoryReplayMode {
+   |
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `vw-desktop` (lib test) due to 1 previous error
+RESULT=101
+COMMAND=['cargo', 'clippy', '--all-targets', '--all-features', '--', '-D', 'warnings']
+    Checking vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+    Checking iced_term v0.8.1 (/Users/xiangmin/worker/code/shiju/vendor/iced_term)
+    Checking vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-provider-resolver v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+error[E0277]: the trait bound `app::state::agent::AcpHistoryReplayMode: std::default::Default` is not satisfied
+  --> crates/vw-desktop/src/app/views/project/components/session_row_tests.rs:88:27
+   |
+88 |         acp_history_mode: Default::default(),
+   |                           ^^^^^^^^^^^^^^^^^^ the trait `std::default::Default` is not implemented for `app::state::agent::AcpHistoryReplayMode`
+   |
+help: consider annotating `app::state::agent::AcpHistoryReplayMode` with `#[derive(Default)]`
+  --> crates/vw-desktop/src/app/state/agent.rs:63:1
+   |
+63 + #[derive(Default)]
+64 | pub enum AcpHistoryReplayMode {
+   |
+
+error[E0308]: mismatched types
+    --> crates/vw-agent/src/worktree/registry.rs:100:37
+     |
+ 100 |         let wt = main.find_worktree(name).map_err(invalid)?;
+     |                       ------------- ^^^^ expected `&str`, found `Option<&str>`
+     |                       |
+     |                       arguments to this method are incorrect
+     |
+     = note: expected reference `&str`
+                     found enum `std::option::Option<&str>`
+note: method defined here
+    --> /Users/xiangmin/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/git2-0.21.0/src/repo.rs:3370:12
+     |
+3370 |     pub fn find_worktree(&self, name: &str) -> Result<Worktree, Error> {
+     |            ^^^^^^^^^^^^^
+help: consider using `Option::expect` to unwrap the `std::option::Option<&str>` value, panicking if the value is an `Option::None`
+     |
+ 100 |         let wt = main.find_worktree(name.expect("REASON")).map_err(invalid)?;
+     |                                         +++++++++++++++++
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `vw-desktop` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `vw-agent` (lib) due to 1 previous error
+error: could not compile `vw-agent` (lib test) due to 1 previous error
+RESULT=101
+EXIT=0

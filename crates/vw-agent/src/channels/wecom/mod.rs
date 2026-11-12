@@ -1,6 +1,7 @@
 //! 企业微信 AI 机器人 WebSocket 通道。
 
 mod outbound;
+pub mod runtime;
 pub mod webhook;
 
 use super::outbound_delivery::DeliveryFailureKind;
@@ -25,6 +26,7 @@ pub struct WeComChannel {
     bot_id: String,
     secret: String,
     endpoint: String,
+    runtime_scope: Option<runtime::WeComRuntimeScope>,
     outbound: Arc<RwLock<Option<mpsc::Sender<OutboundItem>>>>,
     reply_requests: Arc<RwLock<HashMap<String, String>>>,
 }
@@ -35,13 +37,19 @@ impl WeComChannel {
             bot_id,
             secret,
             endpoint: WECOM_WS_URL.to_string(),
+            runtime_scope: None,
             outbound: Arc::new(RwLock::new(None)),
             reply_requests: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
+    pub fn with_runtime_scope(mut self, scope: runtime::WeComRuntimeScope) -> Self {
+        self.runtime_scope = Some(scope);
+        self
+    }
+
     #[cfg(test)]
-    fn new_for_test(bot_id: String, secret: String, endpoint: String) -> Self {
+    pub(crate) fn new_for_test(bot_id: String, secret: String, endpoint: String) -> Self {
         Self { endpoint, ..Self::new(bot_id, secret) }
     }
 
@@ -181,6 +189,8 @@ impl Channel for WeComChannel {
             bail!("企微通道缺少 bot_id 或 secret");
         }
 
+        let registration =
+            self.runtime_scope.clone().map(runtime::Registration::claim).transpose()?;
         let (stream, _) = tokio_tungstenite::connect_async(&self.endpoint)
             .await
             .context("连接企微 WebSocket 失败")?;
@@ -199,7 +209,10 @@ impl Channel for WeComChannel {
 
         let (outbound_tx, mut outbound_rx) = mpsc::channel(32);
         self.reply_requests.write().await.clear();
-        *self.outbound.write().await = Some(outbound_tx);
+        *self.outbound.write().await = Some(outbound_tx.clone());
+        if let Some(registration) = &registration {
+            registration.publish(outbound_tx);
+        }
         let mut heartbeat = tokio::time::interval_at(
             Instant::now() + WECOM_HEARTBEAT_INTERVAL,
             WECOM_HEARTBEAT_INTERVAL,
@@ -266,3 +279,7 @@ mod tests;
 #[cfg(test)]
 #[path = "outbound_tests.rs"]
 mod outbound_tests;
+
+#[cfg(test)]
+#[path = "runtime_tests.rs"]
+mod runtime_tests;

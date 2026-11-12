@@ -11,7 +11,12 @@ fn fixture() -> (TempDir, Config, ChannelConfigWatcher) {
     let mut config = Config::default();
     config.config_path = temp.path().join("vibewindow.json");
     config.workspace_dir = temp.path().to_path_buf();
-    let source = ChannelConfigWatcher { store, project: None, last_payload: None };
+    let source = ChannelConfigWatcher {
+        store,
+        tenant: TenantScope::default(),
+        project: None,
+        last_payload: None,
+    };
     (temp, config, source)
 }
 

@@ -10,6 +10,7 @@ use vw_api_types::id::TenantScope;
 
 pub(crate) struct ChannelConfigWatcher {
     store: SystemConfigStore,
+    tenant: TenantScope,
     project: Option<String>,
     last_payload: Option<Value>,
 }
@@ -35,15 +36,20 @@ impl ChannelConfigWatcher {
         } else {
             None
         };
-        Ok(Self { store, project, last_payload: None })
+        Ok(Self {
+            store,
+            tenant: crate::session::ui_store::current_tenant_scope(),
+            project,
+            last_payload: None,
+        })
     }
 
-    /// 读取默认租户的持久化配置；读取或校验失败时不推进快照；渠道解密失败只隔离故障实例。
+    /// 读取创建时捕获租户的持久化配置；读取或校验失败时不推进快照；渠道解密失败只隔离故障实例。
     pub(crate) async fn poll(&mut self, current: &Config) -> Result<Option<ChannelsConfig>> {
         let store = self.store.clone();
         let project = self.project.clone();
+        let tenant = self.tenant.clone();
         let payload = tokio::task::spawn_blocking(move || {
-            let tenant = TenantScope::default();
             let Some(raw) = store.get(&tenant)? else {
                 return Ok::<_, anyhow::Error>(None);
             };

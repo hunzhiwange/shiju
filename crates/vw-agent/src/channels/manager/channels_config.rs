@@ -461,10 +461,21 @@ pub(crate) fn collect_configured_channels(
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ref wecom) = config.channels_config.wecom {
         if wecom.has_required_credentials() {
-            channels.push(ConfiguredChannel::new(
-                "WeCom",
-                Arc::new(WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())),
-            ));
+            match crate::channels::wecom::runtime::WeComRuntimeScope::from_config(
+                config,
+                crate::session::ui_store::current_tenant_scope(),
+            ) {
+                Ok(scope) => channels.push(ConfiguredChannel::new(
+                    "WeCom",
+                    Arc::new(
+                        WeComChannel::new(wecom.bot_id.clone(), wecom.secret.clone())
+                            .with_runtime_scope(scope),
+                    ),
+                )),
+                Err(_) => tracing::warn!(
+                    "Cannot resolve WeCom configuration storage scope; skipping channel"
+                ),
+            }
         }
     }
 

@@ -134,3 +134,91 @@ fn channel_reload_preserves_explicit_project_selection() {
     assert_eq!(reloaded.selections[&chat], "explicit-project");
     assert_eq!(reloaded.config.instance_default_projects["telegram:default"], "new-default");
 }
+
+#[tokio::test]
+async fn wecom_runtime_manager_stop_and_drop_release_authenticated_connection() {
+    use crate::channels::wecom::{
+        WeComChannel,
+        runtime::{WeComRuntimeScope, connected},
+    };
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{accept_async, tungstenite::Message};
+    let temp = tempfile::TempDir::new().unwrap();
+    let mut config = Config::default();
+    config.config_path = temp.path().join("config.json");
+    config.workspace_dir = temp.path().into();
+    let scope =
+        WeComRuntimeScope::from_config(&config, vw_api_types::id::TenantScope::default()).unwrap();
+    for stop in [true, false] {
+        let socket = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let channel = WeComChannel::new_for_test(
+            "bot".into(),
+            "secret".into(),
+            format!("ws://{}", socket.local_addr().unwrap()),
+        )
+        .with_runtime_scope(scope.clone());
+        let (tx, _rx) = tokio::sync::mpsc::channel(8);
+        let mut listeners = ChannelListeners::default();
+        listeners.handles.push(spawn_supervised_listener(
+            ConfiguredChannel::new("WeCom", Arc::new(channel)),
+            tx,
+            1,
+            1,
+        ));
+        let (stream, _) =
+            tokio::time::timeout(Duration::from_secs(2), socket.accept()).await.unwrap().unwrap();
+        let mut ws = accept_async(stream).await.unwrap();
+        let subscribe = ws.next().await.unwrap().unwrap().into_text().unwrap();
+        let subscribe: serde_json::Value = serde_json::from_str(&subscribe).unwrap();
+        ws.send(Message::Text(
+            serde_json::json!({"headers":subscribe["headers"],"errcode":0}).to_string().into(),
+        ))
+        .await
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while connected(&scope).is_err() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("daemon listener must publish its authenticated connection");
+        let old = connected(&scope).unwrap();
+        if stop {
+            listeners.stop().await;
+        }
+        drop(listeners);
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while connected(&scope).is_ok() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(old.send_proactive("chat", "stale").await.is_err());
+    }
+}
+
+#[tokio::test]
+async fn channel_reload_captures_nondefault_tenant_before_poll() {
+    use crate::config::{SystemConfigStore, schema::ChannelConfigWatcher};
+    use crate::global_database::GlobalDatabase;
+    use vw_api_types::id::TenantScope;
+    let temp = tempfile::TempDir::new().unwrap();
+    let store =
+        SystemConfigStore::new(GlobalDatabase::new(temp.path().join("config.sqlite3")).unwrap())
+            .unwrap();
+    let mut config = Config::default();
+    config.config_path = temp.path().join("config.json");
+    let tenant = TenantScope::new("tenant", "company").unwrap();
+    let payload = |bot: &str| {
+        serde_json::json!({"channels_config":{"cli":true,"wecom":{"bot_id":bot,"secret":"fixture"}}})
+            .to_string()
+    };
+    store.upsert(&TenantScope::default(), &payload("wrong-bot")).unwrap();
+    store.upsert(&tenant, &payload("correct-bot")).unwrap();
+    let mut watcher = crate::session::ui_store::with_tenant_scope(tenant, async {
+        ChannelConfigWatcher::from_store(store, &config, false).unwrap()
+    })
+    .await;
+    assert_eq!(watcher.poll(&config).await.unwrap().unwrap().wecom.unwrap().bot_id, "correct-bot");
+}

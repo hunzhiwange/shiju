@@ -43,3 +43,10 @@ pub mod registry;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "registry_tests.rs"]
 mod registry_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "creation_policy.rs"]
+mod creation_policy;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "creation_policy_tests.rs"]
+mod creation_policy_tests;

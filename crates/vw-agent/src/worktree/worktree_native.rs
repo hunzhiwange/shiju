@@ -20,9 +20,10 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
     }))
 });
 
-/// 获取 worktree 根目录路径。
+/// 获取未配置根目录时的 worktree 默认位置。
 ///
-/// 普通 worktree 与任务池共用 home 配置目录下的 `task-worktrees` 根目录；
+/// 未配置时，普通 worktree 与任务池共用 `task-worktrees` 根目录；
+/// 普通/fork 创建的租户覆盖由 creation_policy 处理，任务池不读取该覆盖。
 /// 任务池只接管 `slot-*` 槽位，避免误重置手动或 fork worktree。
 pub(super) fn worktree_root(project: &project::Info) -> Result<PathBuf, Error> {
     if project.worktree.trim().is_empty() {

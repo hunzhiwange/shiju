@@ -7,7 +7,7 @@ use super::naming::slug;
 #[cfg(not(target_arch = "wasm32"))]
 use super::native::{
     candidate, canonical, ensure_git_project, find_entry, parse_worktree_list,
-    resolve_reset_target, run_git, run_start_scripts, worktree_root,
+    resolve_reset_target, run_git, run_start_scripts,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::bus;
@@ -70,7 +70,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
                 rollback_checkout(&scope, &primary, &ready_info.directory).await;
                 let _ = bus::publish(
                     event::FAILED,
-                    serde_json::json!({ "message": err.to_string() }),
+                    serde_json::json!({ "projectId": project_id, "message": err.to_string() }),
                     Some(ready_info.directory.clone()),
                 );
                 return;
@@ -78,7 +78,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
 
             let _ = bus::publish(
                 event::READY,
-                serde_json::json!({ "name": ready_info.name, "branch": ready_info.branch }),
+                serde_json::json!({ "projectId": project_id, "name": ready_info.name, "branch": ready_info.branch }),
                 Some(ready_info.directory.clone()),
             );
 
@@ -91,7 +91,7 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
                 .unwrap_or_else(|| "Failed to populate worktree".to_string());
             let _ = bus::publish(
                 event::FAILED,
-                serde_json::json!({ "message": message }),
+                serde_json::json!({ "projectId": project_id, "message": message }),
                 Some(ready_info.directory.clone()),
             );
         }
@@ -110,10 +110,15 @@ async fn add_worktree(
         return Err(Error::MissingProject("missing instance worktree".to_string()));
     }
     let lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
-    let root = worktree_root(project)?;
-    tokio::fs::create_dir_all(&root).await?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let settings = crate::config::get_global_for_tenant(&tenant)
+        .await
+        .map_err(|error| Error::Invalid(error.to_string()))?
+        .worktree_settings;
+    let root = super::creation_policy::prepare(project, &primary, &settings).await?;
     let base = name.map(slug).filter(|base| !base.trim().is_empty());
     let info = candidate(&root, base.as_deref()).await?;
+    super::creation_policy::validate_parent(&root, std::path::Path::new(&info.directory)).await?;
 
     let created = run_git(
         &["worktree", "add", "--no-checkout", "-b", &info.branch, &info.directory],

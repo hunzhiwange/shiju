@@ -51,3 +51,19 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 - 事件数量：`{"chat.context_loaded": 1, "chat.step_start": 2, "chat.model_recovery": 2, "chat.session_updated": 1, "chat.error": 1}`；服务端绑定：`gemini`；选定模型：`alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
 - 产物：0 个文件；无文件。
 - 复跑条件：处理请求错误「首轮无内容；session/resume 方法不存在；session/load 拒绝会话 ID」。
+
+
+### 2026-11-12 重测（编辑器创建即停止）
+
+- 按用户最新要求，以编辑器文件创建完成为终点，不执行浏览器、构建或 Cargo 检查。本次仍未创建成功，状态保持已阻塞；未向 `docs/dev/acp/ACP验收.md` 写入成功结论。
+- 沿用最近验收确认的租户 `10001 / 100010005`，网关 `127.0.0.1:42617`，指定模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`；未更换模型、账号或引擎。
+- 安装接口 HTTP 200、curl 0、0.028653 秒，安装前后均为 true；可执行文件 `/Users/xiangmin/.local/share/shiju/acp-runtime/gemini-0.66.0-model-source-v1/node_modules/.bin/gemini`，`--version` 退出码 0，版本 0.66.0。
+- 独立诊断 HTTP 200、curl 0、`authentication_required`；模型来源 HTTP 200、curl 0，`session_model` supported。
+- 流式请求 HTTP 200、curl 0、47.366920 秒，终态 `chat.error`。首轮模型未返回内容；恢复时 `session/resume` 返回 Method not found，`session/load` 返回 Invalid session identifier。与前次错误一致，不能将 HTTP 200 记为成功。
+- 事件数量：`chat.context_loaded` ×1、`chat.step_start` ×2、`chat.model_recovery` ×2、`chat.session_updated` ×1、`chat.error` ×1；无 `chat.done`、无工具事件。
+- 会话 `ses_1cf25bbf7001rcbNnhYEk6v1iW`：同租户及工作目录头读取 `ui/summary` 与 `acp-options` 均为 HTTP 200、curl 0；绑定 `acp-gemini / gemini`、`full_access=true`，选定模型为 `session_model / alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，连接状态为 false。
+- 产物 0 个文件。请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 `.git`、`node_modules`、`target`），无新增或内容变化；目标目录不存在。
+- 本机历史文件仅有会话元数据、用户消息和更新记录，没有助手产物，支持首轮无内容的观察；尚不能据此断言首轮无内容的底层根因。网关为现有 `target-dir/debug/shiju gateway` 进程，工作区已有他人 Gemini 中继修改；本任务不修改 Rust、不重启该实例、不重复同一失败请求。
+- 预设 `acp-gemini` 原本 enabled=true，结束复查仍为 true，本轮未修改配置，无需恢复。
+- 原始请求、SSE、配置快照和文件基线仅保存于本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/gemini-acceptance-mg_8s1pt`，未提交凭据或配置环境值。
+- 后续动作：排查并修复 Gemini 首轮无内容及会话恢复失败后，使用同租户、同模型重新验收；编辑器创建成功后再更新正式验收文档。

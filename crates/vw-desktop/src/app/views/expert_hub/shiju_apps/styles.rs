@@ -1,7 +1,7 @@
 //! 提供识矩应用页面在明暗主题下的组件样式。
 
 use iced::widget::{button, container, text};
-use iced::{Background, Border, Color, Shadow, Theme, Vector};
+use iced::{Background, Border, Theme};
 
 /// 识矩应用页面统一使用的滚动条宽度。
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
@@ -40,18 +40,7 @@ pub(super) fn quiet_button_style(theme: &Theme, status: button::Status) -> butto
 }
 
 pub(super) fn card_style(theme: &Theme) -> container::Style {
-    let palette = theme.extended_palette();
-    container::Style {
-        background: Some(Background::Color(palette.background.weak.color)),
-        text_color: Some(theme.palette().text),
-        border: Border { color: palette.background.strong.color, width: 1.0, radius: 12.0.into() },
-        shadow: Shadow {
-            color: Color::BLACK.scale_alpha(if palette.is_dark { 0.22 } else { 0.08 }),
-            offset: Vector::new(0.0, 2.0),
-            blur_radius: 8.0,
-        },
-        ..Default::default()
-    }
+    super::super::styles::card_style(theme)
 }
 
 pub(super) fn badge_style(theme: &Theme) -> container::Style {

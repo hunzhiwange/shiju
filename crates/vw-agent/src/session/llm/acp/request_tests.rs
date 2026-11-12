@@ -369,24 +369,32 @@ async fn acp_model_source_routing_local_reaches_command_lookup_without_client_cr
 async fn acp_model_source_launch_profile_production_request_rejects_unverified_driver() {
     let _lock = crate::test_support::global_async_env_lock().lock().await;
     let directory = tempfile::tempdir().unwrap();
+    let script = directory.path().join("unexpected-launch.py");
+    let launched = directory.path().join("launched");
+    std::fs::write(
+        &script,
+        "import pathlib, sys\npathlib.Path(sys.argv[1]).write_text('unexpected launch')\n",
+    )
+    .unwrap();
     let tenant = crate::session::ui_store::current_tenant_scope();
     let (project, _) = crate::project::from_directory(&tenant, directory.path()).await.unwrap();
     crate::config::update_project_for_tenant(&tenant, directory.path(), json!({
-        "providers": {"github-copilot": {"api": "http://127.0.0.1:1/v1", "models": {"gpt-5-mini": {"status": "active"}}}}
+        "providers": {"github-copilot": {"api": "http://127.0.0.1:1/v1", "models": {"gpt-5-mini": {"status": "active"}}}},
+        "acp": {"unverified-fixture": {"command": "python3", "args": [&script, &launched]}}
     })).await.unwrap();
     let context = crate::project::instance::Context {
         directory: directory.path().to_string_lossy().into(),
         worktree: project.worktree.clone(),
         project,
     };
-    // Codex now supports session models; Droid still rejects unverified launches.
+    // A synthetic driver stays unverified as reviewed CLI support expands.
     let result = crate::project::instance::provide_context(
         context,
         do_stream_request_acp(
             &test_model("github-copilot"),
             &test_provider(Some("provider-secret-never-distributed")),
             None,
-            &json!({"acp_agent": "droid", "acp_model_source": "session_model"}),
+            &json!({"acp_agent": "unverified-fixture", "acp_model_source": "session_model", "cwd": directory.path()}),
             &json!([{"role": "user", "content": "hello"}]),
             "task9-production",
             None,
@@ -401,6 +409,7 @@ async fn acp_model_source_launch_profile_production_request_rejects_unverified_d
         }
         other => panic!("unexpected production result: {other:?}"),
     }
+    assert!(!launched.exists(), "an unverified driver must be rejected before launch");
 }
 
 #[cfg(unix)]

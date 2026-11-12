@@ -1029,6 +1029,9 @@ pub(crate) struct ExpertHubState {
     pub(crate) detail_generation: u64,
     pub(crate) action_generation: u64,
     pub(crate) cache_sync_generation: u64,
+    pub(crate) function_upgrade: Option<u64>,
+    pub(crate) main_upgrade: Option<u64>,
+    pub(crate) function_cache_retry: Vec<u64>,
     pub(crate) account_id: Option<String>,
     pub(crate) detail: Option<SkillDetailState>,
     pub(crate) action: Option<SkillActionState>,
@@ -1150,6 +1153,9 @@ impl ExpertHubState {
         self.account_id = account_id;
         self.detail = None;
         self.action = None;
+        self.function_upgrade = None;
+        self.main_upgrade = None;
+        self.function_cache_retry.clear();
         self.version_confirmation = None;
         self.cache_sync = SkillCacheSyncState::Idle;
         self.package_status.cancel_refresh();
@@ -1179,12 +1185,18 @@ impl ExpertHubState {
         self.detail_generation
     }
 
-    /// 为技能启动互斥动作并返回新代次；已有动作时返回 `None`。
-    pub(crate) fn start_action(&mut self, skill_id: u64, kind: SkillActionKind) -> Option<u64> {
-        if self.action.is_some()
+    pub(crate) fn skill_operations_busy(&self) -> bool {
+        self.action.is_some()
             || self.version_confirmation.is_some()
             || self.cache_sync.syncing_skill_id().is_some()
-        {
+            || self.function_upgrade.is_some()
+            || self.main_upgrade.is_some()
+            || self.install_guide.is_busy()
+    }
+
+    /// 为技能启动互斥动作并返回新代次；已有动作时返回 `None`。
+    pub(crate) fn start_action(&mut self, skill_id: u64, kind: SkillActionKind) -> Option<u64> {
+        if self.skill_operations_busy() {
             return None;
         }
         self.action_generation = self.action_generation.wrapping_add(1);
@@ -1233,7 +1245,7 @@ impl ExpertHubState {
     }
 
     pub(crate) fn request_version_action(&mut self, action: SkillVersionAction) -> Option<u64> {
-        if self.action.is_some() || self.version_confirmation.is_some() {
+        if self.skill_operations_busy() {
             return None;
         }
         if action.direction == SkillVersionDirection::Rollback {
@@ -1291,6 +1303,9 @@ impl Default for ExpertHubState {
             detail_generation: 0,
             action_generation: 0,
             cache_sync_generation: 0,
+            function_upgrade: None,
+            main_upgrade: None,
+            function_cache_retry: Vec::new(),
             account_id: None,
             detail: None,
             action: None,

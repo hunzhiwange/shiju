@@ -85,15 +85,14 @@ fn shiju_upgrade_count_excludes_missing_unknown_equal_and_older_main_versions() 
 
 #[test]
 fn shiju_upgrade_function_action_opens_installed_functions() {
-    let Message::Batch(messages) = shiju_upgrade_message(false, 5) else {
+    let Message::Batch(messages) = shiju_upgrade_message() else {
         panic!("expected function upgrade navigation");
     };
     assert!(matches!(
         messages.as_slice(),
         [
             Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
-            Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
-            Message::SkillHub(message::SkillHubMessage::SelectSkillTab(SkillTab::Installed)),
+            Message::SkillHub(message::SkillHubMessage::OpenInstalledShijuSkills),
         ]
     ));
 }
@@ -463,14 +462,14 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         "trigger Tooltip and menu overlay should both be present"
     );
 
-    let Message::Batch(messages) = shiju_upgrade_message(true, 5) else {
-        panic!("upgrade action should close the menu before opening the install guide");
+    let Message::Batch(messages) = shiju_upgrade_message() else {
+        panic!("upgrade action should close the menu before opening installed skills");
     };
     assert!(matches!(
         messages.as_slice(),
         [
             Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
-            Message::SkillHub(message::SkillHubMessage::OpenInstallGuide),
+            Message::SkillHub(message::SkillHubMessage::OpenInstalledShijuSkills),
         ]
     ));
 }

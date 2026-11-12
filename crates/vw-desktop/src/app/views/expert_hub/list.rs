@@ -970,7 +970,8 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             .spacing(8)
             .into()
         }
-        SkillTab::Installed | SkillTab::Install => Space::new().height(Length::Shrink).into(),
+        SkillTab::Installed => super::upgrade_actions::view(app),
+        SkillTab::Install => Space::new().height(Length::Shrink).into(),
         SkillTab::System => {
             let filter = &app.expert_hub.system_filter;
             let options = current_tag_options(app, filter.tag_id_draft);

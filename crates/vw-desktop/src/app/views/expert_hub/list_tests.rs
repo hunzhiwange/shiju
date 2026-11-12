@@ -458,3 +458,43 @@ async fn skill_form_controls_render_system_tag_menu() {
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn installed_upgrade_actions_render_chinese_targets_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::widget::Tree;
+    use iced::advanced::{Layout, layout, mouse, renderer};
+    use iced::{Color, Font, Pixels, Rectangle, Size};
+
+    let mut app = App::new().0;
+    app.expert_hub.install_guide.selected_targets =
+        vec![crate::app::skill_hub::SkillInstallTarget::Codex];
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        for width in [320.0, 900.0] {
+            let mut element = super::upgrade_actions::view(&app);
+            let bounds = Size::new(width, 280.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            assert!(node.bounds().width <= bounds.width);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(width as u32, 280), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        }
+    }
+}

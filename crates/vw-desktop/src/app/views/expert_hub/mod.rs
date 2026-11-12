@@ -19,6 +19,7 @@ mod public_skill_detail;
 mod public_skills;
 pub(crate) mod shiju_apps;
 mod styles;
+mod upgrade_actions;
 
 /// 在专家中心各分区、识矩技能和识矩应用之间提供一致的顶部导航。
 fn section_tabs(app: &App) -> Element<'static, Message> {

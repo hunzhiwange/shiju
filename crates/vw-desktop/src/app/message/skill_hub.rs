@@ -38,6 +38,9 @@ pub(crate) mod knowledge;
 mod public;
 #[cfg(test)]
 mod public_tests;
+mod upgrades;
+#[cfg(test)]
+mod upgrades_tests;
 pub(crate) use public::PublicSkillMessage;
 pub(crate) use public::selectable_expert_skill;
 
@@ -73,6 +76,32 @@ pub(crate) enum SkillHubMessage {
     Public(public::PublicSkillMessage),
     Open,
     OpenShijuSkills,
+    OpenInstalledShijuSkills,
+    UpgradeAllFunctions,
+    UpgradeMainSkill,
+    AllFunctionsUpgraded {
+        generation: u64,
+        account_id: String,
+        result: Result<upgrades::FunctionUpgradeReport, SkillHubError>,
+    },
+    MainUpgradePackageLoaded {
+        generation: u64,
+        account_id: String,
+        selections: Vec<SkillInstallSelection>,
+        project_root: Option<PathBuf>,
+        result: Result<ShijuPackageRelease, SkillHubError>,
+    },
+    MainUpgradeKeySynced {
+        generation: u64,
+        account_id: String,
+        result: Result<ShijuKeySyncReport, SkillHubError>,
+    },
+    MainSkillUpgraded {
+        generation: u64,
+        account_id: String,
+        project_root: Option<PathBuf>,
+        result: Result<ShijuMultiInstallReport, SkillHubError>,
+    },
     OpenInstallGuide,
     CloseInstallGuide,
     CopyAgentInstall,
@@ -240,6 +269,17 @@ pub(crate) enum SkillHubMessage {
 
 /// 归约技能中心消息，并用请求代次与账号 ID 屏蔽迟到的异步响应。
 pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
+    if (app.expert_hub.function_upgrade.is_some() || app.expert_hub.main_upgrade.is_some())
+        && matches!(
+            &message,
+            SkillHubMessage::DirectInstallShiju
+                | SkillHubMessage::SyncShijuKey
+                | SkillHubMessage::ConfirmShijuUninstall
+                | SkillHubMessage::RetrySkillCacheSync
+        )
+    {
+        return Task::none();
+    }
     match message {
         SkillHubMessage::Connectors(message) => connectors::update(app, message),
         SkillHubMessage::Knowledge(message) => knowledge::update(app, message),
@@ -255,6 +295,38 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             app.expert_hub.detail = None;
             open_shiju_skills_tab(app);
             load_current_tab(app)
+        }
+        SkillHubMessage::OpenInstalledShijuSkills => {
+            app.expert_hub.install_guide.close();
+            app.expert_hub.skill_tab = SkillTab::Installed;
+            app.expert_hub.detail = None;
+            open_shiju_skills_tab(app);
+            Task::batch([load_current_tab(app), refresh_shiju_package_version(app)])
+        }
+        SkillHubMessage::UpgradeAllFunctions => upgrades::start_functions(app),
+        SkillHubMessage::UpgradeMainSkill => upgrades::start_main(app),
+        SkillHubMessage::AllFunctionsUpgraded { generation, account_id, result } => {
+            upgrades::finish_functions(app, generation, &account_id, result)
+        }
+        SkillHubMessage::MainUpgradePackageLoaded {
+            generation,
+            account_id,
+            selections,
+            project_root,
+            result,
+        } => upgrades::finish_main_package(
+            app,
+            generation,
+            &account_id,
+            selections,
+            project_root,
+            result,
+        ),
+        SkillHubMessage::MainUpgradeKeySynced { generation, account_id, result } => {
+            upgrades::finish_main_key_sync(app, generation, &account_id, result)
+        }
+        SkillHubMessage::MainSkillUpgraded { generation, account_id, project_root, result } => {
+            upgrades::finish_main(app, generation, &account_id, project_root, result)
         }
         SkillHubMessage::OpenInstallGuide => open_install_guide(app),
         SkillHubMessage::CloseInstallGuide => {

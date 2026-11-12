@@ -1,7 +1,7 @@
 //! Transactional voice form. Every asynchronous result is scoped to one edit generation.
 use crate::app::voice::{
     capture::{InputDevice, input_devices},
-    preferences::{Edit, Preferences},
+    preferences::{Edit, Preferences, VoiceEngine},
     preview::Preview,
 };
 use crate::app::{App, Message};
@@ -9,6 +9,10 @@ use iced::Task;
 use std::time::Duration;
 use vw_config_types::voice::{RecognitionLanguage, VoiceConfig, VoiceName};
 use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+
+#[path = "voice_io.rs"]
+mod io;
+pub(crate) use io::{LocalResources, resources as local_resources};
 
 #[derive(Default)]
 pub(crate) struct State {
@@ -18,6 +22,9 @@ pub(crate) struct State {
     pub busy: bool,
     pub recording_hotkey: Option<bool>,
     pub preview: Option<Preview>,
+    pub resources: LocalResources,
+    pub cloud_ready: bool,
+    pub cloud_error: Option<String>,
     generation: u64,
     endpoint: Option<GatewayEndpoint>,
 }
@@ -27,10 +34,20 @@ pub struct Loaded {
     pub local: Preferences,
     pub devices: Vec<InputDevice>,
     pub warning: Option<String>,
+    pub resources: LocalResources,
+    pub cloud_ready: bool,
+    pub cloud_error: Option<String>,
 }
 #[derive(Clone)]
 pub enum Event {
     Open,
+    Engine(VoiceEngine),
+    LocalLanguage(Option<String>),
+    LocalVoice(Option<String>),
+    Permission(crate::app::voice::permissions::Permission),
+    RefreshLocal,
+    Resources(u64, Option<String>, LocalResources),
+    CloudLoaded(u64, Result<VoiceConfig, String>),
     Cancel,
     Save,
     Preview,
@@ -92,6 +109,96 @@ fn tick(generation: u64) -> Task<Message> {
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
     match event {
+        Event::Permission(permission) => {
+            use crate::app::voice::permissions::{SystemPermissions, VoicePermissions};
+            if app.voice.settings.busy || app.voice.settings.edit.is_none() {
+                return Task::none();
+            }
+            match VoicePermissions::new(SystemPermissions).request_from_user_action(permission) {
+                Ok(()) => refresh_local(&app.voice.settings),
+                Err(_) => app.show_error_toast("无法申请系统权限，请在带语音用途说明的 ShiJu.app 中操作，或在 macOS 隐私与安全性中检查授权后刷新。"),
+            }
+        }
+        Event::RefreshLocal => refresh_local(&app.voice.settings),
+        Event::Resources(generation, language, resources) => {
+            let state = &mut app.voice.settings;
+            if state.generation == generation
+                && state.edit.as_ref().is_some_and(|edit| {
+                    edit.local.engine == VoiceEngine::Local && edit.local.local_language == language
+                })
+            {
+                state.resources = resources;
+            }
+            Task::none()
+        }
+        Event::CloudLoaded(generation, result) => {
+            let state = &mut app.voice.settings;
+            if state.generation != generation
+                || state.edit.as_ref().is_none_or(|edit| edit.local.engine != VoiceEngine::Cloud)
+            {
+                return Task::none();
+            }
+            state.busy = false;
+            match result {
+                Ok(config) => {
+                    let local = state.edit.as_ref().unwrap().local.clone();
+                    state.edit = Some(Edit::new(config, local));
+                    state.cloud_ready = true;
+                    state.cloud_error = None;
+                    Task::none()
+                }
+                Err(error) => {
+                    state.cloud_error = Some(error.clone());
+                    app.show_error_toast(error)
+                }
+            }
+        }
+        Event::Engine(engine) => {
+            if app.voice.settings.busy || app.voice.settings.edit.is_none() {
+                return Task::none();
+            }
+            if engine == VoiceEngine::Local && !cfg!(target_os = "macos") {
+                return app.show_error_toast("本机语音当前仅支持 macOS。");
+            }
+            super::super::voice::cancel(app);
+            let state = &mut app.voice.settings;
+            state.edit.as_mut().unwrap().local.engine = engine;
+            state.generation = state.generation.wrapping_add(1);
+            if engine == VoiceEngine::Local {
+                return refresh_local(state);
+            }
+            if state.cloud_ready {
+                return Task::none();
+            }
+            let Some(endpoint) = state.endpoint.clone() else {
+                return Task::none();
+            };
+            state.busy = true;
+            let generation = state.generation;
+            Task::perform(io::cloud(endpoint), move |result| {
+                message(Event::CloudLoaded(generation, result))
+            })
+        }
+        Event::LocalLanguage(_) | Event::LocalVoice(_) => {
+            if app.voice.settings.busy || app.voice.settings.edit.is_none() {
+                return Task::none();
+            }
+            super::super::voice::cancel(app);
+            let state = &mut app.voice.settings;
+            let edit = state.edit.as_mut().unwrap();
+            match event {
+                Event::LocalLanguage(language) => {
+                    edit.local.local_language = language;
+                    state.resources.capability = None;
+                    refresh_local(state)
+                }
+                Event::LocalVoice(voice) => {
+                    edit.local.local_voice = voice;
+                    Task::none()
+                }
+                _ => unreachable!(),
+            }
+        }
         Event::DisableHotkeys => {
             if app.voice.hotkeys.machine.active {
                 super::super::voice::cancel(app);
@@ -135,29 +242,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             state.generation = state.generation.wrapping_add(1);
             state.endpoint = Some(endpoint.clone());
             let generation = state.generation;
-            Task::perform(
-                async move {
-                    let config = GatewayClient::new(endpoint)?
-                        .voice_config::<VoiceConfig>()
-                        .await
-                        .map_err(|e| e.to_string())?;
-                    let (local, devices, warning) = tokio::task::spawn_blocking(|| {
-                        let (local, warning) = match Preferences::load() {
-                            Ok(local) => (local, None),
-                            Err(error) => (
-                                Preferences::default(),
-                                Some(format!("{error} 保存将重置本机偏好。")),
-                            ),
-                        };
-                        let devices = input_devices().map_err(|_| "无法列出麦克风。".to_owned())?;
-                        Ok::<_, String>((local, devices, warning))
-                    })
-                    .await
-                    .map_err(|_| "无法读取本机语音设备。")??;
-                    Ok(Loaded { config, local, devices, warning })
-                },
-                move |result| message(Event::Loaded(generation, result)),
-            )
+            Task::perform(io::load(endpoint), move |result| {
+                message(Event::Loaded(generation, result))
+            })
         }
         Event::Loaded(generation, result) => {
             let state = &mut app.voice.settings;
@@ -169,6 +256,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Ok(loaded) => {
                     state.edit = Some(Edit::new(loaded.config, loaded.local));
                     state.devices = loaded.devices;
+                    state.resources = loaded.resources;
+                    state.cloud_ready = loaded.cloud_ready;
+                    state.cloud_error = loaded.cloud_error;
                     state.dictionary.clear();
                     if let Some(warning) = loaded.warning {
                         app.show_error_toast(warning)
@@ -204,23 +294,19 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if let Err(error) = app.voice.hotkeys.check(&edit.local.hotkeys) {
                 return app.show_error_toast(error);
             }
-            let patch = match edit.patch() {
-                Ok(p) => p,
-                Err(e) => return app.show_error_toast(e),
-            };
-            let local = edit.local.clone();
+            if edit.local.engine == VoiceEngine::Cloud && !state.cloud_ready {
+                return app.show_error_toast("云端设置尚未加载，请重新读取或选择 macOS 本机。");
+            }
+            if let Err(error) = edit.local.validate() {
+                return app.show_error_toast(error);
+            }
+            let edit = edit.clone();
             let generation = state.generation;
+            let cloud_ready = state.cloud_ready;
             state.preview.take();
             state.busy = true;
             Task::perform(
-                async move {
-                    let path = Preferences::path()?;
-                    GatewayClient::new(endpoint)?.voice_settings_patch(&patch).await?;
-                    tokio::task::spawn_blocking(move || local.write(&path))
-                        .await
-                        .map_err(|_| "网关设置已保存，本机设备保存失败。")?
-                        .map_err(|_| "网关设置已保存，本机设备保存失败，请重试。".to_owned())
-                },
+                async move { io::save(edit, endpoint, cloud_ready, &Preferences::path()?).await },
                 move |result| message(Event::Saved(generation, result)),
             )
         }
@@ -263,7 +349,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let (Some(edit), Some(endpoint)) = (&state.edit, state.endpoint.clone()) else {
                 return Task::none();
             };
-            match Preview::start(endpoint, edit.config.voice) {
+            let preview = match edit.local.engine {
+                VoiceEngine::Local => Preview::start_local(edit.local.local_voice.clone()),
+                VoiceEngine::Cloud if state.cloud_ready => {
+                    Preview::start(endpoint, edit.config.voice)
+                }
+                VoiceEngine::Cloud => Err("云端设置尚未加载，请检查网关连接。".into()),
+            };
+            match preview {
                 Ok(preview) => {
                     state.preview = Some(preview);
                     tick(state.generation)
@@ -290,6 +383,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if state.preview.is_some() { tick(generation) } else { Task::none() }
         }
         event => {
+            if !app.voice.settings.busy
+                && app.voice.settings.edit.is_some()
+                && matches!(event, Event::Voice(_) | Event::Language(_) | Event::Microphone(_))
+            {
+                super::super::voice::cancel(app);
+            }
             let state = &mut app.voice.settings;
             if state.busy {
                 return Task::none();
@@ -362,6 +461,25 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
     }
+}
+fn refresh_local(state: &State) -> Task<Message> {
+    let Some(edit) = state.edit.as_ref().filter(|edit| edit.local.engine == VoiceEngine::Local)
+    else {
+        return Task::none();
+    };
+    let language = edit.local.local_language.clone();
+    let generation = state.generation;
+    Task::perform(
+        async move {
+            let selected = language.clone();
+            let resources =
+                tokio::task::spawn_blocking(move || local_resources(selected.as_deref()))
+                    .await
+                    .unwrap_or_default();
+            (language, resources)
+        },
+        move |(language, resources)| message(Event::Resources(generation, language, resources)),
+    )
 }
 #[cfg(test)]
 #[path = "voice_tests.rs"]

@@ -12,10 +12,46 @@ use vw_gateway_client::{GatewayClient, GatewayEndpoint};
 
 pub(crate) struct Preview {
     stop: watch::Sender<bool>,
+    local_cancel: Option<super::local::Cancellation>,
     worker: Option<JoinHandle<()>>,
     result: Arc<Mutex<Option<Result<(), String>>>>,
 }
 impl Preview {
+    pub(crate) fn start_local(voice: Option<String>) -> Result<Self, String> {
+        Self::start_local_worker(voice, |voice, cancel| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|_| "无法启动本机声音试听。".to_owned())?
+                .block_on(super::local_conversation::speak(
+                    "你好，这是识矩的本机声音试听。".into(),
+                    voice,
+                    cancel,
+                ))
+        })
+    }
+    pub(super) fn start_local_worker(
+        voice: Option<String>,
+        speak: impl FnOnce(Option<String>, super::local::Cancellation) -> Result<(), String>
+        + Send
+        + 'static,
+    ) -> Result<Self, String> {
+        let cancel = super::local::Cancellation::default();
+        let token = cancel.clone();
+        let (stop, _) = watch::channel(false);
+        let result = Arc::new(Mutex::new(None));
+        let output = result.clone();
+        let worker = std::thread::Builder::new()
+            .name("local-voice-preview".into())
+            .spawn(move || {
+                let outcome = speak(voice, token.clone());
+                *output.lock().unwrap_or_else(|e| e.into_inner()) =
+                    Some(if token.is_cancelled() { Ok(()) } else { outcome });
+            })
+            .map_err(|_| "无法启动本机声音试听。".to_owned())?;
+        Ok(Self { stop, local_cancel: Some(cancel), worker: Some(worker), result })
+    }
+
     pub(crate) fn start(endpoint: GatewayEndpoint, voice: VoiceName) -> Result<Self, String> {
         Self::start_output(endpoint, voice, Playback::start)
     }
@@ -38,7 +74,7 @@ impl Preview {
                 }));
             *output.lock().unwrap_or_else(|e| e.into_inner()) = Some(outcome);
         }).map_err(|_| "无法启动音色试听。")?;
-        Ok(Self { stop, worker: Some(worker), result })
+        Ok(Self { stop, local_cancel: None, worker: Some(worker), result })
     }
     pub(crate) fn result(&self) -> Option<Result<(), String>> {
         self.result.lock().unwrap_or_else(|e| e.into_inner()).clone()
@@ -46,6 +82,13 @@ impl Preview {
 }
 impl Drop for Preview {
     fn drop(&mut self) {
+        if let Some(cancel) = &self.local_cancel {
+            cancel.cancel();
+            // Do not join a macOS synthesis worker from the UI/main run loop.
+            // Its token stops synthesis and the existing bounded playback worker.
+            self.worker.take();
+            return;
+        }
         let _ = self.stop.send(true);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();

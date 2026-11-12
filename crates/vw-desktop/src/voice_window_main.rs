@@ -42,6 +42,8 @@ struct Harness {
     frames: usize,
     root: PathBuf,
     live: bool,
+    local_settings: bool,
+    preview_step: u8,
     heard: bool,
     confirmed: std::sync::Arc<std::sync::atomic::AtomicBool>,
     began: Instant,
@@ -50,6 +52,7 @@ impl Harness {
     fn setup(&mut self) {
         self.app.voice.settings.edit = None;
         if self.case % 3 != 0 {
+            self.app.voice.settings.resources = settings::voice::local_resources(None);
             self.app.voice.settings.edit = Some(Edit::new(
                 VoiceConfig {
                     dictionary: (0..45).map(|n| format!("中文词典条目{n}")).collect(),
@@ -108,6 +111,48 @@ impl Harness {
                         state.microphone && state.playing
                     });
                     return Task::none();
+                }
+                if self.local_settings && self.case == 1 {
+                    use app::voice::preview::Preview;
+                    match self.preview_step {
+                        0 => {
+                            self.app.voice.settings.preview =
+                                Some(Preview::start_local(None).expect("start real local preview"));
+                            self.preview_step = 1;
+                            return Task::none();
+                        }
+                        1 => {
+                            let result =
+                                self.app.voice.settings.preview.as_ref().and_then(Preview::result);
+                            let Some(result) = result else {
+                                return Task::none();
+                            };
+                            result.expect("real system synthesis and playback must finish without Speech/Mic authorization");
+                            self.app.voice.settings.preview.take();
+                            self.app.voice.settings.preview = Some(
+                                Preview::start_local(None)
+                                    .expect("start cancellable local preview"),
+                            );
+                            self.preview_step = 2;
+                            self.frames = 0;
+                            return Task::none();
+                        }
+                        2 if self.frames >= 5 => {
+                            let start = Instant::now();
+                            self.app.voice.settings.preview.take();
+                            assert!(
+                                start.elapsed() < Duration::from_millis(80),
+                                "preview cancellation blocked the main loop"
+                            );
+                            self.preview_step = 3;
+                            self.frames = 0;
+                            eprintln!(
+                                "VOICE_LOCAL_SETTINGS playback=completed cancel_requested=true microphone_started=false"
+                            );
+                        }
+                        2 => return Task::none(),
+                        _ => {}
+                    }
                 }
                 if self.frames == 10 && self.case % 3 == 2 {
                     return iced::widget::operation::snap_to(
@@ -226,10 +271,11 @@ fn main() {
 }
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let live = match args.as_slice() {
-        [flag, value] if flag == "--scenario" && value == "deterministic" => false,
-        [flag, value] if flag == "--scenario" && value == "live" => true,
-        _ => return Err("usage: --scenario deterministic|live".into()),
+    let (live, local_settings) = match args.as_slice() {
+        [flag, value] if flag == "--scenario" && value == "deterministic" => (false, false),
+        [flag, value] if flag == "--scenario" && value == "local-settings" => (false, true),
+        [flag, value] if flag == "--scenario" && value == "live" => (true, false),
+        _ => return Err("usage: --scenario deterministic|local-settings|live".into()),
     };
     // The live bootstrap must be explicitly selected by the operator, never discovered
     // from Codex credentials or an unrelated user's configuration.
@@ -328,6 +374,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 frames: 0,
                 root: root.clone(),
                 live,
+                local_settings,
+                preview_step: 0,
                 heard: false,
                 confirmed: confirmed.clone(),
                 began: Instant::now(),

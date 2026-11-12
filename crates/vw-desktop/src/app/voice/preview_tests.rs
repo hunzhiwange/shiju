@@ -68,3 +68,46 @@ fn voice_task_13_voice_preview_does_not_capture_microphone() {
     assert!(heard.load(Ordering::Acquire), "actual playback callback must emit the fixture PCM");
     assert!(lease.load(Ordering::Acquire), "preview must not acquire or release the microphone");
 }
+
+#[test]
+fn voice_task_13_local_preview_drop_cancels_without_blocking_main_loop() {
+    let (started, ready) = std::sync::mpsc::channel();
+    let (finished, done) = std::sync::mpsc::channel();
+    let preview = Preview::start_local_worker(
+        Some("com.apple.voice.fixture".into()),
+        move |voice, cancel| {
+            assert_eq!(voice.as_deref(), Some("com.apple.voice.fixture"));
+            started.send(()).unwrap();
+            while !cancel.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            // Native synthesis needs the main loop; dropping must not join this work.
+            std::thread::sleep(Duration::from_millis(100));
+            finished.send(()).unwrap();
+            Ok(())
+        },
+    )
+    .unwrap();
+    ready.recv_timeout(Duration::from_secs(2)).unwrap();
+    let begin = Instant::now();
+    drop(preview);
+    assert!(begin.elapsed() < Duration::from_millis(80));
+    done.recv_timeout(Duration::from_secs(2)).unwrap();
+}
+#[test]
+fn voice_task_13_local_preview_reports_failure_and_never_uses_gateway() {
+    let preview = Preview::start_local_worker(None, |voice, _| {
+        assert!(voice.is_none());
+        Err("本机声音不可用，请重新选择。".into())
+    })
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Some(result) = preview.result() {
+            assert!(result.unwrap_err().contains("本机声音不可用"));
+            break;
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}

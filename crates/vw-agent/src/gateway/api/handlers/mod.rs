@@ -122,6 +122,7 @@ pub mod permission;
 
 /// 项目管理路由处理器模块
 pub mod project;
+pub mod worktree_management;
 
 /// Provider 路由处理器模块
 pub mod provider;

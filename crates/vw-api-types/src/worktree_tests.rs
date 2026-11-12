@@ -20,3 +20,18 @@ fn worktree_requests_default_optional_controls() {
     assert_eq!(serde_json::to_value(ResetMode::Hard).expect("serialize"), json!("hard"));
     assert_eq!(serde_json::to_value(WorktreeStatus::Ready).expect("serialize"), json!("ready"));
 }
+
+#[test]
+fn worktree_management_defaults_fail_closed_and_rejects_directory_injection() {
+    use crate::worktree::DeleteManagedWorktreeRequest;
+    let request: DeleteManagedWorktreeRequest =
+        serde_json::from_value(json!({"fingerprint":"x"})).unwrap();
+    assert!(!request.confirmed);
+    assert!(!request.confirm_ignored_loss);
+    assert!(
+        serde_json::from_value::<DeleteManagedWorktreeRequest>(
+            json!({"fingerprint":"x", "directory":"/tmp"})
+        )
+        .is_err()
+    );
+}

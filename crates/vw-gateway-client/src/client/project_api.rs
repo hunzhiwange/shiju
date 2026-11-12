@@ -159,7 +159,7 @@ impl GatewayClient {
         Ok(())
     }
 
-    fn project_scope_path(&self, scope: &ProjectScopeDto) -> Result<String, String> {
+    pub(super) fn project_scope_path(&self, scope: &ProjectScopeDto) -> Result<String, String> {
         self.ensure_tenant_scope(scope.tenant_scope())?;
         Ok(format!("/v1/projects/{}", encode_path_segment(scope.project_id().as_ref())))
     }
@@ -182,7 +182,7 @@ fn required_worktree_id(worktree_id: &str) -> Result<&str, String> {
     Ok(worktree_id)
 }
 
-fn encode_path_segment(value: &str) -> String {
+pub(super) fn encode_path_segment(value: &str) -> String {
     let mut encoded = String::new();
     for byte in value.bytes() {
         match byte {

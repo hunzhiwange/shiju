@@ -32,6 +32,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
+        .merge(super::worktree_management::router())
         .route("/projects", get(project_list_v1))
         .route("/projects/resolve", post(project_resolve_v1))
         .route("/projects/{project_id}", get(project_get_v1).patch(project_update_v1))
@@ -57,7 +58,7 @@ fn normalize_path(value: &str) -> String {
         .to_string()
 }
 
-fn project_context_directory(info: &project::Info) -> Result<String, ApiError> {
+pub(super) fn project_context_directory(info: &project::Info) -> Result<String, ApiError> {
     if !info.worktree.trim().is_empty() {
         return Ok(info.worktree.clone());
     }
@@ -208,12 +209,15 @@ fn map_worktree(project_id: &str, info: &project::Info, directory: String) -> Wo
     }
 }
 
-fn project_scope(tenant: TenantScope, project_id: String) -> Result<ProjectScope, ApiError> {
+pub(super) fn project_scope(
+    tenant: TenantScope,
+    project_id: String,
+) -> Result<ProjectScope, ApiError> {
     ProjectScope::new(tenant, ProjectId::from(project_id))
         .map_err(|error| ApiError::bad_request(error.to_string()))
 }
 
-async fn load_project(scope: &ProjectScope) -> Result<project::Info, ApiError> {
+pub(super) async fn load_project(scope: &ProjectScope) -> Result<project::Info, ApiError> {
     project::get(scope)
         .await
         .map_err(|error| ApiError::bad_request(error.to_string()))?

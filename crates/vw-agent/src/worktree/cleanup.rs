@@ -126,7 +126,7 @@ fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())
 }
 
-fn read_snapshot(scope: &ProjectScope) -> Result<ProtectionSnapshot, Error> {
+pub(super) fn read_snapshot(scope: &ProjectScope) -> Result<ProtectionSnapshot, Error> {
     let (sessions, foreign_directories) =
         ui_store::load_worktree_protection_sessions(scope.tenant_scope()).map_err(invalid)?;
     let mut projects: HashSet<String> =

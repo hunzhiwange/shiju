@@ -60,14 +60,14 @@ pub async fn restore(
     Ok(Restored { record, original_id, branch, branch_changed })
 }
 
-struct Snapshot {
-    manifest: Manifest,
+pub(super) struct Snapshot {
+    pub(super) manifest: Manifest,
     index: Oid,
     worktree: Oid,
     head: Oid,
 }
 
-fn load_snapshot(
+pub(super) fn load_snapshot(
     scope: &ProjectScope,
     primary: &Path,
     recovery_id: &str,

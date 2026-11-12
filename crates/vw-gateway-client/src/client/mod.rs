@@ -116,6 +116,7 @@ mod shiju_account_api;
 #[path = "shiju_account_api_tests.rs"]
 mod shiju_account_api_tests;
 mod shiju_connector_api;
+mod worktree_management_api;
 pub use shiju_connector_api::*;
 mod shiju_knowledge_api;
 #[cfg(test)]

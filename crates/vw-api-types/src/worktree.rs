@@ -125,3 +125,94 @@ pub struct GetWorktreeResponse {
     /// 工作树详情。
     pub worktree: WorktreeDto,
 }
+
+/// A registered checkout; IDs are registry identities, never encoded paths.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ManagedWorktreeDto {
+    pub worktree: WorktreeDto,
+    pub title: String,
+    pub sessions: Vec<WorktreeChatSummary>,
+    pub protection_reasons: Vec<WorktreeProtectionReason>,
+    pub recovered_from: Option<String>,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorktreeChatSummary {
+    pub id: String,
+    pub title: String,
+    pub updated_at_ms: u64,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorktreeProtectionReason {
+    Pinned,
+    Busy,
+    Initializing,
+    Pool,
+    Unknown,
+    SharedRepository,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ListManagedWorktreesResponse {
+    pub items: Vec<ManagedWorktreeDto>,
+}
+/// A short-lived preflight token binds scope, identity, contents and protection state.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorktreeDeletionPreflight {
+    pub fingerprint: String,
+    pub expires_at_ms: u64,
+    pub confirmation_required: bool,
+    pub has_changes: bool,
+    pub has_ignored_files: bool,
+    pub protection_reasons: Vec<WorktreeProtectionReason>,
+}
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteManagedWorktreeRequest {
+    pub fingerprint: String,
+    #[serde(default)]
+    pub confirmed: bool,
+    /// Ignored files cannot be recovered. Their loss needs a separate acknowledgement.
+    #[serde(default)]
+    pub confirm_ignored_loss: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DeleteManagedWorktreeResponse {
+    pub snapshot_id: String,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorktreeSnapshotSummary {
+    pub id: String,
+    pub original_worktree_id: String,
+    pub directory: String,
+    pub branch: Option<String>,
+    pub has_ignored_files: bool,
+    pub restored: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ListWorktreeSnapshotsResponse {
+    pub items: Vec<WorktreeSnapshotSummary>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RestoreWorktreeResponse {
+    pub worktree: ManagedWorktreeDto,
+    pub original_worktree_id: String,
+    pub branch_changed: bool,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorktreeCleanupCandidate {
+    pub id: String,
+    pub fingerprint: String,
+    pub title: String,
+    pub last_used_at_ms: u64,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorktreeCleanupProtected {
+    pub id: String,
+    pub reasons: Vec<WorktreeProtectionReason>,
+}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorktreeCleanupProposal {
+    pub candidates: Vec<WorktreeCleanupCandidate>,
+    pub protected: Vec<WorktreeCleanupProtected>,
+    pub remaining_excess: usize,
+}

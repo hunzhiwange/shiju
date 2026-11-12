@@ -85,6 +85,16 @@ pub async fn prepare(
     automatic: bool,
 ) -> Result<PreparedSnapshot, Error> {
     let lifecycle = registry::lifecycle_lock(primary)?;
+    prepare_locked(scope, primary, id, automatic, lifecycle).await
+}
+
+pub(super) async fn prepare_locked(
+    scope: &ProjectScope,
+    primary: &Path,
+    id: &str,
+    automatic: bool,
+    lifecycle: File,
+) -> Result<PreparedSnapshot, Error> {
     let record = registry::authorize(scope, primary, id).await?;
     let prepared =
         tokio::task::spawn_blocking(move || publish(record, lifecycle, automatic)).await??;
@@ -367,3 +377,55 @@ pub struct Restored {
 #[path = "recovery_restore.rs"]
 mod restoration;
 pub use restoration::restore;
+
+/// Preflight uses the same content scan as recovery, without publishing a snapshot.
+pub(super) fn content_fingerprint(
+    record: &registry::Record,
+) -> Result<(String, bool, bool), Error> {
+    use sha2::{Digest, Sha256};
+    let repo = Repository::open(&record.directory).map_err(invalid)?;
+    let state = capture(&repo, record)?;
+    let mut hash = Sha256::new();
+    for oid in [state.head, state.index, state.raw_index, state.worktree] {
+        hash.update(oid.as_bytes());
+    }
+    hash.update(state.branch.as_deref().unwrap_or_default().as_bytes());
+    hash.update([state.has_ignored_files as u8]);
+    let head = repo.find_commit(state.head).map_err(invalid)?.tree_id();
+    Ok((
+        hex::encode(hash.finalize()),
+        state.index != head || state.worktree != state.index,
+        state.has_ignored_files,
+    ))
+}
+
+/// Enumerate only snapshots which pass the restore loader's scope and object checks.
+pub async fn list(
+    scope: &ProjectScope,
+    primary: &Path,
+) -> Result<Vec<vw_api_types::worktree::WorktreeSnapshotSummary>, Error> {
+    let _lock = registry::lifecycle_lock(primary)?;
+    let records = registry::records(scope).await?;
+    let repo = Repository::open(primary).map_err(invalid)?;
+    let mut items = vec![];
+    for reference in repo.references_glob("refs/shiju-worktree-recovery/*/*").map_err(invalid)? {
+        let reference = reference.map_err(invalid)?;
+        let Some(id) = reference.name().ok().and_then(|n| n.rsplit('/').next()) else { continue };
+        let snapshot = match restoration::load_snapshot(scope, primary, id) {
+            Ok(snapshot) => snapshot,
+            Err(_) => continue,
+        };
+        let manifest = snapshot.manifest;
+        items.push(vw_api_types::worktree::WorktreeSnapshotSummary {
+            id: id.to_owned(),
+            original_worktree_id: manifest.record.id,
+            directory: manifest.record.directory.to_string_lossy().into_owned(),
+            branch: manifest.branch,
+            has_ignored_files: manifest.has_ignored_files,
+            restored: records.iter().any(|r| r.recovered_from.as_deref() == Some(id)),
+        });
+    }
+    items.sort_by(|a, b| a.id.cmp(&b.id));
+    items.dedup_by(|a, b| a.id == b.id);
+    Ok(items)
+}

@@ -77,3 +77,7 @@ pub mod cleanup;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "cleanup_tests.rs"]
 mod cleanup_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "management.rs"]
+pub mod management;

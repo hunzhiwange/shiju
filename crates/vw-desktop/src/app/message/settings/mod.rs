@@ -373,7 +373,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::HeartbeatHelpClose => {
             update_config_panel(app, message, "heartbeat_settings", heartbeat::update)
         }
-        SettingsMessage::CronScheduleDraftChanged { .. }
+        SettingsMessage::CronPickerOpen { .. }
+        | SettingsMessage::CronPickerNavigate(_)
+        | SettingsMessage::CronPickerDate(_)
+        | SettingsMessage::CronPickerTime { .. }
+        | SettingsMessage::CronPickerConfirm
+        | SettingsMessage::CronPickerCancel
+        | SettingsMessage::CronScheduleDraftChanged { .. }
         | SettingsMessage::CronSchedulePreview { .. }
         | SettingsMessage::CronSchedulePreviewLoaded { .. }
         | SettingsMessage::CronEnabledToggled(_)

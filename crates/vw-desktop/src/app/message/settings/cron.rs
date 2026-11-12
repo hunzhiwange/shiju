@@ -197,6 +197,101 @@ mod cron_tests;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::CronPickerOpen { editing } => {
+            let state = &mut app.cron_settings;
+            if state.date_time_picker.is_some()
+                || state.show_help_modal
+                || state.runs_modal_job_id.is_some()
+                || (editing && state.editing_job_id.is_none())
+            {
+                return Task::none();
+            }
+            let draft = if editing { &state.edit_draft } else { &state.add_draft };
+            if draft.submitting {
+                return Task::none();
+            }
+            let timezone =
+                draft.schedule_draft.as_ref().map(|d| d.timezone.as_str()).unwrap_or("UTC");
+            let tz = match timezone.parse::<chrono_tz::Tz>() {
+                Ok(tz) => tz,
+                Err(_) => {
+                    state.save_error_translation = None;
+                    state.save_error = Some("请选择有效的 IANA 时区后重试".into());
+                    return Task::none();
+                }
+            };
+            let now = chrono::Utc::now().with_timezone(&tz);
+            let absolute = match draft.schedule_draft.as_ref().map(|d| &d.rule) {
+                Some(crate::app::state::CronScheduleRule::AbsoluteAt(value)) => {
+                    Some(value.as_str())
+                }
+                _ => Some(draft.at.as_str()),
+            }
+            .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
+            .map(|v| v.with_timezone(&tz));
+            let (date, time) = match draft.schedule_draft.as_ref().map(|d| &d.rule) {
+                Some(crate::app::state::CronScheduleRule::At { date, time }) => (*date, *time),
+                _ => absolute.map(|v| (v.date_naive(), v.time())).unwrap_or((
+                    now.date_naive(),
+                    chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
+                )),
+            };
+            let mut picker =
+                crate::app::components::system_settings_cron::date_time::DateTimePicker::new(
+                    editing, date, time,
+                );
+            picker.revision = draft.schedule_revision;
+            // 时分精度显式归一化，避免绝对时间中的秒在确认后被隐藏保留。
+            use chrono::Timelike;
+            picker.set_time(time.hour(), time.minute());
+            state.date_time_picker = Some(picker);
+            Task::none()
+        }
+        SettingsMessage::CronPickerNavigate(months) => {
+            if let Some(picker) = &mut app.cron_settings.date_time_picker {
+                picker.navigate(months);
+            }
+            Task::none()
+        }
+        SettingsMessage::CronPickerDate(date) => {
+            if let Some(picker) = &mut app.cron_settings.date_time_picker {
+                picker.select(date);
+            }
+            Task::none()
+        }
+        SettingsMessage::CronPickerTime { hour, minute } => {
+            if let Some(picker) = &mut app.cron_settings.date_time_picker {
+                picker.set_time(hour, minute);
+            }
+            Task::none()
+        }
+        SettingsMessage::CronPickerCancel => {
+            app.cron_settings.date_time_picker = None;
+            Task::none()
+        }
+        SettingsMessage::CronPickerConfirm => {
+            if let Some(picker) = app.cron_settings.date_time_picker.take() {
+                let target = if picker.editing {
+                    &mut app.cron_settings.edit_draft
+                } else {
+                    &mut app.cron_settings.add_draft
+                };
+                if target.submitting || target.schedule_revision != picker.revision {
+                    return Task::none();
+                }
+                let mut schedule = target.schedule_draft.clone().unwrap_or_default();
+                schedule.rule = crate::app::state::CronScheduleRule::At {
+                    date: picker.date,
+                    time: picker.time,
+                };
+                target.schedule_kind = CronAddScheduleKind::At;
+                // 同步旧表单的展示值，实际请求始终由强类型草稿生成。
+                target.at = format!("{}T{}", picker.date, picker.time.format("%H:%M"));
+                target.schedule_draft = Some(schedule);
+                invalidate_schedule(target);
+            }
+            Task::none()
+        }
         SettingsMessage::CronScheduleDraftChanged { editing, draft } => {
             let target = if editing {
                 &mut app.cron_settings.edit_draft
@@ -258,6 +353,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             persist_cron_settings(app)
         }
         SettingsMessage::CronTabSelected(tab) => {
+            app.cron_settings.date_time_picker = None;
             app.cron_settings.active_tab = tab;
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
@@ -452,6 +548,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditCanceled => {
+            app.cron_settings.date_time_picker = None;
             app.cron_settings.editing_job_id = None;
             let revision = app.cron_settings.edit_draft.schedule_revision + 1;
             app.cron_settings.edit_draft = Default::default();

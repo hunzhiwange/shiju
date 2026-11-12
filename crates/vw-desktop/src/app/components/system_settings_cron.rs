@@ -23,6 +23,7 @@ use iced::widget::{button, checkbox, column, container, row, slider, text, text_
 use iced::{Alignment, Background, Element, Length, Theme};
 use vw_gateway_client::CronJobDto;
 
+pub(crate) mod date_time;
 mod list;
 mod schedule;
 #[cfg(test)]
@@ -88,22 +89,17 @@ fn field_row_with_help<'a>(
     .into()
 }
 
-fn at_field<'a>(
-    app: &App,
-    value: &'a str,
-    changed: fn(String) -> message::SettingsMessage,
-) -> Element<'a, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let format = i18n.__("RFC3339 时间");
+fn at_field<'a>(app: &App, value: &'a str, editing: bool) -> Element<'a, Message> {
+    let label =
+        if value.is_empty() { "选择日期和时间".to_string() } else { value.to_string() };
     field_row_with_help(
         app,
         "指定时间",
-        i18n.__("RFC3339 时间，例如 2026-06-04T09:00:00Z。"),
-        column![
-            text_field(format, value, move |v| Message::Settings(changed(v))),
-            text(format).size(11).style(settings_muted_text_style),
-        ]
-        .spacing(8),
+        "选择日期及小时、分钟；确认后预览校验。",
+        secondary_button(
+            label,
+            Message::Settings(message::SettingsMessage::CronPickerOpen { editing }),
+        ),
     )
 }
 
@@ -342,9 +338,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
     );
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, true),
-        CronAddScheduleKind::At => {
-            at_field(app, &draft.at, message::SettingsMessage::CronJobEditAtChanged)
-        }
+        CronAddScheduleKind::At => at_field(app, &draft.at, true),
         CronAddScheduleKind::Every => field_row_with_help(
             app,
             "固定间隔",
@@ -765,9 +759,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     );
     let schedule_row = match draft.schedule_kind {
         CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, false),
-        CronAddScheduleKind::At => {
-            at_field(app, &draft.at, message::SettingsMessage::CronAddAtChanged)
-        }
+        CronAddScheduleKind::At => at_field(app, &draft.at, false),
         CronAddScheduleKind::Every => field_row_with_help(
             app,
             "固定间隔",
@@ -1172,7 +1164,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     let dialog = with_runs_modal(app, dialog);
 
     if !s.show_help_modal {
-        return dialog;
+        return date_time::view_overlay(app, dialog);
     }
 
     let help_text = r#"定时任务配置说明

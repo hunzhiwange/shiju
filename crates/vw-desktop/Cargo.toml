@@ -28,6 +28,7 @@ path = "src/main.rs"
 anyhow = "1"
 base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10.4"
 directories = "5"
 glob = "0.3"
 hex = "0.4"
@@ -224,5 +225,12 @@ test = false
 [[test]]
 name = "local-speech-system"
 path = "src/local_speech_system_main.rs"
+harness = false
+test = false
+
+# 显式日期时间选择器窗口验收，不执行启动任务或保存用户配置。
+[[test]]
+name = "cron-picker-window"
+path = "src/cron_picker_window_main.rs"
 harness = false
 test = false

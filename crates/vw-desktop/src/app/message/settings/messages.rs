@@ -941,6 +941,17 @@ pub enum SettingsMessage {
     HeartbeatSave,
     HeartbeatHelpOpen,
     HeartbeatHelpClose,
+    CronPickerOpen {
+        editing: bool,
+    },
+    CronPickerNavigate(i32),
+    CronPickerDate(chrono::NaiveDate),
+    CronPickerTime {
+        hour: u32,
+        minute: u32,
+    },
+    CronPickerConfirm,
+    CronPickerCancel,
     CronScheduleDraftChanged {
         editing: bool,
         draft: crate::app::state::CronScheduleDraft,

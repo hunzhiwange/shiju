@@ -54,8 +54,8 @@ pub(super) use panels::{settings_flexible_row, settings_row_with_flexible_contro
 pub(crate) use panels::{
     settings_flexible_row_with_help, settings_group_heading_with_help,
     settings_modal_layout_with_scroll_id, settings_modal_overlay_with_backdrop_dismiss,
-    settings_modal_overlay_with_escape, settings_optional_modal_overlay,
-    settings_page_heading_with_help, settings_responsive_row,
+    settings_modal_overlay_with_escape, settings_modal_overlay_with_escape_and_backdrop_dismiss,
+    settings_optional_modal_overlay, settings_page_heading_with_help, settings_responsive_row,
 };
 pub(crate) use select::SettingsSelectLabel;
 pub use select::settings_select;

@@ -706,6 +706,8 @@ impl CronListFilter {
 
 #[derive(Debug, Clone)]
 pub(crate) struct CronSettingsState {
+    pub(crate) date_time_picker:
+        Option<crate::app::components::system_settings_cron::date_time::DateTimePicker>,
     /// 是否启用定时任务
     pub(crate) enabled: bool,
     /// 最大运行历史记录数
@@ -769,6 +771,7 @@ impl CronSettingsState {
 impl Default for CronSettingsState {
     fn default() -> Self {
         Self {
+            date_time_picker: None,
             enabled: true,
             max_run_history: 50,
             active_tab: CronSettingsTab::default(),

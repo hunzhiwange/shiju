@@ -917,3 +917,89 @@ fn wb_schedule_draft_unsupported_job_does_not_select_stale_edit_draft() {
     assert!(app.cron_settings.editing_job_id.is_none());
     assert!(app.cron_settings.save_error.is_some());
 }
+
+#[test]
+fn wb_schedule_picker_cancel_preserves_draft() {
+    let mut app = app();
+    app.cron_settings.add_draft.at = "2030-01-02T10:11:00Z".into();
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronPickerDate(chrono::NaiveDate::from_ymd_opt(2031, 3, 4).unwrap()),
+    );
+    let _ = update(&mut app, SettingsMessage::CronPickerCancel);
+    assert!(app.cron_settings.date_time_picker.is_none());
+    assert_eq!(app.cron_settings.add_draft.at, "2030-01-02T10:11:00Z");
+    assert!(app.cron_settings.add_draft.schedule_draft.is_none());
+    assert_eq!(app.cron_settings.add_draft.schedule_revision, 0);
+}
+
+#[test]
+fn wb_schedule_picker_confirm_commits_and_invalidates_preview() {
+    let mut app = app();
+    app.cron_settings.add_draft.preview = Some(Err("stale".into()));
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    let date = chrono::NaiveDate::from_ymd_opt(2031, 3, 4).unwrap();
+    let _ = update(&mut app, SettingsMessage::CronPickerDate(date));
+    let _ = update(&mut app, SettingsMessage::CronPickerTime { hour: 23, minute: 59 });
+    let _ = update(&mut app, SettingsMessage::CronPickerConfirm);
+    assert!(app.cron_settings.date_time_picker.is_none());
+    let request = schedule_request(&app.cron_settings.add_draft).unwrap();
+    assert_eq!(request.local_at.as_deref(), Some("2031-03-04T23:59"));
+    assert_eq!(request.timezone.as_deref(), Some("UTC"));
+    assert_eq!(app.cron_settings.add_draft.schedule_revision, 1);
+    assert!(app.cron_settings.add_draft.preview.is_none());
+}
+
+#[test]
+fn wb_schedule_picker_only_one_overlay_and_edit_isolation() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: true });
+    assert!(!app.cron_settings.date_time_picker.as_ref().unwrap().editing);
+    let _ = update(&mut app, SettingsMessage::CronPickerCancel);
+    app.cron_settings.editing_job_id = Some("job".into());
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: true });
+    let _ = update(&mut app, SettingsMessage::CronPickerConfirm);
+    assert!(app.cron_settings.edit_draft.schedule_draft.is_some());
+    assert!(app.cron_settings.add_draft.schedule_draft.is_none());
+}
+
+#[test]
+fn wb_schedule_picker_invalid_input_and_submitting_are_safe() {
+    let mut app = app();
+    app.cron_settings.add_draft.at = "invalid".into();
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    assert!(app.cron_settings.date_time_picker.is_some());
+    let _ = update(&mut app, SettingsMessage::CronPickerCancel);
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    assert!(app.cron_settings.date_time_picker.is_none());
+}
+
+#[test]
+fn wb_schedule_picker_existing_absolute_uses_selected_timezone() {
+    let mut app = app();
+    let mut schedule = crate::app::state::CronScheduleDraft::default();
+    schedule.timezone = "Asia/Shanghai".into();
+    schedule.rule = crate::app::state::CronScheduleRule::AbsoluteAt("2030-12-31T23:35:42Z".into());
+    app.cron_settings.add_draft.schedule_draft = Some(schedule);
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    let picker = app.cron_settings.date_time_picker.as_ref().unwrap();
+    assert_eq!(picker.date.to_string(), "2031-01-01");
+    assert_eq!(picker.time.to_string(), "07:35:00");
+    let _ = update(&mut app, SettingsMessage::CronPickerConfirm);
+    let request = schedule_request(&app.cron_settings.add_draft).unwrap();
+    assert_eq!(request.timezone.as_deref(), Some("Asia/Shanghai"));
+    assert_eq!(request.local_at.as_deref(), Some("2031-01-01T07:35"));
+}
+
+#[test]
+fn wb_schedule_picker_stale_confirmation_preserves_newer_draft() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronPickerOpen { editing: false });
+    let _ = update(&mut app, SettingsMessage::CronAddAtChanged("2035-01-01T00:00:00Z".into()));
+    let _ = update(&mut app, SettingsMessage::CronPickerConfirm);
+    assert_eq!(app.cron_settings.add_draft.at, "2035-01-01T00:00:00Z");
+    assert!(app.cron_settings.add_draft.schedule_draft.is_none());
+}

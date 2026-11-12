@@ -339,6 +339,19 @@ pub(crate) fn settings_modal_overlay_with_escape<'a>(
     .into()
 }
 
+/// 同时支持遮罩点击和 Escape 取消，底层表单不接收事件。
+pub(crate) fn settings_modal_overlay_with_escape_and_backdrop_dismiss<'a>(
+    base: Element<'a, Message>,
+    close_message: Message,
+    card: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    stack![
+        settings_modal_overlay_with_backdrop_dismiss(base, close_message.clone(), card),
+        Element::new(ModalEscape(close_message)),
+    ]
+    .into()
+}
+
 struct ModalEscape(Message);
 
 impl Widget<Message, Theme, Renderer> for ModalEscape {

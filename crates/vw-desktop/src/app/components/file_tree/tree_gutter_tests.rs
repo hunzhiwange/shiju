@@ -211,8 +211,14 @@ async fn tree_gutter_remains_visible_on_selected_and_hovered_rows() {
                 } else {
                     mouse::Cursor::Unavailable
                 };
+                // Iced 在重绘事件中更新悬浮样式，与真实窗口事件顺序一致。
                 scene.ui.update(
-                    &[Event::Mouse(mouse::Event::CursorMoved { position: guide })],
+                    &[
+                        Event::Mouse(mouse::Event::CursorMoved { position: guide }),
+                        Event::Window(iced::window::Event::RedrawRequested(
+                            iced::time::Instant::now(),
+                        )),
+                    ],
                     cursor,
                     &mut renderer,
                     &mut iced::advanced::clipboard::Null,

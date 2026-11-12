@@ -564,3 +564,13 @@ fn agent_config_cleanup_save_rejects_strict_default_outside_boundary() {
     let error = validate_config(&config).unwrap_err();
     assert!(error.to_string().contains("strict skill boundary"));
 }
+
+#[test]
+fn worktree_settings_validation_rejects_invalid_host_settings() {
+    assert!(validate_config(&Config::default()).is_ok());
+    invalid_with(
+        |config| config.worktree_settings.root = "relative".into(),
+        "worktree_settings.root",
+    );
+    invalid_with(|config| config.worktree_settings.keep_count = 0, "worktree_settings.keep_count");
+}

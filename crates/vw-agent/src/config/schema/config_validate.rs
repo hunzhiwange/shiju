@@ -58,6 +58,7 @@ fn has_ollama_cloud_credential(config_api_key: Option<&str>) -> bool {
 /// 该函数只读取配置和必要的环境变量，不修改配置对象。安全相关字段默认采用显式拒绝策略，避免无效配置被
 /// 解释成更宽松的运行时行为。
 pub fn validate_config(config: &Config) -> Result<()> {
+    config.worktree_settings.validate().map_err(anyhow::Error::msg)?;
     validate_agent_profiles(config)?;
     if config.gateway.host.trim().is_empty() {
         anyhow::bail!("gateway.host must not be empty");

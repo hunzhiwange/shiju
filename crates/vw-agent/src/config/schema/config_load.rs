@@ -228,6 +228,7 @@ fn decode_tenant_config(
         };
         // Agent definitions belong to the tenant, never to a workspace.
         override_object.remove("agents");
+        override_object.remove("worktree_settings");
         merge_config_payload(&mut merged_payload, project_override);
     }
 

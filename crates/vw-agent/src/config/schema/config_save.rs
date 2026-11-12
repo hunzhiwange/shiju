@@ -159,6 +159,12 @@ pub(super) fn prepare_project_override(
     mut raw_override: Value,
     mut patch: Value,
 ) -> Result<Value> {
+    if patch.get("worktree_settings").is_some() {
+        bail!("worktree_settings are global; update tenant global config instead");
+    }
+    if let Some(object) = raw_override.as_object_mut() {
+        object.remove("worktree_settings");
+    }
     if patch.get("agents").is_some() {
         bail!("agents are global; update tenant global config instead");
     }

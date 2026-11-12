@@ -38,6 +38,7 @@ use crate::tools::{
     BrowserConfig, HttpRequestConfig, MultimodalConfig, WebFetchConfig, WebSearchConfig,
 };
 use crate::ui::AppUiConfig;
+use crate::worktree::WorktreeSettings;
 
 /// ACP 代理进程配置。
 ///
@@ -158,6 +159,10 @@ pub struct Config {
 
     #[serde(default)]
     pub workspaces: WorkspacesConfig,
+
+    /// Tenant-global host worktree settings; project overrides are forbidden.
+    #[serde(default)]
+    pub worktree_settings: WorktreeSettings,
 
     #[serde(default)]
     pub skills: SkillsConfig,
@@ -288,6 +293,7 @@ impl std::fmt::Debug for Config {
 
         f.debug_struct("Config")
             .field("workspace_dir", &self.workspace_dir)
+            .field("worktree_settings", &self.worktree_settings)
             .field("config_path", &self.config_path)
             .field("enabled_providers", &self.enabled_providers)
             .field("popular_providers", &self.popular_providers)
@@ -355,6 +361,7 @@ impl Default for Config {
             reliability: ReliabilityConfig::default(),
             scheduler: SchedulerConfig::default(),
             workspaces: WorkspacesConfig::default(),
+            worktree_settings: WorktreeSettings::default(),
             skills: SkillsConfig::default(),
             plugins: PluginsConfig::default(),
             model_routes: Vec::new(),

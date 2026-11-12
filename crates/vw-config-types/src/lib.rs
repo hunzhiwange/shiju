@@ -35,3 +35,8 @@ mod voice_tests;
 
 #[cfg(test)]
 mod computer_control_tests;
+
+pub mod worktree;
+
+#[cfg(test)]
+mod worktree_tests;

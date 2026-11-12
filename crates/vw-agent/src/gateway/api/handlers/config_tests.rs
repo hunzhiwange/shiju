@@ -1663,3 +1663,74 @@ async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
     assert_eq!(local_store(home.path()).get(&TenantScope::default()).unwrap(), saved);
     assert_eq!(state.config.lock().agents["custom-native"].runtime, AgentRuntime::Native);
 }
+
+#[tokio::test]
+async fn worktree_settings_patch_round_trips_and_rejects_project_override() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let project = home.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant = TenantScope::default();
+    let settings = serde_json::json!({
+        "root": home.path().join("trees"), "fetch_before_create": true,
+        "auto_cleanup_enabled": true, "keep_count": 7, "ask_before_delete": true
+    });
+    let Json(response) = config_patch(
+        Extension(tenant.clone()),
+        Query(InstanceQuery { directory: None }),
+        HeaderMap::new(),
+        Json(serde_json::json!({"worktree_settings": settings})),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response["worktree_settings"], settings);
+    let reloaded = config::get_global_for_tenant(&tenant).await.unwrap();
+    assert_eq!(serde_json::to_value(&reloaded.worktree_settings).unwrap(), settings);
+    let store = local_store(home.path());
+    let before = store.get(&tenant).unwrap();
+    for invalid in [
+        serde_json::json!({"root":"relative"}),
+        serde_json::json!({"keep_count":0}),
+        serde_json::json!({"keep_count":-1}),
+        serde_json::json!({"keep_count":4294967296_u64}),
+    ] {
+        let err = config_patch(
+            Extension(tenant.clone()),
+            Query(InstanceQuery { directory: None }),
+            HeaderMap::new(),
+            Json(serde_json::json!({"worktree_settings":invalid})),
+        )
+        .await
+        .expect_err("invalid global settings");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert_eq!(store.get(&tenant).unwrap(), before);
+    }
+    for value in [settings.clone(), serde_json::Value::Null, serde_json::json!({})] {
+        let err = config_patch(
+            Extension(tenant.clone()),
+            directory_query(&project),
+            HeaderMap::new(),
+            Json(serde_json::json!({"worktree_settings":value})),
+        )
+        .await
+        .expect_err("settings are global");
+        assert_eq!(err.status, StatusCode::BAD_REQUEST);
+        assert!(err.message.contains("worktree_settings"));
+    }
+    assert_eq!(store.get_project(&tenant, project.to_str().unwrap()).unwrap(), None);
+    // Even a directly stored project payload cannot override host settings on load.
+    store
+        .upsert_project(
+            &tenant,
+            project.to_str().unwrap(),
+            r#"{"worktree_settings":{"root":"relative","keep_count":0}}"#,
+        )
+        .unwrap();
+    let effective = config::get_project_for_tenant(&tenant, &project).await.unwrap();
+    assert_eq!(serde_json::to_value(effective.worktree_settings).unwrap(), settings);
+    assert_eq!(store.get(&tenant).unwrap(), before);
+}

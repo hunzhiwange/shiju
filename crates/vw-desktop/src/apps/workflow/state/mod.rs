@@ -11,7 +11,7 @@ use super::model::{
 use iced::{Point, Vector, widget::text_editor};
 use serde_yaml::{Mapping, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::time::{SystemTime, UNIX_EPOCH};
+use web_time::{SystemTime, UNIX_EPOCH};
 
 mod app_ui;
 mod canvas_ops;

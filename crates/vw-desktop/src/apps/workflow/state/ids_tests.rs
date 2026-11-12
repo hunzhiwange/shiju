@@ -122,6 +122,41 @@ fn generated_runtime_ids_use_expected_segments_and_numeric_suffixes() {
 }
 
 #[test]
+fn generated_runtime_ids_use_current_unix_milliseconds() {
+    let source = WorkflowConnectionEndpoint {
+        node_id: "source".to_string(),
+        handle_id: "out".to_string(),
+        kind: WorkflowHandleKind::Source,
+    };
+    let target = WorkflowConnectionEndpoint {
+        node_id: "target".to_string(),
+        handle_id: "in".to_string(),
+        kind: WorkflowHandleKind::Target,
+    };
+    let before = vw_shared::time::now_ms() as u128;
+    let ids = [
+        (generate_app_id(), "workflow-app-"),
+        (generate_node_id("llm"), "llm-node-"),
+        (generate_variable_id("env"), "env-var-"),
+        (generate_start_variable_name(), "input_"),
+        (generate_case_id(), "case-"),
+        (generate_condition_id(), "condition-"),
+        (generate_prompt_item_id("system"), "system-prompt-"),
+        (generate_edge_id(&source, &target), "manual-source-out-target-in-"),
+    ];
+    let after = vw_shared::time::now_ms() as u128;
+
+    for (id, prefix) in ids {
+        let timestamp = id
+            .strip_prefix(prefix)
+            .expect("expected ID prefix")
+            .parse::<u128>()
+            .expect("Unix milliseconds");
+        assert!((before..=after).contains(&timestamp), "{id} must use current milliseconds");
+    }
+}
+
+#[test]
 fn normalize_connection_endpoints_accepts_either_order_and_rejects_same_kind() {
     let source = WorkflowConnectionEndpoint {
         node_id: "source".to_string(),

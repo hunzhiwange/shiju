@@ -67,6 +67,7 @@ pub(super) fn split_items(
             }),
         ]
         .spacing(8)
+        .height(Length::Fill)
         .align_y(iced::Alignment::Center);
         button(item)
             .width(Length::Fill)

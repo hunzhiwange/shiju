@@ -50,11 +50,13 @@ fn menu(app: &App, tab: &TerminalTab) -> Element<'static, Message> {
                     color: Some(theme.palette().text.scale_alpha(0.65)),
                 }),
             ]
+            .height(Length::Fill)
             .align_y(iced::Alignment::Center)
             .spacing(12),
         )
         .width(Length::Fill)
-        .padding([6, 9])
+        .height(30)
+        .padding([4, 9])
         .on_press_maybe(
             enabled.then_some(Message::Terminal(TerminalMessage::ContentMenuAction(id, action))),
         )
@@ -83,11 +85,6 @@ fn menu(app: &App, tab: &TerminalTab) -> Element<'static, Message> {
     let items = column![
         item(i18n.__("新建终端"), "", ContentAction::NewTerminal, true),
         rule::horizontal(1),
-        split_left,
-        split_right,
-        split_up,
-        split_down,
-        rule::horizontal(1),
         item(i18n.__("复制"), shortcut("⌘ C", "Ctrl+Shift+C"), ContentAction::Copy, selected),
         item(i18n.__("粘贴"), "", ContentAction::Paste, true),
         item(
@@ -101,6 +98,11 @@ fn menu(app: &App, tab: &TerminalTab) -> Element<'static, Message> {
         rule::horizontal(1),
         item(i18n.__("在聊天中求助"), "", ContentAction::AskInChat, true),
         item(i18n.__("插入到聊天"), "", ContentAction::InsertInChat, selected),
+        rule::horizontal(1),
+        split_left,
+        split_right,
+        split_up,
+        split_down,
         rule::horizontal(1),
         item(i18n.__("关闭终端标签页"), "", ContentAction::CloseTab, true),
     ]

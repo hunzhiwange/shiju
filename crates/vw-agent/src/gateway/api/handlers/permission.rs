@@ -103,7 +103,9 @@ fn permission_request_from_pending(
         Value::String(request.requested_reply_target.clone()),
     );
     metadata.insert("created_at".to_string(), Value::String(request.created_at.clone()));
-    metadata.insert("expires_at".to_string(), Value::String(request.expires_at.clone()));
+    if !acp {
+        metadata.insert("expires_at".to_string(), Value::String(request.expires_at.clone()));
+    }
 
     permission_next::Request {
         id: request.request_id,

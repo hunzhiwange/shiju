@@ -1,5 +1,5 @@
 //! 测试 ACP 审批桥接的请求映射、决议传播与敏感参数清理。
-//! 通过真实异步通道覆盖未知选项、断连、取消和超时一律拒绝的安全默认值。
+//! 通过真实异步通道覆盖持续等待，以及未知选项、断连、取消一律拒绝的安全默认值。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -119,7 +119,7 @@ async fn denied_for_response(response: Option<String>) {
 }
 
 #[tokio::test(start_paused = true)]
-async fn approval_disconnect_cancel_timeout_and_unknown_option_deny() {
+async fn approval_disconnect_cancel_and_unknown_option_deny() {
     denied_for_response(Some("unknown".to_string())).await;
     denied_for_response(None).await;
 
@@ -148,13 +148,15 @@ async fn approval_disconnect_cancel_timeout_and_unknown_option_deny() {
     let cancellation = CancellationToken::new();
     let task = tokio::spawn(
         ApprovalBridge::new(Arc::clone(&manager), prompt_rx, permission_tx, cancellation.clone())
-            .with_timeout(Duration::from_secs(1))
             .run(),
     );
     prompt_tx.send(prompt).expect("approval prompt");
-    let _request = permission_rx.recv().await.expect("permission request");
-    tokio::time::advance(Duration::from_secs(1)).await;
-    assert_eq!(wait_for_resolution(&manager, &request_id).await, ApprovalResponse::No);
+    let request = permission_rx.recv().await.expect("permission request");
+    tokio::time::advance(Duration::from_secs(24 * 60 * 60)).await;
+    assert!(manager.has_non_cli_pending_request(&request_id));
+    assert_eq!(manager.take_non_cli_pending_resolution(&request_id), None);
+    request.response.send(Some("allow_once".to_string())).expect("late permission response");
+    assert_eq!(wait_for_resolution(&manager, &request_id).await, ApprovalResponse::Yes);
     assert!(!manager.has_non_cli_pending_request(&request_id));
     cancellation.cancel();
     task.await.expect("bridge task");

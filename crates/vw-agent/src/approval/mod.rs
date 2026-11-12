@@ -46,6 +46,13 @@ mod policy;
 mod summary;
 mod types;
 
+/// 桌面 ACP 审批持续等待用户决定或任务取消，不设置有效期。
+pub(crate) const ACP_APPROVAL_CHANNEL: &str = "desktop-acp";
+
+pub(crate) fn is_acp_approval_channel(channel: &str) -> bool {
+    matches!(channel, "acp" | ACP_APPROVAL_CHANNEL)
+}
+
 use cli::prompt_cli_interactive;
 use summary::summarize_args;
 

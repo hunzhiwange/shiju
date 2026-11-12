@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 
 /// 非 CLI 环境下等待审批响应的超时时间（秒）
 ///
-/// 在此时间后，如果用户未做出决策，系统将自动拒绝请求
+/// 除 ACP 持续等待外，其余通道在此时间后自动拒绝未决请求。
 const NON_CLI_APPROVAL_WAIT_TIMEOUT_SECS: u64 = 300;
 
 /// 非 CLI 环境下轮询审批决策的间隔时间（毫秒）
@@ -70,13 +70,14 @@ mod approval_tests;
 
 /// 等待非 CLI 环境下的审批决策
 ///
-/// 此函数会在指定超时时间内轮询审批管理器，等待用户对工具调用做出审批决策。
+/// 此函数轮询审批管理器，等待用户对工具调用做出审批决策。
+/// ACP 审批持续挂起，其余通道保留默认超时。
 /// 函数会处理多种退出条件：
 ///
 /// - 用户做出明确的批准或拒绝决策
 /// - 审批请求被意外移除（安全失败，返回拒绝）
 /// - 任务被取消（返回拒绝）
-/// - 超时（自动拒绝）
+/// - 非 ACP 通道超时（自动拒绝）
 ///
 /// # 参数
 ///
@@ -139,7 +140,9 @@ pub(crate) async fn await_non_cli_approval_decision(
         }
 
         // 检查是否超时
-        if started.elapsed() >= Duration::from_secs(NON_CLI_APPROVAL_WAIT_TIMEOUT_SECS) {
+        if !crate::approval::is_acp_approval_channel(channel_name)
+            && started.elapsed() >= Duration::from_secs(NON_CLI_APPROVAL_WAIT_TIMEOUT_SECS)
+        {
             // 超时后自动拒绝该请求，并清理相关状态
             let _ =
                 mgr.reject_non_cli_pending_request(request_id, sender, channel_name, reply_target);

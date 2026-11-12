@@ -57,7 +57,11 @@ impl ApprovalManager {
             requested_reply_target: requested_reply_target.to_string(),
             reason,
             created_at: now.to_rfc3339(),
-            expires_at: expires.to_rfc3339(),
+            expires_at: if super::is_acp_approval_channel(requested_channel) {
+                String::new()
+            } else {
+                expires.to_rfc3339()
+            },
         };
         pending.insert(request_id, req.clone());
 
@@ -218,6 +222,9 @@ impl ApprovalManager {
 
 /// 检查待处理请求是否已过期。
 pub(super) fn is_pending_request_expired(req: &PendingNonCliApprovalRequest) -> bool {
+    if super::is_acp_approval_channel(&req.requested_channel) {
+        return false;
+    }
     chrono::DateTime::parse_from_rfc3339(&req.expires_at)
         .map(|dt| dt.with_timezone(&Utc) <= Utc::now())
         .unwrap_or(true)

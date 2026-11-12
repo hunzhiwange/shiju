@@ -114,6 +114,15 @@ fn manager_with_pending_request() -> (crate::app::agent::approval::ApprovalManag
     (manager, request.request_id)
 }
 
+#[test]
+fn acp_permission_request_omits_expiration() {
+    let mut pending = pending_request(None, serde_json::json!({}), None, None);
+    pending.requested_channel = approval_state::ACP_APPROVAL_CHANNEL.to_string();
+    let request = permission_request_from_pending(pending);
+    assert!(!request.metadata.contains_key("expires_at"));
+    assert!(request.always.is_empty());
+}
+
 fn use_temp_config_dir(temp: &TempDir) -> (EnvGuard, EnvGuard) {
     let config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", temp.path().as_os_str());
     let workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");

@@ -82,6 +82,44 @@ fn expired_pending_request_is_detected() {
 }
 
 #[test]
+fn acp_pending_request_does_not_expire_and_preserves_requester_checks() {
+    let manager = ApprovalManager::from_config(&AutonomyConfig::default());
+    let request = manager.create_non_cli_pending_request(
+        "ACP",
+        "alice",
+        super::ACP_APPROVAL_CHANNEL,
+        "chat-1",
+        None,
+        serde_json::json!({}),
+        None,
+        None,
+    );
+    assert!(request.expires_at.is_empty());
+    {
+        let mut pending = manager.pending_non_cli_requests.lock();
+        let row = pending.get_mut(&request.request_id).unwrap();
+        row.created_at = (Utc::now() - Duration::days(1)).to_rfc3339();
+        row.expires_at = (Utc::now() - Duration::hours(23)).to_rfc3339();
+    }
+    assert!(manager.has_non_cli_pending_request(&request.request_id));
+    assert_eq!(manager.list_non_cli_pending_requests(None, None, None).len(), 1);
+    assert_eq!(
+        manager.confirm_non_cli_pending_request(
+            &request.request_id,
+            "bob",
+            super::ACP_APPROVAL_CHANNEL,
+            "chat-1"
+        ),
+        Err(PendingApprovalError::RequesterMismatch),
+    );
+    assert!(manager.reply_to_non_cli_pending_once(&request, true).is_ok());
+    assert_eq!(
+        manager.take_non_cli_pending_resolution(&request.request_id),
+        Some(ApprovalResponse::Yes)
+    );
+}
+
+#[test]
 fn pending_request_rejects_missing_and_mismatched_resolution_then_allows_matching_reject() {
     let manager = ApprovalManager::from_config(&AutonomyConfig::default());
 

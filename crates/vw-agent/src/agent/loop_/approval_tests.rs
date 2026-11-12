@@ -154,3 +154,46 @@ async fn codex_plugin_compat_t37_cancelled_request_cannot_consume_prior_allow() 
         ApprovalResponse::No
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn acp_approval_waits_beyond_timeout_until_decision_or_cancellation() {
+    let manager = ApprovalManager::from_config(&AutonomyConfig::default());
+    for (channel, approved) in [(crate::approval::ACP_APPROVAL_CHANNEL, true), ("acp", false)] {
+        let request = manager.create_non_cli_pending_request(
+            "ACP",
+            "alice",
+            channel,
+            "chat-1",
+            None,
+            serde_json::json!({}),
+            None,
+            None,
+        );
+        let cancellation = CancellationToken::new();
+        let decision = await_non_cli_approval_decision(
+            &manager,
+            &request.request_id,
+            "alice",
+            channel,
+            "chat-1",
+            Some(&cancellation),
+        );
+        tokio::pin!(decision);
+        tokio::select! {
+            result = &mut decision => panic!("approval resolved before user decision: {result:?}"),
+            _ = tokio::time::sleep(Duration::from_secs(24 * 60 * 60)) => {}
+        }
+        assert!(manager.has_non_cli_pending_request(&request.request_id));
+        if approved {
+            manager.reply_to_non_cli_pending_once(&request, true).unwrap();
+        } else {
+            cancellation.cancel();
+        }
+        assert_eq!(
+            decision.await,
+            if approved { ApprovalResponse::Yes } else { ApprovalResponse::No }
+        );
+        assert!(!manager.has_non_cli_pending_request(&request.request_id));
+        assert_eq!(manager.take_non_cli_pending_resolution(&request.request_id), None);
+    }
+}

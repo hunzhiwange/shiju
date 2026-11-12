@@ -12,7 +12,7 @@ use crate::app::agent::project::instance;
 use crate::session::ui_store::current_tenant_scope;
 use vw_api_types::id::TenantScope;
 
-pub(crate) const ACP_APPROVAL_CHANNEL: &str = "desktop-acp";
+pub(crate) use crate::approval::ACP_APPROVAL_CHANNEL;
 
 type ApprovalKey = (TenantScope, String);
 static APPROVAL_MANAGERS: LazyLock<Mutex<HashMap<ApprovalKey, Arc<ApprovalManager>>>> =

@@ -1,7 +1,6 @@
 //! 原生非 CLI 审批与 ACP 权限请求之间的一次性桥接。
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -14,14 +13,12 @@ use crate::app::agent::approval::{ApprovalManager, ApprovalResponse};
 
 const ALLOW_ONCE: &str = "allow_once";
 const REJECT_ONCE: &str = "reject_once";
-const APPROVAL_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub(crate) struct ApprovalBridge {
     manager: Arc<ApprovalManager>,
     prompts: mpsc::UnboundedReceiver<NonCliApprovalPrompt>,
     permissions: mpsc::UnboundedSender<BackendPermissionRequest>,
     cancellation: CancellationToken,
-    timeout: Duration,
 }
 
 impl ApprovalBridge {
@@ -31,13 +28,7 @@ impl ApprovalBridge {
         permissions: mpsc::UnboundedSender<BackendPermissionRequest>,
         cancellation: CancellationToken,
     ) -> Self {
-        Self { manager, prompts, permissions, cancellation, timeout: APPROVAL_TIMEOUT }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn with_timeout(mut self, timeout: Duration) -> Self {
-        self.timeout = timeout;
-        self
+        Self { manager, prompts, permissions, cancellation }
     }
 
     pub(crate) async fn run(mut self) {
@@ -89,7 +80,6 @@ impl ApprovalBridge {
                 Ok(Some(_)) | Ok(None) | Err(_) => ApprovalResponse::No,
             },
             () = self.cancellation.cancelled() => ApprovalResponse::No,
-            () = tokio::time::sleep(self.timeout) => ApprovalResponse::No,
         };
         self.resolve_native(&prompt, decision);
     }

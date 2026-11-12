@@ -7,8 +7,9 @@ use tokio_util::sync::CancellationToken;
 use vw_acp::PermissionConfirmation;
 
 use crate::agent::loop_::approval::await_non_cli_approval_decision;
-use crate::approval::{ApprovalManager, ApprovalResponse, PendingNonCliApprovalRequest};
-use crate::gateway::approval_state::ACP_APPROVAL_CHANNEL;
+use crate::approval::{
+    ACP_APPROVAL_CHANNEL, ApprovalManager, ApprovalResponse, PendingNonCliApprovalRequest,
+};
 
 pub(super) struct PromptApproval<'a> {
     slot: &'a Mutex<Option<PermissionConfirmation>>,

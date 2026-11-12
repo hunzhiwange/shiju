@@ -71,7 +71,7 @@ pub struct ApprovalLogEntry {
 ///
 /// # 过期机制
 ///
-/// 每个请求都有 30 分钟的默认有效期，过期后自动清理。
+/// 请求默认有效期为 30 分钟；ACP 请求持续挂起，不自动过期。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PendingNonCliApprovalRequest {
     /// 请求的唯一标识符（格式：apr-{uuid8}）
@@ -94,7 +94,7 @@ pub struct PendingNonCliApprovalRequest {
     pub reason: Option<String>,
     /// 请求创建时间（RFC3339 格式）
     pub created_at: String,
-    /// 请求过期时间（RFC3339 格式）
+    /// 请求过期时间（RFC3339 格式）；ACP 不过期，此字段为空。
     pub expires_at: String,
 }
 

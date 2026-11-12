@@ -13,7 +13,7 @@ pub(crate) fn with_file_tree_delete_confirm<'a>(
     app: &'a App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some((_, path)) = &app.file_tree_pending_delete else {
+    let Some((_, paths)) = &app.file_tree_pending_delete else {
         return root_content;
     };
     let i18n = I18n::new(app.desktop_locale);
@@ -34,7 +34,10 @@ pub(crate) fn with_file_tree_delete_confirm<'a>(
             .style(danger_action_btn_style),
     ]
     .spacing(10);
-    let path = text(path.as_str()).wrapping(text::Wrapping::WordOrGlyph);
+    let path = column(
+        paths.iter().map(|path| text(path.as_str()).wrapping(text::Wrapping::WordOrGlyph).into()),
+    )
+    .spacing(4);
     let path = container(
         scrollable(container(path).padding([0, 7]).width(Length::Fill))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))

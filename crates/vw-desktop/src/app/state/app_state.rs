@@ -960,6 +960,8 @@ pub struct App {
     pub(crate) file_tree_expanded: Vec<String>,
     /// 展开的文件树路径集合（用于快速查询）
     pub(crate) file_tree_expanded_set: HashSet<String>,
+    /// 当前项目的文件树多选与连选锚点
+    pub(crate) file_tree_selection: crate::app::components::file_tree::selection::FileTreeSelection,
     /// 文件树右键菜单的目标路径
     pub(crate) file_tree_menu_path: Option<String>,
     /// 文件树右键菜单的锚点位置
@@ -987,7 +989,7 @@ pub struct App {
     /// 文件重命名输入值
     pub(crate) file_tree_rename_value: String,
     /// 等待确认删除的项目路径和目标路径。
-    pub(crate) file_tree_pending_delete: Option<(String, String)>,
+    pub(crate) file_tree_pending_delete: Option<(String, Vec<String>)>,
     /// 文件搜索查询文本
     pub(crate) file_search_query: String,
     /// 是否显示文件搜索面板

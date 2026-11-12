@@ -1073,7 +1073,8 @@ async fn file_tree_delete_confirmation_draws_and_routes_actions() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::SimplifiedChinese;
     let path = "/fixture/项目/待删除的文件.txt";
-    app.file_tree_pending_delete = Some(("/fixture/项目".into(), path.into()));
+    app.file_tree_pending_delete =
+        Some(("/fixture/项目".into(), vec![path.into(), "/fixture/项目/另一个文件.txt".into()]));
     let i18n = I18n::new(app.desktop_locale);
     let mut renderer = renderer().await;
 
@@ -1082,6 +1083,7 @@ async fn file_tree_delete_confirmation_draws_and_routes_actions() {
         let bounds = geometry(&mut ui, &renderer);
         assert_fits(&bounds, VIEW_SIZE);
         label(&bounds, path);
+        label(&bounds, "/fixture/项目/另一个文件.txt");
         capture(
             &mut ui,
             &mut renderer,

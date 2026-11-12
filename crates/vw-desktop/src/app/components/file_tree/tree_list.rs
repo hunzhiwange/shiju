@@ -257,7 +257,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             .spacing(4);
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
-                .on_press(Message::Project(message::ProjectMessage::ToggleTreeDir(full.clone())))
+                .on_press(Message::None)
                 .style({
                     let targeted = app.file_tree_drop_target.as_deref()
                         == Some(
@@ -266,7 +266,17 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                                 .to_string_lossy()
                                 .as_ref(),
                         );
-                    move |theme, status| file_tree_drop_directory_style(theme, status, targeted)
+                    let selected = app.file_tree_selection.contains(
+                        project_root,
+                        &std::path::Path::new(project_root).join(&full).to_string_lossy(),
+                    );
+                    move |theme, status| {
+                        if selected && !targeted {
+                            tree_file_button_style(theme, status, true)
+                        } else {
+                            file_tree_drop_directory_style(theme, status, targeted)
+                        }
+                    }
                 })
                 .width(Length::Fill);
 
@@ -292,6 +302,17 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                     })),
                     Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
+                .on_select({
+                    let path = abs_path.clone();
+                    move |modifiers| {
+                        Message::Project(ProjectMessage::FileTreeSelected {
+                            project_path: project_root.to_string(),
+                            path: path.clone(),
+                            directory: true,
+                            modifiers,
+                        })
+                    }
+                })
                 .for_row("tree-dir", abs_path.clone())
                 .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
             );
@@ -326,9 +347,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 .to_string();
             // 构建文件的绝对路径
             let abs = std::path::Path::new(project_root).join(rel).to_string_lossy().to_string();
-            // 检查文件是否被选中（当前预览路径）
-            let selected = app.active_preview_path.as_deref() == Some(&abs);
-            let abs_clone = abs.clone();
+            let selected = app.file_tree_selection.contains(project_root, &abs);
             // 构建文件行：缩进 + 文件图标 + 文件名
             let content_row: Element<'_, Message, Theme> = row![
                 text(indent.clone()).size(13),
@@ -339,7 +358,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             .into();
             // 构建可点击的文件按钮，点击时打开文件预览
             let btn = button(container(content_row).width(Length::Fill))
-                .on_press(Message::Preview(message::PreviewMessage::Open(abs_clone.clone())))
+                .on_press(Message::None)
                 .style(move |theme, status| tree_file_button_style(theme, status, selected))
                 .width(Length::Fill);
 
@@ -362,6 +381,17 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                     })),
                     Some(Message::Project(ProjectMessage::FileTreeDragEnd)),
                 )
+                .on_select({
+                    let path = abs.clone();
+                    move |modifiers| {
+                        Message::Project(ProjectMessage::FileTreeSelected {
+                            project_path: project_root.to_string(),
+                            path: path.clone(),
+                            directory: false,
+                            modifiers,
+                        })
+                    }
+                })
                 .for_row("tree-file", abs.clone())
                 .on_drag_cancel(Message::Project(ProjectMessage::FileTreeDragCancel)),
             );

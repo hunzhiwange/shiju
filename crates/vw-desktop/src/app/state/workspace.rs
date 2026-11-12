@@ -76,8 +76,8 @@ pub(crate) struct GitDiffFileMenuState {
 /// 文件树剪贴板模式
 ///
 /// 定义剪贴板操作的模式类型。
-#[derive(Debug, Clone)]
-pub(crate) enum FileTreeClipboardMode {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileTreeClipboardMode {
     /// 复制模式
     Copy,
     /// 剪切模式
@@ -87,12 +87,12 @@ pub(crate) enum FileTreeClipboardMode {
 /// 文件树剪贴板内容
 ///
 /// 存储文件树中复制或剪切的文件路径信息。
-#[derive(Debug, Clone)]
-pub(crate) struct FileTreeClipboard {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileTreeClipboard {
     /// 剪贴板操作模式
     pub(crate) mode: FileTreeClipboardMode,
-    /// 源文件路径
-    pub(crate) src_path: String,
+    /// 源路径；同时选择父目录与子项时只保留父目录
+    pub(crate) src_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

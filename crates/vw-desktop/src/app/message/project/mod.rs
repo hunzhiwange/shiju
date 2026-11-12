@@ -148,6 +148,12 @@ pub enum ProjectMessage {
     FileManagerRefreshFileTree,
     FileManagerRefreshAnimationTick,
     OpenChangedFile(String),
+    FileTreeSelected {
+        project_path: String,
+        path: String,
+        directory: bool,
+        modifiers: iced::keyboard::Modifiers,
+    },
     FileTreeRightClicked(String, String, f32, f32),
     FileTreeMenuClose,
     FileTreeAction(FileTreeAction),
@@ -236,8 +242,15 @@ pub enum ProjectMessage {
         target_path: String,
         result: Result<(), String>,
     },
+    FileTreeBatchMoveCompleted {
+        project_path: String,
+        moved_paths: Vec<(String, String)>,
+        errors: Vec<String>,
+    },
     FileTreePasteCompleted {
-        clear_clipboard: bool,
+        project_path: String,
+        clipboard: crate::app::state::FileTreeClipboard,
+        completed_sources: Vec<String>,
         result: Result<(), String>,
     },
     FileTreeDuplicateCompleted {
@@ -246,7 +259,11 @@ pub enum ProjectMessage {
     },
     FileTreeDeleteConfirmed,
     FileTreeDeleteCanceled,
-    FileTreeDeleteCompleted(Result<(), String>),
+    FileTreeDeleteCompleted {
+        project_path: String,
+        deleted_paths: Vec<String>,
+        result: Result<(), String>,
+    },
     SessionRightClicked(String, f32, f32),
     SessionMenuClose,
     SessionTreeToggled(String),

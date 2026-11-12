@@ -8,6 +8,7 @@ use iced::{Background, Element, Event, Length, Point, Rectangle, Size, Theme, Tr
 #[derive(Debug, Clone, PartialEq)]
 enum TestMessage {
     ChildUpdated,
+    Selected(iced::keyboard::Modifiers),
     RightClicked(Point),
     DragStarted,
     DragEnded,
@@ -959,4 +960,79 @@ fn file_tree_refresh_discards_the_replaced_rows_press() {
         mouse::Cursor::Available(Point::new(20.0, 22.0)),
     );
     assert_eq!(moved, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn selection_snapshots_press_modifiers_and_survives_modifier_release() {
+    use iced::keyboard::{Event as KeyEvent, Modifiers};
+    let mut area = area().on_select(TestMessage::Selected);
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(30.0, 30.0));
+    for modifiers in [Modifiers::COMMAND, Modifiers::COMMAND, Modifiers::default()] {
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Keyboard(KeyEvent::ModifiersChanged(modifiers)),
+            cursor,
+        );
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            cursor,
+        );
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Keyboard(KeyEvent::ModifiersChanged(Modifiers::default())),
+            cursor,
+        );
+        let messages = update_area(
+            &mut area,
+            &mut tree,
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+            cursor,
+        );
+        assert_eq!(messages, [TestMessage::Selected(modifiers)]);
+    }
+}
+
+#[test]
+fn selection_does_not_fire_after_drag_or_release_outside_row() {
+    let mut area = area().on_select(TestMessage::Selected);
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(30.0, 30.0));
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    let moved = mouse::Cursor::Available(Point::new(40.0, 30.0));
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(40.0, 30.0) }),
+        moved,
+    );
+    let messages = update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        moved,
+    );
+    assert_eq!(messages, [TestMessage::DragEnded]);
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    let messages = update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        mouse::Cursor::Unavailable,
+    );
+    assert!(messages.is_empty());
 }

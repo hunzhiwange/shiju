@@ -1472,6 +1472,7 @@ impl App {
             // ========== 文件树状态 ==========
             file_tree_expanded: cfg_file_tree_expanded.clone(),
             file_tree_expanded_set: cfg_file_tree_expanded.into_iter().collect(),
+            file_tree_selection: Default::default(),
             file_tree_menu_path,
             file_tree_menu_anchor,
             file_tree_menu_source,

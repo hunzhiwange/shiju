@@ -18,7 +18,7 @@ use iced::{Background, Color, Element, Font, Pixels, Rectangle, Size, Theme, Vec
 fn app_with_clipboard(mode: FileTreeClipboardMode) -> App {
     let mut app = App::new().0;
     app.file_tree_clipboard =
-        Some(FileTreeClipboard { mode, src_path: "fixture/path".to_string() });
+        Some(FileTreeClipboard { mode, src_paths: vec!["fixture/path".to_string()] });
     app
 }
 

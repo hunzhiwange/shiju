@@ -45,6 +45,7 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     row_identity: Option<(&'static str, String)>,
     on_external_drop: Option<Box<dyn Fn(std::path::PathBuf) -> Message + 'a>>,
     on_cancel: Option<Message>,
+    on_select: Option<Box<dyn Fn(iced::keyboard::Modifiers) -> Message + 'a>>,
 }
 
 /// 右键点击区域的状态数据
@@ -61,6 +62,8 @@ struct RightClickAreaState {
     /// 是否已经开始拖拽（移动距离超过阈值）
     dragging_started: bool,
     drop_consumed: bool,
+    modifiers: iced::keyboard::Modifiers,
+    press_modifiers: iced::keyboard::Modifiers,
 }
 
 impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, RendererT> {
@@ -104,6 +107,7 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
             row_identity: None,
             on_external_drop: None,
             on_cancel: None,
+            on_select: None,
         }
     }
     /// 仅用于普通文件树的目录行；消息包含本次拖动的路径快照。
@@ -135,6 +139,15 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
 
     pub(super) fn for_row(mut self, kind: &'static str, path: String) -> Self {
         self.row_identity = Some((kind, path));
+        self
+    }
+
+    /// Capture modifiers with the press, keeping click selection independent of view rebuilds.
+    pub(super) fn on_select(
+        mut self,
+        callback: impl Fn(iced::keyboard::Modifiers) -> Message + 'a,
+    ) -> Self {
+        self.on_select = Some(Box::new(callback));
         self
     }
 
@@ -294,6 +307,17 @@ where
             }
         }
         let state = tree.state.downcast_mut::<RightClickAreaState>();
+        match event {
+            Event::Keyboard(iced::keyboard::Event::ModifiersChanged(modifiers))
+            | Event::Keyboard(iced::keyboard::Event::KeyPressed { modifiers, .. })
+            | Event::Keyboard(iced::keyboard::Event::KeyReleased { modifiers, .. }) => {
+                state.modifiers = *modifiers;
+            }
+            Event::Window(iced::window::Event::Unfocused) => {
+                state.modifiers = iced::keyboard::Modifiers::default();
+            }
+            _ => {}
+        }
         if cancelled {
             if state.dragging_started
                 && let Some(message) = &self.on_cancel
@@ -374,12 +398,13 @@ where
         };
         if let Event::Mouse(mouse::Event::ButtonPressed(button)) = event
             && matches!(button, mouse::Button::Left)
-            && self.on_left_press.is_some()
+            && (self.on_left_press.is_some() || self.on_select.is_some())
             && !shell.is_event_captured()
             && let Some(pos) = cursor.position()
             && hit
         {
             state.press_pos = Some(pos - viewport_origin);
+            state.press_modifiers = state.modifiers;
             state.dragging_started = false;
         }
 
@@ -418,8 +443,17 @@ where
         if let Event::Mouse(mouse::Event::ButtonReleased(button)) = event
             && matches!(button, mouse::Button::Left)
         {
-            suppress_release = state.press_pos.take().is_some()
-                && (state.dragging_started || !hit || shell.is_event_captured());
+            let pressed = state.press_pos.take().is_some();
+            suppress_release =
+                pressed && (state.dragging_started || !hit || shell.is_event_captured());
+            if pressed
+                && !suppress_release
+                && let Some(select) = &self.on_select
+            {
+                shell.publish(select(state.press_modifiers));
+                shell.capture_event();
+                suppress_release = true;
+            }
             if state.dragging_started
                 && let Some(msg) = &self.on_left_release
             {

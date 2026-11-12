@@ -59,10 +59,12 @@ fn workspace_structs_keep_selected_git_and_find_state() {
     let menu = GitDiffFileMenuState { file: "src/lib.rs".to_string() };
     assert_eq!(menu.file, "src/lib.rs");
 
-    let clipboard =
-        FileTreeClipboard { mode: FileTreeClipboardMode::Copy, src_path: "/tmp/a.txt".to_string() };
+    let clipboard = FileTreeClipboard {
+        mode: FileTreeClipboardMode::Copy,
+        src_paths: vec!["/tmp/a.txt".to_string()],
+    };
     assert!(matches!(clipboard.mode, FileTreeClipboardMode::Copy));
-    assert_eq!(clipboard.src_path, "/tmp/a.txt");
+    assert_eq!(clipboard.src_paths, ["/tmp/a.txt"]);
 
     let find_match = FindInFolderMatch {
         path: "src/lib.rs".to_string(),

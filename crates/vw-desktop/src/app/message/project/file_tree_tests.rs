@@ -14,7 +14,7 @@ fn app() -> crate::app::App {
     crate::app::App::new().0
 }
 
-fn preview_tab(path: &str) -> crate::app::PreviewTab {
+pub(super) fn preview_tab(path: &str) -> crate::app::PreviewTab {
     crate::app::PreviewTab {
         path: path.to_string(),
         title: path.to_string(),
@@ -375,7 +375,7 @@ fn copy_and_cut_actions_update_file_tree_clipboard() {
     );
     let clipboard = app.file_tree_clipboard.as_ref().expect("clipboard");
     assert!(matches!(clipboard.mode, crate::app::state::FileTreeClipboardMode::Copy));
-    assert_eq!(clipboard.src_path, "/tmp/a.txt");
+    assert_eq!(clipboard.src_paths, ["/tmp/a.txt"]);
 
     app.file_tree_menu_path = Some("/tmp/b.txt".to_string());
     let _ = super::handle(
@@ -386,7 +386,7 @@ fn copy_and_cut_actions_update_file_tree_clipboard() {
     );
     let clipboard = app.file_tree_clipboard.as_ref().expect("clipboard");
     assert!(matches!(clipboard.mode, crate::app::state::FileTreeClipboardMode::Cut));
-    assert_eq!(clipboard.src_path, "/tmp/b.txt");
+    assert_eq!(clipboard.src_paths, ["/tmp/b.txt"]);
 }
 
 // 状态转换：覆盖交互前后的字段同步、选择关系与清理规则。
@@ -506,7 +506,7 @@ fn paste_without_clipboard_or_project_does_not_mutate_clipboard() {
     app.file_tree_menu_path = Some("/tmp/project/src".to_string());
     app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
         mode: crate::app::state::FileTreeClipboardMode::Copy,
-        src_path: "/tmp/source.txt".to_string(),
+        src_paths: vec!["/tmp/source.txt".to_string()],
     });
     let _ = super::handle(
         &mut app,
@@ -515,7 +515,9 @@ fn paste_without_clipboard_or_project_does_not_mutate_clipboard() {
         ),
     );
     assert_eq!(
-        app.file_tree_clipboard.as_ref().map(|value| value.src_path.as_str()),
+        app.file_tree_clipboard
+            .as_ref()
+            .and_then(|value| value.src_paths.first().map(String::as_str)),
         Some("/tmp/source.txt")
     );
 }
@@ -535,13 +537,16 @@ fn paste_completed_cut_success_clears_clipboard() {
     let mut app = app();
     app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
         mode: crate::app::state::FileTreeClipboardMode::Cut,
-        src_path: "/tmp/a.txt".to_string(),
+        src_paths: vec!["/tmp/a.txt".to_string()],
     });
 
+    let clipboard = app.file_tree_clipboard.clone().unwrap();
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::FileTreePasteCompleted {
-            clear_clipboard: true,
+            project_path: "/tmp".into(),
+            clipboard,
+            completed_sources: vec!["/tmp/a.txt".into()],
             result: Ok(()),
         },
     );
@@ -554,19 +559,26 @@ fn paste_completed_copy_success_preserves_clipboard() {
     let mut app = app();
     app.file_tree_clipboard = Some(crate::app::state::FileTreeClipboard {
         mode: crate::app::state::FileTreeClipboardMode::Copy,
-        src_path: "/tmp/a.txt".to_string(),
+        src_paths: vec!["/tmp/a.txt".to_string()],
     });
 
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::FileTreePasteCompleted {
-            clear_clipboard: false,
+            project_path: "/tmp".into(),
+            clipboard: crate::app::state::FileTreeClipboard {
+                mode: crate::app::state::FileTreeClipboardMode::Copy,
+                src_paths: vec!["/tmp/a.txt".into()],
+            },
+            completed_sources: vec![],
             result: Ok(()),
         },
     );
 
     assert_eq!(
-        app.file_tree_clipboard.as_ref().map(|value| value.src_path.as_str()),
+        app.file_tree_clipboard
+            .as_ref()
+            .and_then(|value| value.src_paths.first().map(String::as_str)),
         Some("/tmp/a.txt")
     );
 }
@@ -574,25 +586,32 @@ fn paste_completed_copy_success_preserves_clipboard() {
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
-fn paste_and_delete_failures_set_error_message() {
+fn paste_and_delete_failures_show_error_toasts() {
     let mut app = app();
 
     let _ = super::handle(
         &mut app,
         crate::app::message::project::ProjectMessage::FileTreePasteCompleted {
-            clear_clipboard: false,
+            project_path: "/tmp".into(),
+            clipboard: crate::app::state::FileTreeClipboard {
+                mode: crate::app::state::FileTreeClipboardMode::Copy,
+                src_paths: vec!["/tmp/a.txt".into()],
+            },
+            completed_sources: vec![],
             result: Err("denied".to_string()),
         },
     );
-    assert_eq!(app.error_message.as_deref(), Some("粘贴失败: denied"));
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("denied")));
 
     let _ = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::FileTreeDeleteCompleted(Err(
-            "missing".to_string()
-        )),
+        crate::app::message::project::ProjectMessage::FileTreeDeleteCompleted {
+            project_path: "/tmp".into(),
+            deleted_paths: vec![],
+            result: Err("missing".into()),
+        },
     );
-    assert_eq!(app.error_message.as_deref(), Some("删除失败: missing"));
+    assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("missing")));
 }
 
 #[test]
@@ -777,4 +796,63 @@ fn file_tree_move_drop_target_release_uses_current_source_and_is_consumed_once()
     let _ = super::handle(&mut app, release);
     let _ = super::handle(&mut app, P::FileTreeDragEnd);
     assert!(app.pending_drop_file_paths.is_empty());
+}
+
+#[test]
+fn modified_tree_clicks_select_files_and_directories_without_opening_them() {
+    use crate::app::message::project::ProjectMessage;
+    use iced::keyboard::Modifiers;
+    let mut app = app();
+    app.project_path = Some("/project".to_string());
+    app.set_file_index("/project", vec!["/project/src/a.rs".into(), "/project/README.md".into()]);
+    app.file_tree_expanded.clear();
+    app.file_tree_expanded_set.clear();
+    for (path, directory) in [("/project/src", true), ("/project/README.md", false)] {
+        let _ = super::handle(
+            &mut app,
+            ProjectMessage::FileTreeSelected {
+                project_path: "/project".into(),
+                path: path.into(),
+                directory,
+                modifiers: Modifiers::COMMAND,
+            },
+        );
+    }
+    assert!(app.file_tree_selection.contains("/project", "/project/src"));
+    assert!(app.file_tree_selection.contains("/project", "/project/README.md"));
+    assert!(!app.is_file_tree_dir_expanded("src"));
+    assert!(app.active_preview_path.is_none());
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileTreeSelected {
+            project_path: "/project".into(),
+            path: "/project/src".into(),
+            directory: true,
+            modifiers: Modifiers::default(),
+        },
+    );
+    assert!(app.is_file_tree_dir_expanded("src"));
+    assert_eq!(app.file_tree_selection.paths.len(), 1);
+}
+
+#[test]
+fn tree_selection_rejects_old_project_and_invisible_rows() {
+    use crate::app::message::project::ProjectMessage;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    app.set_file_index("/project", vec!["/project/src/a.rs".into()]);
+    app.file_tree_expanded.clear();
+    app.file_tree_expanded_set.clear();
+    for (root, path) in [("/old", "/old/a"), ("/project", "/project/src/a.rs")] {
+        let _ = super::handle(
+            &mut app,
+            ProjectMessage::FileTreeSelected {
+                project_path: root.into(),
+                path: path.into(),
+                directory: false,
+                modifiers: iced::keyboard::Modifiers::COMMAND,
+            },
+        );
+    }
+    assert!(app.file_tree_selection.paths.is_empty());
 }

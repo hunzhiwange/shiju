@@ -1414,7 +1414,7 @@
       }
     ]
   },
-  "acceptance_status": "implemented_pending_unrelated_regression_verification",
+  "acceptance_status": "complete",
   "production_source_references": [
     {
       "path": "crates/vw-agent/src/gateway/agent_apps_diagnostic_executors/model_check/response.rs",
@@ -1482,7 +1482,7 @@
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
-      "sha256": "9dac9c0b7f9d2cb21cacc9d4da6241444929ab5c4424bc796fa754f8f763e61f"
+      "sha256": "cc5b36d743715022449da365d2d55b242e74a3da068c5d3341f526a1227af12e"
     },
     {
       "path": "crates/vw-agent/src/model_relay/messages_thinking.rs",
@@ -1574,7 +1574,7 @@
     },
     {
       "path": "crates/vw-agent/src/model_relay/server_tests.rs",
-      "sha256": "3d4bc13028e9607e2a23be2537f3c0e1513f21649a6d9e2201383a1e09b841e3"
+      "sha256": "4c66a5290ca1d386c73cd93e10c57c3ce276b95e27c4716ec26c09b6c381003d"
     },
     {
       "path": "crates/vw-agent/src/model_relay/stream_observer.rs",
@@ -1598,7 +1598,7 @@
     },
     {
       "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs",
-      "sha256": "7d599f536650d3875a581673a4ac4c1c4f28b9b93f9a63732970b30289318ffd"
+      "sha256": "0604446d525429bcc6e848f096285560f98db7109cd20615e06755525b5da626"
     },
     {
       "path": "crates/vw-agent/src/session/llm/acp/model_source/drivers/opencode.rs",
@@ -2700,28 +2700,7 @@
       "catalog": "2 failures/1 error before reviewed defaults/loopback validation; 3 passes after.",
       "service_fixture": "Raw SDK account identity exposed native Chat fixture rejection (7 tests/15 failed assertions); restoring the private reviewed Chat wire adapter gives 7 passes. ACP native-account preference test failed once and then passed in the 35-test validator suite."
     },
-    "unresolved_regressions": [
-      {
-        "command": "latest vw-agent model_protocol_ suite",
-        "exit_code": 101,
-        "effective_tests": 0,
-        "cause": "Two rustc code-generation attempts ended with SIGKILL, including opt-level=0/codegen-units=256/debug=0 retry. Cause unknown; no compiler diagnostic establishes a source error. Prior full suite passed 74 before the final nullable-history change; actual latest components passed 19 separately."
-      },
-      {
-        "command": "cargo clippy --all-targets --all-features -- -D warnings",
-        "exit_code": 101,
-        "cause": "Unrelated untracked desktop worktree settings files: crates/vw-desktop/src/app/message/settings/worktrees.rs and crates/vw-desktop/src/app/state/settings/worktrees.rs produce 8 lib/12 lib-test dead-code diagnostics. Related agent/resolver all-targets/all-features Clippy passes."
-      },
-      {
-        "command": "prior 74-suite binary acp_model_source_relay_",
-        "exit_code": 101,
-        "effective_tests": 19,
-        "passed": 17,
-        "failed": 2,
-        "ignored": 1,
-        "cause": "Unchanged server_tests.rs:278 and messages_tests.rs:491 unwrap missing first stream chunks in bounded lifetime tests. The server expiry case repeats in isolation (one failure). This binary predates the final nullable-only fix; not evidence of a successful latest full suite."
-      }
-    ],
+    "unresolved_regressions": [],
     "latest_component_tests": {
       "cargo_slot": 6,
       "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-6",
@@ -3095,6 +3074,423 @@
       "final_slot": 6,
       "lock_released": true,
       "compile_cache_preserved": true
+    },
+    "previous_unresolved_regressions": [
+      {
+        "command": "latest vw-agent model_protocol_ suite",
+        "exit_code": 101,
+        "effective_tests": 0,
+        "cause": "Two rustc code-generation attempts ended with SIGKILL, including opt-level=0/codegen-units=256/debug=0 retry. Cause unknown; no compiler diagnostic establishes a source error. Prior full suite passed 74 before the final nullable-history change; actual latest components passed 19 separately.",
+        "resolved_by": "validation.final_regression"
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 101,
+        "cause": "Unrelated untracked desktop worktree settings files: crates/vw-desktop/src/app/message/settings/worktrees.rs and crates/vw-desktop/src/app/state/settings/worktrees.rs produce 8 lib/12 lib-test dead-code diagnostics. Related agent/resolver all-targets/all-features Clippy passes.",
+        "resolved_by": "validation.final_regression"
+      },
+      {
+        "command": "prior 74-suite binary acp_model_source_relay_",
+        "exit_code": 101,
+        "effective_tests": 19,
+        "passed": 17,
+        "failed": 2,
+        "ignored": 1,
+        "cause": "Unchanged server_tests.rs:278 and messages_tests.rs:491 unwrap missing first stream chunks in bounded lifetime tests. The server expiry case repeats in isolation (one failure). This binary predates the final nullable-only fix; not evidence of a successful latest full suite.",
+        "resolved_by": "validation.final_regression"
+      }
+    ],
+    "final_regression": {
+      "checked_at": "2026-11-12",
+      "source_revision": "d7e7ada44d612de20f247d2cb590c871e6c5f7c3",
+      "dirty_worktree": true,
+      "cargo_slot": 5,
+      "environment": {
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_BUILD_JOBS": "1"
+      },
+      "commands": [
+        {
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "vw-shared",
+            "--lib",
+            "model_protocol_",
+            "--",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "effective_tests": 24
+        },
+        {
+          "command": [
+            "cargo",
+            "test",
+            "-p",
+            "vw-provider-resolver",
+            "--lib",
+            "model_protocol_",
+            "--",
+            "--nocapture"
+          ],
+          "exit_code": 0,
+          "effective_tests": 23
+        },
+        {
+          "command": [
+            "cargo",
+            "clippy",
+            "--all-targets",
+            "--all-features",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "effective_tests": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "fmt",
+            "--all"
+          ],
+          "exit_code": 0,
+          "effective_tests": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "--config",
+            "profile.test.package.vw-agent.opt-level=0",
+            "--config",
+            "profile.test.package.vw-agent.debug=0",
+            "--config",
+            "profile.test.package.vw-agent.codegen-units=16",
+            "test",
+            "-p",
+            "vw-agent",
+            "--lib",
+            "--",
+            "model_protocol_",
+            "acp_model_source_relay_",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "exit_code": 0,
+          "effective_tests": 95,
+          "model_protocol_passed": 75,
+          "relay_passed": 20
+        },
+        {
+          "command": [
+            "cargo",
+            "clippy",
+            "--all-targets",
+            "--all-features",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "effective_tests": 0
+        },
+        {
+          "command": [
+            "python3",
+            "scripts/audit_model_protocols.py",
+            "check-coverage",
+            "--inventory",
+            "docs/dev/model-protocols/catalog-inventory.json",
+            "--matrix",
+            "docs/dev/model-protocols/coverage.json"
+          ],
+          "exit_code": 0,
+          "effective_tests": 0
+        }
+      ],
+      "effective_test_counts": {
+        "shared_model_protocol": 24,
+        "resolver_model_protocol": 23,
+        "agent_model_protocol": 75,
+        "agent_relay": 20,
+        "ignored_requires_installed_cli": 1
+      },
+      "test_binary": {
+        "path": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_agent-9062cb739636b372",
+        "sha256": "c2f5a9a43635235a449528bb7ffd988105e6fbc016066c9c08ab357f89437443"
+      },
+      "source_sha256_before_tests": {
+        "crates/vw-agent/src/model_relay/gemini.rs": "b33606a162a1ccc701733e0cd0196f0acc18bfcf4e02a35231842e1e23fc716b",
+        "crates/vw-agent/src/model_relay/messages_request_core_tests.rs": "31e32fecdc27df13454dab406bd0420a91446e98c2f5bc027081d923d9861df5",
+        "crates/vw-agent/src/model_relay/protocol_bridge_tests.rs": "6f07391c7269e4a8fc636ed4fab01d0dada2809c6b3827676c571fb21b7be38d",
+        "crates/vw-agent/src/model_relay/transport_tests.rs": "77aaa61d7e2c5fd2348c95853d95ae8ac5aa27809dc7cf87dd3a3de55a0371ba",
+        "crates/vw-agent/src/model_relay/stream_observer.rs": "1d65217a77540a06e804035bf91fd963af71a81e20d88322f6203e5a431e6e51",
+        "crates/vw-agent/src/model_relay/gemini_tests.rs": "b06750f5294ddfb64020542c071479ca712eedbe0ce6e20caa66b2d45612c899",
+        "crates/vw-agent/src/model_relay/responses_http_tests.rs": "49e72507ddda8f227e6cf5630de98e1bb2be5eb7a422f166b7b02ec313fb1c39",
+        "crates/vw-agent/src/model_relay/messages_thinking_tests.rs": "c23c0f3f6b7ac1138e5bf523e0da7148c1971e9ddf9b01705f4f8213d2961b45",
+        "crates/vw-agent/src/model_relay/generation.rs": "976258d6fdf23949335bc3b9372c1dc3f775031d59026c03e8fd6a6707ef4299",
+        "crates/vw-agent/src/model_relay/protocol_bridge_stream_tests.rs": "0b60e2da915978c7bd67df95ca43c99a5c5c5404c17fbda70bca9732afcf3413",
+        "crates/vw-agent/src/model_relay/responses_compaction.rs": "a5ef7f44666eed698dd42a83e9f3eec7ba3ca86de29ed4806081f2d9530b7377",
+        "crates/vw-agent/src/model_relay/messages_stream.rs": "497704b542921a12312a108408fd745d598a95947112c59ded38345ca6e5abbd",
+        "crates/vw-agent/src/model_relay/responses_stream.rs": "c8669d2c9896bc8712ac534511c967524853aeeced9a7891ee5d3a8ffad02901",
+        "crates/vw-agent/src/model_relay/transport.rs": "f080feb37af23c7192c9cac9f3ed267c430b1039ed3ae14f9da535ef98d8ef41",
+        "crates/vw-agent/src/model_relay/messages_stream_tests.rs": "02bac30f29d8e5e98aee21b8c9a99933ee68bdcb6775f656460785f0bbfde60f",
+        "crates/vw-agent/src/model_relay/stream_observer_tests.rs": "875ce934e8988a85423cbc3d5bdc4385f6082257d968eb426ecf90924deb8661",
+        "crates/vw-agent/src/model_relay/messages_thinking_core_tests.rs": "5dcdccfda4767f9b806027505bb3eb53a4139f08c984c41d3c3d9d0eb8b55b41",
+        "crates/vw-agent/src/model_relay/server.rs": "08e7e2fb3fde06271177751fb8c3b043e39bf38b789b2c5b251e42523a728726",
+        "crates/vw-agent/src/model_relay/responses.rs": "6a6a5dca708fa8bbc2118b0a0e248ac65bc1367c2b57eaf04b8b3ed5251d569f",
+        "crates/vw-agent/src/model_relay/messages_thinking.rs": "5e85998d4bfd85987a7fdcac5e1ab0d1c7f73228b25375781c168853f222eb65",
+        "crates/vw-agent/src/model_relay/mod.rs": "cf6bd35bb3c1493c0f6cd32cdf8e3389c557484a12a38d5cf33b164916333566",
+        "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs": "600cac0bd686b94d40507b5d3f99d7046b034b6bc2222b710372e4e0d9e4ee54",
+        "crates/vw-agent/src/model_relay/messages_request_tests.rs": "27a538ecb8dc1b6bd8e82a72d5860df2b3adac65d75ed2123de3251f32245a11",
+        "crates/vw-agent/src/model_relay/binding.rs": "1392291977993d40cd4718a9eb02000fcc8009115546ea1245b1c26fab75c7a7",
+        "crates/vw-agent/src/model_relay/server_tests.rs": "4c66a5290ca1d386c73cd93e10c57c3ce276b95e27c4716ec26c09b6c381003d",
+        "crates/vw-agent/src/model_relay/gemini_stream.rs": "2f1f6d170a9d3206a966510502ff2186559a61abfcdc04a05588143e403048d4",
+        "crates/vw-agent/src/model_relay/protocol_bridge_response.rs": "cb1317acafa1203feccd832270ba5b3af86654d231e42025d50d81b311075478",
+        "crates/vw-agent/src/model_relay/routing.rs": "1d5e692607f8ea45fd20c5d34472e57491cc45febe7387ce132dbed03789f3b3",
+        "crates/vw-agent/src/model_relay/kiro.rs": "c38b79cc650888b93a885671502af32c362cae5cd10e311bf8ba40c73ac01417",
+        "crates/vw-agent/src/model_relay/upstream.rs": "48b7edf9a6845a10c1925a5136236b9bfe11ba0a606ea2307678353d006afbca",
+        "crates/vw-agent/src/model_relay/responses_codex_chat.rs": "bb00b3d648748135a6cd6e609336aa0d62ddc438a9cc3f1d45752893a18075fd",
+        "crates/vw-agent/src/model_relay/responses_tests.rs": "4debdb9cab6808804c5a1206ba01a5f6ea0c18b54276ce3bb577bf654d074ec4",
+        "crates/vw-agent/src/model_relay/messages.rs": "6b026ffd55fdbad02931e7dbc0224e1d57a7592ad6712c0722018f442a7a7cae",
+        "crates/vw-agent/src/model_relay/messages_tests.rs": "cc5b36d743715022449da365d2d55b242e74a3da068c5d3341f526a1227af12e",
+        "crates/vw-agent/src/model_relay/messages_thinking_config.rs": "f4b53200f85ec0013da3160698c66aafae997a76c7654bd7d4bbbf009c64540a",
+        "crates/vw-agent/src/model_relay/chat_tests.rs": "2d52d9e4fee163ac3849e6e482a4bc3bc7c657cb609c7e5702f46da37eb5887b",
+        "crates/vw-agent/src/model_relay/binding_tests.rs": "81de389fbfe1db9425c6bc13a2d13f1ba4424b8b035854722371dfcac6b2d6e6",
+        "crates/vw-agent/src/model_relay/responses_chat_tools.rs": "2df04416fd0b7652847a4ff41ce1904fa0f45095125db71913ea8cf8ce7b54c1",
+        "crates/vw-agent/src/model_relay/responses_compaction_tests.rs": "e2f073c2827927ccb7b220501d7e706a13d118b3369d0e0aa3ac8c7b8bf4733c",
+        "crates/vw-agent/src/model_relay/protocol_bridge_request.rs": "d9ebe018e37878ace52d581f23846c9132de7d6cb2e12e85ee48dfc78f4145a7",
+        "crates/vw-agent/src/model_relay/protocol_bridge_stream.rs": "46499ade4801cbc000f51e06d7ff99e8d541ed74ae8aff6096a3268f4bdc7bdc",
+        "crates/vw-agent/src/model_relay/chat.rs": "00faed59bc48854fa09b726f99adbe5f7fa8dcda56345da4a42579921d15ba20",
+        "crates/vw-agent/src/model_relay/protocol_bridge.rs": "c91cd3c102c92bed0d6c10f428b0870438d717e393457de69f9c6cdec28e7aa1",
+        "crates/vw-agent/src/model_relay/messages_request_http_tests.rs": "3f6a512df49ddf2b60c4bedc53c741e5661f7b61d3619ac55d952a529c916cbb",
+        "crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs": "0604446d525429bcc6e848f096285560f98db7109cd20615e06755525b5da626",
+        "crates/vw-agent/src/session/llm/acp/model_source/drivers/drivers_tests.rs": "8742b5ea161e04c5d1e6f9b47161a7a346a3db7642cccbb9591add855c52973f"
+      },
+      "source_sha256_after_tests": {
+        "crates/vw-agent/src/model_relay/gemini.rs": "b33606a162a1ccc701733e0cd0196f0acc18bfcf4e02a35231842e1e23fc716b",
+        "crates/vw-agent/src/model_relay/messages_request_core_tests.rs": "31e32fecdc27df13454dab406bd0420a91446e98c2f5bc027081d923d9861df5",
+        "crates/vw-agent/src/model_relay/protocol_bridge_tests.rs": "6f07391c7269e4a8fc636ed4fab01d0dada2809c6b3827676c571fb21b7be38d",
+        "crates/vw-agent/src/model_relay/transport_tests.rs": "77aaa61d7e2c5fd2348c95853d95ae8ac5aa27809dc7cf87dd3a3de55a0371ba",
+        "crates/vw-agent/src/model_relay/stream_observer.rs": "1d65217a77540a06e804035bf91fd963af71a81e20d88322f6203e5a431e6e51",
+        "crates/vw-agent/src/model_relay/gemini_tests.rs": "b06750f5294ddfb64020542c071479ca712eedbe0ce6e20caa66b2d45612c899",
+        "crates/vw-agent/src/model_relay/responses_http_tests.rs": "49e72507ddda8f227e6cf5630de98e1bb2be5eb7a422f166b7b02ec313fb1c39",
+        "crates/vw-agent/src/model_relay/messages_thinking_tests.rs": "c23c0f3f6b7ac1138e5bf523e0da7148c1971e9ddf9b01705f4f8213d2961b45",
+        "crates/vw-agent/src/model_relay/generation.rs": "976258d6fdf23949335bc3b9372c1dc3f775031d59026c03e8fd6a6707ef4299",
+        "crates/vw-agent/src/model_relay/protocol_bridge_stream_tests.rs": "0b60e2da915978c7bd67df95ca43c99a5c5c5404c17fbda70bca9732afcf3413",
+        "crates/vw-agent/src/model_relay/responses_compaction.rs": "a5ef7f44666eed698dd42a83e9f3eec7ba3ca86de29ed4806081f2d9530b7377",
+        "crates/vw-agent/src/model_relay/messages_stream.rs": "497704b542921a12312a108408fd745d598a95947112c59ded38345ca6e5abbd",
+        "crates/vw-agent/src/model_relay/responses_stream.rs": "c8669d2c9896bc8712ac534511c967524853aeeced9a7891ee5d3a8ffad02901",
+        "crates/vw-agent/src/model_relay/transport.rs": "f080feb37af23c7192c9cac9f3ed267c430b1039ed3ae14f9da535ef98d8ef41",
+        "crates/vw-agent/src/model_relay/messages_stream_tests.rs": "02bac30f29d8e5e98aee21b8c9a99933ee68bdcb6775f656460785f0bbfde60f",
+        "crates/vw-agent/src/model_relay/stream_observer_tests.rs": "875ce934e8988a85423cbc3d5bdc4385f6082257d968eb426ecf90924deb8661",
+        "crates/vw-agent/src/model_relay/messages_thinking_core_tests.rs": "5dcdccfda4767f9b806027505bb3eb53a4139f08c984c41d3c3d9d0eb8b55b41",
+        "crates/vw-agent/src/model_relay/server.rs": "08e7e2fb3fde06271177751fb8c3b043e39bf38b789b2c5b251e42523a728726",
+        "crates/vw-agent/src/model_relay/responses.rs": "6a6a5dca708fa8bbc2118b0a0e248ac65bc1367c2b57eaf04b8b3ed5251d569f",
+        "crates/vw-agent/src/model_relay/messages_thinking.rs": "5e85998d4bfd85987a7fdcac5e1ab0d1c7f73228b25375781c168853f222eb65",
+        "crates/vw-agent/src/model_relay/mod.rs": "cf6bd35bb3c1493c0f6cd32cdf8e3389c557484a12a38d5cf33b164916333566",
+        "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs": "600cac0bd686b94d40507b5d3f99d7046b034b6bc2222b710372e4e0d9e4ee54",
+        "crates/vw-agent/src/model_relay/messages_request_tests.rs": "27a538ecb8dc1b6bd8e82a72d5860df2b3adac65d75ed2123de3251f32245a11",
+        "crates/vw-agent/src/model_relay/binding.rs": "1392291977993d40cd4718a9eb02000fcc8009115546ea1245b1c26fab75c7a7",
+        "crates/vw-agent/src/model_relay/server_tests.rs": "4c66a5290ca1d386c73cd93e10c57c3ce276b95e27c4716ec26c09b6c381003d",
+        "crates/vw-agent/src/model_relay/gemini_stream.rs": "2f1f6d170a9d3206a966510502ff2186559a61abfcdc04a05588143e403048d4",
+        "crates/vw-agent/src/model_relay/protocol_bridge_response.rs": "cb1317acafa1203feccd832270ba5b3af86654d231e42025d50d81b311075478",
+        "crates/vw-agent/src/model_relay/routing.rs": "1d5e692607f8ea45fd20c5d34472e57491cc45febe7387ce132dbed03789f3b3",
+        "crates/vw-agent/src/model_relay/kiro.rs": "c38b79cc650888b93a885671502af32c362cae5cd10e311bf8ba40c73ac01417",
+        "crates/vw-agent/src/model_relay/upstream.rs": "48b7edf9a6845a10c1925a5136236b9bfe11ba0a606ea2307678353d006afbca",
+        "crates/vw-agent/src/model_relay/responses_codex_chat.rs": "bb00b3d648748135a6cd6e609336aa0d62ddc438a9cc3f1d45752893a18075fd",
+        "crates/vw-agent/src/model_relay/responses_tests.rs": "4debdb9cab6808804c5a1206ba01a5f6ea0c18b54276ce3bb577bf654d074ec4",
+        "crates/vw-agent/src/model_relay/messages.rs": "6b026ffd55fdbad02931e7dbc0224e1d57a7592ad6712c0722018f442a7a7cae",
+        "crates/vw-agent/src/model_relay/messages_tests.rs": "cc5b36d743715022449da365d2d55b242e74a3da068c5d3341f526a1227af12e",
+        "crates/vw-agent/src/model_relay/messages_thinking_config.rs": "f4b53200f85ec0013da3160698c66aafae997a76c7654bd7d4bbbf009c64540a",
+        "crates/vw-agent/src/model_relay/chat_tests.rs": "2d52d9e4fee163ac3849e6e482a4bc3bc7c657cb609c7e5702f46da37eb5887b",
+        "crates/vw-agent/src/model_relay/binding_tests.rs": "81de389fbfe1db9425c6bc13a2d13f1ba4424b8b035854722371dfcac6b2d6e6",
+        "crates/vw-agent/src/model_relay/responses_chat_tools.rs": "2df04416fd0b7652847a4ff41ce1904fa0f45095125db71913ea8cf8ce7b54c1",
+        "crates/vw-agent/src/model_relay/responses_compaction_tests.rs": "e2f073c2827927ccb7b220501d7e706a13d118b3369d0e0aa3ac8c7b8bf4733c",
+        "crates/vw-agent/src/model_relay/protocol_bridge_request.rs": "d9ebe018e37878ace52d581f23846c9132de7d6cb2e12e85ee48dfc78f4145a7",
+        "crates/vw-agent/src/model_relay/protocol_bridge_stream.rs": "46499ade4801cbc000f51e06d7ff99e8d541ed74ae8aff6096a3268f4bdc7bdc",
+        "crates/vw-agent/src/model_relay/chat.rs": "00faed59bc48854fa09b726f99adbe5f7fa8dcda56345da4a42579921d15ba20",
+        "crates/vw-agent/src/model_relay/protocol_bridge.rs": "c91cd3c102c92bed0d6c10f428b0870438d717e393457de69f9c6cdec28e7aa1",
+        "crates/vw-agent/src/model_relay/messages_request_http_tests.rs": "3f6a512df49ddf2b60c4bedc53c741e5661f7b61d3619ac55d952a529c916cbb",
+        "crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs": "0604446d525429bcc6e848f096285560f98db7109cd20615e06755525b5da626",
+        "crates/vw-agent/src/session/llm/acp/model_source/drivers/drivers_tests.rs": "8742b5ea161e04c5d1e6f9b47161a7a346a3db7642cccbb9591add855c52973f"
+      },
+      "source_stable_during_tests": true,
+      "resource_strategy": {
+        "cargo_jobs": 1,
+        "agent_test_opt_level": 0,
+        "agent_test_debug": 0,
+        "agent_test_codegen_units": 16,
+        "initial_codegen_units": 256,
+        "features": "crate default features for focused tests; whole-workspace all targets/features for Clippy",
+        "diagnosis": "48GiB host; another individual Agent compiler was observed near 12GiB while several large jobs overlapped in the earlier run. Memory pressure is a plausible contributor, not a proven SIGKILL cause. Disk space and ulimit were sufficient; the available macOS disk-write diagnostic explicitly reported Action taken: none. Single Cargo job with low optimization/no debug completed full code generation and tests; no SIGKILL occurred in this follow-up. The final required rebuild uses 16 codegen units to reduce partition duplication, retaining one build job.",
+        "samples": [
+          {
+            "phase": "shiju-task23-resume-resources.json",
+            "sample_interval_seconds": 10,
+            "sample_count": 249,
+            "sampled_owned_agent_peak_rss_mib": 8534.5
+          },
+          {
+            "phase": "shiju-task23-closeout-resources.json",
+            "sample_interval_seconds": 10,
+            "sample_count": 141,
+            "sampled_owned_agent_peak_rss_mib": 8672.2
+          }
+        ]
+      },
+      "pre_repair_run": {
+        "commands": [
+          {
+            "command": [
+              "cargo",
+              "test",
+              "-p",
+              "vw-shared",
+              "--lib",
+              "model_protocol_",
+              "--",
+              "--nocapture"
+            ],
+            "exit_code": 0,
+            "effective_tests": 24
+          },
+          {
+            "command": [
+              "cargo",
+              "test",
+              "-p",
+              "vw-provider-resolver",
+              "--lib",
+              "model_protocol_",
+              "--",
+              "--nocapture"
+            ],
+            "exit_code": 0,
+            "effective_tests": 23
+          },
+          {
+            "command": [
+              "cargo",
+              "clippy",
+              "--all-targets",
+              "--all-features",
+              "--",
+              "-D",
+              "warnings"
+            ],
+            "exit_code": 0,
+            "effective_tests": 0
+          },
+          {
+            "command": [
+              "cargo",
+              "--config",
+              "profile.test.package.vw-agent.opt-level=0",
+              "--config",
+              "profile.test.package.vw-agent.debug=0",
+              "--config",
+              "profile.test.package.vw-agent.codegen-units=256",
+              "test",
+              "-p",
+              "vw-agent",
+              "--lib",
+              "model_protocol_",
+              "--",
+              "--nocapture",
+              "--test-threads=1"
+            ],
+            "exit_code": 101,
+            "effective_tests": 75
+          },
+          {
+            "command": [
+              "cargo",
+              "--config",
+              "profile.test.package.vw-agent.opt-level=0",
+              "--config",
+              "profile.test.package.vw-agent.debug=0",
+              "--config",
+              "profile.test.package.vw-agent.codegen-units=256",
+              "test",
+              "-p",
+              "vw-agent",
+              "--lib",
+              "acp_model_source_relay_",
+              "--",
+              "--nocapture",
+              "--test-threads=1"
+            ],
+            "exit_code": 101,
+            "effective_tests": 0
+          }
+        ],
+        "intentional_cancellation": {
+          "pid": 69031,
+          "signal": "SIGTERM",
+          "reason": "Stop the second automatic Agent build early to batch the already-observed Cursor test update and focused stream-fixture repairs. This is intentional, not a new SIGKILL.",
+          "stage_command_index": 4
+        },
+        "note": "The first fresh 75-case run passed 74 and failed the Cursor negative registry assertion. The shared workspace had already moved Cursor into the supported Chat list. The second automatic Agent rebuild was intentionally stopped with SIGTERM to batch current updates and stream-test repairs; this was not another SIGKILL."
+      },
+      "stream_red_evidence": {
+        "cargo_slot": 5,
+        "binary": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_agent-453cf51ed066f7fb",
+        "binary_sha256": "8ae8009929ed117a3cec3b0d60e706062d92fad4d23e51d50ef3cc11591ef82c",
+        "command": [
+          "/Users/xiangmin/worker/code/shiju/target/rust-slot-5/debug/deps/vw_agent-453cf51ed066f7fb",
+          "acp_model_source_relay_binding_http_isolation_limits_and_lifecycle",
+          "acp_model_source_relay_messages_http_stream_cancellation_errors_and_isolation",
+          "--nocapture",
+          "--test-threads=1"
+        ],
+        "exit_code": 101,
+        "effective_tests": 2,
+        "passed": 1,
+        "failed": 1,
+        "root_cause": "Native thinking fixture left reasoning=true after switching back to Chat. Thinking receipts intentionally collect a complete stream; the cancellation fixture never supplies terminal. NO_PROXY isolation still reproduced the failure in 61.05 seconds. Restore reasoning=false for the intended nonthinking cancellation case. The previously flaky 500ms expiry case passed this fresh run and is separated into an established-stream virtual-clock assertion."
+      },
+      "repairs": [
+        {
+          "path": "crates/vw-agent/src/model_relay/messages_tests.rs",
+          "cause": "Native signed-thinking coverage leaves reasoning=true in merged model config. Returning only the URL/adapter to Chat retains it, selects the intentionally buffered thinking-receipt path, and waits for a terminal that the cancellation fixture never sends. NO_PROXY isolation still failed in 61.05 seconds, ruling out that proposed proxy explanation.",
+          "change": "Explicitly restore reasoning=false for the intended nonthinking cancellation fixture and bound the first frame wait to five seconds. The 60-second lease is unchanged."
+        },
+        {
+          "path": "crates/vw-agent/src/model_relay/server_tests.rs",
+          "cause": "The old 500ms case assumed catalog/request setup finished before lease expiration; previous runs lost the first chunk, while this fresh red investigation passed that case.",
+          "change": "Separate expiry into its own runtime, establish a real stream with a 60-second lease, then pause/advance Tokio time and assert binding rejection, provider cancellation and stream EOF. Production lease/auth/cancellation behavior is unchanged."
+        }
+      ],
+      "slot_cleanup": {
+        "lock_released": true,
+        "cache_preserved": true,
+        "owned_build_and_test_processes_exited": true
+      },
+      "historical_live_test_source_differences": {
+        "crates/vw-agent/src/model_relay/messages_tests.rs": {
+          "historical_live_source_sha256": "9dac9c0b7f9d2cb21cacc9d4da6241444929ab5c4424bc796fa754f8f763e61f",
+          "current_test_source_sha256": "cc5b36d743715022449da365d2d55b242e74a3da068c5d3341f526a1227af12e"
+        },
+        "crates/vw-agent/src/model_relay/server_tests.rs": {
+          "historical_live_source_sha256": "3d4bc13028e9607e2a23be2537f3c0e1513f21649a6d9e2201383a1e09b841e3",
+          "current_test_source_sha256": "4c66a5290ca1d386c73cd93e10c57c3ce276b95e27c4716ec26c09b6c381003d"
+        }
+      },
+      "live_snapshot_policy": "Original real-service and 29 installed-ACP observations keep their original timestamps/binary/source hashes; this follow-up changes test fixtures only and does not relabel them as new live runs. Current Cursor registry changes from its owning task are included in the successful protocol registry test.",
+      "integrity_check": {
+        "exit_code": 0,
+        "rows": 8949,
+        "cells": 35796,
+        "references_and_current_hashes": "all",
+        "historical_live_differences": "test_only",
+        "plan_read_only": true
+      }
     }
   },
   "records": [

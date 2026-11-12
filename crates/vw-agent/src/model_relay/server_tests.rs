@@ -256,7 +256,7 @@ async fn acp_model_source_relay_binding_http_isolation_limits_and_lifecycle() {
         403
     );
     assert_eq!(backend.calls.load(Ordering::SeqCst), count);
-    // Expiry closes a real in-flight HTTP stream and cancels the provider operation.
+    // Restore the model before checking the per-listener request rate.
     crate::config::update_project_for_tenant(
         &id.tenant,
         &root,
@@ -264,22 +264,6 @@ async fn acp_model_source_relay_binding_http_isolation_limits_and_lifecycle() {
     )
     .await
     .unwrap();
-    backend.mode.store(2, Ordering::SeqCst);
-    let expiring = RelayBinding::new(id.clone(), Duration::from_millis(500)).unwrap();
-    let expiry_server =
-        RelayServer::start(expiring.clone(), backend.clone(), context.clone()).await.unwrap();
-    let mut expiring_response = client
-        .post(format!("http://{}/v1/chat/completions", expiry_server.address()))
-        .bearer_auth(expiring.bearer_token())
-        .json(&body)
-        .send()
-        .await
-        .unwrap();
-    expiring_response.chunk().await.unwrap().unwrap();
-    let expired_cancel = backend.cancellation.lock().clone().unwrap();
-    tokio::time::timeout(Duration::from_secs(3), expired_cancel.cancelled()).await.unwrap();
-    assert!(expiring_response.chunk().await.unwrap().is_none());
-    expiry_server.shutdown().await.unwrap();
     backend.mode.store(0, Ordering::SeqCst);
     let limited = RelayBinding::new(id.clone(), Duration::from_secs(60)).unwrap();
     let rate_server = RelayServer::start(limited.clone(), backend.clone(), context).await.unwrap();
@@ -309,6 +293,61 @@ async fn acp_model_source_relay_binding_http_isolation_limits_and_lifecycle() {
     binding.revoke();
     tokio::time::timeout(Duration::from_secs(3), server.shutdown()).await.unwrap().unwrap();
     assert!(client.post(&url).json(&body).send().await.is_err());
+}
+
+#[tokio::test]
+async fn acp_model_source_relay_expiry_cancels_an_established_http_stream() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let dir = tempfile::tempdir().unwrap();
+    let _env = EnvGuard(std::env::var_os("VIBEWINDOW_CONFIG_DIR"));
+    unsafe {
+        std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
+    }
+    let tenant = vw_api_types::id::TenantScope::new("relay-expiry", "one").unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let (project, _) = crate::project::from_directory(&tenant, &root).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant, &root, serde_json::json!({"providers": {"relay-fixture": {"api": "http://127.0.0.1:1/v1", "models": {"model": {"status": "active"}}}}})).await.unwrap();
+    let context = crate::project::instance::Context {
+        directory: root.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project: project.clone(),
+    };
+    let id = RelayIdentity {
+        tenant,
+        project: project.id,
+        session: "one".into(),
+        provider: "relay-fixture".into(),
+        model: "model".into(),
+        generation: 1,
+    };
+    let backend = Arc::new(ExternalProvider {
+        calls: AtomicUsize::new(0),
+        mode: AtomicUsize::new(2),
+        cancellation: parking_lot::Mutex::new(None),
+    });
+    // Let catalog setup finish before advancing time; startup latency is not a
+    // lease-expiry assertion. This test owns its runtime so the clock stays local.
+    let binding = RelayBinding::new(id.clone(), Duration::from_secs(60)).unwrap();
+    let server = RelayServer::start(binding.clone(), backend.clone(), context).await.unwrap();
+    let mut response = reqwest::Client::new()
+        .post(format!("http://{}/v1/chat/completions", server.address()))
+        .bearer_auth(binding.bearer_token())
+        .json(&serde_json::json!({"model":"model","messages":[],"stream":true}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.chunk().await.unwrap().unwrap().as_ref(), b"first");
+    let cancel = backend.cancellation.lock().clone().unwrap();
+    assert!(!cancel.is_cancelled());
+    tokio::time::pause();
+    tokio::time::advance(Duration::from_secs(61)).await;
+    tokio::time::timeout(Duration::from_secs(3), binding.cancelled.cancelled()).await.unwrap();
+    assert!(!binding.accepts(binding.bearer_token(), &id));
+    tokio::time::timeout(Duration::from_secs(3), cancel.cancelled()).await.unwrap();
+    assert!(response.chunk().await.unwrap().is_none());
+    server.shutdown().await.unwrap();
 }
 
 #[tokio::test]

@@ -481,14 +481,20 @@ mod http {
         assert!(!native_wire.contains("wire-model"));
         assert!(native_wire.contains("message_stop"));
         body.as_object_mut().unwrap().remove("metadata");
-        crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"adapter":"openai"}}})).await.unwrap();
+        // Restore the nonthinking fixture after exercising native signed thinking.
+        crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-messages":{"api":format!("http://{address}/custom/v9/chat/completions"),"adapter":"openai","models":{"selected":{"reasoning":false}}}}})).await.unwrap();
         body["messages"] = json!([{"role":"user","content":"wait"}]);
         body["stream"] = true.into();
         let response =
             client.post(&url).bearer_auth(binding.bearer_token()).json(&body).send().await.unwrap();
         assert_eq!(response.status(), 200);
         let mut stream = response.bytes_stream();
-        assert!(stream.next().await.unwrap().unwrap().starts_with(b"event: message_start"));
+        let first = tokio::time::timeout(Duration::from_secs(5), stream.next())
+            .await
+            .expect("converted stream must start before revocation")
+            .expect("revocation fixture ended before its first frame")
+            .unwrap();
+        assert!(first.starts_with(b"event: message_start"));
         binding.revoke();
         tokio::time::timeout(Duration::from_secs(2), async {
             while let Some(chunk) = stream.next().await {

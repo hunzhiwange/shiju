@@ -260,6 +260,7 @@ fn assert_control_alignment(
 fn prepare_chat(app: &mut App) {
     app.active_session_id = Some("source".into());
     app.project_path = Some("/fixture/source".into());
+    app.project_is_git_repo = true;
     app.sessions = vec![session_info("source", "/fixture/source")];
     app.chat = [ChatRole::User, ChatRole::Tool, ChatRole::User]
         .into_iter()
@@ -739,6 +740,16 @@ async fn fork_desktop_layout_and_interaction() {
     let mut app = fixture();
     prepare_chat(&mut app);
     let mut renderer = renderer().await;
+
+    app.project_is_git_repo = false;
+    {
+        let mut fork = scene(with_chat_fork_dialog(&app, root()), &mut renderer, VIEW_SIZE);
+        let bounds = geometry(&mut fork, &renderer);
+        let i18n = I18n::new(app.desktop_locale);
+        label(&bounds, i18n.__("在当前目录中打开新会话"));
+        assert!(!bounds.labels.iter().any(|(label, _)| label == i18n.__("分叉到新工作树")));
+    }
+    app.project_is_git_repo = true;
 
     for (locale, size, language) in [
         (DesktopLocale::SimplifiedChinese, VIEW_SIZE, "zh-cn"),

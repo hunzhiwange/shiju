@@ -45,26 +45,30 @@ pub(crate) fn with_chat_fork_dialog<'a>(
         target: ForkSessionTarget::NewWorktree,
     });
 
-    let card = settings_modal_card(
-        column![
-            settings_modal_header(
-                text(i18n.__("分叉到新会话")).size(20),
-                settings_close_button(close_message.clone()),
-            ),
-            text(i18n.__("新会话保留所选轮次之前的历史，并将所选消息填入输入框。"))
-                .size(13)
-                .style(settings_muted_text_style),
-            button(
-                column![
-                    text(i18n.__("分叉到新会话")).size(14),
-                    text(i18n.__("在当前目录中打开新会话")).size(12),
-                ]
-                .spacing(4)
-            )
-            .width(Length::Fill)
-            .padding([12, 14])
-            .style(primary_action_btn_style)
-            .on_press(local_message),
+    let mut content = column![
+        settings_modal_header(
+            text(i18n.__("分叉到新会话")).size(20),
+            settings_close_button(close_message.clone()),
+        ),
+        text(i18n.__("新会话保留所选轮次之前的历史，并将所选消息填入输入框。"))
+            .size(13)
+            .style(settings_muted_text_style),
+        button(
+            column![
+                text(i18n.__("分叉到新会话")).size(14),
+                text(i18n.__("在当前目录中打开新会话")).size(12),
+            ]
+            .spacing(4)
+        )
+        .width(Length::Fill)
+        .padding([12, 14])
+        .style(primary_action_btn_style)
+        .on_press(local_message),
+    ]
+    .spacing(14);
+
+    if app.project_is_git_repo {
+        content = content.push(
             button(
                 column![
                     text(i18n.__("分叉到新工作树")).size(14),
@@ -72,12 +76,17 @@ pub(crate) fn with_chat_fork_dialog<'a>(
                         .size(12)
                         .style(settings_muted_text_style),
                 ]
-                .spacing(4)
+                .spacing(4),
             )
             .width(Length::Fill)
             .padding([12, 14])
             .style(rounded_action_btn_style)
             .on_press(worktree_message),
+        );
+    }
+
+    let card = settings_modal_card(
+        content.push(
             row![
                 Space::new().width(Length::Fill),
                 button(text(i18n.__("取消")).size(13))
@@ -86,8 +95,7 @@ pub(crate) fn with_chat_fork_dialog<'a>(
                     .on_press(close_message.clone()),
             ]
             .align_y(Alignment::Center),
-        ]
-        .spacing(14),
+        ),
     )
     .width(Length::Fixed(460.0));
 

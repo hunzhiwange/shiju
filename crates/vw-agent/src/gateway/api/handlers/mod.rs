@@ -358,6 +358,8 @@ pub(crate) mod voice_realtime;
 pub(crate) mod agent_apps_diagnostics;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_diagnostics_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_diagnostics_acceptance_tests;
 
 mod mcp_management_import;
 #[cfg(all(test, target_os = "macos"))]

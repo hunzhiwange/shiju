@@ -396,3 +396,18 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 原始配置、SSE、会话查询、旧产物备份和文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-qwen-ndlkd7wp`，未提交凭据或配置环境值。
 
 后续建议：按需启动 `pnpm exec vite --config acpdemo/qwen/vite.config.mjs` 检查页面行为。
+
+# Snow CLI 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 20；批次 19 Qwen 已结束归档。按最新授权，以完整文件创建为终点，未运行浏览器、编辑器构建或创建后的额外回归。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-snow / snow`、`session_model`、`full_access=true`，未更换模型、账号或引擎。
+- 复用前批已构建 CLI 的独立副本及现有开发配置启动临时网关 `127.0.0.1:52132`；二进制 SHA-256 `ae98ea828c3d489fd0409ea31d6d6fefb325bb1159f33f28972582e2b5399739`。本项未修改 Rust、安装器或补丁，未运行 Cargo、Clippy 或单元测试。
+- 系统安装 HTTP 200、curl 0、2.171400 秒，安装状态 false → true。解析入口 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/snow-0.9.14-model-source-v1/node_modules/.bin/snow --acp`；版本命令退出码 0，输出 0.9.14。独立诊断 HTTP 200、curl 0、0.995240 秒，connected；模型来源 HTTP 200、curl 0，session_model supported、已审查 Darwin arm64 / 0.9.14。
+- 真实创建请求 HTTP 200、curl 0、127.753565 秒，终态 `chat.done`，无 chat.error。事件：chat.context_loaded ×1、chat.step_start ×1、chat.delta ×31、chat.tool ×52、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际调用工具创建文件，完成后简短回复，不运行额外测试。旧租户空参数审批后未生成文件的问题本次未复现，无需削弱权限检查。
+- 会话 `ses_1d0ecb9c1001VWusv3H6GCUf4Z` 的 ui/summary 与 acp-options 在执行期间及结束后均 HTTP 200、curl 0，绑定 acp-snow / snow、full_access=true；执行期间 connected=true，选定模型的 source、provider_id、完整模型 ID 与请求一致。访问能力为 client_only，不将请求标志解释为原生工具全部免审批已验证。
+- 目标目录原先不存在；实际新增 `acpdemo/snow/` 下 `README.md`、`index.html`、`vite.config.mjs`、`tsconfig.json`、`src/App.tsx`、`src/main.tsx`、`src/env.d.ts`、`src/style.css` 共 8 个文件。源码导入本仓库 `@rue-js/rue`，包含 textarea 输入、computed 字数统计、localStorage 防抖保存与初始化恢复；README 提供运行说明。仅核对文件与源码，不宣称页面行为已验证。
+- 请求前与网关停止后的 Rue 普通文件 SHA-256 快照（排除 .git、node_modules、target）仅发现上述 8 个文件新增，目标目录外无内容变化。预设基线 enabled=false；临时启用 HTTP 200、curl 0、9.106885 秒，恢复 HTTP 200、curl 0、6.000420 秒，结束 GET agents HTTP 200、curl 0、复查 false。自己的临时网关进程组已停止，未启动编辑器服务。
+- 原始配置、SSE、会话查询与文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-snow-za7laocj/`，未提交凭据或配置环境值。
+
+后续建议：按需启动 `pnpm exec vite --config acpdemo/snow/vite.config.mjs` 检查页面行为。

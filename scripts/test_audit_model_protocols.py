@@ -143,6 +143,71 @@ class CatalogAuditTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("coverage mismatch", result.stderr)
 
+    def matrix_fixture(self):
+        return {"schema_version": 1, "checked_at": "2026-11-12",
+                "source_hashes": {s: v["sha256"] for s, v in self.inv["sources"].items()},
+                "records": [{**{k: r[k] for k in ("source", "provider_id", "model_key",
+                    "model_api_id", "canonical_model_id")}, "source_declarations": r["effective_declarations"],
+                    "capabilities": r["capabilities"], "evidence_type": "offline_selector",
+                    "protocols": {p: [{"status": "rejected", "reasons": ["UnknownProtocols"]}]
+                                  for p in ("chat", "messages", "responses", "gemini")}}
+                            for r in self.inv["records"]]}
+
+    def test_coverage_valid_matrix_and_cli(self):
+        from audit_model_protocols import check_coverage
+        matrix = self.matrix_fixture()
+        self.assertEqual(check_coverage(self.inv, matrix), [])
+        root = Path(self.temp.name)
+        inv, path = root / "inventory.json", root / "matrix.json"
+        inv.write_text(json.dumps(self.inv))
+        path.write_text(json.dumps(matrix))
+        result = subprocess.run([sys.executable, str(Path(__file__).with_name("audit_model_protocols.py")),
+            "check-coverage", "--inventory", str(inv), "--matrix", str(path)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("protocol_cells=20", result.stdout)
+
+    def test_coverage_rejects_inventory_omission_and_unbound_success(self):
+        from audit_model_protocols import check_coverage
+        matrix = self.matrix_fixture()
+        self.inv["records"].pop()
+        matrix["records"].pop()
+        self.assertTrue(check_coverage(self.inv, matrix))
+        self.inv = build_inventory([self.api, self.shiju])
+        matrix = self.matrix_fixture()
+        row = matrix["records"][0]
+        row["candidate_endpoints"] = [{"protocol": "chat", "url": "https://a/v1/chat/completions",
+                                        "deployment": "a"}]
+        row["protocols"]["chat"] = [{"status": "native", "target": "chat",
+            "endpoint": "https://a/v1/chat/completions", "deployment": "a"}]
+        self.assertEqual(check_coverage(self.inv, matrix), [])
+        row["protocols"]["chat"][0]["target"] = "messages"
+        self.assertTrue(check_coverage(self.inv, matrix))
+
+    def test_coverage_rejects_missing_duplicate_stale_and_unknown(self):
+        from audit_model_protocols import check_coverage
+        for mutation in ("missing", "duplicate", "hash", "status", "protocol", "identity", "capabilities", "evidence"):
+            with self.subTest(mutation=mutation):
+                matrix = self.matrix_fixture()
+                row = matrix["records"][0]
+                if mutation == "missing": matrix["records"].pop()
+                elif mutation == "duplicate": matrix["records"].append(copy.deepcopy(row))
+                elif mutation == "hash": matrix["source_hashes"][str(self.api)] = "old"
+                elif mutation == "status": row["protocols"]["chat"][0]["status"] = "success"
+                elif mutation == "protocol": del row["protocols"]["chat"]
+                elif mutation == "identity": row["model_api_id"] = "wrong"
+                elif mutation == "capabilities": row["capabilities"] = {}
+                else: row["evidence_type"] = "real_call"
+                self.assertTrue(check_coverage(self.inv, matrix))
+
+    def test_coverage_rejects_changed_source_bytes_and_invalid_rejection(self):
+        from audit_model_protocols import check_coverage
+        matrix = self.matrix_fixture()
+        matrix["records"][0]["protocols"]["chat"][0]["reasons"] = []
+        self.assertTrue(check_coverage(self.inv, matrix))
+        matrix = self.matrix_fixture()
+        self.api.write_text("{}")
+        self.assertTrue(check_coverage(self.inv, matrix))
+
     def report_fixture(self):
         self.inv["research_groups"] = build_groups(self.inv, self.seed)["groups"]
         rows = [r for r in self.inv["records"] if r["provider_id"] in ("a", "shiju")]

@@ -138,7 +138,7 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
 }
 
 /// 读取打包内置的模型数据。
-fn bundled_models(label: &str) -> HashMap<String, Provider> {
+pub(crate) fn bundled_models(label: &str) -> HashMap<String, Provider> {
     let mut providers = parse_models_text(label, BUNDLED_MODELS_TEXT).unwrap_or_default();
     merge_bundled_shiju(&mut providers, label);
     merge_bundled_protocols(&mut providers);

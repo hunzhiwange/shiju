@@ -253,6 +253,90 @@ def check_research(inventory, report, group):
     return errors
 
 
+def check_coverage(inventory, matrix):
+    """Validate every source identity and all four cells; never imply live service success."""
+    errors = []
+    if not isinstance(matrix, dict) or matrix.get("schema_version") != 1:
+        return ["invalid matrix schema_version"]
+    hashes = {s: v["sha256"] for s, v in inventory["sources"].items()}
+    if matrix.get("source_hashes") != hashes:
+        errors.append("source_hashes conflict")
+    for source, digest in hashes.items():
+        path = Path(source)
+        if not path.is_absolute():
+            path = ROOT / path
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            errors.append(f"stale inventory source: {source}")
+    try:
+        date.fromisoformat(matrix.get("checked_at", ""))
+    except (TypeError, ValueError):
+        errors.append("invalid checked_at")
+    current = build_inventory([Path(s) if Path(s).is_absolute() else ROOT / s for s in hashes])
+    if current["records"] != inventory["records"]:
+        errors.append("inventory records conflict with complete source catalogs")
+    expected = {identity(r): r for r in inventory["records"]}
+    rows = matrix.get("records")
+    if not isinstance(rows, list):
+        return errors + ["records must be an array"]
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            errors.append("invalid matrix record")
+            continue
+        key = identity(row)
+        if not all(isinstance(p, str) for p in key):
+            errors.append("invalid source identity")
+            continue
+        if key in seen or key not in expected:
+            errors.append(f"duplicate or unexpected source row: {key}")
+        seen.add(key)
+        original = expected.get(key, {})
+        for field, source_field in (("model_api_id", "model_api_id"),
+                ("canonical_model_id", "canonical_model_id"),
+                ("source_declarations", "effective_declarations"), ("capabilities", "capabilities")):
+            if field not in row or row[field] != original.get(source_field):
+                errors.append(f"{field} conflict: {key}")
+        if row.get("evidence_type") != "offline_selector":
+            errors.append(f"invalid offline evidence type: {key}")
+        protocols = row.get("protocols")
+        if not isinstance(protocols, dict) or set(protocols) != PROTOCOLS:
+            errors.append(f"four protocol coverage mismatch: {key}")
+            continue
+        for source, attempts in protocols.items():
+            if not isinstance(attempts, list) or not attempts:
+                errors.append(f"missing protocol outcome: {key}/{source}")
+                continue
+            deployments = set()
+            for attempt in attempts:
+                if not isinstance(attempt, dict):
+                    errors.append(f"invalid attempt: {key}/{source}")
+                    continue
+                deployment = attempt.get("deployment")
+                if deployment in deployments:
+                    errors.append(f"duplicate deployment: {key}/{source}")
+                deployments.add(deployment)
+                status = attempt.get("status")
+                if status not in {"native", "conversion", "rejected"}:
+                    errors.append(f"unknown status: {key}/{source}")
+                elif status == "rejected":
+                    reasons = attempt.get("reasons")
+                    if not isinstance(reasons, list) or not reasons or any(not nonempty(r) for r in reasons):
+                        errors.append(f"missing rejection reason: {key}/{source}")
+                else:
+                    target = attempt.get("target")
+                    if (target not in PROTOCOLS or not nonempty(attempt.get("endpoint"))
+                            or not nonempty(deployment)
+                            or (status == "native") != (source == target)):
+                        errors.append(f"invalid executable outcome: {key}/{source}")
+                    candidates = row.get("candidate_endpoints") or []
+                    if not any(e.get("protocol") == target and e.get("url") == attempt.get("endpoint")
+                               and e.get("deployment") == deployment for e in candidates):
+                        errors.append(f"outcome missing candidate evidence: {key}/{source}")
+    if seen != set(expected) or len(rows) != len(expected):
+        errors.append(f"source row coverage mismatch: missing={len(set(expected)-seen)}, extra={len(seen-set(expected))}")
+    return errors
+
+
 def write_json(path, value):
     if "records" in value:
         # One source row per line keeps the complete generated catalog reviewable.
@@ -324,6 +408,9 @@ def main():
     check.add_argument("--inventory", type=Path, required=True)
     check.add_argument("--report", type=Path, required=True)
     check.add_argument("--group", type=int, required=True)
+    coverage = commands.add_parser("check-coverage")
+    coverage.add_argument("--inventory", type=Path, required=True)
+    coverage.add_argument("--matrix", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "inventory":
@@ -347,6 +434,15 @@ def main():
             write_json(output_paths[1], groups)
             output_paths[2].write_text(baseline_markdown(inventory, groups), encoding="utf-8")
             print(f"OK providers={inventory['provider_count']} records={len(rows)} groups={len(groups['groups'])}")
+        elif args.command == "check-coverage":
+            inventory = load_json(args.inventory)
+            matrix = load_json(args.matrix)
+            errors = check_coverage(inventory, matrix)
+            if errors:
+                for error in errors:
+                    print(error, file=sys.stderr)
+                return 1
+            print(f"OK records={len(matrix['records'])} protocol_cells={4 * len(matrix['records'])} missing=0 duplicate=0")
         else:
             inventory = load_json(args.inventory)
             report = load_json(args.report)

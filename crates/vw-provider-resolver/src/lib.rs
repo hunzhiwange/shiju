@@ -50,3 +50,6 @@ pub mod protocol_routes;
 #[cfg(test)]
 #[path = "protocol_routes_tests.rs"]
 mod protocol_routes_tests;
+
+#[cfg(test)]
+mod protocol_matrix_tests;

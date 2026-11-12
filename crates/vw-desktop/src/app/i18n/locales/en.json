@@ -5570,5 +5570,10 @@
   "选择伙伴": "Choose companion",
   "自定义伙伴大小": "Customize companion size",
   "当前未选择伙伴，选择伙伴后可调整大小。": "Select a companion to adjust its size.",
-  "拖动滑杆实时预览，工具栏与任务卡片大小保持不变。": "Drag to preview the size. Toolbar and task cards keep their size."
+  "拖动滑杆实时预览，工具栏与任务卡片大小保持不变。": "Drag to preview the size. Toolbar and task cards keep their size.",
+  "删除已归档的聊天？": "Delete archived chat?",
+  "这将永久删除该聊天及关联子聊天，无法撤销。": "This will permanently delete this chat and its child chats. This cannot be undone.",
+  "正在删除…": "Deleting…",
+  "已删除归档聊天。": "Archived chat deleted.",
+  "删除归档聊天失败，请重试。": "Could not delete the archived chat. Please try again."
 }

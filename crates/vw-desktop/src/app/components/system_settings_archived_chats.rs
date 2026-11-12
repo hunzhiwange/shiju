@@ -16,6 +16,8 @@ use iced::widget::{Space, button, column, container, responsive, row, scrollable
 use iced::{Alignment, Element, Length};
 use vw_config_types::ui::DesktopLocale;
 
+mod delete_modal;
+
 fn event(message: ArchivedChatsMessage) -> Message {
     Message::Settings(SettingsMessage::ArchivedChats(message))
 }
@@ -264,6 +266,14 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                         ]
                         .spacing(4)
                         .width(Length::Fill),
+                        button(icon(Icon::Trash, 14.0))
+                            .padding([8, 10])
+                            .style(rounded_action_btn_style)
+                            .on_press_maybe(
+                                (!operating && state.delete_confirmation.is_none()).then(|| event(
+                                    ArchivedChatsMessage::DeleteRequested(session.id.clone())
+                                ))
+                            ),
                         optional_action(
                             i18n.__(if operating { "正在恢复会话" } else { "取消归档" }),
                             (!operating && state.delete_confirmation.is_none())
@@ -283,7 +293,7 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
             );
         }
     }
-    column![
+    let base = column![
         heading,
         toolbar,
         scrollable(container(list).padding([0, 7]).width(Length::Fill))
@@ -293,5 +303,6 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
     .spacing(20)
     .width(Length::Fill)
     .height(Length::Fill)
-    .into()
+    .into();
+    delete_modal::overlay(base, state, i18n)
 }

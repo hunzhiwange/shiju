@@ -685,3 +685,373 @@ fn archived_chats_browse_settings_routes_and_gateway_switch() {
     );
     assert!(app.archived_chats.sessions.is_empty());
 }
+
+#[test]
+fn archived_chats_delete_requires_confirmation_and_cancel_keeps_rows() {
+    let (mut state, current) = restore_state();
+    apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+    assert!(state.delete_confirmation.is_some());
+    assert!(state.operating_ids.is_empty());
+    assert_eq!(state.sessions.len(), 2);
+    apply(&mut state, ArchivedChatsMessage::DeleteCancelled, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    assert!(state.delete_confirmation.is_none());
+    assert!(state.operating_ids.is_empty());
+    assert_eq!(state.sessions.len(), 2);
+}
+
+#[test]
+fn archived_chats_delete_confirm_once_and_reject_changed_target_or_service() {
+    let (mut state, current) = restore_state();
+    apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+    state.sessions[0].project_id = "changed".into();
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    assert!(state.delete_confirmation.is_none());
+    assert!(state.operating_ids.is_empty());
+    apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+    let mut other = current.clone();
+    other.auth_fingerprint = [1; 32];
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &other);
+    assert!(state.operating_ids.is_empty());
+    apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    state.error = Some("previous refresh failure".into());
+    let generation = state.delete_generation.unwrap();
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteCancelled, &current);
+    assert_eq!(state.delete_generation, Some(generation));
+    assert_eq!(state.operating_ids.len(), 1);
+    assert_eq!(state.sessions.len(), 2);
+    apply(
+        &mut state,
+        ArchivedChatsMessage::Deleted {
+            identity: other,
+            generation,
+            id: "a".into(),
+            result: Ok(vec!["a".into()]),
+        },
+        &current,
+    );
+    assert_eq!(state.sessions.len(), 2);
+    apply(
+        &mut state,
+        ArchivedChatsMessage::Deleted {
+            identity: current.clone(),
+            generation,
+            id: "a".into(),
+            result: Ok(vec!["child".into(), "a".into()]),
+        },
+        &current,
+    );
+    assert!(state.sessions.is_empty());
+    assert!(state.error.is_none());
+    assert!(state.selected_project_id.is_none());
+    assert!(state.delete_confirmation.is_none());
+    assert!(state.operating_ids.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn archived_chats_delete_http_failure_retains_confirmation_then_retry_deletes_tree() {
+    use iced::futures::StreamExt;
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint =
+        vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());
+    let current = Identity::from_endpoint(&endpoint);
+    let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
+    let fixture = tempfile::tempdir().unwrap();
+    let path = fixture.path().join("sessions.json");
+    let rows = vec![info("a", "p", "父聊天", 10), info("child", "p", "子聊天", 9)];
+    std::fs::write(&path, serde_json::to_vec(&rows).unwrap()).unwrap();
+    let server_path = path.clone();
+    let server = std::thread::spawn(move || {
+        for attempt in 0..2 {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+            let mut bytes = Vec::new();
+            let mut buffer = [0; 2048];
+            while !bytes.windows(4).any(|w| w == b"\r\n\r\n") {
+                let n = stream.read(&mut buffer).unwrap();
+                assert!(n > 0);
+                bytes.extend_from_slice(&buffer[..n]);
+            }
+            let request = String::from_utf8(bytes).unwrap();
+            assert!(request.starts_with("DELETE /v1/session/a/archived?directory="), "{request}");
+            assert!(request.contains("fixture%2Fp"), "{request}");
+            let (status, body) = if attempt == 0 {
+                ("500 Internal Server Error", "fixture failure")
+            } else {
+                std::fs::write(&server_path, b"[]").unwrap();
+                ("200 OK", r#"{"deleted_ids":["child","a"]}"#)
+            };
+            write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+        }
+    });
+    let mut state = ArchivedChatsState {
+        identity: Some(current.clone()),
+        sessions: rows,
+        ..Default::default()
+    };
+    apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+    for attempt in 0..2 {
+        apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+        let task = delete_task(
+            Ok(client.clone()),
+            current.clone(),
+            state.delete_generation.unwrap(),
+            state.delete_target.as_ref().unwrap().row.clone(),
+        );
+        let mut stream = iced_runtime::task::into_stream(task).unwrap();
+        let output = tokio::time::timeout(std::time::Duration::from_secs(10), stream.next())
+            .await
+            .unwrap()
+            .unwrap();
+        let iced_runtime::Action::Output(Message::Settings(SettingsMessage::ArchivedChats(
+            message,
+        ))) = output
+        else {
+            panic!("expected delete result");
+        };
+        assert!(
+            matches!(&message, ArchivedChatsMessage::Deleted { result, .. } if result.is_ok() == (attempt == 1))
+        );
+        apply(&mut state, message, &current);
+        assert!(state.operating_ids.is_empty());
+        assert_eq!(state.sessions.len(), if attempt == 0 { 2 } else { 0 });
+        assert_eq!(state.delete_confirmation.is_some(), attempt == 0);
+    }
+    server.join().unwrap();
+    assert_eq!(std::fs::read(path).unwrap(), b"[]");
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn archived_chats_delete_routes_cleanup_only_after_success() {
+    const CHILD: &str = "SHIJU_ARCHIVED_DELETE_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let home = tempfile::tempdir().unwrap();
+        let config = vw_config_types::ui::GatewayClientSystemSettingsConfig {
+            host: "[".into(),
+            servers: vec![],
+            ..Default::default()
+        };
+        std::fs::write(
+            home.path().join("gateway-client-bootstrap.json"),
+            serde_json::to_vec(&config).unwrap(),
+        )
+        .unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                &format!(
+                    "{}::archived_chats_delete_routes_cleanup_only_after_success",
+                    module_path!().split_once("::").unwrap().1
+                ),
+            ])
+            .env(CHILD, "1")
+            .env("HOME", home.path())
+            .env("VIBEWINDOW_CONFIG_DIR", home.path())
+            .env("VIBEWINDOW_WORKSPACE", home.path())
+            .current_dir(home.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed; 0 failed"));
+        return;
+    }
+    let mut app = App::new().0;
+    let current = Identity::from_endpoint(&crate::app::gateway_client_endpoint());
+    let rows = vec![
+        info("a", "p", "父聊天", 10),
+        info("child", "p", "子聊天", 9),
+        info("other", "q", "Other", 8),
+    ];
+    app.archived_chats = ArchivedChatsState {
+        identity: Some(current.clone()),
+        sessions: rows.clone(),
+        ..Default::default()
+    };
+    app.archived_chats.sessions[1].parent_id = Some("a".into());
+    app.sessions = rows.clone();
+    app.project_sessions.insert("/p".into(), rows);
+    app.active_session_id = Some("child".into());
+    for id in ["a", "child", "other"] {
+        app.session_runtime_states.insert(id.into(), Default::default());
+        app.session_previews.insert(id.into(), "cached".into());
+        app.session_chat_cache.insert(id.into(), crate::app::session::shared_chat_messages(vec![]));
+        app.session_chat_message_id_cache.insert(id.into(), vec![]);
+        app.archived_session_ids.insert(id.into());
+        let snapshot = crate::app::session::view_cache::SessionViewSnapshot::take_from(&mut app);
+        let _ = app.session_view_cache.insert(id.into(), snapshot);
+        assert!(app.session_view_cache.contains(id));
+    }
+    let send =
+        |app: &mut App, message| super::super::update(app, SettingsMessage::ArchivedChats(message));
+    assert!(
+        iced_runtime::task::into_stream(send(
+            &mut app,
+            ArchivedChatsMessage::DeleteRequested("a".into())
+        ))
+        .is_none()
+    );
+    assert!(
+        iced_runtime::task::into_stream(send(&mut app, ArchivedChatsMessage::DeleteCancelled))
+            .is_none()
+    );
+    assert_eq!(app.sessions.len(), 3);
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteRequested("a".into()));
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
+    assert!(
+        iced_runtime::task::into_stream(send(&mut app, ArchivedChatsMessage::DeleteConfirmed))
+            .is_none()
+    );
+    let generation = app.archived_chats.delete_generation.unwrap();
+    assert_eq!(app.sessions.len(), 3);
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Deleted {
+            identity: current.clone(),
+            generation,
+            id: "a".into(),
+            result: Err("fixture partial failure".into()),
+        },
+    );
+    assert!(app.active_toast.is_some());
+    assert_eq!(app.sessions.len(), 3);
+    assert!(app.archived_chats.loading);
+    let generation = app.archived_chats.request_generation;
+    let rows =
+        app.archived_chats.sessions.iter().filter(|row| row.id != "child").cloned().collect();
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Loaded { identity: current.clone(), generation, result: Ok(rows) },
+    );
+    assert!(app.archived_chats.delete_confirmation.is_some());
+    assert_eq!(app.sessions.len(), 2);
+    assert!(!app.session_runtime_states.contains_key("child"));
+    assert!(!app.session_view_cache.contains("child"));
+    assert!(app.active_session_id.is_none());
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
+    let generation = app.archived_chats.delete_generation.unwrap();
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Deleted {
+            identity: current,
+            generation,
+            id: "a".into(),
+            result: Ok(vec!["child".into(), "a".into()]),
+        },
+    );
+    assert!(app.active_toast.is_some());
+    assert!(app.active_session_id.is_none());
+    assert!(app.chat.is_empty());
+    assert_eq!(app.sessions.len(), 1);
+    assert_eq!(app.project_sessions["/p"].len(), 1);
+    for id in ["a", "child"] {
+        assert!(!app.session_runtime_states.contains_key(id));
+        assert!(!app.session_view_cache.contains(id));
+        assert!(!app.session_chat_cache.contains_key(id));
+        assert!(!app.session_chat_message_id_cache.contains_key(id));
+        assert!(!app.session_previews.contains_key(id));
+        assert!(!app.archived_session_ids.contains(id));
+    }
+    assert!(app.session_runtime_states.contains_key("other"));
+
+    // If the failure refresh also fails, a retry may report only the root:
+    // reconcile the previously committed child against a new complete snapshot.
+    let current = Identity::from_endpoint(&crate::app::gateway_client_endpoint());
+    let root = info("b", "p", "Retry root", 10);
+    let mut child = info("nested", "p", "Partial child", 9);
+    child.parent_id = Some("b".into());
+    app.archived_chats = ArchivedChatsState {
+        identity: Some(current.clone()),
+        sessions: vec![root.clone(), child.clone()],
+        ..Default::default()
+    };
+    app.sessions.extend([root, child]);
+    app.session_runtime_states.insert("nested".into(), Default::default());
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteRequested("b".into()));
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
+    let generation = app.archived_chats.delete_generation.unwrap();
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Deleted {
+            identity: current.clone(),
+            generation,
+            id: "b".into(),
+            result: Err("partial failure".into()),
+        },
+    );
+    let generation = app.archived_chats.request_generation;
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Loaded {
+            identity: current.clone(),
+            generation,
+            result: Err("refresh failure".into()),
+        },
+    );
+    let _ = send(&mut app, ArchivedChatsMessage::DeleteConfirmed);
+    let generation = app.archived_chats.delete_generation.unwrap();
+    let navigation_generation = app.session_view_cache.navigation_generation;
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Deleted {
+            identity: current.clone(),
+            generation,
+            id: "b".into(),
+            result: Ok(vec!["b".into()]),
+        },
+    );
+    assert!(app.archived_chats.loading);
+    assert!(app.session_view_cache.navigation_generation > navigation_generation);
+    let from_project = app.project_path.clone();
+    let from_session = app.active_session_id.clone();
+    let _ = crate::app::message::project::update(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionNavigationResolved {
+            generation: navigation_generation,
+            from_project,
+            from_session,
+            destination: Some(("/fixture/p".into(), Box::new(info("b", "p", "Deleted", 10)))),
+        },
+    );
+    assert!(app.active_session_id.is_none());
+    let generation = app.archived_chats.request_generation;
+    let _ = send(
+        &mut app,
+        ArchivedChatsMessage::Loaded {
+            identity: current,
+            generation,
+            result: Ok(vec![info("other", "q", "Other", 8)]),
+        },
+    );
+    assert_eq!(app.sessions.len(), 1);
+    assert!(!app.session_runtime_states.contains_key("nested"));
+}
+
+#[test]
+fn archived_chats_delete_refresh_closes_confirmation_for_restored_or_missing_target() {
+    for restored in [false, true] {
+        let (mut state, current) = restore_state();
+        apply(&mut state, ArchivedChatsMessage::DeleteRequested("a".into()), &current);
+        apply(&mut state, ArchivedChatsMessage::Refresh, &current);
+        let mut rows = state.sessions.clone();
+        if restored {
+            rows[0].time.archived = None;
+        } else {
+            rows.remove(0);
+        }
+        let generation = state.request_generation;
+        load(&mut state, &current, generation, Ok(rows));
+        assert!(state.delete_confirmation.is_none());
+        apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+        assert!(state.operating_ids.is_empty());
+    }
+}

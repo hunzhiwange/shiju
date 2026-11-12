@@ -33,9 +33,18 @@ pub(crate) struct ArchivedChatsState {
     pub(crate) request_generation: u64,
     pub(crate) operating_ids: HashSet<String>,
     pub(crate) restore_requests: HashMap<String, u64>,
+    pub(crate) delete_target: Option<ArchivedChatDeleteTarget>,
+    pub(crate) delete_reconcile_ids: Vec<String>,
+    pub(crate) delete_generation: Option<u64>,
     pub(crate) delete_confirmation: Option<ArchivedChatsDeleteConfirmation>,
     pub(crate) identity: Option<ArchivedChatsIdentity>,
     pub(crate) menu: Option<ArchivedChatsMenu>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ArchivedChatDeleteTarget {
+    pub(crate) identity: ArchivedChatsIdentity,
+    pub(crate) row: Info,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

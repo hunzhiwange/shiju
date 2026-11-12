@@ -45,6 +45,9 @@ impl TerminalPanes {
         let Some(pane) = self.owner(id) else {
             return false;
         };
+        if self.grid.maximized().is_some_and(|maximized| maximized != pane) {
+            self.grid.restore();
+        }
         self.grid.get_mut(pane).expect("tab owner").active_id = Some(id);
         self.focused = pane;
         true
@@ -72,7 +75,10 @@ impl TerminalPanes {
     }
 
     pub(crate) fn is_visible_tab(&self, id: u64) -> bool {
-        self.grid.iter().any(|(_, pane)| pane.active_id == Some(id))
+        self.grid.iter().any(|(key, pane)| {
+            self.grid.maximized().is_none_or(|maximized| maximized == *key)
+                && pane.active_id == Some(id)
+        })
     }
 
     pub(crate) fn resize(&mut self, event: ResizeEvent) {

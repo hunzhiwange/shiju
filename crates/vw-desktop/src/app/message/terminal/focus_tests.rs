@@ -1,4 +1,6 @@
 //! Real editor/terminal widget dispatch; run with --test-threads=1 (global editor focus).
+#[path = "maximize_tests.rs"]
+mod maximize_tests;
 use crate::app::components::{editor::Editor, terminal_panel};
 use crate::app::message::{PreviewMessage, TerminalMessage, ViewMessage};
 use crate::app::preview::PreviewTab;

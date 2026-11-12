@@ -9,6 +9,24 @@ use crate::app::{App, FocusArea, Message};
 
 pub(super) fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
     match message {
+        TerminalMessage::TogglePaneMaximized(instance, pane) => {
+            let terminal = &mut app.terminal;
+            if !terminal.is_visible || terminal.panes.instance != instance {
+                return Task::none();
+            }
+            let Some(id) = terminal.panes.grid.get(pane).and_then(|pane| pane.active_id) else {
+                return Task::none();
+            };
+            terminal.select_terminal(id);
+            terminal.tab_context_menu_id = None;
+            terminal.tab_context_menu_pos = None;
+            if terminal.panes.grid.maximized() == Some(pane) {
+                terminal.panes.grid.restore();
+            } else {
+                terminal.panes.grid.maximize(pane);
+            }
+            super::event::focus_active_terminal(app)
+        }
         TerminalMessage::ResizePane(instance, event) => {
             let terminal = &mut app.terminal;
             if terminal.is_visible && terminal.panes.instance == instance {

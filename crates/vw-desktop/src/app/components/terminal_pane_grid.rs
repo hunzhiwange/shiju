@@ -28,6 +28,9 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             spacing = 0.0;
             regions = grid.layout().pane_regions(spacing, 0.0, size);
         }
+        if let Some(pane) = grid.maximized() {
+            regions = [(pane, Rectangle::with_size(size))].into();
+        }
         let top_right = regions.iter().find_map(|(pane, region)| {
             (region.y == 0.0 && region.x + region.width >= size.width - 0.5).then_some(*pane)
         });
@@ -50,6 +53,9 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             }
 
             let (header, body) = pane_view(app, tabs, state.active_id, controls);
+            let header = iced::widget::mouse_area(header).on_release(Message::Terminal(
+                TerminalMessage::TogglePaneMaximized(panes.instance.clone(), pane),
+            ));
             pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(header))
         })
         .width(Length::Fill)
@@ -62,7 +68,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             style.hovered_split.width = PANE_SPACING;
             style
         });
-        if panes.grid.len() > 1 {
+        if panes.grid.len() > 1 && panes.grid.maximized().is_none() {
             grid = grid.on_resize(DIVIDER_HIT_WIDTH - spacing, |event| {
                 Message::Terminal(TerminalMessage::ResizePane(panes.instance.clone(), event))
             });
@@ -268,6 +274,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         } else if matches!(event, Event::Mouse(Mouse::ButtonPressed(Button::Left))) {
             let interaction = self.grid.mouse_interaction(grid, layout, cursor, viewport, renderer);
             if self.panes.grid.len() > 1
+                && self.panes.grid.maximized().is_none()
                 && !resizing(interaction)
                 && let Some(origin) = cursor.position_over(layout.bounds())
             {

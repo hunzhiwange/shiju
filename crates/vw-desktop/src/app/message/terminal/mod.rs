@@ -54,6 +54,8 @@ pub enum TerminalMessage {
     ResizePane(Id, ResizeEvent),
     #[cfg(not(target_arch = "wasm32"))]
     DockPane(Id, Pane, Target),
+    #[cfg(not(target_arch = "wasm32"))]
+    TogglePaneMaximized(Id, Pane),
     Select(u64),
     Close(u64),
     /// Drop terminals retired after iced cancelled their subscriptions.
@@ -117,7 +119,8 @@ pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
         | TerminalMessage::CloseSplitMenu
         | TerminalMessage::Split(..)
         | TerminalMessage::ResizePane(..)
-        | TerminalMessage::DockPane(..) => panes::update(app, message),
+        | TerminalMessage::DockPane(..)
+        | TerminalMessage::TogglePaneMaximized(..) => panes::update(app, message),
         TerminalMessage::Event(_) | TerminalMessage::DragStarted => event::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         TerminalMessage::ToggleFullscreen => event::update(app, message),

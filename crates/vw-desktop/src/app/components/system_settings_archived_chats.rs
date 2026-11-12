@@ -187,7 +187,7 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                     &session.title
                 };
                 let title_view = container(text(title).size(14).wrapping(text::Wrapping::None))
-                    .width(Length::Fill)
+                    .width(Length::Shrink)
                     .clip(true);
                 let operating = state.operating_ids.contains(&session.id);
                 rows = rows.push(
@@ -200,7 +200,8 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                                     .max_width(420)
                                     .style(settings_modal_card_style),
                                 tooltip::Position::Top
-                            ),
+                            )
+                            .padding(0),
                             text(settings_extensions::archived_chat_updated(
                                 locale,
                                 session.time.updated

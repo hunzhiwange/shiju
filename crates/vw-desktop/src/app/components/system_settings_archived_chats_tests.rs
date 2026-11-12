@@ -105,6 +105,69 @@ mod rendering {
     }
 
     #[tokio::test]
+    async fn archived_chat_tooltip_stays_directly_above_title() {
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+                .await
+                .unwrap();
+        for theme in [Theme::Dark, Theme::Light] {
+            for width in [360.0, 860.0] {
+                let mut state = fixture();
+                state.sessions.truncate(1);
+                state.sessions[0].title = "归档聊天 TUI".into();
+                let mut ui = UserInterface::build(
+                    page(&state, DesktopLocale::SimplifiedChinese),
+                    Size::new(width, 650.0),
+                    Cache::new(),
+                    &mut renderer,
+                );
+                let mut geometry = Geometry::default();
+                ui.operate(&mut renderer, &mut geometry);
+                let title =
+                    geometry.labels.iter().find(|(label, _)| label == "归档聊天 TUI").unwrap().1;
+                assert!(title.width < 120.0, "tooltip anchor must fit the title");
+                ui.draw(
+                    &mut renderer,
+                    &theme,
+                    &Style { text_color: theme.palette().text },
+                    mouse::Cursor::Unavailable,
+                );
+                let size = Size::new(width as u32, 650);
+                let before = renderer.screenshot(size, 1.0, theme.palette().background);
+                let cursor = mouse::Cursor::Available(title.center());
+                ui.update(
+                    &[
+                        Event::Mouse(mouse::Event::CursorMoved { position: title.center() }),
+                        Event::Window(iced::window::Event::RedrawRequested(
+                            iced::time::Instant::now(),
+                        )),
+                    ],
+                    cursor,
+                    &mut renderer,
+                    &mut clipboard::Null,
+                    &mut Vec::new(),
+                );
+                ui.draw(&mut renderer, &theme, &Style { text_color: theme.palette().text }, cursor);
+                let after = renderer.screenshot(size, 1.0, theme.palette().background);
+                let changed_above_title = ((title.y as u32 - 30)..title.y as u32)
+                    .flat_map(|y| {
+                        (title.x as u32..(title.x + title.width) as u32)
+                            .map(move |x| ((y * size.width + x) * 4) as usize)
+                    })
+                    .filter(|&pixel| before[pixel..pixel + 4] != after[pixel..pixel + 4])
+                    .count();
+                assert!(changed_above_title > 100, "tooltip must render directly above title");
+            }
+        }
+    }
+
+    #[tokio::test]
     async fn archived_chats_restore_renders_and_disables_duplicate_clicks() {
         {
             let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();

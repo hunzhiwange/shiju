@@ -319,3 +319,44 @@ async fn disabled_cron_rejects_update_before_parsing_patch() {
     assert!(!result.success);
     assert_eq!(result.error.as_deref(), Some("cron is disabled by config (cron.enabled=false)"));
 }
+
+#[tokio::test]
+async fn wb_schedule_tool_updates_timezone_and_clears_window() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let job = add_job(&cfg, "0 9 * * *", "echo ok").unwrap();
+    let tool = CronUpdateTool::new(cfg.clone(), test_security(&cfg));
+    let result = tool.execute(json!({"job_id":job.id,"patch":{"starts_at":"2096-01-01T00:00:00Z","ends_at":"2097-01-01T00:00:00Z","schedule":{"kind":"cron","expr":"0 9 * * MON,WED,FRI","tz":"Asia/Shanghai"}}})).await.unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(get_job(&cfg, &job.id).unwrap().next_run.to_rfc3339(), "2096-01-02T01:00:00+00:00");
+    let result =
+        tool.execute(json!({"job_id":job.id,"patch":{"name":"retained window"}})).await.unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert!(get_job(&cfg, &job.id).unwrap().starts_at.is_some());
+    let result = tool
+        .execute(json!({"job_id":job.id,"patch":{"starts_at":null,"ends_at":null}}))
+        .await
+        .unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let saved = get_job(&cfg, &job.id).unwrap();
+    assert!(saved.starts_at.is_none());
+    assert!(saved.ends_at.is_none());
+    assert_eq!(serde_json::to_value(saved.schedule).unwrap()["tz"], "Asia/Shanghai");
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_rejects_calendar_update_in_read_only_mode() {
+    let tmp = TempDir::new().unwrap();
+    let mut cfg = (*test_config(&tmp).await).clone();
+    cfg.autonomy.level = AutonomyLevel::ReadOnly;
+    let cfg = Arc::new(cfg);
+    let job = add_job(&cfg, "0 9 * * *", "echo ok").unwrap();
+    let tool = CronUpdateTool::new(cfg.clone(), test_security(&cfg));
+    let result = tool
+        .execute(json!({"job_id":job.id,"patch":{"starts_at":"2096-01-01T00:00:00Z"}}))
+        .await
+        .unwrap();
+    assert!(!result.success);
+    assert!(result.error.unwrap().contains("read-only"));
+    assert!(get_job(&cfg, &job.id).unwrap().starts_at.is_none());
+}

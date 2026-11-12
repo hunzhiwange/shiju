@@ -38,6 +38,43 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+/// 对话工具沿用领域调度结构；两个调用者共用同一参数契约。
+pub(super) fn schedule_schema() -> serde_json::Value {
+    json!({
+        "type": "object",
+        "description": "One schedule per job. Multiple weekdays use one Cron list, e.g. {kind:'cron',expr:'0 9 * * MON,WED,FRI',tz:'Asia/Shanghai'}. Biweekly requires an anchor date; its local Monday starts week zero. Missing Cron tz means UTC. Missing month dates and non-leap February 29 are skipped.",
+        "oneOf": [
+            {"properties": {
+                "kind": {"const": "cron"},
+                "expr": {"type": "string", "description": "5-field crontab or 6/7-field Cron; yearly leap day: 0 9 29 2 *"},
+                "tz": {"type": ["string", "null"], "description": "IANA timezone, default UTC"}
+            }, "required": ["kind", "expr"], "additionalProperties": false},
+            {"properties": {
+                "kind": {"const": "biweekly"},
+                "anchor_date": {"type": "string", "format": "date"},
+                "weekdays": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 7}, "description": "Monday=1, Sunday=7"},
+                "hour": {"type": "integer", "minimum": 0, "maximum": 23},
+                "minute": {"type": "integer", "minimum": 0, "maximum": 59},
+                "timezone": {"type": "string", "description": "IANA timezone"}
+            }, "required": ["kind", "anchor_date", "weekdays", "hour", "minute", "timezone"], "additionalProperties": false},
+            {"properties": {
+                "kind": {"const": "at"},
+                "at": {"type": "string", "format": "date-time", "description": "Future RFC3339 instant with explicit offset"}
+            }, "required": ["kind", "at"], "additionalProperties": false},
+            {"properties": {
+                "kind": {"const": "every"},
+                "every_ms": {"type": "integer", "minimum": 1, "description": "Fixed elapsed milliseconds; one day means 86400000 ms"}
+            }, "required": ["kind", "every_ms"], "additionalProperties": false}
+        ]
+    })
+}
+
+#[derive(serde::Deserialize)]
+struct CreationWindow {
+    starts_at: Option<chrono::DateTime<chrono::Utc>>,
+    ends_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 /// Cron 任务添加工具
 ///
 /// 该结构体实现了 `Tool` trait，提供了创建和管理定时任务的能力。
@@ -227,7 +264,7 @@ impl Tool for CronAddTool {
     /// - 投递配置的使用方法
     /// - 推荐的使用场景
     fn description(&self) -> &str {
-        "Create a scheduled task (Shell or agent) using cron, at, or every scheduling.\
+        "Create a scheduled task (Shell or agent) using cron, at, every, or anchored biweekly scheduling. Multiple weekdays belong to one job, e.g. cron expr='0 9 * * MON,WED,FRI'. Biweekly requires anchor_date.\
          Set job_type='agent' with prompt to run an AI agent on schedule.\
          To send output to a channel (Discord, Telegram, Slack, Mattermost, QQ, or Email), set \
          delivery={\"mode\":\"announce\",\"channel\":\"discord\",\"to\":\"<channel-or-chat-id>\"}.\
@@ -266,10 +303,9 @@ impl Tool for CronAddTool {
                 "name": { "type": "string" },
 
                 // 调度配置 - 核心参数，定义任务的执行时间
-                "schedule": {
-                    "type": "object",
-                    "description": "Schedule object: {kind:'cron',expr,tz?} | {kind:'at',at} | {kind:'every',every_ms}"
-                },
+                "schedule": schedule_schema(),
+                "starts_at": {"type": ["string", "null"], "format": "date-time", "description": "Inclusive RFC3339 execution window start; omitted/null means unlimited"},
+                "ends_at": {"type": ["string", "null"], "format": "date-time", "description": "Exclusive RFC3339 execution window end; omitted/null means unlimited. For inclusive local end dates, use next local midnight with explicit offset"},
 
                 // 任务类型 - 决定执行引擎
                 "job_type": { "type": "string", "enum": ["shell", "agent"] },
@@ -422,6 +458,17 @@ impl Tool for CronAddTool {
             }
         };
 
+        let window = match serde_json::from_value::<CreationWindow>(args.clone()) {
+            Ok(window) => window,
+            Err(error) => {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Invalid execution window: {error}")),
+                });
+            }
+        };
+
         // 步骤 3: 解析可选的 name 参数
         // name 用于任务标识和日志记录，如果没有提供将使用默认名称
         let name = args.get("name").and_then(serde_json::Value::as_str).map(str::to_string);
@@ -505,7 +552,14 @@ impl Tool for CronAddTool {
                 }
 
                 // 6a-4: 调用 cron 模块创建 shell 任务
-                cron::add_shell_job(&self.config, name, schedule, command)
+                cron::add_shell_job_with_window(
+                    &self.config,
+                    name,
+                    schedule,
+                    command,
+                    window.starts_at,
+                    window.ends_at,
+                )
             }
             JobType::Agent => {
                 // ===== Agent 任务创建分支 =====
@@ -567,7 +621,7 @@ impl Tool for CronAddTool {
                 }
 
                 // 6b-6: 调用 cron 模块创建 agent 任务
-                cron::add_agent_job(
+                cron::add_agent_job_with_window(
                     &self.config,
                     name,
                     schedule,
@@ -576,6 +630,8 @@ impl Tool for CronAddTool {
                     model,
                     delivery,
                     delete_after_run,
+                    window.starts_at,
+                    window.ends_at,
                 )
             }
         }
@@ -607,6 +663,8 @@ impl Tool for CronAddTool {
                         "name": job.name,
                         "job_type": job.job_type,
                         "schedule": job.schedule,
+                        "starts_at": job.starts_at,
+                        "ends_at": job.ends_at,
                         "next_run": job.next_run,
                         "enabled": job.enabled
                     }))?,

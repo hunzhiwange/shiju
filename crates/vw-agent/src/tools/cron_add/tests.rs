@@ -443,3 +443,92 @@ async fn rejects_unknown_job_type() {
     assert_eq!(result.error.as_deref(), Some("Invalid job_type: workflow"));
     assert!(list_jobs(&cfg).unwrap().is_empty());
 }
+
+async fn wb_create(cfg: &Arc<Config>, schedule: serde_json::Value, window: bool) -> ToolResult {
+    let mut args = json!({"schedule": schedule, "job_type": "agent", "prompt": "summarize"});
+    if window {
+        args["starts_at"] = json!("2096-01-01T00:00:00Z");
+        args["ends_at"] = json!("2097-01-01T00:00:00Z");
+    }
+    CronAddTool::new(cfg.clone(), test_security(cfg)).execute(args).await.unwrap()
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_creates_single_multi_day_job() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let result = wb_create(
+        &cfg,
+        json!({"kind":"cron","expr":"0 9 * * MON,WED,FRI","tz":"Asia/Shanghai"}),
+        true,
+    )
+    .await;
+    assert!(result.success, "{:?}", result.error);
+    let jobs = list_jobs(&cfg).unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].starts_at.unwrap().to_rfc3339(), "2096-01-01T00:00:00+00:00");
+    assert_eq!(jobs[0].next_run.to_rfc3339(), "2096-01-02T01:00:00+00:00");
+    assert!(!jobs[0].full_access);
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_creates_biweekly_with_anchor() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let result = wb_create(&cfg, json!({"kind":"biweekly","anchor_date":"2096-01-02","weekdays":[1,3,5],"hour":9,"minute":0,"timezone":"Asia/Shanghai"}), true).await;
+    assert!(result.success, "{:?}", result.error);
+    let jobs = list_jobs(&cfg).unwrap();
+    assert_eq!(jobs.len(), 1);
+    assert!(matches!(jobs[0].schedule, crate::app::agent::cron::Schedule::Biweekly { .. }));
+    assert_eq!(jobs[0].next_run.to_rfc3339(), "2096-01-02T01:00:00+00:00");
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_creates_leap_day_job() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let result = wb_create(&cfg, json!({"kind":"cron","expr":"0 9 29 2 *","tz":"UTC"}), true).await;
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(list_jobs(&cfg).unwrap()[0].next_run.to_rfc3339(), "2096-02-29T09:00:00+00:00");
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_rejects_invalid_rules_without_creating_jobs() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    for schedule in [
+        json!({"kind":"biweekly","weekdays":[1],"hour":9,"minute":0,"timezone":"UTC"}),
+        json!({"kind":"biweekly","anchor_date":"2096-01-02","weekdays":[],"hour":9,"minute":0,"timezone":"UTC"}),
+        json!({"kind":"cron","expr":"0 9 30 2 *","tz":"UTC"}),
+        json!({"kind":"cron","expr":"0 9 * * *","tz":"Invalid/Zone"}),
+    ] {
+        let result = wb_create(&cfg, schedule, true).await;
+        assert!(!result.success, "{}", result.output);
+        assert!(result.error.is_some());
+        assert!(list_jobs(&cfg).unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_rejects_invalid_windows_atomically() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let tool = CronAddTool::new(cfg.clone(), test_security(&cfg));
+    for end in ["2095-01-01T00:00:00Z", "invalid", "2096-01-01T00:00:01Z"] {
+        let result = tool.execute(json!({"schedule":{"kind":"cron","expr":"0 9 * * *"},"command":"echo ok","starts_at":"2096-01-01T00:00:00Z","ends_at":end})).await.unwrap();
+        assert!(!result.success);
+        assert!(list_jobs(&cfg).unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn wb_schedule_tool_rejects_calendar_creation_in_read_only_mode() {
+    let tmp = TempDir::new().unwrap();
+    let mut cfg = (*test_config(&tmp).await).clone();
+    cfg.autonomy.level = AutonomyLevel::ReadOnly;
+    let cfg = Arc::new(cfg);
+    let result = wb_create(&cfg, json!({"kind":"cron","expr":"0 9 * * MON,WED,FRI"}), true).await;
+    assert!(!result.success);
+    assert!(result.error.unwrap().contains("read-only"));
+    assert!(list_jobs(&cfg).unwrap().is_empty());
+}

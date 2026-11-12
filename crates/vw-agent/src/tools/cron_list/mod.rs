@@ -27,7 +27,7 @@ impl Tool for CronListTool {
     }
 
     fn description(&self) -> &str {
-        "List all scheduled tasks"
+        "List all scheduled tasks with their exact schedule kind (cron, biweekly, at, every), configured timezone, and inclusive starts_at/exclusive ends_at execution window"
     }
 
     fn parameters_schema(&self) -> serde_json::Value {

@@ -27,7 +27,7 @@
 //! let result = tool.execute(json!({
 //!     "job_id": "task-123",
 //!     "patch": {
-//!         "schedule": "0 0 * * *",
+//!         "schedule": {"kind": "cron", "expr": "0 0 * * *"},
 //!         "enabled": true
 //!     }
 //! })).await?;
@@ -172,7 +172,7 @@ impl Tool for CronUpdateTool {
     ///
     /// 返回描述字符串，说明此工具可以更新的任务属性类型
     fn description(&self) -> &str {
-        "Update an existing scheduled task, including its schedule, command, prompt, enabled state, delivery configuration, or model"
+        "Update an existing scheduled task, including its schedule, command, prompt, enabled state, delivery configuration, or model. Multiple weekdays use one Cron list rule; biweekly requires an anchor date. Omitted window fields are preserved; null clears a boundary"
     }
 
     /// 返回工具参数的 JSON Schema
@@ -201,7 +201,18 @@ impl Tool for CronUpdateTool {
                 },
                 "patch": {
                     "type": "object",
-                    "description": "Patch object containing only the fields to update"
+                    "description": "Patch object containing only fields to update; omitted fields stay unchanged",
+                    "properties": {
+                        "schedule": super::cron_add::schedule_schema(),
+                        "starts_at": {"type": ["string", "null"], "format": "date-time", "description": "Inclusive RFC3339 start; null clears, omitted preserves"},
+                        "ends_at": {"type": ["string", "null"], "format": "date-time", "description": "Exclusive RFC3339 end; null clears, omitted preserves. Inclusive local end dates use next local midnight with explicit offset"},
+                        "name": {"type": "string"},
+                        "command": {"type": "string"},
+                        "prompt": {"type": "string"},
+                        "enabled": {"type": "boolean"},
+                        "delivery": {"type": "object"},
+                        "model": {"type": "string"}
+                    }
                 },
                 "approved": {
                     "type": "boolean",
@@ -255,7 +266,7 @@ impl Tool for CronUpdateTool {
     /// let result = tool.execute(json!({
     ///     "job_id": "task-123",
     ///     "patch": {
-    ///         "schedule": "0 0 * * *",
+    ///         "schedule": {"kind": "cron", "expr": "0 0 * * *"},
     ///         "enabled": true
     ///     }
     /// })).await?;

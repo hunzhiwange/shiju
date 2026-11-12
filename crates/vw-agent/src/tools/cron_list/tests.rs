@@ -103,3 +103,24 @@ async fn errors_when_cron_disabled() {
     assert!(!result.success);
     assert!(result.error.unwrap_or_default().contains("cron is disabled"));
 }
+
+#[tokio::test]
+async fn wb_schedule_tool_list_preserves_calendar_type_timezone_and_window() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = test_config(&tmp).await;
+    let security = Arc::new(SecurityPolicy::from_config(&cfg.autonomy, &cfg.workspace_dir));
+    let add = CronAddTool::new(cfg.clone(), security.clone());
+    let update = CronUpdateTool::new(cfg.clone(), security);
+    let list = CronListTool::new(cfg);
+    assert_eq!((add.name(), update.name(), list.name()), ("cron_add", "cron_update", "cron_list"));
+    let result = add.execute(json!({"schedule":{"kind":"biweekly","anchor_date":"2096-01-02","weekdays":[1,3,5],"hour":9,"minute":0,"timezone":"Asia/Shanghai"},"prompt":"summarize","starts_at":"2096-01-01T00:00:00Z","ends_at":"2097-01-01T00:00:00Z"})).await.unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let result = list.execute(json!({})).await.unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let jobs: serde_json::Value = serde_json::from_str(&result.output).unwrap();
+    assert_eq!(jobs.as_array().unwrap().len(), 1);
+    assert_eq!(jobs[0]["schedule"]["kind"], "biweekly");
+    assert_eq!(jobs[0]["schedule"]["timezone"], "Asia/Shanghai");
+    assert_eq!(jobs[0]["starts_at"], "2096-01-01T00:00:00Z");
+    assert_eq!(jobs[0]["ends_at"], "2097-01-01T00:00:00Z");
+}

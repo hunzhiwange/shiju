@@ -88,7 +88,7 @@ WINDOWS_ARM := aarch64-pc-windows-msvc
         desktop-check desktop-run desktop-release desktop-wasm \
         ensure-wasm-target \
         cross-install cross-check \
-        clean distclean \
+        clean clean-cargo-cache distclean \
         info check-deps \
         macos macos-dev windows app-macos-with-cli app-windows-with-cli \
         worktree-commit-merge worktree-sync-main worktree-reset-all \
@@ -472,6 +472,12 @@ cloc: ## 用 cloc 按语言统计 crates 各库源代码行数
 ## ============================================================================
 ## 清理
 ## ============================================================================
+
+# Cargo 1.88+ 原生 GC：按整个 CARGO_HOME 的使用记录清理，不按本项目锁文件删缓存。
+# 默认回收 3 个月未使用的下载缓存、1 个月未使用的可再生成源码；保留编译缓存。
+# fetch --locked 补齐当前依赖且不修改锁文件；离线配置下 Cargo 会跳过回收。
+clean-cargo-cache: ## 回收 Cargo 过期依赖缓存（需联网），保留近期依赖与编译缓存
+	cargo --config 'cache.auto-clean-frequency="always"' fetch --locked
 
 clean: ## 清理构建产物
 	cargo clean

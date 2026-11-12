@@ -44,6 +44,7 @@ mod menu;
 pub(crate) mod model;
 #[cfg(target_os = "macos")]
 mod native_drop;
+mod row_layout;
 pub(crate) mod selection;
 mod tree_list;
 mod widgets;

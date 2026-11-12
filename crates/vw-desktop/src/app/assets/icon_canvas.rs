@@ -367,6 +367,14 @@ pub(super) fn register_icons(m: &mut HashMap<Icon, svg::Handle>) {
         svg::Handle::from_memory(include_bytes!("../../../../../assets/icons/bootstrap/file.svg")),
     );
 
+    // 关闭的文件夹图标
+    m.insert(
+        Icon::FolderClosed,
+        svg::Handle::from_memory(include_bytes!(
+            "../../../../../assets/icons/bootstrap/folder2.svg"
+        )),
+    );
+
     // 打开的文件夹图标
     m.insert(
         Icon::FolderOpen,

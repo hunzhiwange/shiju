@@ -1,9 +1,9 @@
 //! 文件树原位重命名，保留图标和层级，不接入行选择或拖拽。
-use iced::widget::{button, container, row, text, text_input};
-use iced::{Alignment, Background, Color, Element, Length, Theme};
+use iced::widget::{container, text_input};
+use iced::{Background, Color, Element, Length, Theme};
 
 use super::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
-use crate::app::assets::Icon;
+use super::row_layout;
 use crate::app::components::system_settings_common::{
     settings_text_input, settings_text_input_style,
 };
@@ -34,20 +34,14 @@ pub(super) fn view(
     directory: bool,
     expanded: bool,
 ) -> Element<'_, Message> {
-    let mut content = row![text("  ".repeat(depth)).size(13)].spacing(4).align_y(Alignment::Center);
-    if directory {
-        content = content.push(themed_icon_svg(if expanded {
-            Icon::ChevronDown
-        } else {
-            Icon::ChevronRight
-        }));
-    }
     let icon = if directory {
-        themed_icon_svg(Icon::FolderOpen)
+        themed_icon_svg(row_layout::folder_icon(expanded))
     } else {
         static_icon_svg(file_icon_for(&app.file_tree_rename_value))
     };
-    content = content.push(container(icon).width(Length::Fixed(16.0))).push(
+    let content = row_layout::content(
+        depth,
+        icon,
         settings_text_input("", &app.file_tree_rename_value)
             // 行内编辑沿用文件名字号与行高，不使用表单控件的额外留白。
             .padding(0)
@@ -58,7 +52,7 @@ pub(super) fn view(
             .on_submit(Message::Project(ProjectMessage::FileTreeRenameSave))
             .width(Length::Fill),
     );
-    container(content).padding(button::DEFAULT_PADDING).width(Length::Fill).into()
+    container(content).padding(row_layout::ROW_PADDING).width(Length::Fill).into()
 }
 
 #[cfg(test)]

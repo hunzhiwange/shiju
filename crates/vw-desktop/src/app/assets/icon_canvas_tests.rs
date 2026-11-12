@@ -72,6 +72,7 @@ fn register_icons_populates_canvas_icon_group_without_clearing_existing_entries(
         Icon::Braces,
         Icon::Box,
         Icon::File,
+        Icon::FolderClosed,
         Icon::FolderOpen,
         Icon::FileEarmarkPlus,
         Icon::ChatTextFill,

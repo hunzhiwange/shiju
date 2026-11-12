@@ -112,8 +112,13 @@ fn themed_icon_svg_uses_fixed_square_size() {
 
 #[test]
 fn themed_icon_svg_draw_uses_current_theme_text_color() {
-    for theme in [Theme::Light, Theme::Dark] {
-        let mut icon = themed_icon_svg(Icon::FolderOpen);
+    for (theme, state) in [
+        (Theme::Light, Icon::FolderClosed),
+        (Theme::Dark, Icon::FolderClosed),
+        (Theme::Light, Icon::FolderOpen),
+        (Theme::Dark, Icon::FolderOpen),
+    ] {
+        let mut icon = themed_icon_svg(state);
         let mut tree = Tree::empty();
         let mut renderer = RecordingRenderer::default();
         let limits = layout::Limits::new(Size::ZERO, Size::new(14.0, 14.0));

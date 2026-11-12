@@ -13,10 +13,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, text};
 use iced::{Background, Color, Element, Length, Theme};
 
-use crate::app::assets::Icon;
+use super::row_layout;
 use crate::app::components::file_tree::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
 use crate::app::components::file_tree::menu::file_tree_menu_overlay;
 use crate::app::components::file_tree::model::FileTreeNode;
@@ -234,8 +234,6 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
         project_root: &'a str,
     ) -> Element<'a, Message> {
         let mut col = column![].spacing(0).width(Length::Fill);
-        // 根据深度计算缩进（每层两个空格）
-        let indent = "  ".repeat(depth);
 
         // 遍历并渲染所有子目录
         for (name, child_node) in &node.children {
@@ -252,19 +250,14 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 }
                 continue;
             }
-            // 根据展开状态选择箭头图标
-            let chevron_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
-            let folder_icon = Icon::FolderOpen;
-            // 构建目录头部行：缩进 + 箭头 + 文件夹图标 + 目录名
-            let header_row = row![
-                text(indent.clone()).size(13),
-                themed_icon_svg(chevron_icon),
-                container(themed_icon_svg(folder_icon)).width(Length::Fixed(16.0)),
-                text(full.split('/').next_back().unwrap_or(&full).to_string()).size(13)
-            ]
-            .spacing(4);
+            let header_row = row_layout::content(
+                depth,
+                themed_icon_svg(row_layout::folder_icon(expanded)),
+                text(full.split('/').next_back().unwrap_or(&full).to_string()).size(13),
+            );
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
+                .padding(row_layout::ROW_PADDING)
                 .on_press(Message::None)
                 .style({
                     let targeted = app.file_tree_drop_target.as_deref()
@@ -361,15 +354,14 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             }
             let selected = app.file_tree_selection.contains(project_root, &abs);
             // 构建文件行：缩进 + 文件图标 + 文件名
-            let content_row: Element<'_, Message, Theme> = row![
-                text(indent.clone()).size(13),
-                container(static_icon_svg(file_icon_for(&file_name))).width(Length::Fixed(16.0)),
-                text(file_name).size(13)
-            ]
-            .spacing(4)
-            .into();
+            let content_row = row_layout::content(
+                depth,
+                static_icon_svg(file_icon_for(&file_name)),
+                text(file_name).size(13),
+            );
             // 构建可点击的文件按钮，点击时打开文件预览
             let btn = button(container(content_row).width(Length::Fill))
+                .padding(row_layout::ROW_PADDING)
                 .on_press(Message::None)
                 .style(move |theme, status| tree_file_button_style(theme, status, selected))
                 .width(Length::Fill);
@@ -521,8 +513,6 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
         project_root: &'a str,
     ) -> Element<'a, Message> {
         let mut col = column![].spacing(0).width(Length::Fill);
-        // 根据深度计算缩进（每层两个空格）
-        let indent = "  ".repeat(depth);
 
         // 遍历并渲染所有子目录
         for (name, child) in node.children.into_iter() {
@@ -540,18 +530,14 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
                 }
                 continue;
             }
-            // 根据展开状态选择箭头图标
-            let chevron_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
-            // 构建目录头部行：缩进 + 箭头 + 文件夹图标 + 目录名
-            let header_row = row![
-                text(indent.clone()).size(13),
-                themed_icon_svg(chevron_icon),
-                container(themed_icon_svg(Icon::FolderOpen)).width(Length::Fixed(16.0)),
-                text(full.split('/').next_back().unwrap_or(&full).to_string()).size(13)
-            ]
-            .spacing(4);
+            let header_row = row_layout::content(
+                depth,
+                themed_icon_svg(row_layout::folder_icon(expanded)),
+                text(full.split('/').next_back().unwrap_or(&full).to_string()).size(13),
+            );
             // 构建可点击的目录按钮，点击时切换展开/折叠状态
             let header_btn = button(container(header_row).width(Length::Fill))
+                .padding(row_layout::ROW_PADDING)
                 .on_press(Message::Project(message::ProjectMessage::ToggleTreeDir(key.clone())))
                 .style(changes_directory_button_style)
                 .width(Length::Fill);
@@ -615,17 +601,17 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             // 检查文件是否被选中（当前聚焦的变更文件）
             let selected = app.git_focused_file.as_deref() == Some(rel.as_str());
             // 构建文件行：缩进 + 文件图标 + 文件名
-            let content_row = row![
-                text(indent.clone()).size(13),
-                container(static_icon_svg(file_icon_for(&file_name))).width(Length::Fixed(16.0)),
-                text(file_name).size(13)
-            ]
-            .spacing(4);
+            let content_row = row_layout::content(
+                depth,
+                static_icon_svg(file_icon_for(&file_name)),
+                text(file_name).size(13),
+            );
             // 构建文件的绝对路径
             let abs = std::path::Path::new(project_root).join(&rel).to_string_lossy().to_string();
             let rel_for_open = rel.clone();
             // 构建可点击的文件按钮，点击时打开变更文件查看
             let btn = button(container(content_row).width(Length::Fill))
+                .padding(row_layout::ROW_PADDING)
                 .on_press(Message::Project(message::ProjectMessage::OpenChangedFile(rel_for_open)))
                 .style(move |theme, status| changes_file_button_style(theme, status, selected))
                 .width(Length::Fill);

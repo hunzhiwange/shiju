@@ -20,7 +20,7 @@ fn selection_preserves_extensions_and_counts_graphemes() {
 async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
     let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
     let (mut app, _) = App::new();
-    app.file_tree_rename_value = "ACP验收.md".into();
+    app.file_tree_rename_value = "原始视频.mov—用于检查中文与超长名称的原位编辑".into();
     for theme in [Theme::Light, Theme::Dark] {
         for directory in [false, true] {
             let mut ui = UserInterface::build(
@@ -61,6 +61,43 @@ async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
                 messages.as_slice(),
                 [Message::Project(ProjectMessage::FileTreeRenameSave)]
             ));
+        }
+    }
+}
+
+#[tokio::test]
+async fn inline_editor_preserves_tree_row_alignment() {
+    use crate::app::components::file_tree::tree_list::{build_changes_list, build_file_tree_list};
+    use crate::app::components::file_tree::tree_list_tests::{RowScene, alignment_app};
+    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    for theme in [Theme::Light, Theme::Dark] {
+        for changes in [false, true] {
+            for (path, name) in [
+                ("sp6", "sp6"),
+                ("sp6/原始视频.mov", "原始视频.mov"),
+                ("sp7/.shiju/配置.json", "配置.json"),
+            ] {
+                let mut app = alignment_app();
+                let build = if changes { build_changes_list } else { build_file_tree_list };
+                let original = RowScene::new(build(&app), &mut renderer, &theme);
+                let icon = original.icon(name).clone();
+                let label = original.label(name);
+                drop(original);
+                app.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
+                app.file_tree_rename_value = name.into();
+                let renamed = RowScene::new(build(&app), &mut renderer, &theme);
+                assert_eq!(renamed.inputs.len(), 1);
+                let input = renamed.inputs[0];
+                let rename_icon = renamed
+                    .icons
+                    .iter()
+                    .find(|(_, bounds)| (bounds.center_y() - input.center_y()).abs() < 1.0)
+                    .expect("rename icon");
+                assert_eq!(rename_icon.0, icon.0);
+                assert_eq!(rename_icon.1.x, icon.1.x);
+                assert_eq!(input.x, label.x, "input frame occupies the name slot");
+                assert_eq!(input.x, 25.0 + path.matches('/').count() as f32 * 20.0);
+            }
         }
     }
 }

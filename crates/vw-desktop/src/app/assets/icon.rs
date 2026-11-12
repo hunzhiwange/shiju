@@ -119,6 +119,8 @@ pub enum Icon {
     Box,
     /// 文件图标
     File,
+    /// 关闭的文件夹图标
+    FolderClosed,
     /// 打开的文件夹图标
     FolderOpen,
     /// 聊天文本填充图标

@@ -208,3 +208,25 @@ pnpm exec vite --config acpdemo/codebuddy/vite.config.mjs
 - 模型实际创建 `acpdemo/droid/index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。App.tsx 引用 `@rue-js/rue` 并包含输入、计数、localStorage 持久化逻辑。请求前后 SHA-256 快照（排除 .git、node_modules、target）只发现这 8 个新增文件，覆盖的 Rue 仓库内容未发现目标目录外变更；未宣称浏览器行为已验证。
 - acp-droid 基线 enabled=false；临时启用和恢复均 HTTP 200、curl 0，结束复查 false。验收网关及其子进程已停止。原始响应、配置及完整文件快照仅存于本机私有临时目录，未提交。
 - 验证：`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0；`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0，二者使用槽位 8，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8`。`cargo test -p vw-acp --lib droid_native_tools_require_current_full_access` 使用槽位 7、对应绝对目录 `/Users/xiangmin/worker/code/shiju/target/rust-slot-7`，退出码 0、1 项通过。驱动聚焦回归在编译期间按用户“创建成功即停止”的最新指示终止，未取得结果；超时/协议聚焦回归及第二轮 Clippy 未运行，不记通过。额外回归进程及本任务槽位锁已清理，缓存保留。
+
+
+# Goose 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。按最新授权，以编辑器文件创建为本项终点；未执行浏览器行为、编辑器构建或额外回归，不将这些检查记为通过。
+
+- 批次 11；前一批 Droid 已结束并归档。沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-goose / goose`、`session_model`、`full_access=true`，未更换账号、模型或引擎。
+- 使用前一批已验证 CLI 副本与现有开发配置启动独立网关 `127.0.0.1:57480`；未重启用户原服务。本项未修改 Rust、安装器或模型补丁，复用现有固定 Goose v1.57.0 源码与模型锁定补丁。
+- 系统安装 HTTP 200、curl 0、234.038691 秒；安装状态 false → true。安装器核对固定源码及补丁 SHA-256，真实编译上游 Goose CLI 后生成并校验构建回执。解析命令为 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/goose-v1.57.0-model-source-v1/goose acp`；版本命令退出码 0，输出 1.57.0。
+- 安装器执行 `cargo build -p goose-cli --bin goose --no-default-features --features rustls-tls,bundled-mcp --locked` 成功；使用共享槽位 9，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-9`。本项无仓库代码变更，未运行仓库 Clippy 或单元测试；外部 CLI 编译成功不代表这些检查通过。
+- 独立诊断 HTTP 200、curl 0、0.469719 秒，结果 authentication_required；模型来源 HTTP 200、curl 0，session_model supported、已验证版本 1.57.0。真实会话另行确认 connected=true，不用独立诊断代替托管模型验收。
+- 真实请求 HTTP 200、curl 0、97.107318 秒，终态 chat.done，无 chat.error；事件为 chat.context_loaded ×1、chat.step_start ×1、chat.delta ×68、chat.tool ×38、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际创建文件，完成后简短结束、不运行额外测试。
+- 会话 `ses_1d07cdd690015fbHACHvVNztYn` 的 ui/summary 与 acp-options 均 HTTP 200、curl 0；确认绑定 agent=acp-goose、acp_agent=goose、full_access=true，执行期间 connected=true，选定模型来源及模型与请求一致。客户端访问能力为 client_only，不将其表述为后端原生免审批已验证。
+- 目标目录原先不存在。模型实际创建 `acpdemo/goose/` 下 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。源码引用本仓库 `@rue-js/rue`，包含输入、响应式计数与 localStorage 保存恢复逻辑，并提供运行说明；未宣称浏览器行为已验证。
+- Rue 仓库请求前后普通文件 SHA-256 快照（排除 .git、node_modules、target）仅发现上述 8 个新增文件，目标目录外无文件内容变化。acp-goose 基线 enabled=false，临时启用与恢复均 HTTP 200、curl 0；结束复查 false。
+- 独立网关及其会话子进程已停止，槽位 9 已释放，缓存保留。原始请求、SSE、配置、安装资产与文件快照仅存于本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-goose-t5og8vpt/`，未提交凭据或配置环境值。
+
+在 Rue.js 仓库根目录启动：
+
+```sh
+pnpm exec vite --config acpdemo/goose/vite.config.mjs
+```

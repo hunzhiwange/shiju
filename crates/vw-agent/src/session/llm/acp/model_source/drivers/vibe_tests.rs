@@ -27,9 +27,15 @@ fn profile() -> AcpLaunchProfile {
 #[test]
 fn acp_model_source_vibe_private_binding_pins_primary_and_auxiliary_models() {
     let mut profile = profile();
+    profile.model_context_limit = 1_000_000;
+    profile.model_output_limit = 384_000;
     configure(&mut profile, "http://127.0.0.1:12345").unwrap();
     let path = profile.directory().join("session-model.toml");
     let value: toml::Value = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    for model in [&value["models"][0], &value["compaction_model"]] {
+        assert_eq!(model["max_context_length"].as_integer(), Some(1_000_000));
+        assert_eq!(model["max_output_tokens"].as_integer(), Some(384_000));
+    }
     assert_eq!(value["active_model"].as_str(), Some("session-selected"));
     assert_eq!(value["models"][0]["name"].as_str(), Some("chosen-\"模型"));
     assert_eq!(value["compaction_model"]["name"].as_str(), Some("chosen-\"模型"));

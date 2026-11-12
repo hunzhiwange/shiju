@@ -431,3 +431,19 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 原始配置、SSE、会话查询、原生探针和文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-trae-3fmuyjp0/`，最终成功证据位于 `acceptance/`。未提交凭据、配置环境值、原始供应商归档或二进制。
 
 后续建议：常用网关切换至包含本次受管入口的构建；按需运行 `pnpm exec vite --config acpdemo/trae/vite.config.mjs` 检查页面行为。
+
+# Mistral Vibe 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 22，批次 21 TRAE 已归档。按最新授权，以完整文件创建为终点；未启动页面，未执行浏览器、编辑器构建或创建后的额外回归，不将页面行为记为通过。
+
+- 租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-vibe / vibe`、`session_model`、`full_access=true`。未更换模型、账号或执行引擎。
+- 修复底层 Vibe 模型绑定：将目录的上下文上限写入原生 `max_context_length`，同时用于主模型与压缩模型；零值沿用共享默认值。保留原输出上限，不通过降低模型能力绕开旧错误。目录 context=1000000 / output=384000，此前仅传输出值，Vibe 回退到 262144 上下文而拒绝 session/new。原生 3.0.4 ModelConfig 离线校验接受原目录值（退出码 0）。回归断言覆盖主模型与压缩模型的两项上限，由 Clippy all-targets 编译，未单独执行 Rust 单元测试。
+- 创建前使用共享槽位 7，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为该槽位绝对路径。`cargo clippy --all-targets --all-features -- -D warnings` 退出码 0，215.98 秒；`cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0，367.73 秒。本项源码摘要核对无变化，槽位已释放、缓存保留。独立 CLI 副本 SHA-256 `c4309537b44682686570fc3ba7eecd896e955d973a17f1908e7e7a6023b63d11`。
+- 使用现有开发配置启动临时网关 `127.0.0.1:63051`。系统安装 HTTP 200、curl 0、8.176781 秒，状态 false → true；解析入口 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/vibe-3.0.4-model-source-v1/bin/vibe-acp`，版本命令退出码 0、vibe-acp 3.0.4。独立诊断 HTTP 200、curl 0、3.692232 秒，authentication_required；模型来源接口 HTTP 200、curl 0，session_model supported、已审查 Darwin arm64 / 3.0.4。普通诊断不计为会话模型连接成功。
+- 真实请求 HTTP 200、curl 0、134.730681 秒，终态 chat.done，无 chat.error。事件：chat.context_loaded ×1、chat.step_start ×1、chat.delta ×28、chat.tool ×40、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际调用工具创建文件，完成后简短回复，不运行额外测试。
+- 会话 `ses_1d120551b001YH48b1QJeyVdFn` 的 ui/summary 与 acp-options 在执行期间及结束后均 HTTP 200、curl 0，绑定 acp-vibe / vibe、full_access=true；执行期间 connected=true，selected_model 的来源、provider_id 与完整模型 ID 均匹配请求。访问能力为 client_only，仅证明客户端工具审批自动批准，不声称原生工具全部免审批已验证。
+- 目标目录原先不存在。实际新增 `acpdemo/vibe/` 下 `README.md`、`index.html`、`vite.config.mjs`、`src/App.tsx`、`src/main.tsx`、`src/env.d.ts`、`src/style.css` 共 7 文件。源码导入本仓库 `@rue-js/rue`，包含 textarea 输入、computed 实时统计、localStorage 400ms 防抖保存、pagehide/beforeunload 补写和初始化恢复；README 提供运行说明。仅检查文件与源码存在。
+- 请求前与网关停止后的 Rue 普通文件 SHA-256 快照（排除 .git、node_modules、target）仅发现上述 7 文件新增，目标目录外无内容变化。预设基线 enabled=false，临时启用 HTTP 200、curl 0、9.306666 秒；恢复 HTTP 200、curl 0、7.130865 秒，结束 GET agents HTTP 200、curl 0、复查 false。自己的临时网关进程组已停止，端口关闭，未启动编辑器服务。
+- 原始配置、SSE、会话查询、构建日志及快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-vibe-kbsumlda/`，未提交凭据或配置环境值。
+
+后续建议：常用网关更新至含此修复的构建；按需运行 `pnpm exec vite --config acpdemo/vibe/vite.config.mjs` 检查页面行为。

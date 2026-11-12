@@ -3,7 +3,7 @@
 use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
-    CronAddScheduleKind, CronFrequency, CronSettingsTab, CustomProviderModelFilter,
+    CronAddScheduleKind, CronFrequency, CronListFilter, CronSettingsTab, CustomProviderModelFilter,
     CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab, McpNewServerTransport,
     McpSettingsTab, MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
     ThemeEditorTab,
@@ -943,6 +943,8 @@ pub enum SettingsMessage {
     CronEnabledToggled(bool),
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),
+    CronListFilterChanged(CronListFilter),
+    CronBatchModeToggled(bool),
     CronJobsRefresh,
     CronJobsLoaded(Result<Vec<vw_gateway_client::CronJobDto>, String>),
     CronJobSelectionToggled(String, bool),

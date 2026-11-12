@@ -675,6 +675,25 @@ impl Default for CronJobDraft {
     }
 }
 
+/// 当前列表分组，只影响内存中的展示和选择范围。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CronListFilter {
+    #[default]
+    All,
+    Enabled,
+    Paused,
+}
+
+impl CronListFilter {
+    pub(crate) fn matches(self, job: &vw_gateway_client::CronJobDto) -> bool {
+        match self {
+            Self::All => true,
+            Self::Enabled => job.enabled,
+            Self::Paused => !job.enabled,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct CronSettingsState {
     /// 是否启用定时任务
@@ -687,6 +706,10 @@ pub(crate) struct CronSettingsState {
     pub(crate) jobs_loading: bool,
     /// 当前任务列表。
     pub(crate) jobs: Vec<vw_gateway_client::CronJobDto>,
+    /// 当前列表分组。
+    pub(crate) list_filter: CronListFilter,
+    /// 是否显示批量管理控件。
+    pub(crate) batch_mode: bool,
     /// 被批量操作选中的任务 ID。
     pub(crate) selected_job_ids: Vec<String>,
     /// 当前展开详情的任务 ID。
@@ -716,6 +739,23 @@ pub(crate) struct CronSettingsState {
     pub(crate) action_status: Option<String>,
 }
 
+impl CronSettingsState {
+    pub(crate) fn visible_jobs(&self) -> impl Iterator<Item = &vw_gateway_client::CronJobDto> {
+        self.jobs.iter().filter(|job| self.list_filter.matches(job))
+    }
+
+    /// 计数始终基于完整列表，不受当前分组影响。
+    pub(crate) fn job_count(&self, filter: CronListFilter) -> usize {
+        self.jobs.iter().filter(|job| filter.matches(job)).count()
+    }
+
+    pub(crate) fn prune_selected_jobs(&mut self) {
+        self.selected_job_ids.retain(|id| {
+            self.jobs.iter().any(|job| job.id == *id && self.list_filter.matches(job))
+        });
+    }
+}
+
 impl Default for CronSettingsState {
     fn default() -> Self {
         Self {
@@ -724,6 +764,8 @@ impl Default for CronSettingsState {
             active_tab: CronSettingsTab::default(),
             jobs_loading: false,
             jobs: Vec::new(),
+            list_filter: CronListFilter::default(),
+            batch_mode: false,
             selected_job_ids: Vec::new(),
             expanded_job_ids: Vec::new(),
             editing_job_id: None,

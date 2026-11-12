@@ -167,6 +167,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::none()
             }
         }
+        SettingsMessage::CronListFilterChanged(filter) => {
+            if app.cron_settings.list_filter != filter {
+                app.cron_settings.list_filter = filter;
+                app.cron_settings.selected_job_ids.clear();
+            }
+            Task::none()
+        }
+        SettingsMessage::CronBatchModeToggled(enabled) => {
+            app.cron_settings.batch_mode = enabled;
+            if !enabled {
+                app.cron_settings.selected_job_ids.clear();
+            }
+            Task::none()
+        }
         SettingsMessage::CronJobsRefresh => {
             app.cron_settings.jobs_loading = true;
             app.cron_settings.save_error = None;
@@ -181,9 +195,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.jobs = jobs;
                     app.cron_settings.save_error = None;
                     app.cron_settings.save_error_translation = None;
-                    app.cron_settings
-                        .selected_job_ids
-                        .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
+                    app.cron_settings.prune_selected_jobs();
                     app.cron_settings
                         .expanded_job_ids
                         .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
@@ -197,7 +209,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobSelectionToggled(job_id, selected) => {
             if selected {
-                if !app.cron_settings.selected_job_ids.iter().any(|id| id == &job_id) {
+                if app.cron_settings.visible_jobs().any(|job| job.id == job_id)
+                    && !app.cron_settings.selected_job_ids.iter().any(|id| id == &job_id)
+                {
                     app.cron_settings.selected_job_ids.push(job_id);
                 }
             } else {
@@ -217,7 +231,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobsSelectAllToggled(selected) => {
             app.cron_settings.selected_job_ids = if selected {
-                app.cron_settings.jobs.iter().map(|job| job.id.clone()).collect()
+                let mut ids =
+                    Vec::with_capacity(app.cron_settings.job_count(app.cron_settings.list_filter));
+                ids.extend(app.cron_settings.visible_jobs().map(|job| job.id.clone()));
+                ids
             } else {
                 Vec::new()
             };
@@ -509,6 +526,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             cron_mutation_task("定时任务已删除", delete_cron_job_async(job_id))
         }
         SettingsMessage::CronSelectedJobsEnable => {
+            app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
                 app.cron_settings.save_error_translation = Some(
@@ -522,6 +540,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             cron_mutation_task("选中的定时任务已启用", set_cron_jobs_enabled_async(job_ids, true))
         }
         SettingsMessage::CronSelectedJobsDisable => {
+            app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
                 app.cron_settings.save_error_translation = Some(
@@ -535,6 +554,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             cron_mutation_task("选中的定时任务已禁用", set_cron_jobs_enabled_async(job_ids, false))
         }
         SettingsMessage::CronSelectedJobsDelete => {
+            app.cron_settings.prune_selected_jobs();
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
                 app.cron_settings.save_error_translation = Some(

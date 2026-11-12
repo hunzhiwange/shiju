@@ -868,6 +868,8 @@ impl App {
                 enabled: cron_cfg.enabled,
                 max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),
                 active_tab: super::state::CronSettingsTab::default(),
+                list_filter: super::state::CronListFilter::default(),
+                batch_mode: false,
                 jobs_loading: false,
                 jobs: Vec::new(),
                 selected_job_ids: Vec::new(),

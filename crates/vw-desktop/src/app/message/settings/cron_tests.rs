@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::app::App;
-use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
+use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronListFilter, CronSettingsTab};
 use std::sync::Arc;
 use vw_gateway_client::{CronJobDto, CronRunDto};
 
@@ -574,6 +574,7 @@ fn mutation_actions_clear_errors_when_they_can_start() {
     let _ = update(&mut app, SettingsMessage::CronJobDelete("job-1".to_string()));
     assert_eq!(app.cron_settings.save_error, None);
 
+    app.cron_settings.jobs = vec![job("job-1")];
     app.cron_settings.selected_job_ids = vec!["job-1".to_string()];
     app.cron_settings.save_error = Some("old".to_string());
     let _ = update(&mut app, SettingsMessage::CronSelectedJobsEnable);
@@ -648,5 +649,135 @@ fn model_selection_stays_consistent_with_provider_in_both_drafts() {
         let draft = if edit { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
         assert_eq!(draft.model_provider, "provider-b");
         assert_eq!(draft.model, "provider-b/model-b");
+    }
+}
+
+#[test]
+fn cron_list_batch_rejects_stale_selection_without_request() {
+    let mut app = app();
+    app.cron_settings.selected_job_ids = vec!["missing".into()];
+    for message in [
+        SettingsMessage::CronSelectedJobsEnable,
+        SettingsMessage::CronSelectedJobsDisable,
+        SettingsMessage::CronSelectedJobsDelete,
+    ] {
+        let task = update(&mut app, message);
+        assert!(iced_runtime::task::into_stream(task).is_none());
+        assert!(app.cron_settings.save_error.is_some());
+    }
+}
+
+fn cron_list_jobs() -> Vec<CronJobDto> {
+    let mut paused = job("paused");
+    paused.enabled = false;
+    vec![job("enabled-2"), paused, job("enabled-1")]
+}
+
+#[test]
+fn cron_list_filter_counts_enabled_and_paused() {
+    let mut app = app();
+    assert_eq!(app.cron_settings.list_filter, CronListFilter::All);
+    assert!(!app.cron_settings.batch_mode);
+    app.cron_settings.jobs = cron_list_jobs();
+    for (filter, count) in
+        [(CronListFilter::All, 3), (CronListFilter::Enabled, 2), (CronListFilter::Paused, 1)]
+    {
+        let _ = update(&mut app, SettingsMessage::CronListFilterChanged(filter));
+        assert_eq!(app.cron_settings.job_count(filter), count);
+        assert_eq!(app.cron_settings.job_count(CronListFilter::All), 3);
+        assert_eq!(app.cron_settings.visible_jobs().count(), count);
+    }
+}
+
+#[test]
+fn cron_list_select_all_targets_visible_jobs() {
+    let mut app = app();
+    app.cron_settings.jobs = cron_list_jobs();
+    let _ = update(&mut app, SettingsMessage::CronBatchModeToggled(true));
+    for (filter, expected) in [
+        (CronListFilter::Enabled, vec!["enabled-2", "enabled-1"]),
+        (CronListFilter::Paused, vec!["paused"]),
+        (CronListFilter::All, vec!["enabled-2", "paused", "enabled-1"]),
+    ] {
+        let _ = update(&mut app, SettingsMessage::CronListFilterChanged(filter));
+        let task = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(true));
+        assert!(iced_runtime::task::into_stream(task).is_none());
+        assert_eq!(app.cron_settings.selected_job_ids, expected);
+        let _ = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(false));
+        assert!(app.cron_settings.selected_job_ids.is_empty());
+    }
+}
+
+#[test]
+fn cron_list_filter_change_clears_selection() {
+    let mut app = app();
+    app.cron_settings.jobs = cron_list_jobs();
+    let _ = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(true));
+    let _ = update(&mut app, SettingsMessage::CronListFilterChanged(CronListFilter::Paused));
+    assert!(app.cron_settings.selected_job_ids.is_empty());
+    let _ = update(&mut app, SettingsMessage::CronJobSelectionToggled("enabled-2".into(), true));
+    let _ = update(&mut app, SettingsMessage::CronJobSelectionToggled("missing".into(), true));
+    assert!(app.cron_settings.selected_job_ids.is_empty());
+    let _ = update(&mut app, SettingsMessage::CronJobSelectionToggled("paused".into(), true));
+    assert_eq!(app.cron_settings.selected_job_ids, vec!["paused"]);
+}
+
+#[test]
+fn cron_list_batch_exit_clears_selection() {
+    let mut app = app();
+    app.cron_settings.jobs = cron_list_jobs();
+    let _ = update(&mut app, SettingsMessage::CronBatchModeToggled(true));
+    assert!(app.cron_settings.batch_mode);
+    let _ = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(true));
+    let task = update(&mut app, SettingsMessage::CronBatchModeToggled(false));
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(!app.cron_settings.batch_mode);
+    assert!(app.cron_settings.selected_job_ids.is_empty());
+}
+
+#[test]
+fn cron_list_reload_prunes_hidden_selection() {
+    let mut app = app();
+    app.cron_settings.jobs = cron_list_jobs();
+    let _ = update(&mut app, SettingsMessage::CronListFilterChanged(CronListFilter::Enabled));
+    let _ = update(&mut app, SettingsMessage::CronJobsSelectAllToggled(true));
+    let mut changed = job("enabled-2");
+    changed.enabled = false;
+    let task = update(&mut app, SettingsMessage::CronJobsLoaded(Ok(vec![changed, job("new")])));
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(app.cron_settings.selected_job_ids.is_empty());
+    assert_eq!(
+        app.cron_settings.visible_jobs().map(|job| job.id.as_str()).collect::<Vec<_>>(),
+        vec!["new"]
+    );
+}
+
+#[test]
+fn cron_list_batch_limits_requests_to_visible_valid_selection() {
+    let mut app = app();
+    app.cron_settings.jobs = cron_list_jobs();
+    let _ = update(&mut app, SettingsMessage::CronListFilterChanged(CronListFilter::Enabled));
+    for message in [
+        SettingsMessage::CronSelectedJobsEnable,
+        SettingsMessage::CronSelectedJobsDisable,
+        SettingsMessage::CronSelectedJobsDelete,
+    ] {
+        app.cron_settings.selected_job_ids = vec!["paused".into(), "missing".into()];
+        let task = update(&mut app, message);
+        assert!(iced_runtime::task::into_stream(task).is_none());
+        assert!(app.cron_settings.selected_job_ids.is_empty());
+    }
+    for message in [
+        SettingsMessage::CronSelectedJobsEnable,
+        SettingsMessage::CronSelectedJobsDisable,
+        SettingsMessage::CronSelectedJobsDelete,
+    ] {
+        app.cron_settings.selected_job_ids =
+            vec!["paused".into(), "enabled-1".into(), "missing".into()];
+        let task = update(&mut app, message);
+        // Drop the unpolled stream: verify the request boundary without contacting a gateway.
+        assert!(iced_runtime::task::into_stream(task).is_some());
+        assert_eq!(app.cron_settings.selected_job_ids, vec!["enabled-1"]);
+        assert!(app.cron_settings.save_error.is_none());
     }
 }

@@ -121,6 +121,8 @@ pub(super) fn build_cron_settings(
         active_tab: crate::app::state::CronSettingsTab::default(),
         jobs_loading: false,
         jobs: Vec::new(),
+        list_filter: crate::app::state::CronListFilter::default(),
+        batch_mode: false,
         selected_job_ids: Vec::new(),
         expanded_job_ids: Vec::new(),
         editing_job_id: None,

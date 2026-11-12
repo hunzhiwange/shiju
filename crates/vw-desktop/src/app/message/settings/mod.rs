@@ -375,6 +375,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CronEnabledToggled(_)
         | SettingsMessage::CronMaxRunHistoryChanged(_)
         | SettingsMessage::CronTabSelected(_)
+        | SettingsMessage::CronListFilterChanged(_)
+        | SettingsMessage::CronBatchModeToggled(_)
         | SettingsMessage::CronJobsRefresh
         | SettingsMessage::CronJobsLoaded(_)
         | SettingsMessage::CronJobSelectionToggled(_, _)

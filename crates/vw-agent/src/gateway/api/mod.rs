@@ -84,15 +84,15 @@ pub mod types;
 /// 调用方可通过 `crate::app::agent::gateway::api::handle_api_*` 直接访问。
 pub use handlers::{
     handle_api_config_get, handle_api_config_put, handle_api_cron_add, handle_api_cron_delete,
-    handle_api_cron_list, handle_api_cron_runs, handle_api_cron_update, handle_api_doctor,
-    handle_api_health, handle_api_integration_credentials_put, handle_api_integrations,
-    handle_api_integrations_settings, handle_api_mcp_app_call, handle_api_mcp_inspect,
-    handle_api_memory_delete, handle_api_memory_list, handle_api_memory_store, handle_api_status,
-    handle_api_task_pool_worktree_acquire, handle_api_task_pool_worktree_maintain,
-    handle_api_task_pool_worktree_merge_lock, handle_api_task_pool_worktree_merge_unlock,
-    handle_api_task_pool_worktree_recycle, handle_api_task_pool_worktree_release,
-    handle_api_task_pool_worktree_slot_recycle, handle_api_task_pool_worktree_snapshot,
-    handle_api_tools,
+    handle_api_cron_list, handle_api_cron_preview, handle_api_cron_runs, handle_api_cron_update,
+    handle_api_doctor, handle_api_health, handle_api_integration_credentials_put,
+    handle_api_integrations, handle_api_integrations_settings, handle_api_mcp_app_call,
+    handle_api_mcp_inspect, handle_api_memory_delete, handle_api_memory_list,
+    handle_api_memory_store, handle_api_status, handle_api_task_pool_worktree_acquire,
+    handle_api_task_pool_worktree_maintain, handle_api_task_pool_worktree_merge_lock,
+    handle_api_task_pool_worktree_merge_unlock, handle_api_task_pool_worktree_recycle,
+    handle_api_task_pool_worktree_release, handle_api_task_pool_worktree_slot_recycle,
+    handle_api_task_pool_worktree_snapshot, handle_api_tools,
 };
 
 /// 重新导出 API 数据类型

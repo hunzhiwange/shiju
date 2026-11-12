@@ -22,7 +22,11 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Json as JsonResponse},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
+
+#[path = "cron_schedule.rs"]
+mod cron_schedule;
+use cron_schedule::{cron_add_schedule, cron_update_schedule, validate_candidates, window_patch};
 
 fn cron_job_json(job: &crate::app::agent::cron::CronJob) -> serde_json::Value {
     let job_type: &str = job.job_type.clone().into();
@@ -32,7 +36,9 @@ fn cron_job_json(job: &crate::app::agent::cron::CronJob) -> serde_json::Value {
         crate::app::agent::cron::Schedule::At { at } => ("at", Some(at.to_rfc3339()), None),
         crate::app::agent::cron::Schedule::Every { every_ms } => ("every", None, Some(*every_ms)),
     };
-    serde_json::json!({
+    let mut value = serde_json::json!({
+        "starts_at": job.starts_at.map(|at| at.to_rfc3339()),
+        "ends_at": job.ends_at.map(|at| at.to_rfc3339()),
         "id": job.id,
         "name": job.name,
         "job_type": job_type,
@@ -60,7 +66,11 @@ fn cron_job_json(job: &crate::app::agent::cron::CronJob) -> serde_json::Value {
         "last_status": job.last_status,
         "last_output": job.last_output,
         "enabled": job.enabled,
-    })
+    });
+    if let Some(fields) = cron_schedule::schedule_json(&job.schedule).as_object() {
+        value.as_object_mut().expect("job object").extend(fields.clone());
+    }
+    value
 }
 
 fn cron_run_json(run: &crate::app::agent::cron::CronRun) -> serde_json::Value {
@@ -133,83 +143,6 @@ fn cron_add_job_type(body: &CronAddBody) -> String {
     if has_prompt && !has_command { "agent".to_string() } else { "shell".to_string() }
 }
 
-fn cron_add_schedule(body: &CronAddBody) -> Result<crate::app::agent::cron::Schedule, String> {
-    match effective_schedule_kind(body).as_str() {
-        "cron" => {
-            let Some(expr) =
-                body.schedule.as_deref().map(str::trim).filter(|value| !value.is_empty())
-            else {
-                return Err("Cron expression is required".to_string());
-            };
-            Ok(crate::app::agent::cron::Schedule::Cron { expr: expr.to_string(), tz: None })
-        }
-        "at" => {
-            let Some(at) = body.at.as_deref().map(str::trim).filter(|value| !value.is_empty())
-            else {
-                return Err("RFC3339 time is required for at schedule".to_string());
-            };
-            let at = DateTime::parse_from_rfc3339(at)
-                .map_err(|err| format!("Invalid RFC3339 time: {err}"))?
-                .with_timezone(&Utc);
-            Ok(crate::app::agent::cron::Schedule::At { at })
-        }
-        "every" => {
-            let Some(every_ms) = body.every_ms.filter(|value| *value > 0) else {
-                return Err("every_ms must be greater than 0".to_string());
-            };
-            Ok(crate::app::agent::cron::Schedule::Every { every_ms })
-        }
-        other => Err(format!("Unsupported schedule_kind: {other}")),
-    }
-}
-
-fn cron_update_schedule(
-    body: &CronUpdateBody,
-) -> Result<Option<crate::app::agent::cron::Schedule>, String> {
-    let has_schedule_update =
-        body.schedule_kind.as_deref().is_some_and(|value| !value.trim().is_empty())
-            || body.schedule.as_deref().is_some_and(|value| !value.trim().is_empty())
-            || body.at.as_deref().is_some_and(|value| !value.trim().is_empty())
-            || body.every_ms.is_some();
-    if !has_schedule_update {
-        return Ok(None);
-    }
-
-    let raw = body
-        .schedule_kind
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("cron");
-    match raw {
-        "cron" | "Cron" => {
-            let Some(expr) =
-                body.schedule.as_deref().map(str::trim).filter(|value| !value.is_empty())
-            else {
-                return Err("Cron expression is required".to_string());
-            };
-            Ok(Some(crate::app::agent::cron::Schedule::Cron { expr: expr.to_string(), tz: None }))
-        }
-        "at" | "指定时间" => {
-            let Some(at) = body.at.as_deref().map(str::trim).filter(|value| !value.is_empty())
-            else {
-                return Err("RFC3339 time is required for at schedule".to_string());
-            };
-            let at = DateTime::parse_from_rfc3339(at)
-                .map_err(|err| format!("Invalid RFC3339 time: {err}"))?
-                .with_timezone(&Utc);
-            Ok(Some(crate::app::agent::cron::Schedule::At { at }))
-        }
-        "every" | "固定间隔" => {
-            let Some(every_ms) = body.every_ms.filter(|value| *value > 0) else {
-                return Err("every_ms must be greater than 0".to_string());
-            };
-            Ok(Some(crate::app::agent::cron::Schedule::Every { every_ms }))
-        }
-        other => Err(format!("Unsupported schedule_kind: {other}")),
-    }
-}
-
 fn effective_schedule_kind(body: &CronAddBody) -> String {
     let raw = body
         .schedule_kind
@@ -219,6 +152,7 @@ fn effective_schedule_kind(body: &CronAddBody) -> String {
         .unwrap_or("cron");
     match raw {
         "at" | "指定时间" => "at".to_string(),
+        "biweekly" => "biweekly".to_string(),
         "every" | "固定间隔" => "every".to_string(),
         "cron" | "Cron" => {
             let has_schedule =
@@ -227,7 +161,9 @@ fn effective_schedule_kind(body: &CronAddBody) -> String {
                 "cron".to_string()
             } else if body.every_ms.is_some_and(|value| value > 0) {
                 "every".to_string()
-            } else if body.at.as_deref().is_some_and(|value| !value.trim().is_empty()) {
+            } else if body.local_at.is_some()
+                || body.at.as_deref().is_some_and(|value| !value.trim().is_empty())
+            {
                 "at".to_string()
             } else {
                 "cron".to_string()
@@ -251,6 +187,25 @@ fn cron_add_body_log_fields(body: &CronAddBody) -> (&str, String, usize, bool, b
         body.command.as_deref().is_some_and(|value| !value.trim().is_empty()),
         body.prompt.as_deref().is_some_and(|value| !value.trim().is_empty()),
     )
+}
+
+fn cron_field_error(error: String) -> axum::response::Response {
+    (StatusCode::BAD_REQUEST, JsonResponse(serde_json::json!({"error": error}))).into_response()
+}
+
+/// 计算最多五次执行候选；身份认证先于校验，不创建任务或运行记录。
+pub async fn handle_api_cron_preview(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    JsonResponse(body): JsonResponse<CronAddBody>,
+) -> axum::response::Response {
+    if let Err(error) = super::super::auth::require_auth(&state, &headers) {
+        return error.into_response();
+    }
+    match cron_schedule::preview(&body, Utc::now()) {
+        Ok(value) => JsonResponse(value).into_response(),
+        Err(error) => cron_field_error(error),
+    }
 }
 
 /// 处理定时任务列表请求
@@ -368,13 +323,36 @@ pub async fn handle_api_cron_update(
         enabled = ?body.enabled,
         "cron update request received"
     );
-    let schedule = match cron_update_schedule(&body) {
+    let current = crate::app::agent::cron::get_job(&config, &id).ok();
+    let schedule = match cron_update_schedule(&body, current.as_ref()) {
         Ok(schedule) => schedule,
         Err(err) => {
             return (StatusCode::BAD_REQUEST, JsonResponse(serde_json::json!({"error": err})))
                 .into_response();
         }
     };
+    let (starts_at, ends_at) = match window_patch(
+        &body.starts_at,
+        &body.ends_at,
+        &body.start_date,
+        &body.end_date,
+        body.timezone.as_deref(),
+    ) {
+        Ok(window) => window,
+        Err(error) => return cron_field_error(error),
+    };
+    if let Some(current) = &current {
+        if schedule.is_some() || starts_at.is_some() || ends_at.is_some() {
+            if let Err(error) = validate_candidates(
+                schedule.as_ref().unwrap_or(&current.schedule),
+                starts_at.unwrap_or(current.starts_at),
+                ends_at.unwrap_or(current.ends_at),
+                Utc::now(),
+            ) {
+                return cron_field_error(error);
+            }
+        }
+    }
     let job_type = match body.job_type.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
         Some(value) => match crate::app::agent::cron::JobType::try_from(value) {
             Ok(job_type) => Some(job_type),
@@ -406,6 +384,8 @@ pub async fn handle_api_cron_update(
         None
     };
     let patch = crate::app::agent::cron::CronJobPatch {
+        starts_at,
+        ends_at,
         job_type,
         schedule,
         command: body.command,
@@ -523,11 +503,29 @@ pub async fn handle_api_cron_add(
                 error = %err,
                 "cron add request rejected"
             );
-            return (StatusCode::BAD_REQUEST, JsonResponse(serde_json::json!({"error": err})))
+            return (
+                StatusCode::BAD_REQUEST,
+                JsonResponse(
+                    serde_json::json!({"error": format!("Failed to add cron job: {err}")}),
+                ),
+            )
                 .into_response();
         }
     };
 
+    let (starts_at, ends_at) = match window_patch(
+        &body.starts_at,
+        &body.ends_at,
+        &body.start_date,
+        &body.end_date,
+        body.timezone.as_deref(),
+    ) {
+        Ok((start, end)) => (start.flatten(), end.flatten()),
+        Err(error) => return cron_field_error(error),
+    };
+    if let Err(error) = validate_candidates(&schedule, starts_at, ends_at, Utc::now()) {
+        return cron_field_error(format!("Failed to add cron job: {error}"));
+    }
     let job_type = cron_add_job_type(&body);
     let result = match job_type.as_str() {
         "shell" => {
@@ -540,11 +538,13 @@ pub async fn handle_api_cron_add(
                 )
                     .into_response();
             };
-            let job = crate::app::agent::cron::add_shell_job(
+            let job = crate::app::agent::cron::add_shell_job_with_window(
                 &config,
                 body.name.clone(),
                 schedule,
                 command,
+                starts_at,
+                ends_at,
             );
             match job {
                 Ok(job) => {
@@ -568,7 +568,7 @@ pub async fn handle_api_cron_add(
                 .as_deref()
                 .map(crate::app::agent::cron::SessionTarget::parse)
                 .unwrap_or_default();
-            let job = crate::app::agent::cron::add_agent_job(
+            let job = crate::app::agent::cron::add_agent_job_with_window(
                 &config,
                 body.name.clone(),
                 schedule,
@@ -577,6 +577,8 @@ pub async fn handle_api_cron_add(
                 trimmed_optional(body.model.clone()),
                 Some(cron_add_delivery(&body)),
                 body.delete_after_run.unwrap_or(false),
+                starts_at,
+                ends_at,
             );
             match job {
                 Ok(job) => {

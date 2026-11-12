@@ -269,6 +269,7 @@ pub async fn add_cron_job_async(
         delivery_to,
         delivery_best_effort: Some(delivery_best_effort),
         delete_after_run: Some(delete_after_run),
+        ..Default::default()
     };
     client.cron_job_add(&request).await.map(|_| ())
 }
@@ -397,6 +398,7 @@ pub async fn update_cron_job_async(
         delivery_best_effort: Some(delivery_best_effort),
         delete_after_run: Some(delete_after_run),
         enabled: None,
+        ..Default::default()
     };
     client.cron_job_update(&job_id, &request).await.map(|_| ())
 }

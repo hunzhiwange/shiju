@@ -20,6 +20,14 @@ fn keep_element(element: Element<'_, Message>) {
 
 pub(super) fn job(id: &str) -> CronJobDto {
     CronJobDto {
+        timezone: None,
+        anchor_date: None,
+        weekdays: None,
+        hour: None,
+        minute: None,
+        starts_at: None,
+        ends_at: None,
+
         id: id.to_string(),
         name: None,
         job_type: String::new(),

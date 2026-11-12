@@ -145,7 +145,10 @@ mod workflow_api;
 pub use self::channel_qr_api::{
     ChannelQrFetchResponseDto, ChannelQrStatusDto, ChannelQrStatusResponseDto,
 };
-pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
+pub use self::cron_api::{
+    CronAddRequest, CronJobDto, CronPreviewRequest, CronPreviewResponse, CronRunDto,
+    CronUpdateRequest,
+};
 pub use self::desktop_settings_api::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDependencyDto,
     DesktopPluginDetailDto, DesktopPluginPathDto, DesktopPluginPreviewDto, DesktopPluginSourceDto,

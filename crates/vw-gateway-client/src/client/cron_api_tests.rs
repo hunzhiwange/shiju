@@ -32,6 +32,7 @@ fn add_request() -> CronAddRequest {
         delivery_to: None,
         delivery_best_effort: None,
         delete_after_run: None,
+        ..Default::default()
     }
 }
 
@@ -308,5 +309,118 @@ async fn cron_api_encodes_job_ids_and_starts_updates_with_canonical_patch() {
     let delete = server.take_request();
     assert_eq!(delete.method, "DELETE");
     assert_eq!(delete.path, "/v1/cron/job%20%2F%E4%B8%80");
+    server.join();
+}
+
+#[test]
+fn wb_schedule_api_patch_window_distinguishes_missing_null_and_value() {
+    let missing: CronUpdateRequest = serde_json::from_value(json!({})).unwrap();
+    let clear: CronUpdateRequest = serde_json::from_value(json!({"starts_at":null})).unwrap();
+    let set: CronUpdateRequest =
+        serde_json::from_value(json!({"ends_at":"2099-01-01T00:00:00Z"})).unwrap();
+    assert!(serde_json::to_value(missing).unwrap().get("starts_at").is_none());
+    assert_eq!(serde_json::to_value(clear).unwrap().get("starts_at"), Some(&json!(null)));
+    assert_eq!(serde_json::to_value(set).unwrap()["ends_at"], "2099-01-01T00:00:00Z");
+}
+
+#[tokio::test]
+async fn wb_schedule_api_preview_transports_normalized_fields() {
+    use super::{CronPreviewRequest, CronPreviewResponse};
+    let normalized = json!({"schedule_kind":"biweekly", "anchor_date":"2099-01-01", "weekdays":[1,3], "hour":9, "minute":30, "timezone":"Asia/Shanghai", "starts_at":"2098-12-31T16:00:00+00:00", "ends_at":"2099-03-01T16:00:00+00:00"});
+    let server = test_support::server(vec![(
+        200,
+        json!({"normalized":normalized, "timezone":"Asia/Shanghai", "candidates":["2099-01-05T01:30:00+00:00"]}),
+    )]);
+    let request: CronPreviewRequest = serde_json::from_value(json!({"schedule_kind":"biweekly", "anchor_date":"2099-01-01", "weekdays":[1,3], "hour":9, "minute":30, "timezone":"Asia/Shanghai", "start_date":"2099-01-01", "end_date":"2099-03-01"})).unwrap();
+    let result: CronPreviewResponse =
+        server.client().cron_schedule_preview(&request).await.unwrap();
+    assert_eq!(result.timezone, "Asia/Shanghai");
+    assert_eq!(result.normalized.weekdays, Some(vec![1, 3]));
+    assert_eq!(result.normalized.starts_at, Some(Some("2098-12-31T16:00:00+00:00".into())));
+    assert_eq!(result.candidates, vec!["2099-01-05T01:30:00+00:00"]);
+    let sent = server.take_request();
+    assert_eq!(sent.method, "POST");
+    assert_eq!(sent.path, "/v1/cron/preview");
+    assert_eq!(sent.body["timezone"], "Asia/Shanghai");
+    assert_eq!(sent.body["start_date"], "2099-01-01");
+    assert_eq!(sent.body["weekdays"], json!([1, 3]));
+    server.join();
+}
+
+#[tokio::test]
+async fn wb_schedule_api_new_fields_reject_unsupported_gateway_before_mutating() {
+    for (status, response) in [
+        (404, json!({"error":"unsupported"})),
+        (405, json!({"error":"unsupported"})),
+        (500, json!({"error":"Failed to update cron job: Cron job 'preview' not found"})),
+        (200, json!({"status":"ok","job":null})),
+    ] {
+        let server = test_support::server(vec![(status, response)]);
+        let request =
+            super::CronAddRequest { timezone: Some("Asia/Shanghai".into()), ..add_request() };
+        let error = server.client().cron_job_add(&request).await.unwrap_err();
+        assert!(error.contains("不支持"), "{error}");
+        assert_eq!(server.take_request().path, "/v1/cron/preview");
+        server.join();
+    }
+}
+
+#[tokio::test]
+async fn wb_schedule_api_new_update_never_retries_legacy_methods() {
+    let server = test_support::server(vec![
+        (
+            200,
+            json!({"normalized":{"schedule_kind":"every","every_ms":1000,"timezone":"UTC"},"timezone":"UTC","candidates":["2099-01-01T00:00:00+00:00"]}),
+        ),
+        (405, json!({"error":"unsupported patch"})),
+    ]);
+    let request = CronUpdateRequest { ends_at: Some(None), ..Default::default() };
+    assert!(server.client().cron_job_update("job-1", &request).await.unwrap_err().contains("405"));
+    assert_eq!(server.take_request().path, "/v1/cron/preview");
+    let sent = server.take_request();
+    assert_eq!(sent.method, "PATCH");
+    assert_eq!(sent.body.get("ends_at"), Some(&json!(null)));
+    server.join();
+}
+
+#[tokio::test]
+async fn wb_schedule_api_local_at_and_date_fields_survive_transport() {
+    let server = test_support::server(vec![
+        (
+            200,
+            json!({"normalized":{"schedule_kind":"at","at":"2099-01-01T01:00:00+00:00","timezone":"UTC"},"timezone":"UTC","candidates":["2099-01-01T01:00:00+00:00"]}),
+        ),
+        (200, json!({"status":"ok","job":null})),
+    ]);
+    let request = super::CronAddRequest {
+        schedule_kind: "at".into(),
+        schedule: String::new(),
+        local_at: Some("2099-01-01T09:00".into()),
+        timezone: Some("Asia/Shanghai".into()),
+        ..add_request()
+    };
+    server.client().cron_job_add(&request).await.unwrap();
+    server.take_request();
+    let sent = server.take_request();
+    assert_eq!(sent.body["local_at"], "2099-01-01T09:00");
+    assert_eq!(sent.body["timezone"], "Asia/Shanghai");
+    server.join();
+}
+
+#[tokio::test]
+async fn wb_schedule_api_capability_probe_rejects_legacy_before_updates() {
+    let server = test_support::server(vec![(
+        400,
+        json!({"error":"RFC3339 time is required for at schedule"}),
+    )]);
+    let request = super::CronAddRequest { timezone: Some("UTC".into()), ..add_request() };
+    let error = server.client().cron_job_add(&request).await.unwrap_err();
+    let sent = server.take_request();
+    // The old update parser requires absolute at, so this probe fails before touching a job.
+    assert_eq!(sent.body["schedule_kind"], "at");
+    assert!(sent.body.get("at").is_none());
+    assert_eq!(sent.body["local_at"], "9999-01-01T00:00");
+    assert_eq!(sent.body["timezone"], "UTC");
+    assert!(error.contains("不支持"), "{error}");
     server.join();
 }

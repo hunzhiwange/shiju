@@ -951,6 +951,14 @@ fn task_detail_runner_fixture()
 
 fn runner_cron_job(id: &str) -> CronJobDto {
     CronJobDto {
+        timezone: None,
+        anchor_date: None,
+        weekdays: None,
+        hour: None,
+        minute: None,
+        starts_at: None,
+        ends_at: None,
+
         id: id.to_string(),
         name: Some(format!("Nightly {id}")),
         job_type: "command".to_string(),

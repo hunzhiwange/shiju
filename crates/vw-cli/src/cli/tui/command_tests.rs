@@ -578,6 +578,14 @@ fn schedule_mutations_require_snapshot_id_and_confirmation() {
 
 fn command_test_cron_job(id: &str) -> CronJobDto {
     CronJobDto {
+        timezone: None,
+        anchor_date: None,
+        weekdays: None,
+        hour: None,
+        minute: None,
+        starts_at: None,
+        ends_at: None,
+
         id: id.to_string(),
         name: Some("Nightly".to_string()),
         job_type: "command".to_string(),

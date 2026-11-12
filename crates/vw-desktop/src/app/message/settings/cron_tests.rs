@@ -13,6 +13,14 @@ fn app() -> App {
 
 fn job(id: &str) -> CronJobDto {
     CronJobDto {
+        timezone: None,
+        anchor_date: None,
+        weekdays: None,
+        hour: None,
+        minute: None,
+        starts_at: None,
+        ends_at: None,
+
         id: id.to_string(),
         name: Some(format!("job-{id}")),
         job_type: "shell".to_string(),

@@ -95,6 +95,7 @@ fn add_body() -> CronAddBody {
         delivery_to: None,
         delivery_best_effort: None,
         delete_after_run: None,
+        ..Default::default()
     }
 }
 
@@ -123,6 +124,7 @@ fn update_body() -> CronUpdateBody {
         delivery_best_effort: None,
         delete_after_run: None,
         enabled: None,
+        ..Default::default()
     }
 }
 
@@ -255,10 +257,12 @@ fn cron_add_schedule_infers_and_validates_kinds() {
     assert!(cron_add_schedule(&body).unwrap_err().contains("Unsupported"));
 
     body.schedule_kind = Some("every".to_string());
+    body.at = None;
     body.every_ms = Some(0);
     assert!(cron_add_schedule(&body).unwrap_err().contains("greater than 0"));
 
     body.schedule_kind = Some("at".to_string());
+    body.every_ms = None;
     body.at = Some("not-time".to_string());
     assert!(cron_add_schedule(&body).unwrap_err().contains("Invalid RFC3339"));
 }
@@ -292,29 +296,29 @@ fn cron_add_schedule_reports_missing_values_and_accepts_localized_kinds() {
 
 #[test]
 fn cron_update_schedule_supports_partial_updates_and_localized_kinds() {
-    assert!(cron_update_schedule(&update_body()).unwrap().is_none());
+    assert!(cron_update_schedule(&update_body(), None).unwrap().is_none());
 
     let mut body = update_body();
     body.schedule = Some("*/5 * * * * *".to_string());
-    assert!(matches!(cron_update_schedule(&body).unwrap(), Some(Schedule::Cron { .. })));
+    assert!(matches!(cron_update_schedule(&body, None).unwrap(), Some(Schedule::Cron { .. })));
 
     let mut body = update_body();
     body.schedule_kind = Some("指定时间".to_string());
     body.at = Some("2026-01-02T03:04:05Z".to_string());
-    assert!(matches!(cron_update_schedule(&body).unwrap(), Some(Schedule::At { .. })));
+    assert!(matches!(cron_update_schedule(&body, None).unwrap(), Some(Schedule::At { .. })));
 
     let mut body = update_body();
     body.schedule_kind = Some("固定间隔".to_string());
     body.every_ms = Some(10);
-    assert_eq!(cron_update_schedule(&body).unwrap(), Some(Schedule::Every { every_ms: 10 }));
+    assert_eq!(cron_update_schedule(&body, None).unwrap(), Some(Schedule::Every { every_ms: 10 }));
 
     let mut body = update_body();
     body.schedule_kind = Some("cron".to_string());
-    assert!(cron_update_schedule(&body).unwrap_err().contains("Cron expression"));
+    assert!(cron_update_schedule(&body, None).unwrap_err().contains("Cron expression"));
 
     let mut body = update_body();
     body.schedule_kind = Some("weird".to_string());
-    assert!(cron_update_schedule(&body).unwrap_err().contains("Unsupported"));
+    assert!(cron_update_schedule(&body, None).unwrap_err().contains("Unsupported"));
 }
 
 #[test]
@@ -322,18 +326,18 @@ fn cron_update_schedule_rejects_invalid_at_and_every_values() {
     let mut body = update_body();
     body.schedule_kind = Some("at".to_string());
     body.at = Some("tomorrow".to_string());
-    assert!(cron_update_schedule(&body).unwrap_err().contains("Invalid RFC3339"));
+    assert!(cron_update_schedule(&body, None).unwrap_err().contains("Invalid RFC3339"));
 
     let mut body = update_body();
     body.schedule_kind = Some("every".to_string());
     body.every_ms = Some(0);
-    assert_eq!(cron_update_schedule(&body).unwrap_err(), "every_ms must be greater than 0");
+    assert_eq!(cron_update_schedule(&body, None).unwrap_err(), "every_ms must be greater than 0");
 
     let mut body = update_body();
     body.schedule_kind = Some("Cron".to_string());
     body.schedule = Some(" */10 * * * * * ".to_string());
     assert_eq!(
-        cron_update_schedule(&body).unwrap(),
+        cron_update_schedule(&body, None).unwrap(),
         Some(Schedule::Cron { expr: "*/10 * * * * *".to_string(), tz: None })
     );
 }
@@ -423,24 +427,24 @@ fn cron_add_job_type_defaults_from_prompt_and_command() {
 fn cron_update_schedule_treats_blank_kind_as_default_and_requires_matching_value() {
     let mut body = update_body();
     body.schedule_kind = Some("   ".to_string());
-    assert_eq!(cron_update_schedule(&body).unwrap(), None);
+    assert_eq!(cron_update_schedule(&body, None).unwrap(), None);
 
     body.schedule = Some(" 0 */15 * * * * ".to_string());
     assert_eq!(
-        cron_update_schedule(&body).unwrap(),
+        cron_update_schedule(&body, None).unwrap(),
         Some(Schedule::Cron { expr: "0 */15 * * * *".to_string(), tz: None })
     );
 
     let mut body = update_body();
     body.schedule_kind = Some("at".to_string());
     assert_eq!(
-        cron_update_schedule(&body).unwrap_err(),
+        cron_update_schedule(&body, None).unwrap_err(),
         "RFC3339 time is required for at schedule"
     );
 
     let mut body = update_body();
     body.schedule_kind = Some("every".to_string());
-    assert_eq!(cron_update_schedule(&body).unwrap_err(), "every_ms must be greater than 0");
+    assert_eq!(cron_update_schedule(&body, None).unwrap_err(), "every_ms must be greater than 0");
 }
 
 #[tokio::test]
@@ -786,3 +790,6 @@ async fn cron_update_handler_reports_missing_job_after_valid_patch() {
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(body["error"].as_str().unwrap().contains("Failed to update cron job"));
 }
+
+#[path = "cron_schedule_tests.rs"]
+mod cron_schedule_tests;

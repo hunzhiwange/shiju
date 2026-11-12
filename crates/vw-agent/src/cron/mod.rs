@@ -24,6 +24,7 @@ pub mod scheduler;
 pub use schedule::{
     next_run_for_schedule, normalize_expression, schedule_cron_expression, validate_schedule,
 };
+pub(crate) use store::next_run_in_window;
 #[allow(unused_imports)]
 pub use store::{
     add_agent_job, add_agent_job_with_window, add_job, add_shell_job, add_shell_job_with_window,

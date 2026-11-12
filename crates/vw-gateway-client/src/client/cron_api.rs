@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronJobDto {
+    pub timezone: Option<String>,
+    pub anchor_date: Option<String>,
+    pub weekdays: Option<Vec<u32>>,
+    pub hour: Option<u32>,
+    pub minute: Option<u32>,
+    pub starts_at: Option<String>,
+    pub ends_at: Option<String>,
+
     pub id: String,
     pub name: Option<String>,
     #[serde(default)]
@@ -75,8 +83,45 @@ pub struct CronRunsResponse {
     pub runs: Vec<CronRunDto>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CronAddRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weekdays: Option<Vec<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hour: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minute: Option<u32>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub starts_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ends_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub start_date: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub end_date: Option<Option<String>>,
+
     pub name: Option<String>,
     pub job_type: String,
     pub schedule_kind: String,
@@ -121,6 +166,43 @@ pub struct CronAddRequest {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct CronUpdateRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weekdays: Option<Vec<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hour: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minute: Option<u32>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub starts_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ends_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub start_date: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub end_date: Option<Option<String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -169,6 +251,67 @@ pub struct CronUpdateRequest {
     pub enabled: Option<bool>,
 }
 
+// Missing preserves a window boundary; explicit null clears it.
+fn cron_window_field<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error> {
+    Option::<String>::deserialize(deserializer).map(Some)
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct CronPreviewRequest {
+    pub schedule_kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub every_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weekdays: Option<Vec<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hour: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minute: Option<u32>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub starts_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ends_at: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub start_date: Option<Option<String>>,
+    #[serde(
+        default,
+        deserialize_with = "cron_window_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub end_date: Option<Option<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CronPreviewResponse {
+    pub normalized: CronPreviewRequest,
+    pub timezone: String,
+    pub candidates: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CronJobMutationResponse {
     pub status: String,
@@ -192,6 +335,39 @@ fn is_not_found(err: &str) -> bool {
 }
 
 impl GatewayClient {
+    /// Returns an explicit error on gateways without the schedule preview contract.
+    pub async fn cron_schedule_preview(
+        &self,
+        request: &CronPreviewRequest,
+    ) -> Result<CronPreviewResponse, String> {
+        self.post_json("/v1/cron/preview", &[], request).await.map_err(|err| {
+            // Old /cron/{id} update routes can capture "preview" and return an update error or DTO.
+            if is_not_found(&err)
+                || is_method_not_allowed(&err)
+                || err.contains("Failed to update cron job")
+                || legacy_mutation_success(&err).is_some()
+                || (request.local_at.is_some()
+                    && err.contains("RFC3339 time is required for at schedule"))
+            {
+                "当前网关不支持定时任务预览及扩展时间字段，请升级网关".to_string()
+            } else {
+                err
+            }
+        })
+    }
+
+    async fn require_schedule_api(&self) -> Result<(), String> {
+        // Old update routes reject local_at without absolute at before applying any patch.
+        self.cron_schedule_preview(&CronPreviewRequest {
+            schedule_kind: "at".into(),
+            local_at: Some("9999-01-01T00:00".into()),
+            timezone: Some("UTC".into()),
+            ..Default::default()
+        })
+        .await
+        .map(|_| ())
+    }
+
     pub async fn cron_jobs_get(&self) -> Result<Vec<CronJobDto>, String> {
         let response: CronJobsResponse = self.get_json("/v1/cron", &[]).await?;
         Ok(response.jobs)
@@ -233,6 +409,21 @@ impl GatewayClient {
         &self,
         request: &CronAddRequest,
     ) -> Result<CronJobMutationResponse, String> {
+        if request.schedule_kind == "biweekly"
+            || request.timezone.is_some()
+            || request.local_at.is_some()
+            || request.anchor_date.is_some()
+            || request.weekdays.is_some()
+            || request.hour.is_some()
+            || request.minute.is_some()
+            || request.starts_at.is_some()
+            || request.ends_at.is_some()
+            || request.start_date.is_some()
+            || request.end_date.is_some()
+        {
+            self.require_schedule_api().await?;
+            return self.post_json("/v1/cron", &[], request).await;
+        }
         match self.post_json("/v1/cron", &[], request).await {
             Ok(response) => Ok(response),
             Err(err) => legacy_mutation_success(&err).ok_or(err),
@@ -247,6 +438,21 @@ impl GatewayClient {
         let job_id = required_job_id(job_id)?;
         let job_id = encode_path_segment(job_id);
         let path = format!("/v1/cron/{job_id}");
+        if request.schedule_kind.as_deref() == Some("biweekly")
+            || request.timezone.is_some()
+            || request.local_at.is_some()
+            || request.anchor_date.is_some()
+            || request.weekdays.is_some()
+            || request.hour.is_some()
+            || request.minute.is_some()
+            || request.starts_at.is_some()
+            || request.ends_at.is_some()
+            || request.start_date.is_some()
+            || request.end_date.is_some()
+        {
+            self.require_schedule_api().await?;
+            return self.patch_json(&path, &[], request).await;
+        }
         match self.patch_json(&path, &[], request).await {
             Ok(response) => Ok(response),
             Err(err) if is_method_not_allowed(&err) => {

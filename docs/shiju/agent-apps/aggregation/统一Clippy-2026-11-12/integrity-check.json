@@ -1,0 +1,11 @@
+{
+  "source_archives_verified": 10,
+  "patch_archives_verified": 9,
+  "both_helpers_syntax_valid": true,
+  "latest_log_matches_immutable_round4": true,
+  "actual_round4_exit_code": 0,
+  "round4_source_unchanged": true,
+  "strict_current_whole_tree_exit": 1,
+  "current_plan_production_scope_exit": 0,
+  "new_mcp51_tests_not_claimed_covered": true
+}

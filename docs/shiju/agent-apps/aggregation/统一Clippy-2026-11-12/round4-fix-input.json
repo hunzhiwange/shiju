@@ -1,0 +1,7 @@
+{
+  "owner_task": 46,
+  "fix": "production parser now toml_edit; toml_edit declared in normal dependencies",
+  "source_sha256": "b5fdb03eedee60d577bfdc2f1a0eb8840773baed76b46f15a623677b3be57f48",
+  "manifest_sha256": "ea8686039200aef7e7be1ea66b24108b75f8677863cc1fb41e98d2278536c3ce",
+  "task41_gate_still_matched": true
+}

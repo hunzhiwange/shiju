@@ -1,0 +1,51 @@
+{
+  "owner": {
+    "plan": "聚合目录与客户端特殊能力",
+    "task": "15 unified regression",
+    "session": "01a1c8cc-d1ed-7c92-850c-8ce691aad463",
+    "pid": 47929,
+    "nonce": "e69d2aecf67b461c9d8cc98087b6ab4b"
+  },
+  "settings": {
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_PROFILE_TEST_LTO": "off"
+  },
+  "platform": "Darwin arm64",
+  "stages": [
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source_start": "645b62a0726c812452df95b1fd2917adb94988df0247e16b268d8f4011f58e63",
+      "head_start": "2aec559966a58e73eba39b2b2b874d17c29672d8",
+      "started_utc": "2026-11-11T23:28:08Z",
+      "cargo_pid": 48106,
+      "exit_code": 101,
+      "elapsed_seconds": 203.82,
+      "source_end": "7b2c82ec5fcec390be431a77130c0d82251be390a5b3ee2825ee3614a6fbacf4",
+      "head_end": "eb22479ef94f241f14bd724faf6e630f12ba241d",
+      "source_unchanged": false
+    }
+  ],
+  "finished_utc": "2026-11-11T23:31:32Z",
+  "lease_cleanup": {
+    "verified": true,
+    "cache_retained": true,
+    "evidence": "round2-driver.log",
+    "scope": "all own Cargo consumers ended before exact nonce lease removal"
+  }
+}

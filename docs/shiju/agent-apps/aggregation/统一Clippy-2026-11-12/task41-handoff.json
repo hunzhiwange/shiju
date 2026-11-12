@@ -1,0 +1,50 @@
+{
+  "task": 41,
+  "date": "2026-11-12",
+  "phase": "focused_passed_awaiting_unified_clippy",
+  "code_changed": true,
+  "requires_unified_clippy": true,
+  "source_hashes": {
+    "crates/vw-agent/src/gateway/api/handlers/app_providers/operations/aggregation.rs": "fdc88b422981b4af3d17bdbed4edd5d1818cabdb88933625a3df1de74223f53a",
+    "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_tests.rs": "f2051e5d504d12349c87b69ea4bf25d10b15352eef2a2e0fc97334fb2e2c1349"
+  },
+  "head": "7d588bbf36998dca9e55d43fce9ce487d4e06a30",
+  "red": {
+    "command": "cargo test --manifest-path /tmp/shiju-t41-focused-source/Cargo.toml -p vw-agent --lib aggregation_t41_ -- --nocapture",
+    "passed": 10,
+    "failed": 1,
+    "exit": 101,
+    "log": "/tmp/shiju-t41-regression-focused-red.log"
+  },
+  "green_stage": "/tmp/shiju-t41-deferred-stage.log",
+  "note": "最小认证顺序修复已通过11项及相邻独立权限1项；统一Clippy须覆盖source_hashes，当前本会话不运行全仓Clippy。",
+  "green": {
+    "passed": 11,
+    "failed": 0,
+    "filtered_out": 21,
+    "exit": 0,
+    "log": "/tmp/shiju-t41-deferred-focused.log"
+  },
+  "restart_permission": {
+    "passed": 1,
+    "failed": 0,
+    "filtered_out": 31,
+    "exit": 0,
+    "log": "/tmp/shiju-t41-deferred-restart-permission.log",
+    "command": "cargo test --manifest-path /tmp/shiju-t41-focused-source/Cargo.toml -p vw-agent --lib aggregation_t45_not_running_replays_and_independent_permissions -- --nocapture"
+  },
+  "resource": {
+    "slot": 3,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "jobs": 1,
+    "incremental": 0,
+    "test_opt_level": 0,
+    "test_debug": 0,
+    "dev_debug": 0,
+    "test_codegen_units": 256,
+    "test_lto": "off",
+    "lock_released": true
+  },
+  "commit": "dcc7f3f0ac378e4773fc5fea1593abbdda3c5810"
+}

@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized] target(s) in 1.15s
+     Running unittests src/lib.rs (target/rust-slot-2/debug/deps/vw_agent_apps-5b51e59736ec6eb4)
+
+running 10 tests
+test aggregation::codex_publish_tests::aggregation_t15_late_revision_discards_unpublished_intent ... ok
+test aggregation::codex_publish_tests::aggregation_t15_codex_publish_preserves_contract ... ok
+test aggregation::codex_publish_tests::aggregation_t15_missing_official_catalog_and_invalid_config_leave_files_unchanged ... ok
+test aggregation::codex_publish_tests::aggregation_t15_rejects_foreign_ownership_and_stale_revision ... ok
+test aggregation::codex_publish_tests::aggregation_t15_publishes_default_and_members_with_independent_windows ... ok
+test aggregation::codex_publish_tests::aggregation_t15_unbound_slot_is_not_implicitly_claimed ... ok
+test aggregation::codex_publish_tests::aggregation_t15_pending_requires_its_original_project_recovery ... ok
+test aggregation::codex_publish_tests::aggregation_t15_preserve_external_catalog_requires_explicit_adoption ... ok
+test aggregation::codex_publish_tests::aggregation_t15_unsafe_native_targets_do_not_follow_symlinks ... ok
+test aggregation::codex_publish_tests::aggregation_t15_write_failure_keeps_previous_revision_and_recovery_owner ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1179 filtered out; finished in 2.92s
+

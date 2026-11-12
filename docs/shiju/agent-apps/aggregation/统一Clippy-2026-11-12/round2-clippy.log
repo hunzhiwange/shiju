@@ -1,0 +1,33 @@
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+cargo(64526) MallocStackLogging: can't turn off malloc stack logging because it was not enabled.
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+cargo(64601) MallocStackLogging: can't turn off malloc stack logging because it was not enabled.
+error[E0277]: `vw_gateway_client::vw_api_types::SessionId` doesn't implement `std::fmt::Display`
+   --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:100:53
+    |
+100 |                 text(format!("ACP 会话 {} · 挂载修订 {}", usage.session_id, usage.mount_revision))
+    |                                        --                 ^^^^^^^^^^^^^^^^ `vw_gateway_client::vw_api_types::SessionId` cannot be formatted with the default formatter
+    |                                        |
+    |                                        required by this formatting parameter
+    |
+    = help: the trait `std::fmt::Display` is not implemented for `vw_gateway_client::vw_api_types::SessionId`
+    = note: in format strings you may be able to use `{:?}` (or `{:#?}` for pretty-print) instead
+
+error[E0277]: `vw_gateway_client::vw_api_types::ToolId` doesn't implement `std::fmt::Display`
+   --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:164:46
+    |
+164 |                     text(format!("工具 ID：{}", tool.id)).size(12),
+    |                                            --   ^^^^^^^ `vw_gateway_client::vw_api_types::ToolId` cannot be formatted with the default formatter
+    |                                            |
+    |                                            required by this formatting parameter
+    |
+    = help: the trait `std::fmt::Display` is not implemented for `vw_gateway_client::vw_api_types::ToolId`
+    = note: in format strings you may be able to use `{:?}` (or `{:#?}` for pretty-print) instead
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `vw-desktop` (lib) due to 2 previous errors

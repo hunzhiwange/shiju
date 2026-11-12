@@ -1,0 +1,5 @@
+WAITING for retained cache matching task59 low-memory profile 906213205848342741
+CLAIMED 2 /Users/xiangmin/worker/code/shiju/target/rust-slot-2
+task15 EXIT 0 source_unchanged True
+clippy EXIT 101 source_unchanged False
+OWN LEASES RELEASED

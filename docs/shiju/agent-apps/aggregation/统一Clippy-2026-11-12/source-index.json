@@ -1,0 +1,112 @@
+{
+  "cold-attempt-task15-source-start.json": {
+    "head": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+    "time_utc": "2026-11-11T23:19:17Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "ccfcd0e009180f2ae40a08dd8645b28421c0c18958afa65311fbc1ea024a8396",
+    "tracked_patch": "tracked-source-b928fb5e08eae85514a2c758be539d4f1fdab3a14ebe2f2c171d6220e89713bc.patch.gz",
+    "manifest": "source-ccfcd0e009180f2ae40a08dd8645b28421c0c18958afa65311fbc1ea024a8396.json.gz"
+  },
+  "round1-clippy-source-end.json": {
+    "head": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+    "time_utc": "2026-11-11T23:25:07Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "4fdf669348b09d52bc7c4841d3f1d37b11ff064be09e3cb7a9566c219a53653b",
+    "tracked_patch": "tracked-source-13d85f9eef193a5d0232f89a1059873c07f34c71d1f2ee8a3625bc22c857bb91.patch.gz",
+    "manifest": "source-4fdf669348b09d52bc7c4841d3f1d37b11ff064be09e3cb7a9566c219a53653b.json.gz"
+  },
+  "round1-clippy-source-start.json": {
+    "head": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+    "time_utc": "2026-11-11T23:22:00Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+    "tracked_patch": "tracked-source-7cfbcf926c15c75a0153dc7ca431eba6ea6facd6d6160852021f6b487bcad000.patch.gz",
+    "manifest": "source-23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5.json.gz"
+  },
+  "round1-task15-source-end.json": {
+    "head": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+    "time_utc": "2026-11-11T23:21:59Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+    "tracked_patch": "tracked-source-7cfbcf926c15c75a0153dc7ca431eba6ea6facd6d6160852021f6b487bcad000.patch.gz",
+    "manifest": "source-23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5.json.gz"
+  },
+  "round1-task15-source-start.json": {
+    "head": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+    "time_utc": "2026-11-11T23:21:53Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+    "tracked_patch": "tracked-source-7cfbcf926c15c75a0153dc7ca431eba6ea6facd6d6160852021f6b487bcad000.patch.gz",
+    "manifest": "source-23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5.json.gz"
+  },
+  "round2-clippy-source-end.json": {
+    "head": "eb22479ef94f241f14bd724faf6e630f12ba241d",
+    "time_utc": "2026-11-11T23:31:32Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "7b2c82ec5fcec390be431a77130c0d82251be390a5b3ee2825ee3614a6fbacf4",
+    "tracked_patch": "tracked-source-6ad2ea1550bb376837c1b8a980d31c29006ed18c290e5f29441c29cd00eb9b93.patch.gz",
+    "manifest": "source-7b2c82ec5fcec390be431a77130c0d82251be390a5b3ee2825ee3614a6fbacf4.json.gz"
+  },
+  "round2-clippy-source-start.json": {
+    "head": "2aec559966a58e73eba39b2b2b874d17c29672d8",
+    "time_utc": "2026-11-11T23:28:08Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "645b62a0726c812452df95b1fd2917adb94988df0247e16b268d8f4011f58e63",
+    "tracked_patch": "tracked-source-8c8cadaef583764d0bf809db0f2439af0b80bc861e79ddea356bebe833d89555.patch.gz",
+    "manifest": "source-645b62a0726c812452df95b1fd2917adb94988df0247e16b268d8f4011f58e63.json.gz"
+  },
+  "foreign-77809-source-start.json": {
+    "pid": 77809,
+    "head": "5019a4641ddbdb69ccd3282e11b94bf480135356",
+    "source_digest": "1089ef54c3731d5dabc58ef8096e83b81fa9a8fc45f317ae494d4da9e71e0732",
+    "start_epoch": 1794441433.0,
+    "start_local": "Thu Nov 12 07:57:13 2026",
+    "witnessed_utc": "2026-11-11T23:59:20Z",
+    "files_with_post_start_ctime": [
+      "crates/vw-agent/Cargo.toml",
+      "crates/vw-agent/src/model_relay/messages_tests.rs",
+      "crates/vw-agent/src/model_relay/messages_thinking.rs",
+      "crates/vw-agent/src/model_relay/messages_thinking_core_tests.rs",
+      "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude_tests.rs",
+      "crates/vw-agent/tests/model_protocol_015_messages.rs"
+    ],
+    "dirs_with_post_start_ctime": [
+      "crates/vw-agent/tests"
+    ],
+    "start_snapshot_applicability": false,
+    "manifest": "source-1089ef54c3731d5dabc58ef8096e83b81fa9a8fc45f317ae494d4da9e71e0732.json.gz",
+    "note": "Rejected applicability: this is a later witness of current files, not proof of exact source consumed by foreign command"
+  },
+  "round3-clippy-source-end.json": {
+    "head": "9ec2d5e59686b1e9b5f4020e2a804379ca87e803",
+    "time_utc": "2026-11-12T00:18:29Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "0b6c5689b5662be66f279bec177455e2d95627e58285479a89a2396c6e5cec63",
+    "tracked_patch": "tracked-source-9c499eb915023f5f74bff45f83187933047152e612aed593b25708baa5748544.patch.gz",
+    "manifest": "source-0b6c5689b5662be66f279bec177455e2d95627e58285479a89a2396c6e5cec63.json.gz"
+  },
+  "round3-clippy-source-start.json": {
+    "head": "061fadd18ac63761cc948a844d8261a52278694e",
+    "time_utc": "2026-11-12T00:14:14Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "fbbb808713a4febce2ac338007e4df7fe81a5025608a9412a1daf40b520ec4f1",
+    "tracked_patch": "tracked-source-aa30caf0dc00035f0cec25546f3a7e2902a34a89f07bcbf5b4ac093797571d97.patch.gz",
+    "manifest": "source-fbbb808713a4febce2ac338007e4df7fe81a5025608a9412a1daf40b520ec4f1.json.gz"
+  },
+  "final-clippy-source-end.json": {
+    "head": "fcccd2cc32a479e8526aeafaea7cf306375a7474",
+    "time_utc": "2026-11-12T00:36:50Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+    "tracked_patch": "tracked-source-d689e910c771499c48589ce365d0c0be89c2a866855c3d275e51b49e3b053e3e.patch.gz",
+    "manifest": "source-a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889.json.gz"
+  },
+  "final-clippy-source-start.json": {
+    "head": "cedd49cfb62034005e879bd37c60ad0c739d4e5a",
+    "time_utc": "2026-11-12T00:33:44Z",
+    "scope": "git-visible files excluding .plans/ and docs/; source/config/assets included; ignored caches excluded",
+    "source_digest": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+    "tracked_patch": "tracked-source-658cb7b7d729dd26c2ddcb12edbbc957ec687578c4077245fcb5ef4c28615990.patch.gz",
+    "manifest": "source-a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889.json.gz"
+  }
+}

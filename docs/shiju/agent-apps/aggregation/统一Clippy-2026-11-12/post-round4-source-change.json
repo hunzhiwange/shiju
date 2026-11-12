@@ -1,0 +1,11 @@
+{
+  "observed_utc": "2026-11-12T00:42:05Z",
+  "successful_snapshot": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+  "current_source": "9dc3e7e8a7d29189a13abc536770f3bb607f889da4a1fab43538bdf2f42dc206",
+  "changed_paths": [
+    "crates/vw-agent/src/agent_apps/mcp/mod.rs",
+    "crates/vw-agent/src/agent_apps/mcp/security_tests.rs"
+  ],
+  "verification_exit_code": 1,
+  "note": "Historical Clippy exit0 and its first successful current-source validation retained; current worktree changed afterward and is not covered by that full snapshot."
+}

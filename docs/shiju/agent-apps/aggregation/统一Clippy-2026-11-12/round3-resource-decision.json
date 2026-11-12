@@ -1,0 +1,21 @@
+{
+  "observed_before_final_start": {
+    "interval_seconds": 2,
+    "page_size": 16384,
+    "swapins_delta_pages": 46050,
+    "swapouts_delta_pages": 53876,
+    "memory_pressure_reported_free_percent": 36
+  },
+  "decision": "Start one controlled low-memory Cargo using available matching retained cache; do not require unrelated processes to disappear; observe actual owned progress",
+  "owned_concurrency": 1,
+  "cache_match_fields": [
+    "profile",
+    "features",
+    "path",
+    "target",
+    "rustflags"
+  ],
+  "actual_slot": 3,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+  "task41_start_snapshot_matched": true
+}

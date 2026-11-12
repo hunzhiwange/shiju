@@ -1,0 +1,29 @@
+{
+  "pid": 79763,
+  "head": "061fadd18ac63761cc948a844d8261a52278694e",
+  "source_digest": "6742ab74a6492a0908955049b591bd088bd8fb89a84170721c8d3b0a5b11b35e",
+  "manifest": "source-6742ab74a6492a0908955049b591bd088bd8fb89a84170721c8d3b0a5b11b35e.json.gz",
+  "start_epoch": 1794441738.0,
+  "start_local": "Thu Nov 12 08:02:18 2026",
+  "witnessed_utc": "2026-11-12T00:03:34Z",
+  "files_with_post_start_ctime": [
+    "crates/vw-agent/src/app_routing/failover_execution_tests.rs",
+    "crates/vw-agent/src/app_routing/timeouts.rs",
+    "crates/vw-agent/src/model_relay/messages_thinking.rs",
+    "crates/vw-agent/src/model_relay/transport.rs"
+  ],
+  "dirs_with_post_start_ctime": [],
+  "start_snapshot_applicability": false,
+  "command": [
+    "cargo",
+    "clippy",
+    "-p",
+    "vw-desktop",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings"
+  ],
+  "eligible_as_required_global_command": false,
+  "rejection": "Package-scoped command without --all-features; cannot replace required workspace-root full command"
+}

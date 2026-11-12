@@ -1,0 +1,63 @@
+{
+  "owner": {
+    "plan": "聚合目录与客户端特殊能力",
+    "task": "15 unified regression",
+    "session": "01a1c8cc-d1ed-7c92-850c-8ce691aad463",
+    "pid": 89956,
+    "nonce": "db1b062d1dcd42edb8d2f5d0601337bc"
+  },
+  "settings": {
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_PROFILE_TEST_LTO": "off"
+  },
+  "platform": "Darwin arm64",
+  "stages": [
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source_start": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+      "head_start": "cedd49cfb62034005e879bd37c60ad0c739d4e5a",
+      "started_utc": "2026-11-12T00:33:44Z",
+      "cargo_pid": 89989,
+      "exit_code": 0,
+      "elapsed_seconds": 185.84,
+      "source_end": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+      "head_end": "fcccd2cc32a479e8526aeafaea7cf306375a7474",
+      "source_unchanged": true
+    }
+  ],
+  "finished_utc": "2026-11-12T00:36:50Z",
+  "lease_cleanup": {
+    "verified": true,
+    "cache_retained": true,
+    "owner_nonce": "db1b062d1dcd42edb8d2f5d0601337bc"
+  },
+  "evidence_round": 4,
+  "current_source_verified": false,
+  "task41_delivery_manifest_verified": true,
+  "verification_command": "python3 docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_source.py",
+  "latest_verification_exit_code": 1,
+  "status": "passed_recorded_plan_snapshot; only subsequent MCP51 test registration/code differ; current plan-production scope verified",
+  "current_plan_production_scope_verified": true,
+  "current_task15_source_and_dependencies_verified": true,
+  "initial_whole_source_verification_exit_code": 0,
+  "strict_current_source_verification_exit_code": 1,
+  "plan_scope_verification_exit_code": 0,
+  "plan_scope_command": "python3 /Users/xiangmin/worker/code/shiju/docs/shiju/agent-apps/aggregation/统一Clippy-2026-11-12/verify_plan_scope.py",
+  "historical_immutable_success": "round4-result.json"
+}

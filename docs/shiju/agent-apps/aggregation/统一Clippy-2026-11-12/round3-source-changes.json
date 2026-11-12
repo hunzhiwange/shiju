@@ -1,0 +1,6 @@
+[
+  "crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal.rs",
+  "crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs",
+  "crates/vw-desktop/src/app/components/system_settings_mcp.rs",
+  "crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoints.rs"
+]

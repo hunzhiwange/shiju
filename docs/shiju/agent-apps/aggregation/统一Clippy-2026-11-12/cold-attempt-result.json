@@ -1,0 +1,46 @@
+{
+  "owner": {
+    "plan": "聚合目录与客户端特殊能力",
+    "task": "15 unified regression",
+    "session": "01a1c8cc-d1ed-7c92-850c-8ce691aad463",
+    "pid": 51101,
+    "nonce": "1905fa82ac484f9786c067fa4e30f608"
+  },
+  "settings": {
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-12",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-12",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_PROFILE_TEST_LTO": "off"
+  },
+  "platform": "Darwin arm64",
+  "stages": [
+    {
+      "name": "task15",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent-apps",
+        "--lib",
+        "aggregation_t15_",
+        "--",
+        "--nocapture"
+      ],
+      "source_start": "ccfcd0e009180f2ae40a08dd8645b28421c0c18958afa65311fbc1ea024a8396",
+      "head_start": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+      "started_utc": "2026-11-11T23:19:17Z",
+      "cargo_pid": 53749,
+      "exit_code": null,
+      "interruption": "Controlled cold-cache stop before behavioral tests; Cargo group termination observed but Cargo exit status was not reaped; wrapper exit 137 observed",
+      "wrapper_exit_code": 137,
+      "cleanup": "Cargo group stopped with SIGTERM; after confirming only zombie remained, cancelled blocked runner and released only exact own nonce leases",
+      "termination_signal_sent": 15,
+      "cargo_exit_code_observed": false
+    }
+  ]
+}

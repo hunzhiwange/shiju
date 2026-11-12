@@ -1,0 +1,9 @@
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+    Checking vw-webview v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-webview)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+    Finished `dev` profile [optimized] target(s) in 3m 04s

@@ -1,0 +1,73 @@
+{
+  "owner": {
+    "plan": "聚合目录与客户端特殊能力",
+    "task": "15 unified regression",
+    "session": "01a1c8cc-d1ed-7c92-850c-8ce691aad463",
+    "pid": 86949,
+    "nonce": "a5520db634284dd984cba9553c532f21"
+  },
+  "settings": {
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_PROFILE_TEST_LTO": "off"
+  },
+  "platform": "Darwin arm64",
+  "stages": [
+    {
+      "name": "task15",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent-apps",
+        "--lib",
+        "aggregation_t15_",
+        "--",
+        "--nocapture"
+      ],
+      "source_start": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+      "head_start": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+      "started_utc": "2026-11-11T23:21:53Z",
+      "cargo_pid": 87252,
+      "exit_code": 0,
+      "elapsed_seconds": 6.06,
+      "source_end": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+      "head_end": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+      "source_unchanged": true
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source_start": "23ae37fe93a12c7cb942abbbd8c41b1c7cb4a3c16b079ed35a15914b933a34c5",
+      "head_start": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+      "started_utc": "2026-11-11T23:22:00Z",
+      "cargo_pid": 87439,
+      "exit_code": 101,
+      "elapsed_seconds": 187.36,
+      "source_end": "4fdf669348b09d52bc7c4841d3f1d37b11ff064be09e3cb7a9566c219a53653b",
+      "head_end": "b7e6d71856c84839c80c9feed5b708a2a0d623ce",
+      "source_unchanged": false
+    }
+  ],
+  "finished_utc": "2026-11-11T23:25:07Z",
+  "lease_cleanup": {
+    "verified": true,
+    "cache_retained": true,
+    "evidence": "round1-driver.log",
+    "scope": "all own Cargo consumers ended before exact nonce lease removal"
+  }
+}

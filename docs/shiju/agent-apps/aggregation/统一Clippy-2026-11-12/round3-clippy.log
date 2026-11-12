@@ -1,0 +1,89 @@
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:104:37
+    |
+104 |             slot.insert(key.into(), toml::Value::String(url.clone()));
+    |                                     ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:127:18
+    |
+127 | ) -> Result<&mut toml::map::Map<String, toml::Value>, &'static str> {
+    |                  ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:129:44
+    |
+129 |         doc.get("model_provider").and_then(toml::Value::as_str).unwrap_or("").trim().to_owned();
+    |                                            ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:134:23
+    |
+134 |             .and_then(toml::Value::as_table_mut)
+    |                       ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:155:23
+    |
+155 |             .and_then(toml::Value::as_str)
+    |                       ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:106:18
+    |
+106 |                 &toml::to_string(&doc).map_err(|_| "Codex TOML 无效")?,
+    |                  ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+  --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:97:26
+   |
+97 |             let mut doc: toml::Value = draft.toml.text().parse().map_err(|_| "Codex TOML 无效")?;
+   |                          ^^^^ use of unresolved module or unlinked crate `toml`
+   |
+   = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:151:45
+    |
+151 |         let mut doc = d.toml.text().parse::<toml::Value>().map_err(|_| "Codex TOML 无效")?;
+    |                                             ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:126:15
+    |
+126 |     doc: &mut toml::Value,
+    |               ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `toml` in this scope
+   --> crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:127:41
+    |
+127 | ) -> Result<&mut toml::map::Map<String, toml::Value>, &'static str> {
+    |                                         ^^^^ use of unresolved module or unlinked crate `toml`
+    |
+    = help: if you wanted to use a crate named `toml`, use `cargo add toml` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `vw-desktop` (lib) due to 10 previous errors

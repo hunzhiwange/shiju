@@ -1,0 +1,15 @@
+{
+  "historical_full_clippy_exit": 0,
+  "historical_source_digest": "a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889",
+  "changed_paths": [
+    "crates/vw-agent/src/agent_apps/mcp/mod.rs",
+    "crates/vw-agent/src/agent_apps/mcp/security_tests.rs"
+  ],
+  "normalized_mcp_mod_matches_snapshot": true,
+  "added_module_cfg": "all(test, target_os = \"macos\")",
+  "production_dependency_or_source_changes": false,
+  "task41_delivered_hashes_still_match": true,
+  "new_security_tests_covered_by_round4": false,
+  "scope_conclusion": "Fourth-round actual pass remains applicable to this plan final production source and unchanged task15 crate. New MCP task51 test-only code is subsequent and must be independently validated by its owner, not claimed covered.",
+  "scope_check_exit_code": 0
+}

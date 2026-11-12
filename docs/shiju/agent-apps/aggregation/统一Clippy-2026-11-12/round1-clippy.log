@@ -1,0 +1,94 @@
+    Checking vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+    Checking vw-acp v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-agent-apps v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Checking vw-desktop v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-desktop)
+error[E0659]: `column` is ambiguous
+ --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:7:20
+  |
+7 |     let mut body = column![
+  |                    ^^^^^^ ambiguous name
+  |
+  = note: ambiguous because of a conflict between a name from a glob import and an outer scope during import or macro resolution
+note: `column` could refer to the macro imported here
+ --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:2:5
+  |
+2 | use super::*;
+  |     ^^^^^^^^
+  = help: consider adding an explicit import of `column` to disambiguate
+  = help: or use `self::column` to refer to this macro unambiguously
+note: `column` could also refer to a macro from prelude
+ --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/prelude/mod.rs:162:12
+
+error[E0659]: `column` is ambiguous
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:34:16
+   |
+34 |         return column![].into();
+   |                ^^^^^^ ambiguous name
+   |
+   = note: ambiguous because of a conflict between a name from a glob import and an outer scope during import or macro resolution
+note: `column` could refer to the macro imported here
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:2:5
+   |
+ 2 | use super::*;
+   |     ^^^^^^^^
+   = help: consider adding an explicit import of `column` to disambiguate
+   = help: or use `self::column` to refer to this macro unambiguously
+note: `column` could also refer to a macro from prelude
+  --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/prelude/mod.rs:162:12
+
+error[E0659]: `column` is ambiguous
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:39:9
+   |
+39 |         column![text("工具详情与使用范围").size(18), text(context.record.name.clone()).size(13)]
+   |         ^^^^^^ ambiguous name
+   |
+   = note: ambiguous because of a conflict between a name from a glob import and an outer scope during import or macro resolution
+note: `column` could refer to the macro imported here
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:2:5
+   |
+ 2 | use super::*;
+   |     ^^^^^^^^
+   = help: consider adding an explicit import of `column` to disambiguate
+   = help: or use `self::column` to refer to this macro unambiguously
+note: `column` could also refer to a macro from prelude
+  --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/prelude/mod.rs:162:12
+
+error[E0659]: `column` is ambiguous
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:46:20
+   |
+46 |     let mut body = column![
+   |                    ^^^^^^ ambiguous name
+   |
+   = note: ambiguous because of a conflict between a name from a glob import and an outer scope during import or macro resolution
+note: `column` could refer to the macro imported here
+  --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:2:5
+   |
+ 2 | use super::*;
+   |     ^^^^^^^^
+   = help: consider adding an explicit import of `column` to disambiguate
+   = help: or use `self::column` to refer to this macro unambiguously
+note: `column` could also refer to a macro from prelude
+  --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/prelude/mod.rs:162:12
+
+error[E0659]: `column` is ambiguous
+   --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:104:17
+    |
+104 |                 column![
+    |                 ^^^^^^ ambiguous name
+    |
+    = note: ambiguous because of a conflict between a name from a glob import and an outer scope during import or macro resolution
+note: `column` could refer to the macro imported here
+   --> crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:2:5
+    |
+  2 | use super::*;
+    |     ^^^^^^^^
+    = help: consider adding an explicit import of `column` to disambiguate
+    = help: or use `self::column` to refer to this macro unambiguously
+note: `column` could also refer to a macro from prelude
+   --> /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/std/src/prelude/mod.rs:162:12
+
+For more information about this error, try `rustc --explain E0659`.
+error: could not compile `vw-desktop` (lib) due to 5 previous errors

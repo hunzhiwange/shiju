@@ -1,0 +1,4 @@
+Historical full Clippy: exit 0, stable snapshot a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889
+Current production source/dependencies and task41 delivery still match this plan snapshot.
+Subsequent test-only paths: crates/vw-agent/src/agent_apps/mcp/mod.rs, crates/vw-agent/src/agent_apps/mcp/security_tests.rs
+Scope check: exit 0. New MCP51 test code is NOT covered by round4; each original task owns its applicability decision.

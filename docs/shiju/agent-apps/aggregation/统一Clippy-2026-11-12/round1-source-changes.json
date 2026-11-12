@@ -1,0 +1,17 @@
+[
+  "crates/vw-agent/src/agent_apps/mcp/network_probe/details.rs",
+  "crates/vw-agent/src/agent_apps/mcp/runtime.rs",
+  "crates/vw-agent/src/agent_apps/mcp/tool_details_tests.rs",
+  "crates/vw-agent/src/gateway/api/handlers/mcp_management_read.rs",
+  "crates/vw-agent/src/gateway/api/handlers/mcp_management_tools.rs",
+  "crates/vw-api-types/src/mcp_management.rs",
+  "crates/vw-desktop/src/app/components/agent_apps_diagnostics/mod.rs",
+  "crates/vw-desktop/src/app/components/app_providers/list.rs",
+  "crates/vw-desktop/src/app/components/system_settings.rs",
+  "crates/vw-desktop/src/app/components/system_settings_mcp.rs",
+  "crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs",
+  "crates/vw-desktop/src/app/message/agent_apps_diagnostics.rs",
+  "crates/vw-desktop/src/app/message/settings/mcp_management_tools.rs",
+  "crates/vw-desktop/src/app/message/settings/mcp_management_tools_tests.rs",
+  "crates/vw-gateway-client/src/client/mcp_management_probe.rs"
+]

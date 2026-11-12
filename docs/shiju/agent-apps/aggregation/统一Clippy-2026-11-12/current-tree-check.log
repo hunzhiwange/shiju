@@ -1,0 +1,5 @@
+Expected: a48d2d8bc172595a88c040746887bf0ebd5706a3879c69e0cd34f09a9500c889
+Current:  ffa72660d48ac2678d1c0e1eb9de00fc6d61bca6522a67902c179a630ec8f2a1
+Changed source paths: 2
+crates/vw-agent/src/agent_apps/mcp/mod.rs
+crates/vw-agent/src/agent_apps/mcp/security_tests.rs

@@ -1,0 +1,13 @@
+{
+  "task41_fix_delivered": true,
+  "source_hashes": {
+    "crates/vw-agent/src/gateway/api/handlers/app_providers/operations/aggregation.rs": "fdc88b422981b4af3d17bdbed4edd5d1818cabdb88933625a3df1de74223f53a",
+    "crates/vw-agent/src/gateway/api/handlers/aggregation_publish_tests.rs": "f2051e5d504d12349c87b69ea4bf25d10b15352eef2a2e0fc97334fb2e2c1349"
+  },
+  "focused_passed": 11,
+  "restart_permission_passed": 1,
+  "handoff": "task41-handoff.json",
+  "verified_utc": "2026-11-11T23:44:26Z",
+  "reason": "Original task41 green delivery verified byte-for-byte; final Clippy manifest must contain these same source hashes.",
+  "commit": "dcc7f3f0ac378e4773fc5fea1593abbdda3c5810"
+}

@@ -1,0 +1,50 @@
+{
+  "owner": {
+    "plan": "聚合目录与客户端特殊能力",
+    "task": "15 unified regression",
+    "session": "01a1c8cc-d1ed-7c92-850c-8ce691aad463",
+    "pid": 82352,
+    "nonce": "a3a528d2186f492c9ba1be489fd62296"
+  },
+  "settings": {
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "1",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_CODEGEN_UNITS": "256",
+    "CARGO_PROFILE_TEST_LTO": "off"
+  },
+  "platform": "Darwin arm64",
+  "stages": [
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "source_start": "fbbb808713a4febce2ac338007e4df7fe81a5025608a9412a1daf40b520ec4f1",
+      "head_start": "061fadd18ac63761cc948a844d8261a52278694e",
+      "started_utc": "2026-11-12T00:14:14Z",
+      "cargo_pid": 82377,
+      "exit_code": 101,
+      "elapsed_seconds": 255.51,
+      "source_end": "0b6c5689b5662be66f279bec177455e2d95627e58285479a89a2396c6e5cec63",
+      "head_end": "9ec2d5e59686b1e9b5f4020e2a804379ca87e803",
+      "source_unchanged": false
+    }
+  ],
+  "finished_utc": "2026-11-12T00:18:30Z",
+  "lease_cleanup": {
+    "verified": true,
+    "cache_retained": true,
+    "owner_nonce": "a3a528d2186f492c9ba1be489fd62296"
+  }
+}

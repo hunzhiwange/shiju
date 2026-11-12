@@ -1,0 +1,23 @@
+{
+  "cargo_pid": 74941,
+  "start_local": "Thu Nov 12 07:49:32 2026",
+  "start_epoch": 1794440972.0,
+  "source_files_changed_after_start": [
+    "crates/vw-agent/src/gateway/agent_apps_failover_timeouts_tests.rs",
+    "crates/vw-agent/src/model_relay/messages_request_core_tests.rs",
+    "crates/vw-agent/src/model_relay/messages_request_tests.rs",
+    "crates/vw-agent/src/model_relay/messages_tests.rs",
+    "crates/vw-agent/src/model_relay/messages_thinking.rs",
+    "crates/vw-agent/src/model_relay/messages_thinking_config.rs",
+    "crates/vw-agent/src/model_relay/messages_thinking_http_tests.rs",
+    "crates/vw-agent/src/model_relay/messages_thinking_tests.rs",
+    "crates/vw-agent/src/model_relay/mod.rs",
+    "crates/vw-agent/src/model_relay/transport.rs",
+    "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude.rs",
+    "crates/vw-agent/src/session/llm/acp/model_source/drivers/claude_tests.rs"
+  ],
+  "source_directories_changed_after_start": [
+    "crates/vw-agent/src/model_relay"
+  ],
+  "applicability_proven": false
+}

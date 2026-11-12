@@ -248,3 +248,6 @@ pub(crate) fn update(app: &mut App, event: McpDiagnosticMessage) -> Task<Message
     }
     Task::none()
 }
+
+pub(crate) mod model;
+pub(crate) mod model_state;

@@ -653,6 +653,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         #[cfg(not(target_arch = "wasm32"))]
         let provider_help = provider_help.with_usage(app);
         dialog = super::app_providers::list::overlay(&app.app_providers, provider_help, dialog);
+        if crate::app::message::agent_apps_diagnostics::model::can_show(app) {
+            dialog = super::agent_apps_diagnostics::model_panel::overlay(
+                &app.apps_catalog.model_diagnostics,
+                dialog,
+            );
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             dialog = super::apps_usage_settings::overlay(app, dialog);

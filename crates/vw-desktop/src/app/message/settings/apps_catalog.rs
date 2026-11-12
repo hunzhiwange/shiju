@@ -102,6 +102,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.loading = false;
             match result {
                 Ok(credentials) => {
+                    app.apps_catalog.model_diagnostics.invalidate_access();
                     app.apps_catalog.token = credentials.token;
                     app.apps_catalog.host = vw_shared::local_apps::HOST_ID.into();
                     return update(app, AppsCatalogMessage::Refresh);
@@ -121,6 +122,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.host = host;
             app.apps_catalog.drag = Default::default();
             app.apps_catalog.expanded = None;
@@ -140,6 +142,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.token = token;
             app.apps_catalog.drag = Default::default();
             app.apps_catalog.expanded = None;

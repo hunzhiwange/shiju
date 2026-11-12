@@ -1215,6 +1215,7 @@ impl App {
             }
             self.agent_apps_auth.focused_service = None;
         }
+        message::agent_apps_diagnostics::model::invalidate(self);
         #[cfg(not(target_arch = "wasm32"))]
         message::voice::invalidate(self);
         let cleanup = message::settings::mcp_management_probe::invalidate(self);

@@ -206,6 +206,15 @@ pub(crate) fn overlay<'a>(
                 )),
                 enabled,
             ));
+            if matches!(scope.app, AppId::Claude | AppId::Codex | AppId::Gemini) {
+                actions = actions.push(action(
+                    "模型诊断",
+                    ListMessage::ModelDiagnostics(
+                        crate::app::message::agent_apps_diagnostics::model::Event::Open(id.clone()),
+                    ),
+                    enabled,
+                ));
+            }
             if crate::app::state::app_providers::preview::available(scope.app) {
                 actions = actions.push(action(
                     "配置预览",

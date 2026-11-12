@@ -7,6 +7,7 @@ pub(crate) struct AppsCatalogState {
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
     pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
+    pub model_diagnostics: crate::app::message::agent_apps_diagnostics::model_state::ModelState,
     pub query: String,
     pub hovered: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
     pub expanded: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
@@ -37,6 +38,7 @@ impl AppsCatalogState {
         self.drag = Default::default();
         self.expanded = None;
         self.hovered = None;
+        self.model_diagnostics.invalidate_access();
         self.token.clear();
         self.lifecycle.invalidate();
         self.preferences.invalidate();

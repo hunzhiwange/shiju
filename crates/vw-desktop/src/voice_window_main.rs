@@ -236,9 +236,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let bootstrap = if live {
         let path = std::env::var_os("VOICE_ACCEPTANCE_GATEWAY_BOOTSTRAP").ok_or("live requires VOICE_ACCEPTANCE_GATEWAY_BOOTSTRAP pointing to an already configured ShiJu gateway bootstrap; no service request was sent")?;
         let bytes = std::fs::read(path)?;
-        serde_json::from_slice::<vw_config_types::ui::GatewayClientSystemSettingsConfig>(&bytes)
-            .map_err(|_| "invalid ShiJu gateway bootstrap; no service request was sent")?;
-        Some(bytes)
+        Some(
+            serde_json::from_slice::<vw_config_types::ui::GatewayClientSystemSettingsConfig>(
+                &bytes,
+            )
+            .map_err(|_| "invalid ShiJu gateway bootstrap; no service request was sent")?,
+        )
     } else {
         None
     };
@@ -257,9 +260,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", storage.path());
     }
     if let Some(bootstrap) = bootstrap {
-        let dir = app::project_dirs().ok_or("isolated directories unavailable")?;
-        std::fs::create_dir_all(dir.config_dir())?;
-        std::fs::write(dir.config_dir().join("gateway-client-bootstrap.json"), bootstrap)?;
+        app::config::update_gateway_client_config(|config| *config = bootstrap)?;
     } else {
         app::config::install_window_test_bootstrap(9);
     }

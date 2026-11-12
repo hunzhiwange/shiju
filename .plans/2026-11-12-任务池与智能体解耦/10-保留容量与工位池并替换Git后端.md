@@ -1,46 +1,43 @@
-# 任务 13: 清理失去调用者的任务worktree池
+# 任务 10: 保留容量与工位池并替换Git后端
 
-批次：【批次 13】 依赖批次 12；传递依赖批次 1–12
+批次：【批次 10】 依赖批次 9；传递依赖批次 1–9
 
 线性顺序：任务 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14；本任务不可与其他批次并行。
 
 状态：未开始
 
-目的：移除任务调度对常驻 worktree 池的剩余接口与容量维护，保留按需 Git 工具。
+目的：保留现有容量、工位池与维护/回收调用结构，把池槽位从 Git 目录改成现有智能体运行的逻辑投射。
 
-来源任务：无；来源为用户本轮确认的重构目标。
+来源任务：用户本轮明确要求保留容量与员工交互架构。
 
-预计会话范围：围绕“任务调度与员工展示不再预建/维护 worktree；旧池入口不再能被当作员工容量，按需工具正常工作且旧目录不被自动删除。”一个验收故事。只沿列出的真实调用链修改，必要相邻依赖先调查、记录再修复；不叠加无关重构。
+预计会话范围：只替换容量/工位池的底层资源语义与其 DTO/client/CLI 连线，验证容量不再创建 worktree，维持现有调用结构和可编译性。
 
 ## 文件
 
-- 修改或删除：`crates/vw-agent/src/task_worktree_pool/mod.rs`
-- 修改或删除：`crates/vw-agent/src/task_worktree_pool/tests.rs`
-- 修改或删除：`crates/vw-agent/src/agent_scheduler/resources/worktree.rs`
+- 修改：`crates/vw-agent/src/task_worktree_pool/mod.rs`
+- 测试：`crates/vw-agent/src/task_worktree_pool/tests.rs`
+- 修改：`crates/vw-agent/src/agent_scheduler/resources/worktree.rs`
 - 修改：`crates/vw-agent/src/agent_scheduler/resources/mod.rs`
-- 修改或删除：`crates/vw-agent/src/gateway/api/handlers/task_pool.rs`
-- 修改：`crates/vw-agent/src/gateway/api/handlers/mod.rs`
-- 修改：`crates/vw-agent/src/lib.rs`
+- 修改：`crates/vw-agent/src/gateway/api/handlers/task_pool.rs`
+- 测试：`crates/vw-agent/src/gateway/api/handlers/task_pool_tests.rs`
 - 修改：`crates/vw-gateway-client/src/client/task_pool_api.rs`
+- 测试：`crates/vw-gateway-client/src/client/task_pool_api_tests.rs`
 - 修改：`crates/vw-api-types/src/task.rs`
 - 修改：`crates/vw-cli/src/handlers/api/task_pool.rs`
-- 修改：`crates/vw-cli/src/handlers/api/mod.rs`
+- 测试：`crates/vw-cli/src/handlers/api/task_pool_tests.rs`
 - 修改：`crates/vw-desktop/src/app/message/task_board/helpers/execution.rs`
 - 修改：`crates/vw-desktop/src/app/message/task_board/message.rs`
 - 修改：`crates/vw-desktop/src/app/state/app_state/fields_navigation.rs`
-- 新建测试：`crates/vw-agent/src/agent_scheduler/pool_cleanup_tests.rs`
-- 修改：`crates/vw-agent/src/agent_scheduler/mod.rs`
-- 测试：`crates/vw-gateway-client/src/client/project_api_tests.rs`
-- 测试：`crates/vw-cli/src/handlers/api/project_tests.rs`
-- 测试：`crates/vw-cli/src/handlers/api/tests.rs`
 
 ## 上下文
 
-前序任务已迁出执行、Git 锁与员工 UI 调用者。maintain 当前 target_idle 至少 1，acquire 还会预热，CLI/API 暴露池维护。必须先做 callers/impact，再按真实调用关系删代码。
+保留现有容量配置、工位池、预热/回收机制、员工交互、列表/像素办公室切换、展开收起、状态统计、确认与操作日志。员工与工位是现有智能体及运行的投射，只替换 worktree 绑定；不得借解耦删除这些产品架构、重置容量值或把容量限制成智能体定义数量。
+
+现有 TaskWorktreePoolService、maintain/acquire/release/recycle/snapshot 与 DTO/client/CLI 已形成完整调用链。保留这条产品调用架构，只把 Git 资源替换为逻辑工位/运行上下文；不得以无调用者为由先删掉 UI 再删除池。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
-先读根目录 AGENTS.md 与 ./skills/rustcodegraph/SKILL.md，核对当前索引及调用者。现有未提交变更由其他会话持有，不覆盖、不回退、不混入本任务提交。plan.md 只读；关键决定与阻塞证据仅写本文件。
+先读根目录 AGENTS.md 与 ./skills/rustcodegraph/SKILL.md；核对当前调用者、相邻测试与未提交变更。plan.md 供实施会话只读，阻塞与决定只记录本文件。
 
 ## Cargo 共享槽位规则
 
@@ -59,31 +56,31 @@
 
 ## 测试计划
 
-- 行为：任务调度与员工展示不再预建/维护 worktree；旧池入口不再能被当作员工容量，按需工具正常工作且旧目录不被自动删除。
-- 新增测试：`task_pool_cleanup_scheduler_never_calls_pool_routes`。
-- 新增测试：`task_pool_cleanup_retired_maintenance_is_not_registered`。
-- 新增测试：`task_pool_cleanup_explicit_worktree_tool_still_operates`。
-- 上述测试名为本任务明确要求新增的测试，不是已存在测试；分别落在“文件”列出的对应独立测试文件，并核对模块注册。
-- 失败验证命令与通过验证命令相同，先新增测试再运行：
+- 行为：现有容量配置及维护/分配/释放/回收/快照功能正常，零 worktree 也能运行；容量调整不会创建磁盘副本或修改智能体定义。
+- 新增测试：`task_pool_capacity_maintain_preserves_target_without_creating_git_directories`。
+- 新增测试：`task_pool_capacity_slots_reuse_existing_agents_and_independent_runs`。
+- 新增测试：`task_pool_capacity_recycle_preserves_files_and_other_active_runs`。
+- 新增测试：`task_pool_capacity_api_client_and_cli_keep_management_operations`。
+- 测试名称为本任务要新增的行为测试，分别放入上列池、路由、客户端与 CLI 独立测试文件，并保留其模块注册。
+- 失败验证命令与通过验证命令相同，先写测试再运行：
 
-- `cargo test -p vw-agent --lib task_pool_cleanup_ -- --nocapture`
-- `cargo test -p vw-gateway-client --lib task_pool_cleanup_ -- --nocapture`
-- `cargo test -p vw-cli --lib task_pool_cleanup_ -- --nocapture`
+- `cargo test -p vw-agent --lib task_pool_capacity_ -- --nocapture`
+- `cargo test -p vw-gateway-client --lib task_pool_capacity_ -- --nocapture`
+- `cargo test -p vw-cli --lib task_pool_capacity_ -- --nocapture`
 
-- 预期失败原因：旧 maintain 路由、CLI 命令与桌面容量字段仍保留常驻池业务语义。
-- 具体测试归属：scheduler_never_calls_pool_routes 与 explicit_worktree_tool_still_operates 放入新建 pool_cleanup_tests.rs 并在 agent_scheduler/mod.rs 注册；retired_maintenance_is_not_registered 在 CLI api/tests.rs 验证参数解析拒绝，在 client/project_api_tests.rs 增加同前缀的普通 worktree 管理请求回归。退役模块移除时一并移除其旧测试注册，不能把新测试放进将被删除的测试模块。
-- 聚焦测试 features：使用各 crate 默认 features；vw-agent 默认包含 rag-pdf/firecrawl/web-fetch-html2md/web-fetch-plaintext/shell-ast/channel-lark；vw-desktop 默认空。vw-cli 默认 agent-defaults/memory-postgres/memory-mariadb/channel-lark；vw-gateway-client 无 features 表。禁止为避开本次错误临时关闭默认 features。
-- 模拟策略：真实目录、Git 和 SQLite；仅替换 LLM/ACP 协议对端与外部消息网络。使用现有 global_async_env_lock 等夹具隔离全局状态，不调用真实外部收件人或生产服务。
-- 测试命令必须实际命中新增测试；各 crate 分别至少一个非 ignored 测试，合计至少 3 个有效测试。零测试、仅编译或仅 JSON 形状比较不能视为本行为验收成功。
+- 预期失败原因：现有 maintain/acquire 依赖真实 Git 仓库并创建 worktree，容量与目录复制绑定，非 Git 无法提供池管理。
+- features：各 crate 默认 features；vw-agent 默认 rag-pdf/firecrawl/web-fetch-html2md/web-fetch-plaintext/shell-ast/channel-lark，vw-cli 默认 agent-defaults/memory-postgres/memory-mariadb/channel-lark，vw-gateway-client 无 features 表。全仓 clippy 使用 all-features。
+- 模拟策略：真实临时目录、现有持久化和本地 HTTP 夹具，只模拟模型/外部网络；用无 .git 的目录证明池管理不依赖 Git。
+- 所需测试数量：每个 crate 至少一个有效非 ignored 测试，合计至少 4 个；零测试和仅编译不算通过。
 
 ## 步骤
 
-1. 重新检查所有池服务、DTO、客户端与 CLI 的实际调用者，确认任务 6/7 的工具和目标锁已不依赖池。
-2. 先新增黑盒路由/CLI 测试，验证任务启动不访问池、退役维护入口不可达，以及 EnterWorktree 仍然创建真实资源。
-3. 删除无人使用的预热、池容量、槽位员工模型和旧路由注册；同步 DTO/client/CLI 与桌面消息/状态字段。确有独立普通 Git 调用者的能力留在现有 Git 子系统，禁止保留任务池兼容旁路。
-4. 若原有池专属测试文件随服务删除，删除前把仍适用的真实工作树安全行为迁入现有 enter/exit_worktree 测试；新增验收放入本任务定义的 pool_cleanup_tests.rs，并在 agent_scheduler/mod.rs 注册，客户端/CLI 测试放入仍保留的 project_api_tests.rs、project_tests.rs 和 api/tests.rs。
-5. 不自动执行 prune/reset/clean、不删除磁盘已有池目录；在最终文档列出现有显式清理入口与保留产物检查方法。
-6. 清除只服务于本次退役链的死代码与注释；对普通聊天、Git 面板、项目 worktree 管理保持聚焦回归。
+1. 先记录现有容量数值、上下限、目标空闲量/并发量关系、分配与回收规则及管理 API/CLI 调用基线，再新增上述失败测试。
+2. 沿现有服务结构实现逻辑工位容量和所有权：槽位绑定现有智能体及 run/session；同一定义可服务多个工位，槽位不等于员工账号或 Git 目录。不新增一套容量配置或员工注册表。
+3. maintain/预热按原容量规则准备逻辑槽位，snapshot 返回原状态分区与统计，acquire/release/recycle 操作实际运行上下文；完整保留调用入口、管理操作、确认反馈与日志，不整体删除池服务或相关 DTO/client/CLI。
+4. Git 分支/路径只在显式绑定真实 worktree 时携带；逻辑工位操作不调用 Git、不创建目录副本。若内部类型含 worktree 命名，仅在真实必要范围调整类型与连线，不能借重命名重做整个架构。
+5. 逻辑回收与重置遵守运行归属和任务 4/5 的退出顺序，不能抢占其他活跃运行；减少容量沿原有忙碌工位保护规则处理。工位清理/删除只处理逻辑上下文，真实 Git 合并/目录删除经显式任务或工作流及既有确认执行。
+6. 只清除被替换后确无调用者的 Git 自动预建/自动清理实现；保留工位池与用户配置值，不自动 prune/reset/clean、不删除既有磁盘目录。运行 API/client/CLI 聚焦测试及 clippy，记录容量和文件系统前后证据。
 
 ## 验证
 
@@ -93,7 +90,7 @@
 4. 运行 `cargo clippy --all-targets --all-features -- -D warnings`，记录退出码；修复本任务引入的问题，无关既有失败仅记录具体文件与错误。
 5. 审查本任务差异、安全边界、调用者注册及资源释放，确认没有真实对外消息、发布或自动删除用户目录。
 
-涉及多个 crate 的修改是同一退役调用链，不能拆成单独提交后留下无法编译的客户端。不要顺手删除通用 outbox、资源租约或非任务池工作树能力。
+涉及多个 crate 的修改属于同一工位池数据链，保持端到端可编译。保留容量及工位的现有设置与交互，不删除通用 outbox、资源租约或按需 worktree 能力。
 
 预期：聚焦行为测试有效通过，无本次引入的编译错误或警告；全仓检查如被无关改动阻断，必须提供阻断证据并保留待回归状态。
 

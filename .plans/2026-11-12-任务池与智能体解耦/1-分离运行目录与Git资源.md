@@ -26,6 +26,8 @@
 
 ## 上下文
 
+保留现有容量配置、工位池、预热/回收机制、员工交互、列表/像素办公室切换、展开收起、状态统计、确认与操作日志。员工与工位是现有智能体及运行的投射，只替换 worktree 绑定；不得借解耦删除这些产品架构、重置容量值或把容量限制成智能体定义数量。
+
 LocalAgentWorkspace、lease_gateway_local_agent_workspace_for_project 和 workspace_context_from_value 当前强制槽位及分支。默认 lease 改为目录上下文，真正 worktree 保持可选资源；不创建新员工模型。StoredAgentRun 没有 metadata 字段，运行目录使用现有按 run_id 关联的任务产物存储。
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。

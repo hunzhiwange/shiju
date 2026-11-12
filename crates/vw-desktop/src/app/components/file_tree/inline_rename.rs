@@ -3,7 +3,7 @@ use iced::widget::{container, text_input};
 use iced::{Background, Color, Element, Length, Theme};
 
 use super::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
-use super::row_layout;
+use super::{row_layout, tree_gutter};
 use crate::app::components::system_settings_common::{
     settings_text_input, settings_text_input_style,
 };
@@ -52,7 +52,10 @@ pub(super) fn view(
             .on_submit(Message::Project(ProjectMessage::FileTreeRenameSave))
             .width(Length::Fill),
     );
-    container(content).padding(row_layout::ROW_PADDING).width(Length::Fill).into()
+    tree_gutter::view(
+        depth,
+        container(content).padding(row_layout::ROW_PADDING).width(Length::Fill).into(),
+    )
 }
 
 #[cfg(test)]

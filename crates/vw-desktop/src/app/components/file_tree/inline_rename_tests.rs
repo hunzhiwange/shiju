@@ -153,3 +153,43 @@ async fn inline_editor_keeps_original_tree_height() {
         );
     }
 }
+
+#[tokio::test]
+async fn tree_gutter_remains_continuous_through_inline_rename() {
+    use crate::app::components::file_tree::tree_list::{build_changes_list, build_file_tree_list};
+    use crate::app::components::file_tree::tree_list_tests::{RowScene, alignment_app};
+    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    for theme in [Theme::Light, Theme::Dark] {
+        for changes in [false, true] {
+            for (path, name) in [("sp7/.shiju", ".shiju"), ("sp7/.shiju/配置.json", "配置.json")]
+            {
+                let mut app = alignment_app();
+                app.file_tree_rename_path = Some(format!("/tree-fixture/{path}"));
+                app.file_tree_rename_value = name.into();
+                let build = if changes { build_changes_list } else { build_file_tree_list };
+                let scene = RowScene::new(build(&app), &mut renderer, &theme);
+                let input = scene.inputs[0];
+                let lines = scene
+                    .quads
+                    .iter()
+                    .filter(|(quad, _)| {
+                        quad.bounds.width == 1.0
+                            && quad.bounds.y <= input.y
+                            && (quad.bounds.y + quad.bounds.height) >= (input.y + input.height)
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(lines.len(), path.matches('/').count());
+                for (quad, _) in lines {
+                    assert!(quad.bounds.y < input.y);
+                    assert!((quad.bounds.y + quad.bounds.height) > (input.y + input.height));
+                    if name == ".shiju" {
+                        assert!(scene.quads.iter().any(|(next, _)| next.bounds.width == 1.0
+                            && next.bounds.x == quad.bounds.x
+                            && (next.bounds.y - (quad.bounds.y + quad.bounds.height)).abs()
+                                < 0.01));
+                    }
+                }
+            }
+        }
+    }
+}

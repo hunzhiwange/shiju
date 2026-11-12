@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use iced::widget::{button, column, container, text};
 use iced::{Background, Color, Element, Length, Theme};
 
-use super::row_layout;
+use super::{row_layout, tree_gutter};
 use crate::app::components::file_tree::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
 use crate::app::components::file_tree::menu::file_tree_menu_overlay;
 use crate::app::components::file_tree::model::FileTreeNode;
@@ -288,7 +288,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             // 包装为支持右键菜单和拖拽的区域
             let right_click = Element::new(
                 RightClickArea::new(
-                    header_btn.into(),
+                    tree_gutter::view(depth, header_btn.into()),
                     Box::new(move |pos| {
                         Message::Project(ProjectMessage::FileTreeRightClicked(
                             abs_path_for_click.clone(),
@@ -370,7 +370,7 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
             // 包装为支持右键菜单和拖拽的区域
             let right_click = Element::new(
                 RightClickArea::new(
-                    btn.into(),
+                    tree_gutter::view(depth, btn.into()),
                     Box::new(move |pos| {
                         Message::Project(ProjectMessage::FileTreeRightClicked(
                             abs_for_right_click.clone(),
@@ -549,7 +549,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             // 包装为支持右键菜单和拖拽的区域
             let right_click = Element::new(
                 RightClickArea::new(
-                    header_btn.into(),
+                    tree_gutter::view(depth, header_btn.into()),
                     Box::new(move |pos| {
                         Message::Project(ProjectMessage::FileTreeRightClicked(
                             abs_path_for_click.clone(),
@@ -620,7 +620,7 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             // 包装为支持右键菜单和拖拽的区域
             let right_click = Element::new(
                 RightClickArea::new(
-                    btn.into(),
+                    tree_gutter::view(depth, btn.into()),
                     Box::new(move |pos| {
                         Message::Project(ProjectMessage::FileTreeRightClicked(
                             abs_for_click.clone(),

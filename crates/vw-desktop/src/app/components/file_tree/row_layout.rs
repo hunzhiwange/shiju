@@ -6,7 +6,7 @@ use crate::app::Message;
 use crate::app::assets::Icon;
 
 pub(super) const ROW_PADDING: [u16; 2] = [2, 5];
-const INDENT: f32 = 20.0;
+pub(super) const INDENT: f32 = 20.0;
 const ICON_SLOT: f32 = 16.0;
 const NAME_GAP: f32 = 4.0;
 

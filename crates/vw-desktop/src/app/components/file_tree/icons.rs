@@ -16,6 +16,8 @@ use iced::{Length, Theme};
 
 use crate::app::assets::{self, Icon};
 
+pub(super) const ICON_SIZE: f32 = 14.0;
+
 /// 创建静态 SVG 图标
 ///
 /// 生成一个固定尺寸（14x14 像素）的 SVG 图标，不随主题变化。
@@ -39,7 +41,9 @@ use crate::app::assets::{self, Icon};
 /// // 在 UI 中使用该图标
 /// ```
 pub fn static_icon_svg(icon: Icon) -> Svg<'static> {
-    Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0))
+    Svg::new(assets::get_icon(icon))
+        .width(Length::Fixed(ICON_SIZE))
+        .height(Length::Fixed(ICON_SIZE))
 }
 
 /// 创建主题感知的 SVG 图标
@@ -65,9 +69,12 @@ pub fn static_icon_svg(icon: Icon) -> Svg<'static> {
 /// // 在 UI 中使用该图标，颜色会随主题自动调整
 /// ```
 pub fn themed_icon_svg(icon: Icon) -> Svg<'static> {
-    Svg::new(assets::get_icon(icon)).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
-        |theme: &Theme, _status| iced::widget::svg::Style { color: Some(theme.palette().text) },
-    )
+    Svg::new(assets::get_icon(icon))
+        .width(Length::Fixed(ICON_SIZE))
+        .height(Length::Fixed(ICON_SIZE))
+        .style(|theme: &Theme, _status| iced::widget::svg::Style {
+            color: Some(theme.palette().text),
+        })
 }
 
 /// 根据文件名返回对应的图标类型

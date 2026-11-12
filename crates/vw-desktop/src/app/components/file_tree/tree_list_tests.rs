@@ -339,6 +339,7 @@ fn file_tree_drop_chat_sources_and_busy_operations_do_not_enable_move_state() {
 }
 
 pub(super) struct RowScene<'a> {
+    pub(super) quads: Vec<(iced::advanced::renderer::Quad, Background)>,
     pub(super) ui:
         iced_runtime::user_interface::UserInterface<'a, crate::app::Message, Theme, iced::Renderer>,
     pub(super) labels: Vec<(String, iced::Rectangle)>,
@@ -404,6 +405,7 @@ impl<'a> RowScene<'a> {
         let iced::Renderer::Secondary(software) = renderer else {
             panic!("expected tiny-skia renderer")
         };
+        let quads = software.layers().iter().flat_map(|layer| layer.quads.clone()).collect();
         let icons = software
             .layers()
             .iter()
@@ -422,7 +424,7 @@ impl<'a> RowScene<'a> {
             renderer.screenshot(iced::Size::new(640, 700), 1.0, theme.palette().background);
         assert_eq!(pixels.len(), 640 * 700 * 4);
         assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
-        Self { ui, labels: bounds.labels, inputs: bounds.inputs, icons }
+        Self { ui, labels: bounds.labels, inputs: bounds.inputs, icons, quads }
     }
 
     pub(super) fn label(&self, name: &str) -> iced::Rectangle {
@@ -578,5 +580,33 @@ async fn tree_rows_preserve_selection_open_and_toggle_messages() {
             );
             assert!(app.is_file_tree_dir_expanded(key));
         }
+    }
+}
+
+#[tokio::test]
+async fn tree_gutter_tracks_expansion_in_both_lists() {
+    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    for changes in [false, true] {
+        let mut app = alignment_app();
+        let build = if changes { build_changes_list } else { build_file_tree_list };
+        let scene = RowScene::new(build(&app), &mut renderer, &Theme::Dark);
+        let child = scene.label("原始视频.mov");
+        let parent = scene.icon("sp6").1;
+        assert!(
+            scene.quads.iter().any(|(quad, _)| quad.bounds.width == 1.0
+                && (quad.bounds.center_x() - parent.center_x()).abs() < 0.01
+                && quad.bounds.y <= child.y
+                && quad.bounds.y + quad.bounds.height >= child.y + child.height),
+            "expanded sp6 must guide its visible child"
+        );
+        drop(scene);
+        app.file_tree_expanded_set.remove(if changes { "chg:sp6" } else { "sp6" });
+        let scene = RowScene::new(build(&app), &mut renderer, &Theme::Dark);
+        assert!(!scene.labels.iter().any(|(name, _)| name == "原始视频.mov"));
+        let parent = scene.label("sp6");
+        let next = scene.label("sp7");
+        assert!(!scene.quads.iter().any(|(quad, _)| quad.bounds.width == 1.0
+            && quad.bounds.y >= parent.y
+            && quad.bounds.y < next.y));
     }
 }

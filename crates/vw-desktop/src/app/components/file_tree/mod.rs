@@ -46,6 +46,7 @@ pub(crate) mod model;
 mod native_drop;
 mod row_layout;
 pub(crate) mod selection;
+mod tree_gutter;
 mod tree_list;
 mod widgets;
 
@@ -71,6 +72,9 @@ mod mod_tests;
 #[cfg(test)]
 #[path = "model_tests.rs"]
 mod model_tests;
+#[cfg(test)]
+#[path = "tree_gutter_tests.rs"]
+mod tree_gutter_tests;
 #[cfg(test)]
 #[path = "tree_list_tests.rs"]
 mod tree_list_tests;

@@ -1,7 +1,7 @@
 //! Archived metadata browsing events.
 
 use super::SettingsMessage;
-use crate::app::state::{ArchivedChatsMenu, ArchivedChatsSort, ArchivedChatsState};
+use crate::app::state::{ArchivedChatsSort, ArchivedChatsState};
 use crate::app::{App, Message};
 use iced::Task;
 
@@ -43,9 +43,6 @@ pub enum ArchivedChatsMessage {
     SearchChanged(String),
     ProjectSelected(Option<String>),
     SortSelected(ArchivedChatsSort),
-    MenuClosed,
-    TypeMenuToggled,
-    ProjectMenuToggled,
     Restore(String),
     Restored {
         identity: Identity,
@@ -92,7 +89,6 @@ pub(crate) fn apply(
                 });
                 state.delete_confirmation =
                     Some(crate::app::state::ArchivedChatsDeleteConfirmation::Chat(id));
-                state.menu = None;
             }
         }
         ArchivedChatsMessage::DeleteCancelled => {
@@ -191,7 +187,6 @@ pub(crate) fn apply(
             state.loading = true;
             state.project_action_menu = None;
             state.error = None;
-            state.menu = None;
         }
         ArchivedChatsMessage::Loaded { identity, generation, result } => {
             if &identity != current || generation != state.request_generation || !state.loading {
@@ -222,23 +217,9 @@ pub(crate) fn apply(
         ArchivedChatsMessage::ProjectSelected(project) => {
             state.selected_project_id = project;
             state.project_action_menu = None;
-            state.menu = None;
         }
         ArchivedChatsMessage::SortSelected(sort) => {
             state.sort = sort;
-            state.menu = None;
-        }
-        ArchivedChatsMessage::MenuClosed => {
-            state.menu = None;
-            state.project_action_menu = None;
-        }
-        ArchivedChatsMessage::TypeMenuToggled => {
-            state.menu =
-                (state.menu != Some(ArchivedChatsMenu::Type)).then_some(ArchivedChatsMenu::Type);
-        }
-        ArchivedChatsMessage::ProjectMenuToggled => {
-            state.menu = (state.menu != Some(ArchivedChatsMenu::Project))
-                .then_some(ArchivedChatsMenu::Project);
         }
     }
 }

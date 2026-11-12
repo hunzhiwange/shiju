@@ -94,7 +94,6 @@ pub(super) fn apply(
             });
             state.delete_confirmation = Some(ArchivedChatsDeleteConfirmation::Project(id.clone()));
             state.project_action_menu = None;
-            state.menu = None;
         }
         ArchivedChatsMessage::ProjectDeleteRetry => {
             if state.loading

@@ -17,7 +17,7 @@ mod rendering {
         SettingsMessage,
         archived_chats::{ArchivedChatsMessage, Identity, apply},
     };
-    use crate::app::state::{ArchivedChatsMenu, ArchivedChatsSort, ArchivedChatsState};
+    use crate::app::state::{ArchivedChatsSort, ArchivedChatsState};
     use iced::advanced::{
         clipboard,
         renderer::{Headless, Style},
@@ -33,6 +33,7 @@ mod rendering {
         inputs: Vec<Rectangle>,
         scrolls: Vec<Rectangle>,
         focus: Vec<bool>,
+        controls: Vec<Rectangle>,
     }
 
     impl Operation for Geometry {
@@ -45,10 +46,13 @@ mod rendering {
         fn focusable(
             &mut self,
             _: Option<&iced::advanced::widget::Id>,
-            _: Rectangle,
+            bounds: Rectangle,
             focus: &mut dyn iced::advanced::widget::operation::focusable::Focusable,
         ) {
             self.focus.push(focus.is_focused());
+            if !self.inputs.contains(&bounds) {
+                self.controls.push(bounds);
+            }
         }
         fn text_input(
             &mut self,
@@ -209,12 +213,9 @@ mod rendering {
         ] {
             for (theme_name, theme) in [("dark", Theme::Dark), ("light", Theme::Light)] {
                 for width in [320_u32, 860] {
-                    for (name, menu) in [
-                        ("list", None),
-                        ("type", Some(ArchivedChatsMenu::Type)),
-                        ("project", Some(ArchivedChatsMenu::Project)),
-                    ] {
-                        state.menu = menu;
+                    for (name, trigger) in
+                        [("list", None), ("sort", Some("更新时间")), ("project", Some("所有项目"))]
+                    {
                         let size = Size::new(width, 620);
                         let mut ui = UserInterface::build(
                             page(&state, locale),
@@ -231,6 +232,12 @@ mod rendering {
                             &mut clipboard::Null,
                             &mut Vec::new(),
                         );
+                        if let Some(trigger) = trigger {
+                            let mut geometry = Geometry::default();
+                            ui.operate(&mut renderer, &mut geometry);
+                            let bounds = geometry.controls[usize::from(trigger == "所有项目")];
+                            assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
+                        }
                         ui.draw(
                             &mut renderer,
                             &theme,
@@ -240,10 +247,12 @@ mod rendering {
                         let mut geometry = Geometry::default();
                         ui.operate(&mut renderer, &mut geometry);
                         assert_eq!(geometry.inputs.len(), 1);
-                        assert_eq!(
-                            geometry.scrolls.len(),
-                            if menu == Some(ArchivedChatsMenu::Project) { 2 } else { 1 }
-                        );
+                        assert!(!geometry.labels.iter().any(|(label, _)| {
+                            ["类型", "本地", "云端", "全部聊天"]
+                                .iter()
+                                .any(|source| label == I18n::new(locale).__(source))
+                        }));
+                        assert_eq!(geometry.scrolls.len(), if trigger.is_some() { 2 } else { 1 });
                         assert!(geometry.inputs[0].width > 100.0);
                         assert!(
                             geometry.scrolls[0].y < 200.0,
@@ -275,7 +284,6 @@ mod rendering {
         let locale = DesktopLocale::SimplifiedChinese;
         let current =
             Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));
-        state.menu = None;
         let mut ui = UserInterface::build(
             page(&state, locale),
             Size::new(860.0, 620.0),
@@ -291,43 +299,28 @@ mod rendering {
         );
         let mut geometry = Geometry::default();
         ui.operate(&mut renderer, &mut geometry);
-        let bounds = geometry.labels.iter().find(|(label, _)| label == "全部聊天").unwrap().1;
-        let messages = click(&mut ui, &mut renderer, bounds.center());
-        drop(ui);
-        assert!(messages.iter().any(|message| matches!(
-            message,
-            Message::Settings(SettingsMessage::ArchivedChats(
-                ArchivedChatsMessage::TypeMenuToggled
-            ))
-        )));
-        for message in messages {
-            if let Message::Settings(SettingsMessage::ArchivedChats(message)) = message {
-                apply(&mut state, message, &current);
-            }
+        let bounds = geometry.controls[0];
+        assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
+        let mut messages = Vec::new();
+        for named in [iced::keyboard::key::Named::End, iced::keyboard::key::Named::Enter] {
+            ui.update(
+                &[Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: iced::keyboard::Key::Named(named),
+                    modified_key: iced::keyboard::Key::Named(named),
+                    physical_key: iced::keyboard::key::Physical::Unidentified(
+                        iced::keyboard::key::NativeCode::Unidentified,
+                    ),
+                    location: iced::keyboard::Location::Standard,
+                    modifiers: iced::keyboard::Modifiers::empty(),
+                    text: None,
+                    repeat: false,
+                })],
+                mouse::Cursor::Unavailable,
+                &mut renderer,
+                &mut clipboard::Null,
+                &mut messages,
+            );
         }
-        assert_eq!(state.menu, Some(ArchivedChatsMenu::Type));
-        let mut ui = UserInterface::build(
-            page(&state, locale),
-            Size::new(860.0, 620.0),
-            Cache::new(),
-            &mut renderer,
-        );
-        ui.update(
-            &[Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now()))],
-            mouse::Cursor::Unavailable,
-            &mut renderer,
-            &mut clipboard::Null,
-            &mut Vec::new(),
-        );
-        let mut geometry = Geometry::default();
-        ui.operate(&mut renderer, &mut geometry);
-        let bounds = geometry
-            .labels
-            .iter()
-            .find(|(label, _)| label == "按字母顺序")
-            .expect("sort overlay")
-            .1;
-        let messages = click(&mut ui, &mut renderer, bounds.center());
         drop(ui);
         assert!(messages.iter().any(|message| matches!(
             message,
@@ -341,7 +334,6 @@ mod rendering {
             }
         }
         assert_eq!(state.sort, ArchivedChatsSort::Title);
-        assert!(state.menu.is_none());
 
         for (name, state, expected) in [
             (

@@ -1,6 +1,5 @@
 //! Native archived metadata queries, independent of UI snapshot archive IDs.
-//! Info has no local/cloud source field: the view must support only all chats
-//! and disable source choices instead of guessing from gateway addresses.
+//! Info has no local/cloud source field; browsing does not offer source filtering.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -39,7 +38,6 @@ pub(crate) struct ArchivedChatsState {
     pub(crate) delete_generation: Option<u64>,
     pub(crate) delete_confirmation: Option<ArchivedChatsDeleteConfirmation>,
     pub(crate) identity: Option<ArchivedChatsIdentity>,
-    pub(crate) menu: Option<ArchivedChatsMenu>,
 }
 
 #[derive(Debug, Clone)]
@@ -58,12 +56,6 @@ pub(crate) struct ArchivedProjectDelete {
 pub(crate) struct ArchivedChatDeleteTarget {
     pub(crate) identity: ArchivedChatsIdentity,
     pub(crate) row: Info,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ArchivedChatsMenu {
-    Type,
-    Project,
 }
 
 #[derive(Clone, PartialEq, Eq)]

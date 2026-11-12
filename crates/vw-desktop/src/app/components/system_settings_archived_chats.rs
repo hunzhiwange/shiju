@@ -1,15 +1,15 @@
-//! Current gateway archived metadata, with one list scroll and anchored menus.
+//! Current gateway archived metadata, with shared selects and one list scroll.
 
 use crate::app::assets::Icon;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
     danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_divider,
     settings_error_banner, settings_modal_card_style, settings_muted_text_style,
-    settings_panel_style, settings_text_input,
+    settings_panel_style, settings_select, settings_text_input,
 };
 use crate::app::i18n::{I18n, settings_extensions};
 use crate::app::message::settings::{SettingsMessage, archived_chats::ArchivedChatsMessage};
-use crate::app::state::{ArchivedChatsMenu, ArchivedChatsSort, ArchivedChatsState};
+use crate::app::state::{ArchivedChatsSort, ArchivedChatsState};
 use crate::app::{App, Message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text, tooltip};
@@ -40,127 +40,47 @@ fn optional_action(label: &str, message: Option<ArchivedChatsMessage>) -> Elemen
         .into()
 }
 
-fn choice<'a>(
-    label: impl Into<String>,
-    selected: bool,
-    message: Option<ArchivedChatsMessage>,
-) -> Element<'a, Message> {
-    let mut content = row![text(label.into()).size(13).wrapping(text::Wrapping::None)]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .push(Space::new().width(Length::Fill));
-    if selected {
-        content = content.push(icon(Icon::CheckSquare, 14.0));
-    }
-    button(content)
-        .width(Length::Fill)
-        .padding([8, 10])
-        .style(rounded_action_btn_style)
-        .on_press_maybe(message.map(event))
-        .into()
+#[derive(Clone, PartialEq)]
+struct FilterOption<T> {
+    value: T,
+    label: String,
 }
 
-fn type_menu(state: &ArchivedChatsState, i18n: I18n) -> Element<'_, Message> {
-    let mut choices = column![
-        text(i18n.__("类型")).size(12).style(settings_muted_text_style),
-        choice(i18n.__("全部聊天"), true, Some(ArchivedChatsMessage::MenuClosed)),
-        choice(i18n.__("本地"), false, None),
-        choice(i18n.__("云端"), false, None),
-        text(i18n.__("当前服务没有来源分类，暂不支持本地或云端筛选。"))
-            .size(12)
-            .style(settings_muted_text_style),
-        settings_divider(),
-        text(i18n.__("排序方式")).size(12).style(settings_muted_text_style),
-    ]
-    .spacing(4);
-    for (sort, label) in [
-        (ArchivedChatsSort::Updated, "更新时间"),
-        (ArchivedChatsSort::Created, "创建时间"),
-        (ArchivedChatsSort::Title, "按字母顺序"),
-    ] {
-        choices = choices.push(choice(
-            i18n.__(label),
-            state.sort == sort,
-            Some(ArchivedChatsMessage::SortSelected(sort)),
-        ));
+impl<T> std::fmt::Display for FilterOption<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
     }
-    container(choices).padding(12).width(240).style(settings_modal_card_style).into()
-}
-
-fn project_menu(state: &ArchivedChatsState, i18n: I18n) -> Element<'_, Message> {
-    let mut choices = column![choice(
-        i18n.__("所有项目"),
-        state.selected_project_id.is_none(),
-        Some(ArchivedChatsMessage::ProjectSelected(None)),
-    )]
-    .spacing(4);
-    for project in state.project_options() {
-        choices = choices.push(choice(
-            project.name,
-            state.selected_project_id.as_deref() == Some(project.id.as_str()),
-            Some(ArchivedChatsMessage::ProjectSelected(Some(project.id))),
-        ));
-    }
-    container(
-        scrollable(container(choices).padding([0, 7]))
-            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-            .height(Length::Shrink),
-    )
-    .max_height(280)
-    .padding([12, 5])
-    .width(240)
-    .style(settings_modal_card_style)
-    .into()
 }
 
 fn menus(state: &ArchivedChatsState, i18n: I18n) -> Element<'_, Message> {
-    let type_button = button(
-        row![
-            icon(Icon::Sliders, 14.0),
-            text(i18n.__("全部聊天")).size(13),
-            icon(Icon::ChevronDown, 12.0)
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    )
-    .padding([8, 10])
-    .style(rounded_action_btn_style)
-    .on_press(event(ArchivedChatsMessage::TypeMenuToggled));
-    let project_label = state
-        .project_options()
-        .into_iter()
-        .find(|project| Some(&project.id) == state.selected_project_id.as_ref())
-        .map(|project| project.name)
-        .unwrap_or_else(|| i18n.__("所有项目").to_owned());
-    let project_button = button(
-        row![
-            icon(Icon::FolderOpen, 14.0),
-            container(text(project_label).size(13).wrapping(text::Wrapping::None))
-                .width(Length::Fill)
-                .clip(true),
-            icon(Icon::ChevronDown, 12.0),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center),
-    )
-    .width(Length::Fill)
-    .padding([8, 10])
-    .style(rounded_action_btn_style)
-    .on_press(event(ArchivedChatsMessage::ProjectMenuToggled));
+    let sorts: Vec<_> = [
+        (ArchivedChatsSort::Updated, "更新时间"),
+        (ArchivedChatsSort::Created, "创建时间"),
+        (ArchivedChatsSort::Title, "按字母顺序"),
+    ]
+    .into_iter()
+    .map(|(value, label)| FilterOption { value, label: i18n.__(label).to_owned() })
+    .collect();
+    let selected_sort = sorts.iter().find(|option| option.value == state.sort).cloned();
+    let mut projects =
+        vec![FilterOption { value: None, label: i18n.__("所有项目").to_owned() }];
+    projects.extend(
+        state
+            .project_options()
+            .into_iter()
+            .map(|project| FilterOption { value: Some(project.id), label: project.name }),
+    );
+    let selected_project =
+        projects.iter().find(|option| option.value == state.selected_project_id).cloned();
     row![
-        Element::from(
-            BelowOverlay::new(type_button, type_menu(state, i18n))
-                .show(state.menu == Some(ArchivedChatsMenu::Type))
-                .gap(5.0)
-                .on_close(event(ArchivedChatsMessage::MenuClosed))
-        ),
-        container(
-            BelowOverlay::new(project_button, project_menu(state, i18n))
-                .show(state.menu == Some(ArchivedChatsMenu::Project))
-                .gap(5.0)
-                .on_close(event(ArchivedChatsMessage::MenuClosed))
-        )
-        .width(Length::Fill),
+        settings_select(sorts, selected_sort, |option| {
+            event(ArchivedChatsMessage::SortSelected(option.value))
+        })
+        .width(Length::FillPortion(1)),
+        settings_select(projects, selected_project, |option| {
+            event(ArchivedChatsMessage::ProjectSelected(option.value))
+        })
+        .width(Length::FillPortion(1)),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -222,8 +142,10 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
     } else {
         for group in state.groups() {
             let project_id = group.project.id.clone();
-            let more = button(text("…").size(18))
-                .padding([4, 10])
+            let more = button(text("…").size(14).center())
+                .width(26)
+                .height(26)
+                .padding([2, 6])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(
                     (state.operating_ids.is_empty() && state.delete_confirmation.is_none()).then(
@@ -288,18 +210,31 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                         ]
                         .spacing(4)
                         .width(Length::Fill),
-                        button(icon(Icon::Trash, 14.0))
-                            .padding([8, 10])
+                        button(icon(Icon::Trash, 12.0))
+                            .width(26)
+                            .height(26)
+                            .padding(7)
                             .style(rounded_action_btn_style)
                             .on_press_maybe(
                                 (!operating && state.delete_confirmation.is_none()).then(|| event(
                                     ArchivedChatsMessage::DeleteRequested(session.id.clone())
                                 ))
                             ),
-                        optional_action(
-                            i18n.__(if operating { "正在恢复会话" } else { "取消归档" }),
-                            (!operating && state.delete_confirmation.is_none())
-                                .then(|| ArchivedChatsMessage::Restore(session.id.clone())),
+                        button(
+                            text(i18n.__(if operating {
+                                "正在恢复会话"
+                            } else {
+                                "取消归档"
+                            }))
+                            .size(12),
+                        )
+                        .height(26)
+                        .padding([4, 8])
+                        .style(rounded_action_btn_style)
+                        .on_press_maybe(
+                            (!operating && state.delete_confirmation.is_none()).then(|| {
+                                event(ArchivedChatsMessage::Restore(session.id.clone()))
+                            }),
                         ),
                     ]
                     .spacing(8)

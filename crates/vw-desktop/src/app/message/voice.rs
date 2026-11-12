@@ -1,5 +1,5 @@
 //! Dictation and conversation routing. Local media never reaches the gateway.
-use super::voice_draft::{Draft, Phase, Scope};
+use super::voice_draft::{Composer, Draft, Phase, Scope};
 use crate::app::voice::capture::Capture;
 use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
@@ -113,7 +113,10 @@ pub(super) fn scope(app: &App) -> Option<Scope> {
         endpoint: endpoint.base_url(),
         tenant: serde_json::to_string(endpoint.tenant_scope()).ok()?,
         project: app.project_path.clone(),
-        session: app.active_session_id.clone()?,
+        composer: match &app.active_session_id {
+            Some(id) => Composer::Session(id.clone()),
+            None => Composer::Draft(app.session_view_cache.navigation_generation),
+        },
     })
 }
 fn stop(state: &mut State) {
@@ -224,6 +227,9 @@ pub(super) fn paste(app: &mut App, text: String, restore_cursor: bool) {
         editor.move_to(cursor);
     }
     editor.perform(text_editor::Action::Edit(text_editor::Edit::Paste(Arc::new(text))));
+    if app.active_session_id.is_none() {
+        app.input_editor = app.current_session_runtime_mut().input_editor.clone();
+    }
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     invalidate(app);
@@ -310,9 +316,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return fail(app, "请先选择聊天会话。".into());
             };
             let endpoint = crate::app::gateway_client_endpoint();
+            let Some(session) = scope.session_id() else {
+                return fail(app, "云端语音聊天需要已建立的聊天会话。".into());
+            };
             match crate::app::voice::conversation::Conversation::start(
                 endpoint.clone(),
-                scope.session.clone(),
+                session.to_owned(),
             ) {
                 Ok(conversation) => {
                     app.voice.conversation_error_reported = false;
@@ -379,22 +388,25 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     "请先结束语音聊天再开始听写。",
                 );
             }
+            let preferences = match crate::app::voice::preferences::Preferences::load() {
+                Ok(preferences) => preferences,
+                Err(error) => return fail(app, error),
+            };
             let Some(scope) = scope(app) else {
-                return fail(app, "请先选择聊天会话。".into());
+                return fail(app, "无法确定当前听写草稿。".into());
             };
-            let Some(runtime) = app.current_session_runtime_ref() else {
-                return Task::none();
-            };
+            if preferences.engine == crate::app::voice::preferences::VoiceEngine::Cloud
+                && scope.session_id().is_none()
+            {
+                return fail(app, "云端听写需要已建立的聊天会话；本机听写可用于新草稿。".into());
+            }
+            let runtime = app.current_session_runtime_mut();
             let cursor = runtime.input_editor.cursor();
             let text = runtime.input_editor.text();
             let Some(generation) = app.voice.draft.start(scope.clone(), text) else {
                 return Task::none();
             };
             app.voice.cursor = Some(cursor);
-            let preferences = match crate::app::voice::preferences::Preferences::load() {
-                Ok(preferences) => preferences,
-                Err(error) => return fail(app, error),
-            };
             app.voice.retain_requested = preferences.retain_recordings;
             let endpoint = crate::app::gateway_client_endpoint();
             app.voice.endpoint = Some(endpoint.clone());
@@ -407,7 +419,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 async move {
                     tokio::select! {
                         _ = rx.changed() => Err("听写已取消。".into()),
-                        result = tokio::time::timeout(Duration::from_secs(20), dictation::prepare(preferences, endpoint, scope.session, generation, cancellation, native_cancel)) => result.unwrap_or_else(|_| Err("准备录音超时，请重试。".into())),
+                        result = tokio::time::timeout(Duration::from_secs(20), dictation::prepare(preferences, endpoint, scope.session_id().map(str::to_owned), generation, cancellation, native_cancel)) => result.unwrap_or_else(|_| Err("准备录音超时，请重试。".into())),
                     }
                 },
                 move |result| Message::Voice(Event::Started(generation, result)),
@@ -578,3 +590,7 @@ mod tests;
 #[cfg(test)]
 #[path = "voice_hotkey_lifecycle_tests.rs"]
 mod hotkey_lifecycle_tests;
+
+#[cfg(test)]
+#[path = "voice_new_draft_tests.rs"]
+mod new_draft_tests;

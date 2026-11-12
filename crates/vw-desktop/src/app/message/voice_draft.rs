@@ -4,7 +4,21 @@ pub(crate) struct Scope {
     pub endpoint: String,
     pub tenant: String,
     pub project: Option<String>,
-    pub session: String,
+    pub composer: Composer,
+}
+/// A local draft generation is never a gateway session ID.
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) enum Composer {
+    Session(String),
+    Draft(u64),
+}
+impl Scope {
+    pub fn session_id(&self) -> Option<&str> {
+        match &self.composer {
+            Composer::Session(id) => Some(id),
+            Composer::Draft(_) => None,
+        }
+    }
 }
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum Phase {

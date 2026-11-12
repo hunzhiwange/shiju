@@ -26,7 +26,7 @@ fn voice_task_19_voice_acceptance_cancel_has_no_external_write() {
         endpoint: endpoint.base_url(),
         tenant: serde_json::to_string(endpoint.tenant_scope()).unwrap(),
         project: app.project_path.clone(),
-        session: "acceptance-cancel".into(),
+        composer: crate::app::message::voice_draft::Composer::Session("acceptance-cancel".into()),
     };
     let generation = app.voice.draft.start(scope, "原始草稿".into()).unwrap();
     app.voice.draft.phase = Phase::Transcribing;

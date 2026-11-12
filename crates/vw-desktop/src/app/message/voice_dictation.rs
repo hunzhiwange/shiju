@@ -34,13 +34,14 @@ impl Route {
 pub(super) async fn select_route(
     preferences: &Preferences,
     endpoint: GatewayEndpoint,
-    session: String,
+    session: Option<String>,
     generation: u64,
 ) -> Result<Route, String> {
     preferences.validate()?;
     if preferences.engine == VoiceEngine::Local {
         return Ok(Route::Local { language: preferences.local_language.clone() });
     }
+    let session = session.ok_or("云端听写需要已建立的聊天会话；本机听写可用于新草稿。")?;
     if !endpoint.is_loopback() {
         return Err("当前云端语音传输仅支持本机网关。".into());
     }
@@ -123,7 +124,7 @@ fn authorize_speech(language: Option<&str>, cancel: &Cancellation) -> Result<Cap
 pub(super) async fn prepare(
     preferences: Preferences,
     endpoint: GatewayEndpoint,
-    session: String,
+    session: Option<String>,
     generation: u64,
     cancellation: tokio::sync::watch::Receiver<bool>,
     native_cancel: Cancellation,
@@ -304,7 +305,7 @@ fn decode_local(wav: &[u8]) -> Result<Vec<i16>, String> {
 pub(crate) async fn retry(
     preferences: Preferences,
     endpoint: GatewayEndpoint,
-    session: String,
+    session: Option<String>,
     generation: u64,
     wav: Vec<u8>,
     cancel: Cancellation,
@@ -330,7 +331,7 @@ pub(crate) async fn retry(
 async fn retry_with_local<F, Fut>(
     preferences: Preferences,
     endpoint: GatewayEndpoint,
-    session: String,
+    session: Option<String>,
     generation: u64,
     wav: Vec<u8>,
     cancel: Cancellation,

@@ -167,7 +167,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
                     tokio::select! {
                         biased;
                         _=cancel.changed()=>Err("已取消重新识别。".into()),
-                        result=tokio::time::timeout(Duration::from_secs(90),retry(preferences,endpoint,scope.session,generation,wav,native_cancel))=>result.unwrap_or_else(|_|Err("重新识别超时。".into())),
+                        result=tokio::time::timeout(Duration::from_secs(90),retry(preferences,endpoint,scope.session_id().map(str::to_owned),generation,wav,native_cancel))=>result.unwrap_or_else(|_|Err("重新识别超时。".into())),
                     }
                 },
                 move |result| message(Event::Retried(generation, result)),
@@ -206,7 +206,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
 async fn retry(
     preferences: Preferences,
     endpoint: GatewayEndpoint,
-    session: String,
+    session: Option<String>,
     generation: u64,
     wav: Vec<u8>,
     cancel: crate::app::voice::local::Cancellation,

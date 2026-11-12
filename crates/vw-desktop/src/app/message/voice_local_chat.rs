@@ -123,6 +123,10 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
     let Some(scope) = super::scope(app) else {
         return app.show_error_toast("请先选择聊天会话。");
     };
+    // This path still owns an existing-session SendToSession request.
+    let Some(session) = scope.session_id().map(str::to_owned) else {
+        return app.show_error_toast("本机逐轮语音聊天暂不支持未发送的新草稿；听写不受此限制。");
+    };
     app.voice.conversation_endpoint = Some(crate::app::gateway_client_endpoint());
     app.voice.conversation_scope = Some(scope.clone());
     app.voice.local_conversation = Some(State {
@@ -133,7 +137,7 @@ pub(super) fn start(app: &mut App, preferences: Preferences) -> Task<Message> {
         notice: None,
         call: rand::random(),
         round: 0,
-        session: scope.session,
+        session,
         preferences,
         native: Cancellation::default(),
         cancel: None,
@@ -273,7 +277,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             let future = dictation::prepare(
                 chat.preferences.clone(),
                 crate::app::gateway_client_endpoint(),
-                chat.session.clone(),
+                Some(chat.session.clone()),
                 round,
                 rx,
                 chat.native.clone(),

@@ -16,13 +16,8 @@ async fn voice_task_07_local_route_does_not_require_gateway_or_cloud_provider() 
         local_language: Some("zh-CN".into()),
         ..Default::default()
     };
-    let result = select_route(
-        &preferences,
-        GatewayEndpoint::new("unreachable.invalid", 9),
-        "draft".into(),
-        1,
-    )
-    .await;
+    let result =
+        select_route(&preferences, GatewayEndpoint::new("unreachable.invalid", 9), None, 1).await;
     assert!(
         matches!(result, Ok(Route::Local { language: Some(ref language) }) if language=="zh-CN")
     );
@@ -122,7 +117,7 @@ async fn voice_task_07_local_archive_retry_passes_pcm_without_gateway() {
     let result = retry_with_local(
         preferences,
         GatewayEndpoint::new("not-a-gateway.invalid", 9),
-        "draft".into(),
+        None,
         1,
         saved,
         Cancellation::default(),
@@ -146,7 +141,7 @@ async fn voice_task_07_local_archive_over_limit_never_calls_native_or_uploads() 
     let result = retry_with_local(
         preferences,
         GatewayEndpoint::new("not-a-gateway.invalid", 9),
-        "draft".into(),
+        None,
         1,
         wav,
         Cancellation::default(),
@@ -206,14 +201,8 @@ async fn voice_task_07_local_cancelled_prepare_never_requests_permissions() {
     token.cancel();
     let (_tx, rx) = tokio::sync::watch::channel(false);
     let preferences = Preferences { engine: VoiceEngine::Local, ..Default::default() };
-    let result = prepare(
-        preferences,
-        GatewayEndpoint::new("not-a-gateway.invalid", 9),
-        "draft".into(),
-        1,
-        rx,
-        token,
-    )
-    .await;
+    let result =
+        prepare(preferences, GatewayEndpoint::new("not-a-gateway.invalid", 9), None, 1, rx, token)
+            .await;
     assert!(result.err().unwrap().contains("取消"));
 }

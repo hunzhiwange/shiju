@@ -112,7 +112,7 @@ async fn voice_task_14_recordings_retry_reads_stored_wav_over_loopback() {
             ..Default::default()
         },
         endpoint,
-        "voice-archive".into(),
+        Some("voice-archive".into()),
         9,
         saved,
         crate::app::voice::local::Cancellation::default(),

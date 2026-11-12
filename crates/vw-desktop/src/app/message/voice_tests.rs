@@ -1,10 +1,10 @@
-use super::voice_draft::{Draft, Phase, Scope};
+use super::voice_draft::{Composer, Draft, Phase, Scope};
 fn scope(session: &str) -> Scope {
     Scope {
         endpoint: "http://127.0.0.1:1".into(),
         tenant: "tenant".into(),
         project: Some("project".into()),
-        session: session.into(),
+        composer: Composer::Session(session.into()),
     }
 }
 #[test]
@@ -50,7 +50,7 @@ fn voice_task_07_scope_and_phase_reject_unrelated_completion() {
             0 => other.endpoint.push('2'),
             1 => other.tenant.push('2'),
             2 => other.project = None,
-            _ => other.session.push('2'),
+            _ => other.composer = Composer::Session("other".into()),
         }
         let mut draft = Draft::default();
         let generation = draft.start(original.clone(), "草稿".into()).unwrap();

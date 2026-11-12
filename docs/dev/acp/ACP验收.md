@@ -13,6 +13,34 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 
 2026-11-12：**真实 ACP 与浏览器验收通过**。最新指定租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
 
+验收状态：功能验收已完成，额外聚焦回归待补跑。该回归编译已停止，退出码 130，未执行断言；不计为测试通过。
+
+## 复现与验收步骤
+
+1. 使用租户 `10001 / 100010005`，从 `GET /v1/global/config/acp/installed` 与 `GET /v1/agent?include_disabled=true` 记录安装与预设基线；调用 `POST /v1/desktop/acp-install/opencode`，分别核对 HTTP、请求退出码、可执行文件与版本。
+2. 从 `GET /v1/global/config/acp` 提取 OpenCode 配置，传给 `POST /v1/desktop/acp-diagnostic/acp-smoke-opencode`；通过 `GET /v1/acp-model-source/opencode` 核对 `session_model` 支持。配置环境值仅保存在本机私有目录，不回显或提交。
+3. 若 `acp-opencode` 未启用，临时通过 `PATCH /v1/global/config` 设置 `{"agents":{"acp-opencode":{"enabled":true}}}`，结束后恢复基线。请求使用 `full_access: true`，产物只允许写入 `acpdemo/opencode/`。
+4. 启动包含中继修复的网关后执行下列请求。示例使用原开发实例端口 `42617`；本次成功验收实际使用独立端口 `52383`。为覆盖本次 220.613 秒的处理时长，示例客户端限时设为 300 秒；原始实测仍为下文记录的 180 秒限时及续传。
+
+```bash
+curl -sS -N --max-time 300 -H 'Content-Type: application/json' \
+  -H 'X-Platform-ID: 10001' \
+  -H 'X-Company-ID: 100010005' \
+  -H 'X-Directory: /Users/xiangmin/worker/code/ruejs' \
+  --data-binary '{"model":"alibaba-token-plan-cn/deepseek-v4.1-flash-1017","agent":"acp-opencode","acp_agent":"opencode","acp_model_source":"session_model","options":{"cwd":"/Users/xiangmin/worker/code/ruejs","full_access":true},"messages":[{"role":"user","content":"帮我用 Rue.js 实现一个纯文本编辑器，支持输入、实时显示字数、刷新后恢复内容。只写到 acpdemo/opencode/，不修改目录外文件。使用本仓库的 @rue-js/rue；在目标目录内提供可运行页面与运行说明。"}]}' \
+  http://127.0.0.1:42617/v1/chat/stream
+```
+
+5. 将响应头与完整 SSE 保存在本机私有目录，分别检查 curl 退出码、HTTP 与最终事件；HTTP 200 本身不代表成功。通过响应头 `x-vw-session-id` 查询 `/v1/session/{session_id}/ui/summary` 与 `/v1/session/{session_id}/acp-options`，确认绑定、完全访问授权与实际选定模型，不能只凭 `/v1/models` 列表判断模型是否可用。
+6. 按产物 README 启动页面，验证 Rue API 使用、实际输入后的字数更新、刷新恢复、控制台及目标目录外文件变化。只有安装、真实 ACP 请求成功终态与浏览器行为均通过，才判定功能验收通过。
+
+## 前序阻塞与结论边界
+
+- 首轮在 ACP 初始化阶段拒绝完全访问授权，未产生文件；后续指定租户的真实会话已确认 `full_access=true`，该拒绝未复现。
+- 租户 `10000 / 100000000` 的模型解析失败只代表当时该网关与租户配置，不能据此认定上游模型不存在。用户随后明确指定租户 `10001 / 100010005`，最终模型为 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`。
+- 中间使用 `deepseek-v4-flash` 的请求在 99.446 秒以 `chat.error` / `Bad Gateway` 结束，产物为 0，浏览器检查未执行。该模型的 403 结论不适用于最终通过验收的模型。
+- 前序模型解析与 502 排查的原始证据分别保存在本机私有目录 `/tmp/shiju-opencode-5dCvw1/` 与 `/tmp/shiju-opencode-hv6SKK/`。
+
 ## 502 根因与修复
 
 原模型 `alibaba-token-plan-cn/deepseek-v4-flash` 的上游请求返回 `403 AccessDenied.Unpurchased`，中继把所有非成功响应改写成 502，导致 OpenCode 重试。`crates/vw-agent/src/model_relay/transport.rs` 已改为保留上游 4xx 状态，继续丢弃错误正文和响应头；重定向与服务端错误仍按原策略屏蔽。双 HTTP 边界回归场景覆盖 403、401、400、429、307、503，检查状态、无错误正文/响应头泄漏与无中继内部重试。
@@ -32,7 +60,7 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 - 按 README 启动 Vite 页面，浏览器真实按键输入 `你好 Rue\n第二行 123` 后显示 11 字、14 字符、2 行；刷新后正文、统计与“已恢复上次编辑的内容”提示均正确。浏览器控制台 error/warn 列表为空。
 - 独立执行 `pnpm exec tsc -p acpdemo/opencode/tsconfig.json` 与 `pnpm exec vite build --config acpdemo/opencode/vite.config.mjs`，均退出码 0。
 - 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 .git、node_modules、target），全部新增与变更均在 acpdemo/opencode/ 内，无目录外文件变化。
-- `cargo clippy --all-targets --all-features -- -D warnings` 退出码 0。首次聚焦测试编译被当时工作区无关错误阻塞，未取得预期红测；修复后的额外聚焦回归编译耗时过长，经用户催促收尾后已停止（退出码 130），未执行断言，不计为通过。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出码 0。首次聚焦测试编译被当时工作区无关错误阻塞，未取得预期红测；修复后的额外聚焦回归 `acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolation`（all-features）编译耗时过长，经用户催促收尾后已停止（退出码 130），未执行断言，不计为通过。
 - Cargo 使用共享槽位 8，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-8`。原始请求、SSE、日志及配置仅保存在私有目录 `/tmp/shiju-opencode-fix-Nl5QNb/`，未提交凭据或配置环境值。
 
 ## 运行产物

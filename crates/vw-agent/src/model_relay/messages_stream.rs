@@ -32,6 +32,8 @@ struct Decoder {
     model: String,
     size: usize,
     native: bool,
+    thinking: Option<String>,
+    content: String,
 }
 impl Decoder {
     fn frame(&mut self, data: &str) -> Result<String, StatusCode> {
@@ -110,8 +112,17 @@ impl Decoder {
             {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }
-            super::messages::validate_chat_reasoning(delta)?;
+            if let Some(thought) = &mut self.thinking {
+                if let Some(part) = delta.get("reasoning_content").filter(|v| !v.is_null()) {
+                    thought.push_str(part.as_str().ok_or(StatusCode::BAD_GATEWAY)?);
+                }
+            } else {
+                super::messages::validate_chat_reasoning(delta)?;
+            }
             if let Some(text) = delta["content"].as_str() {
+                if self.thinking.is_some() {
+                    self.content.push_str(text);
+                }
                 if !text.is_empty() {
                     if !self.text_open {
                         out.push_str(&event(json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}})));
@@ -190,6 +201,36 @@ impl Decoder {
         }
         Ok(out)
     }
+}
+
+/// Buffer a thinking round until the mandatory terminal marker and full tools
+/// have been validated. Only then may Context issue a replay receipt.
+pub(super) async fn collect_thinking(
+    response: reqwest::Response,
+    model: &str,
+    cancel: CancellationToken,
+) -> Result<Value, StatusCode> {
+    if !response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("text/event-stream"))
+    {
+        return Err(StatusCode::BAD_GATEWAY);
+    }
+    let mut decoder =
+        Decoder { model: model.into(), thinking: Some(String::new()), ..Default::default() };
+    let mut stream = response.bytes_stream();
+    while !decoder.done {
+        let next = tokio::select! { biased; () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT), next = stream.next() => next };
+        let bytes = next.ok_or(StatusCode::BAD_GATEWAY)?.map_err(|_| StatusCode::BAD_GATEWAY)?;
+        decoder.push(&bytes)?;
+    }
+    decoder.observer.finish().map_err(|_| StatusCode::BAD_GATEWAY)?;
+    Ok(json!({"id":decoder.id,"choices":[{"message":{
+        "role":"assistant","content":decoder.content,"reasoning_content":decoder.thinking,
+        "tool_calls":decoder.tools.into_values().collect::<Vec<_>>()},
+        "finish_reason":decoder.reason}],"usage":decoder.usage}))
 }
 
 pub(super) async fn response(

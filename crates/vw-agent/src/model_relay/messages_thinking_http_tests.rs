@@ -44,8 +44,24 @@ pub(super) async fn thinking_replays_through_bound_http() {
     let received = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let captured = received.clone();
     let router = Router::new().route("/v1/chat/completions", post(move |headers: HeaderMap, axum::Json(body): axum::Json<Value>| {
+        let streaming = body["stream"] == true;
         captured.lock().push((headers, body));
-        async { axum::Json(json!({"id":"reply","choices":[{"message":{"role":"assistant","content":"done","reasoning_content":"wire reasoning","tool_calls":[{"id":"call-2","type":"function","function":{"name":"lookup","arguments":"{}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":7,"completion_tokens":3}})) }
+        async move {
+            if streaming {
+                use axum::response::IntoResponse;
+                let chunks = [
+                    json!({"id":"reply","choices":[{"index":0,"delta":{"reasoning_content":"wire "}}]}),
+                    json!({"id":"reply","choices":[{"index":0,"delta":{"reasoning_content":"","content":"done"}}]}),
+                    json!({"id":"reply","choices":[{"index":0,"delta":{"content":"","reasoning_content":"reasoning","tool_calls":[{"index":0,"id":"call-2","type":"function","function":{"name":"lookup","arguments":"{"}}]}}]}),
+                    json!({"id":"reply","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":"tool_calls"}]}),
+                    json!({"id":"reply","choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3}}),
+                ];
+                let wire = chunks.iter().map(|v| format!("data: {v}\n\n")).collect::<String>() + "data: [DONE]\n\n";
+                let bytes = wire.into_bytes().into_iter().map(|b| Ok::<_, std::io::Error>(axum::body::Bytes::from(vec![b])));
+                return ([ ("content-type", "text/event-stream") ], axum::body::Body::from_stream(futures_util::stream::iter(bytes))).into_response();
+            }
+            use axum::response::IntoResponse;
+            axum::Json(json!({"id":"reply","choices":[{"message":{"role":"assistant","content":"done","reasoning_content":"wire reasoning","tool_calls":[{"id":"call-2","type":"function","function":{"name":"lookup","arguments":"{}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":7,"completion_tokens":3}})).into_response() }
     }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -145,7 +161,7 @@ pub(super) async fn thinking_replays_through_bound_http() {
     );
     assert!(text.contains("input_json_delta") && text.contains("message_stop"));
     assert_eq!(received.lock().len(), 3);
-    assert_eq!(received.lock()[2].1["stream"], false);
+    assert_eq!(received.lock()[2].1["stream"], true);
     let events: Vec<Value> = text
         .lines()
         .filter_map(|line| line.strip_prefix("data: "))
@@ -153,6 +169,15 @@ pub(super) async fn thinking_replays_through_bound_http() {
         .collect();
     assert_eq!(events.first().unwrap()["type"], "message_start");
     assert_eq!(events.last().unwrap()["type"], "message_stop");
+    let starts: Vec<_> = events
+        .iter()
+        .filter(|v| v["type"] == "content_block_start")
+        .map(|v| v["content_block"]["type"].as_str().unwrap())
+        .collect();
+    assert_eq!(starts, ["thinking", "text", "tool_use"]);
+    let usage = events.iter().find(|v| v["type"] == "message_delta").unwrap();
+    assert_eq!(usage["usage"], json!({"input_tokens":7,"output_tokens":3}));
+    assert_eq!(received.lock()[2].1["stream_options"]["include_usage"], true);
     let mut blocks = Vec::new();
     let mut arguments = std::collections::BTreeMap::<usize, String>::new();
     for event in events {

@@ -218,6 +218,29 @@ pub(super) async fn response(
     streaming: bool,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
+    if streaming {
+        let model = model.to_owned();
+        // Dropping the client body drops this future and the upstream response.
+        let stream = futures_util::stream::once(async move {
+            let result = async {
+                let body =
+                    super::messages_stream::collect_thinking(response, &model, cancel.clone())
+                        .await?;
+                encode_events(&context.result(&body, &model)?)
+            }
+            .await;
+            let output = match result {
+                Ok(output) => output,
+                Err(StatusCode::REQUEST_TIMEOUT) => String::new(),
+                Err(_) => "event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Invalid upstream thinking stream\"}}\n\n".into(),
+            };
+            Ok::<_, std::io::Error>(axum::body::Bytes::from(output))
+        });
+        return Response::builder()
+            .header("content-type", "text/event-stream")
+            .body(Body::from_stream(stream))
+            .map_err(|_| StatusCode::BAD_GATEWAY);
+    }
     let mut stream = response.bytes_stream();
     let mut bytes = Vec::new();
     loop {
@@ -231,12 +254,13 @@ pub(super) async fn response(
     }
     let result = context
         .result(&serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_GATEWAY)?, model)?;
-    if !streaming {
-        return Response::builder()
-            .header("content-type", "application/json")
-            .body(Body::from(result.to_string()))
-            .map_err(|_| StatusCode::BAD_GATEWAY);
-    }
+    Response::builder()
+        .header("content-type", "application/json")
+        .body(Body::from(result.to_string()))
+        .map_err(|_| StatusCode::BAD_GATEWAY)
+}
+
+fn encode_events(result: &Value) -> Result<String, StatusCode> {
     // Thinking is buffered until its full scoped receipt can authenticate the tool round.
     let event = |value: Value| {
         format!("event: {}\ndata: {value}\n\n", value["type"].as_str().unwrap_or("error"))
@@ -279,8 +303,5 @@ pub(super) async fn response(
     }
     output.push_str(&event(json!({"type":"message_delta","delta":{"stop_reason":result["stop_reason"],"stop_sequence":null},"usage":result["usage"]})));
     output.push_str(&event(json!({"type":"message_stop"})));
-    Response::builder()
-        .header("content-type", "text/event-stream")
-        .body(Body::from(output))
-        .map_err(|_| StatusCode::BAD_GATEWAY)
+    Ok(output)
 }

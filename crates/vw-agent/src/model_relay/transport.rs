@@ -415,11 +415,6 @@ impl RelayBackend for ProviderRelayBackend {
         }
         if messages_request && !native {
             super::messages_thinking::configure(&mut body, &input, model)?;
-            if thinking.is_some() {
-                // Issue the scoped receipt only after the entire tool result is validated.
-                body["stream"] = false.into();
-                body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?.remove("stream_options");
-            }
         }
         let mut headers = super::generation::endpoint_headers(&route.endpoint, &key)?;
         for (name, value) in &model.headers {

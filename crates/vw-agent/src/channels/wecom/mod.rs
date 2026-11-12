@@ -1,6 +1,7 @@
 //! 企业微信 AI 机器人 WebSocket 通道。
 
 mod outbound;
+pub mod webhook;
 
 use super::outbound_delivery::DeliveryFailureKind;
 use super::traits::{Channel, ChannelMessage, SendMessage};

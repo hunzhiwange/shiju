@@ -139,11 +139,17 @@ struct Geometry {
     inputs: Vec<(String, iced::Rectangle)>,
     focusables: Vec<iced::Rectangle>,
     scroll: Option<(iced::Rectangle, iced::Vector)>,
+    scrolls: Vec<iced::Rectangle>,
+    containers: Vec<iced::Rectangle>,
 }
 
 impl iced::advanced::widget::Operation for Geometry {
     fn traverse(&mut self, children: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation)) {
         children(self);
+    }
+
+    fn container(&mut self, _: Option<&iced::advanced::widget::Id>, bounds: Rectangle) {
+        self.containers.push(bounds);
     }
 
     fn text(
@@ -180,6 +186,7 @@ impl iced::advanced::widget::Operation for Geometry {
         translation: iced::Vector,
         _: &mut dyn iced::advanced::widget::operation::Scrollable,
     ) {
+        self.scrolls.push(bounds);
         self.scroll = Some((bounds, translation));
     }
 }

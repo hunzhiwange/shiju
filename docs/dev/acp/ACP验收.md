@@ -127,3 +127,23 @@ pnpm exec vite --config acpdemo/gemini/vite.config.mjs
 ```
 
 后续建议：将原网关重启到包含这些修复的构建；其他任务的编译问题处理完成后再补跑完整 Clippy。
+
+# OpenClaw 验收
+
+2026-11-12：**编辑器创建成功**。按用户本轮要求，以实际创建编辑器文件为验收终点；未启动页面、未运行浏览器行为验证、构建或 Cargo 检查，不将这些检查记为通过。
+
+- 网关 `127.0.0.1:42617`；沿用最近验收租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`；`acp-openclaw / openclaw`、`session_model`、`full_access=true`。未更换模型、账号或引擎。
+- 系统安装 HTTP 200、curl 0、9.005154 秒，安装状态 false → true。解析后的可执行文件为 `/Users/xiangmin/.local/share/shiju/acp-runtime/openclaw-2026.10.10-model-source-v1/node_modules/.bin/openclaw`，参数 `acp`；版本命令退出码 0，输出 `OpenClaw 2026.10.10 (7dc3350)`。
+- 独立诊断 HTTP 200、curl 0，结果 `handshake_failed`；模型来源接口 HTTP 200、curl 0，`session_model` supported，已审查版本 `2026.10.10`。真实会话随后确认连接并完成工具执行，独立诊断结果与真实会话分别记录。
+- 真实流式请求 HTTP 200、curl 0、115.922140 秒，终态 `chat.done`，无 `chat.error`。事件：`chat.context_loaded` ×1、`chat.step_start` ×1、`chat.delta` ×3、`chat.tool` ×58、`chat.session_updated` ×2、`chat.step_finish` ×1、`chat.done` ×1。请求明确要求实际调用工具创建文件，完成后简短回复，不运行额外测试。
+- 会话 `ses_1cfeffacf001qs3sQHwZr6e2An`：执行期间带相同租户和工作目录头读取 `ui/summary` 与 `acp-options` 均为 HTTP 200、curl 0，绑定 `acp-openclaw / openclaw`、`full_access=true`、`connected=true`，选定模型与请求一致。结束后复查上述接口及预设接口时网关已无法连接（curl 7、HTTP 000），未将旧响应记为结束后的复查结果。
+- 实际产物位于 `/Users/xiangmin/worker/code/ruejs/acpdemo/openclaw/`，共 8 个文件：`index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css`。源码实际导入本仓库 `@rue-js/rue`，包含输入处理、响应式统计、`localStorage` 保存与恢复；Vite 配置复用仓库 Rue 插件和别名，README 提供运行说明。仅核对文件和源码，未验证运行行为。
+- 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 `.git`、`node_modules`、`target`），仅上述 8 个文件新增，目标目录外无文件内容变化。
+- `acp-openclaw` 预设基线 enabled=true，本轮未修改预设或配置，无需恢复；结束复查因网关不可连接未完成。未修改 Rust，未启动编辑器测试服务。
+- 原始请求、SSE、配置快照和文件基线仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/openclaw-acceptance-3oqah_qx/`，未提交凭据或配置环境值。
+
+在 Rue.js 仓库根目录启动编辑器：
+
+```sh
+pnpm exec vite --config acpdemo/openclaw/vite.config.mjs
+```

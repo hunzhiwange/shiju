@@ -17,6 +17,15 @@ use vw_gateway_client::{
 #[derive(Debug, Clone)]
 pub enum ManagedMessage {
     Refresh,
+    Retry {
+        project: String,
+        worktree: String,
+    },
+    Retried {
+        identity: WorktreeSettingsIdentity,
+        target: (String, String),
+        result: Result<(), String>,
+    },
     Toggle(String),
     Loaded {
         identity: WorktreeSettingsIdentity,
@@ -131,6 +140,41 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
         *state = crate::app::state::ManagedWorktreesState { generation, ..Default::default() };
     }
     match event {
+        ManagedMessage::Retry { project, worktree } => {
+            if state.retrying.is_some() {
+                return Task::none();
+            }
+            let Some((_, item)) = selected(app, &project, &worktree) else {
+                return Task::none();
+            };
+            if item.worktree.status != WorktreeStatus::Error {
+                return Task::none();
+            }
+            let target = (project.clone(), worktree.clone());
+            app.worktree_settings.managed.retrying = Some(target.clone());
+            let client = crate::app::gateway_client();
+            let scope = scope(&current, &project);
+            Task::perform(
+                async move { client?.managed_worktree_retry(&scope?, &worktree).await.map(|_| ()) },
+                move |result| {
+                    message(ManagedMessage::Retried {
+                        identity: current.clone(),
+                        target: target.clone(),
+                        result,
+                    })
+                },
+            )
+        }
+        ManagedMessage::Retried { identity, target, result } => {
+            if !same_host(&identity, &current) || state.retrying.as_ref() != Some(&target) {
+                return Task::none();
+            }
+            state.retrying = None;
+            match result {
+                Ok(()) => update(app, ManagedMessage::Refresh),
+                Err(error) => fail(app, error),
+            }
+        }
         ManagedMessage::Refresh => {
             state.generation += 1;
             state.identity = Some(current.clone());

@@ -116,6 +116,14 @@ pub(crate) fn set_worktree_enabled(app: &mut App, path: String, enabled: bool) -
     start_worktree_save(app)
 }
 
+/// Keep the existing project editor cache aligned with an acknowledged gateway write.
+pub(crate) fn environment_command_saved(app: &mut App, path: &str, command: Option<String>) {
+    if let Some(meta) = app.recent_projects_meta.iter_mut().find(|meta| meta.path == path) {
+        meta.worktree_start_command = command;
+        save_recent_projects_meta_background(app.recent_projects_meta.clone());
+    }
+}
+
 fn start_worktree_save(app: &mut App) -> Task<Message> {
     if app.project_worktree_save_running {
         return Task::none();

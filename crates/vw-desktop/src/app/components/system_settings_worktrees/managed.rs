@@ -137,6 +137,19 @@ pub(crate) fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<
                     ]
                     .spacing(8),
                 );
+                if trusted && tree.status == WorktreeStatus::Error {
+                    body = body.push(
+                        button(text(i18n.__("重试初始化")))
+                            .style(rounded_action_btn_style)
+                            .padding([8, 12])
+                            .on_press_maybe(state.retrying.is_none().then(|| {
+                                event(ManagedMessage::Retry {
+                                    project: project_id.clone(),
+                                    worktree: tree.id.as_ref().to_owned(),
+                                })
+                            })),
+                    );
+                }
                 if state
                     .preflight_target
                     .as_ref()

@@ -75,6 +75,7 @@ impl WorktreePolicyDraft {
 pub(crate) struct WorktreeSettingsState {
     pub(crate) active_tab: WorktreesTab,
     pub(crate) managed: ManagedWorktreesState,
+    pub(crate) environment: WorktreeEnvironmentState,
     pub(crate) saved: Option<WorktreeSettings>,
     pub(crate) default_root: String,
     pub(crate) draft: Option<WorktreePolicyDraft>,
@@ -106,6 +107,7 @@ pub(crate) struct ManagedWorktreesState {
     pub(crate) identity: Option<WorktreeSettingsIdentity>,
     pub(crate) error: Option<String>,
     pub(crate) opening: Option<(String, String)>,
+    pub(crate) retrying: Option<(String, String)>,
     pub(crate) preflight_target: Option<(String, String)>,
     pub(crate) preflight: Option<WorktreeDeletionPreflight>,
 }
@@ -127,4 +129,21 @@ impl ManagedWorktreesState {
         groups.extend(incoming);
         self.groups = groups;
     }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct WorktreeEnvironmentState {
+    pub(crate) projects: Vec<ProjectDto>,
+    pub(crate) identity: Option<WorktreeSettingsIdentity>,
+    pub(crate) list_generation: u64,
+    pub(crate) projects_loading: bool,
+    pub(crate) list_error: Option<String>,
+    pub(crate) adding: bool,
+    pub(crate) loaded: bool,
+    pub(crate) selected: Option<ProjectDto>,
+    pub(crate) editor: iced::widget::text_editor::Content,
+    pub(crate) generation: u64,
+    pub(crate) loading: bool,
+    pub(crate) saving: bool,
+    pub(crate) error: Option<String>,
 }

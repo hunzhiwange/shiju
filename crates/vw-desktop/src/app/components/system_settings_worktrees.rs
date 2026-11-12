@@ -8,6 +8,7 @@ use crate::app::{App, Message};
 use iced::widget::{Space, button, checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
 
+mod environment;
 mod managed;
 
 fn message(event: Event) -> Message {
@@ -35,7 +36,7 @@ pub(crate) fn page(state: &WorktreeSettingsState, i18n: I18n) -> Element<'_, Mes
     ]);
     let mut content = column![tabs].spacing(16);
     if state.active_tab == WorktreesTab::Environment {
-        return content.push(text(i18n.__("环境设置按项目管理。"))).into();
+        return content.push(environment::view(&state.environment, i18n)).into();
     }
     let actions = row![
         button(text(i18n.__("刷新")))
@@ -91,7 +92,8 @@ pub(crate) fn page(state: &WorktreeSettingsState, i18n: I18n) -> Element<'_, Mes
 }
 
 pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    editor(&app.worktree_settings, I18n::new(app.desktop_locale), base)
+    let base = editor(&app.worktree_settings, I18n::new(app.desktop_locale), base);
+    environment::editor(&app.worktree_settings.environment, I18n::new(app.desktop_locale), base)
 }
 
 pub(crate) fn editor<'a>(
@@ -166,3 +168,7 @@ pub(crate) fn editor<'a>(
 #[cfg(test)]
 #[path = "system_settings_worktrees/managed_tests.rs"]
 mod managed_tests;
+
+#[cfg(test)]
+#[path = "system_settings_worktrees/environment_tests.rs"]
+mod environment_tests;

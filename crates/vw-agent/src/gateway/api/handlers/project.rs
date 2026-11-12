@@ -355,10 +355,14 @@ async fn project_get_v1(
 ) -> Result<Json<GetProjectResponse>, ApiError> {
     let scope = project_scope(tenant, project_id)?;
     let info = load_project(&scope).await?;
+    let commands = info
+        .commands
+        .as_ref()
+        .map(|c| vw_api_types::project::CommandsUpdateDto { start: c.start.clone() });
     let project = crate::global_database::run_isolated(move || map_project(&info))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
-    Ok(Json(GetProjectResponse { project }))
+    Ok(Json(GetProjectResponse { project, commands }))
 }
 
 async fn project_update_v1(
@@ -382,10 +386,14 @@ async fn project_update_v1(
     )
     .await
     .map_err(|e| ApiError::bad_request(e.to_string()))?;
+    let commands = updated
+        .commands
+        .as_ref()
+        .map(|c| vw_api_types::project::CommandsUpdateDto { start: c.start.clone() });
     let project = crate::global_database::run_isolated(move || map_project(&updated))
         .await
         .map_err(|error| ApiError::internal(error.to_string()))?;
-    Ok(Json(GetProjectResponse { project }))
+    Ok(Json(GetProjectResponse { project, commands }))
 }
 
 async fn project_worktrees_v1(

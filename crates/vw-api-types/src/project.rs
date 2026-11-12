@@ -146,6 +146,9 @@ pub struct UpdateProjectRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GetProjectResponse {
     pub project: ProjectDto,
+    /// Persisted worktree initialization command; absent means no command.
+    #[serde(default)]
+    pub commands: Option<CommandsUpdateDto>,
 }
 
 /// 列出项目下会话响应。

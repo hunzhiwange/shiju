@@ -1095,3 +1095,39 @@ async fn worktree_delete_and_reset_reject_non_git_project_after_lookup() {
     remove_project(&id);
     remove_project(&local.id);
 }
+
+#[tokio::test]
+async fn worktree_environment_ui_project_command_roundtrip_and_clear() {
+    let temp = TempDir::new().unwrap();
+    let id = format!("environment-project-{}", Uuid::new_v4());
+    let other_id = format!("environment-other-{}", Uuid::new_v4());
+    store_project(&project_info(
+        &other_id,
+        temp.path().join("other").to_string_lossy().into_owned(),
+        vec![],
+    ));
+    store_project(&project_info(&id, temp.path().to_string_lossy().into_owned(), vec![]));
+    for start in [Some("echo 中文\ncargo build".to_string()), None] {
+        let Json(updated) = project_update_v1(
+            default_tenant_scope(),
+            local_project_path(id.clone()),
+            Json(UpdateProjectRequest {
+                commands: Some(vw_api_types::project::CommandsUpdateDto { start: start.clone() }),
+                ..Default::default()
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.commands.and_then(|c| c.start), start);
+        let Json(loaded) =
+            project_get_v1(default_tenant_scope(), local_project_path(id.clone())).await.unwrap();
+        assert_eq!(loaded.commands.and_then(|c| c.start), start);
+        let Json(other) =
+            project_get_v1(default_tenant_scope(), local_project_path(other_id.clone()))
+                .await
+                .unwrap();
+        assert!(other.commands.is_none());
+    }
+    remove_project(&id);
+    remove_project(&other_id);
+}

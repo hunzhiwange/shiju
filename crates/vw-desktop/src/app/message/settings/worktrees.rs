@@ -2,6 +2,7 @@
 use crate::app::state::{WorktreeSettingsIdentity, WorktreeSettingsState, WorktreesTab};
 use vw_config_types::worktree::WorktreeSettings;
 
+pub(crate) mod environment;
 mod managed;
 pub use managed::ManagedMessage;
 #[cfg(test)]
@@ -10,6 +11,7 @@ pub(crate) use managed::load_groups;
 #[derive(Debug, Clone)]
 pub enum WorktreeSettingsMessage {
     Managed(ManagedMessage),
+    Environment(environment::EnvironmentMessage),
     Refresh,
     ContextChanged,
     Edit,
@@ -105,6 +107,11 @@ pub(crate) fn apply(
                 let generation = state.generation;
                 *state = WorktreeSettingsState {
                     generation,
+                    environment: crate::app::state::WorktreeEnvironmentState {
+                        generation: state.environment.generation + 1,
+                        list_generation: state.environment.list_generation + 1,
+                        ..Default::default()
+                    },
                     managed: crate::app::state::ManagedWorktreesState {
                         generation: state.managed.generation + 1,
                         ..Default::default()
@@ -182,10 +189,17 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Message> {
+    if let WorktreeSettingsMessage::Environment(event) = event {
+        return environment::update(app, event);
+    }
     if let WorktreeSettingsMessage::Managed(event) = event {
         return managed::update(app, event);
     }
     let current = WorktreeSettingsIdentity::current(app);
+    if matches!(event, WorktreeSettingsMessage::TabSelected(WorktreesTab::Environment)) {
+        app.worktree_settings.active_tab = WorktreesTab::Environment;
+        return environment::update(app, environment::EnvironmentMessage::Refresh);
+    }
     if app.worktree_settings.identity.as_ref().is_some_and(|old| {
         old.gateway != current.gateway
             || old.tenant != current.tenant
@@ -194,6 +208,11 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
         let generation = app.worktree_settings.generation + 1;
         app.worktree_settings = WorktreeSettingsState {
             generation,
+            environment: crate::app::state::WorktreeEnvironmentState {
+                generation: app.worktree_settings.environment.generation + 1,
+                list_generation: app.worktree_settings.environment.list_generation + 1,
+                ..Default::default()
+            },
             managed: crate::app::state::ManagedWorktreesState {
                 generation: app.worktree_settings.managed.generation + 1,
                 ..Default::default()
@@ -283,8 +302,14 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
     }
     if refresh {
         let managed_refresh = managed::update(app, ManagedMessage::Refresh);
+        let environment_refresh = if app.worktree_settings.active_tab == WorktreesTab::Environment {
+            environment::update(app, environment::EnvironmentMessage::Refresh)
+        } else {
+            Task::none()
+        };
         return Task::batch([
             managed_refresh,
+            environment_refresh,
             Task::perform(
                 async move {
                     let client = client?;
@@ -333,6 +358,11 @@ pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
     let generation = app.worktree_settings.generation + 1;
     app.worktree_settings = WorktreeSettingsState {
         generation,
+        environment: crate::app::state::WorktreeEnvironmentState {
+            generation: app.worktree_settings.environment.generation + 1,
+            list_generation: app.worktree_settings.environment.list_generation + 1,
+            ..Default::default()
+        },
         managed: crate::app::state::ManagedWorktreesState {
             generation: app.worktree_settings.managed.generation + 1,
             ..Default::default()

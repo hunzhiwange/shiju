@@ -759,7 +759,6 @@ fn expanded_header(app: &App) -> Element<'static, Message> {
             .width(Length::Fill)
             .align_y(iced::alignment::Vertical::Center),
         sidebar_toggle_control(app),
-        refresh_all_control(app),
         task_pool_control(app),
         search_control(crate::app::i18n::I18n::new(app.desktop_locale)),
         filter_control(app),

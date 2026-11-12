@@ -79,3 +79,19 @@ async fn worktree_management_rejects_tenant_mismatch_before_network() {
     );
     server.join();
 }
+
+#[tokio::test]
+async fn worktree_managed_ui_record_use_encodes_scoped_identity() {
+    let server = test_support::server(vec![(200, json!({"ok":true}))]);
+    let scope = ProjectScope::for_default_tenant(ProjectId::from("项目 /?")).unwrap();
+    server.client().managed_worktree_record_use(&scope, "checkout /?").await.unwrap();
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(
+        request.path,
+        "/v1/projects/%E9%A1%B9%E7%9B%AE%20%2F%3F/managed-worktrees/checkout%20%2F%3F/record-use"
+    );
+    assert_eq!(request.body, json!({}));
+    assert_eq!(request.header(PLATFORM_ID_HEADER), Some("10000"));
+    server.join();
+}

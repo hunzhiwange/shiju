@@ -2,8 +2,14 @@
 use crate::app::state::{WorktreeSettingsIdentity, WorktreeSettingsState, WorktreesTab};
 use vw_config_types::worktree::WorktreeSettings;
 
+mod managed;
+pub use managed::ManagedMessage;
+#[cfg(test)]
+pub(crate) use managed::load_groups;
+
 #[derive(Debug, Clone)]
 pub enum WorktreeSettingsMessage {
+    Managed(ManagedMessage),
     Refresh,
     ContextChanged,
     Edit,
@@ -97,7 +103,14 @@ pub(crate) fn apply(
                     || old.auth_fingerprint != current.auth_fingerprint
             }) {
                 let generation = state.generation;
-                *state = WorktreeSettingsState { generation, ..Default::default() };
+                *state = WorktreeSettingsState {
+                    generation,
+                    managed: crate::app::state::ManagedWorktreesState {
+                        generation: state.managed.generation + 1,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
             }
             state.identity = Some(current.clone());
             state.generation += 1;
@@ -169,6 +182,9 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Message> {
+    if let WorktreeSettingsMessage::Managed(event) = event {
+        return managed::update(app, event);
+    }
     let current = WorktreeSettingsIdentity::current(app);
     if app.worktree_settings.identity.as_ref().is_some_and(|old| {
         old.gateway != current.gateway
@@ -176,7 +192,14 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
             || old.auth_fingerprint != current.auth_fingerprint
     }) {
         let generation = app.worktree_settings.generation + 1;
-        app.worktree_settings = WorktreeSettingsState { generation, ..Default::default() };
+        app.worktree_settings = WorktreeSettingsState {
+            generation,
+            managed: crate::app::state::ManagedWorktreesState {
+                generation: app.worktree_settings.managed.generation + 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         return update(app, WorktreeSettingsMessage::Refresh);
     }
     if let WorktreeSettingsMessage::Saved { identity, generation, .. } = &event {
@@ -259,31 +282,35 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
         );
     }
     if refresh {
-        return Task::perform(
-            async move {
-                let client = client?;
-                let config = client.global_config_get().await?;
-                let policy = serde_json::from_value(
-                    config.get("worktree_settings").cloned().ok_or("网关未返回工作树设置。")?,
-                )
-                .map_err(|e| e.to_string())?;
-                let paths = client.system_path(None).await?;
-                let root = paths
-                    .get("task_worktrees_root")
-                    .and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty())
-                    .ok_or("网关未返回工作树默认目录。")?
-                    .to_owned();
-                Ok((policy, root))
-            },
-            move |result| {
-                Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Loaded {
-                    identity: current.clone(),
-                    generation,
-                    result,
-                }))
-            },
-        );
+        let managed_refresh = managed::update(app, ManagedMessage::Refresh);
+        return Task::batch([
+            managed_refresh,
+            Task::perform(
+                async move {
+                    let client = client?;
+                    let config = client.global_config_get().await?;
+                    let policy = serde_json::from_value(
+                        config.get("worktree_settings").cloned().ok_or("网关未返回工作树设置。")?,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    let paths = client.system_path(None).await?;
+                    let root = paths
+                        .get("task_worktrees_root")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty())
+                        .ok_or("网关未返回工作树默认目录。")?
+                        .to_owned();
+                    Ok((policy, root))
+                },
+                move |result| {
+                    Message::Settings(SettingsMessage::Worktrees(WorktreeSettingsMessage::Loaded {
+                        identity: current.clone(),
+                        generation,
+                        result,
+                    }))
+                },
+            ),
+        ]);
     }
     if failed {
         return app.show_localized_toast(
@@ -304,7 +331,14 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
 
 pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
     let generation = app.worktree_settings.generation + 1;
-    app.worktree_settings = WorktreeSettingsState { generation, ..Default::default() };
+    app.worktree_settings = WorktreeSettingsState {
+        generation,
+        managed: crate::app::state::ManagedWorktreesState {
+            generation: app.worktree_settings.managed.generation + 1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     if app.system_settings_tab == crate::app::components::system_settings::SystemTab::Worktrees {
         update(app, WorktreeSettingsMessage::Refresh)
     } else {

@@ -589,7 +589,10 @@ fn map_gateway_project(project: ProjectDto) -> vw_shared::project::Info {
     }
 }
 
-fn map_loaded_project_info(project_path: String, project: ProjectDto) -> super::LoadedProjectInfo {
+pub(crate) fn map_loaded_project_info(
+    project_path: String,
+    project: ProjectDto,
+) -> super::LoadedProjectInfo {
     let current_branch = project.current_branch.clone().filter(|value| !value.trim().is_empty());
     super::LoadedProjectInfo { project_path, info: map_gateway_project(project), current_branch }
 }

@@ -31,6 +31,18 @@ impl GatewayClient {
         )
         .await
     }
+    pub async fn managed_worktree_record_use(
+        &self,
+        scope: &ProjectScopeDto,
+        id: &str,
+    ) -> Result<OperationAck, String> {
+        self.post_json(
+            &format!("{}/record-use", self.management_path(scope, Some(id))?),
+            &[],
+            &serde_json::json!({}),
+        )
+        .await
+    }
     pub async fn managed_worktree_delete(
         &self,
         scope: &ProjectScopeDto,

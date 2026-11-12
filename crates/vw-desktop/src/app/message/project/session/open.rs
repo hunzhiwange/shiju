@@ -563,3 +563,30 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 #[cfg(test)]
 #[path = "open_tests.rs"]
 mod open_tests;
+
+/// The gateway has validated this existing checkout before any UI state changes.
+/// Apply project identity through the ordinary open-completion handler before
+/// opening a blank draft; no worktree creation or initialization is involved.
+pub(crate) fn open_existing_checkout(
+    app: &mut App,
+    project: vw_gateway_client::vw_api_types::project::ProjectDto,
+    directory: String,
+) -> iced::Task<Message> {
+    let path = project.directory.clone();
+    let tab_id = format!("project_{path}");
+    let switch = if app.project_path.as_deref() == Some(path.as_str())
+        && matches!(app.screen, crate::app::Screen::Project)
+        && app.active_tab_id.as_deref() == Some(tab_id.as_str())
+    {
+        iced::Task::none()
+    } else {
+        app.open_project_and_index(path.clone())
+    };
+    let loaded =
+        crate::app::message::project::helpers::map_loaded_project_info(path.clone(), project);
+    let completed =
+        handle(app, ProjectMessage::ProjectInfoLoaded(Ok(loaded))).unwrap_or_else(iced::Task::none);
+    app.show_system_settings = false;
+    let draft = open_session_draft(app, path, directory);
+    iced::Task::batch([switch, completed, draft])
+}

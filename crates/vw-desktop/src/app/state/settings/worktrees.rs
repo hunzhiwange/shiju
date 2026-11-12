@@ -74,6 +74,7 @@ impl WorktreePolicyDraft {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct WorktreeSettingsState {
     pub(crate) active_tab: WorktreesTab,
+    pub(crate) managed: ManagedWorktreesState,
     pub(crate) saved: Option<WorktreeSettings>,
     pub(crate) default_root: String,
     pub(crate) draft: Option<WorktreePolicyDraft>,
@@ -83,4 +84,47 @@ pub(crate) struct WorktreeSettingsState {
     pub(crate) generation: u64,
     pub(crate) identity: Option<WorktreeSettingsIdentity>,
     pub(crate) error: Option<String>,
+}
+
+use vw_gateway_client::vw_api_types::{
+    project::ProjectDto,
+    worktree::{ManagedWorktreeDto, WorktreeDeletionPreflight},
+};
+
+#[derive(Debug, Clone)]
+pub struct ManagedWorktreeGroup {
+    pub(crate) project: ProjectDto,
+    pub(crate) items: Vec<ManagedWorktreeDto>,
+    pub(crate) collapsed: bool,
+    pub(crate) error: Option<String>,
+}
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ManagedWorktreesState {
+    pub(crate) groups: Vec<ManagedWorktreeGroup>,
+    pub(crate) generation: u64,
+    pub(crate) loading: bool,
+    pub(crate) identity: Option<WorktreeSettingsIdentity>,
+    pub(crate) error: Option<String>,
+    pub(crate) opening: Option<(String, String)>,
+    pub(crate) preflight_target: Option<(String, String)>,
+    pub(crate) preflight: Option<WorktreeDeletionPreflight>,
+}
+impl ManagedWorktreesState {
+    pub(crate) fn replace_groups(&mut self, mut incoming: Vec<ManagedWorktreeGroup>) {
+        let mut groups = Vec::new();
+        for mut old in std::mem::take(&mut self.groups) {
+            if let Some(index) = incoming.iter().position(|g| g.project.id == old.project.id) {
+                let mut next = incoming.remove(index);
+                next.collapsed = old.collapsed;
+                // A failed project refresh retains its last successful rows for context,
+                // but the error disables actions until a successful refresh.
+                if next.error.is_some() {
+                    next.items = std::mem::take(&mut old.items);
+                }
+                groups.push(next);
+            }
+        }
+        groups.extend(incoming);
+        self.groups = groups;
+    }
 }

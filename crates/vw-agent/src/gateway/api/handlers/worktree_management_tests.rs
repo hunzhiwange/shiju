@@ -211,3 +211,47 @@ async fn worktree_management_deletion_requires_valid_confirmation() {
     assert_eq!(std::fs::read(path.join("untracked")).unwrap(), b"new contents");
     assert!(!path.join("ignored").exists());
 }
+
+#[tokio::test]
+async fn worktree_managed_ui_records_ready_checkout_use_in_scope() {
+    let temp = tempfile::tempdir().unwrap();
+    let primary = temp.path().join("primary");
+    std::fs::create_dir(&primary).unwrap();
+    git(&primary, &["init", "-b", "main"]);
+    git(
+        &primary,
+        &[
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.test",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "initial",
+        ],
+    );
+    let checkout = temp.path().join("checkout");
+    git(&primary, &["worktree", "add", "-b", "existing", checkout.to_str().unwrap()]);
+    let tenant = TenantScope::default();
+    let (project, _) = crate::project::from_directory(&tenant, &primary).await.unwrap();
+    let scope = project_scope(tenant.clone(), project.id.clone()).unwrap();
+    let record = registry::register(&scope, &primary, &checkout).await.unwrap();
+    let target = format!("/projects/{}/managed-worktrees/{}/record-use", project.id, record.id);
+    for other in [None, Some(TenantScope::new("foreign", "tenant").unwrap())] {
+        assert!(!call(other, "POST", &target, json!({})).await.0.is_success());
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    let (status, _) = call(Some(tenant.clone()), "POST", &target, json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    let updated = registry::authorize(&scope, &primary, &record.id).await.unwrap();
+    assert!(updated.last_used_at_ms > record.last_used_at_ms);
+    assert_eq!(updated.directory, record.directory);
+    assert_eq!(git2::Repository::open(&primary).unwrap().worktrees().unwrap().len(), 1);
+    assert!(
+        !call(Some(tenant), "POST", &target.replace(&record.id, "unknown"), json!({}))
+            .await
+            .0
+            .is_success()
+    );
+}

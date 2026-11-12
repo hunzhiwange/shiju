@@ -21,6 +21,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
         .route("/projects/{project_id}/managed-worktrees/{id}", axum::routing::delete(delete))
         .route("/projects/{project_id}/managed-worktrees/{id}/deletion-preflight", post(preflight))
         .route("/projects/{project_id}/managed-worktrees/{id}/retry-initialization", post(retry))
+        .route("/projects/{project_id}/managed-worktrees/{id}/record-use", post(record_use))
         .route("/projects/{project_id}/worktree-snapshots", get(snapshots))
         .route("/projects/{project_id}/worktree-snapshots/{id}/restore", post(restore))
         .route("/projects/{project_id}/worktree-cleanup-proposal", get(proposal))
@@ -120,3 +121,23 @@ async fn proposal(
 #[cfg(test)]
 #[path = "worktree_management_tests.rs"]
 mod tests;
+
+async fn record_use(
+    Extension(tenant): Extension<TenantScope>,
+    Path((project, id)): Path<(String, String)>,
+) -> Result<Json<OperationAck>, ApiError> {
+    let (scope, primary) = context(tenant, project).await?;
+    let _lock = crate::worktree::registry::lifecycle_lock(&primary).map_err(error)?;
+    let record =
+        crate::worktree::registry::authorize(&scope, &primary, &id).await.map_err(error)?;
+    if record.state != crate::worktree::registry::Lifecycle::Ready {
+        return Err(ApiError::bad_request("Managed checkout is not ready"));
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(error)?
+        .as_millis()
+        .min(u64::MAX as u128) as u64;
+    crate::worktree::registry::record_use(&scope, &record.directory, now).map_err(error)?;
+    Ok(Json(OperationAck { ok: true, message: None }))
+}

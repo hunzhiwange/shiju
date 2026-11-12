@@ -8,6 +8,8 @@ use crate::app::{App, Message};
 use iced::widget::{Space, button, checkbox, column, row, text};
 use iced::{Alignment, Element, Length};
 
+mod managed;
+
 fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::Worktrees(event))
 }
@@ -85,7 +87,7 @@ pub(crate) fn page(state: &WorktreeSettingsState, i18n: I18n) -> Element<'_, Mes
             );
         }
     }
-    content.into()
+    content.push(managed::view(&state.managed, i18n)).into()
 }
 
 pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
@@ -160,3 +162,7 @@ pub(crate) fn editor<'a>(
         settings_modal_layout(header, body, Some(footer.into())).width(640).height(580),
     )
 }
+
+#[cfg(test)]
+#[path = "system_settings_worktrees/managed_tests.rs"]
+mod managed_tests;

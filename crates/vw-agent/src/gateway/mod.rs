@@ -18,6 +18,8 @@ pub mod agent_apps_diagnostic_jobs;
 pub(crate) mod agent_apps_failover_runtime;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_failover_runtime_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_failover_timeouts_tests;
 #[cfg(target_os = "macos")]
 pub mod agent_apps_high_availability_service;
 #[cfg(all(test, target_os = "macos"))]

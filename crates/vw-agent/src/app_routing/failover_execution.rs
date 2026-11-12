@@ -268,12 +268,14 @@ impl Plan {
             match result {
                 Ok(Ok(response)) => {
                     if response.status().is_success() {
-                        return Ok(observe(
+                        return observe(
                             response,
                             permit,
                             cancelled.clone(),
-                            request.body.get("stream") == Some(&Value::Bool(true)),
-                        ));
+                            (request.body.get("stream") == Some(&Value::Bool(true)))
+                                .then_some(request.deadline),
+                        )
+                        .await;
                     }
                     let status = response.status();
                     permit.record(
@@ -314,7 +316,14 @@ impl Plan {
                     });
                 }
                 Err(status) => {
-                    permit.record(AttemptOutcome::Neutral, std::time::Instant::now());
+                    permit.record(
+                        if cancelled.is_cancelled() {
+                            AttemptOutcome::Neutral
+                        } else {
+                            AttemptOutcome::ProviderFailure
+                        },
+                        std::time::Instant::now(),
+                    );
                     return Err(status);
                 }
             }
@@ -332,15 +341,53 @@ pub(super) struct AttemptRequest<'a> {
     pub(super) deadline: Instant,
 }
 
-fn observe(
+async fn observe(
     response: Response,
     permit: OwnedCircuitAttempt,
     cancel: CancellationToken,
-    streaming: bool,
-) -> Response {
+    first_byte_deadline: Option<Instant>,
+) -> Result<Response, StatusCode> {
     use crate::model_relay::{generation::GenerationProtocol, stream_observer::StreamObserver};
-    let observer = streaming.then(|| StreamObserver::new(GenerationProtocol::Messages));
-    response.map(|body| {
+    let response = if let Some(deadline) = first_byte_deadline {
+        let (parts, body) = response.into_parts();
+        let result = async {
+            let codings = super::decode_request::ContentCodings::from_headers(&parts.headers)
+                .map_err(|_| super::protocol_errors::RouteError::from(StatusCode::BAD_GATEWAY))?;
+            if !codings.is_identity()
+                || !dispatch::is_content_type(&parts.headers, "text/event-stream")
+            {
+                return Err(StatusCode::BAD_GATEWAY.into());
+            }
+            super::timeouts::first_output_body(
+                body,
+                deadline,
+                super::protocol_errors::Protocol::Messages,
+            )
+            .await
+        }
+        .await;
+        match result {
+            Ok(body) => Response::from_parts(parts, body),
+            Err(error) => {
+                permit.record(
+                    if cancel.is_cancelled() {
+                        AttemptOutcome::Neutral
+                    } else {
+                        AttemptOutcome::ProviderFailure
+                    },
+                    std::time::Instant::now(),
+                );
+                // After send, a missing event does not prove that execution was
+                // safe to replay. Return directly without visiting a backup.
+                return Err(error.status());
+            }
+        }
+    } else {
+        response
+    };
+    let observer =
+        first_byte_deadline.is_some().then(|| StreamObserver::new(GenerationProtocol::Messages));
+    Ok(response.map(|body| {
         Body::from_stream(futures_util::stream::unfold(
             (body.into_data_stream(), Some(permit), cancel, observer),
             |(mut stream, mut permit, cancel, mut observer)| async move {
@@ -391,7 +438,7 @@ fn observe(
                 }
             },
         ))
-    })
+    }))
 }
 
 #[cfg(test)]

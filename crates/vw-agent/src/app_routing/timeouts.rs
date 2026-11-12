@@ -72,6 +72,58 @@ pub(super) async fn stream_body(
         }),
         ..Default::default()
     };
+    let prelude = first_output(&mut stream, &mut observer, first_byte_deadline, protocol).await?;
+    let state = TimedStream {
+        prelude: Some(prelude.bytes.into()),
+        upstream: (prelude.activity != Activity::End).then_some(stream),
+        observer,
+        protocol,
+        idle,
+        idle_deadline: (!idle.is_zero()).then(|| Instant::now() + idle),
+        _permit: permit,
+    };
+    Ok(Body::from_stream(stream::unfold(state, TimedStream::next)))
+}
+
+/// Share the production event classifier with the failover retry owner, which
+/// must report a stalled first event before releasing its circuit admission.
+#[cfg(target_os = "macos")]
+pub(super) async fn first_output_body(
+    body: Body,
+    deadline: Instant,
+    protocol: Protocol,
+) -> Result<Body, RouteError> {
+    let mut stream = body.into_data_stream();
+    let mut observer = OutputObserver {
+        messages: matches!(protocol, Protocol::Messages).then(|| {
+            crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Messages,
+            )
+        }),
+        ..Default::default()
+    };
+    let prelude = first_output(&mut stream, &mut observer, deadline, protocol).await?;
+    let mut bytes = prelude.bytes;
+    if prelude.activity != Activity::End {
+        // The last read can also contain the beginning of the next frame.
+        // Its decoder state is rebuilt downstream, so preserve these raw bytes.
+        bytes.extend_from_slice(&observer.frame);
+    }
+    let bytes = Bytes::from(bytes);
+    let first = stream::once(async move { Ok::<_, axum::Error>(bytes) });
+    Ok(if prelude.activity == Activity::End {
+        Body::from_stream(first)
+    } else {
+        Body::from_stream(first.chain(stream))
+    })
+}
+
+async fn first_output(
+    stream: &mut BodyDataStream,
+    observer: &mut OutputObserver,
+    first_byte_deadline: Instant,
+    protocol: Protocol,
+) -> Result<OutputBatch, RouteError> {
     let mut prelude = OutputBatch::default();
     let mut remaining = MAX_JSON_BYTES;
     before(first_byte_deadline, async {
@@ -94,16 +146,7 @@ pub(super) async fn stream_body(
         }
     })
     .await??;
-    let state = TimedStream {
-        prelude: Some(prelude.bytes.into()),
-        upstream: (prelude.activity != Activity::End).then_some(stream),
-        observer,
-        protocol,
-        idle,
-        idle_deadline: (!idle.is_zero()).then(|| Instant::now() + idle),
-        _permit: permit,
-    };
-    Ok(Body::from_stream(stream::unfold(state, TimedStream::next)))
+    Ok(prelude)
 }
 
 struct TimedStream {

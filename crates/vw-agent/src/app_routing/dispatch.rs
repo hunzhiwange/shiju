@@ -240,6 +240,15 @@ pub(super) async fn forward_json(
     };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
+        #[cfg(target_os = "macos")]
+        let response = if failover.is_some() {
+            // The retry owner awaits headers and the first valid event under
+            // this same deadline, recording its circuit outcome before return.
+            forward.await?
+        } else {
+            timeouts::before(deadline, forward).await??
+        };
+        #[cfg(not(target_os = "macos"))]
         let response = timeouts::before(deadline, forward).await??;
         RouteError::check_upstream(response.status())?;
         let (mut parts, body) = response.into_parts();
@@ -406,7 +415,7 @@ fn upstream_decode_status(error: DecodeError) -> StatusCode {
     StatusCode::BAD_GATEWAY
 }
 
-fn is_content_type(headers: &HeaderMap, expected: &str) -> bool {
+pub(super) fn is_content_type(headers: &HeaderMap, expected: &str) -> bool {
     let mut values = headers.get_all(header::CONTENT_TYPE).iter();
     values.next().is_some_and(|value| {
         value.to_str().is_ok_and(|value| {

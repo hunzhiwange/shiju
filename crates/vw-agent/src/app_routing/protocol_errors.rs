@@ -106,7 +106,7 @@ impl RouteError {
         if status.is_success() { Ok(()) } else { Err(Self::UpstreamStatus(status)) }
     }
 
-    fn status(self) -> StatusCode {
+    pub(super) fn status(self) -> StatusCode {
         match self {
             Self::Status(status) => status,
             Self::UpstreamStatus(

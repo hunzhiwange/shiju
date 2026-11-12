@@ -1,10 +1,12 @@
 //! 文件树原位重命名，保留图标和层级，不接入行选择或拖拽。
-use iced::widget::{container, row, text, text_input};
-use iced::{Alignment, Element, Length};
+use iced::widget::{button, container, row, text, text_input};
+use iced::{Alignment, Background, Color, Element, Length, Theme};
 
 use super::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
 use crate::app::assets::Icon;
-use crate::app::components::system_settings_common::settings_text_input;
+use crate::app::components::system_settings_common::{
+    settings_text_input, settings_text_input_style,
+};
 use crate::app::message::ProjectMessage;
 use crate::app::{App, Message};
 
@@ -17,6 +19,13 @@ pub(crate) fn selection_end(name: &str, directory: bool) -> usize {
         std::path::Path::new(name).file_stem().and_then(|stem| stem.to_str()).unwrap_or(name)
     };
     text_input::Value::new(selected).len()
+}
+
+fn input_style(theme: &Theme, status: text_input::Status) -> text_input::Style {
+    let mut style = settings_text_input_style(theme, status);
+    style.background = Background::Color(Color::TRANSPARENT);
+    style.border = iced::Border::default();
+    style
 }
 
 pub(super) fn view(
@@ -40,12 +49,16 @@ pub(super) fn view(
     };
     content = content.push(container(icon).width(Length::Fixed(16.0))).push(
         settings_text_input("", &app.file_tree_rename_value)
+            // 行内编辑沿用文件名字号与行高，不使用表单控件的额外留白。
+            .padding(0)
+            .size(13)
+            .style(input_style)
             .id(INPUT_ID)
             .on_input(|value| Message::Project(ProjectMessage::FileTreeRenameChanged(value)))
             .on_submit(Message::Project(ProjectMessage::FileTreeRenameSave))
             .width(Length::Fill),
     );
-    container(content).padding([2, 5]).width(Length::Fill).into()
+    container(content).padding(button::DEFAULT_PADDING).width(Length::Fill).into()
 }
 
 #[cfg(test)]

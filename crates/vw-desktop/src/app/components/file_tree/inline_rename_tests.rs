@@ -64,3 +64,55 @@ async fn inline_editor_renders_chinese_and_submits_without_row_actions() {
         }
     }
 }
+
+#[test]
+fn inline_input_has_no_border_or_background_in_all_states() {
+    for theme in [Theme::Light, Theme::Dark] {
+        for status in [
+            text_input::Status::Active,
+            text_input::Status::Hovered,
+            text_input::Status::Focused { is_hovered: false },
+            text_input::Status::Disabled,
+        ] {
+            let style = input_style(&theme, status);
+            assert_eq!(style.border.width, 0.0);
+            assert_eq!(style.background, Background::Color(Color::TRANSPARENT));
+        }
+    }
+}
+
+#[tokio::test]
+async fn inline_editor_keeps_original_tree_height() {
+    use crate::app::components::file_tree::tree_list::build_file_tree_list;
+    use iced::advanced::{layout, widget::Tree};
+    let mut renderer = crate::app::components::apps_usage_details_tests::renderer().await;
+    let (mut app, _) = App::new();
+    app.project_path = Some("/tree".into());
+    app.file_index_cache.insert("/tree".into(), vec!["/tree/中文.md".into()]);
+    let limits = layout::Limits::new(Size::ZERO, Size::new(320.0, 500.0));
+    let original = {
+        let mut element = build_file_tree_list(&app);
+        let mut tree = Tree::new(&element);
+        element.as_widget_mut().layout(&mut tree, &renderer, &limits).size()
+    };
+    app.file_tree_rename_path = Some("/tree/中文.md".into());
+    app.file_tree_rename_value = "中文.md".into();
+    let mut element = build_file_tree_list(&app);
+    let mut tree = Tree::new(&element);
+    let renamed = element.as_widget_mut().layout(&mut tree, &renderer, &limits).size();
+    assert_eq!(original.height, renamed.height);
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut ui = UserInterface::build(
+            build_file_tree_list(&app),
+            Size::new(320.0, 500.0),
+            Cache::new(),
+            &mut renderer,
+        );
+        ui.draw(
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            mouse::Cursor::Unavailable,
+        );
+    }
+}

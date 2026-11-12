@@ -62,10 +62,17 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
             .push(
                 row![
                     text(i18n.__("安装目录")).size(13),
-                    button(text(i18n.__("打开 Web 目录")).size(13))
-                        .style(rounded_action_btn_style)
-                        .padding([6, 12])
-                        .on_press_maybe((!state.busy).then(|| message(Event::OpenDirectory))),
+                    button(
+                        text(i18n.__(if cfg!(target_os = "macos") {
+                            "在 Finder 中显示"
+                        } else {
+                            "打开 Web 目录"
+                        }))
+                        .size(13),
+                    )
+                    .style(rounded_action_btn_style)
+                    .padding([6, 12])
+                    .on_press_maybe((!state.busy).then(|| message(Event::OpenDirectory))),
                 ]
                 .spacing(12)
                 .align_y(iced::Alignment::Center),

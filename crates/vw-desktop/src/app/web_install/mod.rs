@@ -119,6 +119,18 @@ fn operate(
         open::that(&url).context("Web 已启动，打开浏览器失败；请使用弹窗中的访问地址")?;
     } else if matches!(event, Event::OpenDirectory) {
         let path = installer::installed()?.context("请先下载安装 Web 版本")?;
+        #[cfg(target_os = "macos")]
+        {
+            let status = std::process::Command::new("/usr/bin/open")
+                .arg("-R")
+                .arg(&path)
+                .status()
+                .context("在 Finder 中定位 Web 目录失败")?;
+            if !status.success() {
+                bail!("在 Finder 中定位 Web 目录失败");
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
         open::that(&path).context("打开 Web 目录失败")?;
     } else if matches!(event, Event::Start) {
         let path = installer::installed()?.context("请先下载安装 Web 版本")?;

@@ -291,3 +291,23 @@ pnpm exec vite --config acpdemo/iflow/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/kilocode/vite.config.mjs
 ```
+
+
+# Kimi Code CLI 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。批次 15，批次 14 Kilocode 已结束归档。按最新授权，以实际创建完整文件为终点；未执行浏览器、编辑器构建或额外回归，不将这些检查记为通过。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-kimi / kimi`、`session_model`、`full_access=true`；未更换模型、账号或引擎。
+- 复用前批已验证 CLI 副本与现有开发配置启动独立网关 `127.0.0.1:64195`。本项未修改 Rust、安装器或补丁，未运行 Cargo、Clippy 或单元测试；复用现有 Kimi 原生驱动，无需新增补丁。
+- 系统安装 HTTP 200、curl 0、2.641986 秒；安装状态 true → true。解析命令 `kimi acp`，版本命令退出码 0，输出 `2.5.0`。独立诊断 HTTP 200、curl 0、1.390971 秒，结果 authentication_required；模型来源接口 HTTP 200、curl 0，session_model supported、已审查版本 2.5.0、Darwin arm64。普通诊断与真实托管模型连接分别记录。
+- 会话 `ses_1d090fa67001ag9Tf7rDNMOfiJ` 的 ui/summary 与 acp-options 执行期间及结束后均 HTTP 200、curl 0；绑定 acp-kimi / kimi，full_access=true。启动阶段 connected=false，随后真实执行期间 connected=true，选定模型及来源均与请求一致。访问能力报告 partial，不将请求标志解释为所有原生权限均已验证。
+- 真实请求 HTTP 200、curl 0、155.673370 秒，终态 chat.done，无 chat.error。事件为 chat.context_loaded ×1、chat.step_start ×1、chat.delta ×33、chat.tool ×1184、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。提示要求实际调用工具创建文件，完成后简短结束，不运行额外测试。旧租户 180 秒超时且无产物的问题本次未复现。
+- 目标目录原先不存在；实际新增 `acpdemo/kimi/` 下 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。源码引用本仓库 `@rue-js/rue`，包含输入、computed 字数统计、localStorage 防抖保存与初始化恢复逻辑；README 提供运行说明。仅核对源码与文件，不宣称页面行为已验证。
+- 请求前与网关停止后比较 Rue 仓库普通文件 SHA-256（排除 .git、node_modules、target），仅上述 8 个新增文件，未发现目标目录外内容变化。预设基线 enabled=false；临时启用 HTTP 200、curl 0，恢复 HTTP 200、curl 0，结束复查 false。临时网关进程组已停止。
+- 原始请求、配置、SSE 与文件快照仅存于本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-kimi-lxuf9smm/`，未提交配置环境值或凭据。
+
+在 Rue.js 仓库根目录启动：
+
+```sh
+pnpm exec vite --config acpdemo/kimi/vite.config.mjs
+```

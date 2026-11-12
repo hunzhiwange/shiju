@@ -555,7 +555,7 @@ fn acp_full_access_opencode_desktop_requires_current_grant() {
 fn acp_full_access_unconfined_desktop_adapters_require_current_grant() {
     use crate::PermissionMode;
 
-    for backend in ["hermes", "kilocode", "openclaw", "pi"] {
+    for backend in ["auggie", "hermes", "kilocode", "openclaw", "pi"] {
         let config = AcpAgentConfig { command: backend.into(), ..Default::default() };
         let workspace = unique_test_path("unconfined-workspace");
         for (mode, grant, allowed) in [

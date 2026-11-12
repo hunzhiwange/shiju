@@ -147,3 +147,29 @@ pnpm exec vite --config acpdemo/gemini/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/openclaw/vite.config.mjs
 ```
+
+# Auggie CLI 验收
+
+2026-11-12：**编辑器创建成功**。按用户本轮要求，以实际创建编辑器文件为验收终点；未启动页面、未执行编辑器构建或浏览器行为测试，不将这些检查记为通过。
+
+- 租户 `10001 / 100010005`；模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`；`acp-auggie / auggie`、`session_model`、`full_access=true`。未切换模型、账号或代理引擎。
+- 原生 Auggie 0.37.1 没有可用的 OpenAI 兼容配置入口，原驱动为拒绝占位。本轮为该固定版本增加受管补丁：在原生聊天入口转换文本、工作目录、推理及工具历史到本机会话中继，返回原生节点，保留 Auggie 自身 ACP、文件工具与会话历史。模型目录只包含所选模型，不回退官方模型；未知内容、错误/截断流及未匹配的工具结果明确拒绝。会话模型模式关闭远程代码索引，桌面原生工具要求当前完全访问授权。
+- 安装器校验 npm 归档完整性、原始 bundle SHA-256 和补丁后文件 SHA-256，安装在独立目录，不修改全局 CLI。子进程隔离继承的认证、Node 注入和代理环境；短期中继令牌仅进入私有配置和子进程环境，上游密钥不交给 CLI。
+- 使用现有配置启动临时修复版网关 `127.0.0.1:50928`，用户原 42617 实例未重启。安装接口 HTTP 200、curl 0、0.682955 秒，安装前后均 true；解析后的入口为 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/auggie-0.37.1-model-source-v1/node_modules/.bin/auggie`，版本命令退出码 0，`0.37.1 (commit e8d38687)`。
+- 独立诊断 HTTP 200、curl 0、connected；模型来源接口 HTTP 200、curl 0，`session_model` supported，已审查版本 `0.37.1`，平台 Darwin arm64。
+- 真实流式请求 HTTP 200、curl 0、72.391644 秒，终态 `chat.done`，无 `chat.error`。事件：`chat.context_loaded` ×1、`chat.step_start` ×1、`chat.delta` ×17、`chat.tool` ×36、`chat.session_updated` ×2、`chat.step_finish` ×1、`chat.done` ×1。请求明确要求实际调用工具写入文件，完成后简短回复，不运行额外测试。
+- 会话 `ses_1d00a47a5001aELzGqN4562kBv`：执行期间与结束后，带相同租户和工作目录头读取 ui/summary、acp-options 均 HTTP 200、curl 0。绑定 acp-auggie / auggie、full_access=true；执行期间 connected=true，选定模型与请求一致。结束后 connected=false。
+- 产物 `/Users/xiangmin/worker/code/ruejs/acpdemo/auggie/` 下实际新增 7 个文件：`index.html`、`vite.config.mjs`、`README.md`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css`。源码导入本仓库 `@rue-js/rue`，包含输入、响应式字数统计、localStorage 保存和恢复逻辑；Vite 复用仓库 Rue 插件及别名，README 提供运行说明。只做文件与源码核对，未验证运行行为。
+- 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 .git、node_modules、target）：仅上述 7 个文件新增，目标目录外无文件内容变化。
+- 创建验收前，`node --test patches/acp-model-source/auggie/session-model.test.mjs` 退出码 0，5 个测试通过；`python3 scripts/acp_model_source_auggie_tests.py <受管 augment.mjs>` 退出码 0，真实原生 ACP 完成指定模型选择、文件工具写入、推理历史续接及中文流回传。独立受管安装脚本退出码 0。
+- `cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0。`cargo clippy --all-targets --all-features -- -D warnings` 退出码 101，被工作区无关的 `vw-desktop` worktree 未使用代码阻塞：`app/message/settings/worktrees.rs::apply`、`app/state/settings/worktrees.rs::current` 及 generation/identity 字段；未修改这些无关文件。完整 Clippy 不计为通过，未额外执行 Rust 单元测试。
+- Cargo 使用共享槽位 1，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。acp-auggie 基线 enabled=false，临时启用与恢复均 HTTP 200、curl 0，结束复查 false。临时网关已停止，槽位已释放并保留缓存。
+- 原始请求、SSE、配置与文件基线保存在私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/auggie-driver-ftgk74ve/acceptance/`；补丁探测、安装与构建记录在 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/auggie-driver-ftgk74ve/`。未提交凭据或配置环境值。
+
+在 Rue.js 仓库根目录启动编辑器：
+
+```sh
+pnpm exec vite --config acpdemo/auggie/vite.config.mjs
+```
+
+后续建议：将常用网关重启到包含本次驱动与受管安装器的构建；工作区无关错误修复后补跑完整 Clippy。

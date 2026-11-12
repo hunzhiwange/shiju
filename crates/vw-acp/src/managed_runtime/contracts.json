@@ -199,5 +199,18 @@
     "original": {
       "dist/workspace-skill-sources-DqAcMM_z.mjs": "e6e10026a85afc294f3abe0bf2ce34731f2d9fe56ab84df5b568e6e7b75d56da"
     }
+  },
+  "auggie": {
+    "package": "@augmentcode/auggie",
+    "version": "0.37.1",
+    "integrity": "sha512-TFnkuFUFR5U2xWXbsol8sbO9w0im9nyH+cI6AzJmSAjvkcAiTeLxAf4SX8TcwWq4S6HdhmgOdYfAHKXeF/DjnQ==",
+    "bin": "augment.mjs",
+    "files": {
+      "augment.mjs": "1e39bfa85bb3ebe44afb6d627bdd3202550508d5224c837dc4370576f555cb18",
+      "session-model.mjs": "d50926db8682babc44174201b0591e7b309e00e5f7f5989c924f610e7b1a7081"
+    },
+    "original": {
+      "augment.mjs": "7d809fef34f9cb0eae57559ced737e225ec74a390cf325ea453871d847d716c9"
+    }
   }
 }

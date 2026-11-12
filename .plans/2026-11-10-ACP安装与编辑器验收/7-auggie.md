@@ -2,7 +2,7 @@
 
 批次：【批次 7】 依赖：批次 6 已结束（可阻塞）
 
-状态：已阻塞
+状态：已完成（按本轮用户要求，仅验收编辑器创建）
 
 目的：从系统安装 Auggie CLI，使用该 ACP 和指定模型完成同一编辑器需求。
 
@@ -52,3 +52,25 @@ curl -sS -N --max-time 180 -H 'Content-Type: application/json' \
 - 产物：0 个文件；无文件。
 - 预设恢复：启用 HTTP 200，运行前 True；恢复 HTTP 200，复查 False。
 - 复跑条件：处理请求错误「acp: ACP auggie session_model launch has not been verified: fixed upstream rejects extension Provider registration; arbitrary model injection is unavailable」。
+
+## 2026-11-12 复测（创建文件即结束）
+
+- 本轮按用户要求，以实际编辑器文件创建为终点，不执行浏览器、构建或 Cargo 检查。仍为**已阻塞**，未更新 `docs/dev/acp/ACP验收.md` 为成功。
+- 原 42617 端口未监听，使用现有 `target/rust-slot-8/debug/shiju` 与 `/Users/xiangmin/.shiju-harness-dev` 启动临时网关 `127.0.0.1:56858`。沿用最近验收租户 `10001 / 100010005`，指定模型、引擎及 `session_model` 保持不变，`full_access=true`。
+- 安装 HTTP 200、curl 0、2.305644 秒；安装前后均 true。可执行文件 `/opt/homebrew/bin/auggie`，版本命令退出码 0，`0.37.1 (commit e8d38687)`。独立诊断 HTTP 200、curl 0、connected。
+- 模型来源接口 HTTP 200、curl 0，明确 `session_model` unsupported / unsupported_cli，仅 `cli_local` supported。没有静默切换到 CLI 自带模型。
+- 仍实测指定模型请求：HTTP 200、curl 0、5.642566 秒，终态 `chat.error`，错误 `acp: ACP session_model driver is not verified`。事件计数：`{"chat.context_loaded": 1, "chat.step_start": 1, "chat.model_recovery": 1, "chat.session_updated": 1, "chat.error": 1}`。
+- 会话 `ses_1cff7726c001JfSENoWh61eZPN` 的 ui/summary 与 acp-options 均 HTTP 200、curl 0；绑定 acp-auggie / auggie，full_access=true，connected=false，未取得选定模型。
+- 产物 0 个文件；Rue.js 仓库请求前后普通文件 SHA-256 比较（排除 .git、node_modules、target），无新增或变更。
+- acp-auggie 预设基线 false；临时启用、恢复均 HTTP 200、curl 0，最终复查 false。临时网关已停止，未修改 Rust。
+- 原始请求、SSE、配置及文件基线仅保存在私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/auggie-acceptance-o7tc5vyd/`，未提交凭据或环境值。
+- 下一步：补齐并验证 Auggie session_model 驱动后，使用相同模型重试编辑器创建。
+
+## 2026-11-12 驱动修复与最终验收
+
+- 本轮用户明确授权修复 Auggie session_model 驱动，并要求编辑器实际创建成功即结束；本轮范围覆盖前文“不修改 Rust”和浏览器验收要求。
+- 已增加固定版原生 Auggie 0.37.1 的受管模型绑定补丁、安装校验、Rust 驱动和子进程隔离。保留原生 ACP 与工具，不替换引擎、不切换指定模型。
+- 临时修复版网关 50928，指定租户 10001 / 100010005；指定模型请求 HTTP 200、curl 0、72.391644 秒，chat.done，无 chat.error。
+- 实际创建 7 个编辑器文件，目标目录外无文件变化；未执行编辑器构建或浏览器测试。
+- 5 个转换测试及真实原生 CLI 工具续接回归通过；网关构建通过。完整 Clippy 退出码 101，受桌面 worktree 无关未使用代码阻塞，不计为通过。
+- 预设已恢复 false；临时网关已停止，槽位已释放。完整证据、路径与后续建议已更新至 `docs/dev/acp/ACP验收.md` 的 Auggie CLI 验收节。

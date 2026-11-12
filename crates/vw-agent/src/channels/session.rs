@@ -351,6 +351,7 @@ pub(crate) async fn collect_channel_response(
             }
             StreamEvent::PostToolRound { .. }
             | StreamEvent::ModelRecovery(_)
+            | StreamEvent::TodoContinuation
             | StreamEvent::Compaction { .. }
             | StreamEvent::ContextLoaded { .. } => {}
         }

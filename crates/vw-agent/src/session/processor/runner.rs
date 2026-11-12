@@ -2024,7 +2024,7 @@ fn handle_assistant_text_branch(
         );
         session.push(Role::User, message.clone());
         llm_messages.push(json!({ "role": "user", "content": message.clone() }));
-        if !on_event(StreamEvent::Delta(format!("\n\n{}\n\n", message))) {
+        if !on_event(StreamEvent::TodoContinuation) {
             return false;
         }
         *step += 1;

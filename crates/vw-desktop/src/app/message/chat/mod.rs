@@ -528,6 +528,8 @@ pub enum ChatMessage {
 
     /// 自动压缩生命周期状态；`completed` 为真时表示安全替换已经完成。
     AgentCompactionStatus(u64, bool),
+    /// 未完成待办触发的自动续推状态。
+    AgentTodoContinuation(u64),
     AgentModelRecovery(u64, vw_gateway_client::GatewayModelRecoveryEvent),
 
     /// SessionTool 创建完成后，从网关读取到的权威可见任务会话元信息。
@@ -1205,6 +1207,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(_, _)
             | ChatMessage::AgentToolLifecycle(_, _)
             | ChatMessage::McpAppPanelTick
+            | ChatMessage::AgentTodoContinuation(_)
             | ChatMessage::AgentCompactionStatus(_, _)
             | ChatMessage::AgentModelRecovery(_, _)
             | ChatMessage::VisibleTaskSessionLoaded(_)
@@ -1348,6 +1351,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(_, _)
         | ChatMessage::AgentToolLifecycle(_, _)
         | ChatMessage::McpAppPanelTick
+        | ChatMessage::AgentTodoContinuation(_)
         | ChatMessage::AgentCompactionStatus(_, _)
         | ChatMessage::AgentModelRecovery(_, _)
         | ChatMessage::VisibleTaskSessionLoaded(_)

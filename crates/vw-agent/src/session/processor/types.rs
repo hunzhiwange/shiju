@@ -192,6 +192,9 @@ pub enum StreamEvent {
     /// 类型化工具生命周期事件。
     Tool(ToolEvent),
 
+    /// 未完成待办触发自动续轮，独立于模型正文。
+    TodoContinuation,
+
     /// 自动压缩生命周期事件。
     Compaction {
         /// 当前压缩阶段。

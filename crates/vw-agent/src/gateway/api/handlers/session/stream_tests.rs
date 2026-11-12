@@ -3231,3 +3231,24 @@ async fn gateway_first_response_disconnect_after_tool_start_replays_cancellation
             .is_none()
     );
 }
+
+#[test]
+fn todo_continuation_emits_status_without_changing_assistant_text() {
+    let mut assistant_text = "Earlier reply".to_string();
+    let mut finish_reason = None;
+    let mut assistant_model = None;
+    let mut current_step_index = None;
+    let event =
+        processor_event_from_prompt_event(agent_session::runtime::PromptEvent::TodoContinuation);
+    let payload = stream_payload_for_non_done_event(
+        event,
+        &mut assistant_text,
+        &mut finish_reason,
+        &mut assistant_model,
+        &mut current_step_index,
+        "session-id",
+    )
+    .expect("todo status payload");
+    assert_eq!(payload, serde_json::json!({"type": "chat.todo_continuation"}));
+    assert_eq!(assistant_text, "Earlier reply");
+}

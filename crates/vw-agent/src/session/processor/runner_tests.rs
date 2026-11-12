@@ -429,6 +429,7 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
             super::StreamEvent::Tool(event) => {
                 Some(format!("tool:{}:{}", event.name, event.payload))
             }
+            super::StreamEvent::TodoContinuation => Some("todo-continuation".into()),
             super::StreamEvent::Compaction { phase } => Some(format!("compaction:{phase:?}")),
             super::StreamEvent::Error(text) => Some(format!("error:{text}")),
             super::StreamEvent::Done(_) => Some("done".to_string()),
@@ -1185,7 +1186,7 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
 }
 
 #[test]
-fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
+fn todo_continuation_emits_status_when_incomplete_todos_remain() {
     use crate::app::agent::tools::{TODO_WRITE_TOOL_ID, todo};
 
     let session_id = unique_session_id("incomplete-todos");
@@ -1242,6 +1243,13 @@ fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
     assert!(session.messages.iter().any(|message| {
         message.role == super::Role::User && message.content.contains("任务未完成")
     }));
+    assert_eq!(
+        events.iter().filter(|event| matches!(event, super::StreamEvent::TodoContinuation)).count(),
+        1
+    );
+    assert!(!events.iter().any(
+        |event| matches!(event, super::StreamEvent::Delta(text) if text.contains("任务未完成"))
+    ));
     assert!(!event_texts(&events).iter().any(|text| text == "done"));
 }
 

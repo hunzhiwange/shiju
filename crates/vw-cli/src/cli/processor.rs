@@ -143,6 +143,7 @@ pub(crate) async fn run_session_processor_comparable_for_cli(
             }
             legacy_processor::StreamEvent::StepStart { .. }
             | legacy_processor::StreamEvent::PostToolRound { .. }
+            | legacy_processor::StreamEvent::TodoContinuation
             | legacy_processor::StreamEvent::Compaction { .. }
             | legacy_processor::StreamEvent::ModelRecovery(_)
             | legacy_processor::StreamEvent::ModelToolCalls(_)

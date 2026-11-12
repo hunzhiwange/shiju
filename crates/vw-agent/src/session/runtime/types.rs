@@ -179,6 +179,8 @@ pub enum PromptEvent {
     Text(String),
     /// 已净化的类型化工具事件。
     Tool(ToolEvent),
+    /// 未完成待办触发自动续轮。
+    TodoContinuation,
     /// 自动压缩生命周期事件。
     Compaction {
         /// 当前压缩阶段。

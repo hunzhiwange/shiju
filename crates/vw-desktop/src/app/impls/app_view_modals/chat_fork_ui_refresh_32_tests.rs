@@ -1145,3 +1145,47 @@ async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
             .any(|(value, _)| value.contains("Invalid file name"))
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn todo_continuation_status_draws_centered_in_both_themes() {
+    if !isolated("todo_continuation_status_draws_centered_in_both_themes") {
+        return;
+    }
+    use crate::app::components::chat_panel::message_view::{TODO_CONTINUATION_TEXT, message_view};
+    let mut app = fixture();
+    let cache = crate::app::models::ChatRenderCacheEntry::default();
+    let mut renderer = renderer().await;
+    let size = Size::new(480, 64);
+    for (locale, language) in
+        [(DesktopLocale::SimplifiedChinese, "zh"), (DesktopLocale::English, "en")]
+    {
+        app.desktop_locale = locale;
+        for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+            let view = message_view(
+                &app,
+                0,
+                ChatRole::System,
+                TODO_CONTINUATION_TEXT,
+                &[],
+                None,
+                None,
+                &cache,
+                false,
+            );
+            let mut ui = scene(view, &mut renderer, size);
+            let bounds = geometry(&mut ui, &renderer);
+            let text = label(&bounds, I18n::new(locale).__(TODO_CONTINUATION_TEXT));
+            assert!((text.center().x - 240.0).abs() < 1.0);
+            assert_fits(&bounds, size);
+            let pixels = capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                &format!("todo-continuation-{language}-{mode}"),
+                mouse::Cursor::Unavailable,
+            );
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
+        }
+    }
+}

@@ -2506,3 +2506,38 @@ fn completion_notification_is_opt_in_skips_history_and_ignores_replayed_done() {
     assert_eq!(finish(true, false), finish(false, false) + 1);
     assert_eq!(finish(true, true), finish(false, true));
 }
+
+#[test]
+fn todo_continuation_preserves_stream_order_for_active_and_background_sessions() {
+    for active in [true, false] {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = "todo-continuation-session".to_string();
+        app.active_session_id = Some(if active { session_id.clone() } else { "other".into() });
+        let runtime = app.get_session_runtime_mut(&session_id);
+        runtime.active_agent_request = Some(agent_request(42, &session_id));
+        runtime.pending_stream_delta = "before status".into();
+        let _ = super::handle_agent_todo_continuation(&mut app, 42);
+        let _ =
+            super::handle_agent_session_delta(&mut app, session_id.clone(), "after status".into());
+        let chat: Vec<_> = if active {
+            app.chat.clone()
+        } else {
+            app.session_chat_cache.get(&session_id).unwrap().iter().cloned().collect()
+        };
+        assert_eq!(chat.len(), 3);
+        assert_eq!(chat[0].content, "before status");
+        assert_eq!(chat[1].role, ChatRole::System);
+        assert_eq!(chat[1].content, "TODO 尚未完成，正在继续推进");
+        assert_eq!(chat[2].role, ChatRole::Assistant);
+        assert_eq!(chat[2].content, "after status");
+        let ids = if active {
+            &app.chat_message_ids
+        } else {
+            app.session_chat_message_id_cache.get(&session_id).unwrap()
+        };
+        assert_eq!(ids.len(), chat.len());
+        if !active {
+            assert!(app.chat.is_empty());
+        }
+    }
+}

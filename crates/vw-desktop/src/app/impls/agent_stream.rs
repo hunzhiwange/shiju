@@ -2524,6 +2524,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                             &req.session,
                                             &payload,
                                         ),
+                                        "chat.todo_continuation" => {
+                                            Some(Message::Chat(
+                                                message::ChatMessage::AgentTodoContinuation(req.id),
+                                            ))
+                                        }
                                         "chat.compaction" => {
                                             chat_compaction_message(req.id, &payload)
                                         }

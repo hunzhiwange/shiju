@@ -169,6 +169,7 @@ impl App {
                 Message::Chat(
                     ChatMessage::AgentToolLifecycle(..)
                         | ChatMessage::AgentWorkflowNodeUpdate(..)
+                        | ChatMessage::AgentTodoContinuation(..)
                         | ChatMessage::AgentCompactionStatus(..)
                         | ChatMessage::AgentContextLoaded(..)
                 )

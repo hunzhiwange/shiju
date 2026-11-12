@@ -740,6 +740,9 @@ fn stream_payload_for_non_done_event(
                 "payload": event.payload,
             }))
         }
+        agent_session::processor::StreamEvent::TodoContinuation => {
+            Some(serde_json::json!({"type": "chat.todo_continuation"}))
+        }
         agent_session::processor::StreamEvent::Compaction { phase } => {
             let phase = match phase {
                 agent_session::processor::CompactionPhase::Started => "started",
@@ -813,6 +816,9 @@ fn processor_event_from_prompt_event(
         }
         agent_session::runtime::PromptEvent::Tool(event) => {
             agent_session::processor::StreamEvent::Tool(event)
+        }
+        agent_session::runtime::PromptEvent::TodoContinuation => {
+            agent_session::processor::StreamEvent::TodoContinuation
         }
         agent_session::runtime::PromptEvent::Compaction { phase } => {
             agent_session::processor::StreamEvent::Compaction { phase }

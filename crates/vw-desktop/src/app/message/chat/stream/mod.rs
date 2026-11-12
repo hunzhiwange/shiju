@@ -476,6 +476,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentModelRecovery(id, event) => {
             stream_events::handle_agent_model_recovery(app, id, event)
         }
+        ChatMessage::AgentTodoContinuation(id) => {
+            stream_events::handle_agent_todo_continuation(app, id)
+        }
         ChatMessage::AgentCompactionStatus(id, completed) => {
             stream_events::handle_agent_compaction_status(app, id, completed)
         }

@@ -933,6 +933,57 @@ pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, con
     }
 }
 
+pub(super) fn handle_agent_todo_continuation(app: &mut App, id: u64) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    // 先刷新正文，保证状态条位于上一轮回复与下一轮输出之间。
+    let delta_task = flush_agent_stream_delta(app, session_id.clone());
+    let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
+    let mut chat = if is_active {
+        app.chat.clone()
+    } else {
+        app.session_chat_cache
+            .get(&session_id)
+            .map(|messages| messages.iter().cloned().collect())
+            .unwrap_or_default()
+    };
+    let mut message_ids = if is_active {
+        app.chat_message_ids.clone()
+    } else {
+        app.session_chat_message_id_cache.get(&session_id).cloned().unwrap_or_default()
+    };
+    message_ids.resize(chat.len(), None);
+    let changed_idx = chat.len();
+    chat.push(models::ChatMessage {
+        role: models::ChatRole::System,
+        content: crate::app::components::chat_panel::message_view::TODO_CONTINUATION_TEXT.into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    message_ids.push(None);
+    app.get_session_runtime_mut(&session_id).stream_tail_state.clear_tail();
+    app.store_session_chat_snapshot(
+        session_id.clone(),
+        crate::app::session::shared_chat_messages(chat.clone()),
+        message_ids.clone(),
+    );
+    if is_active {
+        app.chat = chat;
+        app.chat_message_ids = message_ids;
+        app.chat_render_cache.remove(&changed_idx);
+        app.sync_active_session_from_chat();
+    }
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now_ms(), None);
+    let save_task = schedule_agent_stream_session_save(app, &session_id);
+    if is_active {
+        Task::batch([delta_task, scroll_chat_to_bottom_task(app), save_task])
+    } else {
+        Task::batch([delta_task, save_task])
+    }
+}
+
 pub(super) fn handle_agent_compaction_status(
     app: &mut App,
     id: u64,

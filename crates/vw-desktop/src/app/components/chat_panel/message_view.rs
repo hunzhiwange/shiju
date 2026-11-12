@@ -106,6 +106,7 @@ pub(crate) use self::styles::{
     compaction_status_card_style, compaction_status_text_color, message_surface_contract,
     message_surface_style,
 };
+pub(crate) const TODO_CONTINUATION_TEXT: &str = "TODO 尚未完成，正在继续推进";
 pub(crate) const COMPACTION_STARTED_TEXT: &str = "正在压缩会话";
 pub(crate) const COMPACTION_COMPLETED_TEXT: &str = "压缩完成";
 pub(crate) const COMPACTION_FAILED_TEXT: &str = "会话压缩失败";
@@ -272,7 +273,9 @@ pub(crate) fn message_view_with_runtime<'a>(
     is_requesting: bool,
     expected_revision_key: Option<&RevisionRenderKey>,
 ) -> Element<'a, Message> {
-    if role == ChatRole::System && compaction_status_card_contract(content).is_some() {
+    if role == ChatRole::System
+        && (compaction_status_card_contract(content).is_some() || content == TODO_CONTINUATION_TEXT)
+    {
         return container(
             container(
                 iced_text(crate::app::i18n::I18n::new(app.desktop_locale).__(content).to_string())

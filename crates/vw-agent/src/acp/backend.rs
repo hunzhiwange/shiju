@@ -305,6 +305,9 @@ pub(crate) fn map_runtime_event(event: PromptEvent) -> Option<BackendEvent> {
         }
         PromptEvent::Text(text) => Some(BackendEvent::Text(text)),
         PromptEvent::Tool(event) => Some(map_tool_event(event)),
+        PromptEvent::TodoContinuation => {
+            Some(BackendEvent::Status("TODO items remain; continuing work".into()))
+        }
         PromptEvent::Compaction { .. } => None,
         PromptEvent::StepStart { step_index, .. } => {
             Some(BackendEvent::Status(format!("model step {step_index} started")))

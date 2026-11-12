@@ -2605,6 +2605,7 @@
   "已取消重试": "Retries cancelled",
   "已处理 %s": "Processed in %s",
   "正在压缩会话": "Compacting chat",
+  "TODO 尚未完成，正在继续推进": "TODO items remain; continuing work",
   "压缩完成": "Compaction complete",
   "会话压缩失败": "Chat compaction failed",
   "会话压缩已取消": "Chat compaction cancelled",

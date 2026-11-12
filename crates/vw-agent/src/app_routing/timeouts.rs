@@ -361,3 +361,7 @@ fn is_metadata(event: &str) -> bool {
         "ping" | "heartbeat" | "keepalive" | "response.created" | "response.in_progress"
     )
 }
+
+#[cfg(test)]
+#[path = "timeouts_deadline_tests.rs"]
+mod deadline_tests;

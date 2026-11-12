@@ -241,6 +241,41 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
     {
         add(&mut result, C::StructuredOutput);
     }
+    // Gemini stores capabilities in generationConfig and Content.parts rather
+    // than Chat messages. Extract these before selecting a native or converted route.
+    let config = &body["generationConfig"];
+    if config.get("thinkingConfig").is_some_and(|value| !value.is_null()) {
+        add(&mut result, C::Thinking);
+    }
+    if config["responseMimeType"] == "application/json"
+        || config.get("responseSchema").is_some()
+        || config.get("responseJsonSchema").is_some()
+    {
+        add(&mut result, C::StructuredOutput);
+    }
+    if body.get("toolConfig").is_some() {
+        add(&mut result, C::Tools);
+    }
+    for content in body["contents"].as_array().into_iter().flatten() {
+        for part in content["parts"].as_array().into_iter().flatten() {
+            if part.get("functionCall").is_some() || part.get("functionResponse").is_some() {
+                add(&mut result, C::Tools);
+            }
+            if part["thought"] == true || part.get("thoughtSignature").is_some() {
+                add(&mut result, C::ThinkingReplay);
+            }
+            let media = part.get("inlineData").or_else(|| part.get("fileData"));
+            if let Some(mime) = media.and_then(|data| data["mimeType"].as_str()) {
+                match mime {
+                    "application/pdf" => add(&mut result, C::Pdf),
+                    mime if mime.starts_with("image/") => add(&mut result, C::Image),
+                    mime if mime.starts_with("audio/") => add(&mut result, C::Audio),
+                    mime if mime.starts_with("video/") => add(&mut result, C::Video),
+                    _ => {}
+                }
+            }
+        }
+    }
     let messages = body
         .as_array()
         .or_else(|| body["messages"].as_array())
@@ -277,7 +312,7 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
 pub(crate) fn relay_conversions(_codex: bool) -> [ConversionSupport<'static>; 3] {
     use ModelProtocol as P;
     use RouteCapability as C;
-    const BASIC: &[C] = &[C::Text, C::Tools, C::Streaming, C::Image];
+    const GEMINI_CHAT: &[C] = &[C::Text, C::Tools, C::Streaming, C::StructuredOutput];
     const THINKING: &[C] = &[
         C::Text,
         C::Tools,
@@ -290,6 +325,6 @@ pub(crate) fn relay_conversions(_codex: bool) -> [ConversionSupport<'static>; 3]
     [
         ConversionSupport { source: P::Messages, target: P::Chat, capabilities: THINKING },
         ConversionSupport { source: P::Responses, target: P::Chat, capabilities: THINKING },
-        ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: BASIC },
+        ConversionSupport { source: P::Gemini, target: P::Chat, capabilities: GEMINI_CHAT },
     ]
 }

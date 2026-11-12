@@ -73,13 +73,14 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             "model" => "assistant",
             _ => return Err(UNSUPPORTED),
         };
+        let awaiting_results = !pending.is_empty();
         let mut text = String::new();
         let mut calls = Vec::new();
         let mut results = Vec::new();
         for part in content["parts"].as_array().ok_or(StatusCode::BAD_REQUEST)? {
             if let Some(t) = part.get("text") {
                 object_keys(part, &["text"])?;
-                if !pending.is_empty() {
+                if awaiting_results {
                     return Err(UNSUPPORTED);
                 }
                 text.push_str(t.as_str().ok_or(StatusCode::BAD_REQUEST)?);
@@ -87,7 +88,7 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
                 object_keys(part, &["functionCall"])?;
                 object_keys(call, &["id", "name", "args"])?;
                 let args = call.get("args").cloned().unwrap_or(json!({}));
-                if role != "assistant" || !args.is_object() {
+                if role != "assistant" || !args.is_object() || awaiting_results {
                     return Err(StatusCode::BAD_REQUEST);
                 }
                 let name = string(call, "name")?;
@@ -378,6 +379,8 @@ pub(super) fn native(
                     model.capabilities.input.audio
                 } else if mime.starts_with("video/") {
                     model.capabilities.input.video
+                } else if mime == "application/pdf" {
+                    model.capabilities.input.pdf
                 } else {
                     false
                 };

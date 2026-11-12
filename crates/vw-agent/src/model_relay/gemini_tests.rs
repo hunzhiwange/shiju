@@ -52,7 +52,7 @@ fn sse(wire: String, wait: bool) -> Response {
 }
 
 #[tokio::test]
-async fn acp_model_source_relay_gemini_http_tools_stream_metadata_errors_and_cancel() {
+async fn model_protocol_018_gemini_http_tools_stream_metadata_errors_and_cancel() {
     http(false).await;
 }
 #[tokio::test]
@@ -87,7 +87,7 @@ async fn http(run_cli: bool) {
                 if prompt!="wait" && prompt!="truncated" {wire.push_str("data: [DONE]\r\n\r\n");}
                 return sse(wire,prompt=="wait");
             }
-            reply(json!({"choices":[{"index":0,"message":{"role":"assistant","content":"answer","tool_calls":[{"id":"a","type":"function","function":{"name":"lookup","arguments":"{\"city\":\"杭州\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}))
+            reply(json!({"choices":[{"index":0,"message":{"role":"assistant","content":"{\"weather\":\"sunny\"}","tool_calls":[{"id":"a","type":"function","function":{"name":"lookup","arguments":"{\"city\":\"杭州\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}))
         }
     }));
     let native_calls = captured.clone();
@@ -139,7 +139,7 @@ async fn http(run_cli: bool) {
     let base = format!("http://{}/v1beta/models", server.address());
     let url = format!("{base}/selected:generateContent");
     let client = reqwest::Client::builder().no_proxy().build().unwrap();
-    let mut body = json!({"systemInstruction":{"parts":[{"text":"concise"}]},"contents":[{"role":"user","parts":[{"text":"hello"}]},{"role":"model","parts":[{"functionCall":{"id":"a","name":"lookup","args":{"city":"杭州"}}}]},{"role":"user","parts":[{"functionResponse":{"id":"a","name":"lookup","response":{"result":"sunny"}}}]}],"tools":[{"functionDeclarations":[{"name":"lookup","parameters":{"type":"OBJECT","properties":{"city":{"type":"STRING"}}}}]}],"generationConfig":{"maxOutputTokens":64}});
+    let mut body = json!({"systemInstruction":{"parts":[{"text":"concise"}]},"contents":[{"role":"user","parts":[{"text":"hello"}]},{"role":"model","parts":[{"functionCall":{"id":"a","name":"lookup","args":{"city":"杭州"}}},{"text":"checking weather"}]},{"role":"user","parts":[{"functionResponse":{"id":"a","name":"lookup","response":{"result":"sunny"}}}]}],"tools":[{"functionDeclarations":[{"name":"lookup","parameters":{"type":"OBJECT","properties":{"city":{"type":"STRING"}}}}]}],"generationConfig":{"maxOutputTokens":64}});
     let response = client
         .post(&url)
         .header("x-goog-api-key", binding.bearer_token())
@@ -168,6 +168,22 @@ async fn http(run_cli: bool) {
             "string"
         );
     }
+    let mut structured = body.clone();
+    structured["generationConfig"] = json!({"responseMimeType":"application/json","responseSchema":{"type":"OBJECT","properties":{"weather":{"type":"STRING"}}}});
+    let response = client
+        .post(&url)
+        .bearer_auth(binding.bearer_token())
+        .json(&structured)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 200);
+    let structured_result: Value = response.json().await.unwrap();
+    assert_eq!(structured_result["candidates"][0]["finishReason"], "STOP");
+    assert_eq!(
+        captured.lock().last().unwrap().1["response_format"],
+        json!({"type":"json_schema","json_schema":{"name":"response","schema":{"type":"object","properties":{"weather":{"type":"string"}}}}})
+    );
     let meta: Value = client
         .get(&base)
         .bearer_auth(binding.bearer_token())
@@ -223,8 +239,10 @@ async fn http(run_cli: bool) {
     assert_eq!(frames.last().unwrap()["usageMetadata"]["totalTokenCount"], 10);
     assert!(wire.contains("杭州"));
     assert!(!wire.contains("wire-model"));
+    let before_rejections = captured.lock().len();
     for bad in [
         json!({"cachedContent":"tenants/other"}),
+        json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":1024}}}),
         json!({"tools":[{"googleSearch":{}}]}),
         json!({"contents":[{"role":"user","parts":[{"text":"x","thoughtSignature":"secret"}]}]}),
         json!({"contents":[{"role":"user","parts":[{"inlineData":{"mimeType":"image/png","data":"AAAA"}}]}]}),
@@ -241,6 +259,7 @@ async fn http(run_cli: bool) {
         assert_eq!(result.status(), 422);
         assert_eq!(result.json::<Value>().await.unwrap()["error"]["status"], "INVALID_ARGUMENT");
     }
+    assert_eq!(captured.lock().len(), before_rejections);
     let mut slash_id = identity.clone();
     slash_id.model = "selected/variant".into();
     let slash_binding = RelayBinding::new(slash_id, Duration::from_secs(60)).unwrap();
@@ -262,7 +281,7 @@ async fn http(run_cli: bool) {
     assert_eq!(response["modelVersion"], "selected/variant");
     slash_server.shutdown().await.unwrap();
     // Native protocol preserves signatures, tool declarations and provider extensions.
-    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1beta"),"adapter":"google","models":{"selected":{"temperature":true,"limit":{"context":1000000,"output":65536}}}}}})).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"api":format!("http://{address}/v1beta"),"adapter":"google","models":{"selected":{"reasoning":true,"temperature":true,"limit":{"context":1000000,"output":65536}}}}}})).await.unwrap();
     for extra in [
         json!({"cachedContent":"other-tenant/cache"}),
         json!({"continuationToken":"other-tenant/token"}),
@@ -322,6 +341,58 @@ async fn http(run_cli: bool) {
     assert!(wire.contains("native-signature"));
     assert!(!wire.contains("wire-model"));
     assert!(events(&wire).last().unwrap().get("error").is_none());
+    // A signature or thinking request must not reach a model lacking that capability.
+    crate::config::update_project_for_tenant(
+        &tenant,
+        &root,
+        json!({"providers":{"relay-gemini":{"models":{"selected":{"reasoning":false}}}}}),
+    )
+    .await
+    .unwrap();
+    let before_rejections = captured.lock().len();
+    for extra in [
+        json!({"contents":native_body["contents"]}),
+        json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":1024}}}),
+        json!({"contents":[{"role":"user","parts":[{"inlineData":{"mimeType":"application/pdf","data":"AAAA"}}]}]}),
+    ] {
+        let mut invalid = body.clone();
+        invalid.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        assert_eq!(
+            client
+                .post(&url)
+                .bearer_auth(binding.bearer_token())
+                .json(&invalid)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            422
+        );
+    }
+    assert_eq!(captured.lock().len(), before_rejections);
+    crate::config::update_project_for_tenant(&tenant,&root,json!({"providers":{"relay-gemini":{"models":{"selected":{"reasoning":true,"modalities":{"input":["text","image","audio","video","pdf"],"output":["text"]}}}}}})).await.unwrap();
+    for mime in ["image/png", "audio/wav", "video/mp4", "application/pdf"] {
+        let mut media = native_body.clone();
+        media["contents"][0]["parts"] = json!([{"inlineData":{"mimeType":mime,"data":"AAAA"}}]);
+        media["generationConfig"]["thinkingConfig"] = json!({"thinkingBudget":1024});
+        let response = client
+            .post(&url)
+            .bearer_auth(binding.bearer_token())
+            .json(&media)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), 200, "{mime}");
+        assert_eq!(
+            response.json::<Value>().await.unwrap()["candidates"][0]["finishReason"],
+            "STOP"
+        );
+        let calls = captured.lock();
+        let (headers, request) = calls.last().unwrap();
+        assert_eq!(headers["x-goog-api-key"], "fixture-secret");
+        assert_eq!(request["contents"], media["contents"]);
+        assert_eq!(request["generationConfig"], media["generationConfig"]);
+    }
     let mut other_id = identity.clone();
     other_id.tenant = vw_api_types::id::TenantScope::new("gemini", "two").unwrap();
     let other = RelayBinding::new(other_id, Duration::from_secs(60)).unwrap();
@@ -500,4 +571,46 @@ fn acp_model_source_relay_gemini_matches_idless_tools_and_preserves_reasoning_us
         response["usageMetadata"],
         json!({"promptTokenCount":3,"candidatesTokenCount":3,"totalTokenCount":8,"cachedContentTokenCount":2,"thoughtsTokenCount":2})
     );
+}
+
+#[test]
+fn model_protocol_018_gemini_native_requirements_are_selected_explicitly() {
+    use vw_provider_resolver::protocol_routes::RouteCapability as C;
+    for (extra, capability) in [
+        (json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":1024}}}), C::Thinking),
+        (json!({"generationConfig":{"responseMimeType":"application/json"}}), C::StructuredOutput),
+        (
+            json!({"contents":[{"role":"model","parts":[{"text":"thought","thoughtSignature":"signed"}]}]}),
+            C::ThinkingReplay,
+        ),
+        (
+            json!({"contents":[{"parts":[{"inlineData":{"mimeType":"image/png","data":"AAAA"}}]}]}),
+            C::Image,
+        ),
+        (
+            json!({"contents":[{"parts":[{"inlineData":{"mimeType":"application/pdf","data":"AAAA"}}]}]}),
+            C::Pdf,
+        ),
+        (
+            json!({"contents":[{"role":"model","parts":[{"functionCall":{"name":"lookup","args":{}}}]}]}),
+            C::Tools,
+        ),
+    ] {
+        assert!(super::routing::required(&extra, false).contains(&capability), "{extra}");
+    }
+}
+
+#[test]
+fn model_protocol_018_gemini_tool_turn_preserves_text_after_call() {
+    let body = json!({"model":"selected","contents":[
+        {"role":"model","parts":[{"functionCall":{"id":"one","name":"lookup","args":{}}},{"text":"checking"}]},
+        {"role":"user","parts":[{"functionResponse":{"id":"one","name":"lookup","response":{"ok":true}}}]}
+    ]});
+    let chat = super::gemini::to_chat(&body).unwrap();
+    assert_eq!(chat["messages"][0]["content"], "checking");
+    assert_eq!(chat["messages"][1]["tool_call_id"], "one");
+    let mut unfinished = body;
+    unfinished["contents"][1] =
+        json!({"role":"model","parts":[{"functionCall":{"id":"two","name":"lookup","args":{}}}]});
+    assert!(super::gemini::to_chat(&unfinished).is_err());
 }

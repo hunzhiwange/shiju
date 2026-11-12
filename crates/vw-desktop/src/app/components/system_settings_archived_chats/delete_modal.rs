@@ -16,9 +16,13 @@ pub(super) fn overlay<'a>(
     state: &'a ArchivedChatsState,
     i18n: I18n,
 ) -> Element<'a, Message> {
-    let Some(target) = &state.delete_target else {
+    let project = matches!(
+        state.delete_confirmation,
+        Some(crate::app::state::ArchivedChatsDeleteConfirmation::Project(_))
+    );
+    if state.delete_confirmation.is_none() || (!project && state.delete_target.is_none()) {
         return base;
-    };
+    }
     let pending = state.delete_generation.is_some();
     let close = event(ArchivedChatsMessage::DeleteCancelled);
     let cancel = optional_action(
@@ -32,15 +36,35 @@ pub(super) fn overlay<'a>(
         .on_press_maybe(
             (!pending && !state.loading).then(|| event(ArchivedChatsMessage::DeleteConfirmed)),
         );
-    let title = if target.row.title.trim().is_empty() {
-        i18n.__("未命名聊天")
+    let title = if project {
+        let Some(batch) = &state.project_delete else {
+            return base;
+        };
+        format!(
+            "{} · {} 个已归档聊天\n已处理 {}/{}",
+            batch.name,
+            batch.targets.len(),
+            batch.next,
+            batch.targets.len()
+        )
     } else {
-        &target.row.title
+        let target = state.delete_target.as_ref().unwrap();
+        if target.row.title.trim().is_empty() {
+            i18n.__("未命名聊天").to_owned()
+        } else {
+            target.row.title.clone()
+        }
     };
     let card = settings_modal_card(
         column![
             row![
-                text(i18n.__("删除已归档的聊天？")).size(20).width(Length::Fill),
+                text(i18n.__(if project {
+                    "删除项目中的全部已归档聊天？"
+                } else {
+                    "删除已归档的聊天？"
+                }))
+                .size(20)
+                .width(Length::Fill),
                 settings_close_button(if pending { Message::None } else { close.clone() })
             ]
             .spacing(8)
@@ -50,9 +74,13 @@ pub(super) fn overlay<'a>(
                     .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             )
             .max_height(120),
-            text(i18n.__("这将永久删除该聊天及关联子聊天，无法撤销。"))
-                .size(13)
-                .style(settings_muted_text_style),
+            text(i18n.__(if project {
+                "这将永久删除确认时的全部已归档聊天及关联子聊天，无法撤销。项目文件不会删除。"
+            } else {
+                "这将永久删除该聊天及关联子聊天，无法撤销。"
+            }))
+            .size(13)
+            .style(settings_muted_text_style),
             row![Space::new().width(Length::Fill), cancel, confirm].spacing(8),
         ]
         .spacing(16),

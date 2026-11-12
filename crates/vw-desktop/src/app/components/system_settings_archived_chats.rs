@@ -3,9 +3,9 @@
 use crate::app::assets::Icon;
 use crate::app::components::overlays::BelowOverlay;
 use crate::app::components::system_settings_common::{
-    icon_svg, rounded_action_btn_style, settings_divider, settings_error_banner,
-    settings_modal_card_style, settings_muted_text_style, settings_panel_style,
-    settings_text_input,
+    danger_action_btn_style, icon_svg, rounded_action_btn_style, settings_divider,
+    settings_error_banner, settings_modal_card_style, settings_muted_text_style,
+    settings_panel_style, settings_text_input,
 };
 use crate::app::i18n::{I18n, settings_extensions};
 use crate::app::message::settings::{SettingsMessage, archived_chats::ArchivedChatsMessage};
@@ -221,11 +221,33 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
             .push(action(i18n.__("重试"), ArchivedChatsMessage::Refresh));
     } else {
         for group in state.groups() {
+            let project_id = group.project.id.clone();
+            let more = button(text("…").size(18))
+                .padding([4, 10])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (state.operating_ids.is_empty() && state.delete_confirmation.is_none()).then(
+                        || event(ArchivedChatsMessage::ProjectActionsToggled(project_id.clone())),
+                    ),
+                );
+            let delete = button(text(i18n.__("删除项目中的全部已归档聊天")).size(13))
+                .padding([8, 10])
+                .style(danger_action_btn_style)
+                .on_press(event(ArchivedChatsMessage::ProjectDeleteRequested(project_id.clone())));
+            let more: Element<'_, Message> = BelowOverlay::new(
+                more,
+                container(delete).padding(8).style(settings_modal_card_style),
+            )
+            .show(state.project_action_menu.as_ref() == Some(&project_id))
+            .gap(5.0)
+            .on_close(event(ArchivedChatsMessage::ProjectActionsToggled(project_id)))
+            .into();
             let header = row![
                 icon(Icon::FolderOpen, 16.0),
                 container(text(group.project.name).size(16).wrapping(text::Wrapping::None))
                     .width(Length::Fill)
                     .clip(true),
+                more,
                 text(settings_extensions::archived_chat_count(locale, group.rows.len()))
                     .size(12)
                     .style(settings_muted_text_style),
@@ -292,6 +314,15 @@ pub(crate) fn page(state: &ArchivedChatsState, locale: DesktopLocale) -> Element
                 .spacing(10),
             );
         }
+    }
+    if state.project_delete.as_ref().is_some_and(|batch| !batch.failed.is_empty())
+        && state.delete_confirmation.is_none()
+    {
+        list = list.push(optional_action(
+            i18n.__("重试失败项"),
+            (!state.loading && state.operating_ids.is_empty())
+                .then_some(ArchivedChatsMessage::ProjectDeleteRetry),
+        ));
     }
     let base = column![
         heading,

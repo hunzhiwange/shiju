@@ -1055,3 +1055,217 @@ fn archived_chats_delete_refresh_closes_confirmation_for_restored_or_missing_tar
         assert!(state.operating_ids.is_empty());
     }
 }
+
+#[test]
+fn archived_chats_project_delete_confirmation_starts_project_operation() {
+    let (mut state, current) = restore_state();
+    state.delete_confirmation =
+        Some(crate::app::state::ArchivedChatsDeleteConfirmation::Project("p".into()));
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    assert!(state.delete_generation.is_some(), "project confirmation must start deletion");
+}
+
+fn project_request(state: &mut ArchivedChatsState, current: &Identity) {
+    apply(state, ArchivedChatsMessage::ProjectDeleteRequested("p".into()), current);
+}
+fn project_result(
+    state: &mut ArchivedChatsState,
+    current: &Identity,
+    result: Result<Option<Vec<String>>, String>,
+) {
+    let batch = state.project_delete.as_ref().unwrap();
+    let id = batch.targets[batch.next].id.clone();
+    let generation = state.delete_generation.unwrap();
+    apply(
+        state,
+        ArchivedChatsMessage::ProjectDeleted { identity: current.clone(), generation, id, result },
+        current,
+    );
+}
+
+#[test]
+fn archived_chats_project_delete_freezes_hidden_rows_and_keeps_project_boundary() {
+    let (mut state, current) = restore_state();
+    let mut live = info("live", "p", "Live", 5);
+    live.time.archived = None;
+    state.sessions.extend([info("b", "p", "Hidden", 8), live]);
+    state.project_names.insert("p".into(), "同名项目".into());
+    state.project_names.insert("q".into(), "同名项目".into());
+    state.search = "Archived".into();
+    project_request(&mut state, &current);
+    assert_eq!(
+        state
+            .project_delete
+            .as_ref()
+            .unwrap()
+            .targets
+            .iter()
+            .map(|r| r.id.as_str())
+            .collect::<Vec<_>>(),
+        ["a", "b"]
+    );
+    state.sessions.push(info("new", "p", "New archive", 1));
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    project_result(&mut state, &current, Ok(Some(vec!["a".into()])));
+    assert!(state.delete_generation.is_some());
+    project_result(&mut state, &current, Ok(Some(vec!["b".into()])));
+    assert!(state.delete_generation.is_none());
+    assert_eq!(
+        state.sessions.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        ["child", "live", "new"]
+    );
+}
+
+#[test]
+fn archived_chats_project_delete_deduplicates_ancestor_roots() {
+    let (mut state, current) = restore_state();
+    let mut child = info("nested", "p", "Nested", 8);
+    child.parent_id = Some("a".into());
+    state.sessions.push(child);
+    state.sessions.push(state.sessions[0].clone());
+    project_request(&mut state, &current);
+    assert_eq!(state.project_delete.as_ref().unwrap().targets.len(), 1);
+    assert_eq!(state.project_delete.as_ref().unwrap().targets[0].id, "a");
+}
+
+#[test]
+fn archived_chats_project_delete_cancel_sends_no_operation() {
+    let (mut state, current) = restore_state();
+    project_request(&mut state, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteCancelled, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    assert!(state.operating_ids.is_empty());
+    assert!(state.project_delete.is_none());
+}
+
+#[test]
+fn archived_chats_project_delete_partial_failure_retries_only_remaining_archived_failures() {
+    let (mut state, current) = restore_state();
+    state.sessions.extend([info("b", "p", "B", 2), info("c", "p", "C", 1)]);
+    project_request(&mut state, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    project_result(&mut state, &current, Ok(Some(vec!["a".into()])));
+    project_result(&mut state, &current, Err("fixture failure".into()));
+    project_result(&mut state, &current, Ok(None));
+    let batch = state.project_delete.as_ref().unwrap();
+    assert_eq!((batch.succeeded, batch.failed.len(), batch.skipped), (1, 1, 1));
+    apply(&mut state, ArchivedChatsMessage::ProjectDeleteRetry, &current);
+    assert_eq!(
+        state
+            .project_delete
+            .as_ref()
+            .unwrap()
+            .targets
+            .iter()
+            .map(|r| r.id.as_str())
+            .collect::<Vec<_>>(),
+        ["b"]
+    );
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    project_result(&mut state, &current, Err("fixture failure".into()));
+    state.sessions.iter_mut().find(|r| r.id == "b").unwrap().time.archived = None;
+    apply(&mut state, ArchivedChatsMessage::ProjectDeleteRetry, &current);
+    assert!(state.delete_confirmation.is_none());
+}
+
+#[test]
+fn archived_chats_project_delete_endpoint_change_rejects_old_result() {
+    let (mut state, current) = restore_state();
+    project_request(&mut state, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    let generation = state.delete_generation.unwrap();
+    let other = identity("100000001");
+    apply(
+        &mut state,
+        ArchivedChatsMessage::ProjectDeleted {
+            identity: current.clone(),
+            generation,
+            id: "a".into(),
+            result: Ok(Some(vec!["a".into()])),
+        },
+        &other,
+    );
+    assert_eq!(state.project_delete.as_ref().unwrap().next, 0);
+    reset(&mut state);
+    assert!(state.project_delete.is_none());
+    assert!(state.operating_ids.is_empty());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn archived_chats_project_delete_rechecks_archive_before_restricted_http_delete() {
+    use std::io::{Read, Write};
+    for archived in [false, true] {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let mut latest = info("a", "p", "Archived", 10);
+        if !archived {
+            latest.time.archived = None;
+        }
+        let server = std::thread::spawn(move || {
+            let mut requests = vec![];
+            let count = if archived { 2 } else { 1 };
+            for index in 0..count {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut bytes = vec![];
+                let mut buffer = [0; 4096];
+                while !bytes.windows(4).any(|w| w == b"\r\n\r\n") {
+                    let size = stream.read(&mut buffer).unwrap();
+                    assert!(size > 0);
+                    bytes.extend_from_slice(&buffer[..size]);
+                }
+                requests.push(String::from_utf8(bytes).unwrap());
+                let body = if index == 0 {
+                    serde_json::to_vec(&latest).unwrap()
+                } else {
+                    serde_json::to_vec(&serde_json::json!({"deleted_ids":["a"]})).unwrap()
+                };
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+                stream.write_all(&body).unwrap();
+            }
+            requests
+        });
+        let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)
+            .with_tenant_scope(TenantScope::new("10000", "100000001").unwrap());
+        let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            project_delete::delete_checked(client, info("a", "p", "Archived", 10)),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(result.is_some(), archived);
+        let requests = server.join().unwrap();
+        assert!(requests[0].starts_with("GET /v1/session/a?"), "{}", requests[0]);
+        if archived {
+            assert!(requests[1].starts_with("DELETE /v1/session/a/archived?"), "{}", requests[1]);
+        }
+    }
+}
+
+#[test]
+fn archived_chats_project_delete_finishes_empty_project_and_rejects_duplicate_result() {
+    let (mut state, current) = restore_state();
+    project_request(&mut state, &current);
+    apply(&mut state, ArchivedChatsMessage::DeleteConfirmed, &current);
+    let generation = state.delete_generation.unwrap();
+    project_result(&mut state, &current, Ok(Some(vec!["a".into()])));
+    assert!(state.selected_project_id.is_none());
+    assert!(state.project_action_menu.is_none());
+    assert!(state.delete_confirmation.is_none());
+    assert!(state.operating_ids.is_empty());
+    apply(
+        &mut state,
+        ArchivedChatsMessage::ProjectDeleted {
+            identity: current.clone(),
+            generation,
+            id: "a".into(),
+            result: Ok(Some(vec!["child".into()])),
+        },
+        &current,
+    );
+    assert_eq!(state.sessions[0].id, "child");
+    assert_eq!(state.project_delete.as_ref().unwrap().succeeded, 1);
+}

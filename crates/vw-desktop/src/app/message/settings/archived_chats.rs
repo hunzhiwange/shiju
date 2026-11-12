@@ -6,6 +6,7 @@ use crate::app::{App, Message};
 use iced::Task;
 
 mod delete;
+mod project_delete;
 use delete::{
     accept_delete, delete_candidates, delete_task, sync_deleted_sessions, valid_delete_target,
 };
@@ -15,6 +16,15 @@ pub(crate) use crate::app::state::ArchivedChatsIdentity as Identity;
 
 #[derive(Debug, Clone)]
 pub enum ArchivedChatsMessage {
+    ProjectActionsToggled(String),
+    ProjectDeleteRequested(String),
+    ProjectDeleteRetry,
+    ProjectDeleted {
+        identity: Identity,
+        generation: u64,
+        id: String,
+        result: Result<Option<Vec<String>>, String>,
+    },
     DeleteRequested(String),
     DeleteCancelled,
     DeleteConfirmed,
@@ -55,7 +65,14 @@ pub(crate) fn apply(
     message: ArchivedChatsMessage,
     current: &Identity,
 ) {
+    if project_delete::apply(state, &message, current) {
+        return;
+    }
     match message {
+        ArchivedChatsMessage::ProjectActionsToggled(_)
+        | ArchivedChatsMessage::ProjectDeleteRequested(_)
+        | ArchivedChatsMessage::ProjectDeleteRetry
+        | ArchivedChatsMessage::ProjectDeleted { .. } => unreachable!(),
         ArchivedChatsMessage::DeleteRequested(id) => {
             if state.identity.as_ref() != Some(current)
                 || state.loading
@@ -82,6 +99,7 @@ pub(crate) fn apply(
             if state.delete_generation.is_none() {
                 state.delete_confirmation = None;
                 state.delete_target = None;
+                state.project_delete = None;
             }
         }
         ArchivedChatsMessage::DeleteConfirmed => {
@@ -134,6 +152,7 @@ pub(crate) fn apply(
                 || state.loading
                 || row.time.archived.is_none()
                 || !row.is_user_navigable()
+                || state.delete_generation.is_some()
                 || conflicting_delete
                 || !state.operating_ids.insert(id.clone())
             {
@@ -170,6 +189,7 @@ pub(crate) fn apply(
             state.identity = Some(current.clone());
             state.request_generation += 1;
             state.loading = true;
+            state.project_action_menu = None;
             state.error = None;
             state.menu = None;
         }
@@ -195,16 +215,23 @@ pub(crate) fn apply(
                 Err(error) => state.error = Some(error),
             }
         }
-        ArchivedChatsMessage::SearchChanged(search) => state.search = search,
+        ArchivedChatsMessage::SearchChanged(search) => {
+            state.search = search;
+            state.project_action_menu = None;
+        }
         ArchivedChatsMessage::ProjectSelected(project) => {
             state.selected_project_id = project;
+            state.project_action_menu = None;
             state.menu = None;
         }
         ArchivedChatsMessage::SortSelected(sort) => {
             state.sort = sort;
             state.menu = None;
         }
-        ArchivedChatsMessage::MenuClosed => state.menu = None,
+        ArchivedChatsMessage::MenuClosed => {
+            state.menu = None;
+            state.project_action_menu = None;
+        }
         ArchivedChatsMessage::TypeMenuToggled => {
             state.menu =
                 (state.menu != Some(ArchivedChatsMenu::Type)).then_some(ArchivedChatsMenu::Type);
@@ -223,6 +250,9 @@ pub(crate) fn reset(state: &mut ArchivedChatsState) {
 
 pub(crate) fn update(app: &mut App, message: ArchivedChatsMessage) -> Task<Message> {
     let current = Identity::from_endpoint(&crate::app::gateway_client_endpoint());
+    if project_delete::handles(&app.archived_chats, &message) {
+        return project_delete::update(app, message, &current);
+    }
     match message {
         ArchivedChatsMessage::DeleteConfirmed => {
             if app.archived_chats.delete_generation.is_some()

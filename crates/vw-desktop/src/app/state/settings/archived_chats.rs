@@ -14,7 +14,6 @@ pub enum ArchivedChatsSort {
     Title,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ArchivedChatsDeleteConfirmation {
     Chat(String),
@@ -33,12 +32,26 @@ pub(crate) struct ArchivedChatsState {
     pub(crate) request_generation: u64,
     pub(crate) operating_ids: HashSet<String>,
     pub(crate) restore_requests: HashMap<String, u64>,
+    pub(crate) project_delete: Option<ArchivedProjectDelete>,
+    pub(crate) project_action_menu: Option<String>,
     pub(crate) delete_target: Option<ArchivedChatDeleteTarget>,
     pub(crate) delete_reconcile_ids: Vec<String>,
     pub(crate) delete_generation: Option<u64>,
     pub(crate) delete_confirmation: Option<ArchivedChatsDeleteConfirmation>,
     pub(crate) identity: Option<ArchivedChatsIdentity>,
     pub(crate) menu: Option<ArchivedChatsMenu>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ArchivedProjectDelete {
+    pub(crate) identity: ArchivedChatsIdentity,
+    pub(crate) project_id: String,
+    pub(crate) name: String,
+    pub(crate) targets: Vec<Info>,
+    pub(crate) next: usize,
+    pub(crate) succeeded: usize,
+    pub(crate) skipped: usize,
+    pub(crate) failed: Vec<Info>,
 }
 
 #[derive(Debug, Clone)]

@@ -72,3 +72,23 @@ pnpm exec vite --config acpdemo/opencode/vite.config.mjs
 ```
 
 本次验收使用独立修复版网关；用户原 42617 实例未被重启。后续重启到包含本次修改的构建后即可使用修复后的错误映射。临时测试服务已停止，构建槽位已释放，缓存保留。
+
+# GitHub Copilot 验收
+
+2026-11-12：**编辑器创建成功**。按用户本轮要求，以编辑器文件创建完成为验收终点；未执行浏览器行为验证、构建或 Cargo 检查，不将这些检查记为通过。
+
+- 网关：`127.0.0.1:42617`；沿用上一项确认的租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-copilot / copilot`、`session_model`、`full_access=true`。
+- 系统安装接口 HTTP 200，0.10 秒；安装前后均为 true。可执行文件为 `/Users/xiangmin/.local/share/shiju/acp-runtime/copilot-1.0.105-model-source-v1/node_modules/.bin/copilot`，`--version` 退出码 0，版本 `1.0.105`。安装、诊断与状态读取脚本退出码均为 0。
+- 独立诊断 HTTP 200、`authentication_required`；模型来源接口 HTTP 200、`session_model` supported。真实会话随后确认 `connected=true`，独立诊断不代表本次托管模型请求失败。
+- 流式请求 HTTP 200、curl 0，耗时 107.320 秒，终态 `chat.done`，无 `chat.error`。事件：`chat.context_loaded` ×1、`chat.step_start` ×1、`chat.delta` ×97、`chat.tool` ×51、`chat.session_updated` ×2、`chat.step_finish` ×1、`chat.done` ×1。请求额外要求“完成文件后简短回复即结束，不运行额外测试”。
+- 会话 `ses_1cf1d9258001nPQC5k9ykxrsjo`：带相同租户及工作目录头读取 `ui/summary` 返回 HTTP 200，绑定 `agent=acp-copilot`、`acp_agent=copilot`、`full_access=true`；`acp-options` HTTP 200，执行期间连接成功，选定模型与请求一致。
+- 产物：`/Users/xiangmin/worker/code/ruejs/acpdemo/copilot/` 下的 `index.html`、`vite.config.mjs`、`README.md`、`src/main.tsx`、`src/App.tsx`、`src/style.css`。源码导入本仓库 `@rue-js/rue`，包含输入处理、响应式字数统计、`localStorage` 保存与恢复逻辑；运行说明已提供。
+- 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 `.git`、`node_modules`、`target`）：仅上述 6 个文件新增，目标目录外无文件内容变化。
+- `acp-copilot` 预设原本 enabled=true，结束复查仍为 true；本轮未修改配置，无需恢复。未修改 Rust、未启动额外测试服务。
+- 原始请求、SSE、配置快照与文件基线仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/copilot-acceptance-na3515th/`，未提交凭据或配置环境值。
+
+在 Rue.js 仓库根目录启动编辑器：
+
+```sh
+pnpm exec vite --config acpdemo/copilot/vite.config.mjs
+```

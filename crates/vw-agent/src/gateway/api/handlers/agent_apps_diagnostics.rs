@@ -139,7 +139,7 @@ async fn endpoint_candidates(
     }
 }
 
-async fn read_job(
+pub(super) async fn read_job(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     jobs: Option<Extension<DiagnosticJobs>>,

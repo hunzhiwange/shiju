@@ -199,3 +199,6 @@ mod tool_details_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod security_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod host_scope_tests;

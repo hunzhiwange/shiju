@@ -547,3 +547,67 @@ async fn fork_history_first_sse_request_replays_only_durable_turns() {
     }
     server.abort();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn worktree_environment_fork_waits_for_setup_and_rejects_failure() {
+    let _guard = SESSION_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let tenant = TenantScope::new("environment-fork", Uuid::new_v4().to_string()).unwrap();
+    ui_store::with_tenant_scope(tenant.clone(), async {
+        let repo = repository();
+        crate::config::update_global_for_tenant(&tenant, json!({"worktree_settings": {"root": repo.path().join("managed")}})).await.unwrap();
+        let source = create_session_in(repo.path(), "Source").await;
+        let (_, boundary) = persist_turn(&source.id, "prompt", "answer").await;
+        let scope = vw_api_types::id::ProjectScope::new(tenant, vw_api_types::id::ProjectId::from(source.project_id.as_str())).unwrap();
+        let mut info = project::get(&scope).await.unwrap().unwrap();
+        info.commands = Some(project::Commands {
+            start: Some("test -f tracked.txt && echo setup >> setup.txt".into()),
+        });
+        project::runtime_store().unwrap().update(&scope, &info).unwrap();
+        let (status, body) = fork(&source, json!({"beforeTurnId": boundary, "target": {"type": "worktree", "name": format!("environment-{}", Uuid::new_v4())}})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let forked: agent_session::session::Info = serde_json::from_value(body).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(FsPath::new(&forked.directory).join("setup.txt")).unwrap(),
+            "setup\n"
+        );
+        crate::worktree::environment::ensure_ready(&forked.directory).unwrap();
+        worktree_cleanup(&source, forked.directory).await;
+
+        info.commands = Some(project::Commands { start: Some("exit 31".into()) });
+        project::runtime_store().unwrap().update(&scope, &info).unwrap();
+        let failed_directory = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let captured = failed_directory.clone();
+        let project_id = info.id.clone();
+        let unsubscribe = crate::bus::global_subscribe(move |event| {
+            if event.payload["type"] == "worktree.failed"
+                && event.payload["properties"]["projectId"] == project_id
+            {
+                *captured.lock().unwrap() = event.directory;
+            }
+        });
+        let (_, before) = request(
+            Method::GET,
+            &format!("/session?projectID={}", source.project_id),
+            &source.directory,
+            Value::Null,
+        )
+        .await;
+        let (status, body) = fork(&source, json!({"beforeTurnId": boundary, "target": {"type": "worktree", "name": format!("environment-failed-{}", Uuid::new_v4())}})).await;
+        unsubscribe();
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        let (_, after) = request(
+            Method::GET,
+            &format!("/session?projectID={}", source.project_id),
+            &source.directory,
+            Value::Null,
+        )
+        .await;
+        assert_eq!(before, after, "failed setup must not publish a fork session");
+        let directory = failed_directory.lock().unwrap().take().unwrap();
+        assert!(crate::worktree::environment::ensure_ready(&directory).is_err());
+        worktree_cleanup(&source, directory).await;
+    })
+    .await;
+}

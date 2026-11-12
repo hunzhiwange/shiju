@@ -691,6 +691,9 @@ async fn fork_before_turn(
             .map_err(|error| ApiError::bad_request(error.to_string()))?;
         match target {
             GatewaySessionForkTarget::SameDirectory => {
+                #[cfg(not(target_arch = "wasm32"))]
+                crate::worktree::environment::ensure_ready(fork.source_directory())
+                    .map_err(|error| ApiError::conflict(error.to_string()))?;
                 let context = instance::Context { directory: fork.source_directory().to_owned(), ..context };
                 instance::provide_context(context, fork.persist())
                     .await

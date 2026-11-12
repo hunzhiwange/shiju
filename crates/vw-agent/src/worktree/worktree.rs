@@ -16,6 +16,8 @@ mod ops;
 #[path = "worktree_types.rs"]
 mod types;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use ops::retry_environment;
 pub use ops::{create, list_directories, remove, reset};
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use ops::{create_fork_checkout, remove_fork_checkout};
@@ -50,3 +52,10 @@ mod creation_policy;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "creation_policy_tests.rs"]
 mod creation_policy_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "environment.rs"]
+pub mod environment;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "environment_tests.rs"]
+mod environment_tests;

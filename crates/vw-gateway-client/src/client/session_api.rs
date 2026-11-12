@@ -479,12 +479,20 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &Option<GatewaySessionForkBody>,
     ) -> Result<T, String> {
-        self.post_json(
-            &format!("{}/fork", session_path(session_id)?),
-            &directory_query(directory),
-            body,
-        )
-        .await
+        let path = format!("{}/fork", session_path(session_id)?);
+        let builder = self
+            .client
+            .post(format!("{}{}", self.endpoint.base_url(), path))
+            .query(&directory_query(directory))
+            .json(body);
+        // A worktree fork must complete initialization before publishing the session.
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = builder.timeout(std::time::Duration::from_secs(270));
+        let response = crate::http::apply_request_context(builder, &self.endpoint)
+            .send()
+            .await
+            .map_err(|error| crate::http::transport_error("POST", &self.endpoint, &path, error))?;
+        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
     }
 
     /// 截断指定消息之后的会话历史。

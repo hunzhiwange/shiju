@@ -107,8 +107,17 @@ impl GatewayClient {
         scope: &ProjectScopeDto,
         request: &CreateWorktreeRequest,
     ) -> Result<CreateWorktreeResponse, String> {
-        self.post_json(&format!("{}/worktrees", self.project_scope_path(scope)?), &[], request)
+        // Creation waits for the saved project command and optional extra setup (120s each).
+        let path = format!("{}/worktrees", self.project_scope_path(scope)?);
+        let builder =
+            self.client.post(format!("{}{}", self.endpoint.base_url(), path)).json(request);
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = builder.timeout(std::time::Duration::from_secs(270));
+        let response = crate::http::apply_request_context(builder, &self.endpoint)
+            .send()
             .await
+            .map_err(|error| crate::http::transport_error("POST", &self.endpoint, &path, error))?;
+        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
     }
 
     /// 读取单个 worktree 详情。

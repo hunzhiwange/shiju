@@ -2,23 +2,9 @@ use super::naming::random_name;
 use super::{Error, Info};
 use crate::app::agent::project;
 use crate::app::agent::project::instance;
-use crate::app::agent::shell::{git_std_command, std_system_command};
-use crate::app::agent::util::log;
+use crate::app::agent::shell::git_std_command;
 use directories::UserDirs;
-use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
-
-/// worktree 模块专用日志记录器
-///
-/// 使用 "worktree" 作为服务标识，用于追踪 worktree 生命周期事件
-static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
-    log::create(Some({
-        let mut m = Map::new();
-        m.insert("service".to_string(), Value::String("worktree".to_string()));
-        m
-    }))
-});
 
 /// 获取未配置根目录时的 worktree 默认位置。
 ///
@@ -189,62 +175,27 @@ pub(super) async fn run_start_scripts(
     project_id: &str,
     extra: &str,
 ) -> Result<(), Error> {
-    let project_info = match project::project_scope_for_default_tenant(project_id) {
-        Ok(scope) => project::get(&scope).await.ok().flatten(),
-        Err(_) => None,
-    };
-    let project_start = project_info
-        .and_then(|project| project.commands.and_then(|commands| commands.start))
-        .map(|command| command.trim().to_string())
-        .unwrap_or_default();
-
-    if !project_start.trim().is_empty() {
-        let ok = run_shell(worktree_dir, &project_start).await?;
-        if !ok {
-            LOGGER.error(
-                "worktree start command failed",
-                Some({
-                    let mut m = Map::new();
-                    m.insert("kind".to_string(), Value::String("project".to_string()));
-                    m.insert("directory".to_string(), Value::String(worktree_dir.to_string()));
-                    m.insert(
-                        "message".to_string(),
-                        Value::String("project start failed".to_string()),
-                    );
-                    m
-                }),
-            );
-            return Ok(());
-        }
-    }
-
-    if !extra.trim().is_empty() {
-        let _ = run_shell(worktree_dir, extra).await?;
-    }
-
-    Ok(())
+    let command = project_start(project_id).await?;
+    super::environment::run_command(worktree_dir, &command, std::time::Duration::from_secs(120))
+        .await?;
+    super::environment::run_command(worktree_dir, extra, std::time::Duration::from_secs(120)).await
 }
 
-/// 在指定目录中执行 shell 命令
-async fn run_shell(cwd: &str, cmd: &str) -> Result<bool, Error> {
-    let cwd = cwd.to_string();
-    let cmd = cmd.to_string();
-    let output = tokio::task::spawn_blocking(move || {
-        let mut command = if cfg!(windows) {
-            let mut command = std_system_command("cmd");
-            command.arg("/c").arg(cmd);
-            command
-        } else {
-            let mut command = std_system_command("bash");
-            command.arg("-lc").arg(cmd);
-            command
-        };
-        command.current_dir(cwd);
-        command.output()
-    })
-    .await??;
-
-    Ok(output.status.success())
+pub(super) async fn project_start(project_id: &str) -> Result<String, Error> {
+    // Retain the legacy extra-only helper for callers without a project identifier.
+    if project_id.trim().is_empty() {
+        return Ok(String::new());
+    }
+    let scope = vw_api_types::id::ProjectScope::new(
+        crate::session::ui_store::current_tenant_scope(),
+        vw_api_types::id::ProjectId::from(project_id),
+    )
+    .map_err(|error| Error::Invalid(error.to_string()))?;
+    let project =
+        project::get(&scope).await.map_err(|error| Error::Invalid(error.to_string()))?.ok_or_else(
+            || Error::MissingProject("Project initialization settings are unavailable".into()),
+        )?;
+    Ok(project.commands.and_then(|commands| commands.start).unwrap_or_default())
 }
 
 /// 默认重置目标信息

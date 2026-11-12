@@ -265,7 +265,7 @@ async fn run_start_scripts_stops_when_project_start_fails() {
 
     run_start_scripts(&dir.path().to_string_lossy(), &project.id, "echo extra > extra.txt")
         .await
-        .expect("failed project start should be non-fatal");
+        .expect_err("failed project start must propagate");
 
     assert!(!dir.path().join("extra.txt").exists());
     project::remove_local_test_project(&project.id).expect("remove project");

@@ -47,55 +47,8 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
     let primary = instance::worktree();
 
     let extra = input.and_then(|value| value.start_command).unwrap_or_default();
-    let ready_info = info.clone();
-    tokio::spawn(async move {
-        let _lifecycle = lifecycle;
-        let populated = run_git(&["reset", "--hard"], &ready_info.directory).await;
-        if populated.as_ref().is_ok_and(|result| result.success) {
-            let booted = instance::provide(
-                &ready_info.directory,
-                Some(Box::new({
-                    let directory = ready_info.directory.clone();
-                    move || {
-                        Box::pin(async move {
-                            project::instance_bootstrap(PathBuf::from(directory)).await;
-                        })
-                    }
-                })),
-                || Box::pin(async {}),
-            )
-            .await;
-
-            if let Err(err) = booted {
-                rollback_checkout(&scope, &primary, &ready_info.directory).await;
-                let _ = bus::publish(
-                    event::FAILED,
-                    serde_json::json!({ "projectId": project_id, "message": err.to_string() }),
-                    Some(ready_info.directory.clone()),
-                );
-                return;
-            }
-
-            let _ = bus::publish(
-                event::READY,
-                serde_json::json!({ "projectId": project_id, "name": ready_info.name, "branch": ready_info.branch }),
-                Some(ready_info.directory.clone()),
-            );
-
-            let _ = run_start_scripts(&ready_info.directory, &project_id, &extra).await;
-        } else {
-            rollback_checkout(&scope, &primary, &ready_info.directory).await;
-            let message = populated
-                .err()
-                .map(|err| err.to_string())
-                .unwrap_or_else(|| "Failed to populate worktree".to_string());
-            let _ = bus::publish(
-                event::FAILED,
-                serde_json::json!({ "projectId": project_id, "message": message }),
-                Some(ready_info.directory.clone()),
-            );
-        }
-    });
+    let _lifecycle = lifecycle;
+    prepare_checkout(&info, &project_id, &extra, &scope, &primary).await?;
 
     Ok(info)
 }
@@ -144,6 +97,10 @@ async fn add_worktree(
         let _ = run_git(&["branch", "-D", &info.branch], &primary).await;
         return Err(error);
     }
+    if let Err(error) = super::environment::pending(&info.directory) {
+        rollback_checkout(&scope, &primary, &info.directory).await;
+        return Err(error);
+    }
     Ok((info, lifecycle))
 }
 
@@ -152,22 +109,12 @@ async fn add_worktree(
 pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Error> {
     let project = ensure_git_project()?;
     let (info, lifecycle) = add_worktree(&project, name).await?;
-    let populated = run_git(&["reset", "--hard"], &info.directory).await.and_then(|result| {
-        if result.success {
-            Ok(())
-        } else {
-            Err(Error::Invalid(result.error_text("Failed to populate worktree")))
-        }
-    });
-    if let Err(error) = populated {
-        let scope = vw_api_types::id::ProjectScope::new(
-            crate::session::ui_store::current_tenant_scope(),
-            vw_api_types::id::ProjectId::from(project.id.as_str()),
-        )
-        .map_err(|e| Error::Invalid(e.to_string()))?;
-        rollback_checkout(&scope, &instance::worktree(), &info.directory).await;
-        return Err(error);
-    }
+    let scope = vw_api_types::id::ProjectScope::new(
+        crate::session::ui_store::current_tenant_scope(),
+        vw_api_types::id::ProjectId::from(project.id.as_str()),
+    )
+    .map_err(|error| Error::Invalid(error.to_string()))?;
+    prepare_checkout(&info, &project.id, "", &scope, &instance::worktree()).await?;
     drop(lifecycle);
     Ok(info)
 }
@@ -401,4 +348,90 @@ async fn rollback_checkout(scope: &vw_api_types::id::ProjectScope, primary: &str
     {
         tracing::warn!(%error, "failed to roll back a managed checkout");
     }
+}
+
+/// Checkout and bootstrap failures are rolled back; failed initialization is retained for retry.
+#[cfg(not(target_arch = "wasm32"))]
+async fn prepare_checkout(
+    info: &Info,
+    project_id: &str,
+    extra: &str,
+    scope: &vw_api_types::id::ProjectScope,
+    primary: &str,
+) -> Result<(), Error> {
+    let checkout = async {
+        let populated = run_git(&["reset", "--hard"], &info.directory).await?;
+        if !populated.success {
+            return Err(Error::Invalid(populated.error_text("Failed to populate worktree")));
+        }
+        // Use the caller's verified tenant/project rather than default-tenant discovery.
+        let context = instance::Context {
+            directory: info.directory.clone(),
+            worktree: info.directory.clone(),
+            project: ensure_git_project()?,
+        };
+        instance::provide_context(
+            context,
+            project::instance_bootstrap(PathBuf::from(&info.directory)),
+        )
+        .await;
+        Ok(())
+    }
+    .await;
+    if let Err(error) = checkout {
+        rollback_checkout(scope, primary, &info.directory).await;
+        publish_preparation(info, project_id, &Err(Error::Invalid(error.to_string())));
+        return Err(error);
+    }
+    let result = super::environment::prepare(&info.directory, project_id, extra).await;
+    publish_preparation(info, project_id, &result);
+    result
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn publish_preparation(info: &Info, project_id: &str, result: &Result<(), Error>) {
+    let (definition, payload) = match result {
+        Ok(()) => (
+            event::READY,
+            serde_json::json!({"projectId": project_id, "name": info.name, "branch": info.branch}),
+        ),
+        Err(error) => (
+            event::FAILED,
+            serde_json::json!({"projectId": project_id, "message": error.to_string()}),
+        ),
+    };
+    let _ = bus::publish(definition, payload, Some(info.directory.clone()));
+}
+
+/// Retry only failed setup, preserving checkout contents and successful command stages.
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn retry_environment(directory: String) -> Result<(), Error> {
+    let project = ensure_git_project()?;
+    let primary = instance::worktree();
+    let _lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
+    let scope = vw_api_types::id::ProjectScope::new(
+        crate::session::ui_store::current_tenant_scope(),
+        vw_api_types::id::ProjectId::from(project.id.as_str()),
+    )
+    .map_err(|error| Error::Invalid(error.to_string()))?;
+    let directory = std::fs::canonicalize(directory)?;
+    let record = super::registry::record_for_path(&scope, &directory)
+        .await?
+        .ok_or_else(|| Error::Invalid("Managed checkout not found".into()))?;
+    let record =
+        super::registry::authorize(&scope, std::path::Path::new(&primary), &record.id).await?;
+    let branch = git2::Repository::open(&record.directory)
+        .and_then(|repo| repo.head().and_then(|head| head.shorthand().map(str::to_owned)))
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let info = Info {
+        directory: record.directory.to_string_lossy().into_owned(),
+        name: record.directory.file_name().unwrap_or_default().to_string_lossy().into_owned(),
+        branch,
+    };
+    if super::environment::ensure_ready(&info.directory).is_ok() {
+        return Ok(());
+    }
+    let result = super::environment::retry(&info.directory, &project.id).await;
+    publish_preparation(&info, &project.id, &result);
+    result
 }

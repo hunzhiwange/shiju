@@ -421,6 +421,9 @@ async fn reserve_info(info: Info) -> Result<Info, Error> {
 }
 
 fn new_info(input: CreateInput) -> Result<Info, Error> {
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::worktree::environment::ensure_ready(&input.directory)
+        .map_err(|error| Error::Runtime(anyhow::Error::new(error)))?;
     let now = now_ms();
     let project_id = project_id()?;
     let title = input.title.unwrap_or_else(|| create_default_title(input.parent_id.is_some()));

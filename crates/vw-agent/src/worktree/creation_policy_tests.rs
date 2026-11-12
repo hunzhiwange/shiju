@@ -131,6 +131,8 @@ async fn worktree_creation_policy_normal_and_fork_share_tenant_settings() {
         vw_api_types::id::TenantScope::new("creation-policy", uuid::Uuid::new_v4().to_string())
             .unwrap();
     crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        // Initialization reads the authoritative project settings in the active tenant.
+        project::from_directory(&tenant, &primary).await.unwrap();
         crate::config::update_global_for_tenant(
             &tenant,
             serde_json::json!({"worktree_settings": {"root": root}}),
@@ -150,22 +152,6 @@ async fn worktree_creation_policy_normal_and_fork_share_tenant_settings() {
                     Path::new(&created.directory).parent().unwrap(),
                     std::fs::canonicalize(&expected).unwrap()
                 );
-                // The existing ordinary creation populates asynchronously while holding
-                // the lifecycle lock. Wait for that phase before exercising fork.
-                let project = project::instance::project().unwrap();
-                tokio::time::timeout(std::time::Duration::from_secs(15), async {
-                    loop {
-                        if let Ok(lock) =
-                            super::registry::lifecycle_lock(Path::new(&project.worktree))
-                        {
-                            drop(lock);
-                            break;
-                        }
-                        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                    }
-                })
-                .await
-                .unwrap();
                 let fork = super::create_fork_checkout(Some("fork")).await.unwrap();
                 assert_eq!(
                     Path::new(&fork.directory).parent().unwrap(),

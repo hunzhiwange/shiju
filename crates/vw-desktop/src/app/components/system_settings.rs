@@ -480,13 +480,23 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         content_column = content_column.push(settings_error_banner(localized));
     }
     let content_column = content_column.push(content);
-    let owns_scroll = matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats);
+    let owns_scroll = matches!(active_tab, SystemTab::Agents | SystemTab::ArchivedChats)
+        || (active_tab == SystemTab::Cron
+            && app.cron_settings.active_tab == crate::app::state::CronSettingsTab::Jobs);
     #[cfg(not(target_arch = "wasm32"))]
     let owns_scroll = owns_scroll || active_tab == SystemTab::Auth;
-    let page: Element<'_, Message> = if owns_scroll || active_tab_help_modal_open(app, active_tab) {
-        centered_content(content_column.height(Length::Fill)).height(Length::Fill).into()
+    let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
+    let content_column =
+        if owns_scroll { content_column.height(Length::Fill) } else { content_column };
+    let content = if active_tab == SystemTab::Cron {
+        container(content_column).padding([0, SETTINGS_SCROLL_GUTTER]).width(Length::Fill)
     } else {
-        scrollable(centered_content(content_column))
+        centered_content(content_column)
+    };
+    let page: Element<'_, Message> = if owns_scroll {
+        content.height(Length::Fill).into()
+    } else {
+        scrollable(content)
             .id(SETTINGS_CONTENT_SCROLL)
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .height(Length::Fill)

@@ -601,8 +601,8 @@ async fn ui_refresh_27_history_scroll_and_job_actions() {
         [("编辑", "edit"), ("历史", "history"), ("启用", "enable"), ("删除", "delete")]
     {
         let bounds = buttons.labels.iter().rev().find(|(text, _)| text == tr.__(label)).unwrap().1;
-        assert_fits(bounds, size);
-        let messages = click(&mut ui, &mut renderer, bounds.center());
+        let point = reveal_form_point(&mut ui, &mut renderer, bounds.center());
+        let messages = click(&mut ui, &mut renderer, point);
         assert!(matches!((expected, messages.as_slice()),
             ("edit", [Message::Settings(SettingsMessage::CronJobEditStarted(id))])
                 | ("history", [Message::Settings(SettingsMessage::CronJobRunsOpen(id))])
@@ -966,6 +966,9 @@ fn reveal_form_point(ui: &mut Ui<'_>, renderer: &mut Renderer, point: Point) -> 
     let Some((viewport, mut translation)) = geometry(ui, renderer).scroll else {
         return point;
     };
+    if point.y < viewport.y {
+        return point;
+    }
     if !viewport.contains(point - translation) {
         let offset = point.y - translation.y - viewport.center_y();
         assert!(
@@ -1389,3 +1392,6 @@ async fn cron_edit_form_omits_separate_acp_selector() {
         );
     }
 }
+
+#[path = "system_settings_cron/list_tests.rs"]
+mod list_tests;

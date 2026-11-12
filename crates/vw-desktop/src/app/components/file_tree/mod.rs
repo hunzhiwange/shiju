@@ -39,6 +39,7 @@ use widgets::RightClickArea;
 
 mod find_results;
 mod icons;
+pub(crate) mod inline_rename;
 mod menu;
 pub(crate) mod model;
 #[cfg(target_os = "macos")]

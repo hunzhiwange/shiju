@@ -244,6 +244,14 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
             // 检查当前目录是否处于展开状态
             let expanded = app.is_file_tree_dir_expanded(&full);
+            let abs = std::path::Path::new(project_root).join(&full).to_string_lossy().to_string();
+            if app.file_tree_rename_path.as_deref() == Some(&abs) {
+                col = col.push(super::inline_rename::view(app, depth, true, expanded));
+                if expanded {
+                    col = col.push(render_dir(app, child_node, full, depth + 1, project_root));
+                }
+                continue;
+            }
             // 根据展开状态选择箭头图标
             let chevron_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
             let folder_icon = Icon::FolderOpen;
@@ -347,6 +355,10 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
                 .to_string();
             // 构建文件的绝对路径
             let abs = std::path::Path::new(project_root).join(rel).to_string_lossy().to_string();
+            if app.file_tree_rename_path.as_deref() == Some(&abs) {
+                col = col.push(super::inline_rename::view(app, depth, false, false));
+                continue;
+            }
             let selected = app.file_tree_selection.contains(project_root, &abs);
             // 构建文件行：缩进 + 文件图标 + 文件名
             let content_row: Element<'_, Message, Theme> = row![
@@ -520,6 +532,14 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
             let key = format!("chg:{}", full);
             // 检查当前目录是否处于展开状态
             let expanded = app.is_file_tree_dir_expanded(&key);
+            let abs = std::path::Path::new(project_root).join(&full).to_string_lossy().to_string();
+            if app.file_tree_rename_path.as_deref() == Some(&abs) {
+                col = col.push(super::inline_rename::view(app, depth, true, expanded));
+                if expanded {
+                    col = col.push(render_dir(app, child, full, depth + 1, project_root));
+                }
+                continue;
+            }
             // 根据展开状态选择箭头图标
             let chevron_icon = if expanded { Icon::ChevronDown } else { Icon::ChevronRight };
             // 构建目录头部行：缩进 + 箭头 + 文件夹图标 + 目录名
@@ -586,6 +606,12 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
                 .and_then(|s| s.to_str())
                 .unwrap_or(&rel)
                 .to_string();
+            let rename_path =
+                std::path::Path::new(project_root).join(&rel).to_string_lossy().to_string();
+            if app.file_tree_rename_path.as_deref() == Some(&rename_path) {
+                col = col.push(super::inline_rename::view(app, depth, false, false));
+                continue;
+            }
             // 检查文件是否被选中（当前聚焦的变更文件）
             let selected = app.git_focused_file.as_deref() == Some(rel.as_str());
             // 构建文件行：缩进 + 文件图标 + 文件名

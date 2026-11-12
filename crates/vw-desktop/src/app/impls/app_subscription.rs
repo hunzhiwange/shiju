@@ -96,6 +96,7 @@ fn map_global_event(
                 let mut messages = vec![
                     Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
                     Message::Project(message::ProjectMessage::FileTreeDragCancel),
+                    Message::Project(message::ProjectMessage::FileTreeRenameCancel),
                     Message::Editor(message::EditorMessage::CloseSearch),
                     escape_key_message,
                 ];
@@ -103,6 +104,7 @@ fn map_global_event(
                 let messages = vec![
                     Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
                     Message::Project(message::ProjectMessage::FileTreeDragCancel),
+                    Message::Project(message::ProjectMessage::FileTreeRenameCancel),
                     Message::Editor(message::EditorMessage::CloseSearch),
                     escape_key_message,
                 ];

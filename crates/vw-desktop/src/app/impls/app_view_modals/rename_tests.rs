@@ -1,6 +1,4 @@
-//! 验证文件树与会话重命名弹窗的名称推导和回退规则。
-//!
-//! 文件路径覆盖根目录、无文件名和正常名称，会话标题则覆盖全局与项目级回退。
+//! 验证会话重命名弹窗的标题推导和回退规则。
 
 #[test]
 fn rename_tests_module_is_wired() {
@@ -30,44 +28,6 @@ fn session(id: &str, title: &str) -> vw_shared::session::info::Info {
         fork_execution_started: None,
         revert: None,
     }
-}
-
-#[test]
-fn file_tree_rename_without_path_leaves_root_content() {
-    let (app, _) = crate::app::App::new();
-
-    let element = super::with_file_tree_rename(&app, text("root").into());
-
-    std::hint::black_box(element);
-}
-
-#[test]
-fn file_tree_rename_builds_modal_from_path_filename() {
-    let (mut app, _) = crate::app::App::new();
-    app.file_tree_rename_path = Some("/workspace/src/main.rs".to_string());
-    app.file_tree_rename_value = "lib.rs".to_string();
-
-    assert_eq!(super::file_tree_rename_old_name(app.file_tree_rename_path.as_deref()), "main.rs");
-    let element = super::with_file_tree_rename(&app, text("root").into());
-
-    std::hint::black_box(element);
-}
-
-#[test]
-fn file_tree_rename_builds_modal_when_path_has_no_filename() {
-    let (mut app, _) = crate::app::App::new();
-    app.file_tree_rename_path = Some(String::new());
-
-    assert_eq!(super::file_tree_rename_old_name(app.file_tree_rename_path.as_deref()), "");
-    let element = super::with_file_tree_rename(&app, text("root").into());
-
-    std::hint::black_box(element);
-}
-
-#[test]
-fn file_tree_rename_old_name_is_empty_for_missing_or_root_path() {
-    assert_eq!(super::file_tree_rename_old_name(None), "");
-    assert_eq!(super::file_tree_rename_old_name(Some("/")), "");
 }
 
 #[test]

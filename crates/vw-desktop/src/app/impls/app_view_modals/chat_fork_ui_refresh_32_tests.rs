@@ -4,8 +4,7 @@
 use super::{App, ForkSessionTarget, Message, with_chat_fork_dialog};
 use crate::app::i18n::I18n;
 use crate::app::impls::app_view_modals::{
-    with_chat_reset_dialog, with_file_tree_delete_confirm, with_file_tree_rename,
-    with_session_rename,
+    with_chat_reset_dialog, with_file_tree_delete_confirm, with_session_rename,
 };
 use crate::app::message::{ChatMessage, ProjectMessage, chat::ForkSessionAnchor};
 use crate::app::models::{ChatMessage as TranscriptMessage, ChatRole};
@@ -885,11 +884,8 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
     }
     let mut app = fixture();
     let mut renderer = renderer().await;
-    let long_name = format!("{}.txt", "长檔案名稱example".repeat(10));
     let long_title = "长會話名稱example".repeat(28);
     let project_dir = tempfile::tempdir().unwrap();
-    app.file_tree_rename_path = Some(project_dir.path().join(&long_name).display().to_string());
-    app.file_tree_rename_value = DRAFT.into();
     app.session_rename_id = Some("session-fixture".into());
     app.session_rename_value = DRAFT.into();
     let session = serde_json::from_value(serde_json::json!({
@@ -908,10 +904,8 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
         app.desktop_locale = locale;
         let i18n = I18n::new(locale);
         for (theme, mode) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
-            for (view, kind) in [
-                (with_file_tree_rename(&app, root()), "file"),
-                (with_session_rename(&app, root()), "session"),
-            ] {
+            {
+                let (view, kind) = (with_session_rename(&app, root()), "session");
                 let mut ui = scene(view, &mut renderer, size);
                 let bounds = geometry(&mut ui, &renderer);
                 assert_fits(&bounds, size);
@@ -919,11 +913,7 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
                     panic!("expected one input")
                 };
                 assert_eq!(value, DRAFT);
-                let view = if kind == "file" {
-                    with_file_tree_rename(&app, root())
-                } else {
-                    with_session_rename(&app, root())
-                };
+                let view = with_session_rename(&app, root());
                 assert_control_alignment(view, &renderer, size, Some(*input));
                 if kind == "session" {
                     let [(viewport, translation)] = bounds.scroll.as_slice() else {
@@ -989,28 +979,24 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
                 );
                 let changed = key(&mut ui, &mut renderer, Key::Character("x".into()), Some("x"));
                 assert!(matches!((kind, changed.as_slice()),
-                    ("file", [Message::Project(ProjectMessage::FileTreeRenameChanged(value))])
-                    | ("session", [Message::Project(ProjectMessage::SessionRenameChanged(value))])
+                    ("session", [Message::Project(ProjectMessage::SessionRenameChanged(value))])
                         if value == &format!("{DRAFT}x")));
                 let messages = key(&mut ui, &mut renderer, Key::Named(Named::Enter), None);
                 assert!(matches!(
                     (kind, messages.as_slice()),
-                    ("file", [Message::Project(ProjectMessage::FileTreeRenameSave)])
-                        | ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
+                    ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
                 ));
                 let save = label(&bounds, i18n.__("确定")).center();
                 let messages = click(&mut ui, &mut renderer, save);
                 assert!(matches!(
                     (kind, messages.as_slice()),
-                    ("file", [Message::Project(ProjectMessage::FileTreeRenameSave)])
-                        | ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
+                    ("session", [Message::Project(ProjectMessage::SessionRenameSave)])
                 ));
                 let cancel = label(&bounds, i18n.__("取消")).center();
                 let messages = click(&mut ui, &mut renderer, cancel);
                 assert!(matches!(
                     (kind, messages.as_slice()),
-                    ("file", [Message::Project(ProjectMessage::FileTreeRenameCancel)])
-                        | ("session", [Message::Project(ProjectMessage::SessionRenameCancel)])
+                    ("session", [Message::Project(ProjectMessage::SessionRenameCancel)])
                 ));
             }
         }
@@ -1024,7 +1010,6 @@ async fn ui_refresh_32_preserves_values_and_disabled_states() {
     for view in [
         with_chat_fork_dialog(&app, root()),
         with_chat_reset_dialog(&app, root()),
-        with_file_tree_rename(&app, root()),
         with_session_rename(&app, root()),
     ] {
         let mut ui = scene(view, &mut renderer, VIEW_SIZE);
@@ -1055,7 +1040,6 @@ async fn ui_refresh_32_escape_cancels_only_the_visible_modal() {
     for (view, kind) in [
         (with_chat_fork_dialog(&app, with_chat_reset_dialog(&app, root())), "fork"),
         (with_chat_reset_dialog(&app, root()), "reset"),
-        (with_file_tree_rename(&app, root()), "file"),
         (with_session_rename(&app, root()), "session"),
     ] {
         let mut ui = scene(view, &mut renderer, VIEW_SIZE);
@@ -1068,7 +1052,6 @@ async fn ui_refresh_32_escape_cancels_only_the_visible_modal() {
                 (kind, messages.as_slice()),
                 ("fork", [Message::Chat(ChatMessage::CloseForkSessionDialog)])
                     | ("reset", [Message::Chat(ChatMessage::CloseResetMenu)])
-                    | ("file", [Message::Project(ProjectMessage::FileTreeRenameCancel)])
                     | ("session", [Message::Project(ProjectMessage::SessionRenameCancel)])
             ),
             "Escape did not cancel {kind}"
@@ -1120,8 +1103,8 @@ async fn file_tree_delete_confirmation_draws_and_routes_actions() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn ui_refresh_32_invalid_file_name_feedback_stays_above_dialog() {
-    if !isolated("ui_refresh_32_invalid_file_name_feedback_stays_above_dialog") {
+async fn ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor() {
+    if !isolated("ui_refresh_32_invalid_file_name_feedback_keeps_inline_editor") {
         return;
     }
     let mut app = fixture();
@@ -1129,7 +1112,9 @@ async fn ui_refresh_32_invalid_file_name_feedback_stays_above_dialog() {
     app.file_tree_rename_path = Some("/fixture/original.txt".into());
     app.file_tree_rename_value = "../wrong".into();
     let mut renderer = renderer().await;
-    let mut ui = scene(with_file_tree_rename(&app, root()), &mut renderer, VIEW_SIZE);
+    app.project_path = Some("/fixture".into());
+    app.file_index_cache.insert("/fixture".into(), vec!["/fixture/original.txt".into()]);
+    let mut ui = scene(crate::app::components::file_tree::view(&app), &mut renderer, VIEW_SIZE);
     let input = geometry(&mut ui, &renderer).inputs[0].1;
     assert!(click(&mut ui, &mut renderer, input.center()).is_empty());
     let messages = key(&mut ui, &mut renderer, Key::Named(Named::Enter), None);
@@ -1141,7 +1126,7 @@ async fn ui_refresh_32_invalid_file_name_feedback_stays_above_dialog() {
     let _ = app.update(message.clone());
     assert_eq!(app.file_tree_rename_path.as_deref(), Some("/fixture/original.txt"));
     assert_eq!(app.file_tree_rename_value, "../wrong");
-    let toast = app.active_toast.as_ref().expect("invalid file name must be visible above dialog");
+    let toast = app.active_toast.as_ref().expect("invalid file name must be visible");
     assert!(matches!(toast.kind, crate::app::state::ToastKind::Error));
     let theme = Theme::Dark;
     let mut ui = scene(app.view(), &mut renderer, VIEW_SIZE);
@@ -1153,5 +1138,10 @@ async fn ui_refresh_32_invalid_file_name_feedback_stays_above_dialog() {
         "en-dark-file-error",
         mouse::Cursor::Unavailable,
     );
-    assert!(label(&geometry(&mut ui, &renderer), "Invalid file name").y > input.center_y());
+    assert!(
+        geometry(&mut ui, &renderer)
+            .labels
+            .iter()
+            .any(|(value, _)| value.contains("Invalid file name"))
+    );
 }

@@ -16,12 +16,6 @@ use iced::widget::{
 };
 use iced::{Alignment, Element, Length};
 
-fn file_tree_rename_old_name(path: Option<&str>) -> &str {
-    path.and_then(|path| std::path::Path::new(path).file_name())
-        .and_then(|segment| segment.to_str())
-        .unwrap_or("")
-}
-
 fn session_rename_old_title<'a>(app: &'a App, session_id: &str) -> &'a str {
     app.sessions
         .iter()
@@ -36,28 +30,6 @@ fn session_rename_old_title<'a>(app: &'a App, session_id: &str) -> &'a str {
                 .map(|session| session.title.as_str())
         })
         .unwrap_or("")
-}
-
-pub(crate) fn with_file_tree_rename<'a>(
-    app: &'a App,
-    root_content: Element<'a, Message>,
-) -> Element<'a, Message> {
-    let Some(path) = app.file_tree_rename_path.as_deref() else {
-        return root_content;
-    };
-    let i18n = I18n::new(app.desktop_locale);
-    let input = text_input(i18n.__("输入新名称"), &app.file_tree_rename_value)
-        .on_input(|value| Message::Project(ProjectMessage::FileTreeRenameChanged(value)));
-
-    rename_dialog(
-        i18n,
-        i18n.__("重命名"),
-        file_tree_rename_old_name(Some(path)),
-        input,
-        ProjectMessage::FileTreeRenameSave,
-        ProjectMessage::FileTreeRenameCancel,
-        root_content,
-    )
 }
 
 pub(crate) fn with_session_rename<'a>(

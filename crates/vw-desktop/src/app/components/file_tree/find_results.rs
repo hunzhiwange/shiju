@@ -862,8 +862,15 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
         results = results
             .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配项")).size(13));
     } else {
+        // 同一路径可能命中多行，只在当前页渲染一个重命名输入框。
+        let mut rename_rendered = false;
         // 每次只构建当前页，避免大量复杂结果项阻塞 UI 主线程。
         for item in &tab.matches[visible_range] {
+            if !rename_rendered && app.file_tree_rename_path.as_deref() == Some(&item.path) {
+                results = results.push(super::inline_rename::view(app, 0, false, false));
+                rename_rendered = true;
+                continue;
+            }
             // 构建标题行：文件图标 + 相对路径 + 行号:列号
             let rel = to_relative_path(root, &item.path);
             let line_col = format!("{}:{}", item.line, item.column);

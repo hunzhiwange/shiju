@@ -150,6 +150,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if !visible.contains(&path) {
                 return Some(iced::Task::none());
             }
+            app.file_tree_rename_path = None;
+            app.file_tree_rename_value.clear();
             app.file_tree_selection.select(
                 &project_path,
                 path.clone(),
@@ -339,6 +341,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let Some(parent) = old.parent() else {
                 return Some(iced::Task::none());
             };
+            if old.file_name().and_then(|name| name.to_str()) == Some(new_name.as_str()) {
+                app.file_tree_rename_path = None;
+                app.file_tree_rename_value.clear();
+                return Some(iced::Task::none());
+            }
             let existing = app.files.iter().cloned().collect::<HashSet<_>>();
             let new_path = unique_name_for_target(parent, &new_name, &existing);
             let Some(project_path) = app.project_path.clone() else {
@@ -604,12 +611,22 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     }
                 }
                 FileTreeAction::Rename => {
+                    let directory = is_directory_path(&path, app.current_file_index());
                     app.file_tree_rename_path = Some(path.clone());
                     app.file_tree_rename_value = std::path::Path::new(&path)
                         .file_name()
                         .and_then(|s| s.to_str())
                         .unwrap_or("")
                         .to_string();
+                    let end = crate::app::components::file_tree::inline_rename::selection_end(
+                        &app.file_tree_rename_value,
+                        directory,
+                    );
+                    let id = crate::app::components::file_tree::inline_rename::INPUT_ID;
+                    return Some(
+                        iced::widget::operation::focus(id)
+                            .chain(iced::widget::operation::select_range(id, 0, end)),
+                    );
                 }
                 FileTreeAction::Delete => {
                     if let Some(project_path) = app.project_path.clone() {

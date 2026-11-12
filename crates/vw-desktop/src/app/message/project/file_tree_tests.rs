@@ -226,6 +226,22 @@ fn rename_save_with_project_queues_operation_and_clears_editor_state() {
 }
 
 #[test]
+fn rename_unchanged_name_closes_editor_without_moving_file() {
+    let mut app = app();
+    app.project_path = Some("/tmp/project".into());
+    app.files = vec!["/tmp/project/ACP验收.md".into()];
+    app.file_tree_rename_path = Some(app.files[0].clone());
+    app.file_tree_rename_value = "ACP验收.md".into();
+
+    let task =
+        super::handle(&mut app, crate::app::message::project::ProjectMessage::FileTreeRenameSave)
+            .expect("handled rename");
+    assert_eq!(task.units(), 0);
+    assert!(app.file_tree_rename_path.is_none());
+    assert!(app.file_tree_rename_value.is_empty());
+}
+
+#[test]
 fn rename_completed_updates_preview_paths_on_success() {
     let mut app = app();
     app.project_path = Some("/tmp/project".to_string());

@@ -222,6 +222,11 @@ fn map_global_event_maps_keyboard_shortcuts() {
         Message::Preview(message::PreviewMessage::LspCompletionClosed)
     )));
 
+    assert!(messages.iter().any(|message| matches!(
+        message,
+        Message::Project(message::ProjectMessage::FileTreeRenameCancel)
+    )));
+
     let search = map_global_event(
         key_pressed(keyboard::Key::Character("f".into()), Modifiers::COMMAND),
         iced::event::Status::Captured,

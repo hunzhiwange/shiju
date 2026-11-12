@@ -24,6 +24,9 @@ pub struct Record {
     pub created_at_ms: u64,
     pub last_used_at_ms: u64,
     pub state: Lifecycle,
+    /// Durable receipt preventing repeated restoration of the same snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovered_from: Option<String>,
 }
 
 fn invalid(error: impl std::fmt::Display) -> Error {
@@ -53,7 +56,7 @@ pub fn lifecycle_lock(primary: &Path) -> Result<std::fs::File, Error> {
     Ok(file)
 }
 
-fn identity(path: &Path) -> Result<String, Error> {
+pub(super) fn identity(path: &Path) -> Result<String, Error> {
     let metadata = std::fs::symlink_metadata(path)?;
     if metadata.file_type().is_symlink() {
         return Err(invalid("Symlink checkout is not allowed"));
@@ -142,6 +145,28 @@ pub(crate) async fn register_locked(
     primary: &Path,
     directory: &Path,
 ) -> Result<Record, Error> {
+    register_with_recovery(scope, primary, directory, None).await
+}
+
+pub(crate) async fn register_recovered_locked(
+    scope: &ProjectScope,
+    primary: &Path,
+    directory: &Path,
+    recovery_id: &str,
+) -> Result<Record, Error> {
+    register_with_recovery(scope, primary, directory, Some(recovery_id)).await
+}
+
+pub(crate) async fn was_restored(scope: &ProjectScope, recovery_id: &str) -> Result<bool, Error> {
+    Ok(records(scope).await?.iter().any(|r| r.recovered_from.as_deref() == Some(recovery_id)))
+}
+
+async fn register_with_recovery(
+    scope: &ProjectScope,
+    primary: &Path,
+    directory: &Path,
+    recovered_from: Option<&str>,
+) -> Result<Record, Error> {
     let (directory, common_dir, git_dir, checkout_identity) = checkout(primary, directory)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -149,6 +174,11 @@ pub(crate) async fn register_locked(
         .as_millis() as u64;
     let _scope_lock = scope_lock(scope)?;
     let mut records = records(scope).await?;
+    if recovered_from
+        .is_some_and(|id| records.iter().any(|r| r.recovered_from.as_deref() == Some(id)))
+    {
+        return Err(invalid("Recovery snapshot was already restored"));
+    }
     if records.iter().any(|r| r.directory == directory && r.state == Lifecycle::Ready) {
         return Err(invalid("Checkout already managed"));
     }
@@ -164,6 +194,7 @@ pub(crate) async fn register_locked(
         created_at_ms: now,
         last_used_at_ms: now,
         state: Lifecycle::Ready,
+        recovered_from: recovered_from.map(str::to_owned),
     };
     let marker = record.git_dir.join("shiju-managed.json");
     let bytes = serde_json::to_vec(&record).map_err(invalid)?;

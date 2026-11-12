@@ -66,3 +66,7 @@ pub mod recovery;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "recovery_tests.rs"]
 mod recovery_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "recovery_restore_tests.rs"]
+mod recovery_restore_tests;

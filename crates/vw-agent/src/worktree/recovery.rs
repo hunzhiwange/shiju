@@ -355,3 +355,15 @@ fn sync_directory(path: &Path) -> Result<(), Error> {
     let _ = path;
     Ok(())
 }
+
+#[derive(Debug)]
+pub struct Restored {
+    pub record: registry::Record,
+    pub original_id: String,
+    pub branch: String,
+    pub branch_changed: bool,
+}
+
+#[path = "recovery_restore.rs"]
+mod restoration;
+pub use restoration::restore;

@@ -28,6 +28,7 @@ pub(super) struct Jobs(Arc<Mutex<HashMap<String, Arc<Job>>>>);
 pub(super) struct Job {
     pub(super) operation: Operation,
     tenant: TenantScope,
+    principal: String,
     scope: McpCatalogScope,
     host: String,
     reports: Mutex<Vec<TargetResult>>,
@@ -64,7 +65,10 @@ impl Jobs {
         if entry.tenant != *tenant || entry.host != host {
             return Err(StatusCode::NOT_FOUND);
         }
-        authorize(policy, headers, &entry.scope, tenant, host).map_err(|e| e.0)?;
+        let principal = authorize(policy, headers, &entry.scope, tenant, host).map_err(|e| e.0)?;
+        if principal != entry.principal {
+            return Err(StatusCode::NOT_FOUND);
+        }
         Ok(Some(entry))
     }
 }
@@ -88,11 +92,13 @@ fn authorize(
     scope: &McpCatalogScope,
     tenant: &TenantScope,
     host: &str,
-) -> Result<(), McpHttpError> {
-    agent_apps::authorize_mcp_catalog_write(policy.0.as_deref(), headers, scope, host)
-        .map_err(access_error)?;
+) -> Result<String, McpHttpError> {
+    let principal =
+        agent_apps::authorize_mcp_catalog_write(policy.0.as_deref(), headers, scope, host)
+            .map_err(access_error)?;
     agent_apps::authorize_provider_config_access(policy.0.as_deref(), headers, tenant, host, true)
-        .map_err(access_error)
+        .map_err(access_error)?;
+    Ok(principal)
 }
 pub(super) async fn submit(
     Extension(policy): Extension<PolicyFile>,
@@ -110,7 +116,7 @@ pub(super) async fn submit(
         },
         None => McpCatalogScope::Tenant { scope: tenant.clone() },
     };
-    authorize(&policy, &headers, &scope, &tenant, &request.target_host_id)?;
+    let principal = authorize(&policy, &headers, &scope, &tenant, &request.target_host_id)?;
     if request.targets.is_empty() || request.targets.len() > 12 {
         return Err(access_error(StatusCode::BAD_REQUEST));
     }
@@ -127,7 +133,7 @@ pub(super) async fn submit(
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = (database, jobs);
+        let _ = (database, jobs, principal);
         Err(access_error(StatusCode::NOT_IMPLEMENTED))
     }
     #[cfg(target_os = "macos")]
@@ -137,6 +143,7 @@ pub(super) async fn submit(
         let job = Arc::new(Job {
             operation: Operation::new(),
             tenant: tenant.clone(),
+            principal,
             scope,
             host: request.target_host_id.clone(),
             reports: Mutex::new(Vec::new()),
@@ -192,7 +199,11 @@ async fn run(
     };
     use vw_api_types::agent_apps_auth::AuthService;
     let work = async {
-        authorize(&policy, &headers, &job.scope, &job.tenant, &job.host).map_err(|e| e.1.0.code)?;
+        let principal = authorize(&policy, &headers, &job.scope, &job.tenant, &job.host)
+            .map_err(|e| e.1.0.code)?;
+        if principal != job.principal {
+            return Err(McpFailureCode::PermissionDenied);
+        }
         let (env, root) = agent_apps::authorize_mcp_native_write(
             policy.0.as_deref(),
             &headers,
@@ -292,8 +303,12 @@ async fn run(
                 &requested,
                 |app| {
                     // Revalidate grants immediately before each application's publication.
-                    authorize(&policy, &headers, &job.scope, &job.tenant, &job.host)
-                        .map_err(|_| McpFailureCode::PermissionDenied)?;
+                    let principal =
+                        authorize(&policy, &headers, &job.scope, &job.tenant, &job.host)
+                            .map_err(|_| McpFailureCode::PermissionDenied)?;
+                    if principal != job.principal {
+                        return Err(McpFailureCode::PermissionDenied);
+                    }
                     let (fresh, fresh_root) = agent_apps::authorize_mcp_native_write(
                         policy.0.as_deref(),
                         &headers,

@@ -196,3 +196,6 @@ mod acp_mount_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod tool_details_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod security_tests;

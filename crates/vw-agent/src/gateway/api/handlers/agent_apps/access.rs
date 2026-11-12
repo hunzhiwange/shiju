@@ -1234,7 +1234,7 @@ pub(in super::super) fn authorize_mcp_catalog_write(
     headers: &HeaderMap,
     scope: &vw_api_types::mcp_management::McpCatalogScope,
     target: &str,
-) -> Result<(), StatusCode> {
+) -> Result<String, StatusCode> {
     use vw_api_types::mcp_management::McpCatalogScope;
 
     let (tenant, project) = match scope {
@@ -1242,7 +1242,7 @@ pub(in super::super) fn authorize_mcp_catalog_write(
         McpCatalogScope::Project { scope } => (scope.tenant_scope(), Some(scope.project_id())),
     };
     authorize_scoped(path, headers, tenant, target, None, Capability::McpCatalogWrite(project))
-        .map(|_| ())
+        .map(|authorization| authorization.principal)
 }
 
 /// Configuration metadata reads require an independent administrator grant.

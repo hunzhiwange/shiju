@@ -15,7 +15,6 @@ use super::state::{
 use crate::app::{App, Message};
 use iced::widget::text_editor;
 use iced::{Point, Task, Vector};
-#[cfg(not(target_arch = "wasm32"))]
 use vw_gateway_client::{WorkflowRecordSummary, WorkflowRecordUpsertBody};
 
 #[cfg(test)]
@@ -384,32 +383,21 @@ pub(super) fn apply_loaded(app: &mut App, loaded: LoadedWorkflow) {
 }
 
 pub(crate) fn load_saved_apps_task() -> Task<Message> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        Task::perform(
-            async { Err("Web 平台暂不支持读取本地 Workflow 应用列表".to_string()) },
-            |res| Message::WorkflowTool(WorkflowMessage::LoadSavedAppsFinished(res)),
-        )
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let tenant = crate::app::session_gateway::active_tenant_scope();
-        let client = crate::app::config::gateway_client();
-        Task::perform(
-            async move {
-                let client = client?;
-                let records = client.workflow_applications_list().await?;
-                Ok(records.into_iter().map(saved_app_summary_from_record).collect())
-            },
-            move |result| {
-                Message::WorkflowTool(WorkflowMessage::ScopedSavedAppsLoaded {
-                    tenant: tenant.clone(),
-                    result,
-                })
-            },
-        )
-    }
+    let tenant = crate::app::session_gateway::active_tenant_scope();
+    let client = crate::app::config::gateway_client();
+    Task::perform(
+        async move {
+            let client = client?;
+            let records = client.workflow_applications_list().await?;
+            Ok(records.into_iter().map(saved_app_summary_from_record).collect())
+        },
+        move |result| {
+            Message::WorkflowTool(WorkflowMessage::ScopedSavedAppsLoaded {
+                tenant: tenant.clone(),
+                result,
+            })
+        },
+    )
 }
 
 pub(super) fn open_saved_app_task(uuid: String) -> Task<Message> {
@@ -485,7 +473,6 @@ pub(super) fn delete_saved_app_task(uuid: String) -> Task<Message> {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn saved_app_summary_from_record(record: WorkflowRecordSummary) -> WorkflowSavedAppSummary {
     WorkflowSavedAppSummary {
         uuid: record.uuid,
@@ -521,48 +508,41 @@ pub(super) fn save_entry(
     entry: super::state::WorkflowAppEntry,
     force_picker: bool,
 ) -> Task<Message> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = (entry, force_picker);
-        Task::perform(
-            async {
+    Task::perform(
+        async move {
+            let content = serialize_workflow_yaml(
+                &entry.meta,
+                &entry.document,
+                &entry.environment_variables,
+                &entry.conversation_variables,
+                &entry.raw_root,
+                WorkflowViewport { x: entry.pan.x, y: entry.pan.y, zoom: entry.zoom },
+            )?;
+
+            if !force_picker {
+                let client = crate::app::config::gateway_client()?;
+                let body = WorkflowRecordUpsertBody {
+                    uuid: entry.local_uuid.clone(),
+                    name: entry.meta.name.clone(),
+                    description: entry.meta.description.clone(),
+                    workflow_yaml: content,
+                };
+                let record = match entry.local_uuid.as_deref() {
+                    Some(uuid) => client.workflow_application_update(uuid, &body).await?,
+                    None => client.workflow_application_create(&body).await?,
+                };
+                return Ok(Some(WorkflowSaveTarget::LocalUuid(record.uuid)));
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
                 Err(crate::app::i18n::workflow::Feedback::new(
                     "Web 平台暂不支持保存本地工作流文件",
                     vec![],
                 ))
-            },
-            |res| Message::WorkflowTool(WorkflowMessage::SaveActiveAppFinished(res)),
-        )
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        Task::perform(
-            async move {
-                let content = serialize_workflow_yaml(
-                    &entry.meta,
-                    &entry.document,
-                    &entry.environment_variables,
-                    &entry.conversation_variables,
-                    &entry.raw_root,
-                    WorkflowViewport { x: entry.pan.x, y: entry.pan.y, zoom: entry.zoom },
-                )?;
-
-                if !force_picker {
-                    let client = crate::app::config::gateway_client()?;
-                    let body = WorkflowRecordUpsertBody {
-                        uuid: entry.local_uuid.clone(),
-                        name: entry.meta.name.clone(),
-                        description: entry.meta.description.clone(),
-                        workflow_yaml: content,
-                    };
-                    let record = match entry.local_uuid.as_deref() {
-                        Some(uuid) => client.workflow_application_update(uuid, &body).await?,
-                        None => client.workflow_application_create(&body).await?,
-                    };
-                    return Ok(Some(WorkflowSaveTarget::LocalUuid(record.uuid)));
-                }
-
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
                 let default_name = suggested_workflow_file_name(&entry.meta.name);
                 let path = if force_picker || entry.source_path.is_none() {
                     let file = rfd::AsyncFileDialog::new()
@@ -587,10 +567,10 @@ pub(super) fn save_entry(
                     )
                 })?;
                 Ok(Some(WorkflowSaveTarget::FilePath(path)))
-            },
-            |res| Message::WorkflowTool(WorkflowMessage::SaveActiveAppFinished(res)),
-        )
-    }
+            }
+        },
+        |res| Message::WorkflowTool(WorkflowMessage::SaveActiveAppFinished(res)),
+    )
 }
 
 pub(super) fn open_file() -> Task<Message> {

@@ -28,6 +28,7 @@ fn cron_job_json(job: &crate::app::agent::cron::CronJob) -> serde_json::Value {
     let job_type: &str = job.job_type.clone().into();
     let (schedule_kind, at, every_ms) = match &job.schedule {
         crate::app::agent::cron::Schedule::Cron { .. } => ("cron", None, None),
+        crate::app::agent::cron::Schedule::Biweekly { .. } => ("biweekly", None, None),
         crate::app::agent::cron::Schedule::At { at } => ("at", Some(at.to_rfc3339()), None),
         crate::app::agent::cron::Schedule::Every { every_ms } => ("every", None, Some(*every_ms)),
     };

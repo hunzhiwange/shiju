@@ -942,7 +942,7 @@ fn is_high_frequency_agent_job(job: &CronJob) -> bool {
                 _ => false,
             }
         }
-        Schedule::At { .. } => false,
+        Schedule::At { .. } | Schedule::Biweekly { .. } => false,
     }
 }
 

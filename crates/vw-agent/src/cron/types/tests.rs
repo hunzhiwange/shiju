@@ -216,3 +216,10 @@ mod tests {
         assert!(patch.task_pool.is_none());
     }
 }
+
+#[test]
+fn wb_schedule_biweekly_json_round_trip() {
+    let json = serde_json::json!({"kind":"biweekly", "anchor_date":"2026-11-12", "weekdays":[1,3,5], "hour":9, "minute":30, "timezone":"Asia/Shanghai"});
+    let schedule: Schedule = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(serde_json::to_value(schedule).unwrap(), json);
+}

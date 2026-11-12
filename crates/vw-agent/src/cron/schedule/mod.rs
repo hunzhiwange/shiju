@@ -15,6 +15,8 @@
 //! - **一次性执行**: 指定具体的执行时间点
 //! - **周期性执行**: 按固定的毫秒间隔循环执行
 
+mod biweekly;
+
 use super::Schedule;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
@@ -82,6 +84,9 @@ pub fn next_run_for_schedule(schedule: &Schedule, from: DateTime<Utc>) -> Result
                     .ok_or_else(|| anyhow::anyhow!("No future occurrence for expression: {expr}"))
             }
         }
+        Schedule::Biweekly { anchor_date, weekdays, hour, minute, timezone } => {
+            biweekly::next_run(*anchor_date, weekdays, *hour, *minute, timezone, from)
+        }
         Schedule::At { at } => {
             // 一次性执行：直接返回指定的时间点
             Ok(*at)
@@ -137,6 +142,10 @@ pub fn validate_schedule(schedule: &Schedule, now: DateTime<Utc>) -> Result<()> 
             let _ = normalize_expression(expr)?;
             // 验证能否计算出下一次执行时间
             let _ = next_run_for_schedule(schedule, now)?;
+            Ok(())
+        }
+        Schedule::Biweekly { .. } => {
+            next_run_for_schedule(schedule, now)?;
             Ok(())
         }
         Schedule::At { at } => {
@@ -243,3 +252,6 @@ pub fn normalize_expression(expression: &str) -> Result<String> {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod biweekly_tests;

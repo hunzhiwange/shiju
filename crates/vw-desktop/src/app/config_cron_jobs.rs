@@ -14,6 +14,7 @@ fn normalize_schedule_kind(
         return Ok("cron".to_string());
     }
     match kind.to_ascii_lowercase().as_str() {
+        "biweekly" => Ok("biweekly".to_string()),
         "at" | "指定时间" => Ok("at".to_string()),
         "every" | "固定间隔" => Ok("every".to_string()),
         "cron" => {
@@ -156,7 +157,17 @@ pub async fn add_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
+    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
 ) -> Result<(), String> {
+    let (schedule_kind, schedule, at, every_ms) = match &time_rule {
+        Some(rule) => (
+            rule.schedule_kind.clone(),
+            rule.schedule.clone().unwrap_or_default(),
+            rule.at.clone().or(rule.local_at.clone()).unwrap_or_default(),
+            rule.every_ms.map(|v| v.to_string()).unwrap_or_default(),
+        ),
+        None => (schedule_kind, schedule, at, every_ms),
+    };
     let name = Some(name.trim().to_string()).filter(|value| !value.is_empty());
     let job_type = job_type.trim().to_string();
     let schedule_value = schedule.trim().to_string();
@@ -246,7 +257,7 @@ pub async fn add_cron_job_async(
         delivery_enabled,
         "submitting cron job"
     );
-    let request = CronAddRequest {
+    let mut request = CronAddRequest {
         name,
         job_type,
         schedule_kind: schedule_kind.clone(),
@@ -271,6 +282,9 @@ pub async fn add_cron_job_async(
         delete_after_run: Some(delete_after_run),
         ..Default::default()
     };
+    if let Some(rule) = time_rule {
+        apply_add_schedule(&mut request, rule);
+    }
     client.cron_job_add(&request).await.map(|_| ())
 }
 
@@ -299,7 +313,17 @@ pub async fn update_cron_job_async(
     delivery_to: String,
     delivery_best_effort: bool,
     delete_after_run: bool,
+    time_rule: Option<vw_gateway_client::CronPreviewRequest>,
 ) -> Result<(), String> {
+    let (schedule_kind, schedule, at, every_ms) = match &time_rule {
+        Some(rule) => (
+            rule.schedule_kind.clone(),
+            rule.schedule.clone().unwrap_or_default(),
+            rule.at.clone().or(rule.local_at.clone()).unwrap_or_default(),
+            rule.every_ms.map(|v| v.to_string()).unwrap_or_default(),
+        ),
+        None => (schedule_kind, schedule, at, every_ms),
+    };
     let name = Some(name.trim().to_string()).filter(|value| !value.is_empty());
     let job_type = job_type.trim().to_string();
     let schedule_value = schedule.trim().to_string();
@@ -374,7 +398,7 @@ pub async fn update_cron_job_async(
         task_pool,
     )
     .await?;
-    let request = CronUpdateRequest {
+    let mut request = CronUpdateRequest {
         name,
         job_type: Some(job_type),
         schedule_kind: Some(schedule_kind.clone()),
@@ -400,6 +424,9 @@ pub async fn update_cron_job_async(
         enabled: None,
         ..Default::default()
     };
+    if let Some(rule) = time_rule {
+        apply_update_schedule(&mut request, rule);
+    }
     client.cron_job_update(&job_id, &request).await.map(|_| ())
 }
 
@@ -439,3 +466,47 @@ pub async fn delete_cron_jobs_async(job_ids: Vec<String>) -> Result<(), String> 
 #[cfg(test)]
 #[path = "config_cron_jobs_tests.rs"]
 mod config_cron_jobs_tests;
+
+/// 预览和保存使用同一份已经验证的规则参数。
+pub async fn preview_cron_schedule_async(
+    rule: vw_gateway_client::CronPreviewRequest,
+) -> Result<vw_gateway_client::CronPreviewResponse, String> {
+    gateway_client()?.cron_schedule_preview(&rule).await
+}
+
+fn apply_add_schedule(request: &mut CronAddRequest, rule: vw_gateway_client::CronPreviewRequest) {
+    request.schedule_kind = rule.schedule_kind;
+    request.schedule = rule.schedule.unwrap_or_default();
+    request.at = rule.at;
+    request.local_at = rule.local_at;
+    request.every_ms = rule.every_ms;
+    request.timezone = rule.timezone;
+    request.anchor_date = rule.anchor_date;
+    request.weekdays = rule.weekdays;
+    request.hour = rule.hour;
+    request.minute = rule.minute;
+    request.starts_at = rule.starts_at;
+    request.ends_at = rule.ends_at;
+    request.start_date = rule.start_date;
+    request.end_date = rule.end_date;
+}
+
+fn apply_update_schedule(
+    request: &mut CronUpdateRequest,
+    rule: vw_gateway_client::CronPreviewRequest,
+) {
+    request.schedule_kind = Some(rule.schedule_kind);
+    request.schedule = rule.schedule;
+    request.at = rule.at;
+    request.local_at = rule.local_at;
+    request.every_ms = rule.every_ms;
+    request.timezone = rule.timezone;
+    request.anchor_date = rule.anchor_date;
+    request.weekdays = rule.weekdays;
+    request.hour = rule.hour;
+    request.minute = rule.minute;
+    request.starts_at = rule.starts_at;
+    request.ends_at = rule.ends_at;
+    request.start_date = rule.start_date;
+    request.end_date = rule.end_date;
+}

@@ -614,6 +614,11 @@ impl Default for CronAddScheduleKind {
 
 #[derive(Debug, Clone)]
 pub(crate) struct CronJobDraft {
+    pub(crate) schedule_draft: Option<super::CronScheduleDraft>,
+    pub(crate) schedule_revision: u64,
+    pub(crate) schedule_error: Option<String>,
+    pub(crate) preview: Option<Result<vw_gateway_client::CronPreviewResponse, String>>,
+    pub(crate) submitting: bool,
     pub(crate) name: String,
     pub(crate) job_type: CronAddJobType,
     pub(crate) schedule_kind: CronAddScheduleKind,
@@ -645,6 +650,11 @@ pub(crate) struct CronJobDraft {
 impl Default for CronJobDraft {
     fn default() -> Self {
         Self {
+            schedule_draft: None,
+            schedule_revision: 0,
+            schedule_error: None,
+            preview: None,
+            submitting: false,
             name: String::new(),
             job_type: CronAddJobType::default(),
             schedule_kind: CronAddScheduleKind::default(),

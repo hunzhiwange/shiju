@@ -573,6 +573,9 @@ fn mutation_actions_clear_errors_when_they_can_start() {
     app.cron_settings.editing_job_id = Some("job-1".to_string());
     let _ = update(&mut app, SettingsMessage::CronJobEditSave);
     assert_eq!(app.cron_settings.save_error, None);
+    assert!(app.cron_settings.edit_draft.submitting);
+    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("offline".into())));
+    assert!(!app.cron_settings.edit_draft.submitting);
 
     app.cron_settings.save_error = Some("old".to_string());
     let _ = update(&mut app, SettingsMessage::CronJobEnabledChanged("job-1".to_string(), false));
@@ -788,4 +791,129 @@ fn cron_list_batch_limits_requests_to_visible_valid_selection() {
         assert_eq!(app.cron_settings.selected_job_ids, vec!["enabled-1"]);
         assert!(app.cron_settings.save_error.is_none());
     }
+}
+
+#[test]
+fn wb_schedule_draft_late_preview_ignored() {
+    let mut app = app();
+    let old = app.cron_settings.add_draft.schedule_revision;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronScheduleDraftChanged { editing: false, draft: Default::default() },
+    );
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronSchedulePreviewLoaded {
+            editing: false,
+            revision: old,
+            result: Err("stale".into()),
+        },
+    );
+    assert!(app.cron_settings.add_draft.preview.is_none());
+    let revision = app.cron_settings.add_draft.schedule_revision;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronSchedulePreviewLoaded {
+            editing: false,
+            revision,
+            result: Err("current".into()),
+        },
+    );
+    assert!(matches!(&app.cron_settings.add_draft.preview, Some(Err(e)) if e == "current"));
+}
+
+#[test]
+fn wb_schedule_draft_cancel_restores_persisted_job() {
+    let mut app = app();
+    let mut original = job("calendar");
+    original.schedule_kind = "biweekly".into();
+    original.anchor_date = Some("2028-01-03".into());
+    original.weekdays = Some(vec![1, 3]);
+    original.hour = Some(9);
+    original.minute = Some(30);
+    original.timezone = Some("Asia/Shanghai".into());
+    original.starts_at = Some("2028-01-01T00:00:00Z".into());
+    app.cron_settings.jobs = vec![original.clone()];
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted(original.id.clone()));
+    let before = schedule_request(&app.cron_settings.edit_draft).unwrap();
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronScheduleDraftChanged { editing: true, draft: Default::default() },
+    );
+    let _ = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted(original.id.clone()));
+    assert_eq!(
+        serde_json::to_value(schedule_request(&app.cron_settings.edit_draft).unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+    assert_eq!(app.cron_settings.jobs[0].starts_at, original.starts_at);
+}
+
+#[test]
+fn wb_schedule_draft_failure_keeps_rule_and_releases_submission() {
+    let mut app = app();
+    let rule = crate::app::state::CronScheduleDraft::default();
+    app.cron_settings.add_draft.schedule_draft = Some(rule.clone());
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("offline".into())));
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert_eq!(app.cron_settings.add_draft.schedule_draft, Some(rule));
+}
+
+#[test]
+fn wb_schedule_draft_duplicate_submit_ignored() {
+    let mut app = app();
+    app.cron_settings.add_draft.submitting = true;
+    app.cron_settings.save_error = Some("sentinel".into());
+    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert_eq!(app.cron_settings.save_error.as_deref(), Some("sentinel"));
+    assert!(app.cron_settings.add_draft.submitting);
+}
+
+#[test]
+fn wb_schedule_draft_legacy_edit_preserves_timezone_and_window_patch() {
+    let mut app = app();
+    let rule = crate::app::state::CronScheduleDraft {
+        timezone: "Asia/Tokyo".into(),
+        start_date: Some(None),
+        ..Default::default()
+    };
+    app.cron_settings.edit_draft.schedule_draft = Some(rule);
+    let _ = update(&mut app, SettingsMessage::CronJobEditScheduleChanged("30 10 * * *".into()));
+    let r = schedule_request(&app.cron_settings.edit_draft).unwrap();
+    assert_eq!(r.timezone.as_deref(), Some("Asia/Tokyo"));
+    assert_eq!(r.start_date, Some(None));
+    assert_eq!(r.schedule.as_deref(), Some("30 10 * * *"));
+}
+
+#[test]
+fn wb_schedule_draft_invalid_legacy_input_keeps_timezone_when_corrected() {
+    let mut app = app();
+    let mut rule = crate::app::state::CronScheduleDraft {
+        timezone: "Asia/Tokyo".into(),
+        ..Default::default()
+    };
+    rule.rule = crate::app::state::CronScheduleRule::Every {
+        amount: 2,
+        unit: crate::app::state::IntervalUnit::Hours,
+    };
+    app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Every;
+    app.cron_settings.add_draft.schedule_draft = Some(rule);
+    let _ = update(&mut app, SettingsMessage::CronAddEveryMsChanged("".into()));
+    assert!(schedule_request(&app.cron_settings.add_draft).is_err());
+    let _ = update(&mut app, SettingsMessage::CronAddEveryMsChanged("60000".into()));
+    let r = schedule_request(&app.cron_settings.add_draft).unwrap();
+    assert_eq!(r.timezone.as_deref(), Some("Asia/Tokyo"));
+    assert_eq!(r.every_ms, Some(60000));
+}
+
+#[test]
+fn wb_schedule_draft_unsupported_job_does_not_select_stale_edit_draft() {
+    let mut app = app();
+    let mut invalid = job("unsupported");
+    invalid.schedule_kind = "unsupported".into();
+    app.cron_settings.jobs = vec![invalid.clone()];
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted(invalid.id));
+    assert!(app.cron_settings.editing_job_id.is_none());
+    assert!(app.cron_settings.save_error.is_some());
 }

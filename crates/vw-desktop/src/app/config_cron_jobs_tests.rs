@@ -292,6 +292,7 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "Cron 表达式不能为空",
@@ -320,6 +321,7 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "固定间隔毫秒数无效",
@@ -348,6 +350,7 @@ async fn add_cron_job_async_rejects_invalid_inputs_before_gateway() {
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "Agent 提示词不能为空",
@@ -381,6 +384,7 @@ async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() 
             "ops".to_string(),
             true,
             false,
+            None,
         )
         .await,
         "投递通道不能为空",
@@ -410,6 +414,7 @@ async fn update_cron_job_async_rejects_missing_delivery_fields_before_gateway() 
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "投递目标不能为空",
@@ -443,6 +448,7 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "指定时间不能为空",
@@ -472,6 +478,7 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "固定间隔毫秒数不能为空",
@@ -501,6 +508,7 @@ async fn update_cron_job_async_rejects_schedule_and_payload_requirements_before_
             String::new(),
             true,
             false,
+            None,
         )
         .await,
         "执行命令不能为空",
@@ -554,6 +562,7 @@ async fn add_cron_job_async_sends_trimmed_agent_request() {
         " ops@example.com ".to_string(),
         false,
         true,
+        None,
     )
     .await
     .expect("agent cron should be submitted");
@@ -606,6 +615,7 @@ async fn update_cron_job_async_sends_cron_request_without_extended_probe() {
         String::new(),
         true,
         false,
+        None,
     )
     .await
     .expect("shell cron should be updated");
@@ -658,4 +668,68 @@ async fn delete_cron_jobs_async_deletes_each_job() {
     assert_eq!(requests[0].method, "DELETE");
     assert_eq!(requests[0].path, "/v1/cron/job-1");
     assert_eq!(requests[1].path, "/v1/cron/job-2");
+}
+
+#[test]
+fn wb_schedule_draft_submission_matches_preview_parameters() {
+    let rule = crate::app::state::CronScheduleDraft {
+        start_date: Some(None),
+        end_date: Some(Some("2028-12-31".parse().unwrap())),
+        ..Default::default()
+    }
+    .request()
+    .unwrap();
+    let mut add = super::CronAddRequest::default();
+    let mut update = super::CronUpdateRequest::default();
+    super::apply_add_schedule(&mut add, rule.clone());
+    super::apply_update_schedule(&mut update, rule.clone());
+    let preview = serde_json::to_value(rule).unwrap();
+    let add = serde_json::to_value(add).unwrap();
+    let update = serde_json::to_value(update).unwrap();
+    for (key, value) in preview.as_object().unwrap() {
+        assert_eq!(add.get(key), Some(value), "add {key}");
+        assert_eq!(update.get(key), Some(value), "update {key}");
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn wb_schedule_draft_typed_rule_clears_stale_legacy_inputs_before_validation() {
+    let _guard = CRON_JOBS_ENV_LOCK.lock().await;
+    let gateway = TestGateway::start(1).await;
+    let rule = vw_gateway_client::CronPreviewRequest {
+        schedule_kind: "cron".into(),
+        schedule: Some("30 9 * * *".into()),
+        ..Default::default()
+    };
+    super::add_cron_job_async(
+        "calendar".into(),
+        "shell".into(),
+        "every".into(),
+        "stale".into(),
+        "invalid".into(),
+        "invalid".into(),
+        "echo ok".into(),
+        String::new(),
+        "isolated".into(),
+        String::new(),
+        String::new(),
+        String::new(),
+        false,
+        String::new(),
+        String::new(),
+        false,
+        false,
+        false,
+        String::new(),
+        String::new(),
+        true,
+        false,
+        Some(rule),
+    )
+    .await
+    .unwrap();
+    let requests = gateway.requests().await;
+    assert_eq!(requests[0].body["schedule"], "30 9 * * *");
+    assert!(requests[0].body.get("every_ms").is_none());
+    assert!(requests[0].body.get("at").is_none());
 }

@@ -941,6 +941,18 @@ pub enum SettingsMessage {
     HeartbeatSave,
     HeartbeatHelpOpen,
     HeartbeatHelpClose,
+    CronScheduleDraftChanged {
+        editing: bool,
+        draft: crate::app::state::CronScheduleDraft,
+    },
+    CronSchedulePreview {
+        editing: bool,
+    },
+    CronSchedulePreviewLoaded {
+        editing: bool,
+        revision: u64,
+        result: Result<vw_gateway_client::CronPreviewResponse, String>,
+    },
     CronEnabledToggled(bool),
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),

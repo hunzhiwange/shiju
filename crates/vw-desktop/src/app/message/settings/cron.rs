@@ -13,6 +13,60 @@ use std::fmt::Write;
 
 use super::messages::SettingsMessage;
 
+fn schedule_request(
+    draft: &crate::app::state::CronJobDraft,
+) -> Result<vw_gateway_client::CronPreviewRequest, String> {
+    if let Some(err) = &draft.schedule_error {
+        return Err(err.clone());
+    }
+    if let Some(rule) = &draft.schedule_draft {
+        return rule.request();
+    }
+    Ok(vw_gateway_client::CronPreviewRequest {
+        schedule_kind: draft.schedule_kind.as_api_value().into(),
+        schedule: (draft.schedule_kind == CronAddScheduleKind::Cron)
+            .then(|| draft.schedule.clone()),
+        at: (draft.schedule_kind == CronAddScheduleKind::At).then(|| draft.at.clone()),
+        every_ms: if draft.schedule_kind == CronAddScheduleKind::Every {
+            Some(draft.every_ms.parse().map_err(|_| "固定间隔毫秒数无效")?)
+        } else {
+            None
+        },
+        timezone: Some("UTC".into()),
+        ..Default::default()
+    })
+}
+
+fn restore_schedule_metadata(
+    draft: &mut crate::app::state::CronJobDraft,
+    previous: Option<crate::app::state::CronScheduleDraft>,
+) {
+    if let Some(previous) = previous {
+        match schedule_request(draft)
+            .and_then(|request| crate::app::state::CronScheduleDraft::from_request(&request))
+        {
+            Ok(mut rule) => {
+                rule.timezone = previous.timezone;
+                rule.start_date = previous.start_date;
+                rule.end_date = previous.end_date;
+                rule.starts_at = previous.starts_at;
+                rule.ends_at = previous.ends_at;
+                draft.schedule_draft = Some(rule);
+            }
+            Err(err) => {
+                draft.schedule_error = Some(err);
+                draft.schedule_draft = Some(previous);
+            }
+        }
+    }
+}
+
+fn invalidate_schedule(draft: &mut crate::app::state::CronJobDraft) {
+    draft.schedule_error = None;
+    draft.schedule_revision += 1;
+    draft.preview = None;
+}
+
 fn refresh_cron_jobs_task() -> Task<Message> {
     Task::perform(load_cron_jobs_async(), |result| {
         Message::Settings(SettingsMessage::CronJobsLoaded(result))
@@ -143,6 +197,54 @@ mod cron_tests;
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::CronScheduleDraftChanged { editing, draft } => {
+            let target = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            if !target.submitting {
+                target.schedule_draft = Some(draft);
+                invalidate_schedule(target);
+            }
+            Task::none()
+        }
+        SettingsMessage::CronSchedulePreview { editing } => {
+            let draft = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            let revision = draft.schedule_revision;
+            match schedule_request(draft) {
+                Ok(request) => Task::perform(
+                    crate::app::config::preview_cron_schedule_async(request),
+                    move |result| {
+                        Message::Settings(SettingsMessage::CronSchedulePreviewLoaded {
+                            editing,
+                            revision,
+                            result,
+                        })
+                    },
+                ),
+                Err(err) => {
+                    draft.preview = Some(Err(err));
+                    Task::none()
+                }
+            }
+        }
+        SettingsMessage::CronSchedulePreviewLoaded { editing, revision, result } => {
+            let draft = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            if revision == draft.schedule_revision {
+                draft.preview = Some(result);
+            }
+            Task::none()
+        }
+
         SettingsMessage::CronEnabledToggled(v) => {
             app.cron_settings.enabled = v;
             app.cron_settings.save_error = None;
@@ -288,7 +390,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobEditStarted(job_id) => {
             if let Some(job) = app.cron_settings.jobs.iter().find(|job| job.id == job_id) {
+                match crate::app::state::CronScheduleDraft::from_job(job) {
+                    Ok(rule) => app.cron_settings.edit_draft.schedule_draft = Some(rule),
+                    Err(err) => {
+                        app.cron_settings.save_error = Some(err);
+                        return Task::none();
+                    }
+                }
                 app.cron_settings.editing_job_id = Some(job.id.clone());
+                invalidate_schedule(&mut app.cron_settings.edit_draft);
                 app.cron_settings.edit_draft.name = job.name.clone().unwrap_or_default();
                 app.cron_settings.edit_draft.job_type = job_type_from_api(job);
                 app.cron_settings.edit_draft.schedule_kind = schedule_kind_from_api(
@@ -298,8 +408,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     job.every_ms,
                 );
                 app.cron_settings.edit_draft.schedule = job.expression.clone();
-                app.cron_settings.edit_draft.frequency =
-                    CronFrequency::from_expression(&job.expression);
+                app.cron_settings.edit_draft.frequency = if matches!(
+                    app.cron_settings.edit_draft.schedule_draft.as_ref().map(|d| &d.rule),
+                    Some(crate::app::state::CronScheduleRule::Advanced(_))
+                ) {
+                    CronFrequency::Advanced
+                } else {
+                    CronFrequency::from_expression(&job.expression)
+                };
                 app.cron_settings.edit_draft.at = job.at.clone().unwrap_or_default();
                 app.cron_settings.edit_draft.every_ms =
                     job.every_ms.map(|value| value.to_string()).unwrap_or_default();
@@ -337,7 +453,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobEditCanceled => {
             app.cron_settings.editing_job_id = None;
+            let revision = app.cron_settings.edit_draft.schedule_revision + 1;
             app.cron_settings.edit_draft = Default::default();
+            app.cron_settings.edit_draft.schedule_revision = revision;
             Task::none()
         }
         SettingsMessage::CronJobEditNameChanged(value) => {
@@ -349,6 +467,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditScheduleKindChanged(value) => {
+            if app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.edit_draft);
+            let previous_schedule = app.cron_settings.edit_draft.schedule_draft.take();
             app.cron_settings.edit_draft.schedule_kind = value;
             match value {
                 CronAddScheduleKind::Cron => {
@@ -369,26 +492,51 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.at.clear();
                 }
             }
+            restore_schedule_metadata(&mut app.cron_settings.edit_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronJobEditFrequencyChanged(value) => {
+            if app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.edit_draft);
+            let previous_schedule = app.cron_settings.edit_draft.schedule_draft.take();
             let draft = &mut app.cron_settings.edit_draft;
             draft.frequency = value;
             if value != CronFrequency::Advanced {
                 draft.schedule = value.default_expression().to_string();
             }
+            restore_schedule_metadata(&mut app.cron_settings.edit_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronJobEditScheduleChanged(value) => {
+            if app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.edit_draft);
+            let previous_schedule = app.cron_settings.edit_draft.schedule_draft.take();
             app.cron_settings.edit_draft.schedule = value;
+            restore_schedule_metadata(&mut app.cron_settings.edit_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronJobEditAtChanged(value) => {
+            if app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.edit_draft);
+            let previous_schedule = app.cron_settings.edit_draft.schedule_draft.take();
             app.cron_settings.edit_draft.at = value;
+            restore_schedule_metadata(&mut app.cron_settings.edit_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronJobEditEveryMsChanged(value) => {
+            if app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.edit_draft);
+            let previous_schedule = app.cron_settings.edit_draft.schedule_draft.take();
             app.cron_settings.edit_draft.every_ms = value;
+            restore_schedule_metadata(&mut app.cron_settings.edit_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronJobEditCommandChanged(value) => {
@@ -475,6 +623,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditSave => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            let request = match schedule_request(&app.cron_settings.edit_draft) {
+                Ok(request) => request,
+                Err(err) => {
+                    app.cron_settings.save_error_translation = None;
+                    app.cron_settings.save_error = Some(err);
+                    return Task::none();
+                }
+            };
+
             let Some(job_id) = app.cron_settings.editing_job_id.clone() else {
                 app.cron_settings.save_error_translation =
                     Some(crate::app::i18n::format::Message::new("没有正在编辑的定时任务", vec![]));
@@ -483,6 +643,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
+            app.cron_settings.edit_draft.submitting = true;
             cron_mutation_task(
                 "定时任务已更新",
                 update_cron_job_async(
@@ -509,6 +670,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.delivery_to.clone(),
                     app.cron_settings.edit_draft.delivery_best_effort,
                     app.cron_settings.edit_draft.delete_after_run,
+                    Some(request),
                 ),
             )
         }
@@ -576,6 +738,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronAddScheduleKindChanged(value) => {
+            if app.cron_settings.add_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let previous_schedule = app.cron_settings.add_draft.schedule_draft.take();
             app.cron_settings.add_draft.schedule_kind = value;
             match value {
                 CronAddScheduleKind::Cron => {
@@ -596,26 +763,51 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.add_draft.at.clear();
                 }
             }
+            restore_schedule_metadata(&mut app.cron_settings.add_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronAddFrequencyChanged(value) => {
+            if app.cron_settings.add_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let previous_schedule = app.cron_settings.add_draft.schedule_draft.take();
             let draft = &mut app.cron_settings.add_draft;
             draft.frequency = value;
             if value != CronFrequency::Advanced {
                 draft.schedule = value.default_expression().to_string();
             }
+            restore_schedule_metadata(&mut app.cron_settings.add_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronAddScheduleChanged(value) => {
+            if app.cron_settings.add_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let previous_schedule = app.cron_settings.add_draft.schedule_draft.take();
             app.cron_settings.add_draft.schedule = value;
+            restore_schedule_metadata(&mut app.cron_settings.add_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronAddAtChanged(value) => {
+            if app.cron_settings.add_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let previous_schedule = app.cron_settings.add_draft.schedule_draft.take();
             app.cron_settings.add_draft.at = value;
+            restore_schedule_metadata(&mut app.cron_settings.add_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronAddEveryMsChanged(value) => {
+            if app.cron_settings.add_draft.submitting {
+                return Task::none();
+            }
+            invalidate_schedule(&mut app.cron_settings.add_draft);
+            let previous_schedule = app.cron_settings.add_draft.schedule_draft.take();
             app.cron_settings.add_draft.every_ms = value;
+            restore_schedule_metadata(&mut app.cron_settings.add_draft, previous_schedule);
             Task::none()
         }
         SettingsMessage::CronAddCommandChanged(value) => {
@@ -705,8 +897,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronAddSubmit => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            let request = match schedule_request(&app.cron_settings.add_draft) {
+                Ok(request) => request,
+                Err(err) => {
+                    app.cron_settings.save_error_translation = None;
+                    app.cron_settings.save_error = Some(err);
+                    return Task::none();
+                }
+            };
+
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
+            app.cron_settings.add_draft.submitting = true;
             cron_mutation_task(
                 "定时任务已新增",
                 add_cron_job_async(
@@ -732,26 +937,35 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.add_draft.delivery_to.clone(),
                     app.cron_settings.add_draft.delivery_best_effort,
                     app.cron_settings.add_draft.delete_after_run,
+                    Some(request),
                 ),
             )
         }
-        SettingsMessage::CronJobMutationCompleted(result) => match result {
-            Ok(message) => {
-                app.cron_settings.action_status = Some(message);
-                app.cron_settings.save_error = None;
-                app.cron_settings.save_error_translation = None;
-                app.cron_settings.editing_job_id = None;
-                app.cron_settings.edit_draft = Default::default();
-                app.cron_settings.add_draft = Default::default();
-                app.cron_settings.jobs_loading = true;
-                refresh_cron_jobs_task()
+        SettingsMessage::CronJobMutationCompleted(result) => {
+            app.cron_settings.add_draft.submitting = false;
+            app.cron_settings.edit_draft.submitting = false;
+            match result {
+                Ok(message) => {
+                    app.cron_settings.action_status = Some(message);
+                    app.cron_settings.save_error = None;
+                    app.cron_settings.save_error_translation = None;
+                    app.cron_settings.editing_job_id = None;
+                    let edit_revision = app.cron_settings.edit_draft.schedule_revision + 1;
+                    let add_revision = app.cron_settings.add_draft.schedule_revision + 1;
+                    app.cron_settings.edit_draft = Default::default();
+                    app.cron_settings.add_draft = Default::default();
+                    app.cron_settings.edit_draft.schedule_revision = edit_revision;
+                    app.cron_settings.add_draft.schedule_revision = add_revision;
+                    app.cron_settings.jobs_loading = true;
+                    refresh_cron_jobs_task()
+                }
+                Err(err) => {
+                    app.cron_settings.save_error_translation = None;
+                    app.cron_settings.save_error = Some(err);
+                    Task::none()
+                }
             }
-            Err(err) => {
-                app.cron_settings.save_error_translation = None;
-                app.cron_settings.save_error = Some(err);
-                Task::none()
-            }
-        },
+        }
         SettingsMessage::CronSave => persist_cron_settings(app),
         SettingsMessage::CronHelpOpen => {
             app.cron_settings.show_help_modal = true;

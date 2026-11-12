@@ -617,6 +617,7 @@ pub(crate) struct CronJobDraft {
     pub(crate) schedule_draft: Option<super::CronScheduleDraft>,
     pub(crate) schedule_revision: u64,
     pub(crate) schedule_error: Option<String>,
+    pub(crate) preview_loading: bool,
     pub(crate) preview: Option<Result<vw_gateway_client::CronPreviewResponse, String>>,
     pub(crate) submitting: bool,
     pub(crate) name: String,
@@ -653,6 +654,7 @@ impl Default for CronJobDraft {
             schedule_draft: None,
             schedule_revision: 0,
             schedule_error: None,
+            preview_loading: false,
             preview: None,
             submitting: false,
             name: String::new(),
@@ -706,6 +708,7 @@ impl CronListFilter {
 
 #[derive(Debug, Clone)]
 pub(crate) struct CronSettingsState {
+    pub(crate) show_add_modal: bool,
     pub(crate) date_time_picker:
         Option<crate::app::components::system_settings_cron::date_time::DateTimePicker>,
     /// 是否启用定时任务
@@ -771,6 +774,7 @@ impl CronSettingsState {
 impl Default for CronSettingsState {
     fn default() -> Self {
         Self {
+            show_add_modal: false,
             date_time_picker: None,
             enabled: true,
             max_run_history: 50,

@@ -116,6 +116,7 @@ pub(super) fn build_cron_settings(
     let cron_cfg = &full_agent_cfg.cron;
 
     crate::app::state::CronSettingsState {
+        show_add_modal: false,
         date_time_picker: None,
         enabled: cron_cfg.enabled,
         max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),

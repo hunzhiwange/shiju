@@ -20,6 +20,7 @@ fn schedule_request(
         return Err(err.clone());
     }
     if let Some(rule) = &draft.schedule_draft {
+        rule.timezone.parse::<chrono_tz::Tz>().map_err(|_| "请选择有效的 IANA 时区")?;
         return rule.request();
     }
     Ok(vw_gateway_client::CronPreviewRequest {
@@ -65,6 +66,7 @@ fn invalidate_schedule(draft: &mut crate::app::state::CronJobDraft) {
     draft.schedule_error = None;
     draft.schedule_revision += 1;
     draft.preview = None;
+    draft.preview_loading = false;
 }
 
 fn refresh_cron_jobs_task() -> Task<Message> {
@@ -312,17 +314,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             let revision = draft.schedule_revision;
             match schedule_request(draft) {
-                Ok(request) => Task::perform(
-                    crate::app::config::preview_cron_schedule_async(request),
-                    move |result| {
-                        Message::Settings(SettingsMessage::CronSchedulePreviewLoaded {
-                            editing,
-                            revision,
-                            result,
-                        })
-                    },
-                ),
+                Ok(request) => {
+                    draft.preview = None;
+                    draft.preview_loading = true;
+                    Task::perform(
+                        crate::app::config::preview_cron_schedule_async(request),
+                        move |result| {
+                            Message::Settings(SettingsMessage::CronSchedulePreviewLoaded {
+                                editing,
+                                revision,
+                                result,
+                            })
+                        },
+                    )
+                }
                 Err(err) => {
+                    draft.preview_loading = false;
                     draft.preview = Some(Err(err));
                     Task::none()
                 }
@@ -335,6 +342,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 &mut app.cron_settings.add_draft
             };
             if revision == draft.schedule_revision {
+                draft.preview_loading = false;
                 draft.preview = Some(result);
             }
             Task::none()
@@ -354,7 +362,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronTabSelected(tab) => {
             app.cron_settings.date_time_picker = None;
-            app.cron_settings.active_tab = tab;
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            if tab == CronSettingsTab::Add {
+                app.cron_settings.show_add_modal = true;
+                app.cron_settings.editing_job_id = None;
+                app.cron_settings.active_tab = CronSettingsTab::Jobs;
+                let revision = app.cron_settings.add_draft.schedule_revision + 1;
+                app.cron_settings.add_draft = Default::default();
+                app.cron_settings.add_draft.schedule_revision = revision;
+                app.cron_settings.add_draft.schedule_draft = Some(Default::default());
+            } else {
+                app.cron_settings.active_tab = tab;
+                app.cron_settings.show_add_modal = false;
+            }
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.action_status = None;
@@ -493,6 +515,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         return Task::none();
                     }
                 }
+                app.cron_settings.show_add_modal = false;
                 app.cron_settings.editing_job_id = Some(job.id.clone());
                 invalidate_schedule(&mut app.cron_settings.edit_draft);
                 app.cron_settings.edit_draft.name = job.name.clone().unwrap_or_default();
@@ -548,6 +571,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditCanceled => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            app.cron_settings.show_add_modal = false;
+            invalidate_schedule(&mut app.cron_settings.add_draft);
             app.cron_settings.date_time_picker = None;
             app.cron_settings.editing_job_id = None;
             let revision = app.cron_settings.edit_draft.schedule_revision + 1;
@@ -727,8 +755,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(request) => request,
                 Err(err) => {
                     app.cron_settings.save_error_translation = None;
-                    app.cron_settings.save_error = Some(err);
-                    return Task::none();
+                    app.cron_settings.save_error = Some(err.clone());
+                    return app.show_error_toast(err);
                 }
             };
 
@@ -738,6 +766,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.save_error = Some("没有正在编辑的定时任务".to_string());
                 return Task::none();
             };
+            if let Err(error) = validate_modal_payload(&app.cron_settings.edit_draft) {
+                app.cron_settings.save_error = Some(error.clone());
+                app.cron_settings.save_error_translation = None;
+                return app.show_error_toast(error);
+            }
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.edit_draft.submitting = true;
@@ -1001,11 +1034,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(request) => request,
                 Err(err) => {
                     app.cron_settings.save_error_translation = None;
-                    app.cron_settings.save_error = Some(err);
-                    return Task::none();
+                    app.cron_settings.save_error = Some(err.clone());
+                    return app.show_error_toast(err);
                 }
             };
 
+            if let Err(error) = validate_modal_payload(&app.cron_settings.add_draft) {
+                app.cron_settings.save_error = Some(error.clone());
+                app.cron_settings.save_error_translation = None;
+                return app.show_error_toast(error);
+            }
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.add_draft.submitting = true;
@@ -1043,6 +1081,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.edit_draft.submitting = false;
             match result {
                 Ok(message) => {
+                    let toast = app.show_success_toast(message.clone());
+                    app.cron_settings.show_add_modal = false;
                     app.cron_settings.action_status = Some(message);
                     app.cron_settings.save_error = None;
                     app.cron_settings.save_error_translation = None;
@@ -1054,12 +1094,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.schedule_revision = edit_revision;
                     app.cron_settings.add_draft.schedule_revision = add_revision;
                     app.cron_settings.jobs_loading = true;
-                    refresh_cron_jobs_task()
+                    Task::batch([refresh_cron_jobs_task(), toast])
                 }
                 Err(err) => {
                     app.cron_settings.save_error_translation = None;
-                    app.cron_settings.save_error = Some(err);
-                    Task::none()
+                    app.cron_settings.save_error = Some(err.clone());
+                    app.show_error_toast(err)
                 }
             }
         }
@@ -1079,4 +1119,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 pub(crate) fn refresh_run_history_locale(app: &mut App) {
     let text = format_run_history_text(app.desktop_locale, &app.cron_settings.runs_modal);
     app.cron_settings.runs_modal_editor = text_editor::Content::with_text(&text);
+}
+
+fn validate_modal_payload(draft: &crate::app::state::CronJobDraft) -> Result<(), String> {
+    match draft.job_type {
+        CronAddJobType::Shell if draft.command.trim().is_empty() => {
+            return Err("请输入执行命令".into());
+        }
+        CronAddJobType::Agent if draft.prompt.trim().is_empty() => {
+            return Err("请输入 Agent 提示词".into());
+        }
+        _ => {}
+    }
+    if draft.schedule_draft.is_some()
+        && !matches!(&draft.preview, Some(Ok(p)) if !p.candidates.is_empty())
+    {
+        return Err("请先预览当前规则并确认存在未来触发时间".into());
+    }
+    Ok(())
 }

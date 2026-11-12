@@ -1003,3 +1003,177 @@ fn wb_schedule_picker_stale_confirmation_preserves_newer_draft() {
     assert_eq!(app.cron_settings.add_draft.at, "2035-01-01T00:00:00Z");
     assert!(app.cron_settings.add_draft.schedule_draft.is_none());
 }
+
+#[test]
+fn wb_schedule_modal_new_opens_above_jobs() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    assert_eq!(app.cron_settings.active_tab, CronSettingsTab::Jobs);
+    assert!(app.cron_settings.add_draft.schedule_draft.is_some());
+}
+#[test]
+fn wb_schedule_modal_cancel_does_not_submit() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let task = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(!app.cron_settings.show_add_modal);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(app.cron_settings.jobs.is_empty());
+    assert_eq!(app.cron_settings.active_tab, CronSettingsTab::Jobs);
+}
+
+#[test]
+fn wb_schedule_modal_edit_reads_timezone_and_window() {
+    let mut app = app();
+    let mut j = job("modal");
+    j.expression = "30 9 * * MON,WED".into();
+    j.timezone = Some("Asia/Shanghai".into());
+    j.ends_at = Some("2099-01-01T00:00:00Z".into());
+    app.cron_settings.jobs.push(j);
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted("modal".into()));
+    let request = schedule_request(&app.cron_settings.edit_draft).unwrap();
+    assert_eq!(request.timezone.as_deref(), Some("Asia/Shanghai"));
+    assert_eq!(request.ends_at, Some(Some("2099-01-01T00:00:00+00:00".into())));
+}
+
+#[test]
+fn wb_schedule_modal_empty_week_rejected() {
+    let mut draft = crate::app::state::CronJobDraft::default();
+    draft.schedule_draft = Some(crate::app::state::CronScheduleDraft {
+        rule: crate::app::state::CronScheduleRule::Weekly {
+            weekdays: vec![],
+            time: "09:00:00".parse().unwrap(),
+        },
+        ..Default::default()
+    });
+    assert!(schedule_request(&draft).is_err());
+}
+
+#[test]
+fn wb_schedule_modal_empty_month_rejected() {
+    let mut draft = crate::app::state::CronJobDraft::default();
+    draft.schedule_draft = Some(crate::app::state::CronScheduleDraft {
+        rule: crate::app::state::CronScheduleRule::Monthly {
+            days: vec![],
+            time: "09:00:00".parse().unwrap(),
+        },
+        ..Default::default()
+    });
+    assert!(schedule_request(&draft).is_err());
+}
+
+#[test]
+fn wb_schedule_modal_changed_rule_invalidates_preview() {
+    let mut app = app();
+    app.cron_settings.add_draft.preview = Some(Err("old error".into()));
+    let before = app.cron_settings.add_draft.schedule_revision;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronScheduleDraftChanged { editing: false, draft: Default::default() },
+    );
+    assert!(app.cron_settings.add_draft.preview.is_none());
+    assert!(app.cron_settings.add_draft.schedule_revision > before);
+}
+
+#[test]
+fn wb_schedule_modal_stale_preview_ignored() {
+    let mut app = app();
+    app.cron_settings.add_draft.schedule_revision = 8;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronSchedulePreviewLoaded {
+            editing: false,
+            revision: 7,
+            result: Err("stale".into()),
+        },
+    );
+    assert!(app.cron_settings.add_draft.preview.is_none());
+}
+
+#[test]
+fn wb_schedule_modal_failure_preserves_draft() {
+    let mut app = app();
+    app.cron_settings.add_draft.name = "保留草稿".into();
+    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("network".into())));
+    assert_eq!(app.cron_settings.add_draft.name, "保留草稿");
+    assert_eq!(app.cron_settings.save_error.as_deref(), Some("network"));
+}
+
+#[test]
+fn wb_schedule_modal_success_refreshes_jobs() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let _ =
+        update(&mut app, SettingsMessage::CronJobMutationCompleted(Ok("定时任务已新增".into())));
+    assert!(app.cron_settings.jobs_loading);
+    assert_eq!(app.cron_settings.active_tab, CronSettingsTab::Jobs);
+    assert!(app.cron_settings.editing_job_id.is_none());
+}
+
+#[test]
+fn wb_schedule_modal_missing_prompt_does_not_submit() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(app.cron_settings.save_error.is_some());
+}
+
+#[test]
+fn wb_schedule_modal_unknown_timezone_does_not_submit() {
+    let mut app = app();
+    app.cron_settings.add_draft.schedule_draft = Some(crate::app::state::CronScheduleDraft {
+        timezone: "Unknown/Nowhere".into(),
+        ..Default::default()
+    });
+    assert!(schedule_request(&app.cron_settings.add_draft).is_err());
+}
+
+#[test]
+fn wb_schedule_modal_biweekly_reopen_preserves_rule_and_window() {
+    let mut app = app();
+    let mut original = job("biweekly-modal");
+    original.schedule_kind = "biweekly".into();
+    original.anchor_date = Some("2099-01-01".into());
+    original.weekdays = Some(vec![1, 3]);
+    original.hour = Some(9);
+    original.minute = Some(30);
+    original.starts_at = Some("2098-12-31T16:00:00Z".into());
+    original.ends_at = Some("2099-12-31T16:00:00Z".into());
+    original.timezone = Some("Asia/Shanghai".into());
+    app.cron_settings.jobs = vec![original.clone()];
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted(original.id.clone()));
+    let before = schedule_request(&app.cron_settings.edit_draft).unwrap();
+    let _ = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted(original.id));
+    let after = schedule_request(&app.cron_settings.edit_draft).unwrap();
+    assert_eq!(serde_json::to_value(before).unwrap(), serde_json::to_value(after).unwrap());
+}
+
+#[test]
+fn wb_schedule_modal_preview_request_never_submits_job() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    let task = update(&mut app, SettingsMessage::CronSchedulePreview { editing: false });
+    assert!(iced_runtime::task::into_stream(task).is_some());
+    assert!(app.cron_settings.add_draft.preview_loading);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(app.cron_settings.jobs.is_empty());
+}
+
+#[test]
+fn wb_schedule_modal_no_future_trigger_rejects_save() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    app.cron_settings.add_draft.prompt = "检查项目".into();
+    app.cron_settings.add_draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {
+        normalized: Default::default(),
+        timezone: "UTC".into(),
+        candidates: Vec::new(),
+    }));
+    let _ = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert_eq!(app.cron_settings.add_draft.prompt, "检查项目");
+    assert!(app.cron_settings.save_error.as_deref().unwrap().contains("预览"));
+}

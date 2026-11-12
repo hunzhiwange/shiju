@@ -5,10 +5,10 @@
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
     primary_action_btn_style, rounded_action_btn_style, settings_checkbox_style,
-    settings_close_button, settings_divider, settings_error_banner, settings_flexible_row,
+    settings_close_button, settings_divider, settings_error_banner, settings_field_label,
     settings_flexible_row_with_help, settings_group_card, settings_group_heading_with_help,
-    settings_help_button_with_locale as settings_help_button, settings_modal_card,
-    settings_modal_card_style, settings_modal_header, settings_modal_layout,
+    settings_help_button_with_locale as settings_help_button, settings_hover_help_label,
+    settings_modal_card, settings_modal_card_style, settings_modal_header, settings_modal_layout,
     settings_modal_overlay, settings_muted_text_style, settings_page_heading_with_help,
     settings_segment_button_style, settings_select, settings_success_banner, settings_tab_button,
     settings_tab_row, settings_text_editor, settings_text_editor_style, settings_text_input,
@@ -16,7 +16,9 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::i18n::I18n;
-use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
+#[cfg(test)]
+use crate::app::state::CronAddScheduleKind;
+use crate::app::state::{CronAddJobType, CronSettingsTab};
 use crate::app::{App, Message, message};
 use chrono::{DateTime, Local};
 use iced::widget::{button, checkbox, column, container, row, slider, text, text_editor};
@@ -24,6 +26,7 @@ use iced::{Alignment, Background, Element, Length, Theme};
 use vw_gateway_client::CronJobDto;
 
 pub(crate) mod date_time;
+mod form;
 mod list;
 mod schedule;
 #[cfg(test)]
@@ -31,7 +34,6 @@ use list::job_row;
 use list::jobs_tab;
 
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
-const CRON_FORM_CONTROL_WIDTH: f32 = 460.0;
 
 pub(super) const CRON_TABS: &[SettingsTabDescriptor<CronSettingsTab>] = &[
     SettingsTabDescriptor::new(
@@ -65,9 +67,17 @@ fn field_row<'a>(
     description: &'static str,
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    settings_flexible_row(label, description, CRON_FORM_CONTROL_WIDTH, control)
-        .padding([14, 0])
-        .into()
+    container(
+        column![
+            settings_field_label(label),
+            control.into(),
+            text(description).size(12).style(settings_muted_text_style)
+        ]
+        .spacing(6),
+    )
+    .padding([14, 0])
+    .width(Length::Fill)
+    .into()
 }
 
 fn field_row_with_help<'a>(
@@ -77,16 +87,14 @@ fn field_row_with_help<'a>(
     control: impl Into<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    settings_flexible_row_with_help(
+    let label = settings_hover_help_label(
         i18n,
         &app.app_theme,
         i18n.__(label),
+        settings_field_label(i18n.__(label)),
         description,
-        CRON_FORM_CONTROL_WIDTH,
-        control,
-    )
-    .padding([14, 0])
-    .into()
+    );
+    container(column![label, control.into()].spacing(6)).padding([14, 0]).width(Length::Fill).into()
 }
 
 fn at_field<'a>(app: &App, value: &'a str, editing: bool) -> Element<'a, Message> {
@@ -309,308 +317,7 @@ fn preview_lines(value: &str, max_lines: usize) -> String {
 }
 
 fn edit_form(app: &App) -> Element<'_, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let draft = &app.cron_settings.edit_draft;
-    let agent_options = with_selected_option(
-        app.agents_settings
-            .entries
-            .iter()
-            .filter(|entry| entry.enabled)
-            .map(|entry| entry.key.clone())
-            .collect(),
-        &draft.agent,
-    );
-    let provider_options = with_selected_option(
-        app.agents_settings.provider_models.iter().map(|provider| provider.id.clone()).collect(),
-        &draft.model_provider,
-    );
-    let selected_provider =
-        (!draft.model_provider.trim().is_empty()).then_some(draft.model_provider.clone());
-    let selected_model_for_provider = draft
-        .model
-        .strip_prefix(&format!("{}/", draft.model_provider))
-        .unwrap_or(draft.model.as_str())
-        .trim()
-        .to_string();
-    let model_options = with_selected_option(
-        models_for_provider(app, &draft.model_provider),
-        &selected_model_for_provider,
-    );
-    let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, true),
-        CronAddScheduleKind::At => at_field(app, &draft.at, true),
-        CronAddScheduleKind::Every => field_row_with_help(
-            app,
-            "固定间隔",
-            i18n.__("按毫秒数循环触发。"),
-            text_field(i18n.__("例如 60000"), &draft.every_ms, |v| {
-                Message::Settings(message::SettingsMessage::CronJobEditEveryMsChanged(v))
-            }),
-        ),
-    };
-
-    let mut form = column![
-        field_row_with_help(
-            app,
-            "任务名称",
-            i18n.__("可选，便于在列表中识别。"),
-            text_field(i18n.__("可选名称"), &draft.name, |v| Message::Settings(
-                message::SettingsMessage::CronJobEditNameChanged(v)
-            ))
-        ),
-        field_row_with_help(
-            app,
-            "任务类型",
-            i18n.__("Shell 执行命令，Agent 执行提示词任务。"),
-            row![
-                segment_button(
-                    "Shell",
-                    draft.job_type == CronAddJobType::Shell,
-                    Message::Settings(message::SettingsMessage::CronJobEditJobTypeChanged(
-                        CronAddJobType::Shell
-                    ))
-                ),
-                segment_button(
-                    "Agent",
-                    draft.job_type == CronAddJobType::Agent,
-                    Message::Settings(message::SettingsMessage::CronJobEditJobTypeChanged(
-                        CronAddJobType::Agent
-                    ))
-                )
-            ]
-            .spacing(8)
-            .wrap(),
-        ),
-        field_row_with_help(
-            app,
-            "调度类型",
-            i18n.__("常用周期可直接选择时间，高级模式支持 Cron。"),
-            row![
-                segment_button(
-                    i18n.__("周期执行"),
-                    draft.schedule_kind == CronAddScheduleKind::Cron,
-                    Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
-                        CronAddScheduleKind::Cron
-                    ))
-                ),
-                segment_button(
-                    i18n.__("指定时间"),
-                    draft.schedule_kind == CronAddScheduleKind::At,
-                    Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
-                        CronAddScheduleKind::At
-                    ))
-                ),
-                segment_button(
-                    i18n.__("固定间隔"),
-                    draft.schedule_kind == CronAddScheduleKind::Every,
-                    Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
-                        CronAddScheduleKind::Every
-                    ))
-                )
-            ]
-            .spacing(8)
-            .wrap(),
-        ),
-        schedule_row,
-        field_row(
-            i18n.__("项目"),
-            i18n.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-            project_field(app, &draft.project_path, |v| Message::Settings(
-                message::SettingsMessage::CronJobEditProjectPathChanged(v)
-            ),),
-        ),
-        field_row_with_help(
-            app,
-            "项目路径",
-            i18n.__("可手工输入项目目录；留空使用默认工作区。"),
-            text_field(i18n.__("项目目录路径"), &draft.project_path, |v| {
-                Message::Settings(message::SettingsMessage::CronJobEditProjectPathChanged(v))
-            }),
-        ),
-    ]
-    .spacing(0);
-
-    form = match draft.job_type {
-        CronAddJobType::Shell => form.push(field_row_with_help(
-            app,
-            "执行命令",
-            i18n.__("按安全策略执行的 Shell 命令。"),
-            text_editor(&draft.command_editor)
-                .placeholder(i18n.__("Shell 命令"))
-                .on_action(|action| {
-                    Message::Settings(message::SettingsMessage::CronJobEditCommandEditorAction(
-                        action,
-                    ))
-                })
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .height(Length::Fixed(120.0))
-                .style(settings_text_editor_style),
-        )),
-        CronAddJobType::Agent => form
-            .push(field_row_with_help(
-                app,
-                "智能体",
-                i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
-                pick_field(
-                    agent_options,
-                    (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
-                    |v| Message::Settings(message::SettingsMessage::CronJobEditAgentChanged(v)),
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型提供商",
-                i18n.__("与智能体配置中的模型选择一致。"),
-                pick_field(provider_options, selected_provider, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditModelProviderChanged(v))
-                }),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型下拉",
-                i18n.__("从当前提供商的模型列表选择，会写入 provider/model。"),
-                pick_field(
-                    model_options,
-                    (!selected_model_for_provider.is_empty())
-                        .then_some(selected_model_for_provider),
-                    {
-                        let provider = draft.model_provider.clone();
-                        move |model| {
-                            let value = if provider.trim().is_empty() {
-                                model
-                            } else {
-                                format!("{provider}/{model}")
-                            };
-                            Message::Settings(message::SettingsMessage::CronJobEditModelChanged(
-                                value,
-                            ))
-                        }
-                    },
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型手工输入",
-                i18n.__("可选，留空使用代理或全局默认模型。"),
-                text_field("provider/model", &draft.model, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditModelChanged(v))
-                }),
-            ))
-            .push(field_row_with_help(
-                app,
-                "Agent 提示词",
-                i18n.__("创建 Agent 类型定时任务。"),
-                settings_text_editor(&draft.prompt_editor)
-                    .placeholder(i18n.__("要让 Agent 执行的任务"))
-                    .on_action(|action| {
-                        Message::Settings(message::SettingsMessage::CronJobEditPromptEditorAction(
-                            action,
-                        ))
-                    })
-                    .height(Length::Fixed(140.0)),
-            ))
-            .push(field_row_with_help(
-                app,
-                "回退模型",
-                i18n.__("主模型失败后依次尝试，使用逗号或换行分隔。"),
-                text_field("provider/model, provider/model", &draft.fallbacks, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditFallbacksChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("完全访问"),
-                i18n.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
-                checkbox(draft.full_access)
-                    .label(i18n.__("获取完全访问权限"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronJobEditFullAccessToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            ))
-            .push(field_row(
-                i18n.__("任务池"),
-                i18n.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
-                checkbox(draft.task_pool)
-                    .label(i18n.__("投递到任务池"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronJobEditTaskPoolToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            ))
-            .push(field_row_with_help(
-                app,
-                "唤醒",
-                i18n.__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
-                checkbox(draft.wake)
-                    .label(i18n.__("任务运行时标记为需要关注"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronJobEditWakeToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            )),
-    };
-
-    form = form
-        .push(field_row_with_help(
-            app,
-            "执行后删除",
-            i18n.__("适合指定时间的一次性任务。"),
-            checkbox(draft.delete_after_run)
-                .label(i18n.__("运行成功后删除任务"))
-                .on_toggle(|v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeleteAfterRunToggled(v))
-                })
-                .style(settings_checkbox_style),
-        ))
-        .push(field_row_with_help(
-            app,
-            "结果投递",
-            i18n.__("将任务执行结果投递到配置好的通道。"),
-            checkbox(draft.delivery_enabled)
-                .label(i18n.__("开启结果投递"))
-                .on_toggle(|v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeliveryEnabledToggled(
-                        v,
-                    ))
-                })
-                .style(settings_checkbox_style),
-        ));
-
-    if draft.delivery_enabled {
-        form = form
-            .push(field_row_with_help(
-                app,
-                "投递通道",
-                i18n.__("例如 telegram、discord、slack、mattermost、email。"),
-                text_field("channel", &draft.delivery_channel, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeliveryChannelChanged(
-                        v,
-                    ))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("投递目标"),
-                i18n.__("通道内的目标 ID、地址或频道。"),
-                text_field("target", &draft.delivery_to, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeliveryToChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("尽力投递"),
-                "",
-                checkbox(draft.delivery_best_effort)
-                    .label(i18n.__("投递失败不影响任务状态"))
-                    .on_toggle(|v| {
-                        Message::Settings(
-                            message::SettingsMessage::CronJobEditDeliveryBestEffortToggled(v),
-                        )
-                    })
-                    .style(settings_checkbox_style),
-            ));
-    }
-
-    settings_group_card(form).into()
+    form::view(app, true)
 }
 
 fn config_tab(app: &App) -> Element<'_, Message> {
@@ -669,320 +376,7 @@ fn config_tab(app: &App) -> Element<'_, Message> {
 }
 
 fn add_tab(app: &App) -> Element<'_, Message> {
-    let i18n = I18n::new(app.desktop_locale);
-    let draft = &app.cron_settings.add_draft;
-    let agent_options = with_selected_option(
-        app.agents_settings
-            .entries
-            .iter()
-            .filter(|entry| entry.enabled)
-            .map(|entry| entry.key.clone())
-            .collect(),
-        &draft.agent,
-    );
-    let provider_options = with_selected_option(
-        app.agents_settings.provider_models.iter().map(|provider| provider.id.clone()).collect(),
-        &draft.model_provider,
-    );
-    let selected_provider =
-        (!draft.model_provider.trim().is_empty()).then_some(draft.model_provider.clone());
-    let selected_model_for_provider = draft
-        .model
-        .strip_prefix(&format!("{}/", draft.model_provider))
-        .unwrap_or(draft.model.as_str())
-        .trim()
-        .to_string();
-    let model_options = with_selected_option(
-        models_for_provider(app, &draft.model_provider),
-        &selected_model_for_provider,
-    );
-    let name_row = field_row_with_help(
-        app,
-        "任务名称",
-        i18n.__("可选，便于在列表中识别。"),
-        text_field(i18n.__("例如 每日备份"), &draft.name, |v| {
-            Message::Settings(message::SettingsMessage::CronAddNameChanged(v))
-        }),
-    );
-    let job_type_row = field_row_with_help(
-        app,
-        "任务类型",
-        i18n.__("Shell 执行命令，Agent 执行提示词任务。"),
-        row![
-            segment_button(
-                "Shell",
-                draft.job_type == CronAddJobType::Shell,
-                Message::Settings(message::SettingsMessage::CronAddJobTypeChanged(
-                    CronAddJobType::Shell
-                ))
-            ),
-            segment_button(
-                "Agent",
-                draft.job_type == CronAddJobType::Agent,
-                Message::Settings(message::SettingsMessage::CronAddJobTypeChanged(
-                    CronAddJobType::Agent
-                ))
-            )
-        ]
-        .spacing(8)
-        .wrap(),
-    );
-    let schedule_kind_row = field_row_with_help(
-        app,
-        "调度类型",
-        i18n.__("常用周期可直接选择时间，高级模式支持 Cron。"),
-        row![
-            segment_button(
-                i18n.__("周期执行"),
-                draft.schedule_kind == CronAddScheduleKind::Cron,
-                Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
-                    CronAddScheduleKind::Cron
-                ))
-            ),
-            segment_button(
-                i18n.__("指定时间"),
-                draft.schedule_kind == CronAddScheduleKind::At,
-                Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
-                    CronAddScheduleKind::At
-                ))
-            ),
-            segment_button(
-                i18n.__("固定间隔"),
-                draft.schedule_kind == CronAddScheduleKind::Every,
-                Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
-                    CronAddScheduleKind::Every
-                ))
-            )
-        ]
-        .spacing(8)
-        .wrap(),
-    );
-    let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => schedule::frequency_form(app, draft, false),
-        CronAddScheduleKind::At => at_field(app, &draft.at, false),
-        CronAddScheduleKind::Every => field_row_with_help(
-            app,
-            "固定间隔",
-            i18n.__("按毫秒数循环触发。"),
-            text_field(i18n.__("例如 60000"), &draft.every_ms, |v| {
-                Message::Settings(message::SettingsMessage::CronAddEveryMsChanged(v))
-            }),
-        ),
-    };
-
-    let project_row = field_row(
-        i18n.__("项目"),
-        i18n.__("选择任务执行所在项目，Shell 和 Agent 都会切到该目录。"),
-        project_field(app, &draft.project_path, |v| {
-            Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v))
-        }),
-    );
-    let project_path_row = field_row_with_help(
-        app,
-        "项目路径",
-        i18n.__("可手工输入项目目录；留空使用默认工作区。"),
-        text_field(i18n.__("项目目录路径"), &draft.project_path, |v| {
-            Message::Settings(message::SettingsMessage::CronAddProjectPathChanged(v))
-        }),
-    );
-
-    let mut form = column![
-        name_row,
-        job_type_row,
-        schedule_kind_row,
-        schedule_row,
-        project_row,
-        project_path_row
-    ]
-    .spacing(0);
-    form = match draft.job_type {
-        CronAddJobType::Shell => form.push(field_row_with_help(
-            app,
-            "执行命令",
-            i18n.__("按安全策略执行的 Shell 命令。"),
-            text_editor(&draft.command_editor)
-                .placeholder(i18n.__("Shell 命令"))
-                .on_action(|action| {
-                    Message::Settings(message::SettingsMessage::CronAddCommandEditorAction(action))
-                })
-                .size(SETTINGS_CONTROL_TEXT_SIZE)
-                .padding(SETTINGS_CONTROL_PADDING)
-                .height(Length::Fixed(120.0))
-                .style(settings_text_editor_style),
-        )),
-        CronAddJobType::Agent => form
-            .push(field_row_with_help(
-                app,
-                "智能体",
-                i18n.__("默认使用 Main，套用代理配置中的 provider、模型和温度。"),
-                pick_field(
-                    agent_options,
-                    (!draft.agent.trim().is_empty()).then_some(draft.agent.clone()),
-                    |v| Message::Settings(message::SettingsMessage::CronAddAgentChanged(v)),
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型提供商",
-                i18n.__("与智能体配置中的模型选择一致。"),
-                pick_field(provider_options, selected_provider, |v| {
-                    Message::Settings(message::SettingsMessage::CronAddModelProviderChanged(v))
-                }),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型下拉",
-                i18n.__("从当前提供商的模型列表选择，会写入 provider/model。"),
-                pick_field(
-                    model_options,
-                    (!selected_model_for_provider.is_empty())
-                        .then_some(selected_model_for_provider),
-                    {
-                        let provider = draft.model_provider.clone();
-                        move |model| {
-                            let value = if provider.trim().is_empty() {
-                                model
-                            } else {
-                                format!("{provider}/{model}")
-                            };
-                            Message::Settings(message::SettingsMessage::CronAddModelChanged(value))
-                        }
-                    },
-                ),
-            ))
-            .push(field_row_with_help(
-                app,
-                "模型手工输入",
-                i18n.__("可选，留空使用代理或全局默认模型。"),
-                text_field("provider/model", &draft.model, |v| {
-                    Message::Settings(message::SettingsMessage::CronAddModelChanged(v))
-                }),
-            ))
-            .push(field_row_with_help(
-                app,
-                "Agent 提示词",
-                i18n.__("创建 Agent 类型定时任务。"),
-                settings_text_editor(&draft.prompt_editor)
-                    .placeholder(i18n.__("要让 Agent 执行的任务"))
-                    .on_action(|action| {
-                        Message::Settings(message::SettingsMessage::CronAddPromptEditorAction(
-                            action,
-                        ))
-                    })
-                    .height(Length::Fixed(140.0)),
-            ))
-            .push(field_row_with_help(
-                app,
-                "回退模型",
-                i18n.__("主模型失败后依次尝试，使用逗号或换行分隔。"),
-                text_field("provider/model, provider/model", &draft.fallbacks, |v| {
-                    Message::Settings(message::SettingsMessage::CronAddFallbacksChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("完全访问"),
-                i18n.__("开启后该 Agent 定时任务按发送面板的完全访问权限执行。"),
-                checkbox(draft.full_access)
-                    .label(i18n.__("获取完全访问权限"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronAddFullAccessToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            ))
-            .push(field_row(
-                i18n.__("任务池"),
-                i18n.__("开启后触发时投递到项目任务池，由任务看板接管执行。"),
-                checkbox(draft.task_pool)
-                    .label(i18n.__("投递到任务池"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronAddTaskPoolToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            ))
-            .push(field_row_with_help(
-                app,
-                "唤醒",
-                i18n.__("保留唤醒标记，供桌面侧识别需要关注的任务。"),
-                checkbox(draft.wake)
-                    .label(i18n.__("任务运行时标记为需要关注"))
-                    .on_toggle(|v| {
-                        Message::Settings(message::SettingsMessage::CronAddWakeToggled(v))
-                    })
-                    .style(settings_checkbox_style),
-            )),
-    };
-
-    form = form.push(field_row_with_help(
-        app,
-        "执行后删除",
-        i18n.__("适合指定时间的一次性任务。"),
-        checkbox(draft.delete_after_run)
-            .label(i18n.__("运行成功后删除任务"))
-            .on_toggle(|v| {
-                Message::Settings(message::SettingsMessage::CronAddDeleteAfterRunToggled(v))
-            })
-            .style(settings_checkbox_style),
-    ));
-
-    form = form.push(field_row_with_help(
-        app,
-        "结果投递",
-        i18n.__("将任务执行结果投递到配置好的通道。"),
-        checkbox(draft.delivery_enabled)
-            .label(i18n.__("开启结果投递"))
-            .on_toggle(|v| {
-                Message::Settings(message::SettingsMessage::CronAddDeliveryEnabledToggled(v))
-            })
-            .style(settings_checkbox_style),
-    ));
-
-    if draft.delivery_enabled {
-        form = form
-            .push(field_row_with_help(
-                app,
-                "投递通道",
-                i18n.__("例如 telegram、discord、slack、mattermost、email。"),
-                text_field("channel", &draft.delivery_channel, |v| {
-                    Message::Settings(message::SettingsMessage::CronAddDeliveryChannelChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("投递目标"),
-                i18n.__("通道内的目标 ID、地址或频道。"),
-                text_field("target", &draft.delivery_to, |v| {
-                    Message::Settings(message::SettingsMessage::CronAddDeliveryToChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("尽力投递"),
-                "",
-                checkbox(draft.delivery_best_effort)
-                    .label(i18n.__("投递失败不影响任务状态"))
-                    .on_toggle(|v| {
-                        Message::Settings(
-                            message::SettingsMessage::CronAddDeliveryBestEffortToggled(v),
-                        )
-                    })
-                    .style(settings_checkbox_style),
-            ));
-    }
-
-    column![
-        settings_group_heading_with_help(
-            i18n,
-            &app.app_theme,
-            i18n.__("添加任务"),
-            i18n.__("创建 Shell 或 Agent 定时任务，支持 Cron、指定时间和固定间隔。")
-        ),
-        settings_group_card(form),
-        container(primary_button(
-            i18n.__("新增任务"),
-            Message::Settings(message::SettingsMessage::CronAddSubmit)
-        ))
-        .align_right(Length::Fill),
-    ]
-    .spacing(14)
-    .into()
+    form::view(app, false)
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
@@ -1005,7 +399,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         CronSettingsTab::Scheduler => {
             crate::app::components::system_settings_scheduler::embedded_view(app)
         }
-        CronSettingsTab::Add => add_tab(app),
+        CronSettingsTab::Add => jobs_tab(app),
     };
 
     let mut col = column![
@@ -1074,37 +468,43 @@ fn cron_modal_style(theme: &Theme) -> container::Style {
 
 fn with_edit_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.cron_settings;
-    if s.active_tab != CronSettingsTab::Jobs {
+    let editing = s.editing_job_id.is_some();
+    if !editing && !s.show_add_modal {
         return dialog;
     }
-    let Some(job) = s.jobs.iter().find(|job| s.editing_job_id.as_deref() == Some(job.id.as_str()))
-    else {
-        return dialog;
-    };
+    let draft = if editing { &s.edit_draft } else { &s.add_draft };
     let tr = crate::app::i18n::I18n::new(app.desktop_locale);
-    let close = Message::Settings(message::SettingsMessage::CronJobEditCanceled);
+    let close = if draft.submitting {
+        Message::None
+    } else {
+        Message::Settings(message::SettingsMessage::CronJobEditCanceled)
+    };
     let header = settings_modal_header(
         column![
-            text(tr.__("编辑")).size(20),
-            text(job_title(job)).size(13).style(settings_muted_text_style)
+            text(if editing { tr.__("编辑任务") } else { tr.__("添加任务") }).size(20),
+            text("配置执行内容、时间规则与有效期").size(13).style(settings_muted_text_style)
         ]
         .spacing(4),
         settings_close_button(close.clone()),
     );
     let actions = row![
         secondary_button(tr.__("取消"), close.clone()),
-        primary_button(tr.__("保存"), Message::Settings(message::SettingsMessage::CronJobEditSave)),
+        schedule::save_button(draft, editing),
     ]
     .spacing(10);
-    let mut footer = column![].spacing(10).width(Length::Fill);
+    let mut footer = column![schedule::preview(draft, editing)].spacing(8).width(Length::Fill);
     if let Some(error) = save_error_banner(app) {
         footer = footer.push(error);
     }
     let footer = footer.push(container(actions).align_right(Length::Fill));
-    let card = settings_modal_layout(header, edit_form(app), Some(footer.into()))
-        .style(cron_modal_style)
-        .width(740)
-        .height(620);
+    let card = settings_modal_layout(
+        header,
+        if editing { edit_form(app) } else { add_tab(app) },
+        Some(footer.into()),
+    )
+    .style(cron_modal_style)
+    .width(740)
+    .height(620);
     settings_modal_overlay(Some(dialog), close, container(card).padding([10, 12]))
 }
 

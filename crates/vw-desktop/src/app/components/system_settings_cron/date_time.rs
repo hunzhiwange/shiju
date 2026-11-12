@@ -72,6 +72,34 @@ fn msg(message: SettingsMessage) -> Message {
     Message::Settings(message)
 }
 
+/// 选择器与周期表单共用同一套时分控件及设置样式。
+pub(super) fn time_controls<'a>(
+    time: NaiveTime,
+    changed: impl Fn(NaiveTime) -> Message + Clone + 'a,
+) -> Element<'a, Message> {
+    use chrono::Timelike;
+    let hour = time.hour();
+    let minute = time.minute();
+    let hour_changed = changed.clone();
+    row![
+        text("时间"),
+        settings_select(0..=23, Some(hour), move |hour| hour_changed(
+            NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
+        ))
+        .width(80),
+        text("时"),
+        settings_select(0..=59, Some(minute), move |minute| changed(
+            NaiveTime::from_hms_opt(hour, minute, 0).unwrap()
+        ))
+        .width(80),
+        text("分"),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center)
+    .wrap()
+    .into()
+}
+
 pub(super) fn overlay<'a>(
     picker: &DateTimePicker,
     timezone: &str,
@@ -121,26 +149,9 @@ pub(super) fn overlay<'a>(
         }
         calendar = calendar.push(cells);
     }
-    let hour = picker.time.hour();
-    let minute = picker.time.minute();
-    let time = row![
-        text("时间"),
-        settings_select(0..=23, Some(hour), move |hour| msg(SettingsMessage::CronPickerTime {
-            hour,
-            minute
-        }))
-        .width(80),
-        text("时"),
-        settings_select(0..=59, Some(minute), move |minute| msg(SettingsMessage::CronPickerTime {
-            hour,
-            minute
-        }))
-        .width(80),
-        text("分"),
-    ]
-    .spacing(8)
-    .align_y(Alignment::Center)
-    .wrap();
+    let time = time_controls(picker.time, |time| {
+        msg(SettingsMessage::CronPickerTime { hour: time.hour(), minute: time.minute() })
+    });
     let body = column![
         calendar,
         time,

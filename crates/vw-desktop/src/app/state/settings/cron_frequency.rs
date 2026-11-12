@@ -11,6 +11,7 @@ pub enum CronFrequency {
 }
 
 impl CronFrequency {
+    #[cfg(test)]
     pub(crate) const ALL: [Self; 6] =
         [Self::Minutes, Self::Hourly, Self::Daily, Self::Weekly, Self::Monthly, Self::Advanced];
 

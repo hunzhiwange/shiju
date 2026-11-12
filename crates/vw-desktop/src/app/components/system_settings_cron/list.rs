@@ -80,7 +80,8 @@ pub(super) fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Mess
         .last_status
         .as_deref()
         .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未运行"));
-    let next_run = format_cron_datetime(&job.next_run);
+    let ended = job_has_ended(job, chrono::Utc::now());
+    let next_run = if ended { "已结束".into() } else { format_cron_datetime(&job.next_run) };
     let last_run = crate::app::i18n::I18n::new(app.desktop_locale)
         .__(&format_optional_cron_datetime(job.last_run.as_deref()))
         .to_string();
@@ -116,7 +117,9 @@ pub(super) fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Mess
                 v,
             ))
         }));
-    let next = if job.enabled {
+    let next = if ended {
+        tr.__("已结束").to_string()
+    } else if job.enabled {
         format!(
             "{} · {} · {}",
             tr.__("下次运行"),
@@ -397,4 +400,11 @@ pub(super) fn jobs_tab(app: &App) -> Element<'_, Message> {
         page = page.push(container(footer).padding([12, 7]).width(Length::Fill));
     }
     page.into()
+}
+
+pub(super) fn job_has_ended(job: &CronJobDto, now: chrono::DateTime<chrono::Utc>) -> bool {
+    job.ends_at
+        .as_deref()
+        .and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok())
+        .is_some_and(|end| end <= now)
 }

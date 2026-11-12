@@ -868,6 +868,7 @@ impl App {
 
             // ========== 定时任务设置 ==========
             cron_settings: super::state::CronSettingsState {
+                show_add_modal: false,
                 date_time_picker: None,
                 enabled: cron_cfg.enabled,
                 max_run_history: cron_cfg.max_run_history.clamp(1, 10_000),

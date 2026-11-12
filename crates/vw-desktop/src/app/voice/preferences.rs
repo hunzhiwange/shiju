@@ -3,15 +3,38 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use vw_config_types::voice::VoiceConfig;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceEngine {
+    Local,
+    Cloud,
+}
+
+impl Default for VoiceEngine {
+    fn default() -> Self {
+        if cfg!(target_os = "macos") { Self::Local } else { Self::Cloud }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Preferences {
+    pub engine: VoiceEngine,
+    /// None means the system recognition locale, not automatic detection.
+    pub local_language: Option<String>,
     pub microphone: Option<String>,
     // Explicit opt-in; local archive policy is independent of tenant/service settings.
     pub retain_recordings: bool,
     pub hotkeys: super::hotkeys::Config,
 }
 impl Preferences {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        self.hotkeys.validate()?;
+        super::local::language(self.local_language.as_deref()).map_err(|_| {
+            "本机识别语言无效，请选择系统语言或有效的 BCP-47 标签（如 zh-CN）。".to_owned()
+        })?;
+        Ok(())
+    }
     pub(crate) fn disable_hotkeys_at(path: &Path) -> Result<(), String> {
         let mut local = Self::read(path)?;
         local.hotkeys.enabled = false;
@@ -34,7 +57,7 @@ impl Preferences {
         }
     }
     pub(crate) fn write(&self, path: &Path) -> Result<(), String> {
-        self.hotkeys.validate()?;
+        self.validate()?;
         let parent = path.parent().ok_or("无法定位本机语音设置目录。")?;
         std::fs::create_dir_all(parent).map_err(|_| "无法创建本机语音设置目录。")?;
         let mut file =

@@ -122,6 +122,7 @@ fn voice_task_15_local_disable_preserves_other_preferences_without_gateway() {
             dictation: Some(Shortcut { key: 0, modifiers: CONTROL | ALT }),
             chat: Some(Shortcut { key: 8, modifiers: CONTROL | ALT }),
         },
+        ..Default::default()
     };
     prefs.write(&path).unwrap();
     Preferences::disable_hotkeys_at(&path).unwrap();

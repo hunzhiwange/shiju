@@ -224,6 +224,10 @@ impl Capture {
     /// None resolves the default device once; no fallback after selection/disconnection.
     /// Recording and realtime chat must both acquire through this entry point.
     pub fn start(device_id: Option<String>) -> Result<Self> {
+        Self::start_with_limit(device_id, Duration::from_secs(MAX_SECONDS))
+    }
+    /// Uses the same permission gate and device lease, with a caller's shorter bound.
+    pub fn start_with_limit(device_id: Option<String>, limit: Duration) -> Result<Self> {
         use super::permissions::{SystemPermissions, VoiceCapability, VoicePermissions};
 
         VoicePermissions::new(SystemPermissions)
@@ -231,7 +235,7 @@ impl Capture {
                 Self::start_backend(
                     super::capture_native::NativeCapture,
                     device_id,
-                    Duration::from_secs(MAX_SECONDS),
+                    limit,
                     device_lease(),
                 )
                 .map_err(anyhow::Error::from)

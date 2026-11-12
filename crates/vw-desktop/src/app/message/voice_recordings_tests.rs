@@ -106,7 +106,18 @@ async fn voice_task_14_recordings_retry_reads_stored_wav_over_loopback() {
             stream.write_all(&response).unwrap();
         }
     });
-    let result = retry(endpoint, "voice-archive".into(), 9, saved).await;
+    let result = retry(
+        Preferences {
+            engine: crate::app::voice::preferences::VoiceEngine::Cloud,
+            ..Default::default()
+        },
+        endpoint,
+        "voice-archive".into(),
+        9,
+        saved,
+        crate::app::voice::local::Cancellation::default(),
+    )
+    .await;
     server.join().unwrap();
     assert_eq!(result.unwrap(), "本机录音重新识别");
     assert_eq!(store.list().unwrap().len(), 1, "retry must not create another archive entry");

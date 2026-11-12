@@ -37,3 +37,24 @@ fn voice_task_13_patch_only_changed_fields_and_validates_dictionary() {
     edit.config.dictionary.push("<bad>".into());
     assert!(edit.patch().is_err());
 }
+
+#[test]
+fn voice_task_07_local_preferences_roundtrip_and_legacy_migration() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    std::fs::write(&path, br#"{"microphone":"device-a","retain_recordings":true}"#).unwrap();
+    let mut p = Preferences::read(&path).unwrap();
+    assert_eq!(p.engine, VoiceEngine::default());
+    assert!(p.local_language.is_none());
+    p.engine = VoiceEngine::Local;
+    p.local_language = Some("zh-CN".into());
+    p.write(&path).unwrap();
+    assert_eq!(Preferences::read(&path).unwrap(), p);
+    let value: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(value["engine"], "local");
+    assert_eq!(value["local_language"], "zh-CN");
+    assert_eq!(value["microphone"], "device-a");
+    assert_eq!(value["retain_recordings"], true);
+    p.local_language = Some("not a language".into());
+    assert!(p.write(&path).is_err());
+}

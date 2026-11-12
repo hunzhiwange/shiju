@@ -1,5 +1,6 @@
 //! Explicit archive actions; retry replies are bound to the current composer generation.
 use super::voice_draft::Phase;
+use crate::app::voice::preferences::Preferences;
 use crate::app::voice::{
     recordings::{Entry, Store},
     recordings_playback::Replay,
@@ -7,8 +8,7 @@ use crate::app::voice::{
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
-use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use vw_gateway_client::GatewayEndpoint;
 #[derive(Default)]
 pub(crate) struct State {
     pub entries: Vec<Entry>,
@@ -21,6 +21,7 @@ pub(crate) struct State {
     scope: Option<super::voice_draft::Scope>,
     endpoint: Option<GatewayEndpoint>,
     cancel: Option<tokio::sync::watch::Sender<bool>>,
+    native_cancel: Option<crate::app::voice::local::Cancellation>,
 }
 #[derive(Clone)]
 pub enum Event {
@@ -48,6 +49,9 @@ fn tick(generation: u64) -> Task<Message> {
 }
 impl State {
     pub(crate) fn stop(&mut self) {
+        if let Some(cancel) = self.native_cancel.take() {
+            cancel.cancel();
+        }
         self.replay.take();
         self.cancel.take();
         self.busy = false;
@@ -146,9 +150,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             }
             let scope = super::voice::scope(app).ok_or("请先选择回填的聊天会话。")?;
             let endpoint = crate::app::gateway_client_endpoint();
-            if !endpoint.is_loopback() {
-                return Err("当前语音传输仅支持本机网关。".into());
-            }
+            let preferences = Preferences::load()?;
             app.voice.recordings.stop();
             let wav = Store::local()?.read(&id)?;
             let state = &mut app.voice.recordings;
@@ -158,12 +160,14 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             let generation = state.generation;
             let (tx, mut cancel) = tokio::sync::watch::channel(false);
             state.cancel = Some(tx);
+            let native_cancel = crate::app::voice::local::Cancellation::default();
+            state.native_cancel = Some(native_cancel.clone());
             return Ok(Task::perform(
                 async move {
                     tokio::select! {
                         biased;
                         _=cancel.changed()=>Err("已取消重新识别。".into()),
-                        result=tokio::time::timeout(Duration::from_secs(90),retry(endpoint,scope.session,generation,wav))=>result.unwrap_or_else(|_|Err("重新识别超时。".into())),
+                        result=tokio::time::timeout(Duration::from_secs(90),retry(preferences,endpoint,scope.session,generation,wav,native_cancel))=>result.unwrap_or_else(|_|Err("重新识别超时。".into())),
                     }
                 },
                 move |result| message(Event::Retried(generation, result)),
@@ -176,6 +180,9 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             }
             state.busy = false;
             state.cancel = None;
+            if let Some(cancel) = state.native_cancel.take() {
+                cancel.cancel();
+            }
             let text = result?;
             if text.trim().is_empty() {
                 return Err("没有识别到文字。".into());
@@ -197,28 +204,14 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
     Ok(Task::none())
 }
 async fn retry(
+    preferences: Preferences,
     endpoint: GatewayEndpoint,
     session: String,
     generation: u64,
     wav: Vec<u8>,
+    cancel: crate::app::voice::local::Cancellation,
 ) -> Result<String, String> {
-    let client = GatewayClient::new(endpoint)?;
-    let config = client
-        .voice_config::<vw_config_types::voice::VoiceConfig>()
-        .await
-        .map_err(|_| "无法读取语音设置。")?;
-    if !config.dictation_enabled {
-        return Err("请先在网关启用听写。".into());
-    }
-    let metadata = TranscriptionRequest {
-        request_id: VoiceId::try_from(format!("{:032x}", rand::random::<u128>()))
-            .map_err(str::to_owned)?,
-        chat_session_id: VoiceId::try_from(session).map_err(str::to_owned)?,
-        provider_id: VoiceId::try_from(config.provider_id.ok_or("请先配置语音服务。")?)
-            .map_err(str::to_owned)?,
-        generation: VoiceCounter::try_from(generation).map_err(str::to_owned)?,
-    };
-    client.voice_transcribe(&metadata, wav).await.map(|r| r.text).map_err(|e| e.to_string())
+    super::voice::dictation::retry(preferences, endpoint, session, generation, wav, cancel).await
 }
 #[cfg(test)]
 #[path = "voice_recordings_tests.rs"]

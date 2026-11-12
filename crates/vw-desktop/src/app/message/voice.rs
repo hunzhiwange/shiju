@@ -5,12 +5,14 @@ use crate::app::{App, Message};
 use iced::{Task, widget::text_editor};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};
-use vw_gateway_client::{GatewayClient, GatewayEndpoint};
+use vw_gateway_client::GatewayEndpoint;
 
 #[path = "voice_screen.rs"]
 mod screen;
 pub use screen::ScreenEvent;
+
+#[path = "voice_dictation.rs"]
+pub(super) mod dictation;
 
 type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
@@ -32,7 +34,8 @@ pub(crate) struct State {
     cursor: Option<text_editor::Cursor>,
     device: Option<Device>,
     cancel: Option<tokio::sync::watch::Sender<bool>>,
-    metadata: Option<TranscriptionRequest>,
+    route: Option<dictation::Route>,
+    native_cancel: Option<crate::app::voice::local::Cancellation>,
 }
 #[derive(Debug, Clone)]
 pub enum OnboardingEvent {
@@ -59,7 +62,7 @@ pub enum Event {
     Finish,
     Cancel,
     Apply,
-    Started(u64, Result<(Device, TranscriptionRequest), String>),
+    Started(u64, Result<dictation::Prepared, String>),
     Completed(u64, Result<String, String>),
     Tick(u64),
 }
@@ -102,6 +105,9 @@ pub(super) fn scope(app: &App) -> Option<Scope> {
     })
 }
 fn stop(state: &mut State) {
+    if let Some(cancel) = state.native_cancel.take() {
+        cancel.cancel();
+    }
     if let Some(cancel) = state.cancel.take() {
         let _ = cancel.send(true);
     }
@@ -112,7 +118,7 @@ fn stop(state: &mut State) {
     }
     state.insertion.target = None;
     state.finish_requested = false;
-    state.metadata = None;
+    state.route = None;
     state.audio = None;
     state.retain_requested = false;
 }
@@ -348,19 +354,23 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             };
             app.voice.cursor = Some(cursor);
-            app.voice.retain_requested = crate::app::voice::preferences::Preferences::load()
-                .map(|p| p.retain_recordings)
-                .unwrap_or(false);
+            let preferences = match crate::app::voice::preferences::Preferences::load() {
+                Ok(preferences) => preferences,
+                Err(error) => return fail(app, error),
+            };
+            app.voice.retain_requested = preferences.retain_recordings;
             let endpoint = crate::app::gateway_client_endpoint();
             app.voice.endpoint = Some(endpoint.clone());
             let (tx, mut rx) = tokio::sync::watch::channel(false);
             app.voice.cancel = Some(tx);
             let cancellation = rx.clone();
+            let native_cancel = crate::app::voice::local::Cancellation::default();
+            app.voice.native_cancel = Some(native_cancel.clone());
             Task::perform(
                 async move {
                     tokio::select! {
                         _ = rx.changed() => Err("听写已取消。".into()),
-                        result = tokio::time::timeout(Duration::from_secs(20), start(endpoint, scope.session, generation, cancellation)) => result.unwrap_or_else(|_| Err("准备录音超时，请重试。".into())),
+                        result = tokio::time::timeout(Duration::from_secs(20), dictation::prepare(preferences, endpoint, scope.session, generation, cancellation, native_cancel)) => result.unwrap_or_else(|_| Err("准备录音超时，请重试。".into())),
                     }
                 },
                 move |result| Message::Voice(Event::Started(generation, result)),
@@ -374,9 +384,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             }
             match result {
-                Ok((device, metadata)) => {
-                    app.voice.device = Some(device);
-                    app.voice.metadata = Some(metadata);
+                Ok(prepared) => {
+                    app.voice.device = Some(prepared.device);
+                    app.voice.route = Some(prepared.route);
                     if app.voice.finish_requested {
                         return update(app, Event::Finish);
                     }
@@ -395,8 +405,22 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 .device
                 .as_ref()
                 .and_then(|device| device.lock().ok()?.as_mut()?.try_result());
-            if outcome.is_some() {
-                return fail(app, "录音已停止，请检查麦克风或缩短录音后重试。".into());
+            if let Some(outcome) = outcome {
+                let local_limit = matches!(app.voice.route, Some(dictation::Route::Local { .. }))
+                    && matches!(
+                        outcome,
+                        Err(crate::app::voice::capture::CaptureError::Limit
+                            | crate::app::voice::capture::CaptureError::Timeout)
+                    );
+                return fail(
+                    app,
+                    if local_limit {
+                        "本机听写最多60秒，录音已停止；请重新开始，并在60秒内点击完成。"
+                    } else {
+                        "录音已停止，请检查麦克风或缩短录音后重试。"
+                    }
+                    .into(),
+                );
             }
             tick(generation)
         }
@@ -410,20 +434,21 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 return Task::none();
             }
             app.voice.finish_requested = false;
-            let (Some(device), Some(metadata), Some(endpoint)) =
-                (app.voice.device.take(), app.voice.metadata.take(), app.voice.endpoint.clone())
+            let (Some(device), Some(route)) = (app.voice.device.take(), app.voice.route.take())
             else {
-                return Task::none();
+                return fail(app, "录音会话已失效，请重新开始听写。".into());
             };
             app.voice.draft.phase = Phase::Transcribing;
             let generation = app.voice.draft.generation;
             let (tx, mut rx) = tokio::sync::watch::channel(false);
             app.voice.cancel = Some(tx);
+            let native_cancel = crate::app::voice::local::Cancellation::default();
+            app.voice.native_cancel = Some(native_cancel.clone());
             Task::perform(
                 async move {
                     tokio::select! {
                         _ = rx.changed() => Err("听写已取消。".into()),
-                        result = transcribe(device, endpoint, metadata) => result,
+                        result = dictation::transcribe(device, route, native_cancel) => result,
                     }
                 },
                 move |result| Message::Voice(Event::Transcribed(generation, result)),
@@ -508,75 +533,6 @@ fn retain_completed(state: &mut State) -> Option<String> {
         Ok::<_, String>(())
     })();
     result.err()
-}
-async fn start(
-    endpoint: GatewayEndpoint,
-    session: String,
-    generation: u64,
-    cancellation: tokio::sync::watch::Receiver<bool>,
-) -> Result<(Device, TranscriptionRequest), String> {
-    if !endpoint.is_loopback() {
-        return Err("当前语音传输仅支持本机网关。".into());
-    }
-    let client = GatewayClient::new(endpoint).map_err(|_| "无法连接语音网关。")?;
-    // Read the tenant's voice section only; never deserialize or log provider credentials.
-    let config: vw_config_types::voice::VoiceConfig =
-        client.voice_config().await.map_err(|_| "无法读取语音设置。")?;
-    if !config.dictation_enabled {
-        return Err("请先在网关设置中启用听写。".into());
-    }
-    let provider = config.provider_id.ok_or("请先配置语音服务。")?;
-    let metadata = TranscriptionRequest {
-        request_id: VoiceId::try_from(format!("{:032x}", rand::random::<u128>()))
-            .map_err(str::to_owned)?,
-        chat_session_id: VoiceId::try_from(session).map_err(str::to_owned)?,
-        provider_id: VoiceId::try_from(provider).map_err(str::to_owned)?,
-        generation: VoiceCounter::try_from(generation).map_err(str::to_owned)?,
-    };
-    let device = tokio::task::spawn_blocking(move || {
-        use crate::app::voice::permissions::{Permission, SystemPermissions, VoicePermissions};
-        if *cancellation.borrow() || cancellation.has_changed().is_err() {
-            return Err("听写已取消。".into());
-        }
-        VoicePermissions::new(SystemPermissions)
-            .request_from_user_action(Permission::Microphone)
-            .map_err(|_| "请在系统设置中允许麦克风访问。".to_owned())?;
-        let device_id = crate::app::voice::preferences::Preferences::load()?.microphone;
-        Capture::start(device_id)
-            .and_then(|capture| {
-                if *cancellation.borrow() || cancellation.has_changed().is_err() {
-                    drop(capture);
-                    return Err(crate::app::voice::capture::CaptureError::Cancelled);
-                }
-                Ok(Arc::new(Mutex::new(Some(capture))))
-            })
-            .map_err(|_| "无法开始录音，请检查麦克风与系统权限。".to_owned())
-    })
-    .await
-    .map_err(|_| "无法开始录音。")??;
-    Ok((device, metadata))
-}
-async fn transcribe(
-    device: Device,
-    endpoint: GatewayEndpoint,
-    metadata: TranscriptionRequest,
-) -> Result<(String, Vec<u8>), String> {
-    let wav = tokio::task::spawn_blocking(move || {
-        let capture =
-            device.lock().map_err(|_| "录音状态不可用。")?.take().ok_or("录音已取消。")?;
-        capture
-            .finish()
-            .and_then(|recording| recording.wav())
-            .map_err(|_| "录音无效或没有检测到声音。")
-    })
-    .await
-    .map_err(|_| "无法完成录音。")??;
-    let client = GatewayClient::new(endpoint).map_err(|_| "无法连接语音网关。")?;
-    tokio::time::timeout(Duration::from_secs(90), client.voice_transcribe(&metadata, wav.clone()))
-        .await
-        .map_err(|_| "听写请求超时。")?
-        .map(|result| (result.text, wav))
-        .map_err(|error| error.to_string())
 }
 #[cfg(test)]
 #[path = "voice_composer_tests.rs"]

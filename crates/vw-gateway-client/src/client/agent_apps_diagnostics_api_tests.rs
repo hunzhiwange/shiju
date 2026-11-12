@@ -66,6 +66,7 @@ async fn diagnostic_sdk_preserves_job_identity() {
             DiagnosticStartRequest::Model {
                 provider_id: "provider".into(),
                 model_id: "model".into(),
+                protocol: None,
             },
             DiagnosticProbeKind::Model,
         ),

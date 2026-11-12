@@ -362,13 +362,14 @@ pub(super) async fn submit_request(
                         )
                         .map_err(job_status)
                     }
-                    DiagnosticStartRequest::Model { provider_id, model_id } => {
-                        let probe = ModelProbe::prepare(
+                    DiagnosticStartRequest::Model { provider_id, model_id, protocol } => {
+                        let probe = ModelProbe::prepare_protocol(
                             &database,
                             &accounts,
                             owner.clone(),
                             provider_id,
                             model_id,
+                            protocol,
                         )
                         .map_err(model_status)?;
                         jobs.start(

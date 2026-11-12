@@ -55,7 +55,9 @@ pub(crate) async fn submit(
     let model_id = run.model.clone().into();
     let request = match run.kind {
         DiagnosticProbeKind::Reachability => DiagnosticStartRequest::Reachability { provider_id },
-        DiagnosticProbeKind::Model => DiagnosticStartRequest::Model { provider_id, model_id },
+        DiagnosticProbeKind::Model => {
+            DiagnosticStartRequest::Model { provider_id, model_id, protocol: None }
+        }
         DiagnosticProbeKind::Streaming => {
             DiagnosticStartRequest::Streaming { provider_id, model_id }
         }

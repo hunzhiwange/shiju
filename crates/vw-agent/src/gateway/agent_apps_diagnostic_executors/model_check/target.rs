@@ -168,6 +168,73 @@ impl ModelTarget {
         })
     }
 
+    /// The saved exact destination is the only registered candidate. Reuse the
+    /// production selector; a client protocol never authorizes another URL.
+    pub(super) fn select_protocol(&self, source: GenerationProtocol) -> Result<()> {
+        use crate::model_relay::routing;
+        use vw_provider_resolver::protocol_routes::RouteCapability;
+        use vw_shared::provider::protocols::{
+            ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind,
+            ProtocolModelScope,
+        };
+        let conversions = routing::relay_conversions(false);
+        let Destination::Saved { url, headers } = &self.destination else {
+            // Managed Copilot resolves this same registered target with current
+            // account proof at execution time; conversion never changes its URL.
+            return if source == self.protocol
+                || conversions.iter().any(|conversion| {
+                    conversion.source == source
+                        && conversion.target == self.protocol
+                        && conversion.capabilities.contains(&RouteCapability::Text)
+                }) {
+                Ok(())
+            } else {
+                Err(ModelPrepareError::Unsupported)
+            };
+        };
+        let authentication = if headers.contains_key(header::AUTHORIZATION) {
+            ProtocolAuthentication::Bearer {}
+        } else {
+            ProtocolAuthentication::ApiKeyHeader {
+                name: if self.protocol == GenerationProtocol::Gemini {
+                    "x-goog-api-key"
+                } else {
+                    "x-api-key"
+                }
+                .into(),
+            }
+        };
+        let api = crate::provider::provider::ApiInfo {
+            id: self.model_id.as_ref().to_owned(),
+            url: url.to_string(),
+            adapter: String::new(),
+            protocols: Some(vec![ProtocolEndpoint {
+                protocol: self.protocol,
+                url: url.to_string(),
+                deployment: url.to_string(),
+                authentication,
+                models: ProtocolModelScope::Models { ids: vec![self.model_id.as_ref().to_owned()] },
+                evidence: vec![ProtocolEvidence {
+                    kind: ProtocolEvidenceKind::Configuration,
+                    source: "authorized saved provider".into(),
+                    reference: "saved protocol and exact destination".into(),
+                    checked_at: chrono::Utc::now().date_naive().to_string(),
+                }],
+            }]),
+        };
+        routing::select_api(
+            &api,
+            self.provider_id.as_ref(),
+            source,
+            &[RouteCapability::Text],
+            &[RouteCapability::Text],
+            &conversions,
+            routing::Execution::Relay,
+        )
+        .map_err(|_| ModelPrepareError::Unsupported)?;
+        Ok(())
+    }
+
     pub(in crate::gateway::agent_apps_diagnostic_executors) fn check_current(
         &self,
         accounts: &AuthAccountStore,

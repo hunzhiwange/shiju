@@ -26,11 +26,37 @@ pub struct DiagnosticScopeQuery {
     deny_unknown_fields
 )]
 pub enum DiagnosticStartRequest {
-    Reachability { provider_id: ProviderId },
-    Speed { provider_id: ProviderId, endpoint_ids: Vec<DiagnosticEndpointId> },
-    Model { provider_id: ProviderId, model_id: ModelId },
-    Streaming { provider_id: ProviderId, model_id: ModelId },
-    Mcp { server_ids: Vec<McpRecordId> },
+    Reachability {
+        provider_id: ProviderId,
+    },
+    Speed {
+        provider_id: ProviderId,
+        endpoint_ids: Vec<DiagnosticEndpointId>,
+    },
+    Model {
+        provider_id: ProviderId,
+        model_id: ModelId,
+        /// Probe this client protocol against the saved, authorized upstream only.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        protocol: Option<DiagnosticModelProtocol>,
+    },
+    Streaming {
+        provider_id: ProviderId,
+        model_id: ModelId,
+    },
+    Mcp {
+        server_ids: Vec<McpRecordId>,
+    },
+}
+
+/// Client/upstream wire protocol; selecting one never grants a new endpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiagnosticModelProtocol {
+    Chat,
+    Messages,
+    Responses,
+    Gemini,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -120,6 +146,8 @@ pub enum DiagnosticResult {
         provider_id: ProviderId,
         model_id: ModelId,
         may_incur_cost: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attempt: Option<ModelProtocolAttempt>,
         report: DiagnosticReport<ModelEvidence>,
     },
     Streaming {
@@ -203,6 +231,33 @@ pub struct SpeedEvidence {
 pub struct ModelEvidence {
     pub http_status: u16,
     pub actual_model_id: ModelId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route: Option<ModelProtocolEvidence>,
+}
+
+/// Attempt identity is retained even when no capability was verified.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelProtocolAttempt {
+    pub source_protocol: DiagnosticModelProtocol,
+    pub upstream_protocol: DiagnosticModelProtocol,
+    pub started_at: crate::TimestampMs,
+    /// Absent when authorization failed before resolving the destination.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint_fingerprint: Option<String>,
+}
+
+/// Evidence is scoped to this fixed text request, deployment and observation time.
+/// It does not assert tools, thinking, media or streaming support.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ModelProtocolEvidence {
+    pub source_protocol: DiagnosticModelProtocol,
+    pub upstream_protocol: DiagnosticModelProtocol,
+    /// SHA-256 of the exact destination; URLs can contain private deployment data.
+    pub endpoint_fingerprint: String,
+    pub checked_at: crate::TimestampMs,
+    pub verified_fields: Vec<String>,
 }
 
 /// Successful evidence requires both a valid increment and a valid stream ending.
@@ -258,6 +313,7 @@ pub enum DiagnosticFailureCode {
     Timeout,
     Transport,
     Unauthorized,
+    RateLimited,
     Unsupported,
     UnexpectedHttpStatus,
     InvalidResponse,

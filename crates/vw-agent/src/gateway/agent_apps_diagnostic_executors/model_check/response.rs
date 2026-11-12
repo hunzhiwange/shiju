@@ -1,7 +1,10 @@
 //! Fixed request and bounded public evidence for a model connectivity probe.
 
 use serde_json::{Value, json};
-use vw_api_types::{agent_apps_diagnostics::DiagnosticFailureCode, id::ModelId};
+use vw_api_types::{
+    agent_apps_diagnostics::{DiagnosticFailureCode, DiagnosticModelProtocol},
+    id::ModelId,
+};
 
 use crate::model_relay::generation::GenerationProtocol;
 
@@ -48,19 +51,21 @@ impl GenerationEvidence for GenerationProtocol {
                 response["object"] == "chat.completion"
                     && any(&response["choices"], &|choice| {
                         choice["message"]["role"] == "assistant"
+                            && choice["finish_reason"] == "stop"
                             && text(&choice["message"]["content"])
                     })
             }
             Self::Messages => {
                 response["type"] == "message"
                     && response["role"] == "assistant"
+                    && response["stop_reason"] == "end_turn"
                     && any(&response["content"], &|block| {
                         block["type"] == "text" && text(&block["text"])
                     })
             }
             Self::Responses => {
                 response["object"] == "response"
-                    && matches!(response["status"].as_str(), Some("completed" | "incomplete"))
+                    && response["status"] == "completed"
                     && any(&response["output"], &|message| {
                         message["type"] == "message"
                             && message["role"] == "assistant"
@@ -71,6 +76,7 @@ impl GenerationEvidence for GenerationProtocol {
             }
             Self::Gemini => any(&response["candidates"], &|candidate| {
                 candidate["content"]["role"] == "model"
+                    && candidate["finishReason"] == "STOP"
                     && any(&candidate["content"]["parts"], &|part| {
                         part["thought"] != true && text(&part["text"])
                     })
@@ -84,4 +90,56 @@ impl GenerationEvidence for GenerationProtocol {
         vw_agent_apps::models::edits::validate_model_id(&model_id).map_err(|_| invalid)?;
         Ok(model_id)
     }
+}
+
+pub(super) fn internal_protocol(value: DiagnosticModelProtocol) -> GenerationProtocol {
+    match value {
+        DiagnosticModelProtocol::Chat => GenerationProtocol::Chat,
+        DiagnosticModelProtocol::Messages => GenerationProtocol::Messages,
+        DiagnosticModelProtocol::Responses => GenerationProtocol::Responses,
+        DiagnosticModelProtocol::Gemini => GenerationProtocol::Gemini,
+    }
+}
+
+pub(super) fn public_protocol(protocol: GenerationProtocol) -> DiagnosticModelProtocol {
+    match protocol {
+        GenerationProtocol::Chat => DiagnosticModelProtocol::Chat,
+        GenerationProtocol::Messages => DiagnosticModelProtocol::Messages,
+        GenerationProtocol::Responses => DiagnosticModelProtocol::Responses,
+        GenerationProtocol::Gemini => DiagnosticModelProtocol::Gemini,
+    }
+}
+
+/// Use the same converters as the relay, restricted to the fixed text probe.
+pub(super) fn request(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    model: &str,
+) -> Result<Value, DiagnosticFailureCode> {
+    let input = source.prompt(model);
+    if source == target {
+        return Ok(input);
+    }
+    if target != GenerationProtocol::Chat {
+        return Err(DiagnosticFailureCode::Unsupported);
+    }
+    let mut body = crate::model_relay::generation::text_probe_request(source, target, &input)
+        .map_err(|_| DiagnosticFailureCode::Unsupported)?;
+    body["model"] = model.into();
+    Ok(body)
+}
+
+pub(super) fn actual_model(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    body: &Value,
+) -> Result<ModelId, DiagnosticFailureCode> {
+    let actual = target.actual_model(body)?;
+    if source == target {
+        return Ok(actual);
+    }
+    let converted =
+        crate::model_relay::generation::text_probe_response(source, target, body, actual.as_ref())
+            .map_err(|_| DiagnosticFailureCode::InvalidResponse)?;
+    source.actual_model(&converted)
 }

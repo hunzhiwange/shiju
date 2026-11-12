@@ -148,7 +148,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
                             (200, "text/event-stream", crate::model_relay::stream_observer::tests::samples().into_iter().find(|(protocol, _, _)| *protocol == "anthropic").unwrap().2.to_owned())
                         } else if method == "POST" {
                             assert!(body.get("tools").is_none(), "model probes cannot carry tools");
-                            (200, "application/json", json!({"type":"message","role":"assistant","model":"fixture-model","content":[{"type":"text","text":"OK"}]}).to_string())
+                            (200, "application/json", json!({"type":"message","role":"assistant","model":"fixture-model","stop_reason":"end_turn","content":[{"type":"text","text":"OK"}]}).to_string())
                         } else { (200, "text/plain", String::new()) };
                         socket.write_all(format!("HTTP/1.1 {status} Fixture\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}", payload.len()).as_bytes()).await.unwrap();
                     });
@@ -281,6 +281,7 @@ async fn diagnostic_macos_jobs_acceptance() -> anyhow::Result<()> {
         DiagnosticStartRequest::Model {
             provider_id: "provider".into(),
             model_id: "fixture-model".into(),
+            protocol: None,
         },
         DiagnosticStartRequest::Streaming {
             provider_id: "provider".into(),

@@ -17,8 +17,8 @@ use vw_api_types::{
     agent_apps::AppId,
     agent_apps_auth::{AuthErrorCode, AuthService},
     agent_apps_diagnostics::{
-        DiagnosticEvidenceSource, DiagnosticFailureCode, DiagnosticOutcome, DiagnosticResult,
-        DiagnosticScope,
+        DiagnosticEvidenceSource, DiagnosticFailureCode, DiagnosticModelProtocol,
+        DiagnosticOutcome, DiagnosticResult, DiagnosticScope,
     },
     app_providers::{
         AppProviderWrite, ProviderProtocol,
@@ -42,7 +42,7 @@ use crate::{
 };
 
 #[tokio::test]
-async fn diagnostic_model_check_validates_model_response() {
+async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
     use crate::model_relay::generation::{GenerationProtocol, GenerationTransport};
 
     for (model, endpoint, expected) in [
@@ -77,7 +77,7 @@ async fn diagnostic_model_check_validates_model_response() {
             "/v1/messages",
             "x-api-key: fixture-key",
             json!({
-                "type":"message","role":"assistant","model":"fixture-v1","content":[{"type":"text","text":"OK"}]
+                "type":"message","role":"assistant","model":"fixture-v1","stop_reason":"end_turn","content":[{"type":"text","text":"OK"}]
             }),
         ),
         (
@@ -97,7 +97,7 @@ async fn diagnostic_model_check_validates_model_response() {
             "/v1/models/fixture:generateContent",
             "x-goog-api-key: fixture-key",
             json!({
-                "modelVersion":"fixture-v1","candidates":[{"content":{"role":"model","parts":[{"text":"OK"}]}}]
+                "modelVersion":"fixture-v1","candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[{"text":"OK"}]}}]
             }),
         ),
         (
@@ -107,7 +107,7 @@ async fn diagnostic_model_check_validates_model_response() {
             "/v1/chat/completions",
             "authorization: bearer fixture-key",
             json!({
-                "object":"chat.completion","model":"fixture-v1","choices":[{"message":{"role":"assistant","content":"OK"}}]
+                "object":"chat.completion","id":"fixture-completion","usage":{"prompt_tokens":4,"completion_tokens":1},"model":"fixture-v1","choices":[{"finish_reason":"stop","message":{"role":"assistant","content":"OK"}}]
             }),
         ),
     ] {
@@ -189,13 +189,36 @@ async fn diagnostic_model_check_validates_model_response() {
                 )
                 .unwrap();
         }
+        let protocols = if id == "chat" {
+            vec![
+                None,
+                Some(DiagnosticModelProtocol::Messages),
+                Some(DiagnosticModelProtocol::Responses),
+                Some(DiagnosticModelProtocol::Gemini),
+            ]
+        } else {
+            vec![None]
+        };
+        let attempts = protocols.len();
+        use sha2::{Digest, Sha256};
+        let expected_fingerprint = hex::encode(Sha256::digest(
+            format!("http://{}{path}", listener.local_addr().unwrap()).as_bytes(),
+        ));
         let server = tokio::spawn(async move {
             for (status, response) in [
                 (200, valid),
                 (401, json!({})),
+                (403, json!({})),
+                (429, json!({})),
+                (415, json!({})),
+                (200, json!({"error":{"message":"private upstream error"}})),
                 (404, json!({})),
                 (200, json!({"model":"fixture-v1"})),
-            ] {
+            ]
+            .into_iter()
+            .cycle()
+            .take(8 * attempts)
+            {
                 let (mut socket, _) = listener.accept().await.unwrap();
                 let mut headers = Vec::new();
                 while !headers.ends_with(b"\r\n\r\n") {
@@ -217,6 +240,15 @@ async fn diagnostic_model_check_validates_model_response() {
                 let mut bytes = vec![0; len];
                 socket.read_exact(&mut bytes).await.unwrap();
                 let request: Value = serde_json::from_slice(&bytes).unwrap();
+                if id == "gemini" {
+                    assert_eq!(request["generationConfig"]["maxOutputTokens"], 32);
+                } else {
+                    assert_eq!(request["model"], "fixture");
+                    assert_eq!(
+                        request[if id == "responses" { "max_output_tokens" } else { "max_tokens" }],
+                        32
+                    );
+                }
                 assert!(request.get("tools").is_none());
                 assert!(request.get("stream").is_none_or(|stream| stream == false));
                 assert!(request.to_string().contains("Reply with OK."));
@@ -225,51 +257,95 @@ async fn diagnostic_model_check_validates_model_response() {
             }
             assert!(timeout(Duration::from_millis(50), listener.accept()).await.is_err());
         });
-        for (status, error) in [
-            (200, None),
-            (401, Some(DiagnosticFailureCode::Unauthorized)),
-            (404, Some(DiagnosticFailureCode::UnexpectedHttpStatus)),
-            (200, Some(DiagnosticFailureCode::InvalidResponse)),
-        ] {
-            let probe = ModelProbe::prepare(
-                &database,
-                &accounts,
-                owner.clone(),
-                id.into(),
-                "fixture".into(),
-            )
-            .unwrap();
-            let result = probe
-                .run_with_source(
+        for protocol in protocols {
+            for (status, error) in [
+                (200, None),
+                (401, Some(DiagnosticFailureCode::Unauthorized)),
+                (403, Some(DiagnosticFailureCode::Unauthorized)),
+                (429, Some(DiagnosticFailureCode::RateLimited)),
+                (415, Some(DiagnosticFailureCode::Unsupported)),
+                (200, Some(DiagnosticFailureCode::InvalidResponse)),
+                (404, Some(DiagnosticFailureCode::UnexpectedHttpStatus)),
+                (200, Some(DiagnosticFailureCode::InvalidResponse)),
+            ] {
+                let probe = ModelProbe::prepare_protocol(
+                    &database,
                     &accounts,
-                    &copilot,
-                    CancellationToken::new(),
-                    DiagnosticEvidenceSource::ControlledFixture,
+                    owner.clone(),
+                    id.into(),
+                    "fixture".into(),
+                    protocol,
                 )
-                .await
-                .ok();
-            let Some(DiagnosticResult::Model { report, may_incur_cost: true, .. }) = result else {
-                panic!("authorized model must produce a model report for HTTP {status}");
-            };
-            assert_eq!(report.source, DiagnosticEvidenceSource::ControlledFixture);
-            match (report.outcome, error) {
-                (DiagnosticOutcome::Succeeded { evidence }, None) => {
-                    assert_eq!(evidence.http_status, status);
-                    assert_eq!(evidence.actual_model_id.as_ref(), "fixture-v1");
+                .unwrap();
+                let result = probe
+                    .run_with_source(
+                        &accounts,
+                        &copilot,
+                        CancellationToken::new(),
+                        DiagnosticEvidenceSource::ControlledFixture,
+                    )
+                    .await
+                    .ok();
+                let Some(DiagnosticResult::Model { report, may_incur_cost: true, attempt, .. }) =
+                    result
+                else {
+                    panic!("authorized model must produce a model report for HTTP {status}");
+                };
+                let attempt = attempt.expect("successes and failures retain route identity");
+                assert_eq!(
+                    attempt.endpoint_fingerprint.as_deref(),
+                    Some(expected_fingerprint.as_str())
+                );
+                assert!(attempt.started_at.0 > 0);
+                if let Some(protocol) = protocol {
+                    assert_eq!(attempt.source_protocol, protocol);
+                    assert_eq!(attempt.upstream_protocol, DiagnosticModelProtocol::Chat);
                 }
-                (DiagnosticOutcome::Failed { error, http_status }, Some(expected)) => {
-                    assert_eq!(http_status, Some(status));
-                    assert_eq!(error.code, expected);
+                assert_eq!(report.source, DiagnosticEvidenceSource::ControlledFixture);
+                match (report.outcome, error) {
+                    (DiagnosticOutcome::Succeeded { evidence }, None) => {
+                        assert_eq!(evidence.http_status, status);
+                        assert_eq!(evidence.actual_model_id.as_ref(), "fixture-v1");
+                        let route = evidence.route.unwrap();
+                        assert_eq!(route.endpoint_fingerprint, expected_fingerprint);
+                        assert!(route.checked_at.0 > 0);
+                        assert_eq!(route.verified_fields, ["text", "terminal_status", "model"]);
+                        if let Some(protocol) = protocol {
+                            assert_eq!(route.source_protocol, protocol);
+                            assert_eq!(route.upstream_protocol, DiagnosticModelProtocol::Chat);
+                        }
+                    }
+                    (DiagnosticOutcome::Failed { error, http_status }, Some(expected)) => {
+                        assert_eq!(http_status, Some(status));
+                        if status == 429 {
+                            assert_eq!(serde_json::to_value(error.code).unwrap(), "rate_limited");
+                        } else {
+                            assert_eq!(error.code, expected);
+                        }
+                    }
+                    (actual, expected) => panic!(
+                        "unexpected outcome {actual:?} for HTTP {status}, expected error {expected:?}"
+                    ),
                 }
-                (actual, expected) => panic!(
-                    "unexpected outcome {actual:?} for HTTP {status}, expected error {expected:?}"
-                ),
             }
         }
         assert!(
             ModelProbe::prepare(&database, &accounts, owner.clone(), id.into(), "other".into())
                 .is_err()
         );
+        if id == "messages" {
+            assert!(matches!(
+                ModelProbe::prepare_protocol(
+                    &database,
+                    &accounts,
+                    owner.clone(),
+                    id.into(),
+                    "fixture".into(),
+                    Some(DiagnosticModelProtocol::Chat)
+                ),
+                Err(ModelPrepareError::Unsupported)
+            ));
+        }
         let prepared = || {
             ModelProbe::prepare(&database, &accounts, owner.clone(), id.into(), "fixture".into())
                 .unwrap()
@@ -389,7 +465,139 @@ async fn diagnostic_model_check_validates_model_response() {
     let mut wrong_host = owner.clone();
     wrong_host.scope.target_host_id = "another-host".into();
     assert!(prepare(wrong_host).is_err());
-    let stale = prepare(owner.clone()).unwrap();
+    let stale = ModelProbe::prepare_protocol(
+        &database,
+        &accounts,
+        owner.clone(),
+        "copilot".into(),
+        "fixture".into(),
+        Some(DiagnosticModelProtocol::Messages),
+    )
+    .unwrap();
     write_credential("bound", "replacement-token");
     assert_eq!(stale.target.check_current(&accounts), Err(DiagnosticFailureCode::Unauthorized));
+}
+
+#[test]
+fn model_protocol_019_requires_successful_terminal_content() {
+    use super::response::GenerationEvidence;
+    use crate::model_relay::generation::GenerationProtocol as P;
+    for (protocol, value) in [
+        (
+            P::Chat,
+            json!({"object":"chat.completion","model":"fixture","choices":[{"finish_reason":null,"message":{"role":"assistant","content":"OK"}}]}),
+        ),
+        (
+            P::Messages,
+            json!({"type":"message","role":"assistant","model":"fixture","stop_reason":null,"content":[{"type":"text","text":"OK"}]}),
+        ),
+        (
+            P::Responses,
+            json!({"object":"response","model":"fixture","status":"incomplete","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK"}]}]}),
+        ),
+        (
+            P::Gemini,
+            json!({"modelVersion":"fixture","candidates":[{"finishReason":"SAFETY","content":{"role":"model","parts":[{"text":"OK"}]}}]}),
+        ),
+    ] {
+        assert_eq!(
+            protocol.actual_model(&value),
+            Err(DiagnosticFailureCode::InvalidResponse),
+            "{protocol:?}"
+        );
+    }
+}
+
+#[test]
+fn model_protocol_019_rejects_unregistered_endpoint_candidates() {
+    use vw_api_types::agent_apps_diagnostics::DiagnosticStartRequest;
+    let valid =
+        json!({"kind":"model","providerId":"saved","modelId":"fixture","protocol":"messages"});
+    assert!(serde_json::from_value::<DiagnosticStartRequest>(valid.clone()).is_ok());
+    for field in ["url", "endpoint", "endpointUrl", "apiKey", "targetProtocol"] {
+        let mut request = valid.clone();
+        request[field] = "https://foreign.example/v1/messages".into();
+        assert!(serde_json::from_value::<DiagnosticStartRequest>(request).is_err(), "{field}");
+    }
+}
+
+#[tokio::test]
+async fn model_protocol_019_timeout_and_inflight_cancellation() {
+    let directory = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::new(directory.path().join("global.sqlite")).unwrap();
+    let providers = AppProviderStore::new(database.clone()).unwrap();
+    let credentials = directory.path().join("credentials");
+    std::fs::DirBuilder::new().mode(0o700).create(&credentials).unwrap();
+    let accounts = AuthAccountStore::new(database.clone(), &credentials).unwrap();
+    let copilot = CopilotAuth::new().unwrap();
+    let owner = DiagnosticJobOwner {
+        scope: DiagnosticScope {
+            project: ProjectScope::for_default_tenant("project".into()).unwrap(),
+            target_host_id: "host".into(),
+            app_id: AppId::Claude,
+        },
+        principal: "member".into(),
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    providers
+        .save(
+            owner.scope.project.tenant_scope(),
+            AppId::Claude,
+            "fixture",
+            &AppProviderWrite {
+                name: "Fixture".into(),
+                protocol: ProviderProtocol::Anthropic,
+                api_key: "fixture-key".into(),
+                base_url: format!("http://{}/v1", listener.local_addr().unwrap()),
+                model: "fixture".into(),
+                request_options: None,
+            },
+        )
+        .unwrap();
+    for cancel_inflight in [true, false] {
+        let probe = ModelProbe::prepare(
+            &database,
+            &accounts,
+            owner.clone(),
+            "fixture".into(),
+            "fixture".into(),
+        )
+        .unwrap();
+        let cancel = CancellationToken::new();
+        let server_cancel = cancel.clone();
+        let server = async {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut headers = Vec::new();
+            while !headers.ends_with(b"\r\n\r\n") {
+                headers.push(socket.read_u8().await.unwrap());
+            }
+            if cancel_inflight {
+                server_cancel.cancel();
+            } else {
+                // Advance only after the real HTTP request reaches the boundary.
+                tokio::time::pause();
+                tokio::time::advance(super::TIMEOUT + Duration::from_secs(1)).await;
+            }
+            socket
+        };
+        let run = probe.run_with_source(
+            &accounts,
+            &copilot,
+            cancel,
+            DiagnosticEvidenceSource::ControlledFixture,
+        );
+        let (result, _socket) = tokio::join!(run, server);
+        if cancel_inflight {
+            assert!(matches!(result, Err(DiagnosticProbeError::Cancelled)));
+        } else {
+            tokio::time::resume();
+            let DiagnosticResult::Model { report, .. } = result.ok().expect("completed probe")
+            else {
+                panic!("model report required")
+            };
+            assert!(
+                matches!(report.outcome, DiagnosticOutcome::Failed { error, http_status: None } if error.code == DiagnosticFailureCode::Timeout)
+            );
+        }
+    }
 }

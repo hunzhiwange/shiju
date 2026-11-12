@@ -119,3 +119,53 @@ pub(crate) fn endpoint_headers(
     }
     Ok(headers)
 }
+
+/// Convert a bounded text-only probe through the production relay converters.
+/// Callers still select and authorize the exact upstream before dispatch.
+pub(crate) fn text_probe_request(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    input: &serde_json::Value,
+) -> Result<serde_json::Value, StatusCode> {
+    if source == target {
+        return Ok(input.clone());
+    }
+    if target != GenerationProtocol::Chat {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    match source {
+        GenerationProtocol::Messages => super::messages::to_chat(input),
+        GenerationProtocol::Responses => {
+            super::responses::to_chat(input, false).map(|(body, _)| body)
+        }
+        GenerationProtocol::Gemini => super::gemini::to_chat(input),
+        GenerationProtocol::Chat => Err(StatusCode::UNPROCESSABLE_ENTITY),
+    }
+}
+
+/// Validate the converted client response as well as the upstream response.
+pub(crate) fn text_probe_response(
+    source: GenerationProtocol,
+    target: GenerationProtocol,
+    body: &serde_json::Value,
+    model: &str,
+) -> Result<serde_json::Value, StatusCode> {
+    if source == target {
+        return Ok(body.clone());
+    }
+    if target != GenerationProtocol::Chat {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    match source {
+        GenerationProtocol::Messages => super::messages::from_chat(body, model),
+        GenerationProtocol::Responses => super::responses::from_chat(
+            body,
+            model,
+            "diagnostic",
+            &super::responses::ChatTools::default(),
+            false,
+        ),
+        GenerationProtocol::Gemini => super::gemini::from_chat(body, model),
+        GenerationProtocol::Chat => Err(StatusCode::UNPROCESSABLE_ENTITY),
+    }
+}

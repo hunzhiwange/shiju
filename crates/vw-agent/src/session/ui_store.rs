@@ -1073,6 +1073,26 @@ pub(crate) fn load_agent_session_strict(
     }
 }
 
+/// Unlike the display list, preserve pending sessions and duplicate IDs across projects.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn load_worktree_protection_sessions(
+    tenant: &TenantScope,
+) -> anyhow::Result<(Vec<agent_session::Info>, Vec<String>)> {
+    let store = runtime_session_store()?;
+    Ok((store.load_agent_deletion_candidates(tenant)?, store.foreign_worktree_directories(tenant)?))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn note_worktree_use(scope: &ProjectScope, info: &agent_session::Info) {
+    if crate::worktree::registry::record_use(scope, Path::new(&info.directory), info.time.updated)
+        .is_err()
+    {
+        tracing::warn!(
+            "Could not persist managed worktree use; cleanup must re-read session metadata"
+        );
+    }
+}
+
 pub(crate) fn load_agent_deletion_candidates(
     tenant: &TenantScope,
 ) -> anyhow::Result<Vec<agent_session::Info>> {
@@ -1287,7 +1307,7 @@ pub(super) fn update_agent_session(
             tenant,
             Some(&project_id),
             |store, scope| {
-                store.update_agent_session(scope, &session_id, move |current| {
+                let result = store.update_agent_session(scope, &session_id, move |current| {
                     if !explicit_title {
                         info.title.clone_from(&current.title);
                     }
@@ -1296,7 +1316,11 @@ pub(super) fn update_agent_session(
                     }
                     info.time.updated = info.time.updated.max(current.time.updated);
                     *current = info;
-                })
+                })?;
+                if let Some(info) = &result {
+                    note_worktree_use(scope, info);
+                }
+                Ok(result)
             },
         )
     }
@@ -1334,6 +1358,7 @@ pub fn save_agent_session_scoped_for_tenant(
     {
         run_project_operation("save agent session", tenant, scope, |store, project_scope| {
             store.save_agent_session(project_scope, info)?;
+            note_worktree_use(project_scope, info);
             Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
         })
     }

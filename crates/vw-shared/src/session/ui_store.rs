@@ -33,10 +33,11 @@ pub fn pinned_threads_scope(platform_id: &str, company_id: &str, project_id: &st
 /// Load pinned thread IDs for one tenant and project scope.
 pub fn load_pinned_threads(data_dir: &Path, scope: &str) -> std::io::Result<HashSet<String>> {
     let path = pinned_threads_path(data_dir, scope);
-    if !path.exists() {
-        return Ok(HashSet::new());
-    }
-    let bytes = std::fs::read(path)?;
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(HashSet::new()),
+        Err(error) => return Err(error),
+    };
     serde_json::from_slice(&bytes).map_err(std::io::Error::other)
 }
 

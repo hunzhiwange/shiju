@@ -75,3 +75,12 @@ fn load_llm_raw_step_reports_non_utf8_payload() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
 }
+
+#[test]
+fn worktree_cleanup_pins_fail_closed_when_metadata_unreadable() {
+    let temp = TempDir::new().unwrap();
+    assert!(super::load_pinned_threads(temp.path(), "scope").unwrap().is_empty());
+    // A non-directory parent is an I/O failure, not proof that pin state is empty.
+    fs::write(temp.path().join("storage"), b"not a directory").unwrap();
+    assert!(super::load_pinned_threads(temp.path(), "scope").is_err());
+}

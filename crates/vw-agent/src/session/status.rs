@@ -171,6 +171,11 @@ pub fn list() -> HashMap<String, Info> {
     STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
+/// Cleanup must not recover a poisoned runtime snapshot as if it were trustworthy.
+pub(crate) fn cleanup_snapshot() -> Result<HashMap<String, Info>, &'static str> {
+    STATE.lock().map(|state| state.clone()).map_err(|_| "Session runtime state is unavailable")
+}
+
 /// 设置会话状态
 ///
 /// 更新指定会话的状态，并通过事件总线发布状态变更通知。

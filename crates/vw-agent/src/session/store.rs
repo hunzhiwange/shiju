@@ -1358,6 +1358,41 @@ impl SessionStore {
         }
     }
 
+    /// Host lifecycle safety only: expose foreign directories, never foreign session payloads.
+    pub(crate) fn foreign_worktree_directories(&self, tenant: &TenantScope) -> Result<Vec<String>> {
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                let connection = database.connect_sqlite()?;
+                let mut statement = connection.prepare(
+                    "SELECT info_json FROM session_agent_sessions WHERE platform_id != ?1 OR company_id != ?2",
+                )?;
+                let rows = statement.query_map(
+                    params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
+                    |row| row.get::<_, String>(0),
+                )?;
+                let mut directories = rows
+                    .map(|row| foreign_worktree_directory(&row?))
+                    .collect::<Result<Vec<_>>>()?;
+                // A registered foreign project protects the physical repository even
+                // before its first session has been published.
+                let mut projects = connection.prepare(
+                    "SELECT worktree FROM projects WHERE platform_id != ?1 OR company_id != ?2",
+                )?;
+                let roots = projects.query_map(
+                    params![tenant.platform_id().as_ref(), tenant.company_id().as_ref()],
+                    |row| row.get::<_, String>(0),
+                )?;
+                for root in roots {
+                    directories.push(root?);
+                }
+                Ok(directories)
+            }
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.foreign_worktree_directories(tenant))
+            }
+        }
+    }
+
     /// Keep pending records and duplicate IDs across projects for lifecycle validation.
     pub(crate) fn load_agent_deletion_candidates(
         &self,
@@ -2956,4 +2991,15 @@ fn scoped_id_params<'a>(
     id: &'a str,
 ) -> (&'a str, &'a str, &'a str, &'a str) {
     (scope.platform_id().as_ref(), scope.company_id().as_ref(), scope.project_id().as_ref(), id)
+}
+
+/// Reject corrupt metadata instead of treating an unreadable foreign tenant as absent.
+fn foreign_worktree_directory(json: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(json)?;
+    value
+        .get("directory")
+        .and_then(serde_json::Value::as_str)
+        .filter(|directory| !directory.trim().is_empty())
+        .map(str::to_owned)
+        .context("Foreign session workspace is unavailable")
 }

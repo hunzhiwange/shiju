@@ -128,7 +128,7 @@ fn scope_lock(scope: &ProjectScope) -> Result<std::fs::File, Error> {
     Ok(file)
 }
 
-async fn records(scope: &ProjectScope) -> Result<Vec<Record>, Error> {
+pub(super) async fn records(scope: &ProjectScope) -> Result<Vec<Record>, Error> {
     match storage::read(&["managed-worktrees", &key(scope)]).await {
         Ok(records) => Ok(records),
         Err(storage::Error::NotFound(_)) => Ok(vec![]),
@@ -218,7 +218,7 @@ pub async fn register(
     let _lock = lifecycle_lock(primary)?;
     register_locked(scope, primary, directory).await
 }
-fn validate(record: &Record, scope: &ProjectScope, primary: &Path) -> Result<(), Error> {
+pub(super) fn validate(record: &Record, scope: &ProjectScope, primary: &Path) -> Result<(), Error> {
     if &record.scope != scope || record.state != Lifecycle::Ready {
         return Err(invalid("Managed checkout ownership mismatch"));
     }
@@ -294,4 +294,53 @@ pub async fn remove_managed(
         primary,
     )
     .await
+}
+
+/// Persist actual session creation/entry/execution time, never directory mtime.
+/// Uses the same scope lock and atomic JSON publication as lifecycle mutations.
+pub(crate) fn record_use(
+    scope: &ProjectScope,
+    directory: &Path,
+    used_at_ms: u64,
+) -> Result<(), Error> {
+    let _scope_lock = scope_lock(scope)?;
+    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+        .join("storage")
+        .join("managed-worktrees");
+    let path = root.join(format!("{}.json", key(scope)));
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    let mut records: Vec<Record> = serde_json::from_slice(&bytes).map_err(invalid)?;
+    let directory = std::fs::canonicalize(directory)?;
+    let Some(record) = records.iter_mut().find(|record| {
+        record.scope == *scope
+            && record.state == Lifecycle::Ready
+            && directory.starts_with(&record.directory)
+    }) else {
+        return Ok(());
+    };
+    if used_at_ms <= record.last_used_at_ms {
+        return Ok(());
+    }
+    // A replaced checkout is never made fresh by unrelated session persistence.
+    if identity(&record.directory)? != record.checkout_identity {
+        return Err(invalid("Managed checkout identity changed"));
+    }
+    record.last_used_at_ms = used_at_ms;
+    let temporary = path.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| {
+        use std::io::Write;
+        let mut file = std::fs::OpenOptions::new().create_new(true).write(true).open(&temporary)?;
+        file.write_all(&serde_json::to_vec(&records).map_err(invalid)?)?;
+        file.sync_all()?;
+        std::fs::rename(&temporary, &path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(temporary);
+    }
+    result
 }

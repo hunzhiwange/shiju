@@ -1155,6 +1155,22 @@ impl PostgresSessionStore {
         Ok(sessions)
     }
 
+    pub(super) fn foreign_worktree_directories(&self, tenant: &TenantScope) -> Result<Vec<String>> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut directories = connection.query(
+            "SELECT info_json FROM session_agent_sessions WHERE platform_id != $1 OR company_id != $2",
+            &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+        )?.into_iter().map(|row| super::foreign_worktree_directory(&row.try_get::<_, String>(0)?))
+            .collect::<Result<Vec<_>>>()?;
+        for row in connection.query(
+            "SELECT worktree FROM projects WHERE platform_id != $1 OR company_id != $2",
+            &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
+        )? {
+            directories.push(row.try_get(0)?);
+        }
+        Ok(directories)
+    }
+
     pub(super) fn load_agent_deletion_candidates(
         &self,
         tenant: &TenantScope,

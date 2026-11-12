@@ -70,3 +70,10 @@ mod recovery_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "recovery_restore_tests.rs"]
 mod recovery_restore_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "cleanup.rs"]
+pub mod cleanup;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "cleanup_tests.rs"]
+mod cleanup_tests;

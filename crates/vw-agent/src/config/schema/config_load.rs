@@ -5,8 +5,6 @@
 //! 部分配置状态下启动。
 
 use anyhow::{Context, Result, bail};
-#[cfg(not(target_arch = "wasm32"))]
-use directories::UserDirs;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
@@ -308,9 +306,7 @@ pub(crate) struct TenantConfigSource {
 #[cfg(not(target_arch = "wasm32"))]
 impl TenantConfigSource {
     pub(crate) async fn open(tenant: &TenantScope, project_root: Option<&Path>) -> Result<Self> {
-        let home = UserDirs::new()
-            .map(|dirs| dirs.home_dir().to_path_buf())
-            .context("Could not find home directory")?;
+        let home = crate::config::runtime_home::config_home()?;
         #[cfg(test)]
         let home =
             std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);

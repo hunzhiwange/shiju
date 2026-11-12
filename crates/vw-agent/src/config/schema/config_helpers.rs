@@ -14,8 +14,6 @@
 //! - 读取失败时静默返回 None，避免暴露系统信息
 //! - 对密钥进行验证和清理（去除空白字符、检查非空）
 
-// 导入用于获取用户目录的标准库
-use directories::UserDirs;
 // 导入路径处理的标准库
 use std::path::Path;
 
@@ -112,7 +110,7 @@ pub(crate) fn config_dir_creation_error(path: &Path) -> String {
 /// # 实现细节
 ///
 /// 函数按顺序执行以下操作：
-/// 1. 获取用户主目录
+/// 1. 获取运行时配置主目录
 /// 2. 构建 Codex 认证文件路径
 /// 3. 读取文件内容
 /// 4. 解析 JSON
@@ -121,8 +119,7 @@ pub(crate) fn config_dir_creation_error(path: &Path) -> String {
 ///
 /// 每个步骤使用 `?` 操作符进行短路求值，确保在任一步骤失败时优雅地返回 `None`。
 pub(crate) fn read_codex_openai_api_key() -> Option<String> {
-    // 使用 `directories` crate 获取用户主目录
-    let home = UserDirs::new()?.home_dir().to_path_buf();
+    let home = crate::config::runtime_home::config_home().ok()?;
 
     // 构建 Codex 的 auth.json 文件路径
     let auth_path = home.join(".codex").join("auth.json");

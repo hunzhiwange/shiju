@@ -34,7 +34,6 @@ use crate::app::agent::security::gateway_skey_store::GatewaySkeyStore;
 use crate::app::agent::storage;
 use crate::app::agent::util::log;
 use crate::global_database::GlobalDatabase;
-use directories::UserDirs;
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -70,9 +69,7 @@ pub(crate) use schema::{save_config, validate_config};
 pub use store::SystemConfigStore;
 
 fn gateway_skey_store() -> Result<GatewaySkeyStore, Error> {
-    let home = UserDirs::new()
-        .map(|dirs| dirs.home_dir().to_path_buf())
-        .ok_or_else(|| Error::Invalid("Could not find home directory".to_string()))?;
+    let home = runtime_home::config_home().map_err(|error| Error::Invalid(error.to_string()))?;
     let database =
         GlobalDatabase::for_home(home).map_err(|error| Error::Invalid(error.to_string()))?;
     GatewaySkeyStore::new(database).map_err(|error| Error::Invalid(error.to_string()))
@@ -823,3 +820,7 @@ pub async fn get_global() -> Config {
 pub async fn directories() -> Vec<String> {
     Vec::new()
 }
+
+mod runtime_home;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod runtime_home_tests;

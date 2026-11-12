@@ -216,3 +216,22 @@ fn test_paths(root: PathBuf) -> GlobalPaths {
 
     GlobalPaths { home, data, bin, log, cache, config, state }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn model_protocol_021_runtime_root_isolates_every_persistent_directory() {
+    let root = tempfile::tempdir().unwrap();
+    let platform = platform_dirs(std::path::Path::new("/unrelated-platform"), None);
+    let paths = resolve_runtime_paths(Some(platform), None, Some(root.path().into()));
+    for path in [
+        &paths.home,
+        &paths.data,
+        &paths.cache,
+        &paths.config,
+        &paths.state,
+        &paths.bin,
+        &paths.log,
+    ] {
+        assert!(path.starts_with(root.path()), "runtime path escaped isolated root: {path:?}");
+    }
+}

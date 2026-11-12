@@ -5,7 +5,6 @@ use crate::app::agent::config::SystemConfigStore;
 use crate::app::agent::security::SecretStore;
 use crate::global_database::GlobalDatabase;
 use anyhow::{Context, Result, bail};
-use directories::UserDirs;
 use serde_json::Value;
 use vw_api_types::id::TenantScope;
 
@@ -17,8 +16,7 @@ pub(crate) struct ChannelConfigWatcher {
 
 impl ChannelConfigWatcher {
     pub(crate) async fn new(config: &Config, include_project: bool) -> Result<Self> {
-        let home =
-            UserDirs::new().context("Could not find home directory")?.home_dir().to_path_buf();
+        let home = crate::config::runtime_home::config_home()?;
         let store = tokio::task::spawn_blocking(move || {
             SystemConfigStore::new(GlobalDatabase::for_home(home)?)
         })

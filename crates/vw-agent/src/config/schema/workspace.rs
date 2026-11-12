@@ -21,7 +21,6 @@
 //! - `active_workspace.toml` - 活动工作空间状态标记文件，记录当前使用的配置目录路径
 
 use anyhow::{Context, Result};
-use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
@@ -84,9 +83,7 @@ pub fn default_config_and_workspace_dirs() -> Result<(PathBuf, PathBuf)> {
 /// 如果无法找到用户的家目录，将返回错误。
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn default_config_dir() -> Result<PathBuf> {
-    let home = UserDirs::new()
-        .map(|u| u.home_dir().to_path_buf())
-        .context("Could not find home directory")?;
+    let home = crate::config::runtime_home::config_home()?;
     Ok(vw_config_types::paths::home_config_dir(home))
 }
 

@@ -3,8 +3,6 @@
 //! 持久化前会移除运行期 skey；项目配置只保存相对基础配置的覆盖形状，避免复制全局值。
 
 use anyhow::{Context, Result, bail};
-#[cfg(not(target_arch = "wasm32"))]
-use directories::UserDirs;
 use serde_json::{Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -55,9 +53,7 @@ pub async fn save_config_for_tenant(config: &Config, tenant: &TenantScope) -> Re
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let home = UserDirs::new()
-            .map(|dirs| dirs.home_dir().to_path_buf())
-            .context("Could not find home directory")?;
+        let home = crate::config::runtime_home::config_home()?;
         #[cfg(test)]
         {
             let store = SystemConfigStore::new(GlobalDatabase::for_home(home)?)?;
@@ -105,9 +101,7 @@ pub(super) fn save_project_config_to_store(
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn open_system_config_store() -> Result<SystemConfigStore> {
-    let home = UserDirs::new()
-        .map(|dirs| dirs.home_dir().to_path_buf())
-        .context("Could not find home directory")?;
+    let home = crate::config::runtime_home::config_home()?;
     let database = GlobalDatabase::for_home(home)?;
     tokio::task::spawn_blocking(move || SystemConfigStore::new(database))
         .await

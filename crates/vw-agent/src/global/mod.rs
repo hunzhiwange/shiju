@@ -67,14 +67,31 @@ static PATHS: LazyLock<GlobalPaths> = LazyLock::new(|| {
         prepare_paths(&paths);
         return paths;
     }
-    // 测试可以通过环境变量隔离 home，避免污染真实用户目录。
+    // HOME-only compatibility and complete test isolation have separate contracts.
     let test_home = std::env::var_os("VIBEWINDOW_TEST_HOME").map(PathBuf::from);
 
-    let paths = resolve_paths(base, test_home);
+    let test_root = std::env::var_os("VIBEWINDOW_TEST_ROOT").map(PathBuf::from);
+    let paths = resolve_runtime_paths(base, test_home, test_root);
     prepare_paths(&paths);
 
     paths
 });
+
+#[cfg(not(target_arch = "wasm32"))]
+fn resolve_runtime_paths(
+    base: Option<PlatformDirs>,
+    test_home: Option<PathBuf>,
+    test_root: Option<PathBuf>,
+) -> GlobalPaths {
+    if let Some(root) = test_root {
+        assert!(
+            root.is_absolute() && root.is_dir(),
+            "isolated runtime root must exist and be absolute"
+        );
+        return resolve_paths(None, Some(root));
+    }
+    resolve_paths(base, test_home)
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn resolve_paths(base: Option<PlatformDirs>, test_home: Option<PathBuf>) -> GlobalPaths {

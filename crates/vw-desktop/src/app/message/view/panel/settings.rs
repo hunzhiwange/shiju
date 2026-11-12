@@ -255,6 +255,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Ok(()) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
+                    app.web_install.runtime.shutdown();
                     std::process::exit(0);
                 }
                 #[cfg(target_arch = "wasm32")]
@@ -787,6 +788,7 @@ fn shutdown(app: &mut App, window_id: Option<iced::window::Id>) -> Task<Message>
     let (routing_commit, routing_saves) = app.model_routes_settings.persistence.flush();
     let worktree_saves = crate::app::message::settings::wait_for_worktree_saves(app);
     let preference_saves = app.desktop_preferences_persistence.wait_for_idle();
+    app.web_install.runtime.shutdown();
     app.work_browser_controller.shutdown();
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();

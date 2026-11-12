@@ -269,6 +269,13 @@ pub(crate) fn help_menu_entries() -> Vec<MenuEntry> {
             None,
             Message::View(message::ViewMessage::InstallCliTool),
         ),
+        #[cfg(not(target_arch = "wasm32"))]
+        MenuEntry::item(
+            NativeMenuAction::HelpInstallWeb,
+            "安装 Web 版本",
+            None,
+            Message::View(message::ViewMessage::WebInstall(crate::app::web_install::Event::Open)),
+        ),
         MenuEntry::item(
             NativeMenuAction::HelpCheckUpdate,
             "检测更新",

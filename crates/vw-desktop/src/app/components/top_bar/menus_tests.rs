@@ -216,7 +216,7 @@ fn work_view_menu_exposes_only_work_mode_surfaces() {
 fn help_menu_entries_preserve_separator_and_action_mapping() {
     let entries = help_menu_entries();
 
-    assert_eq!(entries.len(), 5);
+    assert_eq!(entries.len(), if cfg!(target_arch = "wasm32") { 5 } else { 6 });
     assert_eq!(item(&entries[0]).0, "关于");
     assert!(matches!(item(&entries[0]).2, Message::View(message::ViewMessage::ToggleAboutModal)));
     assert_separator(&entries[1]);
@@ -224,8 +224,20 @@ fn help_menu_entries_preserve_separator_and_action_mapping() {
     assert!(matches!(item(&entries[2]).2, Message::View(message::ViewMessage::RestartApp)));
     assert_eq!(item(&entries[3]).0, "安装 CLI 命令工具");
     assert!(matches!(item(&entries[3]).2, Message::View(message::ViewMessage::InstallCliTool)));
-    assert_eq!(item(&entries[4]).0, "检测更新");
-    assert!(matches!(item(&entries[4]).2, Message::View(message::ViewMessage::OpenAppUpdateModal)));
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        assert_eq!(item(&entries[4]).0, "安装 Web 版本");
+        assert!(matches!(
+            item(&entries[4]).2,
+            Message::View(message::ViewMessage::WebInstall(crate::app::web_install::Event::Open))
+        ));
+    }
+    let update_index = entries.len() - 1;
+    assert_eq!(item(&entries[update_index]).0, "检测更新");
+    assert!(matches!(
+        item(&entries[update_index]).2,
+        Message::View(message::ViewMessage::OpenAppUpdateModal)
+    ));
 }
 
 #[test]

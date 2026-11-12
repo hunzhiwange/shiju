@@ -28,6 +28,8 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::WebInstall(event) => crate::app::web_install::update(app, event),
         ViewMessage::AutoCheckAppUpdate
         | ViewMessage::AutoCheckAppUpdateFinished(..)
         | ViewMessage::SkipAppUpdate

@@ -22,6 +22,22 @@ are needed to serve the archive at <http://127.0.0.1:8765/>. The UI is static;
 agent operations still require a configured ShiJu gateway. See the bundled
 README.md and [WASM local usage](../docs/dev/WASM本地运行.md).
 
+Desktop users can choose **Help → Install Web version** (below Install CLI) to
+install and start the independent archive. This uses the same saved update source
+as desktop updates: ShiJu by default, or GitHub. Node.js 22+ must be on PATH.
+The service uses a dynamically allocated loopback port; closing the dialog keeps
+it running, and stopping it or exiting the desktop app terminates the process.
+The installation is kept under the current build's home configuration directory,
+in `web/current`; a verified replacement retains the old package in `web/previous`.
+
+For the ShiJu source, `latest/manifest.json` supplies the stable version using the
+existing desktop manifest schema. Mirror both `shiju-web-<version>.zip` and
+`shiju-web-<version>.zip.sha256` unchanged into
+`https://www.shiju.cloud/agents/shiju-agent/releases/v<version>/` before promoting
+that manifest. The desktop-only `prepare_oss_release.py` currently prepares eight
+native installers; the Web pair must also be mirrored by the release operator.
+A missing Web pair fails explicitly; the app does not switch sources automatically.
+
 Local packaging and relocated Node server checks (no publishing):
 
 ```sh

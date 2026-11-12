@@ -130,6 +130,8 @@ pub mod install_cli_modal;
 #[cfg(test)]
 #[path = "install_cli_modal_tests.rs"]
 mod install_cli_modal_tests;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod install_web_modal;
 
 /// Markdown 编辑器组件
 ///

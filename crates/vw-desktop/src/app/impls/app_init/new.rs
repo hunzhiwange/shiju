@@ -457,6 +457,8 @@ impl App {
             show_system_settings: false,
             show_about_modal: false,
             show_cli_install_modal: false,
+            #[cfg(not(target_arch = "wasm32"))]
+            web_install: Default::default(),
             cli_install_modal_title: String::new(),
             cli_install_modal_message: String::new(),
             cli_install_modal_current_version: String::new(),

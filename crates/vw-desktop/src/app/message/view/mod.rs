@@ -152,6 +152,8 @@ pub enum ViewMessage {
     RestartAppFinished(Result<(), String>),
     /// 请求安装 CLI 工具
     InstallCliTool,
+    #[cfg(not(target_arch = "wasm32"))]
+    WebInstall(crate::app::web_install::Event),
     RunInstallCliTool,
     CheckCliToolUpdate,
     CliCommandsTabSelected(crate::app::components::cli_command_help::CliCommandsTab),
@@ -736,6 +738,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.dragging_work_sidebar || app.dragging_work_split
     );
     let task = match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        msg @ ViewMessage::WebInstall(_) => panel::update(app, msg),
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),

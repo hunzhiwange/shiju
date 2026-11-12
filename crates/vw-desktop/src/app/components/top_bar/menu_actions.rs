@@ -32,6 +32,8 @@ pub enum NativeMenuAction {
     HelpAbout,
     HelpRestart,
     HelpInstallCli,
+    #[cfg(not(target_arch = "wasm32"))]
+    HelpInstallWeb,
     HelpCheckUpdate,
 }
 
@@ -68,6 +70,8 @@ impl NativeMenuAction {
             Self::HelpAbout => "native.help.about",
             Self::HelpRestart => "native.help.restart",
             Self::HelpInstallCli => "native.help.install_cli",
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::HelpInstallWeb => "native.help.install_web",
             Self::HelpCheckUpdate => "native.help.check_update",
         }
     }
@@ -103,6 +107,8 @@ impl NativeMenuAction {
             "native.help.about" => Self::HelpAbout,
             "native.help.restart" => Self::HelpRestart,
             "native.help.install_cli" => Self::HelpInstallCli,
+            #[cfg(not(target_arch = "wasm32"))]
+            "native.help.install_web" => Self::HelpInstallWeb,
             "native.help.check_update" => Self::HelpCheckUpdate,
             _ => return None,
         })

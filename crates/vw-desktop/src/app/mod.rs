@@ -62,6 +62,8 @@ pub mod views;
 /// 本机语音能力与权限边界。
 pub mod voice;
 #[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod web_install;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod webview_runtime;
 
 #[cfg(test)]

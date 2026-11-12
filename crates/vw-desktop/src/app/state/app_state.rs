@@ -373,6 +373,8 @@ pub struct App {
     pub(crate) show_about_modal: bool,
     /// 是否显示 CLI 安装对话框
     pub(crate) show_cli_install_modal: bool,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) web_install: crate::app::web_install::State,
     /// CLI 安装对话框标题
     pub(crate) cli_install_modal_title: String,
     /// CLI 安装对话框消息内容

@@ -273,6 +273,9 @@ impl App {
             root_content
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let root_content = components::install_web_modal::with_modal(self, root_content);
+
         // 依次叠加各种功能性模态框
         // 文件树重命名模态框
         let root_content = app_view_modals::with_file_tree_rename(self, root_content);

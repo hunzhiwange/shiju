@@ -5581,5 +5581,18 @@
   "已暂停": "Paused",
   "当前分组暂无任务": "No tasks in this group",
   "本地时间": "Local time",
-  "已选": "Selected"
+  "已选": "Selected",
+  "安装 Web 版本": "Install Web version",
+  "Web 版本不随应用打包，将从所选来源下载最新正式版并校验后安装。": "The Web version is downloaded separately from the latest stable release of the selected source and verified before installation.",
+  "需要 Node.js 22 或以上版本。服务仅供本机访问，业务功能使用 ShiJu 网关。": "Requires Node.js 22 or later. The service is local only; business features use the ShiJu gateway.",
+  "关闭弹窗后服务继续运行；退出应用时自动停止。": "Closing this dialog keeps the service running. Exiting the app stops it.",
+  "尚未安装 Web 版本": "Web version is not installed",
+  "安装并启动": "Install and start",
+  "启动 / 打开 Web": "Start / open Web",
+  "访问地址": "Access URL",
+  "正在从所选来源下载、校验并安装 Web 版本…": "Downloading, verifying and installing the Web version from the selected source…",
+  "正在启动 Web 服务…": "Starting Web service…",
+  "正在停止 Web 服务…": "Stopping Web service…",
+  "正在读取 Web 安装状态…": "Reading Web installation status…",
+  "安装目录": "Installation directory"
 }

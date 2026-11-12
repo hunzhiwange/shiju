@@ -57,7 +57,7 @@ pub(crate) fn git_repo_path_for_app(app: &App) -> Option<String> {
         }
     }
     // 回退到项目路径
-    app.project_path.clone()
+    app.project_path.as_ref().filter(|path| git2::Repository::open(path).is_ok()).cloned()
 }
 
 /// 差异文件的元数据（非 WebAssembly 平台）

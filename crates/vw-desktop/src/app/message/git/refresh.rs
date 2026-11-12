@@ -135,6 +135,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 app.git_changed_files.clear();
                 app.git_changed_files_loading = false;
                 app.git_changed_files_repo_path = None;
+                app.file_manager_changes_refreshing = false;
                 return Task::none();
             };
 

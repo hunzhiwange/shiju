@@ -32,6 +32,7 @@ pub(super) struct OverviewModel {
     pub(super) session_count: usize,
     pub(super) changed_files: usize,
     pub(super) branch: String,
+    pub(super) is_git_repo: bool,
 }
 
 pub(super) fn body_kind(app: &App) -> ResourceBodyKind {
@@ -84,6 +85,7 @@ pub(super) fn overview_model(app: &App) -> OverviewModel {
         session_title: active_session_title(app),
         session_count,
         changed_files: app.git_changed_files.len(),
+        is_git_repo: crate::app::components::git_panel::git_repo_path_for_app(app).is_some(),
         branch: app.selected_branch.clone().unwrap_or_else(|| {
             crate::app::i18n::I18n::new(app.desktop_locale).__("未获取").to_string()
         }),
@@ -208,7 +210,7 @@ fn overview_card<'a>(label: &'static str, value: impl Into<String>) -> Element<'
 
 fn overview(app: &App) -> Element<'_, Message> {
     let model = overview_model(app);
-    column![
+    let mut content = column![
         text(model.project_name).size(20),
         text(if model.project_path.is_empty() {
             crate::app::i18n::I18n::new(app.desktop_locale).__("请选择项目以查看资源").to_string()
@@ -228,21 +230,25 @@ fn overview(app: &App) -> Element<'_, Message> {
             ),
         ]
         .spacing(10),
-        row![
-            overview_card(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("Git 分支"),
-                model.branch
-            ),
-            overview_card(
-                crate::app::i18n::I18n::new(app.desktop_locale).__("工作区更改"),
-                model.changed_files.to_string()
-            ),
-        ]
-        .spacing(10),
     ]
     .spacing(12)
-    .width(Length::Fill)
-    .into()
+    .width(Length::Fill);
+    if model.is_git_repo {
+        content = content.push(
+            row![
+                overview_card(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("Git 分支"),
+                    model.branch
+                ),
+                overview_card(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("工作区更改"),
+                    model.changed_files.to_string()
+                ),
+            ]
+            .spacing(10),
+        );
+    }
+    content.into()
 }
 
 fn workspace_files(app: &App) -> Element<'_, Message> {

@@ -316,7 +316,9 @@ fn branch_listing_excludes_remote_tracking_references() {
 #[test]
 fn repo_path_ignores_unusable_active_session_before_project_fallback() {
     let mut app = crate::app::App::new().0;
-    app.project_path = Some("/project/fallback".to_string());
+    let project = tempfile::tempdir().expect("temporary repository");
+    let _repo = git2::Repository::init(project.path()).expect("init repository");
+    app.project_path = Some(project.path().to_string_lossy().into_owned());
     app.active_session_id = Some("active".to_string());
     app.sessions.push(session_info("active", "   "));
 
@@ -387,4 +389,15 @@ fn session_info(id: &str, directory: &str) -> Info {
         permission: None,
         revert: None,
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn repo_path_rejects_non_git_project_and_accepts_new_repository() {
+    let project = tempfile::tempdir().expect("temporary project");
+    let mut app = crate::app::App::new().0;
+    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    assert_eq!(git_repo_path_for_app(&app), None);
+    let _repo = git2::Repository::init(project.path()).expect("init repository");
+    assert_eq!(git_repo_path_for_app(&app), app.project_path);
 }

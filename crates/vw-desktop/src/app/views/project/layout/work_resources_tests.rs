@@ -68,6 +68,10 @@ fn work_resource_panel_routes_overview_workspace_files_and_browser() {
     let overview = work_resources::overview_model(&app);
     assert_eq!(overview.project_path, project.path().to_string_lossy());
     assert_eq!(overview.changed_files, 2);
+    assert!(!overview.is_git_repo);
+
+    let _repo = git2::Repository::init(project.path()).expect("init repository");
+    assert!(work_resources::overview_model(&app).is_git_repo);
 }
 
 #[test]

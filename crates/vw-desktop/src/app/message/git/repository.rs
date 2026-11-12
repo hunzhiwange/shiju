@@ -19,7 +19,7 @@ async fn gateway_context(
 }
 
 fn current_path(app: &App) -> Option<String> {
-    shared::git_context_path_for_app(app)
+    crate::app::components::git_panel::git_repo_path_for_app(app)
 }
 
 pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
@@ -38,7 +38,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             )
         }
         GitMessage::ShowHistory(history) => {
-            app.git_repository.history = history;
+            app.git_repository.history = history && current_path(app).is_some();
             Task::done(Message::Git(GitMessage::RefreshRepository))
         }
         GitMessage::LoadMoreHistory => {
@@ -67,6 +67,10 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             }
             state.repo_path = path.clone();
             let Some(path) = path else {
+                state.history = false;
+                state.loading = false;
+                state.detail_loading = false;
+                state.error = None;
                 return Task::none();
             };
             state.limit = state.limit.max(100);

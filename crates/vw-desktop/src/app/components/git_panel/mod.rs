@@ -455,7 +455,7 @@ pub fn embedded_custom_text_diff_view(
 /// 4. 渲染变更文件列表及其 diff
 /// 5. 根据状态渲染各种模态框（复制、评论等）
 pub fn view(app: &App) -> Element<'_, Message> {
-    if app.git_repository.history {
+    if app.git_repository.history && git_repo_path_for_app(app).is_some() {
         return with_git_overlays(
             app,
             column![header::view(app, vec![]), repository::toolbar(app), repository::view(app)]

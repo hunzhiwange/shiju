@@ -401,29 +401,7 @@ pub(super) fn configure_git_code_editor(
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
 pub(super) fn git_repo_path_for_app(app: &App) -> Option<String> {
-    if let Some(dir) = app.selected_git_worktree_directory.as_ref() {
-        let dir = dir.trim();
-        if !dir.is_empty() {
-            let dir_path = std::path::Path::new(dir);
-            if dir_path.exists() && git2::Repository::open(dir).is_ok() {
-                return Some(dir.to_string());
-            }
-        }
-        return None;
-    }
-
-    if let Some(active_id) = app.active_session_id.as_ref()
-        && let Some(info) = app.sessions.iter().find(|s| &s.id == active_id)
-    {
-        let dir = info.directory.trim();
-        if !dir.is_empty() {
-            let dir_path = std::path::Path::new(dir);
-            if dir_path.exists() && git2::Repository::open(dir).is_ok() {
-                return Some(dir.to_string());
-            }
-        }
-    }
-    app.project_path.clone()
+    crate::app::components::git_panel::git_repo_path_for_app(app)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

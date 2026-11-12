@@ -4,7 +4,9 @@ use crate::app::components::git_panel::repository_ops::{HistoryDetail, Repositor
 #[test]
 fn history_results_ignore_old_generation_and_old_commit_selection() {
     let mut app = crate::app::App::new().0;
-    let path = "/gateway-only/repository".to_owned();
+    let project = tempfile::tempdir().expect("temporary repository");
+    let _repo = git2::Repository::init(project.path()).expect("init repository");
+    let path = project.path().to_string_lossy().into_owned();
     app.project_path = Some(path.clone());
     app.git_repository.repo_path = Some(path.clone());
     app.git_repository.generation = 2;
@@ -115,4 +117,52 @@ async fn history_preview_uses_committed_snapshot_including_deleted_files() {
     app.show_git_copy_modal = false;
     let _ = repository::update(&mut app, GitMessage::PreviewHistoryFile(99));
     assert!(!app.show_git_copy_modal);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn non_git_project_skips_repository_requests_and_clears_history_error() {
+    use crate::app::components::git_panel::repository_ops::RemoteAction;
+    let project = tempfile::tempdir().expect("temporary project");
+    let mut app = crate::app::App::new().0;
+    app.project_path = Some(project.path().to_string_lossy().into_owned());
+    app.git_repository.repo_path = app.project_path.clone();
+    app.git_repository.history = true;
+    app.git_repository.loading = true;
+    app.git_repository.error = Some("not a repository".into());
+    app.file_manager_changes_refreshing = true;
+    let task = super::update(
+        &mut app,
+        GitMessage::OpenChatTextDiff {
+            title: "hello.md +1-0".into(),
+            file: "hello.md".into(),
+            before: String::new(),
+            after: "555\n".into(),
+        },
+    );
+    assert!(iced_runtime::task::into_stream(task).is_none());
+    assert!(app.show_git_custom_diff_modal);
+    assert_eq!(app.git_custom_diff_after_editor.text(), "555\n");
+    for message in [
+        GitMessage::RefreshRepository,
+        GitMessage::RunRemote(RemoteAction::Fetch),
+        GitMessage::RunRemote(RemoteAction::Pull),
+        GitMessage::RunRemote(RemoteAction::Push),
+        GitMessage::SelectHistoryCommit("a".repeat(40)),
+        GitMessage::RefreshChangedFiles,
+        GitMessage::RefreshDiffFileMetas,
+    ] {
+        let task = super::update(&mut app, message);
+        assert!(iced_runtime::task::into_stream(task).is_none());
+    }
+    assert!(app.git_repository.repo_path.is_none());
+    assert!(!app.git_repository.history);
+    assert!(!app.git_repository.loading);
+    assert!(!app.git_repository.remote_busy);
+    assert!(app.git_repository.error.is_none());
+    assert!(!app.git_changed_files_loading);
+    assert!(!app.file_manager_changes_refreshing);
+    assert!(!app.git_diff_file_metas_loading);
+    assert!(app.show_git_custom_diff_modal);
+    assert_eq!(app.git_custom_diff_after_editor.text(), "555\n");
 }

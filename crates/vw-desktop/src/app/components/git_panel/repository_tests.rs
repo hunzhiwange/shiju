@@ -9,8 +9,9 @@ async fn repository_history_renders_chinese_in_both_themes() {
     use vw_gateway_client::vw_api_types::git::{
         GitHistoryCommitDto as HistoryCommit, GitHistoryFileDto as HistoryFile,
     };
-    // 客户端不必存在这个目录：渲染和交互只依赖网关返回的数据。
-    let remote_path = "/gateway-only/中文项目";
+    let project = tempfile::tempdir().expect("temporary repository");
+    let _repo = git2::Repository::init(project.path()).expect("init repository");
+    let remote_path = project.path().to_str().expect("utf8 path");
     for (theme, name, width) in [
         (Theme::Light, "light", 520),
         (Theme::Dark, "dark", 520),

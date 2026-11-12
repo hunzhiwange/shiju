@@ -89,6 +89,11 @@ fn action(
 }
 
 pub(super) fn toolbar(app: &App) -> Element<'_, Message> {
+    if super::git_repo_path_for_app(app).is_none() {
+        return container(action(Icon::Pencil, "变更", GitMessage::ShowHistory(false), true, true))
+            .padding([4, 7])
+            .into();
+    }
     let state = &app.git_repository;
     let valid = state.repo_path.as_deref()
         == crate::app::message::git::git_context_path_for_app(app).as_deref();

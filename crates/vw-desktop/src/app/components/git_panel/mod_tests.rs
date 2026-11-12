@@ -259,7 +259,7 @@ fn repository_wrappers_preserve_empty_results_for_missing_repository() {
     app.project_path = Some(path.to_string());
     let missing_meta = meta("missing.txt", FileStatus::Modified, 0, 0);
 
-    assert_eq!(super::git_repo_path_for_app(&app), Some(path.to_string()));
+    assert_eq!(super::git_repo_path_for_app(&app), None);
     assert!(super::get_diff_file_metas_for_repo_path(path).is_empty());
     assert_eq!(
         super::load_diff_content_for_repo_path(path, &missing_meta),

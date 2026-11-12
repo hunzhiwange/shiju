@@ -53,7 +53,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             }
 
             let (header, body) = pane_view(app, tabs, state.active_id, controls);
-            let header = iced::widget::mouse_area(header).on_release(Message::Terminal(
+            let header = iced::widget::mouse_area(header).on_double_click(Message::Terminal(
                 TerminalMessage::TogglePaneMaximized(panes.instance.clone(), pane),
             ));
             pane_grid::Content::new(body).title_bar(pane_grid::TitleBar::new(header))
@@ -101,6 +101,7 @@ struct GridMemory {
     instance: Id,
     grid: Tree,
     drag: Option<TabDrag>,
+    title_click: Option<(Pane, mouse::Click)>,
 }
 
 impl TerminalGrid<'_> {
@@ -110,6 +111,9 @@ impl TerminalGrid<'_> {
         layout: Layout<'_>,
         cursor: mouse::Cursor,
     ) -> Option<(Target, Rectangle)> {
+        if self.panes.grid.maximized().is_some() {
+            return None;
+        }
         let bounds = layout.bounds();
         let offset = Vector::new(bounds.x, bounds.y);
         drop_target(
@@ -124,7 +128,7 @@ impl TerminalGrid<'_> {
         let mut grid =
             Tree { tag: self.grid.tag(), state: self.grid.state(), children: Vec::new() };
         self.grid.diff(&mut grid);
-        GridMemory { instance: self.panes.instance.clone(), grid, drag: None }
+        GridMemory { instance: self.panes.instance.clone(), grid, drag: None, title_click: None }
     }
 }
 
@@ -203,7 +207,7 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         use iced::{keyboard, touch, window};
         use mouse::{Button, Event as Mouse, Interaction};
 
-        let GridMemory { grid, drag, .. } = tree.state.downcast_mut();
+        let GridMemory { grid, drag, title_click, .. } = tree.state.downcast_mut();
         if let Event::Keyboard(event @ keyboard::Event::KeyPressed { repeat, .. }) = event
             && let Some(id) = self.shortcut_focus
             && let Some(direction) = split_menu::shortcut(event)
@@ -245,6 +249,12 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         };
         let mut focused = FocusedWidget::default();
         let mut cursor = cursor;
+        if cancel {
+            *title_click = None;
+        }
+        if matches!(event, Event::Mouse(Mouse::ButtonPressed(button)) if *button != Button::Left) {
+            *title_click = None;
+        }
         if cancel
             && (drag.is_some()
                 || resizing(self.grid.mouse_interaction(
@@ -273,9 +283,8 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
             }
         } else if matches!(event, Event::Mouse(Mouse::ButtonPressed(Button::Left))) {
             let interaction = self.grid.mouse_interaction(grid, layout, cursor, viewport, renderer);
-            if self.panes.grid.len() > 1
-                && self.panes.grid.maximized().is_none()
-                && !resizing(interaction)
+            *drag = None;
+            if !resizing(interaction)
                 && let Some(origin) = cursor.position_over(layout.bounds())
             {
                 let mut hit = TabTitleHit::new(origin);
@@ -288,6 +297,9 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
                 }
             }
             // Preserve the focused terminal when pressing a divider or a tab title.
+            if drag.is_none() {
+                *title_click = None;
+            }
             if drag.is_some() || resizing(interaction) {
                 self.grid.operate(grid, layout, renderer, &mut focused);
             }
@@ -296,23 +308,43 @@ impl Widget<Message, Theme, Renderer> for TerminalGrid<'_> {
         {
             drag.moving |= drag.origin.distance(*position) >= DRAG_THRESHOLD;
             if drag.moving {
+                *title_click = None;
                 shell.request_redraw();
                 shell.capture_event();
                 return;
             }
         } else if *event == release
-            && let Some(drag) = drag.take().filter(|drag| drag.moving)
+            && let Some(pressed) = drag.take()
         {
-            if let Some((target, _)) = self.target(drag, layout, cursor) {
-                shell.publish(Message::Terminal(TerminalMessage::DockPane(
-                    self.panes.instance.clone(),
-                    drag.pane,
-                    target,
-                )));
+            if pressed.moving {
+                if self.panes.grid.maximized().is_none()
+                    && let Some((target, _)) = self.target(pressed, layout, cursor)
+                {
+                    shell.publish(Message::Terminal(TerminalMessage::DockPane(
+                        self.panes.instance.clone(),
+                        pressed.pane,
+                        target,
+                    )));
+                }
+                // Clear the tab button's pressed state without activating the tab.
+                cursor = mouse::Cursor::Unavailable;
+                shell.request_redraw();
+            } else if let Some(position) = cursor.position_over(layout.bounds())
+                && pressed.origin.distance(position) < DRAG_THRESHOLD
+            {
+                let previous =
+                    title_click.filter(|(pane, _)| *pane == pressed.pane).map(|(_, click)| click);
+                let click = mouse::Click::new(position, Button::Left, previous);
+                if click.kind() == mouse::click::Kind::Double {
+                    shell.publish(Message::Terminal(TerminalMessage::TogglePaneMaximized(
+                        self.panes.instance.clone(),
+                        pressed.pane,
+                    )));
+                    *title_click = None;
+                } else {
+                    *title_click = Some((pressed.pane, click));
+                }
             }
-            // Clear the tab button's pressed state without activating the tab.
-            cursor = mouse::Cursor::Unavailable;
-            shell.request_redraw();
         }
 
         self.grid.update(grid, event, layout, cursor, renderer, clipboard, shell, viewport);

@@ -234,28 +234,8 @@ fn pane_view<'a>(
         // 选择按钮宽度 = 标签页宽度 - 关闭按钮槽位宽度
         let select_width = (tab_width - close_slot_width).max(0.0);
 
-        let select_message = Message::Terminal(message::TerminalMessage::Select(tab_id));
-        #[cfg(not(target_arch = "wasm32"))]
-        let select_message = if active {
-            app.terminal
-                .panes
-                .grid
-                .iter()
-                .find_map(|(pane, state)| {
-                    state.tabs.contains(&tab_id).then(|| {
-                        Message::Terminal(message::TerminalMessage::TogglePaneMaximized(
-                            app.terminal.panes.instance.clone(),
-                            *pane,
-                        ))
-                    })
-                })
-                .unwrap_or(select_message)
-        } else {
-            select_message
-        };
-
         // ---------- 构建标签页选择按钮 ----------
-        // 非激活标签切换终端；激活标签切换窗格放大状态。
+        // 单击选择标签；双击放大由窗格处理，拖动仍可调整布局。
         let select_btn = button(
             container(SingleLineLabel::new(title, 13.0).centered())
                 .id(TAB_TITLE_ID)
@@ -265,7 +245,7 @@ fn pane_view<'a>(
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
         )
-        .on_press(select_message)
+        .on_press(Message::Terminal(message::TerminalMessage::Select(tab_id)))
         .height(Length::Fill)
         .width(Length::Fixed(select_width))
         .padding(0)

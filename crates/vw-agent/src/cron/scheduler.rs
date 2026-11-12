@@ -207,6 +207,9 @@ pub async fn run(config: Config) -> Result<()> {
 /// - 会进行完整的安全策略检查
 /// - 不会自动更新任务的下一次执行时间
 pub async fn execute_job_now(config: &Config, job: &CronJob) -> (bool, String) {
+    if let Some(error) = job.window_error(Utc::now()) {
+        return (false, error.to_string());
+    }
     let security =
         SecurityPolicy::from_configs(&config.autonomy, &config.security, &config.workspace_dir);
     execute_job_with_retry(config, &security, job).await
@@ -262,6 +265,10 @@ async fn execute_job_with_retry(
 
     // 执行重试循环：0 表示首次尝试，1..=retries 表示重试
     for attempt in 0..=retries {
+        // Recheck after every retry backoff; an expired window never starts another attempt.
+        if let Some(error) = job.window_error(Utc::now()) {
+            return (false, error.to_string());
+        }
         // 根据任务类型选择执行器
         let (success, output) = match effective_job_type(job) {
             JobType::Shell => run_job_command(&run_config, security, job).await,
@@ -437,6 +444,25 @@ async fn execute_and_persist_job(
     job: &CronJob,
     component: &str,
 ) -> (String, bool, String) {
+    // A queued snapshot may predate a window edit. Reload immediately before starting.
+    let current = match super::get_job(config, &job.id) {
+        Ok(current) => current,
+        Err(error) => return (job.id.clone(), false, format!("Failed to load cron job: {error}")),
+    };
+    let job = &current;
+    if let Some(error) = job.window_error(Utc::now()) {
+        if job.ends_at.is_some_and(|end| Utc::now() >= end) {
+            let _ = update_job(
+                config,
+                &job.id,
+                CronJobPatch { enabled: Some(false), ..Default::default() },
+            );
+        }
+        return (job.id.clone(), false, error.to_string());
+    }
+    if !job.enabled {
+        return (job.id.clone(), false, "Cron job is disabled".to_string());
+    }
     // 更新健康检查状态
     crate::app::agent::health::mark_component_ok(component);
     if let Some(output) = invalid_job_payload(job) {

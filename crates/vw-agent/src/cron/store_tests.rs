@@ -72,6 +72,8 @@ fn update_job_applies_extended_patch_and_normalizes_fallbacks() {
         &config,
         &job.id,
         CronJobPatch {
+            starts_at: None,
+            ends_at: None,
             job_type: Some(JobType::Agent),
             schedule: Some(Schedule::Every { every_ms: 120_000 }),
             command: Some("echo changed".into()),
@@ -230,4 +232,306 @@ fn invalid_persisted_delivery_and_fallback_json_are_reported() {
 
     let fallback_err = get_job(&config, &fallback_job.id).unwrap_err().to_string();
     assert!(fallback_err.contains("Failed to parse cron fallbacks JSON"));
+}
+
+fn window_time() -> chrono::DateTime<Utc> {
+    "2035-01-01T00:00:00Z".parse().unwrap()
+}
+
+#[test]
+fn wb_schedule_window_creation_round_trips_and_delays_every() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    let end = start + ChronoDuration::hours(1);
+    let job = super::store::add_shell_job_with_window(
+        &config,
+        None,
+        Schedule::Every { every_ms: 60_000 },
+        "echo ok",
+        Some(start),
+        Some(end),
+    )
+    .unwrap();
+    assert_eq!(job.next_run, start + ChronoDuration::minutes(1));
+    let stored = get_job(&config, &job.id).unwrap();
+    assert_eq!((stored.starts_at, stored.ends_at), (Some(start), Some(end)));
+    with_connection(&config, |conn| {
+        let count: i64 = conn.query_row(
+            "SELECT count(*) FROM cron_jobs WHERE starts_at IS NOT NULL AND ends_at IS NOT NULL",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(count, 1);
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
+fn wb_schedule_window_creation_rejects_empty_interval_atomically() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    assert!(
+        super::store::add_shell_job_with_window(
+            &config,
+            None,
+            Schedule::Every { every_ms: 60_000 },
+            "echo ok",
+            Some(start),
+            Some(start + ChronoDuration::seconds(30))
+        )
+        .is_err()
+    );
+    assert!(list_jobs(&config).unwrap().is_empty());
+}
+
+#[test]
+fn wb_schedule_window_creation_rejects_reversed_and_equal_bounds() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    for end in [start, start - ChronoDuration::seconds(1)] {
+        assert!(
+            super::store::add_shell_job_with_window(
+                &config,
+                None,
+                Schedule::Every { every_ms: 1000 },
+                "echo ok",
+                Some(start),
+                Some(end)
+            )
+            .is_err()
+        );
+    }
+    assert!(list_jobs(&config).unwrap().is_empty());
+}
+
+#[test]
+fn wb_schedule_window_patch_preserves_clears_and_sets() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let job = add_job(&config, "0 * * * * *", "echo ok").unwrap();
+    let start = window_time();
+    let end = start + ChronoDuration::hours(1);
+    let patch: CronJobPatch =
+        serde_json::from_value(serde_json::json!({"starts_at": start, "ends_at": end})).unwrap();
+    let job = update_job(&config, &job.id, patch).unwrap();
+    assert_eq!((job.starts_at, job.ends_at), (Some(start), Some(end)));
+    assert_eq!(job.next_run, start);
+    let job = update_job(
+        &config,
+        &job.id,
+        CronJobPatch { name: Some("renamed".into()), ..Default::default() },
+    )
+    .unwrap();
+    assert_eq!((job.starts_at, job.ends_at), (Some(start), Some(end)));
+    let patch: CronJobPatch =
+        serde_json::from_value(serde_json::json!({"starts_at": null})).unwrap();
+    assert_eq!(serde_json::to_value(&patch).unwrap()["starts_at"], serde_json::Value::Null);
+    let job = update_job(&config, &job.id, patch).unwrap();
+    assert_eq!((job.starts_at, job.ends_at), (None, Some(end)));
+    let patch: CronJobPatch = serde_json::from_value(serde_json::json!({"ends_at": null})).unwrap();
+    assert_eq!(update_job(&config, &job.id, patch).unwrap().ends_at, None);
+}
+
+#[test]
+fn wb_schedule_window_invalid_patch_does_not_write() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let job = add_job(&config, "0 * * * * *", "echo ok").unwrap();
+    let start = window_time();
+    let patch = CronJobPatch {
+        starts_at: Some(Some(start)),
+        ends_at: Some(Some(start)),
+        ..Default::default()
+    };
+    assert!(update_job(&config, &job.id, patch).is_err());
+    assert_eq!(get_job(&config, &job.id).unwrap().starts_at, None);
+}
+
+#[test]
+fn wb_schedule_window_due_query_includes_start_excludes_end() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    let end = start + ChronoDuration::hours(1);
+    let job = super::store::add_shell_job_with_window(
+        &config,
+        None,
+        Schedule::Cron { expr: "0 * * * * *".into(), tz: None },
+        "echo ok",
+        Some(start),
+        Some(end),
+    )
+    .unwrap();
+    assert_eq!(job.next_run, start);
+    assert!(
+        super::store::due_jobs(&config, start - ChronoDuration::seconds(1)).unwrap().is_empty()
+    );
+    assert_eq!(super::store::due_jobs(&config, start).unwrap().len(), 1);
+    assert!(super::store::due_jobs(&config, end).unwrap().is_empty());
+    assert!(!get_job(&config, &job.id).unwrap().enabled);
+}
+
+#[test]
+fn wb_schedule_window_offline_expiration_retains_history() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    let job = super::store::add_shell_job_with_window(
+        &config,
+        None,
+        Schedule::Every { every_ms: 1000 },
+        "echo ok",
+        Some(start),
+        Some(start + ChronoDuration::minutes(1)),
+    )
+    .unwrap();
+    super::store::record_run(&config, &job.id, start, start, "ok", Some("previous"), 0).unwrap();
+    assert!(super::store::due_jobs(&config, start + ChronoDuration::days(1)).unwrap().is_empty());
+    assert!(!get_job(&config, &job.id).unwrap().enabled);
+    assert_eq!(super::store::list_runs(&config, &job.id, 10).unwrap().len(), 1);
+}
+
+#[test]
+fn wb_schedule_window_expired_resume_stays_disabled() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let job = add_job(&config, "0 * * * * *", "echo ok").unwrap();
+    let job = update_job(
+        &config,
+        &job.id,
+        CronJobPatch {
+            ends_at: Some(Some(Utc::now() - ChronoDuration::seconds(1))),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(!job.enabled);
+    let job =
+        update_job(&config, &job.id, CronJobPatch { enabled: Some(true), ..Default::default() })
+            .unwrap();
+    assert!(!job.enabled);
+}
+
+#[test]
+fn wb_schedule_window_schedule_change_recalculates_with_bounds() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    let job = super::store::add_shell_job_with_window(
+        &config,
+        None,
+        Schedule::Every { every_ms: 1000 },
+        "echo ok",
+        Some(start),
+        Some(start + ChronoDuration::minutes(1)),
+    )
+    .unwrap();
+    let job = update_job(
+        &config,
+        &job.id,
+        CronJobPatch {
+            schedule: Some(Schedule::Every { every_ms: 120_000 }),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(!job.enabled);
+    assert_eq!(job.next_run, start + ChronoDuration::seconds(1));
+}
+
+#[test]
+fn wb_schedule_window_run_finishes_after_end_without_rescheduling() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let job = add_job(&config, "0 * * * * *", "echo ok").unwrap();
+    let job = update_job(
+        &config,
+        &job.id,
+        CronJobPatch {
+            ends_at: Some(Some(Utc::now() - ChronoDuration::seconds(1))),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    super::store::reschedule_after_run(&config, &job, true, "finished").unwrap();
+    let stored = get_job(&config, &job.id).unwrap();
+    assert!(!stored.enabled);
+    assert_eq!(stored.next_run, job.next_run);
+    assert_eq!(stored.last_status.as_deref(), Some("ok"));
+    assert_eq!(stored.last_output.as_deref(), Some("finished"));
+}
+
+#[test]
+fn wb_schedule_window_last_calendar_occurrence_has_no_next() {
+    let from = window_time();
+    let schedule = Schedule::Cron { expr: "0 0 0 1 1 * 2035".into(), tz: None };
+    assert_eq!(
+        super::store::next_run_in_window(
+            &schedule,
+            None,
+            Some(from + ChronoDuration::days(1)),
+            from
+        )
+        .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn wb_schedule_window_candidate_at_end_is_excluded() {
+    let from = window_time();
+    let schedule = Schedule::Every { every_ms: 60_000 };
+    assert_eq!(
+        super::store::next_run_in_window(
+            &schedule,
+            Some(from),
+            Some(from + ChronoDuration::minutes(1)),
+            from
+        )
+        .unwrap(),
+        None
+    );
+}
+
+#[test]
+fn wb_schedule_window_agent_creation_is_atomic() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp);
+    let start = window_time();
+    let end = start + ChronoDuration::hours(1);
+    let job = super::store::add_agent_job_with_window(
+        &config,
+        None,
+        Schedule::Every { every_ms: 60_000 },
+        "summarize",
+        SessionTarget::Isolated,
+        None,
+        None,
+        false,
+        Some(start),
+        Some(end),
+    )
+    .unwrap();
+    assert_eq!((job.starts_at, job.ends_at), (Some(start), Some(end)));
+    assert_eq!(job.next_run, start + ChronoDuration::minutes(1));
+    assert!(
+        super::store::add_agent_job_with_window(
+            &config,
+            None,
+            Schedule::Every { every_ms: 3_600_000 },
+            "summarize",
+            SessionTarget::Isolated,
+            None,
+            None,
+            false,
+            Some(start),
+            Some(end)
+        )
+        .is_err()
+    );
+    assert_eq!(list_jobs(&config).unwrap().len(), 1);
 }

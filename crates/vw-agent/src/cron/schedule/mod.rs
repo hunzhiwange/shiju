@@ -52,6 +52,17 @@ use std::str::FromStr;
 /// let next = next_run_for_schedule(&schedule, Utc::now())?;
 /// ```
 pub fn next_run_for_schedule(schedule: &Schedule, from: DateTime<Utc>) -> Result<DateTime<Utc>> {
+    next_occurrence_for_schedule(schedule, from)?.with_context(|| match schedule {
+        Schedule::Cron { expr, .. } => format!("No future occurrence for expression: {expr}"),
+        _ => "No future occurrence for schedule".to_string(),
+    })
+}
+
+/// Distinguish a valid exhausted calendar from an invalid schedule for window expiration.
+pub(crate) fn next_occurrence_for_schedule(
+    schedule: &Schedule,
+    from: DateTime<Utc>,
+) -> Result<Option<DateTime<Utc>>> {
     match schedule {
         Schedule::Cron { expr, tz } => {
             // 规范化 cron 表达式，确保字段数量正确
@@ -71,25 +82,21 @@ pub fn next_run_for_schedule(schedule: &Schedule, from: DateTime<Utc>) -> Result
                 let localized_from = from.with_timezone(&timezone);
 
                 // 在指定时区下计算下一次执行时间
-                let next_local = cron.after(&localized_from).next().ok_or_else(|| {
-                    anyhow::anyhow!("No future occurrence for expression: {expr}")
-                })?;
+                let next_local = cron.after(&localized_from).next();
 
                 // 将本地时间转换回 UTC 时区返回
-                Ok(next_local.with_timezone(&Utc))
+                Ok(next_local.map(|next| next.with_timezone(&Utc)))
             } else {
                 // 未指定时区时，直接使用 UTC 时间计算
-                cron.after(&from)
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("No future occurrence for expression: {expr}"))
+                Ok(cron.after(&from).next())
             }
         }
         Schedule::Biweekly { anchor_date, weekdays, hour, minute, timezone } => {
-            biweekly::next_run(*anchor_date, weekdays, *hour, *minute, timezone, from)
+            biweekly::next_run(*anchor_date, weekdays, *hour, *minute, timezone, from).map(Some)
         }
         Schedule::At { at } => {
             // 一次性执行：直接返回指定的时间点
-            Ok(*at)
+            Ok(Some(*at))
         }
         Schedule::Every { every_ms } => {
             // 周期性执行：验证间隔值的有效性
@@ -103,6 +110,7 @@ pub fn next_run_for_schedule(schedule: &Schedule, from: DateTime<Utc>) -> Result
 
             // 计算下一次执行时间，防止溢出
             from.checked_add_signed(delta)
+                .map(Some)
                 .ok_or_else(|| anyhow::anyhow!("every_ms overflowed DateTime"))
         }
     }

@@ -376,6 +376,12 @@ pub struct CronJob {
     pub delete_after_run: bool,
     /// 任务创建时间（UTC）
     pub created_at: DateTime<Utc>,
+    /// 有效窗口起点（包含），None 表示不限。
+    #[serde(default)]
+    pub starts_at: Option<DateTime<Utc>>,
+    /// 有效窗口终点（不包含），None 表示不限。
+    #[serde(default)]
+    pub ends_at: Option<DateTime<Utc>>,
     /// 预计下次执行时间（UTC）
     pub next_run: DateTime<Utc>,
     /// 实际上次执行时间（UTC）
@@ -384,6 +390,22 @@ pub struct CronJob {
     pub last_status: Option<String>,
     /// 上次执行的输出内容
     pub last_output: Option<String>,
+}
+
+impl CronJob {
+    /// 只在 UTC 半开窗口内允许启动；已经启动的运行可在窗口外完成。
+    pub(crate) fn window_error(&self, now: DateTime<Utc>) -> Option<&'static str> {
+        if self.starts_at.zip(self.ends_at).is_some_and(|(start, end)| start >= end) {
+            return Some("Invalid execution window: starts_at must be before ends_at");
+        }
+        if self.starts_at.is_some_and(|start| now < start) {
+            return Some("Execution window has not started");
+        }
+        if self.ends_at.is_some_and(|end| now >= end) {
+            return Some("Execution window has ended; edit the window before running again");
+        }
+        None
+    }
 }
 
 /// 计划任务执行记录
@@ -428,6 +450,20 @@ pub struct CronRun {
 /// 仅更新明确指定的字段。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CronJobPatch {
+    /// 不传保留，null 清空，时间戳设置起点。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_window_patch",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub starts_at: Option<Option<DateTime<Utc>>>,
+    /// 不传保留，null 清空，时间戳设置终点。
+    #[serde(
+        default,
+        deserialize_with = "deserialize_window_patch",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ends_at: Option<Option<DateTime<Utc>>>,
     /// 新的任务类型
     pub job_type: Option<JobType>,
     /// 新的调度配置
@@ -462,6 +498,15 @@ pub struct CronJobPatch {
     pub full_access: Option<bool>,
     /// 新的任务池投递标志
     pub task_pool: Option<bool>,
+}
+
+fn deserialize_window_patch<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<DateTime<Utc>>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<DateTime<Utc>>::deserialize(deserializer).map(Some)
 }
 
 #[cfg(test)]

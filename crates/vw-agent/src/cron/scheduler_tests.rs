@@ -27,6 +27,8 @@ fn shell_job(command: &str) -> CronJob {
         delivery: DeliveryConfig::default(),
         delete_after_run: false,
         created_at: Utc::now(),
+        starts_at: None,
+        ends_at: None,
         next_run: Utc::now(),
         last_run: None,
         last_status: None,

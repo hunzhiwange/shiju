@@ -160,6 +160,8 @@ fn test_job(command: &str) -> CronJob {
         delivery: DeliveryConfig::default(),
         delete_after_run: false,
         created_at: Utc::now(),
+        starts_at: None,
+        ends_at: None,
         next_run: Utc::now(),
         last_run: None,
         last_status: None,
@@ -1506,4 +1508,58 @@ async fn run_agent_job_rejects_disabled_delegate_agent_before_provider_call() {
     let (success, output) = run_agent_job(&config, &security, &job).await;
     assert!(!success);
     assert!(output.contains("delegate agent 'disabled-agent' is disabled"));
+}
+
+#[tokio::test]
+async fn wb_schedule_window_blocks_expired_manual_run() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("echo window-command-executed");
+    job.ends_at = Some(Utc::now() - ChronoDuration::seconds(1));
+    let (success, output) = cron::scheduler::execute_job_now(&config, &job).await;
+    assert!(!success);
+    assert!(output.contains("window"), "{output}");
+    assert!(!output.contains("window-command-executed"));
+}
+
+#[tokio::test]
+async fn wb_schedule_window_blocks_future_manual_run() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let mut job = test_job("echo window-command-executed");
+    job.starts_at = Some(Utc::now() + ChronoDuration::hours(1));
+    let (success, output) = cron::scheduler::execute_job_now(&config, &job).await;
+    assert!(!success);
+    assert!(output.contains("window"), "{output}");
+}
+
+#[tokio::test]
+async fn wb_schedule_window_queued_expiration_never_starts_shell() {
+    let tmp = TempDir::new().unwrap();
+    let mut config = test_config(&tmp).await;
+    config.security.bash.enabled = true;
+    config.autonomy.allowed_commands = vec!["touch".into()];
+    let marker = config.workspace_dir.join("should-not-exist");
+    let job = cron::add_job(&config, "0 * * * * *", "touch should-not-exist").unwrap();
+    let (success, output) = cron::scheduler::execute_job_now(&config, &job).await;
+    assert!(success, "{output}");
+    assert!(marker.exists());
+    std::fs::remove_file(&marker).unwrap();
+    let mut queued = job.clone();
+    queued.ends_at = Some(Utc::now() - ChronoDuration::seconds(1));
+    // Persist the new window while retaining the old queued snapshot.
+    cron::update_job(
+        &config,
+        &job.id,
+        cron::CronJobPatch { ends_at: Some(queued.ends_at), ..Default::default() },
+    )
+    .unwrap();
+    let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
+    let (_, success, output) =
+        execute_and_persist_job(&config, &security, &job, "window-test").await;
+    assert!(!success);
+    assert!(output.contains("window"), "{output}");
+    assert!(!marker.exists());
+    assert!(!cron::get_job(&config, &job.id).unwrap().enabled);
+    assert!(cron::list_runs(&config, &job.id, 10).unwrap().is_empty());
 }

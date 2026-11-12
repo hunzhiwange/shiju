@@ -4,7 +4,7 @@
 
 use super::{
     CronJob, CronJobPatch, CronRun, DeliveryConfig, JobType, Schedule, SessionTarget,
-    next_run_for_schedule, normalize_fallbacks, schedule_cron_expression, validate_schedule,
+    normalize_fallbacks, schedule_cron_expression, validate_schedule,
 };
 use crate::app::agent::config::Config;
 use anyhow::{Context, Result};
@@ -28,6 +28,42 @@ impl rusqlite::types::FromSql for JobType {
     }
 }
 
+/// 创建无有效期限制的任务；带窗口的调用者使用 `add_shell_job_with_window`。
+pub fn add_shell_job(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    command: &str,
+) -> Result<CronJob> {
+    add_shell_job_with_window(config, name, schedule, command, None, None)
+}
+
+/// 创建无有效期限制的任务；带窗口的调用者使用 `add_agent_job_with_window`。
+#[allow(clippy::too_many_arguments)]
+pub fn add_agent_job(
+    config: &Config,
+    name: Option<String>,
+    schedule: Schedule,
+    prompt: &str,
+    session_target: SessionTarget,
+    model: Option<String>,
+    delivery: Option<DeliveryConfig>,
+    delete_after_run: bool,
+) -> Result<CronJob> {
+    add_agent_job_with_window(
+        config,
+        name,
+        schedule,
+        prompt,
+        session_target,
+        model,
+        delivery,
+        delete_after_run,
+        None,
+        None,
+    )
+}
+
 /// 使用 cron 表达式创建默认设置的 shell 任务。
 pub fn add_job(config: &Config, expression: &str, command: &str) -> Result<CronJob> {
     let schedule = Schedule::Cron { expr: expression.to_string(), tz: None };
@@ -36,15 +72,18 @@ pub fn add_job(config: &Config, expression: &str, command: &str) -> Result<CronJ
 
 #[cfg(not(target_arch = "wasm32"))]
 /// 校验计划并持久化一个 shell 任务。
-pub fn add_shell_job(
+pub fn add_shell_job_with_window(
     config: &Config,
     name: Option<String>,
     schedule: Schedule,
     command: &str,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
     let now = Utc::now();
     validate_schedule(&schedule, now)?;
-    let next_run = next_run_for_schedule(&schedule, now)?;
+    let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
+        .context("No occurrence within execution window")?;
     let id = Uuid::new_v4().to_string();
     let expression = schedule_cron_expression(&schedule).unwrap_or_default();
     let schedule_json = serde_json::to_string(&schedule)?;
@@ -56,8 +95,8 @@ pub fn add_shell_job(
             "INSERT INTO cron_jobs (
                 id, expression, command, schedule, job_type, prompt, name, session_target, model,
                 enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
-                project_path, wake, fallbacks, full_access, task_pool
-             ) VALUES (?1, ?2, ?3, ?4, 'shell', NULL, ?5, 'isolated', NULL, 1, ?6, ?7, ?8, ?9, NULL, NULL, NULL, 0, ?10, 0, 0)",
+                project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
+             ) VALUES (?1, ?2, ?3, ?4, 'shell', NULL, ?5, 'isolated', NULL, 1, ?6, ?7, ?8, ?9, NULL, NULL, NULL, 0, ?10, 0, 0, ?11, ?12)",
             params![
                 id,
                 expression,
@@ -69,6 +108,8 @@ pub fn add_shell_job(
                 now.to_rfc3339(),
                 next_run.to_rfc3339(),
                 serde_json::to_string(&Vec::<String>::new())?,
+                starts_at.map(|at| at.to_rfc3339()),
+                ends_at.map(|at| at.to_rfc3339()),
             ],
         )
         .context("Failed to insert cron shell job")?;
@@ -82,11 +123,13 @@ pub fn add_shell_job(
 
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台不支持持久化 shell 定时任务。
-pub fn add_shell_job(
+pub fn add_shell_job_with_window(
     _config: &Config,
     _name: Option<String>,
     _schedule: Schedule,
     _command: &str,
+    _starts_at: Option<DateTime<Utc>>,
+    _ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
@@ -94,7 +137,7 @@ pub fn add_shell_job(
 #[allow(clippy::too_many_arguments)]
 #[cfg(not(target_arch = "wasm32"))]
 /// 校验计划并持久化一个代理任务及其会话、模型和投递策略。
-pub fn add_agent_job(
+pub fn add_agent_job_with_window(
     config: &Config,
     name: Option<String>,
     schedule: Schedule,
@@ -103,10 +146,13 @@ pub fn add_agent_job(
     model: Option<String>,
     delivery: Option<DeliveryConfig>,
     delete_after_run: bool,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
     let now = Utc::now();
     validate_schedule(&schedule, now)?;
-    let next_run = next_run_for_schedule(&schedule, now)?;
+    let next_run = next_run_in_window(&schedule, starts_at, ends_at, now)?
+        .context("No occurrence within execution window")?;
     let id = Uuid::new_v4().to_string();
     let expression = schedule_cron_expression(&schedule).unwrap_or_default();
     let schedule_json = serde_json::to_string(&schedule)?;
@@ -117,8 +163,8 @@ pub fn add_agent_job(
             "INSERT INTO cron_jobs (
                 id, expression, command, schedule, job_type, prompt, name, session_target, model,
                 enabled, delivery, delete_after_run, created_at, next_run, agent, acp_agent,
-                project_path, wake, fallbacks, full_access, task_pool
-             ) VALUES (?1, ?2, '', ?3, 'agent', ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, NULL, NULL, NULL, 0, ?12, 0, 0)",
+                project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
+             ) VALUES (?1, ?2, '', ?3, 'agent', ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10, ?11, NULL, NULL, NULL, 0, ?12, 0, 0, ?13, ?14)",
             params![
                 id,
                 expression,
@@ -132,6 +178,8 @@ pub fn add_agent_job(
                 now.to_rfc3339(),
                 next_run.to_rfc3339(),
                 serde_json::to_string(&Vec::<String>::new())?,
+                starts_at.map(|at| at.to_rfc3339()),
+                ends_at.map(|at| at.to_rfc3339()),
             ],
         )
         .context("Failed to insert cron agent job")?;
@@ -145,7 +193,7 @@ pub fn add_agent_job(
 
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台不支持持久化代理定时任务。
-pub fn add_agent_job(
+pub fn add_agent_job_with_window(
     _config: &Config,
     _name: Option<String>,
     _schedule: Schedule,
@@ -154,6 +202,8 @@ pub fn add_agent_job(
     _model: Option<String>,
     _delivery: Option<DeliveryConfig>,
     _delete_after_run: bool,
+    _starts_at: Option<DateTime<Utc>>,
+    _ends_at: Option<DateTime<Utc>>,
 ) -> Result<CronJob> {
     anyhow::bail!("Cron jobs are not supported on WASM")
 }
@@ -165,7 +215,7 @@ pub fn list_jobs(config: &Config) -> Result<Vec<CronJob>> {
         let mut stmt = conn.prepare(
             "SELECT id, expression, command, schedule, job_type, prompt, name, session_target, model,
                     enabled, delivery, delete_after_run, created_at, next_run, last_run, last_status, last_output,
-                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool
+                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
              FROM cron_jobs ORDER BY next_run ASC",
         )?;
 
@@ -192,7 +242,7 @@ pub fn get_job(config: &Config, job_id: &str) -> Result<CronJob> {
         let mut stmt = conn.prepare(
             "SELECT id, expression, command, schedule, job_type, prompt, name, session_target, model,
                     enabled, delivery, delete_after_run, created_at, next_run, last_run, last_status, last_output,
-                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool
+                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
              FROM cron_jobs WHERE id = ?1",
         )?;
 
@@ -237,24 +287,24 @@ pub fn remove_job(_config: &Config, _id: &str) -> Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 /// 返回已启用且到期的任务，数量受调度器并发上限约束。
 pub fn due_jobs(config: &Config, now: DateTime<Utc>) -> Result<Vec<CronJob>> {
-    let lim = i64::try_from(config.scheduler.max_tasks.max(1))
-        .context("Scheduler max_tasks overflows i64")?;
+    let limit = config.scheduler.max_tasks.max(1);
     with_connection(config, |conn| {
         let mut stmt = conn.prepare(
             "SELECT id, expression, command, schedule, job_type, prompt, name, session_target, model,
                     enabled, delivery, delete_after_run, created_at, next_run, last_run, last_status, last_output,
-                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool
-             FROM cron_jobs
-             WHERE enabled = 1 AND next_run <= ?1
-             ORDER BY next_run ASC
-             LIMIT ?2",
+                    agent, acp_agent, project_path, wake, fallbacks, full_access, task_pool, starts_at, ends_at
+             FROM cron_jobs WHERE enabled = 1 ORDER BY next_run ASC",
         )?;
-
-        let rows = stmt.query_map(params![now.to_rfc3339(), lim], map_cron_job_row)?;
-
+        let rows = stmt.query_map([], map_cron_job_row)?;
         let mut jobs = Vec::new();
+        // Use chrono comparisons so optional timestamp precision does not change endpoint semantics.
         for row in rows {
-            jobs.push(row?);
+            let job = row?;
+            if job.ends_at.is_some_and(|end| now >= end) {
+                conn.execute("UPDATE cron_jobs SET enabled = 0 WHERE id = ?1", params![job.id])?;
+            } else if jobs.len() < limit && job.next_run <= now && job.window_error(now).is_none() {
+                jobs.push(job);
+            }
         }
         Ok(jobs)
     })
@@ -271,6 +321,15 @@ pub fn due_jobs(_config: &Config, _now: DateTime<Utc>) -> Result<Vec<CronJob>> {
 pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<CronJob> {
     let mut job = get_job(config, job_id)?;
     let mut schedule_changed = false;
+    let window_changed = patch.starts_at.is_some() || patch.ends_at.is_some();
+    let resuming = patch.enabled == Some(true);
+    if let Some(starts_at) = patch.starts_at {
+        job.starts_at = starts_at;
+    }
+    if let Some(ends_at) = patch.ends_at {
+        job.ends_at = ends_at;
+    }
+    validate_window(job.starts_at, job.ends_at)?;
 
     if let Some(schedule) = patch.schedule {
         validate_schedule(&schedule, Utc::now())?;
@@ -327,8 +386,11 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
         job.task_pool = task_pool;
     }
 
-    if schedule_changed {
-        job.next_run = next_run_for_schedule(&job.schedule, Utc::now())?;
+    if schedule_changed || window_changed || resuming {
+        match next_run_in_window(&job.schedule, job.starts_at, job.ends_at, Utc::now())? {
+            Some(next) => job.next_run = next,
+            None => job.enabled = false,
+        }
     }
 
     with_connection(config, |conn| {
@@ -337,8 +399,8 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
              SET expression = ?1, command = ?2, schedule = ?3, job_type = ?4, prompt = ?5, name = ?6,
                  session_target = ?7, model = ?8, enabled = ?9, delivery = ?10, delete_after_run = ?11,
                  agent = ?12, acp_agent = ?13, project_path = ?14, wake = ?15, fallbacks = ?16,
-                 full_access = ?17, task_pool = ?18, next_run = ?19
-             WHERE id = ?20",
+                 full_access = ?17, task_pool = ?18, next_run = ?19, starts_at = ?20, ends_at = ?21
+             WHERE id = ?22",
             params![
                 job.expression,
                 job.command,
@@ -359,6 +421,8 @@ pub fn update_job(config: &Config, job_id: &str, patch: CronJobPatch) -> Result<
                 if job.full_access { 1 } else { 0 },
                 if job.task_pool { 1 } else { 0 },
                 job.next_run.to_rfc3339(),
+                job.starts_at.map(|at| at.to_rfc3339()),
+                job.ends_at.map(|at| at.to_rfc3339()),
                 job.id,
             ],
         )
@@ -421,16 +485,26 @@ pub fn reschedule_after_run(
     output: &str,
 ) -> Result<()> {
     let now = Utc::now();
-    let next_run = next_run_for_schedule(&job.schedule, now)?;
+    // An in-flight run may finish after an edit or pause. Respect the current stored window and schedule.
+    let current = get_job(config, &job.id)?;
+    let next_run = next_run_in_window(&current.schedule, current.starts_at, current.ends_at, now)?;
     let status = if success { "ok" } else { "error" };
     let bounded_output = truncate_cron_output(output);
 
     with_connection(config, |conn| {
         conn.execute(
             "UPDATE cron_jobs
-             SET next_run = ?1, last_run = ?2, last_status = ?3, last_output = ?4
-             WHERE id = ?5",
-            params![next_run.to_rfc3339(), now.to_rfc3339(), status, bounded_output, job.id],
+             SET next_run = ?1, last_run = ?2, last_status = ?3, last_output = ?4,
+                 enabled = CASE WHEN ?5 THEN enabled ELSE 0 END
+             WHERE id = ?6",
+            params![
+                next_run.unwrap_or(current.next_run).to_rfc3339(),
+                now.to_rfc3339(),
+                status,
+                bounded_output,
+                next_run.is_some(),
+                job.id
+            ],
         )
         .context("Failed to update cron job run state")?;
         Ok(())
@@ -623,6 +697,16 @@ fn map_cron_job_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<CronJob> {
         delete_after_run: row.get::<_, i64>(11)? != 0,
         created_at: parse_rfc3339(&created_at_raw).map_err(sql_conversion_error)?,
         next_run: parse_rfc3339(&next_run_raw).map_err(sql_conversion_error)?,
+        starts_at: row
+            .get::<_, Option<String>>(24)?
+            .map(|raw| parse_rfc3339(&raw))
+            .transpose()
+            .map_err(sql_conversion_error)?,
+        ends_at: row
+            .get::<_, Option<String>>(25)?
+            .map(|raw| parse_rfc3339(&raw))
+            .transpose()
+            .map_err(sql_conversion_error)?,
         last_run: match last_run_raw {
             Some(raw) => Some(parse_rfc3339(&raw).map_err(sql_conversion_error)?),
             None => None,
@@ -743,7 +827,9 @@ pub(crate) fn with_connection<T>(
             wake             INTEGER NOT NULL DEFAULT 0,
             fallbacks        TEXT,
             full_access      INTEGER NOT NULL DEFAULT 0,
-            task_pool        INTEGER NOT NULL DEFAULT 0
+            task_pool        INTEGER NOT NULL DEFAULT 0,
+            starts_at        TEXT,
+            ends_at          TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_cron_jobs_next_run ON cron_jobs(next_run);
 
@@ -779,6 +865,41 @@ pub(crate) fn with_connection<T>(
     add_column_if_missing(&conn, "fallbacks", "TEXT")?;
     add_column_if_missing(&conn, "full_access", "INTEGER NOT NULL DEFAULT 0")?;
     add_column_if_missing(&conn, "task_pool", "INTEGER NOT NULL DEFAULT 0")?;
+    add_column_if_missing(&conn, "starts_at", "TEXT")?;
+    add_column_if_missing(&conn, "ends_at", "TEXT")?;
 
     f(&conn)
+}
+
+fn validate_window(starts_at: Option<DateTime<Utc>>, ends_at: Option<DateTime<Utc>>) -> Result<()> {
+    if starts_at.zip(ends_at).is_some_and(|(start, end)| start >= end) {
+        anyhow::bail!("Invalid execution window: starts_at must be before ends_at");
+    }
+    Ok(())
+}
+
+/// None means the valid window has no remaining occurrence, without inventing a sentinel timestamp.
+pub(crate) fn next_run_in_window(
+    schedule: &Schedule,
+    starts_at: Option<DateTime<Utc>>,
+    ends_at: Option<DateTime<Utc>>,
+    from: DateTime<Utc>,
+) -> Result<Option<DateTime<Utc>>> {
+    validate_window(starts_at, ends_at)?;
+    if ends_at.is_some_and(|end| from >= end) {
+        return Ok(None);
+    }
+    let base = match starts_at.filter(|start| *start > from) {
+        // Every retains its interval semantics; calendar schedules may trigger exactly at starts_at.
+        Some(start) if matches!(schedule, Schedule::Every { .. }) => start,
+        Some(start) => start.checked_sub_signed(chrono::Duration::nanoseconds(1)).unwrap_or(start),
+        None => from,
+    };
+    let Some(next) = super::schedule::next_occurrence_for_schedule(schedule, base)? else {
+        return Ok(None);
+    };
+    if starts_at.is_some_and(|start| next < start) || ends_at.is_some_and(|end| next >= end) {
+        return Ok(None);
+    }
+    Ok(Some(next))
 }

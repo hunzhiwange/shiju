@@ -152,6 +152,8 @@ mod tests {
             },
             delete_after_run: true,
             created_at: now,
+            starts_at: None,
+            ends_at: None,
             next_run: now,
             last_run: Some(now),
             last_status: Some("success".to_string()),

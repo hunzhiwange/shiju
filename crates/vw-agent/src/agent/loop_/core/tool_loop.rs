@@ -166,6 +166,8 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         })
         .or_else(|| inherited.as_ref().and_then(|context| context.workspace_root()))
         .map_or_else(std::env::current_dir, Ok)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    let _worktree_use = crate::worktree::registry::use_lease(&workspace_dir)?;
     let mut tool_use_context =
         ToolUseContext::new(session_id, Some(workspace_dir.to_string_lossy().into_owned()))
             .inherit_delegated_authority()

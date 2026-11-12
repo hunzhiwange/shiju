@@ -81,3 +81,11 @@ mod cleanup_tests;
 #[cfg(not(target_arch = "wasm32"))]
 #[path = "management.rs"]
 pub mod management;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "cleanup_flow_tests.rs"]
+mod cleanup_flow_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "cleanup_host.rs"]
+pub mod cleanup_host;

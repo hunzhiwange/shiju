@@ -31,7 +31,7 @@ pub struct PreparedSnapshot {
     pub manifest: Manifest,
     state: Captured,
     commit: Oid,
-    _lifecycle: File,
+    pub(super) _lifecycle: File,
 }
 
 impl PreparedSnapshot {

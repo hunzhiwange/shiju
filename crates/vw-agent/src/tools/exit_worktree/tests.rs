@@ -85,11 +85,13 @@ async fn call_exit_worktree_in_instance(
             "exit-worktree",
             Some(context_dir.to_string_lossy().to_string()),
         ));
-        context.bind_worktree(
-            binding_dir.to_string_lossy().to_string(),
-            "sandbox".to_string(),
-            binding_branch,
-        );
+        context
+            .bind_worktree(
+                binding_dir.to_string_lossy().to_string(),
+                "sandbox".to_string(),
+                binding_branch,
+            )
+            .unwrap();
         Box::pin(async move {
             let result = scope_tool_use_context(context.clone(), tool.call(input)).await;
             (result, context.worktree_binding_state())
@@ -188,11 +190,13 @@ async fn exit_worktree_fails_when_bound_directory_is_not_a_git_worktree() {
         "exit-worktree",
         Some(dir.path().to_string_lossy().to_string()),
     ));
-    context.bind_worktree(
-        dir.path().to_string_lossy().to_string(),
-        "sandbox".to_string(),
-        "test/non-git".to_string(),
-    );
+    context
+        .bind_worktree(
+            dir.path().to_string_lossy().to_string(),
+            "sandbox".to_string(),
+            "test/non-git".to_string(),
+        )
+        .unwrap();
 
     let error = scope_tool_use_context(context, tool.call(json!({})))
         .await

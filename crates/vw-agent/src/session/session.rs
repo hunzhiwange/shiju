@@ -371,6 +371,10 @@ fn instance_directory_opt() -> Option<String> {
 /// }
 /// ```
 pub async fn create_next(input: CreateInput) -> Result<Info, Error> {
+    #[cfg(not(target_arch = "wasm32"))]
+    let _worktree_use =
+        crate::worktree::registry::use_lease(std::path::Path::new(&input.directory))
+            .map_err(|error| Error::Runtime(anyhow::Error::new(error)))?;
     let info = new_info(input)?;
 
     // 记录创建日志
@@ -411,6 +415,8 @@ pub(super) async fn reserve_child_agent(input: CreateInput) -> Result<Info, Erro
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn reserve_info(info: Info) -> Result<Info, Error> {
+    let _worktree_use = crate::worktree::registry::use_lease(std::path::Path::new(&info.directory))
+        .map_err(|error| Error::Runtime(anyhow::Error::new(error)))?;
     let tenant = crate::session::ui_store::current_tenant_scope();
     let _metadata = lock_metadata_writes(&tenant).await;
     validate_parent(&tenant, &info).await?;

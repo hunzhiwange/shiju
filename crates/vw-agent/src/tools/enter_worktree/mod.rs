@@ -98,7 +98,7 @@ impl Tool for EnterWorktreeTool {
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
         let binding_name = args.name.clone().unwrap_or_else(|| info.name.clone());
         let binding =
-            context.bind_worktree(info.directory.clone(), binding_name, info.branch.clone());
+            context.bind_worktree(info.directory.clone(), binding_name, info.branch.clone())?;
         let data = json!({
             "name": info.name,
             "branch": info.branch,

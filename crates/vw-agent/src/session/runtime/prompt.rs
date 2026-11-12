@@ -97,6 +97,23 @@ where
     let cleanup = cancel.clone();
     let delegated_context = crate::tools::current_tool_use_context();
     std::thread::spawn(move || {
+        #[cfg(not(target_arch = "wasm32"))]
+        let _worktree_use = match request
+            .root
+            .as_ref()
+            .map(|root| crate::worktree::registry::use_lease(std::path::Path::new(root)))
+            .transpose()
+        {
+            Ok(lease) => lease,
+            Err(error) => {
+                send_terminal(
+                    &events_tx,
+                    terminal.as_ref(),
+                    PromptTermination::Failed(error.to_string()),
+                );
+                return;
+            }
+        };
         let callback_events = events_tx.clone();
         let callback_terminal = Arc::clone(&terminal);
         let callback_token = token.clone();

@@ -1,4 +1,4 @@
-//! Read-only cleanup proposals; a proposal never authorizes deletion.
+//! Cleanup proposals and guarded host maintenance; proposals never authorize deletion.
 use super::registry::Record;
 use serde::{Deserialize, Serialize};
 use vw_api_types::id::ProjectScope;
@@ -160,6 +160,14 @@ pub async fn propose(
         return Ok(Proposal::default());
     }
     let _lifecycle = registry::lifecycle_lock(primary)?;
+    propose_locked(scope, primary, settings).await
+}
+
+pub(super) async fn propose_locked(
+    scope: &ProjectScope,
+    primary: &Path,
+    settings: &WorktreeSettings,
+) -> Result<Proposal, Error> {
     let records = registry::records(scope).await?;
     let snapshot = crate::global_database::run_isolated({
         let scope = scope.clone();
@@ -206,6 +214,11 @@ fn observe_protection(
     snapshot: Option<&ProtectionSnapshot>,
 ) -> Result<(), Error> {
     registry::validate(&entry.record, &entry.record.scope, primary)?;
+    match registry::ensure_not_in_use(&entry.record) {
+        Ok(()) => {}
+        Err(Error::Invalid(_)) => entry.reasons.push(ProtectionReason::Busy),
+        Err(error) => return Err(error),
+    }
     let snapshot = snapshot.ok_or_else(|| invalid("Cleanup protection metadata is unavailable"))?;
     if repository_is_shared(primary, &entry.record, &snapshot.foreign_directories)? {
         entry.reasons.push(ProtectionReason::SharedRepository);
@@ -290,4 +303,99 @@ fn repository_is_shared(
         }
     }
     Ok(false)
+}
+
+/// Result of one host maintenance pass, persisted for management clients.
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct FlowStatus {
+    pub proposal: Proposal,
+    pub deleted: std::collections::BTreeMap<String, String>,
+    pub running: Option<String>,
+    pub errors: std::collections::BTreeMap<String, String>,
+}
+pub async fn refresh(
+    scope: &ProjectScope,
+    primary: &Path,
+    settings: &WorktreeSettings,
+    stop: &tokio_util::sync::CancellationToken,
+) -> Result<FlowStatus, Error> {
+    // Per-scope nonblocking host pass lock prevents overlapping startup/create/timer passes.
+    let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+        .join("storage")
+        .join("worktree-cleanup");
+    std::fs::create_dir_all(&root)?;
+    let lock = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(root.join(format!("{}.lock", registry::key(scope))))?;
+    lock.try_lock().map_err(|_| invalid("Worktree cleanup pass already running"))?;
+    let mut report =
+        FlowStatus { proposal: propose(scope, primary, settings).await?, ..Default::default() };
+    save_status(scope, &report).await?;
+    if settings.ask_before_delete || !settings.auto_cleanup_enabled {
+        return Ok(report);
+    }
+    for candidate in report.proposal.candidates.clone() {
+        if stop.is_cancelled() {
+            break;
+        }
+        report.running = Some(candidate.id.clone());
+        save_status(scope, &report).await?;
+        let result =
+            super::management::delete_automatic(scope, primary, &candidate, settings).await;
+        match result {
+            Ok(result) => {
+                report.deleted.insert(candidate.id, result.snapshot_id);
+            }
+            Err(error) => {
+                report.errors.insert(candidate.id, error.to_string());
+            }
+        }
+        report.running = None;
+        save_status(scope, &report).await?;
+    }
+    report.proposal = propose(scope, primary, settings).await?;
+    save_status(scope, &report).await?;
+    Ok(report)
+}
+async fn save_status(scope: &ProjectScope, report: &FlowStatus) -> Result<(), Error> {
+    crate::storage::write_atomic(&["worktree-cleanup", &registry::key(scope)], report)
+        .await
+        .map_err(invalid)
+}
+pub async fn flow_status(scope: &ProjectScope) -> Result<FlowStatus, Error> {
+    match crate::storage::read::<FlowStatus>(&["worktree-cleanup", &registry::key(scope)]).await {
+        Ok(mut report) => {
+            if report.running.is_some() {
+                let root = vw_config_types::paths::home_config_dir(&crate::global::paths().home)
+                    .join("storage")
+                    .join("worktree-cleanup");
+                std::fs::create_dir_all(&root)?;
+                let lock = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(false)
+                    .open(root.join(format!("{}.lock", registry::key(scope))))?;
+                // No pass owns this scope: a persisted running item belongs to an interrupted host.
+                if lock.try_lock().is_ok() {
+                    report = crate::storage::read(&["worktree-cleanup", &registry::key(scope)])
+                        .await
+                        .map_err(invalid)?;
+                    if let Some(id) = report.running.take() {
+                        report.errors.insert(
+                            id,
+                            "Cleanup execution was interrupted; refresh required".into(),
+                        );
+                        save_status(scope, &report).await?;
+                    }
+                }
+            }
+            Ok(report)
+        }
+        Err(crate::storage::Error::NotFound(_)) => Ok(FlowStatus::default()),
+        Err(error) => Err(invalid(error)),
+    }
 }

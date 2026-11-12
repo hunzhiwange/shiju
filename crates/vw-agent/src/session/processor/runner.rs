@@ -523,6 +523,14 @@ pub(crate) fn run_with_persisted_history(
     let Some(root) = req.root.as_deref().filter(|root| !root.trim().is_empty()) else {
         return run_in_project(req, persisted_history, on_event);
     };
+    #[cfg(not(target_arch = "wasm32"))]
+    let _worktree_use = match crate::worktree::registry::use_lease(std::path::Path::new(root)) {
+        Ok(lease) => lease,
+        Err(error) => {
+            on_event(StreamEvent::Error(error.to_string()));
+            return;
+        }
+    };
     let tenant = crate::session::ui_store::current_tenant_scope();
     let project =
         prompt::block_on(crate::project::from_directory(&tenant, std::path::Path::new(root)));

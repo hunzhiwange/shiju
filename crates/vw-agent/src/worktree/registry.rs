@@ -32,7 +32,7 @@ pub struct Record {
 fn invalid(error: impl std::fmt::Display) -> Error {
     Error::Invalid(error.to_string())
 }
-fn key(scope: &ProjectScope) -> String {
+pub(super) fn key(scope: &ProjectScope) -> String {
     let hex = |s: &str| s.as_bytes().iter().map(|b| format!("{b:02x}")).collect::<String>();
     format!(
         "{}-{}-{}",
@@ -279,21 +279,16 @@ pub(crate) fn ownership(git_dir: &Path) -> Result<Option<Record>, Error> {
     }
 }
 
-/// Resolve a managed ID under the same lock held through the complete removal.
+/// Legacy force flags cannot replace content-bound confirmation or a recovery snapshot.
 pub async fn remove_managed(
     scope: &ProjectScope,
     primary: &Path,
     id: &str,
-    force: bool,
+    _force: bool,
 ) -> Result<bool, Error> {
     let _lock = lifecycle_lock(primary)?;
-    let record = authorize(scope, primary, id).await?;
-    super::ops::remove_locked(
-        super::RemoveInput { directory: record.directory.to_string_lossy().into_owned(), force },
-        scope,
-        primary,
-    )
-    .await
+    authorize(scope, primary, id).await?;
+    Err(invalid("Managed worktree deletion requires the deletion-preflight and snapshot API"))
 }
 
 /// Persist actual session creation/entry/execution time, never directory mtime.
@@ -343,4 +338,54 @@ pub(crate) fn record_use(
         let _ = std::fs::remove_file(temporary);
     }
     result
+}
+
+/// Acquire while holding the repository lifecycle lock. All new users must take
+/// that lock before opening the lease, so deletion can check once and retain it.
+pub(super) fn use_lease_locked(directory: &Path) -> Result<Option<std::fs::File>, Error> {
+    let directory = std::fs::canonicalize(directory)?;
+    let repo = match git2::Repository::discover(&directory) {
+        Ok(repo) => repo,
+        Err(error) if error.code() == git2::ErrorCode::NotFound => return Ok(None),
+        Err(error) => return Err(invalid(error)),
+    };
+    let Some(record) = ownership(repo.path())? else { return Ok(None) };
+    validate(&record, &record.scope, &record.common_dir)?;
+    let file = lease_file(&record)?;
+    file.try_lock_shared().map_err(|_| invalid("Worktree is being removed"))?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(u64::MAX as u128) as u64;
+    record_use(&record.scope, &directory, now)?;
+    Ok(Some(file))
+}
+
+/// Shared OS lease covers ordinary, ACP and channel execution, including subdirectories.
+/// Retain the file until execution and all owned children have stopped.
+pub fn use_lease(directory: &Path) -> Result<Option<std::fs::File>, Error> {
+    let directory = std::fs::canonicalize(directory)?;
+    let repo = match git2::Repository::discover(&directory) {
+        Ok(repo) => repo,
+        Err(error) if error.code() == git2::ErrorCode::NotFound => return Ok(None),
+        Err(error) => return Err(invalid(error)),
+    };
+    if ownership(repo.path())?.is_none() {
+        return Ok(None);
+    }
+    let _lifecycle = lifecycle_lock(repo.commondir())?;
+    use_lease_locked(&directory)
+}
+fn lease_file(record: &Record) -> Result<std::fs::File, Error> {
+    Ok(std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(record.git_dir.join("shiju-use.lock"))?)
+}
+/// Call under the lifecycle lock, which excludes new lease acquisition.
+pub(super) fn ensure_not_in_use(record: &Record) -> Result<(), Error> {
+    lease_file(record)?.try_lock().map_err(|_| invalid("Worktree has active execution leases"))
 }

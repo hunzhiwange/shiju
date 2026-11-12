@@ -80,11 +80,11 @@ async fn enter_worktree_creates_and_binds_real_worktree() {
 async fn enter_worktree_rejects_an_existing_session_binding() {
     let tool = EnterWorktreeTool::new();
     let context = Arc::new(ToolUseContext::new("enter-worktree-bound", None));
-    context.bind_worktree(
-        "/tmp/existing-worktree".to_string(),
-        "existing".to_string(),
-        "codex/existing".to_string(),
-    );
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    context
+        .bind_worktree(path.clone(), "existing".to_string(), "codex/existing".to_string())
+        .unwrap();
 
     let error = scope_tool_use_context(context.clone(), tool.call(json!({})))
         .await
@@ -92,7 +92,7 @@ async fn enter_worktree_rejects_an_existing_session_binding() {
 
     assert_eq!(error.to_string(), "a worktree is already bound to this session");
     let binding = context.worktree_binding_state();
-    assert_eq!(binding.directory.as_deref(), Some("/tmp/existing-worktree"));
+    assert_eq!(binding.directory.as_deref(), Some(path.as_str()));
     assert_eq!(binding.name.as_deref(), Some("existing"));
     assert_eq!(binding.branch.as_deref(), Some("codex/existing"));
 }

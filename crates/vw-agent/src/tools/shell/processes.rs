@@ -345,7 +345,10 @@ fn start_child(
             bail!("Shell process capacity reached");
         }
     }
+    let worktree_use = crate::worktree::registry::use_lease(&scope.workspace)?;
     let mut command = build().context("Failed to build shell process")?;
+    let command_use =
+        command.as_std().get_current_dir().map(crate::worktree::registry::use_lease).transpose()?;
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     let (mut child, process_tree) = termination::spawn(&mut command)?;
     let started_at = tokio::time::Instant::now();
@@ -379,6 +382,7 @@ fn start_child(
     let stopping = stopping.clone();
     let id = snapshot.process_id.clone();
     tasks.spawn(async move {
+        let _worktree_use = (worktree_use, command_use);
         let drain_stdout = tokio::spawn(drain(stdout, output.clone(), changed.clone()));
         let drain_stderr = tokio::spawn(drain(stderr, output, changed.clone()));
         let deadline = async {

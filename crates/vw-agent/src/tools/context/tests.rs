@@ -25,10 +25,11 @@ fn context_preserves_session_and_root() {
 fn workflow_transitions_reset_worktree() {
     let context = ToolUseContext::new("session-a", Some("/workspace".into()));
 
-    let binding =
-        context.bind_worktree("/worktrees/task".into(), "task".into(), "codex/task".into());
-    assert_eq!(binding.directory.as_deref(), Some("/worktrees/task"));
-    assert_eq!(context.workspace_root().as_deref(), Some(std::path::Path::new("/worktrees/task")));
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    let binding = context.bind_worktree(path.clone(), "task".into(), "codex/task".into()).unwrap();
+    assert_eq!(binding.directory.as_deref(), Some(path.as_str()));
+    assert_eq!(context.workspace_root().as_deref(), Some(directory.path()));
 
     let cleared = context.clear_worktree_binding();
     assert!(cleared.directory.is_none());

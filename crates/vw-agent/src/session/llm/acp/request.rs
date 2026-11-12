@@ -4,6 +4,7 @@
 //! 查找或创建 ACP 会话、转发 ACP 输出事件，并在会话变化等可恢复错误上执行一次明确重试。
 
 use serde_json::Value;
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use vw_acp::{
     AcpJsonRpcMessage, PromptRequest, SessionStrategy, apply_lifecycle_snapshot_to_record,
@@ -79,6 +80,8 @@ pub(crate) async fn do_stream_request_acp(
             .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
         (cwd, None)
     };
+    let worktree_use =
+        crate::worktree::registry::use_lease(&cwd).map_err(to_api_error)?.map(Arc::new);
     let cwd_text = cwd.to_string_lossy().into_owned();
     let _session_guard = super::lifecycle::try_lock(session_id, &cwd_text).map_err(to_api_error)?;
     let selection_store =
@@ -359,6 +362,12 @@ pub(crate) async fn do_stream_request_acp(
             get_cached_acp_client(&acp_agent_name, &normalized_acp_cfg, &cwd, &parsed_options);
         let _request_cleanup = super::session::RequestClientCleanup::new(&cached_client_entry);
         let cached_client = &cached_client_entry.client;
+        if let Some(lease) = &worktree_use {
+            let mut held = cached_client.worktree_use.lock();
+            if held.is_none() {
+                *held = Some(Arc::clone(lease));
+            }
+        }
         // 同一个 ACP 客户端可能被多个本地请求复用；串行化 prompt 可以避免代理端
         // 把并发输入混到同一会话流里。
         let prompt_guard = cached_client.prompt_lock.lock().await;

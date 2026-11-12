@@ -44,6 +44,10 @@ pub struct WorktreeBindingState {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WorkflowState {
     pub worktree: WorktreeBindingState,
+    /// The live workflow owns usage; snapshots and serialized metadata do not.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[serde(skip)]
+    worktree_use: Option<Arc<std::fs::File>>,
 }
 
 /// 待重看图片队列：去重、有数量上限，并绑定当前资产范围。
@@ -574,7 +578,12 @@ impl ToolUseContext {
 
     /// 返回当前流程状态快照。
     pub fn workflow_state(&self) -> WorkflowState {
-        self.workflow.lock().unwrap_or_else(|error| error.into_inner()).clone()
+        let workflow = self.workflow.lock().unwrap_or_else(|error| error.into_inner());
+        WorkflowState {
+            worktree: workflow.worktree.clone(),
+            #[cfg(not(target_arch = "wasm32"))]
+            worktree_use: None,
+        }
     }
 
     /// 返回当前绑定的 worktree 状态。
@@ -588,21 +597,33 @@ impl ToolUseContext {
         directory: String,
         name: String,
         branch: String,
-    ) -> WorktreeBindingState {
+    ) -> anyhow::Result<WorktreeBindingState> {
         let mut workflow = self.workflow.lock().unwrap_or_else(|error| error.into_inner());
+        if workflow.worktree.directory.is_some() {
+            anyhow::bail!("a worktree is already bound to this session");
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let worktree_use =
+            crate::worktree::registry::use_lease(Path::new(&directory))?.map(Arc::new);
         workflow.worktree = WorktreeBindingState {
             directory: Some(directory),
             name: Some(name),
             branch: Some(branch),
             entered_at_ms: Some(current_time_ms()),
         };
-        workflow.worktree.clone()
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            workflow.worktree_use = worktree_use;
+        }
+        Ok(workflow.worktree.clone())
     }
 
     /// 清除当前会话的 worktree 绑定。
     pub fn clear_worktree_binding(&self) -> WorktreeBindingState {
         let mut workflow = self.workflow.lock().unwrap_or_else(|error| error.into_inner());
         workflow.worktree = WorktreeBindingState::default();
+        #[cfg(not(target_arch = "wasm32"))]
+        drop(workflow.worktree_use.take());
         workflow.worktree.clone()
     }
 

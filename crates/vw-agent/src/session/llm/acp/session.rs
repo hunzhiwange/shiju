@@ -219,6 +219,7 @@ fn build_cached_acp_client(
     .with_verbose(false);
 
     Arc::new(CachedAcpClient {
+        worktree_use: Default::default(),
         permission_confirmation,
         tenant: crate::session::ui_store::current_tenant_scope(),
         runtime_identity: parsed_options.runtime_identity.clone(),

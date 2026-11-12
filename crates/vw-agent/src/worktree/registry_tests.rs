@@ -100,15 +100,15 @@ async fn worktree_registry_rejects_symlink_replacement() {
 }
 
 #[tokio::test]
-async fn worktree_registry_managed_delete_rejects_foreign_owner_and_repeat() {
+async fn worktree_registry_managed_delete_requires_snapshot_api() {
     let (_temp, primary, secondary, scope) = fixture();
     let record = registry::register(&scope, &primary, &secondary).await.unwrap();
     let other = ProjectScope::for_default_tenant(ProjectId::from("foreign-project")).unwrap();
     assert!(registry::remove_managed(&other, &primary, &record.id, true).await.is_err());
     assert!(secondary.exists());
-    assert!(registry::remove_managed(&scope, &primary, &record.id, true).await.unwrap());
-    assert!(!secondary.exists());
-    assert!(registry::list(&scope, &primary).await.unwrap().is_empty());
+    assert!(registry::remove_managed(&scope, &primary, &record.id, true).await.is_err());
+    assert!(secondary.exists());
+    assert_eq!(registry::list(&scope, &primary).await.unwrap().len(), 1);
     assert!(registry::remove_managed(&scope, &primary, &record.id, true).await.is_err());
     assert!(primary.exists());
 }

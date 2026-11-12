@@ -47,8 +47,9 @@ pub async fn create(input: Option<CreateInput>) -> Result<Info, Error> {
     let primary = instance::worktree();
 
     let extra = input.and_then(|value| value.start_command).unwrap_or_default();
-    let _lifecycle = lifecycle;
     prepare_checkout(&info, &project_id, &extra, &scope, &primary).await?;
+    drop(lifecycle);
+    super::cleanup_host::created();
 
     Ok(info)
 }
@@ -116,13 +117,20 @@ pub(crate) async fn create_fork_checkout(name: Option<&str>) -> Result<Info, Err
     .map_err(|error| Error::Invalid(error.to_string()))?;
     prepare_checkout(&info, &project.id, "", &scope, &instance::worktree()).await?;
     drop(lifecycle);
+    super::cleanup_host::created();
     Ok(info)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn remove_fork_checkout(directory: String) -> Result<(), Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
-    remove_for_tenant(RemoveInput { directory, force: true }, tenant).await?;
+    let project = ensure_git_project()?;
+    let primary = instance::worktree();
+    let scope = vw_api_types::id::ProjectScope::new(tenant, project.id.into())
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let _lock = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
+    remove_locked(RemoveInput { directory, force: true }, &scope, std::path::Path::new(&primary))
+        .await?;
     Ok(())
 }
 
@@ -151,6 +159,15 @@ pub(super) async fn remove_for_tenant(
     let scope = ProjectScope::new(tenant, ProjectId::from(project.id.as_str()))
         .map_err(|e| Error::Invalid(e.to_string()))?;
     let _lifecycle = super::registry::lifecycle_lock(std::path::Path::new(&primary))?;
+    let (_, _, git_dir, _) = super::registry::checkout(
+        std::path::Path::new(&primary),
+        std::path::Path::new(&input.directory),
+    )?;
+    if super::registry::ownership(&git_dir)?.is_some() {
+        return Err(Error::Invalid(
+            "Managed worktree deletion requires the deletion-preflight and snapshot API".into(),
+        ));
+    }
     remove_locked(input, &scope, std::path::Path::new(&primary)).await
 }
 
@@ -165,6 +182,7 @@ pub(super) async fn remove_locked(
     let managed = super::registry::ownership(&git_dir)?;
     if let Some(record) = &managed {
         super::registry::authorize(scope, primary, &record.id).await?;
+        super::registry::ensure_not_in_use(record)?;
     } else if super::registry::record_for_path(scope, &directory).await?.is_some() {
         return Err(Error::Invalid("Managed checkout credential missing".into()));
     }
@@ -262,6 +280,7 @@ pub async fn reset(input: ResetInput) -> Result<bool, Error> {
     let project_id = project.id.clone();
     let primary = canonical(&instance::worktree()).await;
     let directory = canonical(&input.directory).await;
+    let lease = super::registry::use_lease(&directory)?;
 
     if directory == primary {
         return Err(Error::Invalid("Cannot reset the primary workspace".to_string()));
@@ -331,6 +350,7 @@ pub async fn reset(input: ResetInput) -> Result<bool, Error> {
 
     let worktree_dir = entry.path.clone();
     tokio::spawn(async move {
+        let _lease = lease;
         let _ = run_start_scripts(&worktree_dir, &project_id, "").await;
     });
 

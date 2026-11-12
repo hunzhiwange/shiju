@@ -61,6 +61,9 @@ struct CachedAcpClient {
     client: Arc<AcpClient>,
     prompt_lock: Arc<tokio::sync::Mutex<()>>,
     output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,
+    // Native peers can retain terminals between prompts. Keep their actual cwd
+    // protected until the cached client is retired; drop this after the client.
+    worktree_use: Mutex<Option<Arc<std::fs::File>>>,
 }
 
 /// ACP 客户端缓存命中结果。

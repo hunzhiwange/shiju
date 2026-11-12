@@ -131,9 +131,18 @@ impl CmdResult {
 
 /// 执行 git 命令
 pub(super) async fn run_git(args: &[&str], cwd: &str) -> Result<CmdResult, Error> {
+    run_git_guarded(args, cwd, None).await
+}
+
+pub(super) async fn run_git_guarded(
+    args: &[&str],
+    cwd: &str,
+    lifecycle: Option<std::fs::File>,
+) -> Result<CmdResult, Error> {
     let args = args.iter().map(|value| value.to_string()).collect::<Vec<_>>();
     let cwd = cwd.to_string();
     let output = tokio::task::spawn_blocking(move || {
+        let _lifecycle = lifecycle;
         let mut cmd = git_std_command();
         cmd.current_dir(&cwd);
         for arg in args {

@@ -132,6 +132,7 @@ async fn initialize(
     extra: &str,
     retry: bool,
 ) -> Result<(), Error> {
+    let _lease = super::registry::use_lease_locked(Path::new(directory))?;
     let path = state_path(directory)?;
     // Independent OS lock also protects direct retries and duplicate requests.
     let lock = std::fs::OpenOptions::new()

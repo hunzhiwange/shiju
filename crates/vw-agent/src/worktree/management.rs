@@ -142,6 +142,18 @@ pub async fn delete(
     request: &DeleteManagedWorktreeRequest,
 ) -> Result<DeleteManagedWorktreeResponse, Error> {
     let lock = registry::lifecycle_lock(primary)?;
+    delete_locked(scope, primary, id, settings, request, lock, false).await
+}
+async fn delete_locked(
+    scope: &ProjectScope,
+    primary: &Path,
+    id: &str,
+    settings: &WorktreeSettings,
+    request: &DeleteManagedWorktreeRequest,
+    lock: std::fs::File,
+    automatic: bool,
+) -> Result<DeleteManagedWorktreeResponse, Error> {
+    ensure_current_settings(scope, settings).await?;
     let expires = request
         .fingerprint
         .split_once(':')
@@ -160,22 +172,24 @@ pub async fn delete(
     if current.has_ignored_files && !request.confirm_ignored_loss {
         return Err(invalid("Explicit ignored-file loss confirmation required"));
     }
-    let prepared = recovery::prepare_locked(scope, primary, id, false, lock).await?;
-    // Re-read protection after snapshot I/O, keeping the repository lifecycle lock alive.
+    let prepared = recovery::prepare_locked(scope, primary, id, automatic, lock).await?;
+    prepared.revalidate(primary).await?;
+    ensure_current_settings(scope, settings).await?;
+    // Read the latest protection after the snapshot scan, retaining the lifecycle lock.
     let verified = preflight_locked(scope, primary, id, settings, expires).await?;
     if verified.fingerprint != request.fingerprint || !verified.protection_reasons.is_empty() {
         return Err(invalid("Worktree protection changed; refresh required"));
     }
-    prepared.revalidate(primary).await?;
     let directory = prepared
         .manifest
         .record
         .directory
         .to_str()
         .ok_or_else(|| invalid("Non-UTF-8 checkout path"))?;
-    let output = super::native::run_git(
+    let output = super::native::run_git_guarded(
         &["worktree", "remove", "--force", "--", directory],
         primary.to_str().ok_or_else(|| invalid("Non-UTF-8 primary path"))?,
+        Some(prepared._lifecycle.try_clone()?),
     )
     .await?;
     if !output.success {
@@ -234,4 +248,56 @@ pub async fn proposal(
             .collect(),
         remaining_excess: proposal.remaining_excess,
     })
+}
+
+/// Automatic removal must still be an unchanged retention candidate under the same
+/// lock used for preflight, snapshot publication, final verification and removal.
+pub(super) async fn delete_automatic(
+    scope: &ProjectScope,
+    primary: &Path,
+    candidate: &cleanup::Candidate,
+    settings: &WorktreeSettings,
+) -> Result<DeleteManagedWorktreeResponse, Error> {
+    let lock = registry::lifecycle_lock(primary)?;
+    let latest = crate::config::get_global_for_tenant(scope.tenant_scope())
+        .await
+        .map_err(invalid)?
+        .worktree_settings;
+    if &latest != settings || latest.ask_before_delete || !latest.auto_cleanup_enabled {
+        return Err(invalid("Automatic cleanup settings changed; refresh required"));
+    }
+    let proposal = cleanup::propose_locked(scope, primary, &latest).await?;
+    if !proposal
+        .candidates
+        .iter()
+        .any(|c| c.id == candidate.id && c.fingerprint == candidate.fingerprint)
+    {
+        return Err(invalid("Cleanup candidate changed or is protected; refresh required"));
+    }
+    let preflight =
+        preflight_locked(scope, primary, &candidate.id, &latest, now() + 300_000).await?;
+    // Dirty tracked/untracked data is recoverable; ignored files always require a human.
+    if preflight.has_ignored_files {
+        return Err(invalid("Automatic cleanup cannot discard ignored files"));
+    }
+    let request = DeleteManagedWorktreeRequest {
+        fingerprint: preflight.fingerprint,
+        confirmed: true,
+        confirm_ignored_loss: false,
+    };
+    delete_locked(scope, primary, &candidate.id, &latest, &request, lock, true).await
+}
+
+async fn ensure_current_settings(
+    scope: &ProjectScope,
+    expected: &WorktreeSettings,
+) -> Result<(), Error> {
+    let latest = crate::config::get_global_for_tenant(scope.tenant_scope())
+        .await
+        .map_err(invalid)?
+        .worktree_settings;
+    if &latest != expected {
+        return Err(invalid("Worktree settings changed; refresh required"));
+    }
+    Ok(())
 }

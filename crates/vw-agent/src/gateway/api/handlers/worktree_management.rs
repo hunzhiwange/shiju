@@ -25,6 +25,7 @@ pub(crate) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
         .route("/projects/{project_id}/worktree-snapshots", get(snapshots))
         .route("/projects/{project_id}/worktree-snapshots/{id}/restore", post(restore))
         .route("/projects/{project_id}/worktree-cleanup-proposal", get(proposal))
+        .route("/projects/{project_id}/worktree-cleanup-status", get(cleanup_status))
 }
 fn error(error: impl std::fmt::Display) -> ApiError {
     ApiError::bad_request(error.to_string())
@@ -140,4 +141,17 @@ async fn record_use(
         .min(u64::MAX as u128) as u64;
     crate::worktree::registry::record_use(&scope, &record.directory, now).map_err(error)?;
     Ok(Json(OperationAck { ok: true, message: None }))
+}
+
+async fn cleanup_status(
+    Extension(tenant): Extension<TenantScope>,
+    Path(project): Path<String>,
+) -> Result<Json<crate::worktree::cleanup::FlowStatus>, ApiError> {
+    let (scope, _primary) = context(tenant, project).await?;
+    let mut report = crate::worktree::cleanup::flow_status(&scope).await.map_err(error)?;
+    // Read the host's saved plan without competing with an in-flight removal.
+    if !settings(&scope).await?.auto_cleanup_enabled {
+        report.proposal = Default::default();
+    }
+    Ok(Json(report))
 }

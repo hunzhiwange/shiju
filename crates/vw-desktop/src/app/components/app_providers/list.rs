@@ -485,6 +485,11 @@ pub(crate) fn overlay<'a>(
     if let Some(form) = &state.desktop {
         return super::desktop::overlay(form, help, list);
     }
+    if let Some(speed) = &state.endpoint_speed {
+        return crate::app::components::agent_apps_diagnostics::endpoints_modal::overlay(
+            speed, list,
+        );
+    }
     if let Some(form) = &state.form {
         #[cfg(not(target_arch = "wasm32"))]
         let binding =

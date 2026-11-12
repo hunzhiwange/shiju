@@ -58,6 +58,7 @@ async fn endpoint_candidates(
     Extension(policy): Extension<PolicyFile>,
     Extension(tenant): Extension<TenantScope>,
     database: Option<Extension<GlobalDatabase>>,
+    jobs: Option<Extension<DiagnosticJobs>>,
     headers: HeaderMap,
     Query(query): Query<DiagnosticScopeQuery>,
     request: Result<Json<DiagnosticEndpointCandidatesQuery>, JsonRejection>,
@@ -79,7 +80,7 @@ async fn endpoint_candidates(
             target_host_id: query.target_host_id,
             app_id: query.app_id,
         };
-        super::agent_apps::authorize_diagnostic_probe(
+        let (_, principal) = super::agent_apps::authorize_diagnostic_probe(
             policy.0.as_deref(),
             &headers,
             &scope,
@@ -117,7 +118,15 @@ async fn endpoint_candidates(
             display_url: candidate.url,
             sources: candidate.sources,
         })
-        .collect();
+        .collect::<Vec<_>>();
+        if let Some(Extension(jobs)) = jobs {
+            jobs.remember_endpoint_candidates(
+                DiagnosticJobOwner { scope, principal },
+                request.provider_id,
+                candidates.clone(),
+            )
+            .map_err(job_status)?;
+        }
         Ok(DiagnosticEndpointCandidatesResponse { candidates })
     })
     .await
@@ -302,6 +311,11 @@ pub(super) async fn submit_request(
                     "application provider not found" => StatusCode::NOT_FOUND,
                     _ => StatusCode::UNPROCESSABLE_ENTITY,
                 })?;
+                if let Some(targets) =
+                    jobs.resolve_endpoint_candidates(&owner, &provider_id, &endpoint_ids)
+                {
+                    return speedtest::start(&jobs, owner, targets, None).map_err(job_status);
+                }
                 let candidates = endpoints::collect(owner.scope.app_id, &[], &row, None)
                     .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
                 let mut candidates = candidates
@@ -446,3 +460,7 @@ fn failure(status: StatusCode) -> Response {
     )
         .into_response()
 }
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "agent_apps_diagnostics_endpoint_drafts_tests.rs"]
+mod endpoint_drafts_tests;

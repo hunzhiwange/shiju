@@ -121,6 +121,13 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             }
             app.app_providers.endpoints = None;
             app.app_providers.generation = app.app_providers.generation.wrapping_add(1);
+            if let Some(speed) = &mut app.app_providers.endpoint_speed {
+                speed.generation = app.app_providers.generation;
+                return crate::app::message::agent_apps_diagnostics::endpoints::update(
+                    app,
+                    crate::app::message::agent_apps_diagnostics::endpoints::Event::Reload,
+                );
+            }
         }
         Event::Open(id) => {
             if app.app_providers.loading

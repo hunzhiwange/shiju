@@ -35,6 +35,7 @@ pub(crate) struct ListState {
     pub pi_directory: Option<crate::app::message::settings::aggregation_pi::Form>,
     pub paths: Option<super::paths::Form>,
     pub preview: Option<super::preview::Form>,
+    pub endpoint_speed: Option<crate::app::message::agent_apps_diagnostics::endpoint_state::State>,
     pub endpoints: Option<super::endpoints::Form>,
     pub model_catalog: Option<super::model_catalog::CatalogForm>,
     pub omp_directory: Option<crate::app::message::settings::aggregation_omp::Form>,
@@ -69,6 +70,7 @@ impl ListState {
         self.omp_directory = None;
         self.desktop = None;
         self.omo = None;
+        self.endpoint_speed = None;
         self.endpoints = None;
         self.model_catalog = None;
         self.icons = None;

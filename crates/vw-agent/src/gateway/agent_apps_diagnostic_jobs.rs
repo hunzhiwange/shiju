@@ -27,6 +27,8 @@ use vw_api_types::{
     id::TaskId,
 };
 
+mod endpoints;
+
 const MAX_JOBS: usize = 128;
 pub(crate) const MAX_PROBES_PER_JOB: usize = 32;
 const MAX_CONCURRENT_PROBES: usize = 3;
@@ -66,6 +68,7 @@ pub struct DiagnosticJobs(Arc<Registry>);
 
 struct Registry {
     entries: Mutex<HashMap<TaskId, Job>>,
+    endpoints: Mutex<endpoints::Candidates>,
     permits: Semaphore,
     checkpoint: PathBuf,
     _lease: File,
@@ -171,6 +174,7 @@ impl DiagnosticJobs {
         }
         Ok(Self(Arc::new(Registry {
             entries: Mutex::new(entries),
+            endpoints: Mutex::default(),
             permits: Semaphore::new(MAX_CONCURRENT_PROBES),
             checkpoint,
             _lease: lease,

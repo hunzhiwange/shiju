@@ -49,6 +49,7 @@ pub enum ListMessage {
     Aggregation(crate::app::message::settings::aggregation_list::Event),
     Desktop(super::desktop::Event),
     Endpoints(super::endpoints::Event),
+    EndpointDiagnostics(crate::app::message::agent_apps_diagnostics::endpoints::Event),
     ModelDiagnostics(crate::app::message::agent_apps_diagnostics::model::Event),
     Icons(super::icons::Event),
     Universal(super::universal::Event),
@@ -214,6 +215,9 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
         ListMessage::Preview(event) => return super::preview::update(app, event),
         ListMessage::Snippets(event) => return super::snippets::update(app, event),
         ListMessage::Endpoints(event) => return super::endpoints::update(app, event),
+        ListMessage::EndpointDiagnostics(event) => {
+            return crate::app::message::agent_apps_diagnostics::endpoints::update(app, event);
+        }
         ListMessage::ModelDiagnostics(event) => {
             return crate::app::message::agent_apps_diagnostics::model::update(app, event);
         }

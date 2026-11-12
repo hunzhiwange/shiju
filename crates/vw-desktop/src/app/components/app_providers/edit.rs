@@ -74,6 +74,16 @@ pub(super) fn overlay_with_binding<'a>(
                 EditMessage::Website,
             ));
         fields = fields.push(text("基础资料").size(17)).push(settings_panel(basic));
+        if crate::app::message::agent_apps_diagnostics::endpoint_state::editable(form) {
+            fields = fields.push(
+                button(text("端点测速与选择"))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press(crate::app::message::agent_apps_diagnostics::endpoints::message(
+                        crate::app::message::agent_apps_diagnostics::endpoints::Event::Open,
+                    )),
+            );
+        }
         if let Some(draft) = &form.claude {
             fields = fields.push(super::claude::fields(form, draft, help));
         } else if let Some(draft) = &form.codex {

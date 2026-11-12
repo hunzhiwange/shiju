@@ -12577,6 +12577,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.29.0",
  "toml 0.9.12+spec-1.1.0",
+ "toml_edit 0.22.27",
  "tracing",
  "tracing-subscriber",
  "tray-icon",

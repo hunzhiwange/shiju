@@ -4413,8 +4413,8 @@ dependencies = [
 
 [[package]]
 name = "iced-code-editor"
-version = "0.5.2"
-source = "git+https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.4#b12791046fb6f41d960fe2ca1d809821a8bc3038"
+version = "0.5.3"
+source = "git+https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.5.3#64c58957c0c5611b876fe98b42c8e58088eb8b6b"
 dependencies = [
  "iced",
  "iced_aw",
@@ -4428,9 +4428,9 @@ dependencies = [
 
 [[package]]
 name = "iced_aw"
-version = "0.13.1"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e676b8d322a419c7eef29cac1aa78e8afda6a9d2d4597483d42de3e90378fe2"
+checksum = "59b7f923642b024c415150b70ef84ee5c11626e3b0af73b954d817d573bcd0a4"
 dependencies = [
  "cfg-if",
  "chrono",

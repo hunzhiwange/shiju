@@ -71,10 +71,14 @@ try {
         assert.deepEqual(errors, [], 'SSE response and terminal event must not panic');
     }
     assert.equal(chats.length, 2, 'A completed response must allow another turn');
+    assert.ok(chats[0].session_id, 'The first turn must carry a session ID');
     assert.equal(chats[0].session_id, chats[1].session_id, 'Both turns stay in the same session');
     for (const [index, prompt] of ['WASM first request', 'WASM second request'].entries()) {
         assert.equal(chats[index].messages.at(-1).content, prompt);
     }
+    assert.ok(chats[1].messages.some(message =>
+        message.role === 'assistant' && message.content === 'WASM response'),
+    'The next turn must include the consumed first SSE response');
     await page.screenshot({ path: '/tmp/shiju-wasm-chat-smoke.png' });
     console.log('PASS WASM sends two chat turns and consumes SSE responses without a panic');
 } finally {

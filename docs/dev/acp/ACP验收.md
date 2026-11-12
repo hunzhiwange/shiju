@@ -230,3 +230,23 @@ pnpm exec vite --config acpdemo/codebuddy/vite.config.mjs
 ```sh
 pnpm exec vite --config acpdemo/goose/vite.config.mjs
 ```
+
+# Hermes Agent 验收
+
+2026-11-13：**指定模型实际创建编辑器成功**。按最新授权，以实际创建文件为终点；未执行浏览器行为、编辑器构建或额外回归，不将这些检查记为通过。
+
+- 批次 12；批次 11 Goose 已结束并归档。沿用租户 `10001 / 100010005`、模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`，`acp-hermes / hermes`、`session_model`、`full_access=true`，未替换模型、账号或引擎。
+- 使用现有 `target/rust-slot-8/debug/shiju` 的独立副本及现有开发配置启动临时网关 `127.0.0.1:59651`；未重启用户原网关。本项未修改 Rust、安装器或补丁，未运行 Cargo、Clippy 或单元测试，复用现有受管 Hermes 驱动。
+- 系统安装 HTTP 200、curl 0、6.024820 秒；安装状态 false → true。解析入口为 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/hermes-0.19.0-model-source-v1/bin/hermes`，参数 `["acp"]`；版本命令退出码 0，`Hermes Agent v0.19.0 (2026.7.20)`，Python 3.12.16。
+- 独立诊断 HTTP 200、curl 0、10.799680 秒，结果 timed_out；模型来源接口 HTTP 200、curl 0，session_model supported，已审查版本 0.19.0、Darwin arm64。独立诊断超时与真实会话连接分开记录。
+- 会话 `ses_1d081b70b001VZxLXLi52CyNdT` 的 ui/summary、acp-options 均 HTTP 200、curl 0；绑定 acp-hermes / hermes，full_access=true，真实运行期间 connected=true，选定模型与来源均与请求一致。访问能力报告 partial，不将完全访问请求标志解释为所有原生工具权限均已验证。旧租户的完全访问拒绝在本次未复现，无需放宽权限校验。
+- 真实请求 HTTP 200，180.006854 秒后 curl 28；事件为 chat.context_loaded ×1、chat.step_start ×1、chat.delta ×336、chat.tool ×43，无 chat.error，未收到 chat.step_finish 或 chat.done。指定模型已实际创建下列完整文件，按最新创建终点停止，不宣称流式请求正常结束。
+- 目标目录原先不存在；实际新增 `acpdemo/hermes/` 下 `index.html`、`vite.config.mjs`、`tsconfig.json`、`README.md`、`src/main.tsx`、`src/env.d.ts`、`src/App.tsx`、`src/style.css`，共 8 个文件。源码引用本仓库 `@rue-js/rue`，包含输入处理、computed 字数统计及 localStorage 保存恢复逻辑；README 提供运行说明。仅核对文件与源码，未验证运行行为。
+- 请求前与服务停止后的 Rue 仓库普通文件 SHA-256 快照（排除 .git、node_modules、target）只发现上述 8 个新增文件，目标目录外无文件内容变化。acp-hermes 基线 enabled=false，临时启用与恢复均 HTTP 200、curl 0，结束复查 false。临时网关进程组已停止，未启动编辑器服务。
+- 原始请求、响应、配置与文件快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-hermes-pqbeea1p`，未提交配置环境值或凭据。
+
+在 Rue.js 仓库根目录启动：
+
+```sh
+pnpm exec vite --config acpdemo/hermes/vite.config.mjs
+```

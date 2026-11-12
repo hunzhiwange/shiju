@@ -10,6 +10,7 @@ use iced::{Alignment, Element, Length};
 
 mod environment;
 mod managed;
+mod recovery;
 
 fn message(event: Event) -> Message {
     Message::Settings(SettingsMessage::Worktrees(event))
@@ -88,12 +89,17 @@ pub(crate) fn page(state: &WorktreeSettingsState, i18n: I18n) -> Element<'_, Mes
             );
         }
     }
-    content.push(managed::view(&state.managed, i18n)).into()
+    content.push(managed::view(&state.managed, i18n)).push(recovery::view(state)).into()
 }
 
 pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
     let base = editor(&app.worktree_settings, I18n::new(app.desktop_locale), base);
-    environment::editor(&app.worktree_settings.environment, I18n::new(app.desktop_locale), base)
+    let base = environment::editor(
+        &app.worktree_settings.environment,
+        I18n::new(app.desktop_locale),
+        base,
+    );
+    recovery::overlay(&app.worktree_settings, base)
 }
 
 pub(crate) fn editor<'a>(
@@ -172,3 +178,7 @@ mod managed_tests;
 #[cfg(test)]
 #[path = "system_settings_worktrees/environment_tests.rs"]
 mod environment_tests;
+
+#[cfg(test)]
+#[path = "system_settings_worktrees/recovery_tests.rs"]
+mod recovery_tests;

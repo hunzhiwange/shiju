@@ -4,6 +4,7 @@ use vw_config_types::worktree::WorktreeSettings;
 
 pub(crate) mod environment;
 mod managed;
+pub(crate) mod recovery;
 pub use managed::ManagedMessage;
 #[cfg(test)]
 pub(crate) use managed::load_groups;
@@ -11,6 +12,7 @@ pub(crate) use managed::load_groups;
 #[derive(Debug, Clone)]
 pub enum WorktreeSettingsMessage {
     Managed(ManagedMessage),
+    Recovery(recovery::RecoveryMessage),
     Environment(environment::EnvironmentMessage),
     Refresh,
     ContextChanged,
@@ -112,6 +114,10 @@ pub(crate) fn apply(
                         list_generation: state.environment.list_generation + 1,
                         ..Default::default()
                     },
+                    recovery: crate::app::state::WorktreeRecoveryState {
+                        generation: state.recovery.generation + 1,
+                        ..Default::default()
+                    },
                     managed: crate::app::state::ManagedWorktreesState {
                         generation: state.managed.generation + 1,
                         ..Default::default()
@@ -189,13 +195,26 @@ use crate::app::{App, Message};
 use iced::Task;
 
 pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Message> {
+    if let WorktreeSettingsMessage::Recovery(event) = event {
+        return recovery::update(app, event);
+    }
     if let WorktreeSettingsMessage::Environment(event) = event {
         return environment::update(app, event);
     }
     if let WorktreeSettingsMessage::Managed(event) = event {
         return managed::update(app, event);
     }
+    if matches!(
+        event,
+        WorktreeSettingsMessage::ContextChanged | WorktreeSettingsMessage::TabSelected(_)
+    ) {
+        recovery::invalidate(app);
+    }
     let current = WorktreeSettingsIdentity::current(app);
+    if matches!(event, WorktreeSettingsMessage::TabSelected(WorktreesTab::General)) {
+        app.worktree_settings.active_tab = WorktreesTab::General;
+        return update(app, WorktreeSettingsMessage::Refresh);
+    }
     if matches!(event, WorktreeSettingsMessage::TabSelected(WorktreesTab::Environment)) {
         app.worktree_settings.active_tab = WorktreesTab::Environment;
         return environment::update(app, environment::EnvironmentMessage::Refresh);
@@ -208,6 +227,10 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
         let generation = app.worktree_settings.generation + 1;
         app.worktree_settings = WorktreeSettingsState {
             generation,
+            recovery: crate::app::state::WorktreeRecoveryState {
+                generation: app.worktree_settings.recovery.generation + 1,
+                ..Default::default()
+            },
             environment: crate::app::state::WorktreeEnvironmentState {
                 generation: app.worktree_settings.environment.generation + 1,
                 list_generation: app.worktree_settings.environment.list_generation + 1,
@@ -302,6 +325,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
     }
     if refresh {
         let managed_refresh = managed::update(app, ManagedMessage::Refresh);
+        let recovery_refresh = recovery::update(app, recovery::RecoveryMessage::Refresh);
         let environment_refresh = if app.worktree_settings.active_tab == WorktreesTab::Environment {
             environment::update(app, environment::EnvironmentMessage::Refresh)
         } else {
@@ -309,6 +333,7 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
         };
         return Task::batch([
             managed_refresh,
+            recovery_refresh,
             environment_refresh,
             Task::perform(
                 async move {
@@ -355,9 +380,14 @@ pub(crate) fn update(app: &mut App, event: WorktreeSettingsMessage) -> Task<Mess
 }
 
 pub(crate) fn gateway_changed(app: &mut App) -> Task<Message> {
+    recovery::invalidate(app);
     let generation = app.worktree_settings.generation + 1;
     app.worktree_settings = WorktreeSettingsState {
         generation,
+        recovery: crate::app::state::WorktreeRecoveryState {
+            generation: app.worktree_settings.recovery.generation + 1,
+            ..Default::default()
+        },
         environment: crate::app::state::WorktreeEnvironmentState {
             generation: app.worktree_settings.environment.generation + 1,
             list_generation: app.worktree_settings.environment.list_generation + 1,

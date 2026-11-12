@@ -288,6 +288,10 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
             }
         }
         ManagedMessage::Preflight { project, worktree } => {
+            if state.loading || app.worktree_settings.recovery.pending.is_some() {
+                return Task::none();
+            }
+
             let Some((_, item)) = selected(app, &project, &worktree) else {
                 return Task::none();
             };
@@ -296,7 +300,10 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
                 return Task::none();
             }
             let target = (project.clone(), worktree.clone());
+            app.worktree_settings.recovery.ignored_acknowledged = false;
             let state = &mut app.worktree_settings.managed;
+            state.generation += 1;
+            state.identity = Some(current.clone());
             state.preflight_target = Some(target.clone());
             state.preflight = None;
             state.error = None;
@@ -316,7 +323,7 @@ pub(crate) fn update(app: &mut App, event: ManagedMessage) -> Task<Message> {
             )
         }
         ManagedMessage::PreflightLoaded { identity, generation, target, result } => {
-            if !same_host(&identity, &current)
+            if identity != current
                 || generation != state.generation
                 || state.preflight_target.as_ref() != Some(&target)
             {

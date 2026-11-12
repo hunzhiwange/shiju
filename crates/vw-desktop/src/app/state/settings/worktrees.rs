@@ -75,6 +75,7 @@ impl WorktreePolicyDraft {
 pub(crate) struct WorktreeSettingsState {
     pub(crate) active_tab: WorktreesTab,
     pub(crate) managed: ManagedWorktreesState,
+    pub(crate) recovery: WorktreeRecoveryState,
     pub(crate) environment: WorktreeEnvironmentState,
     pub(crate) saved: Option<WorktreeSettings>,
     pub(crate) default_root: String,
@@ -146,4 +147,27 @@ pub(crate) struct WorktreeEnvironmentState {
     pub(crate) loading: bool,
     pub(crate) saving: bool,
     pub(crate) error: Option<String>,
+}
+
+/// Results are scoped to the same view epoch as the managed checkout list.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct WorktreeRecoveryState {
+    pub(crate) generation: u64,
+    pub(crate) identity: Option<WorktreeSettingsIdentity>,
+    pub(crate) loading: bool,
+    pub(crate) loaded: bool,
+    pub(crate) projects: Vec<WorktreeRecoveryProject>,
+    pub(crate) error: Option<String>,
+    pub(crate) ignored_acknowledged: bool,
+    pub(crate) pending: Option<(String, String)>,
+    pub(crate) outcomes: Vec<(String, String, Result<String, String>)>,
+    pub(crate) restored: Option<(String, String, String)>,
+}
+#[derive(Debug, Clone)]
+pub struct WorktreeRecoveryProject {
+    pub(crate) project: ProjectDto,
+    pub(crate) snapshots:
+        Result<Vec<vw_gateway_client::vw_api_types::worktree::WorktreeSnapshotSummary>, String>,
+    pub(crate) proposal:
+        Result<vw_gateway_client::vw_api_types::worktree::WorktreeCleanupProposal, String>,
 }

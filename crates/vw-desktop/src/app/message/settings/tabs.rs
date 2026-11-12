@@ -23,12 +23,18 @@ use super::providers::refresh_task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(tab) => {
+            if app.system_settings_tab == SystemTab::Worktrees {
+                super::worktrees::recovery::invalidate(app);
+            }
             app.apps_catalog.drag = Default::default();
             app.settings_tab = tab;
             app.system_settings_help_tab = None;
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            if app.system_settings_tab == SystemTab::Worktrees {
+                super::worktrees::recovery::invalidate(app);
+            }
             app.apps_catalog.drag = Default::default();
             app.system_settings_tab = match tab {
                 SystemTab::Editor => {

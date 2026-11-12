@@ -40,7 +40,7 @@ pub(crate) fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(error.clone()));
     }
-    if !state.loading && state.groups.is_empty() {
+    if !state.loading && state.error.is_none() && state.groups.is_empty() {
         content = content
             .push(text(i18n.__("暂无托管工作树。")).size(13).style(settings_muted_text_style));
     }
@@ -98,7 +98,7 @@ pub(crate) fn view<'a>(state: &'a ManagedWorktreesState, i18n: I18n) -> Element<
                 let trusted = tree.project_id == group.project.id
                     && tree.directory != group.project.directory
                     && group.error.is_none();
-                let ready = trusted && tree.status == WorktreeStatus::Ready;
+                let ready = trusted && !state.loading && tree.status == WorktreeStatus::Ready;
                 let open = button(text(i18n.__("新建聊天")))
                     .style(rounded_action_btn_style)
                     .padding([8, 12])

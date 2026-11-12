@@ -96,6 +96,12 @@ pub enum Message {
         Result<Option<crate::app::config::ChatModelPreferences>, String>,
     ),
     ProjectChatPreferencesSaved(crate::app::config::ProjectPreferencesScope, Result<(), String>),
+    SessionDetailsHovered {
+        session_id: String,
+        project_id: String,
+        directory: String,
+    },
+    SessionDetailsLoaded(String, crate::app::session::hover_details::SessionHoverDetails),
     SessionPinsLoaded(u64, Result<std::collections::HashSet<(String, String)>, String>),
     DesktopPreferencesSaved(
         (String, vw_gateway_client::vw_api_types::id::TenantScope),

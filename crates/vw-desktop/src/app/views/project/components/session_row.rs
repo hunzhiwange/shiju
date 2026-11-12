@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use chrono::{Local, TimeZone};
 use iced::widget::tooltip::{Position, Tooltip};
-use iced::widget::{Space, button, column, container, hover, row, stack, svg, text};
+use iced::widget::{Space, button, column, container, hover, mouse_area, row, stack, svg, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme, border};
 use vw_shared::session::info::{Info, TimeInfo};
 
@@ -257,8 +257,26 @@ fn local_time(timestamp: u64) -> String {
         .map_or_else(|| "—".to_owned(), |time| time.format("%Y-%m-%d %H:%M").to_string())
 }
 
+fn agent_description(
+    i18n: I18n,
+    agent: Option<&str>,
+    label: Option<&str>,
+    acp: Option<&str>,
+) -> String {
+    let name = label.filter(|label| !label.trim().is_empty()).or(agent
+        .filter(|agent| *agent != crate::app::state::MAIN_AGENT_KEY && !agent.trim().is_empty()));
+    let engine = match acp {
+        Some("") => "ACP".to_owned(),
+        Some(backend) => format!("ACP · {backend}"),
+        None => i18n.__("识矩原生").to_owned(),
+    };
+    name.map_or_else(|| engine.clone(), |name| format!("{name} · {engine}"))
+}
+
 fn details_card(
     i18n: I18n,
+    workspace_kind: Option<bool>,
+    agent: String,
     title: String,
     details: &SessionRowDetails,
     status: SessionRowStatus,
@@ -292,6 +310,11 @@ fn details_card(
             crate::app::time::now_ms(),
         ),
     );
+    let workspace = match workspace_kind {
+        Some(true) => format!("{} · {}", i18n.__("主工作区"), details.directory),
+        Some(false) => format!("Git worktree · {}", details.directory),
+        None => details.directory.clone(),
+    };
     let mut content = column![
         text(title)
             .size(14)
@@ -299,7 +322,8 @@ fn details_card(
             .width(Length::Fill)
             .wrapping(text::Wrapping::WordOrGlyph),
         detail_line(i18n.__("项目"), details.project.clone()),
-        detail_line(i18n.__("工作区"), details.directory.clone()),
+        detail_line(i18n.__("工作区"), workspace),
+        detail_line(i18n.__("智能体"), agent),
         detail_line(i18n.__("创建时间"), local_time(details.created)),
         detail_line(i18n.__("更新时间"), format!("{} · {relative}", local_time(details.updated))),
         row![text(i18n.__("变更行数")).size(11).style(settings_muted_text_style), changes]
@@ -385,10 +409,45 @@ pub(in crate::app::views::project) fn session_row(
         .align_x(Alignment::End)
         .align_y(Alignment::Center)
         .padding(iced::Padding::default().right(right_padding));
-    Tooltip::new(hover(base, top), details_card(i18n, title, details, status), Position::Right)
-        .delay(Duration::from_millis(280))
-        .padding(0)
-        .gap(14)
+    let metadata = app.session_ui_projection.hover_details.get(id);
+    let workspace_kind = metadata.and_then(|details| details.primary_workspace);
+    let binding = metadata.and_then(|details| details.agent.as_ref());
+    let request = app
+        .session_runtime_states
+        .get(id)
+        .filter(|runtime| runtime.is_requesting)
+        .and_then(|runtime| runtime.active_agent_request.as_deref());
+    let agent = if let Some(request) = request {
+        agent_description(
+            i18n,
+            request.agent.as_deref(),
+            None,
+            request.acp_test.then(|| request.acp_agent.as_deref().unwrap_or("")),
+        )
+    } else if let Some(binding) = binding {
+        agent_description(
+            i18n,
+            Some(&binding.agent),
+            binding.label.as_deref(),
+            binding.acp_agent.as_deref(),
+        )
+    } else {
+        "—".to_owned()
+    };
+    let tooltip = Tooltip::new(
+        hover(base, top),
+        details_card(i18n, workspace_kind, agent, title, details, status),
+        Position::Right,
+    )
+    .delay(Duration::from_millis(280))
+    .padding(0)
+    .gap(14);
+    mouse_area(tooltip)
+        .on_enter(Message::SessionDetailsHovered {
+            session_id: id.to_owned(),
+            project_id: details.project_id.clone(),
+            directory: details.directory.clone(),
+        })
         .into()
 }
 

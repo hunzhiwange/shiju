@@ -818,6 +818,14 @@ impl App {
         }
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
+            Message::SessionDetailsHovered { session_id, project_id, directory } => {
+                self.load_session_hover_details(session_id, project_id, directory)
+            }
+            Message::SessionDetailsLoaded(id, details) => {
+                self.session_ui_projection.hover_details_loading.remove(&id);
+                self.session_ui_projection.hover_details.insert(id, details);
+                Task::none()
+            }
             Message::SessionPinsLoaded(generation, result) => {
                 self.apply_session_pins(generation, result);
                 Task::none()

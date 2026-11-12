@@ -16,6 +16,7 @@ mod active;
 mod agent_children;
 pub(crate) mod chat_timeline;
 mod chat_ui;
+pub(crate) mod hover_details;
 mod loading;
 mod runtime;
 pub(crate) mod stream_render;

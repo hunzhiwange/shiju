@@ -11,6 +11,9 @@ use iced::Task;
 
 #[derive(Default)]
 pub(crate) struct SessionUiProjection {
+    pub(crate) hover_details:
+        std::collections::HashMap<String, super::hover_details::SessionHoverDetails>,
+    pub(crate) hover_details_loading: HashSet<String>,
     pub(crate) agent_sessions: RefCell<Option<Arc<Vec<AgentChildSession>>>>,
     pub(crate) agent_session_key: RefCell<(Option<String>, usize)>,
     pub(crate) sidebar: RefCell<Option<Arc<crate::app::views::project::WorkSidebarModel>>>,
@@ -37,9 +40,12 @@ fn preserves_projection(message: &Message) -> bool {
             | ChatMessage::PermissionListLoaded(_)
             | ChatMessage::InputPanelTodosLoaded(..),
         ) => true,
-        Message::None | Message::CopyDone | Message::Batch(_) | Message::SessionPinsLoaded(..) => {
-            true
-        }
+        Message::None
+        | Message::CopyDone
+        | Message::Batch(_)
+        | Message::SessionPinsLoaded(..)
+        | Message::SessionDetailsHovered { .. }
+        | Message::SessionDetailsLoaded(..) => true,
         // Queued tokens and save acknowledgements do not change either view.
         // Applying a delta invalidates the agent projection at the mutation site;
         // sidebar metadata remains unchanged until a lifecycle/session event.

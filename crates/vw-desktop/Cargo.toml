@@ -219,3 +219,10 @@ name = "voice-window"
 path = "src/voice_window_main.rs"
 harness = false
 test = false
+
+# Explicit macOS main-run-loop probe; never requests permission or downloads assets.
+[[test]]
+name = "local-speech-system"
+path = "src/local_speech_system_main.rs"
+harness = false
+test = false

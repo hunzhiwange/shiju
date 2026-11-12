@@ -4,6 +4,8 @@ use anyhow::{Result, bail};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Permission {
     Microphone,
+    /// Local file/PCM transcription; independent of microphone capture.
+    SpeechRecognition,
     InputMonitoring,
     Accessibility,
     ScreenRecording,
@@ -22,6 +24,7 @@ pub enum PermissionStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VoiceCapability {
     Recording,
+    Transcription,
     GlobalKeyListening,
     TextInsertion,
     ScreenSharing,
@@ -31,6 +34,7 @@ impl VoiceCapability {
     pub fn permission(self) -> Permission {
         match self {
             Self::Recording => Permission::Microphone,
+            Self::Transcription => Permission::SpeechRecognition,
             Self::GlobalKeyListening => Permission::InputMonitoring,
             Self::TextInsertion => Permission::Accessibility,
             Self::ScreenSharing => Permission::ScreenRecording,

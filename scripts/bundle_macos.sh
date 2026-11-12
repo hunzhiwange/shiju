@@ -382,6 +382,8 @@ if [ -x /usr/libexec/PlistBuddy ]; then
     || /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ShiJu lets websites you allow use your camera." "$APP_INFO_PLIST"
   /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription ShiJu uses your microphone for dictation and voice chat, and lets websites you allow use it." "$APP_INFO_PLIST" 2>/dev/null \
     || /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ShiJu uses your microphone for dictation and voice chat, and lets websites you allow use it." "$APP_INFO_PLIST"
+  /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription ShiJu uses on-device speech recognition for local dictation and voice chat. Audio stays on this Mac." "$APP_INFO_PLIST" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string ShiJu uses on-device speech recognition for local dictation and voice chat. Audio stays on this Mac." "$APP_INFO_PLIST"
 fi
 
 echo "Copying helper binary to bundle..."

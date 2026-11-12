@@ -28,6 +28,7 @@ class VoicePackagingTests(unittest.TestCase):
             cargo.write_text(cargo.read_text().replace(
                 "<key>CFBundleIconFile</key>",
                 "<key>NSMicrophoneUsageDescription</key><string>Old website-only usage</string>"
+                "<key>NSSpeechRecognitionUsageDescription</key><string>Old network recognition</string>"
                 "<key>CFBundleIconFile</key>",
             ))
         result, calls = fixture.run_bundle()
@@ -65,6 +66,13 @@ class VoicePackagingTests(unittest.TestCase):
 
     def test_voice_dev_profile_packages_debug_artifacts(self):
         self.bundle("adhoc", profile="dev")
+
+    def test_local_speech_usage_description_is_present(self):
+        for mode in ("developer-id", "adhoc"):
+            for existing in (False, True):
+                with self.subTest(mode=mode, existing=existing):
+                    info, _ = self.bundle(mode, existing)
+                    self.assertIn("on-device", info["NSSpeechRecognitionUsageDescription"].lower())
 
     def test_native_voice_process_has_only_audio_input_entitlement(self):
         for mode in ("developer-id", "adhoc"):

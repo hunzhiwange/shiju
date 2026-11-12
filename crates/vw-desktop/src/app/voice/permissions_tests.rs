@@ -40,6 +40,7 @@ fn voice_task_03_permission_denied_prevents_capture() {
         let permissions = VoicePermissions::new(&os);
         for capability in [
             VoiceCapability::Recording,
+            VoiceCapability::Transcription,
             VoiceCapability::GlobalKeyListening,
             VoiceCapability::TextInsertion,
             VoiceCapability::ScreenSharing,
@@ -62,6 +63,7 @@ fn voice_task_03_permission_denied_prevents_capture() {
 fn voice_task_03_permission_request_targets_single_capability() {
     for permission in [
         Permission::Microphone,
+        Permission::SpeechRecognition,
         Permission::InputMonitoring,
         Permission::Accessibility,
         Permission::ScreenRecording,
@@ -88,6 +90,7 @@ fn voice_task_03_permission_request_targets_single_capability() {
 #[test]
 fn voice_task_03_capabilities_require_only_their_own_permission() {
     assert_eq!(VoiceCapability::Recording.permission(), Permission::Microphone);
+    assert_eq!(VoiceCapability::Transcription.permission(), Permission::SpeechRecognition);
     assert_eq!(VoiceCapability::GlobalKeyListening.permission(), Permission::InputMonitoring);
     assert_eq!(VoiceCapability::TextInsertion.permission(), Permission::Accessibility);
     assert_eq!(VoiceCapability::ScreenSharing.permission(), Permission::ScreenRecording);
@@ -129,6 +132,7 @@ fn voice_task_03_system_queries_do_not_request_permissions() {
     let permissions = VoicePermissions::new(SystemPermissions);
     for permission in [
         Permission::Microphone,
+        Permission::SpeechRecognition,
         Permission::InputMonitoring,
         Permission::Accessibility,
         Permission::ScreenRecording,
@@ -139,5 +143,39 @@ fn voice_task_03_system_queries_do_not_request_permissions() {
         assert_ne!(status, PermissionStatus::Unsupported);
         #[cfg(not(target_os = "macos"))]
         assert_eq!(status, PermissionStatus::Unsupported);
+    }
+}
+
+#[test]
+fn local_voice_transcription_permission_does_not_block_capture() {
+    struct SeparatePermissions;
+    impl PermissionBackend for SeparatePermissions {
+        fn query(&self, permission: Permission) -> PermissionStatus {
+            match permission {
+                Permission::Microphone => PermissionStatus::Granted,
+                Permission::SpeechRecognition => PermissionStatus::Denied,
+                _ => PermissionStatus::Unsupported,
+            }
+        }
+        fn request(&self, _: Permission) -> Result<()> {
+            panic!("starting capabilities must not request permission")
+        }
+        fn open_settings(&self, _: Permission) -> Result<()> {
+            panic!("starting capabilities must not open settings")
+        }
+    }
+    let permissions = VoicePermissions::new(SeparatePermissions);
+    assert_eq!(permissions.start(VoiceCapability::Recording, || Ok(42)).unwrap(), 42);
+    assert!(permissions.start(VoiceCapability::Transcription, || Ok(42)).is_err());
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn local_voice_missing_usage_description_fails_before_tcc() {
+    assert!(!super::permissions_macos::has_usage_description("ShiJuMissingPurposeFixture"));
+    if !super::permissions_macos::has_usage_description("NSSpeechRecognitionUsageDescription") {
+        // This branch is safe only after observing the missing purpose: it must
+        // return an error before invoking Apple's permission API, never prompt.
+        assert!(SystemPermissions.request(Permission::SpeechRecognition).is_err());
     }
 }

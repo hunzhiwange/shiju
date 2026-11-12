@@ -9,6 +9,8 @@
 | 系统权限查询与授权引导 | 已实测打包应用的权限入口及麦克风/输入监控/辅助功能已允许状态；首次授权弹窗与撤销待真人回归 | 不支持，当前权限后端明确拒绝 | 不支持，当前权限后端明确拒绝 |
 | 全局语音热键、跨应用听写插入 | 原生实现与前序聚焦验证已具备；签名应用整链路待回归 | 不支持 | 不支持 |
 | 主动前台窗口单帧分享 | macOS 14+，前序任务已实测单窗口、取消和窗口关闭；签名应用整链路待回归 | 不支持 | 不支持 |
+| 本机离线转写边界 | zh-CN系统报告本机支持；Speech授权及实际中文转写待用户验收，详见[本机边界](local-system-boundary.md) | 不支持 | 不支持 |
+| 本机系统语音合成边界 | 已实测非静音中文PCM及取消；上层UI/对话尚未接入 | 不支持 | 不支持 |
 | 公开语音服务 | 未实测真实服务，需用户配置网关服务凭据及配额 | 未实测 | 未实测 |
 
 ## 构建前提
@@ -26,7 +28,7 @@
 
 > ShiJu uses your microphone for dictation and voice chat, and lets websites you allow use it.
 
-`NSMicrophoneUsageDescription` 同时描述原生听写、语音聊天和获准网站的麦克风用途。摄像头说明保持网站用途。用途说明不授予系统访问权限。
+`NSMicrophoneUsageDescription` 同时描述原生听写、语音聊天和获准网站的麦克风用途。摄像头说明保持网站用途。新增本机识别边界同时写入 `NSSpeechRecognitionUsageDescription`，说明强制本机处理；其实际授权/转写证据见[本机边界](local-system-boundary.md)。用途说明不授予系统访问权限。
 
 - 原生主进程实际签名选用 `scripts/macos_voice_entitlements.plist`，仅包含 `com.apple.security.device.audio-input = true`。
 - WebView helper 实际签名仍选用 `scripts/macos_webview_entitlements.plist`，保留原有 camera/audio-input；不改未使用的 `macos-entitlements.plist`。

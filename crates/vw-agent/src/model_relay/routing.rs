@@ -244,7 +244,9 @@ pub(crate) fn required(body: &serde_json::Value, streaming: bool) -> Vec<RouteCa
     // Gemini stores capabilities in generationConfig and Content.parts rather
     // than Chat messages. Extract these before selecting a native or converted route.
     let config = &body["generationConfig"];
-    if config.get("thinkingConfig").is_some_and(|value| !value.is_null()) {
+    if config.get("thinkingConfig").is_some_and(|value| !value.is_null())
+        && !super::gemini::thinking_disabled(body)
+    {
         add(&mut result, C::Thinking);
     }
     if config["responseMimeType"] == "application/json"

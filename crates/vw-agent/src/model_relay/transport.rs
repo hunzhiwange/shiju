@@ -419,6 +419,14 @@ impl RelayBackend for ProviderRelayBackend {
         if messages_request && !native {
             super::messages_thinking::configure(&mut body, &input, model)?;
         }
+        // Map an explicit zero budget through the existing model-specific controls.
+        if gemini_request && !native_gemini && super::gemini::thinking_disabled(&input) {
+            super::messages_thinking::configure(
+                &mut body,
+                &serde_json::json!({"thinking":{"type":"disabled"}}),
+                model,
+            )?;
+        }
         let mut headers = super::generation::endpoint_headers(&route.endpoint, &key)?;
         for (name, value) in &model.headers {
             let name = header::HeaderName::from_bytes(name.as_bytes())

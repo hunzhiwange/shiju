@@ -337,8 +337,13 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
         return Err(UNSUPPORTED);
     }
     if let Some(calls) = message.get("tool_calls").filter(|calls| !calls.is_null()) {
-        for call in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)? {
-            object_keys(call, &["id", "type", "function"])?;
+        for (index, call) in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)?.iter().enumerate() {
+            object_keys(call, &["id", "type", "function", "index"])?;
+            // Some compatible providers retain the stream position in full replies.
+            // Accept it only when it agrees with the materialized call order.
+            if call.get("index").is_some_and(|value| value.as_u64() != Some(index as u64)) {
+                return Err(StatusCode::BAD_GATEWAY);
+            }
             object_keys(&call["function"], &["name", "arguments"])?;
             if call["type"] != "function" {
                 return Err(UNSUPPORTED);

@@ -68,7 +68,11 @@ impl Decoder {
                 return Err(StatusCode::BAD_GATEWAY);
             }
             let d = &c["delta"];
-            super::messages::object_keys(d, &["role", "content", "tool_calls", "refusal"])?;
+            super::messages::object_keys(
+                d,
+                &["role", "content", "tool_calls", "refusal", "reasoning_content"],
+            )?;
+            super::messages::validate_chat_reasoning(d)?;
             if !d["refusal"].is_null() {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
             }

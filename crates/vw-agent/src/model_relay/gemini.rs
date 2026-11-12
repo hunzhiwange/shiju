@@ -4,6 +4,18 @@ use axum::{body::Body, http::StatusCode, response::Response};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 const UNSUPPORTED: StatusCode = StatusCode::UNPROCESSABLE_ENTITY;
+
+/// Only an explicit integer zero with no requested thoughts means disabled.
+/// Unknown fields, automatic budgets and signatures retain their native boundary.
+pub(super) fn thinking_disabled(body: &Value) -> bool {
+    let Some(config) = body.pointer("/generationConfig/thinkingConfig").and_then(Value::as_object)
+    else {
+        return false;
+    };
+    config.keys().all(|key| matches!(key.as_str(), "thinkingBudget" | "includeThoughts"))
+        && config.get("thinkingBudget").and_then(Value::as_i64) == Some(0)
+        && config.get("includeThoughts").is_none_or(|value| value == false)
+}
 fn string<'a>(v: &'a Value, key: &str) -> Result<&'a str, StatusCode> {
     v[key].as_str().filter(|s| !s.is_empty()).ok_or(StatusCode::BAD_REQUEST)
 }
@@ -158,8 +170,14 @@ pub(super) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
                 "responseMimeType",
                 "responseSchema",
                 "responseJsonSchema",
+                "thinkingConfig",
             ],
         )?;
+        if config.get("thinkingConfig").is_some_and(|value| !value.is_null())
+            && !thinking_disabled(body)
+        {
+            return Err(UNSUPPORTED);
+        }
         if config.get("candidateCount").is_some_and(|v| v != 1) {
             return Err(UNSUPPORTED);
         }
@@ -255,7 +273,8 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
         body["choices"].as_array().filter(|v| v.len() == 1).ok_or(StatusCode::BAD_GATEWAY)?;
     let choice = &choices[0];
     let message = &choice["message"];
-    object_keys(message, &["role", "content", "tool_calls", "refusal"])?;
+    object_keys(message, &["role", "content", "tool_calls", "refusal", "reasoning_content"])?;
+    super::messages::validate_chat_reasoning(message)?;
     if !message["refusal"].is_null() {
         return Err(UNSUPPORTED);
     }
@@ -269,8 +288,13 @@ pub(super) fn from_chat(body: &Value, model: &str) -> Result<Value, StatusCode> 
     }
     if let Some(calls) = message.get("tool_calls") {
         let mut ids = std::collections::BTreeSet::new();
-        for call in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)? {
-            object_keys(call, &["id", "type", "function"])?;
+        for (index, call) in calls.as_array().ok_or(StatusCode::BAD_GATEWAY)?.iter().enumerate() {
+            object_keys(call, &["id", "type", "function", "index"])?;
+            // Some compatible providers retain the stream position in full replies.
+            // Accept it only when it agrees with the materialized call order.
+            if call.get("index").is_some_and(|value| value.as_u64() != Some(index as u64)) {
+                return Err(StatusCode::BAD_GATEWAY);
+            }
             object_keys(&call["function"], &["name", "arguments"])?;
             if call["type"] != "function" {
                 return Err(UNSUPPORTED);

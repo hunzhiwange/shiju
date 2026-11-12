@@ -276,10 +276,12 @@ fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
     }];
     let runtime = app.get_session_runtime_mut("verified");
     runtime.acp_agent = Some("codex".into());
+    runtime.acp_source_request_id = Some(0);
     let _ = crate::app::message::chat::update(
         &mut app,
         crate::app::message::ChatMessage::AcpSourceLoaded {
             session_id: "verified".into(),
+            request_id: 0,
             agent: "codex".into(),
             result: Ok(vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {
                 connected: false,

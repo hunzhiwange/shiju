@@ -322,6 +322,7 @@ pub enum ChatMessage {
     AcpSourceRefresh,
     AcpSourceLoaded {
         session_id: String,
+        request_id: u64,
         agent: String,
         result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
     },

@@ -71,7 +71,7 @@ impl App {
 
     pub(crate) fn restore_session_full_access(&mut self, session_id: &str, full_access: bool) {
         let runtime = self.get_session_runtime_mut(session_id);
-        if !runtime.full_access_overridden {
+        if !runtime.full_access_overridden && !runtime.fork_agent_selected {
             runtime.full_access_enabled = full_access;
             runtime.full_access_initialized = true;
         }
@@ -226,13 +226,24 @@ impl App {
 
     pub(crate) fn current_session_has_started(&self) -> bool {
         let runtime = self.current_session_runtime_ref();
-        (self.active_session_id.is_some() && runtime.is_none_or(|runtime| runtime.draft.is_none()))
-            || !self.chat.is_empty()
-            || runtime.is_some_and(|runtime| {
-                runtime.is_requesting
-                    || runtime.active_agent_request.is_some()
-                    || !runtime.queue.is_empty()
-            })
+        // Capability refreshes carry IDs and can be discarded on agent changes.
+        // Other option reads retain the lock even after their modal closes.
+        let busy = runtime.is_some_and(|runtime| {
+            runtime.is_requesting
+                || runtime.active_agent_request.is_some()
+                || !runtime.queue.is_empty()
+                || (runtime.acp_options_pending && runtime.acp_source_request_id.is_none())
+                || runtime.acp_source_pending.is_some()
+                || runtime.fork_request_submitted
+        });
+        busy || match runtime.and_then(|runtime| runtime.fork_execution_started) {
+            Some(started) => started,
+            None => {
+                (self.active_session_id.is_some()
+                    && runtime.is_none_or(|runtime| runtime.draft.is_none()))
+                    || !self.chat.is_empty()
+            }
+        }
     }
 
     /// 执行 mark_session_viewed 对应的领域操作。

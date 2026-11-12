@@ -1508,3 +1508,113 @@ fn bounded_session_open_and_prepend_keep_save_sequence_base() {
     assert_eq!(app.chat.len(), 4);
     assert_eq!(app.session_runtime_states["paged"].stream_save_seq_base, 98);
 }
+
+#[test]
+fn fork_selection_reopen_projects_authoritative_state_for_both_directories() {
+    for directory in ["/repo", "/repo-worktree"] {
+        for started in [false, true] {
+            let mut app = app();
+            app.project_path = Some("/repo".into());
+            let mut info = session_info("fork", 0, 0);
+            info.directory = directory.into();
+            info.fork_execution_started = Some(started);
+            let _ = super::open_project_session(
+                &mut app,
+                "/repo".into(),
+                "fork".into(),
+                Some(info),
+                None,
+            );
+            assert_eq!(app.current_session_has_started(), started);
+            assert_eq!(app.known_session_directory("fork").as_deref(), Some(directory));
+        }
+    }
+}
+
+#[test]
+fn fork_selection_reopen_late_inherited_binding_keeps_explicit_native_selection() {
+    let mut app = app();
+    app.last_llm_full_access = Some(false);
+    app.active_session_id = Some("fork".into());
+    app.current_session_runtime_mut().fork_execution_started = Some(false);
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        crate::app::message::ChatMessage::SessionAgentSelected(None),
+    );
+    let mut prepared = crate::app::session::prepare_session_open_from_ui_store(
+        ui_store_session("fork", vec![Some("inherited".into())]),
+        false,
+    );
+    prepared.full_access = Some(true);
+    prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {
+        agent: "acp-claude".into(),
+        acp_agent: Some("claude".into()),
+        label: Some("Inherited Claude".into()),
+    });
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::SessionOpenPrepared {
+            target_session_id: "fork".into(),
+            project_path: "/repo".into(),
+            open_generation: 0,
+            source: crate::app::message::project::PreparedSessionOpenSource::UiStore,
+            result: Ok(prepared),
+        },
+    );
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+    assert_eq!(app.current_session_runtime().agent, None);
+    assert!(!app.current_session_full_access());
+}
+
+#[test]
+fn fork_selection_reopen_new_drafts_do_not_inherit_fork_authority() {
+    let mut app = app();
+    app.project_path = Some("/repo".into());
+    app.active_session_id = Some("fork".into());
+    app.current_session_runtime_mut().fork_execution_started = Some(false);
+    app.current_session_runtime_mut().fork_request_submitted = true;
+    app.current_session_runtime_mut().fork_agent_selected = true;
+    let _ = app.switch_work_space_preserving_chat("/other".into());
+    assert_eq!(app.current_session_runtime().fork_execution_started, None);
+    assert!(!app.current_session_runtime().fork_request_submitted);
+    assert!(!app.current_session_runtime().fork_agent_selected);
+    let _ = super::open_session_draft(&mut app, "/repo".into(), "/repo".into());
+    assert_eq!(app.current_session_runtime().fork_execution_started, None);
+    assert!(!app.current_session_has_started());
+}
+
+#[test]
+fn fork_selection_reopen_hot_cache_uses_fresh_authority() {
+    let mut app = app();
+    app.project_path = Some("/repo".into());
+    let mut info = session_info("fork", 0, 0);
+    info.directory = "/repo".into();
+    info.fork_execution_started = Some(false);
+    let _ = super::open_project_session(
+        &mut app,
+        "/repo".into(),
+        "fork".into(),
+        Some(info.clone()),
+        None,
+    );
+    app.chat = vec![chat_message("继承历史")];
+    app.chat_message_ids = vec![Some("inherited".into())];
+    app.active_session_view_state.ui_preparing = false;
+    app.active_session_view_state.base_ready = true;
+    // A rejected local submission must not defeat a fresh unstarted server state.
+    app.current_session_runtime_mut().fork_request_submitted = true;
+    let _ = super::open_project_session(
+        &mut app,
+        "/repo".into(),
+        "fork".into(),
+        Some(info.clone()),
+        None,
+    );
+    assert_eq!(app.chat[0].content, "继承历史");
+    assert!(!app.current_session_has_started());
+    // A cached unstarted view must not unlock a fork started by another client.
+    info.fork_execution_started = Some(true);
+    let _ = super::open_project_session(&mut app, "/repo".into(), "fork".into(), Some(info), None);
+    assert_eq!(app.chat[0].content, "继承历史");
+    assert!(app.current_session_has_started());
+}

@@ -1719,7 +1719,7 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
 
 #[test]
 fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
-    let (mut app, _) = crate::app::App::new();
+    let mut app = test_app();
     app.project_path = Some("/tmp/unified-agent-fixture".into());
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",

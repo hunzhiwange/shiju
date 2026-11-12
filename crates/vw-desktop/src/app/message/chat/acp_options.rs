@@ -3,6 +3,11 @@ use super::ChatMessage;
 use crate::app::{App, Message};
 use iced::Task;
 
+fn next_source_request_id() -> u64 {
+    static NEXT_REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT_REQUEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
 pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::AcpModelInputDraftChanged(value) => {
@@ -29,9 +34,17 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             {
                 return Task::none();
             }
+            let request_id = next_source_request_id();
+            runtime.acp_source_request_id = Some(request_id);
             runtime.acp_options_pending = true;
-            let draft_options = (session_id == "__empty__" || runtime.draft.is_some())
-                .then(|| runtime.acp_options.clone());
+            // A newly selected fork agent has no binding of its own yet. Reading the
+            // inherited binding here would advertise the previous agent's capabilities.
+            let draft_options = (session_id == "__empty__"
+                || runtime.draft.is_some()
+                || (runtime.fork_agent_selected
+                    && !runtime.fork_request_submitted
+                    && runtime.fork_execution_started == Some(false)))
+            .then(|| runtime.acp_options.clone());
             Task::perform(
                 async move {
                     let result = async {
@@ -57,19 +70,23 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                         Ok(options)
                     }
                     .await;
-                    ChatMessage::AcpSourceLoaded { session_id, agent, result }
+                    ChatMessage::AcpSourceLoaded { session_id, request_id, agent, result }
                 },
                 Message::Chat,
             )
         }
-        ChatMessage::AcpSourceLoaded { session_id, agent, result } => {
+        ChatMessage::AcpSourceLoaded { session_id, request_id, agent, result } => {
             let Some(runtime) = app.session_runtime_states.get_mut(&session_id) else {
                 return Task::none();
             };
-            if runtime.acp_agent.as_deref() != Some(&agent) {
+            if runtime.acp_agent.as_deref() != Some(&agent)
+                || runtime.acp_source_request_id != Some(request_id)
+                || runtime.acp_source_pending.is_some()
+            {
                 return Task::none();
             }
             runtime.acp_options_pending = false;
+            runtime.acp_source_request_id = None;
             match result {
                 Ok(options) => {
                     if runtime.acp_source_pending.is_none() && !runtime.is_requesting {
@@ -146,11 +163,14 @@ pub(super) fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     runtime.acp_model_input_draft = None;
                     runtime.acp_rebuild_required = true;
                     runtime.restore_model_from_history = false;
+                    let unstarted_fork = runtime.fork_execution_started == Some(false);
                     app.sync_active_session_preferences();
                     if boundary && active {
-                        app.show_info_toast(
-                            "模型来源已保存；下一轮创建新的 ACP 会话，不继承原生会话上下文",
-                        )
+                        app.show_info_toast(if unstarted_fork {
+                            "模型来源已保存；首次发送将保留分叉历史"
+                        } else {
+                            "模型来源已保存；下一轮创建新的 ACP 会话，不继承原生会话上下文"
+                        })
                     } else {
                         Task::none()
                     }
@@ -266,8 +286,7 @@ pub(super) fn select_source(
     let session_id = app.active_session_id.clone().unwrap_or_else(|| "__empty__".into());
     let directory = super::stream::session_directory_for_save(app, &session_id);
     let project_path = app.project_path.clone();
-    static NEXT_REQUEST: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
-    let request_id = NEXT_REQUEST.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let request_id = next_source_request_id();
     let runtime = app.get_session_runtime_mut(&session_id);
     let Some(agent) = runtime.acp_agent.clone() else {
         return Task::none();

@@ -101,7 +101,9 @@ fn request_delegate_agent(selected: Option<String>) -> Option<String> {
 }
 
 fn base_tools_for_selection(app: &mut App) -> Vec<String> {
-    if !app.current_session_has_started() {
+    if !app.current_session_has_started()
+        && !app.current_session_runtime_ref().is_some_and(|runtime| runtime.fork_agent_selected)
+    {
         app.current_session_runtime_mut().agent = None;
     }
     app.session_tool_inventory(&app.current_session_runtime()).base_tools
@@ -887,6 +889,13 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
 }
 
 fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
+    // Installation checks can finish after a source save has started.
+    if app
+        .current_session_runtime_ref()
+        .is_some_and(|runtime| runtime.acp_source_pending.is_some() || runtime.acp_options_pending)
+    {
+        return app.show_error_toast("模型来源正在保存，请稍后发送");
+    }
     if app.active_session_id.is_some()
         && app.current_session_runtime().draft.is_none()
         && app.active_session_view_state.ui_preparing
@@ -1313,6 +1322,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.agent = normalized_agent;
                 runtime.agent_label = agent_label;
                 runtime.acp_agent = acp_agent.clone();
+                if runtime.fork_execution_started == Some(false) {
+                    runtime.fork_agent_selected = true;
+                    runtime.restore_model_from_history = false;
+                }
+                runtime.acp_model_input_draft = None;
+                runtime.acp_source_pending = None;
+                runtime.acp_source_request_id = None;
+                runtime.acp_options_open = false;
+                runtime.last_effective_acp_agent = None;
+                runtime.acp_rebuild_required = acp_agent.is_some();
                 runtime.acp_options = Default::default();
                 runtime.acp_options_pending = false;
                 runtime.acp_model_source = Default::default();
@@ -1980,6 +1999,9 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             );
         }
         let mut runtime = app.current_session_runtime();
+        runtime.fork_execution_started = None;
+        runtime.fork_request_submitted = false;
+        runtime.fork_agent_selected = false;
         let directory = runtime
             .draft
             .as_ref()
@@ -2079,6 +2101,7 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
     if let Some(session_id) = app.active_session_id.clone() {
         let runtime = app.get_session_runtime_mut(&session_id);
         runtime.is_requesting = true;
+        runtime.fork_request_submitted = runtime.fork_execution_started.is_some();
         runtime.request_started_ms = request_started_ms;
         runtime.processing_timer.reset();
         runtime.processing_timer.start_at(web_time::Instant::now());

@@ -2413,3 +2413,220 @@ fn queue_guide_preserves_draft_history_across_repeated_handoffs() {
     assert_eq!(app.chat[2].content, "first guidance");
     assert_eq!(app.chat[4].content, "second guidance");
 }
+
+#[test]
+fn fork_selection_ui_switches_engines_preserving_history_and_input() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    app.project_path = Some("/repo".into());
+    app.chat = vec![
+        chat_message(crate::app::models::ChatRole::User, "继承问题"),
+        chat_message(crate::app::models::ChatRole::Assistant, "继承回答"),
+    ];
+    app.files = vec!["/repo/file.txt".into()];
+    app.current_session_runtime_mut().fork_execution_started = Some(false);
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("分叉输入");
+    for backend in ["claude", "codex"] {
+        app.agents_settings.entries.push(
+            crate::app::state::DelegateAgentSettingsEntry::from_config(
+                &format!("acp-{backend}"),
+                Some(vw_config_types::agent::AgentDefinitionConfig {
+                    runtime: vw_config_types::agent::AgentRuntime::Acp { backend: backend.into() },
+                    ..Default::default()
+                }),
+            ),
+        );
+        let _ = super::update(
+            &mut app,
+            super::ChatMessage::SessionAgentSelected(Some(format!("acp-{backend}"))),
+        );
+        assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some(backend));
+        let request_id = app.current_session_runtime().acp_source_request_id.unwrap();
+        let _ = crate::app::message::chat::update(
+            &mut app,
+            super::ChatMessage::AcpSourceLoaded {
+                session_id: "fork".into(),
+                request_id,
+                agent: backend.into(),
+                result: Ok(Default::default()),
+            },
+        );
+        let _ = super::update(&mut app, super::ChatMessage::SessionToolSelectorReset);
+        assert_eq!(
+            app.current_session_runtime().agent.as_deref(),
+            Some(format!("acp-{backend}").as_str())
+        );
+    }
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+    assert_eq!(app.chat.len(), 2);
+    assert_eq!(app.current_session_runtime().input_editor.text(), "分叉输入");
+    assert_eq!(app.files, ["/repo/file.txt"]);
+    assert_eq!(app.project_path.as_deref(), Some("/repo"));
+    app.current_session_runtime_mut().fork_execution_started = Some(true);
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::SessionAgentSelected(Some("acp-claude".into())),
+    );
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+}
+
+#[test]
+fn fork_selection_ui_first_send_uses_latest_agent_source_and_history() {
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    app.project_path = Some("/repo".into());
+    app.sessions = vec![session_info("fork", "fork", "/repo")];
+    app.chat = vec![
+        chat_message(crate::app::models::ChatRole::User, "继承问题"),
+        chat_message(crate::app::models::ChatRole::Assistant, "继承回答"),
+    ];
+    let runtime = app.current_session_runtime_mut();
+    runtime.fork_execution_started = Some(false);
+    runtime.agent = Some("acp-codex".into());
+    runtime.acp_agent = Some("codex".into());
+    runtime.acp_model_source = AcpModelSource::CliLocal;
+    runtime.input_editor = iced::widget::text_editor::Content::with_text("新问题");
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentInstallationChecked {
+            session_id: Some("fork".into()),
+            agent: Some("acp-codex".into()),
+            backend: "codex".into(),
+            query: Some("新问题".into()),
+            result: Ok(std::collections::BTreeMap::from([("codex".into(), true)])),
+        },
+    );
+    let request = app.current_session_runtime().active_agent_request.unwrap();
+    assert_eq!(request.agent.as_deref(), Some("acp-codex"));
+    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+    assert_eq!(request.acp_model_source, AcpModelSource::CliLocal);
+    assert_eq!(request.model, None);
+    assert_eq!(request.history.len(), 2);
+    assert_eq!(request.history[0].content, "继承问题");
+    assert_eq!(request.query, "新问题");
+    let _ = super::update(&mut app, super::ChatMessage::CancelPressed);
+    assert!(app.current_session_has_started());
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
+    assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("codex"));
+}
+
+#[test]
+fn fork_selection_ui_source_save_pending_blocks_send_and_started_changes() {
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    app.current_session_runtime_mut().fork_execution_started = Some(false);
+    app.current_session_runtime_mut().acp_agent = Some("claude".into());
+    app.current_session_runtime_mut().input_editor =
+        iced::widget::text_editor::Content::with_text("保留输入");
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal),
+    );
+    assert!(app.current_session_runtime().acp_source_pending.is_some());
+    let _ = super::update(&mut app, super::ChatMessage::SendPressed);
+    assert!(app.current_session_runtime().active_agent_request.is_none());
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AgentInstallationChecked {
+            session_id: Some("fork".into()),
+            agent: None,
+            backend: "claude".into(),
+            query: Some("保留输入".into()),
+            result: Ok(std::collections::BTreeMap::from([("claude".into(), true)])),
+        },
+    );
+    assert!(app.current_session_runtime().active_agent_request.is_none());
+    assert_eq!(app.current_session_runtime().input_editor.text(), "保留输入");
+    app.current_session_runtime_mut().acp_source_pending = None;
+    app.current_session_runtime_mut().fork_execution_started = Some(true);
+    let _ = super::update(
+        &mut app,
+        super::ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal),
+    );
+    assert!(app.current_session_runtime().acp_source_pending.is_none());
+}
+
+#[test]
+fn fork_selection_ui_discards_previous_agent_source_result() {
+    use vw_gateway_client::vw_api_types::{
+        acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
+    };
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.fork_execution_started = Some(false);
+    runtime.acp_agent = Some("codex".into());
+    runtime.acp_options_pending = true;
+    runtime.acp_source_request_id = Some(2);
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        super::ChatMessage::AcpSourceLoaded {
+            session_id: "fork".into(),
+            request_id: 1,
+            agent: "claude".into(),
+            result: Ok(AcpSessionOptions {
+                acp_model_source: AcpModelSource::CliLocal,
+                ..Default::default()
+            }),
+        },
+    );
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+    assert!(app.current_session_runtime().acp_options_pending);
+}
+
+#[test]
+fn fork_selection_ui_ignores_stale_source_after_returning_to_same_agent() {
+    use vw_gateway_client::vw_api_types::{
+        acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
+    };
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.fork_execution_started = Some(false);
+    runtime.acp_agent = Some("claude".into());
+    runtime.acp_options_pending = true;
+    runtime.acp_source_request_id = Some(2);
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        super::ChatMessage::AcpSourceLoaded {
+            session_id: "fork".into(),
+            request_id: 1,
+            agent: "claude".into(),
+            result: Ok(AcpSessionOptions {
+                acp_model_source: AcpModelSource::CliLocal,
+                ..Default::default()
+            }),
+        },
+    );
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+    assert_eq!(app.current_session_runtime().acp_source_request_id, Some(2));
+    assert!(app.current_session_runtime().acp_options_pending);
+}
+
+#[test]
+fn fork_selection_ui_closed_modal_waits_for_owned_options_read() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("fork".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.fork_execution_started = Some(false);
+    runtime.acp_agent = Some("claude".into());
+    let _ = crate::app::message::chat::update(&mut app, super::ChatMessage::AcpOptionsOpen);
+    assert!(app.current_session_runtime().acp_options_pending);
+    let _ = crate::app::message::chat::update(&mut app, super::ChatMessage::AcpOptionsClose);
+    assert!(!app.current_session_runtime().acp_options_open);
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
+    assert_eq!(app.current_session_runtime().acp_agent.as_deref(), Some("claude"));
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        super::ChatMessage::AcpOptionsLoaded {
+            session_id: "fork".into(),
+            result: Ok(Default::default()),
+        },
+    );
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(None));
+    assert_eq!(app.current_session_runtime().acp_agent, None);
+}

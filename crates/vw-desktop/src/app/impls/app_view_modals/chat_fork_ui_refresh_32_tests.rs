@@ -431,6 +431,11 @@ async fn serve_fork_gateway(
             ("POST", "/v1/session/source/fork") => {
                 ("200 OK", serde_json::to_value(session_info(branch_id, branch_directory)).unwrap())
             }
+            ("GET", route) if route == format!("/v1/session/{branch_id}") => {
+                let mut info = session_info(branch_id, branch_directory);
+                info.fork_execution_started = Some(false);
+                ("200 OK", serde_json::to_value(info).unwrap())
+            }
             ("GET", "/v1/projects/project-fixture") => (
                 "200 OK",
                 json!({"project": {
@@ -1188,4 +1193,48 @@ async fn todo_continuation_status_draws_centered_in_both_themes() {
             assert!(pixels.chunks_exact(4).any(|pixel| pixel != &pixels[..4]));
         }
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn fork_selection_reopen_gateway_reads_worktree_authority() {
+    use crate::app::message::project;
+    if !isolated("fork_selection_reopen_gateway_reads_worktree_authority") {
+        return;
+    }
+    let mut app = fixture();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let config = GatewayClientSystemSettingsConfig {
+        host: "127.0.0.1".into(),
+        port: listener.local_addr().unwrap().port(),
+        servers: Vec::new(),
+        ..Default::default()
+    };
+    std::fs::write("gateway-client-bootstrap.json", serde_json::to_vec(&config).unwrap()).unwrap();
+    let (tx, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let server =
+        tokio::spawn(serve_fork_gateway(listener, "reopen", "/fixture/worktree", false, tx));
+    app.project_path = Some("/fixture/source".into());
+    app.active_session_id = Some("source".into());
+    let mut cached = session_info("reopen", "/fixture/worktree");
+    cached.fork_execution_started = Some(false);
+    app.sessions = vec![cached];
+    app.get_session_runtime_mut("reopen").input_editor =
+        iced::widget::text_editor::Content::with_text("未发送草稿");
+    let task = project::update(
+        &mut app,
+        ProjectMessage::OpenProjectSessionPressed("/fixture/source".into(), "reopen".into()),
+    );
+    let resolved = next_output(task, |message| {
+        matches!(message, Message::Project(ProjectMessage::SessionNavigationResolved { .. }))
+    })
+    .await;
+    let request = requests.try_recv().unwrap();
+    assert_eq!(request.method, "GET");
+    assert_eq!(request.path, "/v1/session/reopen?directory=/fixture/worktree");
+    let Message::Project(resolved) = resolved else { unreachable!() };
+    let _ = project::update(&mut app, resolved);
+    assert_eq!(app.active_session_id.as_deref(), Some("reopen"));
+    assert!(!app.current_session_has_started());
+    assert_eq!(app.current_session_runtime().input_editor.text(), "未发送草稿");
+    server.abort();
 }

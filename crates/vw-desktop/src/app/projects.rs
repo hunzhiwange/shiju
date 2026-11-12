@@ -532,6 +532,9 @@ impl App {
 
         let task = self.open_project_and_index(path);
 
+        carried_runtime.fork_execution_started = None;
+        carried_runtime.fork_request_submitted = false;
+        carried_runtime.fork_agent_selected = false;
         carried_runtime.is_requesting = false;
         carried_runtime.request_started_ms = 0;
         carried_runtime.submit_anim = 0;

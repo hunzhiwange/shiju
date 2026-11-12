@@ -55,6 +55,9 @@ pub(crate) fn open_session_draft(
     app.reset_draft_full_access();
     let runtime = app.current_session_runtime_mut();
     runtime.input_editor = iced::widget::text_editor::Content::new();
+    runtime.fork_execution_started = None;
+    runtime.fork_request_submitted = false;
+    runtime.fork_agent_selected = false;
     runtime.acp_source_pending = None;
     runtime.acp_source_request_id = None;
     runtime.draft = Some(crate::app::state::SessionDraft {
@@ -88,6 +91,7 @@ pub(crate) fn open_project_session(
     } else {
         app.open_project(project_path.clone())
     };
+    let execution_state = info.as_ref().map(|info| info.fork_execution_started);
     let directory = if let Some(info) = info {
         let directory = info.directory.clone();
         super::lifecycle::cache_project_session(app, project_path, info);
@@ -97,6 +101,16 @@ pub(crate) fn open_project_session(
     };
 
     app.prepare_historical_session_model(&id);
+    if let Some(started) = execution_state {
+        let runtime = app.get_session_runtime_mut(&id);
+        runtime.fork_execution_started = started;
+        if started != Some(false) {
+            runtime.fork_agent_selected = false;
+        }
+        if !runtime.is_requesting && runtime.active_agent_request.is_none() {
+            runtime.fork_request_submitted = false;
+        }
+    }
     app.chat_fork_dialog = None;
     app.active_session_id = Some(id.clone());
     let open_generation = app.session_view_cache.begin_open(&id);
@@ -208,7 +222,8 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
         if !info.is_user_navigable() {
             return iced::Task::none();
         }
-        if !info.directory.trim().is_empty() {
+        // A fork may have started in another client since the list was cached.
+        if !info.directory.trim().is_empty() && info.fork_execution_started.is_none() {
             let project_path = app
                 .project_path
                 .as_ref()
@@ -244,10 +259,16 @@ fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::
     iced::Task::perform(
         async move {
             let client = crate::app::gateway_client().ok()?;
-            let directory = (!path.trim().is_empty()).then_some(path.as_str());
-            let info = match cached.filter(|info| !info.directory.trim().is_empty()) {
+            let directory = cached
+                .as_ref()
+                .map(|info| info.directory.clone())
+                .filter(|directory| !directory.trim().is_empty())
+                .or_else(|| (!path.trim().is_empty()).then_some(path));
+            let info = match cached.filter(|info| {
+                !info.directory.trim().is_empty() && info.fork_execution_started.is_none()
+            }) {
                 Some(info) => info,
-                None => client.session_get::<Info>(&id, directory).await.ok()?,
+                None => client.session_get::<Info>(&id, directory.as_deref()).await.ok()?,
             };
             if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() {
                 return None;

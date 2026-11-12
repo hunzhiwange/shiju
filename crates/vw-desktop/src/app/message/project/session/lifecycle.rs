@@ -1202,10 +1202,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             if let Some(binding) = prepared.agent_binding.as_ref() {
                 let runtime = app.get_session_runtime_mut(&target_session_id);
-                runtime.agent = (binding.agent != crate::app::state::MAIN_AGENT_KEY)
-                    .then(|| binding.agent.clone());
-                runtime.acp_agent = binding.acp_agent.clone();
-                runtime.agent_label = binding.label.clone();
+                if !runtime.fork_agent_selected {
+                    runtime.agent = (binding.agent != crate::app::state::MAIN_AGENT_KEY)
+                        .then(|| binding.agent.clone());
+                    runtime.acp_agent = binding.acp_agent.clone();
+                    runtime.agent_label = binding.label.clone();
+                }
             }
             if let Some(full_access) = prepared.full_access {
                 app.restore_session_full_access(&target_session_id, full_access);

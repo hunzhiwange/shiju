@@ -389,6 +389,12 @@ fn current_session_started_covers_chat_active_request_and_queue() {
     app.active_session_id = Some("active".to_string());
     app.session_runtime_states.clear();
 
+    assert!(app.current_session_has_started());
+    app.current_session_runtime_mut().draft = Some(crate::app::state::SessionDraft {
+        project_path: "/repo".into(),
+        directory: "/repo".into(),
+        history_len: 0,
+    });
     assert!(!app.current_session_has_started());
 
     app.chat.push(crate::app::models::ChatMessage {
@@ -758,10 +764,12 @@ fn acp_model_source_ui_unsupported_cli_uses_native_and_rejects_client_switch() {
     };
     let (mut app, _) = crate::app::App::new();
     app.current_session_runtime_mut().acp_agent = Some("cursor".into());
+    app.current_session_runtime_mut().acp_source_request_id = Some(0);
     let _ = chat::update(
         &mut app,
         ChatMessage::AcpSourceLoaded {
             session_id: "__empty__".into(),
+            request_id: 0,
             agent: "cursor".into(),
             result: Ok(AcpSessionOptions {
                 acp_model_source: AcpModelSource::CliLocal,
@@ -938,4 +946,32 @@ fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
     assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
     assert!(app.current_session_runtime().acp_source_pending.is_none());
     assert!(app.active_session_id.is_none());
+}
+
+#[test]
+fn fork_selection_runtime_inherited_history_does_not_start_fork() {
+    let mut app = test_app();
+    app.active_session_id = Some("fork".into());
+    app.chat = (0..6)
+        .map(|index| crate::app::models::ChatMessage {
+            role: if index % 2 == 0 {
+                crate::app::models::ChatRole::User
+            } else {
+                crate::app::models::ChatRole::Assistant
+            },
+            content: format!("继承历史 {index}"),
+            model: None,
+            think_timing: vec![],
+            processing_timing: None,
+        })
+        .collect();
+    app.current_session_runtime_mut().fork_execution_started = Some(false);
+    assert!(!app.current_session_has_started());
+    app.current_session_runtime_mut().is_requesting = true;
+    assert!(app.current_session_has_started());
+    app.current_session_runtime_mut().is_requesting = false;
+    app.current_session_runtime_mut().fork_execution_started = Some(true);
+    assert!(app.current_session_has_started());
+    app.current_session_runtime_mut().fork_execution_started = None;
+    assert!(app.current_session_has_started());
 }

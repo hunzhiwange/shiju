@@ -4,14 +4,18 @@ import argparse
 import collections
 import hashlib
 import json
+from urllib.parse import urlsplit
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS = ROOT / 'docs/dev/model-protocols/research'
 ASSET = ROOT / 'crates/vw-provider-resolver/assets/model/protocols.json'
-# SDK defaults verified by the reports; project/region/local-runtime SDKs stay unset.
+# Reviewed public transport roots; raw SDK identities stay unchanged.
+# Project/region/local-runtime entries without a resolved contract stay unset.
 DEFAULTS = {
     'anthropic': 'https://api.anthropic.com/v1',
+    'cohere': 'https://api.cohere.ai/compatibility/v1',
+    'vercel': 'https://ai-gateway.vercel.sh/v1',
     'cerebras': 'https://api.cerebras.ai/v1',
     'deepinfra': 'https://api.deepinfra.com/v1/openai',
     'google': 'https://generativelanguage.googleapis.com/v1beta',
@@ -42,7 +46,9 @@ def authentication(provider, protocol, text):
 
 def operation(protocol, url):
     # Exclude dedicated SDK endpoints even when the report names their surface "chat".
-    return url.startswith('https://') and (
+    parsed = urlsplit(url)
+    secure_or_local = parsed.scheme == 'https' or (parsed.scheme == 'http' and parsed.hostname in {'localhost', '127.0.0.1', '::1'})
+    return secure_or_local and not parsed.username and not parsed.password and (
         (protocol == 'chat' and url.endswith('/chat/completions'))
         or (protocol == 'messages' and url.endswith('/messages'))
         or (protocol == 'responses' and url.endswith('/responses'))
@@ -58,9 +64,11 @@ def build():
     reviews = {}
     grouped = {}
     excluded = collections.Counter()
+    checked_dates = []
     for number in range(1, 7):
         path = REPORTS / f'group-{number:02}.json'
         report = json.loads(path.read_text())
+        checked_dates.extend(item['checked_at'] for item in report['evidence'])
         for source, expected in report['source_hashes'].items():
             if hashlib.sha256((ROOT / source).read_bytes()).hexdigest() != expected:
                 raise ValueError(f'research source drift: {source}')
@@ -102,7 +110,7 @@ def build():
                 refs = [{
                     'kind': 'official', 'source': evidence[ref]['url'],
                     'reference': f'{path.relative_to(ROOT)}#records/{row["model_key"]};evidence/{ref}',
-                    'checked_at': report['checked_at'],
+                    'checked_at': evidence[ref]['checked_at'],
                 } for ref in row['evidence_ids'] if ref in evidence]
                 if not refs:
                     raise ValueError(f'missing evidence: {provider_id}/{row["model_key"]}')
@@ -127,7 +135,7 @@ def build():
     for provider_id, base in DEFAULTS.items():
         providers.setdefault(provider_id, {'default_api': base, 'deployments': {}})
     return {
-        'schema_version': 1, 'checked_at': '2026-11-11',
+        'schema_version': 1, 'checked_at': max(checked_dates),
         'policy': 'Only officially confirmed exact-model rows with an unambiguous HTTP operation and auth header are published. Missing candidates are unknown. Source api.json remains unchanged.',
         'providers': providers,
         'sdk_default_reviews': dict(sorted(reviews.items())),

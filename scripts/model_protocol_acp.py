@@ -275,7 +275,7 @@ def turn(binary, entry, account, root, thinking_mode="request_default", upstream
                               'defaults': {'skills': {'mode': 'fixed', 'value': []},
                                            'mcp': {'mode': 'fixed', 'value': []}}}},
                   'acp': {backend: spec}, 'providers': {account['provider_id']: {'name': 'Private ACP audit',
-                      'api': endpoint, 'adapter': 'anthropic' if upstream_protocol == 'messages' else 'openai-compatible', 'env': ['ACP_PROTOCOL_AUDIT_KEY'],
+                      'api': endpoint, 'adapter': 'anthropic' if upstream_protocol == 'messages' and backend == 'claude' else 'openai-compatible', 'env': ['ACP_PROTOCOL_AUDIT_KEY'],
                       'models': {account['model_api_id']: model}}}}
         with gateway(str(binary), root, env) as base:
             request(base, '/global/config', config, method='PATCH')
@@ -345,6 +345,9 @@ def turn(binary, entry, account, root, thinking_mode="request_default", upstream
         if evidence['errors']:
             from verify_acp_approval import stream_failure_categories
             evidence['failure_categories'] = stream_failure_categories(stream)
+            if (thinking_mode == 'explicit_none' and not requests
+                    and 'session/set_config_option' in stream and 'Invalid params' in stream):
+                evidence['failure_categories'].append('explicit_none_control_rejected')
             if 'Unsupported Messages capability' in stream:
                 evidence['failure_categories'].append('unsupported_messages_capability')
                 evidence['relay_http_status'] = 422
@@ -393,6 +396,16 @@ def acceptance_summary(rows):
             'all_probes_passed': len(passed) == len(rows)}
 
 
+def working_account_bindings(observations):
+    # A rejected conversion mode must not discard a verified native account and
+    # accidentally prefer a lexically earlier model whose entitlement was denied.
+    return {(o['provider_id'], o['model_api_id']) for o in observations
+            if o['status'] == 'bounded_modes_passed' or any(
+                a.get('kind') == 'model' and a.get('source_protocol') == 'chat'
+                and a.get('upstream_protocol') == 'chat' and a.get('status') == 'passed'
+                for a in o.get('attempts', []))}
+
+
 def run_acp(args):
     from datetime import datetime, timezone
     from verify_model_protocol_routes import ROOT, configured_accounts, exclusive, ensure_public, summarize
@@ -418,7 +431,7 @@ def run_acp(args):
     entries = {entry['key']: entry for entry in manifest['entries']}
     # Prefer an already observed working account; never try alternative endpoints.
     prior = json.loads((ROOT / 'docs/dev/model-protocols/service-matrix.json').read_text())
-    working = {(o['provider_id'], o['model_api_id']) for o in prior['observations'] if o['status'] == 'bounded_modes_passed'}
+    working = working_account_bindings(prior['observations'])
     observations = []
     with exclusive(ROOT / 'target/model-protocol-acp.lock'):
         for provider in ('alibaba-token-plan-cn', 'deepseek', 'shiju'):
@@ -434,6 +447,11 @@ def run_acp(args):
                 if backend == 'claude':
                     variants.append(('chat', 'explicit_none'))
                     if native_messages_endpoint(account): variants.insert(0, ('messages', 'request_default'))
+                elif native_messages_endpoint(account):
+                    # The client keeps its original source protocol; only the reviewed
+                    # upstream candidate changes. Default and explicit none are
+                    # separate; a CLI option rejection is not relay wire evidence.
+                    variants.extend([('messages', 'request_default'), ('messages', 'explicit_none')])
                 for upstream, mode in variants:
                     public = {'provider_id': provider, 'model_api_id': account['model_api_id'],
                               'client': backend, 'thinking_mode': mode, 'source_protocol': protocol, 'upstream_protocol': upstream,
@@ -462,6 +480,7 @@ def run_acp(args):
     report = {'schema_version': 1, 'checked_at': datetime.now(timezone.utc).isoformat(),
               'source_revision': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
               'source_diff_sha256': hashlib.sha256(diff).hexdigest(),
+              'production_source_sha256': {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((ROOT / 'crates/vw-agent/src/model_relay').glob('*.rs'))},
               'inventory_sha256': hashlib.sha256(args.inventory.read_bytes()).hexdigest(),
               'source_records': len(inventory['records']), 'cargo_target_dir': slot,
               'gateway_binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),

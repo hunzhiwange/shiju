@@ -255,3 +255,21 @@ fn acp_model_source_opencode_managed_configuration_is_rejected_without_loading_i
     assert!(error.contains("system-managed configuration"));
     assert!(!error.contains("private-policy-content"));
 }
+
+#[test]
+fn model_protocol_023_opencode_factory_uses_declared_chat_without_mutating_sdk() {
+    let mut profile = profile();
+    let api = profile.model_api.as_mut().unwrap();
+    api.adapter = "cohere".into();
+    api.protocols=Some(vec![serde_json::from_value(json!({
+        "protocol":"chat","url":"https://example.invalid/v1/chat/completions","deployment":"reviewed",
+        "authentication":{"kind":"bearer"},"models":{"kind":"models","ids":["selected-model"]},
+        "evidence":[{"kind":"configuration","source":"test","reference":"explicit compatible HTTP contract","checked_at":"2026-11-12"}]
+    })).unwrap()]);
+    configure(&mut profile, "http://127.0.0.1:12345").unwrap();
+    let settings: serde_json::Value =
+        serde_json::from_str(&profile.config().env["OPENCODE_CONFIG_CONTENT"]).unwrap();
+    assert_eq!(settings["provider"]["session-provider"]["npm"], "@ai-sdk/openai-compatible");
+    assert_eq!(profile.model_api.as_ref().unwrap().adapter, "cohere");
+    assert!(!settings.to_string().contains("example.invalid"));
+}

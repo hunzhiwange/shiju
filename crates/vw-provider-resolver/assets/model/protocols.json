@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "checked_at": "2026-11-11",
+  "checked_at": "2026-11-12",
   "policy": "Only officially confirmed exact-model rows with an unambiguous HTTP operation and auth header are published. Missing candidates are unknown. Source api.json remains unchanged.",
   "providers": {
     "302ai": {
@@ -687,6 +687,149 @@
         }
       }
     },
+    "alibaba": {
+      "default_api": null,
+      "deployments": {
+        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1": {
+          "protocols": [
+            {
+              "protocol": "messages",
+              "url": "https://dashscope-intl.aliyuncs.com/apps/anthropic/v1/messages",
+              "deployment": "alibaba",
+              "authentication": {
+                "kind": "api_key_header",
+                "name": "x-api-key"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "deepseek-v4-flash-0731",
+                  "glm-5.2",
+                  "kimi-k3",
+                  "qwen-flash",
+                  "qwen-plus",
+                  "qwen3-coder-flash",
+                  "qwen3-vl-plus",
+                  "qwen3.5-122b-a10b",
+                  "qwen3.5-27b",
+                  "qwen3.5-35b-a3b",
+                  "qwen3.5-397b-a17b",
+                  "qwen3.5-flash",
+                  "qwen3.5-plus",
+                  "qwen3.6-27b",
+                  "qwen3.6-flash",
+                  "qwen3.6-plus",
+                  "qwen3.7-flash",
+                  "qwen3.7-max",
+                  "qwen3.7-plus",
+                  "qwen3.8-flash",
+                  "qwen3.8-max"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba-chat",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba-messages",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/task23-alibaba-messages-auth",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "alibaba-cn": {
+      "default_api": null,
+      "deployments": {
+        "https://dashscope.aliyuncs.com/compatible-mode/v1": {
+          "protocols": [
+            {
+              "protocol": "messages",
+              "url": "https://dashscope.aliyuncs.com/apps/anthropic/v1/messages",
+              "deployment": "alibaba-cn",
+              "authentication": {
+                "kind": "api_key_header",
+                "name": "x-api-key"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "MiniMax-M2.5",
+                  "deepseek-v4-pro",
+                  "deepseek-v4.1-flash",
+                  "glm-5",
+                  "glm-5.1",
+                  "glm-5.2",
+                  "glm-5.3",
+                  "kimi-k2.5",
+                  "kimi-k2.6",
+                  "kimi-k3",
+                  "qwen-flash",
+                  "qwen-plus",
+                  "qwen3-coder-flash",
+                  "qwen3-vl-plus",
+                  "qwen3.5-397b-a17b",
+                  "qwen3.5-flash",
+                  "qwen3.5-plus",
+                  "qwen3.6-flash",
+                  "qwen3.6-plus",
+                  "qwen3.7-flash",
+                  "qwen3.7-max",
+                  "qwen3.7-plus",
+                  "qwen3.8-flash",
+                  "qwen3.8-max"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://www.alibabacloud.com/help/en/model-studio/models",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba-cn",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://www.alibabacloud.com/help/en/model-studio/compatibility-of-openai-with-dashscope",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba-chat",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/alibaba-messages",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://help.aliyun.com/zh/model-studio/anthropic-api-messages",
+                  "reference": "docs/dev/model-protocols/research/group-01.json#evidence/task23-alibaba-messages-auth",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
     "alibaba-coding-plan": {
       "default_api": null,
       "deployments": {
@@ -1150,6 +1293,72 @@
         }
       }
     },
+    "claudinio": {
+      "default_api": null,
+      "deployments": {
+        "https://api.claudin.io/v1": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "https://api.claudin.io/v1/chat/completions",
+              "deployment": "claudinio",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "claudinio"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://claudin.io",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/claudinio",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://claudin.io/docs/faq/",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/task23-claudinio-auth",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "messages",
+              "url": "https://api.claudin.io/v1/messages",
+              "deployment": "claudinio",
+              "authentication": {
+                "kind": "api_key_header",
+                "name": "x-api-key"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "claudinio"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://claudin.io",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/claudinio",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://claudin.io/docs/faq/",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/task23-claudinio-auth",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
     "cline-pass": {
       "default_api": null,
       "deployments": {
@@ -1516,6 +1725,68 @@
                   "source": "https://developers.cloudflare.com/workers-ai/models/gpt-oss-20b/",
                   "reference": "docs/dev/model-protocols/research/group-02.json#evidence/workers-model-@cf/openai/gpt-oss-20b",
                   "checked_at": "2026-11-11"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "cohere": {
+      "default_api": "https://api.cohere.ai/compatibility/v1",
+      "deployments": {
+        "https://api.cohere.ai/compatibility/v1": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "https://api.cohere.ai/compatibility/v1/chat/completions",
+              "deployment": "cohere",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "c4ai-aya-expanse-32b",
+                  "c4ai-aya-vision-32b",
+                  "command-a-03-2025",
+                  "command-a-plus-05-2026",
+                  "command-a-reasoning-08-2025",
+                  "command-a-translate-08-2025",
+                  "command-a-vision-07-2025",
+                  "command-r-08-2024",
+                  "command-r-plus-08-2024",
+                  "command-r7b-12-2024",
+                  "tiny-aya-earth",
+                  "tiny-aya-fire",
+                  "tiny-aya-global",
+                  "tiny-aya-water"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.cohere.com/docs/models",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/cohere",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.cohere.com/v2/reference/chat",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/cohere-chat",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.cohere.com/docs/compatibility-api",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/cohere-compatible",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.cohere.com/docs/compatibility-api",
+                  "reference": "docs/dev/model-protocols/research/group-02.json#evidence/task23-cohere-compatible-root",
+                  "checked_at": "2026-11-12"
                 }
               ]
             }
@@ -10030,6 +10301,71 @@
         }
       }
     },
+    "kuae-cloud-coding-plan": {
+      "default_api": null,
+      "deployments": {
+        "https://coding-plan-endpoint.kuaecloud.net/v1": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "https://coding-plan-endpoint.kuaecloud.net/v1/chat/completions",
+              "deployment": "kuae-cloud-coding-plan",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "GLM-4.7"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.mthreads.com/kuaecloud/kuaecloud-doc-online/coding_plan/tools_config/",
+                  "reference": "docs/dev/model-protocols/research/group-03.json#evidence/kuae-cloud-coding-plan-docs",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-03.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "messages",
+              "url": "https://coding-plan-endpoint.kuaecloud.net/v1/messages",
+              "deployment": "kuae-cloud-coding-plan",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "GLM-4.7"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.mthreads.com/kuaecloud/kuaecloud-doc-online/coding_plan/tools_config/",
+                  "reference": "docs/dev/model-protocols/research/group-03.json#evidence/kuae-cloud-coding-plan-docs",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-03.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
     "lilac": {
       "default_api": null,
       "deployments": {
@@ -12921,6 +13257,107 @@
         }
       }
     },
+    "oci": {
+      "default_api": null,
+      "deployments": {
+        "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1/chat/completions",
+              "deployment": "oci",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "openai.gpt-oss-120b"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/pretrained-models.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/chat-completions-api.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci-chat",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/responses-api.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci-responses",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/get-started-agents.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-oci-api-key-project",
+                  "checked_at": "2026-11-12"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://raw.githubusercontent.com/openai/openai-python/main/src/openai/lib/_client_auth.py",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "responses",
+              "url": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1/responses",
+              "deployment": "oci",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "openai.gpt-oss-120b"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/pretrained-models.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/chat-completions-api.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci-chat",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/responses-api.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-oci-responses",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/get-started-agents.htm",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-oci-api-key-project",
+                  "checked_at": "2026-11-12"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://raw.githubusercontent.com/openai/openai-python/main/src/openai/lib/_client_auth.py",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
     "ollama-cloud": {
       "default_api": null,
       "deployments": {
@@ -13028,6 +13465,234 @@
                   "source": "https://opencode.ai/v2/docs/console/models/",
                   "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
                   "checked_at": "2026-11-11"
+                }
+              ]
+            }
+          ]
+        },
+        "https://opencode.ai/inference/google/v1beta": {
+          "protocols": [
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3-flash:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3-flash"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.1-pro:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.1-pro"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.5-flash-lite:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.5-flash-lite"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.5-flash:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.5-flash"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.6-flash:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.6-flash"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.7-flash:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.7-flash"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-3.8-flash:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-3.8-flash"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "gemini",
+              "url": "https://opencode.ai/inference/google/v1beta/models/gemini-4-argon:generateContent",
+              "deployment": "opencode",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gemini-4-argon"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/v2/docs/console/models/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/g04-opencode",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://opencode.ai/docs/console/api/inference/",
+                  "reference": "docs/dev/model-protocols/research/group-04.json#evidence/task23-opencode-gemini-operation",
+                  "checked_at": "2026-11-12"
                 }
               ]
             }
@@ -14157,6 +14822,95 @@
                   "source": "https://docs.primeintellect.ai/inference/overview",
                   "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-prime",
                   "checked_at": "2026-11-11"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "privatemode-ai": {
+      "default_api": null,
+      "deployments": {
+        "http://localhost:8080/v1": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "http://localhost:8080/v1/chat/completions",
+              "deployment": "privatemode-ai",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gpt-oss-120b"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/chat-completions/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai-reference",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/api/proxy-configuration/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai-proxy",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/task23-privatemode-local",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "messages",
+              "url": "http://localhost:8080/v1/messages",
+              "deployment": "privatemode-ai",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "gpt-oss-120b"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/chat-completions/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai-reference",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/api/proxy-configuration/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/g05-privatemode-ai-proxy",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.privatemode.ai/reference/",
+                  "reference": "docs/dev/model-protocols/research/group-05.json#evidence/task23-privatemode-local",
+                  "checked_at": "2026-11-12"
                 }
               ]
             }
@@ -15947,7 +16701,7 @@
       }
     },
     "vercel": {
-      "default_api": null,
+      "default_api": "https://ai-gateway.vercel.sh/v1",
       "deployments": {
         "https://ai-gateway.vercel.sh/v1": {
           "protocols": [
@@ -15961,19 +16715,278 @@
               "models": {
                 "kind": "models",
                 "ids": [
+                  "alibaba/qwen-3-14b",
+                  "alibaba/qwen-3-235b",
+                  "alibaba/qwen-3-30b",
+                  "alibaba/qwen-3-32b",
+                  "alibaba/qwen3-coder",
+                  "alibaba/qwen3-coder-30b-a3b",
+                  "alibaba/qwen3-coder-next",
+                  "alibaba/qwen3-max-thinking",
+                  "alibaba/qwen3-next-80b-a3b-instruct",
+                  "alibaba/qwen3-next-80b-a3b-thinking",
+                  "alibaba/qwen3-vl-instruct",
+                  "alibaba/qwen3.5-flash",
+                  "alibaba/qwen3.5-plus",
+                  "alibaba/qwen3.6-27b",
+                  "alibaba/qwen3.6-plus",
+                  "alibaba/qwen3.7-flash",
+                  "alibaba/qwen3.7-max",
+                  "alibaba/qwen3.7-plus",
+                  "alibaba/qwen3.8-2.4t-a95b",
+                  "alibaba/qwen3.8-27b",
+                  "alibaba/qwen3.8-flash",
+                  "alibaba/qwen3.8-max",
+                  "alibaba/qwen3.8-max-0902",
+                  "alibaba/qwen3.8-max-prime",
+                  "alibaba/qwen3.8-omni-flash",
+                  "amazon/nova-2-lite",
+                  "amazon/nova-lite",
+                  "amazon/nova-micro",
+                  "amazon/nova-pro",
+                  "anthropic/claude-fable-5",
+                  "anthropic/claude-fable-5.1",
+                  "anthropic/claude-haiku-4.5",
+                  "anthropic/claude-haiku-5.5",
+                  "anthropic/claude-opus-4.5",
+                  "anthropic/claude-opus-4.6",
+                  "anthropic/claude-opus-4.7",
+                  "anthropic/claude-opus-4.8",
+                  "anthropic/claude-opus-4.8-fast",
+                  "anthropic/claude-opus-5",
+                  "anthropic/claude-opus-5-fast",
+                  "anthropic/claude-opus-5.5",
+                  "anthropic/claude-opus-5.5-fast",
+                  "anthropic/claude-sonnet-4.5",
+                  "anthropic/claude-sonnet-4.6",
+                  "anthropic/claude-sonnet-5",
+                  "anthropic/claude-sonnet-5.5",
                   "baseten/elephant-1",
                   "baseten/mammoth-1",
+                  "bytedance/seed-1.6",
+                  "bytedance/seed-1.8",
+                  "bytedance/seed-2.1-turbo",
+                  "callstack/apex",
+                  "cohere/command-a",
                   "convaiinnovations/laya",
+                  "deepseek/deepseek-r1",
+                  "deepseek/deepseek-v3.1",
+                  "deepseek/deepseek-v3.2",
+                  "deepseek/deepseek-v3.2-thinking",
+                  "deepseek/deepseek-v4-flash",
+                  "deepseek/deepseek-v4-flash-0731",
+                  "deepseek/deepseek-v4-flash-vision-exp",
+                  "deepseek/deepseek-v4-pro",
+                  "deepseek/deepseek-v4-pro-0813",
+                  "deepseek/deepseek-v4.1-flash",
+                  "deepseek/deepseek-v4.1-flash-1017",
+                  "deepseek/deepseek-v4.1-flash-1017-fast",
+                  "deepseek/deepseek-v4.1-flash-fast",
+                  "elorian/glimpse",
+                  "fireworks/ember-1",
+                  "google/gemini-2.5-flash",
+                  "google/gemini-2.5-flash-image",
+                  "google/gemini-2.5-flash-lite",
+                  "google/gemini-2.5-pro",
+                  "google/gemini-3-flash",
+                  "google/gemini-3-pro-image",
+                  "google/gemini-3.1-flash-image",
+                  "google/gemini-3.1-flash-lite",
+                  "google/gemini-3.1-flash-lite-image",
+                  "google/gemini-3.1-pro-preview",
+                  "google/gemini-3.5-flash",
+                  "google/gemini-3.5-flash-lite",
+                  "google/gemini-3.6-flash",
+                  "google/gemini-3.7-flash",
+                  "google/gemini-3.8-flash",
+                  "google/gemini-4-argon",
+                  "google/gemini-nano-banana-2.1",
+                  "google/gemini-omni-flash-preview",
+                  "google/gemma-4-26b-a4b-it",
+                  "google/gemma-4-31b-it",
+                  "inception/mercury-2",
+                  "inception/mercury-2.5",
+                  "inception/mercury-3",
+                  "inception/mercury-coder-small",
+                  "inclusionai/ling-3.0-flash",
+                  "inclusionai/ling-3.0-flash-fin",
+                  "inclusionai/ling-3.0-flash-sante",
+                  "inclusionai/ling-3.0-flash-vl",
+                  "inclusionai/ling-3.1-flash",
+                  "inference-net/schematron-v2-small",
+                  "inference-net/schematron-v2-turbo",
+                  "interfaze/interfaze-beta",
                   "liquid/d1",
                   "liquid/d1-ultra",
+                  "liquid/lfm2.5-24b-a2b",
+                  "meta/llama-3.1-70b",
+                  "meta/llama-3.1-8b",
+                  "meta/llama-3.3-70b",
+                  "meta/llama-4-maverick",
+                  "meta/llama-4-scout",
+                  "meta/muse-glimmer-30b",
+                  "meta/muse-spark-1.1",
+                  "meta/muse-spark-1.2",
+                  "meta/muse-spark-1.2-contributor",
+                  "meta/muse-spark-1.3",
+                  "meta/muse-spark-1.3-contributor",
+                  "meta/muse-spark-open",
+                  "meta/muse-wonder-1.0",
                   "microsoft/microsoft-decision-1",
+                  "minimax/minimax-m2",
+                  "minimax/minimax-m2.1",
+                  "minimax/minimax-m2.1-lightning",
+                  "minimax/minimax-m2.5",
+                  "minimax/minimax-m2.5-highspeed",
+                  "minimax/minimax-m2.7",
+                  "minimax/minimax-m2.7-highspeed",
+                  "minimax/minimax-m3",
+                  "minimax/minimax-m3.1-flash",
+                  "mistral/codestral",
+                  "mistral/ministral-14b",
+                  "mistral/ministral-3b",
+                  "mistral/ministral-8b",
+                  "mistral/mistral-large-3",
+                  "mistral/mistral-large-4",
+                  "mistral/mistral-medium-3.5",
+                  "mistral/mistral-nemo",
+                  "mistral/mistral-small",
+                  "mixedbread/toast-1",
+                  "moonshotai/kimi-k2",
+                  "moonshotai/kimi-k2.5",
+                  "moonshotai/kimi-k2.6",
+                  "moonshotai/kimi-k2.7-code",
+                  "moonshotai/kimi-k2.7-code-highspeed",
+                  "moonshotai/kimi-k3",
+                  "moonshotai/kimi-k3-fast",
+                  "morph/morph-v3-fast",
+                  "morph/morph-v3-large",
+                  "nvidia/nemotron-3-nano-30b-a3b",
+                  "nvidia/nemotron-3-super-120b-a12b",
+                  "nvidia/nemotron-3-ultra-550b-a55b",
+                  "nvidia/nemotron-3.5-lightning",
+                  "nvidia/nemotron-3.5-lightning-free",
+                  "nvidia/nemotron-3.5-super-vl",
+                  "nvidia/nemotron-nano-12b-v2-vl",
+                  "nvidia/nemotron-nano-9b-v2",
+                  "openai/gpt-4.1",
+                  "openai/gpt-4.1-fast",
+                  "openai/gpt-4.1-mini",
+                  "openai/gpt-4.1-mini-fast",
+                  "openai/gpt-4.1-nano",
+                  "openai/gpt-4o",
+                  "openai/gpt-4o-fast",
+                  "openai/gpt-4o-mini",
+                  "openai/gpt-4o-mini-fast",
+                  "openai/gpt-5",
+                  "openai/gpt-5-codex",
+                  "openai/gpt-5-fast",
+                  "openai/gpt-5-mini",
+                  "openai/gpt-5-mini-fast",
+                  "openai/gpt-5-nano",
+                  "openai/gpt-5-pro",
+                  "openai/gpt-5.1-codex",
+                  "openai/gpt-5.1-codex-max",
+                  "openai/gpt-5.1-codex-mini",
+                  "openai/gpt-5.1-thinking",
+                  "openai/gpt-5.1-thinking-fast",
+                  "openai/gpt-5.2",
+                  "openai/gpt-5.2-codex",
+                  "openai/gpt-5.2-fast",
+                  "openai/gpt-5.2-pro",
+                  "openai/gpt-5.3-codex",
+                  "openai/gpt-5.3-codex-fast",
+                  "openai/gpt-5.4",
+                  "openai/gpt-5.4-fast",
+                  "openai/gpt-5.4-mini",
+                  "openai/gpt-5.4-mini-fast",
+                  "openai/gpt-5.4-nano",
+                  "openai/gpt-5.4-pro",
+                  "openai/gpt-5.5",
+                  "openai/gpt-5.5-fast",
+                  "openai/gpt-5.5-pro",
+                  "openai/gpt-5.6-luna",
+                  "openai/gpt-5.6-luna-fast",
+                  "openai/gpt-5.6-sol",
+                  "openai/gpt-5.6-sol-fast",
+                  "openai/gpt-5.6-terra",
+                  "openai/gpt-5.6-terra-fast",
+                  "openai/gpt-6-astra",
+                  "openai/gpt-6-astra-fast",
+                  "openai/gpt-6-luna",
                   "openai/gpt-6-luna-decisions",
+                  "openai/gpt-6-luna-fast",
+                  "openai/gpt-6-sol",
+                  "openai/gpt-6-sol-fast",
+                  "openai/gpt-6.1-sol",
+                  "openai/gpt-6.1-sol-fast",
+                  "openai/gpt-oss-120b",
+                  "openai/gpt-oss-20b",
+                  "openai/o1",
+                  "openai/o3",
+                  "openai/o3-fast",
+                  "openai/o3-mini",
+                  "openai/o3-pro",
+                  "openai/o4-mini",
                   "perplexity/pplx-decider-flash-v1.2",
                   "perplexity/pplx-decider-v1.2",
+                  "perplexity/sonar",
+                  "poolside/laguna-s-2.1",
+                  "quiverai/arrow-2",
+                  "quiverai/arrow-2-telos",
+                  "reflection/beam",
+                  "reflection/beam-free",
+                  "sakana/fugu-max",
+                  "sakana/fugu-ultra",
+                  "sakana/fugu-ultra-v2",
+                  "sakana/namazu",
                   "scaledown/scaledown-classify-1",
+                  "scaledown/scaledown-extract-1",
+                  "scaledown/scaledown-summarize-1",
+                  "spacexai/grok-4.20-multi-agent",
+                  "spacexai/grok-4.20-multi-agent-beta",
+                  "spacexai/grok-4.20-non-reasoning",
+                  "spacexai/grok-4.20-non-reasoning-beta",
+                  "spacexai/grok-4.20-reasoning",
+                  "spacexai/grok-4.20-reasoning-beta",
+                  "spacexai/grok-4.3",
+                  "spacexai/grok-4.5",
+                  "spacexai/grok-4.6",
+                  "spacexai/grok-4.7",
+                  "spacexai/grok-build-0.1",
+                  "stealth/glyph-cluster",
+                  "stepfun/step-3.7-flash",
+                  "stepfun/step-5-preview",
+                  "tencent/hy-mt2-lite",
+                  "tencent/hy-mt2-plus",
+                  "tencent/hy-mt2-pro",
+                  "tencent/hy3",
+                  "tencent/hy4-preview",
+                  "thinkingmachines/inkling",
+                  "thinkingmachines/inkling-small",
                   "typesafe-ai/jev",
                   "typesafe-ai/jev-1.13.0",
-                  "typesafe-ai/jev-1.14.0"
+                  "typesafe-ai/jev-1.14.0",
+                  "xiaomi/mimo-v2.6-flash",
+                  "xiaomi/mimo-v2.6-pro",
+                  "xiaomi/mimo-v2.6-pro-ultraspeed",
+                  "zai/glm-4.5",
+                  "zai/glm-4.5-air",
+                  "zai/glm-4.5v",
+                  "zai/glm-4.6",
+                  "zai/glm-4.7",
+                  "zai/glm-4.7-flash",
+                  "zai/glm-4.7-flashx",
+                  "zai/glm-5",
+                  "zai/glm-5-turbo",
+                  "zai/glm-5.1",
+                  "zai/glm-5.2",
+                  "zai/glm-5.2-fast",
+                  "zai/glm-5.3",
+                  "zai/glm-5.3-fast",
+                  "zai/glm-5.3-flash",
+                  "zai/glm-5.3-flashx",
+                  "zai/glm-5v-turbo"
                 ]
               },
               "evidence": [
@@ -16018,6 +17031,12 @@
                   "source": "https://ai-gateway.vercel.sh/v1/models",
                   "reference": "docs/dev/model-protocols/research/group-06.json#evidence/vercel-public-models",
                   "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-vercel-compatible-root",
+                  "checked_at": "2026-11-12"
                 }
               ]
             },
@@ -16032,19 +17051,278 @@
               "models": {
                 "kind": "models",
                 "ids": [
+                  "alibaba/qwen-3-14b",
+                  "alibaba/qwen-3-235b",
+                  "alibaba/qwen-3-30b",
+                  "alibaba/qwen-3-32b",
+                  "alibaba/qwen3-coder",
+                  "alibaba/qwen3-coder-30b-a3b",
+                  "alibaba/qwen3-coder-next",
+                  "alibaba/qwen3-max-thinking",
+                  "alibaba/qwen3-next-80b-a3b-instruct",
+                  "alibaba/qwen3-next-80b-a3b-thinking",
+                  "alibaba/qwen3-vl-instruct",
+                  "alibaba/qwen3.5-flash",
+                  "alibaba/qwen3.5-plus",
+                  "alibaba/qwen3.6-27b",
+                  "alibaba/qwen3.6-plus",
+                  "alibaba/qwen3.7-flash",
+                  "alibaba/qwen3.7-max",
+                  "alibaba/qwen3.7-plus",
+                  "alibaba/qwen3.8-2.4t-a95b",
+                  "alibaba/qwen3.8-27b",
+                  "alibaba/qwen3.8-flash",
+                  "alibaba/qwen3.8-max",
+                  "alibaba/qwen3.8-max-0902",
+                  "alibaba/qwen3.8-max-prime",
+                  "alibaba/qwen3.8-omni-flash",
+                  "amazon/nova-2-lite",
+                  "amazon/nova-lite",
+                  "amazon/nova-micro",
+                  "amazon/nova-pro",
+                  "anthropic/claude-fable-5",
+                  "anthropic/claude-fable-5.1",
+                  "anthropic/claude-haiku-4.5",
+                  "anthropic/claude-haiku-5.5",
+                  "anthropic/claude-opus-4.5",
+                  "anthropic/claude-opus-4.6",
+                  "anthropic/claude-opus-4.7",
+                  "anthropic/claude-opus-4.8",
+                  "anthropic/claude-opus-4.8-fast",
+                  "anthropic/claude-opus-5",
+                  "anthropic/claude-opus-5-fast",
+                  "anthropic/claude-opus-5.5",
+                  "anthropic/claude-opus-5.5-fast",
+                  "anthropic/claude-sonnet-4.5",
+                  "anthropic/claude-sonnet-4.6",
+                  "anthropic/claude-sonnet-5",
+                  "anthropic/claude-sonnet-5.5",
                   "baseten/elephant-1",
                   "baseten/mammoth-1",
+                  "bytedance/seed-1.6",
+                  "bytedance/seed-1.8",
+                  "bytedance/seed-2.1-turbo",
+                  "callstack/apex",
+                  "cohere/command-a",
                   "convaiinnovations/laya",
+                  "deepseek/deepseek-r1",
+                  "deepseek/deepseek-v3.1",
+                  "deepseek/deepseek-v3.2",
+                  "deepseek/deepseek-v3.2-thinking",
+                  "deepseek/deepseek-v4-flash",
+                  "deepseek/deepseek-v4-flash-0731",
+                  "deepseek/deepseek-v4-flash-vision-exp",
+                  "deepseek/deepseek-v4-pro",
+                  "deepseek/deepseek-v4-pro-0813",
+                  "deepseek/deepseek-v4.1-flash",
+                  "deepseek/deepseek-v4.1-flash-1017",
+                  "deepseek/deepseek-v4.1-flash-1017-fast",
+                  "deepseek/deepseek-v4.1-flash-fast",
+                  "elorian/glimpse",
+                  "fireworks/ember-1",
+                  "google/gemini-2.5-flash",
+                  "google/gemini-2.5-flash-image",
+                  "google/gemini-2.5-flash-lite",
+                  "google/gemini-2.5-pro",
+                  "google/gemini-3-flash",
+                  "google/gemini-3-pro-image",
+                  "google/gemini-3.1-flash-image",
+                  "google/gemini-3.1-flash-lite",
+                  "google/gemini-3.1-flash-lite-image",
+                  "google/gemini-3.1-pro-preview",
+                  "google/gemini-3.5-flash",
+                  "google/gemini-3.5-flash-lite",
+                  "google/gemini-3.6-flash",
+                  "google/gemini-3.7-flash",
+                  "google/gemini-3.8-flash",
+                  "google/gemini-4-argon",
+                  "google/gemini-nano-banana-2.1",
+                  "google/gemini-omni-flash-preview",
+                  "google/gemma-4-26b-a4b-it",
+                  "google/gemma-4-31b-it",
+                  "inception/mercury-2",
+                  "inception/mercury-2.5",
+                  "inception/mercury-3",
+                  "inception/mercury-coder-small",
+                  "inclusionai/ling-3.0-flash",
+                  "inclusionai/ling-3.0-flash-fin",
+                  "inclusionai/ling-3.0-flash-sante",
+                  "inclusionai/ling-3.0-flash-vl",
+                  "inclusionai/ling-3.1-flash",
+                  "inference-net/schematron-v2-small",
+                  "inference-net/schematron-v2-turbo",
+                  "interfaze/interfaze-beta",
                   "liquid/d1",
                   "liquid/d1-ultra",
+                  "liquid/lfm2.5-24b-a2b",
+                  "meta/llama-3.1-70b",
+                  "meta/llama-3.1-8b",
+                  "meta/llama-3.3-70b",
+                  "meta/llama-4-maverick",
+                  "meta/llama-4-scout",
+                  "meta/muse-glimmer-30b",
+                  "meta/muse-spark-1.1",
+                  "meta/muse-spark-1.2",
+                  "meta/muse-spark-1.2-contributor",
+                  "meta/muse-spark-1.3",
+                  "meta/muse-spark-1.3-contributor",
+                  "meta/muse-spark-open",
+                  "meta/muse-wonder-1.0",
                   "microsoft/microsoft-decision-1",
+                  "minimax/minimax-m2",
+                  "minimax/minimax-m2.1",
+                  "minimax/minimax-m2.1-lightning",
+                  "minimax/minimax-m2.5",
+                  "minimax/minimax-m2.5-highspeed",
+                  "minimax/minimax-m2.7",
+                  "minimax/minimax-m2.7-highspeed",
+                  "minimax/minimax-m3",
+                  "minimax/minimax-m3.1-flash",
+                  "mistral/codestral",
+                  "mistral/ministral-14b",
+                  "mistral/ministral-3b",
+                  "mistral/ministral-8b",
+                  "mistral/mistral-large-3",
+                  "mistral/mistral-large-4",
+                  "mistral/mistral-medium-3.5",
+                  "mistral/mistral-nemo",
+                  "mistral/mistral-small",
+                  "mixedbread/toast-1",
+                  "moonshotai/kimi-k2",
+                  "moonshotai/kimi-k2.5",
+                  "moonshotai/kimi-k2.6",
+                  "moonshotai/kimi-k2.7-code",
+                  "moonshotai/kimi-k2.7-code-highspeed",
+                  "moonshotai/kimi-k3",
+                  "moonshotai/kimi-k3-fast",
+                  "morph/morph-v3-fast",
+                  "morph/morph-v3-large",
+                  "nvidia/nemotron-3-nano-30b-a3b",
+                  "nvidia/nemotron-3-super-120b-a12b",
+                  "nvidia/nemotron-3-ultra-550b-a55b",
+                  "nvidia/nemotron-3.5-lightning",
+                  "nvidia/nemotron-3.5-lightning-free",
+                  "nvidia/nemotron-3.5-super-vl",
+                  "nvidia/nemotron-nano-12b-v2-vl",
+                  "nvidia/nemotron-nano-9b-v2",
+                  "openai/gpt-4.1",
+                  "openai/gpt-4.1-fast",
+                  "openai/gpt-4.1-mini",
+                  "openai/gpt-4.1-mini-fast",
+                  "openai/gpt-4.1-nano",
+                  "openai/gpt-4o",
+                  "openai/gpt-4o-fast",
+                  "openai/gpt-4o-mini",
+                  "openai/gpt-4o-mini-fast",
+                  "openai/gpt-5",
+                  "openai/gpt-5-codex",
+                  "openai/gpt-5-fast",
+                  "openai/gpt-5-mini",
+                  "openai/gpt-5-mini-fast",
+                  "openai/gpt-5-nano",
+                  "openai/gpt-5-pro",
+                  "openai/gpt-5.1-codex",
+                  "openai/gpt-5.1-codex-max",
+                  "openai/gpt-5.1-codex-mini",
+                  "openai/gpt-5.1-thinking",
+                  "openai/gpt-5.1-thinking-fast",
+                  "openai/gpt-5.2",
+                  "openai/gpt-5.2-codex",
+                  "openai/gpt-5.2-fast",
+                  "openai/gpt-5.2-pro",
+                  "openai/gpt-5.3-codex",
+                  "openai/gpt-5.3-codex-fast",
+                  "openai/gpt-5.4",
+                  "openai/gpt-5.4-fast",
+                  "openai/gpt-5.4-mini",
+                  "openai/gpt-5.4-mini-fast",
+                  "openai/gpt-5.4-nano",
+                  "openai/gpt-5.4-pro",
+                  "openai/gpt-5.5",
+                  "openai/gpt-5.5-fast",
+                  "openai/gpt-5.5-pro",
+                  "openai/gpt-5.6-luna",
+                  "openai/gpt-5.6-luna-fast",
+                  "openai/gpt-5.6-sol",
+                  "openai/gpt-5.6-sol-fast",
+                  "openai/gpt-5.6-terra",
+                  "openai/gpt-5.6-terra-fast",
+                  "openai/gpt-6-astra",
+                  "openai/gpt-6-astra-fast",
+                  "openai/gpt-6-luna",
                   "openai/gpt-6-luna-decisions",
+                  "openai/gpt-6-luna-fast",
+                  "openai/gpt-6-sol",
+                  "openai/gpt-6-sol-fast",
+                  "openai/gpt-6.1-sol",
+                  "openai/gpt-6.1-sol-fast",
+                  "openai/gpt-oss-120b",
+                  "openai/gpt-oss-20b",
+                  "openai/o1",
+                  "openai/o3",
+                  "openai/o3-fast",
+                  "openai/o3-mini",
+                  "openai/o3-pro",
+                  "openai/o4-mini",
                   "perplexity/pplx-decider-flash-v1.2",
                   "perplexity/pplx-decider-v1.2",
+                  "perplexity/sonar",
+                  "poolside/laguna-s-2.1",
+                  "quiverai/arrow-2",
+                  "quiverai/arrow-2-telos",
+                  "reflection/beam",
+                  "reflection/beam-free",
+                  "sakana/fugu-max",
+                  "sakana/fugu-ultra",
+                  "sakana/fugu-ultra-v2",
+                  "sakana/namazu",
                   "scaledown/scaledown-classify-1",
+                  "scaledown/scaledown-extract-1",
+                  "scaledown/scaledown-summarize-1",
+                  "spacexai/grok-4.20-multi-agent",
+                  "spacexai/grok-4.20-multi-agent-beta",
+                  "spacexai/grok-4.20-non-reasoning",
+                  "spacexai/grok-4.20-non-reasoning-beta",
+                  "spacexai/grok-4.20-reasoning",
+                  "spacexai/grok-4.20-reasoning-beta",
+                  "spacexai/grok-4.3",
+                  "spacexai/grok-4.5",
+                  "spacexai/grok-4.6",
+                  "spacexai/grok-4.7",
+                  "spacexai/grok-build-0.1",
+                  "stealth/glyph-cluster",
+                  "stepfun/step-3.7-flash",
+                  "stepfun/step-5-preview",
+                  "tencent/hy-mt2-lite",
+                  "tencent/hy-mt2-plus",
+                  "tencent/hy-mt2-pro",
+                  "tencent/hy3",
+                  "tencent/hy4-preview",
+                  "thinkingmachines/inkling",
+                  "thinkingmachines/inkling-small",
                   "typesafe-ai/jev",
                   "typesafe-ai/jev-1.13.0",
-                  "typesafe-ai/jev-1.14.0"
+                  "typesafe-ai/jev-1.14.0",
+                  "xiaomi/mimo-v2.6-flash",
+                  "xiaomi/mimo-v2.6-pro",
+                  "xiaomi/mimo-v2.6-pro-ultraspeed",
+                  "zai/glm-4.5",
+                  "zai/glm-4.5-air",
+                  "zai/glm-4.5v",
+                  "zai/glm-4.6",
+                  "zai/glm-4.7",
+                  "zai/glm-4.7-flash",
+                  "zai/glm-4.7-flashx",
+                  "zai/glm-5",
+                  "zai/glm-5-turbo",
+                  "zai/glm-5.1",
+                  "zai/glm-5.2",
+                  "zai/glm-5.2-fast",
+                  "zai/glm-5.3",
+                  "zai/glm-5.3-fast",
+                  "zai/glm-5.3-flash",
+                  "zai/glm-5.3-flashx",
+                  "zai/glm-5v-turbo"
                 ]
               },
               "evidence": [
@@ -16089,6 +17367,12 @@
                   "source": "https://ai-gateway.vercel.sh/v1/models",
                   "reference": "docs/dev/model-protocols/research/group-06.json#evidence/vercel-public-models",
                   "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-vercel-compatible-root",
+                  "checked_at": "2026-11-12"
                 }
               ]
             },
@@ -16102,19 +17386,278 @@
               "models": {
                 "kind": "models",
                 "ids": [
+                  "alibaba/qwen-3-14b",
+                  "alibaba/qwen-3-235b",
+                  "alibaba/qwen-3-30b",
+                  "alibaba/qwen-3-32b",
+                  "alibaba/qwen3-coder",
+                  "alibaba/qwen3-coder-30b-a3b",
+                  "alibaba/qwen3-coder-next",
+                  "alibaba/qwen3-max-thinking",
+                  "alibaba/qwen3-next-80b-a3b-instruct",
+                  "alibaba/qwen3-next-80b-a3b-thinking",
+                  "alibaba/qwen3-vl-instruct",
+                  "alibaba/qwen3.5-flash",
+                  "alibaba/qwen3.5-plus",
+                  "alibaba/qwen3.6-27b",
+                  "alibaba/qwen3.6-plus",
+                  "alibaba/qwen3.7-flash",
+                  "alibaba/qwen3.7-max",
+                  "alibaba/qwen3.7-plus",
+                  "alibaba/qwen3.8-2.4t-a95b",
+                  "alibaba/qwen3.8-27b",
+                  "alibaba/qwen3.8-flash",
+                  "alibaba/qwen3.8-max",
+                  "alibaba/qwen3.8-max-0902",
+                  "alibaba/qwen3.8-max-prime",
+                  "alibaba/qwen3.8-omni-flash",
+                  "amazon/nova-2-lite",
+                  "amazon/nova-lite",
+                  "amazon/nova-micro",
+                  "amazon/nova-pro",
+                  "anthropic/claude-fable-5",
+                  "anthropic/claude-fable-5.1",
+                  "anthropic/claude-haiku-4.5",
+                  "anthropic/claude-haiku-5.5",
+                  "anthropic/claude-opus-4.5",
+                  "anthropic/claude-opus-4.6",
+                  "anthropic/claude-opus-4.7",
+                  "anthropic/claude-opus-4.8",
+                  "anthropic/claude-opus-4.8-fast",
+                  "anthropic/claude-opus-5",
+                  "anthropic/claude-opus-5-fast",
+                  "anthropic/claude-opus-5.5",
+                  "anthropic/claude-opus-5.5-fast",
+                  "anthropic/claude-sonnet-4.5",
+                  "anthropic/claude-sonnet-4.6",
+                  "anthropic/claude-sonnet-5",
+                  "anthropic/claude-sonnet-5.5",
                   "baseten/elephant-1",
                   "baseten/mammoth-1",
+                  "bytedance/seed-1.6",
+                  "bytedance/seed-1.8",
+                  "bytedance/seed-2.1-turbo",
+                  "callstack/apex",
+                  "cohere/command-a",
                   "convaiinnovations/laya",
+                  "deepseek/deepseek-r1",
+                  "deepseek/deepseek-v3.1",
+                  "deepseek/deepseek-v3.2",
+                  "deepseek/deepseek-v3.2-thinking",
+                  "deepseek/deepseek-v4-flash",
+                  "deepseek/deepseek-v4-flash-0731",
+                  "deepseek/deepseek-v4-flash-vision-exp",
+                  "deepseek/deepseek-v4-pro",
+                  "deepseek/deepseek-v4-pro-0813",
+                  "deepseek/deepseek-v4.1-flash",
+                  "deepseek/deepseek-v4.1-flash-1017",
+                  "deepseek/deepseek-v4.1-flash-1017-fast",
+                  "deepseek/deepseek-v4.1-flash-fast",
+                  "elorian/glimpse",
+                  "fireworks/ember-1",
+                  "google/gemini-2.5-flash",
+                  "google/gemini-2.5-flash-image",
+                  "google/gemini-2.5-flash-lite",
+                  "google/gemini-2.5-pro",
+                  "google/gemini-3-flash",
+                  "google/gemini-3-pro-image",
+                  "google/gemini-3.1-flash-image",
+                  "google/gemini-3.1-flash-lite",
+                  "google/gemini-3.1-flash-lite-image",
+                  "google/gemini-3.1-pro-preview",
+                  "google/gemini-3.5-flash",
+                  "google/gemini-3.5-flash-lite",
+                  "google/gemini-3.6-flash",
+                  "google/gemini-3.7-flash",
+                  "google/gemini-3.8-flash",
+                  "google/gemini-4-argon",
+                  "google/gemini-nano-banana-2.1",
+                  "google/gemini-omni-flash-preview",
+                  "google/gemma-4-26b-a4b-it",
+                  "google/gemma-4-31b-it",
+                  "inception/mercury-2",
+                  "inception/mercury-2.5",
+                  "inception/mercury-3",
+                  "inception/mercury-coder-small",
+                  "inclusionai/ling-3.0-flash",
+                  "inclusionai/ling-3.0-flash-fin",
+                  "inclusionai/ling-3.0-flash-sante",
+                  "inclusionai/ling-3.0-flash-vl",
+                  "inclusionai/ling-3.1-flash",
+                  "inference-net/schematron-v2-small",
+                  "inference-net/schematron-v2-turbo",
+                  "interfaze/interfaze-beta",
                   "liquid/d1",
                   "liquid/d1-ultra",
+                  "liquid/lfm2.5-24b-a2b",
+                  "meta/llama-3.1-70b",
+                  "meta/llama-3.1-8b",
+                  "meta/llama-3.3-70b",
+                  "meta/llama-4-maverick",
+                  "meta/llama-4-scout",
+                  "meta/muse-glimmer-30b",
+                  "meta/muse-spark-1.1",
+                  "meta/muse-spark-1.2",
+                  "meta/muse-spark-1.2-contributor",
+                  "meta/muse-spark-1.3",
+                  "meta/muse-spark-1.3-contributor",
+                  "meta/muse-spark-open",
+                  "meta/muse-wonder-1.0",
                   "microsoft/microsoft-decision-1",
+                  "minimax/minimax-m2",
+                  "minimax/minimax-m2.1",
+                  "minimax/minimax-m2.1-lightning",
+                  "minimax/minimax-m2.5",
+                  "minimax/minimax-m2.5-highspeed",
+                  "minimax/minimax-m2.7",
+                  "minimax/minimax-m2.7-highspeed",
+                  "minimax/minimax-m3",
+                  "minimax/minimax-m3.1-flash",
+                  "mistral/codestral",
+                  "mistral/ministral-14b",
+                  "mistral/ministral-3b",
+                  "mistral/ministral-8b",
+                  "mistral/mistral-large-3",
+                  "mistral/mistral-large-4",
+                  "mistral/mistral-medium-3.5",
+                  "mistral/mistral-nemo",
+                  "mistral/mistral-small",
+                  "mixedbread/toast-1",
+                  "moonshotai/kimi-k2",
+                  "moonshotai/kimi-k2.5",
+                  "moonshotai/kimi-k2.6",
+                  "moonshotai/kimi-k2.7-code",
+                  "moonshotai/kimi-k2.7-code-highspeed",
+                  "moonshotai/kimi-k3",
+                  "moonshotai/kimi-k3-fast",
+                  "morph/morph-v3-fast",
+                  "morph/morph-v3-large",
+                  "nvidia/nemotron-3-nano-30b-a3b",
+                  "nvidia/nemotron-3-super-120b-a12b",
+                  "nvidia/nemotron-3-ultra-550b-a55b",
+                  "nvidia/nemotron-3.5-lightning",
+                  "nvidia/nemotron-3.5-lightning-free",
+                  "nvidia/nemotron-3.5-super-vl",
+                  "nvidia/nemotron-nano-12b-v2-vl",
+                  "nvidia/nemotron-nano-9b-v2",
+                  "openai/gpt-4.1",
+                  "openai/gpt-4.1-fast",
+                  "openai/gpt-4.1-mini",
+                  "openai/gpt-4.1-mini-fast",
+                  "openai/gpt-4.1-nano",
+                  "openai/gpt-4o",
+                  "openai/gpt-4o-fast",
+                  "openai/gpt-4o-mini",
+                  "openai/gpt-4o-mini-fast",
+                  "openai/gpt-5",
+                  "openai/gpt-5-codex",
+                  "openai/gpt-5-fast",
+                  "openai/gpt-5-mini",
+                  "openai/gpt-5-mini-fast",
+                  "openai/gpt-5-nano",
+                  "openai/gpt-5-pro",
+                  "openai/gpt-5.1-codex",
+                  "openai/gpt-5.1-codex-max",
+                  "openai/gpt-5.1-codex-mini",
+                  "openai/gpt-5.1-thinking",
+                  "openai/gpt-5.1-thinking-fast",
+                  "openai/gpt-5.2",
+                  "openai/gpt-5.2-codex",
+                  "openai/gpt-5.2-fast",
+                  "openai/gpt-5.2-pro",
+                  "openai/gpt-5.3-codex",
+                  "openai/gpt-5.3-codex-fast",
+                  "openai/gpt-5.4",
+                  "openai/gpt-5.4-fast",
+                  "openai/gpt-5.4-mini",
+                  "openai/gpt-5.4-mini-fast",
+                  "openai/gpt-5.4-nano",
+                  "openai/gpt-5.4-pro",
+                  "openai/gpt-5.5",
+                  "openai/gpt-5.5-fast",
+                  "openai/gpt-5.5-pro",
+                  "openai/gpt-5.6-luna",
+                  "openai/gpt-5.6-luna-fast",
+                  "openai/gpt-5.6-sol",
+                  "openai/gpt-5.6-sol-fast",
+                  "openai/gpt-5.6-terra",
+                  "openai/gpt-5.6-terra-fast",
+                  "openai/gpt-6-astra",
+                  "openai/gpt-6-astra-fast",
+                  "openai/gpt-6-luna",
                   "openai/gpt-6-luna-decisions",
+                  "openai/gpt-6-luna-fast",
+                  "openai/gpt-6-sol",
+                  "openai/gpt-6-sol-fast",
+                  "openai/gpt-6.1-sol",
+                  "openai/gpt-6.1-sol-fast",
+                  "openai/gpt-oss-120b",
+                  "openai/gpt-oss-20b",
+                  "openai/o1",
+                  "openai/o3",
+                  "openai/o3-fast",
+                  "openai/o3-mini",
+                  "openai/o3-pro",
+                  "openai/o4-mini",
                   "perplexity/pplx-decider-flash-v1.2",
                   "perplexity/pplx-decider-v1.2",
+                  "perplexity/sonar",
+                  "poolside/laguna-s-2.1",
+                  "quiverai/arrow-2",
+                  "quiverai/arrow-2-telos",
+                  "reflection/beam",
+                  "reflection/beam-free",
+                  "sakana/fugu-max",
+                  "sakana/fugu-ultra",
+                  "sakana/fugu-ultra-v2",
+                  "sakana/namazu",
                   "scaledown/scaledown-classify-1",
+                  "scaledown/scaledown-extract-1",
+                  "scaledown/scaledown-summarize-1",
+                  "spacexai/grok-4.20-multi-agent",
+                  "spacexai/grok-4.20-multi-agent-beta",
+                  "spacexai/grok-4.20-non-reasoning",
+                  "spacexai/grok-4.20-non-reasoning-beta",
+                  "spacexai/grok-4.20-reasoning",
+                  "spacexai/grok-4.20-reasoning-beta",
+                  "spacexai/grok-4.3",
+                  "spacexai/grok-4.5",
+                  "spacexai/grok-4.6",
+                  "spacexai/grok-4.7",
+                  "spacexai/grok-build-0.1",
+                  "stealth/glyph-cluster",
+                  "stepfun/step-3.7-flash",
+                  "stepfun/step-5-preview",
+                  "tencent/hy-mt2-lite",
+                  "tencent/hy-mt2-plus",
+                  "tencent/hy-mt2-pro",
+                  "tencent/hy3",
+                  "tencent/hy4-preview",
+                  "thinkingmachines/inkling",
+                  "thinkingmachines/inkling-small",
                   "typesafe-ai/jev",
                   "typesafe-ai/jev-1.13.0",
-                  "typesafe-ai/jev-1.14.0"
+                  "typesafe-ai/jev-1.14.0",
+                  "xiaomi/mimo-v2.6-flash",
+                  "xiaomi/mimo-v2.6-pro",
+                  "xiaomi/mimo-v2.6-pro-ultraspeed",
+                  "zai/glm-4.5",
+                  "zai/glm-4.5-air",
+                  "zai/glm-4.5v",
+                  "zai/glm-4.6",
+                  "zai/glm-4.7",
+                  "zai/glm-4.7-flash",
+                  "zai/glm-4.7-flashx",
+                  "zai/glm-5",
+                  "zai/glm-5-turbo",
+                  "zai/glm-5.1",
+                  "zai/glm-5.2",
+                  "zai/glm-5.2-fast",
+                  "zai/glm-5.3",
+                  "zai/glm-5.3-fast",
+                  "zai/glm-5.3-flash",
+                  "zai/glm-5.3-flashx",
+                  "zai/glm-5v-turbo"
                 ]
               },
               "evidence": [
@@ -16159,6 +17702,12 @@
                   "source": "https://ai-gateway.vercel.sh/v1/models",
                   "reference": "docs/dev/model-protocols/research/group-06.json#evidence/vercel-public-models",
                   "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://vercel.com/docs/ai-gateway/sdks-and-apis/openai-chat-completions",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-vercel-compatible-root",
+                  "checked_at": "2026-11-12"
                 }
               ]
             }
@@ -16306,6 +17855,93 @@
                   "source": "https://docs.volcengine.com/docs/ark/messages-api?lang=zh",
                   "reference": "docs/dev/model-protocols/research/group-06.json#evidence/volc-messages",
                   "checked_at": "2026-11-11"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "volcengine-coding-plan": {
+      "default_api": null,
+      "deployments": {
+        "https://ark.cn-beijing.volces.com/api/coding/v3": {
+          "protocols": [
+            {
+              "protocol": "chat",
+              "url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+              "deployment": "volcengine-coding-plan",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "deepseek-v4-flash",
+                  "deepseek-v4-pro",
+                  "doubao-seed-evolving",
+                  "glm-5.3",
+                  "glm-5.3-flash",
+                  "kimi-k3"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://www.volcengine.com/docs/82379/1928261",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/volcengine-coding-plan-seed",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://www.volcengine.com/docs/82379/1928262",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/volc-plan-tools",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "messages",
+              "url": "https://ark.cn-beijing.volces.com/api/coding/v1/messages",
+              "deployment": "volcengine-coding-plan",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "deepseek-v4-flash",
+                  "deepseek-v4-pro",
+                  "doubao-seed-evolving",
+                  "glm-5.3",
+                  "glm-5.3-flash",
+                  "kimi-k3"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://www.volcengine.com/docs/82379/1928261",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/volcengine-coding-plan-seed",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://www.volcengine.com/docs/82379/1928262",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/volc-plan-tools",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
                 }
               ]
             }
@@ -16996,6 +18632,95 @@
         }
       }
     },
+    "zeldoc": {
+      "default_api": null,
+      "deployments": {
+        "https://api.zeldoc.ai/v1": {
+          "protocols": [
+            {
+              "protocol": "messages",
+              "url": "https://api.zeldoc.ai/v1/messages",
+              "deployment": "zeldoc",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "zdev"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-seed",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai/connect-claude-code",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-messages",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai/connect-codex",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-responses",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            },
+            {
+              "protocol": "responses",
+              "url": "https://api.zeldoc.ai/v1/responses",
+              "deployment": "zeldoc",
+              "authentication": {
+                "kind": "bearer"
+              },
+              "models": {
+                "kind": "models",
+                "ids": [
+                  "zdev"
+                ]
+              },
+              "evidence": [
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-seed",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai/connect-claude-code",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-messages",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://docs.zeldoc.ai/connect-codex",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/zeldoc-responses",
+                  "checked_at": "2026-11-11"
+                },
+                {
+                  "kind": "official",
+                  "source": "https://code.claude.com/docs/en/llm-gateway-connect",
+                  "reference": "docs/dev/model-protocols/research/group-06.json#evidence/task23-client-auth-header-contract",
+                  "checked_at": "2026-11-12"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
     "zhipuai": {
       "default_api": null,
       "deployments": {
@@ -17438,7 +19163,7 @@
     },
     "cohere": {
       "npm": "@ai-sdk/cohere",
-      "default_api": null,
+      "default_api": "https://api.cohere.ai/compatibility/v1",
       "report": "docs/dev/model-protocols/research/group-02.json",
       "assessment": {
         "evidence_ids": [
@@ -17898,7 +19623,7 @@
     },
     "vercel": {
       "npm": "@ai-sdk/gateway",
-      "default_api": null,
+      "default_api": "https://ai-gateway.vercel.sh/v1",
       "report": "docs/dev/model-protocols/research/group-06.json",
       "assessment": {
         "provider_id": "vercel",
@@ -18015,8 +19740,7 @@
     }
   },
   "excluded_reasons": {
-    "missing_deployment_base": 273,
-    "unresolved_auth_or_operation": 87,
+    "unresolved_auth_or_operation": 12,
     "不适用于文本ACP": 416,
     "实现缺口": 3,
     "明确不支持": 17,

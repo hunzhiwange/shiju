@@ -86,12 +86,17 @@ fn matrix() -> Value {
                     .collect();
                 // Basic-text directions implemented by the relay. HTTP/JSON/SSE and
                 // richer capability contracts are exercised by the agent evidence suite.
-                let conversions: Vec<_> = [P::Messages, P::Responses, P::Gemini]
+                let capabilities = &caps[..];
+                let conversions: Vec<_> = PROTOCOLS
                     .into_iter()
-                    .map(|source| ConversionSupport {
-                        source,
-                        target: P::Chat,
-                        capabilities: &caps,
+                    .flat_map(|source| {
+                        PROTOCOLS.into_iter().filter_map(move |target| {
+                            (source != target).then_some(ConversionSupport {
+                                source,
+                                target,
+                                capabilities,
+                            })
+                        })
                     })
                     .collect();
                 let result = select_route(&RouteRequest {

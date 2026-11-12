@@ -12,6 +12,8 @@ mod server_tests;
 
 mod chat;
 pub(crate) mod generation;
+mod protocol_bridge;
+mod protocol_bridge_stream;
 pub(crate) mod routing;
 mod transport;
 pub use transport::ProviderRelayBackend;

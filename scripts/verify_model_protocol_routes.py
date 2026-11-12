@@ -366,6 +366,7 @@ def run_service(args):
     records = service_records(offline['records'], observations)
     report = {'schema_version': 1, 'checked_at': datetime.now(timezone.utc).isoformat(),
               'source_revision': revision, 'source_diff_sha256': hashlib.sha256(worktree_diff).hexdigest(),
+              'production_source_sha256': {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted((ROOT / 'crates/vw-agent/src/model_relay').glob('*.rs'))},
               'source_hashes': offline['source_hashes'], 'gateway': binding,
               'production_relay': {'binary_sha256': hashlib.sha256(relay_binary.read_bytes()).hexdigest(),
                                    'host_source_sha256': hashlib.sha256((ROOT / 'scripts/model_protocol_service_relay.rs').read_bytes()).hexdigest(),

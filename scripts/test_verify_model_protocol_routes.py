@@ -20,6 +20,14 @@ def result(fields=None):
 
 
 class ServiceAuditTests(unittest.TestCase):
+    def test_acp_prefers_verified_native_account_when_other_modes_are_rejected(self):
+        from model_protocol_acp import working_account_bindings
+        native = {'kind': 'model', 'source_protocol': 'chat', 'upstream_protocol': 'chat', 'status': 'passed'}
+        rows = [{'provider_id': 'fixture', 'model_api_id': 'working', 'status': 'observed_with_failures', 'attempts': [native]},
+                {'provider_id': 'fixture', 'model_api_id': 'denied', 'status': 'access_denied', 'attempts': [dict(native, status='unauthorized')]},
+                {'provider_id': 'fixture', 'model_api_id': 'converted-only', 'status': 'observed_with_failures', 'attempts': [dict(native, source_protocol='messages')]}]
+        self.assertEqual(working_account_bindings(rows), {('fixture', 'working')})
+
     def test_acp_result_requires_binding_and_tool_output(self):
         evidence = {'connected': True, 'terminal': 'chat.done', 'errors': False,
                     'binding_verified': True, 'tool_write': True, 'tool_read': True,
@@ -290,6 +298,16 @@ class ProductionWireTests(unittest.TestCase):
         result = validate_events('chat', events)
         self.assertEqual(result['status'], 'passed')
         self.assertTrue(result['terminal'])
+
+
+class StreamingToolEvidenceTests(unittest.TestCase):
+    def test_tool_finish_requires_complete_arguments_and_done(self):
+        from model_protocol_service_wire import validate_events
+        events = [('message', {'model': 'm', 'choices': [{'delta': {'tool_calls': [{'index': 0, 'id': 'echo-1', 'type': 'function', 'function': {'name': 'audit_echo', 'arguments': '{"value":"probe"}'}}]}, 'finish_reason': None}]}), ('message', {'choices': [{'delta': {}, 'finish_reason': 'tool_calls'}]}), ('done', None)]
+        self.assertEqual(validate_events('chat', events, tools=True)['status'], 'passed')
+        self.assertNotEqual(validate_events('chat', events[:-1], tools=True)['status'], 'passed')
+        events[0][1]['choices'][0]['delta']['tool_calls'][0]['function']['arguments'] = '{'
+        self.assertNotEqual(validate_events('chat', events, tools=True)['status'], 'passed')
 
 
 if __name__ == '__main__': unittest.main()

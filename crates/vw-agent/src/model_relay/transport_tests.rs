@@ -332,7 +332,7 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
             .unwrap();
         assert_eq!(
             metadata.status(),
-            if matches!(model, "native" | "converted") {
+            if matches!(model, "native" | "converted" | "native-key") {
                 StatusCode::OK
             } else {
                 StatusCode::UNPROCESSABLE_ENTITY

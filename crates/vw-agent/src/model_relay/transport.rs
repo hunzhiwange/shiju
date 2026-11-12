@@ -9,7 +9,7 @@ use axum::{
     response::Response,
 };
 use tokio_util::sync::CancellationToken;
-use vw_provider_resolver::protocol_routes::{ConversionSupport, RouteCapability as C};
+use vw_provider_resolver::protocol_routes::RouteCapability as C;
 
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
 pub struct ProviderRelayBackend {
@@ -265,11 +265,7 @@ impl RelayBackend for ProviderRelayBackend {
 
         if matches!(request.path, "/v1beta/models" | "/v1beta/model") {
             let capabilities = [C::Text, C::Streaming];
-            let conversions = [ConversionSupport {
-                source: P::Gemini,
-                target: P::Chat,
-                capabilities: &capabilities,
-            }];
+            let conversions = super::routing::relay_conversions(false);
             let route = super::routing::select(
                 model,
                 P::Gemini,
@@ -329,22 +325,30 @@ impl RelayBackend for ProviderRelayBackend {
         } else {
             bearer(&info)?
         };
-        let thinking = (messages_request && !native && model.capabilities.reasoning).then(|| {
-            // Bind receipts to the actual deployment and current credential without retaining it.
-            let credential =
-                hex::encode(ring::digest::digest(&ring::digest::SHA256, key.as_bytes()));
-            let deployment = serde_json::json!([
-                model.api.id,
-                model.api.url,
-                route.endpoint.url,
-                route.endpoint.deployment,
-                credential,
-                model.headers.iter().collect::<std::collections::BTreeMap<_, _>>(),
-                route.endpoint.authentication
-            ])
-            .to_string();
-            super::messages_thinking::Context::new(identity, deployment, self.references.clone())
-        });
+        let thinking = (messages_request
+            && !native
+            && route.target == P::Chat
+            && model.capabilities.reasoning)
+            .then(|| {
+                // Bind receipts to the actual deployment and current credential without retaining it.
+                let credential =
+                    hex::encode(ring::digest::digest(&ring::digest::SHA256, key.as_bytes()));
+                let deployment = serde_json::json!([
+                    model.api.id,
+                    model.api.url,
+                    route.endpoint.url,
+                    route.endpoint.deployment,
+                    credential,
+                    model.headers.iter().collect::<std::collections::BTreeMap<_, _>>(),
+                    route.endpoint.authentication
+                ])
+                .to_string();
+                super::messages_thinking::Context::new(
+                    identity,
+                    deployment,
+                    self.references.clone(),
+                )
+            });
         let codex_chat =
             responses_request && !native_responses && identity.session.ends_with(":codex");
         let mut response_tools = super::responses::ChatTools::default();
@@ -373,7 +377,7 @@ impl RelayBackend for ProviderRelayBackend {
             };
             let (mut converted, tools) = super::responses::to_chat(&input, codex_chat)?;
             response_tools = tools;
-            if codex_chat || effort.is_some() {
+            if route.target == P::Chat && (codex_chat || effort.is_some()) {
                 super::responses::configure_codex_chat(&mut converted, model, effort.as_deref());
             }
             chat::prepare(
@@ -404,10 +408,10 @@ impl RelayBackend for ProviderRelayBackend {
         } else {
             chat::prepare(model, &identity.model, &request.body)?
         };
-        let streaming = if gemini_request { gemini_streaming } else { body["stream"] == true };
+        let streaming = streaming_requested;
         let mut url = reqwest::Url::parse(&route.endpoint.url)
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
-        if native_gemini && streaming {
+        if route.target == P::Gemini && streaming {
             let path = url
                 .path()
                 .strip_suffix(":generateContent")
@@ -416,18 +420,37 @@ impl RelayBackend for ProviderRelayBackend {
             url.set_path(&path);
             url.query_pairs_mut().append_pair("alt", "sse");
         }
-        if messages_request && !native {
+        if messages_request && !native && route.target == P::Chat {
             super::messages_thinking::configure(&mut body, &input, model)?;
         }
         // This conversion carries text and tools, not replayable thinking. A missing
         // Gemini thinkingConfig must not enable a Chat deployment's default reasoning.
         // to_chat already rejects explicit thinking requests that cannot be preserved.
-        if gemini_request && !native_gemini {
+        if gemini_request && !native_gemini && route.target == P::Chat {
             super::messages_thinking::configure(
                 &mut body,
                 &serde_json::json!({"thinking":{"type":"disabled"}}),
                 model,
             )?;
+        }
+        if route.conversion_required && route.target != P::Chat {
+            if (messages_request && input["thinking"]["type"] == "disabled")
+                || (responses_request && input["reasoning"]["effort"] == "none")
+                || (gemini_request && super::gemini::thinking_disabled(&input))
+            {
+                body["reasoning_effort"] = "none".into();
+            }
+            body["stream"] = streaming.into();
+            if route.target == P::Messages
+                && body.get("max_tokens").is_none()
+                && body.get("max_completion_tokens").is_none()
+            {
+                if model.limit.output == 0 {
+                    return Err(StatusCode::UNPROCESSABLE_ENTITY);
+                }
+                body["max_tokens"] = model.limit.output.into();
+            }
+            body = super::protocol_bridge::request(route.target, &body)?;
         }
         let mut headers = super::generation::endpoint_headers(&route.endpoint, &key)?;
         for (name, value) in &model.headers {
@@ -468,6 +491,18 @@ impl RelayBackend for ProviderRelayBackend {
                 StatusCode::BAD_GATEWAY
             });
         }
+        let response = if route.conversion_required && route.target != P::Chat {
+            super::protocol_bridge_stream::response(
+                response,
+                route.target,
+                identity.model.clone(),
+                streaming,
+                cancel.clone(),
+            )
+            .await?
+        } else {
+            response
+        };
         if gemini_request {
             return super::gemini_stream::response(
                 response,

@@ -124,10 +124,10 @@ fn source_protocol(
         "gemini" => P::Gemini,
         "auggie" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi"
         | "qwen" => P::Chat,
-        "snow" | "opencode" | "kimi" => {
-            crate::model_relay::routing::configured_api_protocol(api)
-                .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?
-        }
+        "opencode" => crate::model_relay::routing::client_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
+        "snow" | "kimi" => crate::model_relay::routing::configured_api_protocol(api)
+            .map_err(|_| anyhow::anyhow!("ACP selected model protocol is unsupported"))?,
         "copilot" => match api.adapter.as_str() {
             "anthropic" => P::Messages,
             "openai" | "openai-compatible" => {

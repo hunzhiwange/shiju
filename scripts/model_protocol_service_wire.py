@@ -66,9 +66,10 @@ def validate_json(protocol, body, tools=False, require_thinking=False):
         return invalid
 
 
-def validate_events(protocol, events):
+def validate_events(protocol, events, tools=False):
     text, terminal, finish, model = False, False, False, None
-    sequence = []
+    sequence, calls = [], []
+    fragments = {}
     try:
         for event, body in events:
             sequence.append(event)
@@ -77,16 +78,25 @@ def validate_events(protocol, events):
                 if body.get('error'): return {'status': 'invalid_response'}
                 model = body.get('model') or model
                 for choice in body.get('choices', []):
-                    text = text or nonempty(choice.get('delta', {}).get('content'))
-                    finish = finish or choice.get('finish_reason') == 'stop'
+                    delta = choice.get('delta', {})
+                    text = text or nonempty(delta.get('content'))
+                    finish = finish or choice.get('finish_reason') == ('tool_calls' if tools else 'stop')
+                    for call in delta.get('tool_calls') or []:
+                        item = fragments.setdefault(call['index'], {'id': '', 'name': '', 'arguments': ''})
+                        for key in ('id', 'name', 'arguments'):
+                            item[key] += (call.get(key, '') if key == 'id' else call.get('function', {}).get(key, ''))
             elif protocol == 'messages':
                 kind = body.get('type', event)
                 if kind == 'error': return {'status': 'invalid_response'}
                 model = body.get('message', {}).get('model') or model
                 delta = body.get('delta', {})
                 text = text or kind == 'content_block_delta' and delta.get('type') == 'text_delta' and nonempty(delta.get('text'))
-                finish = finish or kind == 'message_delta' and delta.get('stop_reason') == 'end_turn'
+                finish = finish or kind == 'message_delta' and delta.get('stop_reason') == ('tool_use' if tools else 'end_turn')
                 terminal = terminal or kind == 'message_stop'
+                if kind == 'content_block_start' and body.get('content_block', {}).get('type') == 'tool_use':
+                    block = body['content_block']; fragments[body['index']] = {'id': block['id'], 'name': block['name'], 'arguments': '', 'input': block['input']}
+                if kind == 'content_block_delta' and delta.get('type') == 'input_json_delta':
+                    fragments[body['index']]['arguments'] += delta['partial_json']
             elif protocol == 'responses':
                 kind = body.get('type', event)
                 if kind in ('error', 'response.failed', 'response.incomplete'): return {'status': 'invalid_response'}
@@ -94,17 +104,23 @@ def validate_events(protocol, events):
                 text = text or kind == 'response.output_text.delta' and nonempty(body.get('delta'))
                 terminal = terminal or kind == 'response.completed' and body.get('response', {}).get('status') == 'completed'
                 finish = terminal
+                if kind == 'response.completed':
+                    calls = [(item['call_id'], item['name'], json.loads(item['arguments'])) for item in body.get('response', {}).get('output', []) if item.get('type') == 'function_call']
             elif protocol == 'gemini':
                 if body.get('error'): return {'status': 'invalid_response'}
                 model = body.get('modelVersion') or model
                 for candidate in body.get('candidates', []):
-                    text = text or any(nonempty(p.get('text')) and not p.get('thought') for p in candidate.get('content', {}).get('parts', []))
+                    parts = candidate.get('content', {}).get('parts', [])
+                    text = text or any(nonempty(p.get('text')) and not p.get('thought') for p in parts)
                     terminal = terminal or candidate.get('finishReason') == 'STOP'
+                    calls.extend((p['functionCall'].get('id'), p['functionCall'].get('name'), p['functionCall'].get('args')) for p in parts if 'functionCall' in p)
                 finish = terminal
-        valid = text and terminal and finish and nonempty(model)
+        if protocol in ('chat', 'messages'):
+            calls = [(item['id'], item['name'], json.loads(item['arguments']) if item['arguments'] else item.get('input')) for item in fragments.values()]
+        valid = (calls_valid(calls) if tools else text) and terminal and finish and nonempty(model)
         return {'status': 'passed' if valid else 'invalid_response', 'terminal': bool(terminal and finish),
-                'actual_model_id': model, 'content_observed': bool(text), 'event_sequence': sequence}
-    except (AttributeError, TypeError):
+                'actual_model_id': model, 'content_observed': bool(text), 'tool_calls': len(calls), 'event_sequence': sequence}
+    except (AttributeError, TypeError, KeyError, IndexError, ValueError):
         return {'status': 'invalid_response'}
 
 
@@ -145,7 +161,7 @@ def replay_body(protocol, initial, reply):
     return body
 
 
-def exchange(base, token, protocol, model, body, raw, private_json, streaming=False):
+def exchange(base, token, protocol, model, body, raw, private_json, streaming=False, tools=False):
     path = {'chat': '/v1/chat/completions', 'messages': '/v1/messages', 'responses': '/v1/responses',
             'gemini': '/v1beta/models/' + urllib.parse.quote(model, safe='') + (':streamGenerateContent?alt=sse' if streaming else ':generateContent')}[protocol]
     if protocol != 'gemini': body['stream'] = streaming
@@ -173,9 +189,9 @@ def exchange(base, token, protocol, model, body, raw, private_json, streaming=Fa
                     payload = '\n'.join(lines); lines = []
                     events.append(('done', None) if payload == '[DONE]' else (kind, json.loads(payload)))
                     kind = 'message'
-                    if validate_events(protocol, events)['status'] == 'passed': break
+                    if validate_events(protocol, events, tools=tools)['status'] == 'passed': break
             private_json(raw, events)
-            result = validate_events(protocol, events)
+            result = validate_events(protocol, events, tools=tools)
             result.update(http_status=response.status, elapsed_ms=int((time.monotonic() - started) * 1000))
             return result, None
     except urllib.error.HTTPError as error:
@@ -193,8 +209,11 @@ def relay_host(binary, root, account, catalog, private_json):
     config = root / '.shiju-harness-dev'; (config / 'database').mkdir(parents=True)
     import sqlite3
     model = {'id': account['model_api_id'], 'status': 'active', 'reasoning': catalog.get('reasoning', False), 'tool_call': catalog.get('tool_call', False)}
-    for key in ('reasoning_options', 'interleaved', 'modalities', 'limit'):
+    for key in ('reasoning_options', 'interleaved', 'modalities', 'limit', 'protocols'):
         if key in catalog: model[key] = catalog[key]
+    # This bounded host exercises the reviewed Chat account operation. The raw
+    # catalog SDK name is not the runtime wire adapter; explicit native fixture
+    # candidates below are still selected by the shared production router.
     payload = {'providers': {account['provider_id']: {'api': account['endpoint'], 'adapter': 'openai-compatible', 'env': [], 'models': {account['model_key']: model}}}}
     database = config / 'database/vibe-window.sqlite3'
     with sqlite3.connect(str(database)) as connection:

@@ -130,16 +130,16 @@ pub(crate) fn text_probe_request(
     if source == target {
         return Ok(input.clone());
     }
-    if target != GenerationProtocol::Chat {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
-    match source {
-        GenerationProtocol::Messages => super::messages::to_chat(input),
-        GenerationProtocol::Responses => {
-            super::responses::to_chat(input, false).map(|(body, _)| body)
-        }
-        GenerationProtocol::Gemini => super::gemini::to_chat(input),
-        GenerationProtocol::Chat => Err(StatusCode::UNPROCESSABLE_ENTITY),
+    let chat = match source {
+        GenerationProtocol::Messages => super::messages::to_chat(input)?,
+        GenerationProtocol::Responses => super::responses::to_chat(input, false)?.0,
+        GenerationProtocol::Gemini => super::gemini::to_chat(input)?,
+        GenerationProtocol::Chat => input.clone(),
+    };
+    if target == GenerationProtocol::Chat {
+        Ok(chat)
+    } else {
+        super::protocol_bridge::request(target, &chat)
     }
 }
 
@@ -153,9 +153,13 @@ pub(crate) fn text_probe_response(
     if source == target {
         return Ok(body.clone());
     }
-    if target != GenerationProtocol::Chat {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY);
-    }
+    let decoded;
+    let body = if target == GenerationProtocol::Chat {
+        body
+    } else {
+        decoded = super::protocol_bridge::response(target, body)?;
+        &decoded
+    };
     match source {
         GenerationProtocol::Messages => super::messages::from_chat(body, model),
         GenerationProtocol::Responses => super::responses::from_chat(
@@ -166,6 +170,6 @@ pub(crate) fn text_probe_response(
             false,
         ),
         GenerationProtocol::Gemini => super::gemini::from_chat(body, model),
-        GenerationProtocol::Chat => Err(StatusCode::UNPROCESSABLE_ENTITY),
+        GenerationProtocol::Chat => Ok(body.clone()),
     }
 }

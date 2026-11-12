@@ -46,21 +46,14 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         .model_api
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("OpenCode requires selected model transport"))?;
-    let (npm, suffix) = match api.adapter.as_str() {
-        "openai-compatible" => ("@ai-sdk/openai-compatible", "/v1"),
-        "openai-responses" => ("@ai-sdk/openai", "/v1"),
-        "openai" => {
-            let upstream = reqwest::Url::parse(&api.url)
-                .map_err(|_| anyhow::anyhow!("invalid OpenCode upstream transport"))?;
-            if upstream.path().trim_end_matches('/').ends_with("/responses") {
-                ("@ai-sdk/openai", "/v1")
-            } else {
-                ("@ai-sdk/openai-compatible", "/v1")
-            }
-        }
-        "anthropic" => ("@ai-sdk/anthropic", "/v1"),
-        "google" => ("@ai-sdk/google", "/v1beta"),
-        _ => anyhow::bail!("OpenCode selected model protocol is unsupported"),
+    use vw_shared::provider::ModelProtocol as P;
+    let (npm, suffix) = match crate::model_relay::routing::client_protocol(api)
+        .map_err(|_| anyhow::anyhow!("OpenCode selected model has no executable HTTP contract"))?
+    {
+        P::Chat => ("@ai-sdk/openai-compatible", "/v1"),
+        P::Responses => ("@ai-sdk/openai", "/v1"),
+        P::Messages => ("@ai-sdk/anthropic", "/v1"),
+        P::Gemini => ("@ai-sdk/google", "/v1beta"),
     };
     let root = profile.state_root.as_deref().unwrap_or(profile.directory());
     anyhow::ensure!(root.is_absolute() && root.is_dir(), "invalid OpenCode state root");
@@ -88,7 +81,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         "tool_call": profile.model_supports_tool_call, "temperature": profile.model_supports_temperature,
         "reasoning": profile.model_supports_reasoning,
     });
-    if npm == "@ai-sdk/openai-compatible" && crate::model_relay::chat_url(api).is_ok() {
+    if npm == "@ai-sdk/openai-compatible" {
         // A reasoning boolean would otherwise make OpenCode infer Chat variants.
         model_config["reasoning_options"] = json!([]);
         let provider = &profile.binding.identity.provider;

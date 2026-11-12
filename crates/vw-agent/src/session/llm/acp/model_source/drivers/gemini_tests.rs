@@ -159,9 +159,14 @@ async fn acp_model_source_gemini_project_cli_override_reaches_actual_subprocess(
 }
 
 #[test]
-fn model_protocol_013_gemini_startup_accepts_native_and_chat_but_refuses_messages() {
-    for (adapter, accepted) in [("google", true), ("openai-compatible", true), ("anthropic", false)]
-    {
+fn model_protocol_013_gemini_startup_accepts_native_and_each_converted_protocol() {
+    for (adapter, accepted) in [
+        ("google", true),
+        ("openai-compatible", true),
+        ("anthropic", true),
+        ("openai-responses", true),
+        ("unknown-sdk", false),
+    ] {
         let mut launch = profile();
         launch.model_api.as_mut().unwrap().adapter = adapter.into();
         let result = configure(&mut launch, "http://127.0.0.1:12345");

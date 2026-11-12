@@ -3684,6 +3684,20 @@
         "final_url": "https://aistudio.google.com/docs/models/lyria-3-pro-preview",
         "content_sha256": "5a1926b36fa4f37a12d91c001a6c5ea7d0a5376a65dae5ce49ae4f68a356d238"
       }
+    },
+    {
+      "id": "task23-cohere-compatible-root",
+      "type": "official_docs",
+      "url": "https://docs.cohere.com/docs/compatibility-api",
+      "checked_at": "2026-11-12",
+      "excerpt": "官方示例使用Cohere API key与https://api.cohere.ai/compatibility/v1接入OpenAI SDK；原生Cohere v2与此兼容入口分别保留。"
+    },
+    {
+      "id": "task23-claudinio-auth",
+      "type": "official_docs",
+      "url": "https://claudin.io/docs/faq/",
+      "checked_at": "2026-11-12",
+      "excerpt": "官方FAQ明确Authorization Bearer和x-api-key均可，模型ID为claudinio；并未实测账号与套餐。"
     }
   ],
   "records": [
@@ -4346,7 +4360,8 @@
       "conclusion": "官方确认",
       "reason": "官方当前模型资料列出精确ID claudinio，且协议参考明确文本接口；结论只确认公开接口，账号可用性与unknown能力尚未实测。",
       "evidence_ids": [
-        "claudinio"
+        "claudinio",
+        "task23-claudinio-auth"
       ],
       "request_protocols": [
         "chat",
@@ -4356,7 +4371,7 @@
         "https://api.claudin.io/v1/chat/completions",
         "https://api.claudin.io/v1/messages"
       ],
-      "auth": "服务方API key；官网展示ANTHROPIC_AUTH_TOKEN，完整HTTP头合同unknown。",
+      "auth": "Authorization: Bearer 服务方API key或x-api-key，官方FAQ确认二者均可；套餐访问仍独立。",
       "deployment": "claudinio各套餐；claudius原模型仅Pro/Ultra，低档计划会映射到claudinio。",
       "capabilities": {
         "text": "官方资料确认此精确模型的所列文本协议；未确认账户实际可用或完整ACP工具能力。",
@@ -13182,7 +13197,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13239,7 +13255,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13297,7 +13314,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13354,7 +13372,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13421,7 +13440,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13487,7 +13507,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13544,7 +13565,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13602,7 +13624,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13659,7 +13682,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13716,7 +13740,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -13949,7 +13974,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -14006,7 +14032,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -14063,7 +14090,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -14120,7 +14148,8 @@
       "evidence_ids": [
         "cohere",
         "cohere-chat",
-        "cohere-compatible"
+        "cohere-compatible",
+        "task23-cohere-compatible-root"
       ],
       "request_protocols": [
         "chat"
@@ -120598,5 +120627,6 @@
       "official_model_observation": null,
       "live_status": "未发起推理调用；官方文档/公开目录查询，不是实测通过。"
     }
-  ]
+  ],
+  "updated_at": "2026-11-12"
 }

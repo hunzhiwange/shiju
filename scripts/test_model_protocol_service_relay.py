@@ -47,7 +47,7 @@ class RelayFixtureTests(unittest.TestCase):
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()
         self.directory = tempfile.TemporaryDirectory(prefix='shiju-relay-fixture-')
         self.root = Path(self.directory.name) / 'relay'
-        self.account = {'provider_id': 'shiju', 'model_key': 'deepseek-v4.1-flash', 'model_api_id': 'deepseek-v4.1-flash-1017', 'endpoint': 'http://127.0.0.1:%d/v1' % self.server.server_port, 'credential': 'fixture-only-key'}
+        self.account = {'provider_id': 'shiju', 'adapter': '@ai-sdk/openai-compatible', 'model_key': 'deepseek-v4.1-flash', 'model_api_id': 'deepseek-v4.1-flash-1017', 'endpoint': 'http://127.0.0.1:%d/v1' % self.server.server_port, 'credential': 'fixture-only-key'}
         self.catalog = {'reasoning': True, 'reasoning_options': [{'type': 'toggle'}], 'tool_call': True}
         binary = Path(os.environ['CARGO_TARGET_DIR']) / 'debug/model-protocol-service-relay'
         self.context = relay_host(binary, self.root, self.account, self.catalog, private_json)
@@ -62,6 +62,12 @@ class RelayFixtureTests(unittest.TestCase):
         result, reply = exchange(self.base, self.token, 'gemini', self.account['model_key'], body, self.root / 'response.json', private_json)
         if reply is not None: result.update(validate_json('gemini', reply))
         return result
+
+    def test_reviewed_chat_fixture_keeps_wire_identity_separate_from_catalog_sdk(self):
+        result, reply = exchange(self.base, self.token, 'chat', self.account['model_key'], request_body('chat', self.account['model_key']), self.root / 'chat.json', private_json)
+        self.assertEqual(result['http_status'], 200)
+        self.assertEqual(validate_json('chat', reply)['status'], 'passed')
+        self.assertEqual(self.calls[-1]['model'], self.account['model_api_id'])
 
     def test_explicit_zero_budget_maps_to_upstream_disabled_and_accepts_null_reasoning(self):
         body = request_body('gemini', self.account['model_key'])

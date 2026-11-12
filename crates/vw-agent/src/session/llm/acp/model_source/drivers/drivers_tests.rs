@@ -112,7 +112,9 @@ fn model_protocol_013_four_sources_prefer_catalog_native_and_share_relay_convers
         assert_eq!(route.conversion_required, source != P::Chat);
         launch.model_api.as_mut().unwrap().protocols =
             Some(vec![endpoint(if source == P::Messages { P::Responses } else { P::Messages })]);
-        assert!(launch_route(agent, &launch).is_err(), "{agent}");
+        let route = launch_route(agent, &launch).unwrap();
+        assert_ne!(route.target, source, "{agent}");
+        assert!(route.conversion_required, "{agent}");
     }
 }
 
@@ -179,4 +181,22 @@ fn model_protocol_013_unavailable_catalog_is_rejected_before_any_driver_writes_f
         assert!(configure(agent, &mut launch, "http://127.0.0.1:12345").is_err(), "{agent}");
         assert_eq!(std::fs::read_dir(launch.directory()).unwrap().count(), 0, "{agent}");
     }
+}
+
+#[test]
+fn model_protocol_023_opencode_uses_proven_http_contract_without_relabeling_sdk() {
+    for protocol in [P::Chat, P::Messages, P::Responses, P::Gemini] {
+        let mut launch = profile("vendor-sdk");
+        launch.model_api.as_mut().unwrap().protocols = Some(vec![endpoint(protocol)]);
+        let route = launch_route("opencode", &launch).unwrap();
+        assert_eq!(route.source, protocol);
+        assert_eq!(route.target, protocol);
+        assert_eq!(launch.model_api.as_ref().unwrap().adapter, "vendor-sdk");
+    }
+    let mut launch = profile("vendor-sdk");
+    assert!(launch_route("opencode", &launch).is_err());
+    let mut foreign = endpoint(P::Chat);
+    foreign.url = "https://foreign.invalid/v1/chat/completions".into();
+    launch.model_api.as_mut().unwrap().protocols = Some(vec![foreign]);
+    assert!(launch_route("opencode", &launch).is_err());
 }

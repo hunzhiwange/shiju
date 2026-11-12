@@ -77,7 +77,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
             "/v1/messages",
             "x-api-key: fixture-key",
             json!({
-                "type":"message","role":"assistant","model":"fixture-v1","stop_reason":"end_turn","content":[{"type":"text","text":"OK"}]
+                "id":"fixture-message","usage":{"input_tokens":4,"output_tokens":1},"type":"message","role":"assistant","model":"fixture-v1","stop_reason":"end_turn","content":[{"type":"text","text":"OK"}]
             }),
         ),
         (
@@ -87,7 +87,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
             "/v1/responses",
             "authorization: bearer fixture-key",
             json!({
-                "object":"response","status":"completed","model":"fixture-v1","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK"}]}]
+                "id":"fixture-response","usage":{"input_tokens":4,"output_tokens":1},"object":"response","status":"completed","model":"fixture-v1","output":[{"type":"message","role":"assistant","content":[{"type":"output_text","text":"OK"}]}]
             }),
         ),
         (
@@ -97,7 +97,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
             "/v1/models/fixture:generateContent",
             "x-goog-api-key: fixture-key",
             json!({
-                "modelVersion":"fixture-v1","candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[{"text":"OK"}]}}]
+                "responseId":"fixture-gemini","usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":1},"modelVersion":"fixture-v1","candidates":[{"finishReason":"STOP","content":{"role":"model","parts":[{"text":"OK"}]}}]
             }),
         ),
         (
@@ -189,16 +189,25 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
                 )
                 .unwrap();
         }
-        let protocols = if id == "chat" {
-            vec![
-                None,
-                Some(DiagnosticModelProtocol::Messages),
-                Some(DiagnosticModelProtocol::Responses),
-                Some(DiagnosticModelProtocol::Gemini),
-            ]
-        } else {
-            vec![None]
+        let native_protocol = match id {
+            "messages" => DiagnosticModelProtocol::Messages,
+            "responses" => DiagnosticModelProtocol::Responses,
+            "gemini" => DiagnosticModelProtocol::Gemini,
+            _ => DiagnosticModelProtocol::Chat,
         };
+        let protocols: Vec<_> = std::iter::once(None)
+            .chain(
+                [
+                    DiagnosticModelProtocol::Chat,
+                    DiagnosticModelProtocol::Messages,
+                    DiagnosticModelProtocol::Responses,
+                    DiagnosticModelProtocol::Gemini,
+                ]
+                .into_iter()
+                .filter(|p| *p != native_protocol)
+                .map(Some),
+            )
+            .collect();
         let attempts = protocols.len();
         use sha2::{Digest, Sha256};
         let expected_fingerprint = hex::encode(Sha256::digest(
@@ -299,7 +308,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
                 assert!(attempt.started_at.0 > 0);
                 if let Some(protocol) = protocol {
                     assert_eq!(attempt.source_protocol, protocol);
-                    assert_eq!(attempt.upstream_protocol, DiagnosticModelProtocol::Chat);
+                    assert_eq!(attempt.upstream_protocol, native_protocol);
                 }
                 assert_eq!(report.source, DiagnosticEvidenceSource::ControlledFixture);
                 match (report.outcome, error) {
@@ -312,7 +321,7 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
                         assert_eq!(route.verified_fields, ["text", "terminal_status", "model"]);
                         if let Some(protocol) = protocol {
                             assert_eq!(route.source_protocol, protocol);
-                            assert_eq!(route.upstream_protocol, DiagnosticModelProtocol::Chat);
+                            assert_eq!(route.upstream_protocol, native_protocol);
                         }
                     }
                     (DiagnosticOutcome::Failed { error, http_status }, Some(expected)) => {
@@ -333,19 +342,6 @@ async fn model_protocol_019_saved_routes_validate_binding_and_failures() {
             ModelProbe::prepare(&database, &accounts, owner.clone(), id.into(), "other".into())
                 .is_err()
         );
-        if id == "messages" {
-            assert!(matches!(
-                ModelProbe::prepare_protocol(
-                    &database,
-                    &accounts,
-                    owner.clone(),
-                    id.into(),
-                    "fixture".into(),
-                    Some(DiagnosticModelProtocol::Chat)
-                ),
-                Err(ModelPrepareError::Unsupported)
-            ));
-        }
         let prepared = || {
             ModelProbe::prepare(&database, &accounts, owner.clone(), id.into(), "fixture".into())
                 .unwrap()

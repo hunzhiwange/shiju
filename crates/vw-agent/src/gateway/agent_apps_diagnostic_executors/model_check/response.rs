@@ -116,16 +116,16 @@ pub(super) fn request(
     target: GenerationProtocol,
     model: &str,
 ) -> Result<Value, DiagnosticFailureCode> {
-    let input = source.prompt(model);
+    let mut input = source.prompt(model);
     if source == target {
         return Ok(input);
     }
-    if target != GenerationProtocol::Chat {
-        return Err(DiagnosticFailureCode::Unsupported);
-    }
+    input["model"] = model.into();
     let mut body = crate::model_relay::generation::text_probe_request(source, target, &input)
         .map_err(|_| DiagnosticFailureCode::Unsupported)?;
-    body["model"] = model.into();
+    if target != GenerationProtocol::Gemini {
+        body["model"] = model.into();
+    }
     Ok(body)
 }
 

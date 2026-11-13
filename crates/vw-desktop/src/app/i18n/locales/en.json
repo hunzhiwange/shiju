@@ -5620,5 +5620,17 @@
   "正在加载…": "Loading…",
   "网关未返回工作树设置。": "The gateway did not return worktree settings.",
   "网关未返回工作树默认目录。": "The gateway did not return the default worktree directory.",
-  "正在解压并校验 Web 版本…": "Extracting and verifying the Web version…"
+  "正在解压并校验 Web 版本…": "Extracting and verifying the Web version…",
+  "选择下一个相同项": "Select next occurrence",
+  "向上添加光标": "Add cursor above",
+  "向下添加光标": "Add cursor below",
+  "跳转到行": "Go to line",
+  "命令面板": "Command palette",
+  "向上移动行": "Move line up",
+  "向下移动行": "Move line down",
+  "向上复制行": "Duplicate line up",
+  "向下复制行": "Duplicate line down",
+  "切换行注释": "Toggle line comment",
+  "切换折叠": "Toggle fold",
+  "全部折叠": "Fold all"
 }

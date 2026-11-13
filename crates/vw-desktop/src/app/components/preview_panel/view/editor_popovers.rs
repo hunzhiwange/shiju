@@ -68,24 +68,7 @@ fn action<'a>(app: &'a App, label: &'static str, message: EditorMessage) -> Elem
 fn panel(app: &App, kind: EditorPopover) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let content: Element<'_, Message> = match kind {
-        EditorPopover::Actions => {
-            let mut items = column![
-                action(app, "搜索", EditorMessage::OpenSearch),
-                action(app, "复制", EditorMessage::Copy)
-            ]
-            .spacing(4);
-            let read_only = app.active_preview_path.as_ref().is_some_and(|path| {
-                app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only)
-            });
-            if !read_only {
-                items = items.push(action(app, "撤销", EditorMessage::Undo)).push(action(
-                    app,
-                    "重做",
-                    EditorMessage::Redo,
-                ));
-            }
-            items.into()
-        }
+        EditorPopover::Actions => super::editor_actions::view(app),
         EditorPopover::Settings => {
             column![action(app, "编辑器设置", EditorMessage::ToggleSettings)].into()
         }
@@ -105,7 +88,7 @@ fn panel(app: &App, kind: EditorPopover) -> Element<'_, Message> {
             scrollable::Scrollbar::new().width(4).scroller_width(4),
         ));
     container(scroll)
-        .width(240)
+        .width(if kind == EditorPopover::Actions { 340 } else { 240 })
         .max_height(360)
         .padding(8)
         .style(|theme: &Theme| {

@@ -641,3 +641,8 @@ fn fullscreen_icon_style(theme: &Theme) -> svg::Style {
         }),
     }
 }
+
+mod editor_actions;
+#[cfg(test)]
+#[path = "editor_actions_tests.rs"]
+mod editor_actions_tests;

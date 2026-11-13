@@ -43,6 +43,13 @@ fn editor_message_may_change_content(message: &iced_code_editor::Message) -> boo
             | iced_code_editor::Message::ReplaceNext
             | iced_code_editor::Message::ReplaceAll
             | iced_code_editor::Message::ImeCommit(_)
+            | iced_code_editor::Message::MoveLineUp
+            | iced_code_editor::Message::MoveLineDown
+            | iced_code_editor::Message::DuplicateLineUp
+            | iced_code_editor::Message::DuplicateLineDown
+            | iced_code_editor::Message::ToggleComment
+            // Vim keys depend on parser state and can mutate the document.
+            | iced_code_editor::Message::VimKey(_)
     )
 }
 
@@ -283,7 +290,9 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
         PreviewMessage::EditorEvent(evt) => {
-            if matches!(evt, iced_code_editor::Message::OpenCommandPalette) {
+            let from_actions =
+                app.editor_popover == Some(crate::app::message::editor::EditorPopover::Actions);
+            if from_actions || matches!(evt, iced_code_editor::Message::OpenCommandPalette) {
                 app.editor_popover = None;
             }
             if app.active_preview_path.as_ref().is_some_and(|path| {
@@ -388,6 +397,10 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             if let Some(path) = app.active_preview_path.as_deref()
                 && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
             {
+                if from_actions {
+                    tab.editor.inner.request_focus();
+                    let _ = tab.editor.inner.update(&iced_code_editor::Message::CanvasFocusGained);
+                }
                 let was_dirty = tab.is_dirty;
                 let may_change_content = editor_message_may_change_content(&evt);
                 let was_modified = may_change_content && tab.editor.inner.is_modified();

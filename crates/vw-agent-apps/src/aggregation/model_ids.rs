@@ -75,6 +75,7 @@ pub fn decode(app: AppId, id: &str) -> Result<Decoded<'_>, ModelIdError> {
                 Err(ModelIdError::InvalidModelId)
             }
         }
+        AppId::GrokBuild => Ok(Decoded::Plain),
         _ => Err(ModelIdError::UnsupportedApplication),
     }
 }

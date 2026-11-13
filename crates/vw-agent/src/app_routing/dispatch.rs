@@ -136,6 +136,21 @@ pub(super) async fn forward_json(
     let (target, model, cancelled) =
         route.select_json(body.get("model").and_then(Value::as_str))?;
 
+    #[cfg(target_os = "macos")]
+    let mapped_model = if model.is_none() {
+        client_model.as_deref().map(|model| {
+            route.provider.as_ref().map_or_else(
+                || vw_agent_apps::routing::target_model::resolve(app, &Value::Null, model),
+                |provider| provider.model(model),
+            )
+        })
+    } else {
+        None
+    };
+    #[cfg(target_os = "macos")]
+    let model =
+        model.or(mapped_model.as_deref().filter(|mapped| Some(*mapped) != client_model.as_deref()));
+
     // Wait only after the upload so disconnect detection can cancel a queued
     // request, and keep the listener-wide buffer reservation while it waits.
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;

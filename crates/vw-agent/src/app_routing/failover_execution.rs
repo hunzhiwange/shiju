@@ -177,6 +177,7 @@ impl Plan {
         &self,
         request: AttemptRequest<'_>,
     ) -> Result<Response, StatusCode> {
+        let app = request.route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let runtime = &request.route.failover;
         let cancelled = &request.route.cancelled;
         let mut budget =
@@ -235,7 +236,17 @@ impl Plan {
             })
             .await
             .map_err(unavailable)??;
-            let mut outgoing = dispatch::prepare_request(request.body, &candidate.target, None)?;
+            let model = request.body.get("model").and_then(Value::as_str).map(|model| {
+                vw_agent_apps::routing::target_model::resolve(
+                    app,
+                    candidate.row.get("settingsConfig").unwrap_or(&Value::Null),
+                    model,
+                )
+            });
+            let model = model.as_deref().filter(|mapped| {
+                Some(*mapped) != request.body.get("model").and_then(Value::as_str)
+            });
+            let mut outgoing = dispatch::prepare_request(request.body, &candidate.target, model)?;
             let mut wire = request.wire.clone();
             wire.retain_allowed(request.headers, outgoing.headers_mut());
             if candidate.messages_api_key

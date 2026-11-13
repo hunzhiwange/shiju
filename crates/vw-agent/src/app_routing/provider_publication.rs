@@ -121,6 +121,14 @@ impl PublishedProvider {
         serde_json::from_str::<Value>(payload).ok().as_ref() == Some(&self.row)
     }
 
+    pub(super) fn model(&self, model: &str) -> String {
+        vw_agent_apps::routing::target_model::resolve(
+            self.scope.app_id,
+            self.row.get("settingsConfig").unwrap_or(&Value::Null),
+            model,
+        )
+    }
+
     pub(super) fn apply_headers(&self, headers: &mut axum::http::HeaderMap) {
         if self.messages_api_key
             && let Some(key) = headers.remove(header::AUTHORIZATION)

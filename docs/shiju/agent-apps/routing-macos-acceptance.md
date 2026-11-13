@@ -879,3 +879,32 @@ SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__
 为避免共享源码持续变动影响有效验证，经用户授权从真实工作区复制到 `/private/tmp/shiju-routing31-verify.Xdg44d`，排除 Git、target 和索引缓存；没有创建 Git worktree。该副本验证仍使用原仓库槽位 6 的绝对构建目录。交付前逐字节核对本项源码和真实集成接线，并分别记录副本及实际工作区验证结果，不用副本通过隐藏实际集成失败。源码仅在原工作区修改。
 
 本项 7 个不同用例通过，实际集成路由六项复验通过，状态为 **已完成，待回归**。保留任务 31 卡；恢复条件为 Pi/OMP 桌面所有者完成生产调用与 UI 接线、消除上述 lint 后，重新动态领取共享槽位，在原工作区运行相同全仓 Clippy。未修改 plan.md，未宣称母任务 8 或跨平台验收完成。
+
+
+## 任务 32：解析应用目标与模型映射（2026-11-13）
+
+仅 macOS 27.0 (26A428)、arm64 自动验收。本项是授权目标内的模型策略及生产调用链接线，不代表 Grok HTTP 协议入口、真实账号或母任务8已验收；Windows/Linux/WSL 未验证。
+
+已读取固定 upstream 的 model_mapper、handler_context 和 handlers 的 resolve_stack_target，以及当前生产 dispatch、route_auth、provider_publication、failover_execution 和相邻策略/目录实现。快照 model_mapper SHA256 为 `60d7fd77ecadea58d047b06583344af967f4efd92ea48528633144284d0433ab`，handler_context 为 `d064a4d2bbdf6574c024444bdcef758ebb0e34c777d6a5838ecabb01f2030452`。
+
+### 规则与执行边界
+
+- `routing::target_model::resolve` 只消费执行端已经授权的 app、provider settings 和客户端模型，不访问数据库、账号或桌面。角色 env key 复用母任务4/5已有 desktop_mapping::defaults；保持来源 fable→opus 降级、haiku/opus/sonnet 优先于默认模型、子代理原名和 5.5 客户端反向别名。仅 Claude 剥离尾部大小写不敏感的 `[1M]`，Unicode 不切坏，非尾部标记不变。
+- `dispatch::forward_json` 在 AuthorizedRoute::select_json 之后消费 PublishedProvider 的同一个保存行快照；已有 Aggregation/Desktop 的精确目标模型优先，不重新选择 provider。不发生模型变化时保留原请求覆盖行为。仍使用原 check_provider、授权 binding 和撤销检查，绝不查询其他租户的默认 provider。
+- `failover_execution::Plan::forward` 在校验候选行快照后使用该候选 settings 映射原始客户端模型，不把前一候选的映射传给下一候选。只补该行为所需调用，不改变重试/熔断策略。
+- `aggregation::model_ids::decode` 对 GrokBuild 返回 Plain，encode 仍拒绝生成 Grok 聚合 ID；Grok 的 `ccs-*` 和 `[1M]` 字面量不借用 Claude/Codex 命名空间。该既有解码器由 AuthorizedRoute::select_json 真实消费。
+- 首轮将 Grok 网络入口未就绪误判为纯策略阻塞；继续核查后确认本项可安全接入现有授权发布，不必实现新的 Grok 配置事务。撤销该阻塞判断。Grok HTTP 入口仍由后续对应协议任务验证，不宣称 Grok 网络转发已交付。
+
+### 验证证据
+
+红灯：`python3 scripts/cargo_slot.py cargo test -p vw-agent-apps --lib cc_route_032_ -- --nocapture`（实际由入口内 sh 执行同一 Cargo 命令），槽位4，退出101；3项运行，1通过2失败。断言为 `claude-sonnet-5[1M]` 未变成 `mapped`，及 `模型[1m]  ` 未变成 `模型`，均为行为失败。
+
+绿灯同一聚焦命令：槽位4，退出0，6项通过、0失败/忽略。覆盖角色/default/fable降级、映射后1M、无映射1M/Unicode、其他应用隔离、Grok保留前缀不解码、子代理原名及5.5别名。
+
+格式化：槽位4运行 `cargo fmt --all -- --emit stdout`，退出0；因共享目录存在其他会话活动，按任务31既有方式只读全仓格式化输出，再对本项七个 Rust 文件定向 `rustfmt --edition 2024 --config skip_children=true`，均退出0；最后两处 agent 接线格式化同样退出0。没有写无关格式化差异。`git diff --check` 退出0。
+
+全仓 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`（同阶段入口内执行）槽位4退出0，耗时1分56秒。本项源码已由 apps/agent 检查；未以零测试或编译替代聚焦行为验证。
+
+槽位4两个绝对目录相同：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，`CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。红灯、绿灯及 Clippy 前台进程已退出，入口释放自有锁，保留缓存。后续聚合标识兼容复验结果补于下方。
+
+最终复验：一次 `python3 scripts/cargo_slot.py sh -c '... cargo test -p vw-agent-apps --lib cc_route_032_ -- --nocapture && cargo test -p vw-agent-apps --lib aggregation_t04_ -- --nocapture'`，槽位3，退出0；本项6项再次通过，既有聚合标识4项通过，0失败/忽略。两个绝对目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；命令完成后入口释放锁，保留缓存。总计10个不同用例通过，任务32状态为已完成。仅本项源码及证据提交，不修改只读 plan.md；任务卡按约定删除，建议下一步执行后续协议任务并验收对应 HTTP 请求链。

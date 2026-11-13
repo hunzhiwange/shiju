@@ -56,6 +56,10 @@ pub(crate) mod delegated_tools;
 pub(crate) mod discovery;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod enter_worktree;
+#[cfg(unix)]
+pub mod excel_control;
+#[cfg(all(test, unix))]
+mod excel_control_tests;
 mod executor;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod exit_worktree;

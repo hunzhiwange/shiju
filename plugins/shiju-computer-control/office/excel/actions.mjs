@@ -157,38 +157,56 @@ export function createExcelActions({ Office, Excel, approved }) {
 export async function mountExcelTaskpane({ Office, Excel, document, window, crypto }) {
   const status = document.getElementById('status');
   const form = document.getElementById('pair');
-  let connection, actions, monitor;
-  const stop = () => { clearInterval(monitor); monitor = undefined; actions?.close(); connection?.close(); connection = undefined; status.textContent = '已停止。重新批准并配对后才能继续。'; };
+  const button = document.getElementById('connect');
+  const identity = document.getElementById('document-id');
+  let connection, actions, monitor, epoch = 0, ready = false;
+  let documentId;
+  const renewIdentity = () => { documentId = crypto.randomUUID(); identity.value = documentId; };
+  renewIdentity(); // The trusted host must bind its token before the pane submits it.
+  const closeConnection = () => {
+    clearInterval(monitor); monitor = undefined;
+    actions?.close(); connection?.close(); connection = undefined;
+  };
+  const stop = () => {
+    epoch++;
+    closeConnection();
+    renewIdentity();
+    button.disabled = !ready;
+    status.textContent = '已停止。使用新的文档标识重新批准并配对。';
+  };
   document.getElementById('stop').addEventListener('click', stop);
   window.addEventListener('pagehide', stop);
   window.addEventListener('beforeunload', stop);
-  const ready = await Office.onReady();
-  if (ready.host !== Office.HostType.Excel || !excelCapabilities(Office).length) {
+  const officeReady = await Office.onReady();
+  if (officeReady.host !== Office.HostType.Excel || !excelCapabilities(Office).length) {
     status.textContent = '需要支持 ExcelApi 1.2 的 Microsoft Excel。';
     return;
   }
-  document.getElementById('connect').disabled = false;
-  status.textContent = '仅在临时工作簿中测试。填写本机宿主配对信息并批准范围。';
+  ready = true;
+  button.disabled = false;
+  status.textContent = '仅在临时工作簿中测试。先将文档标识交给本机宿主批准配对，再填写一次性令牌并批准范围。';
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    stop();
-    const button = document.getElementById('connect');
+    if (button.disabled || connection) return;
+    const attempt = ++epoch;
+    closeConnection();
     button.disabled = true;
+    const pairedDocumentId = documentId;
     const tokenInput = document.getElementById('token');
     const token = tokenInput.value;
     tokenInput.value = '';
     try {
-      actions = createExcelActions({ Office, Excel, approved: {
+      const activeActions = createExcelActions({ Office, Excel, approved: {
         sheet: document.getElementById('sheet').value,
         range: document.getElementById('range').value,
         allowOverwrite: document.getElementById('overwrite').checked,
         allowFormulas: document.getElementById('formulas').checked,
         numberFormat: document.getElementById('format').value || null,
       } });
-      await actions.initialize();
-      const activeActions = actions;
-      const documentId = crypto.randomUUID(); // New identity on every pane load/pair.
-      connection = connectOffice({ endpoint: document.getElementById('endpoint').value, token, surface: 'excel', documentId, title: 'Excel approved range', capabilities: excelCapabilities(Office), execute: action => activeActions.execute(action), WebSocketImpl: class extends window.WebSocket {
+      actions = activeActions;
+      await activeActions.initialize();
+      if (attempt !== epoch) { activeActions.close(); return; }
+      const activeConnection = connectOffice({ endpoint: document.getElementById('endpoint').value, token, surface: 'excel', documentId: pairedDocumentId, title: 'Excel approved range', capabilities: excelCapabilities(Office), execute: action => activeActions.execute(action), WebSocketImpl: class extends window.WebSocket {
         constructor(url) {
           super(url);
           this.addEventListener('close', () => activeActions.close());
@@ -196,17 +214,23 @@ export async function mountExcelTaskpane({ Office, Excel, document, window, cryp
         }
         close(...args) { activeActions.close(); return super.close(...args); }
       } });
-      await connection.ready;
-      status.textContent = `已配对临时文档 ${documentId}。仅授权连接时批准的范围与操作。`;
+      connection = activeConnection;
+      await activeConnection.ready;
+      if (attempt !== epoch) { activeConnection.close(); return; }
+      status.textContent = `已配对临时文档 ${pairedDocumentId}。仅授权连接时批准的范围与操作。`;
       let checking = false;
       monitor = setInterval(async () => {
         if (checking) return;
         checking = true;
-        try { await activeActions.checkIdentity(); } catch { if (actions === activeActions) stop(); }
+        try { await activeActions.checkIdentity(); } catch { if (attempt === epoch) stop(); }
         finally { checking = false; }
       }, 2000);
-    } catch { stop(); status.textContent = '配对或执行准备失败；检查 Excel、范围、本机可信 HTTPS 服务与一次性令牌。'; }
-    finally { button.disabled = false; }
+    } catch {
+      if (attempt === epoch) {
+        stop();
+        status.textContent = '配对或执行准备失败；检查 Excel、范围、本机可信 HTTPS 服务与一次性令牌，按新文档标识重新批准。';
+      }
+    } finally { if (attempt === epoch) button.disabled = !!connection; }
   });
 }
 

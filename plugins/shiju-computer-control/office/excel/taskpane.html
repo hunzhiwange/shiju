@@ -28,6 +28,9 @@
   <form id="pair" autocomplete="off">
     <label for="endpoint">本机安全连接地址</label>
     <input id="endpoint" type="url" placeholder="wss://localhost:端口/office" required spellcheck="false">
+    <label for="document-id">本次配对文档标识</label>
+    <input id="document-id" readonly spellcheck="false">
+    <small>先将此标识交给本机宿主批准配对；停止后标识会更新，必须重新批准。</small>
     <label for="token">宿主提供的一次性配对令牌</label>
     <input id="token" type="password" required pattern="[a-f0-9]{64}" maxlength="64" autocomplete="off">
     <small>令牌只用于本次配对，不会保存。HTTPS 站点证书必须已获系统信任。</small>
@@ -49,7 +52,7 @@
   <p id="status" role="status" aria-live="polite">正在等待 Microsoft Excel…</p>
   <details><summary>侧载与验证准备</summary>
     <p>使用可信 HTTPS 服务将 office 目录映射到 https://localhost:3000/office/，保留 excel 与 shared 的相邻路径；在 Excel 中侧载 manifest.xml。该页面不提供 TLS 服务，不包含证书或私钥。</p>
-    <p>ShiJu 宿主须将允许来源精确配置为 https://localhost:3000，并提供一次性令牌及 WSS 端口。批准临时工作簿范围后，使用显示的临时文档标识选择目标。</p>
+    <p>ShiJu 宿主须将允许来源精确配置为 https://localhost:3000，按上方本次配对文档标识批准，再提供一次性令牌及 WSS 端口。批准临时工作簿范围后，使用显示的临时文档标识选择目标。</p>
     <p>临时验收：批准 A1:B2、覆盖、公式及 0.00 格式，以 write_range 写入 [[1,2],["=SUM(A1:B1)",""]]；结果应回读 3、原公式及 0.00。再执行 read_range，关闭文档后确认旧命令失败。记录真实 Excel 版本和脱敏回读。</p>
   </details>
 </main></body>

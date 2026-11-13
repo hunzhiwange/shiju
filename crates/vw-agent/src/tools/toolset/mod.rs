@@ -1015,6 +1015,10 @@ pub fn all_tools_with_runtime(
     #[cfg(unix)]
     if let Some(host) = super::computer_control::NativeControlRuntime::shared() {
         tool_arcs.push(Arc::new(super::computer_control::ComputerControlTool::new(
+            host.clone(),
+            session_id_override.map(str::to_owned),
+        )));
+        tool_arcs.push(Arc::new(super::excel_control::ExcelControlTool::new(
             host,
             session_id_override.map(str::to_owned),
         )));

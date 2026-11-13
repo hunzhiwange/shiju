@@ -72,8 +72,10 @@ fn local_user() -> String {
 
 pub struct NativeControlRuntime {
     pub(super) policy: Arc<RwLock<ComputerControlPolicy>>,
-    host: Arc<ControlHost>,
-    locked: Arc<AtomicBool>,
+    pub(super) host: Arc<ControlHost>,
+    pub(super) locked: Arc<AtomicBool>,
+    pub(super) office:
+        RwLock<Option<Arc<crate::computer_control::office::transport::OfficeTransport>>>,
     factory: Arc<BackendFactory>,
     input_gate: Arc<Mutex<()>>,
     sessions: Mutex<HashMap<Owner, Arc<NativeSession>>>,
@@ -106,11 +108,34 @@ impl NativeControlRuntime {
             host: Arc::new(ControlHost::new(policy.clone(), locked.clone())),
             policy,
             locked,
+            office: RwLock::new(None),
             factory,
             input_gate: Arc::new(Mutex::new(())),
             sessions: Mutex::new(HashMap::new()),
         })
     }
+    /// Trusted local setup only: TLS credentials and origin never come from tool input.
+    /// Binding does not pair a document or grant any execution permission.
+    pub async fn bind_office(
+        &self,
+        credentials: &std::path::Path,
+        origin: &str,
+    ) -> anyhow::Result<Arc<crate::computer_control::office::transport::OfficeTransport>> {
+        if self.office.read().is_some() {
+            bail!("Office transport already running");
+        }
+        let transport = Arc::new(
+            crate::computer_control::office::transport::OfficeTransport::bind(credentials, origin)
+                .await?,
+        );
+        let mut slot = self.office.write();
+        if slot.is_some() {
+            bail!("Office transport already running");
+        }
+        *slot = Some(transport.clone());
+        Ok(transport)
+    }
+
     async fn session(
         &self,
         owner: Owner,

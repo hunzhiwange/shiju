@@ -150,3 +150,52 @@ test('cc_control_13_manual_calculation_refuses_formula_before_mutation', async (
   await assert.rejects(f.actions.execute(f.command('write_range', { values: [[1, 2], ['=SUM(A1:B1)', '']] })), /automatic calculation/);
   assert.equal(f.writes, 0);
 });
+
+test('cc_control_14_pane_publishes_identity_before_pairing_and_rotates_after_stop', async () => {
+  const { mountExcelTaskpane } = await import('./actions.mjs');
+  const f = fixture();
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, { value: '', textContent: '', checked: false, disabled: false, listeners: {}, addEventListener(type, callback) { this.listeners[type] = callback; } });
+    return elements.get(id);
+  };
+  const sent = [];
+  class WebSocketBoundary extends EventTarget {
+    constructor() { super(); this.readyState = 0; queueMicrotask(() => { this.readyState = 1; this.dispatchEvent(new Event('open')); }); }
+    send(data) {
+      const message = JSON.parse(data); sent.push(message);
+      if (message.type === 'pair') queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'paired', surface: 'excel', document_id: message.document_id, generation: 'test-generation' }) })));
+    }
+    close() { this.dispatchEvent(new Event('close')); }
+  }
+  f.Office.HostType = { Excel: 'Excel' };
+  f.Office.onReady = async () => ({ host: 'Excel' });
+  let identities = 0;
+  await mountExcelTaskpane({ Office: f.Office, Excel: f.Excel, document: { getElementById: element }, window: { WebSocket: WebSocketBoundary, addEventListener() {} }, crypto: { randomUUID: () => `temporary-${++identities}` } });
+  const advertised = element('document-id').value;
+  assert.ok(advertised, 'host needs document identity before approving a token');
+  element('endpoint').value = 'wss://localhost:3001/office';
+  element('token').value = 'a'.repeat(64);
+  element('sheet').value = 'Sheet1'; element('range').value = 'A1:B2';
+  try {
+    await element('pair').listeners.submit({ preventDefault() {} });
+    assert.equal(sent[0].document_id, advertised);
+    assert.equal(element('token').value, '');
+    assert.equal(element('connect').disabled, true);
+  } finally { element('stop').listeners.click(); }
+  assert.notEqual(element('document-id').value, advertised);
+  assert.equal(element('connect').disabled, false);
+  // Stopping while Office identity lookup is pending must not reopen the socket.
+  let resume;
+  f.Office.context.document.getFilePropertiesAsync = callback => { resume = callback; };
+  element('token').value = 'b'.repeat(64);
+  const pending = element('pair').listeners.submit({ preventDefault() {} });
+  assert.equal(typeof resume, 'function');
+  element('stop').listeners.click();
+  const stoppedIdentity = element('document-id').value;
+  resume({ status: 'succeeded', value: { url: 'file:///temporary.xlsx' } });
+  await pending;
+  assert.equal(sent.filter(message => message.type === 'pair').length, 1);
+  assert.equal(element('document-id').value, stoppedIdentity);
+  assert.equal(element('connect').disabled, false);
+});

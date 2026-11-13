@@ -6,7 +6,7 @@
 
 线性顺序：任务 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14；本任务不可与其他批次并行。
 
-状态：未开始
+状态：已完成，待回归
 
 目的：复用 EnterWorktree/ExitWorktree，只在显式调用时创建隔离目录，并记录所属 run 与产物。
 
@@ -91,3 +91,18 @@ EnterWorktreeTool 已调用 crate::worktree::create 并绑定工具上下文，E
 本任务只有 `未开始`、`已完成`、`已阻塞`、`已完成，待回归` 四种状态。每个完成结论必须有当前证据；依赖批次完成后先核对代码与提交，不以已删除任务文件单独证明依赖成功。
 
 有实际代码、测试、配置或文档变更时，使用 `$git-commit` 检查 staged/unstaged/untracked，排除其他任务与用户变更后以中文提交；仅本文件状态更新或删除不提交。证据齐全则标记已完成，在最终回复报告证据后删除本文件；无关环境或既有错误阻断验证则标记已完成，待回归并保留本文件；本任务本身仍不满足目标则标记已阻塞，记录调查、替代路径和所需输入。不要修改 plan.md 或把进度写入 prompt.md。
+
+## 本轮执行记录（2026-11-14）
+
+- 已核对依赖提交：59d9db68a、220308e0b、6b0470516、aeaaa91f2、afab6ceca。前序聚焦证据与源码齐备，既有全仓问题留回归；本轮按线性顺序实施。
+- 采用已有网关 delegated ToolUseContext 传递可信运行归属，不接受请求 options 中伪造的任务身份；同 session/tenant 继承共享绑定，重试 session 不继承。保留原始执行目录锁，在外部新目录追加已有 WorkspaceClaim。必要相邻调整：增加按领取时规范路径提取锁的入口，支持显式退出已删除目录后的锁释放。
+- 红灯：python3 scripts/cargo_slot.py cargo test -p vw-agent --lib task_pool_worktree_ -- --nocapture，退出 101；10 个有效测试，9 通过、1 失败、0 ignored。新增 task_pool_worktree_binding_is_scoped_to_run 在同运行绑定继承断言失败（非编译错误）；日志 /tmp/shiju-task6-red.log。
+- cargo fmt --all 已执行（槽位 3）；已还原其对非本任务文件的格式化，保留进入任务前其他会话修改。
+- 最终验证运行于槽位 2；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-2。命令顺序：cargo test -p vw-agent --lib task_pool_worktree_ -- --nocapture；cargo clippy --all-targets --all-features -- -D warnings。日志 /tmp/shiju-task6-final.log，结果待补充。
+- 原生首轮修复验证暴露模块私有路径引用，已通过 crate 内 re-export 修复；随后行为测试 11 通过、2 失败，根因为夹具没有调用真实运行器的 heartbeat_run，run 仍为 Leased。补齐后 12 通过、1 失败：真实 managed worktree 的 Exit 被底层 deletion-preflight/snapshot 安全策略拒绝。
+- 必要验收调整依据：worktree_ops::remove_for_tenant 对 managed checkout 强制预检与快照，registry::remove_managed 同样拒绝旁路。保留该已有保护，不为本任务绕过或自动确认。工具测试断言 dirty/force/managed 删除拒绝均保留目录及绑定，用户通过现有管理操作清理。另新增 task_pool_worktree_removed_directory_releases_recorded_claim，独立覆盖删除后锁释放。
+
+- 最终证据：/tmp/shiju-task6-final-proof.log。经 python3 scripts/cargo_slot.py sh -c 顺序执行，cargo test -p vw-agent --lib task_pool_worktree_ -- --nocapture 退出 0，14 passed / 0 failed / 0 ignored，五项新增测试全部有效通过（原要求四项及目录删除后锁释放）。真实 Git/SQLite 验证显式创建、动态文件/命令目录、运行归属产物、非 Git 拒绝、失败后保留变更、dirty/force/managed 清理保护。
+- 最终 cargo clippy --all-targets --all-features -- -D warnings 退出 101，仅见既有 vw-desktop 的 CodeEditor::wrap_column / set_wrap_column 缺失：preview_panel/view/editor_options.rs:34、app/message/editor.rs:276 及 editor_options_tests.rs 多处（9 个测试目标错误）。未见本次 vw-agent 新增错误。原生测试链接另有既有大目标 __eh_frame 超过 16MB 的 ld 提示，不属于业务诊断。
+- 最终槽位 2，CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2，CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2；入口已结束，自有锁释放、缓存保留。cargo fmt --all 退出 0，后续改动使用聚焦 rustfmt；git diff --check 通过。
+- 保留容量/工位/员工 UI 与 creation_policy，未发对外消息、未发布、未自动清理用户目录。因既有全仓错误保留本任务卡，建议编辑器依赖修复后统一回归 Clippy。

@@ -120,7 +120,12 @@ impl WorkspaceClaim {
     }
 
     pub(crate) fn take(path: &Path, owner: &str) -> Result<Option<Self>> {
-        let key = (path.canonicalize()?, owner.to_owned());
+        Self::take_canonical(&path.canonicalize()?, owner)
+    }
+
+    /// Use the canonical path captured at acquisition, even after explicit removal.
+    pub(crate) fn take_canonical(path: &Path, owner: &str) -> Result<Option<Self>> {
+        let key = (path.to_path_buf(), owner.to_owned());
         let mut claims =
             STARTED.lock().map_err(|_| anyhow::anyhow!("workspace claims poisoned"))?;
         if claims.get(&key).is_some_and(|claim| claim.shutdown_unconfirmed) {

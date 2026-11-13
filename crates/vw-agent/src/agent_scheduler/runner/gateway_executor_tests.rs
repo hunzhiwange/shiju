@@ -824,3 +824,161 @@ fn task_pool_recovery_gateway_passes_stop_to_stream() -> Result<()> {
     );
     Ok(())
 }
+
+async fn exercise_task_pool_worktree(git: bool, fail_run: bool) -> Result<()> {
+    use crate::tools::{Tool, ToolUseContext, scope_tool_use_context};
+    let _env_lock =
+        crate::test_support::global_env_lock().lock().unwrap_or_else(|error| error.into_inner());
+    let dir = tempfile::tempdir()?;
+    if git {
+        let repo = git2::Repository::init(dir.path())?;
+        std::fs::write(dir.path().join("seed.txt"), "seed")?;
+        let mut index = repo.index()?;
+        index.add_path(Path::new("seed.txt"))?;
+        index.write()?;
+        let tree = repo.find_tree(index.write_tree()?)?;
+        let signature = git2::Signature::now("Test", "test@example.com")?;
+        repo.commit(Some("HEAD"), &signature, &signature, "seed", &tree, &[])?;
+    }
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(dir.path())?;
+    let task_id = TaskId::new("explicit-worktree-task")?;
+    let run_id = RunId::new("explicit-worktree-run")?;
+    store.create_task(dir.path(), finite_task(&task_id)?)?;
+    store
+        .claim_task_run(
+            dir.path(),
+            ClaimTaskRunRequest {
+                task_id: task_id.clone(),
+                run_id: run_id.clone(),
+                lease_acquired_at_ms: TimestampMs(100),
+                lease_expires_at_ms: None,
+            },
+        )?
+        .expect("claim");
+    store
+        .heartbeat_run(dir.path(), &run_id, TimestampMs(101), TimestampMs(10_000))?
+        .expect("running heartbeat");
+    let path = dir.path().to_path_buf();
+    let owned_path = path.clone();
+    let owned_store = store.clone();
+    let owned_task = task_id.clone();
+    let owned_run = run_id.clone();
+    crate::project::instance::provide(&path, None, move || {
+        Box::pin(async move {
+            let context = Arc::new(
+                ToolUseContext::new(
+                    "explicit-worktree-run",
+                    Some(owned_path.to_string_lossy().into_owned()),
+                )
+                .with_run_worktree_owner(crate::tools::RunWorktreeOwner {
+                    claims: Default::default(),
+                    store: owned_store.clone(),
+                    project_path: owned_path.clone(),
+                    task_id: owned_task.clone(),
+                    run_id: owned_run.clone(),
+                }),
+            );
+            assert!(context.worktree_binding_state().directory.is_none());
+            assert!(owned_store.list_task_artifacts(&owned_path, &owned_task)?.is_empty());
+            if git {
+                assert_eq!(git2::Repository::open(&owned_path)?.worktrees()?.len(), 0);
+            }
+            let result = scope_tool_use_context(
+                context.clone(),
+                crate::tools::enter_worktree::EnterWorktreeTool::new()
+                    .call(json!({"name": "explicit-task"})),
+            )
+            .await;
+            if !git {
+                assert!(result.is_err());
+                assert!(context.worktree_binding_state().directory.is_none());
+                assert!(owned_store.list_task_artifacts(&owned_path, &owned_task)?.is_empty());
+                assert!(!owned_path.join(".git").exists());
+                return Ok::<_, anyhow::Error>(());
+            }
+            result?;
+            let binding = context.worktree_binding_state();
+            let workspace = context.workspace_root().expect("effective directory");
+            assert_ne!(workspace, owned_path);
+            std::fs::write(workspace.join("draft.txt"), "recoverable")?;
+            assert!(!owned_path.join("draft.txt").exists());
+            let output = std::process::Command::new("git")
+                .args(["rev-parse", "--show-toplevel"])
+                .current_dir(&workspace)
+                .output()?;
+            assert!(output.status.success());
+            assert_eq!(
+                Path::new(String::from_utf8(output.stdout)?.trim()).canonicalize()?,
+                workspace.canonicalize()?
+            );
+            let artifacts = owned_store.list_task_artifacts(&owned_path, &owned_task)?;
+            assert_eq!(artifacts.len(), 1);
+            assert_eq!(artifacts[0].run_id.as_ref(), Some(&owned_run));
+            assert_eq!(artifacts[0].path, binding.directory);
+            assert_eq!(artifacts[0].payload["binding"]["branch"], binding.branch.unwrap());
+            if fail_run {
+                owned_store
+                    .finish_run(
+                        &owned_path,
+                        &owned_run,
+                        crate::agent_scheduler::store::runs::AgentRunFinishStatus::Failed,
+                        TimestampMs(200),
+                        Some("model failed".into()),
+                    )?
+                    .expect("finished run");
+                // Shutdown drops all in-memory ownership; recovery keeps the checkout and artifact.
+                context.run_worktree_owner().unwrap().release_directories()?;
+
+                assert_eq!(std::fs::read_to_string(workspace.join("draft.txt"))?, "recoverable");
+                assert!(git2::Repository::open(&workspace).is_ok());
+            } else {
+                let exit = scope_tool_use_context(
+                    context.clone(),
+                    crate::tools::exit_worktree::ExitWorktreeTool::new().call(json!({})),
+                )
+                .await?;
+                assert_eq!(exit.data["dirty"], true);
+                assert!(workspace.exists());
+                assert!(
+                    scope_tool_use_context(
+                        context.clone(),
+                        crate::tools::exit_worktree::ExitWorktreeTool::new()
+                            .call(json!({"force": true}))
+                    )
+                    .await
+                    .is_err()
+                );
+                std::fs::remove_file(workspace.join("draft.txt"))?;
+                let error = scope_tool_use_context(
+                    context.clone(),
+                    crate::tools::ExitWorktreeTool::new().call(json!({})),
+                )
+                .await
+                .expect_err("managed deletion requires existing preflight and snapshot API");
+                assert!(error.to_string().contains("deletion-preflight"));
+                assert!(workspace.exists());
+                assert!(context.worktree_binding_state().directory.is_some());
+            }
+            context.run_worktree_owner().unwrap().release_directories()?;
+            Ok(())
+        })
+    })
+    .await??;
+    Ok(())
+}
+
+#[tokio::test]
+async fn task_pool_worktree_created_only_by_explicit_tool() -> Result<()> {
+    exercise_task_pool_worktree(true, false).await
+}
+
+#[tokio::test]
+async fn task_pool_worktree_non_git_rejected_without_side_effects() -> Result<()> {
+    exercise_task_pool_worktree(false, false).await
+}
+
+#[tokio::test]
+async fn task_pool_worktree_failed_run_preserves_changes() -> Result<()> {
+    exercise_task_pool_worktree(true, true).await
+}

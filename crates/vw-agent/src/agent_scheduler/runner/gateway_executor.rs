@@ -347,6 +347,20 @@ fn collect_gateway_local_agent_output(
     let task_id = request.task_id.clone();
     let run_id = request.run_id.clone();
     let body = gateway_local_agent_stream_request(&request);
+    let tool_context = Arc::new(
+        crate::tools::ToolUseContext::new(
+            body.session_id.as_ref().expect("scheduler session").as_ref().to_string(),
+            Some(workspace_path.clone()),
+        )
+        .with_run_worktree_owner(crate::tools::RunWorktreeOwner {
+            claims: Default::default(),
+            store: store.clone(),
+            project_path: project_path.clone(),
+            task_id: task_id.clone(),
+            run_id: run_id.clone(),
+        }),
+    );
+    let worktree_owner = tool_context.run_worktree_owner().expect("run owner").clone();
     let stream_log_store = store.clone();
     let store_for_cancel = store.clone();
     let cancel_project = project_path.clone();
@@ -356,28 +370,31 @@ fn collect_gateway_local_agent_output(
         "create agent scheduler gateway local executor runtime",
         async move {
             let cancellation = tokio_util::sync::CancellationToken::new();
-            let mut collection = chat_stream.collect_with_observer(
-                workspace_path,
-                body,
-                cancellation.clone(),
-                Box::new(move |payload| {
-                    if let Err(error) = append_gateway_stream_payload_task_log(
-                        &stream_log_store,
-                        &project_path,
-                        &task_id,
-                        &run_id,
-                        current_timestamp_ms(),
-                        payload,
-                    ) {
-                        tracing::warn!(
-                            error = %error,
-                            task_id = task_id.as_str(),
-                            run_id = run_id.as_str(),
-                            "failed to append agent scheduler gateway stream log"
-                        );
-                    }
-                }),
-            );
+            let mut collection = Box::pin(crate::tools::scope_tool_use_context(
+                tool_context,
+                chat_stream.collect_with_observer(
+                    workspace_path,
+                    body,
+                    cancellation.clone(),
+                    Box::new(move |payload| {
+                        if let Err(error) = append_gateway_stream_payload_task_log(
+                            &stream_log_store,
+                            &project_path,
+                            &task_id,
+                            &run_id,
+                            current_timestamp_ms(),
+                            payload,
+                        ) {
+                            tracing::warn!(
+                                error = %error,
+                                task_id = task_id.as_str(),
+                                run_id = run_id.as_str(),
+                                "failed to append agent scheduler gateway stream log"
+                            );
+                        }
+                    }),
+                ),
+            ));
             let mut poll = tokio::time::interval(std::time::Duration::from_millis(50));
             loop {
                 tokio::select! {
@@ -393,8 +410,17 @@ fn collect_gateway_local_agent_output(
                 }
             }
         },
-    )?;
-    Ok(collected.output)
+    );
+    if !collected.as_ref().err().is_some_and(|error| {
+        error
+            .downcast_ref::<crate::agent_scheduler::runner::local::ExecutionShutdownUnconfirmed>()
+            .is_some()
+    }) {
+        worktree_owner.release_directories()?;
+    } else {
+        worktree_owner.retain_unconfirmed()?;
+    }
+    Ok(collected?.output)
 }
 
 /// 将网关流式载荷裁剪为安全长度后追加到任务日志。

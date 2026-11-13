@@ -403,3 +403,25 @@ fn task_pool_recovery_restart_retains_unconfirmed_writer() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn task_pool_worktree_removed_directory_releases_recorded_claim() -> Result<()> {
+    let locks = tempfile::tempdir()?;
+    let checkout = tempfile::tempdir()?;
+    let canonical = checkout.path().canonicalize()?;
+    WorkspaceClaim::acquire(locks.path(), &canonical, "removed-run".into())?
+        .expect("claim")
+        .retain(&canonical)?;
+    checkout.close()?;
+    WorkspaceClaim::take_canonical(&canonical, "removed-run")?
+        .expect("retained claim")
+        .release("removed-run")?;
+    assert!(
+        !std::fs::read_dir(locks.path())?.any(|entry| entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("active-"))
+    );
+    Ok(())
+}

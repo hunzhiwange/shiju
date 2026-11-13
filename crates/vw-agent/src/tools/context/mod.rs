@@ -8,6 +8,9 @@
 //! 签名，本模块同时提供一个 task-local 作用域，让具体工具在不改 trait 签名的
 //! 前提下，也能按需读取当前上下文。
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod run_worktree;
+
 use super::read_state::{FileReadStateCache, FileReadStateEntry, FileSnapshot};
 use crate::agent::loop_::approval::NonCliApprovalContext;
 use crate::app::agent::approval::ApprovalManager;
@@ -105,6 +108,8 @@ impl PendingImageReloadQueue {
 /// Claude Tools V2 共享运行时上下文。
 #[derive(Clone)]
 pub struct ToolUseContext {
+    #[cfg(not(target_arch = "wasm32"))]
+    run_worktree_owner: Option<run_worktree::RunWorktreeOwner>,
     session: String,
     session_skills: crate::acp::mounts::SessionSkillSources,
     tenant_scope: vw_api_types::id::TenantScope,
@@ -211,6 +216,8 @@ impl ToolUseContext {
     /// 创建新的工具运行时上下文。
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            run_worktree_owner: None,
             session: session.into(),
             tenant_scope: crate::session::ui_store::current_tenant_scope(),
             hook_input: None,
@@ -302,6 +309,11 @@ impl ToolUseContext {
             self.delegated_skill_rules = parent.delegated_skill_rules.clone();
             self.native_mcp_selection = parent.native_mcp_selection.clone();
             self.native_permissions = parent.native_permissions.clone();
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                self.run_worktree_owner = parent.run_worktree_owner.clone();
+            }
+            self.workflow = parent.workflow.clone();
         }
         self
     }
@@ -584,6 +596,17 @@ impl ToolUseContext {
             #[cfg(not(target_arch = "wasm32"))]
             worktree_use: None,
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn with_run_worktree_owner(mut self, owner: run_worktree::RunWorktreeOwner) -> Self {
+        self.run_worktree_owner = Some(owner);
+        self
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn run_worktree_owner(&self) -> Option<&run_worktree::RunWorktreeOwner> {
+        self.run_worktree_owner.as_ref()
     }
 
     /// 返回当前绑定的 worktree 状态。

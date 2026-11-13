@@ -133,6 +133,8 @@ pub use codesearch::CodeSearchTool;
 pub use config::ConfigTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use content_search::ContentSearchTool;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use context::run_worktree::RunWorktreeOwner;
 pub use context::{ToolUseContext, current_tool_use_context};
 pub(crate) use context::{scope_tool_use_context, scope_tool_use_context_sync};
 pub use cron_add::CronAddTool;

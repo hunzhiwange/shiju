@@ -89,6 +89,11 @@ impl Tool for EnterWorktreeTool {
             return Err(anyhow::anyhow!("a worktree is already bound to this session"));
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(owner) = context.run_worktree_owner() {
+            owner.validate()?;
+        }
+
         // 创建成功后再写入上下文绑定，避免失败路径留下半绑定状态。
         let info = crate::worktree::create(Some(crate::worktree::CreateInput {
             name: args.name.clone(),
@@ -96,9 +101,17 @@ impl Tool for EnterWorktreeTool {
         }))
         .await
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(owner) = context.run_worktree_owner() {
+            owner.claim_directory(&info.directory)?;
+        }
         let binding_name = args.name.clone().unwrap_or_else(|| info.name.clone());
         let binding =
             context.bind_worktree(info.directory.clone(), binding_name, info.branch.clone())?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(owner) = context.run_worktree_owner() {
+            owner.record(&binding, "entered")?;
+        }
         let data = json!({
             "name": info.name,
             "branch": info.branch,

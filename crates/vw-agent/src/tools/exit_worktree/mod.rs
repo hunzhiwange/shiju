@@ -80,6 +80,12 @@ impl Tool for ExitWorktreeTool {
             .map_err(|error| anyhow::anyhow!("invalid exit worktree arguments: {error}"))?;
         let context = current_tool_use_context()
             .ok_or_else(|| anyhow::anyhow!("missing active tool context"))?;
+        #[cfg(not(target_arch = "wasm32"))]
+        if args.force && context.run_worktree_owner().is_some() {
+            anyhow::bail!(
+                "scheduled runs cannot force-remove a worktree; use explicit user management"
+            );
+        }
         let binding = context.worktree_binding_state();
         let Some(directory) = binding.directory.clone() else {
             return Err(anyhow::anyhow!("no active worktree binding"));
@@ -119,6 +125,10 @@ impl Tool for ExitWorktreeTool {
         .await
         .map_err(|error| anyhow::anyhow!("Failed to remove git worktree: {error}"))?;
         context.clear_worktree_binding();
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(owner) = context.run_worktree_owner() {
+            owner.record(&binding, "exited")?;
+        }
 
         let data = json!({
             "exited": true,

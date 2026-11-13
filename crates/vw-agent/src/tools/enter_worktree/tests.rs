@@ -149,3 +149,18 @@ async fn enter_worktree_rejects_object_arguments_without_tool_context() {
 
     assert_eq!(error.to_string(), "missing active tool context");
 }
+
+#[tokio::test]
+async fn task_pool_worktree_binding_is_scoped_to_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = Some(dir.path().to_string_lossy().into_owned());
+    let parent = Arc::new(ToolUseContext::new("run-one", root.clone()));
+    parent.bind_worktree(root.clone().unwrap(), "owned".into(), "owned".into()).unwrap();
+    scope_tool_use_context(parent, async {
+        let same = ToolUseContext::new("run-one", root.clone()).inherit_delegated_authority();
+        let retry = ToolUseContext::new("run-two", root).inherit_delegated_authority();
+        assert!(same.worktree_binding_state().directory.is_some());
+        assert!(retry.worktree_binding_state().directory.is_none());
+    })
+    .await;
+}

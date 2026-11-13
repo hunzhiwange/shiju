@@ -55,6 +55,7 @@ mod usage_button;
 mod voice_controls;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod voice_controls_tests;
+pub(crate) mod voice_waveform;
 
 pub(crate) const MODEL_POPOVER_SCROLL_ID: &str = "input_panel_model_popover_scroll";
 
@@ -519,6 +520,16 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建输入编辑器组件
     let (input, _editor_height) =
         input_editor::build_input_editor(app, input_editor, is_requesting, task_mode_enabled);
+
+    let input = if matches!(
+        app.voice.draft.phase,
+        crate::app::message::voice_draft::Phase::Recording
+            | crate::app::message::voice_draft::Phase::Transcribing
+    ) {
+        voice_controls::recording_bar(app)
+    } else {
+        input
+    };
 
     // 构建模型选择弹出框内容
     let model_pop_content: Element<'_, Message> =

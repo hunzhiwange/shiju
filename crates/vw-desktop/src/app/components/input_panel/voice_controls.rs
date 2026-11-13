@@ -10,13 +10,16 @@ pub(super) fn action(phase: Phase, pending: bool) -> (Event, &'static str) {
         return (Event::Apply, "应用听写");
     }
     match phase {
-        Phase::Recording => (Event::Finish, "完成录音"),
+        Phase::Recording => (Event::Finish, "停止听写"),
         Phase::Transcribing => (Event::Cancel, "正在转写，点击取消"),
         Phase::Idle | Phase::Error => (Event::Start, "听写"),
     }
 }
 pub(super) fn view(app: &App) -> Element<'_, Message> {
     let phase = app.voice.draft.phase;
+    if matches!(phase, Phase::Recording | Phase::Transcribing) {
+        return iced::widget::Space::new().into();
+    }
     let pending = app.voice.draft.pending.is_some();
     let (event, label) = if phase == Phase::Recording && !app.voice.ready() {
         (Event::Cancel, "正在准备麦克风，点击取消")
@@ -70,4 +73,46 @@ pub(super) fn dictation_tooltip(label: &str) -> String {
         );
     }
     label.to_owned()
+}
+
+/// Recording replaces the editor; all completion controls share the existing Finish event.
+pub(super) fn recording_bar(app: &App) -> Element<'_, Message> {
+    fn control(
+        symbol: &'static str,
+        label: &'static str,
+        event: Event,
+    ) -> Element<'static, Message> {
+        tooltip(
+            button(container(text(symbol).size(18)).center_x(Length::Fill).center_y(Length::Fill))
+                .width(32)
+                .height(32)
+                .padding(4)
+                .style(|theme, status| square_icon_button_style(theme, status, true))
+                .on_press(Message::Voice(event)),
+            text(label),
+            tooltip::Position::Top,
+        )
+        .into()
+    }
+    let mut bar =
+        row![control("×", "取消听写", Event::Cancel)].spacing(6).align_y(Alignment::Center);
+    if app.voice.draft.phase == Phase::Transcribing {
+        bar = bar.push(text("正在转写…").width(Length::Fill));
+    } else if !app.voice.ready() {
+        bar = bar.push(text("正在准备麦克风…").width(Length::Fill));
+    } else {
+        bar = bar
+            .push(app.voice.waveform.view())
+            .push(control("■", "停止听写", Event::Finish))
+            .push(control("↑", "完成听写", Event::Finish));
+    }
+    container(bar)
+        .padding(8)
+        .width(Length::Fill)
+        .style(|theme: &iced::Theme| container::Style {
+            background: Some(theme.extended_palette().background.weak.color.into()),
+            border: iced::Border { radius: 18.0.into(), ..Default::default() },
+            ..Default::default()
+        })
+        .into()
 }

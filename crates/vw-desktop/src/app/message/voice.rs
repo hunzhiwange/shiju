@@ -21,6 +21,7 @@ type Device = Arc<Mutex<Option<Capture>>>;
 #[derive(Default)]
 pub(crate) struct State {
     pub draft: Draft,
+    pub waveform: crate::app::components::input_panel::voice_waveform::Waveform,
     pub screen: crate::app::voice::screen_context::State,
     pub insertion: crate::app::voice::insertion::State,
     pub hotkeys: crate::app::voice::hotkeys::Runtime,
@@ -120,6 +121,7 @@ pub(super) fn scope(app: &App) -> Option<Scope> {
     })
 }
 fn stop(state: &mut State) {
+    state.waveform.clear();
     if let Some(cancel) = state.native_cancel.take() {
         cancel.cancel();
     }
@@ -406,6 +408,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let Some(generation) = app.voice.draft.start(scope.clone(), text) else {
                 return Task::none();
             };
+            app.voice.waveform.clear();
             app.voice.cursor = Some(cursor);
             app.voice.retain_requested = preferences.retain_recordings;
             let endpoint = crate::app::gateway_client_endpoint();
@@ -449,6 +452,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             {
                 return Task::none();
             }
+            if let Some(summary) = app
+                .voice
+                .device
+                .as_ref()
+                .and_then(|device| device.lock().ok()?.as_ref().map(|c| c.volume_summary()))
+            {
+                app.voice.waveform.push(summary.sequence, summary.peak);
+            }
             let outcome = app
                 .voice
                 .device
@@ -487,6 +498,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             else {
                 return fail(app, "录音会话已失效，请重新开始听写。".into());
             };
+            app.voice.waveform.clear();
             app.voice.draft.phase = Phase::Transcribing;
             let generation = app.voice.draft.generation;
             let (tx, mut rx) = tokio::sync::watch::channel(false);
@@ -594,3 +606,7 @@ mod hotkey_lifecycle_tests;
 #[cfg(test)]
 #[path = "voice_new_draft_tests.rs"]
 mod new_draft_tests;
+
+#[cfg(test)]
+#[path = "voice_ui_tests.rs"]
+mod ui_tests;

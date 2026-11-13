@@ -9,14 +9,25 @@ use iced::widget::{button, container, row};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
 pub(super) fn tools(app: &App) -> Element<'_, Message> {
-    let mut tools = row![
-        button(small_icon_svg(Icon::Search))
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let search = button(small_icon_svg(Icon::Search))
+        .padding(4)
+        .style(overlay_icon_button_style)
+        .on_press(Message::Editor(EditorMessage::OpenSearch));
+    let mut tools = row![preview_control_tooltip(search.into(), i18n.__("搜索"))]
+        .spacing(4)
+        .align_y(iced::Alignment::Center);
+    if app
+        .preview_tabs
+        .iter()
+        .any(|tab| Some(&tab.path) == app.active_preview_path.as_ref() && !tab.read_only)
+    {
+        let replace = button(small_icon_svg(Icon::ArrowRepeat))
             .padding(4)
             .style(overlay_icon_button_style)
-            .on_press(Message::Editor(EditorMessage::OpenSearch))
-    ]
-    .spacing(4)
-    .align_y(iced::Alignment::Center);
+            .on_press(Message::Editor(EditorMessage::OpenReplace));
+        tools = tools.push(preview_control_tooltip(replace.into(), i18n.__("替换")));
+    }
     for (kind, label) in [
         (EditorPopover::Actions, "操作"),
         (EditorPopover::Settings, "设置"),

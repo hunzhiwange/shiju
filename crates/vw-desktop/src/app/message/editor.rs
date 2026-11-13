@@ -279,6 +279,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         // 打开搜索对话框（仅限当前激活的预览标签页）
         EditorMessage::OpenSearch => {
+            app.show_preview_settings = false;
             if let Some(path) = app.active_preview_path.clone()
                 && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
             {
@@ -291,6 +292,7 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
 
         // 打开搜索替换对话框（仅限当前激活的预览标签页）
         EditorMessage::OpenReplace => {
+            app.show_preview_settings = false;
             if let Some(path) = app.active_preview_path.clone()
                 && let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path)
             {

@@ -9,7 +9,7 @@
 //!
 //! - **保存功能**：支持保存文件，并根据文件修改状态显示不同样式
 //! - **撤销/重做**：提供撤销和重做操作的快捷按钮
-//! - **搜索/替换**：打开搜索和替换面板的快捷入口
+//! 搜索与替换入口由路径右侧的紧凑工具区提供。
 //!
 //! # 使用示例
 //!
@@ -157,7 +157,7 @@ pub fn icon_button<'a>(
 
 /// 构建编辑器工具栏视图
 ///
-/// 该函数根据应用状态创建完整的编辑器工具栏，包含保存、撤销、重做、搜索和替换等功能按钮。
+/// 该函数根据应用状态创建完整的编辑器工具栏，包含保存、撤销和重做功能按钮。
 /// 工具栏会根据当前屏幕状态自动调整显示内容。
 ///
 /// # 参数
@@ -175,8 +175,6 @@ pub fn icon_button<'a>(
 /// - **保存按钮**：仅当`on_save`参数为`Some`时显示，文件修改时高亮显示
 /// - **撤销按钮**：执行撤销操作
 /// - **重做按钮**：执行重做操作
-/// - **搜索按钮**：打开搜索面板
-/// - **替换按钮**：打开替换面板
 ///
 /// # 屏幕适配
 ///
@@ -237,26 +235,7 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
         false,
     );
 
-    // 创建搜索按钮
-    let search_btn = icon_button(
-        Icon::Search,
-        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索"),
-        TooltipPosition::Bottom,
-        Message::Editor(crate::app::message::editor::EditorMessage::OpenSearch),
-        false,
-    );
-
-    // 创建替换按钮
-    let replace_btn = icon_button(
-        Icon::ArrowRepeat,
-        crate::app::i18n::I18n::new(app.desktop_locale).__("替换"),
-        TooltipPosition::Bottom,
-        Message::Editor(crate::app::message::editor::EditorMessage::OpenReplace),
-        false,
-    );
-
-    // 将所有按钮添加到工具栏
-    tools = tools.push(undo_btn).push(redo_btn).push(search_btn).push(replace_btn);
+    tools = tools.push(undo_btn).push(redo_btn);
 
     tools.into()
 }

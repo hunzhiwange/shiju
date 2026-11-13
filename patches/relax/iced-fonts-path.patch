@@ -1,0 +1,19 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -64,8 +64,14 @@
+         doc_link,
+     } = parse_macro_input!(input as Input);
+ 
+-    let font_path_str = font_path.value();
+-    let font_data = std::fs::read(&font_path_str).expect("Failed to read font file");
++    // Resolve resources relative to the invoking package, independently of the
++    // proc-macro host's working directory (Cargo and Relax use different hosts).
++    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
++        .expect("CARGO_MANIFEST_DIR is required to resolve icon fonts");
++    let font_path = std::path::Path::new(&manifest_dir).join(font_path.value());
++    let font_data = std::fs::read(&font_path).unwrap_or_else(|error| {
++        panic!("Failed to read font file {}: {error}", font_path.display())
++    });
+     let face = Face::parse(&font_data, 0).expect("Failed to parse font");
+ 
+     let mut all_codepoints: Vec<char> = Vec::new();

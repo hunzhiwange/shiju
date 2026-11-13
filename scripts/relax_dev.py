@@ -96,7 +96,8 @@ def prepare_locked():
     # A nearby directory-source config overrides unsupported ancestor registry mirrors.
     # It changes neither tracked .cargo/config.toml nor the user's Cargo configuration.
     lock_key = digest(ROOT / 'Cargo.lock')
-    vendor_key = lock_key + ':all-features-v1'
+    font_patch = ROOT / 'patches' / 'relax' / 'iced-fonts-path.patch'
+    vendor_key = lock_key + ':all-features-v2:' + digest(font_patch)
     vendor = STATE / 'vendor'
     launch_dir = STATE / 'run'
     config_dir = launch_dir / '.cargo'
@@ -136,6 +137,8 @@ def prepare_vendor(vendor):
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(source, dest)
+        if (package['name'], package['version']) == ('iced_fonts_macros', '0.3.0'):
+            run(['git', 'apply', ROOT / 'patches' / 'relax' / 'iced-fonts-path.patch'], cwd=dest)
         files = {str(p.relative_to(dest)): digest(p) for p in dest.rglob('*')
                  if p.is_file() and p.name != '.cargo-checksum.json'}
         (dest / '.cargo-checksum.json').write_text(json.dumps({

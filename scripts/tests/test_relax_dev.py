@@ -56,6 +56,39 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(checksum['package'], 'package-digest')
             self.assertEqual(checksum['files']['Cargo.toml'], dev.digest(source / 'Cargo.toml'))
 
+    def test_font_macro_patch_is_applied_before_vendor_checksums(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / 'registry' / 'iced_fonts_macros-0.3.0'
+            (source / 'src').mkdir(parents=True)
+            original = ('        doc_link,\n'
+                        '    } = parse_macro_input!(input as Input);\n\n'
+                        '    let font_path_str = font_path.value();\n'
+                        '    let font_data = std::fs::read(&font_path_str).expect("Failed to read font file");\n'
+                        '    let face = Face::parse(&font_data, 0).expect("Failed to parse font");\n\n'
+                        '    let mut all_codepoints: Vec<char> = Vec::new();\n')
+            (source / 'src/lib.rs').write_text(original)
+            (root / 'patches').symlink_to(dev.ROOT / 'patches', target_is_directory=True)
+            (root / 'Cargo.lock').write_text('[[package]]\nname = "iced_fonts_macros"\nversion = "0.3.0"\nsource = "registry+https://example.test/index"\nchecksum = "package-digest"\n')
+            metadata = {'packages': [{'name': 'iced_fonts_macros', 'version': '0.3.0',
+                        'source': 'registry+https://example.test/index',
+                        'manifest_path': str(source / 'Cargo.toml')}]}
+            real_run = dev.run
+
+            def run(args, **kwargs):
+                if args[:2] == ['cargo', 'metadata']:
+                    from types import SimpleNamespace
+                    return SimpleNamespace(stdout=json.dumps(metadata))
+                return real_run(args, **kwargs)
+
+            with patch.object(dev, 'ROOT', root), patch.object(dev, 'run', side_effect=run):
+                dev.prepare_vendor(root / 'vendor')
+            dest = root / 'vendor/iced_fonts_macros-0.3.0'
+            self.assertIn('CARGO_MANIFEST_DIR', (dest / 'src/lib.rs').read_text())
+            checksum = json.loads((dest / '.cargo-checksum.json').read_text())
+            self.assertEqual(checksum['files']['src/lib.rs'], dev.digest(dest / 'src/lib.rs'))
+            self.assertEqual((source / 'src/lib.rs').read_text(), original)
+
     def test_gateway_launch_keeps_live_mode_and_forwards_arguments(self):
         with patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev.os, 'chdir') as chdir, patch.object(dev.os, 'execve') as execute:

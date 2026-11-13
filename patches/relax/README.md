@@ -54,3 +54,5 @@ git apply --reverse /absolute/path/to/compatibility.patch
 ## 团队开发入口补充
 
 `vendor-resolution.patch` 在上述兼容补丁之后应用，使 directory-source 按调用方版本约束筛选同名依赖。`scripts/relax_dev.py` 自动校验和应用两份补丁，并管理安装及依赖副本；团队使用 `cargo dev-setup`、`cargo dev-gateway`、`cargo dev-desktop`。新增补丁哈希见 manifest 的 `dev_vendor_patch_sha256`，原有二进制哈希只对应历史测量版本。当前一键入口见[报告](../../docs/dev/Relax开发验证.md#团队一键入口当前仓库)。
+
+`iced-fonts-path.patch` 在生成 Relax 的 registry 依赖副本时应用到 `iced_fonts_macros 0.3.0`：按调用包的 `CARGO_MANIFEST_DIR` 读取图标字体，避免宏宿主工作目录不同导致启动 panic。补丁内容参与 vendor 缓存键，文件校验值在应用后生成；不修改 Cargo registry 原件或普通 Cargo 构建依赖。

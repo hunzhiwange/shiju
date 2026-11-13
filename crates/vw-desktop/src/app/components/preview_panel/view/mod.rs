@@ -659,3 +659,7 @@ mod editor_options_tests;
 #[cfg(test)]
 #[path = "editor_search_tests.rs"]
 mod editor_search_tests;
+
+#[cfg(test)]
+#[path = "editor_tools_acceptance_tests.rs"]
+mod editor_tools_acceptance_tests;

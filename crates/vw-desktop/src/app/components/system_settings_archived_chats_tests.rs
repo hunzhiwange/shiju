@@ -32,6 +32,7 @@ mod rendering {
         labels: Vec<(String, Rectangle)>,
         inputs: Vec<Rectangle>,
         scrolls: Vec<Rectangle>,
+        offsets: Vec<iced::Vector>,
         focus: Vec<bool>,
         controls: Vec<Rectangle>,
     }
@@ -67,10 +68,11 @@ mod rendering {
             _: Option<&iced::advanced::widget::Id>,
             bounds: Rectangle,
             _: Rectangle,
-            _: iced::Vector,
+            offset: iced::Vector,
             _: &mut dyn iced::advanced::widget::operation::Scrollable,
         ) {
             self.scrolls.push(bounds);
+            self.offsets.push(offset);
         }
     }
 
@@ -163,6 +165,93 @@ mod rendering {
                     .filter(|&pixel| before[pixel..pixel + 4] != after[pixel..pixel + 4])
                     .count();
                 assert!(changed_above_title > 100, "tooltip must render directly above title");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn archived_chats_large_list_scroll_keeps_toolbar_and_visible_actions() {
+        {
+            let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+            for font in crate::fonts::load_all() {
+                fonts.load_font(font);
+            }
+        }
+        let mut renderer =
+            Renderer::new(Font::with_name("Noto Sans CJK SC"), 14.0.into(), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let mut state = fixture();
+        let prototype = state.sessions[0].clone();
+        state.sessions = (0..1178)
+            .map(|index| {
+                let mut row = prototype.clone();
+                row.id = format!("scroll-{index}");
+                row.title = format!("中文 Rust 🦀 {index} {}", "长标题".repeat(30));
+                row
+            })
+            .collect();
+        for (theme_name, theme) in [("dark", Theme::Dark), ("light", Theme::Light)] {
+            for width in [360_u32, 860] {
+                let mut ui = UserInterface::build(
+                    page(&state, DesktopLocale::SimplifiedChinese),
+                    Size::new(width as f32, 650.0),
+                    Cache::new(),
+                    &mut renderer,
+                );
+                let mut before = Geometry::default();
+                ui.operate(&mut renderer, &mut before);
+                let scroll = before.scrolls[0];
+                let point = scroll.center();
+                ui.update(
+                    &[
+                        Event::Mouse(mouse::Event::CursorMoved { position: point }),
+                        Event::Mouse(mouse::Event::WheelScrolled {
+                            delta: mouse::ScrollDelta::Lines { x: 0.0, y: -5000.0 },
+                        }),
+                        Event::Window(iced::window::Event::RedrawRequested(
+                            iced::time::Instant::now(),
+                        )),
+                    ],
+                    mouse::Cursor::Available(point),
+                    &mut renderer,
+                    &mut clipboard::Null,
+                    &mut Vec::new(),
+                );
+                ui.draw(
+                    &mut renderer,
+                    &theme,
+                    &Style { text_color: theme.palette().text },
+                    mouse::Cursor::Unavailable,
+                );
+                let mut after = Geometry::default();
+                ui.operate(&mut renderer, &mut after);
+                assert!(
+                    after.offsets[0].y.abs() > 1000.0,
+                    "real wheel must move the long list: {:?}",
+                    after.offsets
+                );
+                assert_eq!(before.inputs, after.inputs, "toolbar stays fixed");
+                let bounds = after.controls[0];
+                assert!(click(&mut ui, &mut renderer, bounds.center()).is_empty());
+                let mut opened = Geometry::default();
+                ui.operate(&mut renderer, &mut opened);
+                assert_eq!(opened.scrolls.len(), 2);
+                if let Some(path) = std::env::var_os("SHIJU_ARCHIVED_SCREENSHOTS") {
+                    image::save_buffer(
+                        std::path::PathBuf::from(path)
+                            .join(format!("scroll-{theme_name}-{width}.png")),
+                        &renderer.screenshot(
+                            Size::new(width, 650),
+                            1.0,
+                            theme.palette().background,
+                        ),
+                        width,
+                        650,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap();
+                }
             }
         }
     }

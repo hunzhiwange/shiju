@@ -228,6 +228,13 @@ path = "src/local_speech_system_main.rs"
 harness = false
 test = false
 
+# Explicit archive rendering acceptance with temporary data and loopback HTTP only.
+[[test]]
+name = "archived-chats-window"
+path = "src/archived_chats_window_main.rs"
+harness = false
+test = false
+
 # 显式日期时间选择器窗口验收，不执行启动任务或保存用户配置。
 [[test]]
 name = "cron-picker-window"

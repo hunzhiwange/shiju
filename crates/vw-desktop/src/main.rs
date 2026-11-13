@@ -274,3 +274,7 @@ mod plugin_compat_t56_tests;
 #[cfg(all(test, target_os = "macos"))]
 #[path = "app/plugin_compat_t64_tests.rs"]
 mod plugin_compat_t64_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "app/components/archived_chats_window_tests.rs"]
+mod archived_chats_window_tests;

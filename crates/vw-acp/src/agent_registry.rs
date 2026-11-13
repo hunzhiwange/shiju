@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "dirac",
+        display_name: "Dirac",
+        command: "npx",
+        args: &["-y", "dirac-cli@0.5.24", "--acp"],
+        env: &[],
+        local_command_candidates: &["dirac"],
+        local_args: &["--acp"],
+    },
+    BuiltInAgentDefinition {
         name: "dimcode",
         display_name: "DimCode",
         command: "npx",

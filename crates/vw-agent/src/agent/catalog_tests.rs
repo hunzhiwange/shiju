@@ -13,7 +13,7 @@ fn agent_catalog_covers_twenty_five_unique_backends() {
             AgentRuntime::Native => None,
         })
         .collect::<HashSet<_>>();
-    assert_eq!(backends.len(), 25);
+    assert_eq!(backends.len(), 26);
     assert!(catalog["main"].builtin);
     assert!(!catalog["acp-snow"].enabled);
     assert_eq!(
@@ -76,7 +76,7 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
     const CHILD: &str = "SHIJU_CATALOG_EMPTY_CLI_ENV";
     if std::env::var_os(CHILD).is_some() {
         let catalog = load_agent_configs(&json!({}));
-        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 25);
+        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 26);
         assert_eq!(catalog["acp-snow"].runtime, AgentRuntime::Acp { backend: "snow".into() });
         return;
     }
@@ -164,4 +164,27 @@ fn acp_onboarding_dimcode_catalog_binding() {
     let entry = &catalog["acp-dimcode"];
     assert!(entry.enabled && entry.builtin);
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "dimcode".into() });
+}
+
+#[test]
+fn acp_onboarding_dirac_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-dirac").expect("official Dirac preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Dirac"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "dirac".into() });
+}
+
+#[test]
+fn acp_onboarding_dirac_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-dirac":{
+        "provider":"","model":"","enabled":true,"label":"Selected Dirac","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-dirac"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "dirac".into() });
 }

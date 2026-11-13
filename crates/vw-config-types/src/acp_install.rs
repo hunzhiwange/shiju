@@ -51,6 +51,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        "dirac" => &["install", "-g", "dirac-cli@0.5.24"],
         "dimcode" => &["install", "-g", "dimcode@0.5.28"],
         "deepagents" => &["install", "-g", "deepagents-acp@0.1.42"],
         "claude" => &["install", "-g", "@agentclientprotocol/claude-agent-acp@^0.26.0"],

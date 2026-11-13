@@ -108,3 +108,13 @@ fn acp_onboarding_dimcode_installer_contract() {
     }
     assert!(acp_install_command("dimcode; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_dirac_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("dirac", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "dirac-cli@0.5.24"]);
+    }
+    assert!(acp_install_command("dirac; echo unsafe").is_none());
+}

@@ -91,7 +91,7 @@ pub(super) fn view<'a>(app: &'a App, draft: &'a CronJobDraft) -> Element<'a, Mes
             "尽力投递",
             "开启后失败记入历史但不改变任务状态；关闭后投递失败会将任务标记为失败。",
             checkbox(draft.delivery_best_effort)
-                .label("投递失败不影响任务状态")
+                .label(I18n::new(app.desktop_locale).__("投递失败不影响任务状态"))
                 .on_toggle(|v| Message::Settings(S::CronJobEditDeliveryBestEffortToggled(v)))
                 .style(settings_checkbox_style),
         ))

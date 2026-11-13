@@ -362,11 +362,15 @@ pub(super) fn frequency_form<'a>(
     form.into()
 }
 
-pub(super) fn save_button<'a>(draft: &CronJobDraft, editing: bool) -> Element<'a, Message> {
+pub(super) fn save_button<'a>(
+    locale: crate::app::i18n::I18n,
+    draft: &CronJobDraft,
+    editing: bool,
+) -> Element<'a, Message> {
     let enabled = !draft.submitting
         && !draft.preview_loading
         && matches!(&draft.preview,Some(Ok(p)) if !p.candidates.is_empty());
-    button(text(if draft.submitting { "正在保存…" } else { "保存" }).size(13))
+    button(text(locale.__(if draft.submitting { "正在保存…" } else { "保存" })).size(13))
         .padding([10, 16])
         .style(primary_action_btn_style)
         .on_press_maybe(enabled.then_some(Message::Settings(if editing {

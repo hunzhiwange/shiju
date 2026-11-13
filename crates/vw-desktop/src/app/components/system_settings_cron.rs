@@ -497,7 +497,7 @@ fn with_edit_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a
     );
     let actions = row![
         secondary_button(tr.__("取消"), close.clone()),
-        schedule::save_button(draft, editing),
+        schedule::save_button(tr, draft, editing),
     ]
     .spacing(10);
     let mut footer = column![schedule::preview(draft, editing)].spacing(8).width(Length::Fill);

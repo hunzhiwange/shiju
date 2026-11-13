@@ -234,3 +234,10 @@ name = "cron-picker-window"
 path = "src/cron_picker_window_main.rs"
 harness = false
 test = false
+
+# Explicit native worktree acceptance, excluded from default tests.
+[[test]]
+name = "worktree-management-window"
+path = "tests/worktree_management_window.rs"
+harness = false
+test = false

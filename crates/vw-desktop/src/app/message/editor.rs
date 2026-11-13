@@ -112,6 +112,12 @@ impl EditorOption {
 /// 定义了编辑器支持的所有交互消息类型，用于处理用户操作和状态变更。
 #[derive(Debug, Clone)]
 pub enum EditorMessage {
+    #[cfg(not(target_arch = "wasm32"))]
+    InstallLsp(crate::app::lsp::install::Server),
+    #[cfg(not(target_arch = "wasm32"))]
+    CopyLspCommand(crate::app::lsp::install::Server),
+    #[cfg(not(target_arch = "wasm32"))]
+    LspInstalled(Result<(), String>),
     TogglePopover(EditorPopover),
     ClosePopover,
     SetOption(EditorOption, bool),
@@ -217,6 +223,22 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
         app.editor_popover = None;
     }
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        EditorMessage::CopyLspCommand(server) => iced::clipboard::write(server.manual_command()),
+        #[cfg(not(target_arch = "wasm32"))]
+        EditorMessage::InstallLsp(server) => Task::batch([
+            app.show_info_toast("正在安装 LSP，可能需要数分钟。"),
+            Task::perform(crate::app::lsp::install::install(server), |result| {
+                Message::Editor(EditorMessage::LspInstalled(result))
+            }),
+        ]),
+        #[cfg(not(target_arch = "wasm32"))]
+        EditorMessage::LspInstalled(result) => match result {
+            Ok(()) => app.show_success_toast(
+                "LSP 安装完成。请重启 ShiJu 后重新打开文件；若未生效，请检查 PATH。",
+            ),
+            Err(error) => app.show_error_toast(error),
+        },
         EditorMessage::SetOption(option, enabled) => {
             if let Some(tab) = app
                 .preview_tabs

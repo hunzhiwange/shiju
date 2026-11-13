@@ -145,8 +145,48 @@ pub(crate) fn view(app: &App, control_width: f32) -> Element<'_, Message> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        fields = fields.push(settings_divider()).push(lsp_enabled);
+        fields = fields.push(settings_divider()).push(lsp_enabled).push(lsp_install_guide(app));
     }
 
     settings_group_card(fields).into()
+}
+
+/// Installation actions are shared by system settings and the editor settings panel.
+#[cfg(not(target_arch = "wasm32"))]
+fn lsp_install_guide(app: &App) -> Element<'_, Message> {
+    use super::system_settings_common::{primary_action_btn_style, rounded_action_btn_style};
+    use crate::app::lsp::install::Server;
+    use iced::widget::{button, text};
+    let i18n = I18n::new(app.desktop_locale);
+    let mut guide = column![
+        text(i18n.__("语言服务器安装")),
+        text(i18n.__("安装在本机。快捷安装会下载软件并运行下方命令；需要联网，不会自动提权。也可复制命令到终端手工安装。")),
+        text(i18n.__("前置工具：Rust 需要 rustup；Python 和 JS/TS 需要 Node.js（含 npm）；Go 需要 Go；Lua 快捷安装需要 macOS Homebrew。")),
+        text("https://rustup.rs / https://nodejs.org / https://go.dev/dl / https://brew.sh"),
+    ].spacing(10).padding(12);
+    for server in Server::ALL {
+        let command = server.manual_command();
+        guide = guide.push(
+            column![
+                text(server.label()),
+                text(command),
+                row![
+                    button(text(i18n.__("复制命令")))
+                        .on_press(Message::Editor(EditorMessage::CopyLspCommand(server)))
+                        .style(rounded_action_btn_style)
+                        .padding([6, 12]),
+                    button(text(i18n.__("快捷安装")))
+                        .on_press_maybe(
+                            (!matches!(server, Server::Lua) || cfg!(target_os = "macos"))
+                                .then_some(Message::Editor(EditorMessage::InstallLsp(server)))
+                        )
+                        .style(primary_action_btn_style)
+                        .padding([6, 12]),
+                ]
+                .spacing(8),
+            ]
+            .spacing(6),
+        );
+    }
+    guide.push(text(i18n.__("Windows 手工安装可使用 npm.cmd。Lua 的 Windows/Linux 安装说明：https://luals.github.io/#install 。安装后确保语言服务器所在目录在 PATH 中（Go 通常为 ~/go/bin），重启 ShiJu 并重新打开文件。"))).into()
 }

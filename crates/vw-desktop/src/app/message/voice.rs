@@ -1,4 +1,4 @@
-//! Dictation and conversation routing. Local media never reaches the gateway.
+//! Dictation and conversation routing. Local audio stays on the client; screen sharing is explicit.
 use super::voice_draft::{Composer, Draft, Phase, Scope};
 use crate::app::voice::capture::Capture;
 use crate::app::{App, Message};
@@ -161,6 +161,7 @@ pub(crate) fn cancel(app: &mut App) {
 /// Called before and after dispatch so a switch away and back cannot revive old work.
 pub(crate) fn invalidate(app: &mut App) {
     if app.voice.screen.enabled
+        && app.voice.local_conversation.is_none()
         && app.voice.conversation.as_ref().is_none_or(|c| {
             matches!(
                 c.snapshot().phase,

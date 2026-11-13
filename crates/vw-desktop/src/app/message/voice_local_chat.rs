@@ -98,6 +98,8 @@ fn ready_to_send(app: &App) -> Result<(), &'static str> {
     }
     if runtime.full_access_saving
         || runtime.full_access_save_failed
+        || runtime.acp_source_pending.is_some()
+        || runtime.acp_options_pending
         || (app.active_session_view_state.ui_preparing && !app.active_session_view_state.base_ready)
     {
         return Err("会话正在加载或保存权限，请处理聊天提示后重试。");
@@ -226,6 +228,7 @@ pub(super) fn mute(app: &mut App) -> Task<Message> {
     Task::none()
 }
 pub(super) fn interrupt(app: &mut App) -> Task<Message> {
+    app.voice.screen.cancel();
     if let Some(mut chat) = app.voice.local_conversation.take() {
         stop_owned(app, &mut chat);
         chat.notice = Some("已打断本轮；可以重新开始录音。".into());
@@ -265,6 +268,7 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             if let Err(error) = ready_to_send(app) {
                 return app.show_error_toast(error);
             }
+            app.voice.screen.cancel();
             let chat = app.voice.local_conversation.as_mut().unwrap();
             chat.round = chat.round.wrapping_add(1);
             chat.notice = None;
@@ -343,32 +347,9 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
             if let Err(error) = ready_to_send(app) {
                 return outcome(app, error.into());
             }
-            let chat = app.voice.local_conversation.as_mut().unwrap();
-            chat.watermark = app.chat.len();
-            let session_id = chat.session.clone();
-            let task = crate::app::message::chat::update(
-                app,
-                crate::app::message::chat::ChatMessage::SendToSession {
-                    session_id,
-                    input: input.clone(),
-                },
-            );
-            let request = app
-                .current_session_runtime_ref()
-                .and_then(|r| r.active_agent_request.as_ref())
-                .map(|r| (r.id, r.query.clone()));
-            if let Some((id, query)) = request
-                && query == input
-            {
-                let chat = app.voice.local_conversation.as_mut().unwrap();
-                chat.request = Some(id);
-                chat.stage = Stage::WaitingModel;
-                chat.caption(false, input);
-                task
-            } else {
-                Task::batch([task, outcome(app, "模型未开始，请先查看并处理聊天中的提示。".into())])
-            }
+            send_request(app, input.clone(), input)
         }
+
         Event::Spoken(call, round, result) => {
             if chat.call != call || chat.round != round || chat.stage != Stage::Speaking {
                 return Task::none();
@@ -382,6 +363,37 @@ pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Stopped(..) => Task::none(),
     }
 }
+fn send_request(app: &mut App, input: String, caption: String) -> Task<Message> {
+    if let Err(error) = ready_to_send(app) {
+        return outcome(app, error.into());
+    }
+    let chat = app.voice.local_conversation.as_mut().unwrap();
+    chat.watermark = app.chat.len();
+    let session_id = chat.session.clone();
+    let task = crate::app::message::chat::update(
+        app,
+        crate::app::message::chat::ChatMessage::SendToSession {
+            session_id: session_id.clone(),
+            input,
+        },
+    );
+    let request = app
+        .current_session_runtime_ref()
+        .and_then(|r| r.active_agent_request.as_ref())
+        .map(|r| (r.id, r.session.clone()));
+    if let Some((id, session)) = request
+        && session == session_id
+    {
+        let chat = app.voice.local_conversation.as_mut().unwrap();
+        chat.request = Some(id);
+        chat.stage = Stage::WaitingModel;
+        chat.caption(false, caption);
+        task
+    } else {
+        Task::batch([task, outcome(app, "模型未开始，请先查看并处理聊天中的提示。".into())])
+    }
+}
+
 /// Invoked only after ordinary stream completion flushes all final text.
 pub(crate) fn model_completed(
     app: &mut App,
@@ -427,3 +439,11 @@ pub(crate) fn model_completed(
 #[cfg(test)]
 #[path = "voice_local_chat_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "voice_local_screen_tests.rs"]
+mod screen_tests;
+
+#[path = "voice_local_screen.rs"]
+mod screen;
+pub(super) use screen::{screen_call, share_screen};

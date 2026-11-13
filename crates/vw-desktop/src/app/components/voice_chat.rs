@@ -80,49 +80,7 @@ pub(crate) fn overlay_screen<'a>(
     }
     let active = !matches!(state.phase, Phase::Error | Phase::Ending | Phase::Connecting);
     if let Some(screen) = screen {
-        let action = |label: &'static str, event| {
-            button(text(label))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press(message(Event::Screen(event)))
-        };
-        body = body.push(
-            checkbox(screen.enabled)
-                .label("本次通话允许单帧屏幕分享（默认关闭）")
-                .on_toggle(|v| message(Event::Screen(ScreenEvent::Enable(v))))
-                .style(settings_checkbox_style),
-        );
-        body = body.push(text("只分享确认窗口的一帧，最大 1024 像素并按大小缩小；不持续采集、不在本机保存。已发送内容可能被远端保留。").size(12));
-        body = body.push(
-            row![
-                button(text(if mentions_screen {
-                    "你提到了屏幕，选择分享窗口"
-                } else {
-                    "选择前台窗口"
-                }))
-                .padding([8, 14])
-                .style(rounded_action_btn_style)
-                .on_press_maybe(
-                    (active && screen.enabled).then(|| message(Event::Screen(ScreenEvent::Offer)))
-                ),
-                action("屏幕录制授权", ScreenEvent::Permission),
-                action("取消分享", ScreenEvent::Cancel),
-            ]
-            .spacing(8)
-            .wrap(),
-        );
-        if screen.selecting {
-            body = body.push(text("正在选择：三秒内切换到目标应用，随后返回确认。").size(13));
-        }
-        if screen.busy() {
-            body = body.push(text("正在采集已确认窗口的单帧；可以取消。").size(13));
-        }
-        if let Some(target) = &screen.offered {
-            body =
-                body.push(text(format!("即将分享：{}。请确认窗口内容。", target.label)).size(13));
-            body = body.push(action("确认采集并分享这一帧", ScreenEvent::Confirm));
-        }
-        body = body.push(action("改用当前聊天附件分享", ScreenEvent::AttachmentChat));
+        body = body.push(screen_controls(screen, active, mentions_screen, false));
     }
     let footer = row![
         button(text(if state.phase == Phase::Muted { "取消静音" } else { "静音" }))

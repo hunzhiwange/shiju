@@ -39,7 +39,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         text(app.voice.hotkeys.status()).style(settings_muted_text_style),
         action("立即停用全局热键（本机）".into(), Event::DisableHotkeys),
         super::voice_recordings::view(app),
-        text(i18n.__("本机语音不支持屏幕分享；云端语音分享默认关闭，每次需确认目标。"))
+        text(i18n.__("屏幕分享默认关闭，每次需确认窗口；本机语音使用当前普通聊天图像模型。"))
             .style(settings_muted_text_style),
     ]
     .spacing(14)

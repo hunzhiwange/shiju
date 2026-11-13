@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::message::chat::{self, ChatMessage};
-fn app() -> App {
+pub(super) fn app() -> App {
     let (mut app, _) = App::new();
     app.project_path = Some("/repo".into());
     app.active_session_id = Some("local-turn".into());
@@ -150,14 +150,14 @@ fn voice_task_11_local_preserves_model_history_and_permission_policy() {
     assert_eq!(app.active_session_id.as_deref(), Some("local-turn"));
 }
 #[test]
-fn voice_task_11_local_screen_share_rejects_before_permission_or_capture() {
+fn voice_task_11_local_disabled_screen_ignores_stale_permission_or_capture() {
     let mut app = app();
     let _ =
         super::super::update(&mut app, VoiceEvent::Screen(super::super::ScreenEvent::Permission));
-    assert_eq!(
-        app.active_toast.as_ref().unwrap().message,
-        "本机逐轮语音暂不支持屏幕分享，请使用普通聊天附件。"
-    );
+    let _ = super::super::update(&mut app, VoiceEvent::Screen(super::super::ScreenEvent::Offer));
+    let _ =
+        super::super::update(&mut app, VoiceEvent::Screen(super::super::ScreenEvent::Inspect(0)));
+    assert!(app.voice.screen.offered.is_none());
     assert!(!app.voice.screen.enabled);
     assert!(!app.voice.screen.busy());
     assert!(app.voice.local_conversation.is_some());

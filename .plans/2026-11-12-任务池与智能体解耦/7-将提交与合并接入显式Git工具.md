@@ -6,7 +6,7 @@
 
 线性顺序：任务 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14；本任务不可与其他批次并行。
 
-状态：未开始
+状态：已完成，待回归
 
 目的：Git 提交与合并通过受权限约束的工具执行，供任务或工作流显式调用。
 
@@ -88,3 +88,17 @@ GitOperationsTool 支持 add/commit，尚无 merge，且工作目录保存在 wo
 本任务只有 `未开始`、`已完成`、`已阻塞`、`已完成，待回归` 四种状态。每个完成结论必须有当前证据；依赖批次完成后先核对代码与提交，不以已删除任务文件单独证明依赖成功。
 
 有实际代码、测试、配置或文档变更时，使用 `$git-commit` 检查 staged/unstaged/untracked，排除其他任务与用户变更后以中文提交；仅本文件状态更新或删除不提交。证据齐全则标记已完成，在最终回复报告证据后删除本文件；无关环境或既有错误阻断验证则标记已完成，待回归并保留本文件；本任务本身仍不满足目标则标记已阻塞，记录调查、替代路径和所需输入。不要修改 plan.md 或把进度写入 prompt.md。
+
+## 本轮执行证据（2026-11-14）
+
+- 依赖核对：批次 6 提交 aa85b3699，任务文件已有 14 passed / 0 failed / 0 ignored 的聚焦证据；批次 1–5 对应代码与提交已存在，保留既有待回归记录。
+- 红灯：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib task_pool_git_ -- --nocapture`，退出 101，4 项有效测试，1 passed / 3 failed / 0 ignored。失败为未支持 merge 与静态目录导致 active 分支断言失败，非编译错误；日志 `/tmp/shiju-task7-red.log`。
+- 实现调整依据：网关 merge_branch_blocking 会自动提交脏目标并在失败后 reset，不符合本任务安全边界。因此沿用 git2 原语，增加独立 merge.rs，以 Git 引用事务锁持有目标（跨进程、RAII 释放），不依赖任务池。仅允许当前有效目录已检出的目标分支；冲突用内存 merge_commits 检测，保持 HEAD、索引和用户文件。未新增 HTTP 旁路。NativeTools 已通过 execute_tool_call 与现有注册执行同一工具，无需更改注册。
+- 同阶段原生入口：`python3 scripts/cargo_slot.py sh -c 'cargo fmt --all && cargo test -p vw-agent --lib tools::git_operations::tests:: -- --nocapture; result=$?; echo FOCUSED_EXIT=$result; cargo clippy --all-targets --all-features -- -D warnings; result=$?; echo CLIPPY_EXIT=$result; exit $result'`，日志 `/tmp/shiju-task7-final.log`。
+- 红灯与最终验证均为槽位 2，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。所有入口已结束并释放自有槽位锁，缓存保留。
+
+- 绿灯：完整 Git 工具聚焦 13 passed / 0 failed / 0 ignored，退出 0；任务要求的同一过滤器复验 4 passed / 0 failed / 0 ignored，退出 0（`/tmp/shiju-task7-proof.log`），四项新增测试全部命中。另有既有 macOS 链接器 unwind 大小提示，不影响行为测试。
+- 整仓 Clippy 退出 101（`/tmp/shiju-task7-final.log`）：无关并发桌面编辑器改动 `crates/vw-desktop/src/app/components/preview_panel/view/editor_options.rs:34,47` 以及 `editor_options_tests.rs` 使用依赖不存在的 wrap_column/set_wrap_column API，共 9 项 E0599。遵守不修改其他会话变更的约定，保留任务供回归；未将该失败当作通过。
+- 已运行 cargo fmt --all；差异审查未产生额外无关 Rust 改动，未触及容量、工位池或员工产品面；未运行 GUI、全量测试或额外全量构建。新增合并不自动 add、不清理用户目录、不强制 reset，不发送外部消息。
+
+- 补充隔离检查：同槽位运行 `cargo clippy -p vw-agent --all-targets --all-features -- -D warnings` 退出 0（`/tmp/shiju-task7-proof.log`），本任务未引入编译错误或 Clippy 警告。后续推荐：修复无关桌面编辑器 API 错误后重跑整仓 Clippy；保留本任务文件，不删除。

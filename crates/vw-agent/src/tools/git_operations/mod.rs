@@ -1,5 +1,7 @@
 //! 基于 git2 的结构化 Git 操作工具。
 
+mod merge;
+
 use super::traits::{Tool, ToolResult};
 use crate::app::agent::security::{AutonomyLevel, SecurityPolicy};
 use async_trait::async_trait;
@@ -25,15 +27,21 @@ impl GitOperationsTool {
     }
 
     fn requires_write_access(&self, operation: &str) -> bool {
-        matches!(operation, "commit" | "add" | "checkout" | "stash" | "reset" | "revert")
+        matches!(operation, "merge" | "commit" | "add" | "checkout" | "stash" | "reset" | "revert")
     }
 
     fn is_read_only(&self, operation: &str) -> bool {
         matches!(operation, "status" | "diff" | "log" | "show" | "branch" | "rev-parse")
     }
 
+    fn workspace_dir(&self) -> PathBuf {
+        crate::tools::current_tool_use_context()
+            .and_then(|context| context.workspace_root())
+            .unwrap_or_else(|| self.workspace_dir.clone())
+    }
+
     fn open_repository(&self) -> anyhow::Result<Repository> {
-        Repository::discover(&self.workspace_dir)
+        Repository::discover(self.workspace_dir())
             .map_err(|error| anyhow::anyhow!("Git operation failed: {error}"))
     }
 
@@ -213,7 +221,7 @@ impl GitOperationsTool {
             anyhow::bail!("Commit message cannot be empty");
         }
         let message = Self::truncate_commit_message(&message);
-        let result = (|| -> anyhow::Result<()> {
+        let result = (|| -> anyhow::Result<serde_json::Value> {
             let repo = self.open_repository()?;
             let signature = Self::repository_signature(&repo)?;
             let mut index =
@@ -226,14 +234,13 @@ impl GitOperationsTool {
                 .map_err(|error| anyhow::anyhow!("Git operation failed: {error}"))?;
             let parent = repo.head().ok().and_then(|head| head.peel_to_commit().ok());
             let parents = parent.iter().collect::<Vec<_>>();
-            repo.commit(Some("HEAD"), &signature, &signature, &message, &tree, &parents)
+            let oid = repo
+                .commit(Some("HEAD"), &signature, &signature, &message, &tree, &parents)
                 .map_err(|error| anyhow::anyhow!("Git operation failed: {error}"))?;
-            Ok(())
+            Ok(json!({"commit": oid.to_string(), "message": message}))
         })();
         Ok(match result {
-            Ok(()) => {
-                ToolResult { success: true, output: format!("Committed: {message}"), error: None }
-            }
+            Ok(value) => json_result(value),
             Err(error) => failure("Commit", error),
         })
     }
@@ -442,10 +449,10 @@ impl Tool for GitOperationsTool {
         "git_operations"
     }
     fn description(&self) -> &str {
-        "Perform structured Git operations (status, diff, log, branch, commit, add, checkout, and stash). Returns parsed JSON output and integrates with the security policy for autonomous control."
+        "Perform structured Git operations (status, diff, log, branch, commit, add, merge, checkout, and stash). Returns parsed JSON output and integrates with the security policy for autonomous control."
     }
     fn parameters_schema(&self) -> serde_json::Value {
-        json!({"type":"object","properties":{"operation":{"type":"string","enum":["status","diff","log","branch","commit","add","checkout","stash"],"description":"Git operation to perform"},"message":{"type":"string","description":"Commit message for the 'commit' operation"},"paths":{"type":"string","description":"File paths to stage for the 'add' operation"},"branch":{"type":"string","description":"Branch name for the 'checkout' operation"},"files":{"type":"string","description":"File or path to compare for the 'diff' operation. Defaults to '.'."},"cached":{"type":"boolean","description":"Show staged changes for the 'diff' operation"},"limit":{"type":"integer","description":"Number of entries for the 'log' operation. Defaults to 10."},"action":{"type":"string","enum":["push","pop","list","drop"],"description":"Stash action for the 'stash' operation"},"index":{"type":"integer","description":"Stash index for the 'drop' action of the 'stash' operation"}},"required":["operation"]})
+        json!({"type":"object","properties":{"operation":{"type":"string","enum":["status","diff","log","branch","commit","add","merge","checkout","stash"],"description":"Git operation to perform"},"source":{"type":"string","description":"Local source branch for merge"},"target":{"type":"string","description":"Local target branch, checked out in the active worktree"},"message":{"type":"string","description":"Commit message for the 'commit' operation"},"paths":{"type":"string","description":"File paths to stage for the 'add' operation"},"branch":{"type":"string","description":"Branch name for the 'checkout' operation"},"files":{"type":"string","description":"File or path to compare for the 'diff' operation. Defaults to '.'."},"cached":{"type":"boolean","description":"Show staged changes for the 'diff' operation"},"limit":{"type":"integer","description":"Number of entries for the 'log' operation. Defaults to 10."},"action":{"type":"string","enum":["push","pop","list","drop"],"description":"Stash action for the 'stash' operation"},"index":{"type":"integer","description":"Stash index for the 'drop' action of the 'stash' operation"}},"required":["operation"]})
     }
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
         let operation = match args.get("operation").and_then(|value| value.as_str()) {
@@ -458,7 +465,7 @@ impl Tool for GitOperationsTool {
                 });
             }
         };
-        if Repository::discover(&self.workspace_dir).is_err() {
+        if Repository::discover(self.workspace_dir()).is_err() {
             return Ok(ToolResult {
                 success: false,
                 output: String::new(),
@@ -496,6 +503,7 @@ impl Tool for GitOperationsTool {
             "log" => self.git_log(args).await,
             "branch" => self.git_branch(args).await,
             "commit" => self.git_commit(args).await,
+            "merge" => self.git_merge(args).await,
             "add" => self.git_add(args).await,
             "checkout" => self.git_checkout(args).await,
             "stash" => self.git_stash(args).await,

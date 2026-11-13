@@ -83,7 +83,9 @@ async fn add_commit_and_log_preserve_structured_contract() {
         .execute(json!({"operation": "commit", "message": "  add file  \n\n  detail  "}))
         .await
         .unwrap();
-    assert_eq!(commit.output, "Committed: add file\ndetail");
+    let committed = output(commit);
+    assert_eq!(committed["message"], "add file\ndetail");
+    assert_eq!(committed["commit"].as_str().unwrap().len(), 40);
     let log = output(tool.execute(json!({"operation": "log", "limit": 1})).await.unwrap());
     assert_eq!(log["commits"][0]["message"], "add file detail");
     assert!(log["commits"][0]["author"].as_str().is_some_and(|author| !author.is_empty()));
@@ -160,4 +162,132 @@ async fn checkout_rejects_invalid_branch_names() {
         let result = test_tool(tmp.path()).git_checkout(json!({"branch": branch})).await;
         assert!(result.is_err(), "{branch:?} should be rejected");
     }
+}
+
+#[tokio::test]
+async fn task_pool_git_commit_requires_explicit_allowed_call() {
+    let tmp = repository();
+    let repo = Repository::open(tmp.path()).unwrap();
+    let before = repo.head().unwrap().target();
+    fs::write(tmp.path().join("tracked.txt"), "changed\n").unwrap();
+    let denied = GitOperationsTool::new(
+        Arc::new(SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() }),
+        tmp.path().into(),
+    );
+    assert!(
+        !denied.execute(json!({"operation":"commit","message":"denied"})).await.unwrap().success
+    );
+    assert_eq!(repo.head().unwrap().target(), before);
+    let tool = test_tool(tmp.path());
+    assert!(tool.execute(json!({"operation":"add","paths":"tracked.txt"})).await.unwrap().success);
+    assert!(
+        tool.execute(json!({"operation":"commit","message":"explicit"})).await.unwrap().success
+    );
+    assert_ne!(repo.head().unwrap().target(), before);
+}
+
+fn merge_fixture(tmp: &TempDir, conflict: bool) {
+    let repo = Repository::open(tmp.path()).unwrap();
+    let base = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("feature", &base, false).unwrap();
+    repo.set_head("refs/heads/feature").unwrap();
+    fs::write(tmp.path().join("tracked.txt"), "feature\n").unwrap();
+    commit_all(&repo, "feature");
+    repo.set_head("refs/heads/master").unwrap();
+    repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force())).unwrap();
+    if conflict {
+        fs::write(tmp.path().join("tracked.txt"), "target\n").unwrap();
+        commit_all(&repo, "target");
+    }
+}
+
+#[tokio::test]
+async fn task_pool_git_merge_obeys_permissions_and_target_lock() {
+    let tmp = repository();
+    merge_fixture(&tmp, false);
+    let args = json!({"operation":"merge","source":"feature","target":"master"});
+    let denied = GitOperationsTool::new(
+        Arc::new(SecurityPolicy { autonomy: AutonomyLevel::ReadOnly, ..SecurityPolicy::default() }),
+        tmp.path().into(),
+    );
+    assert!(!denied.execute(args.clone()).await.unwrap().success);
+    let repo = Repository::open(tmp.path()).unwrap();
+    let mut lock = repo.transaction().unwrap();
+    lock.lock_ref("refs/heads/master").unwrap();
+    assert!(!test_tool(tmp.path()).execute(args.clone()).await.unwrap().success);
+    drop(lock);
+    fs::write(tmp.path().join("dirty"), "preserve").unwrap();
+    assert!(!test_tool(tmp.path()).execute(args.clone()).await.unwrap().success);
+    fs::remove_file(tmp.path().join("dirty")).unwrap();
+    assert!(test_tool(tmp.path()).execute(args.clone()).await.unwrap().success);
+    let repeated = output(test_tool(tmp.path()).execute(args).await.unwrap());
+    assert_eq!(repeated["already_merged"], true);
+    let divergent = repository();
+    merge_fixture(&divergent, false);
+    let repo = Repository::open(divergent.path()).unwrap();
+    fs::write(divergent.path().join("target-only"), "target\n").unwrap();
+    commit_all(&repo, "target-only");
+    let merged = output(
+        test_tool(divergent.path())
+            .execute(json!({"operation":"merge","source":"feature","target":"master"}))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(merged["already_merged"], false);
+    assert_eq!(repo.head().unwrap().peel_to_commit().unwrap().parent_count(), 2);
+    assert_eq!(fs::read_to_string(divergent.path().join("tracked.txt")).unwrap(), "feature\n");
+    assert!(
+        !test_tool(divergent.path())
+            .execute(json!({"operation":"merge","source":"master","target":"feature"}))
+            .await
+            .unwrap()
+            .success
+    );
+}
+
+#[tokio::test]
+async fn task_pool_git_uses_active_worktree_directory() {
+    let tmp = repository();
+    let repo = Repository::open(tmp.path()).unwrap();
+    let worktree_parent = TempDir::new().unwrap();
+    let worktree = worktree_parent.path().join("active");
+    repo.worktree("active", &worktree, None).unwrap();
+    let context = Arc::new(crate::tools::ToolUseContext::new(
+        "git-test",
+        Some(tmp.path().to_string_lossy().into()),
+    ));
+    context
+        .bind_worktree(worktree.to_string_lossy().into(), "active".into(), "active".into())
+        .unwrap();
+    crate::tools::scope_tool_use_context(context, async {
+        let status =
+            output(test_tool(tmp.path()).execute(json!({"operation":"status"})).await.unwrap());
+        assert_eq!(status["branch"], "active");
+    })
+    .await;
+    let non_git = TempDir::new().unwrap();
+    assert!(
+        !test_tool(non_git.path())
+            .execute(json!({"operation":"merge","source":"a","target":"b"}))
+            .await
+            .unwrap()
+            .success
+    );
+}
+
+#[tokio::test]
+async fn task_pool_git_conflict_keeps_recoverable_state() {
+    let tmp = repository();
+    merge_fixture(&tmp, true);
+    let repo = Repository::open(tmp.path()).unwrap();
+    let before = repo.head().unwrap().target();
+    let result = test_tool(tmp.path())
+        .execute(json!({"operation":"merge","source":"feature","target":"master"}))
+        .await
+        .unwrap();
+    assert!(!result.success);
+    assert!(result.error.unwrap().contains("conflict"));
+    assert_eq!(repo.head().unwrap().target(), before);
+    assert_eq!(fs::read_to_string(tmp.path().join("tracked.txt")).unwrap(), "target\n");
+    assert_eq!(repo.state(), git2::RepositoryState::Clean);
 }

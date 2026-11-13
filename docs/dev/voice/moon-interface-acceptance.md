@@ -4,7 +4,7 @@
 
 ## 依赖与范围
 
-批次1的产物修复、批次2授权修复（bf3625060）与批次3月亮界面（7cf2f2c6c）已实现；批次2、3的真人验收仍待回归。本轮串行执行，没有启动其它批次。不修改 plan.md/prompt.md，不提交现有屏幕分享等在途差异。
+批次1的产物修复、批次2授权修复（bf3625060）与批次3月亮界面（7cf2f2c6c）已实现；批次2、3的软件验收已完成；真人场景未执行，缺口按本记录保留。本轮串行执行，没有启动其它批次。不修改 plan.md/prompt.md，不提交现有屏幕分享等在途差异。
 
 ## 自动检查
 
@@ -55,3 +55,18 @@ MODE=app PROFILE=dev PACKAGE_APP=0 CREATE_DMG=0 INCLUDE_CLI_IN_APP=0 MACOS_SIGN_
 创建截图目录后启动最后一次补跑：`CARGO_INCREMENTAL=0 python3 scripts/cargo_slot.py sh -c 'SHIJU_MOON_SCREENSHOTS=/tmp/moon-task4-screens cargo test -p vw-desktop --lib voice_moon_ -- --nocapture --test-threads=1; result=$?; echo MOON_EXIT=$result; exit "$result"'`，领取槽位3，两目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。用户随后明确要求“不要回归，算完成了”，本轮停止自有入口，退出130，尚未执行测试，不计作通过。自有前台进程已退出、槽位3锁释放；槽位2前两轮入口均正常结束并释放自有锁，缓存保留。第一轮/补跑入口整体退出0仅表示最后命令完成，各验证实际退出码以上表与日志为准。
 
 用户已取消剩余回归，按现有证据完成并删除任务4文件，不再安排下一轮。真人授权、中文录音、普通模型往返、听辨与完整App交互没有通过证据；本记录保留这些事实，不保存音频、转写、屏幕或凭据。plan.md/prompt.md保持不变。
+
+
+## 任务2授权与设置的软件验收收尾
+
+2026-11-13，异步等待、取消、迟到结果拒绝和偏好事务已实现，任务2软件验收完成。此前将真人听辨列为任务2阻塞的判断撤销：真人语音端到端验收属于任务4的实机场景，用户已要求任务4按现有证据收尾；该部分仍无通过结论。本次按最新指令核对验收范围后删除任务2文件，不把未执行的真人场景计作通过。
+
+最新软件回归针对共享工作区83eedc373执行，之后至28d1d6311任务2相关生产源码和测试均无变化。确切命令：
+
+```sh
+python3 scripts/cargo_slot.py sh -c 'for filter in voice_moon_permission_ voice_task_03_ voice_task_07_ voice_task_13_; do cargo test -p vw-desktop --lib "$filter" -- --nocapture --test-threads=1; result=$?; echo "VERIFY $filter EXIT=$result"; if [ "$result" -ne 0 ]; then exit "$result"; fi; done; cargo clippy --all-targets --all-features -- -D warnings'
+```
+
+日志`/tmp/voice-permission-regression.log`：授权6项、权限5项、听写32项、设置14项，共57项通过、0失败，四组及整仓Clippy均退出0。实际槽位3，CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR均为`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；入口已正常退出并释放锁、保留缓存。本轮仅核对证据和更新文档，没有重复运行未变化的检查。
+
+自动测试覆盖延迟允许、授权终态、超时与取消、迟到结果丢弃、关闭表单不被重开、已取消听写，以及真实临时目录保存重载/取消不写盘/Local不访问网关。系统查询中Microphone=Granted、SpeechRecognition=NotDetermined只描述测试进程，不证明完整.app权限归属或授权失败。完整应用首次允许/拒绝、中文识别和听辨没有真人证据，仍由本记录的实机场景说明准确保留；本轮未请求系统授权、未录音、未改TCC。

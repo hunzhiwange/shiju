@@ -223,6 +223,17 @@ impl AcpClient {
         }
     }
 
+    fn validate_dimcode_mcp(&self) -> Result<(), AcpError> {
+        if self.agent_name == "dimcode"
+            && self.mcp_servers.iter().any(|server| matches!(server, acp::McpServer::Stdio(_)))
+        {
+            return Err(AcpError::Prompt(
+                "DimCode does not support ACP stdio MCP; select an HTTP or SSE server".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) async fn new_session_id(
         &self,
         conn: &acp::ClientSideConnection,
@@ -236,6 +247,7 @@ impl AcpClient {
         conn: &acp::ClientSideConnection,
         cwd: &Path,
     ) -> Result<SessionInfo, AcpError> {
+        self.validate_dimcode_mcp()?;
         let mut request = acp::NewSessionRequest::new(cwd).mcp_servers(self.mcp_servers.clone());
         if let Some(meta) = self.mounted_session_meta() {
             request = request.meta(meta);
@@ -287,6 +299,7 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
+        self.validate_dimcode_mcp()?;
         let mut request = acp::LoadSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some()
@@ -340,6 +353,7 @@ impl AcpClient {
         if self.agent_name == "kiro" {
             return self.load_session_info(conn, cwd, session_id).await;
         }
+        self.validate_dimcode_mcp()?;
         let mut request = acp::ResumeSessionRequest::new(session_id.clone(), cwd)
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some() || self.skill_mounts.is_some())

@@ -99,3 +99,12 @@ fn acp_onboarding_deepagents_installer_contract() {
     }
     assert!(acp_install_command("deepagents; echo unsafe").is_none());
 }
+#[test]
+fn acp_onboarding_dimcode_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("dimcode", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "dimcode@0.5.28"]);
+    }
+    assert!(acp_install_command("dimcode; echo unsafe").is_none());
+}

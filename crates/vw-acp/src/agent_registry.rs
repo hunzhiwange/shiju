@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "dimcode",
+        display_name: "DimCode",
+        command: "npx",
+        args: &["-y", "dimcode@0.5.28", "acp"],
+        env: &[],
+        local_command_candidates: &["dim"],
+        local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
         name: "autohand",
         display_name: "Autohand Code",
         command: "npx",

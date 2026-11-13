@@ -515,7 +515,7 @@ pub(crate) fn gateway_local_agent_stream_request(
 fn gateway_local_agent_options(cwd: String) -> Map<String, Value> {
     let mut options = Map::new();
     options.insert("cwd".to_string(), json!(cwd));
-    options.insert("full_access".to_string(), json!(true));
+    // Leave native access to the bound agent defaults and session permission policy.
     options
 }
 

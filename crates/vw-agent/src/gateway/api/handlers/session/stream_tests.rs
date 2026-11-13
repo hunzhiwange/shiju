@@ -3257,3 +3257,78 @@ fn todo_continuation_emits_status_without_changing_assistant_text() {
     assert_eq!(payload, serde_json::json!({"type": "chat.todo_continuation"}));
     assert_eq!(assistant_text, "Earlier reply");
 }
+
+#[tokio::test]
+async fn task_pool_agent_uses_existing_definition_and_defaults() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    crate::config::update(serde_json::json!({"agents":{"main":{"defaults":{"full_access":false},"allowed_tools":["read"],"permission":{"*":"deny"}},"task-reviewer":{"enabled":true,"runtime":{"kind":"native"},"provider":"model-recovery","model":"original","allowed_tools":["read"],"permission":{"*":"deny"},"defaults":{"full_access":false}}}})).await.unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), move || {
+        Box::pin(async move {
+            for agent in ["main", "task-reviewer", "acp-codex"] {
+                let mut request = GatewayChatStreamRequest {
+                    agent: Some(agent.into()),
+                    session_id: Some(format!("agent-scheduler-task-{agent}").into()),
+                    ..Default::default()
+                };
+                let resolved = prepare_gateway_agent_request(&mut request, None).await.unwrap();
+                assert_eq!(resolved.agent.as_deref(), Some(agent));
+                let binding = crate::session::agent_binding::load(
+                    request.session_id.as_ref().unwrap().as_ref(),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                assert_eq!(binding.agent, agent);
+                if agent != "acp-codex" {
+                    if agent == "task-reviewer" {
+                        assert_eq!(resolved.model.as_deref(), Some("model-recovery/original"));
+                    }
+                    assert_eq!(binding.allowed_tools, vec!["read"]);
+                    assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
+                    let rules = crate::agent::permission_rules(agent).await.unwrap();
+                    assert_eq!(
+                        crate::permission::next::evaluate("shell", "*", &[rules]).action,
+                        crate::permission::next::Action::Deny
+                    );
+                } else {
+                    assert_eq!(request.acp_agent.as_deref(), Some("codex"));
+                }
+            }
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn task_pool_agent_rejects_unknown_or_disabled_definition() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    crate::config::update(serde_json::json!({"agents":{"main":{"enabled":false}}})).await.unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), move || {
+        Box::pin(async move {
+            for agent in ["main", "task-pool-unknown"] {
+                let mut request =
+                    GatewayChatStreamRequest { agent: Some(agent.into()), ..Default::default() };
+                assert!(prepare_gateway_agent_request(&mut request, None).await.is_err());
+            }
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+}

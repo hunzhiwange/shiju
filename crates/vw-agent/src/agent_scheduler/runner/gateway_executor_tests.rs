@@ -201,9 +201,9 @@ fn gateway_stream_request_without_agent_or_acp_keeps_minimal_options() -> Result
     assert_eq!(stream.agent, None);
     assert_eq!(stream.acp_agent, None);
     assert_eq!(stream.reasoning_effort, None);
-    assert_eq!(options.len(), 2);
+    assert_eq!(options.len(), 1);
     assert_eq!(options["cwd"], "/repo/.vw/worktrees/slot-1");
-    assert_eq!(options["full_access"], true);
+    assert!(!options.contains_key("full_access"));
     Ok(())
 }
 
@@ -766,5 +766,26 @@ async fn task_pool_workspace_rejects_missing_or_foreign_directory() -> Result<()
         );
     }
     assert!(pool.acquire_calls.lock().is_empty());
+    Ok(())
+}
+
+#[test]
+fn task_pool_agent_does_not_elevate_background_permissions() -> Result<()> {
+    for (agent, backend) in [(None, None), (Some("main"), None), (Some("acp-codex"), Some("codex"))]
+    {
+        let body = gateway_local_agent_stream_request(&execution_request(agent, backend)?);
+        assert_ne!(body.options.unwrap()["full_access"], true);
+    }
+    Ok(())
+}
+
+#[test]
+fn task_pool_agent_runs_use_distinct_sessions() -> Result<()> {
+    let mut task = execution_request(Some("main"), None)?;
+    let first = gateway_local_agent_stream_request(&task);
+    task.run_id = RunId::new("run-2")?;
+    let second = gateway_local_agent_stream_request(&task);
+    assert_ne!(first.session_id, second.session_id);
+    assert_eq!(first.agent, second.agent);
     Ok(())
 }

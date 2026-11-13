@@ -377,7 +377,7 @@ pub(super) fn save_button<'a>(draft: &CronJobDraft, editing: bool) -> Element<'a
         .into()
 }
 
-fn rule_summary(rule: &R) -> String {
+pub(super) fn rule_summary(rule: &R) -> String {
     match rule {
         R::At { date, time } => format!("单次 {date} {}", time.format("%H:%M")),
         R::AbsoluteAt(value) => format!("单次 {value}"),

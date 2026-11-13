@@ -291,7 +291,11 @@ impl CronScheduleDraft {
 fn parse_expression(expression: &str) -> CronScheduleRule {
     let advanced = || CronScheduleRule::Advanced(expression.into());
     let fields: Vec<_> = expression.split_whitespace().collect();
-    let [m, h, d, month, week] = fields.as_slice() else {
+    let fields = match fields.as_slice() {
+        ["0", rest @ ..] if rest.len() == 5 => rest,
+        other => other,
+    };
+    let [m, h, d, month, week] = fields else {
         return advanced();
     };
     let Ok(minute) = m.parse::<u32>() else {

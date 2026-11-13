@@ -1,7 +1,7 @@
 //! Current jobs own their scroll viewport so batch actions remain visible.
 use super::*;
 use crate::app::components::system_settings_common::settings_toggle;
-use crate::app::state::{CronFrequency, CronListFilter};
+use crate::app::state::{CronFrequency, CronListFilter, CronScheduleDraft};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{Space, column, responsive, scrollable};
 
@@ -32,6 +32,7 @@ fn summary(job: &CronJobDto) -> String {
 
 fn schedule_label(app: &App, job: &CronJobDto) -> String {
     let tr = I18n::new(app.desktop_locale);
+    let timezone = job.timezone.as_deref().unwrap_or("UTC");
     match job.schedule_kind.as_str() {
         "at" => format!(
             "{} · {} · {}",
@@ -44,15 +45,25 @@ fn schedule_label(app: &App, job: &CronJobDto) -> String {
             tr.__("固定间隔"),
             job.every_ms.map(|ms| format!("{ms} ms")).unwrap_or_else(|| job.expression.clone())
         ),
+        "biweekly" => match CronScheduleDraft::from_job(job) {
+            Ok(draft) => {
+                format!("{} · {}", super::schedule::rule_summary(&draft.rule), draft.timezone)
+            }
+            Err(error) => format!("{} · {error}", tr.__("每双周")),
+        },
         "cron" | "" => {
-            let frequency = CronFrequency::from_expression(&job.expression);
+            let fields: Vec<_> = job.expression.split_whitespace().collect();
+            let fields = match fields.as_slice() {
+                ["0", rest @ ..] if rest.len() == 5 => rest,
+                other => other,
+            };
+            let frequency = CronFrequency::from_expression(&fields.join(" "));
             if frequency == CronFrequency::Daily {
-                let fields: Vec<_> = job.expression.split_whitespace().collect();
-                format!("{} {:0>2}:{:0>2} · UTC", tr.__("每天"), fields[1], fields[0])
+                format!("{} {:0>2}:{:0>2} · {timezone}", tr.__("每天"), fields[1], fields[0])
             } else if frequency == CronFrequency::Advanced {
-                format!("{} · UTC", job.expression)
+                format!("{} · {timezone}", job.expression)
             } else {
-                format!("{} · {} · UTC", tr.__(&frequency.to_string()), job.expression)
+                format!("{} · {} · {timezone}", tr.__(&frequency.to_string()), job.expression)
             }
         }
         _ => job.expression.clone(),

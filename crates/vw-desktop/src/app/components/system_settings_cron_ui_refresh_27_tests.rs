@@ -916,7 +916,13 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
     let mut renderer = renderer().await;
     let mut app = fixture();
     app.cron_settings.add_draft.schedule_kind = CronAddScheduleKind::Every;
-    app.cron_settings.add_draft.every_ms = "71000".into();
+    app.cron_settings.add_draft.schedule_draft = Some(crate::app::state::CronScheduleDraft {
+        rule: crate::app::state::CronScheduleRule::Every {
+            amount: 71,
+            unit: crate::app::state::IntervalUnit::Seconds,
+        },
+        ..Default::default()
+    });
     app.scheduler_settings.enabled = false;
     app.scheduler_settings.max_tasks = 63;
     for (locale, theme) in [
@@ -929,7 +935,7 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
         let size = Size::new(480, 940);
         let tr = I18n::new(locale);
         for (tab, entry, help) in [
-            (CronSettingsTab::Add, "cron-add", ("固定间隔", "按毫秒数循环触发。")),
+            (CronSettingsTab::Add, "cron-add", ("任务类型", JOB_TYPE_HELP)),
             (
                 CronSettingsTab::Config,
                 "cron-config",
@@ -938,10 +944,11 @@ async fn help_rollout_15_cron_add_config_and_scheduler_render_help() {
             (CronSettingsTab::Scheduler, "scheduler", ("最大任务", "单次轮询最多处理的任务数量。")),
         ] {
             app.cron_settings.active_tab = tab;
-            let mut ui = scene(frame(view(&app)), &mut renderer, size);
+            let content = if tab == CronSettingsTab::Add { add_tab(&app) } else { view(&app) };
+            let mut ui = scene(frame(content), &mut renderer, size);
             let positions = geometry(&mut ui, &renderer);
             if tab == CronSettingsTab::Add {
-                assert_fits(positions.input("71000"), size);
+                assert_fits(positions.input("71"), size);
             }
             if tab == CronSettingsTab::Scheduler {
                 assert_fits(positions.label("63"), size);
@@ -1351,7 +1358,8 @@ async fn cron_agent_and_model_choices_render_below_project() {
     assert_eq!(app.cron_settings.add_draft.job_type, CronAddJobType::Agent);
     let size = Size::new(960, 2800);
     for theme in [Theme::Light, Theme::Dark] {
-        let mut ui = scene(frame(view(&app)), &mut renderer, size);
+        app.app_theme = theme.clone();
+        let mut ui = scene(frame(add_tab(&app)), &mut renderer, size);
         let positions = geometry(&mut ui, &renderer);
         assert!(!positions.labels.iter().any(|(label, _)| label == "ACP 智能体"));
         let mut previous = positions.label("项目路径");

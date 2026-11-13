@@ -384,12 +384,7 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
     app.system_settings_tab = SystemTab::Cron;
     for size in [Size::new(760, 620), Size::new(1920, 1080)] {
         let mut left = None;
-        for tab in [
-            CronSettingsTab::Jobs,
-            CronSettingsTab::Config,
-            CronSettingsTab::Scheduler,
-            CronSettingsTab::Add,
-        ] {
+        for tab in [CronSettingsTab::Jobs, CronSettingsTab::Config, CronSettingsTab::Scheduler] {
             app.cron_settings.active_tab = tab;
             let mut ui =
                 scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
@@ -409,7 +404,8 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             );
         }
         app.cron_settings.active_tab = CronSettingsTab::Jobs;
-        for modal in ["edit", "history"] {
+        for modal in ["add", "edit", "history"] {
+            app.cron_settings.show_add_modal = modal == "add";
             app.cron_settings.editing_job_id = (modal == "edit").then(|| "list-job".into());
             app.cron_settings.runs_modal_job_id = (modal == "history").then(|| "list-job".into());
             app.cron_settings.edit_draft.name = "中文动态任务 🧭".into();
@@ -417,7 +413,7 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
             let mut ui =
                 scene(crate::app::components::system_settings::view(&app), &mut renderer, size);
             let before = geometry(&mut ui, &renderer);
-            if modal == "edit" {
+            if matches!(modal, "add" | "edit") {
                 let save = before.label("保存");
                 assert_fits(save, size);
                 let scroll = before.scroll.unwrap().0;
@@ -431,7 +427,7 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
                 assert_fits(before.label("执行历史"), size);
                 assert_fits(before.label("中文历史错误：本地示例"), size);
             }
-            let expected_width: f32 = if modal == "edit" { 740.0 } else { 780.0 };
+            let expected_width: f32 = if modal == "history" { 780.0 } else { 740.0 };
             assert!(
                 before
                     .containers
@@ -447,7 +443,48 @@ async fn cron_list_tabs_and_modals_preserve_width_and_scroll() {
                 mouse::Cursor::Unavailable,
             );
         }
+        app.cron_settings.show_add_modal = false;
         app.cron_settings.editing_job_id = None;
         app.cron_settings.runs_modal_job_id = None;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule() {
+    if !isolated("list_tests::wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = list_fixture();
+    app.cron_settings.jobs[0].expression = "0 30 9 * * *".into();
+    app.cron_settings.jobs[0].timezone = Some("Asia/Shanghai".into());
+    let mut biweekly = app.cron_settings.jobs[0].clone();
+    biweekly.id = "biweekly-card".into();
+    biweekly.name = Some("双周巡检".into());
+    biweekly.schedule_kind = "biweekly".into();
+    biweekly.expression.clear();
+    biweekly.anchor_date = Some("2096-12-24".into());
+    biweekly.weekdays = Some(vec![1, 5]);
+    biweekly.hour = Some(9);
+    biweekly.minute = Some(30);
+    app.cron_settings.jobs.push(biweekly);
+    let size = Size::new(760, 900);
+    for theme in [Theme::Light, Theme::Dark] {
+        app.app_theme = theme.clone();
+        let mut ui = scene(frame(view(&app)), &mut renderer, size);
+        capture(
+            &mut ui,
+            &mut renderer,
+            &theme,
+            size,
+            &format!("wb-acceptance-card-zones-{theme:?}"),
+            mouse::Cursor::Unavailable,
+        );
+        let positions = geometry(&mut ui, &renderer);
+        for label in
+            ["每天 09:30 · Asia/Shanghai", "每双周 [1, 5] 09:30 · 锚点 2096-12-24 · Asia/Shanghai"]
+        {
+            assert_fits(positions.label(label), size);
+        }
     }
 }

@@ -99,7 +99,7 @@ fn wb_schedule_draft_window_patch_three_states() {
 }
 #[test]
 fn wb_schedule_draft_advanced_preserves_original() {
-    for expression in ["*/17 * * * *", "0 0 9 * * *", "0 0 9 * * * 2028", " 0 9 * * MON-FRI "] {
+    for expression in ["*/17 * * * *", "15 0 9 * * *", "0 0 9 * * * 2028", " 0 9 * * MON-FRI "] {
         let r = CronPreviewRequest {
             schedule_kind: "cron".into(),
             schedule: Some(expression.into()),
@@ -152,4 +152,37 @@ fn wb_schedule_draft_existing_window_used_by_preview_until_date_patch() {
     assert_eq!(r.end_date, Some(None));
     assert!(r.starts_at.is_none());
     assert!(r.ends_at.is_none());
+}
+
+#[test]
+fn wb_schedule_acceptance_gateway_cron_normalization_preserves_edit_rules() {
+    for (expression, expected) in [
+        ("30 9 * * *", CronScheduleRule::Daily { time: time() }),
+        ("30 9 * * MON,WED", CronScheduleRule::Weekly { weekdays: vec![1, 3], time: time() }),
+        ("30 9 1,15 * *", CronScheduleRule::Monthly { days: vec![1, 15], time: time() }),
+        ("30 9 29 2 *", CronScheduleRule::Yearly { month: 2, day: 29, time: time() }),
+    ] {
+        // The gateway stores the normalized six-field expression in its actual job JSON.
+        let job: CronJobDto = serde_json::from_value(serde_json::json!({
+            "id":"calendar-roundtrip", "schedule_kind":"cron",
+            "expression":format!("0 {expression}"), "timezone":"Asia/Shanghai",
+            "next_run":"2096-12-24T01:30:00+00:00", "enabled":true
+        }))
+        .unwrap();
+        let restored = CronScheduleDraft::from_job(&job).unwrap();
+        assert_eq!(restored.rule, expected);
+        assert_eq!(restored.timezone, "Asia/Shanghai");
+        assert_eq!(restored.request().unwrap().schedule.as_deref(), Some(expression));
+    }
+    for expression in ["15 30 9 * * *", "0 30 9 * * * 2096", "0 */40 * * * *"] {
+        let request = CronPreviewRequest {
+            schedule_kind: "cron".into(),
+            schedule: Some(expression.into()),
+            timezone: Some("UTC".into()),
+            ..Default::default()
+        };
+        let restored = CronScheduleDraft::from_request(&request).unwrap();
+        assert_eq!(restored.rule, CronScheduleRule::Advanced(expression.into()));
+        assert_eq!(restored.request().unwrap().schedule.as_deref(), Some(expression));
+    }
 }

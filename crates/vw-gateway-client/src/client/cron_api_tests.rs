@@ -474,3 +474,87 @@ async fn cron_history_client_reports_network_and_decode_errors() {
     assert_eq!(server.take_request().path, "/v1/cron/history");
     server.join();
 }
+
+#[tokio::test]
+async fn wb_schedule_acceptance_transport_preserves_configuration_through_edit() {
+    let fields = json!({
+        "schedule_kind":"biweekly", "anchor_date":"2096-12-24", "weekdays":[1,5],
+        "hour":9, "minute":30, "timezone":"Asia/Shanghai",
+        "starts_at":"2096-12-23T16:00:00+00:00", "ends_at":"2097-01-31T16:00:00+00:00"
+    });
+    let preview = json!({"normalized":fields,"timezone":"Asia/Shanghai",
+        "candidates":["2096-12-24T01:30:00+00:00"]});
+    let probe = json!({"normalized":{"schedule_kind":"at","at":"9999-01-01T00:00:00+00:00","timezone":"UTC"},
+        "timezone":"UTC","candidates":["9999-01-01T00:00:00+00:00"]});
+    let mut saved = fields.clone();
+    for (key, value) in json!({"id":"acceptance", "name":"中文任务", "job_type":"agent",
+        "prompt":"检查项目", "agent":"fixture", "model":"fixture-model", "project_path":"/fixture",
+        "full_access":false, "delivery_mode":"announce", "delivery_channel":"slack",
+        "delivery_to":"fixture-target", "delivery_best_effort":false,
+        "enabled":true, "next_run":"2096-12-24T01:30:00+00:00"})
+    .as_object()
+    .unwrap()
+    {
+        saved[key] = value.clone();
+    }
+    let mut edited = saved.clone();
+    edited["weekdays"] = json!([3, 7]);
+    edited["ends_at"] = json!(null);
+    let server = test_support::server(vec![
+        (200, preview),
+        (200, probe.clone()),
+        (200, json!({"status":"ok","job":saved})),
+        (200, json!({"jobs":[saved]})),
+        (200, probe),
+        (200, json!({"status":"ok","job":edited})),
+        (200, json!({"jobs":[edited]})),
+    ]);
+    let client = server.client();
+    let input: super::CronPreviewRequest = serde_json::from_value(fields.clone()).unwrap();
+    let normalized = client.cron_schedule_preview(&input).await.unwrap().normalized;
+    assert_eq!(normalized.timezone.as_deref(), Some("Asia/Shanghai"));
+    let mut create = saved.clone();
+    create["schedule"] = json!("");
+    let request: CronAddRequest = serde_json::from_value(create).unwrap();
+    client.cron_job_add(&request).await.unwrap();
+    let read = client.cron_jobs_get().await.unwrap().remove(0);
+    assert_eq!(read.prompt.as_deref(), Some("检查项目"));
+    assert_eq!(read.delivery_to.as_deref(), Some("fixture-target"));
+    assert!(!read.full_access);
+    let patch =
+        CronUpdateRequest { weekdays: Some(vec![3, 7]), ends_at: Some(None), ..Default::default() };
+    client.cron_job_update(&read.id, &patch).await.unwrap();
+    let reopened = client.cron_jobs_get().await.unwrap().remove(0);
+    assert_eq!(reopened.weekdays, Some(vec![3, 7]));
+    assert!(reopened.ends_at.is_none());
+    assert_eq!(reopened.timezone, read.timezone);
+    assert_eq!(reopened.project_path, read.project_path);
+    let preview_sent = server.take_request();
+    assert_eq!(preview_sent.path, "/v1/cron/preview");
+    assert_eq!(preview_sent.body["ends_at"], fields["ends_at"]);
+    server.take_request(); // Capability probe before create.
+    let created_sent = server.take_request();
+    assert_eq!(created_sent.path, "/v1/cron");
+    for key in [
+        "timezone",
+        "starts_at",
+        "ends_at",
+        "weekdays",
+        "anchor_date",
+        "prompt",
+        "delivery_to",
+        "full_access",
+    ] {
+        assert_eq!(created_sent.body[key], saved[key], "{key}");
+    }
+    server.take_request(); // Read.
+    server.take_request(); // Capability probe before edit.
+    let edit_sent = server.take_request();
+    assert_eq!(edit_sent.method, "PATCH");
+    assert_eq!(edit_sent.path, "/v1/cron/acceptance");
+    assert_eq!(edit_sent.body["weekdays"], json!([3, 7]));
+    assert_eq!(edit_sent.body["ends_at"], json!(null));
+    assert!(edit_sent.body.get("starts_at").is_none());
+    server.take_request();
+    server.join();
+}

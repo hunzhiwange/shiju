@@ -72,3 +72,123 @@ fn next_run_for_schedule_supports_timezone() {
     // 断言：洛杉矶 9:00 AM = UTC 17:00（时差 8 小时）
     assert_eq!(next, Utc.with_ymd_and_hms(2026, 2, 16, 17, 0, 0).unwrap());
 }
+
+/// Exercise the shared preview calculator and real SQLite lifecycle together.
+#[test]
+fn wb_schedule_acceptance_roundtrips_window_and_timezone() {
+    use crate::app::agent::config::Config;
+    use crate::app::agent::cron::{CronJobPatch, store};
+    let tmp = tempfile::tempdir().unwrap();
+    let config = Config {
+        workspace_dir: tmp.path().join("workspace"),
+        config_path: tmp.path().join("config.json"),
+        ..Config::default()
+    };
+    std::fs::create_dir_all(&config.workspace_dir).unwrap();
+    let from = Utc.with_ymd_and_hms(2096, 12, 23, 0, 0, 0).unwrap();
+    let start = Utc.with_ymd_and_hms(2096, 12, 24, 0, 0, 0).unwrap();
+    let end = Utc.with_ymd_and_hms(2097, 1, 31, 0, 0, 0).unwrap();
+    for timezone in ["UTC", "Asia/Shanghai"] {
+        let cron = |expr: &str| Schedule::Cron { expr: expr.into(), tz: Some(timezone.into()) };
+        let rules = [
+            Schedule::At { at: start + chrono::Duration::hours(9) },
+            Schedule::Every { every_ms: 3_600_000 },
+            cron("30 9 * * *"),
+            cron("30 9 * * MON,WED"),
+            Schedule::Biweekly {
+                anchor_date: "2096-12-24".parse().unwrap(),
+                weekdays: vec![1, 5],
+                hour: 9,
+                minute: 30,
+                timezone: timezone.into(),
+            },
+            cron("30 9 1,15,31 * *"),
+            cron("30 9 1 1 *"),
+        ];
+        for schedule in rules {
+            let preview = store::next_run_in_window(&schedule, Some(start), Some(end), from)
+                .unwrap()
+                .unwrap();
+            let created = store::add_shell_job_with_window(
+                &config,
+                Some("日历验收".into()),
+                schedule.clone(),
+                "echo acceptance",
+                Some(start),
+                Some(end),
+            )
+            .unwrap();
+            let read = store::get_job(&config, &created.id).unwrap();
+            assert_eq!(read.schedule, schedule);
+            assert_eq!(read.next_run, preview);
+            assert_eq!((read.starts_at, read.ends_at), (Some(start), Some(end)));
+            assert!(!read.full_access);
+            let edited_start = start + chrono::Duration::days(1);
+            // Move the one-off instant too, so its edited window still has an occurrence.
+            let edited_schedule = match schedule {
+                Schedule::At { .. } => {
+                    Schedule::At { at: edited_start + chrono::Duration::hours(9) }
+                }
+                other => other,
+            };
+            let edited_preview =
+                store::next_run_in_window(&edited_schedule, Some(edited_start), Some(end), from)
+                    .unwrap()
+                    .unwrap();
+            let edited = store::update_job(
+                &config,
+                &read.id,
+                CronJobPatch {
+                    schedule: Some(edited_schedule.clone()),
+                    starts_at: Some(Some(edited_start)),
+                    name: Some("已编辑".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(edited.next_run, edited_preview);
+            let reopened = store::get_job(&config, &read.id).unwrap();
+            assert_eq!(reopened.schedule, edited_schedule);
+            assert_eq!(reopened.ends_at, Some(end));
+            assert!(
+                store::due_jobs(&config, edited_preview)
+                    .unwrap()
+                    .iter()
+                    .any(|job| job.id == read.id)
+            );
+            assert!(store::due_jobs(&config, end).unwrap().is_empty());
+            assert!(!store::get_job(&config, &read.id).unwrap().enabled);
+        }
+    }
+}
+
+#[test]
+fn wb_schedule_acceptance_month_end_and_leap_day_skip_missing_dates() {
+    let from = Utc.with_ymd_and_hms(2095, 3, 1, 0, 0, 0).unwrap();
+    let leap = Schedule::Cron { expr: "30 9 29 2 *".into(), tz: Some("UTC".into()) };
+    assert_eq!(
+        next_run_for_schedule(&leap, from).unwrap(),
+        Utc.with_ymd_and_hms(2096, 2, 29, 9, 30, 0).unwrap()
+    );
+    let month_end = Schedule::Cron { expr: "30 9 31 * *".into(), tz: Some("Asia/Shanghai".into()) };
+    assert_eq!(
+        next_run_for_schedule(&month_end, Utc.with_ymd_and_hms(2096, 4, 1, 0, 0, 0).unwrap())
+            .unwrap(),
+        Utc.with_ymd_and_hms(2096, 5, 31, 1, 30, 0).unwrap()
+    );
+}
+
+#[test]
+fn wb_schedule_acceptance_cron_step_differs_from_elapsed_interval() {
+    let from = Utc.with_ymd_and_hms(2096, 1, 1, 0, 50, 0).unwrap();
+    let step = Schedule::Cron { expr: "*/40 * * * *".into(), tz: Some("UTC".into()) };
+    let elapsed = Schedule::Every { every_ms: 40 * 60_000 };
+    assert_eq!(
+        next_run_for_schedule(&step, from).unwrap(),
+        Utc.with_ymd_and_hms(2096, 1, 1, 1, 0, 0).unwrap()
+    );
+    assert_eq!(
+        next_run_for_schedule(&elapsed, from).unwrap(),
+        Utc.with_ymd_and_hms(2096, 1, 1, 1, 30, 0).unwrap()
+    );
+}

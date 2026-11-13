@@ -77,6 +77,7 @@ async fn shell_run_requires_approval_for_medium_risk() {
         ..Config::default()
     };
     config.autonomy.level = AutonomyLevel::Supervised;
+    config.autonomy.require_approval_for_medium_risk = true;
     config.autonomy.allowed_commands = vec!["touch".into()];
     std::fs::create_dir_all(&config.workspace_dir).unwrap();
     let cfg = Arc::new(config);

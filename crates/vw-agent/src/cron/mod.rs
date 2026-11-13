@@ -275,3 +275,7 @@ fn parse_delay(input: &str) -> Result<chrono::Duration> {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/schedule.rs"]
+mod schedule_acceptance_tests;

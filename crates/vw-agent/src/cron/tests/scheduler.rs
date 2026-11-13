@@ -1654,6 +1654,37 @@ async fn wb_schedule_feedback_unavailable_credentials_rejected() {
     assert!(err.to_string().contains("credentials unavailable"));
 }
 
+#[tokio::test]
+async fn wb_schedule_acceptance_manual_cron_run_preserves_next_run() {
+    let tmp = TempDir::new().unwrap();
+    let config = test_config(&tmp).await;
+    let now = Utc::now();
+    let end = now + ChronoDuration::days(30);
+    for schedule in [
+        Schedule::Every { every_ms: 60_000 },
+        Schedule::At { at: now + ChronoDuration::hours(1) },
+        Schedule::Cron { expr: "30 9 * * *".into(), tz: Some("Asia/Shanghai".into()) },
+    ] {
+        let job = cron::add_shell_job_with_window(
+            &config,
+            Some("立即运行验收".into()),
+            schedule,
+            "echo acceptance-manual",
+            None,
+            Some(end),
+        )
+        .unwrap();
+        let (success, output) = cron::scheduler::execute_job_now(&config, &job).await;
+        assert!(success, "{output}");
+        assert!(output.contains("acceptance-manual"));
+        let read = cron::get_job(&config, &job.id).unwrap();
+        assert_eq!(read.schedule, job.schedule);
+        assert_eq!(read.next_run, job.next_run);
+        assert_eq!(read.ends_at, Some(end));
+        assert!(read.enabled);
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn cron_wecom_delivery_none_makes_zero_webhook_requests() {

@@ -16,6 +16,8 @@ fn voice_task_15_hotkey_double_tap_enters_hands_free() {
     assert_eq!(state.press(now + Duration::from_millis(160), false), None);
     assert_eq!(state.release(now + Duration::from_millis(200)), None);
     assert!(state.active);
+    assert_eq!(state.tick(now + Duration::from_millis(600)), None);
+    assert!(state.active);
     assert_eq!(state.press(now + Duration::from_secs(1), false), Some(Action::Finish));
 }
 #[test]

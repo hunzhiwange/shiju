@@ -74,3 +74,41 @@ fn voice_task_15_native_overflow_and_disabled_tap_fail_closed() {
     }
     assert!(context.fault.load(Ordering::SeqCst));
 }
+
+#[test]
+fn voice_task_15_native_double_tap_survives_timer_and_finishes_once() {
+    use super::super::hotkeys::{Action, Machine};
+    let (mut context, rx) = context();
+    let now = Instant::now();
+    let mut machine = Machine::default();
+    let mut actions = Vec::new();
+    // Include a repeated down and modifier-first release in each tap. The later
+    // letter-up must not create an extra release or reset hands-free mode.
+    for (ms, kind, key, flags, repeat) in [
+        (0, 10, 0, CONTROL | ALT, false),
+        (10, 10, 0, CONTROL | ALT, true),
+        (40, 12, 59, ALT, false),
+        (50, 11, 0, ALT, false),
+        (100, 10, 0, CONTROL | ALT, false),
+        (110, 10, 0, CONTROL | ALT, true),
+        (140, 12, 59, ALT, false),
+        (150, 11, 0, ALT, false),
+    ] {
+        emit(&mut context, kind, key, flags, repeat);
+        for (input, _) in rx.try_iter() {
+            actions.extend(machine.input(input, now + Duration::from_millis(ms)));
+        }
+    }
+    assert_eq!(actions, vec![Action::Start]);
+    assert_eq!(machine.tick(now + Duration::from_secs(1)), None);
+    assert!(machine.active);
+    emit(&mut context, 10, 0, CONTROL | ALT, false);
+    let (input, _) = rx.try_recv().unwrap();
+    assert_eq!(machine.input(input, now + Duration::from_secs(2)), Some(Action::Finish));
+    emit(&mut context, 11, 0, 0, false);
+    let (input, _) = rx.try_recv().unwrap();
+    assert_eq!(machine.input(input, now + Duration::from_secs(2)), None);
+    assert_eq!(machine.tick(now + Duration::from_secs(3)), None);
+    assert!(!machine.active);
+    assert!(!context.fault.load(Ordering::SeqCst));
+}

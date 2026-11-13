@@ -87,6 +87,13 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     if !state.status.is_empty() {
         body = body.push(text(i18n.__(state.status.as_str()).to_owned()).size(13));
     }
+    if let Some(progress) = &state.progress {
+        body = body.push(super::install_cli_modal::update_progress_block_localized(
+            i18n,
+            progress,
+            app.last_copied_code_hash,
+        ));
+    }
     let install = button(text(i18n.__("安装并启动")).size(13))
         .style(primary_action_btn_style)
         .padding([9, 16])

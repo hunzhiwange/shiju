@@ -291,6 +291,16 @@ impl App {
                 Subscription::none()
             };
 
+        let web_install_progress_tick = if self.web_install.progress_rx.is_some() {
+            iced::time::every(std::time::Duration::from_millis(50)).map(|_| {
+                Message::View(message::ViewMessage::WebInstall(
+                    crate::app::web_install::Event::ProgressTick,
+                ))
+            })
+        } else {
+            Subscription::none()
+        };
+
         let app_update_progress_tick = if self.app_update_progress_rx.is_some() {
             iced::time::every(std::time::Duration::from_millis(50))
                 .map(|_| Message::View(message::ViewMessage::AppUpdateProgressTick))
@@ -389,6 +399,7 @@ impl App {
             design_generation_stream_tick,
             provider_models_sync_tick,
             app_update_progress_tick,
+            web_install_progress_tick,
             work_browser_runtime_tick,
             workflow_run,
             gateway_health_tick,

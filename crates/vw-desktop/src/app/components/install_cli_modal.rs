@@ -477,7 +477,7 @@ fn update_value(label: String) -> iced::widget::Text<'static> {
     text(label).size(12).style(settings_muted_text_style)
 }
 
-fn update_progress_block_localized<'a>(
+pub(super) fn update_progress_block_localized<'a>(
     i18n: crate::app::i18n::I18n,
     progress: &'a vw_shared::update::UpdateProgress,
     last_copied_code_hash: Option<u64>,

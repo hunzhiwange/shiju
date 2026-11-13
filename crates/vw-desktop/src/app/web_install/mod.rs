@@ -7,10 +7,13 @@ use crate::app::{App, Message};
 use anyhow::{Context, Result, bail};
 use iced::Task;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, mpsc};
+use vw_shared::update::UpdateProgress;
 
 #[derive(Debug, Default)]
 pub(crate) struct State {
+    pub(crate) progress: Option<UpdateProgress>,
+    pub(crate) progress_rx: Option<mpsc::Receiver<Event>>,
     pub(crate) visible: bool,
     pub(crate) busy: bool,
     pub(crate) status: String,
@@ -21,6 +24,9 @@ pub(crate) struct State {
 
 #[derive(Debug, Clone)]
 pub enum Event {
+    ProgressTick,
+    Progress(UpdateProgress),
+    Status(&'static str),
     Open,
     Close,
     InstallAndStart,
@@ -41,12 +47,27 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let source = app.desktop_update.source;
     let state = &mut app.web_install;
     match event {
+        Event::ProgressTick => {
+            if let Some(receiver) = &state.progress_rx {
+                while let Ok(event) = receiver.try_recv() {
+                    match event {
+                        Event::Progress(progress) => state.progress = Some(progress),
+                        Event::Status(status) => state.status = status.into(),
+                        _ => {}
+                    }
+                }
+            }
+            return Task::none();
+        }
+        Event::Progress(_) | Event::Status(_) => return Task::none(),
         Event::Close => {
             state.visible = false;
             return Task::none();
         }
         Event::Finished(snapshot) => {
             state.busy = false;
+            state.progress_rx = None;
+            state.progress = None;
             state.path = snapshot.path;
             state.url = snapshot.url;
             state.status = snapshot.error.clone().unwrap_or_default();
@@ -65,6 +86,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     }
     state.busy = true;
+    state.progress = None;
+    let (progress_tx, progress_rx) = mpsc::channel();
+    state.progress_rx = Some(progress_rx);
     state.status = match event {
         Event::InstallAndStart => "正在从所选来源下载并安装 Web 版本…",
         Event::OpenDirectory => "正在打开 Web 目录…",
@@ -78,8 +102,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         async move {
             let fallback = runtime.clone();
             match tokio::task::spawn_blocking(move || {
-                let error =
-                    operate(event, &runtime, source).err().map(|error| format!("{error:#}"));
+                let error = operate(event, &runtime, source, &progress_tx)
+                    .err()
+                    .map(|error| format!("{error:#}"));
                 Snapshot {
                     path: installer::installed().ok().flatten(),
                     url: runtime.url().ok().flatten(),
@@ -104,6 +129,7 @@ fn operate(
     event: Event,
     runtime: &runtime::Runtime,
     source: Option<vw_shared::update::UpdateSource>,
+    progress_tx: &mpsc::Sender<Event>,
 ) -> Result<()> {
     // 安装失败后也能停止既有服务；读到损坏安装时保留明确错误。
     if matches!(event, Event::Stop) {
@@ -114,7 +140,8 @@ fn operate(
             bail!("请先停止 Web 服务，再安装或更新");
         }
         runtime::require_node()?;
-        let path = installer::install(source.context("请先选择有效的升级来源")?)?;
+        let path = installer::install(source.context("请先选择有效的升级来源")?, progress_tx)?;
+        let _ = progress_tx.send(Event::Status("正在启动 Web 服务…"));
         let url = runtime.start(&path)?;
         open::that(&url).context("Web 已启动，打开浏览器失败；请使用弹窗中的访问地址")?;
     } else if matches!(event, Event::OpenDirectory) {

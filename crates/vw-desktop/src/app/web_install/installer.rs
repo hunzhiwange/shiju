@@ -1,9 +1,12 @@
 //! 下载独立 Web 压缩包，在暂存目录中解压并检查内容后切换安装目录。
+use super::Event;
 use anyhow::{Context, Result, bail};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
-use std::time::Duration;
+use std::sync::mpsc::Sender;
+use std::time::{Duration, Instant};
+use vw_shared::update::UpdateProgress;
 use vw_shared::update::{UpdateSource, desktop_release::SHIJU_MANIFEST};
 
 const RELEASE_API: &str = "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";
@@ -100,7 +103,8 @@ fn release_urls(source: UpdateSource, payload: &[u8]) -> Result<(String, String)
     }
 }
 
-pub(super) fn install(source: UpdateSource) -> Result<PathBuf> {
+pub(super) fn install(source: UpdateSource, progress_tx: &Sender<Event>) -> Result<PathBuf> {
+    let _ = progress_tx.send(Event::Status("正在读取 Web 安装状态…"));
     let client = client()?;
     let endpoint = match source {
         UpdateSource::Shiju => SHIJU_MANIFEST,
@@ -108,7 +112,10 @@ pub(super) fn install(source: UpdateSource) -> Result<PathBuf> {
     };
     let payload = download(&client, endpoint, 4 * 1024 * 1024)?;
     let (name, zip_url) = release_urls(source, &payload)?;
-    let archive = download(&client, &zip_url, MAX_ARCHIVE_BYTES)?;
+    let _ = progress_tx.send(Event::Status("正在从所选来源下载并安装 Web 版本…"));
+    let response = client.get(&zip_url).send()?.error_for_status()?;
+    let archive = read_archive(response, &name, &zip_url, progress_tx)?;
+    let _ = progress_tx.send(Event::Status("正在解压并校验 Web 版本…"));
 
     let root = root()?;
     fs::create_dir_all(&root)?;
@@ -130,6 +137,51 @@ pub(super) fn install(source: UpdateSource) -> Result<PathBuf> {
         return Err(error).context("切换 Web 安装失败");
     }
     Ok(target)
+}
+
+fn read_archive(
+    response: reqwest::blocking::Response,
+    name: &str,
+    url: &str,
+    progress_tx: &Sender<Event>,
+) -> Result<Vec<u8>> {
+    let total_bytes = response.content_length();
+    if total_bytes.is_some_and(|size| size > MAX_ARCHIVE_BYTES) {
+        bail!("Web 下载文件过大");
+    }
+    let mut reader = response.take(MAX_ARCHIVE_BYTES + 1);
+    let mut data = Vec::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    let started = Instant::now();
+    let mut last_report = started;
+    let mut last_bytes = 0;
+    loop {
+        let read = reader.read(&mut buffer)?;
+        data.extend_from_slice(&buffer[..read]);
+        if data.len() as u64 > MAX_ARCHIVE_BYTES {
+            bail!("Web 下载文件过大");
+        }
+        let now = Instant::now();
+        if read == 0 || now.duration_since(last_report) >= Duration::from_millis(100) {
+            let downloaded_bytes = data.len() as u64;
+            let _ = progress_tx.send(Event::Progress(UpdateProgress {
+                asset_name: name.into(),
+                download_url: url.into(),
+                downloaded_bytes,
+                total_bytes,
+                bytes_per_second: (downloaded_bytes - last_bytes) as f64
+                    / now.duration_since(last_report).as_secs_f64().max(0.001),
+                average_bytes_per_second: downloaded_bytes as f64
+                    / now.duration_since(started).as_secs_f64().max(0.001),
+            }));
+            last_report = now;
+            last_bytes = downloaded_bytes;
+        }
+        if read == 0 {
+            break;
+        }
+    }
+    Ok(data)
 }
 
 fn archive_name(tag: &str) -> Result<String> {

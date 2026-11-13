@@ -5619,5 +5619,6 @@
   "环境": "Environment",
   "正在加载…": "Loading…",
   "网关未返回工作树设置。": "The gateway did not return worktree settings.",
-  "网关未返回工作树默认目录。": "The gateway did not return the default worktree directory."
+  "网关未返回工作树默认目录。": "The gateway did not return the default worktree directory.",
+  "正在解压并校验 Web 版本…": "Extracting and verifying the Web version…"
 }

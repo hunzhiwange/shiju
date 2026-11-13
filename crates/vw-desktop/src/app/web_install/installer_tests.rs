@@ -95,3 +95,38 @@ fn shiju_source_uses_shared_manifest_and_versioned_web_paths() {
         assert!(release_urls(UpdateSource::Shiju, &serde_json::to_vec(&invalid).unwrap()).is_err());
     }
 }
+
+#[test]
+fn archive_download_reports_bytes_and_preserves_payload() {
+    use std::net::TcpListener;
+    use std::sync::mpsc;
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut request = [0; 4096];
+        stream.read(&mut request).unwrap();
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\npayload")
+            .unwrap();
+    });
+    let response = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .unwrap()
+        .get(&url)
+        .send()
+        .unwrap();
+    let (tx, rx) = mpsc::channel();
+    assert_eq!(read_archive(response, "web.zip", &url, &tx).unwrap(), b"payload");
+    let Event::Progress(progress) = rx.try_recv().unwrap() else {
+        panic!("expected download progress");
+    };
+    assert_eq!(progress.downloaded_bytes, 7);
+    assert_eq!(progress.total_bytes, Some(7));
+    assert_eq!(progress.download_url, url);
+    assert!(progress.average_bytes_per_second.is_finite());
+    server.join().unwrap();
+}

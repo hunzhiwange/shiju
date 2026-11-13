@@ -54,3 +54,18 @@
 Clippy两轮均因与本次Grok无关的编辑器API编译失败：`crates/vw-desktop/src/app/components/preview_panel/view/editor_options.rs:34`调用缺失的`wrap_column`，`crates/vw-desktop/src/app/message/editor.rs:276`调用缺失的`set_wrap_column`；编辑器测试153/154/159/163/166/171/176行同类错误，库测试共9条诊断。当前iced-code-editor来源为Cargo Git checkout `64c5895`，其可见API提示为`with_wrap_column`。这些文件及Cargo.lock不属于本次变更，按仓库要求不修复无关编辑器任务。
 
 结论：Grok ACP、内置预设、会话模型驱动及全部规定聚焦/周边测试已完成；整仓Clippy尚未通过，任务状态为待回归，保留编号任务文件。下一步先由编辑器任务修复依赖/API一致性，再通过cargo_slot入口重跑整仓Clippy；其他OS、传统SSE、完整生产网关公网账号/Rue.js产物验收仍属于已说明的独立覆盖边界，不伪称已通过。
+
+
+## 2026-11-14 延后回归：兼容依赖条件下完成
+
+最新共享HEAD `0de55c86c` 上，Grok原生聚焦重新执行：ACP4/4、安装1/1、vw-agent5/5，均退出0。命令同上表，日志为/tmp/shiju-grok-probe/regression-{acp,install,agent}.log。标准整仓Clippy仍退出101，原因仅为上述编辑器API缺失。
+
+已进一步调查兼容来源，未改动他人编辑器代码：ShiJu的Cargo.toml固定iced-code-editor Git tag v0.5.3，Cargo.lock解析到64c58957c0c5611b876fe98b42c8e58088eb8b6b。该版本只有消耗self的with_wrap_column，不能安全替代运行时getter/setter；用重建编辑器绕过会丢失现有编辑状态，未采用。现有本地依赖仓库 `/Users/xiangmin/worker/code/iced-code-editor` 是干净的已提交工作区，HEAD=c2993b930019f28e54b23feb57a23d7b369ed10b，其中4b451682980ec848aa750a3726e9726cd49eb077已提供wrap_column/set_wrap_column及缓存修复，manifest与固定tag一致，无新增依赖图。只读git ls-remote确认远端main/tag仍指向64c5895，dev=476c679123602ffd71b3f9efc28905fe63f54439也缺少这两个方法；本地API修复尚未发布到当前远端引用。来源：[依赖仓库](https://github.com/doyouhaobaby/iced-code-editor)。
+
+按本次用户明确允许的“仓库已有兼容依赖及安全替代验证”，执行命令级路径覆盖：
+
+`python3 scripts/cargo_slot.py cargo clippy --config 'paths=["/Users/xiangmin/worker/code/iced-code-editor/iced-code-editor"]' --all-targets --all-features -- -D warnings`
+
+实际通过等价的compatible-check.py收集器执行该内部Cargo argv，退出0，Finished dev profile，耗时9.85秒。日志/tmp/shiju-grok-probe/compatible-clippy.log；实际槽位2，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`，入口已退出、锁释放、缓存保留。此前把patch配置置于外部clippy子命令前的探针未改变实际依赖来源、仍退出101，不作为通过证据；最终paths配置置于clippy之后，明确使用既有兼容实现。
+
+没有持久修改任何Cargo配置、Cargo.lock或外部依赖仓库，没有push或发布。最终Grok聚焦10项通过，整仓Clippy在明确的本地兼容依赖条件下通过；这不等同于标准锁定依赖的Clippy已通过。标准构建仍须由依赖维护流程发布4b45168或包含它的兼容提交，再更新ShiJu固定依赖。依照本次安全替代验证指令，Grok接入任务清理；该外部依赖发布条件保留在此，不伪称标准依赖已修复。原先其他平台、SSE和公网端到端覆盖边界不变。

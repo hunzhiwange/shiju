@@ -10,10 +10,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use serde_json::{Map, Value, json};
 use vw_api_types::chat::GatewayChatStreamRequest;
 use vw_api_types::common::TimestampMs;
-use vw_api_types::task::{
-    TaskPoolWorktreeAcquireResponse, TaskPoolWorktreeRecycleResponse,
-    TaskPoolWorktreeReleaseResponse,
-};
+use vw_api_types::task::{TaskPoolWorktreeRecycleResponse, TaskPoolWorktreeReleaseResponse};
 
 use crate::agent_scheduler::domain::{RunId, TaskId};
 use crate::agent_scheduler::runner::local::{
@@ -33,12 +30,6 @@ type GatewayFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>
 type GatewayPayloadObserver<'a> = Box<dyn FnMut(&Value) + Send + 'a>;
 
 trait GatewayWorktreePoolClient: Send + Sync {
-    fn acquire_and_prepare<'a>(
-        &'a self,
-        project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
-    ) -> GatewayFuture<'a, TaskPoolWorktreeAcquireResponse>;
-
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
@@ -57,18 +48,6 @@ struct RealGatewayWorktreePoolClient;
 
 #[cfg(not(test))]
 impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
-    fn acquire_and_prepare<'a>(
-        &'a self,
-        project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
-    ) -> GatewayFuture<'a, TaskPoolWorktreeAcquireResponse> {
-        Box::pin(async move {
-            crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
-                .acquire_and_prepare(project, task_id)
-                .await
-        })
-    }
-
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
@@ -97,18 +76,6 @@ impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
 
 #[cfg(test)]
 impl GatewayWorktreePoolClient for RealGatewayWorktreePoolClient {
-    fn acquire_and_prepare<'a>(
-        &'a self,
-        project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
-    ) -> GatewayFuture<'a, TaskPoolWorktreeAcquireResponse> {
-        Box::pin(async move {
-            crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
-                .acquire_and_prepare(project, task_id)
-                .await
-        })
-    }
-
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
@@ -248,18 +215,24 @@ fn lease_gateway_local_agent_workspace(
 async fn lease_gateway_local_agent_workspace_for_project(
     request: LocalAgentWorkspaceRequest,
     project: &project::Info,
-    pool: &impl GatewayWorktreePoolClient,
+    _pool: &impl GatewayWorktreePoolClient,
 ) -> Result<LocalAgentWorkspace> {
-    let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
-    let response = pool
-        .acquire_and_prepare(project, &task_id)
-        .await
-        .context("acquire task worktree for local agent execution")?;
-    if !response.leased {
-        bail!("task worktree pool did not lease a workspace for task {}", request.task_id.as_str());
+    let path = request.project_path.canonicalize().context("resolve execution directory")?;
+    if !path.is_dir() {
+        bail!("execution directory is not a directory: {}", path.display());
     }
-    let slot = response.slot.context("task worktree pool leased without slot metadata")?;
-    Ok(LocalAgentWorkspace { slot_id: slot.id, path: slot.path, branch: slot.branch })
+    let authorized =
+        std::iter::once(&project.worktree).chain(project.sandboxes.iter()).any(|registered| {
+            Path::new(registered).canonicalize().is_ok_and(|registered| registered == path)
+        });
+    if !authorized {
+        bail!("execution directory is outside registered project: {}", path.display());
+    }
+    Ok(LocalAgentWorkspace {
+        slot_id: None,
+        path: path.to_string_lossy().into_owned(),
+        branch: None,
+    })
 }
 
 fn release_gateway_local_agent_workspace(request: LocalAgentWorkspaceReleaseRequest) -> Result<()> {
@@ -279,6 +252,9 @@ async fn release_gateway_local_agent_workspace_for_project(
     project: &project::Info,
     pool: &impl GatewayWorktreePoolClient,
 ) -> Result<()> {
+    if request.workspace.slot_id.is_none() {
+        return Ok(());
+    }
     let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
     let response = pool
         .release_task_slot(project, &task_id)
@@ -307,6 +283,9 @@ async fn recycle_gateway_local_agent_workspace_for_project(
     project: &project::Info,
     pool: &impl GatewayWorktreePoolClient,
 ) -> Result<()> {
+    if request.workspace.slot_id.is_none() {
+        return Ok(());
+    }
     let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
     let response = pool
         .recycle_task_slot(project, &task_id, Some(request.taint_reason))

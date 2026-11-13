@@ -1607,8 +1607,12 @@ impl StoreBackedAgentSchedulerGateway {
             }
         };
         let selected_worktree_path = match string_field(&task.metadata, "selected_worktree_path")
-            .or_else(|| workspace.as_ref().map(|workspace| workspace.path.clone()))
-        {
+            .or_else(|| {
+                workspace
+                    .as_ref()
+                    .filter(|workspace| workspace.slot_id.is_some())
+                    .map(|workspace| workspace.path.clone())
+            }) {
             Some(path) => path,
             None => {
                 self.append_merge_diagnostic_log(
@@ -1622,7 +1626,7 @@ impl StoreBackedAgentSchedulerGateway {
         };
         let selected_worktree_branch =
             match string_field(&task.metadata, "selected_worktree_branch")
-                .or_else(|| workspace.as_ref().map(|workspace| workspace.branch.clone()))
+                .or_else(|| workspace.as_ref().and_then(|workspace| workspace.branch.clone()))
             {
                 Some(branch) => branch,
                 None => {
@@ -2537,21 +2541,20 @@ fn task_board_task_to_dto(
 ) -> Result<AgentSchedulerTaskBoardTaskDto, ApiError> {
     let metadata = &task.metadata;
     let workspace = run
-        .map(|run| {
-            store
-                .load_run_workspace_context(project_path, &run.id)
-                .map_err(map_scheduler_error)
-                .map(|workspace| workspace.map(workspace_to_dto))
-        })
+        .map(|run| run_workspace_to_dto(store, project_path, &task.id, &run.id))
         .transpose()?
         .flatten()
         .or_else(|| workspace_context_from_value(metadata));
     let selected_worktree_slot_id = string_field(metadata, "selected_worktree_slot_id")
-        .or_else(|| workspace.as_ref().map(|workspace| workspace.slot_id.clone()));
-    let selected_worktree_path = string_field(metadata, "selected_worktree_path")
-        .or_else(|| workspace.as_ref().map(|workspace| workspace.path.clone()));
+        .or_else(|| workspace.as_ref().and_then(|workspace| workspace.slot_id.clone()));
+    let selected_worktree_path = string_field(metadata, "selected_worktree_path").or_else(|| {
+        workspace
+            .as_ref()
+            .filter(|workspace| workspace.slot_id.is_some())
+            .map(|workspace| workspace.path.clone())
+    });
     let selected_worktree_branch = string_field(metadata, "selected_worktree_branch")
-        .or_else(|| workspace.as_ref().map(|workspace| workspace.branch.clone()));
+        .or_else(|| workspace.as_ref().and_then(|workspace| workspace.branch.clone()));
     let merge_source_branch = string_field(metadata, "merge_source_branch")
         .or_else(|| selected_worktree_branch.clone().filter(|branch| valid_merge_branch(branch)));
     let last_error = run
@@ -2694,14 +2697,9 @@ fn task_merge_workspace_context(
 ) -> Result<Option<AgentSchedulerWorkspaceContextDto>, ApiError> {
     let run =
         store.load_latest_run_for_task(project_path, &task.id).map_err(map_scheduler_error)?;
-    run.map(|run| {
-        store
-            .load_run_workspace_context(project_path, &run.id)
-            .map_err(map_scheduler_error)
-            .map(|workspace| workspace.map(workspace_to_dto))
-    })
-    .transpose()
-    .map(|workspace| workspace.flatten().or_else(|| workspace_context_from_value(&task.metadata)))
+    run.map(|run| run_workspace_to_dto(store, project_path, &task.id, &run.id)).transpose().map(
+        |workspace| workspace.flatten().or_else(|| workspace_context_from_value(&task.metadata)),
+    )
 }
 
 fn project_current_branch(
@@ -3092,24 +3090,43 @@ fn outbox_status_to_dto(status: OutboxMessageStatus) -> AgentOutboxMessageStatus
     }
 }
 
+fn run_workspace_to_dto(
+    store: &AgentSchedulerStore,
+    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
+    task_id: &TaskId,
+    run_id: &RunId,
+) -> Result<Option<AgentSchedulerWorkspaceContextDto>, ApiError> {
+    let artifacts =
+        store.list_task_artifacts(project_path, task_id).map_err(map_scheduler_error)?;
+    if let Some(artifact) = artifacts.iter().rev().find(|artifact| {
+        artifact.kind == "execution_workspace" && artifact.run_id.as_ref() == Some(run_id)
+    }) {
+        return Ok(workspace_context_from_value(&artifact.payload));
+    }
+    store
+        .load_run_workspace_context(project_path, run_id)
+        .map_err(map_scheduler_error)
+        .map(|workspace| workspace.map(workspace_to_dto))
+}
+
 fn workspace_to_dto(
     workspace: StoredAgentRunWorkspaceContext,
 ) -> AgentSchedulerWorkspaceContextDto {
     AgentSchedulerWorkspaceContextDto {
-        slot_id: workspace.workspace.slot_id,
+        slot_id: Some(workspace.workspace.slot_id),
         path: workspace.workspace.path,
-        branch: workspace.workspace.branch,
+        branch: Some(workspace.workspace.branch),
     }
 }
 
 fn workspace_context_from_value(value: &Value) -> Option<AgentSchedulerWorkspaceContextDto> {
     let workspace = value.get("workspace").unwrap_or(value);
     let slot_id = string_value(workspace, "slot_id")
-        .or_else(|| string_value(value, "selected_worktree_slot_id"))?;
+        .or_else(|| string_value(value, "selected_worktree_slot_id"));
     let path = string_value(workspace, "path")
         .or_else(|| string_value(value, "selected_worktree_path"))?;
     let branch = string_value(workspace, "branch")
-        .or_else(|| string_value(value, "selected_worktree_branch"))?;
+        .or_else(|| string_value(value, "selected_worktree_branch"));
     Some(AgentSchedulerWorkspaceContextDto { slot_id, path, branch })
 }
 

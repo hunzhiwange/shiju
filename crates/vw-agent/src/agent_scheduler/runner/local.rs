@@ -26,7 +26,6 @@ use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentScheduler
 const DEFAULT_LOCAL_RUN_LEASE_DURATION_MS: i64 = 30 * 60 * 1_000;
 const FINAL_REPLY_INSTRUCTION: &str =
     "任务执行完毕后，请输出一句简短最终回复，明确说明已完成；不要在完成后继续等待用户输入。";
-const WORKTREE_LOG_PATH_LIMIT: usize = 240;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 启动本地运行所需的任务标识、执行时刻和租约时长。
@@ -51,11 +50,11 @@ pub struct LocalAgentWorkspaceRequest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-/// 已分配工作区的槽位、路径、分支和基线提交。
+/// 必需的执行目录及可选 Git 槽位与分支。
 pub struct LocalAgentWorkspace {
-    pub slot_id: String,
+    pub slot_id: Option<String>,
     pub path: String,
-    pub branch: String,
+    pub branch: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -498,6 +497,9 @@ where
         workspace: &LocalAgentWorkspace,
         updated_at_ms: TimestampMs,
     ) -> Result<()> {
+        if workspace.slot_id.is_none() || workspace.branch.is_none() {
+            bail!("Git workspace metadata is required for legacy submission");
+        }
         let mut metadata = object_metadata(task.metadata.clone())?;
         metadata.insert("selected_worktree_slot_id".to_string(), json!(workspace.slot_id.clone()));
         metadata.insert("selected_worktree_path".to_string(), json!(workspace.path.clone()));
@@ -672,21 +674,28 @@ where
         workspace: &LocalAgentWorkspace,
         timestamp_ms: TimestampMs,
     ) -> Result<()> {
-        self.store
-            .record_run_workspace_context(
-                project_path,
-                task_id,
-                run_id,
-                AgentSchedulerWorkspaceContext {
-                    slot_id: workspace.slot_id.clone(),
-                    path: workspace.path.clone(),
-                    branch: workspace.branch.clone(),
-                },
-                timestamp_ms,
-            )?
-            .with_context(|| {
-                format!("run disappeared before workspace record: {}", run_id.as_str())
-            })?;
+        self.store.record_task_artifact(project_path, RecordTaskArtifactRequest {
+            task_id: task_id.clone(), run_id: Some(run_id.clone()),
+            kind: "execution_workspace".into(), name: "execution workspace".into(),
+            path: Some(workspace.path.clone()),
+            payload: json!({"path": workspace.path, "slot_id": workspace.slot_id, "branch": workspace.branch}),
+            created_at_ms: timestamp_ms,
+        })?;
+        if let (Some(slot_id), Some(branch)) = (&workspace.slot_id, &workspace.branch) {
+            self.store
+                .record_run_workspace_context(
+                    project_path,
+                    task_id,
+                    run_id,
+                    AgentSchedulerWorkspaceContext {
+                        slot_id: slot_id.clone(),
+                        path: workspace.path.clone(),
+                        branch: branch.clone(),
+                    },
+                    timestamp_ms,
+                )?
+                .context("run disappeared before workspace record")?;
+        }
         self.append_log(
             project_path,
             task_id,
@@ -694,12 +703,18 @@ where
             timestamp_ms,
             None,
             None,
-            format!(
-                "local worktree lease recorded: slot={} branch={} path={}",
-                workspace.slot_id,
-                workspace.branch,
-                truncate_log_text(&workspace.path, WORKTREE_LOG_PATH_LIMIT)
-            ),
+            match (&workspace.slot_id, &workspace.branch) {
+                (Some(slot_id), Some(branch)) => format!(
+                    "local worktree lease recorded: slot={} branch={} path={}",
+                    slot_id,
+                    branch,
+                    truncate_log_text(&workspace.path, 240)
+                ),
+                _ => format!(
+                    "local execution workspace recorded: path={}",
+                    truncate_log_text(&workspace.path, 240)
+                ),
+            },
         )?;
         Ok(())
     }
@@ -738,6 +753,9 @@ fn commit_workspace_changes(
     workspace: &LocalAgentWorkspace,
     task: &StoredAgentTask,
 ) -> Result<Option<String>> {
+    if workspace.slot_id.is_none() || workspace.branch.is_none() {
+        bail!("Git workspace resource is required for legacy commit");
+    }
     let workspace_path = Path::new(&workspace.path);
     if !workspace_path.is_dir() {
         bail!("workspace path does not exist: {}", workspace.path);

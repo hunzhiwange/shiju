@@ -264,15 +264,16 @@ fn apply_agent_scheduler_task_snapshot(
     task.selected_worktree_slot_id = snapshot
         .selected_worktree_slot_id
         .clone()
-        .or_else(|| workspace.map(|workspace| workspace.slot_id.clone()));
-    task.selected_worktree_path = snapshot
-        .selected_worktree_path
-        .clone()
-        .or_else(|| workspace.map(|workspace| workspace.path.clone()));
+        .or_else(|| workspace.and_then(|workspace| workspace.slot_id.clone()));
+    task.selected_worktree_path = snapshot.selected_worktree_path.clone().or_else(|| {
+        workspace
+            .filter(|workspace| workspace.slot_id.is_some())
+            .map(|workspace| workspace.path.clone())
+    });
     task.selected_worktree_branch = snapshot
         .selected_worktree_branch
         .clone()
-        .or_else(|| workspace.map(|workspace| workspace.branch.clone()));
+        .or_else(|| workspace.and_then(|workspace| workspace.branch.clone()));
 
     let updated_at_ms = timestamp_ms_to_u64(snapshot.updated_at_ms);
     if updated_at_ms > 0 {

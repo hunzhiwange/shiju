@@ -284,9 +284,9 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
     let task_id = TaskId::new("task-unregistered")?;
     let run_id = RunId::new("run-unregistered")?;
     let workspace = LocalAgentWorkspace {
-        slot_id: "slot".to_string(),
+        slot_id: Some("slot".to_string()),
         path: project_path.join("slot").to_string_lossy().to_string(),
-        branch: "codex/task-unregistered".to_string(),
+        branch: Some("codex/task-unregistered".to_string()),
     };
 
     let lease_error = executor
@@ -449,36 +449,28 @@ async fn gateway_worktree_pool_inner_helpers_map_successful_pool_responses() -> 
     }));
     pool.release_results.lock().push_back(Ok(TaskPoolWorktreeReleaseResponse { released: true }));
     pool.recycle_results.lock().push_back(Ok(TaskPoolWorktreeRecycleResponse { recycled: true }));
-    let request = workspace_request("task-worktree")?;
+    let dir = tempfile::tempdir()?;
+    let mut request = workspace_request("task-worktree")?;
+    request.project_path = dir.path().to_path_buf();
     let release = release_request("task-worktree")?;
     let recycle = recycle_request("task-worktree", "needs clean checkout")?;
-    let project = project_info("/repo");
-
+    let project = project_info(dir.path().to_str().unwrap());
     let workspace =
         lease_gateway_local_agent_workspace_for_project(request, &project, &pool).await?;
     release_gateway_local_agent_workspace_for_project(release, &project, &pool).await?;
     recycle_gateway_local_agent_workspace_for_project(recycle, &project, &pool).await?;
 
-    assert_eq!(
-        workspace,
-        LocalAgentWorkspace {
-            slot_id: "slot-7".to_string(),
-            path: "/repo/.vw/worktrees/slot-7".to_string(),
-            branch: "codex/task-worktree".to_string(),
-        }
-    );
-    assert_eq!(
-        pool.acquire_calls.lock().as_slice(),
-        &[("repo".to_string(), "task-worktree".to_string())]
-    );
+    assert_eq!(workspace.slot_id, None);
+    assert_eq!(workspace.branch, None);
+    assert!(pool.acquire_calls.lock().is_empty());
     assert_eq!(
         pool.release_calls.lock().as_slice(),
-        &[("repo".to_string(), "task-worktree".to_string())]
+        &[(normalize_project_path(dir.path()), "task-worktree".to_string())]
     );
     assert_eq!(
         pool.recycle_calls.lock().as_slice(),
         &[(
-            "repo".to_string(),
+            normalize_project_path(dir.path()),
             "task-worktree".to_string(),
             Some("needs clean checkout".to_string())
         )]
@@ -490,30 +482,6 @@ async fn gateway_worktree_pool_inner_helpers_map_successful_pool_responses() -> 
 async fn gateway_worktree_pool_inner_helpers_report_unusable_pool_responses() -> Result<()> {
     let project = project_info("/repo");
     let pool = FakeWorktreePool::default();
-    pool.acquire_results
-        .lock()
-        .push_back(Ok(TaskPoolWorktreeAcquireResponse { leased: false, slot: None }));
-    let lease_error = lease_gateway_local_agent_workspace_for_project(
-        workspace_request("task-no-lease")?,
-        &project,
-        &pool,
-    )
-    .await
-    .expect_err("not leased");
-    assert!(lease_error.to_string().contains("did not lease"));
-
-    pool.acquire_results
-        .lock()
-        .push_back(Ok(TaskPoolWorktreeAcquireResponse { leased: true, slot: None }));
-    let missing_slot = lease_gateway_local_agent_workspace_for_project(
-        workspace_request("task-no-slot")?,
-        &project,
-        &pool,
-    )
-    .await
-    .expect_err("leased without slot");
-    assert!(missing_slot.to_string().contains("leased without slot metadata"));
-
     pool.release_results.lock().push_back(Ok(TaskPoolWorktreeReleaseResponse { released: false }));
     let release_error = release_gateway_local_agent_workspace_for_project(
         release_request("task-release")?,
@@ -533,18 +501,6 @@ async fn gateway_worktree_pool_inner_helpers_report_unusable_pool_responses() ->
     .await
     .expect_err("not recycled");
     assert!(recycle_error.to_string().contains("did not recycle"));
-
-    pool.acquire_results.lock().push_back(Err("pool offline".to_string()));
-    let acquire_io_error = lease_gateway_local_agent_workspace_for_project(
-        workspace_request("task-acquire-io")?,
-        &project,
-        &pool,
-    )
-    .await
-    .expect_err("acquire IO failure");
-    assert!(
-        acquire_io_error.to_string().contains("acquire task worktree for local agent execution")
-    );
 
     pool.release_results.lock().push_back(Err("pool offline".to_string()));
     let release_io_error = release_gateway_local_agent_workspace_for_project(
@@ -614,9 +570,9 @@ fn execution_request(
         acp_agent: acp_agent.map(str::to_string),
         reasoning_effort: None,
         workspace: LocalAgentWorkspace {
-            slot_id: "slot-1".to_string(),
+            slot_id: Some("slot-1".to_string()),
             path: "/repo/.vw/worktrees/slot-1".to_string(),
-            branch: "codex/task-1".to_string(),
+            branch: Some("codex/task-1".to_string()),
         },
     })
 }
@@ -635,9 +591,9 @@ fn release_request(task_id: &str) -> Result<LocalAgentWorkspaceReleaseRequest> {
         task_id: TaskId::new(task_id)?,
         run_id: RunId::new("run-1")?,
         workspace: LocalAgentWorkspace {
-            slot_id: "slot-1".to_string(),
+            slot_id: Some("slot-1".to_string()),
             path: "/repo/.vw/worktrees/slot-1".to_string(),
-            branch: "codex/task".to_string(),
+            branch: Some("codex/task".to_string()),
         },
     })
 }
@@ -742,19 +698,6 @@ struct FakeWorktreePool {
 }
 
 impl GatewayWorktreePoolClient for FakeWorktreePool {
-    fn acquire_and_prepare<'a>(
-        &'a self,
-        project: &'a project::Info,
-        task_id: &'a vw_api_types::id::TaskId,
-    ) -> GatewayFuture<'a, TaskPoolWorktreeAcquireResponse> {
-        self.acquire_calls.lock().push((
-            normalize_project_path(Path::new(&project.worktree)),
-            task_id.as_ref().to_string(),
-        ));
-        let result = pop_pool_result(&self.acquire_results, "acquire");
-        Box::pin(async move { result })
-    }
-
     fn release_task_slot<'a>(
         &'a self,
         project: &'a project::Info,
@@ -790,4 +733,38 @@ fn pop_pool_result<T>(queue: &Mutex<VecDeque<Result<T, String>>>, operation: &st
         Some(Err(message)) => bail!(message),
         None => bail!("unexpected {operation} call"),
     }
+}
+
+#[tokio::test]
+async fn task_pool_workspace_non_git_uses_registered_directory() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let project = project_info(dir.path().to_str().unwrap());
+    let pool = FakeWorktreePool::default();
+    let mut request = workspace_request("directory-only")?;
+    request.project_path = dir.path().to_path_buf();
+    let workspace =
+        lease_gateway_local_agent_workspace_for_project(request, &project, &pool).await?;
+    assert_eq!(Path::new(&workspace.path), dir.path().canonicalize()?);
+    assert!(pool.acquire_calls.lock().is_empty());
+    assert!(!dir.path().join(".git").exists());
+    Ok(())
+}
+
+#[tokio::test]
+async fn task_pool_workspace_rejects_missing_or_foreign_directory() -> Result<()> {
+    let dir = tempfile::tempdir()?;
+    let foreign = tempfile::tempdir()?;
+    let project = project_info(dir.path().to_str().unwrap());
+    let pool = FakeWorktreePool::default();
+    for path in [dir.path().join("missing"), foreign.path().to_path_buf()] {
+        let mut request = workspace_request("invalid-directory")?;
+        request.project_path = path;
+        assert!(
+            lease_gateway_local_agent_workspace_for_project(request, &project, &pool)
+                .await
+                .is_err()
+        );
+    }
+    assert!(pool.acquire_calls.lock().is_empty());
+    Ok(())
 }

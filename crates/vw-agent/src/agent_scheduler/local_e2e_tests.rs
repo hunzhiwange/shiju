@@ -32,9 +32,9 @@ impl LocalAgentExecutor for RecordingExecutor {
         let path = request.project_path.join("worktrees/local-e2e-slot");
         prepare_git_workspace(&path, &format!("codex/{}", request.task_id.as_str()))?;
         Ok(LocalAgentWorkspace {
-            slot_id: "local-e2e-slot".to_string(),
+            slot_id: Some("local-e2e-slot".to_string()),
             path: path.display().to_string(),
-            branch: format!("codex/{}", request.task_id.as_str()),
+            branch: Some(format!("codex/{}", request.task_id.as_str())),
         })
     }
 

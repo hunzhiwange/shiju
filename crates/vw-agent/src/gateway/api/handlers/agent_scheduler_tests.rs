@@ -2212,7 +2212,7 @@ async fn agent_scheduler_merge_command_releases_lock_after_git_failure() {
 }
 
 #[tokio::test]
-async fn gateway_local_executor_leases_task_worktree_instead_of_project_root() {
+async fn gateway_local_executor_prepares_git_project_without_leasing_worktree() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-local-worktree");
     init_merge_test_repo(&project_path, "feature/local-worktree-base");
@@ -2231,24 +2231,10 @@ async fn gateway_local_executor_leases_task_worktree_instead_of_project_root() {
     .expect("lease join")
     .expect("lease workspace");
 
-    assert_ne!(PathBuf::from(&workspace.path), project_path);
-    assert!(PathBuf::from(&workspace.path).is_dir());
-    assert_eq!(workspace.branch, format!("vw/task/{}", task_id.as_str()));
-    let snapshot = super::super::task_pool::task_worktree_pool_service()
-        .snapshot(&project_info)
-        .await
-        .expect("snapshot");
-    assert!(snapshot.slots.iter().any(|slot| {
-        slot.path == workspace.path
-            && slot.leased_task_id.as_ref().map(|task_id| task_id.as_ref())
-                == Some(task_id.as_str())
-    }));
-
-    let api_task_id = vw_api_types::id::TaskId(task_id.as_str().to_string());
-    super::super::task_pool::task_worktree_pool_service()
-        .recycle_task_slot(&project_info, &api_task_id, Some("test cleanup".to_string()))
-        .await
-        .expect("cleanup slot");
+    assert_eq!(PathBuf::from(&workspace.path), project_path.canonicalize().unwrap());
+    assert_eq!(workspace.branch, None);
+    assert_eq!(workspace.slot_id, None);
+    let _ = project_info;
     cleanup_merge_test_project(&project_id).await;
 }
 
@@ -2265,9 +2251,9 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
         acp_agent: Some("codex".to_string()),
         reasoning_effort: Some(vw_api_types::ReasoningEffortDto::High),
         workspace: crate::agent_scheduler::runner::local::LocalAgentWorkspace {
-            slot_id: "slot-deepseek".to_string(),
+            slot_id: Some("slot-deepseek".to_string()),
             path: "/tmp/project-root/worktrees/slot-deepseek".to_string(),
-            branch: "codex/task-deepseek".to_string(),
+            branch: Some("codex/task-deepseek".to_string()),
         },
     };
 
@@ -2911,9 +2897,9 @@ fn test_local_workspace(request: &LocalAgentWorkspaceRequest) -> LocalAgentWorks
     std::fs::create_dir_all(&workspace_path).expect("test workspace dir");
     run_test_git(&workspace_path, &["init"]);
     LocalAgentWorkspace {
-        slot_id: format!("slot-{}", request.task_id.as_str()),
+        slot_id: Some(format!("slot-{}", request.task_id.as_str())),
         path: workspace_path.to_string_lossy().to_string(),
-        branch: format!("vw/task/{}", request.task_id.as_str()),
+        branch: Some(format!("vw/task/{}", request.task_id.as_str())),
     }
 }
 
@@ -3283,9 +3269,9 @@ fn scheduler_workspace_context_accepts_nested_and_legacy_metadata() {
         "workspace": {"slot_id": "slot-1", "path": "/tmp/work", "branch": "feature"}
     }))
     .expect("nested workspace");
-    assert_eq!(nested.slot_id, "slot-1");
+    assert_eq!(nested.slot_id.as_deref(), Some("slot-1"));
     assert_eq!(nested.path, "/tmp/work");
-    assert_eq!(nested.branch, "feature");
+    assert_eq!(nested.branch.as_deref(), Some("feature"));
 
     let legacy = workspace_context_from_value(&json!({
         "selected_worktree_slot_id": "slot-2",
@@ -3293,7 +3279,7 @@ fn scheduler_workspace_context_accepts_nested_and_legacy_metadata() {
         "selected_worktree_branch": "legacy"
     }))
     .expect("legacy workspace");
-    assert_eq!(legacy.slot_id, "slot-2");
+    assert_eq!(legacy.slot_id.as_deref(), Some("slot-2"));
     assert!(
         workspace_context_from_value(&json!({"workspace": {"slot_id": "slot-only"}})).is_none()
     );

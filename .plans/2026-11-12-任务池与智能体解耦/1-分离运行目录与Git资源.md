@@ -6,7 +6,7 @@
 
 线性顺序：任务 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14；本任务不可与其他批次并行。
 
-状态：未开始
+状态：已完成，待回归
 
 目的：让默认工作区准备只依赖已授权项目目录，运行目录不再要求 Git 分支或池槽位。
 
@@ -92,3 +92,27 @@ LocalAgentWorkspace、lease_gateway_local_agent_workspace_for_project 和 worksp
 本任务只有 `未开始`、`已完成`、`已阻塞`、`已完成，待回归` 四种状态。每个完成结论必须有当前证据；依赖批次完成后先核对代码与提交，不以已删除任务文件单独证明依赖成功。
 
 有实际代码、测试、配置或文档变更时，使用 `$git-commit` 检查 staged/unstaged/untracked，排除其他任务与用户变更后以中文提交；仅本文件状态更新或删除不提交。证据齐全则标记已完成，在最终回复报告证据后删除本文件；无关环境或既有错误阻断验证则标记已完成，待回归并保留本文件；本任务本身仍不满足目标则标记已阻塞，记录调查、替代路径和所需输入。不要修改 plan.md 或把进度写入 prompt.md。
+
+## 本轮执行记录（2026-11-13）
+
+- 无前置批次；执行技能的常规阻碍停止规则按用户授权覆盖。
+- LocalAgentWorkspace 与 API DTO 保留必需 path，将 slot_id/branch 改为 Option；默认准备校验实际目录与注册项目目录/沙箱的规范化路径相等，不再申请池资源。
+- execution_workspace 使用现有 SQLite/Postgres 产物 API，按 task/run 关联；旧表仅记录真实 Git 槽位，未修改数据库结构。旧 Git 收尾显式拒绝缺失资源，完整普通任务收尾留给任务 2。
+- 必要相邻适配：local_e2e_tests、local_tests 和桌面 task_board/update 的构造者/可选字段读取。保留容量、工位、预热回收和员工交互全部架构。
+- 红灯：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib task_pool_workspace_ -- --nocapture`（入口中顺序调用），槽位 2，退出 101，2 failed / 0 passed / 0 ignored；真实业务失败为 unexpected acquire call，以及非法目录触发 acquire 计数断言。日志 `/tmp/shiju-task1-red-agent.log`。API 首次运行发生在类型调整后，通过 1 个测试，未记录其独立修改前红灯。
+- 已通过整仓 Clippy（`cargo clippy --all-targets --all-features -- -D warnings`，入口槽位 6，退出 0）；新增 SQLite 产物测试之后重跑完整验证中。
+- 已执行 cargo fmt --all、git diff --check；其它会话变更不暂存，不覆盖。
+- 最终验证入口使用槽位 2，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。命令顺序为 cargo fmt --all、两 crate 的 task_pool_workspace_ 聚焦测试、vw-agent 的 agent_scheduler::runner:: 聚焦回归、整仓 Clippy。
+
+### 最终证据（2026-11-14）
+
+- 默认 profile 原生验收（槽位 2）：`cargo test -p vw-agent --lib task_pool_workspace_ -- --nocapture` 3 passed / 0 failed / 0 ignored，退出 0；`cargo test -p vw-api-types --lib task_pool_workspace_ -- --nocapture` 1 passed / 0 failed / 0 ignored，退出 0。日志 `/tmp/shiju-task1-final-agent.log`、`/tmp/shiju-task1-final-api.log`。
+- 扩展回归复用已生成的原生测试二进制 `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351`：`agent_scheduler::runner::` 20 passed / 0 failed / 1 ignored；`gateway_local_executor_prepares_git_project_without_leasing_worktree` 1 passed / 0 failed / 0 ignored，均退出 0。原 `cargo test ... agent_scheduler::runner::` 被其它会话依赖更新触发重编译后主动停止（退出 101），不记为测试通过。
+- 本地运行器扩展回归曾发现 Git 日志缺失 slot/branch，已恢复原日志内容，普通目录改用 execution workspace 日志。
+- 修复后原生验证使用同一入口槽位 7，两个目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-7`。为避免优化巨型 lib-test 再次耗时，采用仅本 crate 的命令行 profile 覆盖（未修改任何配置、未关闭默认 features）：`cargo test --config profile.test.package.vw-agent.opt-level=0 -p vw-agent --lib task_pool_workspace_ -- --nocapture`，3 passed / 0 failed / 0 ignored，退出 0；`cargo test --config profile.test.package.vw-agent.opt-level=0 -p vw-agent --lib agent_scheduler::local_runner_tests:: -- --nocapture`，14 passed / 0 failed / 0 ignored，退出 0。日志 `/tmp/shiju-task1-repaired-agent.log`、`/tmp/shiju-task1-repaired-local.log`。
+- 修复后标准整仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出 101，因无关的编辑器 wrap_column 接口编译失败：`crates/vw-desktop/src/app/components/preview_panel/view/editor_options.rs:34` 缺少 `wrap_column`；`crates/vw-desktop/src/app/message/editor.rs:276` 缺少 `set_wrap_column`；`editor_options_tests.rs:153` 等共 9 个测试编译错误。日志 `/tmp/shiju-task1-repaired-clippy.log`。这些来自其它会话编辑器改动，本任务不修改。早期槽位 6 整仓 Clippy 曾退出 0，但不能替代最终回归。
+- 测试链接器报告既有巨型测试目标 `__eh_frame section too large` 提示，未阻止测试运行；未将其当作 Rust/Clippy 成功证据。
+- git diff --check 通过；未调整容量、工位、交互架构、数据库结构，不创建/删除用户 worktree，不发外部消息。其余会话改动不提交。
+- 当前状态保留为已完成，待回归。下一步：编辑器依赖接口修复后运行标准整仓 Clippy，成功后再删除本任务文件并进入任务 2。
+
+- 本任务入口进程均已结束，自有槽位锁已释放，缓存保留。

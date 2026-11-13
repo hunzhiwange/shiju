@@ -66,7 +66,9 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     assert_eq!(logs[6].message, "local execution submitted result");
 
     let artifacts = store.list_task_artifacts(&project_path, &task_id)?;
-    assert_eq!(artifacts.len(), 1);
+    assert_eq!(artifacts.len(), 2);
+    assert_eq!(artifacts[0].kind, "execution_workspace");
+    let artifacts = &artifacts[1..];
     assert_eq!(artifacts[0].kind, "execution_result");
     assert_eq!(artifacts[0].run_id, Some(outcome.run.id.clone()));
     assert_eq!(artifacts[0].payload["success"], true);
@@ -258,7 +260,10 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
     assert_eq!(requests.len(), 1);
     assert!(requests[0].workspace.path.ends_with("worktrees/local-slot"));
     assert_ne!(Path::new(&requests[0].workspace.path), project_path.as_path());
-    assert_eq!(requests[0].workspace.branch, "codex/task-local-runner-leased-workspace");
+    assert_eq!(
+        requests[0].workspace.branch.as_deref(),
+        Some("codex/task-local-runner-leased-workspace")
+    );
 
     Ok(())
 }
@@ -501,7 +506,7 @@ fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace()
     let recycled = executor.recycled.lock().expect("recycled lock");
     assert_eq!(recycled.len(), 1);
     assert!(recycled[0].taint_reason.contains("workspace path does not exist"));
-    assert_eq!(recycled[0].workspace.slot_id, "missing-slot");
+    assert_eq!(recycled[0].workspace.slot_id.as_deref(), Some("missing-slot"));
 
     Ok(())
 }
@@ -510,9 +515,9 @@ fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace()
 fn local_executor_default_release_and_recycle_succeed() -> Result<()> {
     let executor = MissingWorkspaceExecutor;
     let workspace = LocalAgentWorkspace {
-        slot_id: "slot".to_string(),
+        slot_id: Some("slot".to_string()),
         path: "/tmp/workspace".to_string(),
-        branch: "branch".to_string(),
+        branch: Some("branch".to_string()),
     };
     let project_path = Path::new("/tmp/project").to_path_buf();
     let task_id = TaskId::new("task-local-defaults")?;
@@ -582,9 +587,9 @@ fn local_runner_helpers_cover_metadata_truncation_time_and_git_output_edges() ->
         Some("out"),
         Some("err"),
         Some(&LocalAgentWorkspace {
-            slot_id: "slot".to_string(),
+            slot_id: Some("slot".to_string()),
             path: "/tmp/workspace".to_string(),
-            branch: "branch".to_string(),
+            branch: Some("branch".to_string()),
         }),
     );
     assert_eq!(payload["success"], false);
@@ -698,9 +703,9 @@ impl MissingCommittedWorkspaceExecutor {
 impl LocalAgentExecutor for MissingCommittedWorkspaceExecutor {
     fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
         Ok(LocalAgentWorkspace {
-            slot_id: "missing-slot".to_string(),
+            slot_id: Some("missing-slot".to_string()),
             path: self.workspace_path.to_string_lossy().to_string(),
-            branch: format!("codex/{}", request.task_id.as_str()),
+            branch: Some(format!("codex/{}", request.task_id.as_str())),
         })
     }
 
@@ -720,9 +725,9 @@ impl LocalAgentExecutor for RecordingExecutor {
         prepare_git_workspace(&path, &format!("codex/{}", request.task_id.as_str()))?;
         self.workspace_requests.lock().expect("workspace requests lock").push(request.clone());
         Ok(LocalAgentWorkspace {
-            slot_id: "local-slot".to_string(),
+            slot_id: Some("local-slot".to_string()),
             path: path.to_string_lossy().to_string(),
-            branch: format!("codex/{}", request.task_id.as_str()),
+            branch: Some(format!("codex/{}", request.task_id.as_str())),
         })
     }
 
@@ -760,4 +765,48 @@ fn run_git(path: &Path, args: &[&str]) -> Result<String> {
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
     anyhow::bail!("git {} failed: {}", args.join(" "), stderr.trim())
+}
+
+#[test]
+fn task_pool_workspace_records_directory_artifact_without_git_slot() -> Result<()> {
+    struct DirectoryExecutor;
+    impl LocalAgentExecutor for DirectoryExecutor {
+        fn lease_workspace(
+            &self,
+            request: LocalAgentWorkspaceRequest,
+        ) -> Result<LocalAgentWorkspace> {
+            Ok(LocalAgentWorkspace {
+                path: request.project_path.canonicalize()?.to_string_lossy().into_owned(),
+                slot_id: None,
+                branch: None,
+            })
+        }
+        fn execute(
+            &self,
+            _request: LocalAgentExecutionRequest,
+        ) -> Result<LocalAgentExecutionOutput> {
+            anyhow::bail!("execution stopped after preparation")
+        }
+    }
+    let directory = tempfile::tempdir()?;
+    let project_path = directory.path().to_path_buf();
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("task-directory-artifact")?;
+    store.initialize_project(&project_path)?;
+    store.create_task(&project_path, finite_task(&task_id)?)?;
+    let outcome = LocalAgentRunner::new(&store, &DirectoryExecutor).run_once(
+        &project_path,
+        LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1_000) },
+    )?;
+    let outcome = outcome.expect("directory task runs");
+    let artifact = store
+        .list_task_artifacts(&project_path, &task_id)?
+        .into_iter()
+        .find(|artifact| artifact.kind == "execution_workspace")
+        .expect("directory artifact");
+    assert_eq!(artifact.run_id, Some(outcome.run.id.clone()));
+    assert_eq!(artifact.payload["path"], project_path.canonicalize()?.to_string_lossy().as_ref());
+    assert!(store.load_run_workspace_context(&project_path, &outcome.run.id)?.is_none());
+    assert!(!project_path.join(".git").exists());
+    Ok(())
 }

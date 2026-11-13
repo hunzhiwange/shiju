@@ -572,9 +572,11 @@ pub enum AgentSchedulerStageActionOutcomeDto {
 /// Agent Scheduler 任务工作区上下文。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentSchedulerWorkspaceContextDto {
-    pub slot_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot_id: Option<String>,
     pub path: String,
-    pub branch: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
 }
 
 /// Agent Scheduler 桌面任务板任务快照。

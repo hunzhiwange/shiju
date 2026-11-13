@@ -156,3 +156,11 @@ fn tenant_and_project_scopes_require_non_empty_ids() {
     assert_eq!(local.project_scope().platform_id().as_ref(), DEFAULT_PLATFORM_ID);
     assert_eq!(local.project_scope().company_id().as_ref(), DEFAULT_COMPANY_ID);
 }
+
+#[test]
+fn task_pool_workspace_serializes_without_git_metadata() {
+    let value = serde_json::json!({"path": "/registered/project"});
+    let workspace: super::agent_scheduler::AgentSchedulerWorkspaceContextDto =
+        serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(serde_json::to_value(workspace).unwrap(), value);
+}

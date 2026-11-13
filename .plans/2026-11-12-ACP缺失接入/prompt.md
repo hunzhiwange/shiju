@@ -318,3 +318,175 @@
 任务获得所需验证证据后，标记为 `已完成`，若有实际代码、测试、配置或文档变更，使用技能 `$git-commit` 提交该任务的变更；若只有编号任务文件本身的状态更新或删除，则无需提交。在最终回复中报告完成证据并删除该任务文件；如果被阻塞，先调查根因并在已有授权内修复必要依赖、尝试合理替代路径，如果仍无法突破，只在任务文件中更新为 `已阻塞` 并记录具体原因和已运行的检查；如果因为无关本次修改的原因导致无法运行验证，可以解除 `已阻塞`，修改状态为 `已完成，待回归`，若有实际代码、测试、配置或文档变更，使用技能 `$git-commit` 提交该任务的变更；若只有编号任务文件本身的状态更新，则无需提交。保留任务文件供回归验证。
 注意，`/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/plan.md` 为只读，不要修改该文件的任何部分，这会增加上下文的大小，还会干扰其他任务的执行。
 ```
+
+# 新增接入后验收入口
+
+以下为追加任务，原任务 1–21 及以上入口保留。保守执行顺序为原批次 1–21 → 验收批次 22–42；验收全部串行。前置接入未完成时记录阻塞，继续其他已具备条件的验收。
+
+# 批次 22
+
+## 任务 22: Autohand Code 接入后验收【批次 22】 依赖：接入任务 1
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/22-Autohand-Code-验收.md`。
+```
+
+# 批次 23
+
+## 任务 23: DeepAgents 接入后验收【批次 23】 依赖：接入任务 2；验收任务 22 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/23-DeepAgents-验收.md`。
+```
+
+# 批次 24
+
+## 任务 24: DimCode 接入后验收【批次 24】 依赖：接入任务 3；验收任务 23 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/24-DimCode-验收.md`。
+```
+
+# 批次 25
+
+## 任务 25: Dirac 接入后验收【批次 25】 依赖：接入任务 4；验收任务 24 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/25-Dirac-验收.md`。
+```
+
+# 批次 26
+
+## 任务 26: GLM Agent 接入后验收【批次 26】 依赖：接入任务 5；验收任务 25 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/26-GLM-Agent-验收.md`。
+```
+
+# 批次 27
+
+## 任务 27: Grok Build 接入后验收【批次 27】 依赖：接入任务 6；验收任务 26 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/27-Grok-Build-验收.md`。
+```
+
+# 批次 28
+
+## 任务 28: Nova 接入后验收【批次 28】 依赖：接入任务 7；验收任务 27 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/28-Nova-验收.md`。
+```
+
+# 批次 29
+
+## 任务 29: siGit Code 接入后验收【批次 29】 依赖：接入任务 8；验收任务 28 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/29-siGit-Code-验收.md`。
+```
+
+# 批次 30
+
+## 任务 30: Amp 接入后验收【批次 30】 依赖：接入任务 9；验收任务 29 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/30-Amp-验收.md`。
+```
+
+# 批次 31
+
+## 任务 31: Cortex Code 接入后验收【批次 31】 依赖：接入任务 10；验收任务 30 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/31-Cortex-Code-验收.md`。
+```
+
+# 批次 32
+
+## 任务 32: Corust Agent 接入后验收【批次 32】 依赖：接入任务 11；验收任务 31 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/32-Corust-Agent-验收.md`。
+```
+
+# 批次 33
+
+## 任务 33: Devin 接入后验收【批次 33】 依赖：接入任务 12；验收任务 32 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/33-Devin-验收.md`。
+```
+
+# 批次 34
+
+## 任务 34: Harn 接入后验收【批次 34】 依赖：接入任务 13；验收任务 33 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/34-Harn-验收.md`。
+```
+
+# 批次 35
+
+## 任务 35: Junie 接入后验收【批次 35】 依赖：接入任务 14；验收任务 34 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/35-Junie-验收.md`。
+```
+
+# 批次 36
+
+## 任务 36: Poolside 接入后验收【批次 36】 依赖：接入任务 15；验收任务 35 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/36-Poolside-验收.md`。
+```
+
+# 批次 37
+
+## 任务 37: Stakpak 接入后验收【批次 37】 依赖：接入任务 16；验收任务 36 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/37-Stakpak-验收.md`。
+```
+
+# 批次 38
+
+## 任务 38: VT Code 接入后验收【批次 38】 依赖：接入任务 17；验收任务 37 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/38-VT-Code-验收.md`。
+```
+
+# 批次 39
+
+## 任务 39: MiMo Code 接入后验收【批次 39】 依赖：接入任务 18；验收任务 38 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/39-MiMo-Code-验收.md`。
+```
+
+# 批次 40
+
+## 任务 40: omp 接入后验收【批次 40】 依赖：接入任务 19；验收任务 39 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/40-omp-验收.md`。
+```
+
+# 批次 41
+
+## 任务 41: shiju-pi-cli 接入后验收【批次 41】 依赖：接入任务 20；验收任务 40 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/41-shiju-pi-cli-验收.md`。
+```
+
+# 批次 42
+
+## 任务 42: aionrs 接入后验收【批次 42】 依赖：接入任务 21；验收任务 41 结束并恢复环境
+
+```text
+请使用技能 ./skills/do-task-plans/SKILL.md 执行 `/Users/xiangmin/worker/code/shiju/.plans/2026-11-12-ACP缺失接入/42-aionrs-验收.md`。
+```

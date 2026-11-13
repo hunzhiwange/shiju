@@ -1054,6 +1054,10 @@ pub enum SettingsMessage {
     CronAddDeleteAfterRunToggled(bool),
     CronAddSubmit,
     CronJobMutationCompleted(Result<String, String>),
+    CronEditorSaveCompleted {
+        editing: bool,
+        result: Result<String, String>,
+    },
     CronSave,
     CronHelpOpen,
     CronHelpClose,

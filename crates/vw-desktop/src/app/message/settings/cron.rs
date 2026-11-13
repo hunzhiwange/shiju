@@ -99,6 +99,34 @@ fn cron_mutation_task(
     })
 }
 
+#[cfg(target_arch = "wasm32")]
+fn cron_editor_save_task(
+    editing: bool,
+    success_message: &'static str,
+    future: impl std::future::Future<Output = Result<(), String>> + 'static,
+) -> Task<Message> {
+    Task::perform(future, move |result| {
+        Message::Settings(SettingsMessage::CronEditorSaveCompleted {
+            editing,
+            result: result.map(|()| success_message.to_string()),
+        })
+    })
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cron_editor_save_task(
+    editing: bool,
+    success_message: &'static str,
+    future: impl std::future::Future<Output = Result<(), String>> + Send + 'static,
+) -> Task<Message> {
+    Task::perform(future, move |result| {
+        Message::Settings(SettingsMessage::CronEditorSaveCompleted {
+            editing,
+            result: result.map(|()| success_message.to_string()),
+        })
+    })
+}
+
 fn format_run_history_text(
     locale: vw_config_types::ui::DesktopLocale,
     runs: &[vw_gateway_client::CronRunDto],
@@ -198,6 +226,15 @@ mod cron_tests;
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
+    if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+        match &message {
+            SettingsMessage::CronEditorSaveCompleted { .. }
+            | SettingsMessage::CronJobMutationCompleted(_)
+            | SettingsMessage::CronJobsLoaded(_)
+            | SettingsMessage::CronSchedulePreviewLoaded { .. } => {}
+            _ => return Task::none(),
+        }
+    }
     match message {
         SettingsMessage::CronFullAccessConfirm { editing } => {
             let state = &mut app.cron_settings;
@@ -829,7 +866,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.edit_draft.submitting = true;
-            cron_mutation_task(
+            cron_editor_save_task(
+                true,
                 "定时任务已更新",
                 update_cron_job_async(
                     job_id,
@@ -1110,7 +1148,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.save_error = None;
             app.cron_settings.save_error_translation = None;
             app.cron_settings.add_draft.submitting = true;
-            cron_mutation_task(
+            cron_editor_save_task(
+                false,
                 "定时任务已新增",
                 add_cron_job_async(
                     app.cron_settings.add_draft.name.clone(),
@@ -1139,9 +1178,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 ),
             )
         }
-        SettingsMessage::CronJobMutationCompleted(result) => {
-            app.cron_settings.add_draft.submitting = false;
-            app.cron_settings.edit_draft.submitting = false;
+        SettingsMessage::CronEditorSaveCompleted { editing, result } => {
+            let draft = if editing {
+                &mut app.cron_settings.edit_draft
+            } else {
+                &mut app.cron_settings.add_draft
+            };
+            if !draft.submitting {
+                return Task::none();
+            }
+            draft.submitting = false;
             match result {
                 Ok(message) => {
                     let toast = app.show_success_toast(message.clone());
@@ -1166,6 +1212,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             }
         }
+        SettingsMessage::CronJobMutationCompleted(result) => match result {
+            Ok(message) => {
+                app.cron_settings.action_status = Some(message.clone());
+                app.cron_settings.jobs_loading = true;
+                Task::batch([refresh_cron_jobs_task(), app.show_success_toast(message)])
+            }
+            Err(error) => app.show_error_toast(error),
+        },
         SettingsMessage::CronSave => persist_cron_settings(app),
         SettingsMessage::CronHelpOpen => {
             app.cron_settings.show_help_modal = true;

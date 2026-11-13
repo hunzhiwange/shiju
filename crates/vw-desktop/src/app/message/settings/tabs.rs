@@ -32,6 +32,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            if app.cron_settings.show_add_modal || app.cron_settings.editing_job_id.is_some() {
+                let _ = super::cron::update(app, SettingsMessage::CronJobEditCanceled);
+            }
+            app.cron_settings.show_cron_templates = false;
             if app.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
@@ -148,6 +155,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         SettingsMessage::SystemSearchTargetSelected(target) => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
             let mut tasks = vec![update(app, SettingsMessage::SystemTabSelected(target.page()))];
 
             let child_task = match target {

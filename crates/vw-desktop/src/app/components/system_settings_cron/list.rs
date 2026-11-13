@@ -335,7 +335,7 @@ pub(super) fn jobs_tab(app: &App) -> Element<'_, Message> {
                 false
             ),
             primary_button(
-                tr.__("新增任务"),
+                tr.__("新建定时任务"),
                 Message::Settings(message::SettingsMessage::CronTabSelected(CronSettingsTab::Add))
             ),
         ]

@@ -398,7 +398,11 @@ fn mutation_completion_resets_drafts_on_success_and_preserves_state_on_error() {
     app.cron_settings.add_draft.name = "new".to_string();
     app.cron_settings.save_error = Some("old".to_string());
 
-    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Ok("saved".to_string())));
+    app.cron_settings.edit_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: true, result: Ok("saved".to_string()) },
+    );
 
     assert_eq!(app.cron_settings.action_status.as_deref(), Some("saved"));
     assert_eq!(app.cron_settings.save_error, None);
@@ -409,7 +413,14 @@ fn mutation_completion_resets_drafts_on_success_and_preserves_state_on_error() {
 
     app.cron_settings.action_status = Some("keep".to_string());
     app.cron_settings.jobs_loading = false;
-    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("failed".to_string())));
+    app.cron_settings.edit_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted {
+            editing: true,
+            result: Err("failed".to_string()),
+        },
+    );
     assert_eq!(app.cron_settings.save_error.as_deref(), Some("failed"));
     assert_eq!(app.cron_settings.action_status.as_deref(), Some("keep"));
     assert!(!app.cron_settings.jobs_loading);
@@ -577,7 +588,10 @@ fn mutation_actions_clear_errors_when_they_can_start() {
     let _ = update(&mut app, SettingsMessage::CronJobEditSave);
     assert_eq!(app.cron_settings.save_error, None);
     assert!(app.cron_settings.edit_draft.submitting);
-    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("offline".into())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: true, result: Err("offline".into()) },
+    );
     assert!(!app.cron_settings.edit_draft.submitting);
 
     app.cron_settings.save_error = Some("old".to_string());
@@ -858,7 +872,11 @@ fn wb_schedule_draft_failure_keeps_rule_and_releases_submission() {
     let rule = crate::app::state::CronScheduleDraft::default();
     app.cron_settings.add_draft.schedule_draft = Some(rule.clone());
     app.cron_settings.add_draft.submitting = true;
-    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("offline".into())));
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: false, result: Err("offline".into()) },
+    );
     assert!(!app.cron_settings.add_draft.submitting);
     assert_eq!(app.cron_settings.add_draft.schedule_draft, Some(rule));
 }
@@ -1098,7 +1116,11 @@ fn wb_schedule_modal_stale_preview_ignored() {
 fn wb_schedule_modal_failure_preserves_draft() {
     let mut app = app();
     app.cron_settings.add_draft.name = "保留草稿".into();
-    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Err("network".into())));
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: false, result: Err("network".into()) },
+    );
     assert_eq!(app.cron_settings.add_draft.name, "保留草稿");
     assert_eq!(app.cron_settings.save_error.as_deref(), Some("network"));
 }
@@ -1107,8 +1129,14 @@ fn wb_schedule_modal_failure_preserves_draft() {
 fn wb_schedule_modal_success_refreshes_jobs() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
-    let _ =
-        update(&mut app, SettingsMessage::CronJobMutationCompleted(Ok("定时任务已新增".into())));
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted {
+            editing: false,
+            result: Ok("定时任务已新增".into()),
+        },
+    );
     assert!(app.cron_settings.jobs_loading);
     assert_eq!(app.cron_settings.active_tab, CronSettingsTab::Jobs);
     assert!(app.cron_settings.editing_job_id.is_none());
@@ -1298,9 +1326,13 @@ fn wb_schedule_feedback_save_error_preserves_draft_and_shows_toast() {
     let mut app = app();
     app.cron_settings.add_draft.prompt = "report".into();
     app.cron_settings.add_draft.submitting = true;
+    app.cron_settings.add_draft.submitting = true;
     let _ = update(
         &mut app,
-        SettingsMessage::CronJobMutationCompleted(Err("permission denied".into())),
+        SettingsMessage::CronEditorSaveCompleted {
+            editing: false,
+            result: Err("permission denied".into()),
+        },
     );
     assert_eq!(app.cron_settings.save_error.as_deref(), Some("permission denied"));
     let toast = app.active_toast.as_ref().expect("error toast");
@@ -1541,4 +1573,85 @@ fn cron_template_selection_opens_prefilled_draft_without_saving() {
     assert!(!app.cron_settings.add_draft.prompt.is_empty());
     assert!(!app.cron_settings.add_draft.submitting);
     assert!(!app.cron_settings.add_draft.full_access);
+}
+
+#[test]
+fn cron_modal_unrelated_mutation_preserves_draft() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    app.cron_settings.add_draft.name = "保留草稿".into();
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(&mut app, SettingsMessage::CronJobMutationCompleted(Ok("deleted".into())));
+    assert!(app.cron_settings.show_add_modal);
+    assert!(app.cron_settings.add_draft.submitting);
+    assert_eq!(app.cron_settings.add_draft.name, "保留草稿");
+}
+
+#[test]
+fn cron_modal_busy_edit_switch_is_ignored() {
+    let mut app = app();
+    app.cron_settings.jobs = vec![job("other")];
+    app.cron_settings.show_add_modal = true;
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(&mut app, SettingsMessage::CronJobEditStarted("other".into()));
+    assert!(app.cron_settings.show_add_modal);
+    assert!(app.cron_settings.editing_job_id.is_none());
+}
+
+#[test]
+fn cron_modal_open_add_uses_clean_draft() {
+    let mut app = app();
+    app.cron_settings.add_draft.name = "旧草稿".into();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    assert!(app.cron_settings.show_add_modal);
+    assert_eq!(app.cron_settings.active_tab, CronSettingsTab::Jobs);
+    assert!(app.cron_settings.add_draft.name.is_empty());
+}
+
+#[test]
+fn cron_modal_cancel_discards_without_mutation() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    app.cron_settings.add_draft.name = "草稿".into();
+    let task = update(&mut app, SettingsMessage::CronJobEditCanceled);
+    assert_eq!(task.units(), 0);
+    assert!(!app.cron_settings.show_add_modal);
+    assert!(app.cron_settings.add_draft.name.is_empty());
+}
+
+#[test]
+fn cron_modal_failed_save_keeps_draft() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    app.cron_settings.add_draft.name = "草稿".into();
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: false, result: Err("offline".into()) },
+    );
+    assert!(app.cron_settings.show_add_modal);
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert_eq!(app.cron_settings.add_draft.name, "草稿");
+}
+
+#[test]
+fn cron_modal_success_closes_and_refreshes() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+    app.cron_settings.add_draft.submitting = true;
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: false, result: Ok("saved".into()) },
+    );
+    assert!(!app.cron_settings.show_add_modal);
+    assert!(app.cron_settings.jobs_loading);
+}
+
+#[test]
+fn cron_modal_double_submit_is_ignored() {
+    let mut app = app();
+    app.cron_settings.add_draft.submitting = true;
+    let task = update(&mut app, SettingsMessage::CronAddSubmit);
+    assert_eq!(task.units(), 0);
+    assert!(app.cron_settings.add_draft.submitting);
 }

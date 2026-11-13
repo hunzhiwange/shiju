@@ -463,6 +463,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::CronAddDeliveryBestEffortToggled(_)
         | SettingsMessage::CronAddDeleteAfterRunToggled(_)
         | SettingsMessage::CronAddSubmit
+        | SettingsMessage::CronEditorSaveCompleted { .. }
         | SettingsMessage::CronJobMutationCompleted(_)
         | SettingsMessage::CronSave
         | SettingsMessage::CronHelpOpen

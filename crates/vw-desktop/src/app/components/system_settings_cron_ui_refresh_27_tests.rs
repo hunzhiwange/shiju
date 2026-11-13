@@ -322,12 +322,12 @@ async fn ui_refresh_27_layout_and_interaction() {
     let cancel = before.label(tr.__("取消"));
     assert_fits(save, size);
     assert_fits(cancel, size);
-    let title = before.label(tr.__("编辑任务"));
+    let title = before.label(tr.__("编辑定时任务"));
     let scroll = before.scroll.unwrap().0;
     assert!(wheel(&mut ui, &mut renderer, scroll.center()).is_empty());
     let after = geometry(&mut ui, &renderer);
     assert_eq!(after.label(tr.__("保存")), save);
-    assert_eq!(after.label(tr.__("编辑任务")), title);
+    assert_eq!(after.label(tr.__("编辑定时任务")), title);
     assert!(after.scroll.unwrap().1.y > before.scroll.unwrap().1.y);
     capture(
         &mut ui,
@@ -1288,3 +1288,45 @@ async fn cron_edit_form_omits_separate_acp_selector() {
 
 #[path = "system_settings_cron/list_tests.rs"]
 mod list_tests;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cron_modal_renders_add_and_edit() {
+    if !isolated("cron_modal_renders_add_and_edit") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    let size = Size::new(900, 700);
+    for editing in [false, true] {
+        app.cron_settings.show_add_modal = !editing;
+        app.cron_settings.editing_job_id = editing.then(|| "job".into());
+        for theme in [Theme::Light, Theme::Dark] {
+            let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            assert_fits(
+                positions.label(if editing { "编辑定时任务" } else { "新建定时任务" }),
+                size,
+            );
+            capture(&mut ui, &mut renderer, &theme, size, "cron-modal", mouse::Cursor::Unavailable);
+            let before = geometry(&mut ui, &renderer);
+            let title =
+                before.label(if editing { "编辑定时任务" } else { "新建定时任务" });
+            let scroll = before.scroll.unwrap().0;
+            assert!(wheel(&mut ui, &mut renderer, scroll.center()).is_empty());
+            let after = geometry(&mut ui, &renderer);
+            assert_eq!(after.label(if editing { "编辑定时任务" } else { "新建定时任务" }), title);
+            assert!(after.scroll.unwrap().1.y > before.scroll.unwrap().1.y);
+            let messages = send(
+                &mut ui,
+                &mut renderer,
+                mouse::Cursor::Unavailable,
+                &[key(iced::keyboard::key::Named::Escape)],
+            );
+            assert!(messages.iter().any(|m| matches!(
+                m,
+                Message::Settings(message::SettingsMessage::CronJobEditCanceled)
+            )));
+        }
+    }
+}

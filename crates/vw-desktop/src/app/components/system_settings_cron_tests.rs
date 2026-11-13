@@ -915,3 +915,13 @@ fn cron_history_view_covers_loading_error_and_empty() {
     assert_eq!(history::empty_label(&app.cron_settings.history), Some("此范围内无匹配记录"));
     let _ = history::view(&app);
 }
+
+#[test]
+fn cron_modal_add_and_edit_wrap_base() {
+    let mut app = test_app();
+    for editing in [false, true] {
+        app.cron_settings.show_add_modal = !editing;
+        app.cron_settings.editing_job_id = editing.then(|| "job".into());
+        keep_element(with_edit_modal(&app, text("任务列表").into()));
+    }
+}

@@ -30,25 +30,21 @@
 
 ## Cargo 共享槽位规则
 
-1. 同一仓库的所有计划和任务共用仓库根目录下的 `target/rust-slot-1` 至 `target/rust-slot-20`，不得为任务、会话或计划另建构建目录，也不得按任务编号取模固定分配。
-2. 每次构建/验证阶段开始前，创建仓库根目录下的 `target/rust-slot-locks`；依次用原子命令 `mkdir target/rust-slot-locks/slot-N.lock` 尝试领取槽位，`N` 为 1–20。仅 `mkdir` 成功者获得该槽位；这些相对路径命令从仓库根目录执行。
-3. 领取成功后，在自己的锁目录中记录计划、任务、会话标识和持有进程 PID。同一槽位同时只允许一个持有者；已占用时尝试下一个，仅全部 20 个槽位都占用时等待并重试。
-4. 将 `CARGO_TARGET_DIR` 设置为领取槽位的绝对路径，例如领取槽位 3 后，从仓库根目录执行 `export CARGO_TARGET_DIR="$PWD/target/rust-slot-3"`。示例编号不代表固定分配。
-5. 所有 Cargo 构建、检查、测试以及调用 Cargo 的脚本和子进程均继承该设置，不得通过 `--target-dir` 或其他配置绕过槽位；生成的二进制也从该槽位定位。
-6. 该阶段的 Cargo、脚本以及使用槽位产物的子进程全部结束后，删除自己写入的占用记录，并用 `rmdir` 释放自己的锁目录；保留槽位编译缓存供后续任务复用。
-7. 正常结束、失败和中断均须清理自己的锁；在后台进程或其他使用槽位产物的进程仍运行时不得提前释放。规划清理步骤时覆盖这三种退出路径。
-8. 遗留锁须先核实持有会话及相关进程已结束；无法确认则保持占用，不得删除其他活跃任务的锁、进程或缓存。
-9. 生成或更新计划时，统一移除与这些规则冲突的单一 Rust 共享构建空间、逐任务独立目录和 Cargo 缓存全局独占窗口要求；仍须遵守源码文件占用、真实业务依赖和其他共享验证资源的互斥，不能仅因缓存分槽就把任务判定为可并行。
-10. 最终验证记录包含实际槽位、绝对路径 `CARGO_TARGET_DIR`、确切命令、退出码和有效测试数量；Rust 代码修改后先运行 `cargo fmt --all`，再运行相应验证。编译成功或零测试不能替代行为验收证据。
+1. 从仓库根目录直接使用已存在的 `python3 scripts/cargo_slot.py <命令及参数>`；入口自动领取或核验继承 `target/rust-slot-1` 至 `rust-slot-20`，不要在外层再手工领取第二个槽位。
+2. 同一开发阶段将顺序原生检查放在一次入口调用中，持续复用缓存。例如 `python3 scripts/cargo_slot.py sh -c 'cargo check -p vw-desktop --lib && cargo clippy --all-targets --all-features -- -D warnings'`；实际 crate、features 与聚焦命令以本任务下文为准。下文裸 Cargo 表示入口内部命令，不表示允许绕过入口。
+3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
+4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
+5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
+6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及要求的真实渲染、授权、音频与实机验收继续执行；零测试和热更新通过不能替代完成验收。
 
 ## 测试计划
 
 - 行为：通过真实 HTTP 查询授权主机的应用/项目过滤、搜索、分组元数据与游标；拒绝越权租户/主机且不回退本机。
 - 失败验证：在 `crates/vw-agent/src/gateway/api/handlers/external_sessions/catalog_tests.rs` 新增前缀 `external_history_t61_` 的测试，至少包含 `external_history_t61_primary_behavior` 与 `external_history_t61_boundary_behavior` 两个确切测试名，分别覆盖上述正常路径与最相关拒绝/失败路径。测试是本项拟新增，必须通过父模块显式注册；单元测试不内联业务文件。
-- 失败验证命令：`cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
+- 失败验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
 - 预期失败：当前缺少本项原生行为或尚未接线；先搭好最小可编译接口，再确认真实行为断言失败。仅编译错误、零测试和测试未注册不算红灯证据。若前序已实现该行为，先运行验证，补缺失边界用例并记录已有等价实现，不强造失败。
-- 通过验证命令：`cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
-- SDK 验证：`cargo test -p vw-gateway-client --lib external_history_t61_ -- --nocapture`，同样要求有效测试大于零。
+- 通过验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
+- SDK 验证：`python3 scripts/cargo_slot.py cargo test -p vw-gateway-client --lib external_history_t61_ -- --nocapture`，同样要求有效测试大于零。
 - features：上述 crate 的 macOS host 默认 features；不加未定义开关。vw-agent-apps 的 Cargo.toml 由母任务2交付，执行前检查真实名称与 lib 测试入口；不存在则不得宣称命令可运行。
 - 模拟策略：使用真实 axum Router/认证上下文和临时存储启动回环 HTTP，由真实 GatewayClient 调用；只替代不可控原生终端/应用进程，不 mock 处理器、SDK 或权限检查。
 
@@ -62,9 +58,9 @@
 
 ## 验证
 
-- 聚焦：`cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
-- SDK 验证：`cargo test -p vw-gateway-client --lib external_history_t61_ -- --nocapture`，同样要求有效测试大于零。
-- 强制：`cargo clippy --all-targets --all-features -- -D warnings`；差异：`git diff --check`。
+- 聚焦：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib external_history_t61_ -- --nocapture`。
+- SDK 验证：`python3 scripts/cargo_slot.py cargo test -p vw-gateway-client --lib external_history_t61_ -- --nocapture`，同样要求有效测试大于零。
+- 强制：`python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`；差异：`git diff --check`。
 - 预期：聚焦测试有效数量大于零、断言全部通过；本项新错误/警告为零。Clippy 是全 workspace 验证，不等同通过本项行为验收。
 - 所需证据：失败/通过的确切测试名、命令、退出码和有效测试数量；槽位与绝对 CARGO_TARGET_DIR；生产/独立测试文件及关键符号、差异审查、API/SDK输出或渲染证据（适用时）。无关既有编译错误只记录，不修无关模块。
 

@@ -4,7 +4,7 @@
 
 线性顺序：任务 1；本批只有此任务。所有批次串行，不存在可安全同时修改公共注册/分派文件的并行组。
 
-状态：未开始
+状态：进行中
 
 目的：让 Autohand Code 通过 ShiJu 现有 ACP 链路可安装或发现、启用并完成真实会话，准确暴露已验证能力。
 
@@ -103,3 +103,44 @@
 - 外部依赖或缺少凭据导致核心会话无法验收：先调查合理替代路径，仍无解则仅在本文件标记 `已阻塞`，写具体原因、已尝试命令和所需输入；不得用产品登记成功替代真实接入。
 - 只有无关既有编译错误等导致验证无法执行、且实现已完成时可标记 `已完成，待回归`，保留本任务文件与失败证据，不宣称已验收。
 - 有实际代码/测试/配置/证据文档变更时使用 `$git-commit` 提交本任务变更，排除所有他人变更；仅任务状态或删除无需提交。最终报告完成证据，已完成则删除本任务文件；待回归/阻塞保留。不得修改 plan.md。
+
+
+## 2026-11-13 恢复执行调查
+
+- 批次 1 无前置依赖；已读取执行技能、只读 plan.md、差异清单及注册/目录代码。工作区有大量他人修改，未修改或提交这些文件。
+- 来源变更：官方 https://github.com/autohandai/autohand-acp/blob/main/README.md 已归档旧适配器，要求使用 >=0.9.8 的原生 `autohand --acp`，保留 autohand ID。后续实现应采用当前原生契约，不继续推广历史 npx 桥接；旧适配器权限环境变量不能迁移为授权。
+- 官方发行核验：`npm view @autohandai/autohand-acp version repository dist.tarball --json`（退出 0）仍为 0.2.1；`npm view autohand-cli version engines --registry=https://registry.npmjs.org --json`（退出 0）为 0.9.11、Node >=22。
+- `curl -fsSL https://api.github.com/repos/autohandai/code-cli/releases/latest`（退出 0）得到 v0.9.11。下载官方 autohand-macos-arm64.tar.gz，在 /tmp/shiju-autohand-check 隔离解压，SHA256 与官方同名 .sha256 一致：d98de36979a1a4b6442a5b0ff746a2a5f5a5408e493c93c380aa4b3ef312fe24。`autohand --version` 退出 0，报告 0.9.11 / 46a28b16c05b1984761ca2b0daa700b6fc21ef70。
+- 真实运行命令：Python subprocess 启动 `/tmp/shiju-autohand-check/autohand --acp`，仅传 PATH、隔离 HOME/AUTOHAND_HOME；未读取用户私有配置或继承凭据。NDJSON initialize(protocolVersion=1, clientCapabilities={}) 与 session/new(cwd=隔离目录,mcpServers=[]) 均成功。agentInfo=autohand-cli/0.9.11；声明 load、list/resume/fork、MCP http/sse、模型列表及 default/plan/yolo/automode。能力声明仅供下一轮调查，未验收权限或模型绑定。
+- 首轮 session/prompt 实测失败：stderr 及 agent_message_chunk 报 `Error (auth_failed): Authentication failed. Please verify your OpenRouter API key in ~/.autohand/config.json. No cookie auth credentials found`；响应 id=3,error.code=-32603。探测脚本退出 0（只表示成功捕获失败），子进程探测后主动终止，不能作为产品通过证据。未保留提示词或会话正文。
+- 替代路径调查：官方 https://github.com/autohandai/code-cli/blob/main/docs/config-reference.md 的 customProviders 节明确要求所有 provider（含第三方/自定义/本地）先 Autohand sign-in；不能用受控响应服务代替真实账号验收。`command -v autohand` 未发现本地 CLI；`command -v ollama` 未发现，`curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags` 退出 7。没有借用其他账号或变更用户全局配置。
+- 核心阻塞：隔离环境没有 Autohand 登录凭据及可验收模型认证，真实首轮失败，不能完成两轮、工具拒绝/取消/恢复及官方内置智能体桌面流程。需提供经授权的隔离测试账号/模型服务，完成 CLI setup 后恢复本任务。未把握手成功标为完整接入，ACP 与 acp-autohand 双重交付均未完成。
+- 本轮仅更新本任务调查和状态；无 Rust/代码/测试改动，无 Cargo 调用，因此未领取槽位，CARGO_TARGET_DIR=不适用；未运行失败/通过行为测试、clippy 或桌面验收，有效 Rust 测试数 0。后续实施仍必须先动态领取槽位并按本文件执行 TDD，不得引用本轮探测代替。
+- 任务保留以恢复实施；只读 plan.md 未修改；仅状态/调查更新按授权无需提交。
+
+
+## 2026-11-13 安全替代路径复核
+
+前次“所有 provider 必须账号”的阻塞结论已被真实运行推翻，不再作为停止依据。固定 v0.9.11 源码 `src/modes/acp/adapter.ts` 的 authenticate 允许 provider API key；独立 ACP 入口未强制走交互登录。使用隔离 AUTOHAND_HOME/config.json 设置 openai provider、仅本地假令牌与环回响应服务后，同一真实原生 CLI 会话两轮 prompt 均返回 stopReason=end_turn，HTTP 捕获 /v1/chat/completions 的 model=fixture-model（3 次请求，包括运行时附加请求）。没有使用外部账号、没有绕过或修改上游认证代码。探测脚本 `/tmp/shiju-autohand-check/local_probe.py` 退出 0。隔离工作目录须使用独立 workspace 子目录，不能让工作目录包含隔离 home，否则 CLI 正确拒绝 Unsafe workspace。
+
+继续实现注册、安装白名单与内置预设验证；禁止沿用前次认证阻塞结论。
+
+
+## 2026-11-13 最终交接：磁盘空间阻塞（不需要账号）
+
+- 已解除前次认证阻塞，安全替代路径已真实通过：原生 v0.9.11、本地 OpenAI 响应服务、隔离配置，完成两轮、load、取消后续聊、批准一次工具写入、cancelled 与 reject_once 阻止写入，以及所选 MCP stdio initialize/tools/list。无需新增外部账号或借用凭据。
+- 代码已增加 autohand 原生注册与本地发现（--acp）、固定 autohand-cli@0.9.11 安装白名单；官方可选 traces/computer-control 安装开关解决 postinstall 下载超时。acp-autohand 由现有目录自动派生，默认停用、禁止子代理；增加注册、安装、目录元数据及生产网关配置/后端测试。
+- 有效前置失败：槽位 5 三条规定命令均退出 101，注册 1、安装 1、agent 3 个失败用例。网关的初次失败包含测试传输开关遗漏，不能冒充业务缺失证明；已修正。
+- 阶段 2 槽位 1：cargo fmt --all 退出 0；cargo clippy --all-targets --all-features -- -D warnings 退出 0。中间测试对端及测试设置问题已修正，不能引用中间失败轮作为通过证据。旧注册保护受宿主已有托管运行时影响失败，最终安排隔离配置目录复核。
+- 最终阶段槽位 3：cargo fmt --all 退出 0；cargo test -p vw-acp --test onboarding_autohand -- --test-threads=1 退出 0、3/3 通过；cargo test -p vw-config-types --lib acp_onboarding_autohand -- --test-threads=1 退出 0、1/1 通过。
+- 最终 cargo test -p vw-agent --lib acp_onboarding_autohand -- --test-threads=1 退出 101、有效测试 0：rustc 1.99.1 在写 incremental pre-lto.bc 时报告 No space left on device (os error 28)，随后编译器 panic。生产预设持久化与路由尚未取得通过证据，不能标记完成或待回归。
+- 同阶段注册保护退出 101/0 测试（query-cache.bin 无空间），目录保护退出 101/0 测试（database or disk is full，无法写 build-script-build）。最后 clippy 重跑在日志重定向时即因无空间失败，shell 退出 1，未实际启动；保留前阶段完整 clippy 通过证据，不将本次算通过。
+- 实际 CARGO_TARGET_DIR 依阶段为 /Users/xiangmin/worker/code/shiju/target/rust-slot-5、/Users/xiangmin/worker/code/shiju/target/rust-slot-1、/Users/xiangmin/worker/code/shiju/target/rust-slot-3。各阶段均通过 scripts/cargo_slot.py 原子领取并补充本计划/任务记录；进程已结束，自己的锁已释放，共享缓存保留。
+- 具体外部操作：请释放构建卷空间，建议至少留出 30 GiB；本任务不删除他人产物或违反规则清空共享 Cargo 缓存。df 实测可用 117 MiB。仅清理本任务临时下载的大型原生压缩包/二进制，保留脱敏日志和脚本以恢复调查。
+- 空间恢复后先重跑上述三个聚焦命令及注册/目录保护、规定 clippy；确认 vw-agent 的 3 项新测试通过后，再完成“官方目录启用→默认项保存重开→选择预设→新建会话”的暗亮主题真实桌面验收。会话模型中继与技能目录仍保持未验收的明确拒绝门控，不能宣称可用；尚需按任务第 7–8 步补完实证和必要分派。
+- 当前 ACP 与内置预设交付均为部分实现，缺完整生产路由/桌面及能力隔离证据，因此保留本文件，plan.md 未修改。详见 docs/dev/evidence/acp-onboarding-autohand.md。
+
+
+## 2026-11-13 磁盘恢复后续执行
+
+用户更新规则后重查，构建卷已恢复 2.6 TiB 可用；磁盘阻塞解除，不再要求账号或空间操作。通过 cargo_slot.py 持有常驻前台 shell，动态领取槽位 1，同时继承两项绝对缓存路径，开始重新验证。

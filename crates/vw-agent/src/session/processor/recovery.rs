@@ -1,4 +1,4 @@
-//! 模型解析和调用共享的有界恢复预算。
+//! 模型恢复：服务错误使用有限预算，安全的网络重连持续等待至恢复或取消。
 use super::llm_runner::provider_retry_backoff_ms;
 use super::types::{ModelRecovery, RecoveryPhase, StreamEvent};
 use crate::session::message::AssistantError;
@@ -69,6 +69,7 @@ impl RetryBudget {
         mut operation: impl FnMut(&mut dyn FnMut(StreamEvent) -> bool) -> Result<T, String>,
     ) -> Result<T, String> {
         let mut recovering = false;
+        let mut connection_failures = 0u64;
         loop {
             if cancellation.is_some_and(CancellationToken::is_cancelled) {
                 self.emit(sink, RecoveryPhase::Cancelled, 0, "执行已取消", "需要时重新发送请求");
@@ -111,7 +112,16 @@ impl RetryBudget {
                         return Err(error);
                     }
                     let transient = retry_allowed(&error, is_acp);
-                    let exhausted = self.failures + 1 >= self.max_attempts;
+                    let parsed = serde_json::from_str::<AssistantError>(&error).ok();
+                    // 仅原生传输层明确标记的故障可无限等待；ACP 远端操作不可盲目重放。
+                    let connection_failure = !is_acp
+                        && transient
+                        && matches!(
+                            &parsed,
+                            Some(AssistantError::APIError { status_code: None, metadata: Some(metadata), .. })
+                                if metadata.get("connection_failure").is_some_and(|value| value == "true")
+                        );
+                    let exhausted = !connection_failure && self.failures + 1 >= self.max_attempts;
                     let message = serde_json::from_str::<AssistantError>(&error)
                         .ok()
                         .and_then(|err| serde_json::to_value(err).ok())
@@ -152,20 +162,47 @@ impl RetryBudget {
                         }
                         return Err(error);
                     }
-                    let wait_ms = provider_retry_backoff_ms(
-                        self.backoff_ms,
-                        self.failures.min(u64::from(u32::MAX)) as u32,
-                    );
+                    let wait_ms = if connection_failure {
+                        let delay = 5_000u64
+                            .saturating_mul(
+                                1u64.checked_shl(connection_failures.min(32) as u32)
+                                    .unwrap_or(u64::MAX),
+                            )
+                            .min(60_000);
+                        connection_failures = connection_failures.saturating_add(1);
+                        delay
+                    } else {
+                        let local = provider_retry_backoff_ms(
+                            self.backoff_ms,
+                            self.failures.min(u64::from(u32::MAX)) as u32,
+                        );
+                        parsed
+                            .as_ref()
+                            .and_then(|error| match error {
+                                AssistantError::APIError { response_headers: Some(_), .. } => Some(
+                                    crate::session::retry::delay(self.failures + 1, Some(error)),
+                                ),
+                                _ => None,
+                            })
+                            .unwrap_or(local)
+                            .min(crate::session::retry::RETRY_MAX_DELAY)
+                    };
                     if !self.emit(
                         sink,
                         RecoveryPhase::Waiting,
                         wait_ms,
                         &reason,
-                        "等待后重试同一模型",
+                        if connection_failure {
+                            "等待网络恢复后重连；可随时取消"
+                        } else {
+                            "等待后重试同一模型"
+                        },
                     ) {
                         return Err("stream consumer stopped".into());
                     }
-                    self.failures += 1;
+                    if !connection_failure {
+                        self.failures = self.failures.saturating_add(1);
+                    }
                     recovering = true;
                     let deadline = Instant::now() + Duration::from_millis(wait_ms);
                     while Instant::now() < deadline {
@@ -183,3 +220,7 @@ impl RetryBudget {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "recovery_tests.rs"]
+mod tests;

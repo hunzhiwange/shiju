@@ -267,3 +267,18 @@ fn non_api_log_fields_serialize_error_variant() {
 fn source_chain_returns_none_when_aisdk_error_has_no_source() {
     assert_eq!(aisdk_error_source_chain(&AiError::Other("plain".to_string())), None);
 }
+
+#[test]
+fn transport_errors_include_offline_dns_reset_and_timeout() {
+    for message in [
+        "connection refused",
+        "Connection reset by peer",
+        "network is unreachable",
+        "dns error",
+        "failed to lookup address",
+        "request timed out",
+    ] {
+        assert!(is_retryable_transport_error(message, "request failed", None), "{message}");
+    }
+    assert!(!is_retryable_transport_error("invalid API key", "unauthorized", None));
+}

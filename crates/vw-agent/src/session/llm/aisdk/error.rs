@@ -46,6 +46,18 @@ fn is_retryable_transport_error(
     normalized.contains("error decoding response body")
         || normalized.contains("eof while parsing a value")
         || normalized.contains("error sending request for url")
+        || [
+            "connection refused",
+            "connection reset",
+            "connection closed",
+            "network is unreachable",
+            "network unreachable",
+            "dns error",
+            "failed to lookup address",
+            "timed out",
+        ]
+        .iter()
+        .any(|marker| normalized.contains(marker))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -157,6 +169,26 @@ pub(crate) fn assistant_error_from_aisdk(
                 ("source".to_string(), "aisdk".to_string()),
                 ("raw_error".to_string(), raw_error.clone()),
             ]);
+            // 解码错误可能来自无效响应，仍只做有限重试。
+            let connection_text =
+                format!("{details} {raw_error} {}", source_chain.as_deref().unwrap_or_default())
+                    .to_ascii_lowercase();
+            let connection_failure = [
+                "error sending request for url",
+                "connection refused",
+                "connection reset",
+                "connection closed",
+                "network is unreachable",
+                "network unreachable",
+                "dns error",
+                "failed to lookup address",
+                "timed out",
+            ]
+            .iter()
+            .any(|marker| connection_text.contains(marker));
+            if status_code.is_none() && retryable && connection_failure {
+                metadata.insert("connection_failure".into(), "true".into());
+            }
             if let Some(chain) = source_chain.as_ref() {
                 metadata.insert("error_chain".to_string(), chain.clone());
             }

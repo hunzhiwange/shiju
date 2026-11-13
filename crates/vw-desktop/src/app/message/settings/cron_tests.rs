@@ -1528,6 +1528,9 @@ fn cron_wecom_form_requires_credentials_and_explicit_target() {
     draft.delivery_enabled = true;
     draft.delivery_channel = "wecom_webhook".into();
     draft.delivery_to = "default".into();
+    // 对话机器人凭据不能替代群通知 Webhook。
+    assert!(validate_delivery(&app, &draft).unwrap_err().contains("定时任务通知配置"));
+    app.channels_settings.wecom = None;
     app.channels_settings.wecom_webhook = Some(vw_config_types::channels::WeComWebhookConfig {
         webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture".into(),
     });

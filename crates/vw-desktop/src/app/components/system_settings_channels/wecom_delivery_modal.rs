@@ -1,4 +1,4 @@
-//! Shared WeCom credential modal; only its body scrolls.
+//! 分离 Agent 对话接入与定时任务群通知；仅内容区滚动。
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_close_button,
     settings_error_banner, settings_modal_header, settings_modal_layout, settings_modal_overlay,
@@ -19,11 +19,12 @@ pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
         return base;
     };
     let mut body = column![].spacing(12).width(Length::Fill);
-    for (mode, title) in [
-        (WeComDeliveryMode::Qr, "扫码连接"),
-        (WeComDeliveryMode::Manual, "手动连接"),
-        (WeComDeliveryMode::Webhook, "群机器人"),
-    ] {
+    let modes = if draft.mode == WeComDeliveryMode::Webhook {
+        vec![]
+    } else {
+        vec![(WeComDeliveryMode::Qr, "扫码连接"), (WeComDeliveryMode::Manual, "手动连接")]
+    };
+    for (mode, title) in modes {
         let mut control = button(text(title))
             .padding([8, 12])
             .width(Length::Fill)
@@ -34,9 +35,13 @@ pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
         body = body.push(control);
     }
     body = body.push(
-        text("已配置仅表示已保存凭据；连接状态请查看运行诊断。")
-            .size(13)
-            .style(settings_muted_text_style),
+        text(if draft.mode == WeComDeliveryMode::Webhook {
+            "仅用于发送任务结果通知，不接收指令，无需连接 Agent 对话通道。"
+        } else {
+            "用于接收消息并与 Agent 对话；连接状态请查看运行诊断。"
+        })
+        .size(13)
+        .style(settings_muted_text_style),
     );
     match draft.mode {
         WeComDeliveryMode::Qr => {
@@ -110,7 +115,12 @@ pub(crate) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
         cancel = cancel.on_press(message(ChannelsMessage::WeComDeliveryClosed));
     }
     let header = settings_modal_header(
-        text("企业微信投递连接").size(20),
+        text(if draft.mode == WeComDeliveryMode::Webhook {
+            "定时任务群通知"
+        } else {
+            "企业微信 Agent 对话接入"
+        })
+        .size(20),
         settings_close_button(message(ChannelsMessage::WeComDeliveryClosed)),
     );
     let card = settings_modal_layout(header, body, Some(row![cancel, save].spacing(10).into()))

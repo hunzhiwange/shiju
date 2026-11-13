@@ -1,4 +1,4 @@
-//! 新建和编辑共用的结果投递控件；凭据始终保存在通道配置中。
+//! 定时任务结果通知；群 Webhook 与 Agent 对话接入使用独立凭据。
 use super::*;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage as S};
 use crate::app::state::{CronJobDraft, WeComDeliveryMode};
@@ -23,7 +23,7 @@ impl std::fmt::Display for DeliveryChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Bot => f.write_str("企业微信智能机器人"),
-            Self::Webhook => f.write_str("企业微信群机器人"),
+            Self::Webhook => f.write_str("企业微信群机器人（Webhook）"),
             Self::Existing(channel) => write!(f, "当前通道：{channel}"),
         }
     }
@@ -45,7 +45,7 @@ pub(super) fn view<'a>(app: &'a App, draft: &'a CronJobDraft) -> Element<'a, Mes
     }
     let mut content = column![field_row(
         "投递方式",
-        "选择结果接收方式；保存任务不代表已送达。",
+        "智能机器人通过已认证连接发送到指定会话；群机器人通过 Webhook 发送到群。",
         settings_select(options, selected, |choice| Message::Settings(
             S::CronJobEditDeliveryChannelChanged(choice.channel().into())
         ))
@@ -63,20 +63,23 @@ pub(super) fn view<'a>(app: &'a App, draft: &'a CronJobDraft) -> Element<'a, Mes
     };
     if let Some((mode, configured)) = mode {
         content = content.push(field_row(
-            "机器人配置",
+            "通知配置",
             if configured {
                 "已保存凭据；连接与投递状态请查看运行记录。"
+            } else if mode == WeComDeliveryMode::Webhook {
+                "尚未配置，请先保存通知机器人的 Webhook。"
             } else {
-                "尚未配置，请先连接或配置机器人。"
+                "请扫码或填写 Bot ID 和 Secret 连接智能机器人，再指定接收用户或会话。"
             },
             secondary_button(
-                if configured { "修改配置" } else { "连接 / 配置" },
+                if configured { "修改配置" } else { "配置" },
                 Message::Settings(S::Channels(ChannelsMessage::WeComDeliveryOpened(mode))),
             ),
         ));
     }
     if draft.delivery_channel == "wecom_webhook" {
-        content = content.push(text("接收目标：默认群机器人").size(13));
+        content =
+            content.push(text("接收目标：Webhook 对应的企业微信群，无需用户或会话 ID").size(13));
     } else if !draft.delivery_channel.is_empty() {
         content = content.push(field_row(
             "投递目标",

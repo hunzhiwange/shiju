@@ -382,6 +382,22 @@ fn config_tab(app: &App) -> Element<'_, Message> {
             i18n.__("控制 Cron 子系统是否运行与历史留存数量。")
         ),
         settings_group_card(column![enabled_row, settings_divider(), history_row]),
+        settings_group_card(field_row(
+            "定时任务群通知",
+            "独立配置企业微信群机器人的 Webhook，用于接收任务结果。请在需要通知的任务中开启结果投递。",
+            secondary_button(
+                if app.channels_settings.wecom_webhook.is_some() {
+                    "修改通知 Webhook"
+                } else {
+                    "配置通知 Webhook"
+                },
+                Message::Settings(message::SettingsMessage::Channels(
+                    crate::app::message::settings::ChannelsMessage::WeComDeliveryOpened(
+                        crate::app::state::WeComDeliveryMode::Webhook,
+                    ),
+                )),
+            ),
+        )),
     ]
     .spacing(14)
     .into()

@@ -14,7 +14,7 @@ fn validate_target(delivery: &DeliveryConfig) -> Result<()> {
         bail!("企微投递需要明确的 userid/chatid，请填写会话 ID");
     }
     if channel.eq_ignore_ascii_case("wecom_webhook") && target != "default" {
-        bail!("企微群机器人投递目标必须为 default，请在通道设置中配置默认群机器人");
+        bail!("企微群机器人投递目标必须为 default，请在定时任务通知配置中保存群机器人 Webhook");
     }
     Ok(())
 }
@@ -40,7 +40,7 @@ pub(crate) fn validate(config: &Config, delivery: &DeliveryConfig) -> Result<()>
         }
         "wecom_webhook" => {
             let Some(group) = &config.channels_config.wecom_webhook else {
-                bail!("企微群机器人未配置，请在通道设置中保存 Webhook");
+                bail!("企微群机器人未配置，请在定时任务通知配置中保存 Webhook");
             };
             #[cfg(not(target_arch = "wasm32"))]
             crate::channels::wecom::webhook::WeComWebhook::new(&group.webhook_url)?;

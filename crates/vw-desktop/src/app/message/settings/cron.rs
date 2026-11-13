@@ -1293,6 +1293,9 @@ pub(crate) fn validate_delivery(
         }
     };
     if !configured {
+        if channel == "wecom_webhook" {
+            return Err("群通知未配置；请在定时任务通知配置中保存 Webhook".into());
+        }
         return Err(format!("投递通道 {channel} 未配置；请先在通道设置中配置凭证"));
     }
     Ok(())

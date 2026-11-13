@@ -669,18 +669,15 @@ pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
             "智能机器人：未配置"
         })
         .size(13),
-        text(if app.channels_settings.wecom_webhook.is_some() {
-            "群机器人：已配置"
-        } else {
-            "群机器人：未配置"
-        })
-        .size(13),
     ]
-    .spacing(12);
+    .spacing(12)
+    .push(
+        text("用于接收指令并与 Agent 对话。定时任务群通知请在任务的通知配置中设置 Webhook。")
+            .size(13),
+    );
     for (mode, label) in [
         (WeComDeliveryMode::Qr, "扫码连接智能机器人"),
         (WeComDeliveryMode::Manual, "手动连接智能机器人"),
-        (WeComDeliveryMode::Webhook, "配置群机器人 Webhook"),
     ] {
         body = body.push(
             button(text(label)).padding([8, 12]).style(rounded_action_btn_style).on_press(

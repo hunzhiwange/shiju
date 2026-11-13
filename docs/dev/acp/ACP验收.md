@@ -459,3 +459,17 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 本次静态源码与工作区状态证据目录：`/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-autohand-blocked-091xoi7s`（0700），未保存凭据或配置环境值。
 
 重跑条件：先完成并验证 Autohand 会话模型中继驱动，模型来源明确支持后，使用包含该驱动的已验证构建从任务步骤 1 重新执行；保持指定模型、租户、引擎和目录边界。
+
+# DeepAgents 验收
+
+2026-11-13：**已阻塞，未通过**。任务 23 核对当前实现与接入证据后，确认指定 `session_model` 未交付，未执行指定模型文件创建。
+
+- 前置任务 22 已明确记录阻塞，未启动服务或变更配置，无待恢复环境。来源任务 `2-DeepAgents.md` 已不存在；以当前注册、安装白名单、builtin 派生及 `docs/dev/evidence/acp-onboarding-deepagents.md` 核对交付边界，没有将任务文件缺失当成通过。
+- 当前注册为 `deepagents`，固定 `deepagents-acp@0.1.42`，本地候选 `deepagents-acp`；系统安装映射存在，`merged_agent_catalog` 派生 `acp-deepagents`、builtin=true、backend=deepagents，默认停用。这些为源码检查结果，未冒充安装 API 或配置保存重读结果。
+- 既有接入证据只验证 CLI 本地模型 gpt-4o，并明确保留 UnsupportedCli 门控。当前 `crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs` 没有 DeepAgents configure、source_protocol 或 verified_release 分支；因此 capabilities 的 SessionModel 为 UnsupportedCli。该文件本次 SHA-256：`1d1dea379f3d787468888a1e320aa0ca00cd7f119201ced32455ba99b76158f7`。不改用 cli_local、CLI 默认模型或其他 backend 绕过指定模型要求。
+- 新增整个私有模型绑定、协议路由及审核驱动超出本项验收小修范围；未修改产品实现。指定租户 `10001 / 100010005`、模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017` 与引擎要求保持原样。
+- Rue.js 工作区及 `packages/rue/package.json` 存在，已保存初始 Git 状态；`acpdemo/deepagents/` 不存在，未写入 Rue.js 工作区或生成产物。未做完整文件 SHA-256 快照，不能声明经过全目录差异验证。
+- 未启动网关、供应商进程或安装器，未 PATCH 预设/租户配置，无本次临时配置、自有进程或槽位需要恢复清理。未执行安装/诊断/模型来源 API、启用保存重读、聊天 SSE、会话绑定及文件验收；没有本次 HTTP、退出码、运行版本或二进制构建摘要可报告。未运行页面、浏览器、构建、Cargo、Clippy 或测试，本次仅文档变更。
+- 本次源码副本、SHA-256 与工作区初始状态仅存本机 0700 私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-deepagents-blocked-a3la5u4n`；没有保存凭据、配置环境值或供应商二进制。
+
+重跑条件：先交付并验证 DeepAgents 的 session_model 私有中继驱动与真实模型请求证据；使用包含该实现的已验证构建，从任务 23 步骤 1 重新执行。任务文件保留为已阻塞。

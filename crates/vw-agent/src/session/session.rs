@@ -609,9 +609,9 @@ pub async fn list() -> Result<Vec<Info>, Error> {
 pub(crate) async fn list_for_project(project_id: String) -> Result<Vec<Info>, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let mut out = crate::global_database::run_isolated(move || {
-        crate::session::ui_store::load_agent_sessions_scoped_for_tenant(&tenant, Some(&project_id))
+        crate::session::ui_store::load_agent_sessions_strict(&tenant, &project_id)
     })
-    .await?;
+    .await??;
     for info in &mut out {
         super::fork_execution::project(info).await?;
     }
@@ -660,9 +660,9 @@ pub(super) async fn children_including_pending(parent_id: &str) -> Result<Vec<In
 pub async fn list_all() -> Result<Vec<Info>, Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let mut out = crate::global_database::run_isolated(move || {
-        crate::session::ui_store::load_agent_sessions_all_for_tenant(&tenant)
+        crate::session::ui_store::load_agent_sessions_all_strict(&tenant)
     })
-    .await?;
+    .await??;
     for info in &mut out {
         super::fork_execution::project(info).await?;
     }

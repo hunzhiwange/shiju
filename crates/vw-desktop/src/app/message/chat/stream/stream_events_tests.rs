@@ -2541,3 +2541,22 @@ fn todo_continuation_preserves_stream_order_for_active_and_background_sessions()
         }
     }
 }
+
+#[test]
+fn background_stream_error_without_cache_does_not_create_error_only_history() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("visible".into());
+    app.chat = vec![message(ChatRole::User, "visible history")];
+    let runtime = app.get_session_runtime_mut("background");
+    runtime.active_agent_request = Some(agent_request(42, "background"));
+    runtime.is_requesting = true;
+    let _ = super::handle_agent_stream_error(
+        &mut app,
+        42,
+        "未找到模型：deepseek/deepseek-flash".into(),
+    );
+    assert!(!app.session_chat_cache.contains_key("background"));
+    assert!(app.get_session_runtime("background").stream_save_dirty_records.is_empty());
+    assert_eq!(app.chat[0].content, "visible history");
+    assert!(!app.get_session_runtime("background").is_requesting);
+}

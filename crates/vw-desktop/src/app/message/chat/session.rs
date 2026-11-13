@@ -2031,12 +2031,8 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             item.full_access_enabled = runtime.full_access_enabled;
         }
         item.root = Some(draft.directory);
-        if app.chat.len() > draft.history_len {
-            app.chat.truncate(draft.history_len);
-            app.chat_message_ids.truncate(draft.history_len);
-            app.active_session_view_state.steps.clear();
-            app.invalidate_chat_ui_state();
-        }
+        // Failed first responses are still conversation history. Only an explicit
+        // versioned history edit may remove them; retrying a draft must append.
     }
     let request_history = item.request_history_override.clone().unwrap_or_else(|| app.chat.clone());
     let request_query = if item.resume_history_only {
@@ -2173,7 +2169,8 @@ pub(super) fn start(app: &mut App, mut item: QueueItem, keep: bool) -> Task<Mess
             runtime.active_agent_request.as_ref().and_then(|request| request.acp_agent.clone());
         app.sync_task_pet_from_runtime();
 
-        if !is_draft {
+        {
+            // Persist accepted input before model execution, including first-response failures.
             let now = crate::app::time::now_ms();
             let title = app
                 .sessions

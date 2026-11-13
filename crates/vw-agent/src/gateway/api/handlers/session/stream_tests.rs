@@ -3001,7 +3001,7 @@ async fn gateway_first_response_replays_the_same_session_and_rejects_other_direc
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn gateway_first_response_failure_stays_hidden_until_same_session_retries() {
+async fn gateway_first_response_failure_preserves_history_until_same_session_retries() {
     use crate::session::llm::StreamEvent;
     use crate::session::ui_store;
 
@@ -3075,8 +3075,13 @@ async fn gateway_first_response_failure_stays_hidden_until_same_session_retries(
     assert!(
         ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
             .unwrap()
-            .is_none()
+            .is_some()
     );
+
+    let failed = ui_store::load_session_scoped_for_tenant(&tenant, &session_id, Some(&scope))
+        .expect("failed turn remains readable");
+    assert!(failed.messages.iter().any(|message| message.content == "failed prompt"));
+    assert!(failed.messages.iter().any(|message| message.content.contains("fixture failure")));
 
     assert!(title_requests.try_recv().is_err());
 
@@ -3228,7 +3233,7 @@ async fn gateway_first_response_disconnect_after_tool_start_replays_cancellation
     assert!(
         ui_store::load_session_meta_scoped_for_tenant(&tenant, &session_id, Some(&scope))
             .unwrap()
-            .is_none()
+            .is_some()
     );
 }
 

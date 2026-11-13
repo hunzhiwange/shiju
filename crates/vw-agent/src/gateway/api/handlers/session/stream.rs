@@ -1875,6 +1875,27 @@ async fn start_gateway_chat_producer(
                                 ),
                             ) {
                                 summary_update = summary;
+                                if let Some(ids) = stream_message_ids.as_ref()
+                                    && let Err(persist_error) = commit_stream_session_trajectory(
+                                        &tenant,
+                                        app_session_scope.as_deref(),
+                                        &stream_session_id,
+                                        &query,
+                                        assistant_text,
+                                        assistant_model.as_deref(),
+                                        ids,
+                                        &trajectory_recorder,
+                                        processing_started_ms,
+                                        processing_completed_ms,
+                                        None,
+                                    )
+                                {
+                                    tracing::error!(session_id = %stream_session_id,
+                                        error = %persist_error, "failed to persist failed stream trajectory");
+                                }
+                            } else {
+                                tracing::error!(session_id = %stream_session_id,
+                                    "failed to persist failed chat turn");
                             }
                         }
                         serde_json::json!({ "type": "chat.error", "session_id": stream_session_id, "error": error })

@@ -1626,8 +1626,18 @@ async fn gateway_first_response_ui_save_cannot_publish_a_new_session() {
         session_ui_get(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
     assert!(stored.unwrap().title.is_empty());
     let Json(preview) =
-        session_ui_preview_meta(Path(session_id), query(), HeaderMap::new()).await.unwrap();
-    assert!(preview.is_none());
+        session_ui_preview_meta(Path(session_id.clone()), query(), HeaderMap::new()).await.unwrap();
+    assert!(preview.is_some(), "pending root remains discoverable");
+    let scope =
+        ui_store::resolve_session_scope_id(Some(&project.path().to_string_lossy()), None).unwrap();
+    assert!(
+        !ui_store::has_committed_first_response(
+            &ui_store::current_tenant_scope(),
+            &scope,
+            &session_id
+        )
+        .unwrap()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

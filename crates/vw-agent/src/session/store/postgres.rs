@@ -362,11 +362,71 @@ impl PostgresSessionStore {
         Ok(Self { database })
     }
 
+    pub(super) fn persist_session_call(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        stream: u64,
+        payload: &serde_json::Value,
+        updated_ms: u64,
+    ) -> Result<()> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        lock_session_scope(&mut transaction, scope)?;
+        if first_response_state(&mut transaction, scope, session_id)?.as_deref() == Some("deleted")
+        {
+            bail!("session was deleted");
+        }
+        let records = transaction.query(
+            "SELECT seq_no,payload_json FROM session_calls WHERE platform_id=$1 AND company_id=$2
+             AND project_id=$3 AND session_id=$4 ORDER BY seq_no", scoped_id_params!(scope, session_id))?
+            .iter().map(|row| Ok((row.try_get::<_,i64>(0)?,row.try_get::<_,String>(1)?)))
+            .collect::<Result<Vec<_>>>()?;
+        let seq = super::session_call_sequence(&records, stream)?;
+        let time = to_i64(updated_ms, "call updated_ms")?;
+        transaction.execute(
+            "INSERT INTO session_index (platform_id,company_id,project_id,session_id,
+             title,created_ms,updated_ms,message_count,call_count)
+             VALUES ($1,$2,$3,$4,'新会话',$5,$5,0,0) ON CONFLICT DO NOTHING",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session_id,
+                &time,
+            ],
+        )?;
+        let json = serde_json::to_string(payload)?;
+        transaction.execute(
+            "INSERT INTO session_calls (platform_id,company_id,project_id,session_id,seq_no,payload_json)
+             VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (platform_id,company_id,project_id,session_id,seq_no)
+             DO UPDATE SET payload_json=excluded.payload_json",
+            &[&scope.platform_id().as_ref(),&scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),&session_id,&seq,&json])?;
+        transaction.execute(
+            "UPDATE session_index SET updated_ms=GREATEST(updated_ms,$5),call_count=(
+             SELECT COUNT(*) FROM session_calls WHERE platform_id=$1 AND company_id=$2
+             AND project_id=$3 AND session_id=$4)
+             WHERE platform_id=$1 AND company_id=$2 AND project_id=$3 AND session_id=$4",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session_id,
+                &time,
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// 在单个事务内保存完整会话头、消息、调用和步骤快照。
     pub(super) fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
         let mut connection = self.database.connect_postgres()?;
         let mut transaction = connection.transaction().context("begin PostgreSQL session save")?;
         lock_session_scope(&mut transaction, scope)?;
+        super::history::validate_postgres_snapshot(&mut transaction, scope, session)?;
         upsert_session_header(&mut transaction, scope, session, session.calls.len())?;
         replace_session_messages(&mut transaction, scope, session)?;
         replace_session_calls(&mut transaction, scope, session)?;
@@ -517,11 +577,17 @@ impl PostgresSessionStore {
         connection
             .query(
                 "SELECT session_id, title, updated_ms, message_count, call_count,
-                   CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
+                   CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                  FROM session_index
                  LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND COALESCE(first_response_state, 'committed') = 'committed'
+                   AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
+                           SELECT 1 FROM session_agent_sessions AS root
+                           WHERE root.platform_id = session_index.platform_id
+                             AND root.company_id = session_index.company_id
+                             AND root.project_id = session_index.project_id
+                             AND root.session_id = session_index.session_id
+                             AND root.parent_id IS NULL)))
                  ORDER BY updated_ms DESC, session_id DESC
                  LIMIT 50",
                 scope_params!(scope),
@@ -543,12 +609,18 @@ impl PostgresSessionStore {
         connection
             .query_opt(
                 "SELECT session_id, title, updated_ms, message_count, call_count,
-                   CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
+                   CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                  FROM session_index
                  LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
                    AND session_id = $4
-                   AND (COALESCE(first_response_state, 'committed') = 'committed'
+                   AND ((COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
+                           SELECT 1 FROM session_agent_sessions AS root
+                           WHERE root.platform_id = session_index.platform_id
+                             AND root.company_id = session_index.company_id
+                             AND root.project_id = session_index.project_id
+                             AND root.session_id = session_index.session_id
+                             AND root.parent_id IS NULL)))
                         OR ($5 AND first_response_state = 'pending'))",
                 &[
                     &scope.platform_id().as_ref(),
@@ -574,18 +646,6 @@ impl PostgresSessionStore {
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session index replacement")?;
         lock_session_scope(&mut transaction, scope)?;
-        transaction
-            .execute(
-                "DELETE FROM session_index
-                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND NOT EXISTS (
-                       SELECT 1 FROM session_first_response
-                       WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                         AND session_id = session_index.session_id
-                   )",
-                scope_params!(scope),
-            )
-            .context("delete scoped PostgreSQL session index")?;
         for session in sessions {
             if first_response_state(&mut transaction, scope, &session.id)?.is_some() {
                 continue;
@@ -598,7 +658,7 @@ impl PostgresSessionStore {
                     "INSERT INTO session_index (
                          platform_id, company_id, project_id, session_id, title, created_ms,
                          updated_ms, message_count, call_count, last_content
-                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
                     &[
                         &scope.platform_id().as_ref(),
                         &scope.company_id().as_ref(),
@@ -972,9 +1032,7 @@ impl PostgresSessionStore {
         transaction.execute(
             "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
                title, created_ms, updated_ms, message_count, call_count)
-             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)
-             ON CONFLICT (platform_id, company_id, project_id, session_id)
-             DO UPDATE SET title = ''",
+             VALUES ($1, $2, $3, $4, '', $5, $6, 0, 0)",
             &[
                 &scope.platform_id().as_ref(),
                 &scope.company_id().as_ref(),
@@ -1098,7 +1156,7 @@ impl PostgresSessionStore {
                 "SELECT session_id, info_json FROM session_agent_sessions
                  LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2 AND project_id = $3
-                   AND COALESCE(first_response_state, 'committed') = 'committed'
+                   AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                  ORDER BY updated_ms DESC, session_id DESC",
                 scope_params!(scope),
             )
@@ -1137,7 +1195,7 @@ impl PostgresSessionStore {
                 "SELECT project_id, session_id, info_json FROM session_agent_sessions
                  LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                  WHERE platform_id = $1 AND company_id = $2
-                   AND COALESCE(first_response_state, 'committed') = 'committed'
+                   AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                  ORDER BY updated_ms DESC, session_id DESC, project_id",
                 &[&tenant.platform_id().as_ref(), &tenant.company_id().as_ref()],
             )

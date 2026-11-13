@@ -721,3 +721,19 @@ fn agent_session_identity_rejects_forged_ui_binding() {
     valid.as_object_mut().unwrap().remove("agent_binding");
     assert!(crate::session::ui_types::decode_ui_session(valid).is_ok());
 }
+
+#[test]
+fn authoritative_session_lists_propagate_corruption_instead_of_clearing_lists() -> Result<()> {
+    let fixture = FacadeFixture::new("list-read-failure")?;
+    let tenant = current_tenant_scope();
+    let info = test_agent_session("broken-list-row", &fixture.project_id, 100);
+    save_agent_session_scoped_for_tenant(&tenant, &info, fixture.scope()).expect("seed agent");
+    let connection = Connection::open(&fixture.database_path)?;
+    connection.execute(
+        "UPDATE session_agent_sessions SET info_json='invalid-json' WHERE session_id=?1",
+        [&info.id],
+    )?;
+    assert!(load_agent_sessions_strict(&tenant, &fixture.project_id).is_err());
+    assert!(load_agent_sessions_all_strict(&tenant).is_err());
+    Ok(())
+}

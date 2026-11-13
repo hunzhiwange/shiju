@@ -537,10 +537,7 @@ pub(super) fn mark_agent_stream_session_dirty(
     updated_ms: u64,
     previous_content_len: Option<usize>,
 ) {
-    if app
-        .session_runtime_states
-        .get(session_id)
-        .is_some_and(|runtime| runtime.draft.is_some() || runtime.is_plan_run_session)
+    if app.session_runtime_states.get(session_id).is_some_and(|runtime| runtime.is_plan_run_session)
     {
         return;
     }
@@ -1546,7 +1543,7 @@ pub(super) fn complete_agent_stream(
         && let Some(draft) = runtime.draft.as_mut()
     {
         // A completed answer remains history even when publication lookup fails.
-        // Only an unsuccessful attempt may be discarded on the next draft send.
+        // Keep the draft boundary for navigation; subsequent sends preserve every attempt.
         draft.history_len = last + 1;
     }
     if let Some(terminal_idx) = terminal_idx {
@@ -1878,8 +1875,9 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
-        tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream failure");
-        Vec::new()
+        tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream failure; preserving stored history");
+        // A cache miss is not an empty transcript. Never save an error-only replacement.
+        return toast_task.chain(start_next(app, &session_id));
     };
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()

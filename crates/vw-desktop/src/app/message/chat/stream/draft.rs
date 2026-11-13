@@ -129,6 +129,18 @@ pub(super) fn complete_recovered(
         return Task::none();
     };
     let RecoveredDraft { publication, snapshot, assistant_id, user_id } = recovered;
+    let local_len = if app.active_session_id.as_deref() == Some(session_id.as_str()) {
+        app.chat.len()
+    } else {
+        app.cached_chat_messages(&session_id).map_or(0, |messages| messages.len())
+    };
+    if snapshot.messages.len() < local_len {
+        return super::stream_events::handle_agent_stream_error(
+            app,
+            id,
+            "恢复快照缺少本地历史，已保留现有消息，请重新加载会话".into(),
+        );
+    }
     app.get_session_runtime_mut(&session_id).pending_stream_delta.clear();
     if app.active_session_id.as_deref() == Some(session_id.as_str()) {
         app.chat = snapshot.messages.clone();

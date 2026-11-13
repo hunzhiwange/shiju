@@ -425,11 +425,65 @@ impl SessionStore {
         }
     }
 
+    /// Call diagnostics cannot replace transcript rows, even after a failed history read.
+    pub fn persist_session_call(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        stream: u64,
+        payload: &serde_json::Value,
+        updated_ms: u64,
+    ) -> Result<()> {
+        validate_id("session id", session_id)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => {
+                database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    if first_response_state(transaction, scope, session_id)?.as_deref() == Some("deleted") {
+                        bail!("session was deleted");
+                    }
+                    let mut statement = transaction.prepare(
+                        "SELECT seq_no, payload_json FROM session_calls
+                         WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4
+                         ORDER BY seq_no")?;
+                    let records = statement.query_map(scoped_id_params(scope, session_id), |row| {
+                        Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                    })?.collect::<rusqlite::Result<Vec<_>>>()?;
+                    let seq = session_call_sequence(&records, stream)?;
+                    let time = to_i64(updated_ms, "call updated_ms")?;
+                    transaction.execute(
+                        "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
+                         title, created_ms, updated_ms, message_count, call_count)
+                         VALUES (?1,?2,?3,?4,'新会话',?5,?5,0,0) ON CONFLICT DO NOTHING",
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),session_id,time])?;
+                    transaction.execute(
+                        "INSERT INTO session_calls (platform_id,company_id,project_id,session_id,seq_no,payload_json)
+                         VALUES (?1,?2,?3,?4,?5,?6)
+                         ON CONFLICT (platform_id,company_id,project_id,session_id,seq_no)
+                         DO UPDATE SET payload_json=excluded.payload_json",
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),session_id,seq,serde_json::to_string(payload)?])?;
+                    transaction.execute(
+                        "UPDATE session_index SET updated_ms=MAX(updated_ms,?5), call_count=(
+                         SELECT COUNT(*) FROM session_calls WHERE platform_id=?1 AND company_id=?2
+                         AND project_id=?3 AND session_id=?4)
+                         WHERE platform_id=?1 AND company_id=?2 AND project_id=?3 AND session_id=?4",
+                        params![scope.platform_id().as_ref(),scope.company_id().as_ref(),
+                            scope.project_id().as_ref(),session_id,time])?;
+                    Ok(())
+                })
+            }
+            SessionStoreProvider::Postgres(store) => run_sync_database(||
+                store.persist_session_call(scope, session_id, stream, payload, updated_ms)),
+        }
+    }
+
     pub fn save_session(&self, scope: &ProjectScope, session: &ChatSession) -> Result<()> {
         validate_id("session id", &session.id)?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    history::validate_sqlite_snapshot(transaction, scope, session)?;
                     upsert_session_header(transaction, scope, session, session.calls.len())?;
                     replace_session_messages(transaction, scope, session)?;
                     replace_session_calls(transaction, scope, session)?;
@@ -623,11 +677,17 @@ impl SessionStore {
                 let connection = database.connect_sqlite()?;
                 let mut statement = connection.prepare(
                     "SELECT session_id, title, updated_ms, message_count, call_count,
-                           CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
+                           CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                      FROM session_index
                          LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND COALESCE(first_response_state, 'committed') = 'committed'
+                       AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
+                           SELECT 1 FROM session_agent_sessions AS root
+                           WHERE root.platform_id = session_index.platform_id
+                             AND root.company_id = session_index.company_id
+                             AND root.project_id = session_index.project_id
+                             AND root.session_id = session_index.session_id
+                             AND root.parent_id IS NULL)))
                      ORDER BY updated_ms DESC, session_id DESC
                      LIMIT 50",
                 )?;
@@ -681,12 +741,18 @@ impl SessionStore {
                 let row = connection
                     .query_row(
                         "SELECT title, updated_ms, message_count, call_count,
-                           CASE WHEN first_response_state IS NULL THEN last_content ELSE first_response_preview END
+                           CASE WHEN first_response_state = 'committed' THEN first_response_preview ELSE last_content END
                          FROM session_index
                          LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                          WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
                            AND session_id = ?4
-                           AND (COALESCE(first_response_state, 'committed') = 'committed'
+                           AND ((COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND EXISTS (
+                           SELECT 1 FROM session_agent_sessions AS root
+                           WHERE root.platform_id = session_index.platform_id
+                             AND root.company_id = session_index.company_id
+                             AND root.project_id = session_index.project_id
+                             AND root.session_id = session_index.session_id
+                             AND root.parent_id IS NULL)))
                                 OR (?5 AND first_response_state = 'pending'))",
                         params![
                             scope.platform_id().as_ref(),
@@ -724,6 +790,7 @@ impl SessionStore {
         }
     }
 
+    /// Import missing list entries without replacing authoritative history or deleting omitted sessions.
     pub fn replace_session_index(
         &self,
         scope: &ProjectScope,
@@ -739,16 +806,7 @@ impl SessionStore {
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => {
                 database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-                    transaction.execute(
-                        "DELETE FROM session_index
-                         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                           AND NOT EXISTS (
-                               SELECT 1 FROM session_first_response
-                               WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                                 AND session_id = session_index.session_id
-                           )",
-                        scope_params(scope),
-                    )?;
+                    // A list refresh is not authority to delete or overwrite stored history.
                     for session in sessions {
                         if first_response_state(transaction, scope, &session.id)?.is_some() {
                             continue;
@@ -757,7 +815,7 @@ impl SessionStore {
                             "INSERT INTO session_index (
                                  platform_id, company_id, project_id, session_id, title, created_ms,
                                  updated_ms, message_count, call_count, last_content
-                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) ON CONFLICT (platform_id, company_id, project_id, session_id) DO NOTHING",
                             params![
                                 scope.platform_id().as_ref(),
                                 scope.company_id().as_ref(),
@@ -1112,9 +1170,7 @@ impl SessionStore {
                     transaction.execute(
                         "INSERT INTO session_index (platform_id, company_id, project_id, session_id,
                            title, created_ms, updated_ms, message_count, call_count)
-                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)
-                         ON CONFLICT (platform_id, company_id, project_id, session_id)
-                         DO UPDATE SET title = ''",
+                         VALUES (?1, ?2, ?3, ?4, '', ?5, ?6, 0, 0)",
                         params![scope.platform_id().as_ref(), scope.company_id().as_ref(),
                             scope.project_id().as_ref(), pending.id,
                             to_i64(pending.time.created, "session created_ms")?,
@@ -1275,7 +1331,7 @@ impl SessionStore {
                     "SELECT session_id, info_json FROM session_agent_sessions
                          LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3
-                       AND COALESCE(first_response_state, 'committed') = 'committed'
+                       AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                      ORDER BY updated_ms DESC, session_id DESC",
                 )?;
                 let mut rows = statement.query(scope_params(scope))?;
@@ -1335,7 +1391,7 @@ impl SessionStore {
                     "SELECT project_id, session_id, info_json FROM session_agent_sessions
                          LEFT JOIN session_first_response USING (platform_id, company_id, project_id, session_id)
                      WHERE platform_id = ?1 AND company_id = ?2
-                       AND COALESCE(first_response_state, 'committed') = 'committed'
+                       AND (COALESCE(first_response_state, 'committed') = 'committed' OR (first_response_state = 'pending' AND parent_id IS NULL))
                      ORDER BY updated_ms DESC, session_id DESC, project_id",
                 )?;
                 let mut rows = statement
@@ -3002,4 +3058,24 @@ fn foreign_worktree_directory(json: &str) -> Result<String> {
         .filter(|directory| !directory.trim().is_empty())
         .map(str::to_owned)
         .context("Foreign session workspace is unavailable")
+}
+
+// Resolve the call key while the provider holds its write transaction. Invalid
+// stored diagnostics fail the operation rather than becoming an empty session.
+fn session_call_sequence(records: &[(i64, String)], stream: u64) -> Result<i64> {
+    let mut matching = None;
+    let mut next = 0;
+    for (seq, json) in records {
+        if *seq < 0 {
+            bail!("negative session call sequence");
+        }
+        next = next.max(seq.checked_add(1).context("session call sequence overflow")?);
+        let value: serde_json::Value =
+            serde_json::from_str(json).context("parse stored session call")?;
+        if stream != 0 && value.get("stream_id").and_then(serde_json::Value::as_u64) == Some(stream)
+        {
+            matching = Some(*seq);
+        }
+    }
+    Ok(matching.unwrap_or(next))
 }

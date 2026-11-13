@@ -2203,36 +2203,40 @@ fn desktop_first_response_failure_and_cancel_retry_on_the_same_id_until_success(
     let first_request = app.agent_stream_id;
     super::stream::update(
         &mut app,
-        super::ChatMessage::AgentStreamDelta(first_request, "incomplete".into()),
-    );
-    super::stream::update(
-        &mut app,
-        super::ChatMessage::AgentStreamError(first_request, "model error".into()),
+        super::ChatMessage::AgentStreamError(
+            first_request,
+            "未找到模型：deepseek/deepseek-flash".into(),
+        ),
     );
     assert!(!app.current_session_is_requesting());
-    assert!(app.chat.iter().any(|message| message.content == "model error"));
-    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(
+        app.chat.iter().any(|message| message.content == "未找到模型：deepseek/deepseek-flash")
+    );
+    assert!(!app.current_session_runtime().stream_save_dirty_records.is_empty());
     assert!(app.sessions.is_empty());
 
     super::start(&mut app, queue_item("second attempt", Queue), false);
     let second_request = app.agent_stream_id;
     assert_ne!(first_request, second_request);
     assert_eq!(app.active_session_id.as_deref(), Some(session_id.as_str()));
-    assert!(app.current_session_runtime().active_agent_request.unwrap().history.is_empty());
-    assert_eq!(app.chat[0].content, "second attempt");
+    assert!(!app.current_session_runtime().active_agent_request.unwrap().history.is_empty());
+    assert_eq!(app.chat[0].content, "first attempt");
+    assert!(app.chat.iter().any(|m| m.content == "second attempt"));
 
     super::update(&mut app, super::ChatMessage::CancelPressed);
     assert!(app.current_session_is_requesting(), "wait for the original request's terminal");
     super::stream::update(&mut app, super::ChatMessage::AgentStreamCancelled(second_request));
     assert!(!app.current_session_is_requesting());
     assert!(app.sessions.is_empty());
-    assert!(app.current_session_runtime().stream_save_dirty_records.is_empty());
+    assert!(!app.current_session_runtime().stream_save_dirty_records.is_empty());
 
     super::start(&mut app, queue_item("third attempt", Queue), false);
     let request = app.current_session_runtime().active_agent_request.unwrap();
     assert_eq!(request.session, session_id);
-    assert!(request.history.is_empty());
-    assert_eq!(app.chat[0].content, "third attempt");
+    assert!(!request.history.is_empty());
+    assert_eq!(app.chat[0].content, "first attempt");
+    assert!(app.chat.iter().any(|m| m.content == "second attempt"));
+    assert!(app.chat.iter().any(|m| m.content == "third attempt"));
 
     super::stream::update(
         &mut app,

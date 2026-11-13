@@ -632,6 +632,16 @@ fn session_store_projects_round_trip(fixture: &StoreFixture) -> Result<()> {
     replacement.message_ids.truncate(1);
     replacement.calls.clear();
     replacement.steps.clear();
+    fixture.store.apply_session_message_delta(
+        &scope_a1,
+        &SessionMessageDelta {
+            session_id: replacement.id.clone(),
+            expected_updated_ms: 100,
+            updated_ms: 200,
+            upserts: vec![],
+            truncate_after: Some(0),
+        },
+    )?;
     fixture.store.save_session(&scope_a1, &replacement)?;
     assert_json_eq!(
         fixture.store.load_session(&scope_a1, "shared-session")?,
@@ -1500,11 +1510,12 @@ fn session_history_rejects_incomplete_newer_snapshots_atomically() -> Result<()>
                     incoming.message_ids[0] = Some("different-user".into());
                 }
             }
-            for writer in 0..3 {
+            for writer in 0..4 {
                 let result = match writer {
                     0 => fixture.store.save_session_ui_content(&scope, &incoming),
                     1 => fixture.store.save_session_ui_snapshot(&scope, &incoming),
-                    _ => fixture.store.commit_session_ui_snapshot(&scope, &incoming, &[], &[]),
+                    2 => fixture.store.commit_session_ui_snapshot(&scope, &incoming, &[], &[]),
+                    _ => fixture.store.save_session(&scope, &incoming),
                 };
                 assert!(result.is_err(), "writer {writer} accepted incomplete variant {variant}");
                 assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&original));
@@ -1566,6 +1577,117 @@ fn session_history_allows_continuation_and_explicit_versioned_reset() -> Result<
         assert_eq!(loaded.messages.len(), 1);
         assert_eq!(loaded.messages[0].content, original.messages[0].content);
         assert!(fixture.store.apply_session_message_delta(&scope, &delta).is_err());
+        Ok(())
+    })
+}
+
+#[test]
+fn session_retention_index_refresh_preserves_existing_history_and_missing_sessions() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "refresh")?;
+        let original = sample_session("kept", "History", 100);
+        fixture.store.save_session(&scope, &original)?;
+        let todos = sample_todos("kept");
+        fixture.store.save_session_todos(&scope, &original.id, &todos)?;
+        fixture.store.replace_session_index(&scope, &[])?;
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&original));
+        fixture.store.replace_session_index(
+            &scope,
+            &[ChatSessionMeta {
+                id: original.id.clone(),
+                title: "Stale".into(),
+                updated_ms: 1,
+                message_count: 0,
+                call_count: 0,
+                last_content: None,
+            }],
+        )?;
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&original));
+        assert_json_eq!(fixture.store.load_session_todos(&scope, &original.id)?, todos);
+        Ok(())
+    })
+}
+
+#[test]
+fn session_retention_pending_root_remains_discoverable_without_publishing_children() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "pending-root")?;
+        let mut info = sample_agent_info("root", "pending-root", 100);
+        info.parent_id = None;
+        fixture.store.reserve_pending_session(&scope, &info)?;
+        assert_eq!(fixture.store.load_agent_sessions(&scope)?.len(), 1);
+        assert_eq!(fixture.store.load_agent_sessions_all(&fixture.tenant_a)?.len(), 1);
+        assert_eq!(fixture.store.list_sessions(&scope)?.len(), 1);
+        assert!(fixture.store.load_session_meta(&scope, &info.id)?.is_some());
+        Ok(())
+    })
+}
+
+#[test]
+fn session_retention_reservation_collision_preserves_existing_history() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "collision")?;
+        let original = sample_session("existing", "Keep title", 100);
+        fixture.store.save_session(&scope, &original)?;
+        let mut info = sample_agent_info("existing", "collision", 200);
+        info.parent_id = None;
+        assert!(fixture.store.reserve_pending_session(&scope, &info).is_err());
+        assert_json_eq!(fixture.store.load_session(&scope, &original.id)?, Some(&original));
+        assert_eq!(fixture.store.list_sessions(&scope)?.len(), 1);
+        Ok(())
+    })
+}
+
+#[test]
+fn session_call_diagnostics_preserve_transcript_and_serialize_concurrent_writers() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "call-isolation")?;
+        let original = sample_session("calls", "Keep transcript", 100);
+        fixture.store.save_session(&scope, &original)?;
+        std::thread::scope(|threads| -> Result<()> {
+            let mut writers = Vec::new();
+            for index in 0..8 {
+                let store = fixture.store.clone();
+                let scope = scope.clone();
+                writers.push(threads.spawn(move || {
+                    store.persist_session_call(&scope, "calls", 0, &json!({"writer": index}), 200)
+                }));
+            }
+            for writer in writers {
+                writer.join().expect("call writer panicked")?;
+            }
+            Ok(())
+        })?;
+        let mut saved = fixture.store.load_session(&scope, &original.id)?.unwrap();
+        assert_eq!(saved.calls.len(), original.calls.len() + 8);
+        assert_eq!(
+            fixture.store.load_session_meta(&scope, &original.id)?.unwrap().call_count,
+            saved.calls.len()
+        );
+        saved.calls = original.calls.clone();
+        saved.updated_ms = original.updated_ms;
+        assert_json_eq!(saved, original);
+        Ok(())
+    })
+}
+
+#[test]
+fn session_call_corruption_cannot_replace_existing_history() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "call-corruption")?;
+        let original = sample_session("calls", "Keep transcript", 100);
+        fixture.store.save_session(&scope, &original)?;
+        corrupt_session_call(&fixture.database, &scope, &original.id)?;
+        assert!(
+            fixture
+                .store
+                .persist_session_call(&scope, &original.id, 1, &json!({"stream_id":1}), 200)
+                .is_err()
+        );
+        let page = fixture.store.load_session_message_page(&scope, &original.id, None, 10)?;
+        assert_eq!(page.records.len(), original.messages.len());
+        assert_eq!(page.records[0].message.content, original.messages[0].content);
+        assert_eq!(fixture.store.load_session_meta(&scope, &original.id)?.unwrap().updated_ms, 100);
         Ok(())
     })
 }

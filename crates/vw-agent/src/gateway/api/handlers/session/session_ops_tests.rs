@@ -228,7 +228,11 @@ async fn gateway_first_response_create_without_title_reserves_an_unpublished_ses
     )
     .await
     .unwrap();
-    assert!(sessions.iter().all(|session| session.id != created.id));
+    let listed = sessions
+        .iter()
+        .find(|session| session.id == created.id)
+        .expect("pending root must remain in the session list");
+    assert!(listed.is_first_response_pending());
     let error = session_title_generate(
         Path(created.id),
         Query(query_for(project_path)),

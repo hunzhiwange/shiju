@@ -1032,6 +1032,40 @@ pub fn load_agent_sessions_scoped_for_tenant(
     }
 }
 
+/// Authoritative list reads must distinguish a storage failure from an empty project.
+pub(crate) fn load_agent_sessions_strict(
+    tenant: &TenantScope,
+    project_id: &str,
+) -> Result<Vec<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation_fallible(
+            "list agent sessions",
+            tenant,
+            Some(project_id),
+            SessionStore::load_agent_sessions,
+        )
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        Ok(load_agent_sessions_scoped_for_tenant(tenant, Some(project_id)))
+    }
+}
+
+pub(crate) fn load_agent_sessions_all_strict(
+    tenant: &TenantScope,
+) -> Result<Vec<agent_session::Info>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        runtime_session_store()?.load_agent_sessions_all(tenant)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = tenant;
+        Ok(load_agent_sessions_all())
+    }
+}
+
 /// 执行 load_agent_sessions_all 操作，并返回调用方需要的结果。
 pub fn load_agent_sessions_all() -> Vec<agent_session::Info> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -1564,19 +1598,7 @@ fn release_image_assets_for_deleted_session(session_id: &str, scope: Option<&str
 
 /// 执行 append_session_call 操作，并返回调用方需要的结果。
 pub fn append_session_call(session: &str, payload: &serde_json::Value) -> Option<PathBuf> {
-    let mut s = load_session(session).unwrap_or(ChatSession {
-        id: session.to_string(),
-        title: "新会话".to_string(),
-        messages: vec![],
-        message_ids: vec![],
-        calls: vec![],
-        steps: vec![],
-        created_ms: agent_session::now_ms(),
-        updated_ms: 0,
-    });
-    s.calls.push(payload.clone());
-    s.updated_ms = agent_session::now_ms();
-    save_session(&s)
+    persist_call_diagnostic(session, 0, payload, session_scope().as_deref())
 }
 
 /// 执行 persist_ai_call_payload 操作，并返回调用方需要的结果。
@@ -1586,34 +1608,39 @@ pub fn persist_ai_call_payload(
     payload: &serde_json::Value,
     scope: Option<&str>,
 ) -> Option<PathBuf> {
-    let mut s = load_session_scoped(session, scope).unwrap_or(ChatSession {
-        id: session.to_string(),
-        title: "新会话".to_string(),
-        messages: vec![],
-        message_ids: vec![],
-        calls: vec![],
-        steps: vec![],
-        created_ms: agent_session::now_ms(),
-        updated_ms: 0,
-    });
-    let stream_id =
-        payload.get("stream_id").and_then(serde_json::Value::as_u64).or(Some(stream)).unwrap_or(0);
-    if stream_id != 0 {
-        if let Some(pos) = s.calls.iter().rposition(|c| {
-            c.get("stream_id")
-                .and_then(serde_json::Value::as_u64)
-                .map(|id| id == stream_id)
-                .unwrap_or(false)
-        }) {
-            s.calls[pos] = payload.clone();
-        } else {
-            s.calls.push(payload.clone());
-        }
-    } else {
-        s.calls.push(payload.clone());
+    let stream_id = payload.get("stream_id").and_then(serde_json::Value::as_u64).unwrap_or(stream);
+    persist_call_diagnostic(session, stream_id, payload, scope)
+}
+
+fn persist_call_diagnostic(
+    session: &str,
+    stream: u64,
+    payload: &serde_json::Value,
+    scope: Option<&str>,
+) -> Option<PathBuf> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        run_project_operation(
+            "save session call",
+            &current_tenant_scope(),
+            scope,
+            |store, project_scope| {
+                store.persist_session_call(
+                    project_scope,
+                    session,
+                    stream,
+                    payload,
+                    agent_session::now_ms(),
+                )?;
+                Ok(store.storage_path().map_or_else(|| data_dir().to_path_buf(), Path::to_path_buf))
+            },
+        )
     }
-    s.updated_ms = agent_session::now_ms();
-    save_session_scoped(&s, scope)
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (session, stream, payload, scope);
+        None
+    }
 }
 
 /// 执行 save_session_snapshot 操作，并返回调用方需要的结果。

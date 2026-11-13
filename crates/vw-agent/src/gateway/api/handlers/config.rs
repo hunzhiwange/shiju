@@ -56,6 +56,15 @@ pub(crate) fn stateful_router() -> Router<AppState> {
         .route("/config/providers", get(config_providers))
 }
 
+// Keep runtime credentials intact; only redact the public response copy.
+fn wecom_safe_config_value(config: &config::Config) -> Result<Value, serde_json::Error> {
+    let mut public = config.clone();
+    let masked = crate::gateway::api::secrets::mask_sensitive_fields(config);
+    public.channels_config.wecom = masked.channels_config.wecom;
+    public.channels_config.wecom_webhook = masked.channels_config.wecom_webhook;
+    serde_json::to_value(public)
+}
+
 async fn config_get(
     Extension(tenant): Extension<TenantScope>,
     Query(query): Query<InstanceQuery>,
@@ -66,7 +75,7 @@ async fn config_get(
             .await
             .map_err(|error| ApiError::bad_request(error.to_string()))?;
         return Ok(Json(
-            serde_json::to_value(cfg).map_err(|error| ApiError::internal(error.to_string()))?,
+            wecom_safe_config_value(&cfg).map_err(|error| ApiError::internal(error.to_string()))?,
         ));
     }
 
@@ -80,7 +89,7 @@ async fn config_get(
         })
     })
     .await?;
-    Ok(Json(serde_json::to_value(cfg).map_err(|e| ApiError::internal(e.to_string()))?))
+    Ok(Json(wecom_safe_config_value(&cfg).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
 async fn config_patch(
@@ -90,7 +99,7 @@ async fn config_patch(
     Json(patch): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     let (next, _) = apply_config_patch(&tenant, &query, &headers, patch).await?;
-    Ok(Json(serde_json::to_value(next).map_err(|e| ApiError::internal(e.to_string()))?))
+    Ok(Json(wecom_safe_config_value(&next).map_err(|e| ApiError::internal(e.to_string()))?))
 }
 
 async fn config_get_stateful(
@@ -110,7 +119,7 @@ async fn config_patch_stateful(
 ) -> Result<Json<Value>, ApiError> {
     let (next, updates_active_config) =
         apply_config_patch(&tenant, &query, &headers, patch).await?;
-    let response = serde_json::to_value(&next).map_err(|e| ApiError::internal(e.to_string()))?;
+    let response = wecom_safe_config_value(&next).map_err(|e| ApiError::internal(e.to_string()))?;
 
     if updates_active_config {
         state.pairing.update_from_skeys(next.gateway.auth_enabled, &next.gateway.skeys);

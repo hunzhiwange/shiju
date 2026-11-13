@@ -170,3 +170,13 @@ pub(crate) mod aggregation_desktop_record;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod aggregation_lifecycle;
+
+// Exercise production route registration from cross-module acceptance tests.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) fn wecom_acceptance_router(
+    state: AppState,
+    agent: axum::Router<AppState>,
+    assets: axum::Router<AppState>,
+) -> axum::Router<AppState> {
+    bootstrap::client_router(state, agent, assets)
+}

@@ -279,3 +279,6 @@ mod tests;
 #[cfg(test)]
 #[path = "tests/schedule.rs"]
 mod schedule_acceptance_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod wecom_acceptance_tests;

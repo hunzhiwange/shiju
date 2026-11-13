@@ -9,6 +9,7 @@ mod cursor;
 mod dirac;
 mod droid;
 mod gemini;
+mod glm_acp_agent;
 mod goose;
 mod hermes;
 mod iflow;
@@ -42,6 +43,7 @@ pub(super) fn configure(
         "copilot" => copilot::configure(profile, endpoint),
         "cursor" => cursor::configure(profile, endpoint),
         "droid" => droid::configure(profile, endpoint),
+        "glm-acp-agent" => glm_acp_agent::configure(profile, endpoint),
         "dirac" => dirac::configure(profile, endpoint),
         "gemini" => gemini::configure(profile, endpoint),
         "iflow" => iflow::configure(profile, endpoint),
@@ -119,6 +121,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         "vibe" => "3.0.4",
         "hermes" => "0.19.0",
         "codebuddy" => "2.179.3",
+        "glm-acp-agent" => "1.17.1",
         "dirac" => "0.5.24",
         "snow" => "0.9.14",
         "copilot" => "1.0.105",
@@ -141,8 +144,10 @@ fn source_protocol(
         "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "dirac" | "auggie" | "cursor" | "droid" | "codebuddy" | "goose" | "hermes" | "iflow"
-        | "kilocode" | "openclaw" | "pi" | "qoder" | "qwen" | "trae" => P::Chat,
+        "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid" | "codebuddy" | "goose"
+        | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder" | "qwen" | "trae" => {
+            P::Chat
+        }
         "opencode" => crate::model_relay::routing::client_protocol(api)
             .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,
         "snow" | "kimi" => crate::model_relay::routing::configured_api_protocol(api)

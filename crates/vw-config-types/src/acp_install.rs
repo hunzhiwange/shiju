@@ -51,6 +51,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        "glm-acp-agent" => &["install", "-g", "glm-acp-agent@1.17.1"],
         "dirac" => &["install", "-g", "dirac-cli@0.5.24"],
         "dimcode" => &["install", "-g", "dimcode@0.5.28"],
         "deepagents" => &["install", "-g", "deepagents-acp@0.1.42"],

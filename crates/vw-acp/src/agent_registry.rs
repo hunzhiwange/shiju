@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "glm-acp-agent",
+        display_name: "GLM Agent",
+        command: "npx",
+        args: &["-y", "glm-acp-agent@1.17.1"],
+        env: &[],
+        local_command_candidates: &["glm-acp-agent"],
+        local_args: &[],
+    },
+    BuiltInAgentDefinition {
         name: "dirac",
         display_name: "Dirac",
         command: "npx",

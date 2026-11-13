@@ -41,6 +41,28 @@ cargo test -p vw-desktop --test local-speech-system -- --transcribe
 
 遵守共享槽位后使用既有 `scripts/bundle_macos.sh`，`PROFILE=dev`、`MACOS_SIGN_MODE=adhoc`、`PACKAGE_APP=0`、`CREATE_DMG=0`、`MACOS_NOTARIZE=0`。完整包包含正常 `shi-ju`、`vw-webview` 和 `shiju` CLI。若槽位已有包，先保留旧包，再将新包复制到唯一验收目录；不覆盖用户应用，不上传、安装或公证。检查签名、主程序与辅助程序、图标及 `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription`，从复制后的完整包启动。确切路径和本轮构建证据记录于任务19。
 
+## 用途说明诊断与本地启动
+
+授权提示缺少 `NSSpeechRecognitionUsageDescription` 或 `NSMicrophoneUsageDescription` 时，先核对运行进程的可执行路径与对应包的 `Contents/Info.plist`。裸 `cargo run` 或自建临时 `.app` 不保证携带用途说明；仅有目录后缀不能证明它是支持的完整包。门禁会在请求系统授权前明确报错，不能删除门禁绕过。
+
+2026-11-13 只读现场检查：运行中的 `/Applications/ShiJu.app`（`com.rsung.shiju`，0.6.0，20261113.031307，adhoc）具备两项说明；另一个临时 DimCode 验收包（`com.rsung.shiju.dimcode-validation`）两项均缺失，签名显示 `Info.plist=not bound`。这些证据说明临时包不具备语音授权前提，尚不能确认用户截图来自哪个进程。没有关闭、替换或重新授权任一实例。
+
+本地生成并检查完整开发包（入口打印实际槽位；不安装、不发布）：
+
+```sh
+python3 scripts/cargo_slot.py sh -c '
+  MODE=app PROFILE=dev PACKAGE_APP=0 CREATE_DMG=0 INCLUDE_CLI_IN_APP=0 MACOS_SIGN_MODE=adhoc MACOS_NOTARIZE=0 bash scripts/bundle_macos.sh || exit $?
+  app="$CARGO_TARGET_DIR/debug/bundle/osx/ShiJu.app"
+  for key in NSSpeechRecognitionUsageDescription NSMicrophoneUsageDescription CFBundleIdentifier CFBundleShortVersionString; do
+    plutil -extract "$key" raw -o - "$app/Contents/Info.plist" || exit $?
+  done
+  codesign -d --entitlements :- "$app"
+  codesign -d --entitlements :- "$app/Contents/MacOS/vw-webview"
+'
+```
+
+主包仅有 audio-input entitlement；网页 helper 有 camera 与 audio-input。重复打包夹具覆盖旧用途说明并检查两个签名边界；编译和签名替身不能证明真人授权成功。验收时从完整包启动，应用使用槽位产物期间须持续持有槽位入口；不要将异步 `open` 结束误当作应用退出。缺少有效产物或真人授权结果时不得宣称可录音。
+
 ## Cloud 显式路线
 
 选择「云端语音」后才加载租户语音配置、provider和云语音服务凭据。原实时通道、词典和主动屏幕上下文继续按原约束验收，不把这些 Cloud 场景当成本机支持。

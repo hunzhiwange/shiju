@@ -9,7 +9,7 @@ import test_macos_signing
 
 @unittest.skipUnless(Path("/usr/libexec/PlistBuddy").exists(), "Requires macOS plist tools")
 class VoicePackagingTests(unittest.TestCase):
-    def bundle(self, mode, existing_description=False, profile="release"):
+    def bundle(self, mode, existing_description=False, profile="release", rebundle=False):
         fixture = test_macos_signing.MacosSigningTests(methodName="runTest")
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
@@ -31,6 +31,25 @@ class VoicePackagingTests(unittest.TestCase):
                 "<key>NSSpeechRecognitionUsageDescription</key><string>Old network recognition</string>"
                 "<key>CFBundleIconFile</key>",
             ))
+        if rebundle:
+            # Preserve the same bundle on the second cargo-bundle boundary.
+            cargo = fixture.bin / "cargo"
+            cargo.write_text(cargo.read_text().replace(
+                "(app / 'MacOS').mkdir(parents=True)",
+                "(app / 'MacOS').mkdir(parents=True, exist_ok=True)",
+            ).replace("(app / 'Resources').mkdir()",
+                      "(app / 'Resources').mkdir(exist_ok=True)").replace(
+                "(app / 'Info.plist').write_text(",
+                "if not (app / 'Info.plist').exists(): (app / 'Info.plist').write_text(",
+            ))
+            first, _ = fixture.run_bundle()
+            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+            plist = root / "bundle/osx/ShiJu.app/Contents/Info.plist"
+            info = plistlib.loads(plist.read_bytes())
+            info["NSMicrophoneUsageDescription"] = "Old microphone usage"
+            info["NSSpeechRecognitionUsageDescription"] = "Old speech usage"
+            plist.write_bytes(plistlib.dumps(info))
+            fixture.log.write_text("")
         result, calls = fixture.run_bundle()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         # These fixtures must never reach publication or notarization boundaries.
@@ -85,3 +104,17 @@ class VoicePackagingTests(unittest.TestCase):
                     "com.apple.security.device.camera": True,
                     "com.apple.security.device.audio-input": True,
                 })
+
+    def test_voice_bundle_preserves_usage_after_rebundle(self):
+        for mode in ("developer-id", "adhoc"):
+            with self.subTest(mode=mode):
+                info, calls = self.bundle(mode, profile="dev", rebundle=True)
+                self.assertIn("dictation", info["NSMicrophoneUsageDescription"])
+                self.assertIn("on-device", info["NSSpeechRecognitionUsageDescription"])
+                for target, expected in (
+                    ("ShiJu.app", {"com.apple.security.device.audio-input": True}),
+                    ("vw-webview", {"com.apple.security.device.camera": True,
+                                    "com.apple.security.device.audio-input": True}),
+                ):
+                    signing = next(c for c in calls if c[:2] == ["media-signing", target])
+                    self.assertEqual(signing[3], expected)

@@ -352,65 +352,14 @@ where
         });
 
         match execution {
-            Ok(output) => match commit_workspace_changes(&workspace, task) {
-                Ok(Some(commit_sha)) => {
-                    self.append_log(
-                        project_path,
-                        &task.id,
-                        Some(run_id),
-                        add_ms(request.now_ms, 5)?,
-                        None,
-                        None,
-                        format!("local execution committed workspace changes: {commit_sha}"),
-                    )?;
-                    self.complete_running_task(
-                        project_path,
-                        task,
-                        run_id,
-                        request,
-                        &workspace,
-                        output.raw_output,
-                    )
-                }
-                Ok(None) => {
-                    self.append_log(
-                        project_path,
-                        &task.id,
-                        Some(run_id),
-                        add_ms(request.now_ms, 5)?,
-                        None,
-                        None,
-                        "local execution produced no committable workspace changes",
-                    )?;
-                    self.complete_running_task(
-                        project_path,
-                        task,
-                        run_id,
-                        request,
-                        &workspace,
-                        output.raw_output,
-                    )
-                }
-                Err(error) => {
-                    let message = format!("local execution workspace commit failed: {error}");
-                    let failed = self.fail_running_task(
-                        project_path,
-                        task,
-                        run_id,
-                        request,
-                        Some(&workspace),
-                        message.clone(),
-                    )?;
-                    self.executor.recycle_workspace(LocalAgentWorkspaceRecycleRequest {
-                        project_path: project_path.storage_project_path().to_path_buf(),
-                        task_id: task.id.clone(),
-                        run_id: run_id.clone(),
-                        workspace,
-                        taint_reason: message,
-                    })?;
-                    Ok(failed)
-                }
-            },
+            Ok(output) => self.complete_running_task(
+                project_path,
+                task,
+                run_id,
+                request,
+                &workspace,
+                output.raw_output,
+            ),
             Err(error) => {
                 let message = error.to_string();
                 let failed = self.fail_running_task(
@@ -498,7 +447,7 @@ where
         updated_at_ms: TimestampMs,
     ) -> Result<()> {
         if workspace.slot_id.is_none() || workspace.branch.is_none() {
-            bail!("Git workspace metadata is required for legacy submission");
+            return Ok(());
         }
         let mut metadata = object_metadata(task.metadata.clone())?;
         metadata.insert("selected_worktree_slot_id".to_string(), json!(workspace.slot_id.clone()));
@@ -747,30 +696,6 @@ where
         )?;
         Ok(())
     }
-}
-
-fn commit_workspace_changes(
-    workspace: &LocalAgentWorkspace,
-    task: &StoredAgentTask,
-) -> Result<Option<String>> {
-    if workspace.slot_id.is_none() || workspace.branch.is_none() {
-        bail!("Git workspace resource is required for legacy commit");
-    }
-    let workspace_path = Path::new(&workspace.path);
-    if !workspace_path.is_dir() {
-        bail!("workspace path does not exist: {}", workspace.path);
-    }
-
-    run_git_ok(workspace_path, &["rev-parse", "--is-inside-work-tree"])?;
-    run_git_ok(workspace_path, &["add", "-A"])?;
-    if !git_has_staged_changes(workspace_path)? {
-        return Ok(None);
-    }
-
-    let message = format!("task({}): submit local execution result", task.id.as_str());
-    run_git_ok(workspace_path, &["commit", "--no-verify", "-m", &message])?;
-    let output = run_git_ok(workspace_path, &["rev-parse", "--short", "HEAD"])?;
-    Ok(Some(String::from_utf8_lossy(&output.stdout).trim().to_string()))
 }
 
 pub(crate) fn git_has_staged_changes(workspace_path: &Path) -> Result<bool> {

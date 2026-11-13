@@ -1,4 +1,4 @@
-//! 测试本地运行器的任务图约束、工作树租约、执行结果与提交收尾。
+//! 测试本地运行器的任务图约束、工作树租约、执行结果与产物归档。
 //! 可控执行器制造无变更、失败和工作区错误，确认运行记录与资源回收同步。
 
 use anyhow::Result;
@@ -54,16 +54,15 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     assert_eq!(outcome.run.status, AgentRunStatus::Succeeded);
 
     let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert_eq!(logs.len(), 7);
+    assert_eq!(logs.len(), 6);
     assert_eq!(logs[0].from_status, Some(AgentTaskStatus::Queued));
     assert_eq!(logs[0].to_status, Some(AgentTaskStatus::Assigned));
     assert_eq!(logs[1].to_status, Some(AgentTaskStatus::Dispatched));
     assert_eq!(logs[2].to_status, Some(AgentTaskStatus::Acknowledged));
     assert_eq!(logs[3].to_status, Some(AgentTaskStatus::Running));
     assert!(logs[4].message.contains("local worktree lease recorded"));
-    assert!(logs[5].message.contains("local execution committed workspace changes"));
-    assert_eq!(logs[6].to_status, Some(AgentTaskStatus::Submitted));
-    assert_eq!(logs[6].message, "local execution submitted result");
+    assert_eq!(logs[5].to_status, Some(AgentTaskStatus::Submitted));
+    assert_eq!(logs[5].message, "local execution submitted result");
 
     let artifacts = store.list_task_artifacts(&project_path, &task_id)?;
     assert_eq!(artifacts.len(), 2);
@@ -80,11 +79,8 @@ fn local_runner_success_leaves_finite_task_submitted_until_merge() -> Result<()>
     assert_eq!(workspace.workspace.slot_id, "local-slot");
     assert_eq!(workspace.workspace.branch, "codex/task-local-runner-1");
     let workspace_path = Path::new(&workspace.workspace.path);
-    assert_eq!(run_git(workspace_path, &["status", "--short"])?, "");
-    assert_eq!(
-        run_git(workspace_path, &["log", "-1", "--format=%s"])?,
-        "task(task-local-runner-1): submit local execution result"
-    );
+    assert_eq!(run_git(workspace_path, &["status", "--short"])?, "?? agent-output.txt");
+    assert_eq!(run_git(workspace_path, &["log", "-1", "--format=%s"])?, "initial");
     let task = store.load_task(&project_path, &task_id)?.expect("task persists after policy");
     assert_eq!(task.status, AgentTaskStatus::Submitted);
     assert_eq!(task.metadata["task_board.status_key"], "code_complete");
@@ -269,7 +265,7 @@ fn local_agent_runner_executes_with_leased_workspace() -> Result<()> {
 }
 
 #[test]
-fn local_runner_success_logs_when_workspace_has_no_committable_changes() -> Result<()> {
+fn local_runner_success_archives_result_without_workspace_changes() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-local-runner-no-changes");
     std::fs::create_dir_all(&project_path)?;
@@ -292,11 +288,6 @@ fn local_runner_success_logs_when_workspace_has_no_committable_changes() -> Resu
     assert_eq!(task.status, AgentTaskStatus::Submitted);
 
     let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert!(
-        logs.iter().any(|log| {
-            log.message == "local execution produced no committable workspace changes"
-        })
-    );
     assert!(logs.iter().any(|log| log.message == "local execution submitted result"));
 
     let workspace = store
@@ -476,7 +467,7 @@ fn local_runner_finish_started_run_handles_missing_non_finite_and_non_running_ta
 }
 
 #[test]
-fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace() -> Result<()> {
+fn local_runner_success_does_not_inspect_workspace_after_execution() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-local-runner-commit-failure");
     std::fs::create_dir_all(&project_path)?;
@@ -495,18 +486,9 @@ fn local_runner_fails_and_recycles_workspace_when_commit_cannot_read_workspace()
         )?
         .expect("commit failure still records run");
 
-    assert_eq!(outcome.run.status, AgentRunStatus::Failed);
-    assert!(
-        outcome
-            .run
-            .error_message
-            .as_deref()
-            .is_some_and(|message| message.contains("workspace path does not exist"))
-    );
-    let recycled = executor.recycled.lock().expect("recycled lock");
-    assert_eq!(recycled.len(), 1);
-    assert!(recycled[0].taint_reason.contains("workspace path does not exist"));
-    assert_eq!(recycled[0].workspace.slot_id.as_deref(), Some("missing-slot"));
+    assert_eq!(outcome.run.status, AgentRunStatus::Succeeded);
+    assert!(outcome.run.error_message.is_none());
+    assert!(executor.recycled.lock().expect("recycled lock").is_empty());
 
     Ok(())
 }
@@ -808,5 +790,93 @@ fn task_pool_workspace_records_directory_artifact_without_git_slot() -> Result<(
     assert_eq!(artifact.payload["path"], project_path.canonicalize()?.to_string_lossy().as_ref());
     assert!(store.load_run_workspace_context(&project_path, &outcome.run.id)?.is_none());
     assert!(!project_path.join(".git").exists());
+    Ok(())
+}
+
+struct ResultExecutor {
+    fail: bool,
+}
+
+impl LocalAgentExecutor for ResultExecutor {
+    fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
+        Ok(LocalAgentWorkspace {
+            path: request.project_path.to_string_lossy().into_owned(),
+            slot_id: None,
+            branch: None,
+        })
+    }
+
+    fn execute(&self, request: LocalAgentExecutionRequest) -> Result<LocalAgentExecutionOutput> {
+        std::fs::write(Path::new(&request.workspace.path).join("generated.txt"), "agent artifact")?;
+        if self.fail {
+            anyhow::bail!("execution failed after writing artifact");
+        }
+        Ok(LocalAgentExecutionOutput { raw_output: "finished".into() })
+    }
+}
+
+fn run_result_task(path: &Path, fail: bool) -> Result<()> {
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("task-result")?;
+    store.initialize_project(path)?;
+    store.create_task(path, finite_task(&task_id)?)?;
+    let outcome = LocalAgentRunner::new(&store, &ResultExecutor { fail })
+        .run_once(
+            path,
+            LocalAgentRunnerRequest { task_id: task_id.clone(), now_ms: TimestampMs(1000) },
+        )?
+        .expect("task ran");
+    assert_eq!(
+        outcome.run.status,
+        if fail { AgentRunStatus::Failed } else { AgentRunStatus::Succeeded }
+    );
+    let artifact = store
+        .list_task_artifacts(path, &task_id)?
+        .into_iter()
+        .find(|artifact| artifact.kind == "execution_result")
+        .expect("execution result archived");
+    assert_eq!(artifact.payload["success"], !fail);
+    if fail {
+        assert!(outcome.run.error_message.as_deref().unwrap().contains("execution failed"));
+    } else {
+        assert_eq!(artifact.payload["output"], "finished");
+    }
+    assert_eq!(std::fs::read_to_string(path.join("generated.txt"))?, "agent artifact");
+    Ok(())
+}
+
+#[test]
+fn task_pool_result_non_git_execution_succeeds() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    run_result_task(directory.path(), false)?;
+    assert!(!directory.path().join(".git").exists());
+    Ok(())
+}
+
+#[test]
+fn task_pool_result_success_does_not_stage_or_commit() -> Result<()> {
+    assert_result_preserves_git(false)
+}
+
+#[test]
+fn task_pool_result_failure_keeps_artifacts_without_git_cleanup() -> Result<()> {
+    assert_result_preserves_git(true)
+}
+
+fn assert_result_preserves_git(fail: bool) -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path();
+    prepare_git_workspace(path, "test-result")?;
+    std::fs::write(path.join("user.txt"), "staged")?;
+    run_git(path, &["add", "user.txt"])?;
+    std::fs::write(path.join("user.txt"), "unstaged")?;
+    std::fs::write(path.join("unrelated.txt"), "untracked")?;
+    let head = run_git(path, &["rev-parse", "HEAD"])?;
+    let index = run_git(path, &["write-tree"])?;
+    run_result_task(path, fail)?;
+    assert_eq!(run_git(path, &["rev-parse", "HEAD"])?, head);
+    assert_eq!(run_git(path, &["write-tree"])?, index);
+    assert_eq!(std::fs::read_to_string(path.join("user.txt"))?, "unstaged");
+    assert_eq!(std::fs::read_to_string(path.join("unrelated.txt"))?, "untracked");
     Ok(())
 }

@@ -60,8 +60,25 @@ class RelaxDevTests(unittest.TestCase):
             self.assertEqual(env['MAKEPAD_RUN_STD'], '/tool/source/libs/relax/compiler/std')
             chdir.assert_called_once_with(Path('/run'))
 
+    def test_macos_bundle_has_independent_identity_and_updates_runner(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / 'runner'
+            source.write_bytes(b'first runner')
+            source.chmod(0o755)
+            with patch.object(dev, 'STATE', root / 'state'):
+                executable = dev.desktop_bundle(source)
+                info = dev.plistlib.loads((executable.parents[1] / 'Info.plist').read_bytes())
+                self.assertTrue(info['CFBundleIdentifier'].startswith('cloud.shiju.relax-dev.'))
+                self.assertEqual(info['CFBundleExecutable'], executable.name)
+                self.assertEqual(executable.read_bytes(), b'first runner')
+                self.assertTrue(executable.stat().st_mode & 0o111)
+                source.write_bytes(b'updated runner')
+                self.assertEqual(dev.desktop_bundle(source).read_bytes(), b'updated runner')
+
     def test_desktop_launch_uses_actual_binary_name(self):
         with patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
+                patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[1][-3:], ['vw-desktop', '--bin', 'shi-ju'])

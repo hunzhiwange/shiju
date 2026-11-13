@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import re
 import shutil
 import subprocess
@@ -140,6 +141,31 @@ def prepare_vendor(vendor):
             'files': files, 'package': checksums[(package['name'], package['version'])]}))
 
 
+def desktop_bundle(binary):
+    """Give macOS a real app identity while retaining the invoking terminal's env."""
+    app = STATE / 'ShiJu Relax Dev.app'
+    contents = app / 'Contents'
+    macos = contents / 'MacOS'
+    macos.mkdir(parents=True, exist_ok=True)
+    executable = macos / 'shi-ju'
+    if not executable.exists() or digest(executable) != digest(binary):
+        temporary = macos / 'shi-ju.new'
+        shutil.copy2(binary, temporary)
+        os.replace(temporary, executable)
+    identity = hashlib.sha256(str(ROOT).encode()).hexdigest()[:12]
+    info = {
+        'CFBundleIdentifier': 'cloud.shiju.relax-dev.' + identity,
+        'CFBundleName': 'ShiJu Relax Dev',
+        'CFBundleDisplayName': 'ShiJu Relax Dev',
+        'CFBundleExecutable': 'shi-ju',
+        'CFBundlePackageType': 'APPL',
+        'CFBundleVersion': '1',
+        'NSHighResolutionCapable': True,
+    }
+    (contents / 'Info.plist').write_bytes(plistlib.dumps(info))
+    return executable
+
+
 def main(argv):
     if not argv or argv[0] not in ('setup', 'desktop', 'gateway'):
         print('用法: python3 scripts/relax_dev.py {setup|desktop|gateway} [程序参数...]')
@@ -148,6 +174,8 @@ def main(argv):
     if argv[0] == 'setup':
         print('Relax 已就绪：cargo dev-desktop / cargo dev-gateway；保存函数体即可热更新。')
         return 0
+    if argv[0] == 'desktop' and platform.system() == 'Darwin':
+        binary = desktop_bundle(binary)
     package, name = ('vw-desktop', 'shi-ju') if argv[0] == 'desktop' else ('vw-cli', 'shiju')
     args = [str(binary), 'run', '--verbose', '--allow-c', '--cfg', 'debug_assertions',
             package, '--bin', name]

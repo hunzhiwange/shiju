@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-13",
+  "scope": "rerun exact cargo dev-gateway and cargo dev-desktop with normal configuration",
+  "gateway": {
+    "http_status": 200,
+    "status": "ok",
+    "pid": 26924,
+    "build_id": "934974d77427927d96cb51c3c84f805c87bb152baf40f987e2d3e2a8e9cb579b",
+    "port": 42617
+  },
+  "desktop": {
+    "pid": 67048,
+    "macos_app_bundle": ".cache/relax-dev/ShiJu Relax Dev.app",
+    "bundle_identity": "independent per checkout",
+    "accessibility_app": "ShiJu Relax Dev",
+    "accessibility_window": "识矩 - 项目",
+    "cua_window_and_screenshot_observed": true
+  },
+  "fix": "Run macOS desktop from an actual .app executable with separate application identity; preserve terminal environment and direct process lifecycle",
+  "tests": {
+    "focused_script_tests": 6,
+    "clippy_log": "/tmp/shiju-relax-startup-clippy.log"
+  },
+  "remaining_limits": [
+    "Background dependency diagnostics remain; no claim that all displayed compatibility errors are fixed",
+    "Existing unbundled desktop entered native event loop without a parked panic; that alone did not verify desktop usability",
+    "No model message or full feature validation in this round"
+  ],
+  "processes": "gateway and bundled desktop left running for user inspection"
+}

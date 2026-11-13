@@ -3,7 +3,6 @@ use super::{
     App, Icon, Message, overlay_icon_button_style, preview_control_tooltip, small_icon_svg,
 };
 use crate::app::components::overlays::PointBelowOverlay;
-use crate::app::components::system_settings_common::rounded_action_btn_style;
 use crate::app::message::editor::{EditorMessage, EditorPopover};
 use iced::widget::scrollable;
 use iced::widget::{button, column, container, row, text};
@@ -56,22 +55,11 @@ pub(super) fn tools(app: &App) -> Element<'_, Message> {
     tools.into()
 }
 
-fn action<'a>(app: &'a App, label: &'static str, message: EditorMessage) -> Element<'a, Message> {
-    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(label)).size(12))
-        .padding([6, 10])
-        .width(Length::Fill)
-        .style(rounded_action_btn_style)
-        .on_press(Message::Editor(message))
-        .into()
-}
-
 fn panel(app: &App, kind: EditorPopover) -> Element<'_, Message> {
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let content: Element<'_, Message> = match kind {
         EditorPopover::Actions => super::editor_actions::view(app),
-        EditorPopover::Settings => {
-            column![action(app, "完整编辑器设置", EditorMessage::ToggleSettings)].into()
-        }
+        EditorPopover::Settings => super::editor_options::view(app),
         EditorPopover::Help => column![
             text(i18n.__("帮助")).size(14),
             text(i18n.__("搜索")).size(12),

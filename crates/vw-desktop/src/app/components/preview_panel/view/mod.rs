@@ -3,6 +3,10 @@
 //! 本模块负责预览内容、菜单、面包屑、LSP 标识或浮层宿主的局部构建。
 
 mod content;
+mod editor_popovers;
+#[cfg(test)]
+#[path = "editor_popovers_tests.rs"]
+mod editor_popovers_tests;
 /// header_tabs 子模块承载当前组件的一部分独立职责。
 mod header_tabs;
 /// menus 子模块承载当前组件的一部分独立职责。
@@ -145,17 +149,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         };
 
         let trace_row = if app.active_preview_path.is_some() {
-            let settings = preview_control_tooltip(
-                button(
-                    small_icon_svg(Icon::Gear).style(|theme, _status| fullscreen_icon_style(theme)),
-                )
-                .padding(4)
-                .style(overlay_icon_button_style)
-                .on_press(Message::Editor(message::EditorMessage::ToggleSettings))
-                .into(),
-                crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器设置"),
-            );
-            trace_row.push(Space::new().width(Length::Fill)).push(settings)
+            trace_row.push(Space::new().width(Length::Fill)).push(editor_popovers::tools(app))
         } else {
             trace_row
         };

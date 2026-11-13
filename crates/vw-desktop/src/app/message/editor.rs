@@ -18,11 +18,21 @@ pub(crate) mod persistence;
 
 use persistence::EditorSettingsPatch;
 
+/// 当前文件外围面板；单一状态保证操作、设置与帮助互斥。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditorPopover {
+    Actions,
+    Settings,
+    Help,
+}
+
 /// 编辑器消息枚举
 ///
 /// 定义了编辑器支持的所有交互消息类型，用于处理用户操作和状态变更。
 #[derive(Debug, Clone)]
 pub enum EditorMessage {
+    TogglePopover(EditorPopover),
+    ClosePopover,
     /// 切换设置面板显示状态
     ToggleSettings,
 
@@ -120,7 +130,43 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
     {
         return Task::none();
     }
+    if !matches!(message, EditorMessage::TogglePopover(_) | EditorMessage::ClosePopover) {
+        app.editor_popover = None;
+    }
     match message {
+        EditorMessage::TogglePopover(kind) => {
+            let has_file = app
+                .active_preview_path
+                .as_ref()
+                .is_some_and(|path| app.preview_tabs.iter().any(|tab| tab.path == *path));
+            app.editor_popover =
+                if has_file && app.editor_popover != Some(kind) { Some(kind) } else { None };
+            app.show_preview_context_menu = false;
+            app.preview_nav_popup = None;
+            app.show_preview_settings = false;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.lsp_overlay.hover_visible = false;
+                app.lsp_overlay.completion_visible = false;
+                app.lsp_overlay_path = None;
+            }
+            if let Some(path) = app.active_preview_path.as_ref()
+                && let Some(tab) = app.preview_tabs.iter_mut().find(|tab| tab.path == *path)
+            {
+                return tab
+                    .editor
+                    .inner
+                    .update(&iced_code_editor::Message::CloseCommandPalette)
+                    .map(|event| {
+                        Message::Preview(crate::app::message::PreviewMessage::EditorEvent(event))
+                    });
+            }
+            Task::none()
+        }
+        EditorMessage::ClosePopover => {
+            app.editor_popover = None;
+            Task::none()
+        }
         // 切换预览设置面板的显示/隐藏状态
         EditorMessage::ToggleSettings => {
             app.show_preview_settings = !app.show_preview_settings;

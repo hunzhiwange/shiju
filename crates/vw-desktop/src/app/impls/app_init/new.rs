@@ -1567,6 +1567,7 @@ impl App {
             error_message: None,
             localized_input_errors: Default::default(),
             show_preview_settings: false,
+            editor_popover: None,
             show_preview_fullscreen_overlay: false,
 
             // ========== 编辑器设置 ==========

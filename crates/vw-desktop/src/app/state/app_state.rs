@@ -1109,6 +1109,7 @@ pub struct App {
     pub cursor_position: Point,
     /// 是否显示预览设置
     pub(crate) show_preview_settings: bool,
+    pub(crate) editor_popover: Option<crate::app::message::editor::EditorPopover>,
     /// 是否显示预览右上角全屏浮动控件
     pub(crate) show_preview_fullscreen_overlay: bool,
     /// 当前字体大小

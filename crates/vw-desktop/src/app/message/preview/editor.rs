@@ -283,6 +283,9 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
 pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
     match message {
         PreviewMessage::EditorEvent(evt) => {
+            if matches!(evt, iced_code_editor::Message::OpenCommandPalette) {
+                app.editor_popover = None;
+            }
             if app.active_preview_path.as_ref().is_some_and(|path| {
                 app.preview_tabs.iter().any(|tab| tab.path == *path && tab.read_only)
             }) && (editor_message_may_change_content(&evt)
@@ -537,6 +540,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
 
         // 打开上下文菜单（右键菜单）
         PreviewMessage::ContextMenuOpenForActiveEditor(x, y) => {
+            app.editor_popover = None;
             if let Some(path) = app.active_preview_path.clone() {
                 super::dismiss_preview_popup_menus(app);
                 app.git_diff_context_menu = None;

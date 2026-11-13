@@ -168,6 +168,18 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             .chain(crate::app::message::after(std::time::Duration::from_millis(24), goto_msg))
     }
 
+    if matches!(
+        message,
+        PreviewMessage::Select(_)
+            | PreviewMessage::Close(_)
+            | PreviewMessage::Open(_)
+            | PreviewMessage::OpenLoaded { .. }
+            | PreviewMessage::TabMenuCloseLeft(_)
+            | PreviewMessage::TabMenuCloseRight(_)
+            | PreviewMessage::TabMenuCloseAll
+    ) {
+        app.editor_popover = None;
+    }
     match message {
         PreviewMessage::Open(path) => {
             let path_clone = path.clone();

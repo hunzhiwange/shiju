@@ -595,6 +595,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         modal_content.into()
     };
 
+    dialog = super::system_settings_channels::view_overlays(app, dialog);
+
     if active_tab == SystemTab::Worktrees {
         dialog = super::system_settings_worktrees::view_overlays(app, dialog);
     }

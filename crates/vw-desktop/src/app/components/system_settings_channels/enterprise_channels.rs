@@ -21,7 +21,7 @@ use super::common::{
     pick_row, pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
 
-fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
+pub(super) fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
     let flow = &app.channels_settings.qr_flow;
     let is_current = flow.channel.as_deref() == Some(channel);
     let mut content = column![
@@ -661,41 +661,39 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
-    let s = &app.channels_settings;
-    let body: Element<'_, Message> = if let Some(cfg) = s.wecom.as_ref() {
-        column![
-            qr_authorization(app, "wecom"),
-            default_project_selector(app, "wecom:default".into()),
-            text_row(
-                app,
-                "bot_id",
-                tr(app.desktop_locale, "企业微信 Bot ID"),
-                &cfg.bot_id,
-                "wecom.bot_id",
-                false
+    use crate::app::state::WeComDeliveryMode;
+    let mut body = column![
+        text(if app.channels_settings.wecom.is_some() {
+            "智能机器人：已配置"
+        } else {
+            "智能机器人：未配置"
+        })
+        .size(13),
+        text(if app.channels_settings.wecom_webhook.is_some() {
+            "群机器人：已配置"
+        } else {
+            "群机器人：未配置"
+        })
+        .size(13),
+    ]
+    .spacing(12);
+    for (mode, label) in [
+        (WeComDeliveryMode::Qr, "扫码连接智能机器人"),
+        (WeComDeliveryMode::Manual, "手动连接智能机器人"),
+        (WeComDeliveryMode::Webhook, "配置群机器人 Webhook"),
+    ] {
+        body = body.push(
+            button(text(label)).padding([8, 12]).style(rounded_action_btn_style).on_press(
+                Message::Settings(SettingsMessage::Channels(ChannelsMessage::WeComDeliveryOpened(
+                    mode,
+                ))),
             ),
-            text_row(
-                app,
-                "secret",
-                tr(app.desktop_locale, "企业微信 Secret"),
-                &cfg.secret,
-                "wecom.secret",
-                true
-            ),
-        ]
-        .spacing(12)
-        .into()
-    } else {
-        column![].into()
-    };
-    panel(
-        app,
-        "wecom",
-        tr(app.desktop_locale, "企业微信"),
-        tr(app.desktop_locale, "企业微信 AI 机器人长连接凭据。"),
-        s.wecom.is_some(),
-        body,
-    )
+        );
+    }
+    if app.channels_settings.wecom.is_some() {
+        body = body.push(default_project_selector(app, "wecom:default".into()));
+    }
+    settings_group_card(container(body).padding([14, 0])).into()
 }
 
 pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {

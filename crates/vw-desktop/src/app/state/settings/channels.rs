@@ -5,6 +5,32 @@
 
 use super::*;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum WeComDeliveryMode {
+    #[default]
+    Qr,
+    Manual,
+    Webhook,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct WeComDeliveryDraft {
+    pub(crate) mode: WeComDeliveryMode,
+    pub(crate) bot_id: String,
+    pub(crate) secret: String,
+    pub(crate) webhook_url: String,
+    pub(crate) clear_secret: bool,
+    pub(crate) clear_webhook: bool,
+    pub(crate) saving: bool,
+    pub(crate) error: Option<String>,
+}
+
+impl std::fmt::Debug for WeComDeliveryDraft {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WeComDeliveryDraft").field("mode", &self.mode).finish_non_exhaustive()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ChannelQrFlowState {
     pub(crate) channel: Option<String>,
@@ -218,6 +244,7 @@ pub(crate) struct ChannelsSettingsState {
     pub(crate) active_tab: ChannelsSettingsTab,
     pub(crate) save_error: Option<String>,
     pub(crate) qr_flow: ChannelQrFlowState,
+    pub(crate) wecom_delivery: Option<WeComDeliveryDraft>,
 }
 
 impl Default for ChannelsSettingsState {
@@ -268,6 +295,7 @@ impl Default for ChannelsSettingsState {
             active_tab: ChannelsSettingsTab::Global,
             save_error: None,
             qr_flow: ChannelQrFlowState::default(),
+            wecom_delivery: None,
         }
     }
 }

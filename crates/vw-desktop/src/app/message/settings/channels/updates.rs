@@ -87,6 +87,16 @@ fn fill_confirmed_credentials(
     channel: &str,
     credentials: &Map<String, Value>,
 ) -> Result<(), String> {
+    if channel == "wecom" {
+        if let Some(draft) = app.channels_settings.wecom_delivery.as_mut() {
+            let bot_id = credential(credentials, "bot_id")?;
+            let secret = credential(credentials, "secret")?;
+            draft.bot_id = bot_id;
+            draft.secret = secret;
+            draft.clear_secret = false;
+            return Ok(());
+        }
+    }
     match channel {
         "dingtalk" => {
             let cfg = app
@@ -143,6 +153,14 @@ fn fill_confirmed_credentials(
     Ok(())
 }
 
+fn finish_qr(app: &mut App, status: ChannelQrStatusDto) {
+    app.channels_settings.qr_flow.close();
+    if app.channels_settings.wecom_delivery.is_some() {
+        app.channels_settings.qr_flow.channel = Some("wecom".into());
+        app.channels_settings.qr_flow.status = Some(status);
+    }
+}
+
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
@@ -169,6 +187,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         app.channels_settings.invalidate_project_choices();
     }
     let task = match message {
+        message @ (ChannelsMessage::WeComDeliveryOpened(_)
+        | ChannelsMessage::WeComDeliveryClosed
+        | ChannelsMessage::WeComDeliveryChanged(_, _)
+        | ChannelsMessage::WeComDeliveryClearSecret
+        | ChannelsMessage::WeComDeliverySave
+        | ChannelsMessage::WeComDeliverySaved(_)) => super::wecom_delivery::update(app, message),
         ChannelsMessage::ExecutionChoicesRequested(instance) => {
             super::execution::load(app, instance)
         }
@@ -331,7 +355,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                 }
                 Err(error) => {
-                    app.channels_settings.qr_flow.close();
+                    finish_qr(app, ChannelQrStatusDto::Failed);
                     app.show_localized_toast(
                         crate::app::state::ToastKind::Error,
                         "获取二维码失败：%s",
@@ -397,7 +421,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         }
                     }
                     ChannelQrStatusDto::Expired => {
-                        app.channels_settings.qr_flow.close();
+                        finish_qr(app, ChannelQrStatusDto::Expired);
                         app.show_localized_toast(
                             crate::app::state::ToastKind::Warning,
                             "二维码已过期，请重新获取",
@@ -406,7 +430,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                     ChannelQrStatusDto::Failed => {
                         if app.channels_settings.qr_flow.scan_observed {
-                            app.channels_settings.qr_flow.close();
+                            finish_qr(app, ChannelQrStatusDto::Failed);
                             app.show_localized_toast(
                                 crate::app::state::ToastKind::Error,
                                 "扫码授权失败，请重新获取",
@@ -421,6 +445,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 },
                 Err(_) => schedule_qr_poll(channel, generation, Duration::from_secs(2)),
             }
+        }
+        ChannelsMessage::QrClosed if app.channels_settings.wecom_delivery.is_some() => {
+            super::wecom_delivery::update(app, ChannelsMessage::WeComDeliveryClosed)
+        }
+        ChannelsMessage::QrSaveConfirmed if app.channels_settings.wecom_delivery.is_some() => {
+            super::wecom_delivery::update(app, ChannelsMessage::WeComDeliverySave)
         }
         ChannelsMessage::QrClosed => {
             app.channels_settings.qr_flow.close();

@@ -6,10 +6,14 @@
 mod basic_channels;
 mod common;
 mod enterprise_channels;
+pub(crate) mod wecom_delivery_modal;
+pub(crate) use wecom_delivery_modal::view_overlays;
 mod execution;
 #[cfg(test)]
 mod execution_tests;
 mod extended_channels;
+#[cfg(test)]
+mod wecom_delivery_modal_tests;
 
 #[cfg(test)]
 mod basic_channels_tests;

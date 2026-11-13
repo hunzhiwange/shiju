@@ -7,6 +7,7 @@ pub(crate) mod persist;
 mod projects;
 mod toggles;
 mod updates;
+mod wecom_delivery;
 
 use crate::app::{App, Message};
 use iced::Task;

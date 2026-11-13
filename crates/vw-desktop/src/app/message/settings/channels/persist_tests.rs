@@ -62,3 +62,17 @@ fn channel_execution_settings_preserve_agent_and_model() {
     assert_eq!(config.instance_execution["wechat:default"], binding);
     config.validate_instance_execution().unwrap();
 }
+
+#[test]
+fn wecom_delivery_modal_persist_keeps_independent_webhook_and_mask() {
+    let mut settings = ChannelsSettingsState::default();
+    settings.wecom_webhook =
+        Some(vw_config_types::channels::WeComWebhookConfig { webhook_url: "***MASKED***".into() });
+    let config = build_channels_config_from_settings(&settings).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("channels.json");
+    std::fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let loaded: ChannelsConfig = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert!(loaded.wecom.is_none());
+    assert_eq!(loaded.wecom_webhook.unwrap().webhook_url, "***MASKED***");
+}

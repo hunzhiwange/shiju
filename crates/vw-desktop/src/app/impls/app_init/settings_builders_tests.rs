@@ -8,3 +8,17 @@ fn channel_default_project_reload_restores_bindings() {
     let settings = super::build_channels_settings(&loaded);
     assert_eq!(settings.instance_default_projects, config.instance_default_projects);
 }
+
+#[test]
+fn wecom_delivery_modal_loads_independent_webhook_without_prefilled_draft() {
+    let cfg = vw_config_types::channels::ChannelsConfig {
+        wecom_webhook: Some(vw_config_types::channels::WeComWebhookConfig {
+            webhook_url: "***MASKED***".into(),
+        }),
+        ..Default::default()
+    };
+    let settings = super::build_channels_settings(&cfg);
+    assert!(settings.wecom.is_none());
+    assert_eq!(settings.wecom_webhook.unwrap().webhook_url, "***MASKED***");
+    assert!(settings.wecom_delivery.is_none());
+}

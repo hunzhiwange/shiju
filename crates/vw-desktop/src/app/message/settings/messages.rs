@@ -309,6 +309,12 @@ pub enum ChannelsMessage {
     BoolToggled(String, bool),
     NumberChanged(String, u32),
     ReceiveModeChanged(String, String),
+    WeComDeliveryOpened(crate::app::state::WeComDeliveryMode),
+    WeComDeliveryClosed,
+    WeComDeliveryChanged(String, String),
+    WeComDeliveryClearSecret,
+    WeComDeliverySave,
+    WeComDeliverySaved(Result<(), String>),
     QrRequested(String),
     QrFetched {
         channel: String,

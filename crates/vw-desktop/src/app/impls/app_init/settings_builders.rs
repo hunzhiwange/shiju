@@ -56,6 +56,7 @@ pub(super) fn build_channels_settings(
         active_tab: super::state::ChannelsSettingsTab::Global,
         save_error: None,
         qr_flow: Default::default(),
+        wecom_delivery: None,
     };
     channels_settings.refresh_text_inputs();
     channels_settings

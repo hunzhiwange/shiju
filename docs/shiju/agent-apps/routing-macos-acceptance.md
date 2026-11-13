@@ -908,3 +908,35 @@ SDK 与网关共 **6 项通过，0 失败**。网关链接报告既有 macOS `__
 槽位4两个绝对目录相同：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`，`CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。红灯、绿灯及 Clippy 前台进程已退出，入口释放自有锁，保留缓存。后续聚合标识兼容复验结果补于下方。
 
 最终复验：一次 `python3 scripts/cargo_slot.py sh -c '... cargo test -p vw-agent-apps --lib cc_route_032_ -- --nocapture && cargo test -p vw-agent-apps --lib aggregation_t04_ -- --nocapture'`，槽位3，退出0；本项6项再次通过，既有聚合标识4项通过，0失败/忽略。两个绝对目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；命令完成后入口释放锁，保留缓存。总计10个不同用例通过，任务32状态为已完成。仅本项源码及证据提交，不修改只读 plan.md；任务卡按约定删除，建议下一步执行后续协议任务并验收对应 HTTP 请求链。
+
+## 任务 33：解析分片 SSE 与 UTF-8（2026-11-14）
+
+macOS 27.0（26A428）、arm64 自动验收。直接依赖任务32的 `abd4c7575`；复用已有授权运行时、执行主机/应用作用域、公共传输及配置/账号合同，不新增这些母能力。Windows/Linux/WSL 未构建、未验证。
+
+### 来源与实现范围
+
+读取冻结 upstream 的 `proxy/sse.rs`、`json_canonical.rs`，以及 forwarder 的流首帧检查、streaming_codex_chat 的调用和相邻测试。与 cc-switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 Git 对象核对：SSE SHA256 为 `f77b3a47511c891eb4dcd6673725826f2472782487877c922eb782998f92f2f7`，JSON 为 `c02077c1c330af29d41ee9b63e7d90424894f92d839e2d06a8bbdbb534b4b68b`。
+
+- `model_relay::sse_framing::Lines` 由公共 `StreamObserver` 与 Messages、Responses、Gemini、原生到 Chat 转换器共同使用，替换重复行扫描。字节残片保留至完整行后再解码，支持跨任意字节切分的中文/四字节字符、起始 BOM、LF/CRLF 和混合分隔符；非法 UTF-8、嵌入裸 CR 明确拒绝。保留4MiB行/pending及事件上限，不读取凭据或执行工具。
+- `sse_framing::resident_body` 接入真实 `dispatch::forward_json` 的 SSE 数据面，在 EOF 为尾块补分隔符，再由原协议观察器或转换器验证。常驻来源允许缺少空行的尾块，但绝不将 EOF 当作协议完成；缺少 Chat `[DONE]` 或其他协议终帧仍失败。旧会话不调用这个尾块适配入口，保留其完整分隔符策略。
+- 仅规范化 SSE 行边界，不修改 JSON 数据或工具参数；没有引入来源中将空参数强制改为 `{}` 的行为，避免改变语义。既有身份校验、字段策略和模型映射保持原调用链。
+
+### 红灯、绿灯与检查
+
+初始标准 Cargo 聚焦构建因耗时且测试断言补强后已过时而主动结束，退出1、0项运行，不作为行为红灯。另用原生产 StreamObserver 的帧校验代码构建独立原生探针（仅移除 HTTP body 包装、以同名四变体枚举提供协议类型），对起始 BOM 的同一文本事件断言实际失败：split 0，期望1、实际0，1项运行、退出101。该探针只证明局部基线缺陷，不冒充完整 crate 验收。修复后隔离原生入口4项通过，包含真实回环 HTTP；最终以以下仓库原生结果为准。
+
+同一入口 `python3 scripts/cargo_slot.py python3 /tmp/shiju033-validate.py` 动态领取槽位4；`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。
+
+| 验证 | 结果 |
+| --- | --- |
+| `cargo fmt --all -- --emit stdout`，本次9个 Rust 文件另外用 `rustfmt --edition 2024 --config skip_children=true` 写回；`git diff --check` | 退出0；全仓输出模式避免改写其他会话文件 |
+| `cargo test -p vw-agent --lib cc_route_033_ -- --nocapture` | 退出0，4项通过、0失败/忽略；覆盖每个字节切分点、UTF-8/BOM/CRLF、pending上限、非法编码、四协议合法尾块/缺失终帧、工具JSON保真及真实有限回环HTTP |
+| `target/rust-slot-4/debug/deps/vw_agent-346fac923f6b2351 shared_stream_observer_ --nocapture` | 退出0，4项通过；覆盖四协议分片、非法终帧/模型变化、生产body原字节/取消及原生转换器客户端模型映射 |
+
+原生测试链接报告既有 macOS `__eh_frame` 超过16MiB的链接器警告，不影响上述8个不同测试的结果。额外 Cargo 观察器回归因共享工作区其他源码更新触发重复重编译，主动仅结束自有 rustc，退出101、0项运行；以上直接运行刚生成二进制的4项结果替代该冗余构建，不伪称被中断命令通过。
+
+`cargo clippy --all-targets --all-features -- -D warnings` 实际执行并退出101。既有桌面编辑器与当前 iced-code-editor v0.5.3 接口不一致：`preview_panel/view/editor_options.rs:34` 调用不存在的 `wrap_column`，`app/message/editor.rs:276` 调用不存在的 `set_wrap_column`；`editor_options_tests.rs:153` 起另有7个同类 E0599。生产库共2个、测试目标共9个诊断，无本项文件诊断；不修复或提交这些无关变更。
+
+本项状态为 **待回归**，保留任务33卡。恢复条件：桌面编辑器所有者对齐依赖接口后，动态领取共享槽位，重新执行上述整仓 Clippy；若解析代码变化，再执行本项原生聚焦测试。槽位4入口已正常退出，锁已释放，缓存保留。未修改只读 plan.md，不宣称母任务8完成。
+
+长构建诊断：对自有 rustc PID46423 采样显示 LLVM ThinLTO、指令选择及调度正在执行，无槽位/编译锁等待；物理占用23.2GiB、峰值39.1GiB，采样前约3分钟仍写入增量依赖图/查询缓存；累计 CPU 时间在连续观测中由67分增至90分。确认有正常进展后等待原生4项通过，未终止其他任务进程。全仓 Clippy 曾仅暂停自有进程组，等待其他检查结束后恢复，保持串行检查。

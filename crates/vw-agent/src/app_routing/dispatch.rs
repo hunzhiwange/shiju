@@ -274,6 +274,7 @@ pub(super) async fn forward_json(
             return Err(StatusCode::BAD_GATEWAY.into());
         }
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
+        let body = crate::model_relay::sse_framing::resident_body(body);
         // The Responses bridge validates its Chat source in the shared decoder.
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(

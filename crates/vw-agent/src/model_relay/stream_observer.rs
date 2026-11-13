@@ -30,7 +30,7 @@ enum BlockKind {
 
 pub(crate) struct StreamObserver {
     protocol: GenerationProtocol,
-    pending: Vec<u8>,
+    pending: super::sse_framing::Lines,
     data: String,
     event: String,
     started: bool,
@@ -60,7 +60,7 @@ impl StreamObserver {
     pub(crate) fn new(protocol: GenerationProtocol) -> Self {
         Self {
             protocol,
-            pending: Vec::new(),
+            pending: super::sse_framing::Lines::default(),
             data: String::new(),
             event: String::new(),
             started: false,
@@ -80,21 +80,9 @@ impl StreamObserver {
     /// Incomplete frames are bounded and carried across network chunk boundaries.
     pub(crate) fn push(&mut self, bytes: &[u8]) -> Result<StreamUpdate> {
         let mut update = StreamUpdate::default();
-        for fragment in bytes.split_inclusive(|byte| *byte == b'\n') {
-            if fragment.len()
-                > MAX_FRAME.saturating_sub(self.pending.len() + self.data.len() + self.event.len())
-            {
+        for line in self.pending.push(bytes, MAX_FRAME)? {
+            if self.data.len() + self.event.len() + line.len() > MAX_FRAME {
                 return Err(InvalidStream::LimitExceeded);
-            }
-            self.pending.extend_from_slice(fragment);
-            if fragment.last() != Some(&b'\n') {
-                continue;
-            }
-            let line = std::str::from_utf8(&self.pending).map_err(|_| InvalidStream::Malformed)?;
-            let line = line.trim_end_matches('\n');
-            let line = line.strip_suffix('\r').unwrap_or(line);
-            if line.contains('\r') {
-                return Err(InvalidStream::Malformed);
             }
             if line.is_empty() {
                 if !self.data.is_empty() {
@@ -104,17 +92,18 @@ impl StreamObserver {
                     update.text_events += u32::from(text);
                 }
                 self.event.clear();
-                self.pending.clear();
             } else {
-                if let Some(data) = field(line, "data") {
+                if let Some(data) = field(&line, "data") {
                     self.data.push_str(data);
                     self.data.push('\n');
                 }
-                if let Some(event) = field(line, "event") {
+                if let Some(event) = field(&line, "event") {
                     self.event = event.to_owned();
                 }
-                self.pending.clear();
             }
+        }
+        if self.pending.len() + self.data.len() + self.event.len() > MAX_FRAME {
+            return Err(InvalidStream::LimitExceeded);
         }
         if self.completed
             && self.protocol != GenerationProtocol::Gemini

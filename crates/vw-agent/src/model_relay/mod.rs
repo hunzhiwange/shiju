@@ -61,3 +61,8 @@ mod gemini_stream;
 mod kiro;
 
 pub(crate) mod stream_observer;
+
+#[cfg(test)]
+mod sse_framing_tests;
+
+pub(crate) mod sse_framing;

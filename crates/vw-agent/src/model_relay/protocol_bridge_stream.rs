@@ -15,7 +15,7 @@ pub(super) struct Decoder {
     target: P,
     model: String,
     observer: super::stream_observer::StreamObserver,
-    pending: Vec<u8>,
+    pending: super::sse_framing::Lines,
     data: String,
     size: usize,
     native: Value,
@@ -29,7 +29,7 @@ impl Decoder {
             target,
             model,
             observer: super::stream_observer::StreamObserver::new(target),
-            pending: Vec::new(),
+            pending: super::sse_framing::Lines::default(),
             data: String::new(),
             size: 0,
             native: Value::Null,
@@ -41,11 +41,8 @@ impl Decoder {
     pub(super) fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
         self.observer.push(bytes).map_err(|_| BAD)?;
         self.size = self.size.checked_add(bytes.len()).filter(|n| *n <= LIMIT).ok_or(BAD)?;
-        self.pending.extend_from_slice(bytes);
         let mut out = String::new();
-        while let Some(end) = self.pending.iter().position(|b| *b == b'\n') {
-            let line = self.pending.drain(..=end).collect::<Vec<_>>();
-            let line = std::str::from_utf8(&line).map_err(|_| BAD)?.trim_end_matches(['\r', '\n']);
+        for line in self.pending.push(bytes, LIMIT).map_err(|_| BAD)? {
             if line.is_empty() {
                 if !self.data.is_empty() {
                     let data = std::mem::take(&mut self.data);

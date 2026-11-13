@@ -2,7 +2,7 @@
 
 批次：【批次 33】 依赖：批次 32 的任务 32。外部前置：核实母任务 1 的来源快照与母任务 2、3 的对应运行时、执行主机和应用能力。原生配置写入、账号上游分别等母任务 4、6 的对应契约。
 
-状态：未开始
+状态：待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -73,3 +73,16 @@
 - 仅本项证据齐全时标`已完成`；有实际代码/测试/配置/文档变更，按`$git-commit`核对并只提交本任务变更，报告证据后删除本任务文件。只有本任务状态/删除则不单独提交。
 - 缺实际依赖为`已阻塞`，仅在本文件记录明确原因、复现和已运行检查；先在本任务边界内尽力解决。无关既有错误导致回归无法执行时可为`已完成，待回归`，保留任务文件，不假报验证。
 - 不修改plan.md、母计划状态、其他任务或无关工作区变更；prompt.md不是进度来源。不得为解除阻塞实现另一独立母能力。
+
+## 本轮交接（2026-11-14）
+
+实现已接入共享 Lines、五类观察/转换路径及常驻 dispatch 尾块策略；保留旧会话严格终帧行为。任务32完成证据与来源固定快照已核对。详细证据见正式验收文档任务33条目。
+
+- `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_033_ -- --nocapture`：初始过时构建主动结束，退出1、0测试，不作为红灯；原生产观察器独立原生探针复现 BOM 文本事件丢失，1项失败、退出101。
+- 最终阶段 `python3 scripts/cargo_slot.py python3 /tmp/shiju033-validate.py` 内执行 `cargo fmt --all -- --emit stdout` 退出0；本次文件单独 rustfmt，差异检查通过。
+- 同阶段 `cargo test -p vw-agent --lib cc_route_033_ -- --nocapture`：退出0，4项通过。刚生成的 `target/rust-slot-4/debug/deps/vw_agent-346fac923f6b2351 shared_stream_observer_ --nocapture`：退出0，4项回归通过。额外 Cargo 回归因无关源码变动重编译，仅结束自有 rustc，退出101、0测试；不将其声称通过。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出101；无关 `vw-desktop` 的 editor_options.rs:34、message/editor.rs:276 及 editor_options_tests.rs 缺少 iced-code-editor 的 wrap_column/set_wrap_column 接口，生产2个、测试9个 E0599。没有本项文件诊断，未修无关问题。
+- 实际槽位4；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。入口已退出并释放锁，保留缓存。
+- 长构建采样证实 LLVM ThinLTO/机器码生成仍在推进而非锁等待，等待至本项4项通过。只暂停/终止自有进程，未操作其他任务进程。
+
+恢复条件：编辑器接口依赖对齐后，用共享槽位入口重新执行全仓 Clippy；如本项源码变化，另重跑 cc_route_033_ 聚焦测试。保留本卡待回归，不删除、不宣称母任务8完成。

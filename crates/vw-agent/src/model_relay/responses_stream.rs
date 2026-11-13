@@ -19,7 +19,7 @@ fn event(value: Value) -> String {
 }
 struct Decoder {
     observer: super::stream_observer::StreamObserver,
-    pending: Vec<u8>,
+    pending: super::sse_framing::Lines,
     data: String,
     retained: usize,
     done: bool,
@@ -56,7 +56,7 @@ impl Decoder {
         };
         Self {
             observer: super::stream_observer::StreamObserver::new(protocol),
-            pending: Vec::new(),
+            pending: super::sse_framing::Lines::default(),
             data: String::new(),
             retained: 0,
             done: false,
@@ -421,18 +421,10 @@ impl Decoder {
             super::stream_observer::InvalidStream::Malformed => StatusCode::BAD_GATEWAY,
         })?;
         let mut out = String::new();
-        for line in bytes.split_inclusive(|byte| *byte == b'\n') {
-            // Bound the pending event independently of the bytes already consumed.
-            if self.pending.len() + self.data.len() + line.len() > LIMIT {
-                return Err(StatusCode::PAYLOAD_TOO_LARGE);
-            }
-            self.pending.extend_from_slice(line);
-            if !line.ends_with(b"\n") {
-                break;
-            }
-            let line = std::str::from_utf8(&self.pending)
-                .map_err(|_| StatusCode::BAD_GATEWAY)?
-                .trim_end_matches(['\r', '\n']);
+        for line in self.pending.push(bytes, LIMIT).map_err(|error| match error {
+            super::stream_observer::InvalidStream::LimitExceeded => StatusCode::PAYLOAD_TOO_LARGE,
+            super::stream_observer::InvalidStream::Malformed => StatusCode::BAD_GATEWAY,
+        })? {
             if line.is_empty() {
                 if !self.data.is_empty() {
                     let data = std::mem::take(&mut self.data);
@@ -442,7 +434,6 @@ impl Decoder {
                 self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
                 self.data.push('\n');
             }
-            self.pending.clear();
         }
         Ok(out)
     }

@@ -15,7 +15,7 @@ fn event(v: Value) -> String {
 #[derive(Default)]
 struct Decoder {
     observer: super::stream_observer::StreamObserver,
-    pending: Vec<u8>,
+    pending: super::sse_framing::Lines,
     data: String,
     size: usize,
     done: bool,
@@ -127,13 +127,8 @@ impl Decoder {
         if self.size > LIMIT {
             return Err(StatusCode::BAD_GATEWAY);
         }
-        self.pending.extend_from_slice(bytes);
         let mut output = String::new();
-        while let Some(end) = self.pending.iter().position(|b| *b == b'\n') {
-            let line = self.pending.drain(..=end).collect::<Vec<_>>();
-            let line = std::str::from_utf8(&line)
-                .map_err(|_| StatusCode::BAD_GATEWAY)?
-                .trim_end_matches(['\r', '\n']);
+        for line in self.pending.push(bytes, LIMIT).map_err(|_| StatusCode::BAD_GATEWAY)? {
             if line.is_empty() {
                 if !self.data.is_empty() {
                     let data = std::mem::take(&mut self.data);

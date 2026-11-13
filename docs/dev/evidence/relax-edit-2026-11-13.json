@@ -1,0 +1,2312 @@
+{
+  "date": "2026-11-13",
+  "round": "restarted after user reported high machine load; old round excluded",
+  "summary": {
+    "gateway": {
+      "cargo": {
+        "n": 5,
+        "seconds": [
+          66.80328491210938,
+          68.10069995117188,
+          68.95055688476563,
+          67.78350708007812,
+          67.67913793945313
+        ],
+        "median_seconds": 67.78350708007812,
+        "min_seconds": 66.80328491210938,
+        "max_seconds": 68.95055688476563
+      },
+      "relax": {
+        "n": 5,
+        "seconds": [
+          1.381623046875,
+          1.159671875,
+          1.15411181640625,
+          1.21002099609375,
+          1.0999873046875
+        ],
+        "median_seconds": 1.159671875,
+        "min_seconds": 1.0999873046875,
+        "max_seconds": 1.381623046875
+      },
+      "median_speedup": 58.45059153484957
+    },
+    "desktop": {
+      "cargo": {
+        "n": 5,
+        "seconds": [
+          37.49850415039062,
+          36.84369873046875,
+          36.24857202148438,
+          32.976717041015625,
+          36.0483740234375
+        ],
+        "median_seconds": 36.24857202148438,
+        "min_seconds": 32.976717041015625,
+        "max_seconds": 37.49850415039062
+      },
+      "relax": {
+        "n": 5,
+        "seconds": [
+          0.768359130859375,
+          0.608330078125,
+          0.76526904296875,
+          0.6555888671875,
+          0.626030029296875
+        ],
+        "median_seconds": 0.6555888671875,
+        "min_seconds": 0.608330078125,
+        "max_seconds": 0.768359130859375
+      },
+      "median_speedup": 55.291622289121634
+    }
+  },
+  "method": {
+    "round": "fresh restart; previous timings discarded",
+    "hardware": "hw.model: Mac16,7\nhw.logicalcpu: 14\nhw.memsize: 51539607552\n",
+    "snapshot_manifest": {
+      "commit": "04f6757bd9235ddb1b3a598edfd0714e0513465d",
+      "files": 15878,
+      "bytes": 448878229,
+      "working_tree_includes_uncommitted_changes": true
+    },
+    "native_profile": "workspace dev: opt-level1, line-tables-only",
+    "cargo_jobs": 4,
+    "relax_configuration": "validated patched release runner; default balanced JIT; cfg debug_assertions; live mode without unattended",
+    "measurement": "save source to verified new behavior, five trials per workload/compiler",
+    "gateway": "HTTP200 status ok plus unique edit_probe and owned PID; Relax must retain PID",
+    "desktop": "Cargo measured build/copy plus CUA-timed actual launch to OS title; manual tool-coordination gaps excluded and separately retained. Relax saves scheduled after observer starts to avoid coordination gaps.",
+    "load_gate": "before each timed edit: last two 1-second top CPU readings both >=60% idle; gate itself excluded from latency",
+    "source_edits": "only temporary body string constants in snapshot health handler and App::title; restore original SHA after run",
+    "startup_cost": "separate from edit-loop results; dependency warmup excluded",
+    "old_results_included": false,
+    "load_before_warm": [
+      13.49853515625,
+      40.23876953125,
+      48.931640625
+    ],
+    "relax_cache_seed": "APFS clone of preceding successful same-runner functional validation cache; old timings not included; startup measured separately",
+    "desktop_trials": "Cargo markers d11..d15, Relax d21..d25; initial and protocol pilot excluded"
+  },
+  "provenance": {
+    "runner_sha256": "58a16d94f7f1efda643180bb4c4c7fb5743e8514030f222acd755f190c0ab646",
+    "snapshot": "/tmp/shiju-relax-full-eval-20261112/source",
+    "configuration_sha256": {
+      "Cargo.toml": "dc22cc272f52b5665f97acada7c2720fcbeb3f99454d0a2b0e15f1b2cb699d88",
+      "Cargo.lock": "e871124141c9524016f956793caa9c88ffd5a20d956117b45b1af532aa173573",
+      ".cargo/config.toml": "4562f3b3be1bab63ff47158bbd17b18e21fbdd38b0c029e323c7ca2462e70b94"
+    },
+    "edited_files": {
+      "health": {
+        "path": "/tmp/shiju-relax-full-eval-20261112/source/crates/vw-agent/src/gateway/health.rs",
+        "original_sha256": "49ceb03436557e1b0948120386fc1f0336c57367adc16cfd3faa426ceac9592a"
+      },
+      "desktop": {
+        "path": "/tmp/shiju-relax-full-eval-20261112/source/crates/vw-desktop/src/app/impls/app_basic.rs",
+        "original_sha256": "675ad97fe637dc0d690d03dd61b2ecb073f7c8454cd51ffec6c14113cd8539c8"
+      }
+    },
+    "Cargo_target_and_build_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-9",
+    "slot": 9,
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: aarch64-apple-darwin\nrelease: 1.99.1\nLLVM version: 23.1.1",
+    "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+    "harness_sha256": "db4181162105c3d62f5650a507faa9eac97c87d20f198c83bc709d10c816d1ba"
+  },
+  "gateway_trials": [
+    {
+      "observed_epoch_ms": 1794534889765.158,
+      "runtime_pid": 27520,
+      "marker": "gateway_00",
+      "status": 200,
+      "mode": "cargo",
+      "label": "initial_start",
+      "seconds": 18.947223876953124
+    },
+    {
+      "observed_epoch_ms": 1794534959497.791,
+      "runtime_pid": 27701,
+      "marker": "gateway_01",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 1,
+      "save_epoch_ms": 1794534892694.506,
+      "seconds": 66.80328491210938,
+      "same_pid": false,
+      "load_average": [
+        7.99267578125,
+        11.9482421875,
+        26.939453125
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794534892694.146,
+        "label": "cargo-gateway-1",
+        "cpu_idle_percent": [
+          87.57,
+          84.39
+        ],
+        "load_average": [
+          9.73779296875,
+          13.20703125,
+          28.5478515625
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535030492.6301,
+      "runtime_pid": 28208,
+      "marker": "gateway_02",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 2,
+      "save_epoch_ms": 1794534962391.9302,
+      "seconds": 68.10069995117188,
+      "same_pid": false,
+      "load_average": [
+        7.94140625,
+        10.947265625,
+        25.36572265625
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794534962391.531,
+        "label": "cargo-gateway-2",
+        "cpu_idle_percent": [
+          88.49,
+          86.11
+        ],
+        "load_average": [
+          7.5927734375,
+          11.79931640625,
+          26.798828125
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535102511.52,
+      "runtime_pid": 28618,
+      "marker": "gateway_03",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 3,
+      "save_epoch_ms": 1794535033560.9631,
+      "seconds": 68.95055688476563,
+      "same_pid": false,
+      "load_average": [
+        9.07666015625,
+        10.4560546875,
+        23.94873046875
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535033560.512,
+        "label": "cargo-gateway-3",
+        "cpu_idle_percent": [
+          85.85,
+          82.78
+        ],
+        "load_average": [
+          7.46533203125,
+          10.79833984375,
+          25.228515625
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535173146.757,
+      "runtime_pid": 28867,
+      "marker": "gateway_04",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 4,
+      "save_epoch_ms": 1794535105363.25,
+      "seconds": 67.78350708007812,
+      "same_pid": false,
+      "load_average": [
+        9.90283203125,
+        10.3857421875,
+        22.85009765625
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535105362.855,
+        "label": "cargo-gateway-4",
+        "cpu_idle_percent": [
+          85.4,
+          86.62
+        ],
+        "load_average": [
+          9.07666015625,
+          10.4560546875,
+          23.94873046875
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535243811.409,
+      "runtime_pid": 29133,
+      "marker": "gateway_05",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 5,
+      "save_epoch_ms": 1794535176132.271,
+      "seconds": 67.67913793945313,
+      "same_pid": false,
+      "load_average": [
+        6.54638671875,
+        9.24609375,
+        21.431640625
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535176131.8882,
+        "label": "cargo-gateway-5",
+        "cpu_idle_percent": [
+          88.84,
+          78.32
+        ],
+        "load_average": [
+          9.90283203125,
+          10.3857421875,
+          22.85009765625
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535285601.5989,
+      "runtime_pid": 29514,
+      "marker": "gateway_00",
+      "status": 200,
+      "mode": "relax",
+      "label": "initial_start",
+      "seconds": 41.78082666015625
+    },
+    {
+      "observed_epoch_ms": 1794535289908.951,
+      "runtime_pid": 29514,
+      "marker": "gateway_01",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 1,
+      "save_epoch_ms": 1794535288527.328,
+      "seconds": 1.381623046875,
+      "same_pid": true,
+      "load_average": [
+        7.2978515625,
+        9.17919921875,
+        20.78515625
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535288526.623,
+        "label": "relax-gateway-1",
+        "cpu_idle_percent": [
+          80.88,
+          64.91
+        ],
+        "load_average": [
+          7.2978515625,
+          9.17919921875,
+          20.78515625
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535294053.045,
+      "runtime_pid": 29514,
+      "marker": "gateway_02",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 2,
+      "save_epoch_ms": 1794535292893.373,
+      "seconds": 1.159671875,
+      "same_pid": true,
+      "load_average": [
+        6.87353515625,
+        9.0595703125,
+        20.6748046875
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535292892.951,
+        "label": "relax-gateway-2",
+        "cpu_idle_percent": [
+          66.77,
+          74.54
+        ],
+        "load_average": [
+          6.87353515625,
+          9.0595703125,
+          20.6748046875
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535298198.1838,
+      "runtime_pid": 29514,
+      "marker": "gateway_03",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 3,
+      "save_epoch_ms": 1794535297044.072,
+      "seconds": 1.15411181640625,
+      "same_pid": true,
+      "load_average": [
+        8.64501953125,
+        9.39013671875,
+        20.72314453125
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535297043.704,
+        "label": "relax-gateway-3",
+        "cpu_idle_percent": [
+          75.94,
+          78.76
+        ],
+        "load_average": [
+          6.87353515625,
+          9.0595703125,
+          20.6748046875
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535310337.007,
+      "runtime_pid": 29514,
+      "marker": "gateway_04",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 4,
+      "save_epoch_ms": 1794535309126.986,
+      "seconds": 1.21002099609375,
+      "same_pid": true,
+      "load_average": [
+        8.17724609375,
+        9.26220703125,
+        20.544921875
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535309126.5999,
+        "label": "relax-gateway-4",
+        "cpu_idle_percent": [
+          73.84,
+          75.3
+        ],
+        "load_average": [
+          8.17724609375,
+          9.26220703125,
+          20.544921875
+        ]
+      }
+    },
+    {
+      "observed_epoch_ms": 1794535314427.631,
+      "runtime_pid": 29514,
+      "marker": "gateway_05",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 5,
+      "save_epoch_ms": 1794535313327.6438,
+      "seconds": 1.0999873046875,
+      "same_pid": true,
+      "load_average": [
+        8.08251953125,
+        9.224609375,
+        20.46533203125
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535313327.266,
+        "label": "relax-gateway-5",
+        "cpu_idle_percent": [
+          74.73,
+          74.8
+        ],
+        "load_average": [
+          8.08251953125,
+          9.224609375,
+          20.46533203125
+        ]
+      }
+    }
+  ],
+  "desktop_trials": [
+    {
+      "mode": "cargo",
+      "iteration": 11,
+      "marker": "ShiJu edit d11",
+      "save_epoch_ms": 1794535951372.4219,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 36.613656999999996,
+        "log": "cargo-desktop-build-11.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535988003.926,
+      "observed_epoch_ms": 1794536003598.0,
+      "wall_observation_seconds": 52.225578125,
+      "launch_epoch_ms": 1794536002731.0,
+      "launch_to_title_seconds": 0.867,
+      "coordination_gap_seconds": 14.727073974609375,
+      "seconds": 37.49850415039062,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        34509
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794535951370.658,
+        "label": "cargo-desktop-11",
+        "cpu_idle_percent": [
+          87.5,
+          85.92
+        ],
+        "load_average": [
+          3.310546875,
+          5.32861328125,
+          12.4990234375
+        ]
+      }
+    },
+    {
+      "mode": "cargo",
+      "iteration": 12,
+      "marker": "ShiJu edit d12",
+      "save_epoch_ms": 1794536047136.7512,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.918828459,
+        "log": "cargo-desktop-build-12.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536083062.45,
+      "observed_epoch_ms": 1794536100514.0,
+      "wall_observation_seconds": 53.37724877929688,
+      "launch_epoch_ms": 1794536099596.0,
+      "launch_to_title_seconds": 0.918,
+      "coordination_gap_seconds": 16.533550048828126,
+      "seconds": 36.84369873046875,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        35118
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536047135.5771,
+        "label": "cargo-desktop-12",
+        "cpu_idle_percent": [
+          81.18,
+          77.56
+        ],
+        "load_average": [
+          6.16845703125,
+          5.71630859375,
+          11.88671875
+        ]
+      }
+    },
+    {
+      "mode": "cargo",
+      "iteration": 13,
+      "marker": "ShiJu edit d13",
+      "save_epoch_ms": 1794536154055.198,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.309642625,
+        "log": "cargo-desktop-build-13.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536189380.77,
+      "observed_epoch_ms": 1794536229310.0,
+      "wall_observation_seconds": 75.25480200195312,
+      "launch_epoch_ms": 1794536228387.0,
+      "launch_to_title_seconds": 0.923,
+      "coordination_gap_seconds": 39.00622998046875,
+      "seconds": 36.24857202148438,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        35646
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536154054.6492,
+        "label": "cargo-desktop-13",
+        "cpu_idle_percent": [
+          81.92,
+          85.56
+        ],
+        "load_average": [
+          6.9970703125,
+          6.287109375,
+          11.36376953125
+        ]
+      }
+    },
+    {
+      "mode": "cargo",
+      "iteration": 14,
+      "marker": "ShiJu edit d14",
+      "save_epoch_ms": 1794536294220.919,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 31.995236917,
+        "log": "cargo-desktop-build-14.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536326232.636,
+      "observed_epoch_ms": 1794536439771.0,
+      "wall_observation_seconds": 145.5500810546875,
+      "launch_epoch_ms": 1794536438806.0,
+      "launch_to_title_seconds": 0.965,
+      "coordination_gap_seconds": 112.57336401367188,
+      "seconds": 32.976717041015625,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        36768
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536294220.253,
+        "label": "cargo-desktop-14",
+        "cpu_idle_percent": [
+          89.84,
+          87.4
+        ],
+        "load_average": [
+          4.27783203125,
+          5.765625,
+          10.400390625
+        ]
+      }
+    },
+    {
+      "mode": "cargo",
+      "iteration": 15,
+      "marker": "ShiJu edit d15",
+      "save_epoch_ms": 1794536599972.554,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.053140583,
+        "log": "cargo-desktop-build-15.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536635032.928,
+      "observed_epoch_ms": 1794536662723.0,
+      "wall_observation_seconds": 62.75044604492187,
+      "launch_epoch_ms": 1794536661735.0,
+      "launch_to_title_seconds": 0.988,
+      "coordination_gap_seconds": 26.702072021484376,
+      "seconds": 36.0483740234375,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        39939
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536599971.804,
+        "label": "cargo-desktop-15",
+        "cpu_idle_percent": [
+          81.69,
+          87.19
+        ],
+        "load_average": [
+          4.01025390625,
+          4.798828125,
+          8.5712890625
+        ]
+      }
+    },
+    {
+      "mode": "relax",
+      "iteration": 21,
+      "marker": "ShiJu edit d21",
+      "save_epoch_ms": 1794536865622.6409,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536865622.966,
+      "observed_epoch_ms": 1794536866391.0,
+      "wall_observation_seconds": 0.768359130859375,
+      "observer_started_epoch_ms": 1794536842060.0,
+      "seconds": 0.768359130859375,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536825615.745,
+        "label": "relax-desktop-21",
+        "cpu_idle_percent": [
+          78.74,
+          68.78
+        ],
+        "load_average": [
+          9.2529296875,
+          6.66796875,
+          8.419921875
+        ]
+      }
+    },
+    {
+      "mode": "relax",
+      "iteration": 22,
+      "marker": "ShiJu edit d22",
+      "save_epoch_ms": 1794536945773.67,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536945773.9258,
+      "observed_epoch_ms": 1794536946382.0,
+      "wall_observation_seconds": 0.608330078125,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.608330078125,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536905768.191,
+        "label": "relax-desktop-22",
+        "cpu_idle_percent": [
+          79.59,
+          80.17
+        ],
+        "load_average": [
+          5.4560546875,
+          6.0439453125,
+          8.02099609375
+        ]
+      }
+    },
+    {
+      "mode": "relax",
+      "iteration": 23,
+      "marker": "ShiJu edit d23",
+      "save_epoch_ms": 1794536958824.731,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536958825.208,
+      "observed_epoch_ms": 1794536959590.0,
+      "wall_observation_seconds": 0.76526904296875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.76526904296875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536956822.87,
+        "label": "relax-desktop-23",
+        "cpu_idle_percent": [
+          62.79,
+          64.12
+        ],
+        "load_average": [
+          6.0,
+          6.0361328125,
+          7.900390625
+        ]
+      }
+    },
+    {
+      "mode": "relax",
+      "iteration": 24,
+      "marker": "ShiJu edit d24",
+      "save_epoch_ms": 1794536963869.4111,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536963869.71,
+      "observed_epoch_ms": 1794536964525.0,
+      "wall_observation_seconds": 0.6555888671875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.6555888671875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536961868.667,
+        "label": "relax-desktop-24",
+        "cpu_idle_percent": [
+          61.88,
+          63.71
+        ],
+        "load_average": [
+          6.560546875,
+          6.1513671875,
+          7.93017578125
+        ]
+      }
+    },
+    {
+      "mode": "relax",
+      "iteration": 25,
+      "marker": "ShiJu edit d25",
+      "save_epoch_ms": 1794536968899.97,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536968900.227,
+      "observed_epoch_ms": 1794536969526.0,
+      "wall_observation_seconds": 0.626030029296875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.626030029296875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ],
+      "pre_edit_load_gate": {
+        "kind": "load_gate",
+        "epoch_ms": 1794536966894.384,
+        "label": "relax-desktop-25",
+        "cpu_idle_percent": [
+          66.37,
+          66.34
+        ],
+        "load_average": [
+          6.515625,
+          6.1484375,
+          7.91845703125
+        ]
+      }
+    }
+  ],
+  "live_patch_evidence": {
+    "gateway": [
+      "makepad live: health.rs: patched (2 item(s) changed, 1 fn(s) installed) in 863.0 ms",
+      "makepad live: health.rs: patched (2 item(s) changed, 1 fn(s) installed) in 712.3 ms",
+      "makepad live: health.rs: patched (2 item(s) changed, 1 fn(s) installed) in 762.8 ms",
+      "makepad live: health.rs: patched (2 item(s) changed, 1 fn(s) installed) in 796.9 ms",
+      "makepad live: health.rs: patched (2 item(s) changed, 1 fn(s) installed) in 744.1 ms"
+    ],
+    "desktop": [
+      "makepad live: app_basic.rs: patched (1 item(s) changed, 1 fn(s) installed) in 70.6 ms",
+      "makepad live: app_basic.rs: patched (1 item(s) changed, 1 fn(s) installed) in 41.9 ms",
+      "makepad live: app_basic.rs: patched (1 item(s) changed, 1 fn(s) installed) in 41.4 ms",
+      "makepad live: app_basic.rs: patched (1 item(s) changed, 1 fn(s) installed) in 39.4 ms",
+      "makepad live: app_basic.rs: patched (1 item(s) changed, 1 fn(s) installed) in 39.2 ms"
+    ]
+  },
+  "native_prewarm_excluded_from_edit_stats": [
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-cli",
+        "--bin",
+        "shiju"
+      ],
+      "exit": 0,
+      "seconds": 449.218657,
+      "log": "cargo-initial-vw-cli.log"
+    },
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 272.657822209,
+      "log": "cargo-initial-vw-desktop.log"
+    }
+  ],
+  "desktop_pilot_excluded": {
+    "reason": "pilot missing launch start timestamp; one bundle-id launch failed; not included in final five samples",
+    "prepared": {
+      "mode": "cargo",
+      "iteration": 1,
+      "marker": "ShiJu edit d01",
+      "save_epoch_ms": 1794535522853.2732,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 39.870747542000004,
+        "log": "cargo-desktop-build-1.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535562730.55
+    },
+    "observed_epoch_ms": 1794535590635
+  },
+  "load_and_stage_events": [
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794534138167.674,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-cli",
+        "--bin",
+        "shiju"
+      ],
+      "log": "cargo-initial-vw-cli.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794534587388.94,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-cli",
+        "--bin",
+        "shiju"
+      ],
+      "exit": 0,
+      "seconds": 449.218657,
+      "log": "cargo-initial-vw-cli.log"
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794534587389.2742,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-initial-vw-desktop.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794534860048.598,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 272.657822209,
+      "log": "cargo-initial-vw-desktop.log"
+    },
+    {
+      "kind": "gateway_initial",
+      "epoch_ms": 1794534889765.169,
+      "observed_epoch_ms": 1794534889765.158,
+      "runtime_pid": 27520,
+      "marker": "gateway_00",
+      "status": 200,
+      "mode": "cargo",
+      "label": "initial_start",
+      "seconds": 18.947223876953124
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794534892694.146,
+      "label": "cargo-gateway-1",
+      "cpu_idle_percent": [
+        87.57,
+        84.39
+      ],
+      "load_average": [
+        9.73779296875,
+        13.20703125,
+        28.5478515625
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794534959497.98,
+      "observed_epoch_ms": 1794534959497.791,
+      "runtime_pid": 27701,
+      "marker": "gateway_01",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 1,
+      "save_epoch_ms": 1794534892694.506,
+      "seconds": 66.80328491210938,
+      "same_pid": false,
+      "load_average": [
+        7.99267578125,
+        11.9482421875,
+        26.939453125
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794534962391.531,
+      "label": "cargo-gateway-2",
+      "cpu_idle_percent": [
+        88.49,
+        86.11
+      ],
+      "load_average": [
+        7.5927734375,
+        11.79931640625,
+        26.798828125
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535030492.883,
+      "observed_epoch_ms": 1794535030492.6301,
+      "runtime_pid": 28208,
+      "marker": "gateway_02",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 2,
+      "save_epoch_ms": 1794534962391.9302,
+      "seconds": 68.10069995117188,
+      "same_pid": false,
+      "load_average": [
+        7.94140625,
+        10.947265625,
+        25.36572265625
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535033560.512,
+      "label": "cargo-gateway-3",
+      "cpu_idle_percent": [
+        85.85,
+        82.78
+      ],
+      "load_average": [
+        7.46533203125,
+        10.79833984375,
+        25.228515625
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535102511.73,
+      "observed_epoch_ms": 1794535102511.52,
+      "runtime_pid": 28618,
+      "marker": "gateway_03",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 3,
+      "save_epoch_ms": 1794535033560.9631,
+      "seconds": 68.95055688476563,
+      "same_pid": false,
+      "load_average": [
+        9.07666015625,
+        10.4560546875,
+        23.94873046875
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535105362.855,
+      "label": "cargo-gateway-4",
+      "cpu_idle_percent": [
+        85.4,
+        86.62
+      ],
+      "load_average": [
+        9.07666015625,
+        10.4560546875,
+        23.94873046875
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535173146.969,
+      "observed_epoch_ms": 1794535173146.757,
+      "runtime_pid": 28867,
+      "marker": "gateway_04",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 4,
+      "save_epoch_ms": 1794535105363.25,
+      "seconds": 67.78350708007812,
+      "same_pid": false,
+      "load_average": [
+        9.90283203125,
+        10.3857421875,
+        22.85009765625
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535176131.8882,
+      "label": "cargo-gateway-5",
+      "cpu_idle_percent": [
+        88.84,
+        78.32
+      ],
+      "load_average": [
+        9.90283203125,
+        10.3857421875,
+        22.85009765625
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535243811.6501,
+      "observed_epoch_ms": 1794535243811.409,
+      "runtime_pid": 29133,
+      "marker": "gateway_05",
+      "status": 200,
+      "mode": "cargo",
+      "label": "edit",
+      "iteration": 5,
+      "save_epoch_ms": 1794535176132.271,
+      "seconds": 67.67913793945313,
+      "same_pid": false,
+      "load_average": [
+        6.54638671875,
+        9.24609375,
+        21.431640625
+      ]
+    },
+    {
+      "kind": "gateway_initial",
+      "epoch_ms": 1794535285601.609,
+      "observed_epoch_ms": 1794535285601.5989,
+      "runtime_pid": 29514,
+      "marker": "gateway_00",
+      "status": 200,
+      "mode": "relax",
+      "label": "initial_start",
+      "seconds": 41.78082666015625
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535288526.623,
+      "label": "relax-gateway-1",
+      "cpu_idle_percent": [
+        80.88,
+        64.91
+      ],
+      "load_average": [
+        7.2978515625,
+        9.17919921875,
+        20.78515625
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535289909.4778,
+      "observed_epoch_ms": 1794535289908.951,
+      "runtime_pid": 29514,
+      "marker": "gateway_01",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 1,
+      "save_epoch_ms": 1794535288527.328,
+      "seconds": 1.381623046875,
+      "same_pid": true,
+      "load_average": [
+        7.2978515625,
+        9.17919921875,
+        20.78515625
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535292892.951,
+      "label": "relax-gateway-2",
+      "cpu_idle_percent": [
+        66.77,
+        74.54
+      ],
+      "load_average": [
+        6.87353515625,
+        9.0595703125,
+        20.6748046875
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535294053.438,
+      "observed_epoch_ms": 1794535294053.045,
+      "runtime_pid": 29514,
+      "marker": "gateway_02",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 2,
+      "save_epoch_ms": 1794535292893.373,
+      "seconds": 1.159671875,
+      "same_pid": true,
+      "load_average": [
+        6.87353515625,
+        9.0595703125,
+        20.6748046875
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535297043.704,
+      "label": "relax-gateway-3",
+      "cpu_idle_percent": [
+        75.94,
+        78.76
+      ],
+      "load_average": [
+        6.87353515625,
+        9.0595703125,
+        20.6748046875
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535298198.539,
+      "observed_epoch_ms": 1794535298198.1838,
+      "runtime_pid": 29514,
+      "marker": "gateway_03",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 3,
+      "save_epoch_ms": 1794535297044.072,
+      "seconds": 1.15411181640625,
+      "same_pid": true,
+      "load_average": [
+        8.64501953125,
+        9.39013671875,
+        20.72314453125
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535301142.403,
+      "label": "relax-gateway-4",
+      "cpu_idle_percent": [
+        57.7,
+        68.14
+      ],
+      "load_average": [
+        8.64501953125,
+        9.39013671875,
+        20.72314453125
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535309126.5999,
+      "label": "relax-gateway-4",
+      "cpu_idle_percent": [
+        73.84,
+        75.3
+      ],
+      "load_average": [
+        8.17724609375,
+        9.26220703125,
+        20.544921875
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535310337.3362,
+      "observed_epoch_ms": 1794535310337.007,
+      "runtime_pid": 29514,
+      "marker": "gateway_04",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 4,
+      "save_epoch_ms": 1794535309126.986,
+      "seconds": 1.21002099609375,
+      "same_pid": true,
+      "load_average": [
+        8.17724609375,
+        9.26220703125,
+        20.544921875
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535313327.266,
+      "label": "relax-gateway-5",
+      "cpu_idle_percent": [
+        74.73,
+        74.8
+      ],
+      "load_average": [
+        8.08251953125,
+        9.224609375,
+        20.46533203125
+      ]
+    },
+    {
+      "kind": "gateway_edit",
+      "epoch_ms": 1794535314428.094,
+      "observed_epoch_ms": 1794535314427.631,
+      "runtime_pid": 29514,
+      "marker": "gateway_05",
+      "status": 200,
+      "mode": "relax",
+      "label": "edit",
+      "iteration": 5,
+      "save_epoch_ms": 1794535313327.6438,
+      "seconds": 1.0999873046875,
+      "same_pid": true,
+      "load_average": [
+        8.08251953125,
+        9.224609375,
+        20.46533203125
+      ]
+    },
+    {
+      "kind": "gateway_complete",
+      "epoch_ms": 1794535314428.243,
+      "pid": 29514
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794535376633.195,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-0.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794535389688.255,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 13.054967709,
+      "log": "cargo-desktop-build-0.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794535389694.6428,
+      "mode": "cargo",
+      "iteration": 0,
+      "marker": "ShiJu edit d00",
+      "save_epoch_ms": 1794535376632.93,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 13.054967709,
+        "log": "cargo-desktop-build-0.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535389694.5432
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535522852.164,
+      "label": "cargo-desktop-1",
+      "cpu_idle_percent": [
+        65.29,
+        80.69
+      ],
+      "load_average": [
+        6.0380859375,
+        7.91357421875,
+        17.4931640625
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794535522853.612,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-1.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794535562724.6301,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 39.870747542000004,
+      "log": "cargo-desktop-build-1.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794535562730.651,
+      "mode": "cargo",
+      "iteration": 1,
+      "marker": "ShiJu edit d01",
+      "save_epoch_ms": 1794535522853.2732,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 39.870747542000004,
+        "log": "cargo-desktop-build-1.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535562730.55
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794535951370.658,
+      "label": "cargo-desktop-11",
+      "cpu_idle_percent": [
+        87.5,
+        85.92
+      ],
+      "load_average": [
+        3.310546875,
+        5.32861328125,
+        12.4990234375
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794535951372.7449,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-11.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794535987986.644,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 36.613656999999996,
+      "log": "cargo-desktop-build-11.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794535988004.0242,
+      "mode": "cargo",
+      "iteration": 11,
+      "marker": "ShiJu edit d11",
+      "save_epoch_ms": 1794535951372.4219,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 36.613656999999996,
+        "log": "cargo-desktop-build-11.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535988003.926
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536013757.1572,
+      "mode": "cargo",
+      "iteration": 11,
+      "marker": "ShiJu edit d11",
+      "save_epoch_ms": 1794535951372.4219,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 36.613656999999996,
+        "log": "cargo-desktop-build-11.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794535988003.926,
+      "observed_epoch_ms": 1794536003598.0,
+      "wall_observation_seconds": 52.225578125,
+      "launch_epoch_ms": 1794536002731.0,
+      "launch_to_title_seconds": 0.867,
+      "coordination_gap_seconds": 14.727073974609375,
+      "seconds": 37.49850415039062,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        34509
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536047135.5771,
+      "label": "cargo-desktop-12",
+      "cpu_idle_percent": [
+        81.18,
+        77.56
+      ],
+      "load_average": [
+        6.16845703125,
+        5.71630859375,
+        11.88671875
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794536047137.091,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-12.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794536083055.9402,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 35.918828459,
+      "log": "cargo-desktop-build-12.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536083062.536,
+      "mode": "cargo",
+      "iteration": 12,
+      "marker": "ShiJu edit d12",
+      "save_epoch_ms": 1794536047136.7512,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.918828459,
+        "log": "cargo-desktop-build-12.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536083062.45
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536126961.7568,
+      "mode": "cargo",
+      "iteration": 12,
+      "marker": "ShiJu edit d12",
+      "save_epoch_ms": 1794536047136.7512,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.918828459,
+        "log": "cargo-desktop-build-12.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536083062.45,
+      "observed_epoch_ms": 1794536100514.0,
+      "wall_observation_seconds": 53.37724877929688,
+      "launch_epoch_ms": 1794536099596.0,
+      "launch_to_title_seconds": 0.918,
+      "coordination_gap_seconds": 16.533550048828126,
+      "seconds": 36.84369873046875,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        35118
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536154054.6492,
+      "label": "cargo-desktop-13",
+      "cpu_idle_percent": [
+        81.92,
+        85.56
+      ],
+      "load_average": [
+        6.9970703125,
+        6.287109375,
+        11.36376953125
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794536154055.48,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-13.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794536189365.313,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 35.309642625,
+      "log": "cargo-desktop-build-13.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536189380.9238,
+      "mode": "cargo",
+      "iteration": 13,
+      "marker": "ShiJu edit d13",
+      "save_epoch_ms": 1794536154055.198,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.309642625,
+        "log": "cargo-desktop-build-13.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536189380.77
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536246503.71,
+      "mode": "cargo",
+      "iteration": 13,
+      "marker": "ShiJu edit d13",
+      "save_epoch_ms": 1794536154055.198,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.309642625,
+        "log": "cargo-desktop-build-13.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536189380.77,
+      "observed_epoch_ms": 1794536229310.0,
+      "wall_observation_seconds": 75.25480200195312,
+      "launch_epoch_ms": 1794536228387.0,
+      "launch_to_title_seconds": 0.923,
+      "coordination_gap_seconds": 39.00622998046875,
+      "seconds": 36.24857202148438,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        35646
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536294220.253,
+      "label": "cargo-desktop-14",
+      "cpu_idle_percent": [
+        89.84,
+        87.4
+      ],
+      "load_average": [
+        4.27783203125,
+        5.765625,
+        10.400390625
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794536294221.248,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-14.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794536326216.671,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 31.995236917,
+      "log": "cargo-desktop-build-14.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536326232.739,
+      "mode": "cargo",
+      "iteration": 14,
+      "marker": "ShiJu edit d14",
+      "save_epoch_ms": 1794536294220.919,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 31.995236917,
+        "log": "cargo-desktop-build-14.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536326232.636
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536453936.532,
+      "mode": "cargo",
+      "iteration": 14,
+      "marker": "ShiJu edit d14",
+      "save_epoch_ms": 1794536294220.919,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 31.995236917,
+        "log": "cargo-desktop-build-14.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536326232.636,
+      "observed_epoch_ms": 1794536439771.0,
+      "wall_observation_seconds": 145.5500810546875,
+      "launch_epoch_ms": 1794536438806.0,
+      "launch_to_title_seconds": 0.965,
+      "coordination_gap_seconds": 112.57336401367188,
+      "seconds": 32.976717041015625,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        36768
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536599971.804,
+      "label": "cargo-desktop-15",
+      "cpu_idle_percent": [
+        81.69,
+        87.19
+      ],
+      "load_average": [
+        4.01025390625,
+        4.798828125,
+        8.5712890625
+      ]
+    },
+    {
+      "kind": "command_start",
+      "epoch_ms": 1794536599972.838,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "log": "cargo-desktop-build-15.log"
+    },
+    {
+      "kind": "command_end",
+      "epoch_ms": 1794536635026.185,
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "vw-desktop",
+        "--bin",
+        "shi-ju"
+      ],
+      "exit": 0,
+      "seconds": 35.053140583,
+      "log": "cargo-desktop-build-15.log"
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536635033.029,
+      "mode": "cargo",
+      "iteration": 15,
+      "marker": "ShiJu edit d15",
+      "save_epoch_ms": 1794536599972.554,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.053140583,
+        "log": "cargo-desktop-build-15.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536635032.928
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536674640.107,
+      "mode": "cargo",
+      "iteration": 15,
+      "marker": "ShiJu edit d15",
+      "save_epoch_ms": 1794536599972.554,
+      "build": {
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--locked",
+          "-p",
+          "vw-desktop",
+          "--bin",
+          "shi-ju"
+        ],
+        "exit": 0,
+        "seconds": 35.053140583,
+        "log": "cargo-desktop-build-15.log"
+      },
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536635032.928,
+      "observed_epoch_ms": 1794536662723.0,
+      "wall_observation_seconds": 62.75044604492187,
+      "launch_epoch_ms": 1794536661735.0,
+      "launch_to_title_seconds": 0.988,
+      "coordination_gap_seconds": 26.702072021484376,
+      "seconds": 36.0483740234375,
+      "metric": "Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded",
+      "runtime_pids": [
+        39939
+      ]
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536718952.3672,
+      "mode": "relax",
+      "iteration": 0,
+      "marker": "ShiJu edit d00",
+      "save_epoch_ms": 1794536718945.074,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536718952.18
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536825615.745,
+      "label": "relax-desktop-21",
+      "cpu_idle_percent": [
+        78.74,
+        68.78
+      ],
+      "load_average": [
+        9.2529296875,
+        6.66796875,
+        8.419921875
+      ]
+    },
+    {
+      "kind": "desktop_scheduled",
+      "epoch_ms": 1794536825616.8462,
+      "mode": "relax",
+      "iteration": 21,
+      "delay_seconds": 40.0
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536865623.216,
+      "mode": "relax",
+      "iteration": 21,
+      "marker": "ShiJu edit d21",
+      "save_epoch_ms": 1794536865622.6409,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536865622.966
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794536902660.0168,
+      "mode": "relax",
+      "iteration": 21,
+      "marker": "ShiJu edit d21",
+      "save_epoch_ms": 1794536865622.6409,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536865622.966,
+      "observed_epoch_ms": 1794536866391.0,
+      "wall_observation_seconds": 0.768359130859375,
+      "observer_started_epoch_ms": 1794536842060.0,
+      "seconds": 0.768359130859375,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536905768.191,
+      "label": "relax-desktop-22",
+      "cpu_idle_percent": [
+        79.59,
+        80.17
+      ],
+      "load_average": [
+        5.4560546875,
+        6.0439453125,
+        8.02099609375
+      ]
+    },
+    {
+      "kind": "desktop_scheduled",
+      "epoch_ms": 1794536905768.4941,
+      "mode": "relax",
+      "iteration": 22,
+      "delay_seconds": 40
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536945774.123,
+      "mode": "relax",
+      "iteration": 22,
+      "marker": "ShiJu edit d22",
+      "save_epoch_ms": 1794536945773.67,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536945773.9258
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536948797.8591,
+      "label": "relax-desktop-23",
+      "cpu_idle_percent": [
+        59.63,
+        62.84
+      ],
+      "load_average": [
+        5.6142578125,
+        5.96875,
+        7.8994140625
+      ]
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536956822.87,
+      "label": "relax-desktop-23",
+      "cpu_idle_percent": [
+        62.79,
+        64.12
+      ],
+      "load_average": [
+        6.0,
+        6.0361328125,
+        7.900390625
+      ]
+    },
+    {
+      "kind": "desktop_scheduled",
+      "epoch_ms": 1794536956823.325,
+      "mode": "relax",
+      "iteration": 23,
+      "delay_seconds": 2
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536958825.477,
+      "mode": "relax",
+      "iteration": 23,
+      "marker": "ShiJu edit d23",
+      "save_epoch_ms": 1794536958824.731,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536958825.208
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536961868.667,
+      "label": "relax-desktop-24",
+      "cpu_idle_percent": [
+        61.88,
+        63.71
+      ],
+      "load_average": [
+        6.560546875,
+        6.1513671875,
+        7.93017578125
+      ]
+    },
+    {
+      "kind": "desktop_scheduled",
+      "epoch_ms": 1794536961868.982,
+      "mode": "relax",
+      "iteration": 24,
+      "delay_seconds": 2
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536963869.997,
+      "mode": "relax",
+      "iteration": 24,
+      "marker": "ShiJu edit d24",
+      "save_epoch_ms": 1794536963869.4111,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536963869.71
+    },
+    {
+      "kind": "load_gate",
+      "epoch_ms": 1794536966894.384,
+      "label": "relax-desktop-25",
+      "cpu_idle_percent": [
+        66.37,
+        66.34
+      ],
+      "load_average": [
+        6.515625,
+        6.1484375,
+        7.91845703125
+      ]
+    },
+    {
+      "kind": "desktop_scheduled",
+      "epoch_ms": 1794536966894.6711,
+      "mode": "relax",
+      "iteration": 25,
+      "delay_seconds": 2
+    },
+    {
+      "kind": "desktop_prepared",
+      "epoch_ms": 1794536968900.425,
+      "mode": "relax",
+      "iteration": 25,
+      "marker": "ShiJu edit d25",
+      "save_epoch_ms": 1794536968899.97,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536968900.227
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794537013683.854,
+      "mode": "relax",
+      "iteration": 22,
+      "marker": "ShiJu edit d22",
+      "save_epoch_ms": 1794536945773.67,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536945773.9258,
+      "observed_epoch_ms": 1794536946382.0,
+      "wall_observation_seconds": 0.608330078125,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.608330078125,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ]
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794537013767.162,
+      "mode": "relax",
+      "iteration": 23,
+      "marker": "ShiJu edit d23",
+      "save_epoch_ms": 1794536958824.731,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536958825.208,
+      "observed_epoch_ms": 1794536959590.0,
+      "wall_observation_seconds": 0.76526904296875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.76526904296875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ]
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794537013852.3489,
+      "mode": "relax",
+      "iteration": 24,
+      "marker": "ShiJu edit d24",
+      "save_epoch_ms": 1794536963869.4111,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536963869.71,
+      "observed_epoch_ms": 1794536964525.0,
+      "wall_observation_seconds": 0.6555888671875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.6555888671875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ]
+    },
+    {
+      "kind": "desktop_observed",
+      "epoch_ms": 1794537013935.731,
+      "mode": "relax",
+      "iteration": 25,
+      "marker": "ShiJu edit d25",
+      "save_epoch_ms": 1794536968899.97,
+      "build": null,
+      "bundle": "/private/tmp/shiju-relax-edit-bench-20261113-restart/ShiJu Edit Bench.app",
+      "prepared_epoch_ms": 1794536968900.227,
+      "observed_epoch_ms": 1794536969526.0,
+      "wall_observation_seconds": 0.626030029296875,
+      "observer_started_epoch_ms": 1794536923395.0,
+      "seconds": 0.626030029296875,
+      "metric": "save-to-OS-title; CUA observer already running before scheduled save",
+      "runtime_pids": [
+        40306
+      ]
+    },
+    {
+      "kind": "sources_restored",
+      "epoch_ms": 1794537099467.06
+    }
+  ],
+  "cleanup": {
+    "source_hashes_restored": {
+      "health": true,
+      "desktop": true
+    },
+    "desktop_and_gateway_exited": true,
+    "slot_released": 9,
+    "other_processes_untouched": true
+  },
+  "limits": [
+    "Only same-signature function-body string edits, not struct/trait/dependency/layout changes",
+    "Cargo jobs fixed at4; Relax default balanced JIT worker strategy. Different compiler and profile implementations, cfg debug_assertions enabled for Relax",
+    "Gateway Cargo metric: save, stop owned process, cargo run and verified HTTP response. Relax metric: save to verified response in same process",
+    "Desktop Cargo metric: measured build/copy time plus actual CUA launch-to-OS-title time. Tool coordination gaps excluded, raw wall time and gap retained. Relax observer starts before scheduled save and measures actual title change",
+    "Pre-edit CPU check uses two readings >=60% idle; first scheduled desktop saves follow a40s lead-in, all timestamps retained; no CPU isolation or fixed-frequency control",
+    "Cargo trials precede Relax trials; not randomized or interleaved; five samples per case",
+    "Caches retained, no cargo clean; prewarm and startup costs recorded separately",
+    "Successful title edit and health response are not full-feature compatibility proof; earlier Relax compatibility limits remain"
+  ],
+  "raw_artifacts_directory": "/tmp/shiju-relax-edit-bench-20261113-restart",
+  "harness_archive": "relax-edit-2026-11-13.py.txt"
+}

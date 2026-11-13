@@ -1,0 +1,319 @@
+{
+  "date": "2026-11-12",
+  "base_relax_commit": "0e2a536309c5ee7c7a47d8806d603a9c12b9a586",
+  "upstream_reference": "8555957b1c022f36748445dd8da426f0f8efbe5d",
+  "source_snapshot": {
+    "commit": "04f6757bd9235ddb1b3a598edfd0714e0513465d",
+    "files": 15878,
+    "bytes": 448878229,
+    "working_tree_includes_uncommitted_changes": true
+  },
+  "patch_sha256": "4bf5ed549f098818d873693663cb96561bd140677c8439a4a80bc521444c5dbe",
+  "final_binary": {
+    "path": "/tmp/shiju-relax-fix-evidence/relax-validated",
+    "sha256": "371f0a69fd63c9b99c31592b89beb61445fa23ff6e9699db71c6f47a05498b1f",
+    "gui_observed_binary": "/tmp/shiju-relax-fix-evidence/ShiJu Relax Validation.app/Contents/MacOS/relax-runtime",
+    "gui_binary_sha256": "371f0a69fd63c9b99c31592b89beb61445fa23ff6e9699db71c6f47a05498b1f",
+    "exact_final_binary_gui_verified": true
+  },
+  "commands": {
+    "gateway": "relax run --unattended --verbose --allow-c --cfg debug_assertions vw-cli --bin shiju -- gateway",
+    "desktop": "relax run --unattended --verbose --allow-c --cfg debug_assertions vw-desktop --bin shi-ju"
+  },
+  "environment": {
+    "CARGO_HOME": "isolated cache reusing registry and git sources",
+    "CARGO_NET_OFFLINE": "true",
+    "MAKEPAD_RUN_OFFLINE": "1",
+    "MAKEPAD_RUN_STD": "patched Relax checkout/libs/relax/compiler/std",
+    "conditional_compilation": "debug_assertions explicitly enabled; does not claim full Cargo dev-profile equivalence"
+  },
+  "original_issues": {
+    "reqwest_cfg_vec_elements": "fixed; native test1 passes, old Relax rejects, final Relax passes",
+    "rhai_stmt_fragment_boundary": "fixed; full graph loads and 11 app crates check with0 errors"
+  },
+  "validation": {
+    "release_build_exit_code": 0,
+    "jit_regression_cases_passed": 38,
+    "jit_regression_cases_failed": 0,
+    "jit_fixtures": [
+      {
+        "fixture": "macro_stmt_rep.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.381,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-1.log"
+      },
+      {
+        "fixture": "macro_wrap_paren_no_call.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1527,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-2.log"
+      },
+      {
+        "fixture": "macro_ty_cast_shift.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1528,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-3.log"
+      },
+      {
+        "fixture": "tail_macro_semicolon.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1696,
+        "passed": 2,
+        "failed": 0,
+        "log": "validated-case-4.log"
+      },
+      {
+        "fixture": "macro_forwarded_empty_vis.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1384,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-5.log"
+      },
+      {
+        "fixture": "std/core_rc.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.3152,
+        "passed": 2,
+        "failed": 0,
+        "log": "validated-case-6.log"
+      },
+      {
+        "fixture": "std/core_niche.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.3206,
+        "passed": 4,
+        "failed": 0,
+        "log": "validated-case-7.log"
+      },
+      {
+        "fixture": "std/core_slice_split_checked.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1408,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-8.log"
+      },
+      {
+        "fixture": "std/core_slice_str_extra.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2894,
+        "passed": 2,
+        "failed": 0,
+        "log": "validated-case-9.log"
+      },
+      {
+        "fixture": "std/os_io.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.4469,
+        "passed": 5,
+        "failed": 0,
+        "log": "validated-case-10.log"
+      },
+      {
+        "fixture": "apit_nested.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1809,
+        "passed": 5,
+        "failed": 0,
+        "log": "validated-case-11.log"
+      },
+      {
+        "fixture": "n01_call_binders.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2152,
+        "passed": 8,
+        "failed": 0,
+        "log": "validated-case-12.log"
+      },
+      {
+        "fixture": "asm_comment_operand.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1479,
+        "passed": 2,
+        "failed": 0,
+        "log": "validated-case-13.log"
+      },
+      {
+        "fixture": "app_inference2.rs",
+        "filter": [
+          "j02_nested_apit"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2776,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-14.log"
+      },
+      {
+        "fixture": "vec_cfg_elements.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.173,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-15.log"
+      },
+      {
+        "fixture": "const_owned_async_block.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1805,
+        "passed": 1,
+        "failed": 0,
+        "log": "validated-case-16.log"
+      }
+    ],
+    "native_front_parser_tests_passed": 12,
+    "native_front_parser_tests_failed": 0,
+    "opaque_expression_negative_fixture": {
+      "rustc_exit_code": 1,
+      "relax_exit_code": 1,
+      "expected": "reject non-ident opaque expr fragment"
+    },
+    "const_owned_async_control": {
+      "old_relax_exit_code": 101,
+      "rustc_passed": 1,
+      "patched_relax_passed": 1
+    },
+    "macho_address_accessor_probe": {
+      "hidden_function_value": 23,
+      "hidden_data_value": 7,
+      "weak_hidden_function_value": 31,
+      "original_symbols_still_hidden": true,
+      "tls_accessor_generated": false,
+      "linux_runtime_tested": false
+    },
+    "patch_clean_base_check": true,
+    "patch_reverse_check": true
+  },
+  "gateway": {
+    "exit_code": 101,
+    "own_app_crates_checked": 11,
+    "own_app_check_errors": 0,
+    "reached_main": true,
+    "printed_listening_address": true,
+    "healthy": false,
+    "listening_address": "127.0.0.1:42617",
+    "elapsed_seconds": 59.79,
+    "remaining_failure": "Tower BoxCloneSyncService router construction; CloneService::clone_box instance resolution Unimplemented",
+    "source_location": "libs/relax/types/src/instance.rs:238",
+    "failing_service": "MapFuture<MapIntoResponse<HandlerService<handle_nextcloud_talk_webhook,...>>,closure#5>, Request<Body>",
+    "failed_bound_known": false,
+    "no_existing_upstream_fix_found": true,
+    "diagnostic_collapses_stages": [
+      "argument normalization",
+      "candidate selection",
+      "nested obligation fulfillment",
+      "impl item matching"
+    ],
+    "health_probe_after_failed_run_exit_code": 7,
+    "health_http_status": 0,
+    "no_route_or_trait_bound_bypass": true,
+    "log": "gateway-validated.log",
+    "log_sha256": "9c8eeb5c4771631e07ca1b97ed86812ec5e3b44a9039467820342d431b6f28d4"
+  },
+  "desktop": {
+    "pid": 71358,
+    "binary_sha256": "371f0a69fd63c9b99c31592b89beb61445fa23ff6e9699db71c6f47a05498b1f",
+    "cfg_debug_assertions": true,
+    "own_app_check_errors": 0,
+    "main_entered": true,
+    "main_window_verified": true,
+    "observed_controls": [
+      "project cards",
+      "application icon",
+      "menu bar",
+      "folder selection buttons"
+    ],
+    "unverified": [
+      "project opening",
+      "chat execution",
+      "gateway integration",
+      "settings controls"
+    ],
+    "dependency_diagnostic_codes": {
+      "E0432": 15,
+      "E0599": 45,
+      "E0034": 2,
+      "E0308": 12,
+      "E0277": 15,
+      "E0425": 134,
+      "E0271": 2,
+      "E0283": 2,
+      "E0433": 2
+    },
+    "background_diagnostic_count": 229,
+    "runtime_compile_failure_lines": 0,
+    "test_wrapper_only": true,
+    "ui_source_unchanged": true,
+    "cleanup": "SIGTERM after GUI confirmation"
+  },
+  "clippy": {
+    "shiju": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 101,
+      "blockers": "unrelated desktop open_existing_checkout and worktree settings unused imports/fields/methods",
+      "log": "clippy-shiju.log"
+    },
+    "relax": {
+      "command": "cargo clippy --all-targets --all-features --offline -- -D warnings",
+      "exit_code": 101,
+      "blockers": "unmodified objc-sys exception module and existing lint errors in support crates/build scripts",
+      "log": "clippy-relax-final.log"
+    },
+    "passed": false
+  },
+  "limitations": [
+    "Gateway is not healthy, so no complete Relax backend/frontend integration passed",
+    "Desktop startup and rendering only; project opening, chat and settings controls not verified",
+    "Dependency macro and background diagnostics remain; main window rendering is not proof that every method is compatible",
+    "Linux and Windows runtime validation not performed"
+  ],
+  "logs_directory": "/tmp/shiju-relax-fix-evidence",
+  "next_step": "Add stage and predicate context at the four codegen.rs Unimplemented mappings, locate the real failed obligation, reproduce and fix without loosening trait conditions",
+  "cleanup": {
+    "owned_processes": [
+      {
+        "pid": 14395,
+        "exited": true
+      },
+      {
+        "pid": 14898,
+        "exited": true
+      },
+      {
+        "pid": 68372,
+        "exited": true
+      },
+      {
+        "pid": 71358,
+        "exited": true
+      },
+      {
+        "pid": 73620,
+        "exited": true
+      }
+    ],
+    "pre_existing_instances_untouched": true
+  }
+}

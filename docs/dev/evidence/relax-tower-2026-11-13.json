@@ -1,0 +1,838 @@
+{
+  "date": "2026-11-13",
+  "base_relax_commit": "0e2a536309c5ee7c7a47d8806d603a9c12b9a586",
+  "upstream_reference": "8555957b1c022f36748445dd8da426f0f8efbe5d",
+  "patch_sha256": "949a30e050d64f132ff5c3d98b5a5fc96e30f7db9453db21795acd60f8c86126",
+  "files": [
+    "libs/relax/backend/src/asm/mod.rs",
+    "libs/relax/compiler/src/cache.rs",
+    "libs/relax/compiler/src/cache/image.rs",
+    "libs/relax/compiler/src/ctfe.rs",
+    "libs/relax/compiler/src/jit.rs",
+    "libs/relax/compiler/src/os/proc.rs",
+    "libs/relax/compiler/src/reload.rs",
+    "libs/relax/compiler/src/settle_rebuild.rs",
+    "libs/relax/compiler/src/syms.rs",
+    "libs/relax/compiler/std/core/marker.rs",
+    "libs/relax/compiler/std/core/ops.rs",
+    "libs/relax/compiler/std/core/rc.rs",
+    "libs/relax/compiler/std/core/slice/inherent.rs",
+    "libs/relax/compiler/std/std/io/mod.rs",
+    "libs/relax/front/src/fmtmac.rs",
+    "libs/relax/front/src/macros.rs",
+    "libs/relax/front/src/native.rs",
+    "libs/relax/front/src/parse_work.rs",
+    "libs/relax/front/src/parser.rs",
+    "libs/relax/types/src/next_solver/codegen.rs",
+    "libs/relax/types/src/next_solver/fulfill.rs",
+    "libs/relax/types/src/next_solver/wf.rs",
+    "libs/relax/types/src/tcx.rs",
+    "libs/relax/types/src/tcx/arg_count.rs",
+    "libs/relax/types/src/tcx/resolve_bound_vars.rs"
+  ],
+  "final_binary": {
+    "path": "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+    "sha256": "58a16d94f7f1efda643180bb4c4c7fb5743e8514030f222acd755f190c0ab646",
+    "desktop_sha256": "58a16d94f7f1efda643180bb4c4c7fb5743e8514030f222acd755f190c0ab646",
+    "same_binary": true
+  },
+  "root_cause": "Finite auto-trait chain exhausted entry-crate 128 budget when code emitted in library with recursion_limit 256. Root-only fully_monomorphized environment discarded codegen crate context.",
+  "fix": [
+    "Preserve codegen crate in SlotKey/FnEntry, lowering/ahead/deferred requests, closures/twins, vtables and CTFE certificates",
+    "Use scoped codegen crate for monomorphized TypingEnv; immutable context in in-memory and persistent identities",
+    "Separate Unpin/drop property caches by context; stable context in vtable names and disk codec; entry version35",
+    "Keep failed codegen stage and predicate diagnostics; remove temporary deep-stack tracing"
+  ],
+  "constraints": {
+    "global_limit_increased": false,
+    "routes_skipped": false,
+    "trait_obligations_bypassed": false,
+    "security_policy_weakened": false,
+    "shiju_business_source_changed": false
+  },
+  "environment": {
+    "source_snapshot": "/tmp/shiju-relax-full-eval-20261112/source",
+    "cfg": "debug_assertions; no claim of complete Cargo dev profile equivalence",
+    "offline": true,
+    "native_allowed": true,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "same isolated slot for final verification; earlier builds followed .cargo build-dir and used shared intermediate directory",
+    "code_cache_entry_version": 35
+  },
+  "gateway": {
+    "pid": 47505,
+    "listener_owner_verified": true,
+    "endpoint": "http://127.0.0.1:42617/v1/health",
+    "http_status": 200,
+    "status": "ok",
+    "response_pid": 47505,
+    "build_id": "58a16d94f7f1efda643180bb4c4c7fb5743e8514030f222acd755f190c0ab646",
+    "log": "20261113-gateway-final-context.log",
+    "own_app_crates": 11,
+    "own_app_check_errors": 0,
+    "background_check": {
+      "body_owners": 287317,
+      "errors": 520,
+      "all_dependencies_compatible": false
+    }
+  },
+  "desktop": {
+    "pid": 45432,
+    "observed_native_window": true,
+    "selected_endpoint": "127.0.0.1:56374 -> 127.0.0.1:42617",
+    "proxy_is_forwarding_not_mocking": true,
+    "proxy_records_headers_or_payloads": false,
+    "project_opened": true,
+    "settings_rendered": true,
+    "terminal_rendered": true,
+    "actual_api_requests": {
+      "GET /v1/task-lifecycle/workflows -> 502": 1,
+      "GET /v1/tools -> 502": 1,
+      "GET /v1/desktop/external-apps -> 502": 1,
+      "GET /v1/desktop/preferences -> 502": 1,
+      "GET /v1/session/scope -> 502": 1,
+      "GET /v1/global/config -> 502": 1,
+      "GET /v1/health -> 502": 36,
+      "GET /v1/provider -> 502": 2,
+      "GET /v1/health -> 200": 10,
+      "GET /v1/desktop/external-apps -> 200": 1,
+      "GET /v1/tools -> 200": 1,
+      "GET /v1/session/scope -> 200": 2,
+      "GET /v1/desktop/preferences -> 200": 2,
+      "PUT /v1/session/scope -> 200": 2,
+      "GET /v1/session/ui-previews -> 200": 2,
+      "GET /v1/session/archived -> 200": 2,
+      "GET /v1/session -> 200": 2,
+      "GET /v1/global/config -> 200": 2,
+      "GET /v1/config -> 200": 1,
+      "GET /v1/global/config/acp -> 200": 1,
+      "GET /v1/agent -> 200": 1,
+      "GET /v1/desktop/project-preferences -> 404": 1,
+      "POST /v1/projects/resolve -> 200": 6,
+      "GET /v1/projects/<test-project> -> 200": 1,
+      "GET /v1/file -> 200": 1,
+      "GET /v1/skills -> 200": 1,
+      "GET /v1/projects/<test-project>/worktrees -> 200": 1,
+      "POST /v1/git/repository -> 200": 1,
+      "PATCH /v1/desktop/preferences -> 200": 1,
+      "GET /v1/session/<id>/todo -> 200": 6,
+      "GET /v1/question -> 200": 4,
+      "GET /v1/permission -> 200": 4,
+      "GET /v1/session/<id>/turn/legacy/step/1/llm-raw -> 200": 3,
+      "POST /v1/chat/stream -> 200": 1,
+      "GET /v1/session/<id> -> 200": 5,
+      "GET /v1/session/<id>/preview -> 200": 1,
+      "GET /v1/session/<id>/turn/<id>/step/1/llm-raw -> 200": 1
+    },
+    "chat": {
+      "prompt": "Reply exactly RELAX_LINK_OK. Do not use tools or modify files.",
+      "reply": "RELAX_LINK_OK",
+      "completed_in_ui": true,
+      "ui_reported_processed_seconds": 46,
+      "http_chat_stream_status": 200,
+      "tool_execution_tested": false
+    },
+    "log": "20261113-desktop-final.log"
+  },
+  "regressions": {
+    "original_16_fixtures_38_jit_tests": [
+      {
+        "fixture": "macro_stmt_rep.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1283,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-1.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/macro_stmt_rep.rs"
+        ]
+      },
+      {
+        "fixture": "macro_wrap_paren_no_call.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1981,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-2.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/macro_wrap_paren_no_call.rs"
+        ]
+      },
+      {
+        "fixture": "macro_ty_cast_shift.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1723,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-3.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/macro_ty_cast_shift.rs"
+        ]
+      },
+      {
+        "fixture": "tail_macro_semicolon.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1431,
+        "passed": 2,
+        "failed": 0,
+        "log": "20261113-final-validated-case-4.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/tail_macro_semicolon.rs"
+        ]
+      },
+      {
+        "fixture": "macro_forwarded_empty_vis.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2277,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-5.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/macro_forwarded_empty_vis.rs"
+        ]
+      },
+      {
+        "fixture": "std/core_rc.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.4495,
+        "passed": 2,
+        "failed": 0,
+        "log": "20261113-final-validated-case-6.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/std/core_rc.rs"
+        ]
+      },
+      {
+        "fixture": "std/core_niche.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2607,
+        "passed": 4,
+        "failed": 0,
+        "log": "20261113-final-validated-case-7.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/std/core_niche.rs"
+        ]
+      },
+      {
+        "fixture": "std/core_slice_split_checked.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1254,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-8.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/std/core_slice_split_checked.rs"
+        ]
+      },
+      {
+        "fixture": "std/core_slice_str_extra.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.3959,
+        "passed": 2,
+        "failed": 0,
+        "log": "20261113-final-validated-case-9.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/std/core_slice_str_extra.rs"
+        ]
+      },
+      {
+        "fixture": "std/os_io.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.9067,
+        "passed": 5,
+        "failed": 0,
+        "log": "20261113-final-validated-case-10.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/std/os_io.rs"
+        ]
+      },
+      {
+        "fixture": "apit_nested.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2023,
+        "passed": 5,
+        "failed": 0,
+        "log": "20261113-final-validated-case-11.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/apit_nested.rs"
+        ]
+      },
+      {
+        "fixture": "n01_call_binders.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.2901,
+        "passed": 8,
+        "failed": 0,
+        "log": "20261113-final-validated-case-12.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/n01_call_binders.rs"
+        ]
+      },
+      {
+        "fixture": "asm_comment_operand.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.376,
+        "passed": 2,
+        "failed": 0,
+        "log": "20261113-final-validated-case-13.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/asm_comment_operand.rs"
+        ]
+      },
+      {
+        "fixture": "app_inference2.rs",
+        "filter": [
+          "j02_nested_apit"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 0.3474,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-14.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-eval-tool/libs/relax/compiler/tests/app_inference2.rs",
+          "j02_nested_apit"
+        ]
+      },
+      {
+        "fixture": "vec_cfg_elements.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1504,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-15.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-fix-makepad/libs/relax/compiler/tests/vec_cfg_elements.rs"
+        ]
+      },
+      {
+        "fixture": "const_owned_async_block.rs",
+        "filter": [],
+        "exit_code": 0,
+        "elapsed_seconds": 0.1745,
+        "passed": 1,
+        "failed": 0,
+        "log": "20261113-final-validated-case-16.log",
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "test",
+          "/tmp/shiju-relax-fix-makepad/libs/relax/compiler/tests/const_owned_async_block.rs"
+        ]
+      }
+    ],
+    "async_send_witness": {
+      "passed": 10,
+      "failed": 0
+    },
+    "solver": {
+      "passed": 4,
+      "failed": 0
+    },
+    "type_cycle": {
+      "passed": 1,
+      "failed": 0
+    },
+    "cache_codec": {
+      "test": "round23_fn_keys_roundtrip",
+      "passed": 1,
+      "failed": 0
+    },
+    "two_crate_context_matrix": [
+      {
+        "case": "definition_high",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-definition-high",
+          "--bin",
+          "deep-app-definition-high"
+        ],
+        "exit": 0,
+        "expected_success": true,
+        "matched": true,
+        "seconds": 0.45447492599487305,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/definition_high.relax.0.log"
+      },
+      {
+        "case": "definition_high",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-definition-high",
+          "--bin",
+          "deep-app-definition-high"
+        ],
+        "exit": 0,
+        "expected_success": true,
+        "matched": true,
+        "seconds": 0.12600302696228027,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/definition_high.relax.1.log"
+      },
+      {
+        "case": "inline_low",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-inline-low",
+          "--bin",
+          "deep-app-inline-low"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.34932494163513184,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/inline_low.relax.0.log"
+      },
+      {
+        "case": "inline_low",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-inline-low",
+          "--bin",
+          "deep-app-inline-low"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.07529902458190918,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/inline_low.relax.1.log"
+      },
+      {
+        "case": "rc_rejected",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-rc-rejected",
+          "--bin",
+          "deep-app-rc-rejected"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.23895883560180664,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/rc_rejected.relax.0.log"
+      },
+      {
+        "case": "rc_rejected",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-rc-rejected",
+          "--bin",
+          "deep-app-rc-rejected"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.2893712520599365,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/rc_rejected.relax.1.log"
+      },
+      {
+        "case": "infinite_obligation",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-infinite-obligation",
+          "--bin",
+          "deep-app-infinite-obligation"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.30185723304748535,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/infinite_obligation.relax.0.log"
+      },
+      {
+        "case": "infinite_obligation",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-infinite-obligation",
+          "--bin",
+          "deep-app-infinite-obligation"
+        ],
+        "exit": 101,
+        "expected_success": false,
+        "matched": true,
+        "seconds": 0.24336624145507812,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/infinite_obligation.relax.1.log"
+      },
+      {
+        "case": "generic_vtable_high_low",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-generic-vtable-high-low",
+          "--bin",
+          "deep-app-generic-vtable-high-low"
+        ],
+        "exit": 101,
+        "expected_success": true,
+        "matched": false,
+        "seconds": 0.3961160182952881,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/generic_vtable_high_low.relax.0.log"
+      },
+      {
+        "case": "generic_vtable_high_low",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-generic-vtable-high-low",
+          "--bin",
+          "deep-app-generic-vtable-high-low"
+        ],
+        "exit": 101,
+        "expected_success": true,
+        "matched": false,
+        "seconds": 0.13144397735595703,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/generic_vtable_high_low.relax.1.log"
+      },
+      {
+        "case": "generic_vtable_low_high",
+        "iteration": 0,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-generic-vtable-low-high",
+          "--bin",
+          "deep-app-generic-vtable-low-high"
+        ],
+        "exit": 101,
+        "expected_success": true,
+        "matched": false,
+        "seconds": 0.406451940536499,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/generic_vtable_low_high.relax.0.log"
+      },
+      {
+        "case": "generic_vtable_low_high",
+        "iteration": 1,
+        "command": [
+          "/tmp/shiju-relax-fix-evidence/20261113-relax-context-final",
+          "run",
+          "--unattended",
+          "--verbose",
+          "--allow-c",
+          "--cfg",
+          "debug_assertions",
+          "deep-app-generic-vtable-low-high",
+          "--bin",
+          "deep-app-generic-vtable-low-high"
+        ],
+        "exit": 101,
+        "expected_success": true,
+        "matched": false,
+        "seconds": 0.07727789878845215,
+        "log": "/private/tmp/shiju-relax-fix-evidence/20261113-context-regressions/final-context/generic_vtable_low_high.relax.1.log"
+      }
+    ]
+  },
+  "clippy": {
+    "shiju": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit": 0,
+      "slot": 6,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-6",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-6",
+      "log": "/tmp/shiju-relax-fix-evidence/20261113-shiju-clippy.log"
+    },
+    "relax": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "passed": false,
+      "blocker": "Existing makepad-gpu-trace 4 lints; targeted no-deps check blocked by existing build-script imports from base",
+      "logs": [
+        "20261113-relax-clippy-isolated.log",
+        "20261113-relax-clippy-targeted.log"
+      ]
+    }
+  },
+  "patch_checks": {
+    "clean_baseline_index": true,
+    "reverse": true,
+    "diff_whitespace": true
+  },
+  "limitations": [
+    "Native upstream generic monomorphization sharing remains unsupported for two pre-existing matrix examples, both old and patched Relax fail while native succeeds",
+    "Full dependency background checking still reports compatibility errors; successful actual chat is not proof that every ShiJu feature works",
+    "First project creation can race: nontransactional get/create; existing native binary reproduced five batches with one200/four400 UNIQUE then sequential200. This is supporting comparison; native binary is not guaranteed to match source snapshot exactly",
+    "No whole-program speed comparison in this round; 46s chat includes network/model/JIT and is not a performance benchmark",
+    "Linux/Windows and general tool execution not runtime tested"
+  ],
+  "native_project_resolve_comparison": {
+    "binary": "/Users/xiangmin/worker/code/shiju/target-dir/debug/shiju",
+    "sha256": "ba2cb6f41559024f09c6db7c6a6f59281b73c6ce274286fa86af155493cb5a47",
+    "mtime": "2026-11-12T22:08:33.418828",
+    "limitation": "Existing Nov12 binary is a supporting comparison only; exact source snapshot equivalence is not guaranteed.",
+    "trials": [
+      {
+        "project": "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-native-resolve-race-0ugfkyiu",
+        "retained": true,
+        "concurrent": [
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 200
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          }
+        ],
+        "sequential": {
+          "status": 200
+        }
+      },
+      {
+        "project": "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-native-resolve-race-56li_7ep",
+        "retained": true,
+        "concurrent": [
+          {
+            "status": 200
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          }
+        ],
+        "sequential": {
+          "status": 200
+        }
+      },
+      {
+        "project": "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-native-resolve-race-vkxy4ml8",
+        "retained": true,
+        "concurrent": [
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 200
+          }
+        ],
+        "sequential": {
+          "status": 200
+        }
+      },
+      {
+        "project": "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-native-resolve-race-hkslxspq",
+        "retained": true,
+        "concurrent": [
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 200
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          }
+        ],
+        "sequential": {
+          "status": 200
+        }
+      },
+      {
+        "project": "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-native-resolve-race-lhi2wugd",
+        "retained": true,
+        "concurrent": [
+          {
+            "status": 200
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          },
+          {
+            "status": 400,
+            "error": "{\"error\":\"UNIQUE constraint failed: projects.platform_id, projects.company_id, projects.project_id\"}"
+          }
+        ],
+        "sequential": {
+          "status": 200
+        }
+      }
+    ],
+    "port": 42618,
+    "pid": 28143,
+    "health_status": 200,
+    "health_pid_verified": true,
+    "own_gateway_stopped": true
+  },
+  "cleanup": {
+    "owned_processes_exited": {
+      "21069": true,
+      "45432": true,
+      "20164": true,
+      "47505": true,
+      "20641": true
+    },
+    "slot1_released": true,
+    "slot6_released": true,
+    "other_processes_untouched": true,
+    "temporary_test_project_records_preserved": true
+  },
+  "logs_directory": "/tmp/shiju-relax-fix-evidence",
+  "next_step": "Run controlled Cargo-vs-Relax edit-loop timings on the now-working gateway and desktop; handle remaining generic sharing and dependency gaps separately."
+}

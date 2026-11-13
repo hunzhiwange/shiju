@@ -1,0 +1,197 @@
+{
+  "date": "2026-11-12",
+  "relax_commit": "0e2a536309c5ee7c7a47d8806d603a9c12b9a586",
+  "source_snapshot": {
+    "commit": "04f6757bd9235ddb1b3a598edfd0714e0513465d",
+    "files": 15878,
+    "bytes": 448878229,
+    "working_tree_includes_uncommitted_changes": true,
+    "manifest_sha256": {
+      "Cargo.toml": "dc22cc272f52b5665f97acada7c2720fcbeb3f99454d0a2b0e15f1b2cb699d88",
+      "Cargo.lock": "e871124141c9524016f956793caa9c88ffd5a20d956117b45b1af532aa173573",
+      "crates/vw-cli/Cargo.toml": "f4c41762efa3dbb1eb94eed22abd4804fb0fe9ddefad45498ebe8a37abb8e51e",
+      "crates/vw-agent/Cargo.toml": "084090f0c9e945a4af9e7fd3a485ae8303337c5117635af9f3f096bf41605726",
+      "crates/vw-tui/Cargo.toml": "12e515f9b94bdeb40c940e176855e932344cbd15408b196868304035fce9c9fe",
+      "crates/vw-desktop/Cargo.toml": "0edf94c03cb14e338dd6a9c89340e5b799ca6084c3e9e0040bd73c37c0a5bc60",
+      "crates/vw-gateway-client/Cargo.toml": "b8df23f656b928d6da1e718b8be6b9deb16e06551163389da03a469293e92f9c",
+      "crates/vw-shared/Cargo.toml": "ee652f378b9afba0c25bcb8f865dd92dff5985003a3ba16ca270ef97cb147178",
+      "crates/vw-config-types/Cargo.toml": "d5d133486514233258c1db499619cb5ccff31f8d62c8ce934a50eb031d4a5b52",
+      "crates/vw-webview/Cargo.toml": "29e3aed8e3a001e254c5bf36f3af0b17234535d1854b1eb3f8a0fc4c6996a860",
+      "crates/vw-acp/Cargo.toml": "9d71f5c4a26c327f0b71943256ab041b34f645b8f9372e495f5b97c7f64e96b3",
+      "crates/vw-api-types/Cargo.toml": "ed1b793450cb5258622f1bc374855a52fcd18a205de11f3480d231be906dbb7e",
+      "crates/vw-agent-apps/Cargo.toml": "8a40b9718d32487e852eda9c846263722d70c5b5479473165e86087ec82b6097",
+      "crates/vw-provider-resolver/Cargo.toml": "62a7cf1adfa82e522b617c683d00a8daceaee91bd28a4e119eff9c06f8fb7696"
+    }
+  },
+  "requested_commands": [
+    "cargo run -p vw-cli --bin shiju -- gateway",
+    "cargo run -p vw-desktop --bin shi-ju"
+  ],
+  "relax_commands": [
+    "relax run --unattended --verbose --allow-c vw-cli --bin shiju -- gateway",
+    "relax run --unattended --verbose --allow-c vw-desktop --bin shi-ju"
+  ],
+  "relax_environment": {
+    "CARGO_HOME": "/tmp/shiju-relax-full-eval-20261112/cargo-home",
+    "CARGO_NET_OFFLINE": "true",
+    "MAKEPAD_RUN_OFFLINE": "1"
+  },
+  "relax_attempts": [
+    {
+      "label": "relax-gateway",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-gateway.log",
+      "sha256": "493882a8d47e329899caa99f798f7aeee07cb8f336b5640c6803380843fbca30",
+      "elapsed_seconds": 0.04,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: /Users/xiangmin/.cargo: [source.rsproxy-sparse] is neither a `directory` nor a `git` source: makepad run reads vendored crates and git repositories only"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-desktop",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-desktop.log",
+      "sha256": "c521739b770ebc97f9bb8bce662741dbfcd2cb0f46a0d64934b5b3536051f8be",
+      "elapsed_seconds": 0.01,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: /Users/xiangmin/.cargo: [source.rsproxy-sparse] is neither a `directory` nor a `git` source: makepad run reads vendored crates and git repositories only"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-gateway-isolated-cargo",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-gateway-isolated-cargo.log",
+      "sha256": "0a86e8a2d0d4bfd0c68a67909f9c971aa47fc2c3d81813bbb85b6b2b973b3725",
+      "elapsed_seconds": 0.04,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: /Users/xiangmin/.cargo: [source.rsproxy-sparse] is neither a `directory` nor a `git` source: makepad run reads vendored crates and git repositories only"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-desktop-isolated-cargo",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-desktop-isolated-cargo.log",
+      "sha256": "1ff38eb54e58148aca8275989c620868ebe974f592625377ab4165a03205b735",
+      "elapsed_seconds": 0.01,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: /Users/xiangmin/.cargo: [source.rsproxy-sparse] is neither a `directory` nor a `git` source: makepad run reads vendored crates and git repositories only"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-gateway-snapshot",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-gateway-snapshot.log",
+      "sha256": "9dcea0dc2fd5c4a23549076bd9df360c03c2a447c44f4ac4f09a5544f488e8d6",
+      "elapsed_seconds": 0.18,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: registry package `rquickjs-sys` 0.14.0 compiles C or C++ (build-dependency `cc`): it is built only with `--allow-c` (or MAKEPAD_RUN_ALLOW_C=1): cargo and the system C compiler build it, and its library is linked into the run"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-desktop-snapshot",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-desktop-snapshot.log",
+      "sha256": "d4bbb6d6e4d4d02075628d23de38086e4344aed31e5fc89a578280e40f2418b1",
+      "elapsed_seconds": 0.06,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: registry package `libz-sys` 1.1.29 compiles C or C++ (build-dependency `cc`): it is built only with `--allow-c` (or MAKEPAD_RUN_ALLOW_C=1): cargo and the system C compiler build it, and its library is linked into the run"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-gateway-allow-c",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-gateway-allow-c.log",
+      "sha256": "6d73ff2b67eaf1af6e148a00d8786b6ab3801ea5fbd4d41160244873552ce52f",
+      "elapsed_seconds": 11.21,
+      "exit_code": 1,
+      "diagnostics": [
+        "error: no matching package named `base64` found"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-desktop-allow-c",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-desktop-allow-c.log",
+      "sha256": "ca069b304837b6a25301709a6d8a548cc1ec3bd3a9fe2ea2518aebae605b35d5",
+      "elapsed_seconds": 5.66,
+      "exit_code": 1,
+      "diagnostics": [
+        "error: no matching package named `base64` found"
+      ],
+      "graph": []
+    },
+    {
+      "label": "relax-gateway-native-build",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-gateway-native-build.log",
+      "sha256": "6c5cb6976f9836b3440c59649b06b5c9542804852c3db6a56f26965e1e2bcfc4",
+      "elapsed_seconds": 92.55,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: load error rhai: /tmp/shiju-relax-full-eval-20261112/cargo-home/registry/src/rsproxy.cn-e3de039b2554c837/rhai-1.25.1/src/eval/chaining.rs:71:9: expected `;` or `}` after expression (found Ident `defer`)",
+        "makepad-run: load error reqwest__relax_v0_12_28: /tmp/shiju-relax-full-eval-20261112/cargo-home/registry/src/rsproxy.cn-e3de039b2554c837/reqwest-0.12.28/src/async_impl/client.rs:838:33: removing an expression is not supported in this position",
+        "makepad-run: 2 crates did not load (the load errors above), so the run stops before `main`; `--watch` runs it anyway"
+      ],
+      "graph": [
+        "666 crates, 10575 files, 4437k lines, 22 parsed again"
+      ]
+    },
+    {
+      "label": "relax-desktop-native-build",
+      "log": "/tmp/shiju-relax-full-eval-20261112/relax-desktop-native-build.log",
+      "sha256": "8434cb39742ee79efdaebaaa3bff6b60f55924e66c337d220a831d17e83ecf9b",
+      "elapsed_seconds": 83.6,
+      "exit_code": 1,
+      "diagnostics": [
+        "makepad-run: load error reqwest: /tmp/shiju-relax-full-eval-20261112/cargo-home/registry/src/rsproxy.cn-e3de039b2554c837/reqwest-0.13.4/src/async_impl/client.rs:837:33: removing an expression is not supported in this position",
+        "makepad-run: 1 crate did not load (the load errors above), so the run stops before `main`; `--watch` runs it anyway"
+      ],
+      "graph": [
+        "537 crates, 8732 files, 3783k lines, 24 parsed again"
+      ]
+    }
+  ],
+  "native_gateway": {
+    "compiled": true,
+    "cargo_build_seconds_approx": 218,
+    "health_http_status": 200,
+    "health_status": "ok",
+    "listen_address": "127.0.0.1:42617",
+    "pid": 1368,
+    "log_sha256": "53a5bbe88a7db397351a892ad320ff6f158af37eba48746c5d883cd287a7fc5d"
+  },
+  "native_desktop": {
+    "compiled": true,
+    "process_started": true,
+    "pid": 3546,
+    "cargo_reported_seconds_including_build_lock_wait": 264,
+    "observed_survival_seconds_after_launch_at_least": 30,
+    "rendered_window_verified": false,
+    "ui_observation_limit": "CUA rejects the unbundled target-dir/debug/shi-ju executable; existing bundled ShiJu apps cannot establish this process window identity",
+    "existing_warnings_count": 3,
+    "warning_area": "worktree settings fields and helpers in unrelated working changes",
+    "log_sha256": "d331e62b4eeb2946e614986fb0f9bf20f3fde60eaf0df69c379a39b10ff39611"
+  },
+  "comparison": "Relax failed before main; failed-run elapsed times are not startup speed comparisons",
+  "cleanup": {
+    "test_processes": [
+      {
+        "pid": 1368,
+        "signal": "SIGTERM",
+        "command_verified": "target-dir/debug/shiju",
+        "exited": true
+      },
+      {
+        "pid": 3546,
+        "signal": "SIGTERM",
+        "command_verified": "target-dir/debug/shi-ju",
+        "exited": true
+      }
+    ],
+    "pre_existing_processes_untouched": true
+  }
+}

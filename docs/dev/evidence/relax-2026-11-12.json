@@ -1,0 +1,924 @@
+{
+  "date": "2026-11-12",
+  "timezone": "Asia/Shanghai",
+  "environment": {
+    "host": "Mac16,7",
+    "arch": "aarch64-apple-darwin",
+    "logical_cpus": 14,
+    "memory_gib": 48,
+    "rustc": "1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo": "1.99.1 (5f94df478 2026-08-27)",
+    "llvm": "23.1.1",
+    "CARGO_BUILD_JOBS": "4",
+    "CARGO_NET_OFFLINE": "true",
+    "MAKEPAD_RUN_OFFLINE": "1",
+    "background_compilation_present": true
+  },
+  "sample": {
+    "crate": "vw-config-types",
+    "rust_files": 64,
+    "rust_lines": 10491,
+    "source": {
+      "shiju_commit": "1e687363bf5a7ec4c594156e17e8181059052ee3",
+      "relax_commit": "0e2a536309c5ee7c7a47d8806d603a9c12b9a586",
+      "source_sha256": {
+        "crates/vw-config-types/Cargo.toml": "d5d133486514233258c1db499619cb5ccff31f8d62c8ce934a50eb031d4a5b52",
+        "crates/vw-config-types/src/proxy_tests.rs": "5be980e04cf82bc2b832178dc0405b5f05e6b65844cf8a22e965f7d976e4b0e0",
+        "crates/vw-config-types/src/observability.rs": "5550a28d9c61fd97713ef0ded1e47821f6f93101b7a5196d41206f10137ba6e7",
+        "crates/vw-config-types/src/runtime.rs": "d69389adc59906b1a47f4dc7d757445014c94a854b8c2b8502af1c2efae61280",
+        "crates/vw-config-types/src/reliability_tests.rs": "205c04eadb2c33f02ba40c69647ac7ede241960cc8f2fab1739747ab740c6f41",
+        "crates/vw-config-types/src/agent_tests.rs": "7a48ebfccc3a879772cb022b5d57b844d63e0e6abd40a37ae4859dcf5c9348c8",
+        "crates/vw-config-types/src/routing_tests.rs": "af219507fe9bab4eda25fa294350de0b2cf4e7af815f9651b92e166e937e207e",
+        "crates/vw-config-types/src/proxy.rs": "ab715dc4251a19f1f6abef5bb94c0ef0c7989cda9f48149bbd0fa3f4ea9c9a75",
+        "crates/vw-config-types/src/ui.rs": "4fb599232dc0faca60a7b8b9a40ffae48038a1617ecd487afaba0721cf4bfefb",
+        "crates/vw-config-types/src/security.rs": "4c5b89a8d2030e58d1a559a92a382e7c3113fe003530517a01ef23eda30a5c5a",
+        "crates/vw-config-types/src/runtime_tests.rs": "22183e34407713ba82d68db2fdb0019e1c7f4cb2f3da5d8f084020011671adc6",
+        "crates/vw-config-types/src/automation.rs": "57e48ab2f6845ba71006265876612b240335a1cf190ddd15b3210193c2128843",
+        "crates/vw-config-types/src/tools.rs": "68b1129272c1ed6d5c8bfb004db2403083105d8c1fa42765c8ca52d2ede582b3",
+        "crates/vw-config-types/src/reliability.rs": "44a779a7574d10df7cc19e12b2341a4855a917a3fab93abd78370afdbb904da4",
+        "crates/vw-config-types/src/config.rs": "0c15f85318398070e47bb4826720d6142f411f9f1cf0097a3b088b126f8cb17a",
+        "crates/vw-config-types/src/worktree_tests.rs": "94d30f845aed01ce40794e74393b6b017544edd509e289c4772de335c4fed751",
+        "crates/vw-config-types/src/ui_tests.rs": "79b5e29737ae3949b67085851129e221f53960b35381c94049e4c190049be820",
+        "crates/vw-config-types/src/lib.rs": "fe19239b3beebafd43211335bca5c821b04647f52f6b01d67b6a53a3410c86e2",
+        "crates/vw-config-types/src/memory.rs": "a524d198d04d2a6ba1ac49b458aecc1e58043040863de1672eceabb929bcbe63",
+        "crates/vw-config-types/src/acp_install_tests.rs": "f94feb8c277967f762baad57c3270fc2ba002a59bf2b538d756ab8d6bf59fe2f",
+        "crates/vw-config-types/src/paths.rs": "f012b34cfd689ad51f55af9602033a443da51893399061bc5e6895021cc6dd86",
+        "crates/vw-config-types/src/tools_tests.rs": "0581122e8f5b4fae09ae97170e137bc4ca6dc6e3fc607cfcddd8c6618e2a99f5",
+        "crates/vw-config-types/src/skills.rs": "f5a8b82d2f0d2e95f85d2789a6b7089d8af2b1b0062257588c9cf686eba33306",
+        "crates/vw-config-types/src/provider.rs": "2c7f288fa4a8789ed1782f25efd89aebf7a689a3aa5678a67436177119f5cd9a",
+        "crates/vw-config-types/src/plugins_tests.rs": "4a26a0400028998e2e3b41fe7a76f9bdac9522334dd870468f657c5c2ecb0b78",
+        "crates/vw-config-types/src/plugins.rs": "95f0d88625b025cb4d6b9350d610a5b0ae7b1260b2985d0b820d8ed141d5676f",
+        "crates/vw-config-types/src/voice_tests.rs": "5f7e1b078dd67b54cd05638d57d158af8ace2205111732ab1a6e76eb62e573e0",
+        "crates/vw-config-types/src/hooks.rs": "4ebd97d81438b9567061c6f187989c1fe27e76b7fcb56e4685d8b1561dd0e5a4",
+        "crates/vw-config-types/src/gateway.rs": "3a3c84ec914693faaa10b744a0a4b0d1d770276e524f4076f9637190ea2fe41a",
+        "crates/vw-config-types/src/agent_profile.rs": "89838927f4cc49310a59e1ae31dea6992f10854304a1122187373a543a7cc576",
+        "crates/vw-config-types/src/provider_tests.rs": "ada1b3bf14a25530c71dfeb499a066d369edc9ffdcb69eb7fa156d452aa10137",
+        "crates/vw-config-types/src/skills_tests.rs": "43647080b324f9537bab0ec4df4b6d25c485027d779c31876921670985eeb324",
+        "crates/vw-config-types/src/computer_control.rs": "44884b6f9a60d145958336156dec9dd7511a309abb13a2d20119bb3069751235",
+        "crates/vw-config-types/src/agent.rs": "ef431fd8c84f11e4494307acac97eeadddb0f17e25f05c9c7e0b2b68962cc354",
+        "crates/vw-config-types/src/config_tests.rs": "ec56481fc7db5ab9549eba79ea051c72749894fe203972d197c419dd06dc4ea2",
+        "crates/vw-config-types/src/routing.rs": "7c3943d3391453f995b81e72f299c275a2ede93738da7e16e2b2d67f6e342451",
+        "crates/vw-config-types/src/gateway_tests.rs": "1dfbd950f625dfec5f5d833f435a48db0d7c2309ee843f0a4a3943f9202f44c1",
+        "crates/vw-config-types/src/worktree.rs": "b5b4b9fff3cab83ec7ffc3d57a8a08d294f2750d315c74f6e60d479e61d5b736",
+        "crates/vw-config-types/src/observability_tests.rs": "22794057d4e938a94862ebdabcba9e42325233f26b06ad54710973265633158d",
+        "crates/vw-config-types/src/memory_tests.rs": "95f6e9b8947c0129eb5602f9fd246c7690858c6890ec7fc7f35e7d97deb28793",
+        "crates/vw-config-types/src/security_tests.rs": "7d6bbbaa81cf1a1a8299e90dfd34d2023fee9be6581a65d392306a0b10cde2c8",
+        "crates/vw-config-types/src/automation_tests.rs": "57b5db508b3e4817282d40d5ee1450b212bdd67f699a230315920fb25e97aeb2",
+        "crates/vw-config-types/src/voice.rs": "01c9660883a9bfc996572febef61bf198ab0b2913ad8be47e691b78ba095b0d0",
+        "crates/vw-config-types/src/hooks_tests.rs": "4f9f345080508bccc1dbb76bdeaa1205fc1bb98bd9c4657cf11cc74e8b30899d",
+        "crates/vw-config-types/src/paths_tests.rs": "3ecc8789e80df6351b4ed13b47c0961a0b0b6eb06ce04a60b8b93f3f91fa1df1",
+        "crates/vw-config-types/src/computer_control_tests.rs": "d5f3db033433f5e0e1de593adf1f9c020369965f85d9fe096beea53b0ce88db3",
+        "crates/vw-config-types/src/agent_profile_tests.rs": "ba1b275f38da6b8fb369978b8a635d4f58c2d58f1bc7538a298cef218ac19c04",
+        "crates/vw-config-types/src/acp_install.rs": "dbd7e3a18bac5747b05b78aee64f1a81683a20341ec022af1bf0a0449a9e4a4d",
+        "crates/vw-config-types/src/channels/other.rs": "10dbe9bffcf90518248f7fe14a750c020c111c786b397860004808e3b13c0ecc",
+        "crates/vw-config-types/src/channels/email_tests.rs": "eddba34df98e9f5d6afa7e7c2b986a9df0bc75260586b7c73b214a16b9ef4347",
+        "crates/vw-config-types/src/channels/types.rs": "f4b4f29d34aff34ee2e3c4e2f2755608f4fd0f07596d9595a3e46e8b3a95d55f",
+        "crates/vw-config-types/src/channels/lark_tests.rs": "c58c69253b8bb157eac096442f5031326a8986ac5b6917640e2f7bc31eb7d07e",
+        "crates/vw-config-types/src/channels/clawdtalk_tests.rs": "0d7d8b8ad16654f2942a324ba999593d9938ad9560266fa29196f1c932d41cc4",
+        "crates/vw-config-types/src/channels/lark.rs": "1ab5cce9270cb4d7116955e503729dc0a5bbdb397b050f788258df32c84397e9",
+        "crates/vw-config-types/src/channels/types_tests.rs": "482e51005987de276bad1807970e1306aca51503d6d4a27b2c5dd0bd7b03ff18",
+        "crates/vw-config-types/src/channels/clawdtalk.rs": "30b2f84768bda11a1b3d6a527d6a526a404b7261bab9227cd4359220801180a1",
+        "crates/vw-config-types/src/channels/wecom.rs": "d51d7974c0c36f70c6bd66aaa6b89ff5d3877f189ff5f34296e8283c033a2265",
+        "crates/vw-config-types/src/channels/mod.rs": "7bb305122ced261aae46b5ec91b4e865e4f83ce84265e75cef7d2af038cf7523",
+        "crates/vw-config-types/src/channels/wechat_tests.rs": "61a5d197ed8492d8ff1197eb3dd0985b9ff2b7fe0eba85fb46d88bad6df0f99a",
+        "crates/vw-config-types/src/channels/wecom_tests.rs": "d079638a0a6305d58c357842b45cc57cbdd6fbc534da031a51eac4a541acbde9",
+        "crates/vw-config-types/src/channels/email.rs": "b1dfc6e9d60138d14e88ec49da8d6f3e3e7ff69dda8dd0e1534a2c742bf29e7f",
+        "crates/vw-config-types/src/channels/other_tests.rs": "082cc837798ac6d84cf186a983354f5f3299ce325a39f724fde81fc09a9441b5",
+        "crates/vw-config-types/src/channels/chat_tests.rs": "86cdcc5b0b790153d5e96c23ca2fc119d7f64e90d65a20290da373e3ae2d68ec",
+        "crates/vw-config-types/src/channels/wechat.rs": "52f548ebf2d2726f7436dd2d68f4bd4e58c7b6f1fad5abed3022167b44a8a550",
+        "crates/vw-config-types/src/channels/chat.rs": "b25032ffbdc69ef5b3b253d87fccd41a50d69cbb33fa762d9f67646788df01d0"
+      },
+      "root_cargo_sha256": "dc22cc272f52b5665f97acada7c2720fcbeb3f99454d0a2b0e15f1b2cb699d88",
+      "cargo_lock_sha256": "e871124141c9524016f956793caa9c88ffd5a20d956117b45b1af532aa173573"
+    },
+    "sample_restored_hashes_match": true,
+    "new_dependency_versions_introduced": false
+  },
+  "compatibility": {
+    "test_count": 200,
+    "passed": 199,
+    "failed": 1,
+    "identical_per_test_outcomes": true,
+    "existing_failure": "config::config_tests::config_debug_impl_shows_providers_count",
+    "failure_location": "crates/vw-config-types/src/config_tests.rs:374:5",
+    "failure_assertion": "debug_str.contains(\"providers_count: 1\")",
+    "performance_suite_skips_existing_failure": true,
+    "passing_suite_test_count": 199,
+    "relax_check_exit_code": 0,
+    "isolated_sample_clippy_exit_code": 0
+  },
+  "measurement_method": {
+    "clock": "Python time.perf_counter",
+    "process_runs": "before spawning tool to process exit",
+    "live_edits": "before write_text to receipt of newline-terminated corresponding testverdict",
+    "live_and_cargo_filter": "reliability::reliability_tests::",
+    "live_and_cargo_test_count": 2,
+    "edited_file": "crates/vw-config-types/src/reliability.rs",
+    "edited_function": "default_provider_backoff_ms",
+    "fresh_process_expressions": [
+      "250 + 250",
+      "125 + 375",
+      "100 + 400"
+    ],
+    "live_and_cargo_expressions": [
+      "499 + 1",
+      "498 + 2",
+      "497 + 3",
+      "496 + 4",
+      "495 + 5"
+    ],
+    "live_negative_control_return": 501,
+    "cold_build_repetitions": 1,
+    "cold_includes_tool_build_or_downloads": false,
+    "tool_build_seconds_approx": 166,
+    "cargo_and_relax_no_edit_and_fresh_process_order": "alternates which tool runs first",
+    "live_vs_cargo_order": "all live edits, stop live process, then all Cargo edits",
+    "raw_logs_directory": "/tmp/shiju-relax-eval-20261112"
+  },
+  "medians_seconds": {
+    "cargo_passing_warm_": 0.0803,
+    "relax_passing_warm_": 0.4975,
+    "cargo_body_edit_": 1.8793,
+    "relax_body_edit_": 2.3702,
+    "cargo_filtered_body_edit_": 2.0951,
+    "relax_live_body_edit_": 0.2775
+  },
+  "live_speedup_ratio": 7.549909909909909,
+  "measurements": [
+    {
+      "label": "cargo_cold",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 49.4663,
+      "exit_code": 101,
+      "log": "cargo_cold.log",
+      "log_sha256": "398808cb4d0a7710aa3d45499c78b20d7af3ac911b8bfe724ceecfeb23c4b608",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 49.23s",
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+      ]
+    },
+    {
+      "label": "cargo_warm_1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 0.6727,
+      "exit_code": 101,
+      "log": "cargo_warm_1.log",
+      "log_sha256": "5af3cac2e98b39d526dc0671d3aabba05599deb02b2aeeb06e2a371c0a45d1a3",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.24s",
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+      ]
+    },
+    {
+      "label": "cargo_warm_2",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 0.439,
+      "exit_code": 101,
+      "log": "cargo_warm_2.log",
+      "log_sha256": "9de09f228a7c980d08ef01ec2eaf710c3b67b526b93e10e308df5d55cc838127",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.17s",
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+      ]
+    },
+    {
+      "label": "cargo_warm_3",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 0.2673,
+      "exit_code": 101,
+      "log": "cargo_warm_3.log",
+      "log_sha256": "8757264f572bfea75472b5e5148892459f30e8b2fdbb1c8b44aa4ceeb03c6543",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.05s",
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+      ]
+    },
+    {
+      "label": "relax_cold",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.2022,
+      "exit_code": 101,
+      "log": "relax_cold.log",
+      "log_sha256": "85d2b3cb0a577db42921c8bbc1d736e9f59873f6e05651e6d39e461bf07e5abc",
+      "result_lines": [
+        "makepad-run: unit graph: flag `--locked` is not supported by makepad run's resolver"
+      ],
+      "purpose": "CLI flag probe; rejected --locked before executing tests; excluded from benchmarks"
+    },
+    {
+      "label": "relax_warm_1",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.1541,
+      "exit_code": 101,
+      "log": "relax_warm_1.log",
+      "log_sha256": "85d2b3cb0a577db42921c8bbc1d736e9f59873f6e05651e6d39e461bf07e5abc",
+      "result_lines": [
+        "makepad-run: unit graph: flag `--locked` is not supported by makepad run's resolver"
+      ],
+      "purpose": "CLI flag probe; rejected --locked before executing tests; excluded from benchmarks"
+    },
+    {
+      "label": "relax_warm_2",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.0857,
+      "exit_code": 101,
+      "log": "relax_warm_2.log",
+      "log_sha256": "85d2b3cb0a577db42921c8bbc1d736e9f59873f6e05651e6d39e461bf07e5abc",
+      "result_lines": [
+        "makepad-run: unit graph: flag `--locked` is not supported by makepad run's resolver"
+      ],
+      "purpose": "CLI flag probe; rejected --locked before executing tests; excluded from benchmarks"
+    },
+    {
+      "label": "relax_test_cold",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 39.0494,
+      "exit_code": 101,
+      "log": "relax_test_cold.log",
+      "log_sha256": "46811236f1f0d54e4ba498be2de48da8093f051c70aec7aaa5150e9821ac8e37",
+      "result_lines": [
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.55s"
+      ]
+    },
+    {
+      "label": "relax_test_warm_1",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.4534,
+      "exit_code": 101,
+      "log": "relax_test_warm_1.log",
+      "log_sha256": "575548cabecc8f7f17e5db981ab11777fea484554cfd9c1a0aa6d66743d6b787",
+      "result_lines": [
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "label": "relax_test_warm_2",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.345,
+      "exit_code": 101,
+      "log": "relax_test_warm_2.log",
+      "log_sha256": "2061f1dbba9450cf9159935ac2de2f9058cbd0f355528c9678a74378d29f1de3",
+      "result_lines": [
+        "test result: FAILED. 199 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_passing_warm_1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.1798,
+      "exit_code": 0,
+      "log": "cargo_passing_warm_1.log",
+      "log_sha256": "0c537295283626c61de04c627ad9ef3a0f75e7271dd951a4aee218a7bb791ccf",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.06s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_passing_warm_1",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 1.0886,
+      "exit_code": 0,
+      "log": "relax_passing_warm_1.log",
+      "log_sha256": "a67718f29841706494482752fe1f22136e18d7b8d90ed930af313452c463b4d9",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_passing_warm_2",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.4006,
+      "exit_code": 0,
+      "log": "relax_passing_warm_2.log",
+      "log_sha256": "facda04049e268de771602e39a79cf03b9b520342f7e96610a4519f1941da307",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_passing_warm_2",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.0755,
+      "exit_code": 0,
+      "log": "cargo_passing_warm_2.log",
+      "log_sha256": "a489ddea4201003dfb6288b5656615f047cae82f991705f511c18e0013e069c5",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_passing_warm_3",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.0743,
+      "exit_code": 0,
+      "log": "cargo_passing_warm_3.log",
+      "log_sha256": "add0e8ca32c24339bc62f5c426e2f75be456bb1bb2257393edec8464ade20d78",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.02s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_passing_warm_3",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.4997,
+      "exit_code": 0,
+      "log": "relax_passing_warm_3.log",
+      "log_sha256": "b6c755868cead39b74a1cc3d31ffe387ab5ff7b8c04cabfc66547e6557491730",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "label": "relax_passing_warm_4",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.4454,
+      "exit_code": 0,
+      "log": "relax_passing_warm_4.log",
+      "log_sha256": "8467f176dca8df89176d3a47fa34f30bb021741a79ef34b899b825d145591d0e",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "label": "cargo_passing_warm_4",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.0803,
+      "exit_code": 0,
+      "log": "cargo_passing_warm_4.log",
+      "log_sha256": "e88106c6ed14aca522fddf9d699e163cac30f525e7d72b48bcb4e359694085b2",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.03s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_passing_warm_5",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.1304,
+      "exit_code": 0,
+      "log": "cargo_passing_warm_5.log",
+      "log_sha256": "a03e61e92956bcc187f8f27766898488a63714471b0f49fd3a62846b290043ea",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 0.03s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_passing_warm_5",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 0.4975,
+      "exit_code": 0,
+      "log": "relax_passing_warm_5.log",
+      "log_sha256": "b3e8bdae67a7d52bb8537840f0b5e3c03f778ca5b3bbbd1d4fe322e3db086a1c",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.03s"
+      ]
+    },
+    {
+      "label": "cargo_body_edit_1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 11.1336,
+      "exit_code": 0,
+      "log": "cargo_body_edit_1.log",
+      "log_sha256": "7624207f7034182406d365ec1f21bfc7e5ff0feea8b5d2620f72a9ac896c2edb",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 11.07s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_body_edit_1",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 3.0617,
+      "exit_code": 0,
+      "log": "relax_body_edit_1.log",
+      "log_sha256": "50561232831bc349c457cd89ba0fea33a1b47a1e5a2ef95fb4aae01ae8584526",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_body_edit_2",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 2.3702,
+      "exit_code": 0,
+      "log": "relax_body_edit_2.log",
+      "log_sha256": "4c0cf5a5830ac03227c3780a9b4578157ef1b4d0335c905ccf6ead54b59bf006",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.02s"
+      ]
+    },
+    {
+      "label": "cargo_body_edit_2",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 1.8793,
+      "exit_code": 0,
+      "log": "cargo_body_edit_2.log",
+      "log_sha256": "f0174b123c6aef9d41d5e68c20c9722955ffc8c505222e1f24e6e48be635024f",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 1.80s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_body_edit_3",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 1.3664,
+      "exit_code": 0,
+      "log": "cargo_body_edit_3.log",
+      "log_sha256": "486801dd8edc868968911e4d1b79c3fc13f104e7f41698af1bb553f78a12c1ce",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 1.30s",
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "relax_body_edit_3",
+      "command": [
+        "<RELAX>",
+        "test",
+        "vw-config-types",
+        "--lib",
+        "--",
+        "--skip",
+        "config::config_tests::config_debug_impl_shows_providers_count"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 1.9195,
+      "exit_code": 0,
+      "log": "relax_body_edit_3.log",
+      "log_sha256": "7fdea662486bb48151149b9733e7562d41fdca1ad4294394bcd409ba7408da03",
+      "result_lines": [
+        "test result: ok. 199 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s"
+      ]
+    },
+    {
+      "label": "cargo_filtered_body_edit_1",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "reliability::reliability_tests::"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 11.04,
+      "exit_code": 0,
+      "log": "cargo_filtered_body_edit_1.log",
+      "log_sha256": "b03a476c13938735aaf10290a4cd9629214883a52aecd3e3f5a44cf0485faccf",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 10.94s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "label": "cargo_filtered_body_edit_2",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "reliability::reliability_tests::"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 1.8224,
+      "exit_code": 0,
+      "log": "cargo_filtered_body_edit_2.log",
+      "log_sha256": "5482ce234b0e5f2f612253391cab9f854e51de402af1fb7d257fbafa57328571",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 1.75s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "label": "cargo_filtered_body_edit_3",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "reliability::reliability_tests::"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 2.0063,
+      "exit_code": 0,
+      "log": "cargo_filtered_body_edit_3.log",
+      "log_sha256": "981d44dc922c8822027b320cd9c21acb2c34cb76fdc7a716c3bb31d4a20ce6c5",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 1.95s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "label": "cargo_filtered_body_edit_4",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "reliability::reliability_tests::"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 2.0951,
+      "exit_code": 0,
+      "log": "cargo_filtered_body_edit_4.log",
+      "log_sha256": "8f4be2194035e3a79949196d3ae53f8cc841f2ec125992fe9ef2e9f7804a6839",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 2.03s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "label": "cargo_filtered_body_edit_5",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-config-types",
+        "--lib",
+        "--offline",
+        "--locked",
+        "--",
+        "reliability::reliability_tests::"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample/crates/vw-config-types",
+      "elapsed_seconds": 2.1969,
+      "exit_code": 0,
+      "log": "cargo_filtered_body_edit_5.log",
+      "log_sha256": "0ad86472b3e77ca5447e7805af319890e3da0a90bde11d65ef382cc45d8163c1",
+      "result_lines": [
+        "    Finished `test` profile [optimized + debuginfo] target(s) in 2.09s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 198 filtered out; finished in 0.00s"
+      ]
+    },
+    {
+      "label": "relax_check",
+      "command": [
+        "<RELAX>",
+        "check",
+        "vw-config-types",
+        "--lib"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 5.3389,
+      "exit_code": 0,
+      "log": "relax_check.log",
+      "log_sha256": "746e30a93390131e54aaaa71dc61d18cdeab7c180a71a1377acd57989d9c0728",
+      "result_lines": [
+        "makepad check: 1 crates type- and borrow-checked in 0.7 s",
+        "makepad check: 3994 body owners of the checked crates, 1408 compiled in all, 0 errors",
+        "makepad check: cpu typeck 1 ms, lower 6 ms, opt 1 ms, codegen 8 ms; 11505 RIR insts, 98 KB code",
+        "makepad check: constant initializers: 166 evaluated to data, 1392 compiled and run; evaluation cpu 10.6 ms"
+      ]
+    },
+    {
+      "label": "cargo_clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--all-targets",
+        "--all-features",
+        "--offline",
+        "--locked",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "cwd": "/private<EVAL_ROOT>/sample",
+      "elapsed_seconds": 18.7472,
+      "exit_code": 0,
+      "log": "cargo_clippy.log",
+      "log_sha256": "0981542213b4646cdb72c78f5a302d8c623370f531fe6c8a0267de31765723a3",
+      "result_lines": [
+        "    Finished `dev` profile [optimized + debuginfo] target(s) in 18.60s"
+      ]
+    }
+  ],
+  "live": {
+    "command": [
+      "<RELAX>",
+      "test",
+      "--live",
+      "vw-config-types",
+      "--lib",
+      "--",
+      "reliability::reliability_tests::"
+    ],
+    "measurements": [
+      {
+        "label": "relax_live_start",
+        "elapsed_seconds": 4.1488,
+        "verdict": "testverdict group=0 ran=2 passed=2 failed=0 ms=238.1 selected=all skipped=0 why=\"unknown reach: 2 tests\""
+      },
+      {
+        "label": "relax_live_body_edit_1",
+        "elapsed_seconds": 1.2308,
+        "verdict": "testverdict group=1 ran=2 passed=2 failed=0 ms=1.5 selected=affected skipped=0"
+      },
+      {
+        "label": "relax_live_body_edit_2",
+        "elapsed_seconds": 0.3666,
+        "verdict": "testverdict group=2 ran=2 passed=2 failed=0 ms=1.0 selected=affected skipped=0"
+      },
+      {
+        "label": "relax_live_body_edit_3",
+        "elapsed_seconds": 0.2775,
+        "verdict": "testverdict group=3 ran=2 passed=2 failed=0 ms=0.9 selected=affected skipped=0"
+      },
+      {
+        "label": "relax_live_body_edit_4",
+        "elapsed_seconds": 0.2274,
+        "verdict": "testverdict group=4 ran=2 passed=2 failed=0 ms=1.3 selected=affected skipped=0"
+      },
+      {
+        "label": "relax_live_body_edit_5",
+        "elapsed_seconds": 0.1526,
+        "verdict": "testverdict group=5 ran=2 passed=2 failed=0 ms=1.1 selected=affected skipped=0"
+      }
+    ]
+  },
+  "negative_control": {
+    "command": [
+      "<RELAX>",
+      "test",
+      "--live",
+      "vw-config-types",
+      "--lib",
+      "--",
+      "reliability::reliability_tests::"
+    ],
+    "measurements": [
+      {
+        "label": "relax_live_start",
+        "elapsed_seconds": 2.5888,
+        "verdict": "testverdict group=0 ran=2 passed=2 failed=0 ms=53.2 selected=all skipped=0 why=\"unknown reach: 2 tests\""
+      },
+      {
+        "label": "relax_live_detects_wrong_value",
+        "elapsed_seconds": 1.1829,
+        "verdict": "testverdict group=1 ran=2 passed=1 failed=1 ms=45.5 selected=affected skipped=0"
+      },
+      {
+        "label": "relax_live_recovers_original",
+        "elapsed_seconds": 0.2335,
+        "verdict": "testverdict group=2 ran=2 passed=2 failed=0 ms=1.6 selected=affected skipped=0"
+      }
+    ]
+  }
+}

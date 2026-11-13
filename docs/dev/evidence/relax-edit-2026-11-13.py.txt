@@ -1,0 +1,305 @@
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import plistlib
+import re
+import signal
+import subprocess
+import time
+import urllib.request
+
+ROOT = Path(__file__).resolve().parent
+S = json.loads((ROOT / 'state.json').read_text())
+SOURCE = Path(S['source'])
+ENV = os.environ.copy()
+ENV.update(CARGO_BUILD_JOBS='4', CARGO_HOME='/tmp/shiju-relax-full-eval-20261112/cargo-home',
+           CARGO_NET_OFFLINE='true', CARGO_TARGET_DIR=S['target_dir'],
+           CARGO_BUILD_BUILD_DIR=S['target_dir'], MAKEPAD_RUN_OFFLINE='1',
+           MAKEPAD_RUN_STD='/tmp/shiju-relax-eval-tool/libs/relax/compiler/std',
+           MAKEPAD_RUN_CACHE_DIR=str(ROOT / 'relax-cache'))
+URL = f"http://127.0.0.1:{S['port']}/v1/health"
+HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+BUNDLE = ROOT / 'ShiJu Edit Bench.app'
+
+
+def save(name, value):
+    (ROOT / name).write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+
+
+def event(kind, **fields):
+    row = dict(kind=kind, epoch_ms=time.time_ns()/1e6, **fields)
+    print(json.dumps(row, ensure_ascii=False), flush=True)
+    with (ROOT / 'events.jsonl').open('a') as f:
+        f.write(json.dumps(row, ensure_ascii=False) + '\n')
+
+
+def idle_gate(label):
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        output = subprocess.check_output(['top', '-l', '3', '-n', '0', '-s', '1'], text=True)
+        idle = [float(v) for v in re.findall(r'([0-9.]+)% idle', output)][-2:]
+        event('load_gate', label=label, cpu_idle_percent=idle, load_average=os.getloadavg())
+        if len(idle) == 2 and min(idle) >= 60:
+            return idle
+        time.sleep(5)
+    raise RuntimeError('Machine not quiet enough for a valid sample; no forced timing')
+
+
+def edit(which, number):
+    original = (ROOT / f'{which}.original').read_text()
+    if which == 'health':
+        marker = f'gateway_{number:02}'
+        needle = '    let body = serde_json::json!({\n        "status": "ok",'
+        assert original.count(needle) == 1
+        changed = original.replace(needle, needle + f'\n        "edit_probe": "{marker}",')
+    else:
+        marker = f'ShiJu edit d{number:02}'
+        needle = '"识矩 - 项目"'
+        assert original.count(needle) == 2
+        changed = original.replace(needle, json.dumps(marker))
+    path = Path(S[which]['path'])
+    start = time.time_ns()/1e6
+    temp = path.with_suffix('.rs.edit-bench-tmp')
+    temp.write_text(changed)
+    os.replace(temp, path)
+    return marker, start
+
+
+def command(args, name):
+    start = time.perf_counter()
+    event('command_start', command=args, log=name)
+    with (ROOT / name).open('w') as f:
+        p = subprocess.Popen(args, cwd=SOURCE, env=ENV, stdout=f, stderr=subprocess.STDOUT)
+        save('active-cargo.json', dict(pid=p.pid, command=args, log=name))
+        owner = Path(S['lock']) / 'owner.json'
+        owner.write_text(json.dumps(dict(session='/root', task='Relax edit benchmark', pid=os.getpid(), cargo_pid=p.pid)))
+        code = p.wait()
+    result = dict(command=args, exit=code, seconds=time.perf_counter()-start, log=name)
+    event('command_end', **result)
+    if code:
+        raise RuntimeError(result)
+    return result
+
+
+def launch(mode, label):
+    if mode == 'cargo':
+        args = ['cargo', 'run', '--offline', '--locked', '-p', 'vw-cli', '--bin', 'shiju', '--']
+    else:
+        args = [S['relax'], 'run', '--verbose', '--allow-c', '--cfg', 'debug_assertions', 'vw-cli', '--bin', 'shiju', '--']
+    args += ['gateway', '--host', '127.0.0.1', '--port', str(S['port'])]
+    f = (ROOT / (label + '.log')).open('w')
+    p = subprocess.Popen(args, cwd=SOURCE, env=ENV, stdout=f, stderr=subprocess.STDOUT,
+                         stdin=subprocess.DEVNULL, start_new_session=True)
+    f.close()
+    save('gateway-process.json', dict(mode=mode, launcher_pid=p.pid, command=args, log=label+'.log'))
+    return p
+
+
+def stop(p):
+    if p.poll() is None:
+        os.killpg(p.pid, signal.SIGTERM)
+        try:
+            p.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            os.killpg(p.pid, signal.SIGKILL)
+            p.wait()
+
+
+def descendant(pid, ancestor):
+    seen = set()
+    while pid not in seen and pid > 1:
+        if pid == ancestor:
+            return True
+        seen.add(pid)
+        r = subprocess.run(['ps', '-p', str(pid), '-o', 'ppid='], capture_output=True, text=True)
+        try:
+            pid = int(r.stdout.strip())
+        except ValueError:
+            return False
+    return False
+
+
+def healthy(p, expected, budget=360):
+    deadline = time.perf_counter()+budget
+    last = None
+    while time.perf_counter() < deadline:
+        if p.poll() is not None:
+            raise RuntimeError(f'gateway exited {p.returncode}')
+        try:
+            with HTTP.open(URL, timeout=3) as response:
+                data = json.load(response)
+                last = data.get('edit_probe')
+                pid = data.get('runtime', {}).get('pid')
+                if response.status == 200 and data.get('status') == 'ok' and last == expected:
+                    observed = time.time_ns()/1e6
+                    assert descendant(pid, p.pid), f'foreign listener {pid}'
+                    return dict(observed_epoch_ms=observed, runtime_pid=pid, marker=last, status=200)
+        except (OSError, ValueError):
+            pass
+        time.sleep(.05)
+    raise RuntimeError(f'health timeout waiting {expected}; last={last}')
+
+
+def gateway():
+    records = []
+    p = None
+    try:
+        for mode in ['cargo', 'relax']:
+            marker, start = edit('health', 0)
+            p = launch(mode, mode+'-gateway-start')
+            initial = healthy(p, marker)
+            initial.update(mode=mode, label='initial_start', seconds=(initial['observed_epoch_ms']-start)/1000)
+            records.append(initial)
+            event('gateway_initial', **initial)
+            for n in range(1, S['repetitions']+1):
+                idle_gate(f'{mode}-gateway-{n}')
+                marker, start = edit('health', n)
+                old_pid = initial['runtime_pid']
+                if mode == 'cargo':
+                    stop(p)
+                    p = launch(mode, f'cargo-gateway-edit-{n}')
+                result = healthy(p, marker, budget=240)
+                result.update(mode=mode, label='edit', iteration=n, save_epoch_ms=start,
+                              seconds=(result['observed_epoch_ms']-start)/1000,
+                              same_pid=result['runtime_pid']==old_pid, load_average=os.getloadavg())
+                if mode == 'relax':
+                    assert result['same_pid']
+                records.append(result)
+                save('gateway-results.json', records)
+                event('gateway_edit', **result)
+            if mode == 'cargo':
+                stop(p)
+                p = None
+        event('gateway_complete', pid=records[-1]['runtime_pid'])
+        save('gateway-results.json', records)
+        # Stay alive so the owned gateway and its exit remain manageable during GUI trials.
+        while not (ROOT / 'stop-gateway').exists():
+            if p.poll() is not None:
+                raise RuntimeError(f'gateway stopped during desktop phase: {p.returncode}')
+            time.sleep(1)
+    except Exception as exc:
+        save('gateway-failure.json', dict(error=str(exc), records=records))
+        event('gateway_failure', error=str(exc))
+        raise
+    finally:
+        if p:
+            stop(p)
+
+
+def bundle(mode):
+    contents = BUNDLE / 'Contents'
+    macos = contents / 'MacOS'
+    macos.mkdir(parents=True, exist_ok=True)
+    info = dict(CFBundleIdentifier='local.shiju.edit-bench', CFBundleName='ShiJu Edit Bench',
+                CFBundleDisplayName='ShiJu Edit Bench', CFBundleExecutable='launch',
+                CFBundlePackageType='APPL', CFBundleVersion='1', NSHighResolutionCapable=True)
+    (contents / 'Info.plist').write_bytes(plistlib.dumps(info))
+    source = Path(S['target_dir']) / 'debug/shi-ju' if mode == 'cargo' else Path(S['relax'])
+    dest = macos / 'runtime'
+    temp = macos / 'runtime.new'
+    subprocess.run(['cp', '-c', str(source), str(temp)], check=True)
+    os.replace(temp, dest)
+    config = ROOT / 'desktop-config'
+    config.mkdir(exist_ok=True)
+    old = json.loads(Path('/tmp/shiju-relax-fix-evidence/20261113-desktop-config/gateway-client-bootstrap.json').read_text())
+    for s in [old]+old.get('servers', []):
+        s['host'] = '127.0.0.1'
+        s['port'] = S['port']
+    cfg = config / 'gateway-client-bootstrap.json'
+    cfg.write_text(json.dumps(old))
+    cfg.chmod(0o600)
+    import shlex
+    exports = '\n'.join('export '+k+'='+shlex.quote(v) for k,v in ENV.items() if k in [
+        'CARGO_HOME', 'CARGO_NET_OFFLINE', 'CARGO_TARGET_DIR', 'CARGO_BUILD_BUILD_DIR',
+        'MAKEPAD_RUN_OFFLINE', 'MAKEPAD_RUN_STD', 'MAKEPAD_RUN_CACHE_DIR'])
+    args = [str(dest)]
+    if mode == 'relax':
+        args += ['run', '--verbose', '--allow-c', '--cfg', 'debug_assertions', 'vw-desktop', '--bin', 'shi-ju']
+    launch = macos / 'launch'
+    launch.write_text('#!/bin/sh\ncd '+shlex.quote(str(SOURCE))+' || exit 1\n'+exports+'\nexport VIBEWINDOW_CONFIG_DIR='+shlex.quote(str(config))+'\nexec '+shlex.join(args)+' >> '+shlex.quote(str(ROOT/(mode+'-desktop.log')))+' 2>&1\n')
+    launch.chmod(0o755)
+
+
+def desktop(mode, number, delay=0):
+    if number > 0:
+        idle_gate(f'{mode}-desktop-{number}')
+    if delay:
+        event('desktop_scheduled', mode=mode, iteration=number, delay_seconds=delay)
+        time.sleep(delay)
+    marker, start = edit('desktop', number)
+    build = None
+    if mode == 'cargo':
+        build = command(['cargo', 'build', '--offline', '--locked', '-p', 'vw-desktop', '--bin', 'shi-ju'], f'cargo-desktop-build-{number}.log')
+    if number == 0 or mode == 'cargo':
+        bundle(mode)
+    row = dict(mode=mode, iteration=number, marker=marker, save_epoch_ms=start,
+               build=build, bundle=str(BUNDLE), prepared_epoch_ms=time.time_ns()/1e6)
+    save('desktop-pending.json', row)
+    save(f'desktop-{mode}-{number}-pending.json', row)
+    event('desktop_prepared', **row)
+
+
+def observe(epoch_ms, launch_ms=None, observer_ms=None, number=None):
+    pending = ROOT / (f'desktop-relax-{number}-pending.json' if number is not None else 'desktop-pending.json')
+    row = json.loads(pending.read_text())
+    row.update(observed_epoch_ms=epoch_ms, wall_observation_seconds=(epoch_ms-row['save_epoch_ms'])/1000)
+    if row['mode'] == 'cargo':
+        assert launch_ms is not None and epoch_ms >= launch_ms >= row['prepared_epoch_ms']
+        row['launch_epoch_ms'] = launch_ms
+        row['launch_to_title_seconds'] = (epoch_ms-launch_ms)/1000
+        row['coordination_gap_seconds'] = (launch_ms-row['prepared_epoch_ms'])/1000
+        row['seconds'] = (row['prepared_epoch_ms']-row['save_epoch_ms']+epoch_ms-launch_ms)/1000
+        row['metric'] = 'Cargo build+copy+actual launch-to-OS-title; manual coordination gap excluded'
+    else:
+        assert observer_ms is not None and observer_ms < row['save_epoch_ms'], 'Observer started after save: invalid timing'
+        row['observer_started_epoch_ms'] = observer_ms
+        row['seconds'] = row['wall_observation_seconds']
+        row['metric'] = 'save-to-OS-title; CUA observer already running before scheduled save'
+    runtime = str(BUNDLE / 'Contents/MacOS/runtime')
+    procs = []
+    for line in subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True).splitlines():
+        fields = line.strip().split(None, 1)
+        if len(fields) == 2 and fields[1].startswith(runtime):
+            procs.append(int(fields[0]))
+    row['runtime_pids'] = procs
+    assert len(procs) == 1, f'Expected exactly one owned desktop runtime, got {procs}'
+    path = ROOT / 'desktop-results.json'
+    rows = json.loads(path.read_text()) if path.exists() else []
+    rows.append(row)
+    save('desktop-results.json', rows)
+    event('desktop_observed', **row)
+
+
+def restore():
+    for which in ['health', 'desktop']:
+        original = (ROOT / f'{which}.original').read_bytes()
+        Path(S[which]['path']).write_bytes(original)
+        assert hashlib.sha256(original).hexdigest() == S[which]['original_sha256']
+    event('sources_restored')
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('action', choices=['warm', 'gateway', 'desktop', 'desktop-batch', 'observe', 'restore'])
+    parser.add_argument('extra', nargs='*')
+    a = parser.parse_args()
+    if a.action == 'warm':
+        edit('health', 0)
+        edit('desktop', 0)
+        results = []
+        for package, binary in [('vw-cli', 'shiju'), ('vw-desktop', 'shi-ju')]:
+            results.append(command(['cargo', 'build', '--offline', '--locked', '-p', package, '--bin', binary], f'cargo-initial-{package}.log'))
+        save('native-initial-build.json', results)
+    elif a.action == 'gateway':
+        gateway()
+    elif a.action == 'desktop':
+        desktop(a.extra[0], int(a.extra[1]), float(a.extra[2]) if len(a.extra)>2 else 0)
+    elif a.action == 'desktop-batch':
+        for i, number in enumerate(map(int, a.extra)):
+            desktop('relax', number, 40 if i == 0 else 2)
+    elif a.action == 'observe':
+        observe(float(a.extra[0]), float(a.extra[1]) if len(a.extra)>1 else None, float(a.extra[2]) if len(a.extra)>2 else None, int(a.extra[3]) if len(a.extra)>3 else None)
+    else:
+        restore()

@@ -1,0 +1,1958 @@
+diff --git a/libs/relax/backend/src/asm/mod.rs b/libs/relax/backend/src/asm/mod.rs
+index 060992b..fd6923b 100644
+--- a/libs/relax/backend/src/asm/mod.rs
++++ b/libs/relax/backend/src/asm/mod.rs
+@@ -291,6 +291,7 @@ impl Lexer<'_> {
+         let mut cur: Vec<Tok> = Vec::new();
+         let mut line = 1u32;
+         let mut in_block_comment = false;
++        let mut at_statement_start = true;
+         // a line comment runs to the newline across operand pieces: zeroize's
+         // `asm!("# {}", in(reg) ptr)` substitutes the operand inside the comment (LLVM sees the
+         // template after substitution, so the operand is commented out too)
+@@ -308,6 +309,7 @@ impl Lexer<'_> {
+                     if in_block_comment || in_line_comment {
+                         continue;
+                     }
++                    at_statement_start = false;
+                     match &self.args[*k as usize] {
+                         Arg::Reg(r) => cur.push(Tok::Reg(*r, *m)),
+                         Arg::Sym(s) => cur.push(Tok::Sym(s.clone())),
+@@ -338,21 +340,31 @@ impl Lexer<'_> {
+                 }
+                 if c == b'\n' {
+                     flush(&mut cur, &mut stmts, line);
++                    at_statement_start = true;
+                     line += 1;
+                     i += 1;
+                     continue;
+                 }
+                 if text[i..].starts_with(sep) {
+                     flush(&mut cur, &mut stmts, line);
++                    at_statement_start = true;
+                     i += sep.len();
+                     continue;
+                 }
+                 if text[i..].starts_with(b"/*") {
++                    at_statement_start = false;
+                     in_block_comment = true;
+                     i += 2;
+                     continue;
+                 }
+-                if text[i..].starts_with(comment) || text[i..].starts_with(b"//") {
++                // LLVM accepts a leading `#` line comment on AArch64 too, including
++                // after labels; inside an instruction `#` remains immediate punctuation.
++                // A block comment consumes the initial position, but labels start a new
++                // statement even when a block comment follows their colon.
++                let leading_hash = c == b'#' && (at_statement_start || (!cur.is_empty() && cur.len().is_multiple_of(2)
++                    && cur.as_chunks::<2>().0.iter().all(|pair| matches!((&pair[0], &pair[1]),
++                        (Tok::Ident(_) | Tok::Int(_) | Tok::Sym(SymRef::Name(_)), Tok::Punct(b':'))))));
++                if text[i..].starts_with(comment) || text[i..].starts_with(b"//") || leading_hash {
+                     in_line_comment = true;
+                     continue;
+                 }
+@@ -360,6 +372,7 @@ impl Lexer<'_> {
+                     i += 1;
+                     continue;
+                 }
++                at_statement_start = false;
+                 if c == b'"' {
+                     let mut s = Vec::new();
+                     i += 1;
+diff --git a/libs/relax/compiler/src/cache.rs b/libs/relax/compiler/src/cache.rs
+index c2544e8..96b99e3 100644
+--- a/libs/relax/compiler/src/cache.rs
++++ b/libs/relax/compiler/src/cache.rs
+@@ -26,7 +26,7 @@
+ use crate::borrowck::lazy::StoredVerdict;
+ use crate::types::AliasTyKind;
+ use crate::types::{AliasTy};
+-use crate::jit::{FnKey, Unit};
++use crate::jit::{FnKey, SlotKey, Unit};
+ use crate::pack::{self, NewEntry};
+ use crate::store::Store;
+ use crate::program::{DefId, DefKind, NO_DEF};
+@@ -232,7 +232,7 @@ const LEDGER_KEY: u128 = 0;
+ // closure is named by its owner's closure ordinal and its text (closure_ordinal), not by its
+ // file version and position, in slot keys and types alike; a block-scoped item by its fn and
+ // its ordinal there (stable::block_place), not its offset.
+-const ENTRY_VERSION: u32 = 34;
++const ENTRY_VERSION: u32 = 35;
+ /// the level of a code entry's code (its tier byte)
+ const TIER_O1: u8 = 0;
+ const TIER_O3: u8 = 1;
+@@ -759,7 +759,7 @@ pub struct Cache {
+     /// value entries this run validated or recorded: the startup image takes only these
+     const_live: HashSet<u128>,
+     /// the code keys of the bodies value certificates name (code_key_bytes by identity)
+-    const_body_keys: HashMap<FnKey, Option<(u128, Vec<u32>, Vec<u8>)>>,
++    const_body_keys: HashMap<SlotKey, Option<(u128, Vec<u32>, Vec<u8>)>>,
+     /// per crate: the indexes of its opened crate stores (has_front_key_in_crate)
+     front_stores_of: Vec<Vec<u32>>,
+     front_stores_n: usize,
+@@ -1802,6 +1802,11 @@ impl Cache {
+         self.file_ids.get(&ident).copied()
+     }
+ 
++    /// Stable boot identity for persisted codegen context; runtime crates are not cacheable.
++    pub(crate) fn crate_identity(&self, krate: u32) -> Option<u128> {
++        self.crate_ident.get(krate as usize).copied()
++    }
++
+     fn enc_def(&mut self, u: &Unit, d: DefId, e: &mut E, crates: &mut Vec<u32>) {
+         let c = u.prog.def(d).krate;
+         crates.push(c);
+@@ -2236,15 +2241,18 @@ impl Cache {
+         Some(v)
+     }
+ 
+-    fn enc_fnkey(&mut self, u: &Unit, key: &FnKey, e: &mut E, crates: &mut Vec<u32>, depth: u32) -> Option<()> {
++    fn enc_fnkey(&mut self, u: &Unit, key: &FnKey, codegen_crate: u32, e: &mut E, crates: &mut Vec<u32>, depth: u32) -> Option<()> {
+         if depth > 32 {
+             return None;
+         }
++        let context = *self.crate_ident.get(codegen_crate as usize)?;
++        crates.push(codegen_crate);
+         match key.clone() {
+             // twins are never cached (their code depends on the sandbox layout of this run)
+             FnKey::Shim(shim) => {
+                 use relax_types::instance::{ShimKind, ReifyReason};
+                 e.u8(KeyKind::Shim as u8);
++                e.u128(context);
+                 let def = shim.kind.def_id();
+                 let (tag, ty) = match shim.kind {
+                     ShimKind::VTable(_) => (0, None),
+@@ -2276,11 +2284,13 @@ impl Cache {
+                     return None;
+                 }
+                 e.u8(KeyKind::Twin as u8);
++                e.u128(context);
+                 let bk = u.fns[base as usize].key.clone();
+-                self.enc_fnkey(u, &bk, e, crates, depth + 1)
++                self.enc_fnkey(u, &bk, u.fns[base as usize].codegen_crate, e, crates, depth + 1)
+             }
+             FnKey::Inst(d, args) => {
+                 e.u8(KeyKind::Inst as u8);
++                e.u128(context);
+                 self.enc_def(u, d, e, crates);
+                 self.enc_tys(u, &args, e, crates, 0)
+             }
+@@ -2292,19 +2302,21 @@ impl Cache {
+                 let owner = key_defs(u, &u.fns[parent as usize].key).first().copied();
+                 if let Some((ord, fp)) = owner.filter(|_| !u.prog.is_edit_version(file)).and_then(|o| self.closure_ordinal(u, o, file, expr)) {
+                     e.u8(KeyKind::Closure as u8);
++                    e.u128(context);
+                     crates.push(u.prog.file_crate.get(file as usize).copied().unwrap_or(0));
+                     e.u32(ord);
+                     e.u64(fp);
+                     let pk = u.fns[parent as usize].key.clone();
+-                    return self.enc_fnkey(u, &pk, e, crates, depth + 1);
++                    return self.enc_fnkey(u, &pk, u.fns[parent as usize].codegen_crate, e, crates, depth + 1);
+                 }
+                 e.u8(KeyKind::ClosureInFile as u8);
++                e.u128(context);
+                 crates.push(u.prog.file_crate.get(file as usize).copied().unwrap_or(0));
+                 self.enc_file(u, file, e)?;
+                 e.u32(expr);
+                 e.u64(self.closure_fp(u, file, expr)?);
+                 let pk = u.fns[parent as usize].key.clone();
+-                self.enc_fnkey(u, &pk, e, crates, depth + 1)
++                self.enc_fnkey(u, &pk, u.fns[parent as usize].codegen_crate, e, crates, depth + 1)
+             }
+             // the slot of a startup image key that did not decode (image.rs): no key, and none
+             // remembered
+@@ -2314,6 +2326,7 @@ impl Cache {
+             }
+             FnKey::Glue(g, t) => {
+                 e.u8(KeyKind::Glue as u8);
++                e.u128(context);
+                 e.u8(g);
+                 self.enc_ty(u, t, e, crates, 0)
+             }
+@@ -2437,7 +2450,7 @@ impl Cache {
+         let mut e = E::default();
+         let mut cr = Vec::new();
+         let outer = std::mem::replace(&mut self.key_waits, false);
+-        let b = self.enc_fnkey(u, &key, &mut e, &mut cr, 0)
++        let b = self.enc_fnkey(u, &key, u.fns[id as usize].codegen_crate, &mut e, &mut cr, 0)
+             // As for code_key_bytes: run-time crates have no boot identity. Do not
+             // leave their unresolvable slots in the startup manifest either.
+             .filter(|()| cr.iter().all(|&c| (c as usize) < self.crate_ident.len())).map(|()| e.0);
+@@ -2484,8 +2497,7 @@ impl Cache {
+ 
+     /// Slot `id`'s code key and its identity bytes (`enc_fnkey`, as `slot_bytes` encodes them).
+     fn slot_key_uncached(&mut self, u: &Unit, id: u32) -> Option<(u128, Vec<u8>)> {
+-        let key = u.fns[id as usize].key.clone();
+-        let (k, crates, bytes) = self.code_key_bytes(u, &key)?;
++        let (k, crates, bytes) = self.code_key_bytes(u, &u.slot_key_for(id))?;
+         self.slot_crates.insert(id, crates);
+         Some((k, bytes))
+     }
+@@ -2509,11 +2521,12 @@ impl Cache {
+         self.manifest_keys.get(&identity_hash(b)).copied()
+     }
+ 
+-    fn code_key_bytes(&mut self, u: &Unit, key: &FnKey) -> Option<(u128, Vec<u32>, Vec<u8>)> {
++    fn code_key_bytes(&mut self, u: &Unit, slot: &SlotKey) -> Option<(u128, Vec<u32>, Vec<u8>)> {
+         let mut e = E::default();
+         let mut crates = Vec::new();
+         let outer = self.enc_defs.replace(Vec::new());
+-        let r = self.enc_fnkey(u, key, &mut e, &mut crates, 0);
++        let key = &slot.function;
++        let r = self.enc_fnkey(u, key, slot.codegen_crate, &mut e, &mut crates, 0);
+         // the allocator shim's callers call the program's #[global_allocator] (or the default):
+         // their code depends on it, which the fn's own identity does not show
+         let mut shim = E::default();
+@@ -3089,7 +3102,7 @@ impl Cache {
+                 e.u8(7);
+                 let key = u.fns[id as usize].key.clone();
+                 let mut cr = Vec::new();
+-                if self.enc_fnkey(u, &key, e, &mut cr, 0).is_none() {
++                if self.enc_fnkey(u, &key, u.fns[id as usize].codegen_crate, e, &mut cr, 0).is_none() {
+                     self.why("thunk key");
+                     return None;
+                 }
+@@ -3098,7 +3111,7 @@ impl Cache {
+                 e.u8(12);
+                 let key = u.fns[id as usize].key.clone();
+                 let mut cr = Vec::new();
+-                if self.enc_fnkey(u, &key, e, &mut cr, 0).is_none() {
++                if self.enc_fnkey(u, &key, u.fns[id as usize].codegen_crate, e, &mut cr, 0).is_none() {
+                     self.why("loop counter key");
+                     return None;
+                 }
+@@ -7823,6 +7836,9 @@ mod data_tests {
+         std::fs::write(&source, "#![no_std] fn method() {} fn owner() { let _ = || 1; let _ = || 2; } extern \"C\" { type Code; } struct Borrowed<'a>(&'a u32); type Alias<'a> = Borrowed<'a>; trait View<'a> {} fn early<'a>(_: &'a u32) where 'a: 'a {}").unwrap();
+         let mut prog = crate::program::Program::new(&session);
+         prog.load_crate("shim_keys", source.to_str().unwrap(), 2021, crate::cfg::CfgSet::host(&session, &[]), vec![]).unwrap();
++        let other = root.join("context.rs");
++        std::fs::write(&other, "#![no_std] pub fn context() {}").unwrap();
++        prog.load_crate("other_context", other.to_str().unwrap(), 2021, crate::cfg::CfgSet::host(&session, &[]), vec![]).unwrap();
+         let method = prog.defs.iter().enumerate().find_map(|(i, _)| (prog.name(DefId(i as u32)) == "method").then_some(DefId(i as u32))).unwrap();
+         let code = prog.defs.iter().enumerate().find_map(|(i, d)| (d.kind == DefKind::ForeignTy).then_some(DefId(i as u32))).unwrap();
+         let closures: Vec<_> = prog.defs.iter().enumerate().filter_map(|(i, d)| (d.kind == DefKind::Closure).then_some(DefId(i as u32))).collect();
+@@ -7861,7 +7877,7 @@ mod data_tests {
+         for key in keys {
+             let mut bytes = E::default();
+             let mut crates = vec![];
+-            assert!(cache.enc_fnkey(&u, &key, &mut bytes, &mut crates, 0).is_some());
++            assert!(cache.enc_fnkey(&u, &key, u.slot_key(key.clone()).codegen_crate, &mut bytes, &mut crates, 0).is_some());
+             if matches!(key, FnKey::Closure(..)) {
+                 assert_eq!(bytes.0[0], KeyKind::Closure as u8, "a closure of an instance is keyed by its ordinal");
+             }
+@@ -7875,6 +7891,22 @@ mod data_tests {
+             assert!(!encoded.contains(&bytes.0), "colliding fn key");
+             encoded.push(bytes.0);
+         }
++        // Identical functions emitted by distinct crates must never share a disk identity.
++        assert!(cache.crate_ident.len() >= 2);
++        let key = FnKey::Inst(method, vec![]);
++        let mut contexts = Vec::new();
++        for codegen_crate in 0..2 {
++            let mut bytes = E::default();
++            let mut crates = Vec::new();
++            cache.enc_fnkey(&u, &key, codegen_crate, &mut bytes, &mut crates, 0).unwrap();
++            assert!(crates.contains(&codegen_crate));
++            let decoded = unsafe { Linker::new(&mut cache).dec_fnkey(&mut u, &mut D { b: &bytes.0, p: 0 }, 0) }.unwrap();
++            assert_eq!(decoded.codegen_crate, codegen_crate);
++            assert_eq!(decoded.function, key);
++            contexts.push(bytes.0);
++        }
++        assert_ne!(contexts[0], contexts[1]);
++        encoded.extend(contexts);
+         u.tcx = crate::tcx::Tcx::new();
+         for n in 0..23 { u.tcx.tys.const_usize(n); }
+         for bytes in encoded {
+@@ -7885,7 +7917,7 @@ mod data_tests {
+             let mut skipped = D { b: &bytes, p: 0 };
+             assert!(image::skip_fnkey(&mut skipped, 0, &mut image::no_atoms).is_some() && skipped.p == bytes.len(), "skip_fnkey stopped at {} of {}", skipped.p, bytes.len());
+             let mut again = E::default();
+-            assert!(cache.enc_fnkey(&u, &key, &mut again, &mut vec![], 0).is_some());
++            assert!(cache.enc_fnkey(&u, &key.function, key.codegen_crate, &mut again, &mut vec![], 0).is_some());
+             assert_eq!(bytes, again.0);
+             for end in 0..bytes.len() {
+                 assert!(unsafe { Linker::new(&mut cache).dec_fnkey(&mut u, &mut D { b: &bytes[..end], p: 0 }, 0) }.is_none());
+@@ -8889,11 +8921,13 @@ impl Linker {
+     /// Only borrow for an individual map/codec operation, never across Unit callbacks.
+     fn cache(&mut self) -> &mut Cache { unsafe { &mut *self.cache } }
+ 
+-    fn dec_fnkey(&mut self, u: &mut Unit, d: &mut D, depth: u32) -> Option<FnKey> {
++    fn dec_fnkey(&mut self, u: &mut Unit, d: &mut D, depth: u32) -> Option<SlotKey> {
+         if depth > 32 {
+             return None;
+         }
+-        Some(match KeyKind::of(d.u8()?)? {
++        let kind = KeyKind::of(d.u8()?)?;
++        let codegen_crate = *self.cache().crate_by_ident.get(&d.u128()?)?;
++        let function = match kind {
+             KeyKind::Inst => {
+                 let def = self.cache().dec_def(u, d)?;
+                 FnKey::Inst(def, self.cache().dec_tys(u, d, 0)?)
+@@ -8907,7 +8941,7 @@ impl Linker {
+                     Some(p) => p,
+                     None => {
+                         let pk = self.dec_fnkey(u, d, depth + 1)?;
+-                        u.fn_id(pk)
++                        u.fn_id_in(pk)
+                     }
+                 };
+                 FnKey::Closure(file, expr, parent)
+@@ -8919,7 +8953,7 @@ impl Linker {
+                     Some(p) => p,
+                     None => {
+                         let pk = self.dec_fnkey(u, d, depth + 1)?;
+-                        u.fn_id(pk)
++                        u.fn_id_in(pk)
+                     }
+                 };
+                 let owner = *key_defs(u, &u.fns[parent as usize].key).first()?;
+@@ -8951,12 +8985,13 @@ impl Linker {
+                     Some(b) => b,
+                     None => {
+                         let bk = self.dec_fnkey(u, d, depth + 1)?;
+-                        u.fn_id(bk)
++                        u.fn_id_in(bk)
+                     }
+                 };
+                 FnKey::Plain(base)
+             }
+-        })
++        };
++        Some(SlotKey { function, codegen_crate })
+     }
+ 
+     fn slot_of_bytes(&mut self, u: &mut Unit, b: &[u8]) -> Option<u32> {
+@@ -8970,7 +9005,7 @@ impl Linker {
+         }
+         let mut d = D { b, p: 0 };
+         let k = self.dec_fnkey(u, &mut d, 0)?;
+-        let s = u.fn_id(k);
++        let s = u.fn_id_in(k);
+         self.cache().slot_by_bytes.insert(b.into(), s);
+         Some(s)
+     }
+@@ -9019,7 +9054,7 @@ impl Linker {
+                     None => {
+                         let t = crate::jit::wall_ns();
+                         let key = self.dec_fnkey(u, d, 0)?;
+-                        let id = u.fn_id(key);
++                        let id = u.fn_id_in(key);
+                         THUNK_DECODED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                         THUNK_DECODE_NS.fetch_add(crate::jit::wall_ns() - t, std::sync::atomic::Ordering::Relaxed);
+                         id
+@@ -9032,7 +9067,7 @@ impl Linker {
+                     Some(id) => id,
+                     None => {
+                         let key = self.dec_fnkey(u, d, 0)?;
+-                        u.fn_id(key)
++                        u.fn_id_in(key)
+                     }
+                 };
+                 crate::jit::loop_counter_sym(u, id)
+@@ -9187,7 +9222,7 @@ impl Linker {
+         // the base on the program's thread, then the base's callees, one session deeper each time.
+         // It tiers up from here like any linked entry (its O3 build is recorded under its own key).
+         if !found && matches!(u.fns[id as usize].key, FnKey::Inst(..) | FnKey::Closure(..)) && u.fns[id as usize].build_err.is_none() {
+-            if let Some((tk, _, _)) = self.cache().code_key_bytes(u, &FnKey::Plain(id)) {
++            if let Some((tk, _, _)) = self.cache().code_key_bytes(u, &SlotKey { function: FnKey::Plain(id), codegen_crate: u.fns[id as usize].codegen_crate }) {
+                 let at = self.cache().index_at(tk);
+                 let pack = at.map(|(p, _)| self.cache().stores[p as usize].clone());
+                 if let Some((KIND_CODE, payload)) = pack.as_ref().and_then(|pk| pk.get_checked_at(at.map_or(0, |a| a.1) as usize, tk)).filter(|(_, p)| !p.is_empty()) {
+@@ -9633,7 +9668,7 @@ impl Cache {
+             let Some(&entry) = self.linked_key.get(&id) else { readers.push(id); continue };
+             let same = self.slot_key(u, id) == Some(entry) || {
+                 // the code of its unverified twin's entry (Linker::lookup, SPEC-V)
+-                matches!(u.fns[id as usize].key, FnKey::Inst(..) | FnKey::Closure(..)) && self.code_key_bytes(u, &FnKey::Plain(id)).is_some_and(|k| k.0 == entry)
++                matches!(u.fns[id as usize].key, FnKey::Inst(..) | FnKey::Closure(..)) && self.code_key_bytes(u, &SlotKey { function: FnKey::Plain(id), codegen_crate: u.fns[id as usize].codegen_crate }).is_some_and(|k| k.0 == entry)
+             };
+             if !same {
+                 by_key += 1;
+@@ -9714,7 +9749,7 @@ impl Cache {
+         if !crate::reload::edited_crates().is_empty() { return None; }
+         let mut e = E::default();
+         let mut crates = Vec::new();
+-        if self.enc_fnkey(u, &FnKey::Inst(def, args.to_vec()), &mut e, &mut crates, 0).is_none() { return None; }
++        if self.enc_fnkey(u, &FnKey::Inst(def, args.to_vec()), u.slot_key(FnKey::Inst(def, args.to_vec())).codegen_crate, &mut e, &mut crates, 0).is_none() { return None; }
+         if crates.iter().any(|&c| c as usize >= self.crate_ident.len()) { return None; }
+         crates.sort_unstable();
+         crates.dedup();
+@@ -9727,7 +9762,7 @@ impl Cache {
+     }
+ 
+     /// The code key, crates and identity bytes of body `key` (memo for the run)
+-    fn const_body_key(&mut self, u: &Unit, key: &FnKey) -> Option<(u128, Vec<u32>, Vec<u8>)> {
++    fn const_body_key(&mut self, u: &Unit, key: &SlotKey) -> Option<(u128, Vec<u32>, Vec<u8>)> {
+         if let Some(k) = self.const_body_keys.get(key) {
+             return k.clone();
+         }
+diff --git a/libs/relax/compiler/src/cache/image.rs b/libs/relax/compiler/src/cache/image.rs
+index 61d5a3b..917513f 100644
+--- a/libs/relax/compiler/src/cache/image.rs
++++ b/libs/relax/compiler/src/cache/image.rs
+@@ -93,7 +93,7 @@ impl Cache {
+             let mut cr: Vec<u32> = crates.clone();
+             let body = match u.fns[*id as usize].key { crate::jit::FnKey::Plain(b) => b, _ => *id };
+             let clean = twinlink && u.verdict_clean(body);
+-            let retarget = |t: &[u8]| -> bool { clean && t.first().copied().and_then(KeyKind::of) == Some(KeyKind::Twin) && in_image.contains(&t[1..]) };
++            let retarget = |t: &[u8]| -> bool { clean && t.first().copied().and_then(KeyKind::of) == Some(KeyKind::Twin) && t.len() >= 17 && in_image.contains(&t[17..]) };
+             if image_slot(&mut tab, &mut slots, &mut blob, *k, sum, bytes, payload, &mut cr, &self.crate_by_ident, &retarget).is_some() {
+                 n += 1;
+             }
+@@ -716,7 +716,7 @@ fn image_slot(tab: &mut ImageTables, out: &mut E, blob: &mut Vec<u8>, entry_key:
+             20 | 21 | 25 => {
+                 d.u8()?;
+                 let t = d.bytes()?;
+-                let t = if retarget(t) { crate::jit::TWIN_RETARGETS.fetch_add(1, std::sync::atomic::Ordering::Relaxed); &t[1..] } else { t };
++                let t = if retarget(t) { crate::jit::TWIN_RETARGETS.fetch_add(1, std::sync::atomic::Ordering::Relaxed); &t[17..] } else { t };
+                 rel.push((at, kind, match tag { 20 => IMG_SLOT, 25 => IMG_CALL, _ => IMG_THUNK }, tab.keys.id(t)));
+             }
+             22..=24 => {
+@@ -968,7 +968,9 @@ pub(crate) fn skip_fnkey(d: &mut D, depth: u32, v: &mut dyn FnMut(Atom)) -> Opti
+     if depth > 32 {
+         return None;
+     }
+-    match KeyKind::of(d.u8()?)? {
++    let kind = KeyKind::of(d.u8()?)?;
++    v(Atom::Crate(d.u128()?));
++    match kind {
+         KeyKind::Inst => {
+             skip_def(d, v)?;
+             skip_tys(d, 0, v)
+diff --git a/libs/relax/compiler/src/ctfe.rs b/libs/relax/compiler/src/ctfe.rs
+index 03ee478..0257324 100644
+--- a/libs/relax/compiler/src/ctfe.rs
++++ b/libs/relax/compiler/src/ctfe.rs
+@@ -1361,7 +1361,7 @@ impl<'a> Ctx<'a> {
+         impl Drop for Pop { fn drop(&mut self) { let _ = CONSTS_READING.try_with(|c| { c.borrow_mut().pop(); }); } }
+         let _ = CONSTS_READING.try_with(|c| c.borrow_mut().push((d, args.clone())));
+         self.depth += 1;
+-        let cert = crate::jit::CertGuard::begin(crate::jit::FnKey::Inst(d, args.clone()));
++        let cert = crate::jit::CertGuard::begin(u.slot_key(crate::jit::FnKey::Inst(d, args.clone())));
+         let ok = { let _pop = Pop; eval_into(self.u, d, &args, buf) };
+         self.depth -= 1;
+         if !ok {
+@@ -1508,7 +1508,7 @@ impl<'a> Ctx<'a> {
+         };
+         let bl = body.body?;
+         // (the value is made of this body too: the certificate of the evaluation names it)
+-        crate::jit::cert_note_body(|| crate::jit::FnKey::Inst(d, gargs.clone()));
++        crate::jit::cert_note_body(|| self.u.slot_key(crate::jit::FnKey::Inst(d, gargs.clone())));
+         let has_self = body.locals.first().is_some_and(|l| l.pat == u32::MAX && self.u.prog.syms.str(l.name) == "self");
+         if body.param_pats.len() + usize::from(has_self) != args.len() {
+             return None;
+diff --git a/libs/relax/compiler/src/jit.rs b/libs/relax/compiler/src/jit.rs
+index f1f2bf6..b4e681a 100644
+--- a/libs/relax/compiler/src/jit.rs
++++ b/libs/relax/compiler/src/jit.rs
+@@ -46,6 +46,14 @@ pub enum FnKey {
+     Plain(u32),
+ }
+ 
++/// A monomorphization belongs to a codegen crate, including its resource limits.
++/// Keep the context outside FnKey so body identity and sandbox/twin behavior stay explicit.
++#[derive(Clone, PartialEq, Eq, Hash, Debug)]
++pub struct SlotKey {
++    pub function: FnKey,
++    pub codegen_crate: u32,
++}
++
+ /// Round 23: the erased nightly Instance identity survives slot interning and caching.
+ #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+ pub struct ShimInstance {
+@@ -72,6 +80,7 @@ pub const GLUE_UNNAMED: u8 = 15;
+ /// identities, maps, history and speculative code never pin its chunks (placement only).
+ pub struct FnEntry {
+     pub key: FnKey,
++    pub codegen_crate: u32,
+     /// Fixed after naming; an unnamed startup slot gets its whole name replaced on decode.
+     pub name: Box<str>,
+     pub code: u64,
+@@ -401,7 +410,7 @@ pub struct Unit {
+     pub lay: crate::layout::Layouts,
+     /// slots: created on any thread (fn_id from lowering), build state changed on the owner thread
+     pub fns: crate::conc::AppendVec<FnEntry>,
+-    pub fn_map: crate::conc::MemoMap<FnKey, u32>,
++    pub fn_map: crate::conc::MemoMap<SlotKey, u32>,
+     /// the reload index of slots by definition / parent / file: built from the slots on the
+     /// first query (a reload), kept current from then on; a run without a reload never builds it
+     reload_slots: relax_session::sync::Mutex<Option<ReloadSlots>>,
+@@ -481,9 +490,9 @@ pub struct Unit {
+     /// which holds the first lowering made with the layout so far
+     pub coro_relower: relax_session::sync::Mutex<Vec<u32>>,
+     /// drop_may_unwind answers
+-    pub unwind_drop_cache: crate::conc::MemoMap<TyId, bool>,
++    pub unwind_drop_cache: crate::conc::MemoMap<(TyId, u32), bool>,
+     /// (concrete type, dyn type) -> vtable address
+-    pub vtables: crate::conc::MemoMap<(TyId, TyId), u64>,
++    pub vtables: crate::conc::MemoMap<(TyId, TyId, u32), u64>,
+     /// vtable address -> the slots whose code makes trait objects with it: an unsizing coercion
+     /// this run lowered, or code linked from the disk cache that names it (note_vtable_maker).
+     /// What an impl's removal checks (reload.rs); code placed from the startup image is not here.
+@@ -497,7 +506,7 @@ pub struct Unit {
+     pub interp_ahead: std::collections::HashMap<DefId, relax_types::const_eval::interp::Outcome>,
+     pub core_path_cache: crate::conc::MemoMap<String, Option<DefId>>,
+     /// `T: Unpin` answers (noalias on `&mut T` params needs it)
+-    unpin_cache: crate::conc::MemoMap<TyId, bool>,
++    unpin_cache: crate::conc::MemoMap<(TyId, u32), bool>,
+     pub errors: Vec<String>,
+     pub core_crate: u32,
+     /// This unit's std cfg, not the session target: proc macros share the session
+@@ -3016,7 +3025,7 @@ fn stored_where(u: &Unit, pc: u64) -> Vec<String> {
+             out.push(format!("slot `{}`'s table word", short_name(&u.fns[id as usize].name)));
+         }
+     }
+-    for ((t, d), at) in u.vtables.snapshot() {
++    for ((t, d, _), at) in u.vtables.snapshot() {
+         // (vtables are read-only data objects: words up to the data area's end only)
+         for k in (0..40u64).take_while(|k| at >= u.ro_base && at + 8 * k + 8 <= u.data_end) {
+             let w = unsafe { std::ptr::read_volatile((at + 8 * k) as *const u64) };
+@@ -4682,8 +4691,8 @@ struct TypeCycle {
+ }
+ 
+ impl TypeCycle {
+-    fn query(&mut self, t: TyId, cache: &crate::conc::MemoMap<TyId, bool>, seed: bool, f: impl FnOnce(&mut Self) -> bool) -> bool {
+-        if let Some(r) = cache.get(&t) { return r; }
++    fn query<K: std::hash::Hash + Eq>(&mut self, t: TyId, cache: &crate::conc::MemoMap<K, bool>, key: impl Fn(TyId) -> K, seed: bool, f: impl FnOnce(&mut Self) -> bool) -> bool {
++        if let Some(r) = cache.get(&key(t)) { return r; }
+         if let Some(&at) = self.at.get(&t) {
+             let current = self.current.unwrap();
+             self.stack[current].1 = self.stack[current].1.min(at);
+@@ -4699,7 +4708,7 @@ impl TypeCycle {
+         if low == depth {
+             for (t, _) in self.stack.drain(depth..) {
+                 self.at.remove(&t);
+-                cache.insert(t, r);
++                cache.insert(key(t), r);
+             }
+         } else if let Some(parent) = parent {
+             self.stack[parent].1 = self.stack[parent].1.min(low);
+@@ -4714,7 +4723,7 @@ mod type_cycle_tests {
+     use crate::conc::MemoMap;
+ 
+     fn walk(t: TyId, cycle: &mut TypeCycle, cache: &MemoMap<TyId, bool>, seed: bool, decisive: bool, visits: &mut [usize; 32]) -> bool {
+-        cycle.query(t, cache, seed, |cycle| {
++        cycle.query(t, cache, |t| t, seed, |cycle| {
+             visits[t.0 as usize] += 1;
+             if t.0 == 30 { return if decisive { !seed } else { seed }; }
+             if t.0 == 31 { return seed; }
+@@ -5945,7 +5954,7 @@ impl Unit {
+         // a field's associated-type projection (`<A as Allocator<u8>>::AllocatedMemory`) names
+         // the type it normalises to, as rustc's auto-trait selection sees it
+         let t = self.tcx.try_normalize_erasing_regions(&self.prog, crate::tcx::TypingEnv::fully_monomorphized(&self.prog), t).unwrap_or(t);
+-        cycle.query(t, &self.unpin_cache, true, |cycle| {
++        cycle.query(t, &self.unpin_cache, |t| (t, crate::tcx::CodegenCrate::current()), true, |cycle| {
+             match self.tcx.tys.kind(t).clone() {
+                 TyKind::Int(_) | TyKind::Float(_) | TyKind::Bool | TyKind::Char | TyKind::Never | TyKind::Str => true,
+                 TyKind::Ref(..) | TyKind::Ptr(..) | TyKind::FnPtr(..) | TyKind::FnDef(..) => true,
+@@ -6197,7 +6206,7 @@ impl Unit {
+ 
+     fn drop_may_unwind_inner(&self, t: TyId, cycle: &mut TypeCycle) -> bool {
+         let t = self.tcx.tys.erase_regions(t);
+-        cycle.query(t, &self.unwind_drop_cache, false, |cycle| {
++        cycle.query(t, &self.unwind_drop_cache, |t| (t, crate::tcx::CodegenCrate::current()), false, |cycle| {
+             // rustc_middle/src/ty/util.rs: Ty::needs_drop / needs_drop_components;
+             // rustc_mir_transform/src/shim.rs: build_drop_shim keeps unwind edges for
+             // destructor calls and field drops. Std destructor bodies are approximated below.
+@@ -6300,10 +6309,10 @@ impl Unit {
+     /// lowers on without it (want_in_front).
+     pub fn vtable_shared(&self, src: TyId, dy: TyId) -> Result<Option<u64>, String> {
+         let (src, dy) = (self.tcx.tys.erase_regions(src), self.tcx.tys.erase_regions(dy));
+-        if let Some(a) = self.vtables.get(&(src, dy)) {
++        if let Some(a) = self.vtables.get(&(src, dy, crate::tcx::CodegenCrate::current())) {
+             return Ok(Some(a));
+         }
+-        if want_in_front(self, None, |_| Wanted::Vtable(src, dy)) {
++        if want_in_front(self, None, |_| Wanted::Vtable(src, dy, crate::tcx::CodegenCrate::current())) {
+             return Ok(None);
+         }
+         self.vtable(src, dy).map(Some)
+@@ -6312,7 +6321,7 @@ impl Unit {
+     pub fn vtable(&self, src: TyId, dy: TyId) -> Result<u64, String> {
+         let src = self.tcx.tys.erase_regions(src);
+         let dy = self.tcx.tys.erase_regions(dy);
+-        if let Some(a) = self.vtables.get(&(src, dy)) {
++        if let Some(a) = self.vtables.get(&(src, dy, crate::tcx::CodegenCrate::current())) {
+             return Ok(a);
+         }
+         let (td, targs) = match self.tcx.tys.kind(dy).clone() {
+@@ -6378,9 +6387,11 @@ impl Unit {
+         let a = self.data(&bytes, pb as u64, crate::syms::DataKind::Words(wsyms));
+         // (named: one of a trait-object type real-time code calls through is compiled after the
+         // current request, realtime_vtable)
+-        self.syms.set_data_name(a, format!("{}{}:{}", crate::syms::VTABLE_NAME, crate::syms::stable_ty(self, src), crate::syms::stable_ty(self, dy)));
++        let codegen_crate = crate::tcx::CodegenCrate::current();
++        let context = self.cache.as_ref().and_then(|c| c.crate_identity(codegen_crate)).map_or_else(|| format!("run-{codegen_crate}"), |ident| format!("{ident:032x}"));
++        self.syms.set_data_name(a, format!("{}ctx({context}):{}:{}", crate::syms::VTABLE_NAME, crate::syms::stable_ty(self, src), crate::syms::stable_ty(self, dy)));
+         // a racing builder of the same vtable: everyone uses the first (one symbol per vtable)
+-        Ok(self.vtables.insert_first((src, dy), a))
++        Ok(self.vtables.insert_first((src, dy, codegen_crate), a))
+     }
+ 
+     /// The reload index, built from the slots made so far on first use.
+@@ -6467,12 +6478,31 @@ impl Unit {
+         key
+     }
+ 
+-    pub fn fn_id(&self, key: FnKey) -> u32 {
+-        let key = self.slot_key_form(key);
+-        if let Some(id) = lower_ahead_fn_id(self, &key) {
++    pub fn slot_key_for(&self, id: u32) -> SlotKey {
++        let entry = &self.fns[id as usize];
++        SlotKey { function: entry.key.clone(), codegen_crate: entry.codegen_crate }
++    }
++
++    pub fn slot_key(&self, key: FnKey) -> SlotKey {
++        let codegen_crate = match &key {
++            FnKey::Closure(_, _, parent) | FnKey::Plain(parent) | FnKey::Sandbox(parent) if (*parent as usize) < self.fns.len() => self.fns[*parent as usize].codegen_crate,
++            FnKey::Inst(def, _) if self.tcx.generic_indices_of(&self.prog, *def).types_consts.is_empty()
++                && inline_attrs(&self.prog, *def) & (relax_codegen::opt::ATTR_HINT | relax_codegen::opt::ATTR_ALWAYS) == 0 => self.prog.def(*def).krate,
++            _ => crate::tcx::CodegenCrate::current(),
++        };
++        SlotKey { function: self.slot_key_form(key), codegen_crate }
++    }
++
++    pub fn fn_id(&self, key: FnKey) -> u32 { self.fn_id_in(self.slot_key(key)) }
++
++    pub fn fn_id_in(&self, slot_key: SlotKey) -> u32 {
++        let _codegen = crate::tcx::CodegenCrate::enter(slot_key.codegen_crate);
++        let key = self.slot_key_form(slot_key.function);
++        let slot_key = SlotKey { function: key.clone(), codegen_crate: slot_key.codegen_crate };
++        if let Some(id) = lower_ahead_fn_id(self, &slot_key) {
+             return id;
+         }
+-        if let Some(id) = self.fn_map.get(&key) {
++        if let Some(id) = self.fn_map.get(&slot_key) {
+             return id;
+         }
+         // a tuple constructor as a fn item (`let f = Some; f(1)`, reified ctors): the
+@@ -6488,12 +6518,12 @@ impl Unit {
+                     let fp = self.tcx.tys.intern(TyKind::FnPtr(self.tcx.tys.mk_list(&ps), r, sig.header, 0));
+                     let vi = if k == crate::program::DefKind::Variant { self.prog.def(*d).sub } else { 0 };
+                     let id = self.fn_id(FnKey::Glue(GLUE_CTOR + vi as u8, fp));
+-                    self.fn_map.insert(crate::zone_alloc::kept_clone(&key), id);
++                    self.fn_map.insert(crate::zone_alloc::kept_clone(&slot_key), id);
+                     return id;
+                 }
+             }
+         }
+-        if let Some(id) = self.fn_map.get(&key) {
++        if let Some(id) = self.fn_map.get(&slot_key) {
+             return id;
+         }
+         // fn_create is a leaf lock: nothing under it waits for a query, the owner or a pump
+@@ -6506,10 +6536,10 @@ impl Unit {
+         let id = {
+             let _g = self.fn_create.lock().unwrap_or_else(|e| e.into_inner());
+             let _leaf = crate::owner::Leaf::enter();
+-            if let Some(id) = self.fn_map.get(&key) {
++            if let Some(id) = self.fn_map.get(&slot_key) {
+                 return id;
+             }
+-            self.fn_create_locked(&key, name)
++            self.fn_create_locked(&slot_key, name)
+         };
+         self.slot_ahead(id, &key);
+         id
+@@ -6545,10 +6575,11 @@ impl Unit {
+     }
+ 
+     /// fn_id's new slot `id` for `key` (the caller holds fn_create).
+-    fn fn_create_locked(&self, key: &FnKey, name: String) -> u32 {
++    fn fn_create_locked(&self, slot_key: &SlotKey, name: String) -> u32 {
++        let key = &slot_key.function;
+         let id = self.fns.len() as u32;
+         self.ensure_slots(id, 1);
+-        let map_key = crate::zone_alloc::kept_clone(key);
++        let map_key = crate::zone_alloc::kept_clone(slot_key);
+         let file = self.key_file(key);
+         let stub_addr = self.slots.stub(id);
+         let stub = x64::stub(id, self.lazy_entry);
+@@ -6563,7 +6594,7 @@ impl Unit {
+             self.init_slot_target(id, stub_addr);
+         }
+         self.slot_named(id, key);
+-        self.fns.push(Self::new_entry(key, &name, file, stub_addr, stub.len() as u32));
++        self.fns.push(Self::new_entry(key, slot_key.codegen_crate, &name, file, stub_addr, stub.len() as u32));
+         if let Some(index) = self.reload_slots.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+             index.insert(key, id);
+         }
+@@ -6622,7 +6653,7 @@ impl Unit {
+     }
+ 
+     /// A new slot's entry: no code yet (its table word points at its lazy stub `stub_addr`).
+-    fn new_entry(key: &FnKey, name: &str, file: u32, stub_addr: u64, stub_len: u32) -> FnEntry {
++    fn new_entry(key: &FnKey, codegen_crate: u32, name: &str, file: u32, stub_addr: u64, stub_len: u32) -> FnEntry {
+         // Generated glue and sandbox entries are conservatively not local-linkage. A
+         // definition's own entry/export markers are read only by single_ref (declared_entry):
+         // most slots (the startup image's thousands) are never asked.
+@@ -6630,7 +6661,7 @@ impl Unit {
+         // Copy explicitly: converting an existing String can keep its old allocation.
+         // Clone also copies both Inst's and Shim's owned type arguments.
+         let (key, name) = crate::zone_alloc::slots_with(|| (key.clone(), Box::<str>::from(name)));
+-        FnEntry { key, name, code: stub_addr, code_len: stub_len, pc_map: PcMap::default(), file, history: None, compiled: false, patch_gen: 0, rir: None, refs: u32::from(entry_ref), rir_refs: Box::default(), entry_ref: AtomicBool::new(entry_ref), entry_ref_counted: entry_ref, building: false, build_err: None, build_ns: 0, cg_ns: 0, version: 0, inflight: false, spec: None, spec_state: 0, spec_depth: u8::MAX, baseline_hint: AtomicBool::new(false), hot_hint: AtomicBool::new(false), o3: AtomicBool::new(false), base_code: AtomicBool::new(false), unverified: AtomicBool::new(false), d3_lowered: AtomicBool::new(false), ran_before: AtomicBool::new(false), twin_ran: AtomicBool::new(false), patched: AtomicBool::new(false), borrowed: false, rir_from: RIR_OWN, normal_rir: None, lowering: None, calls: Box::default() }
++        FnEntry { key, codegen_crate, name, code: stub_addr, code_len: stub_len, pc_map: PcMap::default(), file, history: None, compiled: false, patch_gen: 0, rir: None, refs: u32::from(entry_ref), rir_refs: Box::default(), entry_ref: AtomicBool::new(entry_ref), entry_ref_counted: entry_ref, building: false, build_err: None, build_ns: 0, cg_ns: 0, version: 0, inflight: false, spec: None, spec_state: 0, spec_depth: u8::MAX, baseline_hint: AtomicBool::new(false), hot_hint: AtomicBool::new(false), o3: AtomicBool::new(false), base_code: AtomicBool::new(false), unverified: AtomicBool::new(false), d3_lowered: AtomicBool::new(false), ran_before: AtomicBool::new(false), twin_ran: AtomicBool::new(false), patched: AtomicBool::new(false), borrowed: false, rir_from: RIR_OWN, normal_rir: None, lowering: None, calls: Box::default() }
+     }
+ 
+     /// Slot `id` has its key: the front's slot keys and its ahead check (before the slot is
+@@ -6796,7 +6827,7 @@ impl Unit {
+             let id = first + i;
+             let stub_addr = self.slots.stub(id);
+             unsafe { self.init_slot_target(id, stub_addr) };
+-            self.fns.push(Self::new_entry(&unnamed, "", 0, stub_addr, stub_len as u32));
++            self.fns.push(Self::new_entry(&unnamed, crate::layout::root_crate(), "", 0, stub_addr, stub_len as u32));
+         }
+         first
+     }
+@@ -6804,25 +6835,27 @@ impl Unit {
+     /// Names slot `id` (made by `new_slots`) `key` (on the owner thread): its name, file, the map.
+     /// False when another slot has that key already: this one keeps it as a second slot of the
+     /// function (its code and callers stay; the reload index finds both), the map the first.
+-    pub(crate) fn name_slot(&mut self, id: u32, key: FnKey) -> bool {
+-        let key = self.slot_key_form(key);
++    pub(crate) fn name_slot(&mut self, id: u32, slot_key: SlotKey) -> bool {
++        let key = self.slot_key_form(slot_key.function);
++        let slot_key = SlotKey { function: key.clone(), codegen_crate: slot_key.codegen_crate };
+         let name = fn_name(self, &key);
+         let name = crate::zone_alloc::slots_with(|| Box::<str>::from(name.as_str()));
+         let file = self.key_file(&key);
+-        self.slot_named(id, &key);
+-        self.slot_ahead(id, &key);
+         let f = &mut self.fns[id as usize];
++        f.codegen_crate = slot_key.codegen_crate;
+         f.key = crate::zone_alloc::slots_with(|| key.clone());
+         f.name = name;
+         f.file = file;
++        self.slot_named(id, &key);
++        self.slot_ahead(id, &key);
+         if let Some(index) = self.reload_slots.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+             index.insert(&key, id);
+         }
+         let _g = self.fn_create.lock().unwrap_or_else(|e| e.into_inner());
+-        if self.fn_map.get(&key).is_some() {
++        if self.fn_map.get(&slot_key).is_some() {
+             return false;
+         }
+-        self.fn_map.insert(crate::zone_alloc::kept_clone(&key), id);
++        self.fn_map.insert(crate::zone_alloc::kept_clone(&slot_key), id);
+         true
+     }
+ 
+@@ -6856,8 +6889,8 @@ impl Unit {
+             // that names an open generic instance (a type parameter left in it) is not one the
+             // owner's lowering makes, and stays a bail
+             if LOWERING_AHEAD.try_with(|a| a.get()).unwrap_or(false) && WANT_CONSTS.try_with(|w| w.get()).unwrap_or(false) {
+-                let key = if (id as usize) < self.fns.len() { Some(self.fns[id as usize].key.clone()) } else { lower_ahead_fn_key(id) };
+-                if let Some(key) = key.filter(|k| self.closed_key(k)) {
++                let key = if (id as usize) < self.fns.len() { Some(self.slot_key_for(id)) } else { lower_ahead_slot_key(id) };
++                if let Some(key) = key.filter(|k| self.closed_key(&k.function)) {
+                     want(Wanted::Entry(key), self.tcx.collect_epoch.load(Ordering::SeqCst));
+                 }
+             }
+@@ -7426,7 +7459,7 @@ impl Unit {
+         struct Pop;
+         impl Drop for Pop { fn drop(&mut self) { let _ = CONST_STACK.try_with(|s| { s.borrow_mut().pop(); }); } }
+         let _ = CONST_STACK.try_with(|s| s.borrow_mut().push((d, args.clone(), depth)));
+-        let cert = CertGuard::begin(FnKey::Inst(d, args.clone()));
++        let cert = CertGuard::begin(self.slot_key(FnKey::Inst(d, args.clone())));
+         let t_init = cpu_ns();
+         let refusal = RefusalFrame::enter();
+         let evaluated = { let _pop = Pop; self.eval_init(d, args.clone(), false) };
+@@ -7550,7 +7583,7 @@ impl Unit {
+         let ctfe_code = self.stats.ctfe_code;
+         let ran = cached.is_none().then(|| {
+             let pending = PendingInit::arm(d);
+-            let cert = CertGuard::begin(FnKey::Inst(d, Vec::new()));
++            let cert = CertGuard::begin(self.slot_key(FnKey::Inst(d, Vec::new())));
+             let r = self.run_init(d, Vec::new(), buf);
+             pending.disarm();
+             (r, cert.finish())
+@@ -8399,7 +8432,7 @@ impl Unit {
+ 
+     /// SPEC-V: the twin of `id`, if one exists.
+     pub(crate) fn plain_twin_of(&self, id: u32) -> Option<u32> {
+-        self.fn_map.get(&FnKey::Plain(id))
++        self.fn_map.get(&self.slot_key(FnKey::Plain(id)))
+     }
+ 
+     /// SPEC-V: where linked (cached) code of slot `caller` sends its call / reference to slot `target`.
+@@ -12457,7 +12490,7 @@ pub struct SettleDrops {
+     retired_rir: Vec<std::sync::Arc<relax_backend::rir::Func>>,
+     retired_bodies: Vec<std::sync::Arc<Body>>,
+     retired_ctfe: crate::fxhash::HashMap<(DefId, Vec<TyId>), (u64, std::sync::Arc<Body>)>,
+-    retired_memos: Vec<crate::conc::Detached<TyId, bool>>,
++    retired_memos: Vec<crate::conc::Detached<(TyId, u32), bool>>,
+     retired_spec: ExpiredSpec,
+ }
+ 
+@@ -12518,7 +12551,7 @@ fn drop_completed_body(u: &mut Unit, id: u32) {
+     let drop_rir = f.rir.is_some() && !inline_source_wanted(u, id, false);
+     let drop_body = u.bodies.get(&id).is_some_and(|b| u.prog.def(b.def).file == b.file
+         && b.closure_sigs.keys().all(|ce| {
+-            u.fn_map.get(&FnKey::Closure(b.file, *ce, id)).is_some_and(|child| {
++            u.fn_map.get(&u.slot_key(FnKey::Closure(b.file, *ce, id))).is_some_and(|child| {
+                 let child = &u.fns[child as usize];
+                 child.compiled || child.rir.is_some()
+             })
+@@ -13045,6 +13078,7 @@ pub struct Prep {
+ /// (`defer`: only their preparations, optimised with the caller's back end). Returns the
+ /// preparation and the cpu ns of inline preparation outside nested builds.
+ unsafe fn prepare_rir_from(up: *mut Unit, id: u32, defer: bool, lowered: Option<relax_backend::rir::Func>, mode: RirMode) -> Result<(Prep, u64), String> {
++    let _codegen = crate::tcx::CodegenCrate::enter((&*up).fns[id as usize].codegen_crate);
+     let _census_context = (&*up).exec_context(relax_codegen::exec_census::active() && crate::exec_profile::is_call(up as usize, id));
+ 
+     let _why = why_function(&*up, id, "lower-fn");
+@@ -14583,6 +14617,7 @@ impl Drop for BuildFrame {
+ }
+ 
+ unsafe fn build_rir_inner(up: *mut Unit, id: u32) -> Result<relax_backend::rir::Func, String> {
++    let _codegen = crate::tcx::CodegenCrate::enter((&*up).fns[id as usize].codegen_crate);
+     let frame = BuildFrame::enter();
+     let r = build_rir_inner_body(up, id);
+     let mine = DEFERRED_ABORT.with(|a| a.get());
+@@ -15298,6 +15333,7 @@ pub(crate) static OWNER_LOWERS: [[AtomicU64; 2]; 5] = [const { [const { AtomicU6
+ /// The same unoptimised RIR on the locked path and the ahead helpers. Publishing a helper's
+ /// result does not optimise it: prepare_rir still applies the caller's normal inline policy.
+ fn lower_checked_body(u: &Unit, id: u32, key: &FnKey, body: &Body) -> Result<(relax_backend::rir::Func, bool), String> {
++    let _codegen = crate::tcx::CodegenCrate::enter(u.fns[id as usize].codegen_crate);
+     want_body_consts(u, body);
+     let name = u.fns[id as usize].name.to_string();
+     trace("lower", &name);
+@@ -24044,7 +24080,7 @@ pub(crate) fn loader_symbol(name: &[u8]) -> Option<usize> {
+ /// holds for it, as before certificates.
+ #[derive(Clone, Debug)]
+ pub struct ConstCert {
+-    pub keys: Vec<FnKey>,
++    pub keys: Vec<SlotKey>,
+     pub items: Vec<(Vec<u8>, u128)>,
+     pub idents: Vec<u128>,
+     pub complete: bool,
+@@ -24069,7 +24105,7 @@ thread_local! {
+ /// here to `finish`; an evaluation that unwinds leaves the one around it incomplete.
+ pub(crate) struct CertGuard(bool);
+ impl CertGuard {
+-    pub(crate) fn begin(key: FnKey) -> CertGuard {
++    pub(crate) fn begin(key: SlotKey) -> CertGuard {
+         crate::zone_alloc::kept_with(|| CONST_CERTS.with(|c| c.borrow_mut().push(ConstCert { keys: vec![key], items: Vec::new(), idents: Vec::new(), complete: true })));
+         CertGuard(true)
+     }
+@@ -24097,7 +24133,7 @@ impl Drop for CertGuard {
+ }
+ 
+ /// CTFE interpreted body `key` (a `const fn` instance) for the evaluations recording
+-pub(crate) fn cert_note_body(key: impl FnOnce() -> FnKey) {
++pub(crate) fn cert_note_body(key: impl FnOnce() -> SlotKey) {
+     let _ = CONST_CERTS.try_with(|c| {
+         let mut c = c.borrow_mut();
+         if let Some(top) = c.last_mut() { crate::zone_alloc::kept_with(|| top.keys.push(key())); }
+@@ -25070,6 +25106,7 @@ fn prefront_closure(front: &FrontShared, id: u32) -> bool {
+     }
+     let r = front_read("lower_ahead");
+     let u = r.unit_of(front);
++    let _codegen = crate::tcx::CodegenCrate::enter(u.fns[id as usize].codegen_crate);
+     // the parent's checked body is gone (dropped once its own code was complete, or its code came
+     // from the disk cache): made again here, as lower_ahead_as makes an instance's. The closures of
+     // a parent built long ago are what turns hot later (a benchmark's or a frame's callback): their
+@@ -25933,7 +25970,7 @@ struct LoweredAhead {
+     body: Option<std::sync::Arc<Body>>,
+     /// New callees in the order normal lowering would discover them. Helpers do not create
+     /// their slots: doing that early changes check's traversal and inline preparation order.
+-    callees: Vec<FnKey>,
++    callees: Vec<SlotKey>,
+     /// the constants it read from FrontShared::consts, with their values (checked at the take)
+     consts: Vec<(DefId, Vec<TyId>, u64)>,
+     /// the thread-local places it read from FrontShared::tls (checked at the take)
+@@ -25949,8 +25986,8 @@ crate::memo_local! {
+ 
+ #[derive(Default)]
+ struct AheadFnIds {
+-    keys: Vec<FnKey>,
+-    ids: HashMap<FnKey, u32>,
++    keys: Vec<SlotKey>,
++    ids: HashMap<SlotKey, u32>,
+     /// constants read from FrontShared::consts (LoweredAhead::consts)
+     consts: Vec<(DefId, Vec<TyId>, u64)>,
+     /// thread-local places read from FrontShared::tls (LoweredAhead::tls)
+@@ -25971,7 +26008,7 @@ impl Drop for LowerAheadGuard {
+ 
+ /// Temporary function references, descending from u32::MAX, exist only in a helper's raw
+ /// RIR. The locked front resolves them in discovery order before any optimiser sees it.
+-fn lower_ahead_fn_id(u: &Unit, key: &FnKey) -> Option<u32> {
++fn lower_ahead_fn_id(u: &Unit, key: &SlotKey) -> Option<u32> {
+     if !LOWERING_AHEAD.try_with(|a| a.get()).unwrap_or(false) { return None; }
+     // A real slot can be published during this lowering. Keep using its first temporary
+     // identity so repeated calls and per-callee metadata stay identical to locked lowering.
+@@ -25979,7 +26016,7 @@ fn lower_ahead_fn_id(u: &Unit, key: &FnKey) -> Option<u32> {
+     if let Some(id) = u.fn_map.get(key) { return Some(id); }
+     // Constructor and coroutine-poll keys can become a different kind of slot in fn_id.
+     // Leave those rewrites (and their track_caller identity) on the ordinary path.
+-    if let FnKey::Inst(d, args) = key {
++    if let FnKey::Inst(d, args) = &key.function {
+         if !matches!(u.prog.def(*d).kind, DefKind::Fn | DefKind::AssocFn)
+             || args.first().is_some_and(|t| u.tcx.is_coroutine(*t))
+         { lower_ahead_needs_unit(); }
+@@ -25995,7 +26032,8 @@ fn lower_ahead_fn_id(u: &Unit, key: &FnKey) -> Option<u32> {
+ }
+ 
+ /// Resolve temporary callee metadata for caller tracking and RustCall argument spreading.
+-pub(crate) fn lower_ahead_fn_key(id: u32) -> Option<FnKey> {
++pub(crate) fn lower_ahead_fn_key(id: u32) -> Option<FnKey> { lower_ahead_slot_key(id).map(|k| k.function) }
++fn lower_ahead_slot_key(id: u32) -> Option<SlotKey> {
+     if !LOWERING_AHEAD.try_with(|a| a.get()).unwrap_or(false) { return None; }
+     LOWER_AHEAD_IDS.with(|a| a.borrow().keys.get((u32::MAX - id) as usize).cloned())
+ }
+@@ -26043,10 +26081,9 @@ fn lower_ahead(f: &FrontShared, id: u32, own: bool) -> u8 {
+         if f.is_built(&key) { return AF_BUILT; }
+         let Some((epoch, body)) = f.ahead.get(&key) else { return AF_UNCHECKED; };
+         let u = r.unit_of(f);
+-        let fn_key = FnKey::Inst(d, key.1.clone());
+         // fn_map publishes after the slot's fields (including a decoded image identity).
+         // The ahead queue can contain the id before fn_id/name_slot finishes publishing it.
+-        if epoch != u.tcx.collect_epoch.load(Ordering::SeqCst) || u.fn_map.get(&fn_key) != Some(id) { return AF_STALE; }
++        if epoch != u.tcx.collect_epoch.load(Ordering::SeqCst) || u.fn_map.get(&u.slot_key_for(id)) != Some(id) { return AF_STALE; }
+         if !lowers_ahead(u, d, &body) { return AF_REFUSED; }
+         {
+             let mut pending = f.lowered.lock().unwrap_or_else(|e| e.into_inner());
+@@ -26089,8 +26126,8 @@ fn lower_ahead(f: &FrontShared, id: u32, own: bool) -> u8 {
+         // build's front (20k bodies, 1 s of a cold Fab's owner fronts before the present)
+         // (makepad run's lazy compiles only: startup, and a program thread's own builds after it; not
+         // a check's walk, whose order follows slot creation, nor a tier-up worker's speculative front)
+-        let small: Vec<FnKey> = match &r {
+-            Ok(l) if pipelined() && (startup_phase() || ahead_foreground()) => l.callees.iter().filter(|k| matches!(k, FnKey::Inst(cd, _) if base_inline_source(u, *cd) && u.fn_map.get(*k).is_none())).cloned().collect(),
++        let small: Vec<SlotKey> = match &r {
++            Ok(l) if pipelined() && (startup_phase() || ahead_foreground()) => l.callees.iter().filter(|k| matches!(&k.function, FnKey::Inst(cd, _) if base_inline_source(u, *cd) && u.fn_map.get(*k).is_none())).cloned().collect(),
+             _ => Vec::new(),
+         };
+         {
+@@ -26103,7 +26140,7 @@ fn lower_ahead(f: &FrontShared, id: u32, own: bool) -> u8 {
+         }
+         lowered_end();
+         for k in small {
+-            u.fn_id(k);
++            u.fn_id_in(k);
+         }
+         return why;
+     }
+@@ -26230,6 +26267,7 @@ fn statics_ready(u: &Unit, body: &Body) -> bool {
+ /// the instance's own slot `base`, or its unverified-mode twin (`plain`: lowered as the owner
+ /// lowers a twin, PLAIN_LOWER). None: it does not normalize, or the lowering needs the unit.
+ fn lower_ahead_as(u: &Unit, into: u32, base: u32, d: DefId, args: &[TyId], epoch: u64, plain: Option<u32>) -> Result<LoweredAhead, u8> {
++    let _codegen = crate::tcx::CodegenCrate::enter(u.fns[into as usize].codegen_crate);
+     let t0 = cpu_ns();
+     let _cost_lower = relax_codegen::fncost::phase(3);
+     let _mem = crate::memstat::tag(crate::memstat::Tag::Lower);
+@@ -26416,10 +26454,10 @@ fn take_lowered_ahead(u: &mut Unit, id: u32) -> Option<relax_backend::rir::Func>
+         let mut ids = Vec::with_capacity(lowered.callees.len());
+         let resolved = |id: u32, ids: &[u32]| ids.get((u32::MAX - id) as usize).copied().unwrap_or(id);
+         for mut key in lowered.callees {
+-            if let FnKey::Closure(_, _, parent) | FnKey::Sandbox(parent) = &mut key {
++            if let FnKey::Closure(_, _, parent) | FnKey::Sandbox(parent) = &mut key.function {
+                 *parent = resolved(*parent, &ids);
+             }
+-            ids.push(u.fn_id(key));
++            ids.push(u.fn_id_in(key));
+         }
+         for block in &mut lowered.func.blocks {
+             for inst in &mut block.insts {
+@@ -29691,11 +29729,11 @@ enum Wanted {
+     Static(DefId),
+     /// a slot's callable address (Unit::entry: a vtable's method, a callable hook's first escape),
+     /// by key: a lowering ahead names a new slot by a temporary identity only
+-    Entry(FnKey),
++    Entry(SlotKey),
+     /// a value of a body (BodyConst): slot, what, the checked body it is evaluated in
+     Body(u32, BodyConst, BodyArc),
+     /// a trait object's vtable (source type, dyn type)
+-    Vtable(TyId, TyId),
++    Vtable(TyId, TyId, u32),
+ }
+ 
+ /// A value the lowering of a body evaluates once: a promoted constant, an inline const block.
+@@ -29784,14 +29822,15 @@ pub(crate) fn const_drain() {
+         let _close = CloseBuildsAbove(up, BUILD_STACK.with(|s| s.borrow().len()));
+         let (d, ok) = match w {
+             Wanted::Entry(key) => {
+-                let id = u.fn_id(key);
++                let id = u.fn_id_in(key);
+                 let ok = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| u.entry(id))).is_ok();
+                 if ahead_trace() {
+                     eprintln!("const-drain: entry of {} {}", u.fns[id as usize].name, if ok { "taken" } else { "failed" });
+                 }
+                 continue;
+             }
+-            Wanted::Vtable(src, dy) => {
++            Wanted::Vtable(src, dy, codegen_crate) => {
++                let _codegen = crate::tcx::CodegenCrate::enter(codegen_crate);
+                 let ok = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| u.vtable(src, dy).is_ok())).unwrap_or(false);
+                 if ahead_trace() {
+                     eprintln!("const-drain: a vtable {}", if ok { "made" } else { "failed" });
+@@ -29799,6 +29838,7 @@ pub(crate) fn const_drain() {
+                 continue;
+             }
+             Wanted::Body(slot, what, body) => {
++                let _codegen = crate::tcx::CodegenCrate::enter(u.fns[slot as usize].codegen_crate);
+                 if u.front.body_consts.get(&what.key(u, slot)).is_some() {
+                     continue;
+                 }
+diff --git a/libs/relax/compiler/src/os/proc.rs b/libs/relax/compiler/src/os/proc.rs
+index 9e2a6de..9ef6115 100644
+--- a/libs/relax/compiler/src/os/proc.rs
++++ b/libs/relax/compiler/src/os/proc.rs
+@@ -2,7 +2,7 @@
+ //! arguments, private cache files.
+ //!
+ //! - `find(name)`: a symbol in any image loaded into the process (`name` NUL-terminated; on
+-//!   Linux a miss asks a native bundle's address accessor for a symbol its link keeps hidden);
++//!   Linux and macOS a miss asks a native bundle's address accessor for a hidden symbol);
+ //!   `find_system(name)`: the C/math libraries the host may not have loaded (Linux libm/libc).
+ //! - `load_library(name, framework)`: a program's `#[link(name = ..)]` library (false: not found);
+ //!   `load_library_versioned(name)`: Linux's lib<name>.so.N where lib<name>.so is a linker script.
+@@ -23,9 +23,9 @@ pub unsafe fn find_any(name: *const u8) -> *mut u8 {
+     if p.is_null() { find_system(name) } else { p }
+ }
+ 
+-/// Resolve ordinary exports first. Linux native bundles also expose address
++/// Resolve ordinary exports first. Linux and macOS native bundles also expose address
+ /// accessors for archive symbols that the shared link keeps hidden.
+-#[cfg(target_os = "linux")]
++#[cfg(any(target_os = "linux", target_os = "macos"))]
+ pub unsafe fn find(name: *const u8) -> *mut u8 {
+     let address = imp::find(name);
+     if address.is_null() {
+diff --git a/libs/relax/compiler/src/reload.rs b/libs/relax/compiler/src/reload.rs
+index 909fe10..d8b79fc 100644
+--- a/libs/relax/compiler/src/reload.rs
++++ b/libs/relax/compiler/src/reload.rs
+@@ -3676,7 +3676,7 @@ fn no_live_values(u: &Unit, d: DefId, s: &[DefId], visible: &[bool]) -> Option<S
+             return Some(format!("struct `{}` changed its layout, and `{}` may hold values of it in the old one -- restart the app", name, u.prog.def_path(n)));
+         }
+     }
+-    if let Some((src, _)) = u.vtables.snapshot().into_iter().map(|(k, _)| k).find(|(src, _)| held(*src)) {
++    if let Some((src, _, _)) = u.vtables.snapshot().into_iter().map(|(k, _)| k).find(|(src, _, _)| held(*src)) {
+         return Some(format!("struct `{}` changed its layout, and the running code made trait objects of `{}`, which may hold values of it in the old one -- restart the app", name, crate::typeck::type_name(&u.prog, &u.tcx, src)));
+     }
+     // a static is evaluated once: a value computed from the old layout (`size_of`) stays
+@@ -3700,7 +3700,7 @@ fn value_reads_layout(u: &Unit, c: DefId, s: &[DefId]) -> Option<DefId> {
+         return Some(c);
+     }
+     let cert = u.const_certs.get(&(c, Vec::new()))?;
+-    cert.keys.iter().find_map(|k| match k {
++    cert.keys.iter().find_map(|k| match &k.function {
+         FnKey::Inst(f, args) if *f != c && matches!(u.prog.def(*f).kind, DefKind::Fn | DefKind::AssocFn) && def_is_bound(&u.prog, *f) => {
+             (args.iter().any(|a| ty_holds(u, *a, s, 0)) || reads(*f)).then_some(*f)
+         }
+@@ -4058,7 +4058,7 @@ fn kept_closure_line(u: &Unit, slot: u32, why: &str) -> String {
+     let FnKey::Closure(file, ce, parent) = u.fns[slot as usize].key else {
+         return format!("kept: closure {} keeps its old code ({why})", u.fns[slot as usize].name);
+     };
+-    let stored = u.vtables.snapshot().into_iter().any(|((src, _), _)| holds_closure(&u.tcx.tys, src, (file, ce)));
++    let stored = u.vtables.snapshot().into_iter().any(|((src, _, _), _)| holds_closure(&u.tcx.tys, src, (file, ce)));
+     if stored {
+         format!("{HELD}stored values of a closure of `{}` ({}) keep its old code ({why})", u.fns[parent as usize].name, u.fns[slot as usize].name)
+     } else {
+@@ -4812,7 +4812,7 @@ unsafe fn apply_locked(up: *mut Unit, edits: Vec<Edit>, mut pre: Vec<Option<Resu
+         let subs: Vec<DefId> = u.tcx.trait_closure.iter().filter(|(k, v)| **k != td && v.contains(&td)).map(|(k, _)| *k).collect();
+         let lowered = u.vtables.snapshot();
+         let mut held = false;
+-        for (&(src, dy), _) in &lowered {
++        for (&(src, dy, _), _) in &lowered {
+             if let crate::types::TyKind::Dyn(p, ..) = u.tcx.tys.kind(dy) {
+                 if *p == td || u.tcx.trait_closure.get(p).is_some_and(|v| v.contains(&td)) {
+                     restart.push(format!("trait `{}` changes its methods, and trait objects of it (`{}` as `{}`) the running code made hold its old method table -- restart the app", u.prog.def_path(td), crate::syms::stable_ty(u, src), crate::syms::stable_ty(u, dy)));
+@@ -5930,7 +5930,7 @@ unsafe fn apply_locked(up: *mut Unit, edits: Vec<Edit>, mut pre: Vec<Option<Resu
+         let Some(&td) = u.tcx.impl_trait.get(&imp) else { continue };
+         let mut adts = Vec::new();
+         if let Some(&t) = u.tcx.impl_self.get(&imp) { ty_adts(u, t, &mut adts, 0); }
+-        for ((src, dy), addr) in u.vtables.snapshot() {
++        for ((src, dy, _), addr) in u.vtables.snapshot() {
+             let crate::types::TyKind::Dyn(p, ..) = u.tcx.tys.kind(dy) else { continue };
+             if *p != td && !u.tcx.trait_closure.get(p).is_some_and(|v| v.contains(&td)) { continue; }
+             let mut a = Vec::new();
+diff --git a/libs/relax/compiler/src/settle_rebuild.rs b/libs/relax/compiler/src/settle_rebuild.rs
+index 797aff4..ef4e283 100644
+--- a/libs/relax/compiler/src/settle_rebuild.rs
++++ b/libs/relax/compiler/src/settle_rebuild.rs
+@@ -238,8 +238,8 @@ struct Old {
+     _old_bodies: crate::fxhash::HashMap<(u32, u32), std::sync::Arc<Body>>,
+     _coro_rir: crate::conc::MemoMap<u32, relax_backend::rir::Func>,
+     _spec_cached: crate::conc::MemoMap<u32, ()>,
+-    _unwind_drop_cache: crate::conc::MemoMap<TyId, bool>,
+-    _unpin_cache: crate::conc::MemoMap<TyId, bool>,
++    _unwind_drop_cache: crate::conc::MemoMap<(TyId, u32), bool>,
++    _unpin_cache: crate::conc::MemoMap<(TyId, u32), bool>,
+     _core_path_cache: crate::conc::MemoMap<String, Option<DefId>>,
+     _ctfe_fn_bodies: relax_session::sync::Mutex<crate::fxhash::HashMap<(DefId, Vec<TyId>), (u64, std::sync::Arc<Body>)>>,
+     _query_errors: relax_types::infer::diagnostics::DiagCtxt,
+diff --git a/libs/relax/compiler/src/syms.rs b/libs/relax/compiler/src/syms.rs
+index efa10dc..cd2e1af 100644
+--- a/libs/relax/compiler/src/syms.rs
++++ b/libs/relax/compiler/src/syms.rs
+@@ -152,6 +152,7 @@ pub const VTABLE_NAME: &str = "vtable:";
+ /// each), with their hashes.
+ pub fn vtable_name_parts(name: &str) -> Option<(&str, &str)> {
+     let rest = name.strip_prefix(VTABLE_NAME)?;
++    let rest = if let Some(context) = rest.strip_prefix("ctx(") { context.split_once("):")?.1 } else { rest };
+     let b = rest.as_bytes();
+     // (the last `#<hash>:`: the concrete type's end; the dyn type ends in its own hash)
+     let cut = (0..b.len()).rev().find(|&i| b[i] == b'#' && i + 9 < b.len() && b[i + 9] == b':' && b[i + 1..i + 9].iter().all(u8::is_ascii_hexdigit))?;
+diff --git a/libs/relax/compiler/std/core/marker.rs b/libs/relax/compiler/std/core/marker.rs
+index 3099a7f..84d2dfb 100644
+--- a/libs/relax/compiler/std/core/marker.rs
++++ b/libs/relax/compiler/std/core/marker.rs
+@@ -78,6 +78,11 @@ impl crate::clone::Clone for PhantomPinned {
+         PhantomPinned
+     }
+ }
++impl crate::fmt::Debug for PhantomPinned {
++    fn fmt(&self, f: &mut crate::fmt::Formatter<'_>) -> crate::fmt::Result {
++        f.write_str("PhantomPinned")
++    }
++}
+ impl Copy for PhantomPinned {}
+ impl crate::default::Default for PhantomPinned {
+     fn default() -> PhantomPinned {
+diff --git a/libs/relax/compiler/std/core/ops.rs b/libs/relax/compiler/std/core/ops.rs
+index 2bbb47c..eee8afb 100644
+--- a/libs/relax/compiler/std/core/ops.rs
++++ b/libs/relax/compiler/std/core/ops.rs
+@@ -540,6 +540,36 @@ pub trait RangeBounds<T: ?Sized> {
+     }
+ }
+ 
++/// The bounded end of a `OneSidedRange` (core::ops::range).
++pub enum OneSidedRangeBound {
++    StartInclusive,
++    End,
++    EndInclusive,
++}
++
++/// A range unbounded on exactly one side: `a..`, `..b`, or `..=c`.
++pub trait OneSidedRange<T>: RangeBounds<T> {
++    fn bound(self) -> (OneSidedRangeBound, T);
++}
++
++impl<T> OneSidedRange<T> for RangeFrom<T> {
++    fn bound(self) -> (OneSidedRangeBound, T) {
++        (OneSidedRangeBound::StartInclusive, self.start)
++    }
++}
++
++impl<T> OneSidedRange<T> for RangeTo<T> {
++    fn bound(self) -> (OneSidedRangeBound, T) {
++        (OneSidedRangeBound::End, self.end)
++    }
++}
++
++impl<T> OneSidedRange<T> for RangeToInclusive<T> {
++    fn bound(self) -> (OneSidedRangeBound, T) {
++        (OneSidedRangeBound::EndInclusive, self.end)
++    }
++}
++
+ impl<T: ?Sized> RangeBounds<T> for RangeFull {
+     fn start_bound(&self) -> Bound<&T> {
+         Bound::Unbounded
+diff --git a/libs/relax/compiler/std/core/rc.rs b/libs/relax/compiler/std/core/rc.rs
+index 563bec7..c245a35 100644
+--- a/libs/relax/compiler/std/core/rc.rs
++++ b/libs/relax/compiler/std/core/rc.rs
+@@ -547,6 +547,22 @@ impl<T> Weak<T> {
+ }
+ 
+ impl<T: ?Sized> Weak<T> {
++    /// Transfers this weak reference to a raw pointer without changing the weak count.
++    pub fn into_raw(self) -> *const T {
++        let p = self.ptr.as_ptr() as *const T;
++        crate::mem::forget(self);
++        p
++    }
++
++    /// Reclaims a weak reference previously transferred by `Weak::into_raw`.
++    ///
++    /// # Safety
++    /// `p` must come from `Weak::into_raw` and still own its weak reference. Each
++    /// transferred reference may be reclaimed only once; empty weak pointers are valid.
++    pub unsafe fn from_raw(p: *const T) -> Weak<T> {
++        Weak { ptr: unsafe { ptr::NonNull::new_unchecked(p as *mut T) } }
++    }
++
+     pub fn upgrade(&self) -> Option<Rc<T>> {
+         if is_dangling(self.ptr.as_ptr()) {
+             return None;
+diff --git a/libs/relax/compiler/std/core/slice/inherent.rs b/libs/relax/compiler/std/core/slice/inherent.rs
+index 73b8f70..4f94e0b 100644
+--- a/libs/relax/compiler/std/core/slice/inherent.rs
++++ b/libs/relax/compiler/std/core/slice/inherent.rs
+@@ -94,6 +94,29 @@ impl<T> [T] {
+             Some((&self[0], &self[1..]))
+         }
+     }
++    /// Removes the one-sided subslice, leaving this reference unchanged on an invalid range.
++    pub fn split_off<'a, R: crate::ops::OneSidedRange<usize>>(self: &mut &'a Self, range: R) -> Option<&'a Self> {
++        use crate::ops::OneSidedRangeBound::{End, EndInclusive, StartInclusive};
++        let (from_front, mid) = match range.bound() {
++            (StartInclusive, i) => (false, i),
++            (End, i) => (true, i),
++            (EndInclusive, i) => (true, i.checked_add(1)?),
++        };
++        let (front, back) = (*self).split_at_checked(mid)?;
++        if from_front {
++            *self = back;
++            Some(front)
++        } else {
++            *self = front;
++            Some(back)
++        }
++    }
++    /// Removes the first element, returning `None` without changing an empty slice.
++    pub const fn split_off_first<'a>(self: &mut &'a Self) -> Option<&'a T> {
++        let Some((first, rest)) = (*self).split_first() else { return None };
++        *self = rest;
++        Some(first)
++    }
+     pub const fn split_first_mut(&mut self) -> Option<(&mut T, &mut [T])> {
+         if self.is_empty() {
+             None
+diff --git a/libs/relax/compiler/std/std/io/mod.rs b/libs/relax/compiler/std/std/io/mod.rs
+index 703c659..f43d2ea 100644
+--- a/libs/relax/compiler/std/std/io/mod.rs
++++ b/libs/relax/compiler/std/std/io/mod.rs
+@@ -391,6 +391,27 @@ impl<T: Read, U: Read> Read for Chain<T, U> {
+     }
+ }
+ 
++// alloc::io::util: only an empty first buffer advances the chain to its second reader.
++impl<T: BufRead, U: BufRead> BufRead for Chain<T, U> {
++    fn fill_buf(&mut self) -> Result<&[u8]> {
++        if !self.done_first {
++            match self.first.fill_buf()? {
++                buf if buf.is_empty() => self.done_first = true,
++                buf => return Ok(buf),
++            }
++        }
++        self.second.fill_buf()
++    }
++
++    fn consume(&mut self, amt: usize) {
++        if !self.done_first {
++            self.first.consume(amt);
++        } else {
++            self.second.consume(amt);
++        }
++    }
++}
++
+ pub struct Split<B> {
+     buf: B,
+     delim: u8,
+diff --git a/libs/relax/front/src/fmtmac.rs b/libs/relax/front/src/fmtmac.rs
+index c04eedf..d35b4e6 100644
+--- a/libs/relax/front/src/fmtmac.rs
++++ b/libs/relax/front/src/fmtmac.rs
+@@ -343,20 +343,26 @@ impl<'a> Parser<'a> {
+                 tg!(&mut g; , #caller_location() #close() #close_brace() #close_brace() #close_brace());
+             }
+             "vec" => {
++                // a false `#[cfg]` removes an element (Parser::vec_elem): from the array, or from
++                // `from_elem`'s arguments, which leaves that call short (E0061) as in rustc
+                 if self.pos >= hi {
+                     tg!(&mut g; #core() :: vec :: Vec :: new ());
+                 } else {
+-                    let first = self.mac_list_elem()?;
++                    let first = self.vec_elem()?;
+                     if self.eat(T::Semi) {
+-                        let n = self.mac_list_elem()?;
+-                        tg!(&mut g; #core() :: vec :: from_elem (#expr(first), #expr(n)));
++                        let n = self.vec_elem()?;
++                        tg!(&mut g; #core() :: vec :: from_elem #open());
++                        for e in [first, n].into_iter().flatten() {
++                            tg!(&mut g; #expr(e) ,);
++                        }
++                        tg!(&mut g; #close());
+                     } else {
+-                        let mut v = vec![first];
++                        let mut v: Vec<ExprId> = first.into_iter().collect();
+                         while self.eat(T::Comma) {
+                             if self.pos >= hi {
+                                 break;
+                             }
+-                            v.push(self.mac_list_elem()?);
++                            v.extend(self.vec_elem()?);
+                         }
+                         // rustc: `<[_]>::into_vec(box [a, b, ..])` -- the expected `Vec<T>`
+                         // reaches the elements (each coerces to T: `vec![Box::new(|x| ..), ..]`
+diff --git a/libs/relax/front/src/macros.rs b/libs/relax/front/src/macros.rs
+index f921e6a..3ccbd87 100644
+--- a/libs/relax/front/src/macros.rs
++++ b/libs/relax/front/src/macros.rs
+@@ -410,24 +410,26 @@ pub struct Name(u32);
+ 
+ /// `GLOB` and `GLOB_SEP`, interned first by every `MacroNames`.
+ /// Set on the end of a recorded fragment group that is a `$t:ty` substitution.
+-pub(crate) const TY_FRAG: u32 = 1 << 31;
++pub(crate) const TY_FRAG: u64 = 1 << 63;
+ /// An `$e:expr` / `$l:literal` fragment (rustc's interpolated `NtExpr` / `NtLiteral` token): where the
+ /// grammar wants an identifier or a literal, it is "a metavariable". A fragment of one token carries
+ /// only its kind (META_ONLY: no token-tree group).
+-pub(crate) const EXPR_FRAG: u32 = 1 << 30;
+-pub(crate) const LIT_FRAG: u32 = 1 << 29;
+-pub(crate) const META_ONLY: u32 = 1 << 28;
++pub(crate) const EXPR_FRAG: u64 = 1 << 62;
++pub(crate) const LIT_FRAG: u64 = 1 << 61;
++pub(crate) const META_ONLY: u64 = 1 << 60;
+ /// A `$b:block` fragment (rustc's `MetaVarKind::Block`): no labeled / unsafe block or closure body.
+-pub(crate) const BLOCK_FRAG: u32 = 1 << 27;
++pub(crate) const BLOCK_FRAG: u64 = 1 << 59;
+ /// A `$p:path` fragment, reparsed with type-mode generic arguments.
+-pub(crate) const PATH_FRAG: u32 = 1 << 26;
++pub(crate) const PATH_FRAG: u64 = 1 << 58;
+ /// the `(` a transcription puts around an expression fragment of several tokens (rustc's invisible
+ /// delimiters): never a call's argument list (`!div $n / 2` with `$n` = `64 / 2` is no `div(..)`)
+-pub(crate) const WRAP_PAREN: u32 = 1 << 25;
++pub(crate) const WRAP_PAREN: u64 = 1 << 57;
+ /// a `vis` fragment that matched nothing, forwarded here (rustc's empty invisible group): no tokens,
+ /// only the token it stands before (`Parser::empty_vis`)
+-pub(crate) const EMPTY_VIS: u32 = 1 << 24;
+-pub(crate) const FRAG_FLAGS: u32 = TY_FRAG | EXPR_FRAG | LIT_FRAG | META_ONLY | BLOCK_FRAG | PATH_FRAG | WRAP_PAREN | EMPTY_VIS;
++pub(crate) const EMPTY_VIS: u64 = 1 << 56;
++/// A `$s:stmt` fragment: its statement boundary survives without a source semicolon.
++pub(crate) const STMT_FRAG: u64 = 1 << 55;
++pub(crate) const FRAG_FLAGS: u64 = TY_FRAG | EXPR_FRAG | LIT_FRAG | META_ONLY | BLOCK_FRAG | PATH_FRAG | WRAP_PAREN | EMPTY_VIS | STMT_FRAG;
+ 
+ const GLOB_ID: Name = Name(0);
+ const GLOB_SEP_ID: Name = Name(1);
+@@ -3141,6 +3143,7 @@ fn frag_desc(f: Frag) -> &'static str {
+ impl<'a> Parser<'a> {
+     fn mtok_eq(&self, i: usize, m: &MTok) -> bool {
+         let t = self.toks.at(i);
++        if self.stmt_frags.contains(&{ t.lo }) { return false; }
+         if t.kind != m.kind {
+             return false;
+         }
+@@ -3311,6 +3314,9 @@ impl<'a> Parser<'a> {
+     /// whatever its first token; None for written tokens and the kinds that forward as their
+     /// tokens (ident, lifetime, tt).
+     fn forwarded_kind(&self, lo: u32) -> Option<Frag> {
++        if self.stmt_frags.contains(&lo) {
++            return Some(Frag::Stmt);
++        }
+         if self.synth_parens.contains(&lo) {
+             return Some(Frag::Expr);
+         }
+@@ -3340,6 +3346,7 @@ impl<'a> Parser<'a> {
+             return false;
+         }
+         if let Some(fk) = self.forwarded_kind(t.lo) {
++            if fk == Frag::Stmt { return matches!(f, Frag::Stmt | Frag::Tt | Frag::Vis); }
+             return match f {
+                 Frag::Tt | Frag::Item | Frag::Stmt | Frag::Vis => true,
+                 Frag::Ident | Frag::Lifetime => false,
+@@ -3588,7 +3595,7 @@ impl<'a> Parser<'a> {
+                         if wrap {
+                             let at = out.s.len() as u32 + 1;
+                             uses::synth_note(at);
+-                            out.groups.push((at, at | WRAP_PAREN | META_ONLY));
++                            out.groups.push((at, at as u64 | WRAP_PAREN | META_ONLY));
+                             out.push(T::OpenParen, "(", None, u32::MAX);
+                         }
+                         let group_start = if lo < hi {
+@@ -3618,7 +3625,7 @@ impl<'a> Parser<'a> {
+                             let text = String::from_utf8_lossy(self.tok_text(t));
+                             if self.synth_parens.contains(&{ t.lo }) {
+                                 let at = out.start(t.kind, &text, Some(t.lo));
+-                                out.groups.push((at, at | WRAP_PAREN | META_ONLY));
++                                out.groups.push((at, at as u64 | WRAP_PAREN | META_ONLY));
+                             }
+                             // rustc_expand mbe/transcribe.rs: transcribe_pnr preserves
+                             // invisible groups inside every captured fragment, including
+@@ -3629,7 +3636,7 @@ impl<'a> Parser<'a> {
+                             out.push(t.kind, &text, Some(t.lo), u32::MAX);
+                             while groups.last().is_some_and(|&(end, _, _)| end == t.hi) {
+                                 let (_, start, flags) = groups.pop().unwrap();
+-                                out.groups.push((start, out.s.len() as u32 | flags));
++                                out.groups.push((start, out.s.len() as u64 | flags));
+                             }
+                         }
+                         if let Some((a, b)) = *taken {
+@@ -3645,10 +3652,10 @@ impl<'a> Parser<'a> {
+                         // rustc_expand mbe/transcribe.rs: transcribe_pnr wraps even a
+                         // one-token path in MetaVarKind::Path invisible delimiters.
+                         let path_frag = *f == Frag::Path;
+-                        let kind_flag = match f { Frag::Expr if !wrap => EXPR_FRAG, Frag::Literal => LIT_FRAG, Frag::Block if !wrap => BLOCK_FRAG, Frag::Path => PATH_FRAG, _ => 0 };
+-                        let group = opaque && out.s.len() > group_start && (hi - lo + usize::from(taken.is_some()) > 1 || ty_frag || path_frag);
++                        let kind_flag = match f { Frag::Expr if !wrap => EXPR_FRAG, Frag::Literal => LIT_FRAG, Frag::Block if !wrap => BLOCK_FRAG, Frag::Path => PATH_FRAG, Frag::Stmt => STMT_FRAG, _ => 0 };
++                        let group = opaque && out.s.len() > group_start && (hi - lo + usize::from(taken.is_some()) > 1 || ty_frag || path_frag || *f == Frag::Stmt);
+                         if group || (kind_flag != 0 && out.s.len() > group_start) {
+-                            out.groups.push((group_start as u32, out.s.len() as u32 | if ty_frag { TY_FRAG } else { 0 } | kind_flag | if group { 0 } else { META_ONLY }));
++                            out.groups.push((group_start as u32, out.s.len() as u64 | if ty_frag { TY_FRAG } else { 0 } | kind_flag | if group { 0 } else { META_ONLY }));
+                         }
+                         if wrap {
+                             out.push(T::CloseParen, ")", None, u32::MAX);
+@@ -3810,7 +3817,8 @@ pub struct Transcript {
+     toks: Vec<Tok>,
+     origins: Vec<(u32, u32, u32)>,
+     bodies: Vec<(u32, u32, u32)>,
+-    groups: Vec<(u32, u32)>,
++    /// Fragment starts and ends, with kind flags above the end's full u32 offset.
++    groups: Vec<(u32, u64)>,
+     /// forwarded empty `vis` fragments waiting for the token they stand before (EMPTY_VIS)
+     empty_vis: u32,
+ }
+@@ -3867,7 +3875,7 @@ impl Transcript {
+         // (before a doc comment they stand where no token starts: rustc's `vis` may not be
+         // followed by `#`, so nothing matches them there)
+         for _ in 0..std::mem::take(&mut self.empty_vis) {
+-            self.groups.push((at, at | EMPTY_VIS | META_ONLY));
++            self.groups.push((at, at as u64 | EMPTY_VIS | META_ONLY));
+         }
+         // rustc_expand mbe/transcribe.rs: transcribe retains DocComment tokens.
+         // Keep ours as lexer trivia until parser_from_cx desugars the next call;
+diff --git a/libs/relax/front/src/native.rs b/libs/relax/front/src/native.rs
+index e07749e..7558605 100644
+--- a/libs/relax/front/src/native.rs
++++ b/libs/relax/front/src/native.rs
+@@ -256,7 +256,7 @@ fn plan(g: &Graph, seeds: &[usize], req: &Request) -> Plan {
+     let flags: Vec<String> = req.cargo_flags.iter().filter(|f| f.as_str() != "--release").cloned().collect();
+ 
+     // ---- the key
+-    let mut h = fnv(b"native-link-v13", 0xcbf29ce484222325);
++    let mut h = fnv(b"native-link-v15", 0xcbf29ce484222325);
+     h = fnv(req.triple.as_bytes(), h);
+     h = fnv(&selection_key(&script_pkgs, &lib_pkgs).to_le_bytes(), h);
+     for f in &flags {
+@@ -740,13 +740,27 @@ fn link(lib_path: &str, archives: &[String], search: &[String], fw_search: &[Str
+     }
+     let tmp = format!("{}.tmp{}", lib_path, std::process::id());
+     let symbols_path = format!("{}.symbols", tmp);
+-    // the accessors' object (Linux): the callback relink below reuses the link's arguments
++    // the accessors' object: the callback relink below reuses the link's arguments
+     let addresses_path = format!("{}.addresses.o", tmp);
+     let mut cmd = Command::new(cc());
++    let mut symbols = std::collections::BTreeMap::new();
+     if cfg!(target_os = "macos") {
+         cmd.args(["-dynamiclib", "-o", &tmp, "-Wl,-undefined,dynamic_lookup"]);
+         for a in archives {
+             cmd.arg(format!("-Wl,-force_load,{}", a));
++            let out = Command::new("nm").args(["-m", "-gU", a])
++                .output().map_err(|e| format!("--allow-c: cannot read archive symbols: {e}"))?;
++            if !out.status.success() {
++                return Err(format!("--allow-c: nm failed for {a}: {}", String::from_utf8_lossy(&out.stderr)));
++            }
++            // Mach-O private externals survive force_load but are unavailable to dlsym.
++            // Keep the assembler spelling; only the accessor's lookup key loses its `_`.
++            for line in String::from_utf8_lossy(&out.stdout).lines() {
++                let Some((_, name)) = line.split_once("private external ") else { continue };
++                let Some(name) = name.split_whitespace().next() else { continue };
++                let tls = line.split_whitespace().nth(1).is_some_and(|section| section.contains(",__thread"));
++                symbols.insert(name.to_string(), tls);
++            }
+         }
+     } else {
+         cmd.args(["-shared", "-fPIC", "-o", &tmp]);
+@@ -762,7 +776,6 @@ fn link(lib_path: &str, archives: &[String], search: &[String], fw_search: &[Str
+         // archive may contain the same object twice; --whole-archive would load
+         // both copies and fail with duplicate definitions. Each symbol notes whether
+         // it is thread-local (the address accessors below leave those out).
+-        let mut symbols = std::collections::BTreeMap::new();
+         for archive in archives {
+             let out = Command::new("nm").args(["-g", "--defined-only", "--format=sysv", archive])
+                 .output().map_err(|e| format!("--allow-c: cannot read archive symbols: {e}"))?;
+@@ -782,40 +795,43 @@ fn link(lib_path: &str, archives: &[String], search: &[String], fw_search: &[Str
+         }).collect::<String>();
+         std::fs::write(&symbols_path, args).map_err(|e| format!("{symbols_path}: {e}"))?;
+         cmd.arg(format!("-Wl,@{symbols_path}"));
+-        if cfg!(target_os = "linux") {
+-            // Rust's static link can refer to hidden archive symbols, whereas dlsym cannot.
+-            // Export an address accessor for each (crate::native::address_name, which the
+-            // loader's lookup tries on a miss) without changing the symbols' own visibility.
+-            // Thread-local symbols get none: an accessor would answer the calling thread's
+-            // instance, and rustc links no plain extern static to a thread-local one. Names
+-            // that need assembler directives (versioned ones) stay on the ordinary dlsym path.
+-            let mut source = String::new();
+-            let plain = symbols.iter().filter(|(name, tls)| {
+-                !**tls && name.bytes().next().is_some_and(|b| b.is_ascii_alphabetic() || b"_.".contains(&b))
+-                    && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.$".contains(&b))
+-            });
+-            for (i, (name, _)) in plain.enumerate() {
+-                use std::fmt::Write;
+-                let escaped = name.bytes().map(|b| format!("\\{b:03o}")).collect::<String>();
+-                writeln!(source, "extern char s{i}[] __asm__(\"{escaped}\");").unwrap();
+-                writeln!(source, "__attribute__((visibility(\"default\"))) void *{}(void) {{ return s{i}; }}", address_name(name.as_bytes())).unwrap();
+-            }
+-            let source_path = format!("{tmp}.addresses.c");
+-            std::fs::write(&source_path, source).map_err(|e| format!("{source_path}: {e}"))?;
+-            let compile = Command::new(cc()).args(["-fPIC", "-c", &source_path, "-o", &addresses_path]).output();
+-            let _ = std::fs::remove_file(&source_path);
+-            let failed = match compile {
+-                Err(e) => Some(format!("cannot compile native address accessors: {e}")),
+-                Ok(out) if !out.status.success() => Some(format!("compiling native address accessors failed: {}", String::from_utf8_lossy(&out.stderr))),
+-                Ok(_) => None,
+-            };
+-            if let Some(e) = failed {
+-                let _ = std::fs::remove_file(&addresses_path);
+-                let _ = std::fs::remove_file(&symbols_path);
+-                return Err(format!("--allow-c: {e}"));
+-            }
+-            cmd.arg(&addresses_path);
++    }
++    if cfg!(any(target_os = "linux", target_os = "macos")) {
++        // Rust's static link can refer to hidden archive symbols, whereas dlsym cannot.
++        // Export an address accessor for each (crate::native::address_name, which the
++        // loader's lookup tries on a miss) without changing the symbols' own visibility.
++        // Thread-local symbols get none: an accessor would answer the calling thread's
++        // instance, and rustc links no plain extern static to a thread-local one. Names
++        // that need assembler directives (versioned ones) stay on the ordinary dlsym path.
++        let mut source = String::new();
++        let plain = symbols.iter().filter(|(name, tls)| {
++            !**tls && name.bytes().next().is_some_and(|b| b.is_ascii_alphabetic() || b"_.".contains(&b))
++                && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.$".contains(&b))
++        });
++        for (i, (name, _)) in plain.enumerate() {
++            use std::fmt::Write;
++            let escaped = name.bytes().map(|b| format!("\\{b:03o}")).collect::<String>();
++            writeln!(source, "extern char s{i}[] __asm__(\"{escaped}\");").unwrap();
++            let lookup = if cfg!(target_os = "macos") { name.strip_prefix('_').unwrap_or(name) } else { name };
++            writeln!(source, "__attribute__((visibility(\"default\"))) void *{}(void) {{ return s{i}; }}", address_name(lookup.as_bytes())).unwrap();
+         }
++        let source_path = format!("{tmp}.addresses.c");
++        std::fs::write(&source_path, source).map_err(|e| format!("{source_path}: {e}"))?;
++        let compile = Command::new(cc()).args(["-fPIC", "-c", &source_path, "-o", &addresses_path]).output();
++        let _ = std::fs::remove_file(&source_path);
++        let failed = match compile {
++            Err(e) => Some(format!("cannot compile native address accessors: {e}")),
++            Ok(out) if !out.status.success() => Some(format!("compiling native address accessors failed: {}", String::from_utf8_lossy(&out.stderr))),
++            Ok(_) => None,
++        };
++        if let Some(e) = failed {
++            let _ = std::fs::remove_file(&addresses_path);
++            let _ = std::fs::remove_file(&symbols_path);
++            return Err(format!("--allow-c: {e}"));
++        }
++        cmd.arg(&addresses_path);
++    }
++    if !cfg!(target_os = "macos") {
+         cmd.args(archives);
+         // what the archives' C code needs from the C runtime
+         cmd.args(["-lm", "-lpthread", "-ldl"]);
+diff --git a/libs/relax/front/src/parse_work.rs b/libs/relax/front/src/parse_work.rs
+index 2fee6db..9fa3865 100644
+--- a/libs/relax/front/src/parse_work.rs
++++ b/libs/relax/front/src/parse_work.rs
+@@ -12,7 +12,7 @@ pub struct Reuse {
+ /// transcription text, fragment-token origins, definition-body-token origins, opaque fragment
+ /// groups (text offsets of the first token's start and the last token's end)
+ /// a macro_rules expansion: its text, the tokens over it, token origins, body positions, token-tree groups
+-pub type Rules = (String, Vec<crate::lexer::Tok>, Vec<(u32, u32, u32)>, Vec<(u32, u32, u32)>, Vec<(u32, u32)>);
++pub type Rules = (String, Vec<crate::lexer::Tok>, Vec<(u32, u32, u32)>, Vec<(u32, u32, u32)>, Vec<(u32, u64)>);
+ struct Reusing {
+     previous: std::sync::Arc<Reuse>,
+     next: Reuse,
+diff --git a/libs/relax/front/src/parser.rs b/libs/relax/front/src/parser.rs
+index a71c6fa..885a418 100644
+--- a/libs/relax/front/src/parser.rs
++++ b/libs/relax/front/src/parser.rs
+@@ -142,6 +142,8 @@ pub struct Parser<'a> {
+     pub(crate) meta_frags: crate::fxhash::HashMap<u32, &'static str>,
+     /// starts of the `$b:block` substitutions of expansion text (check only)
+     pub(crate) block_frags: crate::fxhash::HashSet<u32>,
++    /// starts of the `$s:stmt` substitutions (a complete statement without its trailing `;`)
++    pub(crate) stmt_frags: crate::fxhash::HashSet<u32>,
+     /// Offsets of the parens a transcription added around multi-token `$e:expr` fragments.
+     pub(super) synth_parens: crate::fxhash::HashSet<u32>,
+     /// file context for built-in macros (file!, module_path!, env!, cfg of derive inputs)
+@@ -241,6 +243,7 @@ impl<'a> Parser<'a> {
+             path_frags: Default::default(),
+             meta_frags: Default::default(),
+             block_frags: Default::default(),
++            stmt_frags: Default::default(),
+             synth_parens: Default::default(),
+             bctx: None,
+             mod_stack: Vec::new(),
+@@ -2037,6 +2040,9 @@ impl<'a> Parser<'a> {
+                 self.path_frags.insert(base + a);
+                 self.ty_frags.remove(&(base + a));
+             }
++            if b & crate::macros::STMT_FRAG != 0 {
++                self.stmt_frags.insert(base + a);
++            }
+             if b & crate::macros::BLOCK_FRAG != 0 {
+                 self.block_frags.insert(base + a);
+             }
+@@ -2047,7 +2053,7 @@ impl<'a> Parser<'a> {
+                 self.synth_parens.insert(base + a);
+             }
+             if b & crate::macros::META_ONLY == 0 {
+-                self.frag_groups.insert(base + a, base + (b & !crate::macros::FRAG_FLAGS));
++                self.frag_groups.insert(base + a, base + (b & !crate::macros::FRAG_FLAGS) as u32);
+             }
+         }
+         let here = self.bctx.as_ref().map(|c| c.path.as_str()).unwrap_or("");
+@@ -2231,7 +2237,7 @@ impl<'a> Parser<'a> {
+             rec_limit: _, import_summary: _,
+             toks, pos, edition, ast, item_start, lazy_bodies, lazy_auto, lazy_part, lazy_mods, macros, krate,
+             ext, exp_map, tok_origin, token_origins, token_input, exp_depth, rules_exp, body_origin,
+-            pm_editions, tok_undo, frag_groups, empty_vis, ty_frags, path_frags, meta_frags, block_frags, synth_parens,
++            pm_editions, tok_undo, frag_groups, empty_vis, ty_frags, path_frags, meta_frags, block_frags, stmt_frags, synth_parens,
+             mod_stack, scope_stack, no_prelude, range_dots, next_scope, rule_scopes, interp, extra_items,
+             extra_assoc_items, pending_inner, in_assoc, in_trait, stmt_ctx, cfg_select_rest,
+             include_as_expr, foreign_abi, cfg_out, expansion_semi, list_elem_at, expn_attrs_ungated, pending_shape,
+@@ -2239,7 +2245,7 @@ impl<'a> Parser<'a> {
+         fn sorted<T: Ord>(mut v: Vec<T>) -> Vec<T> { v.sort(); v }
+         let toks: Vec<Tok> = (0..toks.len()).map(|i| toks.at(i)).collect();
+         let frags = (sorted(frag_groups.iter().collect::<Vec<_>>()), sorted(ty_frags.iter().collect::<Vec<_>>()), sorted(path_frags.iter().collect::<Vec<_>>()),
+-            sorted(meta_frags.iter().collect::<Vec<_>>()), sorted(block_frags.iter().collect::<Vec<_>>()), sorted(synth_parens.iter().collect::<Vec<_>>()), sorted(empty_vis.iter().collect::<Vec<_>>()));
++            sorted(meta_frags.iter().collect::<Vec<_>>()), sorted(block_frags.iter().collect::<Vec<_>>()), sorted(stmt_frags.iter().collect::<Vec<_>>()), sorted(synth_parens.iter().collect::<Vec<_>>()), sorted(empty_vis.iter().collect::<Vec<_>>()));
+         let interp = sorted(interp.iter().map(|(k, e)| (*k, e.0)).collect::<Vec<_>>());
+         let tables = (ext.len(), exp_map.len(), tok_origin.len(), token_origins.len(), rules_exp.len(), body_origin.len(), pm_editions.len());
+         let shapes: Vec<_> = pending_shape.iter().map(|(r, e)| (*r, e.as_ref().map(|e| (e.pos, e.msg.clone())))).collect();
+@@ -2427,6 +2433,13 @@ impl<'a> Parser<'a> {
+     /// rustc_parse parser/stmt.rs: parse_stmt_nonterminal/parse_stmt_without_recovery:
+     /// leave a let/expression's trailing `;`; a lone `;` is StmtKind::Empty.
+     pub fn stmt_fragment(&mut self) -> PResult<()> {
++        // An interpolated statement is one nonterminal, even beside another fragment.
++        if let Some(hi) = self.stmt_fragment_end(self.lo()) {
++            if let Some(last) = (self.pos..self.toks.len()).find(|&i| self.toks.at(i).hi == hi) {
++                self.pos = last + 1;
++                return Ok(());
++            }
++        }
+         let attrs = self.outer_attrs()?;
+         if self.eat(T::Semi) {
+             if !attrs.is_empty() { return self.err("attributes without statement"); }
+@@ -4128,12 +4141,17 @@ impl<'a> Parser<'a> {
+         if self.path_frags.contains(&lo) { self.frag_groups.get(&lo).copied() } else { None }
+     }
+ 
+-    pub(super) fn fragment_group(&self, lo: u32) -> Option<(u32, u32)> {
++    fn stmt_fragment_end(&self, lo: u32) -> Option<u32> {
++        if self.stmt_frags.contains(&lo) { self.frag_groups.get(&lo).copied() } else { None }
++    }
++
++    pub(super) fn fragment_group(&self, lo: u32) -> Option<(u32, u64)> {
+         let end = *self.frag_groups.get(&lo)?;
+         let mut flags = 0;
+         if self.ty_frags.contains(&lo) { flags |= crate::macros::TY_FRAG; }
+         if self.path_frags.contains(&lo) { flags |= crate::macros::PATH_FRAG; }
+         if self.block_frags.contains(&lo) { flags |= crate::macros::BLOCK_FRAG; }
++        if self.stmt_frags.contains(&lo) { flags |= crate::macros::STMT_FRAG; }
+         match self.meta_frags.get(&lo) {
+             Some(&"expr") => flags |= crate::macros::EXPR_FRAG,
+             Some(&"literal") => flags |= crate::macros::LIT_FRAG,
+@@ -4719,7 +4737,32 @@ impl<'a> Parser<'a> {
+ 
+     /// `start`: the token the statement's attributes began at.
+     fn stmt_after_attrs(&mut self, attrs: Vec<Attr>, start: usize) -> PResult<Stmt> {
++        // rustc's interpolated NtStmt is already a complete statement. Bound the reparse
++        // so a following `(`, operator or macro cannot extend its expression or initializer.
++        let hi = self.stmt_fragment_end(self.toks.at(start).lo).or_else(|| self.stmt_fragment_end(self.lo()));
++        if let Some(hi) = hi {
++            if let Some(last) = (self.pos..self.toks.len()).find(|&i| self.toks.at(i).hi == hi) {
++                let end = last + 1;
++                let next = self.toks.at(end);
++                self.toks.edit(end, |t| *t = Tok { kind: T::Eof, lo: hi, hi });
++                let result = self.stmt_unfragmented(attrs, start);
++                let complete = self.pos == end;
++                self.toks.edit(end, |t| *t = next);
++                let mut stmt = result?;
++                if !complete { return self.err("unexpected token in statement fragment"); }
++                // A written semicolon still suppresses the tail value of an expression.
++                if let Stmt::Expr(semi, _) = &mut stmt {
++                    *semi |= self.eat(T::Semi);
++                }
++                return Ok(stmt);
++            }
++        }
++        self.stmt_unfragmented(attrs, start)
++    }
++
++    fn stmt_unfragmented(&mut self, attrs: Vec<Attr>, start: usize) -> PResult<Stmt> {
+         if self.kind() == T::KwLet {
++            let let_lo = self.lo();
+             self.pos += 1;
+             let pat = self.pat_top()?;
+             let ty = if self.eat(T::Colon) { Some(self.ty()?) } else { None };
+@@ -4742,7 +4785,7 @@ impl<'a> Parser<'a> {
+             };
+             // a `$s:stmt` fragment forwarded into a block is a whole statement, its `;` not part of it
+             let start_lo = self.toks.at(start).lo;
+-            let interpolated = self.frag_groups.get(&start_lo).is_some_and(|&end| end == self.prev_hi());
++            let interpolated = self.stmt_fragment_end(start_lo).or_else(|| self.stmt_fragment_end(let_lo)).is_some_and(|end| end == self.prev_hi());
+             if !interpolated {
+                 self.expect(T::Semi)?;
+             }
+@@ -5300,6 +5343,22 @@ impl<'a> Parser<'a> {
+         e
+     }
+ 
++    /// An element of a built-in `vec!`: None when a `#[cfg(..)]` on it is false. The `$x:expr`
++    /// fragment takes the attributes along into `box_new([$($x),+])` / `from_elem($elem, $n)`,
++    /// where the element is configured away as any list element is (`list_elem`; rustc_expand
++    /// expand.rs filter_map_expr).
++    fn vec_elem(&mut self) -> PResult<Option<ExprId>> {
++        let pend0 = self.pending_shape.len();
++        let attrs = if self.kind() == T::Pound && self.nth(1) == T::OpenBracket { self.outer_attrs()? } else { Vec::new() };
++        if !attrs.is_empty() && !self.cfg_present(&attrs) {
++            self.parse_stripped(|p| p.expr())?;
++            self.pending_shape.truncate(pend0);
++            return Ok(None);
++        }
++        self.closure_attrs(&attrs)?;
++        self.mac_list_elem().map(Some)
++    }
++
+     /// rustc_parse parse_expr_block: a labeled or unsafe block, or a closure body after its return
+     /// type, is written out, not a `$b:block` fragment.
+     fn no_block_frag(&self) -> PResult<()> {
+diff --git a/libs/relax/types/src/next_solver/codegen.rs b/libs/relax/types/src/next_solver/codegen.rs
+index d26066b..a4d749c 100644
+--- a/libs/relax/types/src/next_solver/codegen.rs
++++ b/libs/relax/types/src/next_solver/codegen.rs
+@@ -20,10 +20,16 @@ impl Tcx {
+         let indices = self.generic_indices_of(prog, def);
+         let regions = self.tys.intern_region_args(&vec![RegionId::ERASED; indices.lifetimes.len()]);
+         let mut args = self.complete_args(prog, def, compact, regions);
+-        for arg in &mut args {
++        for (index, arg) in args.iter_mut().enumerate() {
+             *arg = match *arg {
+-                GenericArg::Type(t) => GenericArg::Type(self.try_normalize_after_erasing_regions(prog, typing_env, t).map_err(|_| CodegenObligationError::Unimplemented)?),
+-                GenericArg::Const(c) => GenericArg::Const(self.tys.expect_const(self.try_normalize_after_erasing_regions(prog, typing_env, self.tys.intern(TyKind::Const(c))).map_err(|_| CodegenObligationError::Unimplemented)?)),
++                GenericArg::Type(t) => GenericArg::Type(self.try_normalize_after_erasing_regions(prog, typing_env, t).map_err(|_| {
++                    eprintln!("codegen obligation failure [argument normalization]: {} argument {index}: {}", prog.def_path(def), crate::typeck::ty_to_string(false, prog, self, t));
++                    CodegenObligationError::Unimplemented
++                })?),
++                GenericArg::Const(c) => GenericArg::Const(self.tys.expect_const(self.try_normalize_after_erasing_regions(prog, typing_env, self.tys.intern(TyKind::Const(c))).map_err(|_| {
++                    eprintln!("codegen obligation failure [argument normalization]: {} argument {index}: {}", prog.def_path(def), crate::typeck::const_str(prog, self, c));
++                    CodegenObligationError::Unimplemented
++                })?)),
+                 GenericArg::Lifetime(_) => GenericArg::Lifetime(RegionId::ERASED),
+             };
+         }
+@@ -81,7 +87,10 @@ impl Tcx {
+                 args.extend_from_slice(&rcvr_args[parent_count..]);
+                 let identity = self.generic_indices_of(prog, leaf).identity_args(&self.tys);
+                 if args.len() != identity.len() || args.iter().zip(&identity).any(|(a,b)| std::mem::discriminant(a) != std::mem::discriminant(b)) { return Err(CodegenObligationError::UnconstrainedParam); }
+-                if leaf != def { self.compare_impl_item(prog, leaf).map_err(|_| CodegenObligationError::Unimplemented)?; }
++                if leaf != def { self.compare_impl_item(prog, leaf).map_err(|_| {
++                    eprintln!("codegen obligation failure [impl item comparison]: {} implementing {}", prog.def_path(leaf), prog.def_path(def));
++                    CodegenObligationError::Unimplemented
++                })?; }
+                 Ok(Instance::new_raw(leaf, args))
+             }
+             ImplSource::Builtin(BuiltinImplSource::Object(_), _) => {
+@@ -156,17 +165,32 @@ impl Tcx {
+ 
+         let param_env = typing_env.param_env;
+         let goal = Goal { param_env, predicate: collect::trait_predicate(trait_ref.def_id, trait_ref.args) };
+-        let mut selected = match infcx.select_in_new_trait_solver(prog, goal) {
++        let mut selected = match infcx.select_in_new_trait_solver(prog, goal.clone()) {
+             Ok(Some(selected)) => selected,
+             Ok(None) => return Err(CodegenObligationError::Ambiguity),
+-            Err(_) => return Err(CodegenObligationError::Unimplemented),
++            Err(_) => {
++                eprintln!("codegen obligation failure [candidate selection]: {}", crate::typeck::predicate_str(prog, self, &goal.predicate, &mut |t| crate::typeck::ty_to_string(false, prog, self, t)));
++                return Err(CodegenObligationError::Unimplemented);
++            },
+         };
+         let nested = match &mut selected {
+             ImplSource::UserDefined { nested, .. } | ImplSource::Builtin(_, nested) | ImplSource::Param(nested) => std::mem::take(nested),
+         };
+         let mut ocx = ObligationCtxt::new(&infcx, prog);
+         ocx.register_obligations(nested);
+-        ocx.evaluate_obligations_error_on_ambiguity().map_err(|_| CodegenObligationError::Unimplemented)?;
++        let errors = ocx.evaluate_obligations_errors_on_ambiguity();
++        if !errors.is_empty() {
++            for error in errors {
++                use super::fulfill::NextSolverError;
++                let (kind, obligation) = match error {
++                    NextSolverError::TrueError(o) => ("no solution", o),
++                    NextSolverError::Ambiguity(o) => ("ambiguous", o),
++                    NextSolverError::Overflow(o) => ("overflow", o),
++                };
++                eprintln!("codegen obligation failure [nested fulfillment; {kind}]: {}", crate::typeck::predicate_str(prog, self, &obligation.goal.predicate, &mut |t| crate::typeck::ty_to_string(false, prog, self, infcx.deeply_resolve_ignoring_regions(t))));
++            }
++            return Err(CodegenObligationError::Unimplemented);
++        }
+         if let ImplSource::UserDefined { args, .. } = &mut selected {
+             for arg in args {
+                 *arg = match *arg {
+diff --git a/libs/relax/types/src/next_solver/fulfill.rs b/libs/relax/types/src/next_solver/fulfill.rs
+index 59f9eca..d59b824 100644
+--- a/libs/relax/types/src/next_solver/fulfill.rs
++++ b/libs/relax/types/src/next_solver/fulfill.rs
+@@ -118,7 +118,11 @@ impl<'a, 'tcx> ObligationCtxt<'a, 'tcx> {
+         Ok(fold::fold_predicate(&self.infcx.tcx.tys, &p, &mut resolver))
+     }
+     pub fn evaluate_obligations_error_on_ambiguity(&mut self) -> Result<(), NoSolution> {
+-        if self.engine.evaluate_obligations_error_on_ambiguity(self.infcx, self.prog).is_empty() { Ok(()) } else { Err(NoSolution) }
++        if self.evaluate_obligations_errors_on_ambiguity().is_empty() { Ok(()) } else { Err(NoSolution) }
++    }
++    /// Retain the failed obligations for callers that diagnose fulfillment errors.
++    pub fn evaluate_obligations_errors_on_ambiguity(&mut self) -> Vec<NextSolverError> {
++        self.engine.evaluate_obligations_error_on_ambiguity(self.infcx, self.prog)
+     }
+     /// rustc_trait_selection/src/traits/engine.rs (ObligationCtxt::try_evaluate_obligations).
+     pub fn try_evaluate_obligations(&mut self) -> Vec<NextSolverError> { self.engine.try_evaluate_obligations(self.infcx, self.prog) }
+diff --git a/libs/relax/types/src/next_solver/wf.rs b/libs/relax/types/src/next_solver/wf.rs
+index 74c9492..8380f31 100644
+--- a/libs/relax/types/src/next_solver/wf.rs
++++ b/libs/relax/types/src/next_solver/wf.rs
+@@ -80,10 +80,15 @@ impl TypeFolder for WfPredicates<'_, '_> {
+             }
+             TyKind::Adt(d, args, rs) | TyKind::FnDef(d, args, rs) => {
+                 let args = tcx.complete_args(self.prog, *d, tys.list(*args), *rs);
++                // (a closure's or coroutine's parent marker is the FnDef of its owner item, which
++                // is a const or a static for one in a const's value: `const START: fn() -> _ =
++                // || Box::pin(async { 7 })` has no signature to walk, only the owner's predicates;
++                // relax issue 44)
+                 if matches!(tys.kind(t), TyKind::FnDef(..)) {
+-                    let sig = tcx.fn_item_sig(self.prog, *d).expect("function signature");
+-                    let ret = tcx.instantiate_ty(self.prog, *d, &args, sig.ret);
+-                    self.fold_ty(tys, ret, depth);
++                    if let Some(sig) = tcx.fn_item_sig(self.prog, *d) {
++                        let ret = tcx.instantiate_ty(self.prog, *d, &args, sig.ret);
++                        self.fold_ty(tys, ret, depth);
++                    }
+                 }
+                 self.nominal_obligations(*d, &args);
+             }
+diff --git a/libs/relax/types/src/tcx.rs b/libs/relax/types/src/tcx.rs
+index d4925f6..22790ce 100644
+--- a/libs/relax/types/src/tcx.rs
++++ b/libs/relax/types/src/tcx.rs
+@@ -1327,13 +1327,10 @@ impl Tcx {
+             ItemKind::Fn(sig, _, _) => {
+                 let sig = ast.fn_sig(*sig);
+                 push_generics(prog, def.file, &sig.generics, &mut env);
+-                // each `impl Trait` in a parameter type is an anonymous generic param, also nested
+-                // in generic args, tuples, slices, arrays (`&mut Image2d<u8, impl AsMut<[u8]>>`;
+-                // rustc: synthetic params in order of appearance)
++                // Anonymous parameters include `impl Trait` inside a function's generic
++                // parameter bounds (`I: Iterator<Item = impl AsRef<[u8]>>`).
+                 let mut found = Vec::new();
+-                for p in ast.list(sig.params) {
+-                    collect_argument_impl_traits(ast, p.ty, &mut found);
+-                }
++                collect_fn_argument_impl_traits(ast, sig, &mut found);
+                 for t in found {
+                     if let ast::Ty::ImplTrait(bs) = ast.ty(t) {
+                         let pi = env.names.len() as u32;
+@@ -4337,6 +4334,26 @@ impl RecursionLimit {
+     }
+ }
+ 
++std::thread_local! {
++    static CODEGEN_CRATE: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(None) };
++}
++
++/// The codegen unit's crate, distinct from the executable's entry crate.
++/// A scope is restored on unwind and must remain on the thread that entered it.
++pub struct CodegenCrate {
++    previous: Option<u32>,
++    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
++}
++impl CodegenCrate {
++    pub fn current() -> u32 { CODEGEN_CRATE.with(|c| c.get()).unwrap_or_else(crate::layout::root_crate) }
++    pub fn enter(krate: u32) -> Self {
++        Self { previous: CODEGEN_CRATE.with(|c| c.replace(Some(krate))), _thread: std::marker::PhantomData }
++    }
++}
++impl Drop for CodegenCrate {
++    fn drop(&mut self) { CODEGEN_CRATE.with(|c| c.set(self.previous)); }
++}
++
+ /// Predicate environment and typing mode, following rustc_middle/src/ty/mod.rs:1050.
+ #[derive(Clone, Copy, Debug, Hash)]
+ pub struct TypingEnv {
+@@ -4356,7 +4373,7 @@ impl Eq for TypingEnv {}
+ impl TypingEnv {
+     /// rustc_middle/src/ty/mod.rs:1073: codegen has no predicates in scope.
+     pub fn fully_monomorphized(prog: &Program) -> Self {
+-        Self { param_env: ParamEnvId::EMPTY, mode: TypingMode::PostAnalysis, limit: RecursionLimit::for_crate(prog, crate::layout::root_crate()) }
++        Self { param_env: ParamEnvId::EMPTY, mode: TypingMode::PostAnalysis, limit: RecursionLimit::for_crate(prog, CodegenCrate::current()) }
+     }
+ }
+ 
+@@ -4460,6 +4477,35 @@ impl Drop for Tcx {
+     }
+ }
+ 
++/// Function parameter bounds and input types share the anonymous-parameter context.
++/// Where clauses, generic defaults and `Fn(...)` bounds do not permit `impl Trait`.
++fn collect_fn_argument_impl_traits(ast: &ast::Ast, sig: &ast::FnSig, out: &mut Vec<ast::TyId>) {
++    for param in ast.list(sig.generics.params) {
++        if let GenericParamKind::Type(bounds, _) = param.kind {
++            collect_argument_impl_trait_bounds(ast, bounds, out);
++        }
++    }
++    for param in ast.list(sig.params) {
++        collect_argument_impl_traits(ast, param.ty, out);
++    }
++}
++
++fn collect_argument_impl_trait_bounds(ast: &ast::Ast, bounds: ast::List<ast::Bound>, out: &mut Vec<ast::TyId>) {
++    for bound in ast.list(bounds) {
++        if let ast::Bound::Trait { path, .. } = bound {
++            for seg in ast.segs(path.segs) {
++                if let Some(GenericArgs::Angle(args)) = ast.gargs(seg.args()) {
++                    for arg in ast.list(*args) {
++                        if let GenericArg::Type(ty) | GenericArg::Binding(_, _, ty) = arg {
++                            collect_argument_impl_traits(ast, *ty, out);
++                        }
++                    }
++                }
++            }
++        }
++    }
++}
++
+ fn collect_argument_impl_traits(ast: &ast::Ast, t: ast::TyId, out: &mut Vec<ast::TyId>) {
+     match ast.ty(t) {
+         ast::Ty::Ref(_, _, x) | ast::Ty::Paren(x) | ast::Ty::Ptr(_, x) | ast::Ty::Slice(x) | ast::Ty::Array(x, _) => collect_argument_impl_traits(ast, *x, out),
+@@ -4467,21 +4513,7 @@ fn collect_argument_impl_traits(ast: &ast::Ast, t: ast::TyId, out: &mut Vec<ast:
+         ast::Ty::ImplTrait(bs) => {
+             out.push(t);
+             // nested in its own bounds too (`impl IntoIterator<Item = impl Into<String>>`)
+-            for b in ast.list(*bs) {
+-                if let ast::Bound::Trait { path, .. } = b {
+-                    for seg in ast.segs(path.segs) {
+-                        if let Some(a) = ast.gargs(seg.args()) {
+-                            if let GenericArgs::Angle(v) = a {
+-                                for g in ast.list(*v) {
+-                                    if let GenericArg::Type(x) | GenericArg::Binding(_, _, x) = g {
+-                                        collect_argument_impl_traits(ast, *x, out);
+-                                    }
+-                                }
+-                            }
+-                        }
+-                    }
+-                }
+-            }
++            collect_argument_impl_trait_bounds(ast, *bs, out);
+         }
+         ast::Ty::Path(p) => {
+             for seg in ast.segs(p.segs) {
+diff --git a/libs/relax/types/src/tcx/arg_count.rs b/libs/relax/types/src/tcx/arg_count.rs
+index bce7d28..2fdffad 100644
+--- a/libs/relax/types/src/tcx/arg_count.rs
++++ b/libs/relax/types/src/tcx/arg_count.rs
+@@ -38,7 +38,7 @@ impl Tcx {
+         if let ItemKind::Fn(sig, _, _) = &item.kind {
+             let sig = ast.fn_sig(*sig);
+             let mut found = Vec::new();
+-            for p in ast.list(sig.params) { super::collect_argument_impl_traits(ast, p.ty, &mut found); }
++            super::collect_fn_argument_impl_traits(ast, sig, &mut found);
+             c.synth = found.len();
+         }
+         if let Some(n) = early_lifetimes { c.lifetimes = n; }
+diff --git a/libs/relax/types/src/tcx/resolve_bound_vars.rs b/libs/relax/types/src/tcx/resolve_bound_vars.rs
+index d78e507..d6af388 100644
+--- a/libs/relax/types/src/tcx/resolve_bound_vars.rs
++++ b/libs/relax/types/src/tcx/resolve_bound_vars.rs
+@@ -576,7 +576,7 @@ pub(crate) fn resolve_bound_vars(tcx: &Tcx, prog: &Program, owner: DefId, parent
+     let mut late = Vec::new();
+     let mut apits = Vec::new();
+     if let Some(sig) = function {
+-        for param in ast.list(sig.params) { super::collect_argument_impl_traits(ast, param.ty, &mut apits); }
++        super::collect_fn_argument_impl_traits(ast, sig, &mut apits);
+     }
+     if let Some(sig) = function {
+         let collector = |constrained| LifetimeCollector { tcx, prog, owner, names: &names, constrained, regions: Vec::new(), has_fully_capturing_opaque: false };

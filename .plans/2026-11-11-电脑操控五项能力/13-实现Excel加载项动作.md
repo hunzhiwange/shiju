@@ -4,6 +4,13 @@
 
 状态：已阻塞
 
+## 继续执行复核（2026-11-13）
+
+- 已核对现有实现提交 `39b64eafd`（`feat(computer-control): 新增Excel加载项范围动作与配对资源`），本轮未修改业务代码、共享协议及其他任务文件。
+- 再次运行 `node --test plugins/shiju-computer-control/office/excel/actions.test.mjs plugins/shiju-computer-control/office/shared/connection.test.mjs`，退出码 0，22 项有效测试全部通过，0 失败、0 跳过；其中本任务 14 项。
+- 再次执行 `find /Applications "$HOME/Applications" -maxdepth 3 -iname '*excel*' -print` 与 `mdfind 'kMDItemCFBundleIdentifier == "com.microsoft.Excel"'`，均无匹配；`ps -axo comm= | rg -i 'Microsoft Excel|Excel.app'` 无匹配。`list_document_sessions({surface:"excel"})` 仍返回 `executors: []`。计算机应用与浏览器清单未发现 Excel 应用或已打开的 Excel 工作簿；本轮未重复上一轮已证实受登录阻挡的网页创建流程。
+- 仍缺可侧载本加载项的已授权 Microsoft Excel 会话。所需输入及验收步骤沿用下文：真实临时工作簿值、公式、格式回读及关闭后旧命令失败。保留“已阻塞”和任务文件；仅更新任务记录，不单独提交，不执行本任务明确排除的 Cargo。
+
 ## 本次实现与检查记录（2026-11-12）
 
 - 当前为批次 13。依赖批次 12 实际产物已核对：`2098d43dc` 提供共享安全连接与传输，`97929c882` 提供文档会话生命周期；未仅凭前置任务文件已删除判定满足。

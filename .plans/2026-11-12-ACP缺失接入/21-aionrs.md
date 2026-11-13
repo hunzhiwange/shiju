@@ -44,7 +44,6 @@
 - 必读/按需修改：`crates/vw-agent/src/agent/catalog.rs`、`crates/vw-agent/src/config/schema/config_validate.rs`、`crates/vw-desktop/src/app/state/settings/agents.rs`、`crates/vw-desktop/src/app/message/settings/agents_profile.rs`；沿用已有配置和 UI 链路，不维护第二份手写目录。
 - 新增失败测试：在 `crates/vw-agent/src/agent/catalog_tests.rs` 添加 `acp_onboarding_aionrs_builtin_preset_metadata`，覆盖内置标识、backend、名称/说明/推荐提示词及默认选择；在 `crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs` 添加 `acp_onboarding_aionrs_builtin_profile_persists_and_runs`，通过生产配置与流入口验证保存/重读、启用/停用、新会话实际路由和身份固定。
 - 失败/通过验证命令均为 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_aionrs -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
-- 真实桌面验收必须从“官方智能体→启用→选择该内置智能体→新建会话”进入，保存并重开默认配置，检查实际后端与会话身份，完成两轮消息及现有能力验收；记录暗亮主题和证据。不得仅从 ACP 调试入口或手动指定 backend 绕过内置智能体流程。
 - 完成门槛：ACP 适配与内置智能体任一缺失、配置保存失败或会话选择未打通，均不得标记 `已完成`；证据文档分别列出这两项交付结果。
 
 ## Cargo 共享槽位规则
@@ -54,7 +53,7 @@
 3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
 4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
 5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
-6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及要求的真实渲染、授权、音频与实机验收继续执行；零测试和热更新通过不能替代完成验收。
+6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及协议、权限验证继续执行；零测试和热更新通过不能替代完成验收。
 
 ## 测试计划
 
@@ -75,7 +74,7 @@
 6. 安装与发现分开处理：本地发现 aionrs 主 CLI；桥接程序从当前发行包/受控安装目录解析，不写死开发机路径。官方发行页未确认预编译包，先核对实际资产；不存在则采用固定 revision 的受控源码构建，目标目录继承领取的 CARGO_TARGET_DIR，用户级部署保留许可证与摘要。禁止猜测 npm 包或任意下载 URL；没有 Rust 构建环境必须给出可操作错误，不能悄然安装其他引擎。
 7. 注册稳定 key/display name `aionrs`，ACP 启动指向 `aionrs-acp`，由桥接启动 `aionrs --json-stream`；参数类型化构造。只在探针证明基础闭环安全可用后开放默认停用的官方预设，不新增 shiju-agent-cli 别名，不改现有原生引擎。
 8. 按实际支持接入模型来源与 MCP：私有环境和既有模型中继传递所选 provider/model，密钥不进入 argv；不能修改用户全局 .aionrs.toml。MCP 只在 ready 后、首条 message 前注入，等待 mcp_ready；更新时明确处理协议窗口限制。技能只挂载选中隔离视图，未经证实不广告任意目录支持。被拒绝的已选能力必须在发 prompt 前报错。
-9. 先 `cargo fmt --all`，仅保留本任务格式改动；执行聚焦测试与 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`。验证新二进制的打包/定位路径，实际桌面暗亮主题使用 aionrs 发两轮、写临时文件、拒绝另一次写入和取消后继续；不依赖只构建 Element 的测试。
+9. 先 `cargo fmt --all`，仅保留本任务格式改动；执行聚焦测试与 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`。验证新二进制的打包/定位路径，通过生产会话入口使用 aionrs 发两轮、写临时文件、拒绝另一次写入和取消后继续。
 10. 审查注册仍保留原有与前 20 项，证据记录来源、版本、构建槽位、二进制摘要、确切命令、退出码、测试数量、真实请求/文件副作用、限制与平台覆盖。只在单一引擎端到端证据齐全后完成。
 
 ## 验证

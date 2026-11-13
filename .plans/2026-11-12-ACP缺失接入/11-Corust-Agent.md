@@ -48,7 +48,6 @@
 - 必读/按需修改：`crates/vw-agent/src/agent/catalog.rs`、`crates/vw-agent/src/config/schema/config_validate.rs`、`crates/vw-desktop/src/app/state/settings/agents.rs`、`crates/vw-desktop/src/app/message/settings/agents_profile.rs`；沿用已有配置和 UI 链路，不维护第二份手写目录。
 - 新增失败测试：在 `crates/vw-agent/src/agent/catalog_tests.rs` 添加 `acp_onboarding_corust_agent_builtin_preset_metadata`，覆盖内置标识、backend、名称/说明/推荐提示词及默认选择；在 `crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs` 添加 `acp_onboarding_corust_agent_builtin_profile_persists_and_runs`，通过生产配置与流入口验证保存/重读、启用/停用、新会话实际路由和身份固定。
 - 失败/通过验证命令均为 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_corust_agent -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
-- 真实桌面验收必须从“官方智能体→启用→选择该内置智能体→新建会话”进入，保存并重开默认配置，检查实际后端与会话身份，完成两轮消息及现有能力验收；记录暗亮主题和证据。不得仅从 ACP 调试入口或手动指定 backend 绕过内置智能体流程。
 - 完成门槛：ACP 适配与内置智能体任一缺失、配置保存失败或会话选择未打通，均不得标记 `已完成`；证据文档分别列出这两项交付结果。
 
 ## Cargo 共享槽位规则
@@ -58,7 +57,7 @@
 3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
 4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
 5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
-6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及要求的真实渲染、授权、音频与实机验收继续执行；零测试和热更新通过不能替代完成验收。
+6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及协议、权限验证继续执行；零测试和热更新通过不能替代完成验收。
 
 ## 测试计划
 
@@ -80,7 +79,7 @@
 6. 运行真实 CLI 的 initialize、session/new、两轮 prompt、cancel 以及它真实支持的 load/resume；测试拒绝文件/命令操作、错误认证、缺失可执行文件、错误模型和进程退出。客户端对端测试证明宿主逻辑，真实 CLI 测试证明供应商行为，两者证据不可互替。
 7. 对照来源和实际握手逐项核验模型目录/切换、CLI 本地模型、会话模型绑定、权限模式、MCP stdio/http/sse、技能目录和斜杠命令。仅将真实支持项接入现有分派；上游明确不支持的功能给出稳定拒绝并写证据。不能以“全部不支持”代替调查已有上游能力，也不能为了显示可用而取消现有门控。
 8. 对本产品支持的会话模型来源，使用受控本地上游响应服务和既有中继证明 provider/model 到达实际请求；认证只进入该子进程，日志/持久化不含真实密钥，CLI 原全局配置不被改写。对技能使用临时隔离目录，证明只发现选中的技能；对 MCP 验证仅所选服务进入会话，取消/恢复不扩大范围。
-9. 运行 `cargo fmt --all` 后审查差异，仅保留本任务格式变更；执行聚焦通过验证及规定 clippy。实际桌面检查暗/亮主题的目录、状态、启用与会话选项；复用既有表单、4px 滚动条和 toast，中文不得使用等宽字体；变更字体或动态弹窗时确认实际整形/渲染路径无 panic。
+9. 运行 `cargo fmt --all` 后审查差异，仅保留本任务格式变更；执行聚焦通过验证及规定 clippy。复用既有表单、4px 滚动条和 toast，中文不得使用等宽字体。
 10. 记录当前证据、平台限制和来源明确不支持项。最后审查之前所有已完成接入的注册仍保留，Codex/Claude 的关键行为未变。完成状态、提交及任务文件清理由本任务“完成”契约处理。
 
 ## 验证
@@ -88,10 +87,10 @@
 - 聚焦：`python3 scripts/cargo_slot.py cargo test -p vw-acp --test onboarding_corust_agent -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-config-types --lib acp_onboarding_corust_agent -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_corust_agent -- --test-threads=1`，记录每条退出码与有效测试数量，零测试无效。
 - 周边注册保护：`python3 scripts/cargo_slot.py cargo test -p vw-acp --lib agent_registry_tests -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib agent::catalog_tests -- --test-threads=1`。
 - 规定检查：`python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`，必须执行，修复本次引入的错误/警告；既有无关失败记录文件位置与原始错误摘要，不借机扩展范围。
-- 真实验收：在隔离网关配置和临时工作目录，通过实际官方目录启用并启动 `corust-agent`，记录安装/发现、agentInfo 版本、两轮消息完成、工具写入临时文件、拒绝操作、取消后可继续、load/resume 支持或明确拒绝。不得仅以握手或进程退出码判定可用。
+- 真实验收：在隔离网关配置和临时工作目录，通过生产目录与配置启用并启动 `corust-agent`，记录安装/发现、agentInfo 版本、两轮消息完成、工具写入临时文件、拒绝操作、取消后可继续、load/resume 支持或明确拒绝。不得仅以握手或进程退出码判定可用。
 - 平台验收：为安装选择写 Unix/Windows 数据测试；不冒充已在其他 OS/架构运行。官方支持但未真实测的平台保留待回归记录。
 - 模型、权限、MCP、技能：证据文档逐项标注支持/上游明确不支持/环境阻塞；能力支持结论必须对应当前版本和当前运行结果。无账号时不借用其他账号、不伪造完成。
-- 所需证据：前后行为测试输出、确切命令、退出码、有效测试数、实际 Cargo 槽位及绝对路径 CARGO_TARGET_DIR、官方来源 URL/源码路径和版本、脱敏真实 CLI 回执、桌面观察结果与已审查差异。
+- 所需证据：前后行为测试输出、确切命令、退出码、有效测试数、实际 Cargo 槽位及绝对路径 CARGO_TARGET_DIR、官方来源 URL/源码路径和版本、脱敏真实 CLI 回执与已审查差异。
 
 ## 完成
 

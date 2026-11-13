@@ -485,18 +485,44 @@ pub fn workflow_mode_button(
 ///
 /// # 行为说明
 ///
-/// - 空闲态仅显示旧版发送图标，不暴露模式切换入口
+/// - 空闲无内容时显示语音聊天入口，有内容时显示发送图标
 /// - 请求态在右侧提供模式切换入口，并允许通过弹出菜单切换发送行为
 /// - 仅在 `can_send` 为 true 时才可点击主按钮
 pub fn send_button<'a>(
     app: &'a crate::app::App,
-    _enabled: bool,
+    enabled: bool,
     can_send: bool,
     is_requesting: bool,
 ) -> Element<'a, Message> {
     let behavior = app.chat_send_behavior;
+    #[cfg(not(target_arch = "wasm32"))]
+    let voice_primary = !enabled && !is_requesting;
+    #[cfg(target_arch = "wasm32")]
+    let voice_primary = false;
+    #[cfg(not(target_arch = "wasm32"))]
+    let voice_available = !app.voice.chat_active()
+        && !matches!(
+            app.voice.draft.phase,
+            crate::app::message::voice_draft::Phase::Recording
+                | crate::app::message::voice_draft::Phase::Transcribing
+        )
+        && {
+            let runtime = app.current_session_runtime();
+            !runtime.task_mode_enabled
+                && !runtime.workflow_mode_enabled
+                && runtime.acp_agent.is_none()
+        };
+    #[cfg(target_arch = "wasm32")]
+    let voice_available = false;
+    let action_enabled = if voice_primary { voice_available } else { can_send };
     let main_icon = if is_requesting { send_behavior_icon(behavior) } else { Icon::ArrowUp };
-    let main_tooltip = if !can_send {
+    let main_tooltip = if voice_primary {
+        if voice_available {
+            "开始新的语音聊天"
+        } else {
+            "当前状态不可开始语音聊天"
+        }
+    } else if !can_send {
         "请先输入内容"
     } else if is_requesting {
         behavior.description()
@@ -504,9 +530,15 @@ pub fn send_button<'a>(
         "发送消息"
     };
 
-    let main_send_icon: Element<'_, Message> = icon_svg(main_icon, MAIN_SEND_ICON_SIZE)
+    let icon = if voice_primary {
+        svg(svg::Handle::from_memory(br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 10v4m4-8v12m4-15v18m4-15v12m4-8v4"/></svg>"#))
+            .width(MAIN_SEND_ICON_SIZE).height(MAIN_SEND_ICON_SIZE)
+    } else {
+        icon_svg(main_icon, MAIN_SEND_ICON_SIZE)
+    };
+    let main_send_icon: Element<'_, Message> = icon
         .style(move |theme: &Theme, _| svg::Style {
-            color: Some(if can_send {
+            color: Some(if action_enabled {
                 prominent_action_foreground(theme)
             } else {
                 theme.palette().text.scale_alpha(if is_dark_theme(theme) { 0.78 } else { 0.72 })
@@ -520,16 +552,21 @@ pub fn send_button<'a>(
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center);
 
-    let main_send = if can_send {
-        button(main_button_content)
-            .padding(0)
-            .style(move |theme: &Theme, status| prominent_action_style(theme, status, can_send))
-            .on_press(Message::Chat(message::ChatMessage::SendPressed))
+    let main_send = button(main_button_content)
+        .padding(0)
+        .style(move |theme: &Theme, status| prominent_action_style(theme, status, action_enabled));
+    #[cfg(not(target_arch = "wasm32"))]
+    let main_send = if voice_primary {
+        main_send.on_press_maybe(
+            voice_available.then_some(Message::Voice(crate::app::message::voice::Event::ChatStart)),
+        )
     } else {
-        button(main_button_content)
-            .padding(0)
-            .style(move |theme: &Theme, status| prominent_action_style(theme, status, can_send))
+        main_send
+            .on_press_maybe(can_send.then_some(Message::Chat(message::ChatMessage::SendPressed)))
     };
+    #[cfg(target_arch = "wasm32")]
+    let main_send = main_send
+        .on_press_maybe(can_send.then_some(Message::Chat(message::ChatMessage::SendPressed)));
 
     let main_send = tooltip(
         main_send,

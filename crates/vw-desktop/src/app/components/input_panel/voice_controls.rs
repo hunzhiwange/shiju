@@ -12,7 +12,7 @@ pub(super) fn action(phase: Phase, pending: bool) -> (Event, &'static str) {
     match phase {
         Phase::Recording => (Event::Finish, "完成录音"),
         Phase::Transcribing => (Event::Cancel, "正在转写，点击取消"),
-        Phase::Idle | Phase::Error => (Event::Start, "开始听写"),
+        Phase::Idle | Phase::Error => (Event::Start, "听写"),
     }
 }
 pub(super) fn view(app: &App) -> Element<'_, Message> {
@@ -46,9 +46,10 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .padding([4, 6])
         .style(|theme, status| square_icon_button_style(theme, status, true))
         .on_press(Message::Voice(event));
-    let mut controls = row![tooltip(control, text(label), tooltip::Position::Top)]
-        .spacing(3)
-        .align_y(Alignment::Center);
+    let mut controls =
+        row![tooltip(control, text(dictation_tooltip(label)).width(320), tooltip::Position::Top)]
+            .spacing(3)
+            .align_y(Alignment::Center);
     if phase == Phase::Recording || pending {
         controls = controls.push(
             button(text("取消").size(12))
@@ -57,11 +58,16 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
                 .on_press(Message::Voice(Event::Cancel)),
         );
     }
-    controls = controls.push(
-        button(text("语音聊天").size(12))
-            .padding([4, 6])
-            .style(|theme, status| square_icon_button_style(theme, status, true))
-            .on_press(Message::Voice(Event::ChatStart)),
-    );
     controls.into()
+}
+
+/// 系统快捷键仅作提示，不触发系统听写或权限请求。
+pub(super) fn dictation_tooltip(label: &str) -> String {
+    #[cfg(target_os = "macos")]
+    if label == "听写" {
+        return format!(
+            "{label}\n也可使用 macOS 系统听写：将光标放入输入框，按系统设置的听写快捷键（如连按两次 Fn/地球仪键）。可在‘系统设置 → 键盘 → 听写’中开启或修改。\n系统听写可用于支持文本输入的可编辑输入框。"
+        );
+    }
+    label.to_owned()
 }

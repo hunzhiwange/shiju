@@ -111,8 +111,10 @@ fn authorize_speech(language: Option<&str>, cancel: &Cancellation) -> Result<Cap
     }
     if capabilities.permission != PermissionStatus::Granted {
         VoicePermissions::new(SystemPermissions)
-            .request_from_user_action(Permission::SpeechRecognition)
-            .map_err(|_| "无法申请语音识别授权。请使用新版 ShiJu.app，并在系统设置→隐私与安全性→语音识别中检查权限。".to_owned())?;
+            .wait_from_user_action(Permission::SpeechRecognition, Duration::from_secs(60), || {
+                cancel.is_cancelled()
+            })
+            .map_err(|error| format!("语音识别授权失败：{error}"))?;
         capabilities = local::capabilities(language).map_err(local_error)?;
     }
     gated_capture(&capabilities, || Ok(()))?;
@@ -158,9 +160,13 @@ pub(super) async fn prepare(
             {
                 return Err("听写已取消。".into());
             }
-            permission.request_from_user_action(Permission::Microphone).map_err(|_| {
-                "无法申请麦克风权限，请在系统设置→隐私与安全性→麦克风中允许 ShiJu。".to_owned()
-            })?;
+            permission
+                .wait_from_user_action(Permission::Microphone, Duration::from_secs(60), || {
+                    native_cancel.is_cancelled()
+                        || *cancellation.borrow()
+                        || cancellation.has_changed().is_err()
+                })
+                .map_err(|error| format!("麦克风授权失败：{error}"))?;
             if permission.refresh(Permission::Microphone) != PermissionStatus::Granted {
                 return Err("麦克风尚未授权，请允许 ShiJu 访问后重新点击听写。".into());
             }

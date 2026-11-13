@@ -25,6 +25,7 @@ pub(crate) struct State {
     pub resources: LocalResources,
     pub cloud_ready: bool,
     pub cloud_error: Option<String>,
+    permission_cancel: crate::app::voice::local::Cancellation,
     generation: u64,
     endpoint: Option<GatewayEndpoint>,
 }
@@ -46,6 +47,7 @@ pub enum Event {
     LocalVoice(Option<String>),
     Permission(crate::app::voice::permissions::Permission),
     RefreshLocal,
+    PermissionFinished(u64, Result<crate::app::voice::permissions::PermissionStatus, String>),
     Resources(u64, Option<String>, LocalResources),
     CloudLoaded(u64, Result<VoiceConfig, String>),
     Cancel,
@@ -100,6 +102,7 @@ pub(crate) fn invalidate(app: &mut App) {
         state.recording_hotkey = None;
         state.endpoint = None;
         state.busy = false;
+        state.permission_cancel.cancel();
         state.generation = state.generation.wrapping_add(1);
     }
 }
@@ -114,10 +117,48 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if app.voice.settings.busy || app.voice.settings.edit.is_none() {
                 return Task::none();
             }
-            match VoicePermissions::new(SystemPermissions).request_from_user_action(permission) {
-                Ok(()) => refresh_local(&app.voice.settings),
-                Err(_) => app.show_error_toast("无法申请系统权限，请在带语音用途说明的 ShiJu.app 中操作，或在 macOS 隐私与安全性中检查授权后刷新。"),
+            let state = &mut app.voice.settings;
+            state.permission_cancel.cancel();
+            state.permission_cancel = Default::default();
+            state.generation = state.generation.wrapping_add(1);
+            let cancel = state.permission_cancel.clone();
+            let generation = state.generation;
+            Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        VoicePermissions::new(SystemPermissions)
+                            .wait_from_user_action(permission, Duration::from_secs(60), || {
+                                cancel.is_cancelled()
+                            })
+                            .map_err(|error| error.to_string())
+                    })
+                    .await
+                    .unwrap_or_else(|_| Err("系统授权任务异常结束。".into()))
+                },
+                move |result| message(Event::PermissionFinished(generation, result)),
+            )
+        }
+        Event::PermissionFinished(generation, result) => {
+            let state = &app.voice.settings;
+            if state.generation != generation || state.edit.is_none() {
+                return Task::none();
             }
+            let refresh = refresh_local(state);
+            let feedback = match result {
+                Ok(crate::app::voice::permissions::PermissionStatus::Granted) => Task::none(),
+                Ok(status) => {
+                    use crate::app::voice::permissions::PermissionStatus;
+                    app.show_error_toast(match status {
+                        PermissionStatus::Restricted => {
+                            "系统策略限制了此权限，请检查设备管理或屏幕使用时间。"
+                        }
+                        PermissionStatus::Unsupported => "当前平台不支持此系统权限。",
+                        _ => "系统权限尚未允许，请在隐私与安全性设置中授权后返回。",
+                    })
+                }
+                Err(error) => app.show_error_toast(format!("申请系统权限失败：{error}")),
+            };
+            Task::batch([refresh, feedback])
         }
         Event::RefreshLocal => refresh_local(&app.voice.settings),
         Event::Resources(generation, language, resources) => {
@@ -163,6 +204,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             super::super::voice::cancel(app);
             let state = &mut app.voice.settings;
             state.edit.as_mut().unwrap().local.engine = engine;
+            state.permission_cancel.cancel();
             state.generation = state.generation.wrapping_add(1);
             if engine == VoiceEngine::Local {
                 return refresh_local(state);
@@ -239,6 +281,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             state.edit = None;
             state.recording_hotkey = None;
             state.busy = true;
+            state.permission_cancel.cancel();
             state.generation = state.generation.wrapping_add(1);
             state.endpoint = Some(endpoint.clone());
             let generation = state.generation;
@@ -280,6 +323,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 let _ = edit.cancel();
             }
             state.endpoint = None;
+            state.permission_cancel.cancel();
             state.generation = state.generation.wrapping_add(1);
             Task::none()
         }

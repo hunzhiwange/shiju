@@ -72,6 +72,45 @@ impl<B: PermissionBackend> VoicePermissions<B> {
             }
         }
     }
+    /// Wait on a worker thread, never the UI thread. Re-query the OS rather
+    /// than treating submission of an asynchronous request as authorization.
+    pub fn wait_from_user_action(
+        &self,
+        permission: Permission,
+        timeout: std::time::Duration,
+        cancelled: impl Fn() -> bool,
+    ) -> Result<PermissionStatus> {
+        if cancelled() {
+            bail!("授权已取消。");
+        }
+        let initial = self.refresh(permission);
+        match initial {
+            PermissionStatus::Granted
+            | PermissionStatus::Restricted
+            | PermissionStatus::Unsupported => return Ok(initial),
+            PermissionStatus::Denied => {
+                self.backend.open_settings(permission)?;
+                return Ok(initial);
+            }
+            PermissionStatus::Unknown | PermissionStatus::NotDetermined => {
+                self.backend.request(permission)?;
+            }
+        }
+        let started = std::time::Instant::now();
+        loop {
+            if cancelled() {
+                bail!("授权已取消。");
+            }
+            let status = self.refresh(permission);
+            if !matches!(status, PermissionStatus::Unknown | PermissionStatus::NotDetermined) {
+                return Ok(status);
+            }
+            if started.elapsed() >= timeout {
+                bail!("等待系统授权超时，请检查系统权限后重试。");
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
     pub fn open_settings_from_user_action(&self, permission: Permission) -> Result<()> {
         self.backend.open_settings(permission)
     }

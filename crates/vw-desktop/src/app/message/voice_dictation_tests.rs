@@ -206,3 +206,10 @@ async fn voice_task_07_local_cancelled_prepare_never_requests_permissions() {
             .await;
     assert!(result.err().unwrap().contains("取消"));
 }
+
+#[test]
+fn voice_moon_permission_cancelled_speech_never_queries_system() {
+    let cancel = Cancellation::default();
+    cancel.cancel();
+    assert!(authorize_speech(Some("zh-CN"), &cancel).unwrap_err().contains("取消"));
+}

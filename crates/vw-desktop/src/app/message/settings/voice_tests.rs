@@ -60,7 +60,8 @@ fn voice_task_13_local_save_ignores_invalid_cloud_settings() {
     );
 }
 #[tokio::test]
-async fn voice_task_13_local_offline_load_save_and_cancel_leave_cloud_untouched() {
+async fn voice_task_13_voice_moon_permission_local_offline_load_save_and_cancel_leave_cloud_untouched()
+ {
     use crate::app::voice::preferences::VoiceEngine;
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("preferences.json");
@@ -179,4 +180,21 @@ async fn voice_task_13_cloud_explicit_save_patches_only_cloud_fields() {
         serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
     assert_eq!(body, serde_json::json!({"voice":"cedar"}));
     assert_eq!(Preferences::read(&path).unwrap(), edit.local);
+}
+
+#[test]
+fn voice_moon_permission_late_result_does_not_reopen_form() {
+    let (mut app, _) = App::new();
+    app.show_system_settings = true;
+    app.system_settings_tab = crate::app::components::system_settings::SystemTab::Voice;
+    app.voice.settings.endpoint = Some(crate::app::gateway_client_endpoint());
+    app.voice.settings.generation = 4;
+    app.voice.settings.edit = Some(Edit::new(VoiceConfig::default(), Preferences::default()));
+    let _ = update(&mut app, Event::Cancel);
+    let _ = update(
+        &mut app,
+        Event::PermissionFinished(4, Ok(crate::app::voice::permissions::PermissionStatus::Granted)),
+    );
+    assert!(app.voice.settings.edit.is_none());
+    assert!(app.voice.settings.permission_cancel.is_cancelled());
 }

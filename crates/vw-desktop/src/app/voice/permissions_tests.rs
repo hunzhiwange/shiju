@@ -179,3 +179,76 @@ fn local_voice_missing_usage_description_fails_before_tcc() {
         assert!(SystemPermissions.request(Permission::SpeechRecognition).is_err());
     }
 }
+
+#[test]
+fn voice_moon_permission_delayed_grant_waits_for_system() {
+    struct Delayed(Cell<usize>);
+    impl PermissionBackend for Delayed {
+        fn query(&self, _: Permission) -> PermissionStatus {
+            let n = self.0.get();
+            self.0.set(n + 1);
+            if n >= 3 { PermissionStatus::Granted } else { PermissionStatus::NotDetermined }
+        }
+        fn request(&self, _: Permission) -> Result<()> {
+            Ok(())
+        }
+        fn open_settings(&self, _: Permission) -> Result<()> {
+            panic!("unexpected settings")
+        }
+    }
+    assert_eq!(
+        VoicePermissions::new(Delayed(Cell::new(0)))
+            .wait_from_user_action(
+                Permission::Microphone,
+                std::time::Duration::from_secs(1),
+                || false
+            )
+            .unwrap(),
+        PermissionStatus::Granted
+    );
+}
+
+#[test]
+fn voice_moon_permission_terminal_cancel_and_timeout() {
+    use std::time::Duration;
+    for status in [
+        PermissionStatus::Granted,
+        PermissionStatus::Denied,
+        PermissionStatus::Restricted,
+        PermissionStatus::Unsupported,
+    ] {
+        let os = boundary(status);
+        assert_eq!(
+            VoicePermissions::new(&os)
+                .wait_from_user_action(Permission::Microphone, Duration::ZERO, || false)
+                .unwrap(),
+            status
+        );
+        assert!(os.requests.borrow().is_empty());
+    }
+    let os = boundary(PermissionStatus::NotDetermined);
+    let p = VoicePermissions::new(&os);
+    assert!(p.wait_from_user_action(Permission::Microphone, Duration::ZERO, || true).is_err());
+    assert!(os.requests.borrow().is_empty());
+    assert!(p.wait_from_user_action(Permission::Microphone, Duration::ZERO, || false).is_err());
+}
+
+#[test]
+fn voice_moon_permission_cancel_discards_late_grant() {
+    let os = boundary(PermissionStatus::NotDetermined);
+    let checks = Cell::new(0);
+    let result = VoicePermissions::new(&os).wait_from_user_action(
+        Permission::Microphone,
+        std::time::Duration::from_secs(1),
+        || {
+            let n = checks.get();
+            checks.set(n + 1);
+            if n > 0 {
+                os.status.set(PermissionStatus::Granted);
+            }
+            n > 0
+        },
+    );
+    assert!(result.is_err());
+    assert_eq!(*os.requests.borrow(), vec![Permission::Microphone]);
+}

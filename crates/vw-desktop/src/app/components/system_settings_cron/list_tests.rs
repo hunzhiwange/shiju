@@ -508,7 +508,45 @@ async fn cron_templates_render_two_columns_and_select_template() {
         capture(&mut ui, &mut renderer, &theme, size, "cron-templates", mouse::Cursor::Unavailable);
         assert!(matches!(
             click(&mut ui, &mut renderer, first.center()).as_slice(),
-            [Message::Settings(SettingsMessage::CronTemplateSelected(0))]
+            [Message::Settings(SettingsMessage::CronTemplateSelected(
+                crate::app::state::CronTemplateId::AiNews
+            ))]
         ));
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cron_template_flow_cards_render_and_click_all_templates() {
+    if !isolated("list_tests::cron_template_flow_cards_render_and_click_all_templates") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    for width in [380, 700, 1100] {
+        let size = Size::new(width, 1800);
+        for theme in [Theme::Light, Theme::Dark] {
+            let mut ui = scene(frame(templates::view()), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            capture(
+                &mut ui,
+                &mut renderer,
+                &theme,
+                size,
+                "template-flow-cards",
+                mouse::Cursor::Unavailable,
+            );
+            for template in crate::app::state::CRON_TEMPLATES {
+                let bounds = positions.label(template.title);
+                assert_fits(bounds, size);
+                let messages = click(&mut ui, &mut renderer, bounds.center());
+                assert!(matches!(messages.as_slice(),
+                    [Message::Settings(SettingsMessage::CronTemplateSelected(id))] if *id == template.id));
+                let mut app = list_fixture();
+                for message in messages {
+                    drop(app.update(message));
+                }
+                assert!(app.cron_settings.show_add_modal);
+                assert_eq!(app.cron_settings.add_draft.prompt, template.prompt);
+            }
+        }
     }
 }

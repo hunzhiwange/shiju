@@ -374,6 +374,7 @@ pub(super) fn jobs_tab(app: &App) -> Element<'_, Message> {
             cards = cards.push(line);
         }
     }
+    cards = cards.push(super::templates::view());
     let list = scrollable(container(cards).padding([0, 7]).width(Length::Fill))
         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
         .height(Length::Fill);

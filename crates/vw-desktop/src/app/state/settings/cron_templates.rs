@@ -4,7 +4,7 @@ use chrono::{DateTime, LocalResult, TimeZone};
 use iced::widget::text_editor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CronTemplateId {
+pub enum CronTemplateId {
     AiNews,
     English,
     Story,

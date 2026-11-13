@@ -1569,7 +1569,10 @@ fn cron_template_selection_opens_prefilled_draft_without_saving() {
     let mut app = app();
     let _ = update(&mut app, SettingsMessage::CronTemplatesToggled(true));
     assert!(app.cron_settings.show_cron_templates);
-    let _ = update(&mut app, SettingsMessage::CronTemplateSelected(0));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CronTemplateSelected(crate::app::state::CronTemplateId::AiNews),
+    );
     assert!(!app.cron_settings.show_cron_templates);
     assert!(app.cron_settings.show_add_modal);
     assert_eq!(app.cron_settings.add_draft.name, "每日 AI 新闻推送");
@@ -1657,4 +1660,82 @@ fn cron_modal_double_submit_is_ignored() {
     let task = update(&mut app, SettingsMessage::CronAddSubmit);
     assert_eq!(task.units(), 0);
     assert!(app.cron_settings.add_draft.submitting);
+}
+
+#[test]
+fn cron_template_flow_click_prefills_without_creation() {
+    for template in crate::app::state::CRON_TEMPLATES {
+        let mut app = app();
+        drop(update(&mut app, SettingsMessage::CronTemplateSelected(template.id)));
+        assert_eq!(app.cron_settings.add_draft.prompt, template.prompt);
+        assert_eq!(app.cron_settings.add_draft.prompt_editor.text(), template.prompt);
+        assert!(app.cron_settings.show_add_modal);
+        assert!(!app.cron_settings.add_draft.submitting);
+        assert!(app.cron_settings.jobs.is_empty());
+    }
+}
+
+#[test]
+fn cron_template_flow_cancel_creates_nothing() {
+    let mut app = app();
+    drop(update(
+        &mut app,
+        SettingsMessage::CronTemplateSelected(crate::app::state::CronTemplateId::AiNews),
+    ));
+    drop(update(&mut app, SettingsMessage::CronJobEditCanceled));
+    assert!(!app.cron_settings.show_add_modal);
+    assert!(app.cron_settings.jobs.is_empty());
+    assert!(!app.cron_settings.add_draft.submitting);
+}
+
+#[test]
+fn cron_template_flow_reopen_has_no_leaked_permissions() {
+    let mut app = app();
+    app.cron_settings.add_draft.full_access = true;
+    app.cron_settings.add_draft.delivery_enabled = true;
+    app.cron_settings.add_draft.project_path = "/private/old".into();
+    drop(update(
+        &mut app,
+        SettingsMessage::CronTemplateSelected(crate::app::state::CronTemplateId::AiNews),
+    ));
+    assert!(!app.cron_settings.add_draft.full_access);
+    assert!(!app.cron_settings.add_draft.delivery_enabled);
+    assert!(app.cron_settings.add_draft.project_path.is_empty());
+}
+
+#[test]
+fn cron_template_flow_edited_values_are_submitted() {
+    let mut app = app();
+    drop(update(
+        &mut app,
+        SettingsMessage::CronTemplateSelected(crate::app::state::CronTemplateId::AiNews),
+    ));
+    for message in [
+        SettingsMessage::CronAddNameChanged("我的任务".into()),
+        SettingsMessage::CronAddPromptChanged("修改后的正文".into()),
+        SettingsMessage::CronAddScheduleChanged("0 11 * * *".into()),
+        SettingsMessage::CronAddProjectPathChanged("/tmp/cron-template-project".into()),
+    ] {
+        drop(update(&mut app, message));
+    }
+    let revision = app.cron_settings.add_draft.schedule_revision;
+    drop(update(
+        &mut app,
+        SettingsMessage::CronSchedulePreviewLoaded {
+            editing: false,
+            revision,
+            result: Ok(vw_gateway_client::CronPreviewResponse {
+                normalized: Default::default(),
+                timezone: "UTC".into(),
+                candidates: vec!["2099-01-01T11:00:00Z".into()],
+            }),
+        },
+    ));
+    drop(update(&mut app, SettingsMessage::CronAddSubmit));
+    let draft = &app.cron_settings.add_draft;
+    assert!(draft.submitting);
+    assert_eq!(draft.name, "我的任务");
+    assert_eq!(draft.prompt, "修改后的正文");
+    assert_eq!(draft.project_path, "/tmp/cron-template-project");
+    assert_eq!(schedule_request(draft).unwrap().schedule.as_deref(), Some("0 11 * * *"));
 }

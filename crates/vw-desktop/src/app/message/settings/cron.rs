@@ -426,19 +426,36 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Task::none()
         }
-        SettingsMessage::CronTemplateSelected(index) => {
+        SettingsMessage::CronTemplateSelected(id) => {
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
                 return Task::none();
             }
             let Some(template) =
-                crate::app::components::system_settings_cron::templates::TEMPLATES.get(index)
+                crate::app::state::CRON_TEMPLATES.iter().find(|template| template.id == id)
             else {
-                return Task::none();
+                return app.show_error_toast("未找到常用任务模板");
             };
-            let task = update(app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
-            template.apply(&mut app.cron_settings.add_draft);
+            let mut draft = match template.draft(chrono::Local::now()) {
+                Ok(draft) => draft,
+                Err(error) => return app.show_error_toast(error),
+            };
+            draft.schedule_draft = match schedule_request(&draft)
+                .and_then(|request| crate::app::state::CronScheduleDraft::from_request(&request))
+            {
+                Ok(schedule) => Some(schedule),
+                Err(error) => return app.show_error_toast(error),
+            };
+            draft.schedule_revision = app.cron_settings.add_draft.schedule_revision + 1;
+            app.cron_settings.add_draft = draft;
+            app.cron_settings.show_add_modal = true;
+            app.cron_settings.editing_job_id = None;
+            app.cron_settings.date_time_picker = None;
+            app.cron_settings.active_tab = CronSettingsTab::Jobs;
+            app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
+            app.cron_settings.action_status = None;
             app.cron_settings.show_cron_templates = false;
-            task
+            Task::none()
         }
         SettingsMessage::CronTabSelected(tab) => {
             app.cron_settings.date_time_picker = None;

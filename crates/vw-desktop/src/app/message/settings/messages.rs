@@ -980,7 +980,7 @@ pub enum SettingsMessage {
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),
     CronTemplatesToggled(bool),
-    CronTemplateSelected(usize),
+    CronTemplateSelected(crate::app::state::CronTemplateId),
     CronHistory(super::cron_history::CronHistoryMessage),
     CronListFilterChanged(CronListFilter),
     CronBatchModeToggled(bool),

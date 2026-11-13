@@ -96,7 +96,7 @@ async fn voice_ui_dictation_hover_does_not_finish() {
 }
 
 #[tokio::test]
-async fn voice_ui_dictation_renders_chinese_and_waveform_in_both_themes() {
+async fn voice_ui_dictation_shapes_chinese_in_both_themes() {
     use iced::advanced::renderer::{Headless, Style};
     use iced_runtime::user_interface::{Cache, UserInterface};
     for font in crate::fonts::load_all() {
@@ -123,13 +123,6 @@ async fn voice_ui_dictation_renders_chinese_and_waveform_in_both_themes() {
                     &Style { text_color: theme.palette().text },
                     iced::mouse::Cursor::Unavailable,
                 );
-                let pixels = renderer.screenshot(
-                    iced::Size::new(width, 64),
-                    1.0,
-                    theme.palette().background,
-                );
-                let image = image::RgbaImage::from_raw(width, 64, pixels).unwrap();
-                image.save(format!("/tmp/voice-ui-3-{theme:?}-{width}-{phase:?}.png")).unwrap();
             }
         }
     }

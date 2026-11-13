@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "grok",
+        display_name: "Grok Build",
+        command: "npx",
+        args: &["-y", "@xai-official/grok@1.0.77", "agent", "stdio"],
+        env: &[],
+        local_command_candidates: &["grok"],
+        local_args: &["agent", "stdio"],
+    },
+    BuiltInAgentDefinition {
         name: "glm-acp-agent",
         display_name: "GLM Agent",
         command: "npx",

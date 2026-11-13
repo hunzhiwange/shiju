@@ -11,6 +11,7 @@ mod droid;
 mod gemini;
 mod glm_acp_agent;
 mod goose;
+mod grok;
 mod hermes;
 mod iflow;
 mod kilocode;
@@ -44,6 +45,7 @@ pub(super) fn configure(
         "cursor" => cursor::configure(profile, endpoint),
         "droid" => droid::configure(profile, endpoint),
         "glm-acp-agent" => glm_acp_agent::configure(profile, endpoint),
+        "grok" => grok::configure(profile, endpoint),
         "dirac" => dirac::configure(profile, endpoint),
         "gemini" => gemini::configure(profile, endpoint),
         "iflow" => iflow::configure(profile, endpoint),
@@ -122,6 +124,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         "hermes" => "0.19.0",
         "codebuddy" => "2.179.3",
         "glm-acp-agent" => "1.17.1",
+        "grok" => "1.0.24; 1.0.77",
         "dirac" => "0.5.24",
         "snow" => "0.9.14",
         "copilot" => "1.0.105",
@@ -142,7 +145,7 @@ fn source_protocol(
     use vw_shared::provider::protocols::ModelProtocol as P;
     Ok(match agent {
         "claude" => P::Messages,
-        "codex" | "kiro" => P::Responses,
+        "codex" | "kiro" | "grok" => P::Responses,
         "gemini" => P::Gemini,
         "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid" | "codebuddy" | "goose"
         | "hermes" | "iflow" | "kilocode" | "openclaw" | "pi" | "qoder" | "qwen" | "trae" => {

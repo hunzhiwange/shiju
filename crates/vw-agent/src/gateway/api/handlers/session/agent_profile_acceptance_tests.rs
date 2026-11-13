@@ -730,3 +730,45 @@ fn acp_onboarding_glm_acp_agent_builtin_profile_persists_and_runs() {
     ));
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
+
+#[test]
+fn acp_onboarding_grok_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile(&runtime, workspace.path(), "grok");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-grok":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-grok".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}

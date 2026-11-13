@@ -498,3 +498,12 @@ fn acp_onboarding_autohand_local_discovery_keeps_native_arguments() {
     assert_eq!(command, binary.to_string_lossy());
     assert_eq!(args, ["--acp"]);
 }
+
+#[test]
+fn acp_onboarding_grok_fallback_contract() {
+    let entry = BUILT_IN_AGENT_DEFINITIONS.iter().find(|entry| entry.name == "grok").unwrap();
+    assert_eq!(entry.command, "npx");
+    assert_eq!(entry.args, ["-y", "@xai-official/grok@1.0.77", "agent", "stdio"]);
+    assert_eq!(entry.local_command_candidates, ["grok"]);
+    assert_eq!(entry.local_args, ["agent", "stdio"]);
+}

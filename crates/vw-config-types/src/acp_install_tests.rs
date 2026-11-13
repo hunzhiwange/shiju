@@ -128,3 +128,13 @@ fn acp_onboarding_glm_acp_agent_installer_contract() {
     }
     assert!(acp_install_command("glm-acp-agent; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_grok_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("grok", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "@xai-official/grok@1.0.77"]);
+    }
+    assert!(acp_install_command("grok; echo unsafe").is_none());
+}

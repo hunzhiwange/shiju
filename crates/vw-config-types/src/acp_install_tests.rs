@@ -62,3 +62,30 @@ fn all_builtin_agents_have_unix_and_windows_installers() {
         }
     }
 }
+
+#[test]
+fn acp_onboarding_autohand_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    let (program, args) =
+        acp_install_command_for_platform("autohand", AcpInstallPlatform::Unix).unwrap();
+    assert_eq!(program, "env");
+    assert_eq!(
+        args,
+        [
+            "AUTOHAND_SKIP_AHTRACES_INSTALL=1",
+            "AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL=1",
+            "npm",
+            "install",
+            "-g",
+            "autohand-cli@0.9.11"
+        ]
+    );
+    let (program, args) =
+        acp_install_command_for_platform("autohand", AcpInstallPlatform::Windows).unwrap();
+    assert_eq!(program, "powershell");
+    assert_eq!(&args[..3], ["-NoProfile", "-NonInteractive", "-Command"]);
+    assert!(args[3].contains("npm install -g autohand-cli@0.9.11; exit $LASTEXITCODE"));
+    assert!(args[3].contains("AUTOHAND_SKIP_AHTRACES_INSTALL='1'"));
+    assert!(args[3].contains("AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL='1'"));
+    assert!(acp_install_command("autohand; echo unsafe").is_none());
+}

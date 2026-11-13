@@ -121,7 +121,7 @@ fn run_profile_acceptance() {
         String::from_utf8_lossy(&child.stdout),
         String::from_utf8_lossy(&child.stderr)
     );
-    assert_acp_profile(&runtime, workspace.path());
+    assert_acp_profile(&runtime, workspace.path(), "codex");
     server.abort();
     let captured = requests.lock().unwrap();
     assert_eq!(captured.len(), 3, "two live turns plus one fresh-process turn");
@@ -206,7 +206,12 @@ async fn agent_profile_acceptance_rejects_revoked_capabilities() {
 }
 
 // Keep the real profile resolver and gateway transport; only the external ACP peer is controlled.
-fn assert_acp_profile(runtime: &tokio::runtime::Runtime, workspace: &std::path::Path) {
+fn assert_acp_profile(
+    runtime: &tokio::runtime::Runtime,
+    workspace: &std::path::Path,
+    backend: &str,
+) {
+    let profile = format!("acp-{backend}");
     let peer = workspace.join("acceptance-peer.py");
     let capture = workspace.join("acceptance-acp.jsonl");
     std::fs::write(&peer, r#"
@@ -237,8 +242,8 @@ for line in sys.stdin:
     .unwrap();
     runtime
         .block_on(crate::config::update(json!({
-            "acp":{"codex":{"command":"python3","args":[peer,capture],"env":{}}},
-            "agents":{"acp-codex":{
+            "acp":{backend:{"command":"python3","args":[peer,capture],"env":{}}},
+            "agents":{profile.clone():{
                 "label":"已启用 ACP 验收", "enabled":true,"system_prompt":"ACP_ACCEPTANCE_RULE",
                 "defaults":{
                     "permission":{"mode":"fixed","value":{"*":"deny"}},
@@ -249,6 +254,8 @@ for line in sys.stdin:
         })))
         .unwrap();
     let directory = workspace.to_string_lossy().into_owned();
+    let backend = backend.to_owned();
+    let binding_directory = directory.clone();
     runtime
         .block_on(super::shared::with_tenant_instance(
             crate::session::ui_store::current_tenant_scope(),
@@ -257,10 +264,27 @@ for line in sys.stdin:
                 Box::pin(async move {
                     let config = crate::config::get_current().await.unwrap();
                     assert_eq!(
-                        config.acp["codex"].command, "python3",
+                        config.acp[&backend].command, "python3",
                         "only the owned peer may launch"
                     );
-                    assert!(config.acp["codex"].args[0].ends_with("acceptance-peer.py"));
+                    assert!(config.acp[&backend].args[0].ends_with("acceptance-peer.py"));
+                    let key = format!("acp-{backend}");
+                    let catalog = crate::agent::catalog::merged_agent_catalog(&config.agents);
+                    assert!(catalog[&key].builtin && catalog[&key].enabled);
+                    assert_eq!(catalog[&key].system_prompt.as_deref(), Some("ACP_ACCEPTANCE_RULE"));
+                    let (binding, _) = crate::session::agent_binding::prepare(
+                        &format!("ses_binding_{}", uuid::Uuid::new_v4()),
+                        Some(&key),
+                        None,
+                        None,
+                        std::path::Path::new(&binding_directory),
+                    )
+                    .await
+                    .unwrap();
+                    assert_eq!(
+                        serde_json::to_value(binding.runtime).unwrap(),
+                        json!({"kind":"acp","backend":backend})
+                    );
                     Ok(())
                 })
             },
@@ -269,7 +293,7 @@ for line in sys.stdin:
     let events = runtime.block_on(send(
         workspace,
         &format!("ses_acp_acceptance_{}", uuid::Uuid::new_v4()),
-        "acp-codex",
+        &profile,
     ));
     assert!(events.contains("chat.done"), "{events}");
     assert!(!events.contains("chat.error"), "{events}");
@@ -442,4 +466,46 @@ async fn agent_config_cleanup_global_profile_roundtrips_to_new_session() {
             .unwrap();
         }
     }
+}
+
+#[test]
+fn acp_onboarding_autohand_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile(&runtime, workspace.path(), "autohand");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-autohand":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-autohand".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
 }

@@ -482,3 +482,19 @@ fn acp_full_access_launch_registry_never_grants_bypass() {
         }
     }
 }
+
+#[test]
+fn acp_onboarding_autohand_local_discovery_keeps_native_arguments() {
+    let _env_lock = agent_registry_env_test_lock();
+    let home = TestDir::new("autohand-local");
+    let binary = home.path().join(".local/bin/autohand");
+    write_file(&binary);
+    let _home = EnvGuard::set_os("HOME", home.path().as_os_str());
+    let _xdg = EnvGuard::remove("XDG_BIN_HOME");
+    let _path = EnvGuard::set_os("PATH", home.path().as_os_str());
+    let definition =
+        built_in_agent_definitions().iter().find(|entry| entry.name == "autohand").unwrap();
+    let (command, args) = built_in_agent_command(definition);
+    assert_eq!(command, binary.to_string_lossy());
+    assert_eq!(args, ["--acp"]);
+}

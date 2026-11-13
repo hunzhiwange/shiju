@@ -245,6 +245,18 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "autohand",
+        display_name: "Autohand Code",
+        command: "npx",
+        args: &["-y", "autohand-cli@0.9.11", "--acp"],
+        env: &[
+            ("AUTOHAND_SKIP_AHTRACES_INSTALL", "1"),
+            ("AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL", "1"),
+        ],
+        local_command_candidates: &["autohand"],
+        local_args: &["--acp"],
+    },
+    BuiltInAgentDefinition {
         name: "auggie",
         display_name: "Auggie CLI",
         command: "npx",

@@ -27,6 +27,30 @@ pub fn acp_install_command_for_platform(
     platform: AcpInstallPlatform,
 ) -> Option<(&'static str, &'static [&'static str])> {
     let args: &[&str] = match agent {
+        "autohand" => {
+            return Some(match platform {
+                AcpInstallPlatform::Unix => (
+                    "env",
+                    &[
+                        "AUTOHAND_SKIP_AHTRACES_INSTALL=1",
+                        "AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL=1",
+                        "npm",
+                        "install",
+                        "-g",
+                        "autohand-cli@0.9.11",
+                    ],
+                ),
+                AcpInstallPlatform::Windows => (
+                    "powershell",
+                    &[
+                        "-NoProfile",
+                        "-NonInteractive",
+                        "-Command",
+                        "$env:AUTOHAND_SKIP_AHTRACES_INSTALL='1'; $env:AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL='1'; & npm install -g autohand-cli@0.9.11; exit $LASTEXITCODE",
+                    ],
+                ),
+            });
+        }
         "claude" => &["install", "-g", "@agentclientprotocol/claude-agent-acp@^0.26.0"],
         "codex" => &["install", "-g", "@agentclientprotocol/codex-acp@latest"],
         "gemini" => &["install", "-g", "@google/gemini-cli@latest"],

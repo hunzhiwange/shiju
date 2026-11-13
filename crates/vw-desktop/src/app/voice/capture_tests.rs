@@ -221,3 +221,127 @@ fn voice_task_04_device_start_errors_release_lease_and_remain_explicit() {
     assert_eq!(await_result(&mut capture).unwrap_err(), CaptureError::Device);
     assert!(device.released.load(Ordering::Acquire));
 }
+
+fn await_volume(capture: &Capture, sequence: u64) -> VolumeSummary {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let summary = capture.volume_summary();
+        if summary.sequence >= sequence {
+            return summary;
+        }
+        assert!(Instant::now() < deadline, "no PCM volume summary: {summary:?}");
+        std::thread::yield_now();
+    }
+}
+
+#[test]
+fn voice_ui_meter_tracks_pcm_amplitude() {
+    let device = device();
+    let capture = start(&device, Arc::new(AtomicBool::new(false)), Duration::from_secs(5));
+    assert_eq!(capture.volume_summary(), VolumeSummary { sequence: 0, peak: 0.0 });
+    for (index, (sample, peak)) in
+        [(0, 0.0), (16384, 0.5), (i16::MIN, 1.0), (i16::MAX, 32767.0 / 32768.0)]
+            .into_iter()
+            .enumerate()
+    {
+        sink(&device).send([sample; FRAME_SAMPLES], FRAME_SAMPLES);
+        let summary = await_volume(&capture, index as u64 + 1);
+        assert_eq!(summary.sequence, index as u64 + 1);
+        assert_eq!(summary.peak, peak);
+        assert_eq!(capture.volume_summary(), summary, "reading must not consume the summary");
+    }
+    // Ignore storage beyond len; an empty frame is not a new sample.
+    sink(&device).send([i16::MIN; FRAME_SAMPLES], 0);
+    let mut samples = [i16::MIN; FRAME_SAMPLES];
+    samples[0] = 8192;
+    sink(&device).send(samples, 1);
+    assert_eq!(await_volume(&capture, 5), VolumeSummary { sequence: 5, peak: 0.25 });
+    assert_eq!(capture.finish().unwrap().pcm.len(), 4 * FRAME_SAMPLES + 1);
+}
+
+#[test]
+fn voice_ui_meter_is_bounded_without_reader() {
+    let device = device();
+    let lease = Arc::new(AtomicBool::new(false));
+    let capture = start(&device, lease.clone(), Duration::from_secs(5));
+    for sample in 1..=40 {
+        sink(&device).send([sample * 100; FRAME_SAMPLES], FRAME_SAMPLES);
+    }
+    // Poll only after the producer has sent many summaries; the latest replaces older ones.
+    assert_eq!(await_volume(&capture, 40), VolumeSummary { sequence: 40, peak: 4000.0 / 32768.0 });
+    assert_eq!(capture.finish().unwrap().pcm.len(), 40 * FRAME_SAMPLES);
+    assert!(device.released.load(Ordering::Acquire));
+    assert!(!lease.load(Ordering::Acquire));
+    let capture = start(&device, lease.clone(), Duration::from_secs(5));
+    sink(&device).send([999; FRAME_SAMPLES], FRAME_SAMPLES);
+    assert_eq!(capture.cancel().unwrap_err(), CaptureError::Cancelled);
+    assert!(!lease.load(Ordering::Acquire));
+
+    // Keep the existing live PCM consumer active, but pause the meter for more
+    // than a full audio queue's worth of frames.
+    let live = LiveCapture::start_backend(device.clone(), lease).unwrap();
+    let (capture, frames) = live.into_parts();
+    for _ in 0..120 {
+        sink(&device).send([8192; FRAME_SAMPLES], FRAME_SAMPLES);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            if let Some(frame) = frames.next_frame() {
+                assert_eq!(frame, vec![8192; FRAME_SAMPLES]);
+                break;
+            }
+            assert!(Instant::now() < deadline, "meter must not block live PCM");
+            std::thread::yield_now();
+        }
+    }
+    assert_eq!(await_volume(&capture, 120), VolumeSummary { sequence: 120, peak: 0.25 });
+    capture.cancel().unwrap_err();
+}
+
+#[test]
+fn voice_ui_meter_rejects_stale_generation() {
+    let lease = Arc::new(AtomicBool::new(false));
+    let first = device();
+    let capture = start(&first, lease.clone(), Duration::from_secs(5));
+    let old = sink(&first);
+    old.send([i16::MIN; FRAME_SAMPLES], FRAME_SAMPLES);
+    assert_eq!(await_volume(&capture, 1).peak, 1.0);
+    capture.cancel().unwrap_err();
+    let second = device();
+    let capture = start(&second, lease, Duration::from_secs(5));
+    assert_eq!(capture.volume_summary(), VolumeSummary { sequence: 0, peak: 0.0 });
+    old.send([i16::MIN; FRAME_SAMPLES], FRAME_SAMPLES);
+    let mut stale = sink(&second);
+    stale.generation = old.generation;
+    stale.send([i16::MIN; FRAME_SAMPLES], FRAME_SAMPLES);
+    sink(&second).send([8192; FRAME_SAMPLES], FRAME_SAMPLES);
+    assert_eq!(await_volume(&capture, 1), VolumeSummary { sequence: 1, peak: 0.25 });
+    assert_eq!(capture.finish().unwrap().pcm, vec![8192; FRAME_SAMPLES]);
+}
+
+#[test]
+fn voice_ui_meter_does_not_change_recording() {
+    for read_summary in [false, true] {
+        let device = device();
+        let lease = Arc::new(AtomicBool::new(false));
+        let capture = start(&device, lease.clone(), Duration::from_secs(5));
+        let mut converter = PcmConverter::new(sink(&device), SAMPLE_RATE).unwrap();
+        super::capture_native::ingest(&mut converter, &[16384_i16; FRAME_SAMPLES], 1);
+        if read_summary {
+            assert_eq!(await_volume(&capture, 1).peak, 0.5);
+        }
+        let recording = capture.finish().unwrap();
+        assert_eq!(recording.pcm, vec![16384; FRAME_SAMPLES]);
+        assert_eq!(&recording.wav().unwrap()[44..], [0, 64].repeat(FRAME_SAMPLES));
+        assert!(device.released.load(Ordering::Acquire));
+        assert!(!lease.load(Ordering::Acquire));
+    }
+    let device = device();
+    let live =
+        LiveCapture::start_backend(device.clone(), Arc::new(AtomicBool::new(false))).unwrap();
+    let (capture, frames) = live.into_parts();
+    sink(&device).send([8192; FRAME_SAMPLES], FRAME_SAMPLES);
+    assert_eq!(await_volume(&capture, 1).peak, 0.25);
+    assert_eq!(frames.next_frame().unwrap(), vec![8192; FRAME_SAMPLES]);
+    capture.cancel().unwrap_err();
+    assert!(device.released.load(Ordering::Acquire));
+}

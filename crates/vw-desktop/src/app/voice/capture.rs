@@ -213,14 +213,31 @@ impl Drop for Lease {
     }
 }
 
+/// Latest accepted PCM frame; polling does not consume audio or reset the sequence.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct VolumeSummary {
+    pub sequence: u64,
+    pub peak: f32,
+}
+
 pub struct Capture {
     pub generation: u64,
     state: Arc<AtomicU8>,
     result: Receiver<Result<Recording>>,
     epoch: Arc<AtomicU64>,
     worker: Option<JoinHandle<()>>,
+    volume: Arc<AtomicU64>,
 }
 impl Capture {
+    /// One coherent latest-frame snapshot, with fixed storage and no audio consumption.
+    /// Sequence zero means no accepted samples (or capture has ended).
+    pub fn volume_summary(&self) -> VolumeSummary {
+        if self.state.load(Ordering::Acquire) != RUNNING {
+            return VolumeSummary { sequence: 0, peak: 0.0 };
+        }
+        let packed = self.volume.load(Ordering::Acquire);
+        VolumeSummary { sequence: packed >> 16, peak: (packed & 0xffff) as f32 / 32768.0 }
+    }
     /// None resolves the default device once; no fallback after selection/disconnection.
     /// Recording and realtime chat must both acquire through this entry point.
     pub fn start(device_id: Option<String>) -> Result<Self> {
@@ -273,6 +290,9 @@ impl Capture {
         let (ready_tx, ready) = mpsc::sync_channel(1);
         let (result_tx, result) = mpsc::sync_channel(1);
         let worker_state = state.clone();
+        let worker_epoch = epoch.clone();
+        let volume = Arc::new(AtomicU64::new(0));
+        let worker_volume = volume.clone();
         let worker = thread::Builder::new()
             .name("voice-capture".into())
             .spawn(move || {
@@ -285,7 +305,15 @@ impl Capture {
                     }
                 };
                 let _ = ready_tx.send(Ok(()));
-                let outcome = collect(generation, limit, &worker_state, frames, live);
+                let outcome = collect(
+                    generation,
+                    limit,
+                    &worker_state,
+                    frames,
+                    live,
+                    &worker_volume,
+                    &worker_epoch,
+                );
                 worker_state.store(CANCEL, Ordering::Release);
                 drop(stream);
                 drop(lease_guard);
@@ -296,7 +324,7 @@ impl Capture {
             let _ = worker.join();
             return Err(error);
         }
-        Ok(Self { generation, state, result, worker: Some(worker), epoch })
+        Ok(Self { generation, state, result, worker: Some(worker), epoch, volume })
     }
     pub fn finish(mut self) -> Result<Recording> {
         let _ = self.state.compare_exchange(RUNNING, FINISH, Ordering::AcqRel, Ordering::Acquire);
@@ -331,6 +359,8 @@ fn collect(
     state: &AtomicU8,
     frames: Receiver<Frame>,
     live: Option<SyncSender<LiveFrame>>,
+    volume: &AtomicU64,
+    epoch: &AtomicU64,
 ) -> Result<Recording> {
     let deadline = Instant::now() + limit;
     let max_samples = (limit.as_secs_f64() * SAMPLE_RATE as f64) as usize;
@@ -358,20 +388,30 @@ fn collect(
         }
         match frames.recv_timeout(Duration::from_millis(5)) {
             Ok(frame) => {
+                if frame.generation != generation {
+                    continue;
+                }
+                if frame.len > FRAME_SAMPLES {
+                    return Err(CaptureError::Limit);
+                }
+                let peak =
+                    frame.samples[..frame.len].iter().map(|sample| sample.unsigned_abs()).max();
+                let current_epoch = frame.epoch == epoch.load(Ordering::Acquire);
                 if let Some(sender) = &live {
-                    if frame.generation == generation {
-                        if frame.len > FRAME_SAMPLES {
-                            return Err(CaptureError::Limit);
-                        }
-                        sender
-                            .try_send(LiveFrame {
-                                epoch: frame.epoch,
-                                samples: frame.samples[..frame.len].to_vec(),
-                            })
-                            .map_err(|_| CaptureError::Backpressure)?;
-                    }
+                    sender
+                        .try_send(LiveFrame {
+                            epoch: frame.epoch,
+                            samples: frame.samples[..frame.len].to_vec(),
+                        })
+                        .map_err(|_| CaptureError::Backpressure)?;
                 } else {
                     append(&mut pcm, frame, generation, max_samples)?;
+                }
+                if let Some(peak) = peak.filter(|_| current_epoch) {
+                    // Single writer; one atomic packs a 48-bit frame sequence and PCM16 peak.
+                    // Even the longest live capture cannot exhaust this sequence space.
+                    let sequence = (volume.load(Ordering::Relaxed) >> 16) + 1;
+                    volume.store((sequence << 16) | u64::from(peak), Ordering::Release);
                 }
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {}

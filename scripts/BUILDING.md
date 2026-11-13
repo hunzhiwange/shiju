@@ -6,8 +6,76 @@ This document is located under `scripts/` for daily development and release.
 
 From the repository root, use `cargo dev-gateway` and `cargo dev-desktop` in separate
 terminals. First use installs the pinned patched Relax automatically; `cargo dev-setup`
-prepares it ahead of time. Requires Python 3 and the existing Rust/native build toolchain.
+prepares it ahead of time. Requires Python 3.9+ and the existing Rust/native build toolchain.
 See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
+
+## Relax live focused tests
+
+Keep one selected library test target warm while editing function bodies:
+
+```sh
+python3 scripts/cargo_slot.py cargo dev-test vw-desktop app::components::voice_chat::tests::voice_task_11_
+# Or focus a validated gateway/config/client test family:
+python3 scripts/cargo_slot.py cargo dev-test vw-config-types config_defaults_promote_shiju_as_primary_provider
+```
+
+`cargo dev-test <workspace-package> <test-filter>` uses the same pinned patched
+Relax as the application entries, with `test --live`, default features, `--lib`,
+`--nocapture`, and one test thread. Both arguments are required; empty filters and
+extra flags are rejected before preparing the tool. This is a foreground process:
+keep it running through the editing phase, inspect each new `testverdict`, then
+stop it with Ctrl+C. A test counts as validated only when the new verdict has
+`ran > 0`, `failed=0`, and the expected passed count; an old verdict or zero tests
+is not evidence for the latest edit. A deliberate assertion failure is reported
+and the next edit reruns tests in the same session.
+
+Use this for test paths already verified under Relax. Type/layout, signature,
+trait, macro, and dependency changes need fresh startup and native validation.
+The final native focused tests and required full Clippy still apply. This entry
+does not implement the Clippy, release, physical audio or permission checks.
+Compiler diagnostics remain visible. Focused tests default to the runtime's
+`minimal` ahead policy: compile reached code on demand and avoid speculative
+callees competing with the next assertion. An explicitly set `MAKEPAD_RUN_AHEAD`
+is preserved, for example `MAKEPAD_RUN_AHEAD=balanced cargo dev-test ...`.
+Application entries retain their previous policy. This test default is validated
+on the focused rendering/event path; it does not promise faster startup for every
+test family.
+
+## Reusing a Cargo slot during development
+
+Run a whole foreground development phase inside one slot (macOS/Linux):
+
+```sh
+python3 scripts/cargo_slot.py sh -c '
+  cargo check -p vw-desktop --lib &&
+  cargo test -p vw-desktop --lib voice_task_11_ -- --test-threads=1 &&
+  cargo clippy --all-targets --all-features -- -D warnings
+'
+```
+
+The wrapper atomically claims the first free slot among `target/rust-slot-1` through
+`rust-slot-20`, records its PID, and sets **both** `CARGO_TARGET_DIR` and
+`CARGO_BUILD_BUILD_DIR` to that absolute path. Nested wrapper calls reuse the owner
+receipt; separate concurrent commands receive separate slots. Keep related checks
+inside one invocation to retain the slot across the phase. Finished slots keep their
+cache. Locks are released after the foreground process group stops, including
+failure or interruption; do not launch detached/background work from this wrapper.
+Existing locks are never reclaimed automatically.
+
+`cargo dev-setup`, `cargo dev-desktop`, `cargo dev-gateway`, and `cargo dev-test` claim a slot for
+the Python preparation and Relax process lifetime. When run inside the wrapper,
+they inherit its slot. The small Rust launcher is built by the initial Cargo alias
+before Python can claim a slot; wrap the alias itself when every Cargo invocation
+must be inside the slot. Aliases no longer override the caller's target directory.
+Relax installation builds in the owned slot and copies the finished runner to its
+versioned tool cache; runtime and metadata subprocesses inherit the same paths.
+
+The repository no longer fixes `build.build-dir` independently of `target-dir`:
+Cargo's default keeps intermediate and final artifacts together even for existing
+scripts that only set `CARGO_TARGET_DIR`. An explicit external
+`CARGO_BUILD_BUILD_DIR` still takes precedence for bare Cargo commands; use this
+wrapper to normalize it. Existing caches are not migrated or deleted. Dev profile,
+features, and the mandatory final Clippy check are unchanged.
 
 ## Web static archive
 

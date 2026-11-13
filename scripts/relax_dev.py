@@ -27,9 +27,9 @@ def digest(path):
 
 def environment():
     env = os.environ.copy()
-    env.update(CARGO_TARGET_DIR=str(STATE / 'cargo-target'),
-               CARGO_BUILD_BUILD_DIR=str(STATE / 'cargo-build'),
-               CARGO_BUILD_JOBS=env.get('CARGO_BUILD_JOBS', '4'))
+    if env.get('CARGO_TARGET_DIR'):
+        env['CARGO_BUILD_BUILD_DIR'] = env['CARGO_TARGET_DIR']
+    env.setdefault('CARGO_BUILD_JOBS', '4')
     return env
 
 
@@ -87,10 +87,11 @@ def prepare_locked():
         run(['git', 'apply', '--check', vendor_patch], cwd=tool)
         run(['git', 'apply', vendor_patch], cwd=tool)
         env = environment()
-        env.update(CARGO_TARGET_DIR=str(install / 'target'),
-                   CARGO_BUILD_BUILD_DIR=str(install / 'build'))
         run(['cargo', 'build', '--release', '-p', 'relax-runner', '--bin', 'relax'],
             cwd=tool, env=env)
+        built = Path(env['CARGO_TARGET_DIR']) / 'release/relax'
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built, binary)
         receipt.write_text(json.dumps({'sha256': digest(binary)}))
     # A nearby directory-source config overrides unsupported ancestor registry mirrors.
     # It changes neither tracked .cargo/config.toml nor the user's Cargo configuration.
@@ -167,31 +168,55 @@ def desktop_bundle(binary):
 
 
 def main(argv):
-    if not argv or argv[0] not in ('setup', 'desktop', 'gateway'):
-        print('用法: python3 scripts/relax_dev.py {setup|desktop|gateway} [程序参数...]')
+    if not argv or argv[0] not in ('setup', 'desktop', 'gateway', 'test'):
+        print('用法: python3 scripts/relax_dev.py {setup|desktop|gateway} [程序参数...]\n'
+              '      python3 scripts/relax_dev.py test <workspace-package> <test-filter>')
+        return 2
+    if argv[0] == 'test' and (len(argv) != 3
+            or not re.fullmatch(r'[a-z0-9][a-z0-9_-]*', argv[1])
+            or not argv[2].strip() or argv[2].startswith('-')):
+        print('常驻测试需要明确的 workspace 包名与非空过滤条件；例如 cargo dev-test vw-desktop voice_task_11_', file=sys.stderr)
         return 2
     binary, tool, cwd = prepare()
     if argv[0] == 'setup':
         print('Relax 已就绪：cargo dev-desktop / cargo dev-gateway；保存函数体即可热更新。')
         return 0
-    if argv[0] == 'desktop' and platform.system() == 'Darwin':
-        binary = desktop_bundle(binary)
-    package, name = ('vw-desktop', 'shi-ju') if argv[0] == 'desktop' else ('vw-cli', 'shiju')
-    args = [str(binary), 'run', '--verbose', '--allow-c', '--cfg', 'debug_assertions',
-            package, '--bin', name]
-    if argv[0] == 'gateway' or len(argv) > 1:
-        args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
+    if argv[0] == 'test':
+        package = argv[1]
+        args = [str(binary), 'test', '--live', '--allow-c', '--cfg', 'debug_assertions',
+                package, '--lib', '--', argv[2], '--nocapture', '--test-threads=1']
+    else:
+        if argv[0] == 'desktop' and platform.system() == 'Darwin':
+            binary = desktop_bundle(binary)
+        package, name = ('vw-desktop', 'shi-ju') if argv[0] == 'desktop' else ('vw-cli', 'shiju')
+        args = [str(binary), 'run', '--verbose', '--allow-c', '--cfg', 'debug_assertions',
+                package, '--bin', name]
+        if argv[0] == 'gateway' or len(argv) > 1:
+            args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
     env = environment()
+    if argv[0] == 'test':
+        # Focused assertions need reached code first, not speculative callees.
+        env.setdefault('MAKEPAD_RUN_AHEAD', 'minimal')
     env['MAKEPAD_RUN_STD'] = str(tool / 'libs/relax/compiler/std')
     # Each package uses its own default Relax cache, not one shared override.
-    print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
+    if argv[0] == 'test':
+        print(f'Relax 常驻测试：{package} filter={argv[2]} ahead={env["MAKEPAD_RUN_AHEAD"]}；源码 {ROOT}', flush=True)
+    else:
+        print(f'Relax 常驻开发：{package}；源码 {ROOT}', flush=True)
     os.chdir(cwd)
     os.execve(binary, args, env)
 
 
 if __name__ == '__main__':
     try:
-        sys.exit(main(sys.argv[1:]))
+        import cargo_slot
+        if not os.environ.get('SHIJU_CARGO_SLOT_ACTIVE'):
+            sys.exit(cargo_slot.run([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]]))
+        with cargo_slot.slot() as env:
+            os.environ.update(env)
+            sys.exit(main(sys.argv[1:]))
+    except KeyboardInterrupt:
+        sys.exit(130)
     except (RuntimeError, OSError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f'Relax 启动失败：{exc}', file=sys.stderr)
         sys.exit(1)

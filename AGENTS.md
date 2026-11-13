@@ -42,6 +42,21 @@ ShiJu 是 Rust 优先的自主代理运行时，目标是高性能、高效率�
 - 单元测试文件必须独立放置，不和业务逻辑混在同一文件。
 - 如果上层应用层遇到bug，优先看看是否是底层的问题，而不是靠上层直接绕过。
 
+## Cargo 缓存与槽位
+
+- macOS/Linux 的构建、检查、测试默认使用 `python3 scripts/cargo_slot.py <命令及参数>`；同一开发阶段用一次入口包住顺序命令，保留同一槽位及增量缓存，禁止在其中启动脱离前台进程组的后台任务。
+- 入口原子领取 `target/rust-slot-1` 至 `rust-slot-20` 的空闲槽位，同时设置 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR`；嵌套调用复用槽位。已有计划手工领取的槽位须具备当前进程或祖先进程的 PID 记录，入口核验后继承，不抢占其它任务的槽位。
+- Cargo 别名及子脚本不得覆盖已领取的缓存路径；任务完成或中断后结束自有子进程、释放自有锁，保留缓存。具体使用示例见 `scripts/BUILDING.md`。
+
+- 已确认 Relax 兼容的函数体及 UI 组件开发可使用 `python3 scripts/cargo_slot.py cargo dev-test <workspace-package> <test-filter>` 常驻运行聚焦 lib 测试，避免每次编辑重建整个 lib-test 目标；必须查看本次编辑后的新 `testverdict`，确认 `ran > 0`、`failed=0` 及预期通过数。
+- 类型布局、签名、trait、宏或依赖变化后重新启动并执行原生聚焦验证；常驻测试不能替代任务结束时的原生验证、整仓 Clippy 与要求的实机验收。
+
+## 本仓库任务计划的开发入口
+
+- 生成或执行 `.plans` 的 Rust 任务时，直接采用上面的槽位入口，不再复制手工 mkdir、短命 shell PID 和独立 build-dir 分配流程。旧任务中的裸 Cargo 命令作为入口内部命令处理；只在相应编号任务文件记录等价入口调整，`plan.md` 与 `prompt.md` 保持原样。
+- 语音 UI 函数体迭代可使用已验证的 `python3 scripts/cargo_slot.py cargo dev-test vw-desktop app::components::voice_chat::tests::voice_task_11_`，初始预期为 2 个测试通过。新增测试族先用具体过滤条件做一次有界探针，预期断言失败是有效红灯；不能启动、零测试或无新 verdict 时保留证据并转原生聚焦验证，不伪造兼容或性能结论。
+- 运行产物、系统授权、物理音频与发布验证沿用原生路径；同阶段顺序检查合并调用复用缓存。Relax 与 Python 脚本是本仓库已有能力，这些命令不属于通用规划技能的默认要求。
+
 ## 验证规则
 
 - 除非用户明确要求不执行，代码完成后必须执行：

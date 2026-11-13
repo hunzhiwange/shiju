@@ -26,6 +26,7 @@ use iced::{Alignment, Background, Element, Length, Theme};
 use vw_gateway_client::CronJobDto;
 
 pub(crate) mod date_time;
+mod delivery;
 mod form;
 mod history;
 mod list;

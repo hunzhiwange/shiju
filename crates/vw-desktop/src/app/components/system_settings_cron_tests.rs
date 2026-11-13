@@ -837,7 +837,12 @@ mod modal_render {
                         assert!(
                             geometry.labels.iter().any(|(label, _)| label.contains("ACP 未获授权"))
                         );
-                        assert!(geometry.labels.iter().any(|(label, _)| label.contains("不支持的定时任务投递通道：wecom")));
+                        assert!(
+                            geometry
+                                .labels
+                                .iter()
+                                .any(|(label, _)| label.contains("投递通道 wecom 未配置"))
+                        );
                         assert!(
                             geometry
                                 .labels

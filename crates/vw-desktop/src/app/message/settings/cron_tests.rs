@@ -1443,3 +1443,88 @@ fn cron_history_repeated_polling_errors_do_not_repeat_toast() {
     let _ = cron_history::update(&mut app, CronHistoryMessage::Tick(generation));
     assert_eq!(app.cron_settings.history.generation, current);
 }
+
+#[test]
+fn cron_wecom_form_switch_clears_target_and_uses_default_group() {
+    let mut app = app();
+    for editing in [false, true] {
+        let target = if editing {
+            &mut app.cron_settings.edit_draft
+        } else {
+            &mut app.cron_settings.add_draft
+        };
+        target.delivery_channel = "wecom".into();
+        target.delivery_to = "user-private".into();
+        let msg = if editing {
+            SettingsMessage::CronJobEditDeliveryChannelChanged("wecom_webhook".into())
+        } else {
+            SettingsMessage::CronAddDeliveryChannelChanged("wecom_webhook".into())
+        };
+        drop(update(&mut app, msg));
+        let target =
+            if editing { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
+        assert_eq!(target.delivery_to, "default");
+        let msg = if editing {
+            SettingsMessage::CronJobEditDeliveryChannelChanged("wecom".into())
+        } else {
+            SettingsMessage::CronAddDeliveryChannelChanged("wecom".into())
+        };
+        drop(update(&mut app, msg));
+        let target =
+            if editing { &app.cron_settings.edit_draft } else { &app.cron_settings.add_draft };
+        assert!(target.delivery_to.is_empty());
+    }
+}
+
+#[test]
+fn cron_wecom_form_requires_credentials_and_explicit_target() {
+    let mut app = app();
+    let mut draft = crate::app::state::CronJobDraft::default();
+    draft.delivery_enabled = true;
+    draft.delivery_channel = "wecom".into();
+    draft.delivery_to = "user".into();
+    assert!(validate_delivery(&app, &draft).is_err());
+    app.channels_settings.wecom = Some(vw_config_types::channels::WeComConfig {
+        bot_id: "bot".into(),
+        secret: "secret".into(),
+    });
+    assert!(validate_delivery(&app, &draft).is_ok());
+    draft.delivery_to.clear();
+    assert!(validate_delivery(&app, &draft).is_err());
+    draft.delivery_enabled = false;
+    assert!(validate_delivery(&app, &draft).is_ok());
+    draft.delivery_enabled = true;
+    draft.delivery_channel = "wecom_webhook".into();
+    draft.delivery_to = "default".into();
+    app.channels_settings.wecom_webhook = Some(vw_config_types::channels::WeComWebhookConfig {
+        webhook_url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fixture".into(),
+    });
+    assert!(validate_delivery(&app, &draft).is_ok());
+    draft.delivery_to = "other".into();
+    assert!(validate_delivery(&app, &draft).is_err());
+}
+
+#[test]
+fn cron_wecom_form_configuration_cancel_preserves_both_drafts() {
+    use crate::app::message::settings::ChannelsMessage;
+    let mut app = app();
+    app.cron_settings.add_draft.name = "新增草稿".into();
+    app.cron_settings.edit_draft.name = "编辑草稿".into();
+    for mode in [
+        crate::app::state::WeComDeliveryMode::Manual,
+        crate::app::state::WeComDeliveryMode::Webhook,
+    ] {
+        drop(crate::app::message::settings::update(
+            &mut app,
+            SettingsMessage::Channels(ChannelsMessage::WeComDeliveryOpened(mode)),
+        ));
+        drop(crate::app::message::settings::update(
+            &mut app,
+            SettingsMessage::Channels(ChannelsMessage::WeComDeliveryClosed),
+        ));
+        assert_eq!(app.cron_settings.add_draft.name, "新增草稿");
+        assert_eq!(app.cron_settings.edit_draft.name, "编辑草稿");
+        assert!(!app.cron_settings.add_draft.delivery_enabled);
+        assert!(!app.cron_settings.edit_draft.delivery_enabled);
+    }
+}

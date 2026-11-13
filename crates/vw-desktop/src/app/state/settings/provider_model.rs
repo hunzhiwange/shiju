@@ -838,3 +838,14 @@ impl Default for SchedulerSettingsState {
 #[cfg(test)]
 #[path = "provider_model_tests.rs"]
 mod provider_model_tests;
+
+impl CronJobDraft {
+    /// 切换类型时丢弃上一类型的目标，避免把用户 ID 当作群引用。
+    pub(crate) fn select_delivery_channel(&mut self, channel: String) {
+        if self.delivery_channel != channel {
+            self.delivery_to =
+                if channel == "wecom_webhook" { "default".into() } else { String::new() };
+            self.delivery_channel = channel;
+        }
+    }
+}

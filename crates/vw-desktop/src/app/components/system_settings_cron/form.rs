@@ -238,38 +238,7 @@ pub(super) fn view(app: &App, editing: bool) -> Element<'_, Message> {
                 .style(settings_checkbox_style),
         ));
 
-    if draft.delivery_enabled {
-        form = form
-            .push(field_row_with_help(
-                app,
-                "投递通道",
-                "仅支持以下六类通道；已有配置不代表凭证有效或消息已送达。",
-                pick_field(
-                    ["telegram", "discord", "slack", "mattermost", "qq", "email"].into_iter().map(str::to_string).collect(),
-                    (!draft.delivery_channel.is_empty()).then(|| draft.delivery_channel.clone()),
-                    |v| Message::Settings(message::SettingsMessage::CronJobEditDeliveryChannelChanged(v)),
-                ),
-            ))
-            .push(field_row(
-                i18n.__("投递目标"),
-                i18n.__("通道内的目标 ID、地址或频道。"),
-                text_field("target", &draft.delivery_to, |v| {
-                    Message::Settings(message::SettingsMessage::CronJobEditDeliveryToChanged(v))
-                }),
-            ))
-            .push(field_row(
-                i18n.__("尽力投递"),
-                "默认尽力投递：失败不改变任务状态，但会记入历史；关闭后投递失败会将任务标记为失败。保存任务不代表已送达。",
-                checkbox(draft.delivery_best_effort)
-                    .label(i18n.__("投递失败不影响任务状态"))
-                    .on_toggle(|v| {
-                        Message::Settings(
-                            message::SettingsMessage::CronJobEditDeliveryBestEffortToggled(v),
-                        )
-                    })
-                    .style(settings_checkbox_style),
-            ));
-    }
+    form = form.push(super::delivery::view(app, draft));
 
     if let Err(error) = crate::app::message::settings::validate_cron_delivery(app, draft) {
         form = form.push(settings_error_banner(error));

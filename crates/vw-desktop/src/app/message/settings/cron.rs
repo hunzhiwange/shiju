@@ -765,7 +765,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronJobEditDeliveryChannelChanged(value) => {
-            app.cron_settings.edit_draft.delivery_channel = value;
+            app.cron_settings.edit_draft.select_delivery_channel(value);
             Task::none()
         }
         SettingsMessage::CronJobEditDeliveryToChanged(value) => {
@@ -1052,7 +1052,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::CronAddDeliveryChannelChanged(value) => {
-            app.cron_settings.add_draft.delivery_channel = value;
+            app.cron_settings.add_draft.select_delivery_channel(value);
             Task::none()
         }
         SettingsMessage::CronAddDeliveryToChanged(value) => {
@@ -1198,6 +1198,15 @@ pub(crate) fn validate_delivery(
     }
     let channel = draft.delivery_channel.trim().to_ascii_lowercase();
     let configured = match channel.as_str() {
+        "wecom" => {
+            app.channels_settings.wecom.as_ref().is_some_and(|c| c.has_required_credentials())
+        }
+        "wecom_webhook" => {
+            if draft.delivery_to.trim() != "default" {
+                return Err("群机器人只支持默认群引用".into());
+            }
+            app.channels_settings.wecom_webhook.is_some()
+        }
         "telegram" => app.channels_settings.telegram.is_some(),
         "discord" => app.channels_settings.discord.is_some(),
         "slack" => app.channels_settings.slack.is_some(),
@@ -1206,10 +1215,7 @@ pub(crate) fn validate_delivery(
         #[cfg(not(target_arch = "wasm32"))]
         "email" => app.channels_settings.email.is_some(),
         _ => {
-            return Err(format!(
-                "不支持的定时任务投递通道：{}；请选择受支持通道或关闭结果投递",
-                draft.delivery_channel
-            ));
+            return Err("不支持的定时任务投递通道；请选择受支持通道或关闭结果投递".into());
         }
     };
     if !configured {

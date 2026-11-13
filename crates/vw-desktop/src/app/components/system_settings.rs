@@ -595,8 +595,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
         modal_content.into()
     };
 
-    dialog = super::system_settings_channels::view_overlays(app, dialog);
-
     if active_tab == SystemTab::Worktrees {
         dialog = super::system_settings_worktrees::view_overlays(app, dialog);
     }
@@ -651,6 +649,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if app.system_settings_tab == SystemTab::Cron {
         dialog = crate::app::components::system_settings_cron::view_overlays(app, dialog);
     }
+
+    dialog = super::system_settings_channels::view_overlays(app, dialog);
 
     if app.system_settings_tab == SystemTab::Autonomy {
         dialog = crate::app::components::system_settings_autonomy::view_overlays(app, dialog);

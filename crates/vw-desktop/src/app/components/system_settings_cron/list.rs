@@ -97,9 +97,13 @@ pub(super) fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Mess
         .__(&format_optional_cron_datetime(job.last_run.as_deref()))
         .to_string();
     let delivery_label = if job.delivery_mode == "announce" {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("投递")
+        match job.delivery_channel.as_deref() {
+            Some("wecom") => "企业微信智能机器人",
+            Some("wecom_webhook") => "企业微信群机器人",
+            _ => "投递",
+        }
     } else {
-        crate::app::i18n::I18n::new(app.desktop_locale).__("不投递")
+        "不投递"
     };
 
     let mut header = row![].spacing(10).align_y(Alignment::Center);

@@ -447,3 +447,15 @@ pnpm exec vite --config acpdemo/qoder/vite.config.mjs
 - 原始配置、SSE、会话查询、构建日志及快照仅保存在本机私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-vibe-kbsumlda/`，未提交凭据或配置环境值。
 
 后续建议：常用网关更新至含此修复的构建；按需运行 `pnpm exec vite --config acpdemo/vibe/vite.config.mjs` 检查页面行为。
+
+# Autohand Code 验收
+
+2026-11-13：**已阻塞，未通过**。任务 22 恢复后核对当前实现与接入证据，指定 `session_model` 尚无驱动，不能进行指定模型文件创建验收。
+
+- 已交付注册 `autohand`（固定 autohand-cli@0.9.11、--acp）、系统安装白名单和自动派生 `acp-autohand` builtin 预设。接入证据 `docs/dev/evidence/acp-onboarding-autohand.md` 明确保留会话模型中继拒绝门控；其中本地 fixture 成功不能替代本次指定模型验收。
+- 本次源码检查：`crates/vw-agent/src/session/llm/acp/model_source/drivers/mod.rs` 没有 autohand configure 分支或 verified_release 条目；capabilities 因此返回 SessionModel / UnsupportedCli。该文件 SHA-256 为 `1d1dea379f3d787468888a1e320aa0ca00cd7f119201ced32455ba99b76158f7`。这是静态阻塞证据，未冒充运行时接口响应。
+- Rue.js 的 `packages/rue/package.json` 存在；目标 `acpdemo/autohand/` 不存在。未创建产物、未覆盖文件。未启动网关、安装或诊断进程，未变更租户/预设配置，无临时配置或自有进程需要恢复清理；未操作其他任务环境。
+- 未执行：安装 API、模型来源 GET、诊断、启用保存重读、真实聊天 SSE、会话绑定查询、工作区完整快照及页面检查。没有 HTTP、客户端退出码、运行版本或构建摘要可报告；不使用旧二进制判定当前接入成功或失败。仅文档变更，未运行 Cargo、Clippy 或测试。
+- 本次静态源码与工作区状态证据目录：`/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-autohand-blocked-091xoi7s`（0700），未保存凭据或配置环境值。
+
+重跑条件：先完成并验证 Autohand 会话模型中继驱动，模型来源明确支持后，使用包含该驱动的已验证构建从任务步骤 1 重新执行；保持指定模型、租户、引擎和目录边界。

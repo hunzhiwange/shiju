@@ -81,3 +81,17 @@
 状态：已阻塞。任务 22 已记录阻塞并确认未改环境；本次通过 rustcodegraph 及当前源码副本核对注册、固定 0.1.42 安装映射和 builtin 派生。既有接入证据明确未发布 session_model；当前 drivers/mod.rs 无 DeepAgents configure、source_protocol、verified_release 分支，能力门控 UnsupportedCli。指定模型无法按要求绑定，不能以 cli_local 替代。
 
 新增整个会话模型中继驱动及其安全审核超出验收小修范围，未扩大为功能开发。Rue.js 源码存在、目标目录不存在，保存初始 Git 状态，未写入产物。未执行安装/诊断/模型来源 API、配置启用保存、真实 SSE、会话查询、完整文件快照及后续验收；未运行 Cargo、Clippy 或测试。未启动进程或修改配置，无自有资源需要恢复。详情见 ACP验收.md 末尾 DeepAgents 验收章节，私有证据 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-deepagents-blocked-a3la5u4n`。先交付并验证模型驱动，再使用已验证新构建从步骤 1 重跑；本文件保留。
+
+## 2026-11-13 阻塞恢复复核
+
+状态保持已阻塞。按追加指示重读接入证据、DeepAgents 审核补丁、真实 CLI 夹具、model_source/mod.rs、驱动分派及现有 CodeBuddy 私有注入实现，逐项评估安全路径：
+
+- 系统安装和普通诊断只能证明受管入口/协议可启动，无法补齐指定 session_model 模型绑定；不能作为成功替代。
+- CLI 的 --model 与 OPENAI_BASE_URL/OPENAI_API_KEY 在既有夹具中仅验证 openai:gpt-4o 和虚拟回环服务。cli_local 绕过宿主 model_source 模块，不能证明指定租户、provider/model、短期令牌及会话身份绑定。没有改用此路径或替换指定模型。
+- 自定义 args/env 不能修复现有 session_model：prepare 固定调用 drivers::configure，configure 先调用 launch_route，source_protocol 对 deepagents 明确拒绝；其后 configure 与 verified_release 同样无分支。改预设、启用状态或重装受管包均不改变此边界，别名冒充其他 backend 也不符合要求。
+- 已有 deepagents 补丁解决宿主工具权限、文件回退、工作目录与 CLI 本地 Chat API 选择，不包含宿主会话中继驱动。仅加入 capability/verified_release 登记会伪造支持，不能视为小修；仅复制其他驱动也不能证明该 CLI 的模型参数、原生配置优先级、取消和恢复不会绕过绑定。
+- 允许的小范围修复评估：当前没有已实现驱动中的局部参数错误可修。最小完整交付仍需固定版本的 DeepAgents driver、源协议路由、准确模型选择和禁止回退、私有端点与短期令牌隔离、会话复用及拒绝路径测试、真实指定模型请求证据，再发布能力；必须具备独立失败测试、原生聚焦验证与整仓 Clippy。该范围属于新增功能，超出本任务验收小修授权。
+
+所需新增用户决策：是否授权单独实施“DeepAgents session_model 私有中继驱动与验证”，保持 alibaba-token-plan-cn/deepseek-v4.1-flash-1017、既定租户、DeepAgents 原生引擎和权限策略；交付后再恢复任务 23。未获得此授权前保持已阻塞，不扩大为功能开发。
+
+本轮环境确认：两轮均未启动/停止网关或供应商进程、执行安装器、PATCH 配置、领取 Cargo 槽位或写入 Rue.js 工作区；没有本会话临时配置或进程需要恢复，未触碰其他会话环境。目标 acpdemo/deepagents/ 仍不存在。复核源码摘要仍与首轮证据一致；仅追加此任务文件，不单独提交。未运行 Cargo、运行时 API 或实机创建，不将静态检查记为通过。

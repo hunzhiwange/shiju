@@ -4,7 +4,9 @@
 
 线性顺序：任务 3；本批只有此任务。所有批次串行，不存在可安全同时修改公共注册/分派文件的并行组。
 
-状态：未开始
+状态：已阻塞
+
+阻塞说明：注册、预设与原生验证通过；真实桌面验收需要解锁 Mac。
 
 目的：让 DimCode 通过 ShiJu 现有 ACP 链路可安装或发现、启用并完成真实会话，准确暴露已验证能力。
 
@@ -99,3 +101,43 @@
 - 外部依赖或缺少凭据导致核心会话无法验收：先调查合理替代路径，仍无解则仅在本文件标记 `已阻塞`，写具体原因、已尝试命令和所需输入；不得用产品登记成功替代真实接入。
 - 只有无关既有编译错误等导致验证无法执行、且实现已完成时可标记 `已完成，待回归`，保留本任务文件与失败证据，不宣称已验收。
 - 有实际代码/测试/配置/证据文档变更时使用 `$git-commit` 提交本任务变更，排除所有他人变更；仅任务状态或删除无需提交。最终报告完成证据，已完成则删除本任务文件；待回归/阻塞保留。不得修改 plan.md。
+
+
+## 2026-11-13 执行记录
+
+- 批次 2 依赖满足：提交 `264693d28` 及 `docs/dev/evidence/acp-onboarding-deepagents.md` 提供完整双重交付证据；未执行其他批次，未修改 plan.md。工作区原有桌面、cron、语音及计划改动均未纳入本任务。
+- 当前已实现 `dimcode` 注册和固定 npm 安装 `dimcode@0.5.28`；本地候选为 `dim acp`，备用 `npx -y dimcode@0.5.28 acp`。`acp-dimcode` 由生产目录派生，无第二份桌面目录。补充独立 ACP 3 用例、Unix/Windows 安装契约及内置预设 metadata、binding、生产配置持久化与流路由用例。目录总数断言从 24 调整为 25，默认启用数仍为 6。代码保留在工作区，尚未提交，不代表任务已完成。
+- 官方来源：`https://www.npmjs.com/package/dimcode`、`https://registry.npmjs.org/dimcode`、`https://www.dimcode.dev/en/docs/acp/`。官方文档当前访问会重定向到 dimagent.com 营销页面，因此功能结论以实际发行物协议为准。固定参考 tar 的 025 迁移已只读核对 `binary_name=dim` 和原 argv。
+- `npm view dimcode version bin repository engines --json` 返回 0.5.28，bin 同时提供 dim/dimcode。`npm install --prefix /tmp/shiju-dimcode-probe --ignore-scripts --registry=https://registry.npmjs.org dimcode@0.5.28` 退出 0。原生 Darwin arm64 二进制 SHA256 为 `0d6298cc8881b15ae8cdf1901b6f39674b74dbf5c14caedadfe509ab5ae114b0`。仅安装隔离副本；HOME、模型凭据、工作目录均为临时夹具，未使用真实账号或全局配置。
+- 真实 CLI 回执：agentInfo=dimcode/0.5.28，protocolVersion=1，loadSession=true；声明 image/embeddedContext、MCP http/sse，audio=false。无凭据 session/new 明确返回 Authentication required。只读、workspace-write、full-access 为上游选项名称，不据此发布 Native 权限承诺。
+- 受控回环上游真实收到 `/v1/responses`、model=gpt-4o。两轮 prompt 均返回 end_turn，同进程 session/load 成功（`/tmp/shiju-dimcode-probe/two-turns.log`）。活动 prompt 取消返回 cancelled，随后同会话返回 end_turn（cancel.log）。workspace-write 的写入经真实 fs/write_text_file 回调；宿主拒绝后不产生文件（host-denial.log），宿主明确允许后临时文件内容为 fixture（write-allowed.log）。exec 经 session/request_permission，返回 cancelled 后未生成 exec-denied.txt（exec-denial.log）。早期夹具响应帧不完整曾得到 empty_model_response/incomplete_tool_call；修正 SSE 后通过，不将早期失败归因于供应商。
+- 红灯：`/tmp/shiju-dimcode-probe/red.log` 中 ACP 2 通过/1 注册缺失失败；安装 0/1 缺映射失败；agent metadata/binding 0/2 缺预设失败。`red-profile.log` 中生产保存/路由测试 0/1 失败，断言 builtin/enabled 缺失。每条红灯命令均退出 101，非零测试，非语法错误。
+- Cargo 槽位由 cargo_slot.py 自动领取：首轮红灯槽位 3，后续红灯和主验证槽位 2。两个变量 CARGO_TARGET_DIR、CARGO_BUILD_BUILD_DIR 分别同为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3` 或 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。未手工占锁、未覆盖缓存目录。沿用批次 2 已证实的本包测试优化级别 0，使用 `cargo --config profile.test.package.vw-agent.opt-level=0 test ...`，features 保持默认；仅为降低大型 lib-test 构建成本，不改变源码或仓库 profile。
+- 主阶段日志 `/tmp/shiju-dimcode-probe/green.log`：ACP 3、安装 1、agent 3 用例均通过且各退出 0。首次注册保护测试受本机已安装受管 Codex/OpenCode 影响出现 9 失败（含后继环境锁 poison），需要隔离配置复核。首次 catalog 9 通过/1 失败，定位另一处旧总数 24，已修正为 25，等待最终重跑。整仓 Clippy 正在执行，不提前宣称通过。
+- 格式检查：仅 rustfmt 本任务六个 Rust 文件（skip_children=true），未格式化或重置他人文件；git diff --check 通过。
+- 外部阻塞证据：cua.getState 返回 apps=[]、browsers=[]，错误为 “The Mac is locked and automatic unlock could not unlock it. Ask the user to unlock the Mac manually before continuing.” 已请求手动解锁。无法从官方目录完成启用、默认配置保存重开、选择预设后的两轮真实桌面会话与明暗主题渲染验收；不能用协议夹具替代。
+- 未验收项保留：真实桌面双重交付、MCP 三类传输与所选服务隔离、技能来源隔离、跨进程恢复与其他 OS 实机。未新增 session_model/技能/Native 权限适配或宣称上游不支持。需继续调查真实支持，不能将待验证项写成“不支持”。任务不删除，不启动下一批。
+
+- 补充验证：整仓 `cargo clippy --all-targets --all-features -- -D warnings` 已退出 0（6m19s，green.log）。同一槽位入口内执行过的命令为：
+  1. `cargo test -p vw-acp --test onboarding_dimcode -- --test-threads=1`：3 通过，0。
+  2. `cargo test -p vw-config-types --lib acp_onboarding_dimcode -- --test-threads=1`：1 通过，0。
+  3. `cargo --config profile.test.package.vw-agent.opt-level=0 test -p vw-agent --lib acp_onboarding_dimcode -- --test-threads=1`：3 通过，0。
+  4. 注册保护与目录保护初次结果及原因见上文；最终在 `VIBEWINDOW_CONFIG_DIR=/tmp/shiju-dimcode-probe/isolated-gateway` 下以同样 cargo_slot.py 入口顺序复核，日志 final.log，实际槽位 2、两个缓存目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。其中 `cargo test -p vw-acp --lib agent_registry_tests -- --test-threads=1` 已 24 通过、退出 0；目录与再次聚焦测试尚在前台运行。
+- 真实负例补充：本地服务 HTTP401 后 CLI 返回 refusal/provider_retry_exhausted；HTTP404 后明确返回 PROVIDER_MODEL_NOT_FOUND，所有实际模型请求仍为 gpt-4o，没有切换其它模型。日志 auth-failure.log、model-failure.log。该 404 是受控服务拒绝当前模型，并非声称 CLI 接受未知模型选项。上述“真实错误认证/错误模型负例”已得到这一传输边界证据，实际账号认证未使用。
+
+
+### 最终验证结果与继续入口
+
+- `final.log`：注册保护 24/24、目录保护 10/10、DimCode agent 聚焦 3/3，三条命令均退出 0；目录命令为 `cargo --config profile.test.package.vw-agent.opt-level=0 test -p vw-agent --lib agent::catalog_tests -- --test-threads=1`。最后再次聚焦命令与上面第 3 条相同。结合 green.log 的 ACP 3/3、安装 1/1，规定聚焦 7 项全部通过。上文“正在执行/等待重跑”为历史进度，以本段为最终结果。
+- 整仓 Clippy 已通过，之后仅修改编号任务记录；Rust 最终代码与已检查内容一致。`git diff --check` 通过。
+- 最终 cargo_slot.py 前台入口正常退出 0，自有子进程结束、自有锁由入口释放，缓存保留。实际使用槽位为 3（早期红灯）、2（其余红灯和全部最终检查）；两环境变量均为对应绝对槽位目录，详见上文。未操作其它任务的进程或锁。
+- 未将环境锁屏等同于无关编译失败，故保持 `已阻塞`，不标记“已完成，待回归”。不删除本文件，不提交未完成验收的任务，不推进批次 4。尚未生成最终证据文档；所有当前证据与后续缺口集中保留于本文件。
+- 继续步骤：手动解锁 Mac 后，补齐真实官方目录启用→默认配置保存重开→会话选择→两轮消息及明暗主题观察，同时完成上文剩余 MCP/技能隔离与跨进程/平台边界调查；获得完整双重交付证据后再生成 docs/dev/evidence/acp-onboarding-dimcode.md，使用 git-commit 技能提交本任务文件集合并按完成契约清理任务文件。无需重复已取得的红灯证据。
+
+
+### 阻塞恢复复查（2026-11-13 20:31，Asia/Shanghai）
+
+- 按调度要求重读阻塞记录并复查 `cua.getState()`；原生应用仍返回锁屏且自动解锁失败的同一明确错误。未绕过锁屏、未修改系统权限。
+- 安全替代路径核对：Chrome 扩展连接可用，但不能操作原生 Iced 窗口；浏览器或协议夹具不能替代官方目录、配置弹窗、会话选择器及明暗主题的真实桌面验收。未访问无关浏览器标签。
+- 已核对 red.log、red-profile.log、green.log、final.log 及全部真实 CLI 探针日志仍存在。最终有效证据保持：聚焦 7 项通过、注册 24 项通过、目录 10 项通过、整仓 Clippy 退出 0；早期失败及最终修复结果均保留，未覆盖日志。此次未修改 Rust 代码，未重复 Cargo 检查或领取新槽位。
+- 当前解除桌面阻塞所需的外部动作仅为用户手动解锁 Mac；解锁后仍须继续上文列出的其余验收，不能据此声称所有产品能力已完成。保持 `已阻塞`，不改为待回归，不提交、不删除任务文件。本轮按调度要求结束，不等待未到达的答复、不重复锁屏探针；用户解锁后在本会话继续。

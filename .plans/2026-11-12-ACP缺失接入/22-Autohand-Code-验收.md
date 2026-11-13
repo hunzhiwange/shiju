@@ -79,3 +79,16 @@
 ## 2026-11-13 本次执行
 
 静态确认注册、安装映射和 builtin 派生已交付，但 drivers/mod.rs 未注册 Autohand 会话模型驱动，verified_release 返回 None，能力门控 UnsupportedCli。未更换默认模型或修改环境。未执行安装/诊断/真实请求及后续步骤，未运行 Cargo；详情追加到 ACP验收.md 的 Autohand Code 验收章节。先交付并验证 session_model 驱动，再从步骤 1 重跑。本任务保留。
+
+## 2026-11-13 阻塞恢复复核
+
+状态保持已阻塞。重新检查 drivers/mod.rs、model_source/mod.rs、现有 CodeBuddy 驱动及 Autohand 接入证据：
+
+- 安全替代路径：普通诊断/安装仅能证明进程与协议可启动，不能提供会话指定模型绑定；不满足本任务成功标准。
+- cli_local 可读取 Autohand 本地模型，但绕过运行时 model_source 模块，无法证明指定 provider/model 与会话绑定，不可作为替代。
+- 自定义 args/env 也不能补全宿主驱动：prepare 固定调用 drivers::configure，launch_route 先调用 source_protocol，Autohand 没有分支；修改配置无法通过这一边界。不能通过别名冒充其他 backend。
+- 允许的小范围修复评估：不是已实现驱动中的参数或配置缺陷，而是缺失整个模型注入与审核实现。至少需要新增固定版本驱动、源协议路由、私有配置/短期中继令牌隔离、准确模型选择及禁止回退、真实模型请求证据，再注册 verified_release/capabilities，并完成独立失败测试、原生聚焦验证与 Clippy。上游支持 OpenAI 本地配置说明可能可实现，不能证明宿主隔离和中继已安全接通。该范围超过本任务“验收而非行为实现”的小修限制。
+
+需要维护者决定：是否授权新增独立的“Autohand session_model 中继驱动实现与验证”工作；保持指定模型、租户、原生 Autohand 引擎与权限策略，交付后再恢复任务 22。未授权前不扩大验收为功能开发。
+
+环境复核：本会话两轮都没有启动或停止服务、安装供应商程序、PATCH 配置或写入 Rue.js 工作区，因此本会话没有临时配置或进程需要恢复；没有读取/清理其他会话进程。此次仅补充本任务文件，不单独提交；未执行 Cargo 或运行时 API，不将静态证据冒充实测通过。

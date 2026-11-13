@@ -25,6 +25,11 @@ pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 pub(crate) use archived_chats::*;
 mod channels;
 mod cron_frequency;
+// 模板目录由下一批次的卡片与草稿入口消费。
+#[allow(dead_code)]
+mod cron_templates;
+#[allow(unused_imports)]
+pub(crate) use cron_templates::*;
 mod cron_history;
 pub(crate) use cron_history::*;
 mod cron_schedule_draft;

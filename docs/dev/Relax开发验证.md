@@ -10,6 +10,12 @@
 
 **仍有限制：**终端仍会出现依赖后台兼容诊断，包括 iced_aw 宏导入和部分未实现标准库方法。此次没有将这些报错全部修复，也没有通过删除诊断或关闭检查伪装成功；健康响应和独立窗口只证明本次启动路径，不等于所有业务功能均通过。
 
+## 常驻聚焦测试入口
+
+已加入按需编译策略和真实按钮错误的失败/修复验证，见 [本轮报告](Relax常驻测试与策略优化.md)。
+
+`cargo dev-test <workspace-package> <test-filter>` 将已验证兼容的 lib 测试保持为常驻 Relax 会话，例如 `python3 scripts/cargo_slot.py cargo dev-test vw-desktop app::components::voice_chat::tests::voice_task_11_`。每次函数体修改后看新的 `testverdict`，确认实际运行数、失败数和预期通过数；失败后可继续编辑并等待下一次 verdict。默认 features、单测试线程，不改变最终 Cargo/Clippy 与实机验收要求。完整用法见 [构建说明](../../scripts/BUILDING.md#relax-live-focused-tests)。
+
 ## 团队一键入口（当前仓库）
 
 团队成员拉取本次变更后，在仓库根目录执行；无需复制本机 `/tmp`、设置环境变量或安装全局 Cargo 插件：
@@ -40,9 +46,9 @@ Cargo 别名先编译仓库内无第三方依赖的小型启动器 `tools/relax-
 
 为兼容本机 rsproxy 等祖先目录 registry 配置，脚本通过 `cargo metadata --locked --all-features` 获取 Cargo 已校验下载的依赖，按 `Cargo.lock` 复制 registry 包并生成 directory-source 校验清单；Git 依赖仍使用 Cargo 缓存。收集全部 features 的依赖只是为委托 Cargo 准备完整源，不改变两端运行的默认 features。这样避开整个 workspace 的 `cargo vendor` 对 registry/Git 同名同版本 `crossterm` 的冲突。按锁文件更新依赖副本，在忽略目录 `.cache/relax-dev/run/.cargo/config.toml` 生成局部 directory-source 配置。Relax 从此目录启动，解析的仍是当前完整工作区，**直接编辑当前 Git 工作区即可热更新**，无需同步冻结快照。运行时工作目录为该子目录，应用若使用相对路径，需留意这一点。脚本不覆盖已有 Cargo 配置，也不改依赖 features、用户身份或认证设置。
 
-缓存和原生输出均在 `.cache/relax-dev`，已被仓库忽略。更新锁文件后入口会重新准备依赖；工具版本/补丁变更后自动使用新工具目录。退出所有相关进程后可删除该目录完整重装。不要删除后仍期待当前进程继续热更新。
+工具副本、vendor 和 Relax 自身缓存保留在 `.cache/relax-dev`；Cargo 编译输出改为 `target/rust-slot-1` 至 `rust-slot-20`，最终及中间产物使用同一槽位。入口持有槽位直到准备脚本和常驻运行器退出；已有任务手工领取的槽位会核对持有者 PID 后继承。小型 Rust 启动器在 Python 领槽前由 Cargo 编译；需要连启动器也纳入槽位时使用 `python3 scripts/cargo_slot.py cargo dev-desktop`。检查与聚焦测试的同阶段复用方式见 [构建说明](../../scripts/BUILDING.md#reusing-a-cargo-slot-during-development)。这些目录均已被仓库忽略，旧缓存不自动迁移或清理。更新锁文件后入口会重新准备依赖；工具版本/补丁变更后自动使用新工具目录。退出所有相关进程后可删除该目录完整重装。不要删除后仍期待当前进程继续热更新。
 
-要求开发机已有 Python 3、Git、Rust/Cargo 和项目原有的 C/C++ 及平台 GUI 构建依赖；本入口自动安装 Relax，不接管系统包管理器。支持入口平台为 macOS/Linux，定量实测仅 macOS arm64；Windows 明确拒绝并保留原生 Cargo 路径，不能把尚未验证的平台说成已支持。当前后续工作区业务修改仍需实际启动验证；完整生态兼容性限制见下文。
+要求开发机已有 Python 3.9+、Git、Rust/Cargo 和项目原有的 C/C++ 及平台 GUI 构建依赖；本入口自动安装 Relax，不接管系统包管理器。支持入口平台为 macOS/Linux，定量实测仅 macOS arm64；Windows 明确拒绝并保留原生 Cargo 路径，不能把尚未验证的平台说成已支持。当前后续工作区业务修改仍需实际启动验证；完整生态兼容性限制见下文。
 
 本轮一键入口已在 macOS arm64 实际完成自动安装、gateway HTTP 200 / `status: ok`、桌面进入 main 后持续运行 30 秒和源码监听；桌面实际渲染未在本轮重新做图像验收。5 项脚本测试、两版本真实编译探针与缺失版本负向检查、仓库及启动器 Clippy 均通过。依赖后台兼容诊断仍存在，不能视为所有功能通过。测试进程已关闭；[本轮证据](evidence/relax-team-2026-11-13.json)。可运行 `python3 scripts/verify_relax_vendor.py` 复验新增解析补丁。
 

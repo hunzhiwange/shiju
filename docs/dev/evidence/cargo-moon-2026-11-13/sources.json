@@ -1,0 +1,7 @@
+{
+  "Cargo.toml": "dc22cc272f52b5665f97acada7c2720fcbeb3f99454d0a2b0e15f1b2cb699d88",
+  "Cargo.lock": "7eb20806ca63184fc2e676f2da5c2bb15f2b4728f1df9b273a754217b65c8ff6",
+  "crates/vw-desktop/Cargo.toml": "956210a99f1dbaad013c60d6c645312844584a51960b528e4ba7025606af7d5c",
+  "crates/vw-desktop/src/app/components/voice_chat.rs": "e766330c3ba4bcedb9ef8713523c20c96027e968786929f107045a5e56a47c3c",
+  "crates/vw-desktop/src/app/components/voice_chat_tests.rs": "a5b922fbeefa57fdf8d6ea56a8a555292dc28c3fae665efff263bfe091f2a3e5"
+}

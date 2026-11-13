@@ -1,0 +1,149 @@
+[
+  {
+    "name": "native-red-initial",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "seconds": 287.300997542,
+    "load": [
+      10.77734375,
+      8.70849609375,
+      8.62158203125
+    ]
+  },
+  {
+    "name": "native-green-edit-1",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 101,
+    "seconds": 8.685926125000037,
+    "load": [
+      10.154296875,
+      8.61328125,
+      8.58837890625
+    ]
+  },
+  {
+    "name": "native-green-edit-1-corrected",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 222.640061417,
+    "load": [
+      11.35205078125,
+      8.07080078125,
+      7.791015625
+    ]
+  },
+  {
+    "name": "native-green-no-edit",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 1.1608476659999951,
+    "load": [
+      11.35205078125,
+      8.07080078125,
+      7.791015625
+    ]
+  },
+  {
+    "name": "native-green-edit-2",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 54.84233095900001,
+    "load": [
+      8.22119140625,
+      7.67529296875,
+      7.65576171875
+    ]
+  },
+  {
+    "name": "native-green-palette-corrected",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 228.32740941699998,
+    "load": [
+      65.45703125,
+      24.8603515625,
+      14.072265625
+    ]
+  },
+  {
+    "name": "native-green-palette-no-edit",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "exit": 0,
+    "seconds": 0.7324406660000022,
+    "load": [
+      65.45703125,
+      24.8603515625,
+      14.072265625
+    ]
+  }
+]

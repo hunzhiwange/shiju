@@ -1,0 +1,49 @@
+{
+  "argv": [
+    "/Users/xiangmin/worker/code/shiju/.cache/relax-dev/tools/d4974595b615f94ed641/target/release/relax",
+    "test",
+    "--live",
+    "--allow-c",
+    "--cfg",
+    "debug_assertions",
+    "vw-desktop",
+    "--lib",
+    "--",
+    "voice_moon_bench_",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+  "pid": 26335,
+  "initial": {
+    "ran": 1,
+    "passed": 1,
+    "failed": 0,
+    "seconds": 94.368050791
+  },
+  "edits": [
+    {
+      "size": 96,
+      "seconds": 0.9735139579999981,
+      "ran": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "size": 100,
+      "seconds": 0.7522074590000045,
+      "ran": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "size": 96,
+      "seconds": 0.7709843749999976,
+      "ran": 1,
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "final_exit": -15
+}

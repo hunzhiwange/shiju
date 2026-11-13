@@ -1,0 +1,12 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, '/Users/xiangmin/worker/code/shiju/scripts')
+import relax_dev
+prepare = relax_dev.prepare
+# Only redirect the workspace to the existing immutable voice experiment.
+# Tool preparation, command selection and the runtime are production code.
+def snapshot_prepare():
+    binary, tool, _ = prepare()
+    return binary, tool, Path('/tmp/shiju-cargo-moon-20261113/source/.cache/relax-dev/run')
+relax_dev.prepare = snapshot_prepare
+sys.exit(relax_dev.main(['test', 'vw-desktop', 'voice_moon_bench_']))

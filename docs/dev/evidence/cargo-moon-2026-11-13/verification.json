@@ -1,0 +1,53 @@
+[
+  {
+    "argv": "python3 -m unittest discover -s scripts/tests -p test_cargo_slot.py -v",
+    "exit": 0,
+    "tests": 6,
+    "log": "slot-tests.log"
+  },
+  {
+    "argv": "python3 -m unittest discover -s scripts/tests -p test_relax_dev.py -v",
+    "exit": 0,
+    "tests": 7,
+    "log": "relax-tests.log"
+  },
+  {
+    "argv": "python3 -m unittest discover -s scripts/tests -p test_clean_cargo_slots.py -v",
+    "exit": 0,
+    "tests": 3,
+    "log": "clean-slot-tests.log"
+  },
+  {
+    "argv": "cargo clippy --all-targets --all-features -- -D warnings",
+    "exit": 0,
+    "slot": 1,
+    "log": "clippy.log",
+    "phase": "initial"
+  },
+  {
+    "argv": "cargo clippy --all-targets --all-features -- -D warnings",
+    "exit": 101,
+    "slot": 6,
+    "log": "clippy-final.log",
+    "phase": "final",
+    "error": "E0603 in untouched agent_profile_acceptance_tests.rs:273"
+  },
+  {
+    "argv": "cargo clippy --manifest-path tools/relax-dev/Cargo.toml --all-targets --all-features -- -D warnings",
+    "exit": 0,
+    "slot": 3,
+    "log": "launcher-clippy.log"
+  },
+  {
+    "argv": "python3 scripts/cargo_slot.py cargo dev-setup",
+    "exit": 0,
+    "slot": 1,
+    "log": "setup.log"
+  },
+  {
+    "argv": "manual parent-owned slot: python3 scripts/relax_dev.py setup",
+    "exit": 0,
+    "slot": 3,
+    "log": "manual-slot-setup.log"
+  }
+]

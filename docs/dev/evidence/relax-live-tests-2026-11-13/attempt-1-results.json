@@ -1,0 +1,38 @@
+[
+  {
+    "index": 0,
+    "mode": "balanced",
+    "cpu_idle_before": 43.21,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "edits": [
+      {
+        "name": "geometry",
+        "seconds": 0.8297658749999997,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      {
+        "name": "end-event-regression",
+        "seconds": 0.6054059579999986,
+        "ran": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      {
+        "name": "end-event-fix",
+        "seconds": 0.5781085830000023,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "pid": 91352,
+    "initial": {
+      "ran": 1,
+      "passed": 1,
+      "failed": 0,
+      "seconds": 19.388579041
+    }
+  }
+]

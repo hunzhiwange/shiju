@@ -1,0 +1,92 @@
+from pathlib import Path
+import difflib
+root=Path('/tmp/shiju-cargo-moon-20261113')
+src=root/'source/crates/vw-desktop/src/app/components'
+p=src/'voice_chat.rs'; old=p.read_text(); (root/'voice_chat.original').write_text(old)
+start=old.index('    let header =',old.index('fn local_overlay'))
+end=old.index('    let action =',start)
+new=old[:start]+'''    let label = match chat.stage {
+        Stage::Ready => "准备开始下一轮",
+        Stage::Preparing => "正在准备",
+        Stage::Recording => "正在录音",
+        Stage::Recognizing => "正在识别",
+        Stage::WaitingModel => "正在等待回答",
+        Stage::Speaking => "正在朗读",
+    };
+'''+old[end:]
+start=new.index('    let card =',new.index('fn local_overlay'))
+new=new[:start]+'''    let moon = iced::widget::svg(iced::widget::svg::Handle::from_memory(
+        br##"<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><defs><radialGradient id="m"><stop stop-color="#f5fcff"/><stop offset=".65" stop-color="#88cfff"/><stop offset="1" stop-color="#317ac4"/></radialGradient></defs><circle cx="48" cy="48" r="46" fill="url(#m)"/><circle cx="32" cy="32" r="10" fill="#d7f0ff" opacity=".6"/></svg>"##
+    )).width(96).height(96);
+    let mut content = column![moon, text(label).size(14), footer]
+        .spacing(20).align_x(iced::Alignment::Center);
+    if let Some(notice) = &chat.notice {
+        content = content.push(text(notice.clone()).size(13));
+    }
+    column![base, container(content).center_x(Length::Fill).padding(12)]
+        .spacing(20).into()
+}
+'''
+new=new.replace('    let close = message(Event::ChatEnd);\n    let label =','    let label =')
+(root/'voice_chat.moon').write_text(new)
+(root/'moon-ui.patch').write_text(''.join(difflib.unified_diff(old.splitlines(True),new.splitlines(True),fromfile='a/crates/vw-desktop/src/app/components/voice_chat.rs',tofile='b/crates/vw-desktop/src/app/components/voice_chat.rs')))
+t=src/'voice_chat_tests.rs'
+t.write_text(t.read_text()+'''
+#[tokio::test]
+async fn voice_moon_bench_layout_and_real_button_events() {
+    use iced::advanced::{clipboard, renderer::Headless};
+    use iced::{Event as InputEvent, Font, Size, Theme, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    use crate::app::message::voice::local_chat::{Event as LocalEvent, Stage};
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system().write().unwrap();
+        for font in crate::fonts::load_all() { fonts.load_font(font); }
+    }
+    let (mut app, _) = App::new();
+    app.project_path = Some("/repo".into());
+    app.active_session_id = Some("moon-bench".into());
+    app.current_session_runtime_mut().acp_agent = None;
+    let _ = crate::app::message::voice::update(&mut app, Event::ChatStart);
+    let chat = app.voice.local_conversation.as_mut().unwrap();
+    let mut renderer = iced::Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    for stage in [Stage::Ready, Stage::Recording, Stage::Preparing] {
+      chat.stage = stage;
+      chat.notice = Some("中文设备提示 🌱".into());
+      for (width, height) in [(700, 640), (1280, 800)] {
+        let mut ui = UserInterface::build(local_overlay(text("当前聊天").into(), chat),
+            Size::new(width as f32, height as f32), Cache::new(), &mut renderer);
+        let mut labels = Labels::default();
+        ui.operate(&renderer, &mut labels);
+        assert!(!labels.0.iter().any(|(s, _)| s == "本机逐轮语音"), "large modal must be removed");
+        let base = labels.0.iter().find(|(s,_)| s == "当前聊天").unwrap().1;
+        let end = labels.0.iter().find(|(s,_)| s == "结束通话").unwrap().1;
+        assert!(end.y > base.y && end.y < 300.0, "compact controls below chat: {end:?}");
+        for theme in [Theme::Light, Theme::Dark] {
+          ui.draw(&mut renderer, &theme, &Default::default(), mouse::Cursor::Unavailable);
+          let pixels = renderer.screenshot(Size::new(width, height), 1.0, iced::Color::TRANSPARENT);
+          assert!(pixels.chunks_exact(4).filter(|p| p[2] > 100 && p[2] > p[0].saturating_add(20) && p[3] > 0).count() > 1000,
+              "blue moon must be drawn");
+          if let Ok(folder) = std::env::var("SHIJU_MOON_SCREENSHOTS") {
+            image::save_buffer(std::path::Path::new(&folder).join(format!("{stage:?}-{theme:?}-{width}.png")),
+                &pixels, width, height, image::ColorType::Rgba8).unwrap();
+          }
+        }
+        for (label, expected) in [(if stage == Stage::Recording {"停止并发送"} else {"开始录音"},0),
+            ("静音",1),("打断本轮",2),("结束通话",3)] {
+          let bounds = labels.0.iter().find(|(s,_)| s == label).unwrap().1;
+          let mut messages = vec![];
+          ui.update(&[InputEvent::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+              InputEvent::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))],
+              mouse::Cursor::Available(bounds.center()), &mut renderer, &mut clipboard::Null, &mut messages);
+          if stage == Stage::Preparing && expected == 0 { assert!(messages.is_empty()); continue; }
+          assert!(matches!((&messages[..],expected),
+              ([Message::Voice(Event::Local(LocalEvent::Begin))],0) if stage == Stage::Ready)
+              || matches!((&messages[..],expected),([Message::Voice(Event::Local(LocalEvent::Finish))],0) if stage == Stage::Recording)
+              || matches!((&messages[..],expected),([Message::Voice(Event::ChatMute)],1)
+                  | ([Message::Voice(Event::ChatInterrupt)],2)|([Message::Voice(Event::ChatEnd)],3)));
+        }
+      }
+    }
+    println!("MOON_BENCH_PASS 12 rendered cases; real button routing verified");
+}
+''')

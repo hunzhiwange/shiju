@@ -195,6 +195,32 @@ pnpm exec vite --config acpdemo/auggie/vite.config.mjs
 pnpm exec vite --config acpdemo/codebuddy/vite.config.mjs
 ```
 
+# Cursor CLI 验收
+
+2026-11-12：**编辑器创建成功**。按用户本轮要求，以实际创建编辑器文件为验收终点；仅核对文件、源码及运行说明，未启动页面、未执行编辑器构建或浏览器行为测试，不将这些检查记为通过。
+
+- 沿用租户 `10001 / 100010005`，模型 `alibaba-token-plan-cn/deepseek-v4.1-flash-1017`；`acp-cursor / cursor`、`session_model`、`full_access=true`。未切换模型、账号或代理引擎。
+- 原驱动明确拒绝 session_model。现对固定 Cursor `2026.11.11-b912975` 增加独立受管补丁，在原生 AgentClient.run 边界接入 Chat 推理和工具续接，保留 Cursor ACP、模型选择、原生 shell 解析器、权限审批/执行器与 protobuf/blob 会话历史。仅公布前台 shell 工具用于读写文件；未接入的远程服务、MCP、图片、非 agent 模式、总结历史、并行/未知工具及异常或截断流明确拒绝，不宣称支持完整远程工具集。补丁边界见 `patches/acp-model-source/cursor/README.md`。
+- 官方固定归档、原始补丁锚点与全部 351 个最终运行文件均做 SHA-256 校验；不修改全局 Cursor CLI。受管子进程不继承云认证、Node 注入及代理环境，使用独立配置/历史目录和内存凭据存储。私有 0600 配置仅包含本机会话中继与可撤销短期令牌，上游密钥不交给 Cursor；未添加 force/yolo 或跳过审批。
+- 使用现有开发配置及本轮修复构建启动临时网关 `127.0.0.1:62290`；原 42617 实例未被重启。系统安装 HTTP 200、curl 0、24.492262 秒，安装状态 true → true；前者来自原全局安装，后者已解析到受管入口 `/Users/xiangmin/.shiju-harness-dev/acp-runtime/cursor-2026.11.11-b912975-model-source-v1/dist-package/cursor-agent`，参数 `acp`。版本命令退出码 0，输出 `2026.11.11-b912975`。
+- 独立诊断 HTTP 200、curl 0、1.530356 秒，结果 authentication_required；模型来源接口 HTTP 200、curl 0，session_model supported，已审查版本 `2026.11.11-b912975`，平台 Darwin arm64。真实连接与工具执行另由以下会话核实。
+- 真实流式请求 HTTP 200、curl 0、71.934220 秒，终态 `chat.done`，无 `chat.error`。事件：chat.context_loaded ×1、chat.step_start ×1、chat.delta ×103、chat.tool ×18、chat.session_updated ×2、chat.step_finish ×1、chat.done ×1。请求要求实际调用工具创建文件，完成后简短回复，不运行额外测试。
+- 会话 `ses_1d0506831001wpW2h6VepGAadt`：执行期间及结束后，带相同租户及工作目录头读取 ui/summary 与 acp-options 均 HTTP 200、curl 0；绑定 acp-cursor / cursor，full_access=true，选定模型与请求一致。执行期间 connected=true，结束后 connected=false。
+- 产物 `/Users/xiangmin/worker/code/ruejs/acpdemo/cursor/` 实际新增 7 个文件：`index.html`、`vite.config.mjs`、`README.md`、`src/main.tsx`、`src/App.tsx`、`src/env.d.ts`、`src/style.css`。源码导入本仓库 `@rue-js/rue`，包含输入处理、computed 字数统计、localStorage 防抖保存与初始化恢复；Vite 复用仓库 Rue 插件及别名，README 提供运行说明。仅确认这些逻辑存在，未验证页面运行行为。
+- 请求前后比较 Rue.js 仓库普通文件 SHA-256（排除 .git、node_modules、target），仅上述 7 个文件新增，目标目录外无文件内容变化。
+- 驱动验证：`node --test patches/acp-model-source/cursor/session-model.test.cjs` 退出码 0，4 个测试通过。`python3 scripts/acp_model_source_cursor_tests.py <受管入口>` 及追加 `--deny` 的回合均退出码 0，真实原生 ACP 验证选定模型、中文流、推理/工具结果续接、session/load 后历史恢复，以及 allow_once 实际写入、reject_once 不写入。独立受管安装脚本退出码 0；未用这些本地 HTTP fixture 代替真实模型验收。
+- `cargo build -p vw-cli --bin shiju --features vw-agent/default` 退出码 0；最后一次增量构建耗时 9 分 26 秒，运行前逐字核对二进制内嵌补丁、安装器及校验清单与当前源码一致。`cargo clippy --all-targets --all-features -- -D warnings` 退出码 101，被工作区既有 vw-desktop worktree 的未使用 import、函数和字段阻塞（包括 open_existing_checkout、ManagedWorktreesState 等）；未修改这些无关文件，完整 Clippy 不计为通过。未额外执行 Rust 单元测试。
+- Cargo 使用共享槽位 6，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；槽位已释放、缓存保留。acp-cursor 基线 enabled=false，临时启用与恢复均 HTTP 200、curl 0，结束复查 false。临时网关已停止，未启动编辑器测试服务。
+- 原始请求、SSE、配置及文件基线仅保存在私有目录 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/cursor-driver-vxho34f5/acceptance/`；补丁探测、安装与构建记录在 `/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/cursor-driver-vxho34f5/`，未提交凭据或配置环境值。
+
+在 Rue.js 仓库根目录启动编辑器：
+
+```sh
+pnpm exec vite --config acpdemo/cursor/vite.config.mjs
+```
+
+后续建议：将常用网关重启到包含本次驱动与受管安装器的构建；无关编译问题处理完成后补跑完整 Clippy。
+
 # Factory Droid 验收
 
 日期：2026-11-12。按最新授权，以指定模型实际创建编辑器文件为本项终点，不执行浏览器或编辑器构建测试。

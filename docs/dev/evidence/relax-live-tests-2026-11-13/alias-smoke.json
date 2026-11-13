@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "cargo",
+    "dev-test",
+    "vw-config-types",
+    "config_defaults_promote_shiju_as_primary_provider"
+  ],
+  "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+  "pid": 68924,
+  "ran": 1,
+  "passed": 1,
+  "failed": 0,
+  "final_exit": -15
+}

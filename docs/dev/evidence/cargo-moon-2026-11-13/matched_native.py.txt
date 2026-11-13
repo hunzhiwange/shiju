@@ -1,0 +1,36 @@
+import sys,os,json,time,subprocess,re
+from pathlib import Path
+sys.path.insert(0,'/Users/xiangmin/worker/code/shiju/scripts')
+import cargo_slot
+ROOT=Path('/tmp/shiju-cargo-moon-20261113'); SOURCE=ROOT/'source'
+rows=[]
+with cargo_slot.slot() as env:
+    env.update(CARGO_BUILD_JOBS='4',SHIJU_MOON_SCREENSHOTS=str(ROOT/'matched-screenshots'))
+    (ROOT/'matched-screenshots').mkdir(exist_ok=True)
+    args=['cargo','test','-p','vw-desktop','--lib','voice_moon_bench_','--','--nocapture','--test-threads=1']
+    def command(name,phase):
+        start=time.monotonic()
+        with (ROOT/(name+'.log')).open('w') as log:
+            result=subprocess.run(args,cwd=SOURCE,env=env,stdout=log,stderr=subprocess.STDOUT)
+        row=dict(name=name,phase=phase,seconds=time.monotonic()-start,exit=result.returncode,
+                 slot=env['CARGO_TARGET_DIR'],CARGO_BUILD_BUILD_DIR=env['CARGO_BUILD_BUILD_DIR'],argv=args,load=os.getloadavg())
+        rows.append(row); (ROOT/'matched-native-results.json').write_text(json.dumps(rows,indent=2)); print(json.dumps(row),flush=True)
+        if result.returncode: raise RuntimeError('matched native test failed')
+    # The earlier native phase used another slot. Prewarm this one explicitly;
+    # never count a first build as a body-edit sample.
+    command('matched-native-prewarm','excluded prewarm')
+    path=SOURCE/'crates/vw-desktop/src/app/components/voice_chat.rs'
+    for i,size in enumerate([100,96,100],1):
+        idle=[]
+        for _ in range(6):
+            stats=subprocess.check_output(['top','-l','2','-n','0','-s','1'],text=True)
+            idle=[float(n) for n in re.findall(r'([0-9.]+)% idle',stats)][-1:]
+            if idle and idle[0]>=60: break
+            time.sleep(2)
+        code=path.read_text()
+        updated=re.sub(r'\)\.width\((96|100)\)\.height\((96|100)\)',f').width({size}).height({size})',code)
+        assert updated!=code
+        path.write_text(updated)
+        command(f'matched-native-edit-{i}','geometry edit')
+        rows[-1]['cpu_idle_before']=idle
+        (ROOT/'matched-native-results.json').write_text(json.dumps(rows,indent=2))

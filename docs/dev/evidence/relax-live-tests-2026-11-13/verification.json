@@ -1,0 +1,54 @@
+{
+  "python_tests": {
+    "entry": 10,
+    "slot": 8,
+    "clean": 3,
+    "exit": 0
+  },
+  "clippy": {
+    "argv": [
+      "cargo",
+      "clippy",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "initial_exit": 0,
+    "final_exit": 0,
+    "final_slot": 5
+  },
+  "production_alias_config": {
+    "argv": [
+      "cargo",
+      "dev-test",
+      "vw-config-types",
+      "config_defaults_promote_shiju_as_primary_provider"
+    ],
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "pid": 68924,
+    "ran": 1,
+    "passed": 1,
+    "failed": 0,
+    "final_exit": -15
+  },
+  "production_alias_ui": {
+    "argv": [
+      "cargo",
+      "dev-test",
+      "vw-desktop",
+      "app::components::voice_chat::tests::voice_task_11_"
+    ],
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "pid": 23819,
+    "ran": 2,
+    "passed": 2,
+    "failed": 0,
+    "final_exit": -15
+  },
+  "snapshot_restored": {
+    "restored": true,
+    "sha256": "e766330c3ba4bcedb9ef8713523c20c96027e968786929f107045a5e56a47c3c"
+  }
+}

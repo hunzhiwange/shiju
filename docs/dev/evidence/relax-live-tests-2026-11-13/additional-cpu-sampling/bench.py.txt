@@ -1,0 +1,79 @@
+import sys,os,time,json,re,subprocess,signal,hashlib
+from pathlib import Path
+sys.path.insert(0, '/Users/xiangmin/worker/code/shiju/scripts')
+import cargo_slot
+ROOT=Path('/tmp/shiju-relax-live-20261113/quiet')
+SOURCE=Path('/tmp/shiju-cargo-moon-20261113/source')
+path=SOURCE/'crates/vw-desktop/src/app/components/voice_chat.rs'
+original=path.read_bytes()
+rows=[]
+
+def save():
+    (ROOT/'results.json').write_text(json.dumps(rows,indent=2))
+
+def wait_verdict(process,logpath,offset,timeout):
+    deadline=time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        with logpath.open('rb') as log:
+            log.seek(offset); data=log.read().decode(errors='replace')
+        match=re.search(r'testverdict .*?ran=(\d+) passed=(\d+) failed=(\d+)',data)
+        if match:
+            return dict(ran=int(match[1]),passed=int(match[2]),failed=int(match[3]))
+        if process.poll() is not None:
+            raise RuntimeError(f'runtime exited {process.returncode}: {logpath}')
+        time.sleep(.02)
+    raise RuntimeError(f'no verdict within {timeout}s: {logpath}')
+
+def stop(process):
+    cargo_slot.signal_group(process.pid,signal.SIGTERM)
+    try: process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        cargo_slot.signal_group(process.pid,signal.SIGKILL); process.wait()
+    cargo_slot.signal_group(process.pid,signal.SIGKILL)
+    while cargo_slot.group_alive(process.pid): time.sleep(.05)
+
+def interrupted(_sig,_frame): raise KeyboardInterrupt
+signal.signal(signal.SIGTERM,interrupted)
+with cargo_slot.slot() as env:
+    env.update(CARGO_BUILD_JOBS='4', MAKEPAD_RUN_CACHE_DIR=str(Path('/tmp/shiju-cargo-moon-20261113/relax-cache')))
+    env.pop('SHIJU_MOON_SCREENSHOTS',None)
+    # Drawing and all pixel/button assertions still run; PNG file IO is measured separately.
+    try:
+      for index,mode in enumerate(['balanced','minimal','balanced','minimal']):
+        path.write_bytes(original)
+        env['MAKEPAD_RUN_AHEAD']=mode
+        stats=subprocess.check_output(['top','-l','2','-n','0','-s','1'],text=True)
+        idle=[float(n) for n in re.findall(r'([0-9.]+)% idle',stats)][-1]
+        record=dict(index=index,mode=mode,cpu_idle_before=idle,slot=env['CARGO_TARGET_DIR'],edits=[])
+        rows.append(record); save()
+        logpath=ROOT/f'{index}-{mode}.log'
+        with logpath.open('w') as log:
+          start=time.monotonic()
+          process=subprocess.Popen([sys.executable,str(ROOT/'entry.py')],cwd=SOURCE,env=env,
+                                   stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+          record['pid']=process.pid
+          try:
+            record['initial']={**wait_verdict(process,logpath,0,300),'seconds':time.monotonic()-start}
+            assert record['initial']['passed']==1 and record['initial']['failed']==0
+            save(); print(json.dumps({k:v for k,v in record.items() if k!='edits'}),flush=True)
+            good=original.decode()
+            geometry=re.sub(r'\)\.width\(100\)\.height\(100\)',').width(96).height(96)',good)
+            assert geometry!=good
+            bad=geometry.replace('action("结束通话", Event::ChatEnd)', 'action("结束通话", Event::ChatMute)')
+            assert bad!=geometry
+            for name,code,expect_fail in [('geometry',geometry,False),('end-event-regression',bad,True),('end-event-fix',geometry,False)]:
+                stats=subprocess.check_output(['top','-l','2','-n','0','-s','1'],text=True)
+                idle_edit=[float(n) for n in re.findall(r'([0-9.]+)% idle',stats)][-1]
+                offset=logpath.stat().st_size
+                start=time.monotonic(); path.write_text(code)
+                verdict=wait_verdict(process,logpath,offset,60)
+                result=dict(name=name,cpu_idle_before=idle_edit,seconds=time.monotonic()-start,**verdict)
+                record['edits'].append(result); save(); print(json.dumps(result),flush=True)
+                assert verdict['ran']==1
+                assert verdict['failed']==(1 if expect_fail else 0)
+          finally:
+            stop(process); record['final_exit']=process.returncode; save()
+    finally:
+        path.write_bytes(original)
+        (ROOT/'source-restoration.json').write_text(json.dumps(dict(restored=path.read_bytes()==original,
+            sha256=hashlib.sha256(original).hexdigest())))

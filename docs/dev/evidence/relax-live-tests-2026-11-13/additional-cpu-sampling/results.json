@@ -1,0 +1,162 @@
+[
+  {
+    "index": 0,
+    "mode": "balanced",
+    "cpu_idle_before": 27.17,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "edits": [
+      {
+        "name": "geometry",
+        "cpu_idle_before": 0.0,
+        "seconds": 6.273345708000001,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      {
+        "name": "end-event-regression",
+        "cpu_idle_before": 0.0,
+        "seconds": 3.8109357909999986,
+        "ran": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      {
+        "name": "end-event-fix",
+        "cpu_idle_before": 0.0,
+        "seconds": 3.473243457999999,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "pid": 31843,
+    "initial": {
+      "ran": 1,
+      "passed": 1,
+      "failed": 0,
+      "seconds": 20.233423709
+    },
+    "final_exit": -15
+  },
+  {
+    "index": 1,
+    "mode": "minimal",
+    "cpu_idle_before": 0.18,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "edits": [
+      {
+        "name": "geometry",
+        "cpu_idle_before": 0.0,
+        "seconds": 3.6882003329999975,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      {
+        "name": "end-event-regression",
+        "cpu_idle_before": 0.0,
+        "seconds": 4.286044583000006,
+        "ran": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      {
+        "name": "end-event-fix",
+        "cpu_idle_before": 0.0,
+        "seconds": 5.588932209000006,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "pid": 41107,
+    "initial": {
+      "ran": 1,
+      "passed": 1,
+      "failed": 0,
+      "seconds": 21.534313459000003
+    },
+    "final_exit": -15
+  },
+  {
+    "index": 2,
+    "mode": "balanced",
+    "cpu_idle_before": 0.0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "edits": [
+      {
+        "name": "geometry",
+        "cpu_idle_before": 0.0,
+        "seconds": 5.884649207999999,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      {
+        "name": "end-event-regression",
+        "cpu_idle_before": 0.0,
+        "seconds": 3.557957834000007,
+        "ran": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      {
+        "name": "end-event-fix",
+        "cpu_idle_before": 0.0,
+        "seconds": 5.971993499999996,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "pid": 49540,
+    "initial": {
+      "ran": 1,
+      "passed": 1,
+      "failed": 0,
+      "seconds": 18.987744500000005
+    },
+    "final_exit": -15
+  },
+  {
+    "index": 3,
+    "mode": "minimal",
+    "cpu_idle_before": 0.0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-5",
+    "edits": [
+      {
+        "name": "geometry",
+        "cpu_idle_before": 0.0,
+        "seconds": 8.698006292000002,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      {
+        "name": "end-event-regression",
+        "cpu_idle_before": 0.0,
+        "seconds": 6.889719250000013,
+        "ran": 1,
+        "passed": 0,
+        "failed": 1
+      },
+      {
+        "name": "end-event-fix",
+        "cpu_idle_before": 0.0,
+        "seconds": 5.350360875000007,
+        "ran": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    ],
+    "pid": 58695,
+    "initial": {
+      "ran": 1,
+      "passed": 1,
+      "failed": 0,
+      "seconds": 21.774493917
+    },
+    "final_exit": -15
+  }
+]

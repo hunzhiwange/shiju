@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "cargo",
+    "dev-test",
+    "vw-desktop",
+    "app::components::voice_chat::tests::voice_task_11_"
+  ],
+  "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "pid": 23819,
+  "ran": 2,
+  "passed": 2,
+  "failed": 0,
+  "final_exit": -15
+}

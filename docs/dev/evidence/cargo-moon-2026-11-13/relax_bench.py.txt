@@ -1,0 +1,55 @@
+import sys,os,json,time,subprocess,signal,re,shutil
+from pathlib import Path
+sys.path.insert(0,'/Users/xiangmin/worker/code/shiju/scripts')
+import cargo_slot,relax_dev
+ROOT=Path('/tmp/shiju-cargo-moon-20261113'); SOURCE=ROOT/'source'
+result={}
+with cargo_slot.slot() as env:
+    env.update(CARGO_BUILD_JOBS='4', MAKEPAD_RUN_CACHE_DIR=str(ROOT/'relax-cache'),
+               SHIJU_MOON_SCREENSHOTS=str(ROOT/'relax-screenshots'))
+    (ROOT/'relax-screenshots').mkdir(exist_ok=True)
+    os.environ.update(env)
+    binary,tool,_=relax_dev.prepare()
+    env['MAKEPAD_RUN_STD']=str(tool/'libs/relax/compiler/std')
+    launch=SOURCE/'.cache/relax-dev/run'; (launch/'.cargo').mkdir(parents=True,exist_ok=True)
+    shutil.copy2(relax_dev.STATE/'run/.cargo/config.toml',launch/'.cargo/config.toml')
+    command=[str(binary),'test','--live','--allow-c','--cfg','debug_assertions','vw-desktop','--lib',
+             '--','voice_moon_bench_','--nocapture','--test-threads=1']
+    result.update(argv=command,slot=env['CARGO_TARGET_DIR'],CARGO_BUILD_BUILD_DIR=env['CARGO_BUILD_BUILD_DIR'])
+    logpath=ROOT/'relax-live.log'
+    with logpath.open('w') as log:
+      process=subprocess.Popen(command,cwd=launch,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+      result['pid']=process.pid
+      def wait_verdict(offset,timeout):
+        deadline=time.monotonic()+timeout
+        while time.monotonic()<deadline:
+          data=logpath.read_text(errors='replace')[offset:]
+          verdict=re.search(r'testverdict .*?ran=(\d+) passed=(\d+) failed=(\d+)',data)
+          if verdict:
+            return dict(ran=int(verdict[1]),passed=int(verdict[2]),failed=int(verdict[3]))
+          if process.poll() is not None:
+            return dict(exit=process.returncode)
+          time.sleep(.1)
+        return dict(timeout_seconds=timeout)
+      try:
+        start=time.monotonic()
+        first=wait_verdict(0,240)
+        result['initial']={**first,'seconds':time.monotonic()-start}
+        print(json.dumps(result['initial']),flush=True)
+        result['edits']=[]
+        if first.get('passed',0)>0 and first.get('failed')==0:
+          path=SOURCE/'crates/vw-desktop/src/app/components/voice_chat.rs'
+          for size in [96,100,96]:
+            before=logpath.stat().st_size
+            code=path.read_text(); code=re.sub(r'\)\.width\((96|100)\)\.height\((96|100)\)',f').width({size}).height({size})',code)
+            start=time.monotonic(); path.write_text(code)
+            verdict=wait_verdict(before,90)
+            result['edits'].append(dict(size=size,seconds=time.monotonic()-start,**verdict))
+            print(json.dumps(result['edits'][-1]),flush=True)
+      finally:
+        try: os.killpg(process.pid,signal.SIGTERM)
+        except ProcessLookupError: pass
+        try: process.wait(timeout=10)
+        except subprocess.TimeoutExpired: os.killpg(process.pid,signal.SIGKILL); process.wait()
+        result['final_exit']=process.returncode
+        (ROOT/'relax-results.json').write_text(json.dumps(result,indent=2))

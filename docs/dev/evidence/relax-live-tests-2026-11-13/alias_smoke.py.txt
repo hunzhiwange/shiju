@@ -1,0 +1,31 @@
+import sys,subprocess,os,time,json,signal,re
+from pathlib import Path
+sys.path.insert(0,'/Users/xiangmin/worker/code/shiju/scripts')
+import cargo_slot
+root=Path('/Users/xiangmin/worker/code/shiju'); out=Path('/tmp/shiju-relax-live-20261113')
+result={}
+with cargo_slot.slot() as env:
+    with (out/'alias-smoke.log').open('w') as log:
+        args=['cargo','dev-test','vw-config-types','config_defaults_promote_shiju_as_primary_provider']
+        child=subprocess.Popen(args,cwd=root,env=env,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)
+        result.update(argv=args,slot=env['CARGO_TARGET_DIR'],pid=child.pid)
+        try:
+            deadline=time.monotonic()+120
+            while time.monotonic()<deadline:
+                data=(out/'alias-smoke.log').read_text(errors='replace')
+                m=re.search(r'testverdict .*?ran=(\d+) passed=(\d+) failed=(\d+)',data)
+                if m:
+                    result.update(ran=int(m[1]),passed=int(m[2]),failed=int(m[3])); break
+                if child.poll() is not None: raise RuntimeError(f'CLI exit={child.returncode}')
+                time.sleep(.05)
+            assert result.get('ran')==1 and result.get('passed')==1 and result.get('failed')==0
+        finally:
+            cargo_slot.signal_group(child.pid,signal.SIGTERM)
+            try: child.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                cargo_slot.signal_group(child.pid,signal.SIGKILL); child.wait()
+            cargo_slot.signal_group(child.pid,signal.SIGKILL)
+            while cargo_slot.group_alive(child.pid): time.sleep(.05)
+            result['final_exit']=child.returncode
+            (out/'alias-smoke.json').write_text(json.dumps(result,indent=2))
+print(json.dumps(result),flush=True)

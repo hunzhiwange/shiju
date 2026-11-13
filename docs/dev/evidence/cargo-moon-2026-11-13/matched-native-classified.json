@@ -1,0 +1,111 @@
+[
+  {
+    "name": "matched-native-prewarm",
+    "phase": "excluded prewarm",
+    "seconds": 320.27256741699995,
+    "exit": 0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "load": [
+      9.904296875,
+      19.5234375,
+      16.91943359375
+    ],
+    "eligible_for_quiet_comparison": false
+  },
+  {
+    "name": "matched-native-edit-1",
+    "phase": "geometry edit",
+    "seconds": 65.27784337499997,
+    "exit": 0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "load": [
+      48.61474609375,
+      27.650390625,
+      20.0693359375
+    ],
+    "cpu_idle_before": [
+      75.81
+    ],
+    "eligible_for_quiet_comparison": true
+  },
+  {
+    "name": "matched-native-edit-2",
+    "phase": "geometry edit",
+    "seconds": 55.974137625000026,
+    "exit": 0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "load": [
+      20.62890625,
+      23.63037109375,
+      19.212890625
+    ],
+    "cpu_idle_before": [
+      16.44
+    ],
+    "eligible_for_quiet_comparison": false
+  },
+  {
+    "name": "matched-native-edit-3",
+    "phase": "geometry edit",
+    "seconds": 135.78333520799993,
+    "exit": 0,
+    "slot": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "argv": [
+      "cargo",
+      "test",
+      "-p",
+      "vw-desktop",
+      "--lib",
+      "voice_moon_bench_",
+      "--",
+      "--nocapture",
+      "--test-threads=1"
+    ],
+    "load": [
+      38.890625,
+      28.85302734375,
+      22.044921875
+    ],
+    "cpu_idle_before": [
+      0.0
+    ],
+    "eligible_for_quiet_comparison": false
+  }
+]

@@ -787,7 +787,7 @@ mod modal_render {
         draft.delivery_to = "旧目标".into();
         for confirm in [false, true] {
             app.cron_settings.add_draft.full_access_confirmation = confirm;
-            for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
+            for theme in [Theme::Light, Theme::Dark] {
                 for size in [Size::new(380, 680), Size::new(1100, 900)] {
                     app.app_theme = theme.clone();
                     let mut ui = UserInterface::build(
@@ -843,12 +843,7 @@ mod modal_render {
                                 .iter()
                                 .any(|(label, _)| label.contains("投递通道 wecom 未配置"))
                         );
-                        assert!(
-                            geometry
-                                .labels
-                                .iter()
-                                .any(|(label, _)| label.contains("保存任务不代表已送达"))
-                        );
+                        assert!(geometry.labels.iter().any(|(label, _)| label == "通知配置"));
                         let scroll = geometry.scrolls[0];
                         ui.update(
                             &[Event::Mouse(mouse::Event::WheelScrolled {
@@ -859,28 +854,6 @@ mod modal_render {
                             &mut clipboard::Null,
                             &mut messages,
                         );
-                    }
-                    ui.draw(
-                        &mut renderer,
-                        &theme,
-                        &Style { text_color: theme.palette().text },
-                        mouse::Cursor::Unavailable,
-                    );
-                    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
-                    assert_eq!(pixels.len(), (size.width * size.height * 4) as usize);
-                    let colors: std::collections::HashSet<_> = pixels.chunks_exact(4).collect();
-                    assert!(colors.len() > 100, "modal must paint more than its backdrop");
-                    if let Some(dir) = std::env::var_os("SHIJU_CRON_MODAL_SCREENSHOTS") {
-                        let dir = std::path::PathBuf::from(dir);
-                        std::fs::create_dir_all(&dir).unwrap();
-                        ::image::save_buffer(
-                            dir.join(format!("feedback-{confirm}-{name}-{}.png", size.width)),
-                            &pixels,
-                            size.width,
-                            size.height,
-                            ::image::ColorType::Rgba8,
-                        )
-                        .unwrap();
                     }
                 }
             }

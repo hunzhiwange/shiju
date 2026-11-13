@@ -1330,3 +1330,77 @@ async fn cron_modal_renders_add_and_edit() {
         }
     }
 }
+
+/// Layout and input regression without screenshot capture or a native window.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cron_template_acceptance_modal_sizes_and_cancel() {
+    if !isolated("cron_template_acceptance_modal_sizes_and_cancel") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = fixture();
+    app.desktop_locale = DesktopLocale::SimplifiedChinese;
+    for size in [Size::new(1440, 900), Size::new(900, 700), Size::new(640, 600)] {
+        for theme in [Theme::Light, Theme::Dark] {
+            app.app_theme = theme;
+            for editing in [false, true] {
+                app.cron_settings.show_add_modal = !editing;
+                app.cron_settings.editing_job_id = editing.then(|| "fixture-job".into());
+                let draft = if editing {
+                    &mut app.cron_settings.edit_draft
+                } else {
+                    &mut app.cron_settings.add_draft
+                };
+                draft.name = "中文动态任务名称 🧭".into();
+                draft.prompt = "请整理今日工作并保留所有重要信息。".repeat(100);
+                draft.prompt_editor = iced::widget::text_editor::Content::with_text(&draft.prompt);
+                let mut ui = scene(view_overlays(&app, frame(view(&app))), &mut renderer, size);
+                let before = geometry(&mut ui, &renderer);
+                let title = if editing { "编辑定时任务" } else { "新建定时任务" };
+                assert_fits(before.label(title), size);
+                assert_fits(before.label("保存"), size);
+                let scroll = before.scroll.unwrap().0;
+                assert!(wheel(&mut ui, &mut renderer, scroll.center()).is_empty());
+                let after = geometry(&mut ui, &renderer);
+                assert_eq!(before.label(title), after.label(title));
+                assert_eq!(before.label("保存"), after.label("保存"));
+                assert!(after.scroll.unwrap().1.y > 0.0);
+                assert!(matches!(
+                    key_at(&mut ui, &mut renderer, Named::Escape).as_slice(),
+                    [Message::Settings(SettingsMessage::CronJobEditCanceled)]
+                ));
+            }
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cron_template_acceptance_card_columns_and_selection() {
+    if !isolated("cron_template_acceptance_card_columns_and_selection") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    for (width, columns) in [(1416, 3), (876, 2), (536, 1)] {
+        let size = Size::new(width, 1800);
+        for _theme in [Theme::Light, Theme::Dark] {
+            let mut ui = scene(frame(templates::view()), &mut renderer, size);
+            let positions = geometry(&mut ui, &renderer);
+            let catalog = crate::app::state::CRON_TEMPLATES;
+            let first = positions.label(catalog[0].title);
+            for (index, template) in catalog.iter().enumerate() {
+                let bounds = positions.label(template.title);
+                assert_fits(bounds, size);
+                assert_fits(positions.label(template.summary), size);
+                if index < columns {
+                    assert!((bounds.y - first.y).abs() < 1.0);
+                } else {
+                    assert!(bounds.y > first.y);
+                }
+                assert!(matches!(
+                    click(&mut ui, &mut renderer, bounds.center()).as_slice(),
+                    [Message::Settings(SettingsMessage::CronTemplateSelected(id))] if *id == template.id
+                ));
+            }
+        }
+    }
+}

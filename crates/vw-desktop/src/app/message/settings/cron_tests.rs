@@ -1739,3 +1739,29 @@ fn cron_template_flow_edited_values_are_submitted() {
     assert_eq!(draft.project_path, "/tmp/cron-template-project");
     assert_eq!(schedule_request(draft).unwrap().schedule.as_deref(), Some("0 11 * * *"));
 }
+
+#[test]
+fn cron_template_acceptance_edit_failure_retry_preserves_fields() {
+    let mut app = app();
+    app.cron_settings.jobs = vec![job("acceptance")];
+    drop(update(&mut app, SettingsMessage::CronJobEditStarted("acceptance".into())));
+    app.cron_settings.edit_draft.name = "中文修改任务".into();
+    app.cron_settings.edit_draft.submitting = true;
+    drop(update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted {
+            editing: true,
+            result: Err("isolated failure".into()),
+        },
+    ));
+    assert_eq!(app.cron_settings.editing_job_id.as_deref(), Some("acceptance"));
+    assert_eq!(app.cron_settings.edit_draft.name, "中文修改任务");
+    assert!(!app.cron_settings.edit_draft.submitting);
+    app.cron_settings.edit_draft.submitting = true;
+    drop(update(
+        &mut app,
+        SettingsMessage::CronEditorSaveCompleted { editing: true, result: Ok("acceptance".into()) },
+    ));
+    assert!(app.cron_settings.editing_job_id.is_none());
+    assert!(app.cron_settings.jobs_loading);
+}

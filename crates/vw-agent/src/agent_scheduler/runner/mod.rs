@@ -5,3 +5,6 @@
 
 pub(crate) mod gateway_executor;
 pub mod local;
+mod workspace_claim;
+#[cfg(test)]
+mod workspace_claim_tests;

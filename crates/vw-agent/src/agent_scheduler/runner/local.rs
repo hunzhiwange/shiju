@@ -1,5 +1,6 @@
 //! 编排本地代理运行的工作区租用、心跳、结果提交、日志记录与资源清理。
 
+use super::workspace_claim::WorkspaceClaim;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
@@ -164,6 +165,19 @@ where
             return Ok(None);
         };
 
+        // Do not consume a run or its lease while the physical directory is busy.
+        // All project registrations use the same per-user lock namespace.
+        let lock_root = directories::BaseDirs::new()
+            .context("resolve workspace lock home")?
+            .data_local_dir()
+            .join("shiju/workspace-claims");
+        let owner = format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0);
+        let Some(claim) =
+            WorkspaceClaim::acquire(&lock_root, project_path.storage_project_path(), owner)?
+        else {
+            return Ok(None);
+        };
+
         let Some(run) = self.claim_ready_run(project_path, &task, &request)? else {
             return Ok(None);
         };
@@ -190,6 +204,7 @@ where
 
         self.advance_to_running(project_path, &task.id, &run.id, &request)?;
         let started_run = self.store.load_run(project_path, &run.id)?.unwrap_or(run);
+        claim.retain(project_path.storage_project_path())?;
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: started_run }))
     }
 
@@ -207,11 +222,17 @@ where
         if task.kind != AgentTaskKind::Finite {
             bail!("local runner only supports finite tasks: {}", task.id.as_str());
         }
+        // Transfer ownership exactly once; concurrent finish requests cannot execute twice.
+        let Some(mut claim) =
+            WorkspaceClaim::take(project_path.storage_project_path(), run_id.as_str())?
+        else {
+            return Ok(None);
+        };
         if task.status != AgentTaskStatus::Running {
             return Ok(None);
         }
-
         let finished_run = self.execute_running_task(project_path, &task, run_id, &request)?;
+        claim.release(run_id.as_str())?;
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: finished_run }))
     }
 

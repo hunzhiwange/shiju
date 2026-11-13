@@ -9,6 +9,17 @@ terminals. First use installs the pinned patched Relax automatically; `cargo dev
 prepares it ahead of time. Requires Python 3.9+ and the existing Rust/native build toolchain.
 See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
 
+The desktop entry temporarily defaults `MAKEPAD_RUN_O3=0` after a reported
+`SIGILL` in the O3 closure used by `session_row::local_time`. Hot reload remains
+enabled. This disables the faulting optimization tier, but the compiler root cause
+is still unconfirmed; it is not a guarantee against other JIT failures. Restart
+`cargo dev-desktop` to apply it to an existing session. Gateway and live test
+entries keep their existing optimization policy. For compiler reproduction only,
+use `MAKEPAD_RUN_O3=1 cargo dev-desktop`; the entry prints the selected value.
+An isolated chrono formatting loop passed even after reaching O3, so it does not
+yet reproduce the full application failure. See the
+[investigation evidence](../docs/dev/evidence/relax-jit-sigill-2026-11-13/report.md).
+
 ## Relax live focused tests
 
 Keep one selected library test target warm while editing function bodies:

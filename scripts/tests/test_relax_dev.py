@@ -146,11 +146,22 @@ class RelaxDevTests(unittest.TestCase):
                 prepare.assert_not_called()
 
     def test_desktop_launch_uses_actual_binary_name(self):
-        with patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
+        with patch.dict(dev.os.environ, {}, clear=True), \
+                patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
                 patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
                 patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
             dev.main(['desktop'])
             self.assertEqual(execute.call_args.args[1][-3:], ['vw-desktop', '--bin', 'shi-ju'])
+            self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_O3'], '0')
+            self.assertNotIn('--unattended', execute.call_args.args[1])
+
+    def test_desktop_honors_explicit_o3_for_compiler_reproduction(self):
+        with patch.dict(dev.os.environ, {'MAKEPAD_RUN_O3': '1'}, clear=True), \
+                patch.object(dev, 'prepare', return_value=(Path('/tool/relax'), Path('/tool/source'), Path('/run'))), \
+                patch.object(dev, 'desktop_bundle', return_value=Path('/tool/relax')), \
+                patch.object(dev.os, 'chdir'), patch.object(dev.os, 'execve') as execute:
+            dev.main(['desktop'])
+            self.assertEqual(execute.call_args.args[2]['MAKEPAD_RUN_O3'], '1')
 
 
 if __name__ == '__main__':

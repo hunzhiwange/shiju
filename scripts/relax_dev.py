@@ -197,6 +197,11 @@ def main(argv):
         if argv[0] == 'gateway' or len(argv) > 1:
             args += ['--'] + (['gateway'] if argv[0] == 'gateway' else []) + argv[1:]
     env = environment()
+    if argv[0] == 'desktop':
+        # SIGILL was reported in an O3 local_time closure. Keep desktop iteration
+        # below that tier until the full-app compiler failure has a regression.
+        env.setdefault('MAKEPAD_RUN_O3', '0')
+        print(f'Relax 桌面 O3={env["MAKEPAD_RUN_O3"]}（默认临时停用 SIGILL 所在优化层；底层原因待定位）', flush=True)
     if argv[0] == 'test':
         # Focused assertions need reached code first, not speculative callees.
         env.setdefault('MAKEPAD_RUN_AHEAD', 'minimal')

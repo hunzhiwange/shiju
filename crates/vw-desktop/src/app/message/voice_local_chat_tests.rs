@@ -200,3 +200,16 @@ fn voice_task_19_full_app_routes_local_turn_and_discards_completion_after_end() 
     assert!(app.voice.local_conversation.is_none());
     assert!(app.voice.conversation.is_none());
 }
+
+#[test]
+fn voice_moon_ui_end_cancels_media_and_rejects_late_recognition() {
+    let mut app = app();
+    let chat = app.voice.local_conversation.as_mut().unwrap();
+    chat.stage = Stage::Recognizing;
+    let (call, round, native) = (chat.call, chat.round, chat.native.clone());
+    let _ = super::super::update(&mut app, VoiceEvent::ChatEnd);
+    assert!(native.is_cancelled());
+    assert!(app.voice.local_conversation.is_none());
+    let _ = update(&mut app, Event::Recognized(call, round, Ok("迟到的文字".into())));
+    assert!(app.current_session_runtime_ref().unwrap().active_agent_request.is_none());
+}

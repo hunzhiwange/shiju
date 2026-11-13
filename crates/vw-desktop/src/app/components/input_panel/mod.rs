@@ -795,6 +795,9 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let card = with_panel_background(card.into(), input_bg, fit);
     let running_agent_sessions = agent_sessions::cached_running_agent_sessions(app);
     let mut panel = column![].spacing(6).width(Length::Fill);
+    if let Some(voice) = super::voice_chat::local_inline(app) {
+        panel = panel.push(voice);
+    }
     if let Some(entry) = agent_sessions::agent_sessions_entry(app, &running_agent_sessions) {
         panel = panel.push(entry);
     }

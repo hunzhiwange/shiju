@@ -31,14 +31,8 @@ pub(crate) fn with_voice_chat<'a>(
     app: &'a App,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    if let Some(chat) = &app.voice.local_conversation {
-        if !chat.show
-            || app.permission_modal_request_id.is_some()
-            || app.question_modal_request_id.is_some()
-        {
-            return base;
-        }
-        return local_overlay(base, chat);
+    if app.voice.local_conversation.is_some() {
+        return base;
     }
     let Some(chat) = &app.voice.conversation else {
         return base;
@@ -52,7 +46,7 @@ fn overlay<'a>(base: Element<'a, Message>, state: Snapshot) -> Element<'a, Messa
 pub(crate) fn overlay_screen<'a>(
     base: Element<'a, Message>,
     state: Snapshot,
-    screen: Option<&crate::app::voice::screen_context::State>,
+    screen: Option<&'a crate::app::voice::screen_context::State>,
 ) -> Element<'a, Message> {
     let close = message(Event::ChatEnd);
     let header =
@@ -160,79 +154,139 @@ pub(crate) fn overlay_screen<'a>(
 #[path = "voice_chat_tests.rs"]
 mod tests;
 
-fn local_overlay<'a>(
-    base: Element<'a, Message>,
-    chat: &crate::app::message::voice::local_chat::State,
-) -> Element<'a, Message> {
-    use crate::app::message::voice::local_chat::{Event as LocalEvent, Stage};
-    let close = message(Event::ChatEnd);
-    let header =
-        settings_modal_header(text("本机逐轮语音").size(20), settings_close_button(close.clone()));
-    let label = match chat.stage {
-        Stage::Ready => "准备开始下一轮",
-        Stage::Preparing => "正在准备麦克风与系统识别",
-        Stage::Recording => "正在录音（最多60秒）",
-        Stage::Recognizing => "正在本机识别",
-        Stage::WaitingModel => "正在等待聊天模型（审批请查看聊天）",
-        Stage::Speaking => "正在本机朗读",
-    };
-    let mut body = column![
-        text(label).size(18),
-        text("录音与语音处理留在本机；识别文字通过当前聊天模型发送，模型可能在远端运行。").size(13),
-        text("点击开始录音，再点击停止并发送。每轮回复完成后朗读正文；长回复仅朗读开头。").size(13),
-        text("本机逐轮语音暂不支持屏幕分享；请查看聊天并使用附件。").size(13)
-    ]
-    .spacing(12);
-    if let Some(notice) = &chat.notice {
-        body = body.push(text(notice.clone()).size(14));
-    }
-    for (assistant, caption) in &chat.captions {
-        body = body.push(
-            column![
-                text(if *assistant { "ShiJu" } else { "你" }).size(12),
-                text(caption.clone()).size(15)
-            ]
-            .spacing(4),
-        );
-    }
-    let action = |label, event| {
+fn screen_controls(
+    screen: &crate::app::voice::screen_context::State,
+    active: bool,
+    mentions_screen: bool,
+    local: bool,
+) -> Element<'static, Message> {
+    let mut body = column![].spacing(12);
+    let action = |label: &'static str, event| {
         button(text(label))
             .padding([8, 14])
             .style(rounded_action_btn_style)
-            .on_press(message(event))
+            .on_press(message(Event::Screen(event)))
     };
-    let footer = row![
-        button(text(if chat.stage == Stage::Recording {
-            "停止并发送"
-        } else {
-            "开始录音"
-        }))
-        .padding([8, 14])
-        .style(primary_action_btn_style)
-        .on_press_maybe(
-            (!chat.muted && matches!(chat.stage, Stage::Ready | Stage::Recording)).then(
-                || message(Event::Local(if chat.stage == Stage::Recording {
-                    LocalEvent::Finish
+    body = body.push(
+        checkbox(screen.enabled)
+            .label("本次通话允许单帧屏幕分享（默认关闭）")
+            .on_toggle(|v| message(Event::Screen(ScreenEvent::Enable(v))))
+            .style(settings_checkbox_style),
+    );
+    if !screen.enabled {
+        body = body.push(action("屏幕录制授权", ScreenEvent::Permission));
+    }
+    if screen.enabled {
+        body = body.push(text("只分享确认窗口的一帧，最大 1024 像素并按大小缩小；不持续采集，采集端不另存截图。已发送内容可能被网关和模型保留。").size(12));
+        body = body.push(
+            row![
+                button(text(if mentions_screen {
+                    "你提到了屏幕，选择分享窗口"
                 } else {
-                    LocalEvent::Begin
+                    "选择前台窗口"
                 }))
-            )
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(
+                    (active && screen.enabled).then(|| message(Event::Screen(ScreenEvent::Offer)))
+                ),
+                action("屏幕录制授权", ScreenEvent::Permission),
+                action("取消分享", ScreenEvent::Cancel),
+            ]
+            .spacing(8)
+            .wrap(),
+        );
+        if screen.selecting {
+            body = body.push(text("正在选择：三秒内切换到目标应用，随后返回确认。").size(13));
+        }
+        if screen.busy() {
+            body = body.push(text("正在采集已确认窗口的单帧；可以取消。").size(13));
+        }
+        if let Some(target) = &screen.offered {
+            body =
+                body.push(text(format!("即将分享：{}。请确认窗口内容。", target.label)).size(13));
+            body = body.push(action("确认采集并分享这一帧", ScreenEvent::Confirm));
+        }
+        body = body.push(action("改用当前聊天附件分享", ScreenEvent::AttachmentChat));
+        if local {
+            body = body.push(text("确认后发送给当前聊天模型并朗读回复；采集端不另存截图，图像由网关和模型按聊天策略处理、保存。").size(12));
+        }
+    }
+    body.into()
+}
+
+/// Inline local controls leave chat approvals and questions unobstructed.
+pub(crate) fn local_inline(app: &App) -> Option<Element<'_, Message>> {
+    use crate::app::message::voice::local_chat::{Event as LocalEvent, Stage};
+    let chat = app.voice.local_conversation.as_ref()?;
+    let label = if chat.muted {
+        "麦克风已静音"
+    } else {
+        match chat.stage {
+            Stage::Ready => "点击开始录音",
+            Stage::Preparing => "正在准备，可取消",
+            Stage::Recording => "点击停止并发送",
+            Stage::Recognizing => "正在本机识别",
+            Stage::WaitingModel => "正在等待回复",
+            Stage::Speaking => "正在朗读",
+        }
+    };
+    let action = match chat.stage {
+        Stage::Ready if !chat.muted => Some(Event::Local(LocalEvent::Begin)),
+        Stage::Recording => Some(Event::Local(LocalEvent::Finish)),
+        Stage::Preparing => Some(Event::ChatInterrupt),
+        _ => None,
+    };
+    let moon = iced::widget::tooltip(
+        button(super::voice_moon::view(chat.muted))
+            .padding(0)
+            .style(|_, _| button::Style::default())
+            .on_press_maybe(action.map(message)),
+        text(label),
+        iced::widget::tooltip::Position::Top,
+    );
+    let controls = row![
+        button(text(if chat.muted { "取消静音" } else { "静音" }))
+            .padding([6, 12])
+            .style(rounded_action_btn_style)
+            .on_press(message(Event::ChatMute)),
+        button(text("打断本轮"))
+            .padding([6, 12])
+            .style(rounded_action_btn_style)
+            .on_press(message(Event::ChatInterrupt)),
+        iced::widget::tooltip(
+            button(text("×").size(20))
+                .width(32)
+                .height(32)
+                .padding(2)
+                .style(super::system_settings_common::round_icon_btn_style)
+                .on_press(message(Event::ChatEnd)),
+            text("结束语音聊天"),
+            iced::widget::tooltip::Position::Top
         ),
-        action(if chat.muted { "取消静音" } else { "静音" }, Event::ChatMute),
-        action("打断本轮", Event::ChatInterrupt),
-        action("查看聊天", Event::Local(LocalEvent::ViewChat)),
-        action("结束通话", Event::ChatEnd),
     ]
     .spacing(8)
-    .wrap();
-    let card = settings_modal_layout(header, body, Some(footer.into()))
-        .width(Length::Fill)
-        .max_width(640)
-        .height(Length::Fill)
-        .max_height(760);
-    settings_modal_overlay_with_escape(
-        base,
-        close,
-        container(card).padding(12).max_width(664).max_height(784),
+    .align_y(iced::Alignment::Center);
+    let mut body = column![moon, text(label).size(12), controls]
+        .spacing(8)
+        .align_x(iced::Alignment::Center)
+        .width(Length::Fill);
+    if let Some(notice) = &chat.notice {
+        body = body.push(text(notice).size(12));
+    }
+    // Preserve explicit screen consent and confirmation without obscuring chat.
+    let mentions_screen = chat.captions.iter().any(|(assistant, caption)| {
+        !assistant && (caption.contains("屏幕") || caption.to_lowercase().contains("screen"))
+    });
+    body = body.push(screen_controls(
+        &app.voice.screen,
+        chat.stage == Stage::Ready,
+        mentions_screen,
+        true,
+    ));
+    Some(
+        container(body)
+            .padding(iced::Padding { top: 0.0, right: 7.0, bottom: 20.0, left: 7.0 })
+            .into(),
     )
 }

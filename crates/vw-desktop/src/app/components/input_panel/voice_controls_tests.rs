@@ -127,3 +127,9 @@ async fn voice_ui_dictation_shapes_chinese_in_both_themes() {
         }
     }
 }
+
+#[test]
+fn voice_moon_ui_normal_composer_has_no_voice_panel() {
+    let (app, _) = crate::app::App::new();
+    assert!(crate::app::components::voice_chat::local_inline(&app).is_none());
+}

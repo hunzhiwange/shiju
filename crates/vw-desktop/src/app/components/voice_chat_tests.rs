@@ -175,14 +175,14 @@ async fn voice_task_11_local_overlay_shapes_chinese_in_both_themes() {
     let mut renderer =
         iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
     let mut ui = UserInterface::build(
-        with_voice_chat(&app, text("当前聊天").into()),
+        local_inline(&app).unwrap(),
         iced::Size::new(700.0, 640.0),
         Cache::new(),
         &mut renderer,
     );
     let mut labels = Labels::default();
     ui.operate(&renderer, &mut labels);
-    for expected in ["本机逐轮语音", "开始录音", "查看聊天", "结束通话"] {
+    for expected in ["点击开始录音", "静音", "打断本轮", "×"] {
         let bounds = labels.0.iter().find(|(s, _)| s == expected).unwrap().1;
         assert!(bounds.x >= 0.0 && bounds.y >= 0.0 && bounds.y + bounds.height <= 640.0);
     }
@@ -195,4 +195,144 @@ async fn voice_task_11_local_overlay_shapes_chinese_in_both_themes() {
                 .any(|p| p[3] != 0)
         );
     }
+}
+#[tokio::test]
+async fn voice_moon_ui_local_keeps_chat_without_modal() {
+    use iced::advanced::renderer::Headless;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    let (mut app, _) = App::new();
+    app.project_path = Some("/repo".into());
+    app.active_session_id = Some("moon-ui".into());
+    app.current_session_runtime_mut().acp_agent = None;
+    let _ = crate::app::message::voice::update(&mut app, Event::ChatStart);
+    let mut renderer =
+        iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let mut ui = UserInterface::build(
+        with_voice_chat(&app, text("聊天正文").into()),
+        iced::Size::new(700.0, 640.0),
+        Cache::new(),
+        &mut renderer,
+    );
+    let mut labels = Labels::default();
+    ui.operate(&renderer, &mut labels);
+    assert!(labels.0.iter().any(|(s, _)| s == "聊天正文"));
+    assert!(!labels.0.iter().any(|(s, _)| s == "本机逐轮语音"));
+}
+
+#[tokio::test]
+async fn voice_moon_ui_inline_draws_and_routes_controls() {
+    use iced::advanced::{clipboard, renderer::Headless};
+    use iced::{Event as InputEvent, Font, Size, Theme, mouse};
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    for font in crate::fonts::load_all() {
+        iced::advanced::graphics::text::font_system().write().unwrap().load_font(font);
+    }
+    let mut renderer =
+        iced::Renderer::new(Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let (mut app, _) = App::new();
+    app.project_path = Some("/repo".into());
+    app.active_session_id = Some("moon-controls".into());
+    app.current_session_runtime_mut().acp_agent = None;
+    let _ = crate::app::message::voice::update(&mut app, Event::ChatStart);
+    use crate::app::message::voice::local_chat::Stage;
+    for stage in [Stage::Ready, Stage::Preparing, Stage::Recording, Stage::Speaking] {
+        app.voice.local_conversation.as_mut().unwrap().stage = stage;
+        for size in [Size::new(700.0, 640.0), Size::new(1280.0, 800.0)] {
+            let mut ui = UserInterface::build(
+                iced::widget::column![local_inline(&app).unwrap(), text("输入框")],
+                size,
+                Cache::new(),
+                &mut renderer,
+            );
+            let mut labels = Labels::default();
+            ui.operate(&renderer, &mut labels);
+            for theme in [Theme::Light, Theme::Dark] {
+                ui.draw(
+                    &mut renderer,
+                    &theme,
+                    &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                    mouse::Cursor::Unavailable,
+                );
+                let pixels = renderer.screenshot(
+                    Size::new(size.width as u32, size.height as u32),
+                    1.0,
+                    theme.palette().background,
+                );
+                if let Some(directory) = std::env::var_os("SHIJU_MOON_SCREENSHOTS") {
+                    ::image::save_buffer(
+                        std::path::PathBuf::from(directory)
+                            .join(format!("{stage:?}-{theme:?}-{}.png", size.width)),
+                        &pixels,
+                        size.width as u32,
+                        size.height as u32,
+                        ::image::ColorType::Rgba8,
+                    )
+                    .unwrap();
+                }
+                assert!(
+                    pixels.chunks_exact(4).any(|p| p[2] > 180 && p[2] > p[0].saturating_add(30)),
+                    "blue moon must be painted"
+                );
+            }
+            for (label, expected) in [("静音", 0), ("打断本轮", 1), ("×", 2)] {
+                let bounds = labels.0.iter().find(|(s, _)| s == label).unwrap().1;
+                assert!(bounds.y + bounds.height < size.height);
+                let mut messages = vec![];
+                ui.update(
+                    &[
+                        InputEvent::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                        InputEvent::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                    ],
+                    mouse::Cursor::Available(bounds.center()),
+                    &mut renderer,
+                    &mut clipboard::Null,
+                    &mut messages,
+                );
+                assert!(matches!(
+                    (&messages[..], expected),
+                    ([Message::Voice(Event::ChatMute)], 0)
+                        | ([Message::Voice(Event::ChatInterrupt)], 1)
+                        | ([Message::Voice(Event::ChatEnd)], 2)
+                ));
+            }
+            let mut messages = vec![];
+            ui.update(
+                &[
+                    InputEvent::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                    InputEvent::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                ],
+                mouse::Cursor::Available(iced::Point::new(size.width / 2.0, 48.0)),
+                &mut renderer,
+                &mut clipboard::Null,
+                &mut messages,
+            );
+            use crate::app::message::voice::local_chat::Event as Local;
+            assert!(matches!(
+                (&messages[..], stage),
+                ([Message::Voice(Event::Local(Local::Begin))], Stage::Ready)
+                    | ([Message::Voice(Event::Local(Local::Finish))], Stage::Recording)
+                    | ([Message::Voice(Event::ChatInterrupt)], Stage::Preparing)
+                    | ([], Stage::Speaking)
+            ));
+        }
+    }
+}
+
+#[tokio::test]
+async fn voice_task_17_permission_action_is_visible_before_screen_grant() {
+    use iced::advanced::renderer::Headless;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    let screen = crate::app::voice::screen_context::State::default();
+    let mut renderer =
+        iced::Renderer::new(iced::Font::DEFAULT, 14.0.into(), Some("tiny-skia")).await.unwrap();
+    let mut ui = UserInterface::build(
+        screen_controls(&screen, true, false, true),
+        iced::Size::new(700.0, 640.0),
+        Cache::new(),
+        &mut renderer,
+    );
+    let mut labels = Labels::default();
+    ui.operate(&renderer, &mut labels);
+    assert!(labels.0.iter().any(|(label, _)| label == "屏幕录制授权"));
+    assert!(!labels.0.iter().any(|(label, _)| label == "确认采集并分享这一帧"));
 }

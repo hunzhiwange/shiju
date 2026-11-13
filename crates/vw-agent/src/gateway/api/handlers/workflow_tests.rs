@@ -11,8 +11,8 @@ use super::{
     validate_path_workflow_uuid, workflow_answer, workflow_application_chat_messages,
     workflow_application_create, workflow_application_delete, workflow_application_get,
     workflow_application_update, workflow_applications_chat_messages, workflow_applications_list,
-    workflow_delta_should_stream_text, workflow_finished_data, workflow_request_full_access,
-    workflow_request_root, workflow_response_to_chat_response, workflow_response_to_sse_events,
+    workflow_delta_should_stream_text, workflow_finished_data, workflow_request_root,
+    workflow_response_to_chat_response, workflow_response_to_sse_events,
     workflow_response_to_sse_response, workflow_runtime, workflow_sse_output_preview,
     workflow_started_data, workflow_status, workflow_tool_call_error_text,
     workflow_tool_runtime_context,
@@ -219,6 +219,7 @@ async fn workflow_runtime_and_gateway_tool_provider_execute_successful_tool_call
     assert!(runtime.tool_provider.is_some());
 
     let provider = GatewayWorkflowToolProvider {
+        tenant: TenantScope::default(),
         ctx: workflow_tool_runtime_context(&WorkflowRunRequest::default()),
     };
     let result = provider
@@ -458,26 +459,41 @@ fn legacy_workflow_yaml(database: &GlobalDatabase, uuid: &str) -> String {
     }
 }
 
-#[test]
-fn workflow_runtime_inputs_enable_full_access_without_start_input_leak() {
+#[tokio::test]
+async fn task_pool_actions_explicit_message_requires_authorized_target() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().to_string_lossy().into_owned();
     let mut request = WorkflowRunRequest {
         inputs: BTreeMap::from([
             (WORKFLOW_INPUT_FULL_ACCESS.to_string(), json!(true)),
-            (WORKFLOW_INPUT_ROOT.to_string(), json!("/tmp/workflow-root")),
+            (WORKFLOW_INPUT_ROOT.to_string(), json!(root)),
             ("query".to_string(), json!("hello")),
         ]),
         ..WorkflowRunRequest::default()
     };
 
-    assert!(workflow_request_full_access(&request));
-    assert_eq!(workflow_request_root(&request).as_deref(), Some("/tmp/workflow-root"));
+    assert_eq!(workflow_request_root(&request).as_deref(), Some(root.as_str()));
 
     let ctx = workflow_tool_runtime_context(&request);
     let tool_use_context = ctx.tool_use_context();
-    assert!(tool_use_context.full_access_enabled());
-    assert!(tool_use_context.bypass_non_cli_approval_for_turn());
-    assert_eq!(ctx.root.as_deref(), Some("/tmp/workflow-root"));
+    assert!(!tool_use_context.full_access_enabled());
+    assert!(!tool_use_context.bypass_non_cli_approval_for_turn());
+    assert_eq!(ctx.root.as_deref(), Some(root.as_str()));
 
+    let provider = GatewayWorkflowToolProvider { ctx, tenant: TenantScope::default() };
+    let result = provider
+        .call(WorkflowToolRequest {
+            provider: "shiju".into(),
+            tool_name: "send_message_to_thread".into(),
+            action: None,
+            credential_id: None,
+            inputs: BTreeMap::from([
+                ("thread_id".into(), json!("unavailable")),
+                ("prompt".into(), json!("fixture")),
+            ]),
+        })
+        .await;
+    assert!(result.is_err(), "an unbound workflow must not send to a thread");
     strip_workflow_runtime_inputs(&mut request);
     assert!(!request.inputs.contains_key(WORKFLOW_INPUT_FULL_ACCESS));
     assert!(!request.inputs.contains_key(WORKFLOW_INPUT_ROOT));
@@ -694,7 +710,6 @@ fn runtime_inputs_default_to_restricted_context() {
 
     let ctx = workflow_tool_runtime_context(&request);
 
-    assert!(!workflow_request_full_access(&request));
     assert_eq!(workflow_request_root(&request), None);
     assert!(!ctx.tool_use_context().full_access_enabled());
     assert!(!ctx.tool_use_context().bypass_non_cli_approval_for_turn());

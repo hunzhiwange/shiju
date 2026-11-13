@@ -44,6 +44,11 @@ impl WorkflowToolProvider for NativeTools {
                 | crate::tools::ToolCallError::Failed(message) => message,
             },
         )?;
+        // Shell terminal snapshots remain protocol data even on failure.
+        // A workflow must still stop before downstream side effects.
+        if !result.is_success() {
+            return Err(result.error_text().unwrap_or_else(|| "workflow tool failed".into()));
+        }
         Ok(WorkflowToolResult {
             text: Some(result.model_text()),
             json: Some(result.data.clone()),

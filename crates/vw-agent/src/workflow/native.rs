@@ -240,7 +240,7 @@ fn run_command(
     }
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
     let tools = Arc::new(agent::NativeTools {
-        context: context.clone(),
+        context: context.clone().with_session_tools(request.session_tools.clone()),
         allowed_tools: request.options.get("allowed_tools").cloned(),
     });
     let runtime = prepared_runtime.unwrap_or_else(|| WorkflowRuntime {

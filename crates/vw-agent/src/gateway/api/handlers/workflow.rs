@@ -499,10 +499,16 @@ fn workflow_runtime(
     Ok(WorkflowRuntime {
         video_edit_budget: crate::workflow::budget::VideoEditRunBudget::default(),
         provider: state.provider.clone(),
-        knowledge_provider: Some(Arc::new(super::knowledge::knowledge_store(state, tenant)?)),
+        knowledge_provider: Some(Arc::new(super::knowledge::knowledge_store(
+            state,
+            tenant.clone(),
+        )?)),
         document_extractor: None,
         tool_provider: Some(Arc::new(GatewayWorkflowToolProvider {
-            ctx: workflow_tool_runtime_context(request),
+            ctx: crate::session::ui_store::with_tenant_scope_sync(tenant.clone(), || {
+                workflow_tool_runtime_context(request)
+            }),
+            tenant,
         })),
         agent_provider: None,
         pause_store: None,
@@ -513,25 +519,41 @@ fn workflow_runtime(
 
 struct GatewayWorkflowToolProvider {
     ctx: ToolRuntimeContext,
+    tenant: TenantScope,
 }
 
 #[async_trait::async_trait]
 impl WorkflowToolProvider for GatewayWorkflowToolProvider {
     async fn call(&self, request: WorkflowToolRequest) -> Result<WorkflowToolResult, String> {
-        let input = Value::Object(request.inputs.into_iter().collect());
-        let input_text = serde_json::to_string(&input)
-            .map_err(|error| format!("workflow tool 输入序列化失败: {error}"))?;
-        let result = execute_tool_call(request.tool_name.as_str(), &input_text, &self.ctx)
-            .map_err(workflow_tool_call_error_text)?;
-        let model_result = result.default_model_result();
-        let model_text = result.model_text();
-        let json = (!result.data.is_null()).then_some(result.data.clone());
+        crate::session::ui_store::with_tenant_scope_sync(self.tenant.clone(), || {
+            if !matches!(request.provider.as_str(), "shiju" | "vibewindow")
+                || request.action.is_some()
+                || request.credential_id.is_some()
+            {
+                return Err(
+                    "工作流工具必须绑定已有工具，不能覆盖 provider/action/credential".into()
+                );
+            }
+            let input = Value::Object(request.inputs.into_iter().collect());
+            let input_text = serde_json::to_string(&input)
+                .map_err(|error| format!("workflow tool 输入序列化失败: {error}"))?;
+            let result = execute_tool_call(request.tool_name.as_str(), &input_text, &self.ctx)
+                .map_err(workflow_tool_call_error_text)?;
+            // Shell terminal snapshots remain protocol data even on failure.
+            // A workflow must still stop before downstream side effects.
+            if !result.is_success() {
+                return Err(result.error_text().unwrap_or_else(|| "workflow tool failed".into()));
+            }
+            let model_result = result.default_model_result();
+            let model_text = result.model_text();
+            let json = (!result.data.is_null()).then_some(result.data.clone());
 
-        Ok(WorkflowToolResult {
-            result: if result.data.is_null() { model_result } else { result.data },
-            text: (!model_text.trim().is_empty()).then_some(model_text),
-            json,
-            files: Vec::new(),
+            Ok(WorkflowToolResult {
+                result: if result.data.is_null() { model_result } else { result.data },
+                text: (!model_text.trim().is_empty()).then_some(model_text),
+                json,
+                files: Vec::new(),
+            })
         })
     }
 }
@@ -544,19 +566,9 @@ fn workflow_tool_call_error_text(error: ToolCallError) -> String {
 
 fn workflow_tool_runtime_context(request: &WorkflowRunRequest) -> ToolRuntimeContext {
     let root = workflow_request_root(request);
-    let full_access = workflow_request_full_access(request);
-    let mut tool_use_context = ToolUseContext::new("workflow", root.clone())
-        .with_full_access_enabled(full_access)
-        .with_channel("workflow");
-    if full_access {
-        tool_use_context = tool_use_context.with_bypass_non_cli_approval_for_turn(true);
-    }
-
+    // Workflow inputs are data, never an approval or a session capability.
+    let tool_use_context = ToolUseContext::new("workflow", root.clone()).with_channel("workflow");
     ToolRuntimeContext::new("workflow", root).with_tool_use_context(tool_use_context)
-}
-
-fn workflow_request_full_access(request: &WorkflowRunRequest) -> bool {
-    request.inputs.get(WORKFLOW_INPUT_FULL_ACCESS).and_then(Value::as_bool).unwrap_or(false)
 }
 
 fn workflow_request_root(request: &WorkflowRunRequest) -> Option<String> {

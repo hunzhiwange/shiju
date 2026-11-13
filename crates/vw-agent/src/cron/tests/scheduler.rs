@@ -378,6 +378,7 @@ async fn run_job_command_blocks_forbidden_short_option_attached_path_argument() 
 async fn run_job_command_blocks_tilde_user_path_argument() {
     let tmp = TempDir::new().unwrap();
     let mut config = test_config(&tmp).await;
+    config.autonomy.workspace_only = true;
     config.autonomy.allowed_commands = vec!["cat".into()];
     let job = test_job("cat ~root/.ssh/id_rsa");
     let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);

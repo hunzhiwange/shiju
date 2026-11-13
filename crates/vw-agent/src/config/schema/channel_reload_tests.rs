@@ -102,3 +102,26 @@ async fn channel_reload_isolates_invalid_secrets_and_recovers_on_next_save() {
         "recovered-token"
     );
 }
+
+#[tokio::test]
+async fn channel_reload_blocking_open_uses_callers_persisted_configuration() {
+    let tenant =
+        TenantScope::new("channel-reload-worker", uuid::Uuid::new_v4().to_string()).unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        let temp = TempDir::new().unwrap();
+        let mut config = Config {
+            config_path: temp.path().join("config.json"),
+            workspace_dir: temp.path().join("workspace"),
+            ..Config::default()
+        };
+        std::fs::create_dir_all(&config.workspace_dir).unwrap();
+        set_telegram(&mut config, "persisted-token");
+        crate::config::schema::save_config_for_tenant(&config, &tenant).await.unwrap();
+        set_telegram(&mut config, "stale-launch-token");
+
+        let mut source = ChannelConfigWatcher::new(&config, true).await.unwrap();
+        let channels = source.load_for_delivery(&config).await.unwrap();
+        assert_eq!(channels.telegram.unwrap().bot_token, "persisted-token");
+    })
+    .await;
+}

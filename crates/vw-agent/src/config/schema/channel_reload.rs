@@ -18,11 +18,12 @@ pub(crate) struct ChannelConfigWatcher {
 impl ChannelConfigWatcher {
     pub(crate) async fn new(config: &Config, include_project: bool) -> Result<Self> {
         let home = crate::config::runtime_home::config_home()?;
-        let store = tokio::task::spawn_blocking(move || {
-            SystemConfigStore::new(GlobalDatabase::for_home(home)?)
-        })
-        .await
-        .context("join channel config store initialization")??;
+        let open_store = move || SystemConfigStore::new(GlobalDatabase::for_home(home)?);
+        #[cfg(test)]
+        let open_store = crate::global_database::inherit_test_database_context(open_store);
+        let store = tokio::task::spawn_blocking(open_store)
+            .await
+            .context("join channel config store initialization")??;
         Self::from_store(store, config, include_project)
     }
 

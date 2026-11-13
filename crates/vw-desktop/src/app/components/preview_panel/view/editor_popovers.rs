@@ -5,7 +5,7 @@ use super::{
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::message::editor::{EditorMessage, EditorPopover};
 use iced::widget::scrollable;
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, container, row};
 use iced::{Background, Border, Color, Element, Length, Theme};
 
 pub(super) fn tools(app: &App) -> Element<'_, Message> {
@@ -20,7 +20,7 @@ pub(super) fn tools(app: &App) -> Element<'_, Message> {
     for (kind, label) in [
         (EditorPopover::Actions, "操作"),
         (EditorPopover::Settings, "设置"),
-        (EditorPopover::Help, "帮助"),
+        (EditorPopover::Help, "编辑器使用帮助"),
     ] {
         let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
         let icon = match kind {
@@ -56,27 +56,23 @@ pub(super) fn tools(app: &App) -> Element<'_, Message> {
 }
 
 fn panel(app: &App, kind: EditorPopover) -> Element<'_, Message> {
-    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let content: Element<'_, Message> = match kind {
         EditorPopover::Actions => super::editor_actions::view(app),
         EditorPopover::Settings => super::editor_options::view(app),
-        EditorPopover::Help => column![
-            text(i18n.__("帮助")).size(14),
-            text(i18n.__("搜索")).size(12),
-            text("Ctrl+F / Cmd+F").size(12),
-            text(i18n.__("撤销")).size(12),
-            text("Ctrl+Z / Cmd+Z").size(12),
-        ]
-        .spacing(8)
-        .into(),
+        EditorPopover::Help => super::editor_help::view(app),
     };
-    let scroll = scrollable(container(content).padding([7, 7]).width(Length::Fill))
-        .height(Length::Shrink)
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4).scroller_width(4),
-        ));
+    let scroll: Element<'_, Message> = if kind == EditorPopover::Help {
+        content
+    } else {
+        scrollable(container(content).padding([7, 7]).width(Length::Fill))
+            .height(Length::Shrink)
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .into()
+    };
     container(scroll)
-        .width(if kind == EditorPopover::Actions { 340 } else { 240 })
+        .width(if kind == EditorPopover::Settings { 240 } else { 340 })
         .max_height(360)
         .padding(8)
         .style(|theme: &Theme| {

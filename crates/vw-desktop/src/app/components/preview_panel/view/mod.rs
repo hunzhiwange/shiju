@@ -3,6 +3,10 @@
 //! 本模块负责预览内容、菜单、面包屑、LSP 标识或浮层宿主的局部构建。
 
 mod content;
+mod editor_help;
+#[cfg(test)]
+#[path = "editor_help_tests.rs"]
+mod editor_help_tests;
 mod editor_popovers;
 #[cfg(test)]
 #[path = "editor_popovers_tests.rs"]

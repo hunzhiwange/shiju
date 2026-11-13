@@ -5,6 +5,32 @@ use crate::tools::shell::permissions::{Permission, PermissionContext, Permission
 use std::path::{Path, PathBuf};
 
 #[test]
+fn forbidden_path_argument_rejects_named_user_home_without_workspace_restriction() {
+    let policy = SecurityPolicy {
+        workspace_only: false,
+        forbidden_paths: Vec::new(),
+        ..SecurityPolicy::default()
+    };
+    for command in
+        ["cat ~root/private.txt", "cat '~other/private.txt'", "cat --file=~other/private.txt"]
+    {
+        assert!(policy.forbidden_path_argument(command).is_some(), "{command}");
+    }
+}
+
+#[test]
+fn forbidden_path_argument_preserves_current_home_and_safe_relative_paths() {
+    let policy = SecurityPolicy {
+        workspace_only: false,
+        forbidden_paths: Vec::new(),
+        ..SecurityPolicy::default()
+    };
+    for command in ["cat ~", "cat ~/notes.txt", "cat ./notes.txt"] {
+        assert_eq!(policy.forbidden_path_argument(command), None, "{command}");
+    }
+}
+
+#[test]
 fn default_policy_is_supervised_and_workspace_only() {
     let policy = SecurityPolicy::default();
     assert!(matches!(policy.autonomy, AutonomyLevel::Supervised));
@@ -341,19 +367,16 @@ fn policy_items_gate_only_their_assigned_checks() {
         Some(Permission::Allow)
     ));
 
-    let mut command_rules = SecurityPolicy::default();
+    let mut command_rules =
+        SecurityPolicy { allowed_commands: vec!["echo".into()], ..SecurityPolicy::default() };
     command_rules.bash_security.validators.enabled = false;
     assert!(matches!(
-        command_rules
-            .check_shell_permission("curl example.com", &context(&command_rules, true))
-            .permission,
+        command_rules.check_shell_permission("pwd", &context(&command_rules, true)).permission,
         Some(Permission::Deny { .. })
     ));
     command_rules.bash_security.policy.command_rules = false;
     assert!(matches!(
-        command_rules
-            .check_shell_permission("curl example.com", &context(&command_rules, true))
-            .permission,
+        command_rules.check_shell_permission("pwd", &context(&command_rules, true)).permission,
         Some(Permission::Allow)
     ));
 

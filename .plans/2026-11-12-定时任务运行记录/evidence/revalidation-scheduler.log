@@ -1,0 +1,110 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.92s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_agent-d51a7b7fffcc3d18)
+
+running 69 tests
+test cron::scheduler::tests::agent_model_candidates_keep_primary_and_unique_non_blank_fallbacks ... ok
+test cron::scheduler::tests::agent_model_candidates_use_default_route_when_primary_is_blank ... ok
+test cron::scheduler::tests::effective_job_type_promotes_prompt_only_shell_jobs_to_agent ... ok
+test cron::scheduler::tests::cron_gateway_options_omits_acp_lifecycle_options_without_acp_agent ... ok
+test cron::scheduler::tests::cron_gateway_options_close_acp_client_after_request ... ok
+test cron::scheduler::tests::effective_job_config_uses_project_path_when_present ... ok
+test cron::scheduler::tests::deliver_if_configured_requires_channel_and_target_for_announce ... ok
+test cron::scheduler::tests::format_gateway_agent_output_trims_output_and_appends_available_message_ids ... ok
+test cron::scheduler::tests::cron_gateway_options_for_full_access_without_acp_only_enables_full_access ... ok
+test cron::scheduler::tests::cron_gateway_agent_request_includes_session_prompt_agent_model_and_acp_options ... ok
+test cron::scheduler::tests::deliver_if_configured_handles_none_and_invalid_channel ... ok
+test cron::scheduler::tests::deliver_if_configured_treats_announce_mode_case_insensitively ... ok
+test cron::scheduler::tests::full_access_agent_prompt_includes_automation_instruction ... ok
+test cron::scheduler::tests::invalid_job_payload_accepts_valid_shell_agent_and_legacy_prompt_jobs ... ok
+test cron::scheduler::tests::invalid_job_payload_reports_empty_shell_and_agent_jobs ... ok
+test cron::scheduler::tests::normalize_agent_job_success_output_trims_or_uses_default_message ... ok
+test cron::scheduler::tests::one_shot_auto_delete_requires_delete_flag_and_at_schedule ... ok
+test cron::scheduler::tests::full_access_agent_job_uses_trusted_runtime_config ... ok
+test cron::scheduler::tests::high_frequency_agent_warning_handles_shell_every_cron_and_at_schedules ... ok
+test cron::scheduler::tests::deliver_announcement_sends_configured_mattermost_thread_message ... ok
+✅ Removed cron job 3e80513c-b2b9-4106-ba4e-5b18e4ed3e91
+✅ Removed cron job d2228cd3-e641-408e-a331-5708260e6ad2
+test cron::scheduler::tests::persist_job_result_success_deletes_one_shot_shell_job ... ok
+test cron::scheduler::tests::persist_job_result_success_deletes_one_shot ... ok
+test cron::scheduler::tests::persist_job_result_at_schedule_without_delete_after_run_is_not_deleted ... ok
+test cron::scheduler::tests::process_due_jobs_marks_component_ok_even_when_idle ... ok
+test cron::scheduler::tests::run_agent_job_blocks_rate_limited ... ok
+test cron::scheduler::tests::persist_job_result_failure_disables_one_shot ... ok
+test cron::scheduler::tests::run_agent_job_rejects_disabled_delegate_agent_before_provider_call ... ok
+test cron::scheduler::tests::persist_job_result_records_run_and_reschedules_shell_job ... ok
+test cron::scheduler::tests::run_agent_job_rejects_missing_delegate_agent_before_provider_call ... ok
+test cron::scheduler::tests::run_agent_job_reports_task_pool_delivery_failure_without_mutating_security_result ... ok
+test cron::scheduler::tests::persist_job_result_failure_disables_one_shot_shell_job ... ok
+test cron::scheduler::tests::process_due_jobs_failure_does_not_mark_component_unhealthy ... ok
+test cron::scheduler::tests::run_job_command_blocks_disallowed_command ... ok
+test cron::scheduler::tests::run_job_command_blocks_forbidden_option_assignment_path_argument ... ok
+test cron::scheduler::tests::execute_and_persist_job_disables_invalid_shell_job ... ok
+test cron::scheduler::tests::run_job_command_blocks_forbidden_path_argument ... ok
+test cron::scheduler::tests::run_job_command_blocks_forbidden_short_option_attached_path_argument ... ok
+test cron::scheduler::tests::run_job_command_blocks_input_redirection_path_bypass ... ok
+test cron::scheduler::tests::run_job_command_blocks_readonly_mode ... ok
+test cron::scheduler::tests::run_job_command_blocks_rate_limited ... ok
+test cron::scheduler::tests::run_agent_job_delivers_task_pool_jobs_with_trimmed_agent_and_default_model ... ok
+test cron::scheduler::tests::run_job_command_reports_spawn_error_for_missing_working_directory ... ok
+test cron::scheduler::tests::run_job_command_allow_policy_executes_file_redirect ... ok
+test cron::scheduler::tests::run_job_command_success ... ok
+test cron::scheduler::tests::run_job_command_failure ... ok
+test cron::scheduler::tests::standard_agent_prompt_uses_compact_cron_prefix ... ok
+test cron::scheduler::tests::run_job_command_strip_policy_normalizes_common_stderr_redirects ... ok
+
+thread 'cron::scheduler::tests::run_job_command_blocks_tilde_user_path_argument' (91301996) panicked at crates/vw-agent/src/cron/tests/scheduler.rs:387:5:
+assertion failed: output.contains("blocked by security policy")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cron::scheduler::tests::schedule_change_notification_interrupts_poll_wait ... ok
+test cron::scheduler::tests::wb_schedule_feedback_acp_restricted_options_keep_deny ... ok
+test cron::scheduler::tests::run_job_command_uses_job_project_path_as_working_directory ... ok
+test cron::scheduler::tests::wb_schedule_feedback_rejects_each_unconfigured_known_channel ... ok
+test cron::scheduler::tests::wb_schedule_feedback_security_rejects_readonly_agent ... ok
+test cron::scheduler::tests::wb_schedule_feedback_unavailable_credentials_rejected ... ok
+test cron::scheduler::tests::wb_schedule_window_blocks_expired_manual_run ... ok
+test cron::scheduler::tests::wb_schedule_window_blocks_future_manual_run ... ok
+test cron::scheduler::tests::cron_history_scheduled_run_is_visible_until_completion ... ok
+test cron::scheduler::tests::wb_schedule_feedback_persist_job_result_delivery_failure_non_best_effort_marks_error ... ok
+test cron::scheduler::tests::wb_schedule_feedback_persist_job_result_delivery_failure_best_effort_keeps_success ... ok
+test cron::scheduler::tests::wb_schedule_window_queued_expiration_never_starts_shell ... ok
+test cron::scheduler::tests::run_job_command_times_out ... ok
+INFO  2026-11-12T19:46:18 +0ms service=scheduler id=snapshot.cleanup run
+test cron::scheduler::tests::wb_schedule_acceptance_manual_cron_run_preserves_next_run ... ok
+test cron::scheduler::tests::cron_wecom_delivery_none_makes_zero_webhook_requests ... ok
+test cron::scheduler::tests::run_job_command_blocks_tilde_user_path_argument ... FAILED
+test cron::scheduler::tests::execute_job_with_retry_exhausts_attempts ... ok
+test cron::scheduler::tests::execute_job_with_retry_recovers_after_first_failure ... ok
+
+thread 'cron::scheduler::tests::persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent' (91301863) panicked at crates/vw-agent/src/cron/tests/scheduler.rs:1789:17:
+assertion failed: runs[0].output.as_deref().unwrap().contains("Bot ID")
+
+thread 'cron::scheduler::tests::cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts' (91301826) panicked at crates/vw-agent/src/cron/tests/scheduler.rs:1739:13:
+status=exit status: 0
+stdout:
+delivery-result
+stderr:
+
+Cron delivery failed: 企微配置读取失败，请检查配置存储后重试
+test cron::scheduler::tests::persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent ... FAILED
+test cron::scheduler::tests::cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts ... FAILED
+INFO  2026-11-12T19:46:26 +7581ms service=session id=cron-test-job projectID=local-bc8564fd55c12937 updated
+test cron::scheduler::tests::full_access_agent_job_bypasses_readonly_security_gate ... ok
+INFO  2026-11-12T19:46:26 +7ms service=scheduler id=snapshot.cleanup run
+INFO  2026-11-12T19:46:34 +8712ms service=session id=cron-test-job projectID=local-594a50de97f55cee updated
+test cron::scheduler::tests::run_agent_job_returns_error_without_provider_key ... ok
+
+failures:
+
+failures:
+    cron::scheduler::tests::cron_wecom_delivery_manual_and_due_shell_trigger_share_route_and_receipts
+    cron::scheduler::tests::persist_job_result_delivery_failure_wecom_respects_best_effort_for_shell_and_agent
+    cron::scheduler::tests::run_job_command_blocks_tilde_user_path_argument
+
+test result: FAILED. 66 passed; 3 failed; 0 ignored; 0 measured; 12614 filtered out; finished in 16.42s
+
+error: test failed, to rerun pass `-p vw-agent --lib`

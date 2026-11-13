@@ -1,0 +1,26 @@
+    Blocking waiting for file lock on build directory
+   Compiling vw-agent v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 08s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_agent-d51a7b7fffcc3d18)
+
+running 2 tests
+
+thread 'security::policy::tests::forbidden_path_argument_rejects_named_user_home_without_workspace_restriction' (91346949) panicked at crates/vw-agent/src/security/policy/tests.rs:17:9:
+cat ~root/private.txt
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test security::policy::tests::forbidden_path_argument_preserves_current_home_and_safe_relative_paths ... ok
+test security::policy::tests::forbidden_path_argument_rejects_named_user_home_without_workspace_restriction ... FAILED
+
+failures:
+
+failures:
+    security::policy::tests::forbidden_path_argument_rejects_named_user_home_without_workspace_restriction
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 12684 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p vw-agent --lib`

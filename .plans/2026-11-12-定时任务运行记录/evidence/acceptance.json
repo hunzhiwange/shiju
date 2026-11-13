@@ -1,8 +1,8 @@
 {
-  "status": "已完成，待回归",
-  "slot": 1,
-  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
-  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "status": "已完成",
+  "slot": 7,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-7",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-7",
   "features": "default（测试与桌面构建）；Clippy --all-features",
   "profile_adjustment": "首次默认优化的 Agent 编译中断 130，0 用例；后续命令使用包级 opt-level=0，不修改仓库配置。",
   "checks": [
@@ -227,8 +227,273 @@
   "known_unrelated_failure": {
     "test": "cron::scheduler::tests::run_job_command_blocks_tilde_user_path_argument",
     "result": "66项中65通过、1失败，退出101；期待blocked by security policy文本，实际不包含。",
-    "attribution": "任务1已单独复现；expand_user_path只展开~和~/，不展开~root，默认workspace_only=false；本任务只改桌面候选标签及验收测试，不改安全策略。",
-    "next_step": "维护者处理既有路径策略用例后重跑调度器邻接验证；保留任务5文件。"
+    "attribution": "初轮验收记录：任务1已单独复现；expand_user_path只展开~和~/，不展开~root，默认workspace_only=false；本任务只改桌面候选标签及验收测试，不改安全策略。",
+    "next_step": "已无待回归项；可审阅本次安全修复和验收证据。",
+    "resolved": true,
+    "resolution": "在最新共享工作区复验通过；调度器测试前置条件由任务1修正，本任务同时以独立失败回归修复非工作区限制模式下的 ~user 参数校验缺口。"
   },
-  "review": "仅提交本任务差异；共享 cron_tests.rs 以补丁暂存自己的保留上限用例，排除他方企微测试和格式化；只读plan.md不修改。"
+  "review": "本轮只提交安全策略的4行校验、两项独立测试、命令规则夹具修正、两行不支持通道夹具修正、复验日志及任务5完成清理；其他任务共享改动不纳入提交。",
+  "initial_acceptance_slot": 1,
+  "revalidation": {
+    "checks": [
+      {
+        "label": "security",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib run_job_command_blocks_tilde_user_path_argument -- --nocapture",
+        "passed": 0,
+        "failed": 1,
+        "effective_tests": 1,
+        "log": "revalidation-security.log"
+      },
+      {
+        "label": "scheduler",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron::scheduler::tests -- --nocapture",
+        "passed": 66,
+        "failed": 3,
+        "effective_tests": 69,
+        "log": "revalidation-scheduler.log"
+      },
+      {
+        "label": "agent",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron_history_ -- --nocapture",
+        "passed": 13,
+        "failed": 0,
+        "effective_tests": 13,
+        "log": "revalidation-agent.log"
+      },
+      {
+        "label": "client",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-gateway-client --lib cron_history_ -- --nocapture",
+        "passed": 3,
+        "failed": 0,
+        "effective_tests": 3,
+        "log": "revalidation-client.log"
+      },
+      {
+        "label": "desktop",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+        "passed": 20,
+        "failed": 0,
+        "effective_tests": 20,
+        "log": "revalidation-desktop.log"
+      },
+      {
+        "label": "desktop-state",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+        "passed": 97,
+        "failed": 0,
+        "effective_tests": 97,
+        "log": "revalidation-desktop-state.log"
+      },
+      {
+        "label": "desktop-components",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+        "passed": 26,
+        "failed": 0,
+        "effective_tests": 26,
+        "log": "revalidation-desktop-components.log"
+      },
+      {
+        "label": "clippy",
+        "exit_code": 0,
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "log": "revalidation-clippy.log"
+      },
+      {
+        "label": "fmt-green",
+        "exit_code": 0,
+        "command": "cargo fmt --all",
+        "log": "revalidation-fmt-green.log"
+      },
+      {
+        "label": "policy-green",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib security::policy:: -- --nocapture",
+        "passed": 83,
+        "failed": 1,
+        "effective_tests": 84,
+        "log": "revalidation-policy-green.log"
+      },
+      {
+        "label": "scheduler-green",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron::scheduler::tests -- --nocapture",
+        "passed": 69,
+        "failed": 0,
+        "effective_tests": 69,
+        "log": "revalidation-scheduler-green.log"
+      },
+      {
+        "label": "agent-green",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib cron_history_ -- --nocapture",
+        "passed": 13,
+        "failed": 0,
+        "effective_tests": 13,
+        "log": "revalidation-agent-green.log"
+      },
+      {
+        "label": "manual-green",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib tools::cron_run -- --nocapture",
+        "passed": 10,
+        "failed": 0,
+        "effective_tests": 10,
+        "log": "revalidation-manual-green.log"
+      },
+      {
+        "label": "clippy-green",
+        "exit_code": 0,
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "log": "revalidation-clippy-green.log"
+      },
+      {
+        "label": "policy-final",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib security::policy:: -- --nocapture",
+        "passed": 84,
+        "failed": 0,
+        "effective_tests": 84,
+        "log": "revalidation-policy-final.log"
+      },
+      {
+        "label": "desktop-final",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+        "passed": 20,
+        "failed": 0,
+        "effective_tests": 20,
+        "log": "revalidation-desktop-final.log"
+      },
+      {
+        "label": "desktop-state-final",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+        "log": "revalidation-desktop-state-final.log"
+      },
+      {
+        "label": "desktop-components-final",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+        "log": "revalidation-desktop-components-final.log"
+      },
+      {
+        "label": "build-final",
+        "exit_code": 101,
+        "command": "cargo build --config profile.dev.package.vw-agent.opt-level=0 --config profile.dev.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju",
+        "log": "revalidation-build-final.log"
+      },
+      {
+        "label": "desktop-retry",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+        "passed": 20,
+        "failed": 0,
+        "effective_tests": 20,
+        "log": "revalidation-desktop-retry.log"
+      },
+      {
+        "label": "desktop-state-retry",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+        "passed": 98,
+        "failed": 2,
+        "effective_tests": 100,
+        "log": "revalidation-desktop-state-retry.log"
+      },
+      {
+        "label": "desktop-components-retry",
+        "exit_code": 101,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+        "passed": 25,
+        "failed": 1,
+        "effective_tests": 26,
+        "log": "revalidation-desktop-components-retry.log"
+      },
+      {
+        "label": "build-retry",
+        "exit_code": 0,
+        "command": "cargo build --config profile.dev.package.vw-agent.opt-level=0 --config profile.dev.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju",
+        "log": "revalidation-build-retry.log"
+      },
+      {
+        "label": "clippy-retry",
+        "exit_code": 0,
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "log": "revalidation-clippy-retry.log"
+      },
+      {
+        "label": "fmt-verified",
+        "exit_code": 0,
+        "command": "cargo fmt --all",
+        "log": "revalidation-fmt-verified.log"
+      },
+      {
+        "label": "desktop-verified",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_history_ -- --nocapture",
+        "passed": 20,
+        "failed": 0,
+        "effective_tests": 20,
+        "log": "revalidation-desktop-verified.log"
+      },
+      {
+        "label": "desktop-state-verified",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib cron_tests -- --nocapture",
+        "passed": 100,
+        "failed": 0,
+        "effective_tests": 100,
+        "log": "revalidation-desktop-state-verified.log"
+      },
+      {
+        "label": "desktop-components-verified",
+        "exit_code": 0,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-desktop --lib system_settings_cron_tests -- --nocapture",
+        "passed": 26,
+        "failed": 0,
+        "effective_tests": 26,
+        "log": "revalidation-desktop-components-verified.log"
+      },
+      {
+        "label": "build-verified",
+        "exit_code": 0,
+        "command": "cargo build --config profile.dev.package.vw-agent.opt-level=0 --config profile.dev.package.vw-desktop.opt-level=0 -p vw-desktop --bin shi-ju",
+        "log": "revalidation-build-verified.log"
+      },
+      {
+        "label": "clippy-verified",
+        "exit_code": 0,
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "log": "revalidation-clippy-verified.log"
+      },
+      {
+        "label": "policy-red",
+        "exit_code": 101,
+        "effective_tests": 2,
+        "passed": 1,
+        "failed": 1,
+        "command": "cargo test --config profile.test.package.vw-agent.opt-level=0 --config profile.test.package.vw-desktop.opt-level=0 -p vw-agent --lib security::policy::tests::forbidden_path_argument_ -- --nocapture",
+        "log": "revalidation-policy-red.log"
+      }
+    ],
+    "fixture_adjustment": "旧命令规则开关测试使用高风险curl，独立风险策略仍会拒绝；改为显式未放行的低风险pwd以隔离该开关，不改产品风险策略。 状态侧旧不支持通道测试将wecom改为legacy-channel，原拒绝与保留断言不变，避免已支持通道成为无效夹具。",
+    "fix": "Shell 禁止路径参数检查拒绝不支持的 ~user 写法，与已有文件路径检查一致；保留 ~、~/ 和普通相对路径，不改权限默认值和启用条件。",
+    "scope": [
+      "crates/vw-agent/src/security/policy/mod.rs",
+      "crates/vw-agent/src/security/policy/tests.rs",
+      "crates/vw-desktop/src/app/message/settings/cron_tests.rs"
+    ],
+    "coordination": "任务1修正调度器测试工作区约束、企微测试数据库上下文与可见性；本任务未修改调度器及其测试。",
+    "workspace_head_at_verification": "962fdc01e322d06c7e9fcc6dcaf1b8398e852fb0",
+    "task_file": "验证通过后删除任务5文件。",
+    "shared_desktop_changes": "复验期间企微任务7新增投递表单，曾出现column宏歧义和旧wecom不支持断言；组件宏与渲染旧断言由任务7修正；本任务仅将状态侧不支持通道夹具改为legacy-channel，保留拒绝断言，随后复验并保留失败与通过日志。",
+    "slot_release": "所有本任务Cargo脚本和子进程结束后释放slot-7，保留缓存。"
+  }
 }

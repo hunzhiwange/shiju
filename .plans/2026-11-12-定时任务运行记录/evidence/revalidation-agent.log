@@ -1,0 +1,31 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.31s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_agent-d51a7b7fffcc3d18)
+
+running 13 tests
+
+thread 'cron::active_runs_tests::cron_history_unwind_cleans_snapshot' (91303159) panicked at crates/vw-agent/src/cron/active_runs_tests.rs:106:9:
+test unwind
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cron::active_runs_tests::cron_history_active_runs_are_workspace_scoped ... ok
+test cron::active_runs_tests::cron_history_concurrent_runs_do_not_overwrite ... ok
+test cron::active_runs_tests::cron_history_cancelled_run_cleans_snapshot ... ok
+✅ Removed cron job 85116fbc-93e6-4aa6-a24d-c98119354bc5
+test gateway::api::handlers::cron::cron_tests::cron_history_endpoint_requires_auth ... ok
+test cron::store_tests::cron_history_query_orders_across_jobs ... ok
+✅ Removed cron job 45b58b74-8363-4062-9b31-30a08144968b
+test gateway::api::handlers::cron::cron_tests::cron_history_endpoint_respects_retention_and_cascade_deletion ... ok
+✅ Removed cron job 73b68cc4-4a50-4242-b00e-f2be4b54d806
+test tools::cron_run::tests::cron_history_cancelled_manual_run_leaves_no_history ... ok
+test tools::cron_run::tests::cron_history_manual_run_is_visible_until_completion ... ok
+test cron::scheduler::tests::cron_history_scheduled_run_is_visible_until_completion ... ok
+test gateway::api::handlers::cron::cron_tests::cron_history_endpoint_merges_active_and_finished ... ok
+test cron::active_runs_tests::cron_history_unwind_cleans_snapshot ... ok
+test cron::store_tests::cron_history_query_is_bounded ... ok
+test gateway::api::handlers::cron::cron_tests::cron_history_endpoint_reports_finished_window_and_workspace_isolation ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 12670 filtered out; finished in 0.21s

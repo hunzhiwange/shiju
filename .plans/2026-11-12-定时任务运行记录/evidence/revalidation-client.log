@@ -1,0 +1,42 @@
+   Compiling futures-io v0.3.34
+   Compiling futures-macro v0.3.34
+   Compiling serde_json v1.0.151
+   Compiling zerocopy v0.8.59
+   Compiling getrandom v0.3.4
+   Compiling hyper v1.11.1
+   Compiling mime_guess v2.0.5
+   Compiling crypto-common v0.1.7
+   Compiling url v2.5.8
+   Compiling thiserror-impl v2.0.21
+   Compiling cpufeatures v0.2.17
+   Compiling serde_urlencoded v0.7.1
+   Compiling tokio-util v0.7.19
+   Compiling rand_core v0.9.5
+   Compiling digest v0.10.7
+   Compiling sha1 v0.10.7
+   Compiling futures-util v0.3.34
+   Compiling thiserror v2.0.21
+   Compiling schemars v1.2.1
+   Compiling vw-api-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-api-types)
+   Compiling vw-config-types v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-config-types)
+   Compiling hyper-util v0.1.21
+   Compiling tower v0.5.3
+   Compiling tower-http v0.6.11
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.9.0
+   Compiling hyper-rustls v0.27.10
+   Compiling rand v0.9.5
+   Compiling reqwest v0.13.4
+   Compiling tungstenite v0.29.0
+   Compiling tokio-tungstenite v0.29.0
+   Compiling vw-shared v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+   Compiling vw-gateway-client v0.6.0 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 09s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_gateway_client-7abc5c9f5d688558)
+
+running 3 tests
+test client::cron_api::cron_api_tests::cron_history_client_decodes_running_and_finished ... ok
+test client::cron_api::cron_api_tests::cron_history_client_reports_network_and_decode_errors ... ok
+test client::cron_api::cron_api_tests::cron_history_client_propagates_errors ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 473 filtered out; finished in 0.01s

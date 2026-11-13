@@ -522,6 +522,10 @@ impl SecurityPolicy {
             return None;
         }
         allowlist::find_forbidden_path_argument(command, |path| {
+            // 其他用户的主目录展开不在支持范围内，不能按字面路径放行。
+            if path.starts_with('~') && path != "~" && !path.starts_with("~/") {
+                return false;
+            }
             let expanded = normalize_path(&expand_user_path(path));
             !self
                 .forbidden_paths

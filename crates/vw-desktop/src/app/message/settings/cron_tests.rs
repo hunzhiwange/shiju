@@ -1217,10 +1217,10 @@ fn wb_schedule_feedback_unsupported_channel_preserved_and_rejected() {
     let mut app = app();
     let mut existing = job("unsupported");
     existing.delivery_mode = "announce".into();
-    existing.delivery_channel = Some("wecom".into());
+    existing.delivery_channel = Some("legacy-channel".into());
     app.cron_settings.jobs.push(existing);
     let _ = update(&mut app, SettingsMessage::CronJobEditStarted("unsupported".into()));
-    assert_eq!(app.cron_settings.edit_draft.delivery_channel, "wecom");
+    assert_eq!(app.cron_settings.edit_draft.delivery_channel, "legacy-channel");
     app.cron_settings.edit_draft.schedule_draft = None;
     let _ = update(&mut app, SettingsMessage::CronJobEditSave);
     assert!(!app.cron_settings.edit_draft.submitting);

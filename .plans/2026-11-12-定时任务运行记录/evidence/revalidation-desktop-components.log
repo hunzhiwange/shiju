@@ -1,0 +1,37 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-desktop` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_desktop-0e4432412a2ce90c)
+
+running 26 tests
+test app::components::system_settings_cron::system_settings_cron_tests::job_is_agent_with_both_prompt_and_command_not_agent ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::job_helpers_handle_fallback_labels_and_types ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::job_title_returns_name_when_valid_or_id_as_fallback ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::date_and_preview_helpers_cover_valid_invalid_and_empty_values ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::option_helpers_preserve_selected_values ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::job_project_label_falls_through_empty_job_project ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::preview_lines_with_zero_max_returns_ellipsis ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::edit_form_covers_agent_delivery_fields_with_blank_provider_and_selected_project_options ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::add_tab_covers_shell_every_and_agent_delivery_with_provider_model_options ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::models_for_provider_returns_models_when_provider_found ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::small_building_blocks_return_elements ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::cron_history_view_covers_loading_error_and_empty ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::wb_schedule_modal_expired_card_ignores_retained_next_run ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::job_row_builds_disabled_announced_agent_with_complete_execution_metadata ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::with_selected_option_skips_already_present_selection ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::add_tab_covers_agent_schedule_and_delivery_variants ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::job_project_label_prefers_job_project_then_current_project_then_default ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::overlays_cover_no_modal_runs_modal_states_and_help ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::app_backed_option_helpers_include_current_selection ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::cron_save_error_banner_follows_tabs ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::jobs_tab_covers_partial_selection_non_editing_and_job_without_output ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::runs_modal_falls_back_to_job_id_and_wraps_help_after_runs_modal ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::rows_and_forms_build_shell_agent_and_editing_states ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::tabs_and_view_cover_loading_empty_jobs_config_and_add_forms ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::modal_render::wb_schedule_feedback_renders_permissions_and_delivery ... ok
+test app::components::system_settings_cron::system_settings_cron_tests::modal_render::wb_schedule_modal_renders_all_rules_and_fixed_actions ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 9682 filtered out; finished in 1.36s

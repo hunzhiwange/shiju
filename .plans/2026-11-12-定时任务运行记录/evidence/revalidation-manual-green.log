@@ -1,0 +1,21 @@
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `vw-agent` (lib test) generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.26s
+     Running unittests src/lib.rs (target/rust-slot-7/debug/deps/vw_agent-d51a7b7fffcc3d18)
+
+running 10 tests
+test tools::cron_runs::tests::truncate_preserves_short_unicode_output ... ok
+test tools::cron_runs::tests::errors_when_job_id_missing ... ok
+test tools::cron_runs::tests::lists_runs_with_truncation ... ok
+test tools::cron_run::tests::errors_for_missing_job ... ok
+test tools::cron_run::tests::blocks_run_in_read_only_mode ... ok
+test tools::cron_run::tests::blocks_run_when_rate_limited ... ok
+test tools::cron_run::tests::force_runs_job_and_records_history ... ok
+test tools::cron_run::tests::cron_history_cancelled_manual_run_leaves_no_history ... ok
+test tools::cron_run::tests::shell_run_requires_approval_for_medium_risk ... ok
+test tools::cron_run::tests::cron_history_manual_run_is_visible_until_completion ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 12678 filtered out; finished in 0.05s

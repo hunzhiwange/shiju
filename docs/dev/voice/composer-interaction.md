@@ -38,3 +38,21 @@
 - 替代特性结果：`voice_ui_` 18通过（退出0）；`send_controls_tests` 17通过、4失败（退出101）；`capture_tests` 13通过（退出0）；`voice_task_07_` 32通过（退出0）。日志为 `/tmp/voice-ui-4-feature-{voice_ui_,send_controls_tests,capture_tests,voice_task_07_}.log`。
 - 旧发送组失败均为既有底栏结构断言：`bottom_bar_places_workflow_after_full_access_and_before_session_tabs` 寻找已移除的 subagent push；`bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters`、`bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions`、`bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only` 的预期子控件数量较当前多1。与本任务只移除截图保存无关，未扩展修复底栏。
 - 差异检查 `git diff --check`（本任务路径）退出0。状态为“已完成，待回归”：保留编号任务文件，待相邻默认特性/旧底栏测试修复后重跑，并由本人完成系统听写输入和提示可读性检查。未宣称真实音频、系统听写或全套旧发送回归通过。
+
+## 统一回归（2026-11-13）
+
+用户本轮明确免除系统听写人工验收，留待后续自行测试；这不作为真实系统听写通过证据。无需再以该项阻塞自动验收收尾。
+
+默认特性重新运行发现LSP安装模块仍调用未启用的 `shell-tokio` helper，首轮 `voice_ui_`、旧发送、采集过滤均编译失败退出101（0测试）。为完成原定默认特性验证，在桌面 crate 对 vw-shared 的现有依赖显式启用 `shell-tokio`，没有新增依赖或改变权限。
+
+同步修正旧发送回归：移除已不存在的子代理按钮源码要求，断言工作流仍位于权限与会话TAB之间；子控件数量及索引对齐当前底栏，继续验证任务模式附件归入工具组、非任务模式附件位于操作组。没有修改底栏产品行为。
+
+首轮后续验证曾被共享工作区定时任务模块的宏歧义和toast类型推断错误中断，退出101；该模块随后由共享工作区更新修复，本任务未修改其实现。历史失败日志保留 `/tmp/voice-ui-4-regression-*.log`。
+
+最终入口为 `python3 scripts/cargo_slot.py sh -c 'cargo fmt --all; …'`，顺序执行 `cargo test -p vw-desktop --lib FILTER -- --nocapture`（默认特性，FILTER同前四组），最后执行 `cargo clippy --all-targets --all-features -- -D warnings`。实际槽3；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，退出释放锁、缓存保留。首轮槽2同理。
+
+最终结果（默认特性）：`voice_ui_` 18通过、`send_controls_tests` 21通过、`capture_tests` 13通过、`voice_task_07_` 32通过，各组退出0、无失败。日志分别为 `/tmp/voice-ui-4-final-voice_ui_.log`、`/tmp/voice-ui-4-fixed-send.log`、`/tmp/voice-ui-4-final-capture_tests.log`、`/tmp/voice-ui-4-final-voice_task_07_.log`。
+
+中间发送组19通过2失败（`/tmp/voice-ui-4-final-send_controls_tests.log`，退出101）揭示任务模式测试多取了一层子树；纠正Tree索引后，最后一次同槽3入口只重跑受影响的发送组及整仓Clippy，避免重复无关验证。`cargo clippy --all-targets --all-features -- -D warnings` 最终退出0（28.08s，`/tmp/voice-ui-4-fixed-clippy.log`）。两轮 `cargo fmt --all` 正常完成，目标路径差异检查退出0。自有槽入口自然结束并释放锁，缓存保留。
+
+自动回归完成，编号任务文件删除；系统听写及真实窗口可读性未实测，按用户本轮“以后我自己测试”的指示留待自行验收，不再作为本轮阻塞。

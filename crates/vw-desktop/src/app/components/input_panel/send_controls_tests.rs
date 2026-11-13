@@ -383,27 +383,13 @@ fn workflow_mode_button_constructs_inactive_and_active_variants() {
 fn bottom_bar_places_workflow_after_full_access_and_before_session_tabs() {
     let controls = include_str!("send_controls.rs");
     let workflow_push = controls.find("bar = bar.push(workflow_btn)").expect("workflow push");
-    let subagent_push = controls.find("bar = bar.push(subagent_btn)").expect("subagent push");
-    assert!(workflow_push < subagent_push, "bottom bar should place workflow before subagent");
-    assert!(
-        !controls.contains("bar = bar.push(goal_btn)"),
-        "bottom bar must not expose removed goal mode button"
-    );
-    assert!(
-        controls.contains("icon_svg(Icon::Box, SECONDARY_ICON_SIZE)"),
-        "subagent mode should use box icon, not the ACP robot icon"
-    );
-    assert!(
-        !controls.contains("subagent_icon: Element<'_, Message> = icon_svg(Icon::Robot"),
-        "subagent mode must not reuse ACP default robot icon"
-    );
-
+    let permission_push = controls.find("bar = bar.push(permission_btn)").expect("permission push");
+    let agent_push = controls.find("bar = bar.push(agent_tab_btn)").expect("agent tab push");
+    assert!(permission_push < workflow_push && workflow_push < agent_push);
+    assert!(!controls.contains("bar = bar.push(goal_btn)"));
+    assert!(!controls.contains("bar = bar.push(subagent_btn)"));
     let mod_source = include_str!("mod.rs");
-    assert!(
-        mod_source.contains("workflow_btn,\n        subagent_btn,"),
-        "input panel should pass workflow then subagent into bottom_bar"
-    );
-    assert!(!mod_source.contains("goal_btn"), "input panel must not wire goal mode button");
+    assert!(!mod_source.contains("goal_btn"));
     for tab in ["Agent", "Tools", "Skills"] {
         assert!(
             mod_source.contains(&format!("SessionToolSelectorTab::{tab}")),
@@ -527,9 +513,9 @@ fn bottom_bar_keeps_minimal_non_task_utility_and_attachment_clusters() {
     );
     let children = normal.as_widget().children();
 
-    assert_eq!(children.len(), 6);
-    assert_eq!(children[4].children[0].children.len(), 1);
-    assert_eq!(children[5].children.len(), 1);
+    assert_eq!(children.len(), 5);
+    assert_eq!(children[3].children[0].children.len(), 1);
+    assert_eq!(children[4].children.len(), 1);
 }
 
 #[test]
@@ -553,8 +539,8 @@ fn bottom_bar_task_mode_moves_attachment_into_utility_and_omits_actions() {
     let children = task_mode.as_widget().children();
 
     assert_eq!(task_mode.as_widget().size().width, Length::Fill);
-    assert_eq!(children.len(), 5);
-    assert_eq!(children[4].children.len(), 3);
+    assert_eq!(children.len(), 4);
+    assert_eq!(children[3].children.len(), 3);
 }
 
 #[test]
@@ -577,8 +563,8 @@ fn bottom_bar_task_mode_without_pool_keeps_usage_and_attachment_only() {
     );
     let children = task_mode.as_widget().children();
 
-    assert_eq!(children.len(), 5);
-    assert!(!children[4].children.is_empty());
+    assert_eq!(children.len(), 4);
+    assert_eq!(children[3].children.len(), 2);
 }
 
 pub(super) async fn click_control(mut element: Element<'_, Message>) -> Vec<Message> {

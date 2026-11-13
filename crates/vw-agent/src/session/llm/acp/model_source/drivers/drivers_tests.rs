@@ -58,6 +58,7 @@ fn model_protocol_013_registered_drivers_declare_actual_wire_protocols() {
     for (agent, expected) in [
         ("auggie", P::Chat),
         ("qoder", P::Chat),
+        ("cursor", P::Chat),
         ("claude", P::Messages),
         ("codex", P::Responses),
         ("kiro", P::Responses),
@@ -80,9 +81,7 @@ fn model_protocol_013_registered_drivers_declare_actual_wire_protocols() {
     ] {
         assert_eq!(source_protocol(agent, &api).unwrap(), expected, "{agent}");
     }
-    for agent in ["cursor", "droid", "unknown"] {
-        assert!(source_protocol(agent, &api).is_err(), "{agent}");
-    }
+    assert!(source_protocol("unknown", &api).is_err());
     for (adapter, expected) in
         [("anthropic", P::Messages), ("openai-responses", P::Responses), ("google", P::Gemini)]
     {

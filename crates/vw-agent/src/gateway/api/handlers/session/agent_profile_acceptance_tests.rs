@@ -509,3 +509,95 @@ fn acp_onboarding_autohand_builtin_profile_persists_and_runs() {
     ));
     assert!(disabled.is_err(), "disabled preset must reject before execution");
 }
+
+#[test]
+#[ignore = "requires reviewed DeepAgents runtime and controlled loopback model"]
+fn acp_onboarding_deepagents_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let entry = std::env::var("SHIJU_DEEPAGENTS_TEST_ENTRY").unwrap();
+    vw_acp::verify_reviewed_agent_executable("deepagents", &entry).unwrap();
+    let endpoint = std::env::var("SHIJU_DEEPAGENTS_TEST_ENDPOINT").unwrap();
+    assert!(endpoint.starts_with("http://127.0.0.1:"));
+    let previous = std::env::var_os("VW_RECOVERY_WINDOW_HTTP");
+    struct Restore(Option<std::ffi::OsString>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _restore = Restore(previous);
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    runtime.block_on(crate::config::update(json!({
+        "acp":{"deepagents":{
+            "command":entry,
+            "args":["--model","openai:gpt-4o","--workspace",workspace.path()],
+            "env":{"OPENAI_API_KEY":"local-fixture","OPENAI_BASE_URL":endpoint,"LANGSMITH_TRACING":"false","HOME":workspace.path()}
+        }},
+        "agents":{"acp-deepagents":{
+            "enabled":true,"label":"DeepAgents acceptance",
+            "defaults":{
+                "permission":{"mode":"fixed","value":{"*":"deny"}},
+                "skills":{"mode":"fixed","value":[]},
+                "mcp":{"mode":"fixed","value":[]}
+            }
+        }}
+    }))).unwrap();
+    let directory = workspace.path().to_string_lossy().into_owned();
+    runtime
+        .block_on(super::shared::with_tenant_instance(
+            crate::session::ui_store::current_tenant_scope(),
+            directory,
+            || {
+                Box::pin(async {
+                    let config = crate::config::get_current().await.unwrap();
+                    let catalog = crate::agent::catalog::merged_agent_catalog(&config.agents);
+                    assert!(catalog["acp-deepagents"].builtin && catalog["acp-deepagents"].enabled);
+                    assert_eq!(
+                        catalog["acp-deepagents"].label.as_deref(),
+                        Some("DeepAgents acceptance")
+                    );
+                    assert_eq!(
+                        catalog["acp-deepagents"].runtime,
+                        vw_config_types::agent::AgentRuntime::Acp { backend: "deepagents".into() }
+                    );
+                    Ok(())
+                })
+            },
+        ))
+        .unwrap();
+    let events = runtime.block_on(send(
+        workspace.path(),
+        &format!("ses_deepagents_acceptance_{}", uuid::Uuid::new_v4()),
+        "acp-deepagents",
+    ));
+    assert!(events.contains("chat.done"), "{events}");
+    assert!(!events.contains("chat.error"), "{events}");
+    assert!(events.contains("验收回复"), "{events}");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-deepagents":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            agent: Some("acp-deepagents".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err());
+}

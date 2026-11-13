@@ -73,6 +73,7 @@ pub(in crate::session::llm::acp) fn capabilities(
             | "trae"
             | "qoder"
             | "droid"
+            | "cursor"
             | "codex"
             | "gemini"
             | "iflow"
@@ -105,6 +106,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         "auggie" => "0.37.1",
         "qoder" => "1.1.88",
         "trae" => "0.121.3",
+        "cursor" => "2026.11.11-b912975",
         "droid" => "1.9.0",
         "codex" => "2.5.0 (Codex 0.165.0)",
         "gemini" => "0.66.0",
@@ -136,7 +138,7 @@ fn source_protocol(
         "claude" => P::Messages,
         "codex" | "kiro" => P::Responses,
         "gemini" => P::Gemini,
-        "auggie" | "droid" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode"
+        "auggie" | "cursor" | "droid" | "codebuddy" | "goose" | "hermes" | "iflow" | "kilocode"
         | "openclaw" | "pi" | "qoder" | "qwen" | "trae" => P::Chat,
         "opencode" => crate::model_relay::routing::client_protocol(api)
             .map_err(|_| anyhow::anyhow!("ACP selected model has no executable HTTP contract"))?,

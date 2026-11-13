@@ -180,3 +180,6 @@ pub(crate) fn wecom_acceptance_router(
 ) -> axum::Router<AppState> {
     bootstrap::client_router(state, agent, assets)
 }
+
+#[cfg(test)]
+mod deepagents_window_tests;

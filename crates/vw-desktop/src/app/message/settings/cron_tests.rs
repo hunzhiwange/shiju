@@ -1528,3 +1528,17 @@ fn cron_wecom_form_configuration_cancel_preserves_both_drafts() {
         assert!(!app.cron_settings.edit_draft.delivery_enabled);
     }
 }
+
+#[test]
+fn cron_template_selection_opens_prefilled_draft_without_saving() {
+    let mut app = app();
+    let _ = update(&mut app, SettingsMessage::CronTemplatesToggled(true));
+    assert!(app.cron_settings.show_cron_templates);
+    let _ = update(&mut app, SettingsMessage::CronTemplateSelected(0));
+    assert!(!app.cron_settings.show_cron_templates);
+    assert!(app.cron_settings.show_add_modal);
+    assert_eq!(app.cron_settings.add_draft.name, "每日 AI 新闻推送");
+    assert!(!app.cron_settings.add_draft.prompt.is_empty());
+    assert!(!app.cron_settings.add_draft.submitting);
+    assert!(!app.cron_settings.add_draft.full_access);
+}

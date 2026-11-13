@@ -51,6 +51,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        "deepagents" => &["install", "-g", "deepagents-acp@0.1.42"],
         "claude" => &["install", "-g", "@agentclientprotocol/claude-agent-acp@^0.26.0"],
         "codex" => &["install", "-g", "@agentclientprotocol/codex-acp@latest"],
         "gemini" => &["install", "-g", "@google/gemini-cli@latest"],

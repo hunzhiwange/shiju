@@ -38,10 +38,10 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
         for (name, digest) in &contract.files {
             if hex::encode(Sha256::digest(
                 std::fs::read(directory.join(name))
-                    .map_err(|_| "Missing reviewed Kiro artifact")?,
+                    .map_err(|_| "Missing reviewed standalone artifact")?,
             )) != *digest
             {
-                return Err("Kiro artifact checksum mismatch".into());
+                return Err("Standalone ACP artifact checksum mismatch".into());
             }
         }
         return Ok(directory.join(&contract.bin));
@@ -146,6 +146,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
     let bin_name = match agent {
         "codex" => "codex-acp",
         "pi" => "pi-acp",
+        "deepagents" => "deepagents-acp",
         "qoder" => "qodercli",
         other => other,
     };
@@ -218,7 +219,10 @@ impl Drop for Stage {
 
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let Some(contract) = contract(agent) else { return Ok(false) };
-    if !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    if agent == "deepagents" && cfg!(windows) {
+        return Err("DeepAgents reviewed runtime is not yet supported on Windows".into());
+    }
+    if agent != "deepagents" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
         // Preserve the existing native installer for CLI-local use on unverified hosts.
         return Ok(false);
     }
@@ -240,8 +244,23 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("install.py", include_str!("managed_runtime/install.py")),
+        ("deepagents-lock.json", include_str!("managed_runtime/deepagents-lock.json")),
+        (
+            "deepagents/apply.py",
+            include_str!("../../../patches/acp-model-source/deepagents/apply.py"),
+        ),
+        (
+            "deepagents/guard.mjs",
+            include_str!("../../../patches/acp-model-source/deepagents/guard.mjs"),
+        ),
         ("trae/apply.py", include_str!("../../../patches/acp-model-source/trae/apply.py")),
         ("trae/launcher.py", include_str!("../../../patches/acp-model-source/trae/launcher.py")),
+        ("cursor/apply.py", include_str!("../../../patches/acp-model-source/cursor/apply.py")),
+        ("cursor/patch.json", include_str!("../../../patches/acp-model-source/cursor/patch.json")),
+        (
+            "cursor/session-model.cjs",
+            include_str!("../../../patches/acp-model-source/cursor/session-model.cjs"),
+        ),
         ("qoder/apply.py", include_str!("../../../patches/acp-model-source/qoder/apply.py")),
         ("qoder/patch.json", include_str!("../../../patches/acp-model-source/qoder/patch.json")),
         (

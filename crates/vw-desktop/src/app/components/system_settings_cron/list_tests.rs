@@ -488,3 +488,27 @@ async fn wb_schedule_acceptance_cards_preserve_timezone_and_biweekly_rule() {
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cron_templates_render_two_columns_and_select_template() {
+    if !isolated("list_tests::cron_templates_render_two_columns_and_select_template") {
+        return;
+    }
+    let mut renderer = renderer().await;
+    let mut app = list_fixture();
+    app.cron_settings.show_cron_templates = true;
+    let size = Size::new(1000, 760);
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut ui = scene(frame(view(&app)), &mut renderer, size);
+        let positions = geometry(&mut ui, &renderer);
+        let first = positions.label("每日 AI 新闻推送");
+        let second = positions.label("每日 5 个英语单词");
+        assert!((first.y - second.y).abs() < 1.0);
+        assert!(second.x > first.x);
+        capture(&mut ui, &mut renderer, &theme, size, "cron-templates", mouse::Cursor::Unavailable);
+        assert!(matches!(
+            click(&mut ui, &mut renderer, first.center()).as_slice(),
+            [Message::Settings(SettingsMessage::CronTemplateSelected(0))]
+        ));
+    }
+}

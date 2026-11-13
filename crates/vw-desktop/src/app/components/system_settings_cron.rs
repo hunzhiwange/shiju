@@ -31,6 +31,9 @@ mod form;
 mod history;
 mod list;
 mod schedule;
+pub(crate) mod templates;
+#[cfg(test)]
+mod templates_tests;
 #[cfg(test)]
 use list::job_row;
 use list::jobs_tab;
@@ -476,6 +479,9 @@ fn cron_modal_style(theme: &Theme) -> container::Style {
 
 fn with_edit_modal<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.cron_settings;
+    if s.show_cron_templates {
+        return templates::overlay(app, dialog);
+    }
     let editing = s.editing_job_id.is_some();
     if !editing && !s.show_add_modal {
         return dialog;

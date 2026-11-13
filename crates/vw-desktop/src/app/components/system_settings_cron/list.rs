@@ -329,6 +329,11 @@ pub(super) fn jobs_tab(app: &App) -> Element<'_, Message> {
                 Message::Settings(message::SettingsMessage::CronBatchModeToggled(!s.batch_mode)),
                 false
             ),
+            small_button(
+                "从模板新建",
+                Message::Settings(message::SettingsMessage::CronTemplatesToggled(true)),
+                false
+            ),
             primary_button(
                 tr.__("新增任务"),
                 Message::Settings(message::SettingsMessage::CronTabSelected(CronSettingsTab::Add))
@@ -357,8 +362,16 @@ pub(super) fn jobs_tab(app: &App) -> Element<'_, Message> {
         cards =
             cards.push(text(tr.__("当前分组暂无任务")).size(13).style(settings_muted_text_style));
     } else {
-        for job in s.visible_jobs() {
-            cards = cards.push(job_row(app, job));
+        let jobs: Vec<_> = s.visible_jobs().collect();
+        for pair in jobs.chunks(2) {
+            let mut line = row![].spacing(12).width(Length::Fill);
+            for job in pair {
+                line = line.push(container(job_row(app, job)).width(Length::FillPortion(1)));
+            }
+            if pair.len() == 1 {
+                line = line.push(Space::new().width(Length::FillPortion(1)));
+            }
+            cards = cards.push(line);
         }
     }
     let list = scrollable(container(cards).padding([0, 7]).width(Length::Fill))

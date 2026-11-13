@@ -383,6 +383,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.save_error_translation = None;
             persist_cron_settings(app)
         }
+        SettingsMessage::CronTemplatesToggled(open) => {
+            if !app.cron_settings.add_draft.submitting && !app.cron_settings.edit_draft.submitting {
+                app.cron_settings.show_cron_templates = open;
+            }
+            Task::none()
+        }
+        SettingsMessage::CronTemplateSelected(index) => {
+            if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
+                return Task::none();
+            }
+            let Some(template) =
+                crate::app::components::system_settings_cron::templates::TEMPLATES.get(index)
+            else {
+                return Task::none();
+            };
+            let task = update(app, SettingsMessage::CronTabSelected(CronSettingsTab::Add));
+            template.apply(&mut app.cron_settings.add_draft);
+            app.cron_settings.show_cron_templates = false;
+            task
+        }
         SettingsMessage::CronTabSelected(tab) => {
             app.cron_settings.date_time_picker = None;
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {

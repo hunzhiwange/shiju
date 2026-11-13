@@ -712,6 +712,7 @@ impl CronListFilter {
 #[derive(Debug, Clone)]
 pub(crate) struct CronSettingsState {
     pub(crate) show_add_modal: bool,
+    pub(crate) show_cron_templates: bool,
     pub(crate) date_time_picker:
         Option<crate::app::components::system_settings_cron::date_time::DateTimePicker>,
     /// 是否启用定时任务
@@ -779,6 +780,7 @@ impl Default for CronSettingsState {
     fn default() -> Self {
         Self {
             show_add_modal: false,
+            show_cron_templates: false,
             date_time_picker: None,
             enabled: true,
             max_run_history: 50,

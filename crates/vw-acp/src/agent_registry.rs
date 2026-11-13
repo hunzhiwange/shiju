@@ -167,7 +167,10 @@ fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<S
         if let Some(command) = resolve_opencode_command() {
             return (command, vec!["acp".to_string()]);
         }
-    } else if let Some(command) = resolve_local_agent_command(definition.local_command_candidates) {
+    } else if let Some(command) = resolve_local_agent_command(definition.local_command_candidates)
+        && (definition.name != "deepagents"
+            || crate::verify_reviewed_agent_executable("deepagents", &command).is_ok())
+    {
         return (command, definition.local_args.iter().map(|arg| (*arg).to_string()).collect());
     }
 
@@ -345,6 +348,15 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         env: &[],
         local_command_candidates: &["cursor-agent"],
         local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
+        name: "deepagents",
+        display_name: "DeepAgents",
+        command: "npx",
+        args: &["-y", "deepagents-acp@0.1.42"],
+        env: &[],
+        local_command_candidates: &["deepagents-acp"],
+        local_args: &[],
     },
     BuiltInAgentDefinition {
         name: "droid",

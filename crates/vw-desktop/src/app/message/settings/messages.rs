@@ -979,6 +979,8 @@ pub enum SettingsMessage {
     CronEnabledToggled(bool),
     CronMaxRunHistoryChanged(u32),
     CronTabSelected(CronSettingsTab),
+    CronTemplatesToggled(bool),
+    CronTemplateSelected(usize),
     CronHistory(super::cron_history::CronHistoryMessage),
     CronListFilterChanged(CronListFilter),
     CronBatchModeToggled(bool),

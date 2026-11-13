@@ -89,3 +89,13 @@ fn acp_onboarding_autohand_installer_contract() {
     assert!(args[3].contains("AUTOHAND_SKIP_COMPUTER_CONTROL_INSTALL='1'"));
     assert!(acp_install_command("autohand; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_deepagents_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("deepagents", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "deepagents-acp@0.1.42"]);
+    }
+    assert!(acp_install_command("deepagents; echo unsafe").is_none());
+}

@@ -57,6 +57,28 @@ if agent == 'droid':
     check_files(runtime, contract['files'])
     native.chmod(0o700)
     raise SystemExit(0)
+if agent == 'cursor':
+    import platform
+    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
+        raise RuntimeError('Cursor reviewed runtime is Darwin-arm64 only')
+    archive = assets / 'cursor.tar.gz'
+    request = urllib.request.Request(contract['artifact_url'], headers={'User-Agent': 'ShiJu-ACP-Installer/1.0'})
+    with urllib.request.urlopen(request, timeout=120) as response, archive.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['archive_sha256']:
+        raise RuntimeError('Cursor fixed archive checksum mismatch')
+    runtime.mkdir()
+    with tarfile.open(archive) as package:
+        members = []
+        for member in package.getmembers():
+            name = Path(member.name)
+            if name.is_absolute() or '..' in name.parts or name.parts[0] != 'dist-package' or not (member.isfile() or member.isdir()):
+                raise RuntimeError('Unsafe Cursor archive entry')
+            members.append(member)
+        package.extractall(runtime, members=members)
+    run([sys.executable, str(assets / 'cursor/apply.py'), str(runtime / 'dist-package')])
+    check_files(runtime, contract['files'])
+    raise SystemExit(0)
 if contract.get('layout') == 'standalone':
     import platform
     import zipfile
@@ -146,10 +168,10 @@ packages = [contract['package'] + '@' + contract['version']]
 if 'engine' in contract:
     packages.append(contract['engine'] + '@' + contract['engine_version'])
 runtime.mkdir()
-if agent == 'iflow':
-    lock_input = json.loads((assets / 'iflow-lock.json').read_text())
+if agent in ('iflow', 'deepagents'):
+    lock_input = json.loads((assets / (agent + '-lock.json')).read_text())
     (runtime / 'package.json').write_text(json.dumps({'private': True, 'dependencies': lock_input['packages']['']['dependencies']}))
-    shutil.copy2(assets / 'iflow-lock.json', runtime / 'package-lock.json')
+    shutil.copy2(assets / (agent + '-lock.json'), runtime / 'package-lock.json')
     run(['npm', 'ci', '--registry=https://registry.npmjs.org', '--ignore-scripts', '--prefer-offline', '--no-audit', '--no-fund', '--fetch-timeout=20000', '--fetch-retries=2'], cwd=runtime)
 else:
     # Run npm in the stage itself so lockfile keys stay package-relative.
@@ -210,7 +232,7 @@ if agent == 'copilot':
 if agent in ('codex', 'gemini'):
     check_files(root, contract['original'])
     run(['patch', '--batch', '--forward', '-p1', '-d', str(root), '-i', str(assets / (agent + '.patch'))])
-elif agent in ('iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder'):
+elif agent in ('deepagents', 'iflow', 'qwen', 'codebuddy', 'snow', 'openclaw', 'auggie', 'qoder'):
     run([sys.executable, str(assets / agent / 'apply.py'), str(root)])
 elif agent == 'pi':
     source = runtime / 'pi-source'

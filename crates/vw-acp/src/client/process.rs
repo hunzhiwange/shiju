@@ -51,6 +51,12 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
+        if self.agent_name == "deepagents" {
+            // Local discovery, npx fallback and explicit overrides share this boundary.
+            // Never execute the supplier's unpatched permission/file fallbacks.
+            crate::verify_reviewed_agent_executable("deepagents", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+        }
         let args = self.launch_args()?;
         let mut env = self.config.env.clone();
         if self.agent_name == "copilot" {
@@ -83,6 +89,12 @@ impl AcpClient {
             crate::verify_reviewed_agent_executable("droid", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
         }
+        let managed_cursor =
+            self.agent_name == "cursor" && env.contains_key("VW_ACP_LAUNCH_REFERENCE");
+        if managed_cursor {
+            crate::verify_reviewed_agent_executable("cursor", self.config.command.trim())
+                .map_err(AcpError::Initialize)?;
+        }
         if managed_auggie {
             crate::verify_reviewed_agent_executable("auggie", self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
@@ -106,7 +118,7 @@ impl AcpClient {
                 ));
             }
         }
-        if !managed_claude && !managed_auggie && !managed_droid {
+        if !managed_claude && !managed_auggie && !managed_cursor && !managed_droid {
             for (key, value) in build_agent_environment(&self.auth_credentials) {
                 insert_auth_env_if_missing(&mut env, key, value);
             }
@@ -116,7 +128,7 @@ impl AcpClient {
         if self.agent_name == "copilot" {
             cmd.env_remove("COPILOT_ALLOW_ALL");
         }
-        if managed_claude || managed_auggie || managed_droid {
+        if managed_claude || managed_auggie || managed_cursor || managed_droid {
             // Do not inherit OAuth, cloud backends, Node injection or proxy credentials.
             // Keep the OS runtime paths; HOME is preserved, never substituted.
             let runtime = [

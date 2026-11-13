@@ -26,8 +26,8 @@ use vw_gateway_client::vw_api_types::task::{
     TaskPoolWorkflowTransitionDto,
 };
 
-/// 默认任务工作流 id，表达现有开发生命周期语义。
-pub const DEFAULT_TASK_WORKFLOW_ID: &str = "dev_lifecycle";
+/// 默认通用任务工作流 id；开发生命周期可显式选用。
+pub const DEFAULT_TASK_WORKFLOW_ID: &str = "generic_task";
 
 /// 状态的语义角色，表达引擎对该状态的行为约定，与具体枚举变体解耦。
 ///
@@ -293,7 +293,7 @@ const DEV_LIFECYCLE_STATUSES: &[TaskStatusDefinition] = &[
 ];
 
 const DEV_LIFECYCLE_WORKFLOW: TaskWorkflowDefinition = TaskWorkflowDefinition {
-    id: DEFAULT_TASK_WORKFLOW_ID,
+    id: "dev_lifecycle",
     label: "开发生命周期",
     statuses: DEV_LIFECYCLE_STATUSES,
 };
@@ -818,7 +818,24 @@ const RECRUITING_WORKFLOW: TaskWorkflowDefinition = TaskWorkflowDefinition {
     statuses: RECRUITING_STATUSES,
 };
 
+const GENERIC_TASK_STATUSES: &[TaskStatusDefinition] = &[
+    DEV_LIFECYCLE_STATUSES[0],
+    TaskStatusDefinition { next: Some(TaskStatus::Running), ..DEV_LIFECYCLE_STATUSES[1] },
+    DEV_LIFECYCLE_STATUSES[2],
+    TaskStatusDefinition { next: Some(TaskStatus::Completed), ..DEV_LIFECYCLE_STATUSES[3] },
+    DEV_LIFECYCLE_STATUSES[4],
+    DEV_LIFECYCLE_STATUSES[5],
+    TaskStatusDefinition { is_terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[9] },
+    DEV_LIFECYCLE_STATUSES[10],
+];
+const GENERIC_TASK_WORKFLOW: TaskWorkflowDefinition = TaskWorkflowDefinition {
+    id: DEFAULT_TASK_WORKFLOW_ID,
+    label: "通用任务",
+    statuses: GENERIC_TASK_STATUSES,
+};
+
 const BUILTIN_TASK_WORKFLOWS: &[&TaskWorkflowDefinition] = &[
+    &GENERIC_TASK_WORKFLOW,
     &DEV_LIFECYCLE_WORKFLOW,
     &CONTENT_PUBLISHING_WORKFLOW,
     &MARKETING_CAMPAIGN_WORKFLOW,
@@ -828,7 +845,7 @@ const BUILTIN_TASK_WORKFLOWS: &[&TaskWorkflowDefinition] = &[
 
 /// 返回默认任务工作流定义。
 pub fn default_task_workflow() -> &'static TaskWorkflowDefinition {
-    &DEV_LIFECYCLE_WORKFLOW
+    &GENERIC_TASK_WORKFLOW
 }
 
 /// 返回所有内置任务工作流定义。
@@ -836,7 +853,7 @@ pub fn builtin_task_workflows() -> &'static [&'static TaskWorkflowDefinition] {
     BUILTIN_TASK_WORKFLOWS
 }
 
-/// 返回默认工作流中状态的有序集合，供 `TaskStatus::all` 委托。
+/// 返回内置枚举的完整稳定目录，供 `TaskStatus::all` 委托；不随项目默认流程缩减。
 pub fn default_task_workflow_statuses() -> &'static [TaskStatusDefinition] {
     DEV_LIFECYCLE_STATUSES
 }
@@ -1132,7 +1149,7 @@ impl TaskStateMachine {
                     && self.workflow.status_definition(to).is_some()
             }
             TaskTransitionIntent::Simulation => self.workflow.next_status(from) == Some(to),
-            _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => {
+            _ if self.workflow.id() == "dev_lifecycle" => {
                 DEV_LIFECYCLE_TRANSITIONS.iter().any(|edge| {
                     edge.from == from
                         && self.workflow.next_enabled_status(edge.to) == Some(to)
@@ -1174,7 +1191,7 @@ impl TaskStateMachine {
         match intent {
             TaskTransitionIntent::ManualMove => None,
             TaskTransitionIntent::Simulation => self.workflow.next_status(from),
-            _ if self.workflow.id() == DEFAULT_TASK_WORKFLOW_ID => DEV_LIFECYCLE_TRANSITIONS
+            _ if self.workflow.id() == "dev_lifecycle" => DEV_LIFECYCLE_TRANSITIONS
                 .iter()
                 .find(|edge| edge.from == from && edge.intent == intent)
                 .and_then(|edge| self.workflow.next_enabled_status(edge.to)),

@@ -414,7 +414,7 @@ fn agent_scheduler_policy_leaves_review_ready_without_merge_metadata_for_stage_a
 }
 
 #[test]
-fn agent_scheduler_policy_completes_marketing_submitted_task_without_git_merge() -> Result<()> {
+fn agent_scheduler_policy_waits_for_explicit_marketing_result() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-agent-scheduler-policy-marketing");
     std::fs::create_dir_all(&project_path)?;
@@ -445,15 +445,9 @@ fn agent_scheduler_policy_completes_marketing_submitted_task_without_git_merge()
     assert!(outcome.merge_task_ids.is_empty());
     assert!(outcome.blocked_task_ids.is_empty());
     let task = store.load_task(&project_path, &task_id)?.expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(task.metadata["task_board.status_key"], "campaign_done");
-    assert_eq!(task.metadata["task_board.status_role"], "done");
-    let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert!(logs.iter().any(|log| {
-        log.message.contains("without git merge")
-            && log.to_status == Some(AgentTaskStatus::Completed)
-    }));
-
+    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.metadata["task_board.status_key"], "campaign_review_ready");
+    assert!(store.list_task_logs(&project_path, &task_id)?.is_empty());
     Ok(())
 }
 
@@ -887,7 +881,7 @@ fn agent_scheduler_policy_ignores_submitted_task_outside_review_or_merge_roles()
 }
 
 #[test]
-fn agent_scheduler_policy_completes_non_development_merge_stage_without_git_merge() -> Result<()> {
+fn agent_scheduler_policy_waits_for_explicit_closing_result() -> Result<()> {
     let (_temp_dir, project_path, store) =
         initialized_policy_store("project-agent-scheduler-policy-marketing-merge")?;
     store.save_task_board_workflow(
@@ -927,18 +921,16 @@ fn agent_scheduler_policy_completes_non_development_merge_stage_without_git_merg
     )?;
 
     assert!(outcome.merge_task_ids.is_empty());
+    assert!(outcome.blocked_task_ids.is_empty());
     let task = store.load_task(&project_path, &task_id)?.expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(task.metadata["task_board.status_key"], "campaign_done");
-    let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert!(logs.iter().any(|log| {
-        log.message.contains("completed non-development merge stage without git merge")
-    }));
+    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.metadata["task_board.status_key"], "campaign_closing");
+    assert!(store.list_task_logs(&project_path, &task_id)?.is_empty());
     Ok(())
 }
 
 #[test]
-fn agent_scheduler_policy_requests_merge_before_stall_timeout() -> Result<()> {
+fn agent_scheduler_policy_does_not_request_merge() -> Result<()> {
     let (_temp_dir, project_path, store) =
         initialized_policy_store("project-agent-scheduler-policy-merge-request")?;
     store.save_task_board_workflow(&project_path, &merge_policy_workflow("merge_blocked"))?;
@@ -970,19 +962,17 @@ fn agent_scheduler_policy_requests_merge_before_stall_timeout() -> Result<()> {
         &config,
     )?;
 
-    assert_eq!(outcome.merge_task_ids, vec![task_id.clone()]);
+    assert!(outcome.merge_task_ids.is_empty());
     assert!(outcome.blocked_task_ids.is_empty());
-    let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert!(
-        logs.iter().any(|log| {
-            log.message == "agent scheduler policy requested merge for submitted task"
-        })
-    );
+    let task = store.load_task(&project_path, &task_id)?.expect("task");
+    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.metadata["task_board.status_key"], "merging");
+    assert!(store.list_task_logs(&project_path, &task_id)?.is_empty());
     Ok(())
 }
 
 #[test]
-fn agent_scheduler_policy_blocks_stalled_merge_with_unknown_merge_metadata() -> Result<()> {
+fn agent_scheduler_policy_does_not_infer_merge_stall() -> Result<()> {
     let (_temp_dir, project_path, store) =
         initialized_policy_store("project-agent-scheduler-policy-merge-stall")?;
     store.save_task_board_workflow(&project_path, &merge_policy_workflow("merge_failed"))?;
@@ -1012,18 +1002,12 @@ fn agent_scheduler_policy_blocks_stalled_merge_with_unknown_merge_metadata() -> 
         &config,
     )?;
 
-    assert_eq!(outcome.blocked_task_ids, vec![task_id.clone()]);
     assert!(outcome.merge_task_ids.is_empty());
+    assert!(outcome.blocked_task_ids.is_empty());
     let task = store.load_task(&project_path, &task_id)?.expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Failed);
-    assert_eq!(task.metadata["task_board.status_key"], "merge_failed");
-    assert_eq!(task.metadata["last_active_at_ms"], 2_000);
-    let logs = store.list_task_logs(&project_path, &task_id)?;
-    assert!(logs.iter().any(|log| {
-        log.message.contains("merge stall detected")
-            && log.message.contains("worktree=unknown")
-            && log.message.contains("target=unknown")
-    }));
+    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.metadata["task_board.status_key"], "merging");
+    assert!(store.list_task_logs(&project_path, &task_id)?.is_empty());
     Ok(())
 }
 
@@ -1124,4 +1108,67 @@ fn workflow_transition(outcome: &str, target: &str) -> TaskPoolWorkflowTransitio
         label: None,
         target: target.to_string(),
     }
+}
+
+#[test]
+fn task_pool_schedule_policy_tick_has_no_git_or_notification_side_effects() -> Result<()> {
+    let temp = tempfile::tempdir()?;
+    let path = temp.path().join("project");
+    std::fs::create_dir_all(&path)?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(&path)?;
+    let id = TaskId::new("explicit-merge-stage")?;
+    store.create_task(
+        &path,
+        finite_task(
+            &id,
+            AgentTaskStatus::Submitted,
+            json!({
+                "task_board.status_key": "pr_submitted", "task_board.status_role": "merging",
+                "task_board.workflow_id": "dev_lifecycle"
+            }),
+            TimestampMs(1000),
+        )?,
+    )?;
+    let result = AgentSchedulerPolicyService::new(&store).apply_project_policy(
+        &path,
+        TimestampMs(2000),
+        &AgentSchedulerPolicyConfig::default(),
+    )?;
+    assert!(result.merge_task_ids.is_empty());
+    assert_eq!(store.load_task(&path, &id)?.unwrap().status, AgentTaskStatus::Submitted);
+    assert!(store.claim_outbox_batch(&path, TimestampMs(3000), 100)?.is_empty());
+    assert!(!path.join(".git").exists());
+    Ok(())
+}
+
+#[tokio::test]
+async fn task_pool_schedule_recovery_releases_resources_without_business_notification() -> Result<()>
+{
+    use super::domain::{HolderId, ResourceId, ResourceLeaseId};
+    use super::store::resources::{AcquireResourceLeaseRequest, ResourceKind};
+    let directory = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(directory.path())?;
+    let lease = store
+        .acquire_resource_lease(
+            directory.path(),
+            AcquireResourceLeaseRequest {
+                lease_id: ResourceLeaseId::new("expired")?,
+                resource_kind: ResourceKind::WorkerSlot,
+                resource_id: ResourceId::new("logical-slot")?,
+                holder_id: HolderId::new("old-run")?,
+                acquired_at_ms: TimestampMs(1),
+                lease_expires_at_ms: Some(TimestampMs(2)),
+            },
+        )?
+        .unwrap();
+    let result = super::engine::recovery::RecoveryEngine::new(&store)
+        .reconcile_once(directory.path(), TimestampMs(3))
+        .await?;
+    assert_eq!(result.released_resource_lease_ids, vec![lease.id]);
+    assert!(result.outbox_message_ids.is_empty());
+    assert!(store.claim_outbox_batch(directory.path(), TimestampMs(4), 100)?.is_empty());
+    assert!(!store.list_events_after(directory.path(), None, 100)?.is_empty());
+    Ok(())
 }

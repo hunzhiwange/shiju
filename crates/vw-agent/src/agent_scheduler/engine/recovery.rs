@@ -9,7 +9,6 @@ use crate::agent_scheduler::domain::{ResourceLeaseId, RunId};
 use crate::agent_scheduler::events::AgentEventKind;
 use crate::agent_scheduler::state_machine::AgentTaskStatus;
 use crate::agent_scheduler::store::events::AppendAgentEventRequest;
-use crate::agent_scheduler::store::outbox::EnqueueOutboxMessageRequest;
 use crate::agent_scheduler::store::resources::StoredResourceLease;
 use crate::agent_scheduler::store::runs::{AgentRunFinishStatus, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::StoredAgentTask;
@@ -30,8 +29,6 @@ pub struct RecoveryPolicy {
     pub stale_run_grace_ms: i64,
     pub stale_run_resolution: StaleRunResolution,
     pub taint_released_resources: bool,
-    pub admin_notification_target: Option<String>,
-    pub admin_recipient_id: Option<String>,
 }
 
 impl Default for RecoveryPolicy {
@@ -40,8 +37,6 @@ impl Default for RecoveryPolicy {
             stale_run_grace_ms: DEFAULT_RECOVERY_GRACE_MS,
             stale_run_resolution: StaleRunResolution::FailTask,
             taint_released_resources: true,
-            admin_notification_target: None,
-            admin_recipient_id: None,
         }
     }
 }
@@ -138,23 +133,7 @@ impl<'a> RecoveryEngine<'a> {
             }),
             now_ms,
         )?;
-        self.enqueue_admin_notification(
-            project_path,
-            "run-grace",
-            refreshed.id.as_str(),
-            format!(
-                "[Recovery] Run {} is stale; waiting one grace cycle before failing the task.",
-                refreshed.id.as_str()
-            ),
-            json!({
-                "kind": "recovery",
-                "phase": "grace",
-                "run_id": refreshed.id.as_str(),
-                "task_id": refreshed.task_id.as_str(),
-            }),
-            now_ms,
-            outcome,
-        )?;
+
         outcome.graced_run_ids.push(refreshed.id);
         Ok(())
     }
@@ -224,21 +203,7 @@ impl<'a> RecoveryEngine<'a> {
             }),
             now_ms,
         )?;
-        self.enqueue_admin_notification(
-            project_path,
-            "run-resolved",
-            finished.id.as_str(),
-            format!("[Recovery] {reason}"),
-            json!({
-                "kind": "recovery",
-                "phase": "resolved",
-                "run_id": finished.id.as_str(),
-                "task_id": finished.task_id.as_str(),
-                "resolution": self.policy.stale_run_resolution.as_str(),
-            }),
-            now_ms,
-            outcome,
-        )?;
+
         outcome.recovered_run_ids.push(finished.id);
         Ok(())
     }
@@ -318,25 +283,7 @@ impl<'a> RecoveryEngine<'a> {
                     created_at_ms: now_ms,
                 },
             )?;
-            self.enqueue_admin_notification(
-                project_path,
-                "resource-released",
-                released.id.as_str(),
-                format!(
-                    "[Recovery] Released stale resource lease {} for {}.",
-                    released.id.as_str(),
-                    released.resource_id.as_str()
-                ),
-                json!({
-                    "kind": "recovery",
-                    "phase": "resource_released",
-                    "lease_id": released.id.as_str(),
-                    "resource_id": released.resource_id.as_str(),
-                    "holder_id": released.holder_id.as_str(),
-                }),
-                now_ms,
-                outcome,
-            )?;
+
             outcome.released_resource_lease_ids.push(released.id);
         }
         Ok(())
@@ -371,38 +318,6 @@ impl<'a> RecoveryEngine<'a> {
                 created_at_ms: now_ms,
             },
         )?;
-        Ok(())
-    }
-
-    fn enqueue_admin_notification(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        phase: &str,
-        subject_id: &str,
-        body: String,
-        payload: Value,
-        now_ms: TimestampMs,
-        outcome: &mut RecoveryOutcome,
-    ) -> Result<()> {
-        let Some(target) = &self.policy.admin_notification_target else {
-            return Ok(());
-        };
-        let message_id = format!("outbox-recovery-{phase}-{subject_id}");
-        let message = self.store.enqueue_outbox_message(
-            project_path,
-            EnqueueOutboxMessageRequest {
-                message_id,
-                channel: "local".to_string(),
-                target: target.clone(),
-                recipient_id: self.policy.admin_recipient_id.clone(),
-                body,
-                idempotency_key: format!("recovery:{phase}:{subject_id}"),
-                payload,
-                created_at_ms: now_ms,
-                next_attempt_at_ms: None,
-            },
-        )?;
-        outcome.outbox_message_ids.push(message.id);
         Ok(())
     }
 }

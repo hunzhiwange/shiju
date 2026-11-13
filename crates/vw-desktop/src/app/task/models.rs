@@ -365,7 +365,7 @@ pub enum TaskStatus {
 impl TaskStatus {
     /// 公开的 all 函数。
     ///
-    /// 委托到默认工作流元数据，返回有序的状态集合，保持外部签名与顺序不变。
+    /// 委托到内置枚举目录，返回完整有序状态集合，保持外部签名与顺序不变。
     pub fn all() -> [TaskStatus; 11] {
         let definitions = crate::app::task::workflow::default_task_workflow_statuses();
         let mut statuses = [TaskStatus::Pool; 11];
@@ -391,13 +391,14 @@ impl TaskStatus {
 
     /// 公开的 label 函数。
     ///
-    /// 委托到默认工作流元数据返回展示标签；自定义状态默认工作流无定义，回退到自身 key。
+    /// 委托到内置枚举目录返回展示标签；自定义状态回退到自身 key。
     pub fn label(&self) -> &'static str {
         if let TaskStatus::Custom(key) = self {
             return key;
         }
-        crate::app::task::workflow::default_task_workflow()
-            .status_definition(*self)
+        crate::app::task::workflow::default_task_workflow_statuses()
+            .iter()
+            .find(|definition| definition.status == *self)
             .map(|definition| definition.label)
             .unwrap_or_default()
     }
@@ -468,8 +469,9 @@ impl TaskStatus {
         if let TaskStatus::Custom(key) = self {
             return key;
         }
-        crate::app::task::workflow::default_task_workflow()
-            .status_definition(*self)
+        crate::app::task::workflow::default_task_workflow_statuses()
+            .iter()
+            .find(|definition| definition.status == *self)
             .map(|definition| definition.key)
             .unwrap_or_default()
     }
@@ -1060,7 +1062,7 @@ pub struct TaskBoardSettings {
     pub pr_submitted_stall_timeout_seconds: u32,
     #[serde(default)]
     pub agent_scheduler_dispatch_mode: AgentSchedulerDispatchModeDto,
-    /// 项目选用的任务工作流 id，默认 `dev_lifecycle`；旧配置缺字段时落默认。
+    /// 项目选用的任务工作流 id，默认 `generic_task`；旧配置缺字段时落默认。
     #[serde(default = "default_task_workflow_id")]
     pub workflow_id: String,
 }

@@ -12,6 +12,7 @@ fn built_in_workflows_expose_stable_unique_catalog() {
         ids,
         vec![
             DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
+            "dev_lifecycle",
             "content_publishing",
             "marketing_campaign",
             "customer_support",
@@ -82,7 +83,7 @@ fn failed_statuses_with_next_target_expose_retry_transition() {
 #[test]
 fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
     let expected = [
-        (DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID, "开发生命周期", "archived", "failed", "pending"),
+        ("dev_lifecycle", "开发生命周期", "archived", "failed", "pending"),
         (
             "content_publishing",
             "内容创作与多平台发布",
@@ -146,4 +147,19 @@ fn built_in_workflows_preserve_domain_specific_terminal_and_role_shape() {
             )
         ));
     }
+}
+
+#[test]
+fn task_pool_schedule_default_catalog_preserves_explicit_development_flow() {
+    let generic = built_in_workflow_by_id(DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID).unwrap();
+    assert_eq!(
+        generic.statuses.iter().find(|s| s.key == "running").unwrap().next.as_deref(),
+        Some("completed")
+    );
+    assert!(generic.statuses.iter().find(|s| s.key == "completed").unwrap().terminal);
+    let development = built_in_workflow_by_id("dev_lifecycle").unwrap();
+    assert_eq!(
+        development.statuses.iter().find(|s| s.key == "running").unwrap().next.as_deref(),
+        Some("code_complete")
+    );
 }

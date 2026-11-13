@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
@@ -79,7 +79,7 @@ use crate::agent_scheduler::runner::local::{
     LocalAgentExecutor, LocalAgentRunner, LocalAgentRunnerOutcome, LocalAgentRunnerRequest,
 };
 use crate::agent_scheduler::state_machine::{AgentTaskKind, AgentTaskStatus};
-use crate::agent_scheduler::store::artifacts::{RecordTaskArtifactRequest, StoredTaskArtifact};
+use crate::agent_scheduler::store::artifacts::StoredTaskArtifact;
 use crate::agent_scheduler::store::events::{AppendAgentEventRequest, StoredAgentEvent};
 use crate::agent_scheduler::store::logs::{
     AppendAgentTaskLogRequest, StoredAgentRunWorkspaceContext, StoredAgentTaskLog,
@@ -1307,7 +1307,7 @@ impl AgentSchedulerGateway for StoreBackedAgentSchedulerGateway {
 impl StoreBackedAgentSchedulerGateway {
     async fn apply_policy_tick(
         &self,
-        project_id: Option<&str>,
+        _project_id: Option<&str>,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         now_ms: TimestampMs,
         auto_promote_pool_tasks: bool,
@@ -1331,48 +1331,7 @@ impl StoreBackedAgentSchedulerGateway {
             blocked = outcome.blocked_task_ids.len(),
             "agent scheduler policy tick applied"
         );
-        if let Some(project_id) = project_id {
-            self.process_policy_merge_actions(project_id, project_path, now_ms, &outcome).await?;
-        } else if !outcome.merge_task_ids.is_empty() {
-            tracing::warn!(
-                project_path = %project_path.storage_project_path().display(),
-                merge_actions = outcome.merge_task_ids.len(),
-                "agent scheduler policy merge actions skipped without project id"
-            );
-        }
         Ok(outcome)
-    }
-
-    async fn process_policy_merge_actions(
-        &self,
-        project_id: &str,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        now_ms: TimestampMs,
-        outcome: &AgentSchedulerPolicyOutcome,
-    ) -> Result<(), ApiError> {
-        for task_id in &outcome.merge_task_ids {
-            let Some(task) =
-                self.store.load_task(project_path, task_id).map_err(map_scheduler_error)?
-            else {
-                tracing::warn!(
-                    project_path = %project_path.storage_project_path().display(),
-                    task_id = task_id.as_str(),
-                    "agent scheduler policy merge skipped missing task"
-                );
-                continue;
-            };
-            if let Err(error) =
-                self.merge_project_task(project_id, project_path, &task, now_ms).await
-            {
-                tracing::warn!(
-                    error = %error,
-                    project_path = %project_path.storage_project_path().display(),
-                    task_id = task.id.as_str(),
-                    "agent scheduler policy merge action failed"
-                );
-            }
-        }
-        Ok(())
     }
 
     async fn apply_project_command(
@@ -1561,428 +1520,14 @@ impl StoreBackedAgentSchedulerGateway {
 
     async fn merge_project_task(
         &self,
-        project_id: &str,
+        _project_id: &str,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
         task: &StoredAgentTask,
         now_ms: TimestampMs,
     ) -> Result<(), ApiError> {
-        if task.status == AgentTaskStatus::Completed {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                "agent scheduler merge skipped: task already completed",
-            );
-            return Ok(());
-        }
-        if task.status != AgentTaskStatus::Submitted {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!("agent scheduler merge rejected: status={}", task.status.as_str()),
-            );
-            return Err(ApiError::bad_request(format!(
-                "merge requires submitted task, got {}",
-                task.status.as_str()
-            )));
-        }
-
-        self.append_merge_diagnostic_log(
-            project_path,
-            task,
-            now_ms,
-            "agent scheduler merge requested",
-        );
-        let workspace = match task_merge_workspace_context(&self.store, project_path, task) {
-            Ok(workspace) => workspace,
-            Err(error) => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    format!("agent scheduler merge rejected: workspace context error={error}"),
-                );
-                return Err(error);
-            }
-        };
-        let selected_worktree_path = match string_field(&task.metadata, "selected_worktree_path")
-            .or_else(|| {
-                workspace
-                    .as_ref()
-                    .filter(|workspace| workspace.slot_id.is_some())
-                    .map(|workspace| workspace.path.clone())
-            }) {
-            Some(path) => path,
-            None => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    "agent scheduler merge rejected: selected_worktree_path missing",
-                );
-                return Err(ApiError::bad_request("selected_worktree_path is required"));
-            }
-        };
-        let selected_worktree_branch =
-            match string_field(&task.metadata, "selected_worktree_branch")
-                .or_else(|| workspace.as_ref().and_then(|workspace| workspace.branch.clone()))
-            {
-                Some(branch) => branch,
-                None => {
-                    self.append_merge_diagnostic_log(
-                        project_path,
-                        task,
-                        now_ms,
-                        "agent scheduler merge rejected: selected_worktree_branch missing",
-                    );
-                    return Err(ApiError::bad_request("selected_worktree_branch is required"));
-                }
-            };
-        let source_branch = match string_field(&task.metadata, "merge_source_branch").or_else(
-            || {
-                valid_merge_branch(&selected_worktree_branch)
-                    .then(|| selected_worktree_branch.clone())
-            },
-        ) {
-            Some(branch) => branch,
-            None => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    format!(
-                        "agent scheduler merge rejected: merge_source_branch unresolved selected_branch={}",
-                        selected_worktree_branch
-                    ),
-                );
-                return Err(ApiError::bad_request(
-                    "merge_source_branch could not be resolved from selected_worktree_branch",
-                ));
-            }
-        };
-        let target_branch = match string_field(&task.metadata, "merge_target_branch")
-            .map(Ok)
-            .unwrap_or_else(|| project_current_branch(project_path))
-        {
-            Ok(branch) => branch,
-            Err(error) => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    format!("agent scheduler merge rejected: target branch error={error}"),
-                );
-                return Err(error);
-            }
-        };
-        if source_branch == target_branch || source_branch == "HEAD" || target_branch == "HEAD" {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!(
-                    "agent scheduler merge rejected: invalid branches source={} target={}",
-                    source_branch, target_branch
-                ),
-            );
-            return Err(ApiError::bad_request(format!(
-                "invalid merge branches: source={} target={}",
-                source_branch, target_branch
-            )));
-        }
-
-        if selected_worktree_branch != source_branch {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!(
-                    "agent scheduler merge rejected: selected_branch={} source_branch={}",
-                    selected_worktree_branch, source_branch
-                ),
-            );
-            return Err(ApiError::bad_request(format!(
-                "selected_worktree_branch must match merge_source_branch: {} != {}",
-                selected_worktree_branch, source_branch
-            )));
-        }
-        if !Path::new(&selected_worktree_path).is_dir() {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!(
-                    "agent scheduler merge rejected: selected_worktree_path missing path={}",
-                    selected_worktree_path
-                ),
-            );
-            return Err(ApiError::bad_request(
-                "selected_worktree_path must reference an existing directory",
-            ));
-        }
-
-        self.append_merge_diagnostic_log(
-            project_path,
-            task,
-            now_ms,
-            format!(
-                "agent scheduler merge resolved: source={} target={} selected_branch={} selected_worktree={}",
-                source_branch, target_branch, selected_worktree_branch, selected_worktree_path
-            ),
-        );
-        let project = project::Info {
-            id: project_id.to_string(),
-            worktree: project_path.storage_project_path().to_string_lossy().into_owned(),
-            vcs: Some(project::Vcs::Git),
-            name: None,
-            icon: None,
-            commands: None,
-            time: project::TimeInfo { created: 0, updated: 0, initialized: None },
-            sandboxes: Vec::new(),
-        };
-        let task_api_id = vw_api_types::id::TaskId(task.id.as_str().to_string());
-        self.append_merge_diagnostic_log(
-            project_path,
-            task,
-            now_ms,
-            format!("agent scheduler merge locking target: target={target_branch}"),
-        );
-        let lock = match super::task_pool::task_worktree_pool_service()
-            .try_lock_merge_target(&project, &task_api_id, &target_branch)
-            .await
-            .map_err(map_scheduler_error)
-        {
-            Ok(lock) => lock,
-            Err(error) => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    format!("agent scheduler merge rejected: lock target error={error}"),
-                );
-                return Err(error);
-            }
-        };
-        if !lock.locked {
-            let holder =
-                lock.holder_task_id.map(|holder| holder.0).unwrap_or_else(|| "unknown".to_string());
-            let message = format!(
-                "agent scheduler merge blocked: target={} holder={}",
-                target_branch, holder
-            );
-            self.append_merge_diagnostic_log(project_path, task, now_ms, message.clone());
-            self.append_merge_diagnostic_event(
-                project_path,
-                task,
-                now_ms,
-                AgentEventKind::TaskBlocked,
-                Some(AgentTaskStatus::Submitted),
-                Some(AgentTaskStatus::Submitted),
-                message,
-                json!({
-                    "command": "merge",
-                    "error": "merge_target_locked",
-                    "target_branch": target_branch,
-                    "holder_task_id": holder,
-                }),
-            );
-            return Err(ApiError::bad_request(format!(
-                "merge target locked: target={} holder={}",
-                target_branch, holder
-            )));
-        }
-
-        self.append_merge_diagnostic_log(
-            project_path,
-            task,
-            now_ms,
-            format!("agent scheduler merge locked target: target={target_branch}"),
-        );
-        self.append_merge_diagnostic_log(
-            project_path,
-            task,
-            now_ms,
-            format!(
-                "agent scheduler merge git start: source={} target={} project_path={}",
-                source_branch,
-                target_branch,
-                project_path.storage_project_path().display()
-            ),
-        );
-        let merge_result = {
-            let project_path = project_path.storage_project_path().to_path_buf();
-            let source_branch = source_branch.clone();
-            let target_branch = target_branch.clone();
-            tokio::task::spawn_blocking(move || {
-                super::git::merge_branch_blocking(
-                    &project_path.to_string_lossy(),
-                    &source_branch,
-                    &target_branch,
-                )
-            })
-            .await
-        };
-
-        let unlock_result = super::task_pool::task_worktree_pool_service()
-            .unlock_merge_target(&project, &task_api_id, &target_branch)
-            .await;
-        if let Err(error) = unlock_result {
-            tracing::warn!(
-                error = %error,
-                task_id = task.id.as_str(),
-                target_branch = %target_branch,
-                "agent scheduler merge lock release failed"
-            );
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!("agent scheduler merge lock release failed: target={target_branch} error={error}"),
-            );
-        } else {
-            self.append_merge_diagnostic_log(
-                project_path,
-                task,
-                now_ms,
-                format!("agent scheduler merge lock released: target={target_branch}"),
-            );
-        }
-
-        let merge_result = match merge_result {
-            Ok(result) => result,
-            Err(error) => {
-                self.append_merge_diagnostic_log(
-                    project_path,
-                    task,
-                    now_ms,
-                    format!("agent scheduler merge join failed: {error}"),
-                );
-                return Err(ApiError::internal(format!(
-                    "agent scheduler merge join failed: {error}"
-                )));
-            }
-        };
-
-        let response = match merge_result {
-            Ok(response) if response.ok => response,
-            Ok(response) => {
-                let message = format!(
-                    "merge failed source={} target={} workspace={} message={}",
-                    response.source_branch,
-                    response.target_branch,
-                    response.workspace,
-                    response.message
-                );
-                self.record_merge_failure(project_path, task, now_ms, message.clone())?;
-                return Err(ApiError::bad_request(message));
-            }
-            Err(error) => {
-                let message = format!(
-                    "merge failed source={} target={} error={}",
-                    source_branch, target_branch, error
-                );
-                self.record_merge_failure(project_path, task, now_ms, message.clone())?;
-                return Err(ApiError::bad_request(message));
-            }
-        };
-
-        self.store
-            .transition_task_status(project_path, &task.id, AgentTaskStatus::Completed, now_ms)
-            .map_err(map_scheduler_command_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        self.store
-            .append_task_log(
-                project_path,
-                AppendAgentTaskLogRequest {
-                    task_id: task.id.clone(),
-                    run_id: None,
-                    timestamp_ms: now_ms,
-                    from_status: Some(AgentTaskStatus::Submitted),
-                    to_status: Some(AgentTaskStatus::Completed),
-                    from_status_key: None,
-                    to_status_key: None,
-                    message: if response.already_merged {
-                        format!(
-                            "agent scheduler merge skipped: {} already in {} workspace={} already_merged=true",
-                            response.source_branch, response.target_branch, response.workspace
-                        )
-                    } else {
-                        format!(
-                            "agent scheduler merge completed: {} -> {} workspace={}",
-                            response.source_branch, response.target_branch, response.workspace
-                        )
-                    },
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        self.store
-            .record_task_artifact(
-                project_path,
-                RecordTaskArtifactRequest {
-                    task_id: task.id.clone(),
-                    run_id: None,
-                    kind: "merge_result".to_string(),
-                    name: "merge-result.json".to_string(),
-                    path: Some(format!(
-                        "shared/tasks/{}/artifacts/merge-result.json",
-                        task.id.as_str()
-                    )),
-                    payload: json!({
-                        "success": true,
-                        "source_branch": response.source_branch,
-                        "target_branch": response.target_branch,
-                        "workspace": response.workspace,
-                        "already_merged": response.already_merged,
-                        "message": response.message,
-                    }),
-                    created_at_ms: now_ms,
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        Ok(())
-    }
-
-    fn record_merge_failure(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-        message: String,
-    ) -> Result<(), ApiError> {
-        self.store
-            .transition_task_status(project_path, &task.id, AgentTaskStatus::Failed, now_ms)
-            .map_err(map_scheduler_command_error)?
-            .ok_or_else(|| ApiError::not_found("task not found"))?;
-        self.store
-            .append_task_log(
-                project_path,
-                AppendAgentTaskLogRequest {
-                    task_id: task.id.clone(),
-                    run_id: None,
-                    timestamp_ms: now_ms,
-                    from_status: Some(AgentTaskStatus::Submitted),
-                    to_status: Some(AgentTaskStatus::Failed),
-                    from_status_key: None,
-                    to_status_key: None,
-                    message: message.clone(),
-                },
-            )
-            .map_err(map_scheduler_error)?;
-        self.append_merge_diagnostic_event(
-            project_path,
-            task,
-            now_ms,
-            AgentEventKind::RunFailed,
-            Some(AgentTaskStatus::Submitted),
-            Some(AgentTaskStatus::Failed),
-            "agent scheduler merge failed",
-            json!({
-                "command": "merge",
-                "error": message,
-            }),
-        );
-        Ok(())
+        let message = "merge requires an explicit workflow using the permission-checked git_merge tool; configure and run that workflow";
+        self.append_merge_diagnostic_log(project_path, task, now_ms, message);
+        Err(ApiError::bad_request(message))
     }
 
     fn append_merge_diagnostic_log(
@@ -2011,44 +1556,6 @@ impl StoreBackedAgentSchedulerGateway {
                 task_id = task.id.as_str(),
                 message = %message,
                 "failed to append agent scheduler merge diagnostic log"
-            );
-        }
-    }
-
-    fn append_merge_diagnostic_event(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-        kind: AgentEventKind,
-        from_status: Option<AgentTaskStatus>,
-        to_status: Option<AgentTaskStatus>,
-        message: impl Into<String>,
-        payload: Value,
-    ) {
-        let message = message.into();
-        if let Err(error) = self.store.append_event(
-            project_path,
-            AppendAgentEventRequest {
-                task_id: Some(task.id.clone()),
-                run_id: None,
-                worker_id: task.assigned_to.clone(),
-                team_id: task.team_id.clone(),
-                kind,
-                from_status,
-                to_status,
-                from_status_key: None,
-                to_status_key: None,
-                message: message.clone(),
-                payload,
-                created_at_ms: now_ms,
-            },
-        ) {
-            tracing::warn!(
-                error = %error,
-                task_id = task.id.as_str(),
-                message = %message,
-                "failed to append agent scheduler merge diagnostic event"
             );
         }
     }
@@ -2688,47 +2195,6 @@ fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
 fn valid_merge_branch(branch: &str) -> bool {
     let branch = branch.trim();
     !branch.is_empty() && branch != "HEAD"
-}
-
-fn task_merge_workspace_context(
-    store: &AgentSchedulerStore,
-    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-    task: &StoredAgentTask,
-) -> Result<Option<AgentSchedulerWorkspaceContextDto>, ApiError> {
-    let run =
-        store.load_latest_run_for_task(project_path, &task.id).map_err(map_scheduler_error)?;
-    run.map(|run| run_workspace_to_dto(store, project_path, &task.id, &run.id)).transpose().map(
-        |workspace| workspace.flatten().or_else(|| workspace_context_from_value(&task.metadata)),
-    )
-}
-
-fn project_current_branch(
-    project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-) -> Result<String, ApiError> {
-    let output = crate::app::agent::shell::git_std_command()
-        .current_dir(project_path.storage_project_path())
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-        .map_err(|error| {
-            ApiError::bad_request(format!(
-                "merge target branch could not be resolved from project current branch: {error}"
-            ))
-        })?;
-    if !output.status.success() {
-        let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        return Err(ApiError::bad_request(format!(
-            "merge target branch could not be resolved from project current branch: {}",
-            if detail.is_empty() { "git rev-parse failed".to_string() } else { detail }
-        )));
-    }
-    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !valid_merge_branch(&branch) {
-        return Err(ApiError::bad_request(format!(
-            "invalid project current branch for merge target: {}",
-            if branch.is_empty() { "<empty>" } else { branch.as_str() }
-        )));
-    }
-    Ok(branch)
 }
 
 fn task_log_to_dto(log: StoredAgentTaskLog) -> AgentSchedulerTaskLogDto {

@@ -124,6 +124,7 @@ fn finite_can_transition(from: AgentTaskStatus, to: AgentTaskStatus) -> bool {
         | (Dispatched, Acknowledged)
         | (Acknowledged, Running)
         | (Running, Submitted)
+        | (Running, Completed)
         | (Submitted, Completed)
         | (Submitted, Queued)
         | (Acknowledged, Blocked)

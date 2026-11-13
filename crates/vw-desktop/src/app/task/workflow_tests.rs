@@ -3,8 +3,8 @@ use crate::app::task::models::TaskStatus;
 
 #[test]
 fn default_task_workflow_preserves_existing_status_contract() {
-    let workflow = default_task_workflow();
-    assert_eq!(workflow.id, DEFAULT_TASK_WORKFLOW_ID);
+    let workflow = &DEV_LIFECYCLE_WORKFLOW;
+    assert_eq!(workflow.id, "dev_lifecycle");
     assert_eq!(workflow.id, "dev_lifecycle");
 
     // 工作流状态顺序必须与现有 TaskStatus::all() 完全一致。
@@ -21,7 +21,7 @@ fn default_task_workflow_preserves_existing_status_contract() {
 
     // 终态标记与现有 next() == None 的状态一致。
     for definition in workflow.statuses.iter() {
-        let has_no_next = definition.status.next().is_none();
+        let has_no_next = definition.next.is_none();
         assert_eq!(
             definition.is_terminal, has_no_next,
             "终态标记应与 next() 是否为 None 对齐: {:?}",
@@ -66,15 +66,14 @@ fn builtin_gateway_snapshot_includes_failed_retry_transition() {
 
 #[test]
 fn default_task_workflow_next_matches_existing_status_next() {
-    let workflow = default_task_workflow();
     for status in TaskStatus::all() {
-        assert_eq!(workflow.next_status(status), status.next());
+        assert_eq!(default_task_workflow().next_status(status), status.next());
     }
 }
 
 #[test]
 fn state_machine_allows_default_lifecycle_intents() {
-    let machine = TaskStateMachine::new(default_task_workflow());
+    let machine = TaskStateMachine::new(&DEV_LIFECYCLE_WORKFLOW);
 
     // ManualMove 保留看板自由移动：跨列任意移动都允许。
     assert!(machine.can_transition(
@@ -174,7 +173,7 @@ fn state_machine_allows_default_lifecycle_intents() {
 
 #[test]
 fn state_machine_rejects_invalid_automatic_transition() {
-    let machine = TaskStateMachine::new(default_task_workflow());
+    let machine = TaskStateMachine::new(&DEV_LIFECYCLE_WORKFLOW);
 
     // AutoPromote 只允许 Pool -> Pending，其他来源或目标都拒绝。
     assert!(!machine.can_transition(
@@ -213,7 +212,7 @@ fn state_machine_rejects_invalid_automatic_transition() {
     assert_eq!(err.from, TaskStatus::Pending);
     assert_eq!(err.to, TaskStatus::Planning);
     assert_eq!(err.intent, TaskTransitionIntent::AutoPromote);
-    assert_eq!(err.workflow_id, DEFAULT_TASK_WORKFLOW_ID);
+    assert_eq!(err.workflow_id, "dev_lifecycle");
 
     // next_for_intent 对没有定义边的来源状态返回 None。
     assert_eq!(
@@ -224,7 +223,7 @@ fn state_machine_rejects_invalid_automatic_transition() {
 
 #[test]
 fn transition_error_display_preserves_rejected_transition_context() {
-    let machine = TaskStateMachine::default_lifecycle();
+    let machine = TaskStateMachine::new(&DEV_LIFECYCLE_WORKFLOW);
     let error = machine
         .validate_transition(
             TaskStatus::Running,
@@ -243,7 +242,7 @@ fn transition_error_display_preserves_rejected_transition_context() {
 
 #[test]
 fn builtin_statuses_bind_expected_roles() {
-    let workflow = default_task_workflow();
+    let workflow = &DEV_LIFECYCLE_WORKFLOW;
 
     // 内置 11 状态各自绑定到唯一且语义正确的角色。
     let expected = [
@@ -289,7 +288,7 @@ fn builtin_statuses_bind_expected_roles() {
 
 #[test]
 fn status_role_lookup_resolves_known_role() {
-    let workflow = default_task_workflow();
+    let workflow = &DEV_LIFECYCLE_WORKFLOW;
 
     // 按角色反查能定位到唯一状态。
     assert_eq!(workflow.status_role(TaskStatus::Running), Some(StatusRole::Executing));
@@ -304,7 +303,7 @@ fn status_role_lookup_resolves_known_role() {
 
 #[test]
 fn role_derived_scheduling_semantics_match_builtin_flags() {
-    let workflow = default_task_workflow();
+    let workflow = &DEV_LIFECYCLE_WORKFLOW;
 
     // 角色派生的调度语义必须对内置每个状态与既有布尔字段逐状态一致：
     // occupies_execution_slot / is_scheduling_backlog 已有布尔字段，角色派生方法
@@ -470,13 +469,14 @@ fn industry_presets_are_registered_with_business_labels() {
 #[test]
 fn default_status_entrypoint_and_builtin_list_expose_stable_order() {
     let default_statuses = default_task_workflow_statuses();
-    assert_eq!(default_statuses, default_task_workflow().statuses);
+    assert_eq!(default_statuses, DEV_LIFECYCLE_WORKFLOW.statuses);
 
     let workflows = builtin_task_workflows();
     assert_eq!(workflows.first().map(|workflow| workflow.id), Some(DEFAULT_TASK_WORKFLOW_ID));
     assert_eq!(
         workflows.iter().map(|workflow| workflow.id).collect::<Vec<_>>(),
         vec![
+            "generic_task",
             "dev_lifecycle",
             "content_publishing",
             "marketing_campaign",
@@ -487,8 +487,8 @@ fn default_status_entrypoint_and_builtin_list_expose_stable_order() {
 }
 
 #[test]
-fn gateway_snapshot_maps_all_default_roles_and_transition_targets_to_keys() {
-    let workflow = TaskWorkflow::from(default_task_workflow());
+fn gateway_snapshot_maps_all_development_roles_and_transition_targets_to_keys() {
+    let workflow = TaskWorkflow::from(&DEV_LIFECYCLE_WORKFLOW);
 
     let snapshot = task_workflow_snapshot_for_gateway(&workflow);
 
@@ -526,4 +526,19 @@ fn gateway_snapshot_maps_all_default_roles_and_transition_targets_to_keys() {
         snapshot.statuses.iter().find(|status| status.key == "archived").expect("archived status");
     assert!(archived.terminal);
     assert!(archived.next.is_none());
+}
+
+#[test]
+fn task_pool_schedule_desktop_default_matches_generic_lifecycle() {
+    let workflow = default_task_workflow();
+    assert_eq!(workflow.id, "generic_task");
+    assert_eq!(workflow.next_status(TaskStatus::Running), Some(TaskStatus::Completed));
+    assert!(workflow.status_definition(TaskStatus::Completed).unwrap().is_terminal);
+    assert_eq!(TaskStatus::all().len(), 11);
+    assert_eq!(TaskStatus::CodeReview.to_string_key(), "code_review");
+    assert!(!TaskStatus::CodeReview.label().is_empty());
+    assert_eq!(
+        task_workflow_by_id("dev_lifecycle").unwrap().next_status(TaskStatus::Running),
+        Some(TaskStatus::CodeComplete)
+    );
 }

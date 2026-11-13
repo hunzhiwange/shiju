@@ -12,11 +12,12 @@ fn task_lifecycle_registry_validates_custom_workflows() {
     let mut registry = TaskLifecycleRegistry::new();
 
     let built_ins = registry.all_workflows();
-    assert_eq!(built_ins.len(), 5);
+    assert_eq!(built_ins.len(), 6);
     assert!(built_ins.iter().all(|workflow| workflow.built_in));
     assert_eq!(
         built_ins.iter().map(|workflow| workflow.id.as_str()).collect::<Vec<_>>(),
         vec![
+            "generic_task",
             "dev_lifecycle",
             "content_publishing",
             "marketing_campaign",
@@ -39,7 +40,7 @@ fn task_lifecycle_registry_validates_custom_workflows() {
 
     registry.register(custom_workflow("support_review")).expect("valid custom workflow");
     let workflows = registry.all_workflows();
-    assert_eq!(workflows.len(), 6);
+    assert_eq!(workflows.len(), 7);
     assert_eq!(
         registry.workflow_by_id("support_review").expect("custom workflow is registered").label,
         "Support Review"

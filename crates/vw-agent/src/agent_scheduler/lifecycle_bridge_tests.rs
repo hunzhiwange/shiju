@@ -146,3 +146,22 @@ fn transition(outcome: &str, target: &str) -> TaskPoolWorkflowTransitionDto {
         target: target.to_string(),
     }
 }
+
+#[test]
+fn task_pool_schedule_explicit_workflow_result_controls_completion() {
+    let mut snapshot = super::lifecycle_bridge::builtin_task_workflow_snapshot();
+    let bridge = LifecycleBridge::new(&snapshot);
+    assert_eq!(
+        bridge.resolve_outcome("running", "success").unwrap().runtime_status,
+        AgentTaskStatus::Completed
+    );
+    let running = snapshot.statuses.iter_mut().find(|s| s.key == "running").unwrap();
+    running.next = None;
+    running.transitions = vec![transition("manual_review", "paused")];
+    let bridge = LifecycleBridge::new(&snapshot);
+    assert!(bridge.resolve_outcome("running", "success").is_err());
+    assert_eq!(
+        bridge.resolve_outcome("running", "manual_review").unwrap().runtime_status,
+        AgentTaskStatus::Paused
+    );
+}

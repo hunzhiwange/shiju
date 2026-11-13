@@ -14,7 +14,6 @@ use crate::agent_scheduler::store::logs::AppendAgentTaskLogRequest;
 use crate::agent_scheduler::store::runs::{AgentRunFinishStatus, StoredAgentRun};
 use crate::agent_scheduler::store::tasks::{AgentTaskFilter, StoredAgentTask};
 use crate::agent_scheduler::store::{AgentSchedulerStorageContext, AgentSchedulerStore};
-use crate::task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID;
 
 const DEFAULT_FAILED_RETRY_MINUTES: u32 = 20;
 const DEFAULT_FAILED_RETRY_MAX_ATTEMPTS: u32 = 10;
@@ -22,10 +21,8 @@ const DEFAULT_AUTO_PROMOTE_DELAY_MS: i64 = 30_000;
 const DEFAULT_RUNNING_TIMEOUT_MS: i64 = 20 * 60_000;
 const DEFAULT_MERGE_STALL_TIMEOUT_MS: i64 = 300_000;
 const RUNNING_TIMEOUT_GRACE_MARKER: &str = "超时保活";
-const OUTCOME_SUCCESS: &str = "success";
 const OUTCOME_FAILURE: &str = "failure";
 const OUTCOME_RETRY: &str = "retry";
-const OUTCOME_BLOCKED: &str = "blocked";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 自动推进、失败重试和各阶段超时阈值。
@@ -133,17 +130,8 @@ impl<'a> AgentSchedulerPolicyService<'a> {
                         &mut outcome,
                     )?;
                 }
-                AgentTaskStatus::Submitted => {
-                    self.apply_submitted_policy(
-                        project_path,
-                        &task,
-                        now_ms,
-                        &config,
-                        workflow.as_ref(),
-                        &mut outcome,
-                    )?;
-                }
-                AgentTaskStatus::Queued
+                AgentTaskStatus::Submitted
+                | AgentTaskStatus::Queued
                 | AgentTaskStatus::Active
                 | AgentTaskStatus::Revision
                 | AgentTaskStatus::Blocked
@@ -176,9 +164,26 @@ impl<'a> AgentSchedulerPolicyService<'a> {
         }
 
         let from_status_key = crate::agent_scheduler::task_board::task_board_status_key(task);
+        let workflow = crate::agent_scheduler::engine::dispatch::load_dispatch_workflow(
+            self.store,
+            project_path,
+        )?;
+        let target =
+            LifecycleBridge::new(&workflow).resolve_outcome(&from_status_key, "success")?;
+        if target.runtime_status != AgentTaskStatus::Queued {
+            bail!("pool promotion requires a queued lifecycle target, got {}", target.status_key);
+        }
+        let mut metadata = object_metadata(task.metadata.clone())?;
+        set_read_model_status(&mut metadata, &target);
         let updated = self
             .store
-            .transition_task_status(project_path, &task.id, AgentTaskStatus::Queued, now_ms)?
+            .transition_task_status_with_metadata(
+                project_path,
+                &task.id,
+                AgentTaskStatus::Queued,
+                Value::Object(metadata),
+                now_ms,
+            )?
             .with_context(|| {
                 format!("task disappeared during pool promotion: {}", task.id.as_str())
             })?;
@@ -367,131 +372,6 @@ impl<'a> AgentSchedulerPolicyService<'a> {
             outcome.timed_out_task_ids.push(task.id.clone());
         }
         Ok(())
-    }
-
-    fn apply_submitted_policy(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-        config: &AgentSchedulerPolicyConfig,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
-        outcome: &mut AgentSchedulerPolicyOutcome,
-    ) -> Result<()> {
-        let role = status_role_from_metadata(&task.metadata);
-        let status_key = crate::agent_scheduler::task_board::task_board_status_key(task);
-        let allows_git_merge = allows_git_merge_policy(task, workflow);
-        if is_merging_projection(role, &status_key) {
-            if !allows_git_merge {
-                self.transition_task_with_lifecycle_outcome(
-                    project_path,
-                    task,
-                    workflow,
-                    OUTCOME_SUCCESS,
-                    now_ms,
-                    "agent scheduler policy completed non-development merge stage without git merge",
-                    AgentEventKind::RunCompleted,
-                    json!({
-                        "policy_action": "complete_non_development_merge_stage",
-                        "workflow_id": workflow_id_for_policy(task, workflow),
-                    }),
-                )?;
-                return Ok(());
-            }
-            if self.apply_merge_stall_policy(
-                project_path,
-                task,
-                now_ms,
-                config,
-                workflow,
-                outcome,
-            )? {
-                return Ok(());
-            }
-            self.append_log(
-                project_path,
-                &task.id,
-                None,
-                now_ms,
-                Some(task.status),
-                Some(task.status),
-                Some(status_key.clone()),
-                Some(status_key.clone()),
-                "agent scheduler policy requested merge for submitted task",
-            )?;
-            outcome.merge_task_ids.push(task.id.clone());
-            return Ok(());
-        }
-
-        if !is_review_ready_projection(role, &status_key) {
-            return Ok(());
-        }
-
-        if !allows_git_merge {
-            self.transition_task_with_lifecycle_outcome(
-                project_path,
-                task,
-                workflow,
-                OUTCOME_SUCCESS,
-                now_ms,
-                "agent scheduler policy completed non-development submitted task without git merge",
-                AgentEventKind::RunCompleted,
-                json!({
-                    "policy_action": "complete_non_development_submitted_task",
-                    "workflow_id": workflow_id_for_policy(task, workflow),
-                }),
-            )?;
-            return Ok(());
-        }
-
-        Ok(())
-    }
-
-    fn apply_merge_stall_policy(
-        &self,
-        project_path: &(impl AgentSchedulerStorageContext + ?Sized),
-        task: &StoredAgentTask,
-        now_ms: TimestampMs,
-        config: &AgentSchedulerPolicyConfig,
-        workflow: Option<&TaskPoolWorkflowSnapshotDto>,
-        outcome: &mut AgentSchedulerPolicyOutcome,
-    ) -> Result<bool> {
-        let anchor = timestamp_metadata_field(&task.metadata, "last_active_at_ms")
-            .unwrap_or(task.updated_at_ms);
-        if elapsed_since(now_ms, anchor) < config.merge_stall_timeout_ms {
-            return Ok(false);
-        }
-        let target_branch = string_metadata_field(&task.metadata, "merge_target_branch")
-            .unwrap_or_else(|| "unknown".to_string());
-        let selected_worktree = string_metadata_field(&task.metadata, "selected_worktree_path")
-            .unwrap_or_else(|| "unknown".to_string());
-        let message = format!(
-            "agent scheduler policy merge stall detected: inactive_ms={} worktree={} target={}",
-            elapsed_since(now_ms, anchor),
-            selected_worktree,
-            target_branch
-        );
-        if self
-            .transition_task_with_lifecycle_outcome(
-                project_path,
-                task,
-                workflow,
-                OUTCOME_BLOCKED,
-                now_ms,
-                message,
-                AgentEventKind::TaskBlocked,
-                json!({
-                    "policy_action": "merge_stall",
-                    "target_branch": target_branch,
-                    "selected_worktree": selected_worktree,
-                }),
-            )?
-            .is_some()
-        {
-            outcome.blocked_task_ids.push(task.id.clone());
-            return Ok(true);
-        }
-        Ok(false)
     }
 
     fn transition_task_with_lifecycle_outcome(
@@ -699,36 +579,6 @@ fn is_backlog_task(task: &StoredAgentTask) -> bool {
             status_role_from_metadata(&task.metadata),
             Some(TaskPoolWorkflowStatusRoleDto::Backlog)
         ) || matches!(status_key.as_str(), "pool" | "backlog" | "draft"))
-}
-
-fn is_review_ready_projection(
-    role: Option<TaskPoolWorkflowStatusRoleDto>,
-    status_key: &str,
-) -> bool {
-    matches!(role, Some(TaskPoolWorkflowStatusRoleDto::ReviewReady))
-        || matches!(status_key, "code_complete" | "review_ready")
-}
-
-fn is_merging_projection(role: Option<TaskPoolWorkflowStatusRoleDto>, status_key: &str) -> bool {
-    matches!(role, Some(TaskPoolWorkflowStatusRoleDto::Merging))
-        || matches!(status_key, "pr_submitted" | "merging")
-}
-
-fn allows_git_merge_policy(
-    task: &StoredAgentTask,
-    workflow: Option<&TaskPoolWorkflowSnapshotDto>,
-) -> bool {
-    workflow_id_for_policy(task, workflow)
-        .as_deref()
-        .map_or(true, |workflow_id| workflow_id == DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID)
-}
-
-fn workflow_id_for_policy(
-    task: &StoredAgentTask,
-    workflow: Option<&TaskPoolWorkflowSnapshotDto>,
-) -> Option<String> {
-    string_metadata_field(&task.metadata, "task_board.workflow_id")
-        .or_else(|| workflow.and_then(|workflow| non_empty_str(&workflow.id).map(str::to_string)))
 }
 
 fn retry_anchor(metadata: &Value, latest_run: Option<&StoredAgentRun>) -> Option<TimestampMs> {

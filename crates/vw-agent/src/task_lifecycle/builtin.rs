@@ -5,8 +5,8 @@ use vw_api_types::task_lifecycle::{
     TaskLifecycleWorkflowDto,
 };
 
-/// 默认开发任务生命周期工作流的稳定标识。
-pub const DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID: &str = "dev_lifecycle";
+/// 默认通用任务生命周期工作流的稳定标识。
+pub const DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID: &str = "generic_task";
 
 #[derive(Debug, Clone, Copy)]
 struct WorkflowSpec {
@@ -605,11 +605,25 @@ const RECRUITING_STATUSES: &[StatusSpec] = &[
     ),
 ];
 
+const GENERIC_TASK_STATUSES: &[StatusSpec] = &[
+    DEV_LIFECYCLE_STATUSES[0],
+    StatusSpec { next: Some("running"), ..DEV_LIFECYCLE_STATUSES[1] },
+    DEV_LIFECYCLE_STATUSES[2],
+    StatusSpec { next: Some("completed"), ..DEV_LIFECYCLE_STATUSES[3] },
+    DEV_LIFECYCLE_STATUSES[4],
+    DEV_LIFECYCLE_STATUSES[5],
+    StatusSpec { terminal: true, next: None, ..DEV_LIFECYCLE_STATUSES[9] },
+    DEV_LIFECYCLE_STATUSES[10],
+];
+
 const BUILT_IN_WORKFLOW_SPECS: &[WorkflowSpec] = &[
     WorkflowSpec {
         id: DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
-        label: "开发生命周期",
-        statuses: DEV_LIFECYCLE_STATUSES,
+        label: "通用任务",
+        statuses: GENERIC_TASK_STATUSES,
+    },
+    WorkflowSpec {
+        id: "dev_lifecycle", label: "开发生命周期", statuses: DEV_LIFECYCLE_STATUSES
     },
     WorkflowSpec {
         id: "content_publishing",

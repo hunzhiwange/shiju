@@ -13,52 +13,71 @@ use crate::agent_scheduler::state_machine::AgentTaskStatus;
 
 /// 不依赖员工配置的内建任务生命周期，用于尚未保存任务板工作流的项目。
 pub fn builtin_task_workflow_snapshot() -> TaskPoolWorkflowSnapshotDto {
-    let definitions = [
-        ("pool", "Pool", TaskPoolWorkflowStatusRoleDto::Backlog, false),
-        ("pending", "Pending", TaskPoolWorkflowStatusRoleDto::Queued, false),
-        ("planning", "Planning", TaskPoolWorkflowStatusRoleDto::Planning, false),
-        ("running", "Running", TaskPoolWorkflowStatusRoleDto::Executing, false),
-        ("failed", "Failed", TaskPoolWorkflowStatusRoleDto::Failed, false),
-        ("paused", "Paused", TaskPoolWorkflowStatusRoleDto::Paused, false),
-        ("code_complete", "Code Complete", TaskPoolWorkflowStatusRoleDto::ReviewReady, false),
-        ("code_review", "Code Review", TaskPoolWorkflowStatusRoleDto::Review, false),
-        ("pr_submitted", "PR Submitted", TaskPoolWorkflowStatusRoleDto::Merging, false),
-        ("completed", "Completed", TaskPoolWorkflowStatusRoleDto::Done, true),
-        ("archived", "Archived", TaskPoolWorkflowStatusRoleDto::Archived, true),
-    ];
-    let statuses = definitions
-        .iter()
-        .enumerate()
-        .map(|(index, (key, label, role, terminal))| {
-            let next = definitions.get(index + 1).map(|(key, ..)| (*key).to_string());
-            let transitions = if *role == TaskPoolWorkflowStatusRoleDto::Failed {
-                next.as_ref()
-                    .map(|target| {
-                        vec![TaskPoolWorkflowTransitionDto {
-                            outcome: "retry".to_string(),
-                            label: Some("重试".to_string()),
-                            target: target.clone(),
-                        }]
-                    })
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            };
-            TaskPoolWorkflowStatusDto {
-                key: (*key).to_string(),
-                label: (*label).to_string(),
-                role: *role,
-                enabled: true,
-                terminal: *terminal,
-                next,
-                transitions,
-            }
-        })
-        .collect();
+    let workflow = crate::task_lifecycle::built_in_workflow_by_id(
+        crate::task_lifecycle::DEFAULT_TASK_LIFECYCLE_WORKFLOW_ID,
+    )
+    .expect("default lifecycle is registered");
     TaskPoolWorkflowSnapshotDto {
-        id: "dev_lifecycle".to_string(),
-        label: "Default Task Workflow".to_string(),
-        statuses,
+        id: workflow.id,
+        label: workflow.label,
+        statuses: workflow
+            .statuses
+            .into_iter()
+            .map(|status| TaskPoolWorkflowStatusDto {
+                key: status.key,
+                label: status.label,
+                role: match status.role {
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Backlog => {
+                        TaskPoolWorkflowStatusRoleDto::Backlog
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Queued => {
+                        TaskPoolWorkflowStatusRoleDto::Queued
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Planning => {
+                        TaskPoolWorkflowStatusRoleDto::Planning
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Executing => {
+                        TaskPoolWorkflowStatusRoleDto::Executing
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Failed => {
+                        TaskPoolWorkflowStatusRoleDto::Failed
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Paused => {
+                        TaskPoolWorkflowStatusRoleDto::Paused
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::ReviewReady => {
+                        TaskPoolWorkflowStatusRoleDto::ReviewReady
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Review => {
+                        TaskPoolWorkflowStatusRoleDto::Review
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Merging => {
+                        TaskPoolWorkflowStatusRoleDto::Merging
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Done => {
+                        TaskPoolWorkflowStatusRoleDto::Done
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Archived => {
+                        TaskPoolWorkflowStatusRoleDto::Archived
+                    }
+                    vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto::Custom => {
+                        TaskPoolWorkflowStatusRoleDto::Custom
+                    }
+                },
+                enabled: status.enabled,
+                terminal: status.terminal,
+                next: status.next,
+                transitions: status
+                    .transitions
+                    .into_iter()
+                    .map(|t| TaskPoolWorkflowTransitionDto {
+                        outcome: t.outcome,
+                        label: t.label,
+                        target: t.target,
+                    })
+                    .collect(),
+            })
+            .collect(),
     }
 }
 

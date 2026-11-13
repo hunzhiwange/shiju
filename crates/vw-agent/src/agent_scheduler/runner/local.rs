@@ -210,7 +210,7 @@ where
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: started_run }))
     }
 
-    /// 提交工作区变化、记录产物并完成运行；失败路径仍负责释放资源。
+    /// 记录执行产物并按生命周期结果推进；失败路径仍负责释放资源。
     pub fn finish_started_run(
         &self,
         project_path: &(impl AgentSchedulerStorageContext + ?Sized),
@@ -418,14 +418,24 @@ where
         }
 
         match execution {
-            Ok(output) => self.complete_running_task(
+            Ok(output) => match self.complete_running_task(
                 project_path,
                 task,
                 run_id,
                 request,
                 &workspace,
                 output.raw_output,
-            ),
+            ) {
+                Ok(run) => Ok(run),
+                Err(error) => self.fail_running_task(
+                    project_path,
+                    task,
+                    run_id,
+                    request,
+                    Some(&workspace),
+                    error.to_string(),
+                ),
+            },
             Err(error) => {
                 let message = error.to_string();
                 let failed = self.fail_running_task(
@@ -459,25 +469,59 @@ where
     ) -> Result<StoredAgentRun> {
         let submitted_at_ms = add_ms(request.now_ms, 5)?;
         self.sync_task_workspace_metadata(project_path, task, workspace, submitted_at_ms)?;
-        self.transition_and_log(
+        let workflow = crate::agent_scheduler::engine::dispatch::load_dispatch_workflow(
+            self.store,
+            project_path,
+        )?;
+        let bridge = crate::agent_scheduler::lifecycle_bridge::LifecycleBridge::new(&workflow);
+        let mut executing = workflow.statuses.iter().filter(|s| {
+            s.enabled && s.role == vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Executing
+        });
+        let source_key = execution_metadata_string(task, "task_board.status_key").filter(|key| {
+            workflow.statuses.iter().any(|s| {
+                s.enabled
+                    && s.key == *key
+                    && s.role == vw_api_types::task::TaskPoolWorkflowStatusRoleDto::Executing
+            })
+        });
+        let source_key = match source_key {
+            Some(key) => key,
+            None => {
+                let source = executing.next().context("workflow has no executing status")?;
+                if executing.next().is_some() {
+                    bail!("workflow has ambiguous executing statuses");
+                }
+                source.key.clone()
+            }
+        };
+        let target = bridge.resolve_outcome(&source_key, "success")?;
+        let current = self
+            .store
+            .load_task(project_path, &task.id)?
+            .context("task disappeared before completion")?;
+        let mut metadata = object_metadata(current.metadata)?;
+        metadata.extend(bridge.projection_metadata(&target.status_key)?);
+        self.store.transition_task_status_with_metadata(
             project_path,
             &task.id,
-            run_id,
-            AgentTaskStatus::Running,
-            AgentTaskStatus::Submitted,
+            target.runtime_status,
+            Value::Object(metadata),
             submitted_at_ms,
-            "local execution submitted result",
         )?;
-        self.append_event(
+        self.append_log(
             project_path,
             &task.id,
             Some(run_id),
-            AgentEventKind::RunSubmitted,
-            Some(AgentTaskStatus::Running),
-            Some(AgentTaskStatus::Submitted),
-            "local execution submitted result",
-            json!({"dispatch_target": "local"}),
             submitted_at_ms,
+            Some(AgentTaskStatus::Running),
+            Some(target.runtime_status),
+            "local execution result advanced lifecycle",
+        )?;
+        self.append_event(
+            project_path, &task.id, Some(run_id),
+            if target.runtime_status == AgentTaskStatus::Completed { AgentEventKind::RunCompleted } else { AgentEventKind::RunSubmitted },
+            Some(AgentTaskStatus::Running), Some(target.runtime_status),
+            "local execution result advanced lifecycle", json!({"dispatch_target": "local", "outcome": "success", "status_key": target.status_key}), submitted_at_ms,
         )?;
         self.record_execution_artifact(
             project_path,

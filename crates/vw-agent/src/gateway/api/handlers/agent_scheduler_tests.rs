@@ -294,24 +294,25 @@ async fn agent_scheduler_gateway_command_runs_task() {
     assert_ne!(task.status, AgentTaskStatus::Queued);
 
     let logs_uri = format!("/agent-scheduler/projects/{project_id}/tasks/task-gateway-new/logs");
-    let logs = wait_for_log(app.clone(), &logs_uri, "local execution submitted result").await;
+    let logs =
+        wait_for_log(app.clone(), &logs_uri, "local execution result advanced lifecycle").await;
     assert_eq!(logs["task_id"], "task-gateway-new");
     assert!(
         logs["logs"]
             .as_array()
             .expect("logs array")
             .iter()
-            .any(|log| log["message"] == "local execution submitted result")
+            .any(|log| log["message"] == "local execution result advanced lifecycle")
     );
     let task =
         store.load_task(&project_path, &task_id).expect("load scheduler task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
+    assert_eq!(task.status, AgentTaskStatus::Completed);
 
     let snapshot =
         get_json(app.clone(), &format!("/agent-scheduler/projects/{project_id}/tasks")).await;
     assert_eq!(snapshot["tasks"][0]["task_id"], "task-gateway-new");
-    assert_eq!(snapshot["tasks"][0]["status"], "submitted");
-    assert_eq!(snapshot["tasks"][0]["status_key"], "code_complete");
+    assert_eq!(snapshot["tasks"][0]["status"], "completed");
+    assert_eq!(snapshot["tasks"][0]["status_key"], "completed");
 
     let artifacts = get_json(
         app,
@@ -319,9 +320,14 @@ async fn agent_scheduler_gateway_command_runs_task() {
     )
     .await;
     assert_eq!(artifacts["task_id"], "task-gateway-new");
-    assert_eq!(artifacts["artifacts"][0]["kind"], "execution_result");
-    assert_eq!(artifacts["artifacts"][0]["payload"]["success"], true);
-    assert_eq!(artifacts["artifacts"][0]["payload"]["output"], "mock local execution output");
+    let result = artifacts["artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|artifact| artifact["kind"] == "execution_result")
+        .expect("execution result");
+    assert_eq!(result["payload"]["success"], true);
+    assert_eq!(result["payload"]["output"], "mock local execution output");
 }
 
 #[tokio::test]
@@ -781,17 +787,23 @@ async fn agent_scheduler_project_wake_updates_task_board_projection_from_initial
     assert_eq!(body["task_id"], "task-project-wake-projection");
 
     let task_id = TaskId::new("task-project-wake-projection").expect("task id");
-    wait_for_store_log(&store, &project_path, &task_id, "local execution submitted result").await;
+    wait_for_store_log(
+        &store,
+        &project_path,
+        &task_id,
+        "local execution result advanced lifecycle",
+    )
+    .await;
     let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    assert_eq!(task.metadata["task_board.status_key"], "code_complete");
-    assert_eq!(task.metadata["task_board.status_role"], "review_ready");
+    assert_eq!(task.status, AgentTaskStatus::Completed);
+    assert_eq!(task.metadata["task_board.status_key"], "completed");
+    assert_eq!(task.metadata["task_board.status_role"], "done");
 
     let snapshot = get_json(app, &format!("/agent-scheduler/projects/{project_id}/tasks")).await;
     assert_eq!(snapshot["tasks"][0]["task_id"], "task-project-wake-projection");
-    assert_eq!(snapshot["tasks"][0]["status"], "submitted");
-    assert_eq!(snapshot["tasks"][0]["status_key"], "code_complete");
-    assert_eq!(snapshot["tasks"][0]["read_model"]["status_role"], "review_ready");
+    assert_eq!(snapshot["tasks"][0]["status"], "completed");
+    assert_eq!(snapshot["tasks"][0]["status_key"], "completed");
+    assert_eq!(snapshot["tasks"][0]["read_model"]["status_role"], "done");
 }
 
 #[tokio::test]
@@ -1720,11 +1732,12 @@ async fn agent_scheduler_gateway_local_command_returns_before_execution_finishes
             .as_array()
             .expect("logs array")
             .iter()
-            .any(|log| log["message"] == "local execution submitted result")
+            .any(|log| log["message"] == "local execution result advanced lifecycle")
     );
 
     release_tx.send(()).expect("release executor");
-    let submitted_logs = wait_for_log(app, &logs_uri, "local execution submitted result").await;
+    let submitted_logs =
+        wait_for_log(app, &logs_uri, "local execution result advanced lifecycle").await;
     assert_eq!(submitted_logs["task_id"], "task-gateway-blocking");
 }
 
@@ -1805,411 +1818,7 @@ async fn agent_scheduler_gateway_start_is_idempotent_for_running_task() {
     assert_eq!(task.status, AgentTaskStatus::Running);
 }
 
-#[tokio::test]
-async fn agent_scheduler_merge_command_merges_submitted_task_to_completed() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-command");
-    init_merge_test_repo(&project_path, "feature/task-merge");
-    let (project_id, project_info) = register_merge_test_project(&project_path).await;
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            NewAgentTask {
-                id: TaskId::new("task-merge-command").expect("task id"),
-                title: "Merge submitted scheduler task".to_string(),
-                kind: AgentTaskKind::Finite,
-                status: AgentTaskStatus::Submitted,
-                spec_uri: "shared/tasks/task-merge-command/spec.md".to_string(),
-                meta_uri: "shared/tasks/task-merge-command/meta.json".to_string(),
-                assigned_to: None,
-                team_id: None,
-                room_id: None,
-                project_room_id: None,
-                delegated_to_team: None,
-                schedule: None,
-                timezone: None,
-                next_scheduled_at: None,
-                last_executed_at: None,
-                dag: Vec::new(),
-                metadata: json!({
-                    "prompt": "Merge this submitted scheduler task",
-                    "merge_source_branch": "feature/task-merge",
-                    "merge_target_branch": "main",
-                    "selected_worktree_path": project_path.to_string_lossy(),
-                    "selected_worktree_branch": "feature/task-merge"
-                }),
-                created_at_ms: TimestampMs(1_783_000_800_000),
-            },
-        )
-        .expect("seed submitted scheduler task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let command_uri = format!("/agent-scheduler/projects/{project_id}/commands");
-    let command = AgentSchedulerCommandRequest {
-        task_id: "task-merge-command".into(),
-        command: AgentSchedulerCommandKindDto::Merge,
-        dispatch_mode: AgentSchedulerDispatchModeDto::Local,
-        max_concurrent: None,
-        reason: Some("merge ready".to_string()),
-        payload: Default::default(),
-    };
-
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(Method::POST)
-                .uri(command_uri)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(serde_json::to_string(&command).expect("command json")))
-                .expect("command request"),
-        )
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response_json(response).await;
-    assert_eq!(body["accepted"], true);
-    assert_eq!(body["task"]["task_id"], "task-merge-command");
-    assert_eq!(body["task"]["status"], "completed");
-    assert_eq!(body["event"]["payload"]["command"], "merge");
-
-    let task_id = TaskId::new("task-merge-command").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(
-        std::fs::read_to_string(project_path.join("feature.txt")).expect("merged feature file"),
-        "feature\n"
-    );
-    let status_uri = format!("/agent-scheduler/projects/{project_id}/tasks");
-    let status_response = app
-        .oneshot(
-            Request::builder()
-                .method(Method::GET)
-                .uri(status_uri)
-                .body(Body::empty())
-                .expect("status request"),
-        )
-        .await
-        .expect("status response");
-    assert_eq!(status_response.status(), StatusCode::OK);
-    let status_body = response_json(status_response).await;
-    assert!(
-        status_body["tasks"].as_array().is_some_and(|tasks| {
-            tasks.iter().any(|task| {
-                task["task_id"] == "task-merge-command" && task["status"] == "completed"
-            })
-        }),
-        "task board status should include completed merge task: {status_body}"
-    );
-
-    let logs = store.list_task_logs(&project_path, &task_id).expect("logs");
-    assert!(
-        logs.iter().any(|log| log.message.contains("agent scheduler merge resolved:")),
-        "merge diagnostics should include resolved branch/worktree context: {logs:?}"
-    );
-    assert!(
-        logs.iter().any(|log| log.message.contains("agent scheduler merge git start:")),
-        "merge diagnostics should include git start: {logs:?}"
-    );
-    assert!(
-        logs.iter().any(|log| log.message.contains("agent scheduler merge lock released:")),
-        "merge diagnostics should include lock release: {logs:?}"
-    );
-    assert!(logs.iter().any(|log| {
-        log.from_status == Some(AgentTaskStatus::Submitted)
-            && log.to_status == Some(AgentTaskStatus::Completed)
-            && log.message.contains("agent scheduler merge completed")
-    }));
-    let artifacts = store.list_task_artifacts(&project_path, &task_id).expect("artifacts");
-    assert!(artifacts.iter().any(|artifact| {
-        artifact.kind == "merge_result" && artifact.payload["success"] == true
-    }));
-    let holder = super::super::task_pool::task_worktree_pool_service()
-        .merge_lock_holder(&project_info, "main")
-        .await
-        .expect("merge lock holder");
-    assert_eq!(holder, None);
-    cleanup_merge_test_project(&project_id).await;
-}
-
 // 合并测试使用真实 Git 分支和锁，验证默认目标、锁释放及失败诊断形成完整事务边界。
-#[tokio::test]
-async fn agent_scheduler_merge_command_defaults_target_to_project_current_branch() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-default-target");
-    init_merge_test_repo(&project_path, "feature/task-merge-default-target");
-    let (project_id, project_info) = register_merge_test_project(&project_path).await;
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    let mut task = submitted_merge_task(
-        "task-merge-default-target",
-        &project_path,
-        "feature/task-merge-default-target",
-        true,
-    );
-    task.metadata.as_object_mut().expect("metadata object").remove("merge_target_branch");
-    store.create_task(&project_path, task).expect("seed submitted scheduler task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let response = post_merge_command(app, &project_id, "task-merge-default-target")
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let task_id = TaskId::new("task-merge-default-target").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Completed);
-    assert_eq!(
-        std::fs::read_to_string(project_path.join("feature.txt")).expect("merged feature file"),
-        "feature\n"
-    );
-    let artifacts = store.list_task_artifacts(&project_path, &task_id).expect("artifacts");
-    assert!(artifacts.iter().any(|artifact| {
-        artifact.kind == "merge_result"
-            && artifact.payload["success"] == true
-            && artifact.payload["target_branch"] == "main"
-    }));
-    let holder = super::super::task_pool::task_worktree_pool_service()
-        .merge_lock_holder(&project_info, "main")
-        .await
-        .expect("merge lock holder");
-    assert_eq!(holder, None);
-    cleanup_merge_test_project(&project_id).await;
-}
-
-#[tokio::test]
-async fn agent_scheduler_merge_command_resolves_source_from_run_workspace() {
-    use crate::agent_scheduler::store::logs::AgentSchedulerWorkspaceContext;
-    use crate::agent_scheduler::store::runs::ClaimTaskRunRequest;
-
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-source-workspace");
-    let source_branch = "feature/task-merge-source-workspace";
-    init_merge_test_repo(&project_path, source_branch);
-    let (project_id, project_info) = register_merge_test_project(&project_path).await;
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    let mut task =
-        submitted_merge_task("task-merge-source-workspace", &project_path, source_branch, false);
-    task.status = AgentTaskStatus::Running;
-    task.metadata.as_object_mut().expect("metadata object").remove("merge_source_branch");
-    let task_id = task.id.clone();
-    store.create_task(&project_path, task).expect("seed running scheduler task");
-
-    let run_id = RunId::new("run-merge-source-workspace").expect("run id");
-    store
-        .claim_task_run(
-            &project_path,
-            ClaimTaskRunRequest {
-                run_id: run_id.clone(),
-                task_id: task_id.clone(),
-                lease_acquired_at_ms: TimestampMs(1_783_000_800_100),
-                lease_expires_at_ms: None,
-            },
-        )
-        .expect("claim run")
-        .expect("claimed run");
-    store
-        .record_run_workspace_context(
-            &project_path,
-            &task_id,
-            &run_id,
-            AgentSchedulerWorkspaceContext {
-                slot_id: "slot-source-workspace".to_string(),
-                path: project_path.to_string_lossy().to_string(),
-                branch: source_branch.to_string(),
-            },
-            TimestampMs(1_783_000_800_200),
-        )
-        .expect("record workspace")
-        .expect("workspace recorded");
-    store
-        .transition_task_status(
-            &project_path,
-            &task_id,
-            AgentTaskStatus::Submitted,
-            TimestampMs(1_783_000_800_300),
-        )
-        .expect("transition submitted")
-        .expect("submitted task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let response = post_merge_command(app, &project_id, "task-merge-source-workspace")
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Completed);
-    let artifacts = store.list_task_artifacts(&project_path, &task_id).expect("artifacts");
-    assert!(artifacts.iter().any(|artifact| {
-        artifact.kind == "merge_result"
-            && artifact.payload["success"] == true
-            && artifact.payload["source_branch"] == source_branch
-    }));
-    let holder = super::super::task_pool::task_worktree_pool_service()
-        .merge_lock_holder(&project_info, "main")
-        .await
-        .expect("merge lock holder");
-    assert_eq!(holder, None);
-    cleanup_merge_test_project(&project_id).await;
-}
-
-#[tokio::test]
-async fn agent_scheduler_merge_command_requires_worktree_metadata() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-metadata");
-    init_merge_test_repo(&project_path, "feature/task-merge-metadata");
-    let (project_id, _project_info) = register_merge_test_project(&project_path).await;
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            submitted_merge_task(
-                "task-merge-metadata",
-                &project_path,
-                "feature/task-merge-metadata",
-                false,
-            ),
-        )
-        .expect("seed submitted scheduler task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let response = post_merge_command(app, &project_id, "task-merge-metadata")
-        .await
-        .expect("command response");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response_json(response).await;
-    assert_eq!(body["error"], "selected_worktree_path is required");
-
-    let task_id = TaskId::new("task-merge-metadata").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    cleanup_merge_test_project(&project_id).await;
-}
-
-#[tokio::test]
-async fn agent_scheduler_gateway_merge_command_rejects_locked_target() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-locked");
-    init_merge_test_repo(&project_path, "feature/task-merge-locked");
-    let (project_id, project_info) = register_merge_test_project(&project_path).await;
-
-    let holder_task_id = vw_api_types::id::TaskId("task-other-merge".to_string());
-    let lock = super::super::task_pool::task_worktree_pool_service()
-        .try_lock_merge_target(&project_info, &holder_task_id, "main")
-        .await
-        .expect("pre-lock merge target");
-    assert!(lock.locked);
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            submitted_merge_task(
-                "task-merge-locked",
-                &project_path,
-                "feature/task-merge-locked",
-                true,
-            ),
-        )
-        .expect("seed submitted scheduler task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let response =
-        post_merge_command(app, &project_id, "task-merge-locked").await.expect("command response");
-    let status = response.status();
-    let body = response_json(response).await;
-    assert_eq!(status, StatusCode::BAD_REQUEST, "unexpected response: {body}");
-    assert!(body["error"].as_str().expect("error").contains("merge target locked"));
-
-    let task_id = TaskId::new("task-merge-locked").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Submitted);
-    let logs = store.list_task_logs(&project_path, &task_id).expect("logs");
-    assert!(
-        logs.iter().any(|log| log.message.contains("agent scheduler merge blocked: target=main")),
-        "merge lock conflict should be logged: {logs:?}"
-    );
-    let events = store.list_events_after(&project_path, None, 100).expect("events");
-    assert!(events.iter().any(|event| {
-        event.kind == AgentEventKind::TaskBlocked
-            && event.payload["error"] == "merge_target_locked"
-            && event.payload["holder_task_id"] == "task-other-merge"
-    }));
-    let holder = super::super::task_pool::task_worktree_pool_service()
-        .merge_lock_holder(&project_info, "main")
-        .await
-        .expect("merge lock holder")
-        .map(|holder| holder.0);
-    assert_eq!(holder.as_deref(), Some("task-other-merge"));
-
-    super::super::task_pool::task_worktree_pool_service()
-        .unlock_merge_target(&project_info, &holder_task_id, "main")
-        .await
-        .expect("unlock pre-lock");
-    cleanup_merge_test_project(&project_id).await;
-}
-
-#[tokio::test]
-async fn agent_scheduler_merge_command_releases_lock_after_git_failure() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("project-agent-scheduler-merge-failure");
-    init_merge_test_repo(&project_path, "feature/task-merge-failure");
-    let (project_id, project_info) = register_merge_test_project(&project_path).await;
-
-    let gateway = StoreBackedAgentSchedulerGateway::default();
-    let store = gateway.store.clone();
-    store.initialize_project(&project_path).expect("init scheduler");
-    store
-        .create_task(
-            &project_path,
-            submitted_merge_task(
-                "task-merge-failure",
-                &project_path,
-                "feature/missing-merge-source",
-                true,
-            ),
-        )
-        .expect("seed submitted scheduler task");
-
-    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
-    let response =
-        post_merge_command(app, &project_id, "task-merge-failure").await.expect("command response");
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    let body = response_json(response).await;
-    assert!(body["error"].as_str().expect("error").contains("merge failed source="));
-
-    let task_id = TaskId::new("task-merge-failure").expect("task id");
-    let task = store.load_task(&project_path, &task_id).expect("load task").expect("task");
-    assert_eq!(task.status, AgentTaskStatus::Failed);
-    let holder = super::super::task_pool::task_worktree_pool_service()
-        .merge_lock_holder(&project_info, "main")
-        .await
-        .expect("merge lock holder");
-    assert_eq!(holder, None);
-    let logs = store.list_task_logs(&project_path, &task_id).expect("logs");
-    assert!(logs.iter().any(|log| {
-        log.from_status == Some(AgentTaskStatus::Submitted)
-            && log.to_status == Some(AgentTaskStatus::Failed)
-            && log.message.contains("merge failed source=feature/missing-merge-source")
-    }));
-    cleanup_merge_test_project(&project_id).await;
-}
 
 #[tokio::test]
 async fn gateway_local_executor_prepares_git_project_without_leasing_worktree() {
@@ -2268,7 +1877,7 @@ fn gateway_local_agent_stream_request_forwards_execution_selection() {
     assert_eq!(options["cwd"], "/tmp/project-root/worktrees/slot-deepseek");
     assert_eq!(options["acp_test"], true);
     assert_eq!(options["acp_agent"], "codex");
-    assert_eq!(options["acp_permission_mode"], "approve-all");
+    assert_eq!(options["acp_permission_mode"], "approve-reads");
     assert_eq!(options["acp_force_new_session"], true);
     assert_eq!(options["acp_close_client_after_request"], true);
     assert_eq!(options["acp_history_strategy"], "discard");
@@ -2434,9 +2043,6 @@ fn scheduler_command_and_metadata_helpers_cover_edge_cases() {
         "doing"
     );
     assert_eq!(legacy_task_board_status_key(AgentTaskStatus::Queued), "queued");
-    assert!(valid_merge_branch("feature/demo"));
-    assert!(!valid_merge_branch(" "));
-    assert!(!valid_merge_branch("HEAD"));
     assert_eq!(non_empty_str("  value  "), Some("value"));
     assert_eq!(optional_text(Some("  model  ".to_string())), Some("model".to_string()));
     assert_eq!(optional_text(Some("   ".to_string())), None);
@@ -2525,139 +2131,6 @@ async fn scheduler_task_board_command_payload_errors_are_reported_before_store_m
             .await
             .expect_err("missing payload should fail");
         assert_eq!(error.to_string(), expected);
-    }
-}
-
-#[tokio::test]
-async fn scheduler_merge_early_rejections_append_diagnostics_without_git_merge() {
-    let temp = tempfile::tempdir().expect("temp project root");
-    let project_path = temp.path().join("merge-early-rejections");
-    std::fs::create_dir_all(&project_path).expect("project dir");
-    let project_id = scheduler_project_id(&project_path);
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
-        output: "unused".to_string(),
-    });
-    gateway.store.initialize_project(&project_path).expect("init scheduler");
-
-    let cases = [
-        (
-            "merge-already-completed",
-            AgentTaskStatus::Completed,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "selected_worktree_branch": "feature/completed",
-                "merge_source_branch": "feature/completed",
-                "merge_target_branch": "main",
-            }),
-            None,
-            "agent scheduler merge skipped: task already completed",
-        ),
-        (
-            "merge-wrong-status",
-            AgentTaskStatus::Queued,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "selected_worktree_branch": "feature/wrong-status",
-                "merge_source_branch": "feature/wrong-status",
-                "merge_target_branch": "main",
-            }),
-            Some("merge requires submitted task, got queued"),
-            "agent scheduler merge rejected: status=queued",
-        ),
-        (
-            "merge-missing-path",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_branch": "feature/missing-path",
-                "merge_source_branch": "feature/missing-path",
-                "merge_target_branch": "main",
-            }),
-            Some("selected_worktree_path is required"),
-            "agent scheduler merge rejected: selected_worktree_path missing",
-        ),
-        (
-            "merge-missing-branch",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "merge_target_branch": "main",
-            }),
-            Some("selected_worktree_branch is required"),
-            "agent scheduler merge rejected: selected_worktree_branch missing",
-        ),
-        (
-            "merge-unresolved-source",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "selected_worktree_branch": "HEAD",
-                "merge_target_branch": "main",
-            }),
-            Some("merge_source_branch could not be resolved from selected_worktree_branch"),
-            "agent scheduler merge rejected: merge_source_branch unresolved",
-        ),
-        (
-            "merge-same-branch",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "selected_worktree_branch": "main",
-                "merge_source_branch": "main",
-                "merge_target_branch": "main",
-            }),
-            Some("invalid merge branches: source=main target=main"),
-            "agent scheduler merge rejected: invalid branches",
-        ),
-        (
-            "merge-selected-source-mismatch",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_path": project_path.to_string_lossy(),
-                "selected_worktree_branch": "feature/selected",
-                "merge_source_branch": "feature/source",
-                "merge_target_branch": "main",
-            }),
-            Some(
-                "selected_worktree_branch must match merge_source_branch: feature/selected != feature/source",
-            ),
-            "agent scheduler merge rejected: selected_branch=feature/selected source_branch=feature/source",
-        ),
-        (
-            "merge-missing-worktree-dir",
-            AgentTaskStatus::Submitted,
-            json!({
-                "selected_worktree_path": project_path.join("missing").to_string_lossy(),
-                "selected_worktree_branch": "feature/missing-dir",
-                "merge_source_branch": "feature/missing-dir",
-                "merge_target_branch": "main",
-            }),
-            Some("selected_worktree_path must reference an existing directory"),
-            "agent scheduler merge rejected: selected_worktree_path missing path=",
-        ),
-    ];
-
-    for (task_id, status, metadata, expected_error, expected_log) in cases {
-        let mut task = submitted_merge_task(task_id, &project_path, "feature/default", true);
-        task.status = status;
-        task.metadata = metadata;
-        gateway.store.create_task(&project_path, task).expect("seed merge task");
-        let task_id = TaskId::new(task_id).expect("task id");
-        let task =
-            gateway.store.load_task(&project_path, &task_id).expect("load task").expect("task");
-
-        let result =
-            gateway.merge_project_task(&project_id, &project_path, &task, TimestampMs(62)).await;
-        match expected_error {
-            Some(expected) => {
-                assert_eq!(result.expect_err("merge should reject").to_string(), expected);
-            }
-            None => result.expect("completed task should be idempotent"),
-        }
-        let logs = gateway.store.list_task_logs(&project_path, &task_id).expect("logs");
-        assert!(
-            logs.iter().any(|log| log.message.contains(expected_log)),
-            "missing diagnostic {expected_log}; logs: {logs:?}"
-        );
     }
 }
 
@@ -3328,9 +2801,40 @@ fn scheduler_event_error_prefers_payload_and_requires_error_context_for_message(
 
 #[test]
 fn scheduler_time_and_merge_helpers_preserve_safety_boundaries() {
+    assert!(valid_merge_branch("feature/test"));
+    assert!(!valid_merge_branch("HEAD"));
+    assert!(!valid_merge_branch(" "));
     assert_eq!(add_ms_or_saturate(TimestampMs(100), -50), TimestampMs(100));
     assert_eq!(add_ms_or_saturate(TimestampMs(i64::MAX - 1), 10), TimestampMs(i64::MAX));
-    assert!(valid_merge_branch(" feature/test "));
-    assert!(!valid_merge_branch("HEAD"));
-    assert!(!valid_merge_branch("  "));
+}
+
+#[tokio::test]
+async fn task_pool_schedule_status_named_merge_does_not_execute_git() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("project");
+    init_merge_test_repo(&path, "feature/explicit-merge");
+    let (project_id, _) = register_merge_test_project(&path).await;
+    let gateway = StoreBackedAgentSchedulerGateway::default();
+    gateway.store.initialize_project(&path).unwrap();
+    let task = submitted_merge_task("explicit-merge", &path, "feature/explicit-merge", true);
+    let task = gateway.store.create_task(&path, task).unwrap();
+    let store = gateway.store.clone();
+    let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
+    let response = post_merge_command(app, &project_id, "explicit-merge").await.unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(response_json(response).await.to_string().contains("explicit workflow"));
+    assert_eq!(
+        store.load_task(&path, &task.id).unwrap().unwrap().status,
+        AgentTaskStatus::Submitted
+    );
+    assert!(!path.join("feature.txt").exists());
+    assert!(store.list_task_artifacts(&path, &task.id).unwrap().is_empty());
+    assert!(
+        store
+            .list_task_logs(&path, &task.id)
+            .unwrap()
+            .iter()
+            .any(|l| l.message.contains("explicit workflow"))
+    );
+    cleanup_merge_test_project(&project_id).await;
 }

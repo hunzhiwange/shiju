@@ -574,3 +574,18 @@ fn acp_desktop_approval_policy_binds_current_session_and_isolates_cached_grants(
     assert_eq!(denied.permission_mode, Some(PermissionMode::DenyAll));
     assert!(!denied.full_access);
 }
+
+#[test]
+fn acp_onboarding_deepagents_cache_key_preserves_tool_set_identity() {
+    let config = acp_config("fixture");
+    let cwd = Path::new("/tmp/project");
+    let mut options = parsed_options();
+    options.session_options.as_mut().unwrap().allowed_tools =
+        Some(vec!["read_file".into(), "write_file".into()]);
+    let key = acp_client_cache_key("fixture", &config, cwd, &options);
+    options.session_options.as_mut().unwrap().allowed_tools =
+        Some(vec!["write_file".into(), "read_file".into()]);
+    assert_eq!(key, acp_client_cache_key("fixture", &config, cwd, &options));
+    options.session_options.as_mut().unwrap().allowed_tools = Some(vec!["read_file".into()]);
+    assert_ne!(key, acp_client_cache_key("fixture", &config, cwd, &options));
+}

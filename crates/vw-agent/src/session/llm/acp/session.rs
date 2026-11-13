@@ -102,6 +102,12 @@ fn acp_client_cache_key(
 ) -> String {
     let mut env = acp_cfg.env.iter().collect::<Vec<_>>();
     env.sort_by(|left, right| left.0.cmp(right.0));
+    // Tool allowlists are sets; inventory iteration order must not restart a peer.
+    let mut session_options = parsed_options.session_options.clone();
+    if let Some(tools) = session_options.as_mut().and_then(|options| options.allowed_tools.as_mut())
+    {
+        tools.sort();
+    }
 
     let material = json!({
         "tenant": crate::session::ui_store::current_tenant_scope(),
@@ -121,7 +127,7 @@ fn acp_client_cache_key(
         "fullAccess": parsed_options.full_access,
         "nonInteractivePermissions": parsed_options.non_interactive_permissions,
         "authPolicy": parsed_options.auth_policy,
-        "sessionOptions": parsed_options.session_options,
+        "sessionOptions": session_options,
     })
     .to_string();
     super::model_source::fingerprint(material.as_bytes())

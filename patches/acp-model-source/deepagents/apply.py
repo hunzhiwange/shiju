@@ -33,6 +33,10 @@ replace('if (optionId === "reject-once") return "reject";\n\t\t\treturn "allow";
         'if (optionId === "allow-once") return "allow";\n\t\t\treturn "reject";')
 replace('this.log("Permission request failed:", err);\n\t\t\treturn "allow";',
         'this.log("Permission request failed");\n\t\t\treturn "reject";')
+# Recheck the host on every invocation, including after an "always" response.
+replace('const cached = session.permissionDecisions.get(toolCall.name);\n\t\tif (cached === "allow_always") return "allow";\n\t\tif (cached === "reject_always") return "reject";', '')
+replace('session.permissionDecisions.set(toolCall.name, "allow_always");', '')
+replace('session.permissionDecisions.set(toolCall.name, "reject_always");', '')
 replace('async handleNewSession(params, conn) {',
         'async handleNewSession(params, conn) {\n'
         '\t\tif (params.mcpServers?.length) throw new Error("DeepAgents MCP configuration is unavailable");\n'

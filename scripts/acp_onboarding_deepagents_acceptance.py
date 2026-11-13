@@ -8,6 +8,7 @@ requests=[]
 cancel_started=threading.Event()
 cancel_release=threading.Event()
 cancel_phase=False
+tool_name='write_file'
 class Handler(http.server.BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_POST(self):
@@ -20,11 +21,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
    cancel_started.set();cancel_release.wait(timeout=10)
   # First call of each round asks to write a real temporary file.
   tools=r.get('tools',[])
-  tool=next((t for t in tools if t['function']['name']=='write_file'),None)
+  tool=next((t for t in tools if t['function']['name']==tool_name),None)
   message={'role':'assistant','content':'验收回复'}
-  if tool and r.get('messages', [{}])[-1].get('role') != 'tool' and not gateway and not cancel_phase and len(requests)<13:
+  if tool and r.get('messages', [{}])[-1].get('role') != 'tool' and not gateway and not cancel_phase and (len(requests)<13 or tool_name=='edit_file'):
    schema=tool['function']['parameters']
-   message={'role':'assistant','content':'','tool_calls':[{'id':'call_fixture_'+str(len(requests)),'type':'function','function':{'name':'write_file','arguments':json.dumps({'file_path':root+'/result.txt','content':'fixture'})}}]}
+   message={'role':'assistant','content':'','tool_calls':[{'id':'call_fixture_'+str(len(requests)),'type':'function','function':{'name':tool_name,'arguments':json.dumps({'file_path':root+'/result.txt','content':'fixture'} if tool_name=='write_file' else {'file_path':root+'/result.txt','old_string':'fixture','new_string':'bypass'})}}]}
   self.send_response(200)
   if r.get('stream'):
    self.send_header('Content-Type','text/event-stream');self.end_headers()
@@ -47,6 +48,7 @@ if gateway:
   result=subprocess.run(sys.argv[3:],env=dict(env,HOME=os.environ['HOME'],SHIJU_DEEPAGENTS_TEST_ENTRY=str(entry),SHIJU_DEEPAGENTS_TEST_ENDPOINT=env['OPENAI_BASE_URL']))
   if result.returncode == 0:
    assert requests and all(r['model']=='gpt-4o' for r in requests)
+   print('GATEWAY_MODEL_REQUESTS',len(requests),'MODEL gpt-4o',flush=True)
   raise SystemExit(result.returncode)
  finally:server.shutdown()
 p=subprocess.Popen(['node',str(entry),'--model','openai:gpt-4o','--workspace',root],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=open(root+'/stderr','w'),text=True,env=env)
@@ -84,6 +86,10 @@ def rpc(i,m,params):
 try:
  print('INIT',rpc(1,'initialize',{'protocolVersion':1,'clientCapabilities':{'fs':{'readTextFile':True,'writeTextFile':True}},'clientInfo':{'name':'fixture','version':'1'}}),flush=True)
  new=rpc(2,'session/new',{'cwd':root,'mcpServers':[]});print('NEW',new,flush=True);sid=new['result']['sessionId']
+ assert 'result' in rpc(92,'session/set_mode',{'sessionId':sid,'modeId':'plan'})
+ assert rpc(93,'session/prompt',{'sessionId':sid,'prompt':[{'type':'text','text':'/status'}]})['result']['stopReason']=='end_turn'
+ assert 'result' in rpc(94,'session/set_mode',{'sessionId':sid,'modeId':'agent'})
+ print('Mode switches and status command passed',flush=True)
  for i,permission in enumerate(['reject-once','rpc-error','cancelled','unknown','allow-once','allow-once'],3):
   write_allowed=i==8
   result=rpc(i,'session/prompt',{'sessionId':sid,'prompt':[{'type':'text','text':'fixture'}]})
@@ -92,6 +98,15 @@ try:
   print('ROUND',i,'permission',permission,'host_write',write_allowed,'passed',flush=True)
  assert permissions==6 and write_attempts==2,(permissions,write_attempts)
  assert Path(root+'/result.txt').read_text()=='fixture'
+ tool_name='edit_file'
+ before_permissions=permissions
+ assert 'result' in rpc(95,'session/prompt',{'sessionId':sid,'prompt':[{'type':'text','text':'fixture edit denial'}]})
+ assert permissions==before_permissions and Path(root+'/result.txt').read_text()=='fixture'
+ print('Inherited local edit backend rejected before execution',flush=True)
+ tool_name='write_file'
+ assert 'error' in rpc(90,'session/load',{'sessionId':sid,'cwd':root,'mcpServers':[{'name':'fixture','command':'false','args':[],'env':[]}]})
+ assert 'error' in rpc(91,'session/load',{'sessionId':sid,'cwd':root+'/other','mcpServers':[]})
+ print('MCP and workspace expansion rejected',flush=True)
  assert 'result' in rpc(9,'session/load',{'sessionId':sid,'cwd':root,'mcpServers':[]})
  print('LOAD same session passed',flush=True)
  cancel_phase=True

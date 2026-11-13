@@ -15,9 +15,10 @@ export function hostToolGuard(server, agentName) {
           server.currentPromptAbortController?.signal.aborted) {
         throw new Error("No active authorized ACP session");
       }
-      // Nested agents have independent tool execution and are not authorized here.
-      if (request.toolCall.name === "task") {
-        return new ToolMessage({content: "Subagents are unavailable",
+      // Inherited edit/search/shell backends access local files directly. Only
+      // reviewed ACP read/write operations may reach a supplier handler.
+      if (!["read_file", "write_file"].includes(request.toolCall.name)) {
+        return new ToolMessage({content: "Tool unavailable in reviewed DeepAgents runtime",
           tool_call_id: request.toolCall.id});
       }
       const decision = await server.requestToolPermission(

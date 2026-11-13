@@ -33,3 +33,31 @@ for (const outcome of ["reject-once", "unknown", "cancelled", "rpc-error", "allo
   await assert.rejects(() => middleware.wrapToolCall(request, async () => executions++));
 }
 console.log("DeepAgents guard: 5 permission outcomes and 5 cancellation checks passed");
+let decisions = ["allow-always", "reject-once"];
+let checks = 0;
+let executions = 0;
+const session = {agentName: "deepagents", threadId: "fixture", id: "fixture"};
+const server = {
+  sessions: new Map([["fixture", session]]),
+  currentPromptAbortController: new AbortController(),
+  log() {},
+  connection: {async requestPermission() {
+    checks++;
+    return {outcome: {outcome: "selected", optionId: decisions.shift()}};
+  }},
+  requestToolPermission: permission
+};
+const middleware = hostToolGuard(server, "deepagents");
+const request = {toolCall: {id: "tool", name: "write_file", args: {}},
+  runtime: {configurable: {thread_id: "fixture"}}};
+for (let i = 0; i < 2; i++) {
+  await middleware.wrapToolCall(request, async () => { executions++; return "executed"; });
+}
+assert.equal(checks, 2, "host revocation must be rechecked after allow-always");
+assert.equal(executions, 1);
+for (const name of ["edit_file", "ls", "glob", "grep", "execute", "task", "unknown"]) {
+  await middleware.wrapToolCall({...request, toolCall: {...request.toolCall, name}},
+    async () => { executions++; });
+}
+assert.equal(executions, 1, "unreviewed backends must never run");
+console.log("DeepAgents guard: host revocation and 7 unreviewed tools rejected");

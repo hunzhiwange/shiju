@@ -613,8 +613,8 @@
     "integrity": "sha512-RfMrrPr9uBm3SjtwuNl4gI/7b0mLkCz63IaUNjsEx7PFI6QY5j5u4DBSQZJUH8D94vNXjkyf/g082NLkvIs/+A==",
     "bin": "dist/cli.js",
     "files": {
-      "dist/cli.js": "4e0ce4186f4252f6b6ed5b30acb13954ace1749d4e9240580bf476e6f43021bd",
-      "dist/shiju-guard.mjs": "633e95fc9f803d40f29709f69e6175ec0435ac3add97254bfc66ae6d3b03b857"
+      "dist/cli.js": "d65ca9295356f90c11402e3ec9f39856324329a8a7acbdfe79592444e471abce",
+      "dist/shiju-guard.mjs": "b491916bf936fc6691dea6de7eb215ad8101eaf7fa8234b26aaadbd289e88df9"
     }
   }
 }

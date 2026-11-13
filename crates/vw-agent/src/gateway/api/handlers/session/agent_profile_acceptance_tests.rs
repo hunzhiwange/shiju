@@ -13,7 +13,7 @@ async fn send(workspace: &std::path::Path, session: &str, agent: &str) -> String
             session_id: Some(session.to_owned().into()),
             agent: Some(agent.into()),
             messages: vec![json!({"role":"user","content":"验收运行"})],
-            options: Some(if agent == "main" { json!({"full_access":false}) } else { json!({"full_access":false,"cwd":workspace,"acp_model_source":"cli_local","acp_close_client_after_request":true}) }),
+            options: Some(if agent == "main" { json!({"full_access":false}) } else { json!({"full_access":false,"cwd":workspace,"acp_model_source":"cli_local","acp_close_client_after_request":agent != "acp-deepagents"}) }),
             ..Default::default()
         }),
     )
@@ -579,14 +579,13 @@ fn acp_onboarding_deepagents_builtin_profile_persists_and_runs() {
             },
         ))
         .unwrap();
-    let events = runtime.block_on(send(
-        workspace.path(),
-        &format!("ses_deepagents_acceptance_{}", uuid::Uuid::new_v4()),
-        "acp-deepagents",
-    ));
-    assert!(events.contains("chat.done"), "{events}");
-    assert!(!events.contains("chat.error"), "{events}");
-    assert!(events.contains("验收回复"), "{events}");
+    let session = format!("ses_deepagents_acceptance_{}", uuid::Uuid::new_v4());
+    for _ in 0..2 {
+        let events = runtime.block_on(send(workspace.path(), &session, "acp-deepagents"));
+        assert!(events.contains("chat.done"), "{events}");
+        assert!(!events.contains("chat.error"), "{events}");
+        assert!(events.contains("验收回复"), "{events}");
+    }
     runtime
         .block_on(crate::config::update(json!({"agents":{"acp-deepagents":{"enabled":false}}})))
         .unwrap();

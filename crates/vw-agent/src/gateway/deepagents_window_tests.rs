@@ -8,6 +8,30 @@ use std::sync::Arc;
 async fn acp_onboarding_deepagents_desktop_gateway_fixture() {
     let root = std::path::PathBuf::from(std::env::var("VW_DEEPAGENTS_WINDOW_ROOT").unwrap());
     assert!(root.is_absolute() && root.is_dir());
+    // Match the native acceptance fixture: isolate databases and use real transport.
+    struct Restore(Vec<(&'static str, Option<std::ffi::OsString>)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            for (key, value) in &self.0 {
+                unsafe {
+                    match value {
+                        Some(value) => std::env::set_var(key, value),
+                        None => std::env::remove_var(key),
+                    }
+                }
+            }
+        }
+    }
+    let _restore = Restore(
+        ["VW_MODEL_RECOVERY_TEST_ROOT", "VW_RECOVERY_WINDOW_HTTP"]
+            .into_iter()
+            .map(|key| (key, std::env::var_os(key)))
+            .collect(),
+    );
+    unsafe {
+        std::env::set_var("VW_MODEL_RECOVERY_TEST_ROOT", &root);
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
     let workspace = root.join("workspace");
     std::fs::create_dir_all(&workspace).unwrap();
     let entry = std::env::var("SHIJU_DEEPAGENTS_TEST_ENTRY").unwrap();

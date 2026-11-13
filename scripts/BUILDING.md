@@ -2,6 +2,13 @@
 
 This document is located under `scripts/` for daily development and release.
 
+## Relax live development
+
+From the repository root, use `cargo dev-gateway` and `cargo dev-desktop` in separate
+terminals. First use installs the pinned patched Relax automatically; `cargo dev-setup`
+prepares it ahead of time. Requires Python 3 and the existing Rust/native build toolchain.
+See [team setup and validation](../docs/dev/Relax开发验证.md#团队一键入口当前仓库).
+
 ## Web static archive
 
 Tag releases also build the complete `vw-desktop` / `shi-ju` application for

@@ -1,0 +1,39 @@
+--- a/libs/relax/base/src/resolve.rs
++++ b/libs/relax/base/src/resolve.rs
+@@ -553,7 +553,7 @@
+ 
+     fn registry_dir(&self, name: &str, req: &str) -> Result<String, String> {
+         match &self.vendor {
+-            Some((Vendor::Dir(vdir), config)) => return self.vendored_dir(vdir, config, name),
++            Some((Vendor::Dir(vdir), config)) => return self.vendored_dir(vdir, config, name, req),
+             // the repository's package of that name (cargo's discovery, as for a git dependency)
+             Some((Vendor::Git(src), config)) => return self.git_dir(src, name).map_err(|e| format!("{} (crates-io's replacement, {})", e, config)),
+             None => {}
+@@ -608,7 +608,7 @@
+     /// Registry package `name` in the vendored directory `vdir`: `<name>` (one version) or
+     /// `<name>-<version>` (cargo vendor's names when it holds several); with Cargo.lock, the locked
+     /// version, without, the only one there.
+-    fn vendored_dir(&self, vdir: &str, config: &str, name: &str) -> Result<String, String> {
++    fn vendored_dir(&self, vdir: &str, config: &str, name: &str, req: &str) -> Result<String, String> {
+         let mut found: Vec<(String, String)> = Vec::new();
+         for (entry, is_dir) in crate::vfs::read_dir(vdir).map_err(|e| format!("{} (crates-io's replacement, {}): {}", vdir, config, e))? {
+             if !is_dir || !(entry == name || entry.strip_prefix(name).is_some_and(|r| r.starts_with('-') && r[1..].starts_with(|c: char| c.is_ascii_digit()))) {
+@@ -618,14 +618,16 @@
+             if let Ok(t) = read_toml(&format!("{}/Cargo.toml", d)) {
+                 if let Some(v) = table(&t, "package").and_then(|p| s(p, "version")) {
+                     if table(&t, "package").and_then(|p| s(p, "name")).as_deref() == Some(name) {
+-                        found.push((v, d));
++                        if crate::registry::Version::parse(&v).is_some_and(|ver| crate::registry::matches(req, &ver)) {
++                            found.push((v, d));
++                        }
+                     }
+                 }
+             }
+         }
+         let locked = self.ws.lock.get(name);
+         let pick: Vec<&(String, String)> = match locked {
+-            Some(vers) => found.iter().filter(|(v, _)| vers.contains(v)).collect(),
++            Some(vers) => vers.iter().filter_map(|v| found.iter().find(|(fv, _)| fv == v)).take(1).collect(),
+             None => found.iter().collect(),
+         };
+         match pick.as_slice() {

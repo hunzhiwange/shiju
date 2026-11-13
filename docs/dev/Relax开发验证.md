@@ -1,5 +1,41 @@
 # ShiJu 使用 Relax 的开发验证
 
+## 团队一键入口（当前仓库）
+
+团队成员拉取本次变更后，在仓库根目录执行；无需复制本机 `/tmp`、设置环境变量或安装全局 Cargo 插件：
+
+```bash
+# 可选：提前安装；下面两条开发命令首次也会自动执行安装。
+cargo dev-setup
+
+# 两个终端分别运行，保持常驻。
+cargo dev-gateway
+cargo dev-desktop
+```
+
+希望继续输入原来的两条命令时，在各终端执行一次：
+
+```bash
+source scripts/relax-env.sh
+cargo run -p vw-cli --bin shiju -- gateway
+# 另一个已 source 的终端：
+cargo run -p vw-desktop --bin shi-ju
+```
+
+`source` 只给当前 bash/zsh 终端增加 `cargo` 函数，精确转发上述两条命令到 Relax；其他 Cargo 命令仍调用系统 Cargo。关闭终端或 `unset -f cargo` 恢复。没有 source 时，原生 `cargo run` 仍走 rustc。添加其他参数时建议使用 `cargo dev-gateway --port 54771` 等专用入口，不会自动创建或迁移桌面网关身份；端口与桌面现有连接配置应一致。
+
+Cargo 别名先编译仓库内无第三方依赖的小型启动器 `tools/relax-dev`，再调用 Python 脚本；这是 Cargo 支持的 `run` 别名，不依赖全局插件。Cargo 配置机制见[官方文档](https://doc.rust-lang.org/cargo/reference/config.html#alias)。
+
+安装由 `scripts/relax_dev.py` 完成：校验仓库两份补丁，下载固定提交，应用兼容修复及 vendored 版本筛选修复并 release 构建；按工具链、提交与补丁哈希缓存。安装锁防止两个终端重复安装；不完整安装会重试，损坏的已安装二进制会明确拒绝。首次需联网，耗时与占用明显高于后续启动。
+
+为兼容本机 rsproxy 等祖先目录 registry 配置，脚本通过 `cargo metadata --locked --all-features` 获取 Cargo 已校验下载的依赖，按 `Cargo.lock` 复制 registry 包并生成 directory-source 校验清单；Git 依赖仍使用 Cargo 缓存。收集全部 features 的依赖只是为委托 Cargo 准备完整源，不改变两端运行的默认 features。这样避开整个 workspace 的 `cargo vendor` 对 registry/Git 同名同版本 `crossterm` 的冲突。按锁文件更新依赖副本，在忽略目录 `.cache/relax-dev/run/.cargo/config.toml` 生成局部 directory-source 配置。Relax 从此目录启动，解析的仍是当前完整工作区，**直接编辑当前 Git 工作区即可热更新**，无需同步冻结快照。运行时工作目录为该子目录，应用若使用相对路径，需留意这一点。脚本不覆盖已有 Cargo 配置，也不改依赖 features、用户身份或认证设置。
+
+缓存和原生输出均在 `.cache/relax-dev`，已被仓库忽略。更新锁文件后入口会重新准备依赖；工具版本/补丁变更后自动使用新工具目录。退出所有相关进程后可删除该目录完整重装。不要删除后仍期待当前进程继续热更新。
+
+要求开发机已有 Python 3、Git、Rust/Cargo 和项目原有的 C/C++ 及平台 GUI 构建依赖；本入口自动安装 Relax，不接管系统包管理器。支持入口平台为 macOS/Linux，定量实测仅 macOS arm64；Windows 明确拒绝并保留原生 Cargo 路径，不能把尚未验证的平台说成已支持。当前后续工作区业务修改仍需实际启动验证；完整生态兼容性限制见下文。
+
+本轮一键入口已在 macOS arm64 实际完成自动安装、gateway HTTP 200 / `status: ok`、桌面进入 main 后持续运行 30 秒和源码监听；桌面实际渲染未在本轮重新做图像验收。5 项脚本测试、两版本真实编译探针与缺失版本负向检查、仓库及启动器 Clippy 均通过。依赖后台兼容诊断仍存在，不能视为所有功能通过。测试进程已关闭；[本轮证据](evidence/relax-team-2026-11-13.json)。可运行 `python3 scripts/verify_relax_vendor.py` 复验新增解析补丁。
+
 ## 2026-11-13 编辑循环重新实测
 
 按要求作废机器高负载时的上一轮记录，重新测量完整 gateway 与桌面。**对本次保持签名不变的函数体字符串改动，Relax 常驻热更新明显提速：网关约 58 倍，桌面标题约 55 倍。** 每项均为 5 次有效采样的中位数，不把预热或首次启动混入编辑耗时。

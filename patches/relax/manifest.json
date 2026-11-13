@@ -56,5 +56,6 @@
   "all_clippy_checks_passed": false,
   "code_cache_entry_version": 35,
   "shiju_clippy_passed": true,
-  "relax_clippy_passed": false
+  "relax_clippy_passed": false,
+  "dev_vendor_patch_sha256": "2cbb0da7e159bda5b1a91c6a80c49a56833311e5176778944dc646775f2209f7"
 }

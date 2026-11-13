@@ -50,3 +50,7 @@ git apply --reverse /absolute/path/to/compatibility.patch
 本机 rsproxy sparse registry 替换配置需要独立处理：本次在用户目录之外复制完整工作区，临时 `CARGO_HOME` 复用已有 registry/git 缓存，并保留 source registry 配置供委托 Cargo 构建。没有修改全局 Cargo 配置。具体复现环境见开发验证报告。
 
 该补丁是本机兼容性实验，不能据此推定整个 Rust 生态、所有 ShiJu 功能或其他平台均兼容。
+
+## 团队开发入口补充
+
+`vendor-resolution.patch` 在上述兼容补丁之后应用，使 directory-source 按调用方版本约束筛选同名依赖。`scripts/relax_dev.py` 自动校验和应用两份补丁，并管理安装及依赖副本；团队使用 `cargo dev-setup`、`cargo dev-gateway`、`cargo dev-desktop`。新增补丁哈希见 manifest 的 `dev_vendor_patch_sha256`，原有二进制哈希只对应历史测量版本。当前一键入口见[报告](../../docs/dev/Relax开发验证.md#团队一键入口当前仓库)。

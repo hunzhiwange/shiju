@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-13",
+  "scope": "team development entry installation and startup; no speed remeasurement",
+  "platform": "macOS arm64",
+  "install": "fixed commit fetched, both checked patches applied, release build completed",
+  "base_commit": "0e2a536309c5ee7c7a47d8806d603a9c12b9a586",
+  "compatibility_patch_sha256": "949a30e050d64f132ff5c3d98b5a5fc96e30f7db9453db21795acd60f8c86126",
+  "vendor_patch_sha256": "2cbb0da7e159bda5b1a91c6a80c49a56833311e5176778944dc646775f2209f7",
+  "runner_sha256": "934974d77427927d96cb51c3c84f805c87bb152baf40f987e2d3e2a8e9cb579b",
+  "commands": [
+    "cargo dev-setup",
+    "cargo dev-gateway --host 127.0.0.1 --port 54772",
+    "cargo dev-desktop"
+  ],
+  "gateway": {
+    "http_status": 200,
+    "status": "ok",
+    "application_crates_checked": 11,
+    "application_errors": 0
+  },
+  "desktop": {
+    "application_crates_checked": 10,
+    "application_errors": 0,
+    "entered_main": true,
+    "alive_30_seconds_after_main": true,
+    "source_watcher_started": true,
+    "visual_rendering_verified_this_round": false
+  },
+  "focused_tests": {
+    "installer_and_launch_tests": 5,
+    "real_vendor_version_selection": "passed",
+    "unavailable_vendor_version_rejected": true,
+    "bash_zsh_syntax": "passed",
+    "cargo_alias_and_shell_function_routing": "passed using stub Python"
+  },
+  "clippy": {
+    "workspace_all_targets_all_features": "passed",
+    "launcher_all_targets_all_features": "passed"
+  },
+  "cleanup": {
+    "owned_pids": {
+      "gateway": 11769,
+      "desktop": 14944
+    },
+    "owned_runtime_processes_exited": true
+  },
+  "limitations": [
+    "Linux not runtime tested; Windows rejected explicitly",
+    "Existing dependency background diagnostics remain, including Result::flatten; startup is not full feature coverage",
+    "First native/JIT warmup is not edit latency",
+    "Original cargo run commands require sourcing the per-terminal activation script; dedicated aliases need no activation"
+  ],
+  "raw_logs": "/tmp/shiju-relax-team-*.log"
+}

@@ -28,3 +28,9 @@ rustflags = ["--cfg", "getrandom_backend=\"wasm_js\""]
 [build]
 target-dir = "target-dir"
 build-dir = "target"
+
+# Run from the repository root; first use installs the pinned patched Relax.
+[alias]
+dev-setup = "run --quiet --manifest-path tools/relax-dev/Cargo.toml --target-dir .cache/relax-dev/launcher-target -- setup"
+dev-desktop = "run --quiet --manifest-path tools/relax-dev/Cargo.toml --target-dir .cache/relax-dev/launcher-target -- desktop"
+dev-gateway = "run --quiet --manifest-path tools/relax-dev/Cargo.toml --target-dir .cache/relax-dev/launcher-target -- gateway"

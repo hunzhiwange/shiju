@@ -117,3 +117,147 @@ fn ecp04_message_changes_only_selected_tab() {
     assert!(!app.preview_tabs.iter().any(|tab| tab.is_dirty));
     let _view = super::editor_options::view(&app);
 }
+
+#[test]
+fn editor_config_app_options_keep_settings_open() {
+    if !isolated("editor_config_app_options_keep_settings_open") {
+        return;
+    }
+    use crate::app::message::editor::{EditorMessage, EditorPopover, update};
+    let mut app = App::new().0;
+    app.preview_tabs = vec![tab("/tmp/a.rs", None)];
+    app.active_preview_path = Some("/tmp/a.rs".into());
+    app.editor_popover = Some(EditorPopover::Settings);
+    for option in EditorOption::ALL {
+        let previous = option.enabled(&app.preview_tabs[0].editor.inner);
+        let _ = update(&mut app, EditorMessage::SetOption(option, !previous));
+        assert_eq!(option.enabled(&app.preview_tabs[0].editor.inner), !previous);
+        assert_eq!(app.editor_popover, Some(EditorPopover::Settings));
+    }
+    assert!(!app.preview_tabs[0].is_dirty);
+}
+
+#[test]
+fn editor_config_app_wrap_column_validates_active_instance() {
+    if !isolated("editor_config_app_wrap_column_validates_active_instance") {
+        return;
+    }
+    use crate::app::message::editor::{EditorMessage, EditorPopover, update};
+    let mut app = App::new().0;
+    app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
+    app.preview_tabs[0].read_only = true;
+    app.active_preview_path = Some("/tmp/a.rs".into());
+    for value in ["4", "80", "1"] {
+        app.editor_popover = Some(EditorPopover::Settings);
+        let _ = update(&mut app, EditorMessage::SetWrapColumn(value.into()));
+        assert_eq!(app.preview_tabs[0].editor.inner.wrap_column(), Some(value.parse().unwrap()));
+        assert_eq!(app.preview_tabs[1].editor.inner.wrap_column(), None);
+        assert_eq!(app.editor_popover, Some(EditorPopover::Settings));
+    }
+    for value in ["0", "-1", "abc", "1.5", "184467440737095516160"] {
+        let _ = update(&mut app, EditorMessage::SetWrapColumn(value.into()));
+        assert_eq!(app.preview_tabs[0].editor.inner.wrap_column(), Some(1));
+    }
+    let _ = update(&mut app, EditorMessage::SetOption(EditorOption::Wrap, false));
+    let _ = update(&mut app, EditorMessage::SetWrapColumn("20".into()));
+    assert_eq!(app.preview_tabs[0].editor.inner.wrap_column(), Some(1));
+    let _ = update(&mut app, EditorMessage::SetOption(EditorOption::Wrap, true));
+    let _ = update(&mut app, EditorMessage::SetWrapColumn(String::new()));
+    assert_eq!(app.preview_tabs[0].editor.inner.wrap_column(), None);
+    app.active_preview_path = Some("/tmp/b.rs".into());
+    let _ = update(&mut app, EditorMessage::SetWrapColumn("8".into()));
+    let _ = update(&mut app, EditorMessage::ClosePopover);
+    let _ = update(&mut app, EditorMessage::TogglePopover(EditorPopover::Settings));
+    assert_eq!(app.preview_tabs[1].editor.inner.wrap_column(), Some(8));
+    assert_eq!(app.editor_popover, Some(EditorPopover::Settings));
+    app.active_preview_path = None;
+    let _ = super::editor_options::view(&app);
+    let _ = update(&mut app, EditorMessage::SetWrapColumn("9".into()));
+    assert_eq!(app.preview_tabs[1].editor.inner.wrap_column(), Some(8));
+    assert!(
+        app.preview_tabs
+            .iter()
+            .all(|tab| !tab.is_dirty && tab.editor.inner.content() == tab.content)
+    );
+}
+
+#[test]
+fn editor_config_app_messages_change_real_editing() {
+    if !isolated("editor_config_app_messages_change_real_editing") {
+        return;
+    }
+    use crate::app::message::editor::{EditorMessage, update};
+    let mut app = App::new().0;
+    app.preview_tabs = vec![tab("/tmp/a.rs", None), tab("/tmp/b.rs", None)];
+    app.active_preview_path = Some("/tmp/a.rs".into());
+    let _ = update(&mut app, EditorMessage::SetIndentStyle(IndentStyle::Spaces(2)));
+    let _ = app.preview_tabs[0].editor.inner.update(&Message::Tab);
+    assert!(app.preview_tabs[0].editor.inner.content().starts_with("  fn"));
+    assert_eq!(app.preview_tabs[1].editor.inner.content(), "fn main() {}");
+    let _ = app.preview_tabs[0].editor.inner.update(&Message::Undo);
+    assert_eq!(app.preview_tabs[0].editor.inner.content(), "fn main() {}");
+}
+
+#[test]
+fn editor_config_app_renders_chinese_and_runtime_wrap() {
+    if !isolated("editor_config_app_renders_chinese_and_runtime_wrap") {
+        return;
+    }
+    use crate::app::message::editor::{EditorMessage, update};
+    use iced::advanced::renderer::Headless;
+    use iced_runtime::user_interface::{Cache, UserInterface};
+    let mut renderer = iced::futures::executor::block_on(iced::Renderer::new(
+        iced::Font::DEFAULT,
+        14.0.into(),
+        Some("tiny-skia"),
+    ))
+    .expect("software renderer");
+    let mut app = App::new().0;
+    app.preview_tabs = vec![tab("/tmp/中文.rs", None)];
+    app.active_preview_path = Some("/tmp/中文.rs".into());
+    let size = iced::Size::new(800.0, 800.0);
+    for theme in [iced::Theme::Dark, iced::Theme::Light] {
+        for width in ["4", "80"] {
+            let _ = update(&mut app, EditorMessage::SetWrapColumn(width.into()));
+            let mut ui = UserInterface::build(
+                super::editor_options::view(&app),
+                size,
+                Cache::new(),
+                &mut renderer,
+            );
+            ui.draw(
+                &mut renderer,
+                &theme,
+                &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                iced::mouse::Cursor::Unavailable,
+            );
+            assert!(
+                !renderer
+                    .screenshot(iced::Size::new(800, 800), 1.0, theme.palette().background)
+                    .is_empty()
+            );
+            drop(ui);
+            let editor = &mut app.preview_tabs[0].editor.inner;
+            let _ = editor.set_cursor(0, 12);
+            let mut ui = UserInterface::build(
+                editor.view().map(|_| crate::app::Message::Editor(EditorMessage::ClosePopover)),
+                size,
+                Cache::new(),
+                &mut renderer,
+            );
+            ui.draw(
+                &mut renderer,
+                &theme,
+                &iced::advanced::renderer::Style { text_color: theme.palette().text },
+                iced::mouse::Cursor::Unavailable,
+            );
+            drop(ui);
+            let y = editor.cursor_screen_position().expect("visible cursor").y;
+            if width == "4" {
+                assert!(y > editor.line_height());
+            } else {
+                assert!(y <= editor.line_height());
+            }
+        }
+    }
+}

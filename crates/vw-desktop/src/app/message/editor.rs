@@ -122,6 +122,8 @@ pub enum EditorMessage {
     ClosePopover,
     SetOption(EditorOption, bool),
     SetIndentStyle(iced_code_editor::IndentStyle),
+    /// 留空随视口，否则仅接受正整数列宽。
+    SetWrapColumn(String),
     /// 切换设置面板显示状态
     ToggleSettings,
 
@@ -219,7 +221,14 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
     {
         return Task::none();
     }
-    if !matches!(message, EditorMessage::TogglePopover(_) | EditorMessage::ClosePopover) {
+    if !matches!(
+        message,
+        EditorMessage::TogglePopover(_)
+            | EditorMessage::ClosePopover
+            | EditorMessage::SetOption(_, _)
+            | EditorMessage::SetIndentStyle(_)
+            | EditorMessage::SetWrapColumn(_)
+    ) {
         app.editor_popover = None;
     }
     match message {
@@ -246,6 +255,25 @@ pub fn update(app: &mut App, message: EditorMessage) -> Task<Message> {
                 .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
             {
                 option.set(&mut tab.editor.inner, enabled);
+            }
+            Task::none()
+        }
+        EditorMessage::SetWrapColumn(value) => {
+            let column = if value.is_empty() {
+                None
+            } else {
+                match value.parse::<usize>() {
+                    Ok(column) if column > 0 => Some(column),
+                    _ => return Task::none(),
+                }
+            };
+            if let Some(tab) = app
+                .preview_tabs
+                .iter_mut()
+                .find(|tab| Some(&tab.path) == app.active_preview_path.as_ref())
+                && tab.editor.inner.wrap_enabled()
+            {
+                tab.editor.inner.set_wrap_column(column);
             }
             Task::none()
         }

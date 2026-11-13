@@ -1,6 +1,6 @@
 use super::{App, Message};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_checkbox_style, settings_select,
+    rounded_action_btn_style, settings_checkbox_style, settings_select, settings_text_input,
 };
 use crate::app::message::editor::{EditorMessage, EditorOption};
 use iced::Element;
@@ -30,6 +30,16 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
                     Message::Editor(EditorMessage::SetOption(option, enabled))
                 }),
         );
+        if matches!(option, EditorOption::Wrap) {
+            let value = tab.editor.inner.wrap_column().map(|n| n.to_string()).unwrap_or_default();
+            let mut input = settings_text_input(i18n.__("留空随视口"), &value);
+            if tab.editor.inner.wrap_enabled() {
+                input = input.on_input(|value| Message::Editor(EditorMessage::SetWrapColumn(value)));
+            }
+            content = content
+                .push(text(i18n.__("换行列宽（正整数）")).size(12))
+                .push(input);
+        }
     }
     content
         .push(text(i18n.__("缩进风格")).size(12))

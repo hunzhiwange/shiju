@@ -43,6 +43,14 @@ fn send_terminal(
     }
 }
 
+struct WorkerCompletion(Arc<AtomicBool>);
+
+impl Drop for WorkerCompletion {
+    fn drop(&mut self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
 /// 启动一个真实处理器提示轮次。
 pub fn start_prompt(request: Request) -> PromptTurn {
     start_prompt_with_runner(request, |request, emit| processor::run(request, emit))
@@ -82,10 +90,12 @@ where
         events: events_tx.clone(),
     };
 
+    let finished = Arc::new(AtomicBool::new(false));
     if let Some(external) = external {
         let monitor = cancel.clone();
+        let finished = Arc::clone(&finished);
         std::thread::spawn(move || {
-            while !monitor.terminal.load(Ordering::Acquire) {
+            while !finished.load(Ordering::Acquire) {
                 if external.is_cancelled() {
                     monitor.cancel();
                     return;
@@ -96,7 +106,8 @@ where
     }
     let cleanup = cancel.clone();
     let delegated_context = crate::tools::current_tool_use_context();
-    std::thread::spawn(move || {
+    let worker = std::thread::spawn(move || {
+        let _completion = WorkerCompletion(finished);
         #[cfg(not(target_arch = "wasm32"))]
         let _worktree_use = match request
             .root
@@ -111,7 +122,7 @@ where
                     terminal.as_ref(),
                     PromptTermination::Failed(error.to_string()),
                 );
-                return;
+                return Ok(());
             }
         };
         let callback_events = events_tx.clone();
@@ -169,7 +180,7 @@ where
                 terminal.as_ref(),
                 PromptTermination::Failed(error.to_string()),
             );
-            return;
+            return Err(format!("execution shutdown unconfirmed: {error}"));
         }
 
         if token.is_cancelled() {
@@ -183,7 +194,8 @@ where
                 ),
             );
         }
+        Ok(())
     });
 
-    PromptTurn { events: events_rx, cancel }
+    PromptTurn { events: events_rx, cancel, worker }
 }

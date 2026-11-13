@@ -96,6 +96,11 @@ pub struct LocalAgentWorkspaceReleaseRequest {
     pub workspace: LocalAgentWorkspace,
 }
 
+/// A writer may still be alive; the caller must retain its directory claim.
+#[derive(Debug, thiserror::Error)]
+#[error("execution shutdown unconfirmed: {0}")]
+pub(crate) struct ExecutionShutdownUnconfirmed(pub String);
+
 /// 本地运行器对工作区生命周期和代理执行后端的抽象。
 pub trait LocalAgentExecutor {
     fn lease_workspace(&self, request: LocalAgentWorkspaceRequest) -> Result<LocalAgentWorkspace> {
@@ -167,10 +172,7 @@ where
 
         // Do not consume a run or its lease while the physical directory is busy.
         // All project registrations use the same per-user lock namespace.
-        let lock_root = directories::BaseDirs::new()
-            .context("resolve workspace lock home")?
-            .data_local_dir()
-            .join("shiju/workspace-claims");
+        let lock_root = super::workspace_claim::lock_root()?;
         let owner = format!("local-run-{}-{}", task.id.as_str(), request.now_ms.0);
         let Some(claim) =
             WorkspaceClaim::acquire(&lock_root, project_path.storage_project_path(), owner)?
@@ -231,7 +233,14 @@ where
         if task.status != AgentTaskStatus::Running {
             return Ok(None);
         }
-        let finished_run = self.execute_running_task(project_path, &task, run_id, &request)?;
+        let finished_run = match self.execute_running_task(project_path, &task, run_id, &request) {
+            Err(error) if error.downcast_ref::<ExecutionShutdownUnconfirmed>().is_some() => {
+                claim.retain_unconfirmed(project_path.storage_project_path())?;
+                tracing::error!(run_id = run_id.as_str(), %error, "retaining occupied execution directory");
+                return Err(error);
+            }
+            result => result?,
+        };
         claim.release(run_id.as_str())?;
         Ok(Some(LocalAgentRunnerOutcome { task_id: task.id, run: finished_run }))
     }
@@ -359,18 +368,54 @@ where
         let acp_agent = execution_acp_agent(task);
         let reasoning_effort =
             crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?;
-        let execution = self.executor.execute(LocalAgentExecutionRequest {
-            project_path: project_path.storage_project_path().to_path_buf(),
-            task_id: task.id.clone(),
-            run_id: run_id.clone(),
-            title: task.title.clone(),
-            prompt: execution_prompt(task),
-            model: execution_model(task),
-            agent: execution_agent(task, acp_agent.as_deref()),
-            acp_agent,
-            reasoning_effort,
-            workspace: workspace.clone(),
-        });
+        let execution = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.executor.execute(LocalAgentExecutionRequest {
+                project_path: project_path.storage_project_path().to_path_buf(),
+                task_id: task.id.clone(),
+                run_id: run_id.clone(),
+                title: task.title.clone(),
+                prompt: execution_prompt(task),
+                model: execution_model(task),
+                agent: execution_agent(task, acp_agent.as_deref()),
+                acp_agent,
+                reasoning_effort,
+                workspace: workspace.clone(),
+            })
+        }))
+        .unwrap_or_else(|_| Err(ExecutionShutdownUnconfirmed("executor panicked".into()).into()));
+
+        if let Err(error) = &execution
+            && error.downcast_ref::<ExecutionShutdownUnconfirmed>().is_some()
+        {
+            return Err(execution.unwrap_err());
+        }
+        let current_task = self.store.load_task(project_path, &task.id)?;
+        let current_run = self
+            .store
+            .load_run(project_path, run_id)?
+            .context("execution run disappeared during shutdown")?;
+        let latest_run = self.store.load_latest_run_for_task(project_path, &task.id)?;
+        if current_task.as_ref().is_some_and(|task| task.status == AgentTaskStatus::Cancelled)
+            && current_run.status == crate::agent_scheduler::domain::AgentRunStatus::Running
+        {
+            return self
+                .store
+                .finish_run(
+                    project_path,
+                    run_id,
+                    AgentRunFinishStatus::Cancelled,
+                    TimestampMs(chrono::Utc::now().timestamp_millis().max(0)),
+                    Some("execution stopped after cancellation".into()),
+                )?
+                .context("cancelled execution run disappeared");
+        }
+        if current_task.is_none_or(|task| task.status != AgentTaskStatus::Running)
+            || current_run.status != crate::agent_scheduler::domain::AgentRunStatus::Running
+            || latest_run.is_none_or(|run| run.id != *run_id)
+        {
+            // A cancellation/recovery or a later attempt owns the task projection now.
+            return Ok(current_run);
+        }
 
         match execution {
             Ok(output) => self.complete_running_task(

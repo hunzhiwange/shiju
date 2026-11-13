@@ -107,6 +107,7 @@ trait GatewayChatStreamClient: std::fmt::Debug + Send + Sync {
         &'a self,
         workspace_path: String,
         body: GatewayChatStreamRequest,
+        cancellation: tokio_util::sync::CancellationToken,
         observe_payload: GatewayPayloadObserver<'a>,
     ) -> GatewayFuture<'a, GatewayChatStreamCollected>;
 }
@@ -120,18 +121,24 @@ impl GatewayChatStreamClient for RealGatewayChatStreamClient {
         &'a self,
         workspace_path: String,
         body: GatewayChatStreamRequest,
+        cancellation: tokio_util::sync::CancellationToken,
         observe_payload: GatewayPayloadObserver<'a>,
     ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
         Box::pin(async move {
             let mut observe_payload = observe_payload;
-            crate::app::agent::gateway::api::handlers::session::stream::collect_background_gateway_chat_stream(
+            crate::app::agent::gateway::api::handlers::session::stream::collect_scheduler_gateway_chat_stream(
                 workspace_path,
                 body,
-                false,
+                cancellation,
                 move |payload| observe_payload(payload),
             )
             .await
-            .map_err(|error| anyhow!(error.to_string()))
+            .map_err(|error| {
+                let message = error.to_string();
+                if message.contains("execution shutdown unconfirmed") {
+                    anyhow!(crate::agent_scheduler::runner::local::ExecutionShutdownUnconfirmed(message))
+                } else { anyhow!(message) }
+            })
         })
     }
 }
@@ -142,6 +149,7 @@ impl GatewayChatStreamClient for RealGatewayChatStreamClient {
         &'a self,
         _workspace_path: String,
         _body: GatewayChatStreamRequest,
+        _cancellation: tokio_util::sync::CancellationToken,
         _observe_payload: GatewayPayloadObserver<'a>,
     ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
         Box::pin(async { bail!("real gateway chat stream client is disabled in tests") })
@@ -340,32 +348,52 @@ fn collect_gateway_local_agent_output(
     let run_id = request.run_id.clone();
     let body = gateway_local_agent_stream_request(&request);
     let stream_log_store = store.clone();
-    let collected =
-        run_gateway_future("create agent scheduler gateway local executor runtime", async move {
-            chat_stream
-                .collect_with_observer(
-                    workspace_path,
-                    body,
-                    Box::new(move |payload| {
-                        if let Err(error) = append_gateway_stream_payload_task_log(
-                            &stream_log_store,
-                            &project_path,
-                            &task_id,
-                            &run_id,
-                            current_timestamp_ms(),
-                            payload,
-                        ) {
-                            tracing::warn!(
-                                error = %error,
-                                task_id = task_id.as_str(),
-                                run_id = run_id.as_str(),
-                                "failed to append agent scheduler gateway stream log"
-                            );
-                        }
-                    }),
-                )
-                .await
-        })?;
+    let store_for_cancel = store.clone();
+    let cancel_project = project_path.clone();
+    let cancel_task = task_id.clone();
+    let cancel_run = run_id.clone();
+    let collected = run_gateway_future(
+        "create agent scheduler gateway local executor runtime",
+        async move {
+            let cancellation = tokio_util::sync::CancellationToken::new();
+            let mut collection = chat_stream.collect_with_observer(
+                workspace_path,
+                body,
+                cancellation.clone(),
+                Box::new(move |payload| {
+                    if let Err(error) = append_gateway_stream_payload_task_log(
+                        &stream_log_store,
+                        &project_path,
+                        &task_id,
+                        &run_id,
+                        current_timestamp_ms(),
+                        payload,
+                    ) {
+                        tracing::warn!(
+                            error = %error,
+                            task_id = task_id.as_str(),
+                            run_id = run_id.as_str(),
+                            "failed to append agent scheduler gateway stream log"
+                        );
+                    }
+                }),
+            );
+            let mut poll = tokio::time::interval(std::time::Duration::from_millis(50));
+            loop {
+                tokio::select! {
+                    result = &mut collection => break result,
+                    _ = poll.tick() => {
+                        // Read failure is fail-closed: stop execution but keep waiting for shutdown.
+                        let running = store_for_cancel.load_task(&cancel_project, &cancel_task)
+                            .ok().flatten().is_some_and(|task| task.status == crate::agent_scheduler::state_machine::AgentTaskStatus::Running)
+                            && store_for_cancel.load_run(&cancel_project, &cancel_run)
+                                .ok().flatten().is_some_and(|run| run.status == crate::agent_scheduler::domain::AgentRunStatus::Running);
+                        if !running { cancellation.cancel(); }
+                    }
+                }
+            }
+        },
+    )?;
     Ok(collected.output)
 }
 
@@ -525,9 +553,13 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
 {
     if tokio::runtime::Handle::try_current().is_ok() {
-        return thread::spawn(move || block_on_gateway_future(context, future))
-            .join()
-            .map_err(|_| anyhow!("{context} thread panicked"))?;
+        return thread::spawn(move || block_on_gateway_future(context, future)).join().map_err(
+            |_| {
+                anyhow!(crate::agent_scheduler::runner::local::ExecutionShutdownUnconfirmed(
+                    format!("{context} thread panicked")
+                ))
+            },
+        )?;
     }
     block_on_gateway_future(context, future)
 }

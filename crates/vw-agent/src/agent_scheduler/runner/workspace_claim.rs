@@ -2,15 +2,20 @@
 //! Shared ancestor locks allow siblings to overlap; the leaf is exclusive.
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions, TryLockError};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
 use anyhow::{Context, Result, ensure};
 use sha2::{Digest, Sha256};
 
-pub(super) struct WorkspaceClaim {
+pub(crate) struct WorkspaceClaim {
     files: Vec<File>,
     owner: String,
+    shutdown_unconfirmed: bool,
+    path: PathBuf,
+    marker: PathBuf,
+    recorded: bool,
 }
 
 type ClaimKey = (PathBuf, String);
@@ -18,7 +23,7 @@ static STARTED: LazyLock<Mutex<HashMap<ClaimKey, WorkspaceClaim>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 impl WorkspaceClaim {
-    pub(super) fn acquire(root: &Path, path: &Path, owner: String) -> Result<Option<Self>> {
+    pub(crate) fn acquire(root: &Path, path: &Path, owner: String) -> Result<Option<Self>> {
         let path = path.canonicalize().context("resolve execution directory for claim")?;
         ensure!(path.is_dir(), "execution directory is not a directory");
         std::fs::create_dir_all(root).context("create workspace lock directory")?;
@@ -43,37 +48,112 @@ impl WorkspaceClaim {
                 }
             }
         }
-        Ok(Some(Self { files, owner }))
+        // A crashed scheduler can leave child writers behind after its OS locks
+        // disappear. Never infer their shutdown from an unlocked file or a TTL.
+        for entry in std::fs::read_dir(root)? {
+            let entry = entry?;
+            if !entry.file_name().to_string_lossy().starts_with("active-") {
+                continue;
+            }
+            let record = match std::fs::read(entry.path()) {
+                Ok(record) => record,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => return Err(error).context("read retained workspace claim"),
+            };
+            let (occupied, run): (PathBuf, String) =
+                serde_json::from_slice(&record).with_context(|| {
+                    format!("invalid retained workspace claim: {}", entry.path().display())
+                })?;
+            ensure!(
+                !path.starts_with(&occupied) && !occupied.starts_with(&path),
+                "execution shutdown unconfirmed for run {run}; retained claim: {}",
+                entry.path().display()
+            );
+        }
+        let key = hex::encode(Sha256::digest(path.as_os_str().as_encoded_bytes()));
+        Ok(Some(Self {
+            files,
+            owner,
+            shutdown_unconfirmed: false,
+            path,
+            marker: root.join(format!("active-{key}")),
+            recorded: false,
+        }))
     }
 
-    pub(super) fn retain(self, path: &Path) -> Result<()> {
-        let key = (path.canonicalize()?, self.owner.clone());
+    pub(crate) fn retain(mut self, path: &Path) -> Result<()> {
+        let path = path.canonicalize()?;
+        ensure!(path == self.path, "workspace claim directory mismatch");
+        let key = (path, self.owner.clone());
         let mut claims =
             STARTED.lock().map_err(|_| anyhow::anyhow!("workspace claims poisoned"))?;
         ensure!(!claims.contains_key(&key), "workspace claim already retained");
+        if !self.recorded {
+            let pending = self.marker.with_file_name(format!(
+                "pending-{}-{}-{}",
+                std::process::id(),
+                self.marker.file_name().unwrap().to_string_lossy(),
+                hex::encode(Sha256::digest(self.owner.as_bytes()))
+            ));
+            let mut options = OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            let mut file =
+                options.open(&pending).context("create pending workspace ownership record")?;
+            file.write_all(&serde_json::to_vec(&(&self.path, &self.owner))?)?;
+            file.sync_all()?;
+            std::fs::rename(&pending, &self.marker)
+                .context("persist workspace ownership record")?;
+            self.recorded = true;
+        }
         claims.insert(key, self);
         Ok(())
     }
 
-    pub(super) fn take(path: &Path, owner: &str) -> Result<Option<Self>> {
-        Ok(STARTED
-            .lock()
-            .map_err(|_| anyhow::anyhow!("workspace claims poisoned"))?
-            .remove(&(path.canonicalize()?, owner.to_owned())))
+    pub(crate) fn retain_unconfirmed(mut self, path: &Path) -> Result<()> {
+        self.shutdown_unconfirmed = true;
+        self.retain(path)
     }
 
-    pub(super) fn release(&mut self, owner: &str) -> Result<()> {
+    pub(crate) fn take(path: &Path, owner: &str) -> Result<Option<Self>> {
+        let key = (path.canonicalize()?, owner.to_owned());
+        let mut claims =
+            STARTED.lock().map_err(|_| anyhow::anyhow!("workspace claims poisoned"))?;
+        if claims.get(&key).is_some_and(|claim| claim.shutdown_unconfirmed) {
+            return Ok(None);
+        }
+        Ok(claims.remove(&key))
+    }
+
+    pub(crate) fn release(&mut self, owner: &str) -> Result<()> {
         ensure!(self.owner == owner, "workspace claim owner mismatch");
+        self.clear_record()?;
         for file in &self.files {
             file.unlock().context("release workspace OS lock")?;
         }
         self.files.clear();
         Ok(())
     }
+
+    fn clear_record(&mut self) -> Result<()> {
+        if self.recorded && !self.shutdown_unconfirmed {
+            std::fs::remove_file(&self.marker)
+                .context("clear confirmed workspace ownership record")?;
+            self.recorded = false;
+        }
+        Ok(())
+    }
 }
 
 impl Drop for WorkspaceClaim {
     fn drop(&mut self) {
+        if let Err(error) = self.clear_record() {
+            tracing::error!(%error, marker = %self.marker.display(), "workspace ownership record retained");
+        }
         // Explicit unlock also releases a handle temporarily inherited during fork/exec.
         for file in &self.files {
             if let Err(error) = file.unlock() {
@@ -81,4 +161,11 @@ impl Drop for WorkspaceClaim {
             }
         }
     }
+}
+
+pub(crate) fn lock_root() -> Result<PathBuf> {
+    Ok(directories::BaseDirs::new()
+        .context("resolve workspace lock home")?
+        .data_local_dir()
+        .join("shiju/workspace-claims"))
 }

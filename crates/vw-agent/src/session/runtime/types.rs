@@ -284,6 +284,8 @@ pub struct PromptTurn {
     pub events: mpsc::Receiver<PromptEvent>,
     /// 可跨线程调用的幂等取消句柄。
     pub cancel: PromptCancelHandle,
+    /// Joins execution and its cleanup, independently of early UI terminal events.
+    pub(crate) worker: std::thread::JoinHandle<Result<(), String>>,
 }
 
 /// 会话生命周期边界的分类错误。

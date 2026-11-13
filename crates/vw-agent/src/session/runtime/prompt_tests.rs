@@ -411,3 +411,42 @@ fn native_tool_search_acceptance_runtime_internal_calls_keep_consumer_open() {
         PromptEvent::Terminated(PromptTermination::Completed(_))
     ));
 }
+
+#[test]
+fn task_pool_recovery_prompt_terminal_precedes_confirmed_shutdown() {
+    let (release, blocked) = std::sync::mpsc::channel();
+    let turn = start_prompt_with_runner(request(), move |_, mut emit| {
+        emit(StreamEvent::Done(TokenUsage::default()));
+        blocked.recv().unwrap();
+    });
+    assert!(matches!(
+        turn.events.recv_timeout(Duration::from_secs(2)).unwrap(),
+        PromptEvent::Terminated(_)
+    ));
+    assert!(!turn.worker.is_finished());
+    release.send(()).unwrap();
+    assert!(turn.worker.join().unwrap().is_ok());
+}
+
+#[test]
+fn task_pool_recovery_cancel_after_terminal_reaches_running_processor() {
+    let external = tokio_util::sync::CancellationToken::new();
+    let mut request = request();
+    request.abort_token = Some(external.clone());
+    let (exited, done) = std::sync::mpsc::channel();
+    let turn = start_prompt_with_runner(request, move |request, mut emit| {
+        emit(StreamEvent::Done(TokenUsage::default()));
+        let token = request.abort_token.unwrap();
+        while !token.is_cancelled() {
+            std::thread::yield_now();
+        }
+        exited.send(()).unwrap();
+    });
+    assert!(matches!(
+        turn.events.recv_timeout(Duration::from_secs(2)).unwrap(),
+        PromptEvent::Terminated(_)
+    ));
+    external.cancel();
+    done.recv_timeout(Duration::from_secs(2)).expect("late cancellation must reach the processor");
+    assert!(turn.worker.join().unwrap().is_ok());
+}

@@ -166,6 +166,25 @@ impl<'a> RecoveryEngine<'a> {
         now_ms: TimestampMs,
         outcome: &mut RecoveryOutcome,
     ) -> Result<()> {
+        let _directory_claim =
+            crate::agent_scheduler::runner::workspace_claim::WorkspaceClaim::acquire(
+                &crate::agent_scheduler::runner::workspace_claim::lock_root()?,
+                project_path.storage_project_path(),
+                format!("recovery-{}", run.id.as_str()),
+            )?;
+        let current = self.store.load_run(project_path, &run.id)?;
+        let latest = self.store.load_latest_run_for_task(project_path, &run.task_id)?;
+        if current.is_none_or(|run| {
+            !matches!(
+                run.status,
+                crate::agent_scheduler::domain::AgentRunStatus::Running
+                    | crate::agent_scheduler::domain::AgentRunStatus::Leased
+                    | crate::agent_scheduler::domain::AgentRunStatus::Stale
+            )
+        }) || latest.is_none_or(|latest| latest.id != run.id)
+        {
+            return Ok(());
+        }
         let task = self
             .store
             .load_task(project_path, &run.task_id)?
@@ -232,6 +251,21 @@ impl<'a> RecoveryEngine<'a> {
         outcome: &mut RecoveryOutcome,
     ) -> Result<()> {
         let stale_leases = self.store.list_stale_resource_leases(project_path, now_ms)?;
+        if stale_leases.is_empty() {
+            return Ok(());
+        }
+        // TTL expiration is not proof that a writer has exited. The same OS lock
+        // also protects recovery after restart and writers in another process.
+        let Some(_claim) =
+            crate::agent_scheduler::runner::workspace_claim::WorkspaceClaim::acquire(
+                &crate::agent_scheduler::runner::workspace_claim::lock_root()?,
+                project_path.storage_project_path(),
+                "recovery-resource-release".into(),
+            )?
+        else {
+            tracing::warn!(project = %project_path.storage_project_path().display(), "resource recovery deferred: execution directory still occupied");
+            return Ok(());
+        };
         for lease in stale_leases {
             if graced_run_ids.contains(lease.holder_id.as_str()) {
                 continue;
@@ -251,12 +285,9 @@ impl<'a> RecoveryEngine<'a> {
         if self.policy.taint_released_resources {
             let taint_reason =
                 format!("lease {} stale at recovery time {}", lease.id.as_str(), now_ms.0);
-            if let Some(tainted) = self.store.mark_resource_tainted(
-                project_path,
-                lease.resource_kind,
-                &lease.resource_id,
-                taint_reason,
-            )? {
+            if let Some(tainted) =
+                self.store.mark_resource_lease_tainted(project_path, &lease, taint_reason)?
+            {
                 outcome.tainted_resource_lease_ids.push(tainted.id);
             }
         }

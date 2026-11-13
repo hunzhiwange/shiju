@@ -532,6 +532,7 @@ fn gateway_real_chat_client_is_disabled_in_unit_tests() -> Result<()> {
         chat.collect_with_observer(
             "/repo".to_string(),
             gateway_local_agent_stream_request(&execution_request(None, None)?),
+            tokio_util::sync::CancellationToken::new(),
             Box::new(|_| {}),
         ),
     )
@@ -657,6 +658,7 @@ impl GatewayChatStreamClient for FakeChatStream {
         &'a self,
         workspace_path: String,
         body: GatewayChatStreamRequest,
+        _cancellation: tokio_util::sync::CancellationToken,
         observe_payload: GatewayPayloadObserver<'a>,
     ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
         self.calls.lock().push((
@@ -787,5 +789,38 @@ fn task_pool_agent_runs_use_distinct_sessions() -> Result<()> {
     let second = gateway_local_agent_stream_request(&task);
     assert_ne!(first.session_id, second.session_id);
     assert_eq!(first.agent, second.agent);
+    Ok(())
+}
+
+#[test]
+fn task_pool_recovery_gateway_passes_stop_to_stream() -> Result<()> {
+    #[derive(Debug)]
+    struct CancelStream;
+    impl GatewayChatStreamClient for CancelStream {
+        fn collect_with_observer<'a>(
+            &'a self,
+            _: String,
+            _: GatewayChatStreamRequest,
+            cancel: tokio_util::sync::CancellationToken,
+            _: GatewayPayloadObserver<'a>,
+        ) -> GatewayFuture<'a, GatewayChatStreamCollected> {
+            Box::pin(async move {
+                tokio::time::timeout(std::time::Duration::from_secs(2), cancel.cancelled())
+                    .await
+                    .context("scheduler did not propagate cancellation")?;
+                bail!("stream acknowledged cancellation and shutdown")
+            })
+        }
+    }
+    let project = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(project.path())?;
+    let mut request = execution_request(None, None)?;
+    request.project_path = project.path().to_path_buf();
+    // A missing/cancelled run must stop the transport, and still await its result.
+    let executor = GatewayLocalAgentExecutor::new_with_chat_stream(store, Arc::new(CancelStream));
+    assert!(
+        executor.execute(request).unwrap_err().to_string().contains("acknowledged cancellation")
+    );
     Ok(())
 }

@@ -3332,3 +3332,32 @@ async fn task_pool_agent_rejects_unknown_or_disabled_definition() {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn task_pool_recovery_collector_waits_for_producer_shutdown() {
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    tx.send(serde_json::json!({"type":"chat.done"})).unwrap();
+    let mut collection = Box::pin(collect_scheduler_gateway_chat_stream_payloads(rx, |_| {}));
+    // A ready terminal alone must not complete the scheduler collector.
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(20), &mut collection).await.is_err()
+    );
+    drop(tx);
+    assert!(collection.await.is_ok());
+}
+
+#[tokio::test]
+async fn task_pool_recovery_collector_keeps_shutdown_failure_after_done() {
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    tx.send(serde_json::json!({"type":"chat.done"})).unwrap();
+    tx.send(serde_json::json!({"type":"chat.error", "error":"execution shutdown unconfirmed"}))
+        .unwrap();
+    drop(tx);
+    assert!(
+        collect_scheduler_gateway_chat_stream_payloads(rx, |_| {})
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("execution shutdown unconfirmed")
+    );
+}

@@ -319,7 +319,7 @@ impl AcpClient {
     ) -> FinalizedChild {
         let process_id = child.id();
         let graceful_timeout = Duration::from_millis(500);
-        let status = match timeout(graceful_timeout, child.wait()).await {
+        let mut status = match timeout(graceful_timeout, child.wait()).await {
             Ok(Ok(status)) => Some(status),
             _ => {
                 cleanup_targets.extend(process_cleanup_targets(process_id));
@@ -349,6 +349,18 @@ impl AcpClient {
                 }
             }
         };
+        while status.is_none() {
+            cleanup_targets.extend(process_cleanup_targets(process_id));
+            send_kill_signal_to_process_targets(&cleanup_targets);
+            match child.wait().await {
+                Ok(exited) => status = Some(exited),
+                Err(error) => {
+                    tracing::error!(target: "vw_acp", acp_agent = %self.agent_name, ?process_id, %error,
+                        "execution shutdown unconfirmed; retaining ACP runtime until exit can be confirmed");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+            }
+        }
         cleanup_targets.extend(process_cleanup_targets(process_id));
         cleanup_process_targets(cleanup_targets).await;
 

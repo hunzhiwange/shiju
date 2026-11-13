@@ -220,6 +220,7 @@ impl PostgresAgentSchedulerStore {
         resource_kind: ResourceKind,
         resource_id: &ResourceId,
         taint_reason: &str,
+        expected: Option<&StoredResourceLease>,
     ) -> Result<Option<StoredResourceLease>> {
         crate::global_database::run_sync_database(|| {
             let scope = context.storage_scope()?;
@@ -233,6 +234,7 @@ impl PostgresAgentSchedulerStore {
                  SET taint_reason = $1
                  WHERE platform_id = $2 AND company_id = $3 AND project_id = $4
                    AND resource_kind = $5 AND resource_id = $6 AND status = $7
+                   AND ($8::text IS NULL OR (id = $8 AND holder_id = $9))
                  RETURNING id",
                     &[
                         &taint_reason,
@@ -242,6 +244,8 @@ impl PostgresAgentSchedulerStore {
                         &resource_kind.as_str(),
                         &resource_id.as_str(),
                         &ResourceLeaseStatus::Active.as_str(),
+                        &expected.map(|lease| lease.id.as_str()),
+                        &expected.map(|lease| lease.holder_id.as_str()),
                     ],
                 )
                 .context("taint scoped PostgreSQL resource lease")?;

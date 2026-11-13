@@ -271,9 +271,41 @@ impl AgentSchedulerStore {
         resource_id: &ResourceId,
         taint_reason: String,
     ) -> Result<Option<StoredResourceLease>> {
+        self.mark_resource_tainted_if_owned(context, resource_kind, resource_id, taint_reason, None)
+    }
+
+    pub(crate) fn mark_resource_lease_tainted(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        lease: &StoredResourceLease,
+        reason: String,
+    ) -> Result<Option<StoredResourceLease>> {
+        self.mark_resource_tainted_if_owned(
+            context,
+            lease.resource_kind,
+            &lease.resource_id,
+            reason,
+            Some(lease),
+        )
+    }
+
+    fn mark_resource_tainted_if_owned(
+        &self,
+        context: &(impl AgentSchedulerStorageContext + ?Sized),
+        resource_kind: ResourceKind,
+        resource_id: &ResourceId,
+        taint_reason: String,
+        expected: Option<&StoredResourceLease>,
+    ) -> Result<Option<StoredResourceLease>> {
         let taint_reason = non_empty(taint_reason, "resource taint reason")?;
         if let Some(store) = postgres_provider(self, context)? {
-            return store.mark_resource_tainted(context, resource_kind, resource_id, &taint_reason);
+            return store.mark_resource_tainted(
+                context,
+                resource_kind,
+                resource_id,
+                &taint_reason,
+                expected,
+            );
         }
         let scope = context.storage_scope()?;
         let (platform_id, company_id, project_id) = scope_params(&scope);
@@ -291,6 +323,16 @@ impl AgentSchedulerStore {
             tx.commit()?;
             return Ok(None);
         };
+
+        if let Some(expected) = expected {
+            let current = load_resource_lease_with_conn(&tx, context, &lease_id)?;
+            if current.is_none_or(|lease| {
+                lease.id != expected.id || lease.holder_id != expected.holder_id
+            }) {
+                tx.commit()?;
+                return Ok(None);
+            }
+        }
 
         tx.execute(
             "UPDATE scheduler_resource_leases

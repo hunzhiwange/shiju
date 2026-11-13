@@ -364,3 +364,78 @@ impl TestClock {
         self.now_ms
     }
 }
+
+#[tokio::test]
+async fn task_pool_recovery_resources_wait_for_live_directory_owner() -> Result<()> {
+    use super::engine::recovery::RecoveryEngine;
+    use super::runner::workspace_claim::{WorkspaceClaim, lock_root};
+    let project = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(project.path())?;
+    let lease = store
+        .acquire_resource_lease(
+            project.path(),
+            AcquireResourceLeaseRequest {
+                lease_id: ResourceLeaseId::new("old-lease")?,
+                resource_kind: ResourceKind::WorkerSlot,
+                resource_id: ResourceId::new("slot")?,
+                holder_id: HolderId::new("live-run")?,
+                acquired_at_ms: TimestampMs(1),
+                lease_expires_at_ms: Some(TimestampMs(2)),
+            },
+        )?
+        .unwrap();
+    let mut claim =
+        WorkspaceClaim::acquire(&lock_root()?, project.path(), "live-run".into())?.unwrap();
+    let engine = RecoveryEngine::new(&store);
+    assert!(
+        engine
+            .reconcile_once(project.path(), TimestampMs(3))
+            .await?
+            .released_resource_lease_ids
+            .is_empty()
+    );
+    claim.release("live-run")?;
+    let result = engine.reconcile_once(project.path(), TimestampMs(4)).await?;
+    assert_eq!(result.released_resource_lease_ids, vec![lease.id]);
+    assert!(
+        engine
+            .reconcile_once(project.path(), TimestampMs(5))
+            .await?
+            .released_resource_lease_ids
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[test]
+fn task_pool_recovery_old_lease_cannot_taint_new_owner() -> Result<()> {
+    let project = tempfile::tempdir()?;
+    let store = AgentSchedulerStore::new();
+    store.initialize_project(project.path())?;
+    let request = |id: &str, owner: &str, at| -> Result<AcquireResourceLeaseRequest> {
+        Ok(AcquireResourceLeaseRequest {
+            lease_id: ResourceLeaseId::new(id)?,
+            resource_kind: ResourceKind::WorkerSlot,
+            resource_id: ResourceId::new("slot")?,
+            holder_id: HolderId::new(owner)?,
+            acquired_at_ms: TimestampMs(at),
+            lease_expires_at_ms: Some(TimestampMs(at + 1)),
+        })
+    };
+    let old = store.acquire_resource_lease(project.path(), request("old", "old-run", 1)?)?.unwrap();
+    let new = store.acquire_resource_lease(project.path(), request("new", "new-run", 3)?)?.unwrap();
+    assert!(
+        store.mark_resource_lease_tainted(project.path(), &old, "old failure".into())?.is_none()
+    );
+    assert!(
+        store
+            .release_resource_lease(project.path(), &old.id, &old.holder_id, TimestampMs(4))?
+            .is_none()
+    );
+    let current = store
+        .release_resource_lease(project.path(), &new.id, &new.holder_id, TimestampMs(4))?
+        .unwrap();
+    assert!(current.taint_reason.is_none());
+    Ok(())
+}

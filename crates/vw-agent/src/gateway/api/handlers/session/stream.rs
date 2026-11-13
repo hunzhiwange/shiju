@@ -1937,12 +1937,37 @@ async fn start_gateway_chat_producer(
                     break;
                 }
             }
+            // UI terminal events may precede processor cleanup (especially on cancel).
+            // Keep the producer sender alive until the writer has actually stopped.
+            match turn.worker.join() {
+                Ok(Ok(())) => {}
+                _ => {
+                    return Err("execution shutdown unconfirmed: prompt cleanup failed".to_string());
+                }
+            }
+            if background_full_access.is_some() {
+                cancel.reap_shell_processes().map_err(|error| {
+                    format!(
+                        "execution shutdown unconfirmed: background shell cleanup failed: {error}"
+                    )
+                })?;
+            }
+            Ok::<(), String>(())
         }));
 
         let mut sink = sink.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let shutdown_error = match &outcome {
+            Ok(Ok(())) => None,
+            Ok(Err(error)) => Some(error.clone()),
+            Err(_) => Some("execution shutdown unconfirmed: gateway producer panicked".to_string()),
+        };
+        if let Some(error) = shutdown_error {
+            let _ = (sink.send)(serde_json::json!({"type": "chat.error", "error": error}), true);
+            sink.sent_terminal = true;
+        }
         if !sink.sent_terminal {
             let error = match outcome {
-                Ok(()) => "gateway chat stream 异常结束：未发出终态事件".to_string(),
+                Ok(_) => "gateway chat stream 异常结束：未发出终态事件".to_string(),
                 Err(panic) => format!(
                     "gateway chat stream 内部异常: {}",
                     panic_payload_message(panic.as_ref())
@@ -1989,6 +2014,41 @@ pub(crate) async fn collect_background_gateway_chat_stream(
     collect_gateway_chat_stream_for_turn(dir, body, Some(acp_full_access), observe_payload).await
 }
 
+/// Scheduler collection waits for producer shutdown even after an early terminal event.
+pub(crate) async fn collect_scheduler_gateway_chat_stream(
+    dir: String,
+    body: GatewayChatStreamRequest,
+    cancellation: tokio_util::sync::CancellationToken,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let _cancel_on_drop = cancellation.clone().drop_guard();
+    let rx = with_tenant_instance(tenant.clone(), dir.clone(), move || {
+        Box::pin(async move {
+            start_gateway_chat_stream(tenant, dir, body, Some(false), Some(cancellation)).await
+        })
+    })
+    .await?;
+    collect_scheduler_gateway_chat_stream_payloads(rx, observe_payload).await
+}
+
+async fn collect_scheduler_gateway_chat_stream_payloads(
+    mut rx: UnboundedReceiver<Value>,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    let result = collect_gateway_chat_stream_payloads_borrowed(&mut rx, observe_payload).await;
+    while let Some(payload) = rx.recv().await {
+        if payload
+            .get("error")
+            .and_then(Value::as_str)
+            .is_some_and(|error| error.contains("execution shutdown unconfirmed"))
+        {
+            return Err(ApiError::internal("execution shutdown unconfirmed"));
+        }
+    }
+    result
+}
+
 async fn collect_gateway_chat_stream_for_turn(
     dir: String,
     body: GatewayChatStreamRequest,
@@ -2011,6 +2071,13 @@ async fn collect_gateway_chat_stream_for_turn(
 
 async fn collect_gateway_chat_stream_payloads(
     mut rx: UnboundedReceiver<Value>,
+    observe_payload: impl FnMut(&Value),
+) -> Result<GatewayChatStreamCollected, ApiError> {
+    collect_gateway_chat_stream_payloads_borrowed(&mut rx, observe_payload).await
+}
+
+async fn collect_gateway_chat_stream_payloads_borrowed(
+    rx: &mut UnboundedReceiver<Value>,
     mut observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
     let mut output = String::new();

@@ -22,7 +22,7 @@
 
 mod lsp_overlay;
 mod styles;
-mod tabs;
+pub(super) mod tabs;
 mod view;
 mod widgets;
 

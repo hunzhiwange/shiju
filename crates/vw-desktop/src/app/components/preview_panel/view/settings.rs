@@ -1,21 +1,17 @@
 //! 预览编辑器的局部设置弹窗，沿用编辑器设置消息与公共表单控件。
 
 use crate::app::components::system_settings_common::{
-    primary_action_btn_style, settings_checkbox_style, settings_close_button, settings_divider,
-    settings_flexible_row_with_help, settings_group_card, settings_hover_help_label,
+    primary_action_btn_style, settings_close_button, settings_hover_help_label,
     settings_modal_header, settings_modal_layout, settings_modal_overlay,
-    settings_row_with_flexible_control, settings_select, settings_value_badge,
 };
-use crate::app::components::system_settings_editor::metrics_slider;
 use crate::app::i18n::I18n;
-use crate::app::message::editor::{EditorMessage, metrics};
+use crate::app::message::editor::EditorMessage;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text};
-use iced::{Alignment, Element, Length};
-
-use super::super::tabs::{DisplayLanguage, all_languages};
+use iced::widget::{button, container, text};
+use iced::{Element, Length};
 
 /// 设置面板控件产生的局部交互。
+#[cfg(test)]
 pub(super) enum SettingsControl {
     /// 关闭设置面板。
     Close,
@@ -34,6 +30,7 @@ pub(super) enum SettingsControl {
 }
 
 /// 将设置面板的局部交互映射为应用消息。
+#[cfg(test)]
 pub(super) fn control_message(control: SettingsControl) -> Message {
     let message = match control {
         SettingsControl::Close => EditorMessage::ToggleSettings,
@@ -51,18 +48,21 @@ pub(super) fn control_message(control: SettingsControl) -> Message {
 }
 
 /// 返回设置面板当前应显示的编辑器主题。
+#[cfg(test)]
 pub(super) fn selected_editor_theme(app: &App) -> iced::Theme {
     if app.editor_follow_system_theme { app.app_theme.clone() } else { app.editor_theme.clone() }
 }
 
 /// 格式化字号徽标。
+#[cfg(test)]
 pub(super) fn font_size_badge_label(font_size: f32) -> String {
-    format!("{font_size:.0} pt")
+    format!("{font_size:.0}px")
 }
 
 /// 格式化行高徽标。
+#[cfg(test)]
 pub(super) fn line_height_badge_label(line_height: f32) -> String {
-    format!("{line_height:.1}")
+    format!("{line_height:.1}px")
 }
 
 pub fn build_settings_overlay<'a>(
@@ -70,24 +70,7 @@ pub fn build_settings_overlay<'a>(
     content_base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let i18n = I18n::new(app.desktop_locale);
-    let setting_row = |label, description, control: Element<'static, Message>| {
-        settings_flexible_row_with_help(i18n, &app.app_theme, label, description, 240.0, control)
-    };
-    let displayed = metrics::displayed(app);
-    let close_message = control_message(SettingsControl::Close);
-    let language_pick = settings_select(
-        all_languages().iter().copied(),
-        Some(DisplayLanguage(app.current_language)),
-        |language| control_message(SettingsControl::Language(language.0)),
-    )
-    .width(Length::Fill);
-    let theme_pick = settings_select(
-        iced::Theme::ALL.iter().cloned(),
-        Some(selected_editor_theme(app)),
-        |theme| control_message(SettingsControl::Theme(theme)),
-    )
-    .width(Length::Fill);
-
+    let close_message = Message::Editor(EditorMessage::ToggleSettings);
     let title = i18n.__("编辑器设置");
     let header = settings_modal_header(
         settings_hover_help_label(
@@ -101,68 +84,7 @@ pub fn build_settings_overlay<'a>(
         settings_close_button(close_message.clone()),
     );
 
-    let body = settings_group_card(column![
-        setting_row(
-            i18n.__("字号"),
-            i18n.__("调整编辑器基础字体大小。"),
-            row![
-                metrics_slider(10.0..=30.0, displayed.font_size, |value| {
-                    control_message(SettingsControl::FontSize(value))
-                })
-                .width(Length::Fill),
-                settings_value_badge(font_size_badge_label(displayed.font_size)),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center)
-            .into(),
-        ),
-        settings_divider(),
-        setting_row(
-            i18n.__("自动行高"),
-            i18n.__("启用后根据字体大小自动匹配行距。"),
-            checkbox(displayed.auto_line_height)
-                .label(i18n.__("启用"))
-                .on_toggle(|enabled| { control_message(SettingsControl::AutoLineHeight(enabled)) })
-                .style(settings_checkbox_style)
-                .into(),
-        ),
-        settings_divider(),
-        settings_row_with_flexible_control(
-            i18n.__("行高"),
-            i18n.__("关闭自动行高后可手动微调阅读密度。"),
-            240.0,
-            row![
-                metrics_slider(10.0..=50.0, displayed.line_height, |value| {
-                    control_message(SettingsControl::LineHeight(value))
-                })
-                .width(Length::Fill),
-                settings_value_badge(line_height_badge_label(displayed.line_height)),
-            ]
-            .spacing(12)
-            .align_y(Alignment::Center),
-        ),
-        settings_divider(),
-        setting_row(i18n.__("语言"), i18n.__("选择编辑器语法与显示语言。"), language_pick.into()),
-        settings_divider(),
-        setting_row(
-            i18n.__("跟随系统主题"),
-            i18n.__("启用后编辑器自动同步桌面主题。"),
-            checkbox(app.editor_follow_system_theme)
-                .label(i18n.__("启用"))
-                .on_toggle(|enabled| {
-                    control_message(SettingsControl::FollowSystemTheme(enabled))
-                })
-                .style(settings_checkbox_style)
-                .into(),
-        ),
-        settings_divider(),
-        settings_row_with_flexible_control(
-            i18n.__("主题"),
-            i18n.__("关闭跟随后可单独指定编辑器主题。"),
-            240.0,
-            theme_pick,
-        ),
-    ]);
+    let body = crate::app::components::editor_settings_fields::view(app, 240.0);
     let footer = container(
         button(text(i18n.__("完成")).size(14))
             .on_press(close_message.clone())

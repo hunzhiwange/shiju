@@ -114,10 +114,10 @@ pub fn build_preview_tab_menu<'a>(
 
 /// 编辑器界面语言包装类型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct DisplayLanguage(pub(super) Language);
+pub(crate) struct DisplayLanguage(pub(crate) Language);
 
 /// 返回可选界面语言列表。
-pub(super) fn all_languages() -> &'static [DisplayLanguage] {
+pub(crate) fn all_languages() -> &'static [DisplayLanguage] {
     const LANGUAGES: [DisplayLanguage; 8] = [
         DisplayLanguage(Language::English),
         DisplayLanguage(Language::ChineseSimplified),

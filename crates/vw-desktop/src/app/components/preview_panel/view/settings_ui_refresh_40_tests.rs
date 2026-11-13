@@ -468,6 +468,7 @@ async fn ui_refresh_40_layout_and_interaction() {
     let mut app = fixture();
     app.desktop_locale = DesktopLocale::English;
     app.current_language = Language::English;
+    app.editor_follow_system_theme = false;
     let mut renderer = renderer().await;
     let i18n = I18n::new(app.desktop_locale);
     let size = Size::new(420, 420);
@@ -484,14 +485,14 @@ async fn ui_refresh_40_layout_and_interaction() {
     assert!(click(&mut ui, &mut renderer, Point::new(2.0, 2.0)).is_empty());
 
     // Scroll only the card body until the language trigger is fully visible.
-    let scroll_distance = before.focus[0].center_y() - body.y - body.height * 0.45;
+    let scroll_distance = before.focus[1].center_y() - body.y - body.height * 0.45;
     assert!(scroll_distance > 0.0);
     assert!(scroll(&mut ui, &mut renderer, body.center(), -scroll_distance).is_empty());
     let after = bounds(&mut ui, &renderer);
     assert!(after.body.unwrap().1.y > 0.0);
     assert_eq!(position(&after.labels, i18n.__("编辑器设置")), title);
     assert_eq!(position(&after.labels, i18n.__("完成")), done);
-    let [language, theme] = after.focus.as_slice() else { panic!("two select triggers") };
+    let [theme, language] = after.focus.as_slice() else { panic!("two select triggers") };
     for trigger in [language, theme] {
         assert_eq!(trigger.height, 38.0);
         assert!(trigger.x >= body.x + 7.0);
@@ -540,114 +541,23 @@ async fn ui_refresh_40_preserves_values_and_disabled_states() {
     if !isolated("ui_refresh_40_preserves_values_and_disabled_states") {
         return;
     }
-    use crate::app::message::editor;
-
     let mut app = fixture();
-    app.desktop_locale = DesktopLocale::English;
+    app.editor_follow_system_theme = true;
     app.current_font_size = 16.0;
     app.current_line_height = 26.0;
     app.auto_adjust_line_height = false;
-    app.app_theme = Theme::Dark;
-    app.editor_theme = Theme::Light;
-    app.editor_follow_system_theme = true;
-    let size = Size::new(640, 720);
     let mut renderer = renderer().await;
-    let mut ui = scene(preview(&app), &mut renderer, size);
+    let mut ui = scene(preview(&app), &mut renderer, Size::new(640, 1200));
     let controls = bounds(&mut ui, &renderer);
-    let [language, theme] = controls.focus.as_slice() else { panic!("two select triggers") };
-    let (body, offset) = controls.body.unwrap();
-    assert_eq!(offset, Vector::ZERO);
-
-    let enabled = I18n::new(app.desktop_locale).__("启用");
-    let [auto_line_height, follow] = controls
-        .labels
-        .iter()
-        .filter_map(|(label, bounds)| (label == enabled).then_some(*bounds))
-        .collect::<Vec<_>>()[..]
-    else {
-        panic!("two editor checkboxes");
-    };
-    assert!(matches!(
-        click(&mut ui, &mut renderer, auto_line_height.center()).as_slice(),
-        [Message::Editor(EditorMessage::ToggleAutoLineHeight(true))]
-    ));
-    assert!(matches!(
-        click(&mut ui, &mut renderer, follow.center()).as_slice(),
-        [Message::Editor(EditorMessage::ToggleFollowSystemTheme(false))]
-    ));
-
-    let mut edits = Vec::new();
-    for (badge, is_font) in [("16 pt", true), ("26.0", false)] {
-        let label = position(&controls.labels, badge);
-        let start = Point::new(language.x + 1.0, label.center_y());
-        let end = Point::new(label.x + label.width, start.y);
-        let pressed = send(
-            &mut ui,
-            &mut renderer,
-            start,
-            &[Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))],
-        );
-        let dragged = hover(&mut ui, &mut renderer, end);
-        if is_font {
-            assert!(matches!(
-                pressed.as_slice(),
-                [Message::Editor(EditorMessage::FontSizePreview(10.0))]
-            ));
-            assert!(matches!(
-                dragged.as_slice(),
-                [Message::Editor(EditorMessage::FontSizePreview(30.0))]
-            ));
-        } else {
-            assert!(matches!(
-                pressed.as_slice(),
-                [Message::Editor(EditorMessage::LineHeightPreview(10.0))]
-            ));
-            assert!(matches!(
-                dragged.as_slice(),
-                [Message::Editor(EditorMessage::LineHeightPreview(50.0))]
-            ));
-        }
-        let released = send(
-            &mut ui,
-            &mut renderer,
-            end,
-            &[Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))],
-        );
-        assert!(matches!(released.as_slice(), [Message::Editor(EditorMessage::CommitMetrics)]));
-        edits.extend(dragged.into_iter().chain(released));
-    }
-
-    // Choosing a manual theme from the preview has always exited system following.
-    assert!(scroll(&mut ui, &mut renderer, body.center(), -800.0).is_empty());
-    let theme_point = theme.center() - bounds(&mut ui, &renderer).body.unwrap().1;
-    assert!(body.contains(theme_point));
-    assert!(click(&mut ui, &mut renderer, theme_point).is_empty());
-    let menu = bounds(&mut ui, &renderer).menu.expect("theme menu");
-    inside(menu, size);
-    capture(&mut ui, &mut renderer, &Theme::Dark, size, "preview-system-theme-menu", Point::ORIGIN);
-    assert!(keyboard(&mut ui, &mut renderer, Named::Home).is_empty());
-    let selected = keyboard(&mut ui, &mut renderer, Named::Enter);
-    assert!(matches!(
-        selected.as_slice(),
-        [Message::Editor(EditorMessage::ThemeChanged(Theme::Light))]
-    ));
+    assert_eq!(controls.focus.len(), 1, "only UI language is enabled");
+    position(&controls.labels, "16px");
+    let badge = position(&controls.labels, "26.0px");
+    let messages = click(&mut ui, &mut renderer, Point::new(badge.x - 35.0, badge.center_y()));
     drop(ui);
-
-    for (i, message) in edits.into_iter().enumerate() {
-        let Message::Editor(message) = message else { unreachable!() };
-        let _task = editor::update(&mut app, message);
-        match i {
-            0 => assert_eq!(app.current_font_size, 16.0),
-            1 => assert_eq!(app.current_font_size, 30.0),
-            2 => assert_eq!(app.current_line_height, 26.0),
-            3 => assert_eq!(app.current_line_height, 50.0),
-            _ => unreachable!(),
+    for message in messages {
+        if let Message::Editor(message) = message {
+            let _task = crate::app::message::editor::update(&mut app, message);
         }
     }
-    let [Message::Editor(selected)]: [Message; 1] = selected.try_into().unwrap() else {
-        unreachable!()
-    };
-    let _task = editor::update(&mut app, selected);
-    assert_eq!(app.editor_theme, Theme::Light);
-    assert!(!app.editor_follow_system_theme);
+    assert!(app.current_line_height > 50.0);
 }

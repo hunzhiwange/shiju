@@ -235,7 +235,6 @@ async fn ui_refresh_05_preserves_values_and_disabled_states() {
     let mut scene = Scene::new(editor_fields(&app, 250.0), 640, 550).await;
     let trigger = scene.bounds(TRIGGER);
     assert!(scene.click(trigger.center()).is_empty());
-    scene.focus_next();
     assert!(scene.key(Named::Enter).is_empty());
     assert!(scene.overlay_bounds().is_none(), "following system must disable manual theme");
 

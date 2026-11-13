@@ -114,10 +114,10 @@ fn selected_editor_theme_uses_app_theme_when_system_following_is_enabled() {
 
 #[test]
 fn badge_labels_use_declared_precision_at_slider_boundaries() {
-    assert_eq!(font_size_badge_label(10.0), "10 pt");
-    assert_eq!(font_size_badge_label(29.6), "30 pt");
-    assert_eq!(line_height_badge_label(10.0), "10.0");
-    assert_eq!(line_height_badge_label(49.95), "50.0");
+    assert_eq!(font_size_badge_label(10.0), "10px");
+    assert_eq!(font_size_badge_label(29.6), "30px");
+    assert_eq!(line_height_badge_label(10.0), "10.0px");
+    assert_eq!(line_height_badge_label(49.95), "50.0px");
 }
 
 #[test]

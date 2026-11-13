@@ -70,7 +70,7 @@ fn panel(app: &App, kind: EditorPopover) -> Element<'_, Message> {
     let content: Element<'_, Message> = match kind {
         EditorPopover::Actions => super::editor_actions::view(app),
         EditorPopover::Settings => {
-            column![action(app, "编辑器设置", EditorMessage::ToggleSettings)].into()
+            column![action(app, "完整编辑器设置", EditorMessage::ToggleSettings)].into()
         }
         EditorPopover::Help => column![
             text(i18n.__("帮助")).size(14),

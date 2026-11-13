@@ -5632,5 +5632,8 @@
   "向下复制行": "Duplicate line down",
   "切换行注释": "Toggle line comment",
   "切换折叠": "Toggle fold",
-  "全部折叠": "Fold all"
+  "全部折叠": "Fold all",
+  "编辑器界面语言": "Editor interface language",
+  "仅调整编辑器内置控件的翻译，本次运行有效。": "Changes built-in editor translations for this run only.",
+  "完整编辑器设置": "Full editor settings"
 }

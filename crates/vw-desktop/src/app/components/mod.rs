@@ -475,3 +475,9 @@ pub(crate) mod aggregation_subagent;
 
 #[cfg(test)]
 mod system_settings_worktrees_tests;
+
+#[cfg(test)]
+#[path = "editor_settings_fields_tests.rs"]
+mod editor_settings_fields_tests;
+
+mod editor_settings_fields;

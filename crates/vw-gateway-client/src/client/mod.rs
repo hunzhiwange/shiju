@@ -106,6 +106,7 @@ mod operations_api;
 mod operations_api_tests;
 mod permission_api;
 mod project_api;
+pub mod project_profile_api;
 mod provider_api;
 mod pty_api;
 mod question_api;

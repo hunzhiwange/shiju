@@ -48,3 +48,11 @@
 汇总器在每个领域回调完成后保存已完成项，下一领域启动前检查取消；取消保留已提交项、记录 cancelled、不启动余项、不写 applied。领域返回 Cancelled 也停止后续领域。末领域完成后再检查取消，未拍组也支持取消。存储失败返回错误，生命周期为 Failed，保留原有保守非 applied 记录。application_result 沿任务 16 的租户/项目/主机/组约束读取持久结果，断线不重放工作。当前边界为整个领域回调，不能中止正在执行的领域事务；MCP/技能回调内部逐项事务本轮不新增中断入口。生产 API/操作注册表接线仍由后续任务完成，不宣称平台闭环。
 
 按用户本轮覆盖要求仅写代码及必需合同，未编写或执行测试，未运行 Cargo、构建、检查、实机或最终回归；无 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。没有编译或行为通过证据。后续补 profile_t18_ 聚焦场景：明确边界取消后余项零启动且成功项保留、最后领域取消不记 applied、订阅断线终态可读、持久化失败、重复提交及权限隔离。编号卡按本轮指令删除。
+
+## 任务 22：组合维护 SDK（实现完成，未验证）
+
+`vw-gateway-client::project_profile_api` 提供 `ProjectProfileApiScope`、结构化错误与 current/delete 响应；GatewayClient 的 `project_profile_list/current/create/rename/resnapshot/delete/clear` 对接任务 19/20 的 `/v1/agent-apps/project-profiles` 生产路由。列表与 current 使用 query，写操作使用 JSON（含 DELETE）；发送 projectId、targetHostId、scope，实体修改带 expectedVersion。租户必须匹配 endpoint，组合 ID 按路径段编码，current 的 profileId 保留 null。实体复用共享 ProjectProfile DTO；客户端不持有业务存储、不读取本地配置。
+
+沿用 native_transport 禁止重定向与重试，保留 HTTP 状态和完整 JSON 错误（非 JSON 保留文本），与传输、解码、客户端参数错误分离。创建和重拍当前仍由服务端明确返回 snapshot_unavailable，SDK 不将其替换成成功。读取与维护沿既有 endpoint 鉴权；不新增权限或令牌所有者。
+
+按本轮用户覆盖要求，未新增或执行测试，未运行任何 Cargo、构建、检查、实机或回归；无测试通过证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续需补充 profile_t22_ 本地 HTTP 场景并验证范围/主机编码、版本、null 当前标记、结构化错误及写入不重放。

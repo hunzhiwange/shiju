@@ -1,0 +1,1213 @@
+{
+  "schema_version": 1,
+  "task": 8,
+  "date": "2026-11-14",
+  "status": "deferred_unverified",
+  "disposition": "Verification-only task skipped and card deleted under latest user instruction. No acceptance claimed.",
+  "baseline": {
+    "record_commit": "db0ab8a34da5cf7cabf8938593f409b4d41fc707",
+    "source_commit": "ca58c0313360eae7c851fbd7553c1614c7af03e7",
+    "frozen_artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_versions": null,
+    "note": "Shared checkout has unrelated changes; record commit is not a verified runtime baseline."
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-convergence/relay.md",
+      "sha256": "ee88701ba42303edd887751e425d36e4212dfc5cbce8016f5e82045cb21158f5",
+      "status": "not_revalidated"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": "mother task 8 and relay subplan",
+      "status": "unverified",
+      "detail": "inventory owners.8 references relay.md but explicitly leaves implementation/API/SDK/UI/test mappings for review. Mother task 8 card is absent; absence does not prove delivery."
+    },
+    {
+      "owner": "acceptance task 1 and domain owners",
+      "status": "unverified",
+      "detail": "runtime-contract is prepared_unverified_not_executable; verified API/SDK/CLI entrypoints are unavailable."
+    },
+    {
+      "owner": "build and platform execution owners",
+      "status": "unverified",
+      "detail": "No frozen artifact hash, isolated host references, application versions or runtime observations consumed."
+    }
+  ],
+  "sources": [
+    {
+      "source_key": "file:src-tauri/src/commands/global_proxy.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/proxy.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/body_filter.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/browser_guard.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/cache_injector.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/classifier_guard.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/content_encoding.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/error.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/error_mapper.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/forwarder.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/gemini_url.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/handler_config.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/handler_context.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/handlers.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/http_client.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/hyper_client.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/json_canonical.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/log_codes.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/media_sanitizer.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/mod.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/model_mapper.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/opaque_state_rectifier.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/provider_router.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/adapter.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/auth.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/claude.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/claude_reasoning.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex_chat_common.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex_chat_history.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex_chat_tool_history.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex_responses_sse.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/gemini.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/gemini_schema.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/gemini_shadow.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/inline_think.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/mod.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/models/anthropic.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/models/mod.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/models/openai.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/reasoning_bridge.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/responses_late_arguments.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/streaming.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/streaming_codex_anthropic.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/streaming_codex_chat.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/streaming_gemini.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/streaming_responses.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_codex_anthropic.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_codex_chat.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_codex_chat_moonshot_schema.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_codex_responses_namespace.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_codex_responses_xai_sanitize.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_gemini.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/transform_responses.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/response_processor.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/server.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/session.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/session/header_tests.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/sse.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/switch_lock.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/tests_issue_7271.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/thinking_budget_rectifier.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/thinking_optimizer.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/thinking_rectifier.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/tool_media.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/types.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/upstream_guard.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/proxy.rs",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/hooks/useGlobalProxy.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/api/globalProxy.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/requestOverrides.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/userAgent.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/lib/requestOverrides.test.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/lib/userAgent.test.ts",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/global_proxy.rs:15:get_global_proxy_url",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/global_proxy.rs:40:set_global_proxy_url",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/global_proxy.rs:101:test_proxy_url",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/global_proxy.rs:176:get_upstream_proxy_status",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/global_proxy.rs:225:scan_local_proxies",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:32:start_proxy_server",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:40:stop_proxy_server",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:60:stop_proxy_with_restore",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:66:get_proxy_takeover_status",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:76:set_proxy_takeover_for_app",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:99:get_app_mode",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:115:set_proxy_route",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:130:take_startup_attach_failures",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:137:exit_proxy_apps_in_mode",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:146:get_direct_provider",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:161:get_proxy_stack",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:172:restart_codex_app_server_daemon",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:184:acknowledge_codex_stale_clients",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:197:set_proxy_stack_member",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:217:adopt_codex_stack_catalog",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:225:get_proxy_status",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:231:get_proxy_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:237:update_proxy_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:254:get_global_proxy_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:270:update_global_proxy_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:283:get_proxy_client_host",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:292:set_proxy_client_host",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:313:get_proxy_config_for_app",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:328:update_proxy_config_for_app",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:368:get_pricing_model_source",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:397:set_pricing_model_source",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:409:is_proxy_running",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:415:is_live_takeover_active",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:421:switch_proxy_provider",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:434:get_provider_health",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:452:reset_circuit_breaker",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:538:get_circuit_breaker_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:549:update_circuit_breaker_config",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/proxy.rs:571:get_circuit_breaker_stats",
+      "owner": 8,
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    }
+  ],
+  "cross_items": {
+    "status": "pending_review",
+    "reason": "Mother task cross-domain declarations not reviewed. Only inventory owner 8 keys transcribed; complete domain coverage is not claimed."
+  },
+  "execution": {
+    "status": "not_run",
+    "commands": [],
+    "exit_code": null,
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "logs": [],
+    "cleanup": "No runtime resources created; no cleanup performed."
+  },
+  "deferred": [
+    "Source mapping, registration, conditional compilation, events, TS rules and macOS applicability review",
+    "Native behavior, API permissions/errors, SDK and focused evidence applicability review",
+    "Frozen inputs, commit/artifact alignment and architecture runtime stories",
+    "JSON format validation, unit tests, builds, physical acceptance and final regression: not run under latest instruction"
+  ],
+  "next_action": "Mother task 8 owners supply source mappings and replayable verified contracts; schedule deferred verification and attach actual evidence later."
+}

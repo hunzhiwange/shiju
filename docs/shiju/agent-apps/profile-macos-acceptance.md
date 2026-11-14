@@ -96,3 +96,23 @@
 生产依赖限制：任务 23 SDK 的 preview/apply 为未冻结 JSON，当前 API 拒绝执行，尚无可用生产闭环。桌面对预览仅接受严格 `group/captured/items` 对象，item 为 `category/reference_id/action`，action 为 select/enable/disable/missing；未知形状直接禁止应用。这是消费端预留形状，不能宣称已冻结公共协议。应用仅接受 ProjectProfileApplyResult；异步 admission/progress 接线仍待生产契约交付。返回后重读 list/current、失效目录缓存和提示词状态；四类原生状态完整自动刷新尚未完成，必须在执行端观察入口交付后补接，不以本地推断替代。
 
 按本轮要求未新增或运行测试，未执行 Cargo、构建、检查、实机或回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续需补 profile_t26_ 单次提交、未知响应、过期响应、局部失败与四类刷新测试，及 macOS 深浅主题真实渲染。编号卡按用户覆盖要求删除；实现不代表验收通过。
+
+
+## 任务 30：Codex 隔离与空快照（静态盘点完成，未验收）
+
+2026-11-14：按本轮覆盖要求仅盘点必需契约；未新增测试或生产代码，未执行 Cargo、构建、检查、单元测试、实机测试或最终回归。任务卡删除表示本轮静态工作收尾，不代表平台验收通过。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置；无测试数量、退出码或通过证据。未启动隔离 HOME、Gateway 或原生客户端，因此 macOS/CPU、运行版本、实际配置路径及脱敏前后差异均未采集。
+
+直接依赖任务 27 的提交 `28e326c1b`、`f44508351` 和 [领域合同](profile-contracts.md) 已静态核对：桌面保留原 operationId 查询/取消，身份包含网关、租户、项目与执行主机；服务端尚无对应可受理的生产操作。`gateway/api/handlers/project_profiles_execution.rs` 对有效实体/版本的 preview/apply 分别返回 503 `profile_observation_unavailable` / `profile_execution_unavailable`，operations/cancel 返回 404 `profile_operation_not_found`。创建/重拍的实际快照读取亦未交付；不得将 API 注册、桌面轮询或领域闭包存在视作应用闭环。读取与写入适配、操作注册和授权目标上的实际投影必须先交付，再恢复本故事验收。
+
+来源 `cc-switch/src-tauri/tests/profile_roundtrip.rs` 的 `shared_profile_sides_are_isolated_and_mergeable` 与 `profile_apply_reports_dangling_references_and_continues` 已阅读，未运行。来源覆盖分组独立、补拍保留另一组和悬空引用后有效项继续；不能据此证明目标实现的 Codex 文件投影、租户/主机/项目隔离或 applied 状态正确，尤其不能照搬来源 warnings 后仍设 current 为全部成功。
+
+| 待验行为 | 当前静态落点与契约 | 恢复验证时必须取得的证据 |
+| --- | --- | --- |
+| 只拍 Claude 后应用 Codex | `project_profiles/apply.rs` 区分未拍组；各槽位只读取指定组 | 未拍 Codex 不调用四领域读写，返回 uncaptured；Codex 原生文件不变，另外两组不变 |
+| null 与显式空集合 | `apply_mcp.rs`、`apply_skills.rs` 对 null 提前返回，对空集合计算停用差异 | null 零读写；空集仅停用目标组已启用项；无关原生配置保留，不能以数据库启用位替代文件观察 |
+| 提示词停用与重复应用 | `apply_prompt.rs` 区分 null、空串、已有激活项；由提示词所有者发布 | 空串经原事务停用，相同选择不重写；缺失引用保留当前提示词，前像/版本冲突明确失败 |
+| 悬空引用部分失败 | MCP/技能逐项 Missing 并继续，提示词/供应商缺失明确返回；`apply.rs` 汇总 partial | 有效项真实生效，缺失项及失败状态可见，不能记 applied；失败不扩大到其它组/项目/主机 |
+| 三组切换与作用域 | `profile_store.rs` 校验执行主机、租户及同主机/组的项目占用；任务 27 按原身份查询 | 在隔离项目和主机身份下反复切换三组，拒绝越权与他项目占槽；自动保存只替换旧组合当前组，快照与指针均不串组 |
+| 重复应用稳定 | 四槽编排按实际状态计算最小差异 | 连续两次应用对比实际文件和领域写入次数；第二次无冗余写入，保留未托管内容，不能只比较响应或 current |
+
+后续先完成上述生产依赖，再新增并注册独立 `gateway/api/handlers/profile_macos_tests.rs` 的 `profile_t30_macos_codex_scope_and_empty_snapshot` 场景；本轮未创建该文件，也无有效测试证据。解除验证禁令后，通过仓库共享槽位入口执行原定 `cargo test -j 1 -p vw-agent --lib profile_t30_ -- --test-threads=1`，记录实际槽位、绝对缓存路径、有效数量及退出码。测试使用可恢复的隔离 HOME/项目和既有环境锁，所有路径由执行主机环境解析；不得改用户当前配置、打印密钥或把模拟编排当实测。另行记录实际平台/版本和脱敏文件差异，原生客户端读取与窗口验收交用户完成。

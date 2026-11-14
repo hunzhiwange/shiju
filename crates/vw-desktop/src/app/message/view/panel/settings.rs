@@ -686,11 +686,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.save_desktop_preference("show_file_manager", b.into())
         }
         ViewMessage::OpenTerminalPressed => {
+            if !crate::app::config::gateway_client_endpoint().is_loopback() {
+                return app.show_error_toast("远端终端只能通过网关 PTY 打开");
+            }
             if let Some(_path) = crate::app::components::git_panel::git_repo_path_for_app(app) {
                 #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let _ = crate::app::components::git_panel::open_terminal(&_path);
+                if let Err(error) = crate::app::components::git_panel::open_terminal(&_path) {
+                    return app.show_error_toast(format!("无法打开终端：{error}"));
                 }
+            } else {
+                return app.show_error_toast("没有可打开终端的本机仓库目录");
             }
             Task::none()
         }

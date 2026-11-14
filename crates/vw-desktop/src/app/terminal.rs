@@ -801,3 +801,37 @@ impl Default for TerminalState {
 #[cfg(test)]
 #[path = "terminal_tests.rs"]
 mod terminal_tests;
+
+/// Open a local directory without interpreting it as shell code or an `open` option.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_local_directory(path: &str) -> std::io::Result<()> {
+    if !crate::app::config::gateway_client_endpoint().is_loopback() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "远端终端只能通过网关 PTY 打开，不能启动本机终端",
+        ));
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let directory = std::fs::canonicalize(path)?;
+        if !directory.is_dir() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "终端工作目录必须是目录",
+            ));
+        }
+        let status = std::process::Command::new("/usr/bin/open")
+            .args(["-a", "Terminal"])
+            .arg(directory)
+            .status()?;
+        if !status.success() {
+            return Err(std::io::Error::other(format!("打开终端失败：{status}")));
+        }
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = path;
+        Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "当前平台不支持打开本机终端"))
+    }
+}

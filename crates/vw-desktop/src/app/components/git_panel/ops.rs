@@ -241,8 +241,7 @@ pub fn checkout_branch(_path: &str, _branch: &str) -> Result<(), String> {
 /// - `Err(std::io::Error)`: 如果命令执行失败
 #[cfg(not(target_arch = "wasm32"))]
 pub fn open_terminal(path: &str) -> Result<(), std::io::Error> {
-    Command::new("open").args(["-a", "Terminal", path]).status()?;
-    Ok(())
+    crate::app::terminal::open_local_directory(path)
 }
 
 /// 在终端中打开指定目录（WebAssembly 平台）

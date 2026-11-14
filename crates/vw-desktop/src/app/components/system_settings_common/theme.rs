@@ -19,6 +19,5 @@ use iced::Theme;
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(crate) fn is_dark_theme(theme: &Theme) -> bool {
-    let bg = theme.palette().background;
-    bg.r + bg.g + bg.b < 1.5
+    theme.extended_palette().is_dark
 }

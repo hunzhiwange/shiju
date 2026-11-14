@@ -406,7 +406,8 @@ pub(super) fn detail_action_button(
     let icon = icon_svg(icon, 14.0).style(move |theme: &iced::Theme, _| {
         let color = match (on_press_enabled, style) {
             (false, _) => theme.palette().text.scale_alpha(0.45),
-            (true, DetailActionStyle::Primary | DetailActionStyle::Danger) => iced::Color::WHITE,
+            (true, DetailActionStyle::Primary) => theme.extended_palette().primary.base.text,
+            (true, DetailActionStyle::Danger) => iced::Color::WHITE,
             (true, DetailActionStyle::Secondary) => theme.palette().text,
         };
         iced::widget::svg::Style { color: Some(color) }

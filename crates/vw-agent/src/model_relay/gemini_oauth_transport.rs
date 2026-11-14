@@ -11,6 +11,9 @@ pub(crate) fn validate_url(url: &reqwest::Url) -> Result<(), StatusCode> {
                 && model.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
                 && matches!(action, "generateContent" | "streamGenerateContent")
         });
+    let metadata = url.path().starts_with("/v1beta/models") || url.path().starts_with("/v1/models");
+    let metadata = metadata && url.as_str().parse::<axum::http::Uri>().ok()
+        .is_some_and(|uri| super::gemini_metadata::Request::parse(&uri).is_some());
     if url.scheme() != "https"
         || url.host_str() != Some("generativelanguage.googleapis.com")
         || url.port_or_known_default() != Some(443)
@@ -18,9 +21,9 @@ pub(crate) fn validate_url(url: &reqwest::Url) -> Result<(), StatusCode> {
         || url.password().is_some()
         || url.fragment().is_some()
         || url.query().is_some_and(|query| {
-            query != "alt=sse" || !url.path().ends_with(":streamGenerateContent")
+            !metadata && (query != "alt=sse" || !url.path().ends_with(":streamGenerateContent"))
         })
-        || !valid_resource
+        || !(valid_resource || metadata)
     {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }

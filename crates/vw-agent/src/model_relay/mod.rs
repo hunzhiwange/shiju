@@ -193,3 +193,7 @@ pub(crate) mod compaction_v2;
 mod compaction_v2_tests;
 
 pub(crate) mod models;
+
+pub(crate) mod gemini_metadata;
+#[cfg(test)]
+mod gemini_metadata_tests;

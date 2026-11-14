@@ -1234,3 +1234,9 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 2026-11-14：任务77的 compaction_replay、公共传输及可信作用域代码已存在；来源采用冻结 upstream codex_compaction.rs 和 handlers.rs。仅确认源码前置，不推定外部实机验收通过。常驻 dispatch 识别 compaction_trigger，第三方原生 Responses 生成禁用工具选择的摘要请求；Chat 复用既有摘要流，Anthropic 复用既有转换后生成可重放 compaction 条目。官方目标继续原生协议。incomplete 保留原原因，空摘要失败；流沿用取消令牌及上游 Body 生命周期，不进入本地模型或工具循环。新增 cc_route_078_ 测试源码。
 
 按用户本次覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归，未领取槽位，CARGO_TARGET_DIR 未设置；无退出码或通过测试数。下一步统一验证新增请求、流、取消和授权回环场景。
+
+## 任务 80　Gemini 元数据与计数（代码已写，统一验证待执行）
+
+2026-11-14：复用任务79发现入口及任务2/3授权传输底座；来源参考 `proxy/handlers.rs::handle_gemini` 的无请求体 GET 与 URI 动作转发。新增 `model_relay/gemini_metadata.rs`，常驻 dispatch 单独处理 GET 列表/单模型和 POST countTokens，保留可信来源版本及前缀，列表仅放行 pageSize/pageToken；拒绝未知动作、错误方法与客户端凭据查询。计数 JSON 原样转发，不进入生成、工具、缓存注入或故障转移。Messages count_tokens 来源无路由，明确返回501，不估算 token。静态 API key 与托管 Gemini OAuth 分别沿用现有认证；OAuth 的官方主机约束保留。
+
+已添加独立 `cc_route_080_` 用例，但按用户本次覆盖要求未运行 Cargo、单元测试、实机或最终回归；无通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖真实回环转发、认证、压缩、取消及方法边界；macOS 尚未验收，其它平台范围外。主计划未修改。

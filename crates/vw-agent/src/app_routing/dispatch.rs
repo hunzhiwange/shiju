@@ -77,6 +77,18 @@ pub(super) async fn forward_json(
         response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
         return Ok(response);
     }
+    if matches!(app, AppId::Claude | AppId::ClaudeDesktop)
+        && request.uri().path().ends_with("/messages/count_tokens")
+    {
+        // The source has no Messages count route; never estimate tokens locally.
+        return Err(StatusCode::NOT_IMPLEMENTED.into());
+    }
+    if app == AppId::Gemini {
+        if let Some(metadata) = crate::model_relay::gemini_metadata::Request::parse(request.uri()) {
+            return forward_gemini_metadata(request, route, limits, listener,
+                #[cfg(target_os = "macos")] egress, metadata).await;
+        }
+    }
     let gemini = (app == AppId::Gemini)
         .then(|| crate::model_relay::native_gemini::Request::parse(request.uri()))
         .flatten();
@@ -831,4 +843,81 @@ pub(super) fn apply_cache(
     *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
     outgoing.headers_mut().remove(header::CONTENT_LENGTH);
     Ok(())
+}
+
+/// Metadata uses the same authorized transport, limits and cancellation, without
+/// generation overrides, schema conversion, failover or token estimation.
+async fn forward_gemini_metadata(
+    request: Request<Incoming>,
+    route: &Arc<AuthorizedRoute>,
+    limits: &BodyLimits,
+    listener: SocketAddr,
+    #[cfg(target_os = "macos")] egress: &super::outbound_config::EgressState,
+    metadata: crate::model_relay::gemini_metadata::Request,
+) -> Result<Response, RouteError> {
+    metadata.check_method(request.method())?;
+    if request.extensions().get::<HeaderWire>().is_some_and(HeaderWire::has_conflicting_framing) {
+        return Err(StatusCode::BAD_REQUEST.into());
+    }
+    body_limits::check_declared_length(request.headers(), MAX_JSON_BYTES).map_err(request_body_status)?;
+    let codings = ContentCodings::from_headers(request.headers()).map_err(decode_status)?;
+    if metadata.count && !is_content_type(request.headers(), JSON) {
+        return Err(StatusCode::UNSUPPORTED_MEDIA_TYPE.into());
+    }
+    let (parts, incoming) = request.into_parts();
+    let buffer = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let bytes = tokio::time::timeout(Duration::from_secs(10), async {
+        let bytes = body_limits::collect(Body::new(incoming), MAX_JSON_BYTES).await.map_err(request_body_status)?;
+        if let Some(disconnect) = parts.extensions.get::<ClientDisconnect>() { disconnect.request_body_read(); }
+        codings.decode(bytes, MAX_JSON_BYTES).await.map_err(decode_status)
+    }).await.map_err(|_| StatusCode::REQUEST_TIMEOUT)??;
+    if metadata.count {
+        let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        if !body.is_object() { return Err(StatusCode::BAD_REQUEST.into()); }
+    } else if !bytes.is_empty() {
+        return Err(StatusCode::BAD_REQUEST.into());
+    }
+    let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
+    #[cfg(target_os = "macos")]
+    route.check_provider(listener).await?;
+    let (target, model, cancelled) = route.select_json(metadata.model.as_deref())?;
+    let url = metadata.url(&target.url, model)?;
+    let mut outgoing = reqwest::Request::new(parts.method, url.clone());
+    if metadata.count {
+        *outgoing.body_mut() = Some(bytes.into());
+        outgoing.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
+    }
+    let mut wire = parts.extensions.get::<HeaderWire>().cloned().unwrap_or_default();
+    wire.retain_allowed(&parts.headers, outgoing.headers_mut());
+    #[cfg(target_os = "macos")]
+    route.provider_headers(outgoing.headers_mut(), metadata.model.as_deref())?;
+    #[cfg(target_os = "macos")]
+    let timeouts = route.timeouts().await?;
+    #[cfg(not(target_os = "macos"))]
+    let timeouts = timeouts::AppTimeouts::default();
+    #[cfg(target_os = "macos")]
+    if let Some(credential) = &target.managed {
+        route.validate_managed(credential)?;
+        if credential.account_adapter.provider_type() != super::adapter_selection::ProviderType::GeminiCli {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+        }
+        let selected = credential.resolve().await.map_err(|_| StatusCode::UNAUTHORIZED)?;
+        if selected.url != target.url { return Err(StatusCode::CONFLICT.into()); }
+        outgoing.headers_mut().extend(selected.headers);
+        crate::model_relay::gemini_oauth_transport::apply_oauth(&mut outgoing)?;
+    } else {
+        crate::model_relay::gemini_oauth_transport::apply_api_key(&mut outgoing, &target.authorization)?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    crate::model_relay::gemini_oauth_transport::apply_api_key(&mut outgoing, &target.authorization)?;
+    #[cfg(target_os = "macos")]
+    let selected_egress = route.egress(egress)?;
+    let transport = &target.transport;
+    #[cfg(target_os = "macos")]
+    let transport = selected_egress.as_ref().map_or(transport, |egress| &egress.transport);
+    let deadline = Instant::now() + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
+    timeouts::before(deadline, async {
+        let response = transport.forward_ordered(&url, outgoing, wire, cancelled, listener).await?;
+        buffer_json_response(response, permit, true, None).await
+    }).await?
 }

@@ -52,14 +52,11 @@ regex = "1"
 rand = "0.10.3"
 resvg = "0.46.0"
 rfd = { version = "0.17", features = ["file-handle-inner"] }
-rusqlite = "0.37.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 sha2 = "0.11"
 similar = "2"
-strsim = "0.11"
-syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 tiny-skia = "0.11.4"
 time = { version = "0.3", features = ["formatting"] }
 tokio = { version = "1", default-features = false, features = ["rt", "macros", "sync", "time"] }
@@ -68,7 +65,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt", "ansi"] }
 unicode-width = "0.2"
 urlencoding = "2.1"
-walkdir = "2"
 web-time = "1.1.0"
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 voice-permissions = { path = "../libs/voice-permissions", version = "0.6.0" }

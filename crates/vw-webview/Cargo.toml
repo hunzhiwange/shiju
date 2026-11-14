@@ -24,7 +24,7 @@ webview-local-content = { path = "../libs/webview-local-content", version = "0.6
 webview-ipc = { path = "../libs/webview-ipc", version = "0.6.0" }
 webview-launch = { path = "../libs/webview-launch", version = "0.6.0" }
 webview-core = { path = "../libs/webview-core", version = "0.6.0" }
-directories = "5"
+webview-storage = { path = "../libs/webview-storage", version = "0.6.0" }
 getrandom = "0.4"
 mime_guess = "2.0.5"
 open = "5"

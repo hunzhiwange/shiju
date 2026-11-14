@@ -10,7 +10,8 @@ use wry::{NewWindowFeatures, NewWindowResponse, WebView, WebViewBuilder};
 
 use crate::external_protocol::ExternalProtocols;
 use webview_core::navigation::{ExternalTarget, Navigation, navigation};
-use crate::{UserEvent, append_log};
+use crate::UserEvent;
+use webview_storage::append_log;
 
 #[cfg(target_os = "macos")]
 #[path = "popup/macos.rs"]

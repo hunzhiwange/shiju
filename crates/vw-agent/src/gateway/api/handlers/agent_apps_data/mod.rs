@@ -25,3 +25,6 @@ mod data_aux_api_tests;
 pub(crate) mod backup_restore_api;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_restore_api_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod migration_acceptance_tests;

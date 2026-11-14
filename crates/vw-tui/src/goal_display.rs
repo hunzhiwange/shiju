@@ -36,19 +36,7 @@ pub fn step_status_label(status: V3StepStatus) -> &'static str {
     }
 }
 
-pub fn format_step(title: &str, status: V3StepStatus) -> String {
-    format!("{} {}", step_status_marker(status), title)
-}
-
-pub fn step_status_marker(status: V3StepStatus) -> char {
-    // 标记必须在无颜色终端中也能仅靠字形区分状态。
-    match status {
-        V3StepStatus::Pending => '○',
-        V3StepStatus::InProgress => '◐',
-        V3StepStatus::Completed => '●',
-        V3StepStatus::Failed => '×',
-    }
-}
+pub use tui_cells::step::{format_step, step_status_marker};
 
 #[cfg(test)]
 mod tests {

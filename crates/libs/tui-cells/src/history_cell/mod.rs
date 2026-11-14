@@ -7,8 +7,8 @@
 
 use ratatui::prelude::*;
 
-use crate::render::line_utils::prefix_lines;
-use crate::vibe::event::V3DisplayEvent;
+use tui_render::line_utils::prefix_lines;
+use tui_contracts::event::V3DisplayEvent;
 
 mod exec;
 mod messages;
@@ -47,7 +47,7 @@ pub fn history_cell_for(event: &V3DisplayEvent) -> Box<dyn HistoryCell> {
         V3DisplayEvent::Thinking { text } => Box::new(PlainHistoryCell::bullet("thinking", text)),
         V3DisplayEvent::Step { title, status } => Box::new(PlainHistoryCell::bullet(
             "step",
-            &crate::goal_display::format_step(title, *status),
+            &super::step::format_step(title, *status),
         )),
         V3DisplayEvent::System { text } => Box::new(PlainHistoryCell::label("system", text)),
         V3DisplayEvent::Error { message } => Box::new(PlainHistoryCell::label("error", message)),

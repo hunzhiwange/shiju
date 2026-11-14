@@ -2,7 +2,7 @@
 //! 类型断言守住复用边界，快照和结构断言覆盖用户可见的层级与状态。
 
 use super::*;
-use crate::vibe::event::{
+use tui_contracts::event::{
     V3Attachment, V3DisplayEvent, V3FileChange, V3FileDiff, V3FileDiffEntry, V3StepStatus,
 };
 
@@ -39,7 +39,7 @@ fn v3_display_event_mapping_is_exhaustive() {
         V3DisplayEvent::Error { message: "error".into() },
         V3DisplayEvent::Attachment {
             attachment: V3Attachment {
-                kind: crate::V3AttachmentKind::File,
+                kind: tui_contracts::event::V3AttachmentKind::File,
                 label: "file".into(),
                 path: Some("/tmp/file".into()),
                 media_type: None,

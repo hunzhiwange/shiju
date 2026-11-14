@@ -8,6 +8,8 @@ license = "Apache-2.0"
 doctest = false
 
 [dependencies]
+tui-contracts = { path = "../tui-contracts", version = "0.6.0" }
+tui-markdown = { path = "../tui-markdown", version = "0.6.0" }
 tui-text = { path = "../tui-text", version = "0.6.0" }
 tui-render = { path = "../tui-render", version = "0.6.0" }
 tui-theme = { path = "../tui-theme", version = "0.6.0" }

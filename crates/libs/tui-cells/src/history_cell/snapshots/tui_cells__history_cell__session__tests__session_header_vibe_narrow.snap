@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/history_cell/session.rs
+source: crates/libs/tui-cells/src/history_cell/session_tests.rs
 expression: narrow
 ---
 ╭────────────────────────────────╮

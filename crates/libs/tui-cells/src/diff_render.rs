@@ -4,9 +4,9 @@
 use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 
-use crate::vibe::event::{V3FileChange, V3FileDiffEntry};
-use crate::wrapping::RtOptions;
-use crate::wrapping::adaptive_wrap_line;
+use tui_contracts::event::{V3FileChange, V3FileDiffEntry};
+use tui_text::wrapping::RtOptions;
+use tui_text::wrapping::adaptive_wrap_line;
 
 pub fn create_diff_summary(files: &[V3FileDiffEntry], wrap_cols: usize) -> Vec<Line<'static>> {
     // 文件之间插入空行，并将路径摘要放在对应差异正文之前。
@@ -67,7 +67,7 @@ pub fn render_change(change: &V3FileChange, width: usize) -> Vec<Line<'static>> 
             let source = Line::styled(line.to_string(), style);
             adaptive_wrap_line(&source, options.clone())
                 .into_iter()
-                .map(|line| crate::render::line_utils::line_to_static(&line))
+                .map(|line| tui_render::line_utils::line_to_static(&line))
                 .collect::<Vec<_>>()
         })
         .collect()

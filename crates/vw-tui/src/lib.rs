@@ -28,14 +28,12 @@ pub(crate) use tui_theme::color;
 mod custom_terminal;
 pub use tui_contracts::diff_model;
 #[allow(dead_code)]
-mod diff_render;
-#[allow(dead_code)]
 pub use tui_cells::exec_cell;
 #[allow(dead_code)]
 mod git_action_directives;
 #[allow(dead_code)]
 mod goal_display;
-pub mod history_cell;
+pub use tui_cells::history_cell;
 #[allow(dead_code)]
 mod insert_history;
 #[allow(dead_code)]
@@ -83,7 +81,7 @@ pub(crate) use tui_text::text_formatting;
 #[allow(dead_code)]
 pub(crate) mod theme_picker;
 #[allow(dead_code)]
-mod thread_transcript;
+use tui_cells::thread_transcript;
 #[allow(dead_code)]
 use tui_terminal::transcript_reflow;
 #[allow(dead_code)]

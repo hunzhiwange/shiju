@@ -10,9 +10,9 @@
 //! User and assistant message cells from the copied Codex history surface.
 
 use super::{HistoryCell, prefixed_lines};
-use crate::style::{proposed_plan_style, user_message_style};
-use crate::vibe::event::V3Attachment;
-use crate::wrapping::{RtOptions, adaptive_wrap_line};
+use tui_theme::style::{proposed_plan_style, user_message_style};
+use tui_contracts::event::V3Attachment;
+use tui_text::wrapping::{RtOptions, adaptive_wrap_line};
 use ratatui::prelude::*;
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl HistoryCell for UserHistoryCell {
             lines.extend(
                 adaptive_wrap_line(&line, RtOptions::new(content_width))
                     .into_iter()
-                    .map(|line| crate::render::line_utils::line_to_static(&line)),
+                    .map(|line| tui_render::line_utils::line_to_static(&line)),
             );
         }
         for attachment in &self.attachments {
@@ -65,7 +65,7 @@ impl AgentMessageCell {
 impl HistoryCell for AgentMessageCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let mut lines = Vec::new();
-        crate::markdown::append_markdown(
+        tui_markdown::markdown::append_markdown(
             &self.markdown,
             Some(usize::from(width).saturating_sub(2).max(1)),
             None,
@@ -112,7 +112,7 @@ impl HistoryCell for PlainHistoryCell {
             let line = Line::from(source.trim_end_matches('\r').to_string());
             adaptive_wrap_line(&line, RtOptions::new(content_width))
                 .into_iter()
-                .map(|line| crate::render::line_utils::line_to_static(&line))
+                .map(|line| tui_render::line_utils::line_to_static(&line))
                 .collect::<Vec<_>>()
         });
         lines

@@ -5,7 +5,7 @@ use ratatui::text::Line;
 
 use super::HistoryCell;
 use crate::diff_render::create_diff_summary;
-use crate::vibe::event::V3FileDiff;
+use tui_contracts::event::V3FileDiff;
 
 #[derive(Debug)]
 pub(crate) struct PatchHistoryCell {

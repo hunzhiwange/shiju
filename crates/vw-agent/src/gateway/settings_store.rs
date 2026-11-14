@@ -221,36 +221,29 @@ impl GatewaySettingsStore {
         expected: &[GatewaySetting],
         replacements: &[GatewaySetting],
     ) -> Result<bool> {
-        let result = (|| -> Result<_> {
-            validate_identifier(namespace, "migration namespace")?;
-            for row in replacements {
-                validate_identifier(&row.config_key, "migration key")?;
-                validate_identifier(&row.payload_json, "migration payload")?;
-            }
-            let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
-                bail!("atomic catalog migration is not supported by this backend");
-            };
-            database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-                let current = {
-                    let mut statement = transaction.prepare(
-                        "SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key"
-                    )?;
-                    statement.query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), namespace], |row| {
-                        Ok(GatewaySetting { config_key: row.get(0)?, payload_json: row.get(1)? })
-                    })?.collect::<rusqlite::Result<Vec<_>>>()?
-                };
-                if current != expected { return Ok(false); }
-                for row in replacements {
-                    upsert_sqlite(transaction, tenant, namespace, &row.config_key, &row.payload_json, current_timestamp_ms()?)?;
-                }
-                Ok(true)
-            })
-
-        })()?;
-        if result {
-            crate::device_sync::change_events::committed(tenant, namespace);
+        validate_identifier(namespace, "migration namespace")?;
+        for row in replacements {
+            validate_identifier(&row.config_key, "migration key")?;
+            validate_identifier(&row.payload_json, "migration payload")?;
         }
-        Ok(result)
+        let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
+            bail!("atomic catalog migration is not supported by this backend");
+        };
+        database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+            let current = {
+                let mut statement = transaction.prepare(
+                    "SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key"
+                )?;
+                statement.query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), namespace], |row| {
+                    Ok(GatewaySetting { config_key: row.get(0)?, payload_json: row.get(1)? })
+                })?.collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            if current != expected { return Ok(false); }
+            for row in replacements {
+                upsert_sqlite(transaction, tenant, namespace, &row.config_key, &row.payload_json, current_timestamp_ms()?)?;
+            }
+            Ok(true)
+        })
     }
 
     /// Atomically insert a new scoped key; conflicts leave payload and timestamp unchanged.

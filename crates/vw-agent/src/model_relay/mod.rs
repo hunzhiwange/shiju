@@ -83,3 +83,7 @@ mod native_responses_tests;
 pub(crate) mod native_gemini;
 #[cfg(test)]
 mod native_gemini_tests;
+
+pub(crate) mod messages_chat_request;
+#[cfg(test)]
+mod messages_chat_request_tests;

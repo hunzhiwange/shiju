@@ -196,7 +196,7 @@ impl RoutingListener {
 }
 
 pub(super) fn request(body: &Value, native: bool) -> Result<Value, StatusCode> {
-    if native { Ok(body.clone()) } else { crate::model_relay::messages::to_chat(body) }
+    if native { Ok(body.clone()) } else { crate::model_relay::messages_chat_request::to_chat(body) }
 }
 pub(super) fn headers(native: bool, outgoing: &mut axum::http::HeaderMap) {
     if native {

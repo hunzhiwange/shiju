@@ -176,9 +176,11 @@ pub(super) async fn forward_json(
         route.desktop_native_messages(client_model.as_deref())?
     } else {
         app == AppId::Claude
+            && !target.url.path().trim_end_matches('/').ends_with("/chat/completions")
     };
     #[cfg(not(target_os = "macos"))]
-    let native_messages = app == AppId::Claude;
+    let native_messages = app == AppId::Claude
+        && !target.url.path().trim_end_matches('/').ends_with("/chat/completions");
     let native_responses =
         responses && target.url.path().trim_end_matches('/').ends_with("/responses");
     if app == AppId::Codex
@@ -206,6 +208,8 @@ pub(super) async fn forward_json(
         #[cfg(target_os = "macos")]
         let body = if app == AppId::ClaudeDesktop {
             super::desktop_routing::request(&body, native_messages)?
+        } else if app == AppId::Claude && !native_messages {
+            crate::model_relay::messages_chat_request::to_chat(&body)?
         } else {
             body
         };
@@ -387,7 +391,7 @@ async fn finish_messages(
     native: bool,
     cancel: tokio_util::sync::CancellationToken,
 ) -> Result<Response, RouteError> {
-    if app == AppId::ClaudeDesktop {
+    if app == AppId::ClaudeDesktop || app == AppId::Claude && !native {
         crate::model_relay::messages_stream::response_body(
             response,
             model.ok_or(StatusCode::BAD_REQUEST)?,

@@ -1042,3 +1042,26 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 阶段入口 `python3 scripts/cargo_slot.py sh -c 'cargo fmt --all ... && cargo test -p vw-agent --lib cc_route_037_ -- --nocapture ... && cargo clippy --all-targets --all-features -- -D warnings ...'` 退出0；尾部usage修正后的相同聚焦命令再次退出0。后续Cargo相邻回归因其他任务修改共享依赖开始重复重编译，向自有槽位入口发SIGTERM，入口退出130并清理子进程，未将中断当作通过；改用刚完成最终聚焦测试的同一产物执行上述4项回归。最后独立执行SDK测试。
 
 所有阶段实际槽位 **2**；`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。入口退出，锁已释放，缓存保留。共享工作区同时存在其他任务修改，不将结果描述为干净HEAD验收；本项仅提交直接实现/测试/本条证据。状态 **已完成**，仅覆盖授权目标协议数据面，不代表母任务8或Gemini生产配置发布完成。Windows/Linux/WSL范围外、未验证，WSL地址继续保留来源映射。
+
+## 任务38：转换 Messages 到 Chat 请求（2026-11-14）
+
+状态：已完成。macOS 本机自动验收，依赖任务37 `5457e7089`。沿用母任务1冻结快照、母任务2公共传输、母任务3可信应用/执行主机授权、母任务4配置与母任务6账号契约；不新增这些母能力。固定来源提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `src-tauri/src/proxy/providers/transform.rs` 由相邻仓库 Git 对象导出并与仓库 upstream 快照 `cmp` 逐字节一致，SHA256 `cafd48dc3c56ae4dfb5ab40358fe26571b27a4f67fdc109cee00ff7109f022f2`。读取了 Claude adapter 调用者和来源相邻测试；使用 RustCodeGraph status/explore 后结合当前源码校对。
+
+实现：`model_relay::messages_chat_request::to_chat` 只包装现有 `messages::to_chat`，先复用严格字段/能力校验，再按来源移除每个system文本开头的归因行，以换行合并system数组；支持字符串auto/any/none工具选择；工具schema根缺类型时补object与properties，递归清理properties/items中的uri格式。对象工具选择、并行开关、工具调用/结果、URL/base64用户图片和顺序沿用现有所有者。未知字段、未知工具选择、document等不支持输入明确拒绝。旧会话转换器保持原样，测试断言严格策略与常驻来源策略不同。没有读取凭据、抓取媒体或执行工具。
+
+`dispatch::forward_json` 仅在可信选定目标路径为Chat completions时转换常驻Claude请求，两个Messages来源路径共用此入口；Desktop由其既有协议所有者选择后复用同一函数。响应仅复用既有messages_stream适配器，未在本项扩展JSON/SSE转换语义。原生Messages继续原样转发。来源的工具结果媒体提取、推理重放及其他协议能力没有在本项扩展，仍沿用底层明确拒绝边界；不声称完整来源工具媒体/推理支持或母任务8完成。Windows/Linux/WSL范围外、未验证，WSL映射保留。
+
+验证（入口均为 `python3 scripts/cargo_slot.py`）：
+
+| 检查 | 结果 |
+| --- | --- |
+| 红灯 `cargo test -p vw-agent --lib cc_route_038_ -- --nocapture` | 退出101，1项执行且失败；system实际保留归因并直接连接，预期First换行Second，行为断言红灯。 |
+| `cargo fmt --all` | 退出0；限定本项差异审查，无无关格式化纳入提交。 |
+| 同命令最终绿灯 | 退出0，4通过、0失败；3项转换边界测试与1项真实有限回环HTTP测试，覆盖两个授权路径、上游认证头、schema、tool_choice和图文顺序。构建14分16秒。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 退出0，1分15秒。 |
+| `cargo test -p vw-gateway-client --lib app_routing -- --nocapture` | 退出0，7通过、0失败，默认features。 |
+| 已构建同一原生产物过滤 `cc_route_035_ --nocapture` | 退出0，3通过，原生Messages回归。 |
+| 同产物过滤 `desktop_routing --nocapture` | 退出0，0项；不计入验收。 |
+| 限定本项 `git diff --check` | 退出0。 |
+
+顺序验证入口：`python3 scripts/cargo_slot.py sh -c 'cargo fmt --all && cargo test -p vw-agent --lib cc_route_038_ -- --nocapture && cargo clippy --all-targets --all-features -- -D warnings && cargo test -p vw-gateway-client --lib app_routing -- --nocapture'`，退出0。所有入口实际槽位2，`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。原生产物 `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351`。入口及自有子进程结束，锁释放、缓存保留。链接器有既有macOS `__eh_frame`大小警告；全仓Clippy通过。共享工作区存在其他任务变更，只提交本项路径，不作为干净HEAD验收。

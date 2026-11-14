@@ -51,3 +51,8 @@ mod locations_tests;
 pub mod preview;
 #[cfg(test)]
 mod preview_tests;
+
+#[cfg(target_os = "macos")]
+pub mod retention;
+#[cfg(all(test, target_os = "macos"))]
+mod retention_tests;

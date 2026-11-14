@@ -110,3 +110,11 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 这是供后续逐类别迁入任务消费的预览核心，并非已接通 API 或七类目标存储。领域适配器负责解析、身份匹配与引用校验，必须在同一目标一致性边界捕获 revision，执行者在锁/CAS 内重验并重新授权；未支持类别返回 UnsupportedCategory。未实现 keep_both，不将 DTO 可表达能力当作业务支持。
 
 按本轮用户覆盖要求：未执行 Cargo、编译、单元测试、实机测试；未领取槽位，CARGO_TARGET_DIR 未设置，无退出码或有效测试数通过证据。新增两项静态测试代码，待统一回归执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_07_ -- --nocapture`。静态实现不能证明运行行为，任务卡按本轮要求删除。
+
+## 子任务 28：按数量清理备份（2026-11-14）
+
+`data_management/retention.rs::cleanup_local_backups` 复用 `backup_list` 与 `backup_delete`，仅清理同租户/项目/principal/主机、结构有效的本机回退归档。按创建时间升序及 ID 升序裁决相同时间；保护源与回退点沿用 LocalBackup 持有的 inode 文件锁，受保护项可以使最终数量超过策略。不可解析或不支持的归档不参与计数、不自动删除；存储错误立即返回，先前删除可能已提交，调用方应重新列举。调用方应串行调度同一根的保留清理；此模块不提供批次原子事务。
+
+来源 `database/backup.rs::cleanup_db_backups` 与 `settings.rs::effective_backup_retain_count`：默认 10，u32 配置的 0 归一为 1；负数及超过 u32 的输入明确拒绝。独立 `retention_tests.rs` 已注册，包含保护源/回退点、外作用域保持、0/1、非法值及同时间稳定排序测试代码，大小写别名分支仅在文件系统存在该别名时适用。
+
+按用户覆盖要求，本轮只实现，未运行 Cargo、编译、单元或实机测试，无通过证据、退出码或有效测试数；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。待统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_28_ -- --nocapture`。仅面向 macOS，网关、调度及恢复调用接线不在本项范围。

@@ -1,11 +1,14 @@
-//! Gateway-authorized S3 connection probe. Does not persist or create remote data.
+//! Gateway-authorized S3 transport. Never persists local settings.
+
+pub mod download;
+pub use download::{DownloadedArtifact, RemoteMetadata, S3DownloadError, S3DownloadTarget};
 
 use std::{fmt, time::{Duration, SystemTime}};
 
 use chrono::{DateTime, Utc};
 use reqwest::{Client, Method, StatusCode, header::{self, HeaderMap, HeaderValue}, redirect::Policy};
 
-use super::{s3_config::S3Config, s3_signing::sign_request};
+use super::{manifest, s3_config::S3Config, s3_signing::sign_request};
 
 /// Safe to display: excludes credentials, endpoint, response body and source errors.
 #[derive(Debug)]

@@ -626,3 +626,5 @@ pub(crate) mod worktrees;
 pub(crate) mod prompts;
 
 pub(crate) mod data_management;
+
+pub(crate) mod device_sync_preview;

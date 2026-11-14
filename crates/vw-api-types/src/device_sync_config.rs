@@ -121,12 +121,14 @@ pub struct S3SyncConfigResponse {
     pub active_task_id: Option<crate::id::TaskId>,
 }
 
-/// Saved-connection preview. Contains no endpoint, path, ETag or credential.
+/// Saved-connection preview with opaque optimistic concurrency identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
 pub enum DeviceSyncRemoteResponse {
     Empty,
     Snapshot {
+        snapshot: crate::device_sync_task::SyncRemoteSnapshot,
+        manifest_path: String,
         device_name: String,
         created_at: String,
         snapshot_id: String,
@@ -142,4 +144,12 @@ pub enum DeviceSyncRemoteCompatibility {
     Compatible,
     UnsupportedProtocol,
     UnsupportedDataVersion,
+}
+
+/// Preconditions for a receive, calculated on the authorized host for an explicit selection.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeviceSyncLocalPreview {
+    pub snapshot_id: String,
+    pub connection_revision: String,
 }

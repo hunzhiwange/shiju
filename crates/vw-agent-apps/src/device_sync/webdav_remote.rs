@@ -26,6 +26,7 @@ pub struct RemoteSnapshot {
     /// Encoded native manifest path only; excludes host, credentials and query.
     pub manifest_path: String,
     pub etag: String,
+    pub manifest_sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,7 +51,10 @@ pub async fn query_remote_snapshot(
         &config.profile,
         supported_data_version,
         "manifest.json",
-    ).map_err(query_error)?.path().to_owned();
+    )
+    .map_err(query_error)?
+    .path()
+    .to_owned();
     let target = WebDavDownloadTarget::new(config, supported_data_version)?;
     let Some(download) = target.download_manifest().await? else {
         return Ok(RemoteSnapshotQuery::Empty);
@@ -75,6 +79,10 @@ pub async fn query_remote_snapshot(
         compatibility,
         manifest_path,
         etag: download.metadata.etag,
+        manifest_sha256: {
+            use sha2::{Digest, Sha256};
+            format!("{:x}", Sha256::digest(&download.bytes))
+        },
     }))
 }
 

@@ -97,6 +97,15 @@ impl GatewayClient {
             "download", None, Some(request), token, 202).await?;
         decode(&bytes)
     }
+    pub async fn device_sync_local_preview(&self, transport: DeviceSyncTransport,
+        target: &DataManagementTarget, selection: &DeviceSyncSelection, token: &str)
+        -> Result<vw_api_types::device_sync_config::DeviceSyncLocalPreview, DeviceSyncOperationsError> {
+        #[derive(Serialize)]
+        struct Request<'a> { target: &'a DataManagementTarget, selection: &'a DeviceSyncSelection }
+        let bytes = self.device_sync_operation_request(reqwest::Method::POST, transport,
+            "local-preview", None, Some(&Request { target, selection }), token, 200).await?;
+        decode(&bytes)
+    }
     pub(super) async fn device_sync_operation_request<B: Serialize>(&self, method: reqwest::Method,
         transport: DeviceSyncTransport, operation: &str, scope: Option<(&ProjectId, &str)>,
         body: Option<&B>, token: &str, expected_status: u16) -> Result<Vec<u8>, DeviceSyncOperationsError> {

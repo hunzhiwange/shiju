@@ -251,3 +251,5 @@ pub use client::DataBackupPolicy;
 pub use client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress, DataRestoreStatus};
 
 pub use client::{DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
+
+pub use client::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};

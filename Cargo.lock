@@ -6100,6 +6100,17 @@ name = "memory-algorithms"
 version = "0.6.0"
 
 [[package]]
+name = "memory-types"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "metal"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12507,6 +12518,7 @@ dependencies = [
  "libc",
  "mail-parser",
  "memory-algorithms",
+ "memory-types",
  "memory-sqlite",
  "memory-lucid",
  "memory-mariadb",

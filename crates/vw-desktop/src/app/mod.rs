@@ -15,6 +15,8 @@ pub(crate) mod desktop_lifecycle;
 pub mod single_instance;
 #[cfg(target_os = "macos")]
 pub mod deep_links;
+#[cfg(target_os = "macos")]
+pub(crate) mod provider_link_preview;
 #[cfg(test)]
 mod desktop_integration_46_tests;
 #[cfg(test)]

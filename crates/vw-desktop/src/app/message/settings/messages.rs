@@ -749,6 +749,8 @@ pub enum GeneralSettingsMessage {
     LaunchAtLoginRefreshed(Result<bool, String>),
     CloseToTrayToggled(bool),
     #[cfg(target_os = "macos")]
+    ProviderLinkRejected(u64),
+    #[cfg(target_os = "macos")]
     InstanceTick,
     TrayTick,
     TrayShow,

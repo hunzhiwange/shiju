@@ -741,7 +741,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app.system_settings_help_tab,
     );
 
-    crate::app::message::app_providers::leave::overlay(app, dialog)
+    let dialog = crate::app::message::app_providers::leave::overlay(app, dialog);
+    #[cfg(target_os = "macos")]
+    let dialog = crate::app::provider_link_preview::overlay(dialog);
+    dialog
 }
 
 pub(super) const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";

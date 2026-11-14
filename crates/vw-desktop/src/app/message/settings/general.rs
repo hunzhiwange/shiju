@@ -78,6 +78,12 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Err(error) => return app.show_error_toast(format!("读取开机启动状态失败：{error}")),
             }
         }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::ProviderLinkRejected(id) => {
+            if crate::app::deep_links::acknowledge(id).is_err() {
+                return app.show_error_toast("无法拒绝供应商链接".to_string());
+            }
+        }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
             if enabled
                 && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale)
@@ -111,6 +117,9 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let links = crate::app::deep_links::take_notification();
             if requests.is_empty() && !links {
                 return Task::none();
+            }
+            if crate::app::provider_link_preview::pending().is_some() {
+                app.show_settings = true;
             }
             let wake = app.reopen_main_window();
             if unsupported {

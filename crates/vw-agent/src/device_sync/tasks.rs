@@ -1,4 +1,4 @@
-//! Process-lifetime device-sync execution records. Authorization remains with the caller.
+//! Durable device-sync execution records. Authorization remains with the caller.
 use std::{future::Future, sync::{Mutex, OnceLock}};
 use vw_api_types::{agent_apps::DataManagementTarget, id::TaskId, device_sync_task::{
     SyncStartRequest, SyncTaskOrigin, SyncTaskStatus, SyncTaskPhase, SyncTaskState,
@@ -6,23 +6,33 @@ use vw_api_types::{agent_apps::DataManagementTarget, id::TaskId, device_sync_tas
 }};
 
 type Result<T> = std::result::Result<T, SyncErrorCode>;
-struct Record {
-    request: SyncStartRequest,
-    status: SyncTaskStatus,
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub(super) struct Record {
+    pub(super) request: SyncStartRequest,
+    pub(super) status: SyncTaskStatus,
     claimed: bool,
     cancel_requested: bool,
+    #[serde(skip)]
     cancellation: tokio_util::sync::CancellationToken,
     commit_started: bool,
-    committed: bool,
+    pub(super) committed: bool,
 }
 fn records() -> &'static Mutex<Vec<Record>> {
     static RECORDS: OnceLock<Mutex<Vec<Record>>> = OnceLock::new();
     RECORDS.get_or_init(Default::default)
 }
 
+/// Bind an authorized target to the gateway database before accepting work.
+/// Initialize once per process; recovery never invokes transfer or apply code.
+pub fn initialize(database: crate::global_database::GlobalDatabase,
+    target: &DataManagementTarget) -> Result<()> {
+    let mut records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    super::status::initialize(database, target, &mut records)
+}
+
 /// Accept only after resolving and authorizing the complete canonical target.
 /// Reusing an ID with different parameters is rejected, including after completion.
-/// Records are intentionally retained for this process lifetime to preserve deduplication.
+/// Records are retained durably to preserve deduplication across restarts.
 pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncTaskStatus> {
     if request.request_id.trim().is_empty() || request.request_id.len() > 256 {
         return Err(SyncErrorCode::InvalidRequest);
@@ -41,8 +51,10 @@ pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncT
         bytes_transferred: 0, total_bytes: None, state: SyncTaskState::Queued,
         warnings: Vec::new(),
     };
-    records.push(Record { request, status: status.clone(), claimed: false,
-        cancel_requested: false, cancellation: tokio_util::sync::CancellationToken::new(), commit_started: false, committed: false });
+    let record = Record { request, status: status.clone(), claimed: false,
+        cancel_requested: false, cancellation: tokio_util::sync::CancellationToken::new(), commit_started: false, committed: false };
+    super::status::persist(&record)?;
+    records.push(record);
     Ok(status)
 }
 fn with_record<T>(target: &DataManagementTarget, id: &TaskId,
@@ -50,11 +62,30 @@ fn with_record<T>(target: &DataManagementTarget, id: &TaskId,
     let mut records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
     let record = records.iter_mut().find(|r| &r.status.task_id == id && &r.status.target == target)
         .ok_or(SyncErrorCode::Unauthorized)?;
-    operation(record)
+    let previous = record.clone();
+    let result = operation(record)?;
+    if record.status == previous.status && record.claimed == previous.claimed
+        && record.cancel_requested == previous.cancel_requested
+        && record.commit_started == previous.commit_started && record.committed == previous.committed {
+        return Ok(result);
+    }
+    if let Err(error) = super::status::persist(record) {
+        if record.committed || record.status.state.is_terminal() {
+            if !record.status.warnings.contains(&SyncTaskWarning::StatePersistenceFailed) {
+                record.status.warnings.push(SyncTaskWarning::StatePersistenceFailed);
+            }
+        } else {
+            *record = previous;
+            return Err(error);
+        }
+    }
+    Ok(result)
 }
 /// Reauthorize the complete target on every read/cancel; IDs alone confer no access.
 pub fn status(target: &DataManagementTarget, id: &TaskId) -> Result<SyncTaskStatus> {
-    with_record(target, id, |r| Ok(r.status.clone()))
+    let records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    records.iter().find(|r| &r.status.task_id == id && &r.status.target == target)
+        .map(|r| r.status.clone()).ok_or(SyncErrorCode::Unauthorized)
 }
 pub fn cancel(target: &DataManagementTarget, id: &TaskId) -> Result<SyncTaskStatus> {
     match super::cancel::cancel(target, id)? {
@@ -175,7 +206,9 @@ where F: FnOnce(SyncTaskExecution) -> Fut,
                 error: SyncError { code, incompatibility: None }, committed: r.committed },
         };
         Ok(r.status.clone())
-    }).map(|status| { drop(guard); status })
+    })?;
+    drop(guard);
+    status(target, id)
 }
 fn rank(phase: SyncTaskPhase) -> u8 {
     match phase {

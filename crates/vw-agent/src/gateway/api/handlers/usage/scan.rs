@@ -7,17 +7,20 @@ use vw_agent_apps::{usage as u, apps::lifecycle::operations::{Operation, Operati
 use vw_api_types::{TenantScope, id::TaskId};
 use super::super::external_sessions::usage_scan::{self as host, Intent};
 use u::scan_jobs::ScanOwner;
+#[path = "scan_events.rs"]
+mod scan_events;
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
-struct Job { owner: ScanOwner, operation: Operation }
+pub(super) struct Job { pub(super) owner: ScanOwner, pub(super) operation: Operation, pub(super) result: std::sync::Arc<Mutex<Option<Value>>> }
 static JOBS: OnceLock<Mutex<HashMap<String, Job>>> = OnceLock::new();
-fn jobs() -> &'static Mutex<HashMap<String, Job>> { JOBS.get_or_init(Default::default) }
+pub(super) fn jobs() -> &'static Mutex<HashMap<String, Job>> { JOBS.get_or_init(Default::default) }
 type Response = Result<Json<Value>, StatusCode>;
 fn unavailable<T>(_: T) -> StatusCode { StatusCode::SERVICE_UNAVAILABLE }
 
 pub(super) fn router() -> Router {
     Router::new()
+        .route("/usage/events", get(scan_events::events))
         .route("/usage/scans/last", get(last))
         .route("/usage/jobs/{id}", get(job))
         .route("/usage/jobs/{id}/cancel", post(cancel))
@@ -52,7 +55,7 @@ async fn lookup(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,id: String,cance
             super::super::agent_apps::authorize_external_history_maintenance(p.0.as_deref(),&h,&o.scope,&o.target_host)?;
             if cancel { j.operation.cancel(); }
             let progress = j.operation.snapshot();
-            return Ok(Json(json!({"task_id":id,"status":progress.status,"phase":format!("{:?}",progress.phase)})));
+            return Ok(Json(json!({"task_id":id,"status":progress.status,"phase":format!("{:?}",progress.phase),"result":j.result.lock().map_err(unavailable)?.clone()})));
         }
         drop(map);
         let schedules = host::schedules().lock().map_err(unavailable)?;
@@ -74,7 +77,7 @@ async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<Tenan
         let mut rows = Vec::new();
         for (_,app,_) in host::ADAPTERS {
             let state = u::source_settings::load_source_settings(&connection,&o.scope,&o.target_host,app).map_err(unavailable)?;
-            rows.push(json!({"app":app,"settings":state.settings,"revision":state.settings_revision}));
+            rows.push(json!({"app":app,"settings":state.settings,"revision":state.settings_revision,"statistics_revision":state.statistics_revision}));
         }
         Ok(Json(json!(rows)))
     }).await.map_err(unavailable)?
@@ -123,7 +126,7 @@ async fn submit(p: Policy,t: TenantScope,h: HeaderMap,i: Intent,kind: Maintenanc
         else { return Err(StatusCode::TOO_MANY_REQUESTS); }
     }
     if map.values().any(|j| j.owner.scope == o.scope && j.owner.target_host == o.target_host && j.operation.snapshot().phase != Phase::Terminal) { return Err(StatusCode::CONFLICT); }
-    map.insert(id.clone(),Job {owner:o.clone(),operation:operation.clone()});
+    map.insert(id.clone(),Job {owner:o.clone(),operation:operation.clone(),result:Default::default()});
     if operation.start_task(async move {
         tokio::task::spawn_blocking(move || {
             let result = execute(&o,&home,instances,kind,&worker);

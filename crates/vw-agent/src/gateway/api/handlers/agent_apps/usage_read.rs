@@ -24,7 +24,7 @@ use super::usage_refresh::UsageRefresh;
 struct PolicyFile(Option<PathBuf>);
 
 pub(super) fn router_with_policy(path: Option<PathBuf>) -> Router {
-    Router::new().route("/apps/usage/snapshot", get(read)).layer(Extension(PolicyFile(path)))
+    Router::new().route("/apps/usage/snapshot", get(read)).route("/usage/limits", get(read)).layer(Extension(PolicyFile(path)))
 }
 
 async fn read(

@@ -1,4 +1,5 @@
-//! Read-only canonical usage ledger endpoints.
+//! Canonical usage ledger and host maintenance endpoints.
 mod read;
 mod scan;
-pub(crate) fn router() -> axum::Router { read::router().merge(scan::router()) }
+mod prices;
+pub(crate) fn router() -> axum::Router { read::router().merge(scan::router()).merge(prices::router()) }

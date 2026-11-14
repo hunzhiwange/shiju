@@ -759,10 +759,6 @@ pub enum GeneralSettingsMessage {
     #[cfg(target_os = "macos")]
     SkillLinkRejected(u64),
     #[cfg(target_os = "macos")]
-    PromptLinkPreview(u64),
-    #[cfg(target_os = "macos")]
-    PromptLinkRejected(u64),
-    #[cfg(target_os = "macos")]
     InstanceTick,
     TrayTick,
     TrayProviderSwitch(String),
@@ -780,6 +776,7 @@ pub enum GeneralSettingsMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    MigrationPreview(crate::app::components::system_settings_data::migration_preview_ui::Event),
     DataExport(super::data_management::export_ui::Event),
     BackupInventory(super::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]

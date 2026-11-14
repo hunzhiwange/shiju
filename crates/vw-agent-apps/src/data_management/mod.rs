@@ -71,9 +71,6 @@ pub mod location_delete;
 #[cfg(all(test, target_os = "macos"))]
 mod location_delete_tests;
 
-#[cfg(target_os = "macos")]
-pub mod backup_api;
-
 pub mod mcp;
 #[cfg(test)]
 mod mcp_tests;
@@ -94,8 +91,6 @@ mod profiles_tests;
 pub mod prompts;
 #[cfg(test)]
 mod prompts_tests;
-
-pub mod preferences;
 
 pub mod usage;
 #[cfg(test)]
@@ -128,8 +123,3 @@ pub mod backup_restore;
 
 #[cfg(all(test, target_os = "macos"))]
 mod backup_restore_tests;
-
-#[cfg(target_os = "macos")]
-pub mod recovery;
-#[cfg(all(test, target_os = "macos"))]
-mod recovery_tests;

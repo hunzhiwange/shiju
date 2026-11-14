@@ -148,6 +148,7 @@ fn update_config_panel(
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::MigrationPreview(event) => crate::app::components::system_settings_data::migration_preview_ui::update(app, event),
         SettingsMessage::DataExport(event) => data_management::export_ui::update(app, event),
         SettingsMessage::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]

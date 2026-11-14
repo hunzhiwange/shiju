@@ -7,6 +7,7 @@ use iced::Task;
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
     ExternalSessions(crate::app::components::external_sessions::Event),
+    ProjectProfiles(crate::app::message::project_profiles::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
     OpenClawTools(crate::app::components::openclaw_tools::Event),
     OpenClawEnv(crate::app::components::openclaw_env::Event),
@@ -59,8 +60,8 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
     match message {
         AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawTools(event) => return crate::app::components::openclaw_tools::update(app, event),
-        AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
         AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
+        AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
@@ -68,6 +69,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
+        AppsCatalogMessage::ProjectProfiles(event) => return crate::app::message::project_profiles::update(app, event),
         AppsCatalogMessage::RefreshObservation(id) => {
             if app.apps_catalog.loading { return Task::none(); }
             let client = match crate::app::config::gateway_client() {
@@ -133,6 +135,11 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.project_profiles.application = application;
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
+            if app.apps_catalog.expanded == Some(id) {
+                if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id) {
+                    return crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope));
+                }
+            }
         }
         AppsCatalogMessage::Drag(value) => {
             return crate::app::components::system_settings_apps::drag::update(app, value);
@@ -197,6 +204,10 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     app.apps_catalog.host = vw_shared::local_apps::HOST_ID.into();
                     return update(app, AppsCatalogMessage::Refresh);
                 }
+            if let Some(scope) = app.apps_catalog.project_profiles.application.as_ref().map(|f| f.scope) {
+                return crate::app::message::project_profiles::update(app,
+                    crate::app::message::project_profiles::Event::Apply(scope, crate::app::message::project_profiles::ApplyEvent::Recover));
+            }
                 Err(error) => {
                     app.apps_catalog.error = Some(error.clone());
                     return app.show_error_toast(error);
@@ -205,10 +216,6 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         }
         AppsCatalogMessage::ConnectionOpen => {
             app.apps_catalog.connection_open = true;
-            if let Some(scope) = app.apps_catalog.project_profiles.application.as_ref().map(|f| f.scope) {
-                return crate::app::message::project_profiles::update(app,
-                    crate::app::message::project_profiles::Event::Apply(scope, crate::app::message::project_profiles::ApplyEvent::Recover));
-            }
         }
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {
@@ -226,6 +233,8 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            app.apps_catalog.external_sessions.invalidate();
+            app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.host = host;
             app.apps_catalog.drag = Default::default();
@@ -233,7 +242,6 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
-            app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.loaded_at = None;
             app.apps_catalog.error = None;
         }
@@ -254,15 +262,16 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
+            app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.token = token;
             app.apps_catalog.drag = Default::default();
             app.apps_catalog.expanded = None;
-            app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();

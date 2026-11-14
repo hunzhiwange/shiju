@@ -51,10 +51,6 @@ struct Grant {
     #[serde(default)]
     periodic_data_backups: Vec<PeriodicDataBackupPermit>,
     #[serde(default)]
-    data_backups: Vec<vw_api_types::id::ProjectId>,
-    #[serde(default)]
-    data_export: Vec<vw_api_types::id::ProjectId>,
-    #[serde(default)]
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     #[serde(default)]
     preferences_write: bool,
@@ -561,16 +557,6 @@ struct NativeLoginOwner {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Host {
-    /// Existing private directory, selected only by the administrator.
-    #[serde(default)]
-    pub data_backup_root: Option<PathBuf>,
-    #[serde(default)]
-    data_location_roots: Option<[PathBuf; 3]>,
-    /// Explicit source references; never populated from desktop paths.
-    #[serde(default)]
-    pub data_migration_sources: std::collections::BTreeMap<String, PathBuf>,
-    #[serde(default)]
-    pub data_migration_root: Option<PathBuf>,
     pub id: String,
     pub online: bool,
     pub binding: Binding,
@@ -676,10 +662,6 @@ enum Capability<'a> {
     DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
     DeviceSyncDownload(&'a vw_api_types::id::ProjectId),
     DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
-    DataMigrationRead(&'a vw_api_types::id::ProjectId),
-    DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
-    DataBackups(&'a vw_api_types::id::ProjectId),
-    DataExport(&'a vw_api_types::id::ProjectId),
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
     ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
     OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
@@ -969,12 +951,6 @@ fn authorize_digest(
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
                     Capability::DeviceSyncProbe(project) => g.device_sync_probe.contains(project),
-                    Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
-                    Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
-                    Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
-                    Capability::DeviceSyncDownload(project) => g.device_sync_download.contains(project),
-                    Capability::DataBackups(project) => g.data_backups.contains(project),
-                    Capability::DataExport(project) => g.data_export.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
                     }
@@ -1916,18 +1892,6 @@ pub(super) fn authorize_project_profiles_maintenance(
         Capability::ProjectProfilesMaintain(project.project_id())).map(|a| a.host.id)
 }
 
-/// Backup authority is independent of inventory, export and lifecycle grants.
-pub(in super::super) fn authorize_data_backups(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
-) -> Result<PathBuf, StatusCode> {
-    let authorized = authorize_scoped(path, headers, target.scope.tenant_scope(),
-        &target.target_host_id, None, Capability::DataBackups(target.scope.project_id()))?;
-    if authorized.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    authorized.host.data_backup_root.filter(|root| root.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)
-}
-
 /// Resolve backup inventory ownership from authentication, never desktop claims.
 pub(in super::super) fn authorize_backup_inventory(
     path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
@@ -2012,6 +1976,40 @@ pub(in super::super) fn authorize_data_migration(
     }).transpose()
 }
 
+/// Authenticate before consuming or decoding a migration body. Policy reads are
+/// authentication IO only; source and target storage must remain untouched.
+pub(in super::super) fn authenticate_data_migration(
+    path: Option<&Path>, headers: &HeaderMap, tenant: &TenantScope,
+) -> Result<(), StatusCode> {
+    let digest = membership_digest(headers)?;
+    let local = tenant_policy_path(tenant);
+    let policy = load(path.unwrap_or(&local)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let principal = policy.principals.iter().find(|p|
+        crate::security::pairing::constant_time_eq(&p.token_sha256, &digest))
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !principal.grants.iter().any(|g| g.platform_id == tenant.platform_id().as_ref()
+        && g.company_id == tenant.company_id().as_ref() && !g.data_migration_read.is_empty()) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(())
+}
+
+pub(in super::super) fn authorize_data_migration(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+    source_id: Option<&str>,
+) -> Result<Option<(PathBuf, PathBuf)>, StatusCode> {
+    let a = authorize_scoped(path, headers, target.scope.tenant_scope(), &target.target_host_id,
+        None, Capability::DataMigrationRead(target.scope.project_id()))?;
+    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    source_id.map(|id| {
+        let selected = a.host.data_migration_sources.get(id).ok_or(StatusCode::FORBIDDEN)?;
+        let root = a.host.data_migration_root.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        if !root.is_absolute() || !selected.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+        Ok((root.clone(), selected.clone()))
+    }).transpose()
+}
+
 /// Device-sync settings require an explicit host/project grant, independent of backups.
 pub(in super::super) fn authorize_device_sync_config(
     path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
@@ -2047,21 +2045,6 @@ pub(in super::super) fn authorize_device_sync_upload(
     Ok((credentials, skills))
 }
 
-
-#[cfg(target_os = "macos")]
-pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
-    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
-    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
-    if ![&app,&device,&environment].iter().all(|p|p.is_absolute()) { return Err(StatusCode::SERVICE_UNAVAILABLE); }
-    Ok((app,device,environment))
-}
-
-pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(),StatusCode> {
-    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
-    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    Ok(())
-}
 
 /// Download authority is independent from export authority. Recovery stays host-local.
 pub(in super::super) fn authorize_device_sync_download(

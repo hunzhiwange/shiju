@@ -18,5 +18,3 @@ mod binding_tests;
 mod cache_tests;
 #[cfg(test)]
 mod detect_tests;
-
-pub(crate) mod import_store;

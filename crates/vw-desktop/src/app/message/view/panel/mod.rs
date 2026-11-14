@@ -36,6 +36,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::SkipAppUpdateSaved(..) => update_notifications::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => settings::update(app, msg),
+        #[cfg(not(target_arch = "wasm32"))]
+        msg @ ViewMessage::AppUpdateDownloadPrepared(_, _) => settings::update(app, msg),
         ViewMessage::ToggleWorkspaceModePopover
         | ViewMessage::CloseWorkspaceModePopover
         | ViewMessage::WorkspaceModeSelected(_) => workspace_mode::update(app, message),
@@ -98,6 +100,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenAppInstaller
         | ViewMessage::OpenAppInstallerDirectory
         | ViewMessage::AppInstallerDirectoryOpened(_)
+        | ViewMessage::CancelAppUpdate
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

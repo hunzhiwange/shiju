@@ -23,6 +23,10 @@ pub(super) fn view<'a>(
             .on_press_maybe((!state.loading && state.drag.source.is_none()).then(||
                 message(AppsCatalogMessage::RefreshObservation(app.entry.id)))),
     ].spacing(10);
+    if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(app.entry.id) {
+        details = details.push(crate::app::components::project_profile_selection::view(&state.project_profiles, scope));
+    }
+
     details = details.push(crate::app::components::app_routing::config::timeout_button(app.entry.id));
     details = details.push(crate::app::components::app_routing::outbound::entry(app.entry.id));
     details = details.push(crate::app::components::app_routing::requests::entry(app.entry.id));

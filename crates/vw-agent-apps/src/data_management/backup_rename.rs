@@ -18,10 +18,9 @@ pub fn rename_local_backup(
     target_id: &str,
 ) -> Result<LocalBackupReceipt, Error> {
     let directory = files::open_root(root)?;
-    let mut file = files::open_backup(&directory, receipt.id())?;
-    files::lock_backup(&file, true)?;
+    let file = files::open_backup(&directory, receipt.id())?;
     let mut bytes = Vec::new();
-    Read::by_ref(&mut file).take(MAX_SNAPSHOT_BYTES as u64 + 1)
+    file.take(MAX_SNAPSHOT_BYTES as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| Error::StorageUnavailable)?;
     backup_create::decode(&bytes, receipt, scope)?;

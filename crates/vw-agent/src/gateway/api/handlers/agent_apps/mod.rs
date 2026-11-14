@@ -21,8 +21,6 @@ pub(crate) fn router() -> Router {
         .merge(super::device_sync_jobs::router())
         .merge(super::device_sync_tasks::router())
         .merge(super::device_sync_config::router())
-        .merge(super::agent_apps_data::backup_crud_api::router())
-        .merge(super::agent_apps_data::migration_read_api::router())
         .merge(read::router())
         .merge(super::project_profiles::router())
         .merge(super::aggregation_read::router())
@@ -643,8 +641,6 @@ mod workspace_directory;
 
 pub(super) use access::{authorize_project_profiles, authorize_project_profiles_maintenance};
 
-pub(super) use access::authorize_data_backups;
-
 #[cfg(target_os = "macos")]
 pub(super) use access::periodic_data_backup_targets;
 
@@ -655,9 +651,5 @@ pub(super) use access::authorize_device_sync_config;
 pub(super) use access::authorize_device_sync_probe;
 
 pub(super) use access::authorize_device_sync_upload;
-
-#[cfg(target_os = "macos")]
-pub(super) use access::data_location_roots;
-pub(super) use access::authorize_data_export;
 
 pub(super) use access::authorize_device_sync_download;

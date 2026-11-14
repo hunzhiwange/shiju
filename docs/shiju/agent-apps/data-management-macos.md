@@ -199,21 +199,6 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 
 新增 apps 解码边界测试及 agent 所有者新增、重复、skip、replace、陈旧预览和原生文件不变测试代码。遵照本轮用户覆盖要求，未运行 Cargo、单元测试或实机测试，无通过证据；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。后续统一回归运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_12_ -- --nocapture` 及相同入口 `-p vw-agent --lib cc_data_12_`，并补非法源整类别不写入、跨租户/项目/主机拒绝及 SQLite 源回归。
 
-## 子任务 14：偏好迁入实现（未验证）
-
-`data_management/preferences.rs::prepare` 显式接收匿名/用户选择的 CC 设备 settings.json 字节，仅迁入 appOrder、visibleApps，复用 normalize_preferences；SQLite settings 的通用片段不冒充设备偏好。其他字段均不写入。PreferencesPreview 绑定项目、租户、主机、principal、来源摘要及目标原始记录；冲突须 Replace 或 Skip，非法字段值整类拒绝。`agent_apps/preferences_import.rs::apply` 经 GatewaySettingsStore 的 insert_if_absent/compare_exchange 原子提交唯一 agent_apps_user 记录；不写 agent_apps_host。该内部入口要求调用方先完成迁入授权和持久回退点，尚未接线后续迁入调度/API。
-
-按本轮明确覆盖要求，仅实现并静态阅读，未执行 Cargo、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无测试通过或退出码证据。后续统一回归需覆盖新增、Skip、Replace、重复执行不写入、来源/目标过期、跨作用域拒绝、非法记录无半写及本机路径/系统集成排除，并核对真实 SQLite/PostgreSQL 所有者行为。
-
-
-## 子任务 15：请求明细迁入（2026-11-14，仅实现）
-
-`data_management/usage.rs` 提供请求预览与事务执行，账本 SQL 位于 `usage/import_store.rs`。稳定身份绑定项目、主机、principal、授权来源 registry、应用及 request ID；不使用会随导出变化的文件摘要去重。执行重查预览 revision 与账号归属，skip 不写，replace 保留 canonical ID 与账号，整批事务失败回滚，已存费用直接保留不重算。调用者须先授权、捕获任务 8 回退点并保持操作锁；此入口未宣称已注册网关或跨类别编排。
-
-限制：目前只接收 proxy 来源的 proxy_request_logs；非 proxy、model_pricing、日汇总、扫描位置及去重表显式返回 UnsupportedCategory，避免伪造汇总请求或双重计费。已归档身份拒绝替换，需后续领域所有者提供汇总调整合同。现有 model/pricing_model/倍率关联随请求保留，价格表不复制。此项尚未达到完整用量迁入验收。
-
-新增 `cc_data_15_usage_reimport_does_not_duplicate_cost` 和 `cc_data_15_usage_rejects_foreign_account_binding`，未运行。按当前用户覆盖要求，未执行 Cargo、单元测试、编译或实机验证；无退出码、有效测试数或通过结论；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_15_ -- --nocapture`。任务卡依本轮要求删除，不表示完整验收通过。
-
 ## 子任务 29：后端周期备份（2026-11-14）
 
 网关 bootstrap 的 `periodic_backups` 生命周期每 60 秒读取受保护访问策略，退出时停止轮询；不依赖桌面页面。管理员在 grant 中显式配置 `periodic_data_backups: [{"project_id":"<project>","interval_hours":24}]`，且项目必须同时有 `data_backups` 许可；默认空，零小时关闭，仅在线本地主机和已授权绝对私有备份根。使用现有 SQLite 偏好完整事务捕获接口，其它领域和数据库不伪支持。错误使用固定脱敏日志。
@@ -282,17 +267,6 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 新增独立 migration_write_api_tests.rs 并注册两个 cc_data_33_ HTTP 场景：修订拒绝、幂等重放/冲突、真实目录提交、部分失败和不重放写入的重试；已授权其它项目的查询、取消与重试拒绝，以及终态取消幂等。夹具仅使用匿名 JSON、隔离 SQLite、临时目录和动态 HTTP 端口。
 
 按本轮用户覆盖要求未运行任何 Cargo、编译、单元或实机测试；仅静态阅读与对修改文件运行独立 rustfmt，没有验证通过证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置，无测试退出码及有效测试数。统一验证待运行：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_33_ -- --nocapture`，另需覆盖真实原生投影适配及进程中断边界。
-
-
-## 子任务 36：导出、分类和策略 API（2026-11-14）
-
-新增 data_aux_api：POST /agent-apps/data/export、export/download、locations/list、locations/delete、policy。下载需 data_backups 和独立 data_export 项目许可，绑定完整目标身份，缓存最多两个包、五分钟过期，撤权重新检查，重启失效。只接通真实用户偏好的 appOrder/visibleApps All 原生可迁移包，其它类别/格式明确 501；回退包不下载。两项独立 HTTP 测试已编写但未执行。
-
-分类复用 locations/location_delete，管理员 Host 可登记 data_location_roots 三元数组（app、device、environment），必须是该身份范围独占的隔离目录，不能填写共享主机目录；未登记返回 501。请求只收分类 ID；领域所有者未就绪保持 501，database 禁删；部分清理只返回字节和失败数量，不暴露文件名/路径。
-
-policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，以完整目标 JSON 为键；零小时禁用，保留数量至少一。任务29轮询只在已有 periodic_data_backups 管理员授权目标内读取覆盖设置，不扩大后台权限；成功新建后使用现有 retention 清理。未设置时沿用管理员间隔。
-
-按用户最新覆盖仅写代码，未运行任何 Cargo、单元或实机测试，无通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 未设置。待统一回归：macOS 下执行 cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_36_ -- --nocapture，并覆盖跨身份/撤权/过期、分类隔离、周期与保留设置回读。
 
 ## 子任务 37：迁入导出客户端 SDK（2026-11-14）
 

@@ -50,6 +50,7 @@ pub(crate) fn router() -> Router {
     let router = {
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         router
+            .merge(super::agent_apps_data::backup_restore_api::router())
             .merge(hermes_dashboard::router())
             .merge(hermes_memory::router())
             .merge(openclaw_settings::router())

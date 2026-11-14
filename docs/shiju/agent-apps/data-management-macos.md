@@ -301,3 +301,12 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 请求沿用 native_transport 与 apply_request_context，继承租户/网关身份，应用 grant 标记 sensitive，禁自动重试与重定向；超时只返回 Timeout，不自动重放写入。HTTP 保留状态及可解析的封闭 DataManagementError，不保留原始错误载荷、URL 或令牌。成功体限 64 MiB、错误体限 16 KiB。不将未支持类别的 501 转为成功。后续 UI 必须按操作身份查询歧义结果，不把网络超时当作未提交。
 
 新增并注册独立 `migration_sdk_tests.rs`：cc_data_37_migration_sdk_preserves_operation_status、cc_data_37_migration_sdk_does_not_retry_write、cc_data_37_source_preview_and_portable_download，使用本地 TCP HTTP 夹具，覆盖部分提交状态、协议、授权头、结构化失败及导出下载；尚未执行。按用户覆盖本轮没有 Cargo、编译、单元或实机测试，没有通过证据、退出码或有效测试数；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。统一验证入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-gateway-client --lib cc_data_37_ -- --nocapture`；另待验证超时、传输断开、超限响应与跨作用域服务端拒绝。
+
+
+## 子任务 35：恢复与诊断 API（实现，未验证）
+
+新增 macOS `agent_apps_data/backup_restore_api.rs`：POST `/agent-apps/data/backups/restore/preview`、`restore`、`restore/get`、`diagnose`，挂载既有 agent-apps 路由。每个入口先核对租户、项目、主机与 principal 的 data_backups 授权，再接触归档或数据库；响应禁止缓存，不接受客户端文件路径。诊断以只读 SQLite quick_check 和既有 recovery::diagnose_recovery 读取独立备份目录，不创建、迁移或修复目标库；列表故障与空列表保持可区分。
+
+仅支持现有 backup_capture 的完整偏好归档：严格核对两个固定对象及 AppUserPreferences/AppHostPreferences 编码和内容摘要，其他 owner 不进入写入。预览返回归档修订，确认要求相同修订及显式 confirmed。目标和幂等键生成持久操作 ID，同键异参冲突；后台执行期间持有与备份维护共用的跨进程目录锁及源归档保护。恢复使用任务27的 recover_from_backup，持久化安全快照回执后，SQLite Immediate 事务重新核对两个当前前镜像，原子恢复存在/不存在状态，并在同一事务发布 committed 终态。版本冲突或事务失败不产生部分 owner 写入。孤儿任务仅在执行 PID 确认退出后报告失败，查询不自动重放恢复。安全快照使用既有独立快照格式；归档保留不会清理快照。原生投影尚未接通，明确报告 refresh_required；保留清理失败单独报告。
+
+新增并注册 `backup_restore_api_tests.rs` 的两个 `cc_data_35_` HTTP 场景代码，覆盖实际偏好变更后的恢复、回退 ID、异步终态、幂等重放、诊断及四个入口未授权拒绝。没有运行这些测试。按用户覆盖要求未调用 Cargo、构建、单元或实机测试，无通过证据、测试数量或退出码；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。仅对新增 Rust 文件执行独立 rustfmt。待统一回归使用仓库槽位入口执行 `cargo test -j 1 -p vw-agent --lib cc_data_35_ -- --nocapture`，并补充损坏归档/目标、跨作用域、并发更新、进程中断与保留保护场景。

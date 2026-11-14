@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "task": 63,
+  "date": "2026-11-14",
+  "status": "summary_written_unverified_not_accepted",
+  "acceptance_passed": false,
+  "deliverables": [
+    "docs/shiju/cc-macos-acceptance/summary.json",
+    "docs/shiju/cc-macos-acceptance/README.md"
+  ],
+  "direct_dependencies": [
+    37,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    22,
+    62
+  ],
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256_at_authoring": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256_at_authoring": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256_at_authoring": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/02.json",
+      "sha256_at_authoring": "c7a27fc55e0dee8812179df54a6838f6d134cf020118688a2578cfde1ec7d94b",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/03.json",
+      "sha256_at_authoring": "ecff5782f2ce2fe4bba6207fc5fea987b180d0a7a27e7e17383ce689fd84a5ea",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/04.json",
+      "sha256_at_authoring": "87427a336ff483fc13cb7b324fe9c7b6a97dbc33c146b9b78b1589e82efd71c2",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/05.json",
+      "sha256_at_authoring": "67a4464066732304a5f1f8be0e7f03daa41d9e9e8be83e7a90ad8128868b5cb5",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/06.json",
+      "sha256_at_authoring": "6e5d813c5a07c6d93f282841382fc65dfdd993c775a881df4e5904858092df3f",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/07.json",
+      "sha256_at_authoring": "bba616fda42d9bf90a8f25edbd4fadb22bb42f2115b30e4bc90af10fe720caf0",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/08.json",
+      "sha256_at_authoring": "a5c22df479f02872c409a60b78d6197407ff04dbe2bb1c6e230cf1f2a2154936",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/09.json",
+      "sha256_at_authoring": "8a99b5ada9e562be5fd9aad0d82a5977cc8856113d9f483bd1fb1a297b25046b",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/10.json",
+      "sha256_at_authoring": "ca9d43fb05a34dbea2a1e50ee0cbe95a6b0d636cd20d1c6cfd769e4605134703",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/11.json",
+      "sha256_at_authoring": "8eaeecbec79ad9e2304e42f327cdfe51f15a672458936b55f0f82b7d49c88b05",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/12.json",
+      "sha256_at_authoring": "5b087129363c96773fcd8e32d0c9b7ce013f1964b72bfa8390d7cab0717276b7",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/13.json",
+      "sha256_at_authoring": "f6e1e786288deb598e4278ad30b0b389805ff6cb073141f2eb30385fb3cad6ff",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/14.json",
+      "sha256_at_authoring": "71c81560dd8a6397ccaeb4eae5ed68bf539d994fea21d4888d77bc84d33a1c9c",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/15.json",
+      "sha256_at_authoring": "a1b9a6796e36504a12b5da0e3fe62e5920b6c72af69bdf013503ebd5acd6fcb4",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/16.json",
+      "sha256_at_authoring": "929a21023b6fc3defad8519d12d48872cd8de4660eff2b4cc6a179b70df1fa54",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/17.json",
+      "sha256_at_authoring": "2dadf79bd58cada5d4aba5c42abbe1420dea70043bdadab3d06b50fad592d116",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/18.json",
+      "sha256_at_authoring": "19d0c9edf35b0c571eabe79502deb0d4eec701c6f6f7d5c928df950771c058ce",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/19.json",
+      "sha256_at_authoring": "d5577c5fcc996ea169d7b2fbd023ff41b293a8dfc30b44ce41d7e58aa603c993",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/20.json",
+      "sha256_at_authoring": "795f56e764a469b99358663aa3a9c9179ec76d343d112569652c9c4d8fa018b2",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/21.json",
+      "sha256_at_authoring": "2565a6d68073bc53606227eb4ae9c7c5ad834480b5f3c06fe6a82e651de8c03a",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/22.json",
+      "sha256_at_authoring": "a4db277c776a437a7500186166e96f946601fe51e4415dd69a5589bce898966b",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/37.json",
+      "sha256_at_authoring": "2c91e3af5d3f12b195e35bd0b874da274f9a76a2e190ac5c65b405f51e5e752f",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/56.json",
+      "sha256_at_authoring": "7257f080e4d9c354dd0126f1f0367aad5e0199eede074bd2bb7423a35454c386",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/57.json",
+      "sha256_at_authoring": "027b940f4de13d7e24523f7d51d9011e3fa8da46b1fe2a4f653de01dda95d875",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/58.json",
+      "sha256_at_authoring": "fd294e453327df1ce121bf756ec31af003d90d4bade49fcbe584e85cb48b74b9",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/59.json",
+      "sha256_at_authoring": "354dd0d1c9875a1ed410a1a999e5efa042c99b91403f5ceadb91c492a8558b65",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/60.json",
+      "sha256_at_authoring": "b15d8be4bb256529c5af10c3dac55f5e5728ab030051275bb5708cd055a8f945",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/61.json",
+      "sha256_at_authoring": "9b15a10aa3666da16e4b8a0d74ed5e0ec1483edfaf012816fc7b73a7e916784f",
+      "applicability": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/62.json",
+      "sha256_at_authoring": "2f58211f797633d99279edb06f467242f957e4e965bf2ced881a7f9939b9060d",
+      "applicability": "not_revalidated"
+    }
+  ],
+  "observations": [
+    "读取现有准备清单、契约及持久证据用于文档汇总；静态读取不是运行故事。"
+  ],
+  "verification": {
+    "commands": [],
+    "exit_code": null,
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "format_check": "not_run",
+    "acceptance": "not_run",
+    "final_regression": "not_run",
+    "reason": "用户要求本轮只写必要产物；所有验证延期，零用例不计通过。"
+  },
+  "gaps": [
+    {
+      "key": "verified_entrypoints",
+      "owner": "母2、3、20及领域所有者",
+      "detail": "契约API/SDK/CLI、临时配置和清理入口均未验证。"
+    },
+    {
+      "key": "artifacts_and_resources",
+      "owner": "构建及执行场景所有者",
+      "detail": "缺冻结包路径、哈希、应用版本、两架构隔离主机和账号引用。"
+    },
+    {
+      "key": "source_mapping",
+      "owner": "母任务1–22",
+      "detail": "逐来源实现/API/SDK/UI/测试绑定待核证；外围331项仅为任务37要求值。"
+    },
+    {
+      "key": "project_profiles_execution",
+      "owner": "项目组合执行能力所有者",
+      "detail": "任务56报告preview/apply 503、查询取消404，真实执行worker及注册表缺口；本轮未独立核证。"
+    },
+    {
+      "key": "migration",
+      "owner": "母18及各领域所有者",
+      "detail": "任务59报告七类生产链路、跨类别回退及供应商live投影缺口；本轮未独立核证。"
+    }
+  ],
+  "deferred_work": [
+    "核对来源完整性、稳定键去重、TS规则及注册/事件语义",
+    "补齐冻结产品树、工作区差异、包哈希和已验证入口",
+    "逐领域核证前置证据当前适用性并处理真实能力缺口",
+    "取得两架构运行证据及用户实机确认",
+    "执行JSON格式、链接、脱敏、差异检查与统一回归"
+  ],
+  "runtime": {
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "application_version": null
+  },
+  "cleanup": "未启动运行进程、领取槽位或创建测试资源；无运行清理动作。",
+  "task_card": "按用户最新指令删除，不表示验收通过。",
+  "scope": "仅macOS汇总文档；无发布、卸载或用户配置操作。"
+}

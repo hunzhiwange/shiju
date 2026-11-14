@@ -139,7 +139,16 @@ pub(crate) fn overlay<'a>(
     let Some(scope) = &state.scope else {
         return base;
     };
-    let mut body = column![].spacing(12).width(Length::Fill);
+    let search = settings_text_input("搜索供应商名称或标识…", &state.query)
+        .on_input(|query| message(ListMessage::QueryInput(query)))
+        .width(Length::Fill);
+    let mut body = column![
+        row![search, action("清空搜索", ListMessage::QueryInput(String::new()), !state.query.is_empty())]
+            .spacing(10)
+            .align_y(Alignment::Center),
+    ]
+    .spacing(12)
+    .width(Length::Fill);
     if state.loading {
         body =
             body.push(settings_panel(text("正在从执行主机读取…").style(settings_muted_text_style)));
@@ -163,10 +172,16 @@ pub(crate) fn overlay<'a>(
             );
         }
         body = body.push(settings_panel(status));
-        let rows = &snapshot.catalog.rows;
+        let query = state.query.trim().to_lowercase();
+        let rows = snapshot.catalog.rows.iter().filter(|row| {
+            row.provider.app_id == scope.app
+                && (query.is_empty()
+                    || row.provider.name.to_lowercase().contains(&query)
+                    || row.provider.id.to_lowercase().contains(&query))
+        }).collect::<Vec<_>>();
         if rows.is_empty() {
             body = body
-                .push(settings_panel(text("没有已保存的供应商").style(settings_muted_text_style)));
+                .push(settings_panel(text(if query.is_empty() { "没有已保存的供应商" } else { "没有匹配的供应商，请修改或清空搜索" }).style(settings_muted_text_style)));
         }
         #[cfg(not(target_arch = "wasm32"))]
         let usage_scope = help

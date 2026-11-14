@@ -63,6 +63,7 @@ pub enum ListMessage {
     Open(AppId),
     Close,
     Refresh,
+    QueryInput(String),
     Loaded {
         scope: Scope,
         generation: u64,
@@ -241,6 +242,9 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
             return Task::perform(load(client, scope.clone(), token), move |result| {
                 message(ListMessage::Loaded { scope: scope.clone(), generation, result })
             });
+        }
+        ListMessage::QueryInput(query) => {
+            app.app_providers.query = query;
         }
         ListMessage::Refresh => {
             if let Some(scope) = app.app_providers.scope.clone() {

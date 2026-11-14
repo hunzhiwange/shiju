@@ -22,6 +22,7 @@ pub(crate) struct ListState {
     pub failover: crate::app::message::agent_apps_high_availability::State,
     pub scope: Option<Scope>,
     pub generation: u64,
+    pub query: String,
     pub loading: bool,
     pub snapshot: Option<Snapshot>,
     pub editor: Option<Editor>,
@@ -60,6 +61,7 @@ impl ListState {
     pub fn begin(&mut self, scope: Scope) -> u64 {
         if self.scope.as_ref() != Some(&scope) {
             self.new_draft = None;
+            self.query.clear();
         }
         self.generation = self.generation.wrapping_add(1);
         self.scope = Some(scope);

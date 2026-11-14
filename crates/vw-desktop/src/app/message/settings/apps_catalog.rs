@@ -7,6 +7,7 @@ use iced::Task;
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
     OpenClawEnv(crate::app::components::openclaw_env::Event),
+    OpenClawCatalog(crate::app::components::openclaw_catalog::Event),
     OpenClawModel(crate::app::components::openclaw_model::Event),
     OpenClawDefaults(crate::app::components::openclaw_defaults::Event),
     HermesMemory(crate::app::components::hermes_memory::Event),
@@ -44,6 +45,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
         AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
+        AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
@@ -135,6 +137,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
@@ -161,6 +164,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();

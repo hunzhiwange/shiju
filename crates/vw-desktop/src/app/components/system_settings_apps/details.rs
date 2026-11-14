@@ -18,6 +18,7 @@ pub(super) fn view<'a>(
     let mut details = column![text("运行状态").size(15)].spacing(10);
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {
         details = details.push(crate::app::components::openclaw_model::entry());
+        details = details.push(crate::app::components::openclaw_catalog::entry());
         details = details.push(crate::app::components::openclaw_env::entry());
         details = details.push(crate::app::components::openclaw_defaults::entry());
     }

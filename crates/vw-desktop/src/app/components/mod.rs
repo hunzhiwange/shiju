@@ -506,3 +506,10 @@ pub(crate) mod openclaw_defaults;
 
 #[path = "agent_apps/openclaw_env.rs"]
 pub(crate) mod openclaw_env;
+
+#[path = "agent_apps/openclaw_catalog.rs"]
+pub(crate) mod openclaw_catalog;
+
+#[cfg(test)]
+#[path = "agent_apps/openclaw_catalog_tests.rs"]
+mod openclaw_catalog_tests;

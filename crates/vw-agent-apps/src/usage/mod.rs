@@ -8,6 +8,7 @@ pub mod claude;
 pub mod claude_scan;
 pub mod codex_delta;
 pub mod codex_lineage;
+pub mod codex_rebuild;
 pub mod codex_timing;
 pub mod cost;
 pub mod cursors;
@@ -63,3 +64,5 @@ pub mod omp;
 pub mod pricing;
 
 pub(crate) mod import_store;
+
+pub mod pricing_batch;

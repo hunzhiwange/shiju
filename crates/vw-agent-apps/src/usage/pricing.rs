@@ -32,7 +32,7 @@ impl ModelPricingInfo {
         )
     }
 
-    fn normalize(mut self) -> Result<Self, String> {
+    pub(super) fn normalize(mut self) -> Result<Self, String> {
         self.model_id = ModelId::from(self.model_id.as_ref().trim().to_owned());
         validate_model_id(&self.model_id)?;
         self.display_name = self.display_name.trim().to_owned();

@@ -6,6 +6,8 @@
 
 pub mod icons;
 
+pub mod device_sync;
+
 pub mod apps;
 
 pub mod providers;

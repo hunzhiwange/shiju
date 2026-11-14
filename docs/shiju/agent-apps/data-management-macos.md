@@ -43,21 +43,3 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-api-types --lib cc_data_02_ 
 - 独立测试源码 `safety_snapshot_tests.rs` 由真实父模块注册，过滤族 `cc_data_08_`，共五项：真实匿名 SQLite 用量偏好保存、捕获、修改与通过现有所有者 CAS 恢复，检查无关租户保持不变及权限；捕获/存储/不完整集合失败阻止回调；归档损坏/跨作用域/链接拒绝；写入错误后仍能读取回退点；指定回读校验失败边界清理未交付归档。SQLite 测试仅在内存匿名库运行，临时目录显式 0700，不读真实用户数据。这些断言尚未运行。
 
 待统一回归（仅记录，未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_08_ -- --nocapture`。应发现五项测试并记录实际运行数、退出码、槽位和绝对缓存路径；另需消费任务验证真实类别前镜像覆盖完整、一致性锁/CAS及失败恢复。macOS 以外无验收结论。
-
-## 子任务 22：创建一致性备份（2026-11-14）
-
-已实现 `backup_create.rs` 的 `create_local_backup` / `open_local_backup`，由真实 `data_management/mod.rs` 以 macOS 条件注册；私有原子文件发布位于 `backup_create_files.rs`。先前记录的快照接口缺项已由同批任务 8 的真实接口解除，本项直接复用其完整集合捕获、作用域绑定和回读校验，不另建领域存储或盲拷宿主数据库。调用方仍须在领域事务/锁内提供一致快照；跨领域生产捕获与 API 接线没有在本项伪报完成。
-
-归档类型固定本机回退；用户标签仅存为元数据，文件名使用随机 ID。隐藏临时文件完整写入、fsync、重新打开、校验摘要与完整反序列化后才以 macOS RENAME_EXCL 无覆盖发布；同名竞争重试，失败清理自有临时产物。全部目标明确不存在返回 None。读回绑定原租户/项目/principal/主机，并拒绝摘要损坏。发布完成后的父目录同步错误会保留已提交文件并返回错误，不能将其描述为发布前失败。
-
-已编写但未运行的独立测试：
-
-- `cc_data_22_backup_publishes_readable_snapshot`：匿名 SQLite 真实 `usage::source_settings` 所有者，在同一读取事务内捕获，后续修改真实记录后完整回读原值与版本；校验 0600、无暂存遗留、租户/主机/principal 不匹配与损坏拒绝。
-- `cc_data_22_backup_collision_never_overwrites`：四线程在真实私有临时目录并发竞争同一发布 ID，断言 ID 唯一且各自完整字节未被覆盖。
-- `cc_data_22_backup_failure_and_absence_leave_no_archive`：全体明确不存在、捕获不完整、所有者失败、发布前校验失败和已删除目标目录均不产生可见归档或遗留临时文件；故障注入只作用于发布边界，不模拟领域存储。
-
-本轮仅实现并格式化本项三个 Rust 文件，未执行 Cargo、构建、单元、实机或其它运行验证，无测试退出码、有效测试数或通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置，无自有测试进程和槽位锁。按本轮覆盖要求删除任务卡，不代表验证通过。恢复验证授权后，可在仓库槽位入口执行下列定向命令并记录实际槽位、路径、退出码及有效测试数（本轮未执行）：
-
-```sh
-python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_ -- --nocapture
-```

@@ -16,10 +16,3 @@ pub mod safety_snapshot;
 mod safety_snapshot_files;
 #[cfg(all(test, target_os = "macos"))]
 mod safety_snapshot_tests;
-
-#[cfg(target_os = "macos")]
-pub mod backup_create;
-#[cfg(target_os = "macos")]
-mod backup_create_files;
-#[cfg(all(test, target_os = "macos"))]
-mod backup_create_tests;

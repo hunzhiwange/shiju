@@ -139,3 +139,90 @@
 后续新增并注册独立 `gateway/api/handlers/profile_macos_tests.rs` 的 `profile_t29_macos_desktop_scope_is_independent`，通过仓库共享槽位入口执行任务卡原定聚焦命令 `cargo test -j 1 -p vw-agent --lib profile_t29_ -- --test-threads=1`，记录有效测试数、退出码、实际槽位及两个绝对缓存路径。使用可恢复的隔离 HOME/项目、既有环境锁和执行主机环境路径；记录实际 macOS/CPU、Gateway/客户端版本及脱敏文件差异，不输出令牌。原生客户端读取、窗口及深浅主题渲染另交人工核验。
 
 本轮未执行任何 Cargo 相关命令、构建、检查、单元测试、实机测试或最终回归；无测试通过数量、退出码或平台通过结论。未领取 Cargo 槽位，未设置 CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR，无本任务槽位锁需清理。
+
+## 任务 31：来源覆盖与 macOS 证据汇总（静态盘点完成，未验证）
+
+2026-11-14：本轮只补必需交付合同，使用当前共享 checkout；未执行任何 Cargo 相关命令、构建、检查、单元测试、实机测试或最终回归。原卡的 Python 关键字检查也未运行。以下为文件读取及符号导航所得静态映射，不提供测试退出码、有效数量或平台通过结论；编号卡删除仅表示本轮盘点收尾。未领取槽位，未设置两个 Cargo 缓存变量。
+
+### 11 个来源文件与实际所有者
+
+来源冻结身份沿用 [领域合同](profile-contracts.md) 登记的 CC Switch 4.0.25 / `ca58c0313360eae7c851fbd7553c1614c7af03e7`；本轮未重新验证来源 Git 身份。下表与母清单 `来源清单.json`、`命令与事件覆盖.md` 及子计划 `来源映射.md` 交叉阅读，保留来源职责，不修改三份清单。来源路径相对同级 cc-switch；目标路径相对 crates。图索引未覆盖 project_profiles 新文件，因此这些文件直接读取，未重建索引。
+
+| 来源文件 | 目标实现 / 证据段落 | 当前边界 |
+| --- | --- | --- |
+| `src-tauri/src/commands/profile.rs` | `vw-agent/src/gateway/api/handlers/project_profiles{,_maintenance,_execution}.rs`；本节六命令、两事件表 | API 已注册；有入口不等于可成功执行 |
+| `src-tauri/src/database/dao/profiles.rs` | `vw-agent/src/gateway/agent_apps/profile_store.rs`；领域合同的存储与标记段 | 共享实体与租户/项目/主机/组标记使用现有 settings 所有者，不迁入来源数据库 |
+| `src-tauri/src/services/profile.rs` | `vw-agent-apps/src/project_profiles/{snapshot,create,rename,resnapshot,preview,autosave,apply,apply_provider,apply_mcp,apply_skills,apply_prompt}.rs` | 编排与领域回调存在，生产观察/执行接线未完成 |
+| `src-tauri/tests/profile_roundtrip.rs` | 本节八场景表及任务 28–30 段 | 来源测试不能充当目标 Gateway/SDK 或 macOS 证据 |
+| `src/components/profiles/ProfileManageDialog.tsx` | `vw-desktop/src/app/components/project_profiles/management.rs`；任务 25 段 | trim、删除确认、显式重拍与维护错误处理；未验证 |
+| `src/components/profiles/ProfileSwitcher.tsx` | `vw-desktop/src/app/components/project_profiles/{selection,apply}.rs`；任务 24、26 段 | 搜索、当前/未拍提示与预览；同当前组合跳过规则尚有差异 |
+| `src/components/profiles/scope.ts` | `vw-api-types/src/project_profiles.rs::ProjectProfileScope` / `ProjectProfilePerApp`；任务 2 段 | 实际三独立组；不沿用 Switcher 过时的“两组”注释 |
+| `src/config/piThinkingProfiles.ts` | 模型任务 13：`vw-agent-apps/src/models/{pi_thinking,preset_pi}.rs`、`models/presets/pi_thinking.json` | 模型推理档位，与项目组合 ID 无关；见本节 Pi 交接 |
+| `src/lib/api/profiles.ts` | `vw-api-types/src/project_profiles.rs`、`vw-gateway-client/src/client/project_profile_api.rs`；任务 22 段 | 共享 DTO + 独立 SDK，不提供任意 Tauri command 调用 |
+| `src/lib/query/profiles.ts` | `vw-desktop/src/app/message/project_profiles{,_apply,_progress}.rs`；本节刷新规则 | 维护后重读 list/current；四类刷新尚缺接线 |
+| `tests/config/piThinkingProfiles.test.ts` | `vw-agent-apps/src/models/pi_thinking_tests.rs`；模型任务 13 历史证据 | 已有独立 8 场景源码；本轮未运行 |
+
+### 六命令到 API / SDK / UI
+
+HTTP 基址为 `/v1/agent-apps/project-profiles`，表中省略基址；SDK 位于 `GatewayClient`。注册经 handlers/agent_apps/mod.rs 汇入 router/bootstrap；本轮未发 HTTP 请求。所有行均未验证，静态可调用形状不能证明授权、存储或投影行为通过。
+
+| 来源命令 | HTTP 与 SDK | 桌面 / 当前缺项 |
+| --- | --- | --- |
+| `list_profiles` | GET `/`、GET `/current` → `project_profile_list/current` | selection.rs 读取列表与当前组；损坏记录明确错误，不降为空列表 |
+| `create_profile` | POST `/` → `project_profile_create` | management.rs 创建；四类读取回调为 Unavailable，当前返回 503 `snapshot_unavailable` |
+| `update_profile` | PATCH `/{id}`、POST `/{id}/resnapshot` → `project_profile_rename/resnapshot` | 共享改名、指定组重拍携带 expectedVersion；重拍当前返回 503 `snapshot_unavailable` |
+| `delete_profile` | DELETE `/{id}` → `project_profile_delete` | 删除确认；由存储事务删除实体和相关选择引用 |
+| `clear_current_profile` | POST `/current/clear` → `project_profile_clear` | 清标记确认，不撤销原生配置 |
+| `apply_profile` | POST `/{id}/preview`、POST `/{id}/apply` → `project_profile_preview/apply`；GET `/current/result` 与 `/operations/{operation_id}`，POST 对应 `/cancel` → `project_profile_result/progress/cancel` | 有效实体/版本后 preview/apply 仍返回 503 `profile_observation_unavailable` / `profile_execution_unavailable`；操作查询/取消返回 404 `profile_operation_not_found`，没有受理操作 |
+
+### 两事件、TS 查询及组件规则
+
+来源 `emit_profile_apply_events` 对 scope.apps() 发 `provider-switched`，载荷含 appType、proxyEnabled、autoFailoverEnabled、providerId；另发 `profile-applied`，载荷含 profileId、scope，并刷新托盘。目标不依赖 Tauri 事件字符串，需在执行端确认后提供等价行为；目前两项均未形成完整生产证据。
+
+| 来源规则 | 当前映射与剩余工作 |
+| --- | --- |
+| `provider-switched` 仅通知目标组有效供应商 | apply_provider.rs 保留模式/路由合同；桌面 finish 目前仅触发 `Event::Refresh(scope)` 读取组合 list/current，未看到本路径刷新四类有效状态。执行端真实观察、有效路由及目标组供应商刷新待交付 |
+| `profile-applied` 通知选择/应用结果 | project_profiles_progress.rs 按原操作与作用域核对终态，区分 Applied/Partial/Failed/Uncaptured/Cancelled；未接通服务端操作注册，不能把选择或最近组结果当本次成功 |
+| TS profiles 查询及创建/更新/删除/清标记成功后失效刷新、失败 toast | project_profiles.rs 在服务端确认后重读 list/current，失败 toast；SDK 保留结构化 HTTP 错误，桌面当前多处折叠为通用失败，详细诊断展示仍待核对 |
+| TS apply 后刷新 providers（三应用）、mcp/all、skills，并按 warnings/error/success 提示 | 目标要求按目标组刷新并补提示词有效状态；progress.rs 有按结果状态 toast，四类刷新尚未完成，不能据任务 26 的早期描述认定缓存已全部失效 |
+| Switcher 搜索、仅三应用可见、未拍提示 | selection.rs 名称过滤与 scope_captured 提示，应用详情仅支持三组；未验证实际渲染 |
+| 来源 `handleApply` 在 id == currentId 时不再次应用 | 目标 selection.rs 对当前项仍显示应用按钮，Open 分支仅检查忙碌/实体版本，未拒绝当前 ID。保留差异：由应用故事明确处理“重复点击”与“显式重新应用”的契约，不能声称已覆盖来源规则 |
+| 名称 trim、空名称禁用、删除确认、警告可见 | management.rs 与领域改名/创建负责名称校验，删除有确认；来源 UI 隐去重拍而 command 保留，目标按母需求提供显式重拍。部分失败有逐项结果；Unsupported 预览 action 尚无对应值，待冻结生产预览协议后补齐 |
+| 托盘事件与菜单更新 | 由母任务 20 承接，共用执行端结果和目标组刷新；本计划未交付托盘入口，不声明完成 |
+
+### 上游八个 roundtrip 场景
+
+以下完整名称来自 `src-tauri/tests/profile_roundtrip.rs`，均未运行。本表映射的是待取得的目标证据；领域闭包、来源测试和编译均不能替代真实配置投影。
+
+| 来源测试 | 目标实现 / 验收归属 | 尚需证据 |
+| --- | --- | --- |
+| `profile_snapshot_apply_roundtrip_restores_configuration` | snapshot.rs、四类 apply_*.rs、apply.rs；任务 28 | 经 Gateway/SDK 创建 A/B 并恢复四类引用，核对实际文件及配置加载 |
+| `shared_profile_sides_are_isolated_and_mergeable` | DTO merge_scope_from、resnapshot.rs、profile_store.rs；任务 30 | 三组快照合并、标记与原生文件互不串写 |
+| `profile_apply_reports_dangling_references_and_continues` | 四类槽位 Missing 与 apply.rs Partial；任务 28/30 | 有效项继续且实际生效，缺失项保留原选择，不能记 applied |
+| `clear_current_profile_only_clears_scoped_marker` | profile_store.rs 清标记、维护 API；任务 28/30 | 只清目标标记，配置/实体/其它组保持 |
+| `switching_profile_autosaves_previous_profile_state` | autosave.rs::prepare_switch 与组重拍；任务 28/30 | 切走前仅保存旧组合当前组，版本冲突或读取失败不写入错误快照 |
+| `applying_profile_without_active_prompt_disables_current_prompt` | apply_prompt.rs 与原 PromptsStore 停用事务；任务 28/30 | 空串停用、null 零读写、重复应用不重写、前像冲突拒绝 |
+| `profile_switch_in_routing_mode_changes_the_route_only` | apply_provider.rs 与原供应商路由所有者；任务 28 | 保持代理模式、切有效路由、不改直连指针，退出代理恢复一致 |
+| `claude_desktop_profile_scope_is_independent` | 三组 DTO、Desktop 原生供应商适配与 profile_store.rs；任务 29 | Desktop 四个事务文件与 Claude/Codex 前像对照、不支持项明确返回 |
+
+### Pi 两文件交接与交叉来源
+
+模型子计划原目录已不在当前文件树，不重建任务卡或重复实现。正式证据为 [模型实现证据「任务 13：Pi 推理档位绑定」](../model-catalog/implementation-evidence.md#任务-13pi-推理档位绑定)，登记提交 `9754a8983`。其历史记录为 2026-11-08、macOS 27.0 arm64，`catalog_pi_thinking_` 8 条、models 66 条以及固定来源投影对照；这些是历史文档记录，不是本轮新通过结果，也不证明项目组合 macOS 闭环。
+
+- `src/config/piThinkingProfiles.ts` → pi_thinking.rs 的档位、显式目录键/协议绑定、null/缺失区分；preset_pi.rs 的 apply_thinking_profiles / thinking_level_map；JSON 映射数据由模型领域单独拥有。
+- `tests/config/piThinkingProfiles.test.ts` → pi_thinking_tests.rs 的 rejects_incompatible_binding、keeps_local_overrides_at_their_deployment、distinguishes_null_from_an_absent_level、pairs_adaptive_compat_with_the_anthropic_binding、keeps_source_references_and_maps_out_of_omp、rejects_adaptive_compat_conflict、returns_independent_maps、requires_the_exact_catalog_key 八场景（共同前缀 `catalog_pi_thinking_`）。来源关于全部 reasoning 预设有 map 的断言在目标未逐字保留：模型合同明确无兼容绑定时省略，历史记录解释空映射投影差异；本轮不扩大该合同。
+- 项目组合四类调用分别消费母任务 4 供应商事务、11 MCP 绑定、12 已安装技能分发、13 提示词事务；项目身份与偏好仍归母任务 15。Pi thinking 不加入四类快照，不借用 AgentProfile 身份，不复制配置写入所有者。托盘仍交母任务 20。
+
+### 三组 macOS 汇总与恢复顺序
+
+直接依赖任务 28、29、30 的编号卡已删除；正式证据在本文对应小节，提交分别为 `2090ff7f9`、`33309881a`、`0e3020a13`。三项均为静态盘点，未交付运行证据。三组为 Claude、Claude Desktop、Codex，Pi 是交叉来源而非第四验收组。
+
+| 项目 | Claude（28） | Claude Desktop（29） | Codex（30） |
+| --- | --- | --- | --- |
+| 实际组合操作、四类配置恢复及原生客户端加载 | 未验证 | 未验证；MCP/技能/提示词不支持路径须明确 | 未验证 |
+| 隔离 HOME/项目、租户/主机/组隔离及脱敏前后差异 | 未验证 | 未验证 | 未验证 |
+| 取消、断线恢复、重复提交与失败不显示 applied | 未验证 | 未验证 | 未验证 |
+| 桌面深浅主题、中文字形整形及弹窗实际渲染 | 未验证 | 未验证 | 未验证 |
+| 平台/CPU、Gateway/SDK/客户端版本 | 未采集 | 未采集 | 未采集 |
+
+下一步由现有执行端所有者先补授权执行主机上的四类真实观察、创建/重拍、预览/应用 worker、结果持久化和操作注册，并冻结 SDK/桌面回执；明确 Desktop 不支持类别如何拍摄，补目标组四类刷新及上述 UI 差异。解除本轮验证禁令后，再由任务 28–30 所列独立 macOS 场景经真实 Gateway/SDK 取得隔离文件证据，补权限、版本、取消和断线行为验证；最后交用户核对原生客户端加载、深浅主题和中文窗口。母任务 16 不可据本次清单标为全部完成。

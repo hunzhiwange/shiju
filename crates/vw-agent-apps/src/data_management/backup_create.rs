@@ -36,6 +36,9 @@ pub struct LocalBackup {
     created_at_ms: i64,
     scope: SafetySnapshotScope,
     preimages: Vec<OwnerPreimage>,
+    /// Keep the source protected for the complete lifetime of an open backup.
+    #[serde(skip)]
+    protection: Option<std::fs::File>,
 }
 impl LocalBackup {
     pub fn name(&self) -> &str {
@@ -155,6 +158,7 @@ pub fn create_local_backup(
         created_at_ms,
         scope: scope.clone(),
         preimages: snapshot.preimages().to_vec(),
+        protection: None,
     };
     validate(&backup, scope)?;
     let bytes = serde_json::to_vec(&backup).map_err(|_| Error::Corrupt)?;
@@ -181,10 +185,13 @@ pub fn open_local_backup(
     scope: &SafetySnapshotScope,
 ) -> Result<LocalBackup, Error> {
     let mut file = files::open_backup(&files::open_root(root)?, &receipt.id)?;
+    files::lock_backup(&file, false)?;
     let mut bytes = Vec::new();
     Read::by_ref(&mut file)
         .take(MAX_SNAPSHOT_BYTES as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| Error::StorageUnavailable)?;
-    decode(&bytes, receipt, scope)
+    let mut backup = decode(&bytes, receipt, scope)?;
+    backup.protection = Some(file);
+    Ok(backup)
 }

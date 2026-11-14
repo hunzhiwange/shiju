@@ -50,7 +50,7 @@ fn open_at(parent: &File, child: &CString, flags: i32) -> Result<File, Error> {
     }
     Ok(unsafe { File::from_raw_fd(fd) })
 }
-fn archive_name(id: &str) -> Result<CString, Error> {
+pub(super) fn archive_name(id: &str) -> Result<CString, Error> {
     if id.is_empty()
         || id.len() > 100
         || !id.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
@@ -174,4 +174,23 @@ pub(super) fn backup_ids(parent: &File) -> Result<Vec<String>, Error> {
     }
     ids.sort();
     Ok(ids)
+}
+
+/// Nonblocking advisory lock shared by source readers and deletion. Closing the
+/// descriptor releases it, including on error or process exit.
+pub(super) fn lock_backup(file: &File, exclusive: bool) -> Result<(), Error> {
+    let mode = if exclusive { libc::LOCK_EX } else { libc::LOCK_SH };
+    // SAFETY: file owns a live descriptor; flock does not transfer ownership.
+    if unsafe { libc::flock(file.as_raw_fd(), mode | libc::LOCK_NB) } != 0 {
+        return Err(if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
+            Error::Conflict
+        } else {
+            Error::StorageUnavailable
+        });
+    }
+    // A reader may have opened the file before a deleter unlinked it.
+    if file.metadata().map_err(|_| Error::StorageUnavailable)?.nlink() != 1 {
+        return Err(Error::Conflict);
+    }
+    Ok(())
 }

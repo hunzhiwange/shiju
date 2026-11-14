@@ -31,9 +31,9 @@ pub fn view(query: &UsageQuery) -> Element<'_, Message> {
     let action = |label: &'static str, change| button(text(label).size(13)).padding([6, 10]).style(rounded_action_btn_style).on_press(send(change));
     let provider = match &query.filter.provider { Some(UsageProvider::Known { provider_id }) => provider_id.as_str(), _ => "" };
     let filters = row![
-        text_input("应用 ID（空为全部）", query.filter.app.as_deref().unwrap_or("")).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(|v| send(Change::App(v))),
-        text_input("供应商 ID（空为全部）", provider).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(|v| send(Change::Provider(v))),
-        text_input("请求模型（空为全部）", query.filter.request_model.as_deref().unwrap_or("")).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(|v| send(Change::Model(v))),
+        text_input("应用 ID（空为全部）", query.filter.app.as_deref().unwrap_or("")).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(move |v| send(Change::App(v))),
+        text_input("供应商 ID（空为全部）", provider).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(move |v| send(Change::Provider(v))),
+        text_input("请求模型（空为全部）", query.filter.request_model.as_deref().unwrap_or("")).style(settings_text_input_style).padding(SETTINGS_CONTROL_PADDING).size(SETTINGS_CONTROL_TEXT_SIZE).on_input(move |v| send(Change::Model(v))),
     ].spacing(8);
     let calendar = |period| Change::Range(UsageRange::Calendar { period, time_zone: "UTC".into() });
     column![filters, row![

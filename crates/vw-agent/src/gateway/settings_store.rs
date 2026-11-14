@@ -240,7 +240,6 @@ impl GatewaySettingsStore {
         replacements: &[GatewaySetting],
     ) -> Result<bool> {
         let result = (|| -> Result<_> {
-        let result = (|| -> Result<_> {
             validate_identifier(namespace, "migration namespace")?;
             for row in replacements {
                 validate_identifier(&row.config_key, "migration key")?;
@@ -269,10 +268,6 @@ impl GatewaySettingsStore {
         if result {
             crate::device_sync::change_events::committed(tenant, namespace);
         }
-        Ok(result)
-
-        })()?;
-        if result { crate::device_sync::change_events::committed(tenant, namespace); }
         Ok(result)
     }
 

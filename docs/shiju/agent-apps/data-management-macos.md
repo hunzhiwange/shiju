@@ -62,6 +62,14 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-api-types --lib cc_data_02_ 
 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_ -- --nocapture
 ```
 
+## 子任务 4：SQL 隔离暂存实现（2026-11-14）
+
+`data_management/sql_stage.rs::stage_sql` 接受已授权上传字节与 SourceScope，不接受目标数据库或路径。只在一次性内存 SQLite 执行 SQL；authorizer 正向白名单拒绝 ATTACH/DETACH、VACUUM、虚拟表、函数及除 foreign_keys/user_version 外的 PRAGMA，未知动作默认拒绝，不输出 SQL 错误或载荷。输入上限 64 MiB，数据库上限 256 MiB，单值上限 16 MiB，VM progress handler 有界；临时存储固定内存。校验精确首行导出头、事务闭合、七张来源必需表及 integrity_check，再复用 source::read_connection 校验版本、关键列并提取有界记录。返回原作用域绑定的 SourceSnapshot，不迁移 schema、不写目标、不授予领域执行权限。此入口未接入上传 API，调用者必须先授权输入及目标身份。
+
+独立测试注册于 data_management/mod.rs，过滤族 `cc_data_04_`，覆盖匿名导出形状、隔离作用域、跨文件攻击无磁盘副作用、危险 PRAGMA、空头、截断事务、关键列缺失与未来版本。夹具依照来源 dump_sql 格式手工构造，未调用来源程序导出真实文件，不作为真实导出兼容性已验证证据。
+
+按本轮用户覆盖要求，仅完成代码和测试代码，未运行 Cargo、编译、单元或实机测试；无退出码、有效测试数或通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。后续统一验证使用仓库 cargo_slot.py 入口执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_04_ -- --nocapture`，另补来源真实匿名导出兼容验证。
+
 
 ## 子任务 23：列出目标备份（2026-11-14）
 
@@ -73,13 +81,13 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 
 待统一回归（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_23_ -- --nocapture`，届时记录实际槽位、绝对缓存路径、退出码及有效测试数。
 
-## 子任务 4：SQL 隔离暂存实现（2026-11-14）
+## 子任务 5：迁入副本 schema 升级（2026-11-14，未验证）
 
-`data_management/sql_stage.rs::stage_sql` 接受已授权上传字节与 SourceScope，不接受目标数据库或路径。只在一次性内存 SQLite 执行 SQL；authorizer 正向白名单拒绝 ATTACH/DETACH、VACUUM、虚拟表、函数及除 foreign_keys/user_version 外的 PRAGMA，未知动作默认拒绝，不输出 SQL 错误或载荷。输入上限 64 MiB，数据库上限 256 MiB，单值上限 16 MiB，VM progress handler 有界；临时存储固定内存。校验精确首行导出头、事务闭合、七张来源必需表及 integrity_check，再复用 source::read_connection 校验版本、关键列并提取有界记录。返回原作用域绑定的 SourceSnapshot，不迁移 schema、不写目标、不授予领域执行权限。此入口未接入上传 API，调用者必须先授权输入及目标身份。
+`source_upgrade.rs::upgrade_staged_copy` 接入 SQLite 私有临时副本和 SQL 内存暂存入口，按冻结来源 `database/schema.rs` 的 18→24 步骤新增应用启用列与 parser_state；单事务失败回滚，不接受目标数据库连接。原文件及摘要不变，暂存摘要 version 表示升级后的 schema。当前支持 18–24，0–17 涉及数据重写的迁移尚不支持，显式返回 UnsupportedVersion；未来版本拒绝。旧版本缺必需源表/列直接失败，不调用 create_tables 补造数据。24 维持已有只读解析合同。
 
-独立测试注册于 data_management/mod.rs，过滤族 `cc_data_04_`，覆盖匿名导出形状、隔离作用域、跨文件攻击无磁盘副作用、危险 PRAGMA、空头、截断事务、关键列缺失与未来版本。夹具依照来源 dump_sql 格式手工构造，未调用来源程序导出真实文件，不作为真实导出兼容性已验证证据。
+匿名 fixture `data_management/fixtures/schema_18.sql` 摘取冻结来源实际建表定义并移除 v18 之后的列，不读取用户库。新增独立注册测试 `cc_data_05_upgrade_migrates_supported_copy`、`cc_data_05_upgrade_failure_preserves_source`，包含游标保留、幂等、失败事务回滚、源字节保留、缺表及版本拒绝断言。这些断言尚未执行。
 
-按本轮用户覆盖要求，仅完成代码和测试代码，未运行 Cargo、编译、单元或实机测试；无退出码、有效测试数或通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。后续统一验证使用仓库 cargo_slot.py 入口执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_04_ -- --nocapture`，另补来源真实匿名导出兼容验证。
+按用户本轮覆盖要求，未执行 Cargo、编译、格式化、单元或实机测试；无退出码、有效通过数或运行前后差异证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一回归入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_05_ -- --nocapture`，并回归 `cc_data_03_`、`cc_data_04_` 的暂存调用行为。
 
 ## 子任务 24：无覆盖重命名备份（2026-11-14）
 
@@ -88,14 +96,6 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 来源静态核对：CC Switch commands/import_export.rs::rename_db_backup → database/backup.rs::rename_backup；本项沿用文件重命名语义，目标使用已有 ID 合同，不引入第二份备份格式。独立测试 backup_rename_tests.rs 注册到 macOS 父模块，过滤 cc_data_24_，覆盖选中项移动、原字节和其它文件保留、碰撞、非法 ID、同名、外部主机、源/目标符号链接、大小写等价和四线程竞争唯一成功。
 
 遵循本轮用户覆盖：仅实现和静态审阅，未运行 Cargo、构建、单元或实机测试，无退出码、有效测试数或通过结论。未领取槽位；CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，plan.md 未修改。后续统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_24_ -- --nocapture`。
-
-## 子任务 5：迁入副本 schema 升级（2026-11-14，未验证）
-
-`source_upgrade.rs::upgrade_staged_copy` 接入 SQLite 私有临时副本和 SQL 内存暂存入口，按冻结来源 `database/schema.rs` 的 18→24 步骤新增应用启用列与 parser_state；单事务失败回滚，不接受目标数据库连接。原文件及摘要不变，暂存摘要 version 表示升级后的 schema。当前支持 18–24，0–17 涉及数据重写的迁移尚不支持，显式返回 UnsupportedVersion；未来版本拒绝。旧版本缺必需源表/列直接失败，不调用 create_tables 补造数据。24 维持已有只读解析合同。
-
-匿名 fixture `data_management/fixtures/schema_18.sql` 摘取冻结来源实际建表定义并移除 v18 之后的列，不读取用户库。新增独立注册测试 `cc_data_05_upgrade_migrates_supported_copy`、`cc_data_05_upgrade_failure_preserves_source`，包含游标保留、幂等、失败事务回滚、源字节保留、缺表及版本拒绝断言。这些断言尚未执行。
-
-按用户本轮覆盖要求，未执行 Cargo、编译、格式化、单元或实机测试；无退出码、有效通过数或运行前后差异证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一回归入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_05_ -- --nocapture`，并回归 `cc_data_03_`、`cc_data_04_` 的暂存调用行为。
 
 ## 子任务 30：备份分类占用（2026-11-14）
 
@@ -110,14 +110,6 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 这是供后续逐类别迁入任务消费的预览核心，并非已接通 API 或七类目标存储。领域适配器负责解析、身份匹配与引用校验，必须在同一目标一致性边界捕获 revision，执行者在锁/CAS 内重验并重新授权；未支持类别返回 UnsupportedCategory。未实现 keep_both，不将 DTO 可表达能力当作业务支持。
 
 按本轮用户覆盖要求：未执行 Cargo、编译、单元测试、实机测试；未领取槽位，CARGO_TARGET_DIR 未设置，无退出码或有效测试数通过证据。新增两项静态测试代码，待统一回归执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_07_ -- --nocapture`。静态实现不能证明运行行为，任务卡按本轮要求删除。
-
-## 子任务 28：按数量清理备份（2026-11-14）
-
-`data_management/retention.rs::cleanup_local_backups` 复用 `backup_list` 与 `backup_delete`，仅清理同租户/项目/principal/主机、结构有效的本机回退归档。按创建时间升序及 ID 升序裁决相同时间；保护源与回退点沿用 LocalBackup 持有的 inode 文件锁，受保护项可以使最终数量超过策略。不可解析或不支持的归档不参与计数、不自动删除；存储错误立即返回，先前删除可能已提交，调用方应重新列举。调用方应串行调度同一根的保留清理；此模块不提供批次原子事务。
-
-来源 `database/backup.rs::cleanup_db_backups` 与 `settings.rs::effective_backup_retain_count`：默认 10，u32 配置的 0 归一为 1；负数及超过 u32 的输入明确拒绝。独立 `retention_tests.rs` 已注册，包含保护源/回退点、外作用域保持、0/1、非法值及同时间稳定排序测试代码，大小写别名分支仅在文件系统存在该别名时适用。
-
-按用户覆盖要求，本轮只实现，未运行 Cargo、编译、单元或实机测试，无通过证据、退出码或有效测试数；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。待统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_28_ -- --nocapture`。仅面向 macOS，网关、调度及恢复调用接线不在本项范围。
 
 ## 子任务 20：可迁移数据包导出（2026-11-14）
 
@@ -199,6 +191,20 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 
 新增 apps 解码边界测试及 agent 所有者新增、重复、skip、replace、陈旧预览和原生文件不变测试代码。遵照本轮用户覆盖要求，未运行 Cargo、单元测试或实机测试，无通过证据；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。后续统一回归运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_12_ -- --nocapture` 及相同入口 `-p vw-agent --lib cc_data_12_`，并补非法源整类别不写入、跨租户/项目/主机拒绝及 SQLite 源回归。
 
+## 子任务 14：偏好迁入实现（未验证）
+
+`data_management/preferences.rs::prepare` 显式接收匿名/用户选择的 CC 设备 settings.json 字节，仅迁入 appOrder、visibleApps，复用 normalize_preferences；SQLite settings 的通用片段不冒充设备偏好。其他字段均不写入。PreferencesPreview 绑定项目、租户、主机、principal、来源摘要及目标原始记录；冲突须 Replace 或 Skip，非法字段值整类拒绝。`agent_apps/preferences_import.rs::apply` 经 GatewaySettingsStore 的 insert_if_absent/compare_exchange 原子提交唯一 agent_apps_user 记录；不写 agent_apps_host。该内部入口要求调用方先完成迁入授权和持久回退点，尚未接线后续迁入调度/API。
+
+按本轮明确覆盖要求，仅实现并静态阅读，未执行 Cargo、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无测试通过或退出码证据。后续统一回归需覆盖新增、Skip、Replace、重复执行不写入、来源/目标过期、跨作用域拒绝、非法记录无半写及本机路径/系统集成排除，并核对真实 SQLite/PostgreSQL 所有者行为。
+
+## 子任务 15：请求明细迁入（2026-11-14，仅实现）
+
+`data_management/usage.rs` 提供请求预览与事务执行，账本 SQL 位于 `usage/import_store.rs`。稳定身份绑定项目、主机、principal、授权来源 registry、应用及 request ID；不使用会随导出变化的文件摘要去重。执行重查预览 revision 与账号归属，skip 不写，replace 保留 canonical ID 与账号，整批事务失败回滚，已存费用直接保留不重算。调用者须先授权、捕获任务 8 回退点并保持操作锁；此入口未宣称已注册网关或跨类别编排。
+
+限制：目前只接收 proxy 来源的 proxy_request_logs；非 proxy、model_pricing、日汇总、扫描位置及去重表显式返回 UnsupportedCategory，避免伪造汇总请求或双重计费。已归档身份拒绝替换，需后续领域所有者提供汇总调整合同。现有 model/pricing_model/倍率关联随请求保留，价格表不复制。此项尚未达到完整用量迁入验收。
+
+新增 `cc_data_15_usage_reimport_does_not_duplicate_cost` 和 `cc_data_15_usage_rejects_foreign_account_binding`，未运行。按当前用户覆盖要求，未执行 Cargo、单元测试、编译或实机验证；无退出码、有效测试数或通过结论；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_15_ -- --nocapture`。任务卡依本轮要求删除，不表示完整验收通过。
+
 ## 子任务 29：后端周期备份（2026-11-14）
 
 网关 bootstrap 的 `periodic_backups` 生命周期每 60 秒读取受保护访问策略，退出时停止轮询；不依赖桌面页面。管理员在 grant 中显式配置 `periodic_data_backups: [{"project_id":"<project>","interval_hours":24}]`，且项目必须同时有 `data_backups` 许可；默认空，零小时关闭，仅在线本地主机和已授权绝对私有备份根。使用现有 SQLite 偏好完整事务捕获接口，其它领域和数据库不伪支持。错误使用固定脱敏日志。
@@ -268,6 +274,17 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 
 按本轮用户覆盖要求未运行任何 Cargo、编译、单元或实机测试；仅静态阅读与对修改文件运行独立 rustfmt，没有验证通过证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置，无测试退出码及有效测试数。统一验证待运行：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_33_ -- --nocapture`，另需覆盖真实原生投影适配及进程中断边界。
 
+
+## 子任务 36：导出、分类和策略 API（2026-11-14）
+
+新增 data_aux_api：POST /agent-apps/data/export、export/download、locations/list、locations/delete、policy。下载需 data_backups 和独立 data_export 项目许可，绑定完整目标身份，缓存最多两个包、五分钟过期，撤权重新检查，重启失效。只接通真实用户偏好的 appOrder/visibleApps All 原生可迁移包，其它类别/格式明确 501；回退包不下载。两项独立 HTTP 测试已编写但未执行。
+
+分类复用 locations/location_delete，管理员 Host 可登记 data_location_roots 三元数组（app、device、environment），必须是该身份范围独占的隔离目录，不能填写共享主机目录；未登记返回 501。请求只收分类 ID；领域所有者未就绪保持 501，database 禁删；部分清理只返回字节和失败数量，不暴露文件名/路径。
+
+policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，以完整目标 JSON 为键；零小时禁用，保留数量至少一。任务29轮询只在已有 periodic_data_backups 管理员授权目标内读取覆盖设置，不扩大后台权限；成功新建后使用现有 retention 清理。未设置时沿用管理员间隔。
+
+按用户最新覆盖仅写代码，未运行任何 Cargo、单元或实机测试，无通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 未设置。待统一回归：macOS 下执行 cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_36_ -- --nocapture，并覆盖跨身份/撤权/过期、分类隔离、周期与保留设置回读。
+
 ## 子任务 37：迁入导出客户端 SDK（2026-11-14）
 
 唯一实现为 `vw-gateway-client/src/client/agent_apps_data/migration_sdk.rs`，由 client 父模块注册；公开 `DataMigrationError`、`DataExportTransfer` 及 `GatewayClient::data_migration_*` 方法。沿用任务 32 的管理员授权来源 ID，识别返回暂存 transferId 后预览；没有上传 API，SDK 不伪造上传或传递客户端路径。消费任务 33 的执行、查询、取消和显式 retry-projections，原样保留 committed、rollback、partial、逐项结果及取消意图。消费任务 36 的导出句柄响应和 POST 下载（携带完整 target），下载返回有界字节，不擅自落盘。
@@ -275,7 +292,6 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 请求沿用 native_transport 与 apply_request_context，继承租户/网关身份，应用 grant 标记 sensitive，禁自动重试与重定向；超时只返回 Timeout，不自动重放写入。HTTP 保留状态及可解析的封闭 DataManagementError，不保留原始错误载荷、URL 或令牌。成功体限 64 MiB、错误体限 16 KiB。不将未支持类别的 501 转为成功。后续 UI 必须按操作身份查询歧义结果，不把网络超时当作未提交。
 
 新增并注册独立 `migration_sdk_tests.rs`：cc_data_37_migration_sdk_preserves_operation_status、cc_data_37_migration_sdk_does_not_retry_write、cc_data_37_source_preview_and_portable_download，使用本地 TCP HTTP 夹具，覆盖部分提交状态、协议、授权头、结构化失败及导出下载；尚未执行。按用户覆盖本轮没有 Cargo、编译、单元或实机测试，没有通过证据、退出码或有效测试数；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。统一验证入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-gateway-client --lib cc_data_37_ -- --nocapture`；另待验证超时、传输断开、超限响应与跨作用域服务端拒绝。
-
 
 ## 子任务 35：恢复与诊断 API（实现，未验证）
 
@@ -301,6 +317,13 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 下载成功才打开 rfd 保存对话框，取消不创建文件；显式目标使用 create_new，拒绝同名覆盖，Unix 新文件权限 0600。写入与 sync_all 成功后才显示成功 toast；写入失败清理本次新建文件并报告清理失败。路径不进入日志，中文不使用等宽字体。设置表单复用统一输入框、复选框和按钮样式、固定标题与底部及滚动内容 4px/7px 布局。
 
 新增并注册 export_ui_tests：cc_data_41_export_ui_saves_downloaded_bytes（中文名及同名拒绝）、cc_data_41_export_ui_cancel_creates_no_file、cc_data_41_export_ui_reports_missing_directory。按用户最新覆盖要求，本轮仅实现，未运行 Cargo、单元测试、实机或字体整形测试；没有通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一执行聚焦测试与 macOS 对话框、磁盘写失败和明暗主题字体渲染验收。
+
+### 任务 40：桌面冲突确认与迁入进度（实现记录，未验证）
+
+- 在任务 39 的来源预览弹窗接入 `migration_apply_ui`，沿用同一状态与消息入口；冲突仅展示服务端允许的决策，未全部确认禁止提交。
+- SDK execute 使用保留的幂等请求；请求进行中禁止重复提交。进度通过 get 查询，cancel 仅呈现请求状态，回滚、提交结果与部分投影失败分别展示；retry-projections 由服务端执行。
+- 关闭再打开保留任务句柄，刷新可重新获取进度；回包按网关、目录代次、目标与操作 ID 核对。无前端投影调度，无真实用户数据读取。
+- 用户本轮明确要求只实现，未运行 Cargo、单元测试、字体整形或 macOS 实机验证；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一执行 `cargo test -j 1 -p vw-desktop --bin shi-ju cc_data_40_ -- --nocapture` 前需补充对应行为测试，并验证渲染与 SDK 集成。
 
 
 ## 子任务 42：桌面备份列表维护（2026-11-14，实现未验证）

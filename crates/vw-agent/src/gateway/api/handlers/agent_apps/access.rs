@@ -2246,21 +2246,20 @@ pub(in super::super) fn authorize_device_sync_probe(
     a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }
 
-/// Explicit export grant, complete principal binding and local host ownership.
-pub(in super::super) fn authorize_device_sync_upload(
-    path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::DataManagementTarget,
-) -> Result<(PathBuf, PathBuf), StatusCode> {
-    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
-        &target.target_host_id, None, Capability::DeviceSyncUpload(target.scope.project_id()))?;
-    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
-    let credentials = a.host.credential_root.filter(|p| p.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    let skills = a.host.skills_root.filter(|p| p.is_absolute())
-        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
-    Ok((credentials, skills))
+#[cfg(target_os = "macos")]
+pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
+    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
+    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
+    if ![&app,&device,&environment].iter().all(|p|p.is_absolute()) { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+    Ok((app,device,environment))
 }
 
+pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(),StatusCode> {
+    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
+    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    Ok(())
+}
 
 /// Download authority is independent from export authority. Recovery stays host-local.
 pub(in super::super) fn authorize_device_sync_download(

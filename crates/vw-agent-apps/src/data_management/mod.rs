@@ -24,19 +24,14 @@ mod backup_create_files;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_create_tests;
 
-#[cfg(target_os = "macos")]
-pub mod backup_list;
-#[cfg(all(test, target_os = "macos"))]
-mod backup_list_tests;
-
 pub mod sql_stage;
 #[cfg(test)]
 mod sql_stage_tests;
 
 #[cfg(target_os = "macos")]
-pub mod backup_delete;
+pub mod backup_list;
 #[cfg(all(test, target_os = "macos"))]
-mod backup_delete_tests;
+mod backup_list_tests;
 
 #[cfg(target_os = "macos")]
 pub mod backup_rename;
@@ -44,9 +39,20 @@ pub mod backup_rename;
 mod backup_rename_tests;
 
 #[cfg(target_os = "macos")]
+pub mod backup_delete;
+#[cfg(all(test, target_os = "macos"))]
+mod backup_delete_tests;
+
+mod source_upgrade;
+#[cfg(test)]
+mod source_upgrade_tests;
+
+#[cfg(target_os = "macos")]
 pub mod locations;
 #[cfg(all(test, target_os = "macos"))]
 mod locations_tests;
+
+pub mod shared_snapshot;
 
 pub mod preview;
 #[cfg(test)]
@@ -64,18 +70,19 @@ mod export_files;
 #[cfg(all(test, target_os = "macos"))]
 mod export_tests;
 
-pub mod shared_snapshot;
-
 #[cfg(target_os = "macos")]
 pub mod location_delete;
 #[cfg(all(test, target_os = "macos"))]
 mod location_delete_tests;
 
+#[cfg(target_os = "macos")]
+pub mod backup_api;
+
+pub mod providers;
+
 pub mod mcp;
 #[cfg(test)]
 mod mcp_tests;
-
-pub mod providers;
 #[cfg(test)]
 mod providers_tests;
 
@@ -91,6 +98,8 @@ mod profiles_tests;
 pub mod prompts;
 #[cfg(test)]
 mod prompts_tests;
+
+pub mod preferences;
 
 pub mod usage;
 #[cfg(test)]
@@ -114,12 +123,17 @@ pub mod operations;
 pub mod post_import;
 
 #[cfg(target_os = "macos")]
+pub mod backup_restore;
+
+#[cfg(target_os = "macos")]
 pub mod package_import;
 #[cfg(all(test, target_os = "macos"))]
 mod package_import_tests;
 
-#[cfg(target_os = "macos")]
-pub mod backup_restore;
-
 #[cfg(all(test, target_os = "macos"))]
 mod backup_restore_tests;
+
+#[cfg(target_os = "macos")]
+pub mod recovery;
+#[cfg(all(test, target_os = "macos"))]
+mod recovery_tests;

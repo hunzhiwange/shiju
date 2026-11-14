@@ -176,25 +176,6 @@ pub(super) fn backup_ids(parent: &File) -> Result<Vec<String>, Error> {
     Ok(ids)
 }
 
-/// Nonblocking advisory lock shared by source readers and deletion. Closing the
-/// descriptor releases it, including on error or process exit.
-pub(super) fn lock_backup(file: &File, exclusive: bool) -> Result<(), Error> {
-    let mode = if exclusive { libc::LOCK_EX } else { libc::LOCK_SH };
-    // SAFETY: file owns a live descriptor; flock does not transfer ownership.
-    if unsafe { libc::flock(file.as_raw_fd(), mode | libc::LOCK_NB) } != 0 {
-        return Err(if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
-            Error::Conflict
-        } else {
-            Error::StorageUnavailable
-        });
-    }
-    // A reader may have opened the file before a deleter unlinked it.
-    if file.metadata().map_err(|_| Error::StorageUnavailable)?.nlink() != 1 {
-        return Err(Error::Conflict);
-    }
-    Ok(())
-}
-
 /// Rename within a pinned private root. Never use exists-then-rename: only the
 /// kernel's exclusive operation arbitrates concurrent destination claims.
 pub(super) fn rename_backup(parent: &File, source: &str, target: &str) -> Result<(), Error> {
@@ -226,5 +207,47 @@ pub(super) fn rename_backup(parent: &File, source: &str, target: &str) -> Result
         );
     }
     // A sync failure is reported, but the committed destination is retained.
+    parent.sync_all().map_err(|_| Error::StorageUnavailable)
+}
+
+/// Nonblocking advisory lock shared by source readers and deletion. Closing the
+/// descriptor releases it, including on error or process exit.
+pub(super) fn lock_backup(file: &File, exclusive: bool) -> Result<(), Error> {
+    let mode = if exclusive { libc::LOCK_EX } else { libc::LOCK_SH };
+    // SAFETY: file owns a live descriptor; flock does not transfer ownership.
+    if unsafe { libc::flock(file.as_raw_fd(), mode | libc::LOCK_NB) } != 0 {
+        return Err(if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
+            Error::Conflict
+        } else {
+            Error::StorageUnavailable
+        });
+    }
+    // A reader may have opened the file before a deleter unlinked it.
+    if file.metadata().map_err(|_| Error::StorageUnavailable)?.nlink() != 1 {
+        return Err(Error::Conflict);
+    }
+    Ok(())
+}
+
+/// Caller holds the source lock and has checked its revision. Publish the new
+/// label atomically; a failure after rename may have committed and needs reread.
+pub(super) fn replace(parent: &File, id: &str, bytes: &[u8]) -> Result<(), Error> {
+    let child = name(&format!(".backup-label-{}", uuid::Uuid::new_v4()))?;
+    let mut file = open_at(parent, &child, libc::O_RDWR | libc::O_CREAT | libc::O_EXCL)?;
+    let pending = Pending { parent, child };
+    private(&file, false)?;
+    file.write_all(bytes).map_err(|_| Error::StorageUnavailable)?;
+    file.sync_all().map_err(|_| Error::StorageUnavailable)?;
+    let mut reread = Vec::new();
+    open_at(parent, &pending.child, libc::O_RDONLY)?
+        .take(MAX_SNAPSHOT_BYTES as u64 + 1).read_to_end(&mut reread)
+        .map_err(|_| Error::StorageUnavailable)?;
+    if reread != bytes { return Err(Error::Corrupt); }
+    let destination = archive_name(id)?;
+    // SAFETY: both names belong to the pinned private directory.
+    if unsafe { libc::renameat(parent.as_raw_fd(), pending.child.as_ptr(),
+        parent.as_raw_fd(), destination.as_ptr()) } != 0 {
+        return Err(Error::StorageUnavailable);
+    }
     parent.sync_all().map_err(|_| Error::StorageUnavailable)
 }

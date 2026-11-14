@@ -7,6 +7,7 @@ use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management:
 
 #[derive(Clone, Default)]
 pub(crate) struct State {
+    pub(super) apply: super::migration_apply_ui::State,
     open: bool,
     source: String,
     principal: String,
@@ -19,10 +20,11 @@ pub(crate) struct State {
 #[derive(Debug, Clone)]
 pub(crate) enum Event {
     Open, Close, Source(String), Principal(String), Preview,
+    Apply(super::migration_apply_ui::Event),
     Loaded(u64, DataManagementTarget, String, u64, Result<DataImportPreview, ()>),
 }
 fn message(event: Event) -> Message { Message::Settings(SettingsMessage::MigrationPreview(event)) }
-fn target(app: &App) -> Option<DataManagementTarget> {
+pub(super) fn target(app: &App) -> Option<DataManagementTarget> {
     let client = crate::app::config::gateway_client().ok()?;
     let context = crate::app::state::AgentAppsContext { gateway: client.endpoint().base_url(),
         tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
@@ -35,6 +37,11 @@ fn target(app: &App) -> Option<DataManagementTarget> {
     })
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Apply(event) = event { return super::migration_apply_ui::update(app, event); }
+    if matches!(&event, Event::Preview | Event::Source(_) | Event::Principal(_))
+        && app.apps_catalog.migration_preview.apply.request.as_ref().is_some_and(|r| Some(&r.target) == target(app).as_ref()) {
+        return app.show_error_toast("请先查看当前迁入结果；离开页面不会取消任务");
+    }
     if let Event::Preview = event {
         let Some(target) = target(app).filter(|t| !t.principal_id.is_empty()) else {
             return app.show_error_toast("请连接网关、选择项目与主机并填写用户身份");
@@ -72,7 +79,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let catalog = app.apps_catalog.generation;
     let state = &mut app.apps_catalog.migration_preview;
     match event {
-        Event::Open => { state.open = true; state.result = None; }
+        Event::Open => { state.open = true; }
         Event::Close => { state.open = false; state.loading = false; state.generation = state.generation.wrapping_add(1); }
         Event::Source(value) => { state.source = value; state.result = None; state.loading = false; state.generation = state.generation.wrapping_add(1); }
         Event::Principal(value) => { state.principal = value; state.result = None; state.loading = false; state.generation = state.generation.wrapping_add(1); }
@@ -85,7 +92,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Err(()) => { state.error = true; return app.show_error_toast("来源读取或预览失败，请检查授权、版本与来源有效期"); }
             }
         }
-        Event::Preview => unreachable!(),
+        Event::Preview | Event::Apply(_) => unreachable!(),
     }
     Task::none()
 }
@@ -106,6 +113,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     if let Some(preview) = &state.result {
         if target(app).as_ref() == Some(&preview.target)
             && state.result_context == crate::app::config::gateway_client().ok().map(|c| (c.endpoint().base_url(), app.apps_catalog.generation)) {
+            body = body.push(super::migration_apply_ui::view(app, preview));
             // Never display arbitrary source metadata or opaque IDs as labels.
             let version = &preview.source.application_version;
             let version = if version.len() <= 32 && version.bytes().all(|b| b.is_ascii_digit() || b == b'.') { version.as_str() } else { "未知" };

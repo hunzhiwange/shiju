@@ -508,6 +508,13 @@ pub(crate) mod openclaw_model;
 #[path = "agent_apps/openclaw_model_tests.rs"]
 mod openclaw_model_tests;
 
+#[path = "agent_apps/openclaw_catalog.rs"]
+pub(crate) mod openclaw_catalog;
+
+#[cfg(test)]
+#[path = "agent_apps/openclaw_catalog_tests.rs"]
+mod openclaw_catalog_tests;
+
 #[path = "agent_apps/openclaw_defaults.rs"]
 pub(crate) mod openclaw_defaults;
 
@@ -516,13 +523,6 @@ pub(crate) mod openclaw_tools;
 
 #[path = "agent_apps/openclaw_env.rs"]
 pub(crate) mod openclaw_env;
-
-#[path = "agent_apps/openclaw_catalog.rs"]
-pub(crate) mod openclaw_catalog;
-
-#[cfg(test)]
-#[path = "agent_apps/openclaw_catalog_tests.rs"]
-mod openclaw_catalog_tests;
 
 #[path = "agent_apps/hermes_memory_limits.rs"]
 pub(crate) mod hermes_memory_limits;
@@ -536,11 +536,11 @@ pub(crate) mod daily_memory;
 #[path = "agent_apps/daily_memory_tests.rs"]
 mod daily_memory_tests;
 
-#[path = "agent_apps/workspace_files.rs"]
-pub(crate) mod workspace_files;
-
 #[path = "agent_apps/daily_memory_search.rs"]
 pub(crate) mod daily_memory_search;
+
+#[path = "agent_apps/workspace_files.rs"]
+pub(crate) mod workspace_files;
 
 pub(crate) mod app_routing;
 

@@ -45,6 +45,11 @@ pub mod workspace_files;
 mod workspace_files_tests;
 
 #[cfg(target_os = "macos")]
+pub mod hermes_memory;
+#[cfg(all(test, target_os = "macos"))]
+mod hermes_memory_tests;
+
+#[cfg(target_os = "macos")]
 pub mod daily_memory_files;
 #[cfg(all(test, target_os = "macos"))]
 mod daily_memory_files_tests;
@@ -53,6 +58,11 @@ mod daily_memory_files_tests;
 pub mod openclaw_model;
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_model_tests;
+
+#[cfg(target_os = "macos")]
+pub mod openclaw_catalog;
+#[cfg(all(test, target_os = "macos"))]
+mod openclaw_catalog_tests;
 
 #[cfg(target_os = "macos")]
 pub mod openclaw_defaults;

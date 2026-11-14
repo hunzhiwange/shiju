@@ -60,6 +60,13 @@
 
 已静态核对来源、前置合同、日期 DTO 与文件 IO/写锁实现；新增四个 daily_roundtrip_valid_dates 前缀测试源码，未执行。依本轮要求未运行 Cargo、单元测试、实机或其他测试，未启动最终回归，不声明验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证该过滤测试及写入失败场景。本任务卡按用户指令删除。
 
+
+## 任务 16：OpenClaw 默认模型分节（2026-11-14）
+
+新增 openclaw_model 的 get_default_model/prepare_default_model/set_default_model，复用 OpenClawFiles snapshot/apply 与物理锁、冲突检查和原子事务。保留未知扩展、回退顺序及重复值；结果包含 warnings。已有 JSONC round-trip 支持用于保留注释和非目标字节；底层明确拒绝完整 JSON5（单引号、无引号键），此限制已留源码 TODO，不能宣称 JSON5 完整交付。
+
+静态读取来源默认模型函数、前置正式合同、任务 3 路径边界、供应商事务和 patch_json；新增两个独立测试源码，覆盖字节保留、回退顺序、未知字段、幂等、缺失和非法形状。本轮按用户要求未运行 Cargo、测试或实机验收，不声明验证通过；未领取槽位，CARGO_TARGET_DIR 未设置。后续建议补齐共享 JSON5 round-trip 后统一验证。依指令删除任务卡。
+
 ## 任务 17：OpenClaw 模型白名单分节（2026-11-14）
 
 新增 openclaw_catalog::{get_model_catalog,set_model_catalog}，读取 agents.defaults.models 的 alias 与未知字段；缺失返回 None，显式空目录保留为空对象。候选编辑仅替换 models，保留 model、其他 defaults 及非目标文本；畸形祖先拒绝覆盖。复用 providers/live/patch_json 的 round-trip 层，发布须由调用者沿用 OpenClawFiles 与共享事务锁；没有新增配置 IO 所有者。当前底层仅支持 JSON/JSONC，完整 JSON5 明确拒绝，未扩展语法能力。
@@ -106,7 +113,6 @@
 本条取代上文任务 16 的 JSON5 缺项结论。新增 providers/live/patch_json5：复用既有叶节点协调算法，以 json-five 0.3.1 的 JSON5 tokenizer/serde 解码定位原文 byte spans，只替换变化值，不通过 AST formatter 重印文件。因此单引号、裸键/转义键、Unicode 空白、行续接、十六进制、小数、Infinity/NaN、注释及尾逗号等非目标原文保留；解码后重复键仍拒绝，原有 1MiB 输入边界和解析深度限制保留。JSONC 通用模块合同不变。
 
 OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改用共享 JSON5 模块，配置发布仍复用 OpenClawFiles/ProviderTransactions，未新增写入所有者。新增独立 JSON5 测试源码并调整旧裸键拒绝断言；只读审查了来源配置函数及 json-five 0.3.1 原始 tokenizer/parser/de 源码，未运行任何测试、Cargo 或实机检查。不声称编译或行为验证通过。新增轻量解析依赖；按本轮禁令未调用 Cargo 更新 Cargo.lock，后续统一验证阶段需先解析依赖更新锁文件。未领取槽位，CARGO_TARGET_DIR 未设置。
-
 
 ## 任务 7：每日记忆列表元数据（2026-11-14）
 
@@ -174,12 +180,6 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 
 静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
 
-## 任务 22：OpenClaw 设置接口类型（2026-11-14）
-
-新增 openclaw_settings 的 model/catalog/defaults/env/tools/health/WriteOutcome DTO，保留分节扩展、未知 profile、缺失与空对象及结构化警告和 backupPath。defaults/env 沿用领域对象形状；不新增路径或命令入口，env 独立敏感读取权限明确为调用者合同，载荷不派生 Debug。来源 WriteOutcome 为结构化 warnings，现有领域字符串 warnings 由后续路由适配。
-
-静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
-
 ## 任务 23：OpenClaw 模型、目录与默认设置路由（2026-11-14）
 
 新增固定 GET/PUT `/v1/agent-apps/openclaw/settings/{model,catalog,defaults}`；查询使用 projectId/targetHostId，沿用租户上下文及 x-agent-apps-token。独立 `openclaw_settings_read/write` 项目授权在 IO 前检查，写入复用 OpenClawFiles/ProviderTransactions 与提交前授权复核；恢复/冲突返回 409，未知字段由底层分节保留，写警告映射到公开 outcome。注册沿用相邻 Hermes 在 agent_apps/mod.rs 中的路由所有者，未复制 import 或 provider 存储。
@@ -204,12 +204,6 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 
 静态核对任务 1 正式合同、接口边界、来源映射、workspace.ts、相邻 desktop/Hermes SDK 测试及任务 9 真实路由。新增 workspace_sdk_preserves_scope 前缀测试源码，覆盖方法/路径/编码/租户/令牌/body、空与缺失、中文、HTTP 拒绝与解码失败、搜索提交/查询和取消失败后停止接收。按用户本轮要求未运行 Cargo、单元/实机或其它测试及最终回归，不声明编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证该过滤测试和正式 Gateway 集成。
 
-## 任务 32：桌面 Hermes 双记忆草稿（2026-11-14）
-
-新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
-
-已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。
-
 ## 任务 34：桌面 OpenClaw 模型选择（2026-11-14）
 
 新增 `components/agent_apps/openclaw_model.rs`，从应用详情打开统一设置弹窗；调用任务 25 的 model/catalog/health SDK 与 model PUT。读取失败不开放保存；当前未配置值保留；保存排除 primary、空值和重复 fallback，保留 model 扩展字段。写警告与只读健康提示在弹窗展示，错误使用 toast。网关、租户、项目、执行主机、目录与请求代数共同拒绝过期响应，关闭和切换连接使请求失效。配置 JSON5 原文仍由底层分节事务维护。
@@ -223,6 +217,13 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
 
 已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。
+
+
+## 任务 35：桌面 OpenClaw 模型白名单（2026-11-14）
+
+- 静态核对任务 25 的 `openclaw_settings_catalog` / `set_openclaw_settings_catalog` 及强类型 DTO；沿用应用详情导航、项目/主机/网关上下文和过期响应隔离。
+- 新增 catalog 独立弹窗，编辑 JSON 中 alias 与任意额外字段，缺分节明确提示，`{}` 可显式保存；失败保留草稿，保存只使用 catalog SDK，不写默认模型。使用统一设置编辑器及弹窗、默认字体。
+- 添加两个 `openclaw_catalog_editor_preserves_aliases` 前缀测试用例，尚未执行。按本轮最高优先指令，未运行 Cargo、单元测试或实机验证；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。不宣称编译、行为测试或 macOS 验收通过，后续统一验证。
 
 ## 任务 36：桌面 OpenClaw 代理默认表单（2026-11-14）
 
@@ -249,6 +250,12 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 
 补充三个独立测试源码，覆盖 profile 区分、未知值/扩展保留、空白条目过滤和失败保稿及写入警告，均未执行。按本轮用户要求未运行 Cargo、任何测试或最终回归，不宣称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族及暗黑主题中文实际渲染。
 
+## 任务 33：桌面 Hermes 预算与开关（2026-11-14）
+
+扩展任务 32 双记忆编辑器，预算/双开关由 SDK 读取，按 UTF-16 单元展示剩余或超限，不截断原文；禁用仍可编辑并提示跳过记忆。开关写入成功后同作用域刷新，失败保留原状态并显示脱敏 SDK 错误及 toast；刷新失败明确提示已保存但状态待刷新。模型仅展示供应商领域快照及修改入口说明。复用统一控件、默认字体与既有页面作用域/代次校验，离页或切换连接使旧响应失效。
+
+静态读取来源 HermesMemoryPanel/hermesMemoryDrafts/相邻测试、任务 1 正式合同、任务 32、SDK/DTO 和统一设置控件；新增两个 hermes_budget_matches_utf16_count 前缀测试源码，覆盖中文、emoji、组合字符、零预算及超限保留。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证该测试族、开关失败/刷新及实际明暗渲染。
+
 ## 任务 26：工作区目录主机动作（2026-11-14）
 
 仅静态源码审查，未执行 Cargo、单元测试、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。
@@ -256,12 +263,6 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 POST `/v1/agent-apps/openclaw/workspace/open-directory`，沿用 projectId/targetHostId 查询上下文与租户、令牌认证。body 仅接受 `{"subdir":"workspace"}` 或 `{"subdir":"memory"}`，未知字段/目录被 serde 拒绝。要求 workspace_write 项目权限；离线返回 503、远程绑定返回 501，均不回退客户端路径。安全目录所有者以授权执行 HOME 为根，descriptor 相对创建固定目录并拒绝链接；系统 opener 在持有目录描述符对应 cwd 中打开 Finder，失败返回 500。SDK `open_workspace_directory` 复用作用域和错误传递；取消等待不能撤销已接收的系统动作。
 
 注册复用既有 agent_apps 路由所有者，没有重复领域服务。后续统一验证应覆盖权限拒绝、两种目录、符号链接、远程/离线、SDK 上下文与 macOS Finder 实际行为；本文不声称任何运行验证通过。
-
-## 任务 33：桌面 Hermes 预算与开关（2026-11-14）
-
-扩展任务 32 双记忆编辑器，预算/双开关由 SDK 读取，按 UTF-16 单元展示剩余或超限，不截断原文；禁用仍可编辑并提示跳过记忆。开关写入成功后同作用域刷新，失败保留原状态并显示脱敏 SDK 错误及 toast；刷新失败明确提示已保存但状态待刷新。模型仅展示供应商领域快照及修改入口说明。复用统一控件、默认字体与既有页面作用域/代次校验，离页或切换连接使旧响应失效。
-
-静态读取来源 HermesMemoryPanel/hermesMemoryDrafts/相邻测试、任务 1 正式合同、任务 32、SDK/DTO 和统一设置控件；新增两个 hermes_budget_matches_utf16_count 前缀测试源码，覆盖中文、emoji、组合字符、零预算及超限保留。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证该测试族、开关失败/刷新及实际明暗渲染。
 
 ## 任务 30：桌面每日记忆列表与编辑（2026-11-14）
 

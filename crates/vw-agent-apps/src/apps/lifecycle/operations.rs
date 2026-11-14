@@ -67,7 +67,6 @@ impl Operation {
         *self.cancel.borrow()
     }
     /// Wait until cancellation is requested, including requests made before subscribing.
-    #[cfg(target_os = "macos")]
     pub async fn cancelled(&self) {
         let mut signal = self.cancel.subscribe();
         let _ = signal.wait_for(|&cancelled| cancelled).await;

@@ -16,6 +16,11 @@ pub(crate) struct AppsCatalogState {
     pub workspace_files: crate::app::components::workspace_files::State,
     pub daily_memory: crate::app::components::daily_memory::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
+    pub openclaw_catalog: crate::app::components::openclaw_catalog::State,
+    pub openclaw_tools: crate::app::components::openclaw_tools::State,
+    pub openclaw_env: crate::app::components::openclaw_env::State,
+    pub openclaw_model: crate::app::components::openclaw_model::State,
+    pub openclaw_defaults: crate::app::components::openclaw_defaults::State,
     pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
     pub failover_health: crate::app::message::agent_apps_health::State,
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
@@ -71,13 +76,12 @@ impl AppsCatalogState {
         self.high_availability.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
-        self.external_sessions.invalidate();
+        self.hermes_dashboard.invalidate();
         self.openclaw_catalog.invalidate();
         self.openclaw_model.invalidate();
         self.openclaw_tools.invalidate();
         self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
-        self.hermes_dashboard.invalidate();
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
@@ -94,13 +98,12 @@ impl AppsCatalogState {
         self.high_availability.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
+        self.hermes_dashboard.invalidate();
         self.openclaw_catalog.invalidate();
         self.openclaw_model.invalidate();
-        self.external_sessions.invalidate();
         self.openclaw_tools.invalidate();
         self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
-        self.hermes_dashboard.invalidate();
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();

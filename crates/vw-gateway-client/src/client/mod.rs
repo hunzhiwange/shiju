@@ -457,3 +457,12 @@ pub use workspace_memory_api::{WorkspaceMemoryScope, WorkspaceMemoryError, Works
 mod workspace_memory_api_tests;
 
 mod workspace_directory_api;
+
+mod computer_control_api;
+pub use computer_control_api::ComputerControlApiError;
+#[cfg(test)]
+mod computer_control_api_tests;
+
+mod external_sessions;
+#[cfg(not(target_arch = "wasm32"))]
+pub use external_sessions::ExternalSessionStream;

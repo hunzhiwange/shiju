@@ -37,6 +37,7 @@ pub use client::AppRoutingError;
 pub use client::SkillInstallError;
 pub use client::{MarketSearchError, SkillDiscoveryError, SkillInventoryError, SkillImportError};
 pub use client::AgentAppsHighAvailabilityError;
+pub use client::ComputerControlApiError;
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
 #[cfg(not(target_arch = "wasm32"))]

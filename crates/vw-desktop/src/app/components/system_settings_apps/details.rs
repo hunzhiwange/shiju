@@ -26,18 +26,17 @@ pub(super) fn view<'a>(
     if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(app.entry.id) {
         details = details.push(crate::app::components::project_profile_selection::view(&state.project_profiles, scope));
     }
-
     details = details.push(crate::app::components::app_routing::config::timeout_button(app.entry.id));
     details = details.push(crate::app::components::app_routing::outbound::entry(app.entry.id));
     details = details.push(crate::app::components::app_routing::requests::entry(app.entry.id));
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {
         details = details.push(crate::app::components::openclaw_model::entry());
-        details = details.push(crate::app::components::openclaw_catalog::entry());
         details = details.push(crate::app::components::workspace_files::entry());
         details = details.push(crate::app::components::daily_memory::entry());
         details = details.push(crate::app::components::openclaw_tools::entry());
         details = details.push(crate::app::components::openclaw_env::entry());
         details = details.push(crate::app::components::openclaw_defaults::entry());
+        details = details.push(crate::app::components::openclaw_catalog::entry());
     }
     details = details.push(crate::app::components::system_settings_prompts::list::view(&state.prompts, app.entry.id));
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::Hermes {

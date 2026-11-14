@@ -249,6 +249,9 @@ pub(crate) mod agent_apps;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_high_availability_tests;
 
+#[cfg(all(test, target_os = "macos"))]
+mod agent_apps_ha_acceptance_tests;
+
 pub(crate) mod agent_apps_auth_read;
 #[cfg(all(test, target_os = "macos"))]
 mod agent_apps_auth_read_tests;
@@ -429,17 +432,40 @@ mod mcp_management_tools;
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_tools_tests;
 
+pub(crate) mod agent_apps_skills;
+
+pub(crate) mod agent_app_prompt_files;
+
+pub(crate) mod agent_app_prompts_read;
+
+pub(crate) mod agent_app_prompts_write;
+
+pub(crate) mod agent_app_prompts_activation;
+
+pub(crate) mod agent_app_prompt_templates;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod agent_app_prompt_sync;
+
+pub(crate) mod agent_app_prompt_shared_import;
+
+pub(crate) mod computer_control;
+#[cfg(test)]
+mod computer_control_tests;
+
 pub(crate) mod project_profiles;
 
 mod external_sessions;
 mod backup_inventory;
 
-mod device_sync_config;
-
-mod device_sync_probe;
+pub(crate) mod agent_apps_data;
 
 pub(crate) mod device_sync_jobs;
 mod device_sync_download;
 mod device_sync_projection;
+
+mod device_sync_config;
+
+mod device_sync_probe;
 
 mod device_sync_tasks;

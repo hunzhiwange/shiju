@@ -63,6 +63,8 @@ pub(crate) use navigation::SETTINGS_NAVIGATION_SCROLL;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemTab {
     #[cfg(not(target_arch = "wasm32"))]
+    ComputerControl,
+    #[cfg(not(target_arch = "wasm32"))]
     Voice,
     /// 应用目录与安装诊断
     Apps,
@@ -124,6 +126,8 @@ impl SystemTab {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
             SystemTab::Voice => "语音设置",
+            #[cfg(not(target_arch = "wasm32"))]
+            SystemTab::ComputerControl => "电脑操控",
             SystemTab::Apps => "应用列表",
             #[cfg(not(target_arch = "wasm32"))]
             SystemTab::Auth => "授权中心",
@@ -223,6 +227,8 @@ pub(super) fn system_tab_keywords(tab: SystemTab) -> &'static [&'static str] {
         SystemTab::WebSearch => &["network", "网络"],
         SystemTab::HttpRequest => &["http request", "network request"],
         SystemTab::Browser => &["browser", "computer use"],
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::ComputerControl => &["computer control", "电脑操控", "Chrome", "Excel", "Word", "锁屏", "站点", "授权"],
     }
 }
 
@@ -383,6 +389,8 @@ pub(super) fn active_tab_save_error(app: &App, active_tab: SystemTab) -> Option<
         SystemTab::HttpRequest => app.http_request_settings.save_error.as_deref(),
         SystemTab::Browser => app.browser_settings.save_error.as_deref(),
         #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::ComputerControl => None,
+        #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => None,
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => None,
@@ -430,6 +438,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
                 &app.apps_catalog,
                 crate::app::i18n::I18n::new(app.desktop_locale),
             ),
+            crate::app::components::system_settings_data::migration_preview_ui::view(app),
             crate::app::message::settings::backup_inventory::view(app),
             super::system_settings_data::export_ui::view(app),
             super::system_settings_data::backup_list_ui::view(app),
@@ -519,7 +528,8 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
                     | crate::app::state::CronSettingsTab::History
             ));
     #[cfg(not(target_arch = "wasm32"))]
-    let owns_scroll = owns_scroll || active_tab == SystemTab::Auth;
+    let owns_scroll = owns_scroll
+        || matches!(active_tab, SystemTab::Auth | SystemTab::ComputerControl);
     let owns_scroll = owns_scroll || active_tab_help_modal_open(app, active_tab);
     let content_column =
         if owns_scroll { content_column.height(Length::Fill) } else { content_column };
@@ -777,8 +787,6 @@ pub(crate) fn traverse_select_focus(reverse: bool) -> iced::Task<Message> {
         operate(scope(scope_id, focusable::focus_next::<()>())).discard()
     }
 }
-    #[cfg(target_os = "macos")]
-    let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "system_settings_ui_refresh_04_tests.rs"]

@@ -40,15 +40,18 @@ pub(crate) fn view_overlays<'a>(
     theme: &Theme,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let base = crate::app::components::workspace_files::overlay(&state.workspace_files, &state.host, base);
     let base = crate::app::components::app_routing::requests::overlay(state, base);
+    let base = crate::app::components::app_routing::config::overlay(state, base);
+    let base = crate::app::components::openclaw_catalog::overlay(&state.openclaw_catalog, base);
+    let base = crate::app::components::workspace_files::overlay(&state.workspace_files, &state.host, base);
     let base = crate::app::components::daily_memory::overlay(&state.daily_memory, base);
     let base = crate::app::components::openclaw_tools::overlay(&state.openclaw_tools, base);
     let base = crate::app::components::openclaw_env::overlay(&state.openclaw_env, base);
-    let base = crate::app::components::app_routing::config::overlay(state, base);
-    let base = crate::app::components::openclaw_catalog::overlay(&state.openclaw_catalog, base);
     let base = crate::app::components::openclaw_model::overlay(&state.openclaw_model, base);
     let base = crate::app::components::openclaw_defaults::overlay(&state.openclaw_defaults, base);
+    let base = crate::app::components::system_settings_prompts::templates::overlay(&state.prompts.templates, base);
+    let base = crate::app::components::system_settings_prompts::pi_files::overlay(&state.prompts.pi_files, base);
+    let base = crate::app::components::agent_apps_high_availability_policy::overlay(&state.high_availability, base);
     if !state.connection_open {
         return launch::overlay(
             state,

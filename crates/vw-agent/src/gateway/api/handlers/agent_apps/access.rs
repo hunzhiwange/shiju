@@ -46,14 +46,24 @@ struct Grant {
     #[serde(default)]
     device_sync_download: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
-    device_sync_probe: Vec<vw_api_types::id::ProjectId>,
-    #[serde(default)]
-    device_sync_config: Vec<vw_api_types::id::ProjectId>,
-    #[serde(default)]
     data_migration_read: Vec<vw_api_types::id::ProjectId>,
     /// Explicit background authority; API backup grants alone do not schedule work.
     #[serde(default)]
     periodic_data_backups: Vec<PeriodicDataBackupPermit>,
+    #[serde(default)]
+    data_backups: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    data_export: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    external_sessions_read: Vec<ExternalHistoryPermit>,
+    #[serde(default)]
+    external_sessions_delete: Vec<ExternalHistoryPermit>,
+    #[serde(default)]
+    external_sessions_resume: Vec<ExternalHistoryPermit>,
+    #[serde(default)]
+    external_sessions_maintenance: Vec<ExternalHistoryPermit>,
+    #[serde(default)]
+    external_terminal_settings: bool,
     #[serde(default)]
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     #[serde(default)]
@@ -544,6 +554,7 @@ pub(super) struct IdentityPermit {
     pub id: String,
 }
 pub(super) struct Authorization {
+    external_history: Vec<ExternalHistoryPermit>,
     pub host: Host,
     pub principal: String,
     #[cfg(target_os = "macos")]
@@ -702,9 +713,18 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
     DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
     DeviceSyncDownload(&'a vw_api_types::id::ProjectId),
-    DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
+    DataMigrationRead(&'a vw_api_types::id::ProjectId),
+    DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
+    DataBackups(&'a vw_api_types::id::ProjectId),
+    DataExport(&'a vw_api_types::id::ProjectId),
+    ExternalHistory(&'a vw_api_types::id::ProjectId),
+    ExternalHistoryMaintenance(&'a vw_api_types::id::ProjectId),
+    ExternalHistoryDelete(&'a vw_api_types::id::ProjectId),
+    ExternalHistoryResume(&'a vw_api_types::id::ProjectId),
+    ExternalTerminalSettings,
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
     ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
     OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
@@ -1002,6 +1022,12 @@ fn authorize_digest(
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
                     Capability::DeviceSyncProbe(project) => g.device_sync_probe.contains(project),
+                    Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
+                    Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
+                    Capability::DeviceSyncDownload(project) => g.device_sync_download.contains(project),
+                    Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
+                    Capability::DataBackups(project) => g.data_backups.contains(project),
+                    Capability::DataExport(project) => g.data_export.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
                     }
@@ -1227,6 +1253,7 @@ fn authorize_digest(
         return Err(StatusCode::NOT_IMPLEMENTED);
     }
     Ok(Authorization {
+        external_history,
         host,
         principal: principal.id.clone(),
         #[cfg(target_os = "macos")]
@@ -2113,6 +2140,150 @@ pub(super) fn authorize_project_profiles_maintenance(
         Capability::ProjectProfilesMaintain(project.project_id())).map(|a| a.host.id)
 }
 
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExternalHistoryPermit {
+    project_id: vw_api_types::id::ProjectId,
+    provider: vw_api_types::external_session::SessionProvider,
+    instance_id: String,
+}
+/// Administrator-owned native instance paths; never populated from request data.
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(in super::super) struct ExternalHistoryInstance {
+    pub instance_id: String,
+    pub provider: vw_api_types::external_session::SessionProvider,
+    pub root: PathBuf,
+    #[serde(default)]
+    pub resume: Option<ExternalResumeSettings>,
+}
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(in super::super) struct ExternalResumeSettings {
+    pub installation_id: vw_api_types::agent_apps::AppInstallationId,
+    pub project_roots: Vec<PathBuf>,
+    pub native_agent_dir: Option<PathBuf>,
+    pub profile: Option<String>,
+    pub session_dir: Option<String>,
+    pub xdg_data_home: Option<PathBuf>,
+    pub pi_config_dir: Option<PathBuf>,
+    pub xdg_state_home: Option<PathBuf>,
+    pub xdg_cache_home: Option<PathBuf>,
+    pub agy_provider_id: Option<String>,
+    pub custom_terminal: Option<ExternalCustomTerminal>,
+}
+#[derive(Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(in super::super) struct ExternalCustomTerminal {
+    pub program: PathBuf,
+    pub arguments: Vec<String>,
+}
+pub(in super::super) struct ExternalResumeHost {
+    pub id: String,
+    pub home: PathBuf,
+    pub search_paths: Vec<PathBuf>,
+    pub applications: PathBuf,
+    pub credential_root: Option<PathBuf>,
+}
+pub(in super::super) fn authorize_external_history_resume(
+    path: Option<&Path>, headers: &HeaderMap, id: &vw_api_types::external_session::ExternalSessionIdentity,
+    custom: bool,
+) -> Result<(ExternalResumeHost, ExternalHistoryInstance, String, bool), StatusCode> {
+    let a = authorize_scoped(path, headers, id.scope.tenant_scope(), &id.target_host, None,
+        Capability::ExternalHistoryResume(id.scope.project_id()))?;
+    if custom {
+        authorize_scoped(path, headers, id.scope.tenant_scope(), &id.target_host, None,
+            Capability::ExternalTerminalSettings)?;
+    }
+    let mut instances = a.host.external_session_instances.iter().filter(|i|
+        i.provider == id.provider && i.instance_id == id.instance_id && a.external_history.iter().any(|p|
+            p.provider == i.provider && p.instance_id == i.instance_id));
+    let instance = instances.next().ok_or(StatusCode::FORBIDDEN)?.clone();
+    if instances.next().is_some() || !instance.root.is_absolute() || !instance.root.starts_with(&a.host.home)
+        || instance.root.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    let agy_owner = path.is_some() && a.native_login_owner(AuthService::AgyOauth) == Some(true);
+    let host = ExternalResumeHost { id: a.host.id, home: a.host.home,
+        search_paths: a.host.search_paths, applications: a.host.applications,
+        credential_root: a.host.credential_root };
+    Ok((host, instance, a.principal, agy_owner))
+}
+pub(in super::super) fn authorize_external_history(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>), StatusCode> {
+    let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::ExternalHistory(project.project_id()))?;
+    let permits = authorization.external_history;
+    let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
+        permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
+    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
+    let mut keys = HashSet::new();
+    for i in &instances {
+        if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
+            || !i.root.is_absolute() || !i.root.starts_with(&authorization.host.home)
+            || i.root.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
+        }
+    }
+    Ok((authorization.principal, authorization.host.home, instances))
+}
+
+/// Deletion never inherits a history read grant.
+pub(in super::super) fn authorize_external_history_delete(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>), StatusCode> {
+    let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::ExternalHistoryDelete(project.project_id()))?;
+    let permits = authorization.external_history;
+    let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
+        permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
+    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
+    let mut keys = HashSet::new();
+    for i in &instances {
+        if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
+            || !i.root.is_absolute() || !i.root.starts_with(&authorization.host.home)
+            || i.root.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
+        }
+    }
+    Ok((authorization.principal, authorization.host.home, instances))
+}
+
+/// Maintenance never inherits read, deletion or provider configuration authority.
+pub(in super::super) fn authorize_external_history_maintenance(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, target: &str,
+) -> Result<(String, PathBuf, Vec<ExternalHistoryInstance>, PathBuf), StatusCode> {
+    let authorization = authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::ExternalHistoryMaintenance(project.project_id()))?;
+    let private = authorization.host.credential_root.clone().filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let permits = authorization.external_history;
+    let instances: Vec<_> = authorization.host.external_session_instances.into_iter().filter(|i|
+        permits.iter().any(|p| p.provider == i.provider && p.instance_id == i.instance_id)).collect();
+    if instances.is_empty() { return Err(StatusCode::FORBIDDEN); }
+    let mut keys = HashSet::new();
+    for i in &instances {
+        if i.instance_id.trim().is_empty() || !keys.insert((i.provider, &i.instance_id))
+            || !i.root.is_absolute() || !i.root.starts_with(&authorization.host.home)
+            || i.root.components().any(|c| matches!(c, std::path::Component::ParentDir | std::path::Component::CurDir)) {
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
+        }
+    }
+    Ok((authorization.principal, authorization.host.home, instances, private))
+}
+
+/// Backup authority is independent of inventory, export and lifecycle grants.
+pub(in super::super) fn authorize_data_backups(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+) -> Result<PathBuf, StatusCode> {
+    let authorized = authorize_scoped(path, headers, target.scope.tenant_scope(),
+        &target.target_host_id, None, Capability::DataBackups(target.scope.project_id()))?;
+    if authorized.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    authorized.host.data_backup_root.filter(|root| root.is_absolute())
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)
+}
+
 /// Resolve backup inventory ownership from authentication, never desktop claims.
 pub(in super::super) fn authorize_backup_inventory(
     path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
@@ -2200,11 +2371,10 @@ pub(in super::super) fn authorize_data_migration(
 /// Explicit export grant, complete principal binding and local host ownership.
 pub(in super::super) fn authorize_device_sync_upload(
     path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
-    source_id: Option<&str>,
-) -> Result<Option<(PathBuf, PathBuf)>, StatusCode> {
-    let a = authorize_scoped(path, headers, target.scope.tenant_scope(), &target.target_host_id,
-        None, Capability::DataMigrationRead(target.scope.project_id()))?;
+    target: &vw_api_types::agent_apps::DataManagementTarget,
+) -> Result<(PathBuf, PathBuf), StatusCode> {
+    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
+        &target.target_host_id, None, Capability::DeviceSyncUpload(target.scope.project_id()))?;
     if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
     let credentials = a.host.credential_root.filter(|p| p.is_absolute())
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;

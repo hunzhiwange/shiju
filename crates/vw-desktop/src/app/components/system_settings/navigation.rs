@@ -28,6 +28,8 @@ pub(super) const GROUPS: &[(&str, &[SystemTab])] = {
                 General,
                 Apps,
                 #[cfg(not(target_arch = "wasm32"))]
+                ComputerControl,
+                #[cfg(not(target_arch = "wasm32"))]
                 Auth,
                 #[cfg(not(target_arch = "wasm32"))]
                 Voice,
@@ -214,6 +216,8 @@ fn tab_icon(tab: SystemTab) -> Icon {
         SystemTab::Themes => Icon::Palette,
         SystemTab::Editor => Icon::Code,
         SystemTab::Apps => Icon::Grid1x2,
+        #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::ComputerControl => Icon::Sliders,
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => Icon::ShieldLock,
         SystemTab::Projects | SystemTab::Worktrees => Icon::FolderOpen,

@@ -34,11 +34,10 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             let value = tab.editor.inner.wrap_column().map(|n| n.to_string()).unwrap_or_default();
             let mut input = settings_text_input(i18n.__("留空随视口"), &value);
             if tab.editor.inner.wrap_enabled() {
-                input = input.on_input(|value| Message::Editor(EditorMessage::SetWrapColumn(value)));
+                input =
+                    input.on_input(|value| Message::Editor(EditorMessage::SetWrapColumn(value)));
             }
-            content = content
-                .push(text(i18n.__("换行列宽（正整数）")).size(12))
-                .push(input);
+            content = content.push(text(i18n.__("换行列宽（正整数）")).size(12)).push(input);
         }
     }
     content

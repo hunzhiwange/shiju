@@ -50,7 +50,6 @@ pub mod common;
 pub mod computer_control;
 pub mod device_sync_task;
 pub mod device_sync_config;
-pub mod device_sync_task;
 pub mod error;
 pub mod external_session;
 pub mod file;

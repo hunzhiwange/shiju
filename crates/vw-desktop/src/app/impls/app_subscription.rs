@@ -192,6 +192,7 @@ impl App {
             .unwrap_or_else(Subscription::none);
 
         let events = Subscription::batch([
+            crate::app::components::daily_memory::subscription(&self.apps_catalog.daily_memory),
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 if self.voice.settings.recording_hotkey.is_some() {

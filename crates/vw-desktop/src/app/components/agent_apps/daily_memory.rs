@@ -7,6 +7,7 @@ use vw_gateway_client::{WorkspaceMemoryScope, vw_api_types::workspace_memory::*}
 #[derive(Clone, Default)]
 pub(crate) struct State {
     open: bool,
+    search: super::daily_memory_search::State,
     generation: u64,
     request: u64,
     files: Vec<DailyMemoryFileInfo>,
@@ -19,7 +20,7 @@ pub(crate) struct State {
     error: Option<String>,
 }
 impl State {
-    pub fn invalidate(&mut self) { *self = Self { generation: self.generation.wrapping_add(1), ..Self::default() }; }
+    pub fn invalidate(&mut self) { self.search.close(); *self = Self { generation: self.generation.wrapping_add(1), ..Self::default() }; }
     pub(super) fn create_draft(&mut self, filename: DailyMemoryFilename) {
         self.request = self.request.wrapping_add(1);
         self.filename = Some(filename);
@@ -31,13 +32,14 @@ impl State {
 pub struct Scope { context: AgentAppsContext, host: String, project: String, catalog: u64, generation: u64 }
 #[derive(Clone)]
 pub enum Event {
+    Search(super::daily_memory_search::Event),
     Open, Close, Refresh, Today, Select(DailyMemoryFilename), Edit(text_editor::Action), Save,
     AskDelete(DailyMemoryFilename), CancelDelete, ConfirmDelete,
     Listed(Scope, Result<Vec<DailyMemoryFileInfo>, String>),
     Read(Scope, u64, Result<WorkspaceFileContent, String>),
     Written(Scope, Result<(), String>), Deleted(Scope, DailyMemoryFilename, Result<(), String>),
 }
-fn message(event: Event) -> Message {
+pub(super) fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
         crate::app::message::settings::AppsCatalogMessage::DailyMemory(event)))
 }
@@ -50,7 +52,9 @@ pub(crate) fn overlay<'a>(state: &'a State, base: Element<'a, Message>) -> Eleme
         button(text("创建今日草稿")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.busy && !state.listing && state.error.is_none()).then(|| message(Event::Today))),
         button(text("刷新列表")).padding([8,12]).style(rounded_action_btn_style).on_press_maybe((!state.listing && !state.busy).then(|| message(Event::Refresh)))].spacing(8)].spacing(8);
     if let Some(error) = &state.error { body = body.push(text(error)); }
-    for file in &state.files {
+    body = body.push(super::daily_memory_search::controls(&state.search));
+    if state.search.active() { body = body.push(super::daily_memory_search::results(&state.search, state.busy)); }
+    for file in state.files.iter().filter(|_| !state.search.active()) {
         let modified = i64::try_from(file.modified_at).ok().and_then(|s| chrono::DateTime::from_timestamp(s, 0))
             .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%d %H:%M").to_string()).unwrap_or_else(|| "时间不可用".into());
         body = body.push(column![row![
@@ -82,7 +86,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
     let Some(project) = app.project_id.clone().filter(|id| !id.is_empty()) else { return Task::none(); };
     let state = &mut app.apps_catalog.daily_memory;
-    let reply = match &event { Event::Listed(s, _) | Event::Read(s, ..) | Event::Written(s, _) | Event::Deleted(s, ..) => Some(s), _ => None };
+    let reply = match &event { Event::Search(super::daily_memory_search::Event::Finished(s, ..)) | Event::Listed(s, _) | Event::Read(s, ..) | Event::Written(s, _) | Event::Deleted(s, ..) => Some(s), _ => None };
     if let Some(s) = reply {
         if !state.open || s.context != context || s.host != app.apps_catalog.host || s.project != project || s.catalog != app.apps_catalog.generation || s.generation != state.generation { return Task::none(); }
     } else if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.token.is_empty() { return app.show_error_toast("请先连接应用服务"); }
@@ -104,6 +108,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let scope = Scope { context, host: app.apps_catalog.host.clone(), project: project.to_string(), catalog: app.apps_catalog.generation, generation: state.generation };
     let query = WorkspaceMemoryScope { project_id: project.into(), target_host_id: scope.host.clone() };
     let token = app.apps_catalog.token.clone();
+    if let Event::Search(event) = event.clone() {
+        if !state.open { return Task::none(); }
+        return super::daily_memory_search::update(&mut state.search, event, client, scope, query, token);
+    }
     if state.busy {return Task::none();}
     let selected = match event.clone() {
         Event::Today => {
@@ -129,4 +137,18 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     if state.listing {return Task::none();} state.listing = true;
     Task::perform(async move {message(Event::Listed(scope, client.list_daily_memory_files(&query, &token).await.map_err(|e| e.to_string())))}, |m| m)
+}
+
+/// Search shortcuts are scoped to the daily-memory list, outside its editor.
+pub(crate) fn subscription(state: &State) -> iced::Subscription<Message> {
+    if !state.open || state.filename.is_some() { return iced::Subscription::none(); }
+    iced::keyboard::on_key_press(|key, modifiers| {
+        use iced::keyboard::{Key, key::Named};
+        let event = match key {
+            Key::Character(c) if modifiers.command() && c.eq_ignore_ascii_case("f") => super::daily_memory_search::Event::Open,
+            Key::Named(Named::Escape) => super::daily_memory_search::Event::Close,
+            _ => return None,
+        };
+        Some(message(Event::Search(event)))
+    })
 }

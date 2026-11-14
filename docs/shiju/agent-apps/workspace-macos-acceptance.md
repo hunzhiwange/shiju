@@ -263,8 +263,8 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 
 本轮按用户要求只写代码及静态审查，未执行 Cargo、单元测试、实机测试或最终回归，不宣称验证通过。未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证使用任务规定的 `daily_editor_defers_creation_until_save` 过滤条件，并检查中文、暗色与滚动渲染。
 
-## 任务 29：桌面工作区白名单编辑（2026-11-14）
+## 任务 31：桌面每日记忆搜索交互（2026-11-14）
 
-接入九文件存在/缺失/读取失败列表、SDK 读取完成后的编辑、保存成功刷新和失败保留草稿；目录动作复用任务 26 SDK 并显示执行主机。读取序号、项目/网关/租户/主机与页面代数拒绝旧响应，换应用及连接时清理。统一主题控件、4px 滚动与两侧留白复用 settings_modal_layout，内容不使用等宽字体。源码测试补充乱序读取、关闭失效和缺失文件草稿。
+扩展任务 30 的每日记忆弹窗；独立 daily_memory_search 模块提供 300ms 防抖、空查询回到列表、snippet 与匹配次数、失败和空结果提示；结果复用已有 Select 读取编辑动作。Cmd/Ctrl+F 聚焦搜索，Escape 取消搜索（仅列表）。搜索仅存页面状态，不写全局记忆。请求序号与已有连接/主机/项目/页面代数共同拒绝过期回复；改词、关闭及上下文清理释放取消信号，SDK 工作器停止轮询并 DELETE 操作释放服务端结果；提交过程中取消则先取得操作句柄再释放。
 
-本轮仅静态审查，未执行 Cargo、任何测试或最终回归，不声称验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证 workspace_editor_ignores_stale_reads 及中文暗色渲染。按本轮要求删除任务卡，不改 plan.md/prompt.md。
+静态核对任务 1 合同、任务 30、源 DailyMemoryPanel.tsx 及任务 10 的真实提交/轮询/取消 SDK。按用户最高优先要求只编码和静态审查，未运行 Cargo、单元测试、实机或其它测试及最终回归，不声明编译、渲染或行为验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号任务卡按要求删除；后续建议统一验证防抖、乱序、取消/切主机、编辑及明暗中文渲染。

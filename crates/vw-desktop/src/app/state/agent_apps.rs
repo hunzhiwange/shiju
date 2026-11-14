@@ -9,7 +9,6 @@ pub(crate) struct AppsCatalogState {
     pub openclaw_catalog: crate::app::components::openclaw_catalog::State,
     pub openclaw_model: crate::app::components::openclaw_model::State,
     pub openclaw_defaults: crate::app::components::openclaw_defaults::State,
-    pub workspace_files: crate::app::components::workspace_files::State,
     pub daily_memory: crate::app::components::daily_memory::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
     pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
@@ -67,7 +66,6 @@ impl AppsCatalogState {
         self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
-        self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
         self.connection_open = false;
@@ -84,7 +82,6 @@ impl AppsCatalogState {
         self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
-        self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
         self.generation = self.generation.wrapping_add(1);

@@ -122,3 +122,9 @@ pub mod post_import;
 pub mod package_import;
 #[cfg(all(test, target_os = "macos"))]
 mod package_import_tests;
+
+#[cfg(target_os = "macos")]
+pub mod backup_restore;
+
+#[cfg(all(test, target_os = "macos"))]
+mod backup_restore_tests;

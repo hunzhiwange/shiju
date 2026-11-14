@@ -259,3 +259,11 @@ macOS 执行端 `vw-agent/src/agent_apps/data_import.rs::commit_selected` 用封
 接线合同：授权任务所有者提供持久化保存回调、保存回退回执，持有目标级迁入/恢复互斥锁直至 run 返回，并以共享执行器调度 run；本项不实现 API 或第二套调度器。保存失败必须向调用者报告并保留恢复责任。计数以类别为单位；committed 保守保留尝试写入事实。尚未证明七类业务接线或进程重启恢复行为。
 
 按本轮用户覆盖要求，仅实现并静态阅读，未执行 Cargo、编译、单元或实机测试；没有验证通过证据，未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。统一回归需覆盖取消后恢复、提交临界区拒绝、重复取消、跨作用域拒绝、保存失败、恢复冲突与目标互斥。
+
+## Task 26: backup restore (implementation only)
+
+`backup_restore::restore_local_backup` validates the source and every owner bundle before capture, creates and reads back an exact task-8 safety snapshot, persists its receipt before writing, and invokes task-19 projections after successful restoration. The source guard spans retention cleanup; safety snapshots live in the independent task-8 store and cannot be pruned by backup retention. Owner failure returns the safety receipt without cleanup; projection and retention errors remain separate from the committed restore.
+
+The authorized caller must retain the shared import/restore/delete exclusion guard and owner transaction/CAS guards; owner validation, restoration and receipt persistence use explicit callbacks, following existing rollback orchestration. This is a core entry point, not seven-owner or gateway integration. Independent registered tests cover retain=1 and exact current-state capture using the real usage-source settings owner with SQLite, and corrupt-source rejection before callbacks.
+
+Per user override: no Cargo, compilation, unit tests or device tests were run. No passing evidence, exit code or test count is claimed. No slot was acquired; CARGO_TARGET_DIR and CARGO_BUILD_BUILD_DIR were not set. Deferred test filter: `cargo test -j 1 -p vw-agent-apps --lib cc_data_26_ -- --nocapture`, through the repository slot entry. Static source comparison: commands/import_export.rs::restore_db_backup and database/backup.rs::restore_with_retain_one_keeps_source_and_exact_safety_snapshot.

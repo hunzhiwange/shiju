@@ -1,0 +1,23 @@
+[package]
+name = "tui-terminal"
+version = "0.6.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+doctest = false
+
+[dependencies]
+ratatui = { version = "0.30.2", features = [
+    "unstable-backend-writer",
+    "unstable-rendered-line-info",
+    "unstable-widget-ref",
+] }
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

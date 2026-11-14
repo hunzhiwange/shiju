@@ -61,7 +61,7 @@ pub fn best_color_for_level(target: (u8, u8, u8), color_level: StdoutColorLevel)
     best_color_for_color_level(target, color_level)
 }
 
-pub(crate) fn effective_stdout_color_level() -> StdoutColorLevel {
+pub fn effective_stdout_color_level() -> StdoutColorLevel {
     // 环境探测结果需结合终端身份与显式覆盖变量后才能用于调色。
     stdout_color_level_for_terminal(
         stdout_color_level(),
@@ -125,8 +125,8 @@ pub fn default_bg() -> Option<(u8, u8, u8)> {
 }
 
 #[cfg(any(unix, windows))]
-pub(crate) fn set_default_colors_from_startup_probe(
-    colors: Option<crate::terminal_probe::DefaultColors>,
+pub fn set_default_colors_from_startup_probe(
+    colors: Option<tui_terminal::terminal_probe::DefaultColors>,
 ) {
     imp::set_default_colors_from_startup_probe(colors);
 }
@@ -170,7 +170,7 @@ mod imp {
     }
 
     pub(super) fn set_default_colors_from_startup_probe(
-        colors: Option<crate::terminal_probe::DefaultColors>,
+        colors: Option<tui_terminal::terminal_probe::DefaultColors>,
     ) {
         if let Ok(mut cache) = default_colors_cache().lock() {
             cache.value = colors.map(|colors| DefaultColors { fg: colors.fg, bg: colors.bg });
@@ -186,7 +186,7 @@ mod imp {
     /// collapses I/O errors and missing responses into the same fallback path used for terminals
     /// that simply do not support OSC 10/11 queries.
     fn query_default_colors() -> Option<DefaultColors> {
-        crate::terminal_probe::default_colors(crate::terminal_probe::DEFAULT_TIMEOUT)
+        tui_terminal::terminal_probe::default_colors(tui_terminal::terminal_probe::DEFAULT_TIMEOUT)
             .ok()
             .flatten()
             .map(|colors| DefaultColors { fg: colors.fg, bg: colors.bg })
@@ -232,7 +232,7 @@ mod imp {
     }
 
     pub(super) fn set_default_colors_from_startup_probe(
-        colors: Option<crate::terminal_probe::DefaultColors>,
+        colors: Option<tui_terminal::terminal_probe::DefaultColors>,
     ) {
         if let Ok(mut cache) = default_colors_cache().lock() {
             cache.value = colors.map(|colors| DefaultColors { fg: colors.fg, bg: colors.bg });
@@ -241,7 +241,7 @@ mod imp {
     }
 
     fn query_default_colors() -> Option<DefaultColors> {
-        crate::terminal_probe::default_colors(crate::terminal_probe::DEFAULT_TIMEOUT)
+        tui_terminal::terminal_probe::default_colors(tui_terminal::terminal_probe::DEFAULT_TIMEOUT)
             .ok()
             .flatten()
             .map(|colors| DefaultColors { fg: colors.fg, bg: colors.bg })
@@ -258,7 +258,7 @@ mod imp {
 
     #[cfg(any(unix, windows))]
     pub(super) fn set_default_colors_from_startup_probe(
-        _colors: Option<crate::terminal_probe::DefaultColors>,
+        _colors: Option<tui_terminal::terminal_probe::DefaultColors>,
     ) {
     }
 }
@@ -536,62 +536,5 @@ pub const XTERM_COLORS: [(u8, u8, u8); 256] = [
 ];
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn best_color_uses_truecolor_without_quantization() {
-        assert_eq!(
-            best_color_for_color_level((12, 34, 56), StdoutColorLevel::TrueColor),
-            rgb_color((12, 34, 56))
-        );
-    }
-
-    #[test]
-    fn best_color_resets_for_ansi16() {
-        assert_eq!(
-            best_color_for_color_level((12, 34, 56), StdoutColorLevel::Ansi16),
-            Color::Reset
-        );
-    }
-
-    #[test]
-    fn windows_terminal_wt_session_promotes_to_truecolor() {
-        assert_eq!(
-            stdout_color_level_for_terminal(
-                StdoutColorLevel::Ansi16,
-                TerminalName::Unknown,
-                /*has_wt_session*/ true,
-                /*has_force_color_override*/ false,
-            ),
-            StdoutColorLevel::TrueColor
-        );
-    }
-
-    #[test]
-    fn windows_terminal_name_promotes_ansi16_to_truecolor() {
-        assert_eq!(
-            stdout_color_level_for_terminal(
-                StdoutColorLevel::Ansi16,
-                TerminalName::WindowsTerminal,
-                /*has_wt_session*/ false,
-                /*has_force_color_override*/ false,
-            ),
-            StdoutColorLevel::TrueColor
-        );
-    }
-
-    #[test]
-    fn force_color_keeps_reported_stdout_level() {
-        assert_eq!(
-            stdout_color_level_for_terminal(
-                StdoutColorLevel::Ansi16,
-                TerminalName::WindowsTerminal,
-                /*has_wt_session*/ true,
-                /*has_force_color_override*/ true,
-            ),
-            StdoutColorLevel::Ansi16
-        );
-    }
-}
+#[path = "terminal_palette_tests.rs"]
+mod tests;

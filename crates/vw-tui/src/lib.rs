@@ -24,7 +24,7 @@ pub mod chatwidget;
 mod clipboard_copy;
 mod clipboard_image;
 #[allow(dead_code)]
-mod color;
+pub(crate) use tui_theme::color;
 #[allow(dead_code)]
 mod custom_terminal;
 pub use tui_contracts::diff_model;
@@ -71,7 +71,7 @@ mod status_indicator_widget;
 #[allow(dead_code)]
 mod streaming;
 #[allow(dead_code)]
-mod style;
+pub(crate) use tui_theme::style;
 #[allow(dead_code)]
 mod table_detect;
 // 终端适配层集中处理链接、调色板和启动探测，避免渲染层直接依赖环境细节。
@@ -80,9 +80,9 @@ mod resize_reflow_cap;
 #[allow(dead_code)]
 mod terminal_hyperlinks;
 #[allow(dead_code)]
-mod terminal_palette;
+pub(crate) use tui_theme::terminal_palette;
 #[allow(dead_code, unused_imports)]
-mod terminal_probe;
+pub(crate) use tui_terminal::terminal_probe;
 #[allow(dead_code)]
 pub(crate) use tui_text::text_formatting;
 #[allow(dead_code)]

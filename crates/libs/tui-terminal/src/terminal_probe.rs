@@ -23,18 +23,18 @@ mod startup_replay;
 
 /// 每组启动探测的默认墙钟时间预算。
 /// Default wall-clock budget for each startup probe group.
-pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// OSC 10 和 OSC 11 报告的终端默认前景色和背景色。
 /// Default terminal foreground and background colors reported by OSC 10 and OSC 11.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) struct DefaultColors {
+pub struct DefaultColors {
     /// 以 8 位 RGB 元组表示的默认前景色。
     /// Default foreground color as an 8-bit RGB tuple.
-    pub(crate) fg: (u8, u8, u8),
+    pub fg: (u8, u8, u8),
     /// 以 8 位 RGB 元组表示的默认背景色。
     /// Default background color as an 8-bit RGB tuple.
-    pub(crate) bg: (u8, u8, u8),
+    pub bg: (u8, u8, u8),
 }
 
 #[cfg(unix)]
@@ -64,16 +64,16 @@ mod imp {
     /// TUI 一次性启动终端探测的结果。
     /// Results from the TUI's one-shot startup terminal probe.
     #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-    pub(crate) struct StartupProbe {
-        pub(crate) cursor_position: Option<Position>,
-        pub(crate) default_colors: Option<DefaultColors>,
-        pub(crate) keyboard_enhancement_supported: Option<bool>,
+    pub struct StartupProbe {
+        pub cursor_position: Option<Position>,
+        pub default_colors: Option<DefaultColors>,
+        pub keyboard_enhancement_supported: Option<bool>,
     }
 
     /// 启动探测是否应查询增强键盘支持。
     /// Whether the startup probe should query keyboard enhancement support.
     #[derive(Clone, Copy, Eq, PartialEq)]
-    pub(crate) enum StartupKeyboardEnhancementProbe {
+    pub enum StartupKeyboardEnhancementProbe {
         Query,
         Skip,
     }
@@ -250,7 +250,7 @@ mod imp {
     /// response from either slot returns `Ok(None)`. Both queries are sent before reading so a
     /// terminal that supports palette replies gets the full bounded window to return both values,
     /// while unsupported terminals still pay one bounded wait instead of one wait per slot.
-    pub(crate) fn default_colors(timeout: Duration) -> io::Result<Option<DefaultColors>> {
+    pub fn default_colors(timeout: Duration) -> io::Result<Option<DefaultColors>> {
         let mut tty = Tty::open()?;
         tty.write_all(b"\x1B]10;?\x1B\\\x1B]11;?\x1B\\")?;
         let Some(colors) = read_until(&mut tty, timeout, parse_default_colors)? else {
@@ -266,7 +266,7 @@ mod imp {
     /// Resume can emit a focus report immediately before the cursor-position response. Reusing
     /// the startup parser lets the probe find the response without leaking either sequence into
     /// the composer.
-    pub(crate) fn cursor_position(timeout: Duration) -> io::Result<Option<Position>> {
+    pub fn cursor_position(timeout: Duration) -> io::Result<Option<Position>> {
         let mut tty = Tty::open()?;
         tty.write_all(b"\x1B[6n")?;
         read_until(&mut tty, timeout, parse_cursor_position)
@@ -277,7 +277,7 @@ mod imp {
     ///
     /// Bytes read while waiting for terminal responses are replayed through crossterm's event
     /// parser so keys, bracketed paste, and incomplete sequences survive the startup probe.
-    pub(crate) fn startup(
+    pub fn startup(
         timeout: Duration,
         keyboard_probe: StartupKeyboardEnhancementProbe,
     ) -> io::Result<StartupProbe> {
@@ -525,168 +525,8 @@ mod imp {
     }
 
     #[cfg(test)]
-    mod tests {
-        use super::*;
-        use pretty_assertions::assert_eq;
-        use std::os::fd::OwnedFd;
-        use std::os::unix::net::UnixStream;
-
-        fn tty_with_buffered_input(input: &[u8]) -> Tty {
-            let (reader, mut writer) = UnixStream::pair().expect("create terminal input pair");
-            writer.write_all(input).expect("buffer terminal input");
-
-            let reader: OwnedFd = reader.into();
-            let writer: OwnedFd = writer.into();
-            Tty::new(reader.into(), writer.into()).expect("create terminal probe")
-        }
-
-        #[test]
-        fn terminal_probe_stops_reading_when_its_deadline_expires() {
-            let mut tty = tty_with_buffered_input(b"still queued");
-            let mut buffer = Vec::new();
-
-            tty.read_available(&mut buffer, Instant::now(), MAX_TERMINAL_PROBE_BYTES)
-                .expect("respect terminal probe deadline");
-
-            assert_eq!(buffer, Vec::<u8>::new());
-            let mut queued = [0; 12];
-            let count = unsafe {
-                libc::read(
-                    tty.reader.as_raw_fd(),
-                    queued.as_mut_ptr().cast::<libc::c_void>(),
-                    queued.len(),
-                )
-            };
-            assert_eq!(count, queued.len() as isize);
-            assert_eq!(&queued, b"still queued");
-        }
-
-        #[test]
-        fn terminal_probe_leaves_input_queued_after_reaching_its_byte_budget() {
-            for max_bytes in [MAX_TERMINAL_PROBE_BYTES, MAX_STARTUP_PROBE_BYTES] {
-                let input = [b'x'; 256];
-                let mut tty = tty_with_buffered_input(&input);
-                let mut buffer = vec![b'x'; max_bytes - 32];
-
-                tty.read_available(
-                    &mut buffer,
-                    Instant::now() + Duration::from_secs(/*secs*/ 1),
-                    max_bytes,
-                )
-                .expect("respect terminal probe byte budget");
-
-                assert_eq!(buffer.len(), max_bytes);
-                let mut queued = [0; 224];
-                let count = unsafe {
-                    libc::read(
-                        tty.reader.as_raw_fd(),
-                        queued.as_mut_ptr().cast::<libc::c_void>(),
-                        queued.len(),
-                    )
-                };
-                assert_eq!(count, queued.len() as isize);
-                assert_eq!(queued, [b'x'; 224]);
-            }
-        }
-
-        #[test]
-        fn parses_cursor_position_as_zero_based() {
-            assert_eq!(parse_cursor_position(b"\x1B[20;10R"), Some(Position { x: 9, y: 19 }));
-            assert_eq!(parse_cursor_position(b"\x1B[I\x1B[20;10R"), Some(Position { x: 9, y: 19 }));
-        }
-
-        #[test]
-        fn parses_keyboard_enhancement_flags_and_pda_fallback() {
-            assert_eq!(
-                parse_keyboard_enhancement_support(b"\x1B[?7u"),
-                KeyboardProbeState::Supported
-            );
-            assert_eq!(
-                parse_keyboard_enhancement_support(b"\x1B[?64;1;2c"),
-                KeyboardProbeState::UnsupportedFallback
-            );
-            assert_eq!(
-                parse_keyboard_enhancement_support(b"\x1B[?64;1;2c\x1B[?7u"),
-                KeyboardProbeState::SupportedAndFallback
-            );
-            assert_eq!(
-                parse_keyboard_enhancement_support(b"\x1B[?7u\x1B[?64;1;2c"),
-                KeyboardProbeState::SupportedAndFallback
-            );
-            assert_eq!(parse_keyboard_enhancement_support(b""), KeyboardProbeState::Pending);
-        }
-
-        #[test]
-        fn startup_probe_parses_batched_terminal_responses() {
-            let mut probe = StartupProbe {
-                cursor_position: None,
-                default_colors: None,
-                keyboard_enhancement_supported: None,
-            };
-            let mut saw_supported_keyboard = false;
-            update_startup_probe(
-                &mut probe,
-                &mut saw_supported_keyboard,
-                b"\x1B[20;10R\x1B]11;rgb:1111/1111/1111\x07\x1B[?64;1;2c\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B[?7u",
-                StartupKeyboardEnhancementProbe::Query,
-            );
-
-            assert_eq!(
-                probe,
-                StartupProbe {
-                    cursor_position: Some(Position { x: 9, y: 19 }),
-                    default_colors: Some(DefaultColors { fg: (238, 238, 238), bg: (17, 17, 17) }),
-                    keyboard_enhancement_supported: Some(true),
-                }
-            );
-            assert!(startup_probe_complete(&probe, StartupKeyboardEnhancementProbe::Query));
-        }
-
-        #[test]
-        fn startup_probe_finds_responses_after_large_typeahead() {
-            let mut input = vec![b'x'; 2_048];
-            input.extend_from_slice(
-                b"\x1B[20;10R\x1B]11;rgb:1111/1111/1111\x07\x1B[?64;1;2c\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B[?7u",
-            );
-            let mut tty = tty_with_buffered_input(&input);
-            let mut buffer = Vec::new();
-
-            let probe = read_startup_probe(
-                &mut tty,
-                Duration::from_secs(/*secs*/ 1),
-                StartupKeyboardEnhancementProbe::Query,
-                &mut buffer,
-            )
-            .expect("read terminal responses after buffered typeahead");
-
-            assert_eq!(
-                probe,
-                StartupProbe {
-                    cursor_position: Some(Position { x: 9, y: 19 }),
-                    default_colors: Some(DefaultColors { fg: (238, 238, 238), bg: (17, 17, 17) }),
-                    keyboard_enhancement_supported: Some(true),
-                }
-            );
-            let mut expected_replay = vec![b'x'; 2_048];
-            expected_replay.extend_from_slice(b"\x1B[20;10R\x1B[?64;1;2c\x1B[?7u");
-            assert_eq!(startup_replay_input(&buffer), expected_replay);
-        }
-
-        #[test]
-        fn startup_probe_finds_valid_responses_after_many_incomplete_sequences() {
-            let mut input = Vec::new();
-            for _ in 0..2_048 {
-                input.extend_from_slice(b"\x1b[?");
-            }
-            input.extend_from_slice(b"\x1b[20;10R\x1b[?64;1;2c\x1b[?7u");
-
-            assert_eq!(parse_cursor_position(&input), Some(Position { x: 9, y: 19 }));
-            assert_eq!(
-                parse_keyboard_enhancement_support(&input),
-                KeyboardProbeState::SupportedAndFallback
-            );
-        }
-    }
+    #[path = "terminal_probe_tests_0.rs"]
+    mod tests;
 }
 
 #[cfg(windows)]
@@ -708,7 +548,7 @@ mod imp {
     /// OSC replies share the console input queue with user keystrokes on Windows. Reading them
     /// directly during startup can discard composer typeahead, so use the non-reading console
     /// color fallback instead.
-    pub(crate) fn default_colors(_timeout: Duration) -> io::Result<Option<DefaultColors>> {
+    pub fn default_colors(_timeout: Duration) -> io::Result<Option<DefaultColors>> {
         let Ok(output) = std_handle(STD_OUTPUT_HANDLE) else {
             return Ok(None);
         };
@@ -754,58 +594,8 @@ mod imp {
     }
 
     #[cfg(test)]
-    mod tests {
-        use super::*;
-        use pretty_assertions::assert_eq;
-        use windows_sys::Win32::System::Console::COMMON_LVB_REVERSE_VIDEO;
-
-        fn color_table() -> [u32; 16] {
-            [
-                0x00000000, 0x00000080, 0x00008000, 0x00008080, 0x00800000, 0x00800080, 0x00808000,
-                0x00c0c0c0, 0x00808080, 0x000000ff, 0x0000ff00, 0x0000ffff, 0x00ff0000, 0x00ff00ff,
-                0x00ffff00, 0x00ffffff,
-            ]
-        }
-
-        #[test]
-        fn decodes_console_color_attribute_indices() {
-            assert_eq!(
-                decode_console_default_colors(/*attributes*/ 0x21, &color_table()),
-                DefaultColors { fg: (128, 0, 0), bg: (0, 128, 0) }
-            );
-        }
-
-        #[test]
-        fn decodes_console_color_intensity_indices() {
-            assert_eq!(
-                decode_console_default_colors(/*attributes*/ 0xe9, &color_table()),
-                DefaultColors { fg: (255, 0, 0), bg: (0, 255, 255) }
-            );
-        }
-
-        #[test]
-        fn decodes_console_color_ref_byte_order() {
-            let mut colors = color_table();
-            colors[3] = 0x00112233;
-            colors[4] = 0x00aabbcc;
-
-            assert_eq!(
-                decode_console_default_colors(/*attributes*/ 0x43, &colors),
-                DefaultColors { fg: (0x33, 0x22, 0x11), bg: (0xcc, 0xbb, 0xaa) }
-            );
-        }
-
-        #[test]
-        fn ignores_reverse_video_when_decoding_default_colors() {
-            assert_eq!(
-                decode_console_default_colors(
-                    /*attributes*/ COMMON_LVB_REVERSE_VIDEO | 0x21,
-                    &color_table(),
-                ),
-                DefaultColors { fg: (128, 0, 0), bg: (0, 128, 0) }
-            );
-        }
-    }
+    #[path = "terminal_probe_tests_1.rs"]
+    mod tests;
 }
 
 #[cfg(any(unix, test))]
@@ -871,67 +661,8 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 #[cfg(any(unix, windows))]
-pub(crate) use imp::*;
+pub use imp::*;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn parses_osc_colors_with_bel_and_st() {
-        assert_eq!(
-            parse_osc_color(b"\x1B]10;rgb:ffff/8000/0000\x07", /*slot*/ 10),
-            Some((255, 127, 0))
-        );
-        assert_eq!(
-            parse_osc_color(b"\x1B]11;rgba:00/80/ff/ff\x1B\\", /*slot*/ 11),
-            Some((0, 128, 255))
-        );
-    }
-
-    #[test]
-    fn parses_two_and_four_digit_color_components() {
-        assert_eq!(parse_osc_rgb("rgb:00/80/ff"), Some((0, 128, 255)));
-        assert_eq!(parse_osc_rgb("rgba:ffff/8000/0000/ffff"), Some((255, 127, 0)));
-    }
-
-    #[test]
-    fn parses_default_colors_from_one_buffer() {
-        assert_eq!(
-            parse_default_colors(b"\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B]11;rgb:1111/1111/1111\x07"),
-            Some(DefaultColors { fg: (238, 238, 238), bg: (17, 17, 17) })
-        );
-        assert_eq!(
-            parse_default_colors(b"\x1B]11;rgb:1111/1111/1111\x07\x1B]10;rgb:eeee/eeee/eeee\x1B\\"),
-            Some(DefaultColors { fg: (238, 238, 238), bg: (17, 17, 17) })
-        );
-        assert_eq!(parse_default_colors(b"\x1B]10;rgb:eeee/eeee/eeee\x1B\\"), None);
-    }
-
-    #[test]
-    fn ignores_malformed_or_partial_default_color_responses() {
-        assert_eq!(
-            parse_default_colors(b"\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B]11;rgb:nope\x07"),
-            None
-        );
-        assert_eq!(
-            parse_default_colors(b"\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B]11;rgb:11/11/11/11\x07"),
-            None
-        );
-        assert_eq!(
-            parse_default_colors(b"\x1B]10;rgb:eeee/eeee/eeee\x1B\\\x1B]11;rgb:1111/1111/1111"),
-            None
-        );
-    }
-
-    #[test]
-    fn parses_default_colors_with_unrelated_bytes() {
-        assert_eq!(
-            parse_default_colors(
-                b"typed\x1B]10;rgb:eeee/eeee/eeee\x1B\\noise\x1B]11;rgb:1111/1111/1111\x07"
-            ),
-            Some(DefaultColors { fg: (238, 238, 238), bg: (17, 17, 17) })
-        );
-    }
-}
+#[path = "terminal_probe_tests_2.rs"]
+mod tests;

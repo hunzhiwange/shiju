@@ -1,0 +1,20 @@
+[package]
+name = "tui-theme"
+version = "0.6.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+doctest = false
+
+[dependencies]
+ratatui = { version = "0.30.2", features = [
+    "unstable-backend-writer",
+    "unstable-rendered-line-info",
+    "unstable-widget-ref",
+] }
+supports-color = "3.0.2"
+tui-terminal = { path = "../tui-terminal", version = "0.6.0" }
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

@@ -1086,3 +1086,17 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 | 限定本项 `git diff --check` | 退出0。 |
 
 最终顺序入口：`python3 scripts/cargo_slot.py sh -c 'cargo fmt --all && cargo test -p vw-agent --lib cc_route_039_ -- --nocapture && cargo clippy --all-targets --all-features -- -D warnings && cargo test -p vw-gateway-client --lib app_routing -- --nocapture'`，退出0。红灯与最终验证实际槽位均为2；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。中途审查补充标量对象校验后，主动中断一次本项未完成构建并完整重跑；不计该中断为验证证据。最终测试构建10分47秒，原生产物 `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351`。有既有macOS链接器 `__eh_frame`大小警告，全仓Clippy通过。自有前台进程结束、槽位锁释放、缓存保留。共享工作区其他任务变更未纳入本项提交。
+
+## 任务40：转换 Chat 到 Messages 流（2026-11-14）
+
+范围：macOS 自动验收。复用任务39 `0420b2e43`、母任务1冻结来源、母任务2公共传输及母任务3可信应用/执行主机作用域，沿用母任务4、6配置/账号合同。固定来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/providers/streaming.rs` 与仓库 upstream 快照 SHA256 均为 `8d9556b0edfb580b58a7a674e0f11e349ace1ddffae75df5d6ac5b5e068e1289`；已读取其用量、双工具索引测试与 handlers 调用者。
+
+实际所有者仍为 `model_relay/messages_stream.rs::Decoder`，不新增第二套转换器。`resident_response_body` 经 `app_routing/dispatch.rs::finish_messages` 接常驻 Claude/Claude Desktop 的 Chat SSE；旧会话 `response_body` 保持严格转换。复用任务39结果转换器计算三桶互斥的用量。文本增量发送；并行工具按来源索引聚合跨帧参数，完整JSON验证后输出独立内容块，不执行工具。保留4MiB有界传输、错误载荷脱敏和一次错误收口。常驻观察器逐行验证至首个有效终帧，忽略后续重复终帧，不改变旧会话的整块严格检查。
+
+新增独立 `messages_chat_stream_tests.rs`，以 `cc_route_040_` 前缀组织4项：真实回环HTTP按字节发送中文、乱序双工具参数和缓存用量；断流/非法参数/上游错误只发送一次错误且无成功终帧；重复终帧只输出一次成功终态；旧会话用量保持严格语义。无真实凭据，不模拟内部转换器。
+
+默认原生命令 `CARGO_BUILD_JOBS=1 python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_040_ -- --nocapture` 在恢复后的槽位2（实现前启动）和槽位4（实现后）均退出101：rustc遭SIGKILL，执行0项。此前槽位10同样遭SIGKILL，槽位3一次限并发重试由本任务中断；均不计行为红灯。采样确认原生构建耗时位于LLVM ThinLTO阶段。尚无行为红灯断言，不能宣称TDD证据完整。
+
+全仓 `cargo clippy --all-targets --all-features -- -D warnings` 在槽位4退出0，包含测试目标；最终日志 `/tmp/shiju-task40-validation.log` 记录 `focused=101 clippy=0`。`cargo fmt --all` 退出0，排除本项以外格式化差异后无额外改动，最终差异检查通过。槽位2、3、4、10的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`（N为对应实际槽位号）。缓存保留。
+
+替代原生验证：`CARGO_BUILD_JOBS=1 python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --config 'profile.test.package.vw-agent.opt-level=0' cc_route_040_ -- --nocapture` 在槽位3退出0，4项通过、0失败，默认features未变，仅vw-agent测试包优化级别降为0。产物 `target/rust-slot-3/debug/deps/vw_agent-d51a7b7fffcc3d18`，日志 `/tmp/shiju-task40-lowopt.log`。两个Cargo目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。这证明本项四个边界场景通过，但不替代指定默认优化命令及行为红灯证据；状态为 **待回归**，任务文件保留。所有自有命令已退出，锁释放、缓存保留；Windows/Linux/WSL范围外且未验证。

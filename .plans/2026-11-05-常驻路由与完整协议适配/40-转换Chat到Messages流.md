@@ -2,7 +2,7 @@
 
 批次：【批次 40】 依赖：批次 39 的任务 39。外部前置：核实母任务 1 的来源快照与母任务 2、3 的对应运行时、执行主机和应用能力。原生配置写入、账号上游分别等母任务 4、6 的对应契约。
 
-状态：进行中
+状态：待回归
 
 按无人值守方式执行：常规、可逆、低风险事项自行选择符合仓库约定的最佳可行方案，遇到问题先调查修复并继续；仅在关键歧义无法消除或确需新增授权时集中询问，记录决策和阻塞证据，不重复请求已有授权。
 
@@ -98,3 +98,11 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - 限并发重试 `CARGO_BUILD_JOBS=1 python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_040_ -- --nocapture`：槽位3，两个目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。持续约15分钟仍停在 vw-agent 编译、执行0项；本任务向自有槽位入口 PID 43432 发送 SIGINT，入口退出1，日志末尾报告 `Cargo slot failed: [Errno 1] Operation not permitted`；随后用 ps 确认自有入口及槽位3 rustc/Cargo进程均已退出，槽位3、10锁均不存在。日志 `/tmp/shiju-task40-red.log`。没有将中断视为红灯或通过证据。
 - 阻塞：本机原生测试构建被系统杀死，限并发重试未在本次有界窗口完成；不能用编译或零测试替代行为验证。没有开始生产实现，因此未运行后续 fmt、绿灯、全仓Clippy和SDK回归，均待恢复后执行。
 - 恢复条件：主机构建资源恢复后重新新增独立行为测试，并取得真实断言红灯，再最小实现及完整原生验证。保留任务文件，不修改 plan.md，不提交状态更新；不宣称母任务8完成。仅macOS，其他平台未验证。自有锁已释放，缓存保留。
+
+## 2026-11-14 恢复执行
+
+已按调度要求继续完成实现，不再将原生构建资源问题作为缺少前置合同。实际所有者沿用 `messages_stream.rs::Decoder`，新增 `resident_response_body` 并在常驻 dispatch 接线；常驻用量复用任务39转换，旧会话严格路径不变；工具跨帧完整校验、错误单次收口、终帧后重复数据忽略。独立4项测试及正式验收文档已补充。
+
+默认命令恢复后在槽位2和槽位4再次运行：均因rustc SIGKILL退出101、执行0项。槽位4顺序执行全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出0。日志 `/tmp/shiju-task40-validation.log`。两次 `cargo fmt --all` 退出0且没有无关格式化差异；差异检查通过。两个Cargo目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`，N对应实际槽位2、4。默认红灯和绿灯均待回归，不能宣称行为通过。保留本文件，状态精确为“待回归”，供调度最终统一回归。
+
+替代原生验证：`CARGO_BUILD_JOBS=1 python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --config 'profile.test.package.vw-agent.opt-level=0' cc_route_040_ -- --nocapture` 在槽位3退出0，4项通过、0失败，默认features未变，仅vw-agent测试包优化级别降为0。产物 `target/rust-slot-3/debug/deps/vw_agent-d51a7b7fffcc3d18`，日志 `/tmp/shiju-task40-lowopt.log`。两个Cargo目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。这证明本项四个边界场景通过，但不替代指定默认优化命令及行为红灯证据；状态为 **待回归**，任务文件保留。所有自有命令已退出，锁释放、缓存保留；Windows/Linux/WSL范围外且未验证。

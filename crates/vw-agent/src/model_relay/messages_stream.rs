@@ -32,6 +32,7 @@ struct Decoder {
     model: String,
     size: usize,
     native: bool,
+    resident: bool,
     thinking: Option<String>,
     content: String,
 }
@@ -46,10 +47,12 @@ impl Decoder {
             }
             let calls = self.tools.values().cloned().collect::<Vec<_>>();
             // Validate the full tool arguments before reporting a successful stream end.
-            let final_message = from_chat(
-                &json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":null,"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage}),
-                &self.model,
-            )?;
+            let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":null,"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
+            let final_message = if self.resident {
+                super::messages_chat_result::from_chat(&body, &self.model)?
+            } else {
+                from_chat(&body, &self.model)?
+            };
             let mut out = String::new();
             let mut index = 0;
             if self.text_open {
@@ -62,7 +65,7 @@ impl Decoder {
                 out.push_str(&event(json!({"type":"content_block_stop","index":index})));
                 index += 1;
             }
-            out.push_str(&event(json!({"type":"message_delta","delta":{"stop_reason":finish(&self.reason)?,"stop_sequence":null},"usage":final_message["usage"]})));
+            out.push_str(&event(json!({"type":"message_delta","delta":{"stop_reason":final_message["stop_reason"],"stop_sequence":null},"usage":final_message["usage"]})));
             out.push_str(&event(json!({"type":"message_stop"})));
             self.done = true;
             return Ok(out);
@@ -177,13 +180,24 @@ impl Decoder {
         Ok(out)
     }
     fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
-        self.observer.push(bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        if !self.resident {
+            self.observer.push(bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        }
         self.size += bytes.len();
         if self.size > LIMIT {
             return Err(StatusCode::BAD_GATEWAY);
         }
         let mut out = String::new();
         for line in self.pending.push(bytes, LIMIT).map_err(|_| StatusCode::BAD_GATEWAY)? {
+            // A resident terminal marker ends this entity, even if duplicated in one chunk.
+            if self.resident && self.done {
+                break;
+            }
+            if self.resident {
+                self.observer
+                    .push(format!("{line}\n").as_bytes())
+                    .map_err(|_| StatusCode::BAD_GATEWAY)?;
+            }
             if line.is_empty() {
                 if !self.data.is_empty() {
                     let data = std::mem::take(&mut self.data);
@@ -250,6 +264,26 @@ pub(crate) async fn response_body(
     native: bool,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
+    response_body_policy(response, model, streaming, native, false, cancel).await
+}
+
+/// Resident routing shares framing and validation, with source-compatible usage accounting.
+pub(crate) async fn resident_response_body(
+    response: Response,
+    model: String,
+    cancel: CancellationToken,
+) -> Result<Response, StatusCode> {
+    response_body_policy(response, model, true, false, true, cancel).await
+}
+
+async fn response_body_policy(
+    response: Response,
+    model: String,
+    streaming: bool,
+    native: bool,
+    resident: bool,
+    cancel: CancellationToken,
+) -> Result<Response, StatusCode> {
     if !streaming {
         let mut stream = response.into_body().into_data_stream();
         let mut bytes = Vec::new();
@@ -294,6 +328,7 @@ pub(crate) async fn response_body(
             Decoder {
                 model,
                 native,
+                resident,
                 observer: super::stream_observer::StreamObserver::new(if native {
                     super::generation::GenerationProtocol::Messages
                 } else {

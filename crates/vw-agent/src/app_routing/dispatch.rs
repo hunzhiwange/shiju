@@ -213,6 +213,11 @@ pub(super) async fn forward_json(
         } else {
             body
         };
+        let body = if gemini.is_some() {
+            crate::model_relay::native_gemini::prepare(&body)?
+        } else {
+            body
+        };
         let outgoing = prepare_request(&body, target, if gemini.is_some() { None } else { model })?;
         drop(body);
         (outgoing, None)

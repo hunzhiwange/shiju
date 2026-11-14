@@ -28,3 +28,5 @@ pub fn supports_app(app: vw_api_types::agent_apps::AppId) -> bool {
 pub mod target_model;
 #[cfg(test)]
 mod target_model_tests;
+
+pub mod gemini_schema;

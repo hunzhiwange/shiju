@@ -48,3 +48,9 @@ impl Request {
         )
     }
 }
+
+/// Shared pure Schema policy, scoped to the authorized resident data plane.
+pub(crate) fn prepare(body: &serde_json::Value) -> Result<serde_json::Value, StatusCode> {
+    vw_agent_apps::routing::gemini_schema::prepare_native_request(body)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)
+}

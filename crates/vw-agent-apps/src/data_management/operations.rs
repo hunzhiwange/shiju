@@ -38,12 +38,36 @@ impl ImportOperation {
         *state = next;
         Ok(state.clone())
     }
+    /// The task store must authorize this target and retain its exclusion lock.
+    /// Persist before exposing the new terminal outcome; retries never re-import.
+    pub fn retry_projections(
+        &self, target: &DataManagementTarget,
+        refresh: impl FnMut(&DataManagementTarget, super::post_import::Projection) -> Result<(), ()>,
+        save: impl FnOnce(&DataOperationProgress) -> Result<(), ()>,
+    ) -> Result<DataOperationProgress, OperationError> {
+        let mut state = self.state.lock().map_err(|_| OperationError::InvalidState)?;
+        if &state.target != target { return Err(OperationError::Forbidden); }
+        if !state.committed || state.phase != DataOperationPhase::Terminal
+            || state.status != TaskStatus::Completed
+            || state.rollback != DataRollbackState::NotRequired {
+            return Err(OperationError::InvalidState);
+        }
+        let previous = state.result.as_ref().ok_or(OperationError::InvalidState)?;
+        let result = super::post_import::retry_failed_projections(target, previous, refresh)
+            .map_err(|_| OperationError::InvalidState)?;
+        let mut next = state.clone();
+        next.result = Some(result);
+        save(&next).map_err(|_| OperationError::Persistence)?;
+        *state = next;
+        Ok(state.clone())
+    }
     #[allow(clippy::too_many_arguments)]
     pub fn run<E, R>(
         &self, root: &Path, receipt: &SafetySnapshotReceipt, scope: &SourceScope,
         source: &SourceSnapshot, confirmed: &SourceSummary, selected: &[SourceCategory],
         targets: &[SnapshotTarget], mut commit: impl FnMut(SourceCategory) -> Result<(), E>,
         mut restore: impl FnMut(SourceCategory, &[&OwnerPreimage]) -> Result<(), R>,
+        mut refresh: impl FnMut(&DataManagementTarget, super::post_import::Projection) -> Result<(), ()>,
         save: impl Fn(&DataOperationProgress) -> Result<(), ()>,
     ) -> Result<(), OperationError> {
         {
@@ -100,11 +124,16 @@ impl ImportOperation {
                 if state.cancel_requested { (DataOperationResult::Cancelled, None) }
                 else { (failed(), Some(OperationError::Execution)) }
             }
-            Ok(_) => (DataOperationResult::Succeeded, None),
+            Ok(_) if !state.committed => (DataOperationResult::Succeeded, None),
+            Ok(_) => {
+                state.phase = DataOperationPhase::Projecting;
+                save(&state).map_err(|_| OperationError::Persistence)?;
+                (super::post_import::refresh_after_commit(&state.target, &mut refresh), None)
+            },
             Err(RollbackError::Snapshot(_) | RollbackError::Apply(_) | RollbackError::InvalidSelection) => (failed(), Some(OperationError::Execution)),
         };
         let mut next = state.clone();
-        next.status = match &result { DataOperationResult::Succeeded => TaskStatus::Completed, DataOperationResult::Cancelled => TaskStatus::Cancelled, _ => TaskStatus::Failed };
+        next.status = match &result { DataOperationResult::Succeeded => TaskStatus::Completed, DataOperationResult::Partial { .. } if error.is_none() => TaskStatus::Completed, DataOperationResult::Cancelled => TaskStatus::Cancelled, _ => TaskStatus::Failed };
         next.phase = DataOperationPhase::Terminal;
         next.result = Some(result);
         save(&next).map_err(|_| OperationError::Persistence)?;

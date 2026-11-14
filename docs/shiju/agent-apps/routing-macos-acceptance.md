@@ -1014,3 +1014,31 @@ macOS arm64 自动验收。直接前置任务33为“待回归”，按调度契
 随后用不含 `cc_route_036_` 的既有槽位4原生产物运行同一过滤（`/Users/xiangmin/worker/code/shiju/target/rust-slot-4/debug/deps/vw_agent-346fac923f6b2351 app_routing::timeouts_tests --nocapture`），同样退出101、2通过2失败，断言位置分别为 `timeouts_tests.rs:256`、`:300`。旧夹具缺少现有 `StreamObserver::chat` 要求的 `choices[].index`，本项未修改该校验器或这些测试，不将旧夹具问题扩大为本项修复。两次原生产物回归入口均领取槽位3，其两目录为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；槽位4仅为已有基线二进制读取位置，未领取或写入其缓存。自有入口与子进程均退出，自有锁释放、缓存保留。
 
 本项所需3项绿灯及整仓Clippy证据齐全，状态 **已完成**。额外超时回归的两项既有夹具失败保留上述复现，建议由原所有者修复；不将其描述为通过，不修改只读plan.md，不宣称母任务8完成。
+
+
+## 任务37：转发原生 Gemini 协议（2026-11-14）
+
+macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权路由、可信 `JsonTarget`、传输、配置超时及撤销所有者。Gemini原生配置读写已经存在，生产Proxy配置事务/发布仍未提供Gemini分支；本项不代为实现母任务4。按调度继续完成已授权目标的数据面行为，回环测试通过真实监听器鉴权，不mock内部转换或传输；不将其描述为生产配置切换验收。官方账号与生产配置事务仍由母任务4/6交付。
+
+冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 三文件与仓库upstream逐字节相等：`providers/gemini.rs` SHA256 `c68532f739fe918e7509095bf035e11de4801bc2e251fd9b76070faf9dbc6ae2`、`gemini_url.rs` `d92adf389a2abac34b6c83220cadea445d3147c6ebcd5c8b2b786df91431dacf`、`handlers.rs` `31fe8c8470f1c7256a1834512817004c67a2f1ce01fea1579485596dcffcc809`。读取server入口与handler调用者，RustCodeGraph status/explore检查后以当前源码校对。
+
+实现所有者：`model_relay::native_gemini::Request` 只解析来源三个生成路径前缀 `/v1beta`、`/gemini/v1beta`、`/gemini/v1` 的POST生成/流式生成；规范化一次`models/`模型前缀，流式动作补`alt=sse`。沿用 `transport::gemini_url` 的已授权目标版本/地址与模型安全语法，不从客户端接收目标、凭据或任意查询；未知动作及非SSE查询明确拒绝，发现/其他动作留给各自任务。已有目标构造器不支持的自定义opaque URL仍明确拒绝，不伪称支持来源全部URL模式。`dispatch::forward_json` 从URI取model/stream，不注入Chat model字段，JSON和SSE保留tools、functionCall/functionResponse及thoughtSignature。可信原始API key放`x-goog-api-key`，Bearer保留授权头；托管凭据仍走原租约所有者。
+
+`route_auth::select_json` 只给Gemini普通可信目标开放选择，不修改聚合模型ID解码规则。`timeouts` 接入现有Gemini StreamObserver，完成候选后继续转发合法usage帧直到完整EOF；取消、容量和首包/空闲限制继续生效。纯转发不进入session/prompt，不执行工具，不改变旧会话字段白名单。
+
+红灯：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_037_ -- --nocapture`，槽位2，退出101，2项中1通过1失败；原生生成入口预期200实际404，来自行为断言。旧会话严格拒绝扩展字段的测试通过。首次编译6分38秒，链接器报告既有macOS `__eh_frame`大小警告。
+
+本次最终验证：
+
+| 检查 | 结果 |
+| --- | --- |
+| `cargo fmt --all` | 退出0，已审查本项文件差异，无无关格式化进入本项提交；尾部usage迭代以定向rustfmt格式化 |
+| `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_037_ -- --nocapture` | 与红灯相同命令；最终退出0，3项通过、0失败，11分08秒构建；覆盖三来源前缀、两个动作、model前缀/目标版本/query、未知路径/动作/query/GET拒绝、未认证拒绝、请求工具/签名及JSON/SSE响应逐值/逐字节保留，含尾部usage；旧会话严格隔离通过 |
+| `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings` | 顺序阶段入口内执行，退出0，1分16秒完成 |
+| `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351 authorized_native_ --nocapture` | 退出0，4项通过，Chat/Messages/Responses/Gemini真实回环回归 |
+| `python3 scripts/cargo_slot.py cargo test -p vw-gateway-client --lib app_routing -- --nocapture` | 退出0，7项通过，默认features |
+| `git diff --check` | 退出0 |
+
+阶段入口 `python3 scripts/cargo_slot.py sh -c 'cargo fmt --all ... && cargo test -p vw-agent --lib cc_route_037_ -- --nocapture ... && cargo clippy --all-targets --all-features -- -D warnings ...'` 退出0；尾部usage修正后的相同聚焦命令再次退出0。后续Cargo相邻回归因其他任务修改共享依赖开始重复重编译，向自有槽位入口发SIGTERM，入口退出130并清理子进程，未将中断当作通过；改用刚完成最终聚焦测试的同一产物执行上述4项回归。最后独立执行SDK测试。
+
+所有阶段实际槽位 **2**；`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。入口退出，锁已释放，缓存保留。共享工作区同时存在其他任务修改，不将结果描述为干净HEAD验收；本项仅提交直接实现/测试/本条证据。状态 **已完成**，仅覆盖授权目标协议数据面，不代表母任务8或Gemini生产配置发布完成。Windows/Linux/WSL范围外、未验证，WSL地址继续保留来源映射。

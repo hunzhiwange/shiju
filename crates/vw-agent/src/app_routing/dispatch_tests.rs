@@ -519,3 +519,139 @@ async fn cc_route_036_authorized_native_responses_json_and_sse() {
     upstream_task.abort();
     assert!(upstream_task.await.unwrap_err().is_cancelled());
 }
+
+#[tokio::test]
+async fn cc_route_037_authorized_native_gemini_json_and_sse() {
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target =
+        format!("http://{}/v1beta/models/fixture:generateContent", upstream.local_addr().unwrap())
+            .parse()
+            .unwrap();
+    let (requests, mut received) = mpsc::unbounded_channel();
+    let result = json!({"candidates":[{"index":0,"content":{"role":"model","parts":[{"functionCall":{"name":"lookup","args":{}},"thoughtSignature":"signed-fixture"}]},"finishReason":"STOP"}],"usageMetadata":{"totalTokenCount":5}});
+    let stream =
+        format!("data: {}\n\ndata: {}\n\n", result, json!({"usageMetadata":{"totalTokenCount":5}}));
+    let expected_stream = stream.clone();
+    let expected_result = result.clone();
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(
+            upstream,
+            Router::new().fallback(axum::routing::post(
+                move |uri: axum::http::Uri, headers: HeaderMap, Json(body): Json<Value>| {
+                    let result = result.clone();
+                    let stream = stream.clone();
+                    let requests = requests.clone();
+                    async move {
+                        let streaming = uri.path().ends_with(":streamGenerateContent");
+                        requests.send((uri, headers, body)).unwrap();
+                        if streaming {
+                            ([(header::CONTENT_TYPE, "text/event-stream")], stream).into_response()
+                        } else {
+                            Json(result).into_response()
+                        }
+                    }
+                },
+            )),
+        )
+        .await
+        .unwrap();
+    });
+    let listener = RoutingListener::default();
+    let address = listener.start(0).unwrap();
+    let binding = VerifiedRouteBinding {
+        project: ProjectScope::new(
+            TenantScope::new("platform", "company").unwrap(),
+            "project".into(),
+        )
+        .unwrap(),
+        host: "host".into(),
+        app: AppId::Gemini,
+        account: "account".into(),
+        account_generation: 1,
+    };
+    let active = listener
+        .auth
+        .issue_with_target(
+            binding,
+            Some(JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
+                url: target,
+                authorization: "Bearer fixture-upstream".parse().unwrap(),
+                transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
+            }),
+        )
+        .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    for path in [
+        "/v1beta/models/fixture:generateContent",
+        "/gemini/v1beta/models/fixture:generateContent",
+        "/gemini/v1/models/models/fixture:generateContent",
+    ] {
+        let url = format!("http://{address}{path}");
+        assert_eq!(
+            client.post(&url).json(&json!({})).send().await.unwrap().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        for streaming in [false, true] {
+            let body = json!({"contents":[{"role":"model","parts":[{"functionCall":{"name":"lookup","args":{}},"thoughtSignature":"signed-fixture"}]},{"role":"user","parts":[{"functionResponse":{"name":"lookup","response":{"ok":true}}}]}],"tools":[{"functionDeclarations":[{"name":"lookup","parameters":{"type":"object"}}]}]});
+            let url = if streaming {
+                url.replace(":generateContent", ":streamGenerateContent?alt=sse")
+            } else {
+                url.clone()
+            };
+            let response =
+                client.post(&url).bearer_auth(&active.token).json(&body).send().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            if streaming {
+                assert_eq!(response.text().await.unwrap(), expected_stream);
+            } else {
+                assert_eq!(response.json::<Value>().await.unwrap(), expected_result);
+            }
+            let (uri, headers, outgoing) =
+                timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
+            assert_eq!(headers[header::AUTHORIZATION], "Bearer fixture-upstream");
+            assert_eq!(outgoing, body);
+            assert_eq!(
+                uri.path(),
+                if streaming {
+                    "/v1beta/models/fixture:streamGenerateContent"
+                } else {
+                    "/v1beta/models/fixture:generateContent"
+                }
+            );
+            assert_eq!(uri.query(), streaming.then_some("alt=sse"));
+        }
+    }
+    for path in [
+        "/other/v1beta/models/fixture:generateContent",
+        "/v1beta/models/fixture:generateContent?x=1",
+        "/v1beta/models/fixture:generateContent/",
+        "/claude-desktop/v1beta/models/fixture:generateContent",
+    ] {
+        let response = client
+            .post(format!("http://{address}{path}"))
+            .bearer_auth(&active.token)
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+    assert_eq!(
+        client
+            .get(format!("http://{address}/v1beta/models/fixture:generateContent"))
+            .bearer_auth(&active.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::METHOD_NOT_ALLOWED
+    );
+    assert!(received.try_recv().is_err());
+    listener.stop().await.unwrap();
+    upstream_task.abort();
+    assert!(upstream_task.await.unwrap_err().is_cancelled());
+}

@@ -226,6 +226,9 @@ impl AuthorizedRoute {
     ) -> Result<(&JsonTarget, Option<&str>, CancellationToken), StatusCode> {
         let route = self.json_target.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let (target, model) = match route {
+            JsonRoute::Plain(target) if self.binding.app == AppId::Gemini => {
+                (target.as_ref(), None)
+            }
             JsonRoute::Plain(target) => match decode(self.binding.app, model.unwrap_or_default()) {
                 Ok(Decoded::Plain) => (target.as_ref(), None),
                 Ok(_) | Err(ModelIdError::UnsupportedApplication) => {

@@ -76,17 +76,21 @@ pub(super) async fn forward_json(
         response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
         return Ok(response);
     }
+    let gemini = (app == AppId::Gemini)
+        .then(|| crate::model_relay::native_gemini::Request::parse(request.uri()))
+        .flatten();
     let responses = crate::model_relay::native_responses::is_path(request.uri().path());
     let supported = match app {
         AppId::Codex => {
             crate::model_relay::native_chat::is_path(request.uri().path())
                 || crate::model_relay::native_responses::is_path(request.uri().path())
         }
+        AppId::Gemini => gemini.is_some(),
         AppId::Claude => crate::model_relay::native_messages::is_path(request.uri().path()),
         AppId::ClaudeDesktop => request.uri().path() == "/claude-desktop/v1/messages",
         _ => false,
     };
-    if !supported || request.uri().query().is_some() {
+    if !supported || (gemini.is_none() && request.uri().query().is_some()) {
         return Err(StatusCode::NOT_FOUND.into());
     }
     if responses && request.method() == Method::GET {
@@ -126,10 +130,14 @@ pub(super) async fn forward_json(
     if !body.is_object() {
         return Err(StatusCode::BAD_REQUEST.into());
     }
-    let streaming = match body.get("stream") {
-        Some(Value::Bool(streaming)) => *streaming,
-        None => false,
-        _ => return Err(StatusCode::BAD_REQUEST.into()),
+    let streaming = if let Some(gemini) = &gemini {
+        gemini.streaming
+    } else {
+        match body.get("stream") {
+            Some(Value::Bool(streaming)) => *streaming,
+            None => false,
+            _ => return Err(StatusCode::BAD_REQUEST.into()),
+        }
     };
 
     #[cfg(target_os = "macos")]
@@ -137,9 +145,11 @@ pub(super) async fn forward_json(
     #[cfg(target_os = "macos")]
     let failover_body = failover.as_ref().map(|_| body.clone());
 
-    let client_model = body.get("model").and_then(Value::as_str).map(str::to_owned);
-    let (target, model, cancelled) =
-        route.select_json(body.get("model").and_then(Value::as_str))?;
+    let client_model = gemini
+        .as_ref()
+        .map(|gemini| gemini.model.clone())
+        .or_else(|| body.get("model").and_then(Value::as_str).map(str::to_owned));
+    let (target, model, cancelled) = route.select_json(client_model.as_deref())?;
 
     #[cfg(target_os = "macos")]
     let mapped_model = if model.is_none() {
@@ -199,7 +209,7 @@ pub(super) async fn forward_json(
         } else {
             body
         };
-        let outgoing = prepare_request(&body, target, model)?;
+        let outgoing = prepare_request(&body, target, if gemini.is_some() { None } else { model })?;
         drop(body);
         (outgoing, None)
     };
@@ -209,6 +219,18 @@ pub(super) async fn forward_json(
         let body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
         crate::model_relay::native_responses::check(&body, &route.references, scope)?;
     }
+    let gemini_url = gemini
+        .as_ref()
+        .map(|gemini| gemini.url(&target.url, model.unwrap_or(&gemini.model)))
+        .transpose()?;
+    if let Some(url) = &gemini_url {
+        *outgoing.url_mut() = url.clone();
+    }
+    if gemini.is_some() && !target.authorization.as_bytes().starts_with(b"Bearer ") {
+        outgoing.headers_mut().remove(header::AUTHORIZATION);
+        outgoing.headers_mut().insert("x-goog-api-key", target.authorization.clone());
+    }
+    let authorized_url = gemini_url.as_ref().unwrap_or(&target.url);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
@@ -268,7 +290,7 @@ pub(super) async fn forward_json(
                 })
                 .await;
         }
-        transport.forward_ordered(&target.url, outgoing, wire, cancelled.clone(), listener).await
+        transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await
     };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
@@ -296,7 +318,9 @@ pub(super) async fn forward_json(
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(
                 body,
-                if native_messages {
+                if gemini.is_some() {
+                    crate::model_relay::generation::GenerationProtocol::Gemini
+                } else if native_messages {
                     crate::model_relay::generation::GenerationProtocol::Messages
                 } else if native_responses {
                     crate::model_relay::generation::GenerationProtocol::Responses
@@ -308,7 +332,9 @@ pub(super) async fn forward_json(
         } else {
             body
         };
-        let protocol = if native_messages {
+        let protocol = if gemini.is_some() {
+            Protocol::Gemini
+        } else if native_messages {
             Protocol::Messages
         } else if native_responses {
             Protocol::Responses

@@ -65,9 +65,13 @@ pub(super) async fn stream_body(
 ) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver {
+        gemini: matches!(protocol, Protocol::Gemini),
         messages: match protocol {
             Protocol::Messages => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Messages,
+            )),
+            Protocol::Gemini => Some(crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Gemini,
             )),
             Protocol::Responses => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Responses,
@@ -99,9 +103,13 @@ pub(super) async fn first_output_body(
 ) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver {
+        gemini: matches!(protocol, Protocol::Gemini),
         messages: match protocol {
             Protocol::Messages => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Messages,
+            )),
+            Protocol::Gemini => Some(crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Gemini,
             )),
             Protocol::Responses => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Responses,
@@ -181,6 +189,17 @@ impl TimedStream {
             let mut batch = OutputBatch::default();
             let result = match chunk {
                 Ok(Some(Ok(bytes))) => self.observer.observe(&bytes, &mut batch),
+                Ok(None)
+                    if self.observer.gemini
+                        && self
+                            .observer
+                            .messages
+                            .as_ref()
+                            .is_some_and(|observer| observer.finish().is_ok()) =>
+                {
+                    self.upstream = None;
+                    return None;
+                }
                 Ok(_) => Err(RouteError::StreamFailed),
                 Err(status) => Err(status.into()),
             };
@@ -226,6 +245,7 @@ impl OutputBatch {
 /// and metadata frames are relayed verbatim, in their original order.
 #[derive(Default)]
 struct OutputObserver {
+    gemini: bool,
     messages: Option<crate::model_relay::stream_observer::StreamObserver>,
     frame: Vec<u8>,
     line_start: usize,
@@ -243,7 +263,14 @@ impl OutputObserver {
             }
             if matches!(self.frame[self.line_start..], [b'\n'] | [b'\r', b'\n']) {
                 let activity = match &mut self.messages {
-                    Some(observer) => messages_activity(&self.frame, observer)?,
+                    Some(observer) => {
+                        let activity = messages_activity(&self.frame, observer)?;
+                        if self.gemini && activity == Activity::End {
+                            Activity::Output
+                        } else {
+                            activity
+                        }
+                    }
                     None => frame_activity(&self.frame)?,
                 };
                 batch.bytes.extend_from_slice(&self.frame);
@@ -296,7 +323,11 @@ fn messages_activity(
                 | "response.reasoning_text.delta"
                 | "response.reasoning_summary_text.delta",
             ) => value["delta"].as_str().is_some_and(|delta| !delta.is_empty()),
-            _ => false,
+            _ => value["candidates"].as_array().is_some_and(|candidates| {
+                candidates.iter().any(|candidate| {
+                    candidate["content"]["parts"].as_array().is_some_and(|parts| !parts.is_empty())
+                })
+            }),
         };
     Ok(if output { Activity::Output } else { Activity::Quiet })
 }

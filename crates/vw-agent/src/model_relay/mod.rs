@@ -79,3 +79,7 @@ pub(crate) mod native_messages;
 pub(crate) mod native_responses;
 #[cfg(test)]
 mod native_responses_tests;
+
+pub(crate) mod native_gemini;
+#[cfg(test)]
+mod native_gemini_tests;

@@ -3,6 +3,8 @@
 
 #![cfg(not(target_arch = "wasm32"))]
 
+pub mod install;
+
 use iced_code_editor::{
     LspCommand, LspServerConfig, ensure_rust_analyzer_config, lsp_language_for_path,
     lsp_server_config, resolve_lsp_command,

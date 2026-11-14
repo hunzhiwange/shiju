@@ -8,7 +8,7 @@ use crate::app::Message;
 use iced::widget::{button, column, row, text};
 use iced::Element;
 
-pub(super) fn view() -> Element<'static, Message> {
+pub(super) fn view(state: &crate::app::state::AppsCatalogState) -> Element<'_, Message> {
     let mut shortcuts = row![].spacing(8);
     for (label, target) in [
         ("MCP", SystemSettingsSearchTarget::Agents(AgentConfigTab::Mcp)),
@@ -33,8 +33,7 @@ pub(super) fn view() -> Element<'static, Message> {
                 .size(13).style(settings_muted_text_style),
             text("提示词、项目组合与工作区：展开应用详情；入口按应用的领域声明提供。OpenClaw 提供工作区与应用设置，Hermes 提供记忆与面板。")
                 .size(13).style(settings_muted_text_style),
-            text("外部会话：尚未接入外部会话桌面页面；归档聊天属于识矩自身聊天。")
-                .size(13).style(settings_muted_text_style),
+            crate::app::components::external_sessions::view(&state.external_sessions),
             text("配置备份与恢复、WebDAV/S3 设备同步：尚未接入对应桌面页面，等待领域接口接线。")
                 .size(13).style(settings_muted_text_style),
             text("页面可达不代表所有应用支持全部操作；安装状态待确认也不代表不支持。权限与具体能力以领域返回结果为准。")

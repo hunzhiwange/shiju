@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    ExternalSessions(crate::app::components::external_sessions::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
     OpenClawTools(crate::app::components::openclaw_tools::Event),
     OpenClawEnv(crate::app::components::openclaw_env::Event),
@@ -59,6 +60,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawTools(event) => return crate::app::components::openclaw_tools::update(app, event),
         AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
+        AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
@@ -229,6 +231,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();
+            app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.loaded_at = None;
             app.apps_catalog.error = None;
         }
@@ -257,6 +260,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.token = token;
             app.apps_catalog.drag = Default::default();
             app.apps_catalog.expanded = None;
+            app.apps_catalog.external_sessions.invalidate();
             app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = false;
             app.apps_catalog.rows.clear();

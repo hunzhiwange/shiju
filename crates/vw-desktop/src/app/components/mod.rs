@@ -539,3 +539,6 @@ pub(crate) mod app_routing;
 
 #[path = "project_profiles/selection.rs"]
 pub(crate) mod project_profile_selection;
+
+#[path = "agent_apps/external_sessions.rs"]
+pub(crate) mod external_sessions;

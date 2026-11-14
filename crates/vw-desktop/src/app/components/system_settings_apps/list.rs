@@ -104,7 +104,7 @@ pub(crate) fn view(state: &AppsCatalogState, i18n: I18n) -> Element<'_, Message>
     let filters =
         settings_group_card(container(column![search_row, status].spacing(12)).padding([14, 0]));
     let mut content = column![
-        heading, domains::view(), filters, crate::app::components::app_routing::lifecycle::view(state)
+        heading, domains::view(state), filters, crate::app::components::app_routing::lifecycle::view(state)
     ].spacing(20);
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(error.clone()));

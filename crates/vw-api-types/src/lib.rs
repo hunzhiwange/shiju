@@ -51,6 +51,7 @@ pub mod computer_control;
 pub mod error;
 pub mod file;
 pub mod git;
+pub mod hermes_memory;
 pub mod id;
 pub mod knowledge;
 pub mod mcp;
@@ -165,3 +166,6 @@ mod computer_control_tests;
 
 #[cfg(test)]
 mod voice_tests;
+
+#[cfg(test)]
+mod hermes_memory_tests;

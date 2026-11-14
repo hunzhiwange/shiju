@@ -25,3 +25,5 @@ pub mod mcp;
 pub mod high_availability;
 
 pub mod diagnostics;
+
+pub mod prompts;

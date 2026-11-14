@@ -3,6 +3,7 @@ members = [
   "crates/libs/gateway-pairing",
   "crates/libs/content-guard",
   "crates/libs/domain-matcher",
+  "crates/libs/git-discovery",
   "crates/libs/memory-algorithms",
   "crates/libs/memory-markdown",
   "crates/libs/memory-sqlite",

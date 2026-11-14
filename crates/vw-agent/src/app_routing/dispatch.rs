@@ -613,6 +613,11 @@ fn prepare_request_inner(
     {
         body = crate::model_relay::messages_gemini_request::convert(&body)?;
     }
+    vw_agent_apps::routing::thinking_options::normalize_messages(
+        &mut body,
+        target.url.host_str().unwrap_or_default(),
+        target.url.path(),
+    );
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());
     *outgoing.body_mut() =

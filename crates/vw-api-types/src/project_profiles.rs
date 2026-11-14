@@ -2,7 +2,7 @@
 //! execution host; this payload must never contain credentials or prompt contents.
 use serde::{Deserialize, Serialize};
 
-use crate::agent_apps::catalog::AppId;
+use crate::agent_apps::AppId;
 
 /// Only these three applications participate in project profiles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

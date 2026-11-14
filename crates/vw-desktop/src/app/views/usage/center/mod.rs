@@ -2,6 +2,7 @@
 pub mod display;
 pub mod charts;
 pub mod state;
+pub mod models;
 pub mod pricing;
 pub mod scan;
 pub mod logs;
@@ -33,6 +34,7 @@ pub enum Event {
     Refresh,
     Display(display::Event),
     Pricing(pricing::Event),
+    Models(models::Event),
     Charts(charts::Event),
     Scan(scan::Event),
     Logs(logs::Event),
@@ -47,6 +49,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
         Event::Display(event) => return display::update(app, event),
         Event::Scan(event) => return scan::update(app, event),
+        Event::Models(event) => return models::update(app, event),
         Event::Pricing(event) => return pricing::update(app, event),
         Event::Charts(event) => return charts::update(app, event),
         Event::Logs(event) => return logs::update(app, event),
@@ -115,6 +118,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![row![
         action("刷新用量", Event::Refresh),
         action("扫描与修复", Event::Scan(scan::Event::Open)),
+        action("模型同步选择", Event::Models(models::Event::Open)),
         action("币种与显示", Event::Display(display::Event::Open)),
         action("模型定价", Event::Pricing(pricing::Event::Open)),
         action("最近24小时（UTC）", Event::Load(false)),
@@ -133,5 +137,5 @@ pub fn view(app: &App) -> Element<'_, Message> {
         };
         content = content.push(text(display::status(app)).size(13)).push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
     }
-    display::overlay(app, pricing::overlay(app, scan::overlay(app, content.into())))
+    display::overlay(app, models::overlay(app, pricing::overlay(app, scan::overlay(app, content.into()))))
 }

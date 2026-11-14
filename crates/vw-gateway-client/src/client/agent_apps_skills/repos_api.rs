@@ -4,7 +4,7 @@ use vw_api_types::agent_apps_skills::repos_api::*;
 
 impl GatewayClient {
     pub async fn skill_repos_list(&self, scope: &SkillReposQuery) -> Result<SkillReposResponse, String> {
-        let project = scope.project_id.to_string();
+        let project = scope.project_id.as_ref().to_owned();
         self.get_json("/v1/agent-apps/skills/repos", &[
             ("projectId".into(), project), ("targetHostId".into(), scope.target_host_id.clone()),
         ]).await

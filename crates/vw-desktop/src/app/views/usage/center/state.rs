@@ -2,6 +2,7 @@ use vw_gateway_client::UsageSummary;
 
 pub struct State {
     pub display: super::display::State,
+    pub models: super::models::State,
     pub pricing: super::pricing::State,
     pub scan: super::scan::State,
     pub charts: super::charts::State,
@@ -19,6 +20,7 @@ impl State {
         self.charts = super::charts::State::default();
         self.groups = super::groups::State::default();
         self.pricing.close();
+        self.models.close();
         self.display.close();
         self.open = false;
         self.sequence = self.sequence.wrapping_add(1);
@@ -41,6 +43,6 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { display: super::display::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { display: super::display::State::default(), models: super::models::State::default(), pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }

@@ -96,3 +96,7 @@ pub mod prompts;
 mod prompts_tests;
 
 pub mod preferences;
+
+pub mod usage;
+#[cfg(test)]
+mod usage_tests;

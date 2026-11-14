@@ -204,3 +204,12 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 `data_management/preferences.rs::prepare` 显式接收匿名/用户选择的 CC 设备 settings.json 字节，仅迁入 appOrder、visibleApps，复用 normalize_preferences；SQLite settings 的通用片段不冒充设备偏好。其他字段均不写入。PreferencesPreview 绑定项目、租户、主机、principal、来源摘要及目标原始记录；冲突须 Replace 或 Skip，非法字段值整类拒绝。`agent_apps/preferences_import.rs::apply` 经 GatewaySettingsStore 的 insert_if_absent/compare_exchange 原子提交唯一 agent_apps_user 记录；不写 agent_apps_host。该内部入口要求调用方先完成迁入授权和持久回退点，尚未接线后续迁入调度/API。
 
 按本轮明确覆盖要求，仅实现并静态阅读，未执行 Cargo、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无测试通过或退出码证据。后续统一回归需覆盖新增、Skip、Replace、重复执行不写入、来源/目标过期、跨作用域拒绝、非法记录无半写及本机路径/系统集成排除，并核对真实 SQLite/PostgreSQL 所有者行为。
+
+
+## 子任务 15：请求明细迁入（2026-11-14，仅实现）
+
+`data_management/usage.rs` 提供请求预览与事务执行，账本 SQL 位于 `usage/import_store.rs`。稳定身份绑定项目、主机、principal、授权来源 registry、应用及 request ID；不使用会随导出变化的文件摘要去重。执行重查预览 revision 与账号归属，skip 不写，replace 保留 canonical ID 与账号，整批事务失败回滚，已存费用直接保留不重算。调用者须先授权、捕获任务 8 回退点并保持操作锁；此入口未宣称已注册网关或跨类别编排。
+
+限制：目前只接收 proxy 来源的 proxy_request_logs；非 proxy、model_pricing、日汇总、扫描位置及去重表显式返回 UnsupportedCategory，避免伪造汇总请求或双重计费。已归档身份拒绝替换，需后续领域所有者提供汇总调整合同。现有 model/pricing_model/倍率关联随请求保留，价格表不复制。此项尚未达到完整用量迁入验收。
+
+新增 `cc_data_15_usage_reimport_does_not_duplicate_cost` 和 `cc_data_15_usage_rejects_foreign_account_binding`，未运行。按当前用户覆盖要求，未执行 Cargo、单元测试、编译或实机验证；无退出码、有效测试数或通过结论；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_15_ -- --nocapture`。任务卡依本轮要求删除，不表示完整验收通过。

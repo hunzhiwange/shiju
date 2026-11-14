@@ -6,6 +6,7 @@
 
 - 官方源码：https://github.com/getsigit/sigit/tree/v1.7.10
 - 官方发行：https://github.com/getsigit/sigit/releases/tag/v1.7.10
+- 许可证：固定源码包的LICENSE为Apache-2.0，NOTICE保留上游版权与商标声明；来源 https://github.com/getsigit/sigit/blob/v1.7.10/LICENSE 与 https://github.com/getsigit/sigit/blob/v1.7.10/NOTICE 。本产物为经修改的本地受管构建，不冒充未修改官方发行物；agentInfo的1.7.10仅表示上游基线，源码/补丁/二进制摘要另行区分衍生产物。再分发衍生产物时保留上游LICENSE与NOTICE。
 - npm元数据：https://registry.npmjs.org/@smbcloud%2fsigit/1.7.10 ，新scope `@getsigit/sigit`与旧scope均为1.7.10；保留任务要求的稳定key=sigit。
 - 固定参考025迁移只读核验：`npx -y @smbcloud/sigit`。当前发行需显式`--acp`；注册固定参数 `-y @smbcloud/sigit@1.7.10 --acp`，本地参数`--acp`。
 - 官方源码归档SHA256：`088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e`。受审补丁及校验契约见`patches/acp-model-source/sigit/host-boundary.patch`与`crates/vw-acp/src/managed_runtime/contracts.json`。

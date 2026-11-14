@@ -1276,3 +1276,51 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 新增 app_routing::outbound 弹窗，复用 lifecycle、主机授权 SDK 和统一设置控件。显示已保存/实际模式及凭据存在标记；代理 URL 遮罩输入且 Debug 脱敏，仅显式保存写入。测试使用已保存出口，扫描使用服务端固定回环端口；候选仅显示 TCP 可达端口，不自动保存。进度绑定上下文及请求代次，取消与上下文失效触发 SDK DELETE，等待终态；请求错误时尽力取消已知任务。启动响应丢失时身份未知，依赖服务端期限释放资源。
 
 任务89配置弹窗及来源快照、运行时、主机应用、配置与账号合同源码存在，不推定外部前置已实机验收。已读取冻结 upstream useGlobalProxy.ts/globalProxy.ts。按本次用户覆盖指令未运行 Cargo、测试、实机或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证取消释放、脱敏、过期回复隔离及 macOS 动态中文渲染。其他平台未验证；母任务8未作完成认定。
+
+
+## 任务108：完整来源与证据闭环核对（待统一验证）
+
+2026-11-14，使用当前共享工作区。路由计划目录除本项外已无现存编号实施任务卡；删除不等于验证通过，不重新调度已删除任务。遵照本次用户覆盖要求，不运行 Cargo 及相关脚本、单元测试、实机测试或最终回归。以下是静态来源与交付清单，历史测试记录仅适用于各自记载的基线，不作为当前工作区通过证据；母任务8尚不能认定完成。
+
+### 来源覆盖与当前差异
+
+- 按来源映射的“75个主责来源文件”表逐行读取路径与 SHA256，对照 `crates/vw-agent-apps/upstream/`：75条、75个文件存在、75个哈希匹配。沿用固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`；本次未重新对照外部 Git 对象。
+- “39个命令候选逐项闭环”表有39条，来源定义全部存在：`commands/proxy.rs` 34条、`commands/global_proxy.rs` 5条。逐项分配仍见来源映射，领域 API/SDK 合同见本记录“控制 API 与 SDK 合同”；这不证明39项均已实现或注册为生产接口。
+- 独立证据实际存在4份：[任务10](routing-evidence/任务10.md)、[任务18](routing-evidence/任务18.md)、[任务19](routing-evidence/任务19.md)、[任务109](routing-evidence/任务109.md)。均保留原基线、命令、有效测试数及退出码，不重新解释为当前通过。任务109的准备后拒绝发布是历史阶段行为，生产交付限制以后续任务86条目为准。
+- 要求纳入的 `routing-evidence/任务41.md` 和 `任务47.md` 当前不存在；不可引用虚构链接或以源文件存在补作运行证据。
+- 汇总文档按任务标题识别，结合上述4份独立证据后，任务1–92中仍缺少独立验收条目的任务为：41、42、43、44、46、47、48、49、50、51、52、53、54、55、56、59、62、64、71、73、74、77、79、83、84、85、87、89、91、92，共30项。部分任务在其他条目有交叉引用，交叉引用不等同完整验证记录。恢复条件是统一验证时补充对应实现基线、入口、有效场景数及退出码；无需恢复或重跑已删除任务卡。
+
+### macOS交付清单
+
+所有下表入口的当前 macOS 行为均待统一验证，未执行真实账号或桌面交互。源码落点相对仓库根目录；存在源码只用于定位交付，不表示已验证可用。
+
+| 范围与来源任务 | 交付入口 | 当前证据与恢复条件 |
+| --- | --- | --- |
+| 生命周期、授权、压缩边界（10、18、19、109） | `crates/vw-agent/src/app_routing/` 的 listener、route_auth、decode_request、decode_response；控制 API/SDK 见上表 | 四份独立历史证据；需要针对当前基线复核，不能将准备授权等同生产发布 |
+| 原生 Chat、Messages、Responses、Gemini（34–37） | `app_routing/dispatch.rs::forward_json` 与 `crates/vw-agent/src/model_relay/native_*.rs` | 本记录任务34–37；JSON与SSE、鉴权及取消需分别保留当前结果 |
+| Messages→Chat（38–40） | `model_relay/messages_chat_request.rs`、`messages_chat_result.rs`、`messages_stream.rs` | 本记录任务38–40；不能推定其他桥接组合通过 |
+| Messages→Responses（41–45） | `model_relay/messages_responses_request.rs`、`messages_responses_result.rs`、`messages_responses_stream.rs` | 任务45标为未验证；41–44独立记录缺失，需分别核对请求、JSON、SSE与搜索回合 |
+| Messages→Gemini（46–50） | `vw-agent-apps/src/routing/gemini_schema.rs`；`model_relay/messages_gemini_{request,result,stream}.rs` | 46–50独立记录缺失；Schema、签名隔离、JSON与SSE分别待验 |
+| Responses→Chat（51–56） | `model_relay/responses_chat_{request,result,stream}.rs`、`responses_chat_tools.rs` | 51–56独立记录缺失；工具历史、命名空间与Moonshot规则待验 |
+| Responses→Anthropic（57–60） | `model_relay/responses_anthropic_{request,result,stream}.rs` | 本记录57、58、60；59独立记录缺失；不透明状态与流式行为待验 |
+| Gemini→Chat既有路径 | `model_relay/gemini_stream.rs`，复用共享传输 | 既有能力不代表常驻入口与会话能力等价；授权常驻链路待验 |
+| provider与特殊端点（61–85） | `model_relay/` 下官方账号传输、compaction、metadata；`app_routing/dispatch.rs` | 近期条目明确未验证；模型发现、压缩、图片、Alpha、额度闸口、请求终态与usage交接需按来源矩阵逐项补证 |
+| 模式与主机（86–87） | `app_routing/provider_publication.rs`、`desktop_routing.rs`；任务86记录的 mode API与SDK | 86当前仅支持Claude保存供应商；官方账号及其他应用明确拒绝，不可宣称全部应用附接完成；87独立记录缺失 |
+| 桌面入口（88–92） | `crates/vw-desktop/src/app/components/app_routing/` 的 lifecycle、config、outbound、requests | 88、90有未验证交付记录；89、91、92独立记录缺失。授权上下文失效、取消、脱敏、暗黑主题与中文实际渲染待验 |
+
+### 交叉所有者与外部前置
+
+额外交叉来源仍以来源映射“额外交叉来源与事件”为准，不扩大本项范围：
+
+| 唯一主责 | 来源与消费入口 | 当前限制 |
+| --- | --- | --- |
+| 母任务4：客户端配置事务 | mode/controller、mode/operation、live/residue；本仓 `app_routing/provider_publication.rs` 消费配置发布事务 | 以任务86实际支持范围为准；其他应用和官方账号配置交付不得推定完成 |
+| 母任务6：账号登录及刷新 | codex_oauth_auth及browser、xai_oauth_auth、copilot_auth；任务71–75消费账号租约 | 仅路由传输源码交付；真实账号刷新、撤销与主机绑定待验 |
+| 母任务7：额度策略 | codex_quota_protection；任务73消费官方额度闸口 | 缺任务73独立验收条目，不能以额度快照存在证明准入生效 |
+| 母任务9：故障转移 | provider_router、failover_switch与provider-switched；本仓 `app_routing/failover_routing.rs` | 沿用底座事件合同，候补选择与健康策略不由路由重建；跨能力结果待验 |
+| 母任务10：聚合目录及daemon | 模型目录发布；本仓 `app_routing/aggregation_routing.rs` | 只消费可信选定目标；不以目录或计划存在作为运行证明 |
+| 母任务17：用量与计价 | parser/calculator/logger及pricing；本仓 `app_routing/request_status.rs` | 只交一次usage与终态；需验证唯一结算交接，路由不自行计价 |
+
+母任务1的来源快照在本次75项范围内可核对；母任务2、3的运行时、主机和应用授权合同见本记录“底座核对”与任务109证据，母任务4、6以上述生产限制为准。未取得当前基线的外部前置验收结果，不宣称这些母任务全部验收完成。
+
+用户人工验收继续按人工验收清单单列待验。Windows、Linux、WSL范围外且未验证，WSL连接地址保留来源映射。未领取槽位，未设置构建目录；本次无测试有效数、红绿灯或运行通过结论。后续统一验证应先补齐上述差异和协议组合，再更新母任务8交付结论。

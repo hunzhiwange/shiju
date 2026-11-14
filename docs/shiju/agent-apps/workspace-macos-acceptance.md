@@ -236,3 +236,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 - 静态核对任务 25 的 `openclaw_settings_catalog` / `set_openclaw_settings_catalog` 及强类型 DTO；沿用应用详情导航、项目/主机/网关上下文和过期响应隔离。
 - 新增 catalog 独立弹窗，编辑 JSON 中 alias 与任意额外字段，缺分节明确提示，`{}` 可显式保存；失败保留草稿，保存只使用 catalog SDK，不写默认模型。使用统一设置编辑器及弹窗、默认字体。
 - 添加两个 `openclaw_catalog_editor_preserves_aliases` 前缀测试用例，尚未执行。按本轮最高优先指令，未运行 Cargo、单元测试或实机验证；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。不宣称编译、行为测试或 macOS 验收通过，后续统一验证。
+
+## 任务 38：桌面 OpenClaw 工具表单（2026-11-14）
+
+静态核对任务 1 合同、任务 25 tools GET/PUT SDK 与 DTO、来源 ToolsPanel/EnvPanel/utils 测试及现有设置弹窗。新增工具弹窗：四个已知 profile、未设置和未知值分别展示，未知原值及扩展字段保留；allow/deny 可增删编辑，保存过滤空白条目，失败保留草稿，成功展示结构化写入警告。使用统一表单与可滚动弹窗、默认字体及 toast；连接、主机、详情切换及关闭使旧请求失效。
+
+补充三个独立测试源码，覆盖 profile 区分、未知值/扩展保留、空白条目过滤和失败保稿及写入警告，均未执行。按本轮用户要求未运行 Cargo、任何测试或最终回归，不宣称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族及暗黑主题中文实际渲染。

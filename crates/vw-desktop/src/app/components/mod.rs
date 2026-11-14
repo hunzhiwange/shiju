@@ -504,6 +504,9 @@ mod openclaw_model_tests;
 #[path = "agent_apps/openclaw_defaults.rs"]
 pub(crate) mod openclaw_defaults;
 
+#[path = "agent_apps/openclaw_tools.rs"]
+pub(crate) mod openclaw_tools;
+
 #[path = "agent_apps/openclaw_env.rs"]
 pub(crate) mod openclaw_env;
 

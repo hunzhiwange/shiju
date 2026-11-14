@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    OpenClawTools(crate::app::components::openclaw_tools::Event),
     OpenClawEnv(crate::app::components::openclaw_env::Event),
     OpenClawCatalog(crate::app::components::openclaw_catalog::Event),
     OpenClawModel(crate::app::components::openclaw_model::Event),
@@ -44,6 +45,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::OpenClawTools(event) => return crate::app::components::openclaw_tools::update(app, event),
         AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
@@ -55,6 +57,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.drag = Default::default();
         }
         AppsCatalogMessage::ToggleDetails(id) => {
+            app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
@@ -139,6 +142,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
+            app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
@@ -166,6 +170,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
             app.apps_catalog.openclaw_model.invalidate();
+            app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();

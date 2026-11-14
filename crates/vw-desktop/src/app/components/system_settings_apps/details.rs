@@ -19,6 +19,7 @@ pub(super) fn view<'a>(
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {
         details = details.push(crate::app::components::openclaw_model::entry());
         details = details.push(crate::app::components::openclaw_catalog::entry());
+        details = details.push(crate::app::components::openclaw_tools::entry());
         details = details.push(crate::app::components::openclaw_env::entry());
         details = details.push(crate::app::components::openclaw_defaults::entry());
     }

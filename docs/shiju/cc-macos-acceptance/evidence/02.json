@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "task_id": 2,
+  "title": "核证网关服务底座与原生化边界",
+  "status": "deferred_unverified",
+  "date": "2026-11-14",
+  "execution_policy": "按用户最新指令跳过本轮全部核证、构建、测试、实机验收和最终回归；仅保存延期记录并删除编号任务卡。",
+  "acceptance_passed": false,
+  "baseline": {
+    "record_commit": "9b4b21fd7b00a1d624b52b6c4674c857489b618b",
+    "runtime_contract_baseline": "90330f6c232537e310d63821238c6f1e980fb576",
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_versions": null,
+    "note": "记录提交仅标识文档准备上下文，不表示冻结产品或产物已核证；共享工作区存在其他任务变更。"
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "read_or_located_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "read_or_located_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "read_or_located_not_revalidated"
+    },
+    {
+      "path": "docs/vibewindow/agent-apps/底座交付映射.md",
+      "sha256": "6717375a978a2d44812f2fbf6f226afebf57788c50b1fb960a908a9bcea7a87d",
+      "status": "read_or_located_not_revalidated"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": "母任务2",
+      "path": ".plans/2026-11-05-CC能力完整融合/2-网关服务底座与原生化边界.md",
+      "status": "missing_task_card",
+      "note": "指定路径不存在；已定位 docs/vibewindow/agent-apps/底座交付映射.md，未核证其完整性或当前适用性，不据此判定生产能力缺失。"
+    },
+    {
+      "owner": "任务1及母任务2",
+      "status": "prepared_unverified_not_executable",
+      "note": "runtime-contract 的已验证 API、SDK、CLI、临时配置和清理入口均未核证；本轮不补造可执行命令。"
+    }
+  ],
+  "scope": {
+    "candidate_basis": "仅从 inventory.owner_ref=2 提取静态候选；交叉项、唯一所有者、删除及调用者切换清单尚未复核。",
+    "candidate_count": 14,
+    "cross_items_status": "unverified",
+    "macos_applicability": "unverified"
+  },
+  "source_items": [
+    {
+      "source_key": "file:src-tauri/src/app_store.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/custom_icons.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/mod.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/proxy.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/settings.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/usage_rollup.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/migration.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/mod.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/schema.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/tests.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src-tauri/src/store.rs",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src/types/env.ts",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src/types/icon.ts",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    },
+    {
+      "source_key": "file:src/types/proxy.ts",
+      "status": "unverified",
+      "gap_owner": 2,
+      "evidence": null,
+      "reason": "本轮按指令延期核证，未判定实现、API权限与错误、SDK、测试或macOS适用性。"
+    }
+  ],
+  "verification": {
+    "executed": [],
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "exit_code": null,
+    "format_check": "not_run",
+    "diff_review": "not_acceptance_evidence",
+    "deferred": [
+      "复核母任务2来源到实现及测试映射与交叉来源项",
+      "核对注册、条件编译、事件、TS业务规则、原生边界与macOS适用性",
+      "核对API权限及错误、SDK和现有聚焦测试证据的当前适用性",
+      "绑定冻结产品树、独立构建产物哈希及macOS架构与应用版本",
+      "补齐隔离运行契约、观察记录和清理证据",
+      "证据JSON格式检查及统一回归"
+    ],
+    "note": "零用例、无运行日志和无产物不得计为通过；未验证不等于上游不支持。"
+  },
+  "cleanup": {
+    "status": "not_applicable",
+    "note": "未启动运行进程、未创建隔离账号或修改用户配置。"
+  },
+  "next_action": "后续统一验证时先补齐并核证依赖契约，再执行原任务核证范围；缺能力交还母任务2，不扩展本任务实施。"
+}

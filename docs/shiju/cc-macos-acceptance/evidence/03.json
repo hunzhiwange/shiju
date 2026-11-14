@@ -1,0 +1,483 @@
+{
+  "schema_version": 1,
+  "task": 3,
+  "date": "2026-11-14",
+  "status": "verification_deferred_by_user",
+  "instruction_override": "本任务仅核证；本轮按最新指令跳过执行，保存必要延期产物并删除编号卡。不运行Cargo、构建、测试、实机、验收或最终回归。",
+  "baseline": {
+    "documentation_head": "9b4b21fd7b00a1d624b52b6c4674c857489b618b",
+    "runtime_product_commit": null,
+    "product_tree_verified": false,
+    "artifact_sha256": null,
+    "note": "当前HEAD仅标识文档准备上下文；共享checkout存在其他任务改动，不将其视为冻结产品或通过证据。"
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755"
+    }
+  ],
+  "dependencies": {
+    "task_1_status": "artifacts_prepared_verification_deferred",
+    "runtime_contract_status": "prepared_unverified_not_executable",
+    "mother_task_card": ".plans/2026-11-05-CC能力完整融合/3-全应用注册与安装运行管理.md",
+    "mother_task_card_present": false,
+    "owner_reference": {
+      "mother_task": 3,
+      "responsible_subplan": "母任务 3 对应领域所有者；验收分派参见只读 macOS plan.md",
+      "document_references": [
+        {
+          "path": "docs/shiju/cc-convergence/installation.md",
+          "sha256": "d60764781234d5b23574676efea2cba4302603e82af941c304a606e80684be86"
+        },
+        {
+          "path": "docs/shiju/agent-apps/coverage.md",
+          "sha256": "6e5ceb5d679e9511824588df0db2d8e5558a1813344a824c4539dd3def61f57a"
+        }
+      ],
+      "gap": "文档入口不等于逐来源实现映射；逐项实现/API/SDK/UI/测试绑定及当前基线适用性均待领域所有者核证",
+      "verification": "deferred_unverified"
+    },
+    "gaps": [
+      "逐来源实现/API/SDK/UI/测试与当前产品树绑定尚未核证；文档引用不能代替映射证据。",
+      "运行契约verified_entrypoints全部未验证，缺可重放隔离执行入口、授权配置及清理契约。",
+      "未取得独立构建产物、哈希、应用版本和两种macOS架构运行快照。",
+      "母任务卡已不在当前checkout；交叉项声明及其去重范围待所有者交付，不能声称以下候选覆盖全部领域。"
+    ],
+    "gap_owners": [
+      "母任务3及子计划所有者",
+      "母任务22（来源映射与交叉项协调）",
+      "后续构建与隔离资源所有者"
+    ]
+  },
+  "source_candidates": [
+    {
+      "source_key": "file:src-tauri/src/commands/misc.rs",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "file:src-tauri/tests/app_config_load.rs",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "file:src/lib/api/types.ts",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:49:open_external",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:60:copy_text_to_clipboard",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:77:check_for_updates",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:109:open_portable_update_download",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:125:is_portable_mode",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:137:get_init_error",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:144:get_migration_result",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:151:get_skills_migration_result",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:212:get_tool_versions",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:315:prepare_tool_uninstall",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:333:run_tool_lifecycle_action",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:5071:probe_tool_installations",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:5109:list_tool_installations",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:5207:open_provider_terminal",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/misc.rs:6915:set_window_theme",
+      "inventory_owner_ref": "3",
+      "inventory_owner_refs": null,
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:open_external",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:49:open_external"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:get_init_error",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:137:get_init_error"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:get_migration_result",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:144:get_migration_result"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:get_skills_migration_result",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:151:get_skills_migration_result"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:check_for_updates",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:77:check_for_updates"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:open_portable_update_download",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:109:open_portable_update_download"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:is_portable_mode",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:125:is_portable_mode"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:copy_text_to_clipboard",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:60:copy_text_to_clipboard"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:get_tool_versions",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:212:get_tool_versions"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:run_tool_lifecycle_action",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:333:run_tool_lifecycle_action"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:prepare_tool_uninstall",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:315:prepare_tool_uninstall"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:probe_tool_installations",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:5071:probe_tool_installations"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:list_tool_installations",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:5109:list_tool_installations"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:open_provider_terminal",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:5207:open_provider_terminal"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    },
+    {
+      "source_key": "registration:set_window_theme",
+      "inventory_owner_ref": null,
+      "inventory_owner_refs": [
+        "3"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/misc.rs:6915:set_window_theme"
+      ],
+      "status": "unverified",
+      "macos_applicability": "pending_review",
+      "implementation_api_sdk_ui_tests": null,
+      "regression_owner": 3
+    }
+  ],
+  "candidate_scope": "仅按inventory.owner_ref == 3或owner_refs包含3提取引用；不是覆盖核证，不推断未实现或上游不支持。",
+  "operations": {
+    "performed": "读取计划、任务、前置JSON及Git元数据；生成延期记录；删除本编号卡。",
+    "runtime_commands": [],
+    "runtime_exit_codes": null
+  },
+  "verification": {
+    "status": "deferred",
+    "effective_behavior_cases": 0,
+    "passed": null,
+    "failed": null,
+    "format_checks": "not_run",
+    "pending": [
+      "JSON格式与来源键完整性检查",
+      "母任务3与声明交叉项的映射完整性及去重核证",
+      "注册入口、条件编译、事件及TS规则的macOS适用性",
+      "原生实现、API权限/错误、SDK和历史聚焦证据的当前适用性",
+      "绑定产品树、工作区差异、包哈希和14应用版本后复核两架构运行故事"
+    ]
+  },
+  "environment": {
+    "macos_version": null,
+    "architecture": null,
+    "application_versions": null
+  },
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "未创建运行进程、Cargo槽位或隔离数据；持久证据保留。"
+  },
+  "scope_limits": "编号卡删除仅表示本轮跳过核证任务并已记录延期；不表示验收完成或任何能力通过。真实能力缺口待所有者确认，不扩大为生产修复。"
+}

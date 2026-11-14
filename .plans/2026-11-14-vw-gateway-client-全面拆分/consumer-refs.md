@@ -1,0 +1,1836 @@
+# 直接消费者引用快照
+
+清单直接消费者：vw-provider-resolver、vw-desktop、vw-agent、vw-cli。下面包含导入与全限定引用；实例变量上的方法调用需用 source-map 中方法名搜索同一消费模块，不能仅替换 use。
+
+- `crates/vw-provider-resolver/src/config.rs:17` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/acp_options_window_main.rs:12` — `use vw_gateway_client::vw_api_types::acp_session::*;`
+- `crates/vw-desktop/src/acp_options_window_main.rs:155` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel;`
+- `crates/vw-desktop/src/acp_options_window_main.rs:158` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,`
+- `crates/vw-desktop/src/app/account/models.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/account/models_tests.rs:8` — `let challenge_dto: vw_gateway_client::ShijuLoginChallengeDto =`
+- `crates/vw-desktop/src/app/account/models_tests.rs:29` — `vw_gateway_client::ShijuCredential::new("gateway-secret-value").expect("credential");`
+- `crates/vw-desktop/src/app/account/models_tests.rs:30` — `let poll = LoginPoll::try_from(vw_gateway_client::ShijuLoginPollDto::Approved {`
+- `crates/vw-desktop/src/app/account/models_tests.rs:40` — `let profile = vw_gateway_client::ShijuAccountProfileDto {`
+- `crates/vw-desktop/src/app/account/store.rs:15` — `use vw_gateway_client::ShijuAccountMeDto;`
+- `crates/vw-desktop/src/app/account/store_tests.rs:139` — `.refresh_active_profile(vw_gateway_client::ShijuAccountMeDto {`
+- `crates/vw-desktop/src/app/account/store_tests.rs:149` — `departments: vec![vw_gateway_client::ShijuAccountDepartmentDto {`
+- `crates/vw-desktop/src/app/account/store_tests.rs:154` — `roles: vec![vw_gateway_client::ShijuAccountRoleDto {`
+- `crates/vw-desktop/src/app/components/account_status_ui_refresh_31_tests.rs:544` — `let challenge: vw_gateway_client::ShijuLoginChallengeDto =`
+- `crates/vw-desktop/src/app/components/account_status_ui_refresh_31_tests.rs:707` — `app.account.monthly_quota = MonthlyQuotaState::Ready(vw_gateway_client::ShijuMonthlyQuotaDto {`
+- `crates/vw-desktop/src/app/components/agent_apps/aggregation_clients_render_tests.rs:3` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::CodexClientsState;`
+- `crates/vw-desktop/src/app/components/agent_apps/aggregation_clients_tests.rs:32` — `app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,`
+- `crates/vw-desktop/src/app/components/agent_apps/aggregation_desktop.rs:18` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::{`
+- `crates/vw-desktop/src/app/components/agent_apps/aggregation_omp_tests.rs:9` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState;`
+- `crates/vw-desktop/src/app/components/agent_apps/aggregation_subagent.rs:11` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/agent_apps/daily_memory.rs:5` — `use vw_gateway_client::{WorkspaceMemoryScope, vw_api_types::workspace_memory::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/daily_memory_search.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/compression.rs:5` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/delete.rs:6` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/details.rs:9` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/export.rs:6` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/find.rs:8` — `use vw_gateway_client::vw_api_types::external_session::*;`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/images.rs:8` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/list.rs:8` — `use vw_gateway_client::vw_api_types::external_session::SessionMeta;`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/list.rs:99` — `if session.identity.provider == vw_gateway_client::vw_api_types::external_session::SessionProvider::Codex {`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/list.rs:100` — `let target = vw_gateway_client::vw_api_types::external_session::HistoryMaintenanceTarget {`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/maintenance.rs:5` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::{external_session::*, task::TaskStatus}};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/paths.rs:6` — `use vw_gateway_client::vw_api_types::external_session::{ExternalSessionIdentity, SessionMeta};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/reader.rs:10` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions/resume.rs:5` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/external_sessions.rs:26` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/hermes_dashboard.rs:5` — `use vw_gateway_client::vw_api_types::{hermes_dashboard::*, task::TaskStatus};`
+- `crates/vw-desktop/src/app/components/agent_apps/hermes_memory.rs:5` — `use vw_gateway_client::{HermesMemoryScope, vw_api_types::hermes_memory::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/hermes_memory_limits.rs:11` — `use vw_gateway_client::{GatewayClient, HermesMemoryScope, vw_api_types::hermes_memory::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/hermes_memory_tests.rs:2` — `use vw_gateway_client::vw_api_types::hermes_memory::*;`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_catalog.rs:5` — `use vw_gateway_client::{OpenClawSettingsScope, vw_api_types::openclaw_settings::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_defaults.rs:8` — `use vw_gateway_client::{OpenClawSettingsScope, vw_api_types::openclaw_settings::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_env.rs:5` — `use vw_gateway_client::{OpenClawSettingsScope, OpenClawSettingsError, vw_api_types::openclaw_settings::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_model.rs:5` — `use vw_gateway_client::{OpenClawSettingsScope, vw_api_types::openclaw_settings::*};`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_model_tests.rs:2` — `use vw_gateway_client::vw_api_types::openclaw_settings::OpenClawDefaultModel;`
+- `crates/vw-desktop/src/app/components/agent_apps/openclaw_tools.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/agent_apps/workspace_files.rs:8` — `use vw_gateway_client::{WorkspaceMemoryScope, vw_api_types::workspace_memory::*};`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal.rs:13` — `use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs:6` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs:115` — `project: vw_gateway_client::vw_api_types::ProjectScope::new(`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs:429` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/endpoints_modal_tests.rs:481` — `vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormKind::ThirdParty {`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/mcp_panel_tests.rs:3` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/mcp_panel_tests.rs:39` — `project: vw_gateway_client::vw_api_types::ProjectScope::new(`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/mcp_panel_tests.rs:240` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/model_panel.rs:14` — `use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/model_panel_tests.rs:5` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::AppId, agent_apps_diagnostics::*};`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/model_panel_tests.rs:139` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/agent_apps_diagnostics/model_panel_tests.rs:331` — `use vw_gateway_client::vw_api_types::app_providers::{AppProviderSummary, catalog::*};`
+- `crates/vw-desktop/src/app/components/agent_apps_high_availability/health.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps_high_availability::FailoverHealthState;`
+- `crates/vw-desktop/src/app/components/agent_apps_high_availability/health_tests.rs:3` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, agent_apps_high_availability::*, id::ProjectScope};`
+- `crates/vw-desktop/src/app/components/aggregation_list.rs:22` — `if form.selection.scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Codex {`
+- `crates/vw-desktop/src/app/components/aggregation_list.rs:42` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::{`
+- `crates/vw-desktop/src/app/components/aggregation_list.rs:172` — `s.state.mode != vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationMode::Direct))`
+- `crates/vw-desktop/src/app/components/aggregation_list.rs:193` — `notice: vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationNotice,`
+- `crates/vw-desktop/src/app/components/aggregation_list.rs:195` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::AggregationNotice::*;`
+- `crates/vw-desktop/src/app/components/aggregation_list_tests.rs:12` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/aggregation_list_tests.rs:90` — `vec![vw_gateway_client::vw_api_types::app_providers::AppProviderSummary {`
+- `crates/vw-desktop/src/app/components/aggregation_publish.rs:11` — `use vw_gateway_client::vw_api_types::{agent_apps::aggregation::*, task::TaskStatus};`
+- `crates/vw-desktop/src/app/components/aggregation_publish_tests.rs:8` — `use vw_gateway_client::vw_api_types::app_providers::operations::{`
+- `crates/vw-desktop/src/app/components/app_providers/agy_ui_refresh_14_tests.rs:26` — `use vw_gateway_client::vw_api_types::app_providers::basic::ProviderBasic;`
+- `crates/vw-desktop/src/app/components/app_providers/agy_ui_refresh_14_tests.rs:644` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_providers/claude_ui_refresh_13_tests.rs:22` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_providers/desktop.rs:12` — `use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopMappingMode;`
+- `crates/vw-desktop/src/app/components/app_providers/desktop_ui_refresh_12_tests.rs:31` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_providers/desktop_ui_refresh_12_tests.rs:948` — `use vw_gateway_client::vw_api_types::model_catalog::{`
+- `crates/vw-desktop/src/app/components/app_providers/endpoints.rs:11` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_providers/env.rs:14` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/components/app_providers/icons.rs:12` — `use vw_gateway_client::vw_api_types::app_providers::icons::AppProviderIconChange as Change;`
+- `crates/vw-desktop/src/app/components/app_providers/list.rs:16` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_providers/mode.rs:15` — `use vw_gateway_client::vw_api_types::app_providers::mode_state::{`
+- `crates/vw-desktop/src/app/components/app_providers/opencode.rs:18` — `use vw_gateway_client::vw_api_types::app_providers::opencode::OpenCodeFormat;`
+- `crates/vw-desktop/src/app/components/app_providers/paths.rs:12` — `use vw_gateway_client::vw_api_types::app_providers::paths::ConfigPathState;`
+- `crates/vw-desktop/src/app/components/app_providers/preview.rs:12` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/components/app_providers/snippets.rs:15` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/components/app_providers/universal.rs:12` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_routing/config.rs:8` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_routing/lifecycle.rs:12` — `use vw_gateway_client::vw_api_types::app_routing::{RoutingHealth, RoutingState, RoutingStatus};`
+- `crates/vw-desktop/src/app/components/app_routing/lifecycle.rs:13` — `use vw_gateway_client::{AppRoutingError, GatewayClient};`
+- `crates/vw-desktop/src/app/components/app_routing/lifecycle_tests.rs:72` — `use vw_gateway_client::vw_api_types::error::{ApiErrorBody, ApiErrorDetail};`
+- `crates/vw-desktop/src/app/components/app_routing/outbound.rs:12` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/app_routing/outbound.rs:484` — `request: impl std::future::Future<Output = Result<T, vw_gateway_client::AppRoutingError>>,`
+- `crates/vw-desktop/src/app/components/app_routing/requests.rs:5` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, app_routing::{RoutingRequestState, RoutingRequestsStatus}, id::ProjectId};`
+- `crates/vw-desktop/src/app/components/apps_usage_cards/batch.rs:5` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/apps_usage_cards/view.rs:6` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/apps_usage_cards.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/apps_usage_details.rs:6` — `use vw_gateway_client::vw_api_types::apps_usage::{`
+- `crates/vw-desktop/src/app/components/apps_usage_details_tests.rs:9` — `use vw_gateway_client::vw_api_types::apps_usage::UsageSnapshot;`
+- `crates/vw-desktop/src/app/components/apps_usage_script/view.rs:5` — `use vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery;`
+- `crates/vw-desktop/src/app/components/apps_usage_script.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/apps_usage_script_tests.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/apps_usage_script_tests.rs:197` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/apps_usage_settings/view.rs:8` — `use vw_gateway_client::AppsUsageDisplay;`
+- `crates/vw-desktop/src/app/components/apps_usage_settings/view.rs:26` — `selection: &vw_gateway_client::vw_api_types::apps_usage::UsageSnapshotQuery,`
+- `crates/vw-desktop/src/app/components/apps_usage_settings.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/apps_usage_settings_tests.rs:2` — `use vw_gateway_client::{AppsUsageDisplay, AppsUsageSettings};`
+- `crates/vw-desktop/src/app/components/apps_usage_settings_tests.rs:73` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, apps_usage::UsageSnapshotQuery};`
+- `crates/vw-desktop/src/app/components/archived_chats_window/native.rs:46` — `&vw_gateway_client::GatewaySessionPatchBody {`
+- `crates/vw-desktop/src/app/components/archived_chats_window/native.rs:48` — `time: Some(vw_gateway_client::GatewaySessionPatchTime { archived: Some(10) }),`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view/assistant_body_tests.rs:427` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view/assistant_body_tests.rs:434` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view.rs:830` — `pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecoveryEvent) -> String {`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view.rs:831` — `use vw_gateway_client::GatewayModelRecoveryPhase;`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view.rs:852` — `event: &vw_gateway_client::GatewayModelRecoveryEvent,`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view.rs:854` — `use vw_gateway_client::GatewayModelRecoveryPhase;`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view.rs:892` — `|| event.phase != vw_gateway_client::GatewayModelRecoveryPhase::Waiting`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view_tests.rs:142` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/message_view_tests.rs:149` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/mod_tests.rs:224` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/mod_tests.rs:231` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:13` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:20` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:53` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:60` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:78` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:87` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:127` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:134` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:139` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:146` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:165` — `let first = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:172` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:177` — `let second = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:184` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:189` — `let duplicate = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/permission_view_tests.rs:196` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:28` — `request: Option<&vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:59` — `request: Option<&vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:100` — `requests: &'a [vw_gateway_client::PendingPermissionRequestDto],`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:105` — `) -> Option<&'a vw_gateway_client::PendingPermissionRequestDto> {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:142` — `requests: &'a [vw_gateway_client::PendingPermissionRequestDto],`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:145` — `) -> Option<&'a vw_gateway_client::PendingPermissionRequestDto> {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:172` — `requests: &[vw_gateway_client::PendingPermissionRequestDto],`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission.rs:203` — `requests: &[vw_gateway_client::PendingPermissionRequestDto],`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:19` — `) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:27` — `) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:28` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:35` — `tool: call_id.map(|call_id| vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:42` — `fn request_without_tool(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/tool_permission_tests.rs:43` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/video_edit_tests.rs:5` — `let progress = vw_gateway_client::vw_api_types::workflow::VideoEditProgress {`
+- `crates/vw-desktop/src/app/components/chat_panel/tools/workflow_view.rs:467` — `let p: vw_gateway_client::vw_api_types::workflow::VideoEditProgress =`
+- `crates/vw-desktop/src/app/components/file_tree/model.rs:227` — `root: &vw_gateway_client::vw_api_types::file::FileNodeDto,`
+- `crates/vw-desktop/src/app/components/file_tree/model.rs:229` — `use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};`
+- `crates/vw-desktop/src/app/components/file_tree/model_tests.rs:216` — `children: Vec<vw_gateway_client::vw_api_types::file::FileNodeDto>,`
+- `crates/vw-desktop/src/app/components/file_tree/model_tests.rs:217` — `) -> vw_gateway_client::vw_api_types::file::FileNodeDto {`
+- `crates/vw-desktop/src/app/components/file_tree/model_tests.rs:218` — `use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};`
+- `crates/vw-desktop/src/app/components/file_tree/model_tests.rs:245` — `use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};`
+- `crates/vw-desktop/src/app/components/git_panel/diff_view/history.rs:5` — `use vw_gateway_client::vw_api_types::git::{GitFileStatus, GitHistoryFileDto};`
+- `crates/vw-desktop/src/app/components/git_panel/repository_ops.rs:2` — `pub use vw_gateway_client::vw_api_types::git::{`
+- `crates/vw-desktop/src/app/components/git_panel/repository_tests.rs:9` — `use vw_gateway_client::vw_api_types::git::{`
+- `crates/vw-desktop/src/app/components/git_panel/repository_tests.rs:55` — `status: vw_gateway_client::vw_api_types::git::GitFileStatus::Modified,`
+- `crates/vw-desktop/src/app/components/git_panel/repository_tests.rs:64` — `status: vw_gateway_client::vw_api_types::git::GitFileStatus::Added,`
+- `crates/vw-desktop/src/app/components/git_panel/repository_tests.rs:73` — `status: vw_gateway_client::vw_api_types::git::GitFileStatus::Deleted,`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options.rs:12` — `use vw_gateway_client::vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options.rs:70` — `== vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options.rs:143` — `use vw_gateway_client::vw_api_types::acp_model_source::{`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options.rs:240` — `use vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport;`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options_ui_refresh_42_tests.rs:20` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options_ui_refresh_42_tests.rs:21` — `use vw_gateway_client::vw_api_types::acp_model_source::{`
+- `crates/vw-desktop/src/app/components/input_panel/acp_options_ui_refresh_42_tests.rs:24` — `use vw_gateway_client::vw_api_types::acp_session::{`
+- `crates/vw-desktop/src/app/components/input_panel/agent_sessions_tests.rs:448` — `result: Ok(vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {`
+- `crates/vw-desktop/src/app/components/input_panel/agent_sessions_tests.rs:450` — `status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,`
+- `crates/vw-desktop/src/app/components/input_panel/model_popover.rs:36` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/components/input_panel/model_popover.rs:260` — `matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })`
+- `crates/vw-desktop/src/app/components/input_panel/model_popover_tests.rs:230` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/components/input_panel/model_popover_tests.rs:261` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported {`
+- `crates/vw-desktop/src/app/components/input_panel/model_popover_tests.rs:263` — `reason: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceRejectionReason::UnsupportedCli,`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_selector.rs:7` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_selector_tests.rs:10` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_selector_tests.rs:282` — `use vw_gateway_client::vw_api_types::acp_session::*;`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_selector_tests.rs:287` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_selector_tests.rs:343` — `use vw_gateway_client::vw_api_types::acp_session::*;`
+- `crates/vw-desktop/src/app/components/input_panel/reasoning_slider.rs:9` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/send_controls.rs:29` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/send_controls_tests.rs:327` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),`
+- `crates/vw-desktop/src/app/components/input_panel/task_mode.rs:37` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/task_mode_tests.rs:10` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/components/input_panel/tests.rs:271` — `use vw_gateway_client::DesktopSkillCatalogEntryDto;`
+- `crates/vw-desktop/src/app/components/mcp_app_panel.rs:14` — `use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;`
+- `crates/vw-desktop/src/app/components/mcp_app_panel.rs:70` — `client: vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/components/project_profiles/apply.rs:5` — `use vw_gateway_client::vw_api_types::project_profiles::*;`
+- `crates/vw-desktop/src/app/components/project_profiles/management.rs:5` — `use vw_gateway_client::vw_api_types::project_profiles::{ProjectProfile, ProjectProfileScope};`
+- `crates/vw-desktop/src/app/components/project_profiles/selection.rs:10` — `use vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope;`
+- `crates/vw-desktop/src/app/components/project_profiles/selection.rs:35` — `use vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyStatus;`
+- `crates/vw-desktop/src/app/components/system_settings_agents/basic_ui_refresh_16_tests.rs:24` — `use vw_gateway_client::vw_api_types::mcp::McpInspectResponse;`
+- `crates/vw-desktop/src/app/components/system_settings_agents/basic_ui_refresh_16_tests.rs:1041` — `use vw_gateway_client::vw_api_types::acp_model_source::{`
+- `crates/vw-desktop/src/app/components/system_settings_agents/defaults.rs:13` — `use vw_gateway_client::vw_api_types::acp_model_source::{AcpModelSource, AcpModelSourceCapability};`
+- `crates/vw-desktop/src/app/components/system_settings_agents/defaults_tests.rs:253` — `use vw_gateway_client::vw_api_types::acp_model_source::{`
+- `crates/vw-desktop/src/app/components/system_settings_agents/defaults_tests.rs:286` — `result: Ok(vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog.rs:3` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::agent_apps::*};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_tests.rs:2` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_tests.rs:46` — `tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_tests.rs:105` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_tests.rs:207` — `tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_tests.rs:273` — `tenant: vw_gateway_client::vw_api_types::id::TenantScope::new("p", "c").unwrap(),`
+- `crates/vw-desktop/src/app/components/system_settings_apps/catalog_ui_refresh_06_tests.rs:20` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details.rs:26` — `if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(app.entry.id) {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details.rs:32` — `if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details.rs:42` — `if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::Hermes {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details.rs:61` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details.rs:177` — `if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/details_tests.rs:6` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/drag.rs:8` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/drag_tests.rs:29` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch.rs:164` — `client: vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch.rs:387` — `vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch.rs:391` — `vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch.rs:394` — `vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_tests.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_tests.rs:229` — `let tenant = vw_gateway_client::vw_api_types::id::TenantScope::new(`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_tests.rs:238` — `|tenant: &vw_gateway_client::vw_api_types::id::TenantScope, token: &str, project| {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_tests.rs:251` — `vw_gateway_client::vw_api_types::id::TenantScope::new("fixture-platform", "other-company")`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_tests.rs:254` — `let remote = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_ui_refresh_07_tests.rs:14` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_view.rs:8` — `use vw_gateway_client::vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/launch_window_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle.rs:2` — `use vw_gateway_client::vw_api_types::{agent_apps::*, task::TaskStatus};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_tests.rs:2` — `use vw_gateway_client::vw_api_types::{agent_apps::*, id::TaskId, task::TaskStatus};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_tests.rs:43` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_window_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_window_tests.rs:74` — `operation_id: vw_gateway_client::vw_api_types::id::TaskId(`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_window_tests.rs:78` — `vw_gateway_client::vw_api_types::task::TaskStatus::Running`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_window_tests.rs:80` — `vw_gateway_client::vw_api_types::task::TaskStatus::Cancelled`
+- `crates/vw-desktop/src/app/components/system_settings_apps/lifecycle_window_tests.rs:105` — `operation.status = vw_gateway_client::vw_api_types::task::TaskStatus::Completed;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/list.rs:25` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/local.rs:2` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/local.rs:87` — `tenant: &vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences.rs:245` — `vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences.rs:248` — `vw_gateway_client::AgentAppsSettingsError::Http { status: 422, .. } => {`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences_tests.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences_view.rs:8` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/preferences_window_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/presentation.rs:3` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/presentation_tests.rs:2` — `use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_tests.rs:3` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_tests.rs:217` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_window_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_window_tests.rs:85` — `operation_id: vw_gateway_client::vw_api_types::id::TaskId(`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_window_tests.rs:89` — `vw_gateway_client::vw_api_types::task::TaskStatus::Running`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_window_tests.rs:91` — `vw_gateway_client::vw_api_types::task::TaskStatus::Cancelled`
+- `crates/vw-desktop/src/app/components/system_settings_apps/uninstall_window_tests.rs:116` — `operation.status = vw_gateway_client::vw_api_types::task::TaskStatus::Completed;`
+- `crates/vw-desktop/src/app/components/system_settings_apps/window_tests.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/components/system_settings_archived_chats_tests.rs:438` — `Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));`
+- `crates/vw-desktop/src/app/components/system_settings_archived_chats_tests.rs:556` — `Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));`
+- `crates/vw-desktop/src/app/components/system_settings_archived_chats_tests.rs:699` — `Identity::from_endpoint(&vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1));`
+- `crates/vw-desktop/src/app/components/system_settings_auth/binding_modal.rs:17` — `use vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion;`
+- `crates/vw-desktop/src/app/components/system_settings_auth/binding_modal_tests.rs:25` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/system_settings_auth/login_modal.rs:21` — `use vw_gateway_client::vw_api_types::{TimestampMs, agent_apps_auth::AuthRegion};`
+- `crates/vw-desktop/src/app/components/system_settings_auth/login_modal_tests.rs:13` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/system_settings_auth.rs:28` — `use vw_gateway_client::vw_api_types::agent_apps_auth::{`
+- `crates/vw-desktop/src/app/components/system_settings_auth_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:55` — `Some(vw_gateway_client::ChannelQrStatusDto::Pending) => {`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:58` — `Some(vw_gateway_client::ChannelQrStatusDto::Scanned) => {`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:61` — `Some(vw_gateway_client::ChannelQrStatusDto::Authorized) => {`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:64` — `Some(vw_gateway_client::ChannelQrStatusDto::Expired) => {`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:67` — `Some(vw_gateway_client::ChannelQrStatusDto::Failed) => {`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:74` — `vw_gateway_client::ChannelQrStatusDto::Failed`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels.rs:75` — `| vw_gateway_client::ChannelQrStatusDto::Expired,`
+- `crates/vw-desktop/src/app/components/system_settings_channels/enterprise_channels_tests.rs:126` — `app.channels_settings.qr_flow.status = Some(vw_gateway_client::ChannelQrStatusDto::Scanned);`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:77` — `(Some(vw_gateway_client::ChannelQrStatusDto::Pending), "pending"),`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:78` — `(Some(vw_gateway_client::ChannelQrStatusDto::Scanned), "scanned"),`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:79` — `(Some(vw_gateway_client::ChannelQrStatusDto::Authorized), "authorized"),`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:80` — `(Some(vw_gateway_client::ChannelQrStatusDto::Expired), "expired"),`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:81` — `(Some(vw_gateway_client::ChannelQrStatusDto::Failed), "failed"),`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:85` — `status == Some(vw_gateway_client::ChannelQrStatusDto::Authorized);`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:90` — `vw_gateway_client::ChannelQrStatusDto::Pending`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:91` — `| vw_gateway_client::ChannelQrStatusDto::Scanned`
+- `crates/vw-desktop/src/app/components/system_settings_channels/wecom_delivery_modal_tests.rs:92` — `| vw_gateway_client::ChannelQrStatusDto::Authorized`
+- `crates/vw-desktop/src/app/components/system_settings_channels_ui_refresh_17_tests.rs:718` — `use vw_gateway_client::ChannelQrStatusDto;`
+- `crates/vw-desktop/src/app/components/system_settings_computer_control.rs:9` — `use vw_gateway_client::vw_api_types::computer_control::*;`
+- `crates/vw-desktop/src/app/components/system_settings_cron/history.rs:7` — `use vw_gateway_client::CronHistoryRunDto;`
+- `crates/vw-desktop/src/app/components/system_settings_cron/history_tests.rs:2` — `use vw_gateway_client::CronHistoryRunDto;`
+- `crates/vw-desktop/src/app/components/system_settings_cron/schedule.rs:19` — `let request = vw_gateway_client::CronPreviewRequest {`
+- `crates/vw-desktop/src/app/components/system_settings_cron.rs:26` — `use vw_gateway_client::CronJobDto;`
+- `crates/vw-desktop/src/app/components/system_settings_cron_tests.rs:9` — `use vw_gateway_client::CronRunDto;`
+- `crates/vw-desktop/src/app/components/system_settings_cron_tests.rs:596` — `draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {`
+- `crates/vw-desktop/src/app/components/system_settings_cron_ui_refresh_27_tests.rs:312` — `app.cron_settings.edit_draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {`
+- `crates/vw-desktop/src/app/components/system_settings_data/export_ui.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps::data_management::DataCategory;`
+- `crates/vw-desktop/src/app/components/system_settings_data/migration_apply_ui.rs:7` — `use vw_gateway_client::vw_api_types::agent_apps::data_management::*;`
+- `crates/vw-desktop/src/app/components/system_settings_data/migration_preview_ui.rs:6` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};`
+- `crates/vw-desktop/src/app/components/system_settings_data/recovery_ui.rs:5` — `use vw_gateway_client::DataTargetHealth;`
+- `crates/vw-desktop/src/app/components/system_settings_data/recovery_ui.rs:35` — `.on_press_maybe((!state.busy && !state.submitted && diagnosis.target_health != DataTargetHealth::VersionUnsupported && backup.restore_status == vw_gateway_client::DataBackupRestoreStatus::RequiresOwnerValidation).then_some(message(Event::Preview(backup.id.clone())))));`
+- `crates/vw-desktop/src/app/components/system_settings_device_sync/s3_modal.rs:11` — `use vw_gateway_client::vw_api_types::device_sync_config::SyncSecretUpdate;`
+- `crates/vw-desktop/src/app/components/system_settings_device_sync/selection.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/system_settings_device_sync/selection.rs:134` — `|scope: &vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery| {`
+- `crates/vw-desktop/src/app/components/system_settings_device_sync/task_panel.rs:6` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/components/system_settings_device_sync/webdav_modal.rs:7` — `use vw_gateway_client::vw_api_types::device_sync_config::SyncSecretUpdate;`
+- `crates/vw-desktop/src/app/components/system_settings_hooks.rs:49` — `fn trust_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks.rs:56` — `fn revoke_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks.rs:80` — `entry: &'a vw_gateway_client::HookCatalogEntryDto,`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_tests.rs:23` — `fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_tests.rs:24` — `vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_tests.rs:36` — `fn audit_entry() -> vw_gateway_client::HookAuditEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_tests.rs:37` — `vw_gateway_client::HookAuditEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_ui_refresh_28_tests.rs:476` — `.map(|index| vw_gateway_client::HookAuditEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_ui_refresh_28_tests.rs:483` — `app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_hooks_ui_refresh_28_tests.rs:568` — `app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_mcp.rs:21` — `use vw_gateway_client::vw_api_types::mcp::{`
+- `crates/vw-desktop/src/app/components/system_settings_mcp.rs:247` — `tool: &vw_gateway_client::vw_api_types::tools::ToolSpecDto,`
+- `crates/vw-desktop/src/app/components/system_settings_mcp.rs:1155` — `&Result<vw_gateway_client::vw_api_types::mcp_management::McpCatalogResponse, String>,`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_bindings.rs:13` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_connection.rs:9` — `use vw_gateway_client::vw_api_types::mcp_management::McpConfigValue;`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_import.rs:14` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, mcp_management::McpConnectionDefinition};`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_resync.rs:13` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_tests.rs:16` — `use vw_gateway_client::vw_api_types::mcp::{`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_tests.rs:19` — `use vw_gateway_client::vw_api_types::tools::{ToolExposure, ToolIdentity, ToolSource, ToolSpecDto};`
+- `crates/vw-desktop/src/app/components/system_settings_mcp_tools.rs:5` — `use vw_gateway_client::vw_api_types::mcp_management::*;`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/activation.rs:2` — `use vw_gateway_client::{AgentAppPromptEntry, AgentAppPromptsError};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/activation.rs:31` — `pub(crate) fn effect(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> &'static str {`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/activation.rs:32` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/editor.rs:4` — `use vw_gateway_client::AgentAppPromptEntry;`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/list.rs:3` — `use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId, PromptTargetPreview}};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/pi_files.rs:4` — `use vw_gateway_client::{PiPromptFileKind, PiPromptFileSnapshot, PiPromptResourcesScope};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/shared_import.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps::PromptSharePayload;`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/sync.rs:5` — `use vw_gateway_client::{AgentAppPromptSync, PiPromptResourcesScope, AgentAppPromptSyncTargetStatus};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/sync.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps::{AppId, AppOperationPhase};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/templates.rs:5` — `use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate};`
+- `crates/vw-desktop/src/app/components/system_settings_prompts/transfer.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/components/system_settings_providers/catalog/discovery.rs:21` — `use vw_gateway_client::vw_api_types::model_catalog::{ModelDiscoveryFailure, ModelDiscoveryMethod};`
+- `crates/vw-desktop/src/app/components/system_settings_providers/catalog/metadata_fill.rs:16` — `use vw_gateway_client::vw_api_types::model_catalog::{`
+- `crates/vw-desktop/src/app/components/system_settings_runtime_tests.rs:593` — `app.hooks_settings.catalog = vec![vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/components/system_settings_skills/bindings_view.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps_skills::bindings_api::*;`
+- `crates/vw-desktop/src/app/components/system_settings_skills/claude_view.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::*;`
+- `crates/vw-desktop/src/app/components/system_settings_skills/jobs_view.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase;`
+- `crates/vw-desktop/src/app/components/system_settings_skills/plugins.rs:436` — `checks: &[vw_gateway_client::DesktopPluginDependencyDto],`
+- `crates/vw-desktop/src/app/components/system_settings_skills/storage_modal.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{bindings_api::SkillBindingMode, storage_api::SkillStorageLocation};`
+- `crates/vw-desktop/src/app/components/system_settings_skills.rs:273` — `checks: &[vw_gateway_client::DesktopPluginDependencyDto],`
+- `crates/vw-desktop/src/app/components/system_settings_skills_ui_refresh_19_tests.rs:15` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/environment_tests.rs:2` — `fn project(id: &str) -> vw_gateway_client::vw_api_types::project::ProjectDto {`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/environment_tests.rs:95` — `assert!(!can_add(&vw_gateway_client::GatewayEndpoint::new("192.0.2.1", 8080)));`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/environment_tests.rs:187` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/environment_tests.rs:259` — `let patch = vw_gateway_client::vw_api_types::project::UpdateProjectRequest {`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/environment_tests.rs:260` — `commands: Some(vw_gateway_client::vw_api_types::project::CommandsUpdateDto {`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed.rs:8` — `use vw_gateway_client::vw_api_types::worktree::{`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed_tests.rs:2` — `use vw_gateway_client::vw_api_types::project::ProjectDto;`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed_tests.rs:79` — `fn item(id: &str) -> vw_gateway_client::vw_api_types::worktree::ManagedWorktreeDto {`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed_tests.rs:171` — `use vw_gateway_client::vw_api_types::worktree::{`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed_tests.rs:284` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/managed_tests.rs:285` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-desktop/src/app/components/system_settings_worktrees/recovery_tests.rs:12` — `use vw_gateway_client::vw_api_types::worktree::*;`
+- `crates/vw-desktop/src/app/components/toast_ui_refresh_33_tests.rs:257` — `fn permission(id: &str, title: &str) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/toast_ui_refresh_33_tests.rs:258` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/components/voice_chat.rs:71` — `c.role == vw_gateway_client::vw_api_types::voice::TranscriptRole::User`
+- `crates/vw-desktop/src/app/components/voice_chat.rs:76` — `vw_gateway_client::vw_api_types::voice::TranscriptRole::User => "你",`
+- `crates/vw-desktop/src/app/components/voice_chat.rs:77` — `vw_gateway_client::vw_api_types::voice::TranscriptRole::Assistant => "ShiJu",`
+- `crates/vw-desktop/src/app/config_agent.rs:254` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_agent.rs:309` — `-> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> {`
+- `crates/vw-desktop/src/app/config_agent.rs:603` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_cli_bootstrap.rs:24` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/config_cli_bootstrap.rs:750` — `vw_gateway_client::vw_api_types::id::TenantScope::new("20000", "200000001").unwrap(),`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:4` — `use vw_gateway_client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:73` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:111` — `-> Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String> {`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:179` — `time_rule: Option<vw_gateway_client::CronPreviewRequest>,`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:335` — `time_rule: Option<vw_gateway_client::CronPreviewRequest>,`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:491` — `rule: vw_gateway_client::CronPreviewRequest,`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:492` — `) -> Result<vw_gateway_client::CronPreviewResponse, String> {`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:496` — `fn apply_add_schedule(request: &mut CronAddRequest, rule: vw_gateway_client::CronPreviewRequest) {`
+- `crates/vw-desktop/src/app/config_cron_jobs.rs:515` — `rule: vw_gateway_client::CronPreviewRequest,`
+- `crates/vw-desktop/src/app/config_cron_jobs_tests.rs:699` — `let rule = vw_gateway_client::CronPreviewRequest {`
+- `crates/vw-desktop/src/app/config_desktop.rs:15` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::id::TenantScope};`
+- `crates/vw-desktop/src/app/config_desktop.rs:312` — `) -> std::collections::HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>`
+- `crates/vw-desktop/src/app/config_desktop.rs:397` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_desktop.rs:411` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_desktop.rs:462` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_desktop.rs:615` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_desktop_tests.rs:878` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/config_desktop_tests.rs:1052` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/config_file_manager.rs:5` — `endpoint: &vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/config_gateway.rs:12` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/config_gateway.rs:13` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/config_gateway.rs:164` — `let auth = vw_gateway_client::GatewayAuth {`
+- `crates/vw-desktop/src/app/config_gateway.rs:166` — `..vw_gateway_client::GatewayAuth::default()`
+- `crates/vw-desktop/src/app/config_gateway.rs:211` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_gateway_tests.rs:20` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/config_project_chat.rs:8` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/config_system_settings.rs:10` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/config_system_settings.rs:285` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/config_system_settings.rs:344` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/desktop_integration_20_tests.rs:2` — `use vw_gateway_client::vw_api_types::{agent_apps::*, id::TaskId, task::TaskStatus};`
+- `crates/vw-desktop/src/app/desktop_integration_26_tests.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/desktop_lifecycle/native.rs:11` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/desktop_lifecycle/native.rs:83` — `use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;`
+- `crates/vw-desktop/src/app/desktop_lifecycle/tray_switch.rs:6` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/i18n/gettext_area_7_tests.rs:222` — `app.cron_settings.runs_modal = vec![vw_gateway_client::CronRunDto {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:6` — `use vw_gateway_client::vw_api_types;`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:173` — `fn resume(&self) -> vw_gateway_client::GatewayStreamResume {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:174` — `vw_gateway_client::GatewayStreamResume {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:182` — `result: Result<vw_gateway_client::GatewayStreamAttemptResult, String>,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:206` — `Ok(vw_gateway_client::GatewayStreamAttemptResult::Terminated) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:209` — `Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:212` — `Ok(vw_gateway_client::GatewayStreamAttemptResult::Incomplete) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1780` — `endpoint: &vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1877` — `endpoint: &vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1981` — `endpoint: &vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1991` — `vw_gateway_client::GatewayClient::stream_task_plan_run(endpoint, body, on_event).await`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1995` — `endpoint: &vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1997` — `resume: &vw_gateway_client::GatewayStreamResume,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:1999` — `vw_gateway_client::GatewayStreamEvent<vw_api_types::task::TaskPlanRunStreamEventDto>,`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2001` — `) -> Result<vw_gateway_client::GatewayStreamAttemptResult, String> {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2008` — `vw_gateway_client::GatewayClient::stream_task_plan_run_resumable(`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2072` — `vw_gateway_client::normalize_chat_tool_event(payload)`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2129` — `let chat_body = vw_gateway_client::GatewayChatStreamRequest {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2208` — `Ok(vw_gateway_client::GatewayStreamAttemptResult::CallerStopped)`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2423` — `vw_gateway_client::GatewayClient::stream_chat_resumable(`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2435` — `vw_gateway_client::GatewayChatStreamEvent::Delta(_) => "delta",`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2436` — `vw_gateway_client::GatewayChatStreamEvent::Done { .. } => "done",`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2437` — `vw_gateway_client::GatewayChatStreamEvent::Error(_) => "error",`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2438` — `vw_gateway_client::GatewayChatStreamEvent::Other(_) => "other",`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2442` — `vw_gateway_client::GatewayChatStreamEvent::Done { .. }`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2443` — `| vw_gateway_client::GatewayChatStreamEvent::Error(_)`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2448` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2464` — `vw_gateway_client::GatewayChatStreamEvent::Done {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2486` — `vw_gateway_client::GatewayChatStreamEvent::Error(error)`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2491` — `vw_gateway_client::GatewayChatStreamEvent::Error(error) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2502` — `vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {`
+- `crates/vw-desktop/src/app/impls/agent_stream.rs:2824` — `let event: vw_gateway_client::GatewayModelRecoveryEvent =`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:332` — `failed.status = vw_gateway_client::GatewayChatToolStatus::Failed;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:349` — `use vw_gateway_client::GatewayStreamAttemptResult;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:664` — `let request = vw_gateway_client::vw_api_types::task::TaskPlanRunRequest {`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:686` — `vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { .. }`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:690` — `vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::Finished { .. }`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1280` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1)`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1281` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some(" key ".to_string()) });`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1298` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1);`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1370` — `) -> (vw_gateway_client::GatewayEndpoint, std::thread::JoinHandle<String>) {`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1412` — `(vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port()), handle)`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1427` — `endpoint.with_auth(vw_gateway_client::GatewayAuth { skey: Some("skey-value".to_string()) });`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1659` — `fn plan_run_events() -> Vec<vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto> {`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1661` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1793` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1817` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1906` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1934` — `vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskFinished {`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1965` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:1987` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:2048` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:2090` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:2153` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", 1)`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:2154` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some("   ".to_string()) });`
+- `crates/vw-desktop/src/app/impls/agent_stream_tests.rs:2536` — `use vw_gateway_client::{GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient};`
+- `crates/vw-desktop/src/app/impls/app_init/new/load.rs:46` — `if vw_gateway_client::is_gateway_unavailable_error(&err) {`
+- `crates/vw-desktop/src/app/impls/app_init/startup.rs:77` — `use vw_gateway_client::{ExternalAppsStateDto, GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/impls/app_subscription.rs:460` — `use vw_gateway_client::{GatewayWorkflowResponseMode, GatewayWorkflowStreamRequest};`
+- `crates/vw-desktop/src/app/impls/app_update.rs:581` — `let auth = vw_gateway_client::GatewayAuth {`
+- `crates/vw-desktop/src/app/impls/app_update.rs:583` — `..vw_gateway_client::GatewayAuth::default()`
+- `crates/vw-desktop/src/app/impls/app_update.rs:585` — `vw_gateway_client::GatewayEndpoint::new(host, active.port.clamp(1, u16::MAX))`
+- `crates/vw-desktop/src/app/impls/app_update_tests.rs:527` — `let _ = app.update(Message::ExternalAppsLoaded(Ok(vw_gateway_client::ExternalAppsStateDto {`
+- `crates/vw-desktop/src/app/impls/app_update_tests.rs:732` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:12` — `requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:19` — `current: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:20` — `queued: &[vw_gateway_client::PendingPermissionRequestDto],`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:43` — `let Some(req): Option<vw_gateway_client::PendingPermissionRequestDto> =`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:251` — `req: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:280` — `req: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:299` — `req: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:311` — `req: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal.rs:330` — `req: &vw_gateway_client::PendingPermissionRequestDto,`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal_tests.rs:8` — `fn request(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal_tests.rs:9` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/impls/app_view_modals/permission_modal_tests.rs:340` — `first.tool = Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/impls/app_view_tests.rs:219` — `app.permission_modal_request = Some(vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/mcp_app_bridge.rs:13` — `use vw_gateway_client::vw_api_types::mcp_app_network::McpAppNetworkPolicy;`
+- `crates/vw-desktop/src/app/mcp_app_bridge.rs:376` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/mcp_app_bridge_tests.rs:3` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/mcp_link_preview.rs:6` — `use vw_gateway_client::vw_api_types::mcp_management::*;`
+- `crates/vw-desktop/src/app/message/account.rs:22` — `use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest};`
+- `crates/vw-desktop/src/app/message/account.rs:62` — `result: Result<vw_gateway_client::ShijuModelTokenDto, String>,`
+- `crates/vw-desktop/src/app/message/account.rs:74` — `quota: Option<vw_gateway_client::ShijuMonthlyQuotaDto>,`
+- `crates/vw-desktop/src/app/message/account.rs:239` — `request: vw_gateway_client::ShijuAccountUpdateRequest,`
+- `crates/vw-desktop/src/app/message/account_tests.rs:107` — `departments: vec![vw_gateway_client::ShijuAccountDepartmentDto {`
+- `crates/vw-desktop/src/app/message/account_tests.rs:112` — `roles: vec![vw_gateway_client::ShijuAccountRoleDto {`
+- `crates/vw-desktop/src/app/message/account_tests.rs:412` — `let quota = vw_gateway_client::ShijuMonthlyQuotaDto {`
+- `crates/vw-desktop/src/app/message/agent_apps_auth/binding.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_auth/flow.rs:14` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_auth.rs:24` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_auth.rs:104` — `endpoint: vw_gateway_client::GatewayEndpoint,`
+- `crates/vw-desktop/src/app/message/agent_apps_auth_actions.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_auth_actions.rs:236` — `vw_gateway_client::AgentAppsAuthReadError::Http { status: 403, .. } => {`
+- `crates/vw-desktop/src/app/message/agent_apps_auth_actions_tests.rs:19` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_auth_browser.rs:8` — `use vw_gateway_client::vw_api_types::agent_apps_auth::AuthPasteRequest;`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoint_state.rs:4` — `use vw_gateway_client::{GatewayClient, vw_api_types::agent_apps_diagnostics::*};`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/endpoints.rs:8` — `use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/mcp_state.rs:2` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/mcp_state.rs:14` — `pub(crate) tenant: vw_gateway_client::vw_api_types::TenantScope,`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model.rs:8` — `use vw_gateway_client::{GatewayClient, vw_api_types::agent_apps_diagnostics::*};`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model.rs:119` — `vw_gateway_client::vw_api_types::agent_apps::AppId::Claude`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model.rs:120` — `| vw_gateway_client::vw_api_types::agent_apps::AppId::Codex`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model.rs:121` — `| vw_gateway_client::vw_api_types::agent_apps::AppId::Gemini`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model_state.rs:3` — `use vw_gateway_client::vw_api_types::agent_apps_diagnostics::*;`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model_state.rs:8` — `pub project: vw_gateway_client::vw_api_types::ProjectId,`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics/model_state.rs:10` — `pub provider: vw_gateway_client::vw_api_types::ProviderId,`
+- `crates/vw-desktop/src/app/message/agent_apps_diagnostics.rs:7` — `use vw_gateway_client::vw_api_types::{agent_apps_diagnostics::*, mcp_management::McpRecordId};`
+- `crates/vw-desktop/src/app/message/agent_apps_health.rs:5` — `use vw_gateway_client::vw_api_types::{agent_apps_high_availability::*, id::ProviderId};`
+- `crates/vw-desktop/src/app/message/agent_apps_high_availability.rs:5` — `use vw_gateway_client::{GatewayClient, AgentAppsHighAvailabilityError as Error};`
+- `crates/vw-desktop/src/app/message/agent_apps_high_availability.rs:6` — `use vw_gateway_client::vw_api_types::{agent_apps_high_availability::*, ProviderId};`
+- `crates/vw-desktop/src/app/message/agent_apps_high_availability_policy.rs:4` — `use vw_gateway_client::{AgentAppsHighAvailabilityError as Error, vw_api_types::{agent_apps::AppId, agent_apps_high_availability::*}};`
+- `crates/vw-desktop/src/app/message/app_providers/agy.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/agy_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/claude.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/claude_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/claude_tests.rs:119` — `use vw_gateway_client::vw_api_types::app_providers::claude::ClaudeLiveResult;`
+- `crates/vw-desktop/src/app/message/app_providers/codex.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/codex_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/codex_tests.rs:123` — `use vw_gateway_client::vw_api_types::app_providers::codex_catalog::CodexLiveResult;`
+- `crates/vw-desktop/src/app/message/app_providers/desktop.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/desktop_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::AppId};`
+- `crates/vw-desktop/src/app/message/app_providers/desktop_tests.rs:76` — `vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopModelRoute {`
+- `crates/vw-desktop/src/app/message/app_providers/dsh.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/dsh_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/edit.rs:2` — `use vw_gateway_client::{GatewayClient, vw_api_types::app_providers::delete::AppProviderDelete};`
+- `crates/vw-desktop/src/app/message/app_providers/edit.rs:10` — `let deleted = if scope.app == vw_gateway_client::vw_api_types::agent_apps::AppId::Agy {`
+- `crates/vw-desktop/src/app/message/app_providers/edit.rs:14` — `&vw_gateway_client::vw_api_types::app_providers::agy::AgyTarget {`
+- `crates/vw-desktop/src/app/message/app_providers/edit.rs:52` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/app_providers/edit.rs:143` — `result: Result<vw_gateway_client::vw_api_types::app_providers::agy::AgyFormView, String>,`
+- `crates/vw-desktop/src/app/message/app_providers/edit_tests.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::basic::ProviderBasic;`
+- `crates/vw-desktop/src/app/message/app_providers/edit_tests.rs:62` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/app_providers/edit_tests.rs:111` — `app: vw_gateway_client::vw_api_types::agent_apps::AppId::Claude,`
+- `crates/vw-desktop/src/app/message/app_providers/edit_tests.rs:126` — `use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};`
+- `crates/vw-desktop/src/app/message/app_providers/endpoints.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/endpoints_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::AppId};`
+- `crates/vw-desktop/src/app/message/app_providers/env.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/env_tests.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/gemini.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/gemini_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/gemini_tests.rs:121` — `use vw_gateway_client::vw_api_types::app_providers::gemini::GeminiLiveResult;`
+- `crates/vw-desktop/src/app/message/app_providers/grok.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/grok_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/grok_tests.rs:118` — `use vw_gateway_client::vw_api_types::app_providers::grok::GrokLiveResult;`
+- `crates/vw-desktop/src/app/message/app_providers/hermes.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/hermes_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/icons.rs:14` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/icons_tests.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/kimi.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/kimi_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/list.rs:2` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/message/app_providers/list.rs:3` — `use vw_gateway_client::vw_api_types::app_providers::presentation::AppProviderPresentation;`
+- `crates/vw-desktop/src/app/message/app_providers/list.rs:30` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/app_providers/list_tests.rs:3` — `use vw_gateway_client::{GatewayEndpoint, vw_api_types::agent_apps::AppId};`
+- `crates/vw-desktop/src/app/message/app_providers/list_tests.rs:115` — `use vw_gateway_client::vw_api_types::app_providers::catalog::*;`
+- `crates/vw-desktop/src/app/message/app_providers/mcode.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/mcode_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/mode.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/mode_tests.rs:2` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/omp.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/omp_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/openclaw.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/openclaw_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/opencode.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/opencode_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/paths.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/paths_tests.rs:2` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/pi.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/pi_tests.rs:16` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/preview.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/preview.rs:350` — `use vw_gateway_client::vw_api_types::app_providers::preview::PreviewUnavailable::*;`
+- `crates/vw-desktop/src/app/message/app_providers/preview_tests.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::editor_merge::{`
+- `crates/vw-desktop/src/app/message/app_providers/snippets.rs:13` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/snippets_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/universal.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/app_providers/universal_tests.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/chat/acp_options.rs:199` — `vw_gateway_client::vw_api_types::acp_session::AcpAccessSupport::Failed;`
+- `crates/vw-desktop/src/app/message/chat/acp_options.rs:222` — `use vw_gateway_client::vw_api_types::acp_session::AcpOptionKind;`
+- `crates/vw-desktop/src/app/message/chat/acp_options.rs:280` — `source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,`
+- `crates/vw-desktop/src/app/message/chat/acp_options.rs:283` — `use vw_gateway_client::vw_api_types::acp_model_source::{`
+- `crates/vw-desktop/src/app/message/chat/acp_options.rs:299` — `matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Unsupported { source: rejected, .. } if *rejected == source)`
+- `crates/vw-desktop/src/app/message/chat/input/shared.rs:68` — `request: Option<&vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:225` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:232` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:253` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:260` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:281` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:288` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:316` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:339` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:346` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:364` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:371` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:394` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:401` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:424` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:431` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:458` — `let mut request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:465` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:496` — `let request = vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/input/shared_tests.rs:503` — `tool: Some(vw_gateway_client::PendingPermissionToolDto {`
+- `crates/vw-desktop/src/app/message/chat/input/task_mode.rs:80` — `reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/message/chat/input/task_mode_tests.rs:35` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),`
+- `crates/vw-desktop/src/app/message/chat/input/task_mode_tests.rs:47` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)`
+- `crates/vw-desktop/src/app/message/chat/input/task_mode_tests.rs:91` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);`
+- `crates/vw-desktop/src/app/message/chat/input_tests.rs:167` — `result: Ok(vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse {`
+- `crates/vw-desktop/src/app/message/chat/input_tests.rs:169` — `status: vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:313` — `AcpModelSourceSelected(vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:318` — `update: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:319` — `result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:327` — `result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:331` — `AcpOptionSelected(vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:334` — `result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:336` — `ReasoningEffortSelected(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:358` — `result: Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String>,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:434` — `TaskModeReasoningEffortChanged(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:527` — `AgentToolLifecycle(u64, vw_gateway_client::GatewayChatToolEvent),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:534` — `AgentModelRecovery(u64, vw_gateway_client::GatewayModelRecoveryEvent),`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:660` — `result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,`
+- `crates/vw-desktop/src/app/message/chat/mod.rs:749` — `PermissionListLoaded(Result<Vec<vw_gateway_client::PendingPermissionRequestDto>, String>),`
+- `crates/vw-desktop/src/app/message/chat/session.rs:20` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/message/chat/session.rs:352` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-desktop/src/app/message/chat/session.rs:353` — `vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),`
+- `crates/vw-desktop/src/app/message/chat/session.rs:679` — `&vw_gateway_client::GatewaySessionSummarizeBody { message_id },`
+- `crates/vw-desktop/src/app/message/chat/session.rs:1698` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/chat/session.rs:1840` — `let result = match vw_gateway_client::GatewayClient::new(`
+- `crates/vw-desktop/src/app/message/chat/session.rs:1841` — `vw_gateway_client::GatewayEndpoint::new(endpoint.0, endpoint.1),`
+- `crates/vw-desktop/src/app/message/chat/session.rs:1848` — `&vw_gateway_client::GatewaySessionResetBody { message_id },`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:9` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:1472` — `runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:1512` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2040` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2075` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2142` — `let options = vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2481` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2522` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2559` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/chat/session_tests.rs:2587` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/chat/stream/draft.rs:7` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/message/chat/stream/mod.rs:411` — `if event.kind == vw_gateway_client::GatewayChatToolEventKind::Complete`
+- `crates/vw-desktop/src/app/message/chat/stream/mod.rs:412` — `&& event.status == vw_gateway_client::GatewayChatToolStatus::Completed`
+- `crates/vw-desktop/src/app/message/chat/stream/mod.rs:741` — `event: &vw_gateway_client::GatewayChatToolEvent,`
+- `crates/vw-desktop/src/app/message/chat/stream/mod.rs:743` — `use vw_gateway_client::{GatewayChatToolEventKind, GatewayChatToolStatus};`
+- `crates/vw-desktop/src/app/message/chat/stream/permission_tests.rs:10` — `fn request(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/stream/permission_tests.rs:11` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/stream/permissions.rs:8` — `use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};`
+- `crates/vw-desktop/src/app/message/chat/stream/permissions_tests.rs:11` — `fn request(id: &str, session_id: &str) -> vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/stream/permissions_tests.rs:12` — `vw_gateway_client::PendingPermissionRequestDto {`
+- `crates/vw-desktop/src/app/message/chat/stream/steps.rs:7` — `use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind};`
+- `crates/vw-desktop/src/app/message/chat/stream/steps_tests.rs:7` — `use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind, GatewayChatToolStatus};`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1840` — `&& event.phase == vw_gateway_client::GatewayModelRecoveryPhase::Stopped`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1947` — `) -> Option<(u64, vw_gateway_client::GatewayModelRecoveryEvent)> {`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1964` — `event: vw_gateway_client::GatewayModelRecoveryEvent,`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1988` — `vw_gateway_client::GatewayModelRecoveryPhase::Waiting => {`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1991` — `vw_gateway_client::GatewayModelRecoveryPhase::Stopped => app.show_error_toast(text),`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1992` — `vw_gateway_client::GatewayModelRecoveryPhase::Recovered`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events.rs:1993` — `| vw_gateway_client::GatewayModelRecoveryPhase::Cancelled => Task::none(),`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:1965` — `phase: vw_gateway_client::GatewayModelRecoveryPhase,`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:1967` — `) -> vw_gateway_client::GatewayModelRecoveryEvent {`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:1968` — `vw_gateway_client::GatewayModelRecoveryEvent {`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:1981` — `use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:1998` — `use vw_gateway_client::GatewayModelRecoveryPhase::{Cancelled, Recovered, Waiting};`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:2024` — `use vw_gateway_client::GatewayModelRecoveryPhase::Stopped;`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:2049` — `use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:2078` — `use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;`
+- `crates/vw-desktop/src/app/message/chat/stream/stream_events_tests.rs:2107` — `recovery_notice_event("notice", vw_gateway_client::GatewayModelRecoveryPhase::Waiting, 1),`
+- `crates/vw-desktop/src/app/message/chat/trajectory.rs:145` — `result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,`
+- `crates/vw-desktop/src/app/message/chat/trajectory_tests.rs:196` — `result: Ok(Some(vw_gateway_client::SessionUiLoadResult {`
+- `crates/vw-desktop/src/app/message/chat/trajectory_tests.rs:237` — `result: Ok(Some(vw_gateway_client::SessionUiLoadResult {`
+- `crates/vw-desktop/src/app/message/editor/persistence.rs:8` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/gateway_health.rs:51` — `if vw_gateway_client::GatewayEndpoint::new(host, server.port).is_loopback() {`
+- `crates/vw-desktop/src/app/message/git/repository.rs:87` — `&vw_gateway_client::vw_api_types::git::GitRepositoryRequest {`
+- `crates/vw-desktop/src/app/message/git/repository.rs:154` — `&vw_gateway_client::vw_api_types::git::GitHistoryDetailRequest {`
+- `crates/vw-desktop/src/app/message/git/repository.rs:207` — `vw_gateway_client::vw_api_types::git::GitFileStatus::Deleted`
+- `crates/vw-desktop/src/app/message/git/repository.rs:265` — `&vw_gateway_client::vw_api_types::git::GitRemoteRequest {`
+- `crates/vw-desktop/src/app/message/git/repository_tests.rs:65` — `use vw_gateway_client::vw_api_types::git::{GitFileStatus, GitHistoryFileDto};`
+- `crates/vw-desktop/src/app/message/git/shared.rs:142` — `.git_commit(&vw_gateway_client::vw_api_types::git::GitCommitRequest {`
+- `crates/vw-desktop/src/app/message/git/shared.rs:151` — `.map(|(path, index)| vw_gateway_client::vw_api_types::git::GitHunkSelectionDto {`
+- `crates/vw-desktop/src/app/message/git/shared.rs:159` — `.map(|(path, line)| vw_gateway_client::vw_api_types::git::GitLineSelectionDto {`
+- `crates/vw-desktop/src/app/message/git/shared.rs:167` — `.map(|(path, line)| vw_gateway_client::vw_api_types::git::GitLineSelectionDto {`
+- `crates/vw-desktop/src/app/message/git/shared.rs:185` — `.git_command(&vw_gateway_client::vw_api_types::git::GitCommandRequest {`
+- `crates/vw-desktop/src/app/message/knowledge_tool.rs:15` — `use vw_gateway_client::vw_api_types::knowledge::{`
+- `crates/vw-desktop/src/app/message/knowledge_tool.rs:19` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/knowledge_tool_tests.rs:20` — `use vw_gateway_client::vw_api_types::knowledge::{`
+- `crates/vw-desktop/src/app/message/knowledge_tool_tests.rs:24` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/project/basic_tests.rs:687` — `use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};`
+- `crates/vw-desktop/src/app/message/project/file_tree_external_drop.rs:6` — `use vw_gateway_client::vw_api_types::file::LocalImportResponse;`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:15` — `use vw_gateway_client::vw_api_types::file::{`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:19` — `use vw_gateway_client::vw_api_types::id::{ProjectId, WorktreeId};`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:20` — `use vw_gateway_client::vw_api_types::project::{`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:23` — `use vw_gateway_client::vw_api_types::worktree::{`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:364` — `if vw_gateway_client::is_gateway_unavailable_error(&error) {`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:475` — `fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:650` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:664` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:678` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:681` — `let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:882` — `) -> Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String> {`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:891` — `.file_import_local(&vw_gateway_client::vw_api_types::file::LocalImportRequest {`
+- `crates/vw-desktop/src/app/message/project/helpers.rs:1257` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/project/helpers_tests.rs:18` — `use vw_gateway_client::vw_api_types::common::TimestampMs;`
+- `crates/vw-desktop/src/app/message/project/helpers_tests.rs:19` — `use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};`
+- `crates/vw-desktop/src/app/message/project/helpers_tests.rs:20` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-desktop/src/app/message/project/helpers_tests.rs:21` — `use vw_gateway_client::vw_api_types::project::{ProjectDto, ProjectGitStateDto, ProjectStatus};`
+- `crates/vw-desktop/src/app/message/project/mod.rs:238` — `result: Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String>,`
+- `crates/vw-desktop/src/app/message/project/session/edit.rs:527` — `&vw_gateway_client::vw_api_types::project::UpdateProjectRequest {`
+- `crates/vw-desktop/src/app/message/project/session/edit.rs:531` — `vw_gateway_client::vw_api_types::project::IconUpdateDto {`
+- `crates/vw-desktop/src/app/message/project/session/edit.rs:537` — `vw_gateway_client::vw_api_types::project::CommandsUpdateDto {`
+- `crates/vw-desktop/src/app/message/project/session/lifecycle.rs:863` — `&vw_gateway_client::GatewaySessionPatchBody {`
+- `crates/vw-desktop/src/app/message/project/session/lifecycle.rs:961` — `&vw_gateway_client::GatewaySessionPatchBody {`
+- `crates/vw-desktop/src/app/message/project/session/lifecycle.rs:963` — `time: Some(vw_gateway_client::GatewaySessionPatchTime {`
+- `crates/vw-desktop/src/app/message/project/session/lifecycle_tests.rs:1740` — `prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {`
+- `crates/vw-desktop/src/app/message/project/session/open.rs:572` — `project: vw_gateway_client::vw_api_types::project::ProjectDto,`
+- `crates/vw-desktop/src/app/message/project/session/open_tests.rs:1460` — `vw_gateway_client::GatewaySessionUiSummary {`
+- `crates/vw-desktop/src/app/message/project/session/open_tests.rs:1470` — `vw_gateway_client::GatewaySessionMessagePage {`
+- `crates/vw-desktop/src/app/message/project/session/open_tests.rs:1492` — `vw_gateway_client::GatewaySessionMessagePage {`
+- `crates/vw-desktop/src/app/message/project/session/open_tests.rs:1549` — `prepared.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {`
+- `crates/vw-desktop/src/app/message/project_profiles.rs:10` — `use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};`
+- `crates/vw-desktop/src/app/message/project_profiles.rs:87` — `Action::Delete(id, version) => client.project_profile_delete(&query, &id, version).await.and_then(|r| if r.deleted { Ok(()) } else { Err(vw_gateway_client::project_profile_api::ProjectProfileApiError::InvalidRequest("delete unconfirmed".into())) }),`
+- `crates/vw-desktop/src/app/message/project_profiles.rs:88` — `Action::Clear => client.project_profile_clear(&query).await.and_then(|r| if r.profile_id.is_none() { Ok(()) } else { Err(vw_gateway_client::project_profile_api::ProjectProfileApiError::InvalidRequest("clear unconfirmed".into())) }),`
+- `crates/vw-desktop/src/app/message/project_profiles_apply.rs:5` — `use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};`
+- `crates/vw-desktop/src/app/message/project_profiles_progress.rs:5` — `use vw_gateway_client::{GatewayClient, project_profile_api::ProjectProfileApiScope, vw_api_types::project_profiles::*};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_clients.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_clients.rs:217` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_clients_tests.rs:194` — `GatewayClient::new(vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)).unwrap(),`
+- `crates/vw-desktop/src/app/message/settings/aggregation_clients_tests.rs:256` — `let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:53` — `vw_gateway_client::vw_api_types::task::TaskStatus::Queued`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:54` — `| vw_gateway_client::vw_api_types::task::TaskStatus::Running`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:212` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:215` — `vw_gateway_client::AgentAppsReadError::Transport(message) => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:218` — `vw_gateway_client::AgentAppsReadError::Decode(message) => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:265` — `if o.status == vw_gateway_client::vw_api_types::task::TaskStatus::Completed =>`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:270` — `if o.status == vw_gateway_client::vw_api_types::task::TaskStatus::Completed =>`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:276` — `vw_gateway_client::vw_api_types::task::TaskStatus::Queued`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:277` — `| vw_gateway_client::vw_api_types::task::TaskStatus::Running`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:402` — `vw_gateway_client::vw_api_types::task::TaskStatus::Queued`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop.rs:403` — `| vw_gateway_client::vw_api_types::task::TaskStatus::Running`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:7` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:10` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint, vw_api_types::agent_apps::AppId};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:24` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some("fake-host-token".into()) }),`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:103` — `Err(vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. })`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:143` — `vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopMappingMode::Proxy;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:189` — `Err(vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_desktop_tests.rs:441` — `form: vw_gateway_client::vw_api_types::app_providers::desktop_mapping::DesktopFormView {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_exit_tests.rs:19` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_exit_tests.rs:164` — `let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:232` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some(token.clone()) });`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:248` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list.rs:340` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some(token.clone()) });`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list_tests.rs:3` — `use vw_gateway_client::{GatewayEndpoint, vw_api_types::id::TenantScope};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_list_tests.rs:73` — `vw_gateway_client::GatewayAuth { skey: Some("fixture-gateway-key".into()) },`
+- `crates/vw-desktop/src/app/message/settings/aggregation_members_tests.rs:93` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-desktop/src/app/message/settings/aggregation_members_tests.rs:94` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some("gateway-key".into()) });`
+- `crates/vw-desktop/src/app/message/settings/aggregation_members_tests.rs:247` — `vw_gateway_client::vw_api_types::app_providers::AppProviderSummary {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omo.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omo_tests.rs:2` — `use vw_gateway_client::{AggregationOmoError, vw_api_types::agent_apps::aggregation::*};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omo_tests.rs:133` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp/core.rs:4` — `use vw_gateway_client::AggregationApiError;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp/core.rs:5` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp/core.rs:6` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::*;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp/core.rs:26` — `pub project: Option<vw_gateway_client::vw_api_types::id::ProjectId>,`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp/core.rs:112` — `let profile = vw_gateway_client::vw_api_types::app_providers::omp::OmpProfile {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp.rs:10` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp.rs:33` — `vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState,`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp_tests.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp_tests.rs:78` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_omp_tests.rs:179` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::OmpDirectoryState;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_pi.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_pi_tests.rs:3` — `use vw_gateway_client::vw_api_types::agent_apps::aggregation::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_pi_tests.rs:58` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_pi_tests.rs:143` — `Err(vw_gateway_client::AggregationApiError::Http { status: 409, .. })`
+- `crates/vw-desktop/src/app/message/settings/aggregation_pi_tests.rs:268` — `use vw_gateway_client::AggregationApiError;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish.rs:236` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish.rs:239` — `vw_gateway_client::AgentAppsReadError::Decode(s) => AggregationApiError::Decode(s),`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish.rs:240` — `vw_gateway_client::AgentAppsReadError::Transport(s) => {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:65` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:66` — `.with_auth(vw_gateway_client::GatewayAuth { skey: Some("gateway-key".into()) });`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:70` — `pub(super) fn selection(app: vw_gateway_client::vw_api_types::agent_apps::AppId) -> Selection {`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:87` — `use vw_gateway_client::vw_api_types::app_providers::operations::ProviderOperationPhase;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:138` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:197` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:225` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:228` — `let client = GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:248` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:267` — `selection: selection(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),`
+- `crates/vw-desktop/src/app/message/settings/aggregation_publish_tests.rs:273` — `selection: selection(vw_gateway_client::vw_api_types::agent_apps::AppId::Claude),`
+- `crates/vw-desktop/src/app/message/settings/aggregation_review_tests.rs:306` — `app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,`
+- `crates/vw-desktop/src/app/message/settings/aggregation_review_tests.rs:315` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_subagent.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/aggregation_subagent_tests.rs:2` — `use vw_gateway_client::vw_api_types::{ReasoningEffortDto as Effort, agent_apps::aggregation::*};`
+- `crates/vw-desktop/src/app/message/settings/aggregation_subagent_tests.rs:54` — `app: vw_gateway_client::vw_api_types::agent_apps::AppId::Codex,`
+- `crates/vw-desktop/src/app/message/settings/aggregation_subagent_tests.rs:94` — `use vw_gateway_client::AgentAppsSettingsError;`
+- `crates/vw-desktop/src/app/message/settings/aggregation_subagent_tests.rs:122` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:27` — `ToggleDetails(vw_gateway_client::vw_api_types::agent_apps::AppId),`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:39` — `RefreshObservation(vw_gateway_client::vw_api_types::agent_apps::AppId),`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:44` — `id: vw_gateway_client::vw_api_types::agent_apps::AppId,`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:45` — `result: Result<vw_gateway_client::vw_api_types::agent_apps::AppReadResponse, vw_gateway_client::AgentAppsReadError>,`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:142` — `if app.apps_catalog.expanded.is_some() && !matches!(id, vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop | vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw) {`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:144` — `let profiles = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id)`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:150` — `if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id) {`
+- `crates/vw-desktop/src/app/message/settings/apps_catalog.rs:344` — `vw_gateway_client::AgentAppsReadError::Http { status: 503, .. }`
+- `crates/vw-desktop/src/app/message/settings/apps_lifecycle.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/apps_lifecycle.rs:38` — `Read(vw_gateway_client::vw_api_types::id::TaskId),`
+- `crates/vw-desktop/src/app/message/settings/apps_lifecycle.rs:39` — `Poll(vw_gateway_client::vw_api_types::id::TaskId),`
+- `crates/vw-desktop/src/app/message/settings/apps_lifecycle.rs:40` — `Cancel(vw_gateway_client::vw_api_types::id::TaskId),`
+- `crates/vw-desktop/src/app/message/settings/apps_usage_events.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/apps_usage_events_tests.rs:6` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-desktop/src/app/message/settings/archived_chats/delete.rs:36` — `client: Result<vw_gateway_client::GatewayClient, String>,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats/project_delete.rs:263` — `client: Result<vw_gateway_client::GatewayClient, String>,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats/project_delete.rs:280` — `client: vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats.rs:417` — `client: Result<vw_gateway_client::GatewayClient, String>,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats.rs:429` — `&vw_gateway_client::GatewaySessionPatchBody {`
+- `crates/vw-desktop/src/app/message/settings/archived_chats.rs:431` — `time: Some(vw_gateway_client::GatewaySessionPatchTime {`
+- `crates/vw-desktop/src/app/message/settings/archived_chats.rs:450` — `client: Result<vw_gateway_client::GatewayClient, String>,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats.rs:480` — `client: Result<vw_gateway_client::GatewayClient, String>,`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:2` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:173` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:176` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:587` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:590` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:760` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port());`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:762` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:1229` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-desktop/src/app/message/settings/archived_chats_tests.rs:1231` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-desktop/src/app/message/settings/backup_inventory.rs:5` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::DataBackupSummary};`
+- `crates/vw-desktop/src/app/message/settings/backup_inventory.rs:62` — `match error { vw_gateway_client::AgentAppsReadError::Http { status, .. } => Some(status), _ => None }`
+- `crates/vw-desktop/src/app/message/settings/channels/execution.rs:64` — `let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(`
+- `crates/vw-desktop/src/app/message/settings/channels/projects.rs:6` — `use vw_gateway_client::{GatewayClient, vw_api_types::project::ResolveProjectRequest};`
+- `crates/vw-desktop/src/app/message/settings/channels/updates.rs:10` — `use vw_gateway_client::{ChannelQrStatusDto, GatewayClient};`
+- `crates/vw-desktop/src/app/message/settings/channels/updates_tests.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/computer_control.rs:7` — `use vw_gateway_client::vw_api_types::computer_control::*;`
+- `crates/vw-desktop/src/app/message/settings/cron.rs:18` — `) -> Result<vw_gateway_client::CronPreviewRequest, String> {`
+- `crates/vw-desktop/src/app/message/settings/cron.rs:26` — `Ok(vw_gateway_client::CronPreviewRequest {`
+- `crates/vw-desktop/src/app/message/settings/cron.rs:132` — `runs: &[vw_gateway_client::CronRunDto],`
+- `crates/vw-desktop/src/app/message/settings/cron.rs:206` — `fn job_type_from_api(job: &vw_gateway_client::CronJobDto) -> CronAddJobType {`
+- `crates/vw-desktop/src/app/message/settings/cron_history.rs:6` — `use vw_gateway_client::{CronHistoryResponse, CronJobDto};`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:8` — `use vw_gateway_client::{CronJobDto, CronRunDto};`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1201` — `app.cron_settings.add_draft.preview = Some(Ok(vw_gateway_client::CronPreviewResponse {`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1356` — `result: Result<(vw_gateway_client::CronHistoryResponse, Vec<CronJobDto>), String>,`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1364` — `fn history_response() -> vw_gateway_client::CronHistoryResponse {`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1365` — `vw_gateway_client::CronHistoryResponse {`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1366` — `runs: vec![vw_gateway_client::CronHistoryRunDto {`
+- `crates/vw-desktop/src/app/message/settings/cron_tests.rs:1727` — `result: Ok(vw_gateway_client::CronPreviewResponse {`
+- `crates/vw-desktop/src/app/message/settings/data_management/backup_list_ui.rs:6` — `use vw_gateway_client::{DataBackupPolicy, DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};`
+- `crates/vw-desktop/src/app/message/settings/data_management/backup_list_ui.rs:7` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};`
+- `crates/vw-desktop/src/app/message/settings/data_management/export_ui.rs:5` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};`
+- `crates/vw-desktop/src/app/message/settings/data_management/locations_ui.rs:2` — `use vw_gateway_client::{DataBackupLocation, DataBackupLocationDeletion};`
+- `crates/vw-desktop/src/app/message/settings/data_management/recovery_ui.rs:5` — `use vw_gateway_client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress};`
+- `crates/vw-desktop/src/app/message/settings/data_management/recovery_ui.rs:6` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};`
+- `crates/vw-desktop/src/app/message/settings/device_sync_preview.rs:3` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/device_sync_preview.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/device_sync_s3.rs:10` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/device_sync_s3.rs:13` — `use vw_gateway_client::{DeviceSyncOperationsError, DeviceSyncSelection};`
+- `crates/vw-desktop/src/app/message/settings/device_sync_webdav.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/device_sync_webdav.rs:114` — `let project: vw_gateway_client::vw_api_types::ProjectId = identity.project.clone().into();`
+- `crates/vw-desktop/src/app/message/settings/dialogue_flow.rs:222` — `let cfg = vw_gateway_client::GatewayClient::new(endpoint)?`
+- `crates/vw-desktop/src/app/message/settings/gateway_client.rs:8` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/message/settings/hooks_tests.rs:31` — `fn catalog_entry(trusted: bool) -> vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/message/settings/hooks_tests.rs:32` — `vw_gateway_client::HookCatalogEntryDto {`
+- `crates/vw-desktop/src/app/message/settings/hooks_tests.rs:44` — `fn audit_entry() -> vw_gateway_client::HookAuditEntryDto {`
+- `crates/vw-desktop/src/app/message/settings/hooks_tests.rs:45` — `vw_gateway_client::HookAuditEntryDto {`
+- `crates/vw-desktop/src/app/message/settings/hooks_tests.rs:137` — `vw_gateway_client::HookMutationResponseDto {`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings.rs:270` — `let valid_installation = app.apps_catalog.context.as_ref() == Some(&context.endpoint) && !app.apps_catalog.loading && !app.apps_catalog.token.is_empty() && target.target_host_id == context.host && app.apps_catalog.rows.iter().any(|row| row.entry.id == target.app_id && row.observation.as_ref().is_ok_and(|observation| observation.installations.iter().any(|i| i.app_id == target.app_id && i.id == target.installation_id && i.target_host_id == context.host && matches!(i.environment, vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment::Macos))));`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:29` — `scope: vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:43` — `installation_id: vw_gateway_client::vw_api_types::agent_apps::AppInstallationId(`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:113` — `scope: vw_gateway_client::vw_api_types::ProjectScope::new(`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:114` — `vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:161` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:163` — `vw_gateway_client::vw_api_types::TenantScope::new("10000", "100000001").unwrap(),`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_bindings_tests.rs:254` — `use vw_gateway_client::vw_api_types::agent_apps::*;`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form.rs:6` — `use vw_gateway_client::{GatewayClient, vw_api_types::mcp_management::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form.rs:130` — `use vw_gateway_client::vw_api_types::agent_apps_auth::AuthService;`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form.rs:281` — `vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. } => {`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form.rs:284` — `vw_gateway_client::AgentAppsSettingsError::Http { status: 400 | 422, .. } => {`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form_tests.rs:3` — `use vw_gateway_client::vw_api_types::{TenantScope, agent_apps_auth::AuthService};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_form_tests.rs:156` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_import.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_import.rs:369` — `Err(vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. }) => "失败：定义冲突，未覆盖".into(),`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_import.rs:384` — `vw_gateway_client::AgentAppsSettingsError::Http {`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_import_tests.rs:57` — `use vw_gateway_client::vw_api_types::{TenantScope, agent_apps::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_list.rs:5` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::mcp_management::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_list_tests.rs:2` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_list_tests.rs:76` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_list_tests.rs:185` — `vw_gateway_client::vw_api_types::TenantScope::new("other", "tenant").unwrap();`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_list_tests.rs:213` — `app_id: vw_gateway_client::vw_api_types::agent_apps::AppId::Agy,`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_probe.rs:9` — `use vw_gateway_client::{GatewayClient, vw_api_types::agent_apps_diagnostics::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_probe_tests.rs:6` — `use vw_gateway_client::vw_api_types::{agent_apps::*, mcp_management::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_probe_tests.rs:114` — `use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps_diagnostics::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:58` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:207` — `status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:298` — `status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:342` — `status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:366` — `status: vw_gateway_client::vw_api_types::task::TaskStatus::Queued,`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:398` — `use vw_gateway_client::vw_api_types::task::TaskStatus;`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_resync_tests.rs:510` — `use vw_gateway_client::vw_api_types::task::TaskStatus;`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_tools.rs:8` — `use vw_gateway_client::vw_api_types::{agent_apps_diagnostics::*, mcp_management::*};`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_tools_tests.rs:60` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/mcp_management_tools_tests.rs:137` — `project: vw_gateway_client::vw_api_types::ProjectScope::new(`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:322` — `result: Result<vw_gateway_client::ChannelQrFetchResponseDto, String>,`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:331` — `result: Result<vw_gateway_client::ChannelQrStatusResponseDto, String>,`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:468` — `Inspected(Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String>),`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:776` — `TrayOpenApp(vw_gateway_client::vw_api_types::agent_apps::AppId),`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:860` — `result: Result<vw_gateway_client::DesktopPluginPreviewDto, String>,`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:1011` — `result: Result<vw_gateway_client::CronPreviewResponse, String>,`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:1022` — `CronJobsLoaded(Result<Vec<vw_gateway_client::CronJobDto>, String>),`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:1027` — `CronJobRunsLoaded(String, Result<Vec<vw_gateway_client::CronRunDto>, String>),`
+- `crates/vw-desktop/src/app/message/settings/messages.rs:1197` — `result: Result<vw_gateway_client::DesktopSkillDetailDto, String>,`
+- `crates/vw-desktop/src/app/message/settings/projects.rs:9` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-desktop/src/app/message/settings/prompts/pi_files.rs:5` — `use vw_gateway_client::{AgentAppPromptsError, PiPromptResourcesScope, PiPromptFileSnapshot};`
+- `crates/vw-desktop/src/app/message/settings/prompts/shared_import.rs:5` — `use vw_gateway_client::{AgentAppPromptsScope, vw_api_types::agent_apps::{PromptSharePayload, ImportPromptShareRequest, ImportPromptShareResult, PromptActivationChoice}};`
+- `crates/vw-desktop/src/app/message/settings/prompts/sync.rs:4` — `use vw_gateway_client::{AgentAppPromptSync, PiPromptResourcesScope};`
+- `crates/vw-desktop/src/app/message/settings/prompts/sync.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/prompts/templates.rs:5` — `use vw_gateway_client::{PiPromptResourcesScope, PiPromptTemplate, AgentAppPromptsError};`
+- `crates/vw-desktop/src/app/message/settings/prompts/transfer.rs:5` — `use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource, AgentAppPromptsScope, vw_api_types::agent_apps::AppId};`
+- `crates/vw-desktop/src/app/message/settings/prompts.rs:10` — `use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId, PromptTargetPreview}};`
+- `crates/vw-desktop/src/app/message/settings/prompts.rs:98` — `vw_gateway_client::AgentAppPromptsError::Http { status: 413, .. } => "正文超过服务端限长；MCode 最多 32768 UTF-8 字节".to_owned(),`
+- `crates/vw-desktop/src/app/message/settings/prompts.rs:99` — `vw_gateway_client::AgentAppPromptsError::Http { status: 409, .. } => "内容版本已变化，请保留草稿并刷新后重试".to_owned(),`
+- `crates/vw-desktop/src/app/message/settings/prompts.rs:186` — `fn mutate(app: &mut App, client: vw_gateway_client::GatewayClient, context: AgentAppsContext,`
+- `crates/vw-desktop/src/app/message/settings/providers/catalog_api.rs:14` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/providers/catalog_api_tests.rs:8` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/settings/providers/discovery.rs:17` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/providers/discovery.rs:120` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/providers/discovery.rs:133` — `context: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/message/settings/providers/discovery_tests.rs:16` — `use vw_gateway_client::vw_api_types::model_catalog::ModelDiscoveryMethod;`
+- `crates/vw-desktop/src/app/message/settings/providers/managed_shiju/tests.rs:6` — `use vw_gateway_client::ShijuCredential;`
+- `crates/vw-desktop/src/app/message/settings/providers/managed_shiju.rs:10` — `use vw_gateway_client::ShijuModelTokenDto;`
+- `crates/vw-desktop/src/app/message/settings/providers/metadata_fill.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/providers/metadata_fill_tests.rs:10` — `use vw_gateway_client::vw_api_types::model_catalog::{`
+- `crates/vw-desktop/src/app/message/settings/providers/model_edits_api_tests.rs:21` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, model_catalog::ModelCatalogProject};`
+- `crates/vw-desktop/src/app/message/settings/routing_persistence.rs:9` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/settings/skills/backup_modal.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{backups_api::*, bindings_api::SkillBindingTarget, repos_api::SkillReposQuery};`
+- `crates/vw-desktop/src/app/message/settings/skills/bindings_view.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{bindings_api::*, inventory_api::*, repos_api::SkillReposQuery};`
+- `crates/vw-desktop/src/app/message/settings/skills/bindings_view_tests.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/app/message/settings/skills/claude_view.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::*;`
+- `crates/vw-desktop/src/app/message/settings/skills/deeplink.rs:2` — `use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillRepoEntry;`
+- `crates/vw-desktop/src/app/message/settings/skills/import_modal.rs:4` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, agent_apps_skills::import_api::*};`
+- `crates/vw-desktop/src/app/message/settings/skills/install_view.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{inventory_api::*, install_api::*, repos_api::SkillReposQuery};`
+- `crates/vw-desktop/src/app/message/settings/skills/jobs_view.rs:4` — `use vw_gateway_client::vw_api_types::{agent_apps_skills::{jobs_api::*, repos_api::SkillReposQuery}, id::TaskId};`
+- `crates/vw-desktop/src/app/message/settings/skills/market_view.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{discovery_api::*, search_api::*};`
+- `crates/vw-desktop/src/app/message/settings/skills/repo_modal.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::*;`
+- `crates/vw-desktop/src/app/message/settings/skills/storage_modal.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{bindings_api::*, repos_api::SkillReposQuery, storage_api::*};`
+- `crates/vw-desktop/src/app/message/settings/skills/updates_view.rs:4` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{inventory_api::*, repos_api::SkillReposQuery, updates_api::*, uninstall_api::*};`
+- `crates/vw-desktop/src/app/message/settings/skills.rs:13` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/skills_tests.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/types.rs:37` — `pub type SkillsLoaded = Result<Vec<vw_gateway_client::DesktopSkillCatalogEntryDto>, String>;`
+- `crates/vw-desktop/src/app/message/settings/types.rs:41` — `pub type PluginsLoaded = Result<Vec<vw_gateway_client::DesktopPluginCatalogEntryDto>, String>;`
+- `crates/vw-desktop/src/app/message/settings/types.rs:43` — `pub type HookCatalogLoaded = Result<Vec<vw_gateway_client::HookCatalogEntryDto>, String>;`
+- `crates/vw-desktop/src/app/message/settings/types.rs:45` — `pub type HookAuditLoaded = Result<Vec<vw_gateway_client::HookAuditEntryDto>, String>;`
+- `crates/vw-desktop/src/app/message/settings/types.rs:47` — `pub type HookMutationCompleted = Result<vw_gateway_client::HookMutationResponseDto, String>;`
+- `crates/vw-desktop/src/app/message/settings/voice.rs:11` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/settings/voice_tests.rs:32` — `endpoint.clone().with_auth(vw_gateway_client::GatewayAuth { skey: Some("fixture".into()) });`
+- `crates/vw-desktop/src/app/message/settings/worktrees/environment.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/worktrees/environment.rs:53` — `pub(crate) fn can_add(endpoint: &vw_gateway_client::GatewayEndpoint) -> bool {`
+- `crates/vw-desktop/src/app/message/settings/worktrees/managed.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/settings/worktrees/recovery.rs:8` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/message/shiju_apps.rs:4` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/shiju_apps_tests.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors.rs:12` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors_tests.rs:25` — `fn connector() -> vw_gateway_client::ShijuConnector {`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors_tests.rs:73` — `challenge: vw_gateway_client::ShijuConnectorChallenge {`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors_tests.rs:133` — `use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors_tests.rs:178` — `use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};`
+- `crates/vw-desktop/src/app/message/skill_hub/connectors_tests.rs:227` — `use vw_gateway_client::{ShijuConnectorAuthorizationStatus as Status, ShijuConnectorPoll};`
+- `crates/vw-desktop/src/app/message/skill_hub/knowledge.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/skill_hub/public.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/skill_hub/public_tests.rs:4` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/message/skill_hub.rs:32` — `use vw_gateway_client::{ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery};`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:89` — `command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:91` — `payload: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:92` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:93` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:97` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto::Local,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:106` — `commands: Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest>,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:117` — `&vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerBulkCommandRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:135` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskMetadataPatchDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:139` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskMetadataPatchDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:185` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::UpdateMetadata,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:187` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:206` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::SoftDelete,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:224` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Archive,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:244` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Move,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:246` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:248` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerMoveTaskPayloadDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:274` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Move,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:276` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandPayloadDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:278` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerMoveTaskPayloadDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk.rs:384` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto::Merge,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/bulk_tests.rs:142` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/draft_tests.rs:178` — `use vw_gateway_client::vw_api_types::task_lifecycle::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/draft_tests.rs:240` — `role: vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/draft_tests.rs:242` — `) -> vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/draft_tests.rs:243` — `use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/draft_tests.rs:245` — `vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:289` — `) -> Result<vw_gateway_client::vw_api_types::id::ProjectId, String> {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:294` — `&vw_gateway_client::vw_api_types::project::ResolveProjectRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:305` — `) -> Result<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto, String> {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:328` — `project_id: vw_gateway_client::vw_api_types::id::ProjectId,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:331` — `Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:368` — `project_id: vw_gateway_client::vw_api_types::id::ProjectId,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:423` — `) -> vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:424` — `use vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:445` — `) -> Option<vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto> {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:569` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:570` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:607` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:626` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:644` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:647` — `kind: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskKindDto::Finite,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:680` — `created_at_ms: vw_gateway_client::vw_api_types::common::TimestampMs(`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:708` — `) -> Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest> {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:736` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:737` — `scope: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:738` — `requests: &[vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCreateTaskRequest],`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:747` — `command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:748` — `status: &vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:750` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:771` — `command: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandKindDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:772` — `dispatch_mode: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:794` — `&vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerCommandRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:795` — `task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id.clone()),`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:831` — `snapshot: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:842` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotRequest { project_id },`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:870` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotRecycleRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:896` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeRecycleRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:898` — `task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id.clone()),`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:940` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMaintenanceRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution.rs:1009` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotRequest {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:77` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:666` — `use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:667` — `use vw_gateway_client::vw_api_types::task::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:741` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:767` — `use vw_gateway_client::vw_api_types::task::TaskPoolWorkflowStatusRoleDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:843` — `use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:906` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:907` — `use vw_gateway_client::vw_api_types::task_lifecycle::{`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:991` — `role: vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto,`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:993` — `) -> vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:994` — `use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusRoleDto;`
+- `crates/vw-desktop/src/app/message/task_board/helpers/execution_tests.rs:996` — `vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleStatusDto {`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:7` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:33` — `reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:46` — `UpdateDraftReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:82` — `UpdateBulkReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:92` — `reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:143` — `UpdateEditingTaskReasoningEffort(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:275` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:281` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:297` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:304` — `Vec<vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse>,`
+- `crates/vw-desktop/src/app/message/task_board/message.rs:310` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse,`
+- `crates/vw-desktop/src/app/message/task_board/update/execution.rs:7` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/task_board/update/execution.rs:10` — `use vw_gateway_client::vw_api_types::common::TimestampMs;`
+- `crates/vw-desktop/src/app/message/task_board/update/execution.rs:55` — `&vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeRequest {`
+- `crates/vw-desktop/src/app/message/task_board/update/execution_tests.rs:261` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeResponse;`
+- `crates/vw-desktop/src/app/message/task_board/update/execution_tests.rs:305` — `use vw_gateway_client::vw_api_types::agent_scheduler::{AgentTaskKindDto, AgentTaskStatusDto};`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:60` — `status: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:62` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:81` — `status: vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:83` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto;`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:103` — `snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:126` — `status: Option<vw_gateway_client::vw_api_types::agent_scheduler::AgentTaskStatusDto>,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:135` — `fn timestamp_ms_to_u64(timestamp_ms: vw_gateway_client::vw_api_types::common::TimestampMs) -> u64 {`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:140` — `log: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:166` — `logs: &[vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogDto],`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:216` — `vw_gateway_client::is_gateway_unavailable_error(error)`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:243` — `snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:295` — `snapshot: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:325` — `response: vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:381` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogsResponse,`
+- `crates/vw-desktop/src/app/message/task_board/update.rs:2658` — `if vw_gateway_client::is_gateway_unavailable_error(&error) {`
+- `crates/vw-desktop/src/app/message/task_board/update_tests.rs:6` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardTaskDto {`
+- `crates/vw-desktop/src/app/message/task_board/update_tests.rs:7` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/task_board/update_tests.rs:35` — `updated_at_ms: vw_gateway_client::vw_api_types::common::TimestampMs(0),`
+- `crates/vw-desktop/src/app/message/task_board/update_tests.rs:42` — `) -> vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskBoardStatusResponse {`
+- `crates/vw-desktop/src/app/message/task_board/update_tests.rs:43` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-desktop/src/app/message/view/mod.rs:619` — `result: Result<vw_gateway_client::vw_api_types::file::FileNodeKind, String>,`
+- `crates/vw-desktop/src/app/message/view/panel/external.rs:10` — `use vw_gateway_client::vw_api_types::file::FileNodeKind;`
+- `crates/vw-desktop/src/app/message/voice.rs:8` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/message/voice_dictation.rs:13` — `use vw_gateway_client::vw_api_types::voice::{TranscriptionRequest, VoiceCounter, VoiceId};`
+- `crates/vw-desktop/src/app/message/voice_dictation.rs:14` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/voice_local_chat.rs:10` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/message/voice_local_screen.rs:3` — `use vw_gateway_client::vw_api_types::voice::ScreenPayload;`
+- `crates/vw-desktop/src/app/message/voice_recordings.rs:11` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/message/voice_screen.rs:9` — `use vw_gateway_client::vw_api_types::voice::{ScreenPayload, VoiceCounter};`
+- `crates/vw-desktop/src/app/plugin_compat_t31_tests.rs:38` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/plugin_compat_t31_tests.rs:111` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/plugin_compat_t31_tests.rs:162` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/plugin_compat_t55_tests.rs:2` — `fn checks(status: &str) -> Vec<vw_gateway_client::DesktopPluginDependencyDto> {`
+- `crates/vw-desktop/src/app/plugin_compat_t55_tests.rs:3` — `vec![vw_gateway_client::DesktopPluginDependencyDto {`
+- `crates/vw-desktop/src/app/plugin_compat_t56_tests.rs:2` — `use vw_gateway_client::{DesktopPluginCapabilitiesDto, DesktopPluginPreviewDto};`
+- `crates/vw-desktop/src/app/plugin_compat_t64_tests.rs:68` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/prompt_link_preview.rs:5` — `use vw_gateway_client::vw_api_types::agent_apps::{PromptResource, PromptSharePayload};`
+- `crates/vw-desktop/src/app/provider_link_preview.rs:36` — `let _: vw_gateway_client::vw_api_types::agent_apps::AppId =`
+- `crates/vw-desktop/src/app/recovery_window_tests.rs:126` — `let waiting = matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == vw_gateway_client::GatewayModelRecoveryPhase::Waiting);`
+- `crates/vw-desktop/src/app/recovery_window_tests.rs:133` — `if matches!(&event, AppMessage::Chat(ChatMessage::AgentModelRecovery(_, state)) if state.phase == vw_gateway_client::GatewayModelRecoveryPhase::Recovered)`
+- `crates/vw-desktop/src/app/session/hover_details.rs:4` — `use vw_gateway_client::vw_api_types::chat::SessionAgentIdentity;`
+- `crates/vw-desktop/src/app/session/hover_details.rs:26` — `let scope = vw_gateway_client::vw_api_types::id::ProjectScope::new(`
+- `crates/vw-desktop/src/app/session/loading.rs:26` — `pub agent_binding: Option<vw_gateway_client::vw_api_types::chat::SessionAgentIdentity>,`
+- `crates/vw-desktop/src/app/session/loading.rs:109` — `summary: vw_gateway_client::GatewaySessionUiSummary,`
+- `crates/vw-desktop/src/app/session/loading.rs:110` — `page: vw_gateway_client::GatewaySessionMessagePage<`
+- `crates/vw-desktop/src/app/session/loading.rs:160` — `page: vw_gateway_client::GatewaySessionMessagePage<`
+- `crates/vw-desktop/src/app/session/loading.rs:283` — `vw_gateway_client::GatewayClient::new(endpoint).map_err(anyhow::Error::msg)?;`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:253` — `fn bounded_summary(message_count: usize) -> vw_gateway_client::GatewaySessionUiSummary {`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:254` — `vw_gateway_client::GatewaySessionUiSummary {`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:282` — `let page = vw_gateway_client::GatewaySessionMessagePage {`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:300` — `let page = vw_gateway_client::GatewaySessionMessagePage {`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:318` — `summary.agent_binding = Some(vw_gateway_client::vw_api_types::chat::SessionAgentIdentity {`
+- `crates/vw-desktop/src/app/session/loading_tests.rs:325` — `vw_gateway_client::GatewaySessionMessagePage {`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:493` — `runtime.reasoning_effort = Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High);`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:506` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:667` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:710` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:721` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:759` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:807` — `fn source_ui_update() -> vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate {`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:808` — `use vw_gateway_client::vw_api_types::acp_model_source::*;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:822` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:852` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:860` — `let options = vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:894` — `use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;`
+- `crates/vw-desktop/src/app/session/runtime_tests.rs:924` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/session/ui_projection.rs:256` — `let tenant = vw_gateway_client::vw_api_types::id::TenantScope::default();`
+- `crates/vw-desktop/src/app/session_gateway.rs:9` — `use vw_gateway_client::DesktopPluginCatalogEntryDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:10` — `use vw_gateway_client::DesktopSkillCatalogEntryDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:11` — `use vw_gateway_client::DesktopSkillDetailDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:12` — `use vw_gateway_client::ExternalAppsStateDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:13` — `use vw_gateway_client::HookAuditEntryDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:14` — `use vw_gateway_client::HookCatalogEntryDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:15` — `use vw_gateway_client::HookMutationResponseDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:16` — `use vw_gateway_client::PendingPermissionReplyDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:17` — `use vw_gateway_client::PendingPermissionRequestDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:18` — `use vw_gateway_client::ProjectChangeRecordDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:19` — `use vw_gateway_client::SkillMarketCategoryDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:20` — `use vw_gateway_client::SkillMarketCoordinateDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:21` — `use vw_gateway_client::SkillMarketInstallSelectionDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:22` — `use vw_gateway_client::SkillMarketSkillDetailDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:23` — `use vw_gateway_client::SkillMarketSkillDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:24` — `use vw_gateway_client::SkillMarketSkillFileDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:25` — `use vw_gateway_client::SkillMarketSkillLocatorDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:26` — `use vw_gateway_client::SkillMarketSkillPageDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:27` — `use vw_gateway_client::SkillMarketSkillQuery;`
+- `crates/vw-desktop/src/app/session_gateway.rs:28` — `use vw_gateway_client::SkillMarketSkillSetDetailDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:29` — `use vw_gateway_client::SkillMarketSkillSetPageDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:30` — `use vw_gateway_client::SkillMarketSourceDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:31` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-desktop/src/app/session_gateway.rs:32` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-desktop/src/app/session_gateway.rs:33` — `use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};`
+- `crates/vw-desktop/src/app/session_gateway.rs:34` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/session_gateway.rs:80` — `fn gateway_client() -> Result<vw_gateway_client::GatewayClient, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:89` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/session_gateway.rs:91` — `) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:101` — `) -> Result<vw_gateway_client::vw_api_types::task::TaskPlanRunStatusResponse, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:127` — `) -> Result<vw_gateway_client::ShijuMonthlyQuotaDto, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:316` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/session_gateway.rs:321` — `vw_gateway_client::GatewaySessionUiSummary,`
+- `crates/vw-desktop/src/app/session_gateway.rs:322` — `vw_gateway_client::GatewaySessionMessagePage<`
+- `crates/vw-desktop/src/app/session_gateway.rs:328` — `let page_query = vw_gateway_client::GatewaySessionMessagePageQuery {`
+- `crates/vw-desktop/src/app/session_gateway.rs:332` — `direction: vw_gateway_client::SessionMessagePageDirection::Older,`
+- `crates/vw-desktop/src/app/session_gateway.rs:342` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/session_gateway.rs:347` — `vw_gateway_client::GatewaySessionMessagePage<`
+- `crates/vw-desktop/src/app/session_gateway.rs:355` — `&vw_gateway_client::GatewaySessionMessagePageQuery {`
+- `crates/vw-desktop/src/app/session_gateway.rs:359` — `direction: vw_gateway_client::SessionMessagePageDirection::Older,`
+- `crates/vw-desktop/src/app/session_gateway.rs:377` — `) -> Result<Option<vw_gateway_client::SessionUiLoadResult>, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:506` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/session_gateway.rs:655` — `&vw_gateway_client::GatewaySessionPatchBody {`
+- `crates/vw-desktop/src/app/session_gateway.rs:925` — `&vw_gateway_client::vw_api_types::project::ResolveProjectRequest {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1145` — `) -> Result<vw_gateway_client::DesktopPluginPreviewDto, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1169` — `pub async fn gateway_skill_repos_scope(directory: &str, host: String) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1171` — `&vw_gateway_client::vw_api_types::project::ResolveProjectRequest {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1174` — `Ok(vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1180` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1182` — `change: Option<(vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillRepoEntry, bool)>,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1183` — `) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposResponse, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1184` — `use vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::*;`
+- `crates/vw-desktop/src/app/session_gateway.rs:1198` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1200` — `change: Option<(bool, vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigAction)>,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1201` — `) -> Result<(vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::ClaudeConfigResponse, Option<String>), String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1202` — `use vw_gateway_client::vw_api_types::agent_apps_skills::claude_api::*;`
+- `crates/vw-desktop/src/app/session_gateway.rs:1220` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1238` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1239` — `request: Option<vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillRequest>,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1241` — `) -> Result<Option<vw_gateway_client::vw_api_types::agent_apps_skills::inventory_api::SkillInventoryResponse>, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1242` — `use vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobPhase;`
+- `crates/vw-desktop/src/app/session_gateway.rs:1264` — `apps: Vec<vw_gateway_client::vw_api_types::agent_apps::AppId>,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1265` — `selected: Vec<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillItem>,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1267` — `) -> (Vec<(String, Result<(), String>)>, Result<vw_gateway_client::vw_api_types::agent_apps_skills::import_api::UnmanagedSkillsResponse, String>) {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1268` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{import_api::*, repos_api::SkillReposQuery};`
+- `crates/vw-desktop/src/app/session_gateway.rs:1309` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1310` — `id: vw_gateway_client::vw_api_types::id::TaskId,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1313` — `) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::jobs_api::SkillJobResponse, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1320` — `request: vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillRequest,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1322` — `) -> Result<vw_gateway_client::vw_api_types::agent_apps_skills::install_api::InstallSkillResponse, String> {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1327` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1359` — `if response.results.iter().any(|r| r.status != vw_gateway_client::vw_api_types::agent_apps_skills::bindings_api::SkillBindingStatus::Enabled) {`
+- `crates/vw-desktop/src/app/session_gateway.rs:1398` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1403` — `use vw_gateway_client::vw_api_types::agent_apps_skills::{updates_api::*, uninstall_api::*};`
+- `crates/vw-desktop/src/app/session_gateway.rs:1433` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1468` — `scope: vw_gateway_client::vw_api_types::agent_apps_skills::repos_api::SkillReposQuery,`
+- `crates/vw-desktop/src/app/session_gateway.rs:1473` — `use vw_gateway_client::vw_api_types::agent_apps_skills::backups_api::DeleteSkillBackupRequest;`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:8` — `tenant: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:9` — `) -> (vw_gateway_client::GatewayClient, tokio::task::JoinHandle<String>) {`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:37` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant);`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:38` — `let client = vw_gateway_client::GatewayClient::new(endpoint).expect("stop client should build");`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:77` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:137` — `use vw_gateway_client::vw_api_types::id::{COMPANY_ID_HEADER, PLATFORM_ID_HEADER, TenantScope};`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:154` — `assert_eq!(status.status, vw_gateway_client::vw_api_types::task::TaskPlanRunStatus::Cancelled);`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:169` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:186` — `let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:234` — `vw_gateway_client::GatewayClient::agent_scheduler_events_stream_path(&scope, None),`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:504` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:505` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port),`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:534` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/session_gateway_tests.rs:569` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-desktop/src/app/shiju_apps/launcher.rs:9` — `use vw_gateway_client::ShijuAppLaunchDto;`
+- `crates/vw-desktop/src/app/shiju_apps/launcher_tests.rs:7` — `use vw_gateway_client::ShijuAppLaunchDto;`
+- `crates/vw-desktop/src/app/shiju_apps/state.rs:3` — `use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto, ShijuIamApiKeyDto};`
+- `crates/vw-desktop/src/app/shiju_apps/state_tests.rs:5` — `use vw_gateway_client::{ShijuAppCatalogDto, ShijuAppListDto};`
+- `crates/vw-desktop/src/app/skill_hub/connectors.rs:4` — `use vw_gateway_client::{ShijuConnector, ShijuConnectorChallenge, ShijuConnectorSaveRequest};`
+- `crates/vw-desktop/src/app/skill_hub/knowledge.rs:4` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:92` — `impl From<vw_gateway_client::ShijuSkillTagDto> for SkillTag {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:93` — `fn from(dto: vw_gateway_client::ShijuSkillTagDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:98` — `impl From<vw_gateway_client::ShijuMarketplaceSkillDto> for MarketplaceSkill {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:99` — `fn from(dto: vw_gateway_client::ShijuMarketplaceSkillDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:123` — `impl From<vw_gateway_client::ShijuSkillCursorPageDto> for CursorPage<MarketplaceSkill> {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:124` — `fn from(dto: vw_gateway_client::ShijuSkillCursorPageDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:133` — `impl From<vw_gateway_client::ShijuInstalledSkillDto> for InstalledSkill {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:134` — `fn from(dto: vw_gateway_client::ShijuInstalledSkillDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:148` — `impl From<vw_gateway_client::ShijuSystemSkillDto> for SystemSkill {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:149` — `fn from(dto: vw_gateway_client::ShijuSystemSkillDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:161` — `impl From<vw_gateway_client::ShijuTenantSkillDto> for TenantSkill {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:162` — `fn from(dto: vw_gateway_client::ShijuTenantSkillDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:177` — `impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuSystemSkillDto>>`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:181` — `dto: vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuSystemSkillDto>,`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:192` — `impl From<vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuTenantSkillDto>>`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:196` — `dto: vw_gateway_client::ShijuSkillPageDto<vw_gateway_client::ShijuTenantSkillDto>,`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:265` — `impl TryFrom<vw_gateway_client::ShijuSkillVersionContentDto> for SkillVersionContent {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:268` — `fn try_from(dto: vw_gateway_client::ShijuSkillVersionContentDto) -> Result<Self, Self::Error> {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:283` — `impl TryFrom<vw_gateway_client::ShijuSkillDetailDto> for SkillDetail {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:286` — `fn try_from(dto: vw_gateway_client::ShijuSkillDetailDto) -> Result<Self, Self::Error> {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:309` — `impl From<vw_gateway_client::ShijuSkillVersionDto> for SkillVersion {`
+- `crates/vw-desktop/src/app/skill_hub/models.rs:310` — `fn from(dto: vw_gateway_client::ShijuSkillVersionDto) -> Self {`
+- `crates/vw-desktop/src/app/skill_hub/models_tests.rs:59` — `let detail_dto: vw_gateway_client::ShijuSkillDetailDto =`
+- `crates/vw-desktop/src/app/skill_hub/models_tests.rs:100` — `let version_dto: vw_gateway_client::ShijuSkillVersionDto =`
+- `crates/vw-desktop/src/app/skill_hub/shiju_knowledge_state_tests.rs:4` — `use vw_gateway_client::*;`
+- `crates/vw-desktop/src/app/skill_hub/state.rs:1424` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/skill_hub/state_tests.rs:2` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/account.rs:101` — `Loading(Option<vw_gateway_client::ShijuMonthlyQuotaDto>),`
+- `crates/vw-desktop/src/app/state/account.rs:102` — `Ready(vw_gateway_client::ShijuMonthlyQuotaDto),`
+- `crates/vw-desktop/src/app/state/agent.rs:152` — `pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/agent.rs:154` — `pub(crate) acp_model_source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,`
+- `crates/vw-desktop/src/app/state/agent.rs:202` — `pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/agent.rs:204` — `pub(crate) acp_model_source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,`
+- `crates/vw-desktop/src/app/state/agent.rs:472` — `pub(crate) model_recovery: Option<(u64, vw_gateway_client::GatewayModelRecoveryEvent)>,`
+- `crates/vw-desktop/src/app/state/agent.rs:505` — `pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/agent.rs:521` — `Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/agent.rs:531` — `pub(crate) acp_model_source: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource,`
+- `crates/vw-desktop/src/app/state/agent.rs:532` — `pub(crate) acp_options: vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions,`
+- `crates/vw-desktop/src/app/state/agent.rs:538` — `Option<vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate>,`
+- `crates/vw-desktop/src/app/state/agent_apps.rs:34` — `pub hovered: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,`
+- `crates/vw-desktop/src/app/state/agent_apps.rs:35` — `pub pending_tray_app: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,`
+- `crates/vw-desktop/src/app/state/agent_apps.rs:36` — `pub expanded: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,`
+- `crates/vw-desktop/src/app/state/agent_apps_auth.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/app_providers/agy.rs:1` — `use vw_gateway_client::vw_api_types::app_providers::agy::AgyFormView;`
+- `crates/vw-desktop/src/app/state/app_providers/claude.rs:1` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/state/app_providers/codex.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/state/app_providers/desktop.rs:1` — `use vw_gateway_client::vw_api_types::app_providers::desktop_mapping::*;`
+- `crates/vw-desktop/src/app/state/app_providers/dsh.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::dsh::DshFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/edit.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/state/app_providers/edit.rs:32` — `pub kimi_auth_region: Option<vw_gateway_client::vw_api_types::agent_apps_auth::AuthRegion>,`
+- `crates/vw-desktop/src/app/state/app_providers/edit.rs:108` — `) -> Option<vw_gateway_client::vw_api_types::app_providers::claude::ClaudeFormWrite> {`
+- `crates/vw-desktop/src/app/state/app_providers/edit.rs:125` — `) -> Option<vw_gateway_client::vw_api_types::app_providers::gemini::GeminiFormWrite> {`
+- `crates/vw-desktop/src/app/state/app_providers/endpoints.rs:1` — `use vw_gateway_client::vw_api_types::app_providers::endpoints::*;`
+- `crates/vw-desktop/src/app/state/app_providers/endpoints.rs:11` — `Option<vw_gateway_client::vw_api_types::app_providers::request_options::RequestOptionsView>,`
+- `crates/vw-desktop/src/app/state/app_providers/env.rs:2` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_providers/gemini.rs:1` — `use vw_gateway_client::vw_api_types::app_providers::{`
+- `crates/vw-desktop/src/app/state/app_providers/grok.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::grok::GrokFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/hermes.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::hermes::HermesFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/icons.rs:1` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_providers/kimi.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::kimi::KimiFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/list.rs:2` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_providers/list.rs:49` — `Option<vw_gateway_client::vw_api_types::app_providers::create::AppProviderCreate>,`
+- `crates/vw-desktop/src/app/state/app_providers/mcode.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::mcode::McodeFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/mode.rs:1` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/app_providers/model_catalog.rs:5` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_providers/omp.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::omp::OmpFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/openclaw.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::openclaw::OpenClawFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/opencode.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::opencode::{`
+- `crates/vw-desktop/src/app/state/app_providers/paths.rs:1` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/app_providers/pi.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::pi::PiFormConfig;`
+- `crates/vw-desktop/src/app/state/app_providers/preview.rs:2` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_providers/snippets.rs:2` — `use vw_gateway_client::vw_api_types::{agent_apps::AppId, app_providers::snippets::ConfigSnippet};`
+- `crates/vw-desktop/src/app/state/app_providers/universal.rs:1` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/app_state/chrome_fields.rs:58` — `pub(crate) permission_modal_request: Option<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state/chrome_fields.rs:60` — `pub(crate) permission_modal_requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state/fields_navigation.rs:198` — `pub(crate) permission_modal_request: Option<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state/fields_navigation.rs:200` — `pub(crate) permission_modal_requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state.rs:183` — `pub(crate) reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/app_state.rs:416` — `pub(crate) permission_modal_request: Option<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state.rs:418` — `pub(crate) permission_modal_requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,`
+- `crates/vw-desktop/src/app/state/app_state.rs:535` — `HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>,`
+- `crates/vw-desktop/src/app/state/app_state.rs:1227` — `Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/state/knowledge.rs:3` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/knowledge.rs:172` — `Option<vw_gateway_client::vw_api_types::knowledge::KnowledgeDocumentsBatchAction>,`
+- `crates/vw-desktop/src/app/state/knowledge_tests.rs:3` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/plugin_install.rs:2` — `use vw_gateway_client::DesktopPluginPreviewDto;`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:2` — `use vw_gateway_client::vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfilePerApp};`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:12` — `pub stored_result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:48` — `pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:57` — `pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:67` — `pub result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:74` — `pub group: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,`
+- `crates/vw-desktop/src/app/state/project_profiles.rs:81` — `pub category: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileCategory,`
+- `crates/vw-desktop/src/app/state/settings/aggregation_omo.rs:1` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/state/settings/aggregation_omo.rs:52` — `pub binding: Option<(vw_gateway_client::vw_api_types::id::ProjectId, u64)>,`
+- `crates/vw-desktop/src/app/state/settings/archived_chats.rs:64` — `pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/state/settings/archived_chats.rs:78` — `pub(crate) fn from_endpoint(endpoint: &vw_gateway_client::GatewayEndpoint) -> Self {`
+- `crates/vw-desktop/src/app/state/settings/channels.rs:40` — `pub(crate) status: Option<vw_gateway_client::ChannelQrStatusDto>,`
+- `crates/vw-desktop/src/app/state/settings/computer_control.rs:2` — `use vw_gateway_client::vw_api_types::computer_control::*;`
+- `crates/vw-desktop/src/app/state/settings/computer_control.rs:7` — `tenant: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/state/settings/cron_history.rs:2` — `use vw_gateway_client::{CronHistoryResponse, CronHistoryRunDto, CronJobDto};`
+- `crates/vw-desktop/src/app/state/settings/cron_history_tests.rs:2` — `use vw_gateway_client::CronHistoryRunDto;`
+- `crates/vw-desktop/src/app/state/settings/cron_history_tests.rs:101` — `vw_gateway_client::CronHistoryResponse {`
+- `crates/vw-desktop/src/app/state/settings/cron_history_tests.rs:117` — `let job: vw_gateway_client::CronJobDto = serde_json::from_value(serde_json::json!({`
+- `crates/vw-desktop/src/app/state/settings/cron_schedule_draft.rs:3` — `use vw_gateway_client::{CronJobDto, CronPreviewRequest};`
+- `crates/vw-desktop/src/app/state/settings/infrastructure.rs:186` — `pub(crate) inspect: Option<vw_gateway_client::vw_api_types::mcp::McpInspectResponse>,`
+- `crates/vw-desktop/src/app/state/settings/provider_model.rs:622` — `pub(crate) preview: Option<Result<vw_gateway_client::CronPreviewResponse, String>>,`
+- `crates/vw-desktop/src/app/state/settings/provider_model.rs:703` — `pub(crate) fn matches(self, job: &vw_gateway_client::CronJobDto) -> bool {`
+- `crates/vw-desktop/src/app/state/settings/provider_model.rs:728` — `pub(crate) jobs: Vec<vw_gateway_client::CronJobDto>,`
+- `crates/vw-desktop/src/app/state/settings/provider_model.rs:750` — `pub(crate) runs_modal: Vec<vw_gateway_client::CronRunDto>,`
+- `crates/vw-desktop/src/app/state/settings/provider_model.rs:763` — `pub(crate) fn visible_jobs(&self) -> impl Iterator<Item = &vw_gateway_client::CronJobDto> {`
+- `crates/vw-desktop/src/app/state/settings/runtime.rs:15` — `pub(crate) catalog: Vec<vw_gateway_client::HookCatalogEntryDto>,`
+- `crates/vw-desktop/src/app/state/settings/runtime.rs:21` — `pub(crate) audit: Vec<vw_gateway_client::HookAuditEntryDto>,`
+- `crates/vw-desktop/src/app/state/settings/runtime.rs:165` — `pub(crate) dependency_checks: Vec<vw_gateway_client::DesktopPluginDependencyDto>,`
+- `crates/vw-desktop/src/app/state/settings/runtime.rs:166` — `pub(crate) origin: vw_gateway_client::DesktopPluginSourceDto,`
+- `crates/vw-desktop/src/app/state/settings/worktrees.rs:14` — `pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/state/settings/worktrees.rs:91` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/app/state/settings/worktrees.rs:170` — `Result<Vec<vw_gateway_client::vw_api_types::worktree::WorktreeSnapshotSummary>, String>,`
+- `crates/vw-desktop/src/app/state/settings/worktrees.rs:172` — `Result<vw_gateway_client::vw_api_types::worktree::WorktreeCleanupProposal, String>,`
+- `crates/vw-desktop/src/app/state.rs:88` — `pub(crate) tenant: vw_gateway_client::vw_api_types::id::TenantScope,`
+- `crates/vw-desktop/src/app/task/agent_activity_tests.rs:66` — `use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};`
+- `crates/vw-desktop/src/app/task/agent_activity_tests.rs:67` — `use vw_gateway_client::vw_api_types::task::{`
+- `crates/vw-desktop/src/app/task/executor/git.rs:11` — `use vw_gateway_client::vw_api_types::git::{GitCommandRequest, GitCommandResponse};`
+- `crates/vw-desktop/src/app/task/executor/git_tests.rs:49` — `let response = vw_gateway_client::vw_api_types::git::GitCommandResponse {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:111` — `event: vw_gateway_client::GatewayChatStreamEvent,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:120` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:127` — `vw_gateway_client::GatewayChatStreamEvent::Done { finish_reason, .. } => {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:142` — `vw_gateway_client::GatewayChatStreamEvent::Error(error) => {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:151` — `vw_gateway_client::GatewayChatStreamEvent::Other(payload) => {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:244` — `reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:298` — `vw_gateway_client::GatewayClient::stream_chat_blocking_with_idle_timeout(`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:316` — `vw_gateway_client::GatewayClient::stream_chat_blocking(`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:360` — `reasoning_effort: Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:362` — `) -> vw_gateway_client::GatewayChatStreamRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:371` — `vw_gateway_client::GatewayChatStreamRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:373` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1191` — `project_id: vw_gateway_client::vw_api_types::id::ProjectId,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1207` — `&vw_gateway_client::vw_api_types::project::ResolveProjectRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1289` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1290` — `request: &vw_gateway_client::vw_api_types::git::GitMergeRequest,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1294` — `) -> Result<vw_gateway_client::vw_api_types::git::GitMergeResponse, String> {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1755` — `client: vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1756` — `project_id: vw_gateway_client::vw_api_types::id::ProjectId,`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1766` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeUnlockRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1768` — `task_id: vw_gateway_client::vw_api_types::id::TaskId(self.task_id.clone()),`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1815` — `&vw_gateway_client::vw_api_types::project::ResolveProjectRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1824` — `&vw_gateway_client::vw_api_types::task::TaskPoolWorktreeMergeLockRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1826` — `task_id: vw_gateway_client::vw_api_types::id::TaskId(task_id),`
+- `crates/vw-desktop/src/app/task/executor/runner.rs:1920` — `let request = vw_gateway_client::vw_api_types::git::GitMergeRequest {`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:333` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1341` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh),`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1373` — `vw_gateway_client::GatewayChatStreamEvent::Delta("first\npartial".to_string()),`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1388` — `vw_gateway_client::GatewayChatStreamEvent::Done {`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1426` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta.to_string()),`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1436` — `vw_gateway_client::GatewayChatStreamEvent::Done {`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1473` — `vw_gateway_client::GatewayChatStreamEvent::Error("backend failed".to_string()),`
+- `crates/vw-desktop/src/app/task/executor/runner_tests.rs:1511` — `vw_gateway_client::GatewayChatStreamEvent::Other(payload),`
+- `crates/vw-desktop/src/app/task/executor/state.rs:69` — `state: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto,`
+- `crates/vw-desktop/src/app/task/executor/state.rs:71` — `use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto;`
+- `crates/vw-desktop/src/app/task/executor/state.rs:85` — `snapshot: vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse,`
+- `crates/vw-desktop/src/app/task/executor/state_tests.rs:205` — `use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSlotStateDto as GatewayState;`
+- `crates/vw-desktop/src/app/task/executor/state_tests.rs:222` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-desktop/src/app/task/executor/state_tests.rs:223` — `use vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotResponse;`
+- `crates/vw-desktop/src/app/task/executor/worktree_pool_tests.rs:148` — `use vw_gateway_client::vw_api_types::id::{ProjectId, TaskId};`
+- `crates/vw-desktop/src/app/task/executor/worktree_pool_tests.rs:149` — `use vw_gateway_client::vw_api_types::task::{`
+- `crates/vw-desktop/src/app/task/models.rs:11` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/task/models.rs:12` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;`
+- `crates/vw-desktop/src/app/task/models_tests.rs:379` — `vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto::Local`
+- `crates/vw-desktop/src/app/task/models_tests.rs:400` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/task/models_tests.rs:483` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/task/models_tests.rs:530` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/task/workflow/registry.rs:8` — `use vw_gateway_client::vw_api_types::task_lifecycle::{`
+- `crates/vw-desktop/src/app/task/workflow/registry_tests.rs:13` — `use vw_gateway_client::vw_api_types::task_lifecycle::{`
+- `crates/vw-desktop/src/app/task/workflow.rs:24` — `use vw_gateway_client::vw_api_types::task::{`
+- `crates/vw-desktop/src/app/ui_types.rs:91` — `ExternalAppsLoaded(Result<vw_gateway_client::ExternalAppsStateDto, String>),`
+- `crates/vw-desktop/src/app/ui_types.rs:107` — `(String, vw_gateway_client::vw_api_types::id::TenantScope),`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors.rs:23` — `use vw_gateway_client::ShijuConnector;`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors_tests.rs:13` — `fn connector(id: u64) -> vw_gateway_client::ShijuConnector {`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors_tests.rs:52` — `challenge: vw_gateway_client::ShijuConnectorChallenge {`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors_tests.rs:67` — `vw_gateway_client::ShijuConnectorVariable {`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors_ui_refresh_39_tests.rs:16` — `use vw_gateway_client::{ShijuConnector, ShijuIamApiKeyDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/connectors_ui_refresh_39_tests.rs:800` — `state.installed = LoadState::Loaded(vec![vw_gateway_client::DesktopSkillCatalogEntryDto {`
+- `crates/vw-desktop/src/app/views/expert_hub/experts_tests.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/installed_skills.rs:6` — `use vw_gateway_client::DesktopSkillCatalogEntryDto;`
+- `crates/vw-desktop/src/app/views/expert_hub/installed_skills_tests.rs:7` — `use vw_gateway_client::DesktopSkillCatalogEntryDto;`
+- `crates/vw-desktop/src/app/views/expert_hub/public_skill_detail.rs:6` — `use vw_gateway_client::{SkillMarketSkillDetailDto, SkillMarketSkillSetDetailDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/public_skill_detail_tests.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/public_skills.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/public_skills_tests.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/public_skills_tests.rs:59` — `LoadState::Loaded(vw_gateway_client::SkillMarketSkillPageDto {`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_apps/api_key_binding.rs:5` — `use vw_gateway_client::ShijuIamApiKeyDto;`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_apps/mine.rs:6` — `use vw_gateway_client::{ShijuAppListDto, ShijuInstalledAppDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_apps/store.rs:6` — `use vw_gateway_client::{ShijuAppCatalogDto, ShijuCatalogAppDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_apps_tests.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_knowledge_reader_tests.rs:10` — `use vw_gateway_client::{ShijuKnowledgeReadDto, ShijuKnowledgeRecordDto, ShijuKnowledgeSearchDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_knowledge_reader_tests.rs:160` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_knowledge_view_tests.rs:14` — `use vw_gateway_client::{ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto};`
+- `crates/vw-desktop/src/app/views/expert_hub/shiju_knowledge_view_tests.rs:215` — `use vw_gateway_client::ShijuKnowledgePageDto;`
+- `crates/vw-desktop/src/app/views/knowledge.rs:32` — `use vw_gateway_client::vw_api_types::knowledge::KnowledgeDocumentsBatchAction;`
+- `crates/vw-desktop/src/app/views/knowledge.rs:33` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/knowledge.rs:3477` — `status: &vw_gateway_client::KnowledgeIndexJobStatus,`
+- `crates/vw-desktop/src/app/views/knowledge.rs:3480` — `vw_gateway_client::KnowledgeIndexJobStatus::Queued => i18n.__("入队"),`
+- `crates/vw-desktop/src/app/views/knowledge.rs:3481` — `vw_gateway_client::KnowledgeIndexJobStatus::Processing => i18n.__("索引中"),`
+- `crates/vw-desktop/src/app/views/knowledge.rs:3482` — `vw_gateway_client::KnowledgeIndexJobStatus::Completed => i18n.__("成功"),`
+- `crates/vw-desktop/src/app/views/knowledge.rs:3483` — `vw_gateway_client::KnowledgeIndexJobStatus::Failed => i18n.__("失败"),`
+- `crates/vw-desktop/src/app/views/knowledge_tests.rs:53` — `use vw_gateway_client::{`
+- `crates/vw-desktop/src/app/views/task_board/modals.rs:18` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;`
+- `crates/vw-desktop/src/app/views/task_board/modals_tests.rs:9` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerDispatchModeDto;`
+- `crates/vw-desktop/src/app/views/task_board/panel/executor_selector_ui_refresh_35_tests.rs:381` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/views/task_board/panel/reasoning_selector.rs:6` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/views/task_board/panel/reasoning_selector_tests.rs:7` — `use vw_gateway_client::vw_api_types::ReasoningEffortDto;`
+- `crates/vw-desktop/src/app/views/usage/center/charts.rs:5` — `use vw_gateway_client::client::{UsageReadScope, UsageSeries, UsageSeriesBucket};`
+- `crates/vw-desktop/src/app/views/usage/center/charts.rs:6` — `use vw_gateway_client::vw_api_types::usage::UsageQuery;`
+- `crates/vw-desktop/src/app/views/usage/center/display.rs:6` — `use vw_gateway_client::client::{Currency, RateMode, UsageDisplayPatch, UsageRatesState, UsageScanScope};`
+- `crates/vw-desktop/src/app/views/usage/center/groups.rs:5` — `use vw_gateway_client::client::{ProviderStats, ModelStats, GroupStats, MetricSamples, UsageReadScope};`
+- `crates/vw-desktop/src/app/views/usage/center/groups.rs:6` — `use vw_gateway_client::vw_api_types::usage::{UsageProvider, UsageQuery};`
+- `crates/vw-desktop/src/app/views/usage/center/logs.rs:5` — `use vw_gateway_client::{UsageLogResult, UsageLogDetail, UsageReadScope};`
+- `crates/vw-desktop/src/app/views/usage/center/logs.rs:6` — `use vw_gateway_client::vw_api_types::usage::*;`
+- `crates/vw-desktop/src/app/views/usage/center/mod.rs:13` — `use vw_gateway_client::{UsageReadScope, UsageSummary};`
+- `crates/vw-desktop/src/app/views/usage/center/mod.rs:14` — `use vw_gateway_client::vw_api_types::usage::UsageRange;`
+- `crates/vw-desktop/src/app/views/usage/center/models.rs:6` — `use vw_gateway_client::client::{ModelsDevEntry, ModelsDevSyncConfig, ModelsDevSyncState, UsageScanScope};`
+- `crates/vw-desktop/src/app/views/usage/center/overview.rs:2` — `use vw_gateway_client::vw_api_types::usage::{UsageFilter, UsageQuery, UsageRange, UsageCalendarPeriod, UsageSourceKind, UsageProvider};`
+- `crates/vw-desktop/src/app/views/usage/center/pricing.rs:6` — `use vw_gateway_client::client::{ModelPricingInfo, StoredModelPricing, UsageScanScope};`
+- `crates/vw-desktop/src/app/views/usage/center/scan.rs:5` — `use vw_gateway_client::{UsageJobSnapshot, UsageScanScope, UsageSourceSettingsState, UsageLastScan};`
+- `crates/vw-desktop/src/app/views/usage/center/scan.rs:125` — `result.map_err(|e: vw_gateway_client::UsageScanError| e.to_string())`
+- `crates/vw-desktop/src/app/views/usage/center/state.rs:1` — `use vw_gateway_client::UsageSummary;`
+- `crates/vw-desktop/src/app/views/usage/center/state.rs:11` — `pub query: vw_gateway_client::vw_api_types::usage::UsageQuery,`
+- `crates/vw-desktop/src/app/views/workflow_manager/mod.rs:27` — `use vw_gateway_client::vw_api_types::task_lifecycle::{`
+- `crates/vw-desktop/src/app/views/workflow_manager/mod.rs:532` — `client: &vw_gateway_client::GatewayClient,`
+- `crates/vw-desktop/src/app/voice/acceptance_fixture.rs:5` — `use vw_gateway_client::{GatewayEndpoint, VoiceStream, vw_api_types::voice::*};`
+- `crates/vw-desktop/src/app/voice/acceptance_tests.rs:14` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/voice/conversation.rs:11` — `use vw_gateway_client::vw_api_types::voice::*;`
+- `crates/vw-desktop/src/app/voice/conversation.rs:12` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint, VoiceStream};`
+- `crates/vw-desktop/src/app/voice/preview.rs:11` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-desktop/src/app/voice/preview_tests.rs:12` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-desktop/src/app/voice/screen_context.rs:38` — `pub generation: Option<vw_gateway_client::vw_api_types::voice::VoiceCounter>,`
+- `crates/vw-desktop/src/app/voice/screen_context.rs:130` — `use vw_gateway_client::vw_api_types::voice::{MAX_SCREEN_BYTES, MAX_SCREEN_EDGE};`
+- `crates/vw-desktop/src/app/voice/screen_context_tests.rs:73` — `use vw_gateway_client::vw_api_types::voice::*;`
+- `crates/vw-desktop/src/apps/workflow/message/app.rs:4` — `use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:18` — `use vw_gateway_client::{WorkflowRecordSummary, WorkflowRecordUpsertBody};`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:72` — `tenant: vw_gateway_client::vw_api_types::TenantScope,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:76` — `tenant: vw_gateway_client::vw_api_types::TenantScope,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:78` — `result: Result<vw_gateway_client::WorkflowRecord, String>,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:85` — `tenant: vw_gateway_client::vw_api_types::TenantScope,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:93` — `tenant: vw_gateway_client::vw_api_types::TenantScope,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:96` — `result: Result<vw_gateway_client::WorkflowRecord, String>,`
+- `crates/vw-desktop/src/apps/workflow/message/mod.rs:122` — `event: vw_gateway_client::GatewayWorkflowStreamEvent,`
+- `crates/vw-desktop/src/apps/workflow/message/mod_tests.rs:56` — `let run_event = vw_gateway_client::GatewayWorkflowStreamEvent::TextChunk {`
+- `crates/vw-desktop/src/apps/workflow/message/mod_tests.rs:441` — `let summary = saved_app_summary_from_record(vw_gateway_client::WorkflowRecordSummary {`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit.rs:4` — `use vw_gateway_client::{WorkflowRecord, vw_api_types::TenantScope};`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit.rs:38` — `&vw_gateway_client::WorkflowRecordUpsertBody {`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit_tests.rs:20` — `use vw_gateway_client::WorkflowRecord;`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit_tests.rs:99` — `vw_gateway_client::vw_api_types::TenantScope::new("10000", "other-company").unwrap();`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit_tests.rs:110` — `vw_gateway_client::vw_api_types::TenantScope::new("10000", "previous-company").unwrap(),`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit_tests.rs:200` — `let a = vw_gateway_client::vw_api_types::TenantScope::new("ui", "a").unwrap();`
+- `crates/vw-desktop/src/apps/workflow/message/video_edit_tests.rs:201` — `let b = vw_gateway_client::vw_api_types::TenantScope::new("ui", "b").unwrap();`
+- `crates/vw-desktop/src/apps/workflow/model/loader.rs:12` — `serde_yaml::from_value::<vw_gateway_client::vw_api_types::workflow::VideoEditTemplateOptions>(options.clone())`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:410` — `event: vw_gateway_client::GatewayWorkflowStreamEvent,`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:413` — `vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowStarted {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:425` — `vw_gateway_client::GatewayWorkflowStreamEvent::NodeStarted {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:430` — `| vw_gateway_client::GatewayWorkflowStreamEvent::NodeFinished {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:440` — `vw_gateway_client::GatewayWorkflowStreamEvent::TextChunk {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:450` — `vw_gateway_client::GatewayWorkflowStreamEvent::Message { answer, .. } => {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:458` — `vw_gateway_client::GatewayWorkflowStreamEvent::WorkflowFinished {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:469` — `vw_gateway_client::GatewayWorkflowStreamEvent::MessageEnd { .. } => {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:472` — `vw_gateway_client::GatewayWorkflowStreamEvent::Error(error) => {`
+- `crates/vw-desktop/src/apps/workflow/state/core.rs:479` — `vw_gateway_client::GatewayWorkflowStreamEvent::Unknown { .. } => {}`
+- `crates/vw-desktop/src/apps/workflow/state/core_tests.rs:23` — `use vw_gateway_client::{GatewayWorkflowStreamError, GatewayWorkflowStreamEvent};`
+- `crates/vw-desktop/src/apps/workflow/state/mod.rs:750` — `pub tenant_drafts: HashMap<vw_gateway_client::vw_api_types::TenantScope, Box<WorkflowState>>,`
+- `crates/vw-desktop/src/apps/workflow/state/video_edit.rs:3` — `use vw_gateway_client::vw_api_types::{TenantScope, workflow::WorkflowRecord};`
+- `crates/vw-desktop/src/apps/workflow/state/video_edit.rs:5` — `pub use vw_gateway_client::vw_api_types::workflow::VIDEO_EDIT_TEMPLATE_UUID as TEMPLATE_ID;`
+- `crates/vw-desktop/src/apps/workflow/view/app_list.rs:9` — `use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;`
+- `crates/vw-desktop/src/cc04_preview_fixture.rs:3` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/cc04_provider_window_main.rs:19` — `use vw_gateway_client::vw_api_types::agent_apps::AppId;`
+- `crates/vw-desktop/src/cc04_provider_window_main.rs:57` — `use vw_gateway_client::vw_api_types::app_providers::{ProviderProtocol, create::*};`
+- `crates/vw-desktop/src/cc04_snippets_fixture.rs:2` — `use vw_gateway_client::vw_api_types::app_providers::snippets::{`
+- `crates/vw-desktop/src/cc04_universal_fixture.rs:3` — `use vw_gateway_client::vw_api_types::{`
+- `crates/vw-desktop/src/voice_window_main.rs:301` — `let _: vw_gateway_client::vw_api_types::voice::VoiceId =`
+- `crates/vw-desktop/src/voice_window_main.rs:323` — `vw_gateway_client::GatewayClient::new(endpoint)?.voice_config(),`
+- `crates/vw-desktop/tests/worktree_management_window.rs:18` — `use vw_gateway_client::vw_api_types::worktree::WorktreeDeletionPreflight;`
+- `crates/vw-agent/src/app_routing/cancellation_tests.rs:14` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps/launch_tests.rs:192` — `use vw_gateway_client::{AgentAppsSettingsError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps/local_access_tests.rs:89` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps/remote_tests_tests.rs:11` — `use vw_gateway_client::{AgentAppsLifecycleError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_acceptance_tests.rs:325` — `) -> anyhow::Result<vw_gateway_client::GatewayClient> {`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_acceptance_tests.rs:326` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_auth_integration_tests.rs:31` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_auth_redaction_tests.rs:31` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_diagnostics_acceptance_tests.rs:40` — `use vw_gateway_client::{AgentAppsSettingsError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_ha_acceptance_tests.rs:107` — `let sdk = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_ha_acceptance_tests.rs:108` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-agent/src/gateway/api/handlers/agent_apps_skills/macos_api_tests.rs:18` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/agy_tests.rs:28` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/api_security_tests.rs:18` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/basic_tests.rs:66` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/basic_tests.rs:68` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/catalog_tests.rs:150` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/catalog_tests.rs:188` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/claude_desktop_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/claude_desktop_tests.rs:180` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/claude_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/claude_tests.rs:103` — `use vw_gateway_client::AgentAppsReadError;`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/claude_tests.rs:577` — `use vw_gateway_client::AgentAppsReadError;`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_catalog_tests.rs:11` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_catalog_tests.rs:406` — `matches!(result, Err(vw_gateway_client::AgentAppsReadError::Http {`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_catalog_tests.rs:508` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, body: Value::Null })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_tests.rs:6` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/codex_tests.rs:69` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/create_tests.rs:118` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/create_tests.rs:120` — `let client = vw_gateway_client::GatewayClient::new(endpoint).unwrap();`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/delete_tests.rs:77` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/delete_tests.rs:78` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port).with_tenant_scope(tenant("a")),`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/desktop_mapping_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/desktop_mapping_tests.rs:197` — `assert!(matches!(err, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/desktop_mapping_tests.rs:245` — `vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/dsh_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/dsh_tests.rs:107` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/dsh_tests.rs:131` — `vw_gateway_client::AgentAppsReadError::Http { status, body } => {`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/duplicate_tests.rs:128` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/duplicate_tests.rs:129` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/editor_merge_tests.rs:10` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/editor_merge_tests.rs:168` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/editor_merge_tests.rs:348` — `vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/editor_merge_tests.rs:419` — `vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/endpoints_tests.rs:112` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/endpoints_tests.rs:113` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_clean_tests.rs:44` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_diagnose_tests.rs:28` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_diagnose_tests.rs:56` — `matches!(client.provider_env_diagnose(AppId::Claude, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_diagnose_tests.rs:62` — `vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_diagnose_tests.rs:71` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_diagnose_tests.rs:79` — `vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/env_restore_tests.rs:44` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:373` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:377` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:381` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:385` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/gemini_tests.rs:389` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 404, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/grok_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/grok_tests.rs:302` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: actual, .. }) if actual == status`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/grok_tests.rs:307` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 401, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/hermes_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/hermes_tests.rs:299` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/hermes_tests.rs:327` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/hermes_tests.rs:347` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/icons_tests.rs:135` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/icons_tests.rs:136` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/icons_tests.rs:163` — `let other = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/icons_tests.rs:164` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/import_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/kimi_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/kimi_tests.rs:315` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 409, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/kimi_tests.rs:346` — `Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, .. })`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mcode_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mcode_tests.rs:358` — `vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mcode_tests.rs:382` — `assert!(matches!(err, vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_apply_tests.rs:14` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_apply_tests.rs:353` — `matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:s,..} if s==status),`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_apply_tests.rs:379` — `matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:s,..} if s==status)`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_apply_tests.rs:402` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_apply_tests.rs:439` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_state_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_state_tests.rs:164` — `matches!(error,vw_gateway_client::AgentAppsReadError::Http{status,..} if status==expected)`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_state_tests.rs:209` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_state_tests.rs:214` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/mode_state_tests.rs:241` — `assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/omp_tests.rs:7` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/openclaw_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/openclaw_tests.rs:292` — `use vw_gateway_client::AgentAppsReadError;`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/opencode_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/opencode_tests.rs:249` — `vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/opencode_tests.rs:274` — `vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/opencode_tests.rs:300` — `vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/opencode_tests.rs:310` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/operations_tests.rs:12` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/operations_tests.rs:99` — `vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/operations_tests.rs:110` — `assert!(matches!(bad, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/operations_tests.rs:155` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/paths_tests.rs:28` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/paths_tests.rs:64` — `matches!(client.app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/paths_tests.rs:70` — `vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/paths_tests.rs:79` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/paths_tests.rs:84` — `vw_gateway_client::AgentAppsReadError::Http { status: 400, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/pi_tests.rs:10` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/presentation_tests.rs:100` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/presentation_tests.rs:101` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/preview_tests.rs:28` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/preview_tests.rs:111` — `matches!(client.app_provider_preview(AppId::Claude,&request,TOKEN).await.unwrap_err(),vw_gateway_client::AgentAppsReadError::Http{status:actual,..} if actual==status)`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/preview_tests.rs:126` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/preview_tests.rs:187` — `vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/preview_tests.rs:191` — `vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/request_options_tests.rs:14` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/snippets_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/snippets_tests.rs:345` — `Err(vw_gateway_client::AgentAppsReadError::Http {`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/universal_sync_tests.rs:36` — `let endpoint = vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port());`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/universal_sync_tests.rs:38` — `vw_gateway_client::GatewayClient::new(endpoint.clone().with_tenant_scope(tenant.clone()))`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/universal_sync_tests.rs:93` — `let other = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/universal_tests.rs:54` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/universal_tests.rs:55` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", addr.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/update_tests.rs:117` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/update_tests.rs:118` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/validation_tests.rs:26` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/validation_tests.rs:27` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/validation_tests.rs:192` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/validation_tests.rs:193` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", address.port())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers/validation_tests.rs:201` — `matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:actual,body} if actual==status && body.is_null())`
+- `crates/vw-agent/src/gateway/api/handlers/app_providers_tests.rs:91` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_routing/lifecycle_api_tests.rs:12` — `use vw_gateway_client::{AppRoutingError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/app_routing/outbound_probe_tests.rs:25` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-agent/src/gateway/api/handlers/apps_usage_acceptance_tests.rs:21` — `use vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/desktop_skills.rs:16` — `use vw_gateway_client::{DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto};`
+- `crates/vw-agent/src/gateway/api/handlers/desktop_skills_tests.rs:800` — `let local = vw_gateway_client::DesktopSkillCatalogEntryDto {`
+- `crates/vw-agent/src/gateway/api/handlers/file_drag_integration_tests.rs:14` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/hooks.rs:12` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/hooks_tests.rs:110` — `async fn hook_catalog(app: &axum::Router) -> Vec<vw_gateway_client::HookCatalogEntryDto> {`
+- `crates/vw-agent/src/gateway/api/handlers/model_catalog_acceptance_tests.rs:26` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/model_catalog_tests.rs:16` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/model_discovery_tests.rs:18` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:283` — `) -> Vec<vw_gateway_client::DesktopPluginDependencyDto> {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:287` — `.map(|check| vw_gateway_client::DesktopPluginDependencyDto {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:294` — `Err(_) => vec![vw_gateway_client::DesktopPluginDependencyDto {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:302` — `fn dependency_status(checks: &[vw_gateway_client::DesktopPluginDependencyDto]) -> String {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:319` — `) -> vw_gateway_client::DesktopPluginSourceDto {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins.rs:323` — `vw_gateway_client::DesktopPluginSourceDto {`
+- `crates/vw-agent/src/gateway/api/handlers/plugins_operations.rs:10` — `use vw_gateway_client::DesktopPluginPreviewDto;`
+- `crates/vw-agent/src/gateway/api/handlers/plugins_operations.rs:84` — `fn origin(manifest: &PluginManifest) -> Result<vw_gateway_client::DesktopPluginSourceDto> {`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_account.rs:14` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_account.rs:56` — `) -> Result<Json<vw_gateway_client::ShijuModelTokenDto>, ApiError> {`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_account_tests.rs:7` — `use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_account_tests.rs:242` — `let quota: vw_gateway_client::ShijuMonthlyQuotaDto =`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_apps.rs:13` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_apps_tests.rs:12` — `use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_connectors.rs:11` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_knowledge.rs:15` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_knowledge_gateway_tests.rs:15` — `use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_skills.rs:14` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/shiju_skills_tests.rs:11` — `use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:20` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:71` — `) -> Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSourceDto>>> {`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:78` — `) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketSkillDto>>>, MarketApiError>`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:89` — `) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillPageDto>>, MarketApiError> {`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:100` — `) -> Result<Json<SkillMarketEnvelope<Vec<vw_gateway_client::SkillMarketCategoryDto>>>, MarketApiError>`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:112` — `) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillDetailDto>>, MarketApiError>`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:125` — `) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillFileDto>>, MarketApiError> {`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:203` — `) -> Result<Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetPageDto>>, MarketApiError>`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market.rs:217` — `Json<SkillMarketEnvelope<vw_gateway_client::SkillMarketSkillSetDetailDto>>,`
+- `crates/vw-agent/src/gateway/api/handlers/skill_market_tests.rs:15` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/plugins/compat/t54_tests.rs:167` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/src/provider/model_catalog_tests.rs:353` — `let client = vw_gateway_client::GatewayClient::new(`
+- `crates/vw-agent/src/provider/model_catalog_tests.rs:354` — `vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port)`
+- `crates/vw-agent/src/provider/model_catalog_tests.rs:355` — `.with_auth(vw_gateway_client::GatewayAuth {`
+- `crates/vw-agent/src/provider/model_catalog_tests.rs:378` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/providers/session_llm.rs:4` — `//! 原生目标直接走 `vw_gateway_client`；wasm 目标不支持本地 gateway 流式调用，因此显式`
+- `crates/vw-agent/src/providers/session_llm.rs:42` — `fn gateway_endpoint() -> vw_gateway_client::GatewayEndpoint {`
+- `crates/vw-agent/src/providers/session_llm.rs:44` — `vw_gateway_client::GatewayEndpoint::new(config.gateway.host, config.gateway.port)`
+- `crates/vw-agent/src/providers/session_llm.rs:88` — `let usage: vw_gateway_client::GatewayChatUsage =`
+- `crates/vw-agent/src/providers/session_llm.rs:100` — `fn is_tool_lifecycle_event(event: &vw_gateway_client::GatewayChatStreamEvent) -> bool {`
+- `crates/vw-agent/src/providers/session_llm.rs:103` — `vw_gateway_client::GatewayChatStreamEvent::Other(payload)`
+- `crates/vw-agent/src/providers/session_llm.rs:112` — `) -> vw_gateway_client::GatewayChatStreamRequest {`
+- `crates/vw-agent/src/providers/session_llm.rs:113` — `vw_gateway_client::GatewayChatStreamRequest {`
+- `crates/vw-agent/src/providers/session_llm.rs:144` — `vw_gateway_client::GatewayClient::stream_chat_blocking(`
+- `crates/vw-agent/src/providers/session_llm.rs:150` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:153` — `vw_gateway_client::GatewayChatStreamEvent::Done {`
+- `crates/vw-agent/src/providers/session_llm.rs:160` — `vw_gateway_client::GatewayChatStreamEvent::Error(error) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:164` — `event @ vw_gateway_client::GatewayChatStreamEvent::Other(_) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:165` — `if let vw_gateway_client::GatewayChatStreamEvent::Other(payload) = &event`
+- `crates/vw-agent/src/providers/session_llm.rs:337` — `let result = vw_gateway_client::GatewayClient::stream_chat_blocking(`
+- `crates/vw-agent/src/providers/session_llm.rs:343` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:356` — `vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {`
+- `crates/vw-agent/src/providers/session_llm.rs:376` — `vw_gateway_client::GatewayChatStreamEvent::Error(error) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:380` — `vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}`
+- `crates/vw-agent/src/providers/session_llm.rs:425` — `let result = vw_gateway_client::GatewayClient::stream_chat_blocking(`
+- `crates/vw-agent/src/providers/session_llm.rs:431` — `vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:443` — `vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {`
+- `crates/vw-agent/src/providers/session_llm.rs:463` — `vw_gateway_client::GatewayChatStreamEvent::Error(error) => {`
+- `crates/vw-agent/src/providers/session_llm.rs:467` — `vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}`
+- `crates/vw-agent/src/providers/session_llm_tests.rs:60` — `use vw_gateway_client::GatewayChatStreamEvent;`
+- `crates/vw-agent/src/session/dynamic_tool_acceptance_tests.rs:14` — `use vw_gateway_client::GatewayClient;`
+- `crates/vw-agent/src/session/dynamic_tool_acceptance_tests.rs:15` — `use vw_gateway_client::GatewayEndpoint;`
+- `crates/vw-agent/src/session/dynamic_tool_acceptance_tests.rs:57` — `vw_gateway_client::GatewayAuth { skey: Some("dynamic-acceptance-skey".into()) },`
+- `crates/vw-agent/src/shiju/account.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/shiju/account_tests.rs:174` — `let update = vw_gateway_client::ShijuAccountUpdateRequest {`
+- `crates/vw-agent/src/shiju/account_tests.rs:204` — `let request = vw_gateway_client::ShijuAccountPasswordUpdateRequest {`
+- `crates/vw-agent/src/shiju/account_tests.rs:236` — `let request = vw_gateway_client::ShijuAccountPasswordUpdateRequest {`
+- `crates/vw-agent/src/shiju/apps.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/shiju/connectors.rs:6` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/shiju/connectors_tests.rs:5` — `use vw_gateway_client::ShijuConnectorAuthorizationStatus;`
+- `crates/vw-agent/src/shiju/knowledge.rs:5` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/shiju/knowledge_content.rs:3` — `use vw_gateway_client::{ShijuKnowledgeReadDto, ShijuKnowledgeReadRequest};`
+- `crates/vw-agent/src/shiju/knowledge_content_tests.rs:3` — `use vw_gateway_client::ShijuKnowledgeReadRequest;`
+- `crates/vw-agent/src/shiju/model_token.rs:7` — `use vw_gateway_client::{ShijuCredential, ShijuModelTokenDto};`
+- `crates/vw-agent/src/shiju/monthly_quota.rs:6` — `use vw_gateway_client::ShijuMonthlyQuotaDto;`
+- `crates/vw-agent/src/skills/marketplace/install.rs:18` — `use vw_gateway_client::SkillMarketCoordinateDto;`
+- `crates/vw-agent/src/skills/marketplace/install.rs:145` — `locator: vw_gateway_client::SkillMarketSkillLocatorDto {`
+- `crates/vw-agent/src/skills/marketplace/install_tests.rs:12` — `use vw_gateway_client::{SkillMarketCoordinateDto, SkillMarketSkillLocatorDto};`
+- `crates/vw-agent/src/skills/marketplace/provider.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/skills/marketplace/provider_tests.rs:7` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/skills/marketplace/provider_tests.rs:42` — `) -> Result<Vec<vw_gateway_client::SkillMarketSkillDto>, SkillMarketProviderError> {`
+- `crates/vw-agent/src/skills/marketplace/provider_tests.rs:191` — `fn skill(coordinate: SkillMarketCoordinateDto) -> vw_gateway_client::SkillMarketSkillDto {`
+- `crates/vw-agent/src/skills/marketplace/provider_tests.rs:192` — `vw_gateway_client::SkillMarketSkillDto {`
+- `crates/vw-agent/src/skills/marketplace/skillhub.rs:15` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/skills/marketplace/skillhub_tests.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/skills/shiju.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-agent/src/skills/shiju_tests.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-agent/tests/cc04_accept_transactions.rs:19` — `use vw_gateway_client::{AgentAppsReadError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-agent/tests/cc_route_030_outbound_scan.rs:20` — `use vw_gateway_client::{AppRoutingError, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/processor.rs:21` — `use vw_gateway_client::vw_api_types::id::SessionId;`
+- `crates/vw-cli/src/cli/processor.rs:22` — `use vw_gateway_client::{GatewayChatStreamRequest, GatewayChatUsage};`
+- `crates/vw-cli/src/cli/processor.rs:242` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,`
+- `crates/vw-cli/src/cli/processor_tests.rs:9` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/app.rs:24` — `use vw_gateway_client::vw_api_types::id::SessionId;`
+- `crates/vw-cli/src/cli/tui/app.rs:25` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;`
+- `crates/vw-cli/src/cli/tui/app.rs:26` — `use vw_gateway_client::vw_api_types::workflow::{WorkflowResumeRequest, WorkflowRunResponse};`
+- `crates/vw-cli/src/cli/tui/app.rs:27` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/app.rs:3809` — `vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,`
+- `crates/vw-cli/src/cli/tui/app.rs:3818` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::None)`
+- `crates/vw-cli/src/cli/tui/app.rs:3820` — `ReasoningEffort::Max => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Max),`
+- `crates/vw-cli/src/cli/tui/app.rs:3822` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Minimal)`
+- `crates/vw-cli/src/cli/tui/app.rs:3824` — `ReasoningEffort::Low => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Low),`
+- `crates/vw-cli/src/cli/tui/app.rs:3826` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium)`
+- `crates/vw-cli/src/cli/tui/app.rs:3829` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)`
+- `crates/vw-cli/src/cli/tui/app.rs:3832` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh)`
+- `crates/vw-cli/src/cli/tui/attachment_tests.rs:5` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/bridge.rs:7` — `use vw_gateway_client::vw_api_types::tools::{ToolResultContentDto, ToolResultDto};`
+- `crates/vw-cli/src/cli/tui/bridge.rs:8` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/bridge_tests.rs:12` — `use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/command_tests.rs:4` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-cli/src/cli/tui/command_tests.rs:5` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-cli/src/cli/tui/command_tests.rs:6` — `use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/integration_tests.rs:8` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/interaction_tests.rs:10` — `use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/model/overlay.rs:7` — `use vw_gateway_client::vw_api_types::workflow::WorkflowPauseDto;`
+- `crates/vw-cli/src/cli/tui/model/permission.rs:9` — `use vw_gateway_client::PendingPermissionRequestDto;`
+- `crates/vw-cli/src/cli/tui/orchestration_tests.rs:8` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-cli/src/cli/tui/orchestration_tests.rs:9` — `use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope, TenantScope};`
+- `crates/vw-cli/src/cli/tui/orchestration_tests.rs:10` — `use vw_gateway_client::vw_api_types::workflow::{WorkflowHumanActionDto, WorkflowPauseDto};`
+- `crates/vw-cli/src/cli/tui/orchestration_tests.rs:11` — `use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint, GatewayWorkflowStreamEvent};`
+- `crates/vw-cli/src/cli/tui/parity_tests.rs:10` — `use vw_gateway_client::{GatewayChatStreamEvent, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/parity_tests.rs:49` — `Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),`
+- `crates/vw-cli/src/cli/tui/plan_goal_tests.rs:6` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-cli/src/cli/tui/plan_goal_tests.rs:7` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/runner_tests.rs:11` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-cli/src/cli/tui/runner_tests.rs:12` — `use vw_gateway_client::vw_api_types::id::ProjectId;`
+- `crates/vw-cli/src/cli/tui/runner_tests.rs:13` — `use vw_gateway_client::{CronJobDto, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/runner_tests.rs:39` — `.map(|_| vw_gateway_client::GatewayChatStreamEvent::Delta("x".to_string())),`
+- `crates/vw-cli/src/cli/tui/runtime/cron.rs:3` — `use vw_gateway_client::{CronJobDto, CronRunDto, CronUpdateRequest};`
+- `crates/vw-cli/src/cli/tui/runtime/diagnostics_tests.rs:6` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/runtime/gateway.rs:32` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-cli/src/cli/tui/runtime/gateway.rs:33` — `use vw_gateway_client::vw_api_types::id::ProjectScope;`
+- `crates/vw-cli/src/cli/tui/runtime/gateway.rs:34` — `use vw_gateway_client::vw_api_types::id::{`
+- `crates/vw-cli/src/cli/tui/runtime/gateway.rs:37` — `use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};`
+- `crates/vw-cli/src/cli/tui/runtime/gateway.rs:38` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/runtime/gateway_tests.rs:7` — `use vw_gateway_client::GatewayChatStreamRequest;`
+- `crates/vw-cli/src/cli/tui/runtime/gateway_tests.rs:362` — `vw_gateway_client::vw_api_types::id::TenantScope::new("20000", "200000001").unwrap(),`
+- `crates/vw-cli/src/cli/tui/runtime/hooks.rs:3` — `use vw_gateway_client::{HookAuditEntryDto, HookCatalogEntryDto, HookMutationResponseDto};`
+- `crates/vw-cli/src/cli/tui/runtime/hooks_tests.rs:6` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/runtime/integrations.rs:4` — `use vw_gateway_client::vw_api_types::mcp::McpConnectionStatusDto;`
+- `crates/vw-cli/src/cli/tui/runtime/interaction.rs:6` — `use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};`
+- `crates/vw-cli/src/cli/tui/runtime/orchestration.rs:3` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-cli/src/cli/tui/runtime/plan_run.rs:5` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunRequest;`
+- `crates/vw-cli/src/cli/tui/runtime/plan_run.rs:6` — `use vw_gateway_client::{GatewayClient, GatewayStreamAttemptResult, GatewayStreamResume};`
+- `crates/vw-cli/src/cli/tui/runtime/session_diff.rs:4` — `use vw_gateway_client::vw_api_types::session::GatewaySessionDiffQuery;`
+- `crates/vw-cli/src/cli/tui/runtime/session_store.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/runtime/stream_adapter.rs:8` — `use vw_gateway_client::vw_api_types::task::TaskPlanRunStreamEventDto;`
+- `crates/vw-cli/src/cli/tui/runtime/stream_adapter.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/runtime/stream_adapter.rs:521` — `use vw_gateway_client::GatewayModelRecoveryPhase;`
+- `crates/vw-cli/src/cli/tui/runtime/stream_adapter_tests.rs:4` — `use vw_gateway_client::GatewayChatStreamEvent;`
+- `crates/vw-cli/src/cli/tui/runtime/workflow_run.rs:7` — `use vw_gateway_client::vw_api_types::workflow::{`
+- `crates/vw-cli/src/cli/tui/runtime/workflow_run.rs:10` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/cli/tui/runtime/workspace_files_tests.rs:8` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/session_command_tests.rs:8` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/session_restore_tests.rs:9` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/session_title_tests.rs:7` — `vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-cli/src/cli/tui/session_title_tests.rs:57` — `vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-cli/src/cli/tui/session_title_tests.rs:88` — `vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(`
+- `crates/vw-cli/src/cli/tui/settings_tests.rs:9` — `use vw_gateway_client::{GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/cli/tui/state/runtime_pipeline.rs:12` — `use vw_gateway_client::GatewayChatUsage;`
+- `crates/vw-cli/src/handlers/api/context.rs:6` — `use vw_gateway_client::vw_api_types::id::TenantScope;`
+- `crates/vw-cli/src/handlers/api/context.rs:7` — `use vw_gateway_client::{GatewayAuth, GatewayClient, GatewayEndpoint};`
+- `crates/vw-cli/src/handlers/api/desktop.rs:9` — `use vw_gateway_client::DesktopServiceCommand;`
+- `crates/vw-cli/src/handlers/api/interactive.rs:8` — `use vw_gateway_client::{PendingPermissionReplyDto, PtyCreateRequest, PtyUpdateRequest};`
+- `crates/vw-cli/src/handlers/api/knowledge.rs:8` — `use vw_gateway_client::vw_api_types::knowledge::{`
+- `crates/vw-cli/src/handlers/api/operations.rs:8` — `use vw_gateway_client::{CronAddRequest, CronUpdateRequest};`
+- `crates/vw-cli/src/handlers/api/project.rs:8` — `use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};`
+- `crates/vw-cli/src/handlers/api/project.rs:9` — `use vw_gateway_client::vw_api_types::project::{`
+- `crates/vw-cli/src/handlers/api/project.rs:12` — `use vw_gateway_client::vw_api_types::worktree::{`
+- `crates/vw-cli/src/handlers/api/realtime.rs:8` — `use vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerScopeDto;`
+- `crates/vw-cli/src/handlers/api/realtime.rs:9` — `use vw_gateway_client::vw_api_types::chat::{GatewayChatStreamEvent, GatewayChatStreamRequest};`
+- `crates/vw-cli/src/handlers/api/realtime.rs:10` — `use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};`
+- `crates/vw-cli/src/handlers/api/realtime.rs:11` — `use vw_gateway_client::vw_api_types::task::{TaskPlanRunRequest, TaskPlanRunStreamEventDto};`
+- `crates/vw-cli/src/handlers/api/realtime.rs:12` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/handlers/api/realtime.rs:221` — `let result = vw_gateway_client::GatewayClient::stream_chat_resumable(`
+- `crates/vw-cli/src/handlers/api/realtime.rs:267` — `let result = vw_gateway_client::GatewayClient::stream_task_plan_run_resumable(`
+- `crates/vw-cli/src/handlers/api/scheduler.rs:8` — `use vw_gateway_client::vw_api_types::agent_scheduler::{`
+- `crates/vw-cli/src/handlers/api/scheduler.rs:14` — `use vw_gateway_client::vw_api_types::id::{ProjectId, ProjectScope};`
+- `crates/vw-cli/src/handlers/api/session.rs:9` — `use vw_gateway_client::vw_api_types::session::{`
+- `crates/vw-cli/src/handlers/api/session_content.rs:9` — `use vw_gateway_client::GatewaySessionMessageListQuery;`
+- `crates/vw-cli/src/handlers/api/session_content.rs:10` — `use vw_gateway_client::vw_api_types::session::GatewaySessionScopeBody;`
+- `crates/vw-cli/src/handlers/api/shiju_apps.rs:9` — `use vw_gateway_client::{ShijuAppApiKeyBindingSaveRequest, ShijuCredential, ShijuLoginPollDto};`
+- `crates/vw-cli/src/handlers/api/skill_market.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/handlers/api/task_lifecycle.rs:8` — `use vw_gateway_client::vw_api_types::task_lifecycle::TaskLifecycleWorkflowUpsertBody;`
+- `crates/vw-cli/src/handlers/api/task_pool.rs:8` — `use vw_gateway_client::vw_api_types::task::{`
+- `crates/vw-cli/src/handlers/api/workflow.rs:8` — `use vw_gateway_client::vw_api_types::workflow::{WorkflowRecordUpsertBody, WorkflowResumeRequest};`
+- `crates/vw-cli/src/handlers/api/workflow.rs:9` — `use vw_gateway_client::{`
+- `crates/vw-cli/src/handlers/api/workspace.rs:9` — `use vw_gateway_client::vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest};`
+- `crates/vw-cli/src/handlers/api/workspace.rs:10` — `use vw_gateway_client::vw_api_types::git::{GitCommandRequest, GitCommitRequest, GitMergeRequest};`

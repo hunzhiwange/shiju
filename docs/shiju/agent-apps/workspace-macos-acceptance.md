@@ -45,3 +45,11 @@
 新增 `hermes_memory.rs::HermesMemory`，复用任务 3 的 `WorkspaceDirectory`：严格将 memory/user 映射到 Hermes 根下 memories/MEMORY.md、memories/USER.md。缺失内容为空并保留 exists；读错误原样传播。写入复用目录描述符、物理锁与私有原子替换，不读取开关、不截断内容、不覆盖另一文件。调用者须先授权并传入可信主机、HOME 与解析后的应用根。
 
 静态核对来源 MemoryKind/read_memory/write_memory、任务 1 合同、任务 3 文件边界和现有 DTO；新增两个独立测试源码，覆盖缺失与空文件、中文长文本、两文件隔离、禁用配置保持、主机拒绝、符号链接拒绝与无效 UTF-8。按本轮要求未运行 Cargo 或任何测试，不声明验证通过；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证时运行任务约定的 hermes_memory_roundtrips_kinds 过滤测试。
+
+## 任务 4：白名单工作区原子读写（2026-11-14）
+
+新增 macOS `workspace_files::{read_workspace_file,write_workspace_file}`，消费任务 2 的九文件强类型白名单及任务 3 的执行主机路径边界。读缺失返回 None，空文件保持 Some("")；写按需创建父目录，复用物理写锁、私有暂存及原子替换，不接触全局记忆。调用者仍须先授权项目和动作，传入可信执行主机及原生解析的 workspace 根，不回退本机。
+
+已静态核对来源 commands/workspace.rs、接口边界、任务 1 正式合同、任务 3 实现与底层 write_guard；RustCodeGraph status/explore 已读取。独立测试源码覆盖九文件中文/空文本往返、缺失读取无副作用、主机拒绝、原子替换保持旧 inode、链接拒绝保留原内容及非法文件名，共五个函数，未运行。底层准备/rename 失败清理沿用既有实现，本轮没有故障注入或运行证据。
+
+按用户本轮要求仅编码与静态审查，未运行 Cargo、单元测试、实机或其它测试，未启动最终回归；没有编译或行为通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号任务文件按要求删除，后续统一验证。

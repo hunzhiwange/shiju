@@ -1159,3 +1159,12 @@ Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 sig
 读取冻结 upstream 的 thinking_rectifier.rs、opaque_state_rectifier.rs 与当前 dispatch/传输调用链。新增 signature_rectify，仅对明确签名或不透明状态拒绝修改可修复历史；不采用来源对泛化 invalid request 的宽泛匹配。工具参数与 call_id 保留，当前加密 agent 任务返回 unreadable_encrypted_agent_task。普通常驻分发在同一授权 URL、凭据、出口、取消令牌和原超时内最多重发一次；仅检查 HTTP 400/422/502 的有界解码错误体，成功 SSE 和流内错误均不重放。旧 session relay 不接入。
 
 故障转移路径由既有 RetryBudget 独立所有，本次未叠加纠错发送，后续需统一其请求级预算后补齐该路径。未宣称本项全行为完成。新增 cc_route_065_ 测试源码供统一验证，尚未执行。macOS 待验证，Windows/Linux/WSL 范围外、未验证。按用户覆盖要求删除编号任务文件。
+
+
+## 任务66：拦截安全分类器循环（代码交付，未验证）
+
+依赖任务65提交 `7f60f71b1` 的纠错入口已存在；来源采用母任务1冻结 upstream 的 proxy/classifier_guard.rs，直接调用者为 proxy/forwarder.rs。授权监听器、执行主机、JsonTarget 与配置/账号所有者沿用既有合同；仅确认源码依赖存在，不推定母任务已验收。
+
+新增 routing::classifier_guard 唯一纯策略，逐字沿用来源两个错误子串、tools 非空门控和三次 assistant 分隔的失败工具回合阈值；并行工具结果只计一个回合，普通错误、成功/混合结果及新用户输入解除匹配。dispatch::forward_json 仅对 Claude/ClaudeDesktop 原始 Messages 历史调用，在协议转换、覆盖及 failover prepare 前返回 ClassifierLoop（HTTP 400），明确未发送上游、修复模型映射或余额后发送新用户消息；工具权限检查仍必需。不增加重试或故障转移策略，不涉及旧会话路径。
+
+独立注册五个 cc_route_066_ 测试源码，覆盖阈值、重置、无工具、普通错误、并行结果和文本块。遵照用户最新要求，未运行 Cargo 相关命令/脚本、单元测试、实机测试或最终回归，无通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。后续统一验证需执行策略测试并补授权 HTTP 回环零上游发送验收。任务卡按要求删除；macOS 未验收，Windows/Linux/WSL 范围外且未验证，不表示母任务8完成。

@@ -140,6 +140,13 @@ pub(super) async fn forward_json(
         }
     };
 
+    // Inspect original Messages history before conversion, overrides or any retry owner.
+    if matches!(app, AppId::Claude | AppId::ClaudeDesktop)
+        && vw_agent_apps::routing::classifier_guard::classifier_retry_loop(&body)
+    {
+        return Err(RouteError::ClassifierLoop);
+    }
+
     #[cfg(target_os = "macos")]
     let failover = super::failover_execution::prepare(Arc::clone(route)).await?;
     #[cfg(target_os = "macos")]

@@ -43,3 +43,7 @@ mod inline_think_tests;
 pub mod thinking_options;
 #[cfg(test)]
 mod thinking_options_tests;
+
+pub mod classifier_guard;
+#[cfg(test)]
+mod classifier_guard_tests;

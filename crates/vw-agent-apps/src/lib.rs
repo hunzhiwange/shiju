@@ -90,3 +90,5 @@ mod hermes_memory_limits_tests;
 pub mod daily_memory_search;
 #[cfg(all(test, target_os = "macos"))]
 mod daily_memory_search_tests;
+
+pub mod project_profiles;

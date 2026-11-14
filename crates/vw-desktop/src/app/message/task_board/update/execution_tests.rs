@@ -520,3 +520,38 @@ impl Drop for DesktopRecordingGateway {
         }
     }
 }
+
+#[test]
+fn task_pool_acceptance_capacity_and_employee_interactions_match_baseline() {
+    let project = tempfile::tempdir().unwrap();
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some(project.path().display().to_string());
+    app.task_board_worktree_desired_capacity = Some(17);
+    let expanded = app.task_board_worktree_panel_expanded;
+    let _ = crate::app::message::task_board::update(
+        &mut app,
+        super::TaskBoardMessage::ToggleWorktreePanelExpanded,
+    );
+    assert_eq!(app.task_board_worktree_panel_expanded, !expanded);
+    for pixel in [false, true] {
+        let _ = crate::app::message::task_board::update(
+            &mut app,
+            super::TaskBoardMessage::ToggleWorktreePixelOffice(pixel),
+        );
+        assert_eq!(app.task_board_worktree_pixel_office, pixel);
+        assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
+    }
+    let _ = crate::app::message::task_board::update(
+        &mut app,
+        super::TaskBoardMessage::CleanAllWorktreesPressed,
+    );
+    assert_eq!(app.task_board_worktree_manual_confirm_kind, Some("cleanup"));
+    let _ = crate::app::message::task_board::update(
+        &mut app,
+        super::TaskBoardMessage::CancelWorktreeManualConfirm,
+    );
+    assert_eq!(app.task_board_worktree_manual_confirm_kind, None);
+    assert_eq!(app.task_board_worktree_desired_capacity, Some(17));
+    assert!(!project.path().join(".git").exists());
+    assert_eq!(std::fs::read_dir(project.path()).unwrap().count(), 0);
+}

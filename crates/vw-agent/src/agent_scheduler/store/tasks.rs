@@ -752,6 +752,7 @@ fn task_board_status_key_from_map(
 
 fn legacy_task_board_status_key(status: AgentTaskStatus) -> &'static str {
     match status {
+        AgentTaskStatus::Queued => "pending",
         AgentTaskStatus::Submitted => "code_complete",
         _ => status.as_str(),
     }

@@ -216,9 +216,79 @@ async fn agent_scheduler_api_creates_task_and_wakes_dispatch_engine() {
 // 网关命令测试通过真实存储观察排队与执行结果，避免只验证路由已注册。
 #[tokio::test]
 async fn agent_scheduler_gateway_command_runs_task() {
+    acceptance_gateway_task(false).await;
+}
+
+#[tokio::test]
+async fn task_pool_acceptance_non_git_runs_through_gateway_without_git() {
+    acceptance_gateway_task(false).await;
+}
+
+#[tokio::test]
+async fn task_pool_acceptance_git_task_has_zero_implicit_actions() {
+    acceptance_gateway_task(true).await;
+}
+
+struct AcceptanceGatewayExecutor {
+    output: String,
+}
+
+impl LocalAgentExecutor for AcceptanceGatewayExecutor {
+    fn lease_workspace(
+        &self,
+        request: LocalAgentWorkspaceRequest,
+    ) -> anyhow::Result<LocalAgentWorkspace> {
+        Ok(LocalAgentWorkspace {
+            path: request.project_path.display().to_string(),
+            slot_id: None,
+            branch: None,
+        })
+    }
+
+    fn execute(
+        &self,
+        request: LocalAgentExecutionRequest,
+    ) -> anyhow::Result<LocalAgentExecutionOutput> {
+        std::fs::write(
+            std::path::Path::new(&request.workspace.path).join("output.txt"),
+            "gateway artifact",
+        )?;
+        Ok(LocalAgentExecutionOutput { raw_output: self.output.clone() })
+    }
+}
+
+async fn acceptance_gateway_task(git: bool) {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-gateway");
     std::fs::create_dir_all(&project_path).expect("project dir");
+    if git {
+        init_merge_test_repo(&project_path, "acceptance-base");
+        std::fs::write(project_path.join("prestaged.txt"), "keep staged").unwrap();
+        let output = crate::app::agent::shell::git_std_command()
+            .current_dir(&project_path)
+            .args(["add", "prestaged.txt"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+    }
+    let git_state = || {
+        [
+            vec!["rev-parse", "HEAD"],
+            vec!["diff", "--cached"],
+            vec!["worktree", "list", "--porcelain"],
+        ]
+        .map(|args| {
+            let output = crate::app::agent::shell::git_std_command()
+                .current_dir(&project_path)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            output.stdout
+        })
+    };
+    let before = git.then(&git_state);
     let store = AgentSchedulerStore::new();
     store.initialize_project(&project_path).expect("init scheduler");
     store
@@ -254,7 +324,7 @@ async fn agent_scheduler_gateway_command_runs_task() {
         .expect("seed scheduler task");
 
     let project_id = scheduler_project_id(&project_path);
-    let gateway = StoreBackedAgentSchedulerGateway::with_executor(RecordingLocalExecutor {
+    let gateway = StoreBackedAgentSchedulerGateway::with_executor(AcceptanceGatewayExecutor {
         output: "mock local execution output".to_string(),
     });
     let app = router_with_gateway::<()>(Arc::new(gateway)).with_state(());
@@ -328,6 +398,16 @@ async fn agent_scheduler_gateway_command_runs_task() {
         .expect("execution result");
     assert_eq!(result["payload"]["success"], true);
     assert_eq!(result["payload"]["output"], "mock local execution output");
+    assert_eq!(
+        std::fs::read_to_string(project_path.join("output.txt")).unwrap(),
+        "gateway artifact"
+    );
+    assert!(!project_path.join("worktrees").exists());
+    if let Some(before) = before {
+        assert_eq!(git_state(), before, "ordinary task must preserve HEAD, index and worktrees");
+    } else {
+        assert!(!project_path.join(".git").exists());
+    }
 }
 
 #[tokio::test]

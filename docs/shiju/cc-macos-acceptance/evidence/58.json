@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": 58,
+  "status": "documentation_written_verification_deferred",
+  "date": "2026-11-14",
+  "scope": "仅 macOS 部署诊断文档；不声明验收完成",
+  "instruction_override": "本轮不执行 Cargo、构建、单元测试、实机测试、验收或最终回归；删除编号任务卡，保留持久延期记录",
+  "document": "docs/shiju/cc-macos-acceptance/deployment.md",
+  "source_commit_at_authoring": "07857dbc4934ac39029d3d3c966375bb3bb79bb9",
+  "inputs": [
+    {
+      "path": "docs/shiju-release-runbook.md",
+      "sha256_at_authoring": "a3d446641eadd2323e5b1a146a17c90fe4f45cd0ec8256f4f4bcbdc0f0152a56",
+      "meaning": "写作输入指纹，不是冻结产物或验证证据"
+    },
+    {
+      "path": "crates/vw-agent/src/service/macos.rs",
+      "sha256_at_authoring": "7a93defa49af07e9a50635f1eeb03d553d647485429382e4e0bc1d0d989f167c",
+      "meaning": "写作输入指纹，不是冻结产物或验证证据"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256_at_authoring": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "meaning": "写作输入指纹，不是冻结产物或验证证据"
+    }
+  ],
+  "dependency": {
+    "task": 1,
+    "contract_status": "prepared_unverified_not_executable",
+    "missing_keys": [
+      "verified_entrypoints.cli",
+      "verified_entrypoints.temporary_config",
+      "verified_entrypoints.cleanup",
+      "artifacts.binary_paths",
+      "artifacts.binary_sha256",
+      "artifacts.app_versions",
+      "resources.log_paths"
+    ],
+    "owners": [
+      "母2",
+      "母3",
+      "母20",
+      "构建及各场景所有者"
+    ]
+  },
+  "observations": [
+    "只读取文档、运行契约与 macos.rs；未调用产品入口"
+  ],
+  "runtime_commands": [],
+  "runtime_exit_codes": null,
+  "behavior_cases": {
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "verdict": "未验证，零用例不能通过"
+  },
+  "validation": {
+    "json_format": "未运行，延期",
+    "links_and_redaction": "未运行验收，延期",
+    "diff_acceptance": "未运行验收；提交仅做范围审阅",
+    "cargo_build_unit_native_final": "按用户要求未运行"
+  },
+  "artifact_sha256": null,
+  "macos_version": null,
+  "architecture": null,
+  "application_version": null,
+  "limitations": [
+    "没有当前运行故事或成功路径证据",
+    "源码参考不证明生产行为",
+    "ARM64、x64、本机、远程与无 GUI 均未验证"
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "未创建运行资源，无清理动作"
+  },
+  "follow_up": "统一验证时补齐契约与冻结产物，执行场景观察及文档检查，更新本文与本记录；不得计为已通过"
+}

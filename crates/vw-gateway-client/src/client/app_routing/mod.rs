@@ -21,3 +21,5 @@ mod outbound_probe_tests;
 mod outbound_scan_tests;
 
 mod request_status;
+
+mod mode_attach;

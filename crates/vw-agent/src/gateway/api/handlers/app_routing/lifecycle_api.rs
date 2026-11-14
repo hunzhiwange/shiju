@@ -31,10 +31,10 @@ use vw_api_types::{
 
 #[derive(Clone)]
 pub(crate) struct RoutingControl {
-    database: GlobalDatabase,
+    pub(super) database: GlobalDatabase,
     pub(crate) routing: Arc<RoutingListener>,
     scope: Arc<RoutingControlScope>,
-    policy: PathBuf,
+    pub(super) policy: PathBuf,
     pub(super) policy_default: ListenerConfig,
     pub(super) diagnostic_jobs: Option<DiagnosticJobs>,
 }

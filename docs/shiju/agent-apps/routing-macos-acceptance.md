@@ -1254,3 +1254,9 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 2026-11-14：核对冻结 upstream handlers.rs/server.rs 的 Images generations 转发及四个 Codex 别名，复用任务81独立转发所有者、公共授权/容量/取消/出口传输。来源快照、运行时、应用/主机与配置/账号仅确认源码合同存在，外部验收未确认。新增 image_generation 端点策略：四别名归一到所选 Responses、Chat 或完整 Images URL 的相邻 images/generations，保留前缀及查询，未知目标返回422。JSON请求解压后保持原样，不进入工具或生成协议转换。响应保留上游状态，按JSON、常见图片或二进制类型有界解压收集，清除上游敏感及失效编码/长度头。托管凭据仅允许官方 Codex OAuth 图片端点，旧会话白名单不变。
 
 按用户最新覆盖要求未新增或运行单元测试，未运行任何Cargo命令/脚本、实机测试或最终回归；无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR未设置。后续统一验证四别名、完整URL、查询/请求保持、JSON与二进制类型、压缩前后大小限制、取消/超时、错误状态及授权撤销；仅macOS待验收。按要求删除编号任务卡，主计划只读未修改。
+
+### 任务86：应用模式与路由选择（代码交付，未验证）
+
+2026-11-14：新增 POST `/v1/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode`，DTO `RoutingModeRequest`、SDK `apply_app_routing_mode`。复用 `provider_publication::apply` 与母任务4 ClaudeMode 原事务：授权项目/成员/主机与供应商编辑范围一致后，监听就绪才能签发并通过原生客户端配置交付凭证；切换轮换、Direct/Detach 先恢复配置再撤销。错误保留结构化状态，不返回凭证。当前仅支持既有 Claude 保存供应商契约；官方账号和其它应用明确拒绝，不扩展母任务4/6。
+
+已读取冻结 upstream commands/proxy.rs 的接入/退出与路由切换调用者，以及 services/proxy.rs；任务109生产绑定、鉴权/浏览器/Host 防护与任务85请求状态源码存在。仅核对源码合同，不宣称外部前置验收完成。依用户本次覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。本项行为及 macOS 验收留待统一验证，Windows/Linux/WSL 范围外。主计划只读。

@@ -12,3 +12,6 @@ pub use outbound_scan::*;
 
 mod request_status;
 pub use request_status::*;
+
+mod mode_attach;
+pub use mode_attach::*;

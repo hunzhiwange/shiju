@@ -34,3 +34,6 @@ mod outbound_scan_tests;
 
 mod request_status;
 pub(crate) use request_status::request_status;
+
+mod mode_attach;
+pub(crate) use mode_attach::attach_mode;

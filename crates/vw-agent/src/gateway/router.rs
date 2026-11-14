@@ -150,13 +150,14 @@ pub(super) fn app_routing_router() -> Router {
         routing::{get, post},
     };
     use handlers::app_routing::{
-        cancel_outbound_probe, cancel_outbound_scan, get_app_config, get_config, get_egress,
+        attach_mode, cancel_outbound_probe, cancel_outbound_scan, get_app_config, get_config, get_egress,
         health, outbound_probe_status, outbound_scan_status, put_app_config, put_config, request_status,
         put_egress, start, start_outbound_probe, start_outbound_scan, status, stop,
     };
 
     Router::new()
         .route("/app-routing/hosts/{host}/status", get(status))
+        .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode", post(attach_mode))
         .route("/app-routing/hosts/{host}/projects/{project}/apps/{app}/requests", get(request_status))
         .route(
             "/app-routing/hosts/{host}/projects/{project}/apps/{app}/egress/scans",

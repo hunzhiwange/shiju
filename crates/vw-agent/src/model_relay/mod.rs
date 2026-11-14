@@ -94,3 +94,7 @@ mod messages_chat_result_tests;
 
 #[cfg(test)]
 mod messages_chat_stream_tests;
+
+pub(crate) mod messages_responses_request;
+#[cfg(test)]
+mod messages_responses_request_tests;

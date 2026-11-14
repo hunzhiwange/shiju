@@ -171,15 +171,19 @@ pub(super) async fn forward_json(
     let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
+    let messages_responses = app == AppId::Claude
+        && target.url.path().trim_end_matches('/').ends_with("/responses");
     #[cfg(target_os = "macos")]
     let native_messages = if app == AppId::ClaudeDesktop {
         route.desktop_native_messages(client_model.as_deref())?
     } else {
         app == AppId::Claude
+            && !messages_responses
             && !target.url.path().trim_end_matches('/').ends_with("/chat/completions")
     };
     #[cfg(not(target_os = "macos"))]
     let native_messages = app == AppId::Claude
+        && !messages_responses
         && !target.url.path().trim_end_matches('/').ends_with("/chat/completions");
     let native_responses =
         responses && target.url.path().trim_end_matches('/').ends_with("/responses");
@@ -208,6 +212,8 @@ pub(super) async fn forward_json(
         #[cfg(target_os = "macos")]
         let body = if app == AppId::ClaudeDesktop {
             super::desktop_routing::request(&body, native_messages)?
+        } else if messages_responses {
+            crate::model_relay::messages_responses_request::to_responses(&body)?
         } else if app == AppId::Claude && !native_messages {
             crate::model_relay::messages_chat_request::to_chat(&body)?
         } else {
@@ -331,7 +337,7 @@ pub(super) async fn forward_json(
                     crate::model_relay::generation::GenerationProtocol::Gemini
                 } else if native_messages {
                     crate::model_relay::generation::GenerationProtocol::Messages
-                } else if native_responses {
+                } else if native_responses || messages_responses {
                     crate::model_relay::generation::GenerationProtocol::Responses
                 } else {
                     crate::model_relay::generation::GenerationProtocol::Chat
@@ -345,7 +351,7 @@ pub(super) async fn forward_json(
             Protocol::Gemini
         } else if native_messages {
             Protocol::Messages
-        } else if native_responses {
+        } else if native_responses || messages_responses {
             Protocol::Responses
         } else {
             Protocol::Chat
@@ -486,6 +492,14 @@ fn prepare_request_inner(
     }
     if let Some(model) = exact_model {
         body["model"] = Value::String(model.into());
+    }
+    // The authorized target owns the Gemini model/action. Only Messages
+    // payloads use this resident conversion; native Gemini has contents.
+    if body.get("messages").is_some()
+        && (target.url.path().ends_with(":generateContent")
+            || target.url.path().ends_with(":streamGenerateContent"))
+    {
+        body = crate::model_relay::messages_gemini_request::convert(&body)?;
     }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());

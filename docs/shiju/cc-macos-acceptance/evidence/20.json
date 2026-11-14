@@ -1,0 +1,2494 @@
+{
+  "schema_version": 1,
+  "task": 20,
+  "status": "deferred_unverified",
+  "acceptance_passed": false,
+  "reason": "Latest user instruction defers verification-only tasks and requires task-card deletion. No acceptance performed.",
+  "baseline": {
+    "read_head": "af7dfaa83b7b7b1e0b8d195f64bdcb723d3a5cab",
+    "runtime_contract_baseline": "90330f6c232537e310d63821238c6f1e980fb576",
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_version": null
+  },
+  "inputs": {
+    "inventory": "docs/shiju/cc-macos-acceptance/inventory.json",
+    "runtime_contract": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "runtime_contract_status": "prepared_unverified_not_executable",
+    "parent_task_card_available": false,
+    "parent_task_card_note": "Read returned No such file or directory; this does not establish missing implementation.",
+    "owner_references": {
+      "mother_task": 20,
+      "responsible_subplan": "母任务 20 对应领域所有者；验收分派参见只读 macOS plan.md",
+      "document_references": [
+        {
+          "path": "docs/shiju/cc-convergence/frontend.md",
+          "sha256": "3af545de00fb94f015a13ab4c3981d0f9ccf032a27b16b9aebd432713472790a"
+        },
+        {
+          "path": "docs/shiju/desktop-integration/acceptance-1.md",
+          "sha256": "7a1ff0d33f75c3b5a096f26fafb19b952399369df7af9902bc4d6c7a3eeabe55"
+        }
+      ],
+      "gap": "文档入口不等于逐来源实现映射；逐项实现/API/SDK/UI/测试绑定及当前基线适用性均待领域所有者核证",
+      "verification": "deferred_unverified"
+    }
+  },
+  "source_items": [
+    {
+      "source_key": "file:docs/guides/deeplink-site-integration-guide-en.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/guides/deeplink-site-integration-guide-ja.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/guides/deeplink-site-integration-guide-zh.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/en/1-getting-started/1.5-settings.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/en/5-faq/5.3-deeplink.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/1-getting-started/1.5-settings.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/5-faq/5.3-deeplink.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/1-getting-started/1.5-settings.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/5-faq/5.3-deeplink.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/Info.plist",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/capabilities/default.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/capabilities/tray-panel.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/128x128.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/128x128@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/32x32.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/64x64.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square107x107Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square142x142Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square150x150Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square284x284Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square30x30Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square310x310Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square44x44Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square71x71Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/Square89x89Logo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/StoreLogo.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-hdpi/ic_launcher.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-mdpi/ic_launcher.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/dmg-background.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/icon.icns",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/icon.ico",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-20x20@1x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-20x20@2x-1.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-20x20@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-20x20@3x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-29x29@1x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-29x29@2x-1.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-29x29@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-29x29@3x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-40x40@1x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-40x40@2x-1.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-40x40@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-40x40@3x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-512@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-60x60@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-60x60@3x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-76x76@1x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-76x76@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/tray/macos/statusTemplate.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/tray/macos/statusTemplate@2x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/icons/tray/macos/statusbar_template_3x.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/agy_smoke_tests.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/auto_launch.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/deeplink.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/lightweight.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/settings.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/codex_link.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/grok_link.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/icon_fetch.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/mod.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/parser.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/tests.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/utils.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/error.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/init_status.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/kimi_session.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/lib.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/lightweight.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/linux_fix.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/main.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/panic_hook.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/resources/codex_deepseek_catalog_template.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/resources/codex_native_responses_template.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/resources/gpt5_5_template.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/services/config.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/services/mod.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/services/pi_state.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/services/sql_helpers.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/settings.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/tray.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/src/tray_panel.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tauri.conf.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tauri.windows.conf.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/deeplink_import.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-claude.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-codex-config.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-codex.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-gemini.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-grokbuild-config.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/rows/deeplink-grokbuild.txt",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src-tauri/wix/per-user-main.wxs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/App.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/assets/icons/chatgpt.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/assets/icons/claude.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/assets/icons/logo.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/contexts/UpdateContext.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useDarkMode.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useDebouncedValue.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useDelayedFlag.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useDirectorySettings.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useDragSort.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useLastValidValue.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useLatestRef.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useModeActions.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useNativeConfigPath.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useProxyStatus.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useSettings.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useSettingsForm.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useSettingsMetadata.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useSidebarCollapsed.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useSidebarStatus.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useTauriEvent.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/hooks/useTrayNavigation.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/index.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/locales/en.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/locales/ja.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/locales/tr.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/locales/zh-TW.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/i18n/locales/zh.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/88api.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ClaudeApi.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/TeamoRouter-icon-dark.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/a6-icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/aicodemirror.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/aicoding.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/aihubmix-color.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/algocode.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/alibaba.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/alltokens-si.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/alltokens.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/amuxapi-icon.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/anthropic.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/antigravity.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/apikeyfun.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/apinebula_icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/astron.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/atlascloud_icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/aws.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/azure.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/baidu.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/bailian.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/bailing.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/bytedance.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/byteplus.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/catcoder.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ccsub.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/chatglm.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/cherryin.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/claude.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/claudecn.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/claw.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/cloudflare.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/code0.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/cohere.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/crazyrouter.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/cubence.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/deepseek.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/dmxapi.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/doubao.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/eflowcode.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/etok.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/everyapi.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/fenno-icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/fluxa.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/gemini.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/gemma.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/github.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/google.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/googlecloud.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/grok.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/grooroute.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/huawei.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/huggingface.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/hunyuan.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/huoshan.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ikuncode.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/index.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/kimi.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/lioncc.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/longcat-color.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/meta.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/metadata.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/micu.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/midjourney.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/minimax.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/mistral.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/modelflare.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/modelscope-color.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/nekocode-icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/newapi.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/notion.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/novita.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/nvidia.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ollama.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/openai.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/opencode-logo-light.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/openmodel.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/openrouter.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ospreyai.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/packycode.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/palm.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/pateway.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/perplexity.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/pipellm.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ppio.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/qianwenai.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/qiniu.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/qwen.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/qwencloud.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/rc.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/relaxcode.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/runapi.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/runtoken.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/shengsuanyun.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/siliconflow.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/soruxgpt.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/soshow.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/sssaicode.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/stability.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/stepfun.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/streamlake.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/sub2api.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/subrouter.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/sudocode-us.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/sudocode.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/tencent.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/tokenflux.jpg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/tuzi.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/ucloud.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/unity2.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/vercel.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/wenxin.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/xai.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/xiaomimimo.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/xycai-icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/yi.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/zeroone.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/zetaapi-icon.png",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/icons/extracted/zhipu.svg",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/index.css",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/index.html",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/customIcons.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/deeplink.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/dsh.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/index.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/model-fetch.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/model-fetch.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/pi.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/proxy.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/settings.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/api/vscode.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/claudePlan.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/clipboard.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/errors/liveEditConflict.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/frontendLogger.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/localCache.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/navigation.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/platform.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/customIcons.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/index.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/mutations.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/pi.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/proxy.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/queries.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/queryClient.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/query/usage.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/toast.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/unsavedChanges.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/updater.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/utils.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/utils/base64.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/utils/base64.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/utils/sequentialBulkAction.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/version.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/version.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/whatsNew.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/lib/windowActivity.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/main.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel.html",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/TrayPanel.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/UsageTab.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/api.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/main.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/menuAim.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/tray-panel.css",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/tray-panel/usePanelTheme.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/types.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/claudeEditorOverlay.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/customIcon.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/deepClone.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/deepLinkConfigPreview.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/deeplinkRisk.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/deeplinkRisk.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/domUtils.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/errorUtils.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/formatters.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/grokBuildConfig.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/grokBuildConfig.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/postChangeSync.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/routeSwitchNotification.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/routingReason.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/textNormalization.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/tomlUtils.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/usageDisplay.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/utils/uuid.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/vite-env.d.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.0.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.10.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.11.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.12.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.13.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.14.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.15.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.16.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.17.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.18.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.19.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.2.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.20.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.21.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.22.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.23.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.24.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.25.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.3.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.4.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.5.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.6.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.7.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.8.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/4.0.9.json",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:src/whats-new/README.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/hooks/useDirectorySettings.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/hooks/useSettings.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/hooks/useSettingsForm.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/hooks/useSettingsMetadata.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/hooks/useTrayNavigation.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/i18n/syncLanguageFromSettings.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/integration/SettingsDialog.test.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/tray-panel/menuAim.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "file:tests/utils/deepLinkConfigPreview.test.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:10:peek_pending_deeplink",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:16:ack_pending_deeplink",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:22:parse_deeplink",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:30:merge_deeplink_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:40:fetch_deeplink_icon",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:46:import_from_deeplink",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/deeplink.rs:68:import_from_deeplink_unified",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/lightweight.rs:1:enter_lightweight_mode",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/lightweight.rs:6:exit_lightweight_mode",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/lightweight.rs:11:is_lightweight_mode",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:60:get_settings",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:66:save_settings",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:179:has_codex_unify_history_backup",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:186:codex_forces_multi_agent_v2",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:195:get_codex_session_compression",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:201:set_codex_session_compression",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:216:get_codex_sessions_disk_usage",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:227:restore_codex_unified_history",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:254:restart_app",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:278:install_update_and_restart",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:362:check_app_update_available",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:376:get_app_config_dir_override",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:383:set_app_config_dir_override",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:393:set_auto_launch",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:738:get_auto_launch_status",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:744:get_rectifier_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:752:set_rectifier_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:765:get_optimizer_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:773:set_optimizer_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:786:get_copilot_optimizer_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:797:set_copilot_optimizer_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:810:get_log_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/settings.rs:818:set_log_config",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/lib.rs:361:update_tray_menu",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray.rs:1420:tray_app_page_seen",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray.rs:2843:take_tray_navigation",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray_panel.rs:1089:tray_panel_state",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray_panel.rs:1102:tray_panel_placement",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray_panel.rs:1129:tray_panel_layout",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray_panel.rs:1169:tray_panel_hide",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "command:src-tauri/src/tray_panel.rs:1179:tray_panel_action",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/commands/settings.rs:307:update-download-progress",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/lib.rs:336:deeplink-pending",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/tray.rs:2863:tray-navigate",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/tray.rs:2920:profile-applied",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/tray.rs:3104:proxy-flags-changed",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src-tauri/src/tray.rs:3107:provider-switched",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src/hooks/useTrayNavigation.ts:68:tray-navigate",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    },
+    {
+      "source_key": "event:src/main.tsx:84:configLoadError",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 20
+    }
+  ],
+  "dependency_gaps": [
+    "Mother task 20: per-source implementation/API/SDK/UI/test mapping and baseline applicability remain unverified.",
+    "Task 1 and build owners: verified entrypoints, frozen artifacts, isolated hosts and cleanup contract not delivered.",
+    "Mother tasks 20/21: cross-owned sources, removal list, unique ownership and caller migration remain unreviewed."
+  ],
+  "deferred_work": [
+    "Review all owned and cross-owned sources, registrations, conditional compilation, events, TS rules and macOS applicability.",
+    "Review implementation/API permissions and errors/SDK and existing focused test evidence against frozen artifacts.",
+    "Obtain execution contracts, artifacts, environment versions, actual observations and cleanup evidence.",
+    "JSON format check, all tests, device acceptance and final regression deferred."
+  ],
+  "execution": {
+    "commands": [],
+    "exit_codes": [],
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "status": "not_run",
+    "note": "Only input reading and record writing performed; no Cargo, build, test or acceptance. Product capability and historical evidence not revalidated."
+  },
+  "cleanup": {
+    "status": "not_applicable",
+    "note": "No runtime resources created; task card deleted and this record retained."
+  }
+}

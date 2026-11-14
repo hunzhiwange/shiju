@@ -10,3 +10,5 @@ pub mod shared_import;
 pub mod mcode;
 
 pub mod omp;
+
+pub mod pi_agents;

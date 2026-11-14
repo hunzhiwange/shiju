@@ -440,3 +440,5 @@ mod device_sync_config;
 mod device_sync_probe;
 
 pub(crate) mod device_sync_jobs;
+
+mod device_sync_tasks;

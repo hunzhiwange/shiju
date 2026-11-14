@@ -19,6 +19,7 @@ pub(crate) fn router() -> Router {
         .merge(super::device_sync_probe::router())
         .merge(super::backup_inventory::router())
         .merge(super::device_sync_jobs::router())
+        .merge(super::device_sync_tasks::router())
         .merge(super::device_sync_config::router())
         .merge(super::agent_apps_data::backup_crud_api::router())
         .merge(super::agent_apps_data::migration_read_api::router())

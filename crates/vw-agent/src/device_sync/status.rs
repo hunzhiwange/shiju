@@ -151,3 +151,23 @@ pub fn connection_status(database: GlobalDatabase, target: &DataManagementTarget
         .map(|r| r.status.task_id.clone());
     Ok((records.last().map(|r| r.status.clone()), active))
 }
+
+/// Read an authorized task without initializing recovery or interrupting workers.
+/// Live state includes warnings that could not be persisted; after restart the
+/// durable record remains the polling source until execution ownership recovers it.
+pub fn task_status(database: GlobalDatabase, target: &DataManagementTarget,
+    id: &vw_api_types::id::TaskId) -> Result<SyncTaskStatus> {
+    match super::tasks::status(target, id) {
+        Ok(status) => return Ok(status),
+        Err(SyncErrorCode::Unauthorized) => {},
+        Err(error) => return Err(error),
+    }
+    let store = GatewaySettingsStore::new(database)
+        .map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    let raw = store.get(target.scope.tenant_scope(), NAMESPACE, &key(target)?)
+        .map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    let journal = decode(raw.as_deref(), target)
+        .map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    journal.records.into_iter().find(|r| &r.status.task_id == id)
+        .map(|r| r.status).ok_or(SyncErrorCode::Unauthorized)
+}

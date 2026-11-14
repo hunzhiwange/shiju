@@ -80,3 +80,8 @@ mod openclaw_health_tests;
 
 #[cfg(target_os = "macos")]
 pub mod hermes_dashboard;
+
+#[cfg(target_os = "macos")]
+pub mod daily_memory_list;
+#[cfg(all(test, target_os = "macos"))]
+mod daily_memory_list_tests;

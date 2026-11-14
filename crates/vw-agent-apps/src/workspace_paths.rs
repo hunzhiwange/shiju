@@ -105,6 +105,73 @@ impl WorkspaceDirectory {
         }))
     }
 
+    /// Enumerates the held directory without reopening its path. A fresh open
+    /// description keeps repeated enumerations independent of directory offsets.
+    pub(crate) fn filenames(&self) -> Result<Vec<String>, PathError> {
+        let directory = open_child(&self.directory, &CString::new(".").unwrap(), true)
+            .map_err(|_| PathError::Io)?;
+        use std::os::fd::IntoRawFd;
+        let fd = directory.into_raw_fd();
+        // SAFETY: fd is owned here; fdopendir takes ownership on success.
+        let stream = unsafe { libc::fdopendir(fd) };
+        if stream.is_null() {
+            unsafe { libc::close(fd) };
+            return Err(PathError::Io);
+        }
+        struct DirectoryStream(*mut libc::DIR);
+        impl Drop for DirectoryStream {
+            fn drop(&mut self) {
+                // SAFETY: this guard owns the live stream exactly once.
+                unsafe { libc::closedir(self.0) };
+            }
+        }
+        let stream = DirectoryStream(stream);
+        let mut names = Vec::new();
+        loop {
+            // SAFETY: macOS thread-local errno and a live owned stream. Consume
+            // each name before the next readdir invalidates its storage.
+            let entry = unsafe {
+                *libc::__error() = 0;
+                libc::readdir(stream.0)
+            };
+            if entry.is_null() {
+                if unsafe { *libc::__error() } != 0 {
+                    return Err(PathError::Io);
+                }
+                break;
+            }
+            let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
+            if let Ok(name) = name.to_str() {
+                if name != "." && name != ".." {
+                    names.push(name.to_owned());
+                }
+            }
+        }
+        Ok(names)
+    }
+
+    /// Skip links and special entries before opening; recheck the opened inode
+    /// through file() so a concurrent replacement cannot broaden access.
+    pub(crate) fn regular_file(&self, name: &str) -> Result<Option<File>, PathError> {
+        let name = filename(name)?;
+        let mut metadata = std::mem::MaybeUninit::<libc::stat>::uninit();
+        let result = unsafe {
+            libc::fstatat(
+                self.directory.as_raw_fd(), name.as_ptr(), metadata.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if result < 0 {
+            return Err(PathError::Io);
+        }
+        // SAFETY: successful fstatat initialized metadata.
+        let metadata = unsafe { metadata.assume_init() };
+        if metadata.st_mode & libc::S_IFMT != libc::S_IFREG || metadata.st_nlink != 1 {
+            return Ok(None);
+        }
+        self.file(&name)
+    }
+
     pub fn read(&self, name: &str) -> Result<Option<String>, PathError> {
         let name = filename(name)?;
         let Some(mut file) = self.file(&name)? else { return Ok(None) };

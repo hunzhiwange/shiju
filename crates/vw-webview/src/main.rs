@@ -6,12 +6,12 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 use webview_external_protocol::dialog::show_error_dialog;
-#[cfg(not(target_arch = "wasm32"))]
-mod view_region;
+#[cfg(not(any(target_arch = "wasm32", coverage)))]
+use webview_browser_views::{build_content_view, build_toolbar_view, to_wry_rect};
 
 #[cfg(not(target_arch = "wasm32"))]
 use webview_local_content::{
-    StartTarget, local_protocol_response, normalize_url, percent_encode_url_path, resolve_target,
+    StartTarget, normalize_url, percent_encode_url_path, resolve_target,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use webview_launch::{DEFAULT_TARGET, launch_log_summary, parse_launch_options};
@@ -20,7 +20,7 @@ use webview_core::events::UserEvent;
 #[cfg(not(target_arch = "wasm32"))]
 use webview_init_script::build_init_script;
 #[cfg(not(target_arch = "wasm32"))]
-use webview_ipc::{navigation_event_line, parse_navigation_ipc_message, parse_stdin_event};
+use webview_ipc::{navigation_event_line, parse_stdin_event};
 #[cfg(not(target_arch = "wasm32"))]
 use webview_core::navigation::is_safe_navigation_url;
 #[cfg(not(target_arch = "wasm32"))]
@@ -35,6 +35,8 @@ use webview_runtime_cookie::{
     read_shiju_app_set_cookie_for_target, runtime_cookie, runtime_cookie_headers,
 };
 
+#[cfg(unix)]
+const DEFAULT_TITLE: &str = "Vibe Window WebView";
 #[cfg(not(target_arch = "wasm32"))]
 const SAFARI_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15";
 #[cfg(not(target_arch = "wasm32"))]
@@ -62,16 +64,12 @@ fn main() {
     #[cfg(all(unix, not(target_os = "macos")))]
     use tao::platform::unix::WindowExtUnix;
     use tao::window::WindowBuilder;
-    use wry::{WebContext, WebViewBuilder};
-    #[cfg(all(unix, not(target_os = "macos")))]
-    use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
+    use wry::WebContext;
 
     use webview_external_protocol::ExternalProtocols;
     use webview_core::navigation::ExternalTarget;
-    use crate::view_region::to_wry_rect;
     use webview_toolbar::{
-        ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
-        window_regions,
+        toolbar_address_script, window_regions,
     };
 
     let args = env::args().skip(1).collect::<Vec<_>>();
@@ -188,55 +186,10 @@ fn main() {
     let (toolbar_region, content_region) =
         window_regions(logical_size.width, logical_size.height, independent_mode);
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let gtk_container = window.default_vbox();
-
     let toolbar_webview = if let Some(region) = toolbar_region {
-        let toolbar_proxy = proxy.clone();
-        let toolbar_ready_proxy = proxy.clone();
-        let toolbar_builder = WebViewBuilder::new()
-            .with_html(if options.shiju_app_set_cookie_stdin {
-                toolbar_html()
-                    .replace("type=\"text\"", "type=\"text\" readonly")
-                    .replace("post('navigate', address.value);", "")
-            } else {
-                toolbar_html()
-            })
-            .with_clipboard(true)
-            .with_bounds(to_wry_rect(region))
-            .with_on_page_load_handler(move |event, _url| {
-                if matches!(event, wry::PageLoadEvent::Finished) {
-                    let _ = toolbar_ready_proxy.send_event(UserEvent::ToolbarReady);
-                }
-            })
-            .with_ipc_handler(move |request| {
-                let Some(action) = parse_toolbar_ipc_message(request.body()) else {
-                    return;
-                };
-                let event = match action {
-                    ToolbarAction::Back => UserEvent::Back,
-                    ToolbarAction::Forward => UserEvent::Forward,
-                    ToolbarAction::Navigate(url) => UserEvent::OpenUrl(url),
-                    ToolbarAction::Reload => UserEvent::Reload,
-                    ToolbarAction::OpenExternal(url) => UserEvent::OpenExternal(url),
-                    ToolbarAction::Clear => UserEvent::ClearBrowser,
-                };
-                let _ = toolbar_proxy.send_event(event);
-            });
-
-        #[cfg(all(unix, not(target_os = "macos")))]
-        let toolbar_result =
-            gtk_container.ok_or(wry::Error::UnsupportedWindowHandle).and_then(|container| {
-                // GTK must manage input focus for both views. Wrapping independent
-                // X11 child windows leaves the address bar without keyboard input.
-                let toolbar = toolbar_builder.build_gtk(container)?;
-                let native = toolbar.webview();
-                native.set_size_request(-1, region.height as i32);
-                container.set_child_packing(&native, false, true, 0, gtk::PackType::Start);
-                Ok(toolbar)
-            });
-        #[cfg(not(all(unix, not(target_os = "macos"))))]
-        let toolbar_result = toolbar_builder.build_as_child(&window);
+        let toolbar_result = build_toolbar_view(
+            &window, region, options.shiju_app_set_cookie_stdin, &proxy,
+        );
 
         let toolbar = match toolbar_result {
             Ok(toolbar) => toolbar,
@@ -256,35 +209,6 @@ fn main() {
 
     let initial_url = shiju_app_set_cookie.as_ref().map_or(url.as_str(), |_| DEFAULT_TARGET);
 
-    let mut builder = {
-        let page_load_proxy = proxy.clone();
-        let navigation_proxy = proxy.clone();
-        WebViewBuilder::new_with_web_context(&mut web_context)
-            .with_url(initial_url)
-            .with_devtools(true)
-            .with_clipboard(true)
-            .with_accept_first_mouse(true)
-            .with_initialization_script(&init_script)
-            .with_on_page_load_handler(move |_event, url| {
-                let _ = page_load_proxy.send_event(UserEvent::NavigationChanged(url));
-            })
-            .with_ipc_handler(move |request| {
-                if let Some(url) = parse_navigation_ipc_message(request.body()) {
-                    let _ = navigation_proxy.send_event(UserEvent::NavigationChanged(url));
-                }
-            })
-    };
-
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder.with_user_agent(SAFARI_USER_AGENT);
-    }
-    #[cfg(unix)]
-    {
-        // WebKitGTK shares this download handler with related popup views.
-        builder = webview_downloads::with_downloads(builder, &log_path);
-    }
-
     let external = ExternalProtocols::default();
     let popups = webview_popup::PopupWindows::new(
         proxy.clone(),
@@ -297,29 +221,21 @@ fn main() {
         #[cfg(windows)]
         &window,
     );
-    builder = popups.with_handler(builder, None, local_root.is_some());
-
-    if let Some(root) = local_root.clone() {
-        builder = builder.with_custom_protocol("vibe".into(), move |_webview_id, request| {
-            local_protocol_response(&root, request)
-        });
-    }
-
-    if independent_mode {
-        builder = builder.with_bounds(to_wry_rect(content_region));
-    }
-
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let webview_result = if independent_mode {
-        gtk_container
-            .ok_or(wry::Error::UnsupportedWindowHandle)
-            .and_then(|container| builder.build_gtk(container))
-    } else {
-        builder.build(&window)
-    };
-    #[cfg(not(all(unix, not(target_os = "macos"))))]
-    let webview_result =
-        if independent_mode { builder.build_as_child(&window) } else { builder.build(&window) };
+    let webview_result = build_content_view(
+        &window,
+        &mut web_context,
+        initial_url,
+        &init_script,
+        #[cfg(target_os = "macos")]
+        SAFARI_USER_AGENT,
+        #[cfg(unix)]
+        &log_path,
+        local_root.clone(),
+        independent_mode,
+        content_region,
+        &proxy,
+        &popups,
+    );
     let webview = match webview_result {
         Ok(w) => w,
         Err(e) => {
@@ -519,7 +435,3 @@ fn main() {}
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod main_tests;
-
-#[cfg(test)]
-#[path = "view_region_tests.rs"]
-mod view_region_tests;

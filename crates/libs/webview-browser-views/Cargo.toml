@@ -1,0 +1,26 @@
+[package]
+name = "webview-browser-views"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[dependencies]
+webview-core = { path = "../webview-core", version = "0.6.0" }
+webview-toolbar = { path = "../webview-toolbar", version = "0.6.0" }
+webview-ipc = { path = "../webview-ipc", version = "0.6.0" }
+webview-local-content = { path = "../webview-local-content", version = "0.6.0" }
+webview-popup = { path = "../webview-popup", version = "0.6.0" }
+webview-downloads = { path = "../webview-downloads", version = "0.6.0" }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]
+tao = { version = "0.34" }
+wry = { version = "=0.56.1" }
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = "0.18"

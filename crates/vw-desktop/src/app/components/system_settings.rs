@@ -431,7 +431,8 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
             crate::app::message::settings::backup_inventory::view(app),
             super::system_settings_data::export_ui::view(app),
             super::system_settings_data::backup_list_ui::view(app),
-        ].spacing(12).into()),
+            super::system_settings_data::recovery_ui::view(app),
+        ].spacing(12).into())),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(app),
         SystemTab::General => crate::app::components::system_settings_general::view(app),

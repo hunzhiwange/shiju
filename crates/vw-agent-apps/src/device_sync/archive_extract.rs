@@ -16,6 +16,32 @@ fn invalid(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+// The ZIP reader merges identical raw names. Count the original central
+// directory records too, so duplicates cannot hide entries from our budget.
+fn check_entry_count(bytes: &[u8], start: u64, unique_count: usize) -> io::Result<()> {
+    let mut offset = usize::try_from(start)
+        .map_err(|_| invalid("sync archive central directory offset is invalid"))?;
+    let mut count = 0usize;
+    while bytes.get(offset..offset.saturating_add(4)) == Some(b"PK\x01\x02") {
+        let header = bytes.get(offset..offset.saturating_add(46))
+            .ok_or_else(|| invalid("sync archive central directory is truncated"))?;
+        count += 1;
+        if count > MAX_ENTRIES {
+            return Err(invalid("sync archive has too many entries"));
+        }
+        let variable_size: usize = [28, 30, 32].into_iter()
+            .map(|i| u16::from_le_bytes([header[i], header[i + 1]]) as usize)
+            .sum();
+        offset = offset.checked_add(46 + variable_size)
+            .filter(|end| *end <= bytes.len())
+            .ok_or_else(|| invalid("sync archive central directory is truncated"))?;
+    }
+    if count != unique_count {
+        return Err(invalid("sync archive contains duplicate or inconsistent entries"));
+    }
+    Ok(())
+}
+
 /// Retains layout without publishing or applying any live data. The caller must
 /// verify these same bytes against the manifest before calling this function.
 /// Every link is rejected, including links whose targets would remain inside.
@@ -29,6 +55,7 @@ pub fn extract_skills_archive(bytes: &[u8]) -> io::Result<TempDir> {
     if archive.len() > MAX_ENTRIES {
         return Err(invalid("sync archive has too many entries"));
     }
+    check_entry_count(bytes, archive.central_directory_start(), archive.len())?;
     let staging = tempfile::Builder::new().prefix("shiju-sync-").tempdir()?;
     let mut explicit = BTreeSet::new();
     let mut spellings = BTreeMap::new();
@@ -83,23 +110,41 @@ pub fn extract_skills_archive(bytes: &[u8]) -> io::Result<TempDir> {
             if entry.size() != 0 {
                 return Err(invalid("sync archive directory contains data"));
             }
+            // Even an allegedly empty directory must reach EOF for CRC
+            // validation; a forged zero size must not hide a payload.
+            if entry.read(&mut [0u8; 1])? != 0 {
+                return Err(invalid("sync archive directory contains data"));
+            }
             continue;
         }
         if entry.size() > MAX_EXPANDED_BYTES.saturating_sub(total) {
             return Err(invalid("sync archive exceeds extraction limit"));
         }
+        let declared_size = entry.size();
+        let mut expanded_size = 0u64;
         let mut output = OpenOptions::new().write(true).create_new(true)
             .open(staging.path().join(&path))?;
         let mut buffer = [0u8; 16 * 1024];
         loop {
-            let count = entry.read(&mut buffer)?;
+            // Probe at most one byte beyond either budget, including at the
+            // exact boundary, so EOF and CRC are still checked.
+            let remaining = (MAX_EXPANDED_BYTES - total)
+                .min(declared_size - expanded_size);
+            let read_limit = remaining.min((buffer.len() - 1) as u64) as usize + 1;
+            let count = entry.read(&mut buffer[..read_limit])?;
             if count == 0 {
                 break;
             }
+            expanded_size = expanded_size.checked_add(count as u64)
+                .filter(|value| *value <= declared_size)
+                .ok_or_else(|| invalid("sync archive entry length differs from declaration"))?;
             total = total.checked_add(count as u64)
                 .filter(|value| *value <= MAX_EXPANDED_BYTES)
                 .ok_or_else(|| invalid("sync archive exceeds extraction limit"))?;
             output.write_all(&buffer[..count])?;
+        }
+        if expanded_size != declared_size {
+            return Err(invalid("sync archive entry length differs from declaration"));
         }
     }
     Ok(staging)

@@ -9,3 +9,4 @@ pub mod webdav_url;
 pub mod s3_signing;
 pub mod webdav_transport;
 pub mod conflict;
+pub mod s3_transport;

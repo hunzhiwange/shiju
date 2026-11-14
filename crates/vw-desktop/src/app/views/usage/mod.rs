@@ -51,10 +51,45 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 从应用状态中提取使用数据
     let usage_data = data::UsageData::from_app(app);
     // 使用提取的数据构建完整的使用统计视图布局
-    let content = layout::build_usage_view(app, &usage_data);
+    let content: Element<'_, Message> = iced::widget::column![
+        external_usage_entry(),
+        layout::build_usage_view(app, &usage_data),
+    ]
+    .spacing(8)
+    .into();
     if let Some(modal) = raw_modal::view(app) {
         iced::widget::stack![content, modal].into()
     } else {
         content
     }
+}
+
+/// Reuse the settings owners so host selection, authorization and stale-result guards apply.
+fn external_usage_entry() -> Element<'static, Message> {
+    use iced::widget::{button, column, container, row, text};
+    use crate::app::components::system_settings::SystemTab;
+    use crate::app::components::system_settings_common::{
+        rounded_action_btn_style, settings_muted_text_style,
+    };
+    use crate::app::message::ViewMessage;
+
+    let open = |label: &'static str, tab| {
+        button(text(label).size(13))
+            .padding([6, 10])
+            .style(rounded_action_btn_style)
+            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(tab)))
+    };
+    container(column![
+        text("应用额度与套餐").size(16),
+        text("连接执行主机后，在授权账号中读取额度；供应商用量位于应用的供应商卡片中。查询结果与当前会话统计分别展示。")
+            .size(13)
+            .style(settings_muted_text_style),
+        row![
+            open("授权账号额度", SystemTab::Auth),
+            open("供应商用量", SystemTab::Apps),
+        ].spacing(8),
+    ].spacing(8))
+    .padding([12, 18])
+    .width(iced::Length::Fill)
+    .into()
 }

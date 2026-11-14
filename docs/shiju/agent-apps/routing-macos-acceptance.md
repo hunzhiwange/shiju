@@ -1248,3 +1248,9 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 新增 alpha_search 端点策略，常驻 Codex 分发四个来源别名到所选 Responses/Responses compact URL 的相邻 alpha/search。保留前缀大小写、转义路径、配置查询和客户端查询；不确定的目标返回422。JSON body 解压后原样发送，沿用可信目标选择、应用/主机授权、容量、取消、时限及出口传输，不执行工具或生成转换/修复。保留上游JSON状态及载荷。静态凭据来自发布；托管账号仅支持 Codex OAuth，复用新鲜账号头并限制官方HTTPS搜索端点，其他托管类型明确拒绝。旧会话relay与生成OAuth路径白名单不变。
 
 按用户最新覆盖要求只写代码，未新增或运行测试，未运行Cargo命令/脚本、实机或最终回归；无红绿灯、退出码、有效测试数或通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR未设置。后续统一验证需覆盖四别名、完整URL/compact/大小写与转义前缀、query/body保持、opaque目标拒绝、应用/主机/模型权限、刷新及撤销、压缩/取消/超时和上游错误状态。仅macOS待验收，其它平台范围外；按要求删除编号任务文件，不表示母任务8验收完成。主计划只读未修改。
+
+## 任务82：图片生成转发（代码已写，统一验证待执行）
+
+2026-11-14：核对冻结 upstream handlers.rs/server.rs 的 Images generations 转发及四个 Codex 别名，复用任务81独立转发所有者、公共授权/容量/取消/出口传输。来源快照、运行时、应用/主机与配置/账号仅确认源码合同存在，外部验收未确认。新增 image_generation 端点策略：四别名归一到所选 Responses、Chat 或完整 Images URL 的相邻 images/generations，保留前缀及查询，未知目标返回422。JSON请求解压后保持原样，不进入工具或生成协议转换。响应保留上游状态，按JSON、常见图片或二进制类型有界解压收集，清除上游敏感及失效编码/长度头。托管凭据仅允许官方 Codex OAuth 图片端点，旧会话白名单不变。
+
+按用户最新覆盖要求未新增或运行单元测试，未运行任何Cargo命令/脚本、实机测试或最终回归；无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR未设置。后续统一验证四别名、完整URL、查询/请求保持、JSON与二进制类型、压缩前后大小限制、取消/超时、错误状态及授权撤销；仅macOS待验收。按要求删除编号任务卡，主计划只读未修改。

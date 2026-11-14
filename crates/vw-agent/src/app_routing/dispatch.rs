@@ -83,7 +83,8 @@ pub(super) async fn forward_json(
         // The source has no Messages count route; never estimate tokens locally.
         return Err(StatusCode::NOT_IMPLEMENTED.into());
     }
-    if app == AppId::Codex && crate::model_relay::alpha_search::is_path(request.uri().path()) {
+    if app == AppId::Codex && (crate::model_relay::alpha_search::is_path(request.uri().path())
+        || crate::model_relay::image_generation::is_path(request.uri().path())) {
         return forward_alpha_search(request, route, limits, listener,
             #[cfg(target_os = "macos")] egress).await;
     }
@@ -926,7 +927,7 @@ async fn forward_gemini_metadata(
     }).await?
 }
 
-/// Standalone search retains its payload and never enters generation repair,
+/// Standalone search and image generation retain their payloads and never enter generation repair,
 /// overrides, reference replay, failover conversion or local tool execution.
 async fn forward_alpha_search(
     mut request: Request<Incoming>,
@@ -963,7 +964,12 @@ async fn forward_alpha_search(
     #[cfg(target_os = "macos")]
     route.check_provider(listener).await?;
     let (target, _, cancelled) = route.select_json(client_model)?;
-    let url = crate::model_relay::alpha_search::url(&target.url, &parts.uri)?;
+    let images = crate::model_relay::image_generation::is_path(parts.uri.path());
+    let url = if images {
+        crate::model_relay::image_generation::url(&target.url, &parts.uri)?
+    } else {
+        crate::model_relay::alpha_search::url(&target.url, &parts.uri)?
+    };
     let mut outgoing = reqwest::Request::new(Method::POST, url.clone());
     *outgoing.body_mut() = Some(bytes.into());
     outgoing.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
@@ -984,7 +990,11 @@ async fn forward_alpha_search(
         crate::model_relay::codex_oauth_transport::validate_url(&target.url)?;
         let selected = credential.resolve().await.map_err(|_| StatusCode::UNAUTHORIZED)?;
         if selected.url != target.url { return Err(StatusCode::CONFLICT.into()); }
-        crate::model_relay::codex_oauth_transport::apply_alpha_search(&mut outgoing, &selected.headers)?;
+        if images {
+            crate::model_relay::codex_oauth_transport::apply_image_generation(&mut outgoing, &selected.headers)?;
+        } else {
+            crate::model_relay::codex_oauth_transport::apply_alpha_search(&mut outgoing, &selected.headers)?;
+        }
     }
     #[cfg(target_os = "macos")]
     let timeouts = route.timeouts().await?;
@@ -998,6 +1008,30 @@ async fn forward_alpha_search(
     let deadline = Instant::now() + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
     timeouts::before(deadline, async {
         let response = transport.forward_ordered(&url, outgoing, wire, cancelled, listener).await?;
-        buffer_json_response(response, permit, true, None).await
+        if images {
+            buffer_image_response(response, permit).await
+        } else {
+            buffer_json_response(response, permit, true, None).await
+        }
     }).await?
+}
+
+/// Bound decoded image bytes just like JSON, without interpreting binary data.
+async fn buffer_image_response(response: Response, permit: RequestPermit) -> Result<Response, RouteError> {
+    let (mut parts, body) = response.into_parts();
+    body_limits::check_declared_length(&parts.headers, MAX_JSON_BYTES)
+        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+    let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
+    header_wire::strip_hop_headers(&mut parts.headers);
+    let content_type = parts.headers.get(header::CONTENT_TYPE).cloned()
+        .ok_or(StatusCode::BAD_GATEWAY)?;
+    if !crate::model_relay::image_generation::is_result_type(&content_type) {
+        return Err(StatusCode::BAD_GATEWAY.into());
+    }
+    let bytes = decode_response::decode(body, codings, MAX_JSON_BYTES)
+        .await.map_err(upstream_decode_status)?;
+    parts.headers.clear();
+    parts.headers.insert(header::CONTENT_TYPE, content_type);
+    parts.headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(Response::from_parts(parts, body_limits::buffered_response(bytes, permit)))
 }

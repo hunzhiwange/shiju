@@ -36,6 +36,18 @@ pub(crate) fn apply_alpha_search(request: &mut reqwest::Request, fresh: &HeaderM
     apply_headers(request, fresh)
 }
 
+/// Images use the same account identity but have their own explicit endpoint.
+pub(crate) fn apply_image_generation(request: &mut reqwest::Request, fresh: &HeaderMap) -> Result<(), StatusCode> {
+    let mut generation = request.url().clone();
+    if generation.path() != "/backend-api/codex/images/generations" {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    generation.set_path("/backend-api/codex/responses");
+    generation.set_query(None);
+    validate_url(&generation)?;
+    apply_headers(request, fresh)
+}
+
 fn apply_headers(request: &mut reqwest::Request, fresh: &HeaderMap) -> Result<(), StatusCode> {
     let account = fresh.get("chatgpt-account-id").ok_or(StatusCode::UNAUTHORIZED)?;
     let account_text = account.to_str().map_err(|_| StatusCode::UNAUTHORIZED)?;

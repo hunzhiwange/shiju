@@ -199,3 +199,5 @@ pub(crate) mod gemini_metadata;
 mod gemini_metadata_tests;
 
 pub(crate) mod alpha_search;
+
+pub(crate) mod image_generation;

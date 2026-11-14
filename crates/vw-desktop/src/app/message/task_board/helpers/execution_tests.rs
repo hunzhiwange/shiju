@@ -772,6 +772,13 @@ fn scheduler_status_key_and_role_fall_back_to_default_workflow() {
     );
     assert_eq!(
         super::agent_scheduler_status_role_for_task_status(TaskStatus::PrSubmitted, "missing"),
+        None
+    );
+    assert_eq!(
+        super::agent_scheduler_status_role_for_task_status(
+            TaskStatus::PrSubmitted,
+            "dev_lifecycle"
+        ),
         Some(TaskPoolWorkflowStatusRoleDto::Merging)
     );
     assert_eq!(

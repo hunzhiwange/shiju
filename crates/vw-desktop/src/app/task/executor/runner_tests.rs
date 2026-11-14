@@ -957,7 +957,8 @@ fn build_task_split_prompt_uses_create_task_plans_template_batches_and_fixed_out
 
     // 确定性计划目录与 create-task-plans 产物。
     assert!(prompt.contains(plan_dir.to_string_lossy().as_ref()));
-    assert!(!prompt.contains(".plans/"));
+    assert!(plan_dir.is_absolute());
+    assert!(prompt.contains(&format!("计划目录固定使用绝对路径 `{}/`", plan_dir.display())));
     assert!(prompt.contains(&super::task_split_plan_dir_name(&task)));
     assert!(prompt.contains("plan.md"));
     assert!(prompt.contains("prompt.md"));
@@ -1351,7 +1352,7 @@ fn gateway_task_stream_request_maps_delegate_route_and_auto_model() {
         }])
     );
     assert!(value.get("model").is_none());
-    assert!(value.get("reasoning_effort").is_none());
+    assert_eq!(value["reasoning_effort"], "xhigh");
     assert_eq!(value["agent"], "delegate-agent");
     assert!(value.get("acp_agent").is_none());
     assert_eq!(value["options"]["agent"], "delegate-agent");

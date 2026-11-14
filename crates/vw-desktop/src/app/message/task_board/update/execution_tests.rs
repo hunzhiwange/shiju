@@ -351,7 +351,7 @@ fn wake_agent_scheduler_create_requests_include_pool_and_filter_terminal_tasks()
     assert_eq!(request.metadata["task_board.status_key_map"]["assigned"], "pending");
     assert_eq!(request.metadata["task_board.status_key_map"]["dispatched"], "pending");
     assert_eq!(request.metadata["task_board.status_key_map"]["acknowledged"], "pending");
-    assert_eq!(request.metadata["task_board.status_key_map"]["submitted"], "code_complete");
+    assert!(request.metadata["task_board.status_key_map"].get("submitted").is_none());
 }
 
 #[test]

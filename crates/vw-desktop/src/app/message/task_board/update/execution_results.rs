@@ -287,10 +287,19 @@ pub(super) fn update(
                         } else {
                             crate::app::task::TaskTransitionIntent::MergeSucceeded
                         };
-                        if task.apply_task_transition(TaskStatus::Completed, merge_intent).is_err() {
-                            task.mark_paused("合并成功但状态机拒绝进入任务完成".to_string());
-                        } else {
+                        // 此处消费显式合并结果，沿用 Git 生命周期校验；普通任务默认生命周期不含合并阶段。
+                        let merge_allowed = task_workflow_by_id("dev_lifecycle").is_some_and(|workflow| {
+                            crate::app::task::TaskStateMachine::new(workflow).can_transition(
+                                task.status,
+                                TaskStatus::Completed,
+                                merge_intent,
+                            )
+                        });
+                        if merge_allowed {
+                            task.set_status(TaskStatus::Completed);
                             merge_succeeded = true;
+                        } else {
+                            task.mark_paused("合并成功但状态机拒绝进入任务完成".to_string());
                         }
                     }
                     Err(error) => {

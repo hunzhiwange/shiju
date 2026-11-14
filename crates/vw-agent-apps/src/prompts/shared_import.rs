@@ -116,7 +116,9 @@ pub fn import<E>(
     })?;
     validate_text(&request.payload.name, &request.payload.content)
         .map_err(SharedImportError::InvalidInput)?;
-    if request.target_app == AppId::Mcode && request.payload.content.len() > 32768 {
+    if request.target_app == AppId::Mcode
+        && super::mcode::validate_content(&request.payload.content).is_err()
+    {
         return Err(SharedImportError::InvalidInput("MCode prompt exceeds 32768 UTF-8 bytes"));
     }
     let timestamp_ms = SystemTime::now()

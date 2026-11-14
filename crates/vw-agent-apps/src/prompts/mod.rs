@@ -6,3 +6,5 @@ pub mod template_slug;
 pub mod template_metadata;
 
 pub mod shared_import;
+
+pub mod mcode;

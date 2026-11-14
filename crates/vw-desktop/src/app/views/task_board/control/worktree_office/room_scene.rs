@@ -70,7 +70,11 @@ fn build_worktree_room_scene<'a>(
     };
     let is_busy = matches!(slot.state, WorktreeState::Busy);
     let busy_phase = (now_ms / 240).is_multiple_of(2);
-    let actor_icon = if is_busy {
+    let has_employee =
+        slot.agent_id.is_some() || task.and_then(|task| task.agent.as_ref()).is_some();
+    let actor_icon = if !has_employee {
+        ""
+    } else if is_busy {
         if busy_phase { "👨‍💻" } else { "🧑‍💻" }
     } else {
         base_actor_icon
@@ -155,7 +159,7 @@ fn build_worktree_room_scene<'a>(
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color) }
             }),
-            text(busy_face).size(12).style(move |theme: &Theme| {
+            text(if has_employee { busy_face } else { "" }).size(12).style(move |theme: &Theme| {
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.92)) }
             }),

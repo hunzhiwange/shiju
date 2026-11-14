@@ -2279,11 +2279,10 @@ pub fn update(
             push_worktree_action_log(app, "准备开始一键清理...".to_string());
             iced::Task::batch(vec![
                 iced::Task::perform(
-                    crate::app::task::reset_all_managed_worktrees_async_with_logs(
-                        project_path,
-                        true,
-                        Some(log_tx),
-                    ),
+                    async move {
+                        drop(log_tx);
+                        cleanup_office_contexts(project_path).await
+                    },
                     |result| {
                         Message::TaskBoard(TaskBoardMessage::CleanAllWorktreesCompleted(result))
                     },
@@ -2299,6 +2298,7 @@ pub fn update(
                     vec![count.to_string().into()],
                 ),
                 Err(error) => {
+                    push_worktree_action_log(app, error.clone());
                     app.push_localized_notification(
                         "worktree 一键清理有失败，请查看右下角通知：%s",
                         vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
@@ -2310,7 +2310,7 @@ pub fn update(
             maybe_schedule_worktree_snapshot_refresh(app, true)
         }
         TaskBoardMessage::DeleteAllWorktreesPressed => {
-            let Some(project_path) = app.project_path.clone() else {
+            let Some(_) = app.project_path.as_ref() else {
                 return iced::Task::none();
             };
             if app.task_board_worktree_manual_action_kind.is_some() {
@@ -2330,7 +2330,7 @@ pub fn update(
                     vec![],
                 );
             }
-            let (log_tx, log_rx) = std::sync::mpsc::channel();
+            let (_log_tx, log_rx) = std::sync::mpsc::channel();
             app.task_board_worktree_manual_confirm_kind = None;
             app.task_board_worktree_manual_action_kind = Some("delete");
             app.task_board_worktree_action_logs.clear();
@@ -2339,10 +2339,9 @@ pub fn update(
             push_worktree_action_log(app, "准备开始删除所有 worktree...".to_string());
             iced::Task::batch(vec![
                 iced::Task::perform(
-                    crate::app::task::delete_all_managed_worktrees_async_with_logs(
-                        project_path,
-                        Some(log_tx),
-                    ),
+                    async {
+                        Err("办公室不直接删除目录；请配置显式删除任务或工作流".to_string())
+                    },
                     |result| {
                         Message::TaskBoard(TaskBoardMessage::DeleteAllWorktreesCompleted(result))
                     },
@@ -2373,6 +2372,7 @@ pub fn update(
                     )
                 }
                 Err(error) => {
+                    push_worktree_action_log(app, error.clone());
                     app.push_localized_notification(
                         "删除所有 worktree 有失败，请查看右下角通知：%s",
                         vec![
@@ -2474,10 +2474,9 @@ pub fn update(
             iced::Task::batch(vec![toast_task, maybe_schedule_worktree_snapshot_refresh(app, true)])
         }
         TaskBoardMessage::CommitMergeAllWorktreesPressed => {
-            let Some(project_path) = app.project_path.clone() else {
+            let Some(_) = app.project_path.as_ref() else {
                 return iced::Task::none();
             };
-            let tasks = app.task_board_tasks.clone();
             if app.task_board_worktree_manual_action_kind.is_some() {
                 return app.show_localized_toast(
                     crate::app::state::ToastKind::Warning,
@@ -2494,7 +2493,7 @@ pub fn update(
                 app.notifications_expanded = true;
                 return iced::Task::none();
             }
-            let (log_tx, log_rx) = std::sync::mpsc::channel();
+            let (_log_tx, log_rx) = std::sync::mpsc::channel();
             app.task_board_worktree_manual_confirm_kind = None;
             app.task_board_worktree_manual_action_kind = Some("merge");
             app.task_board_worktree_action_logs.clear();
@@ -2503,11 +2502,9 @@ pub fn update(
             push_worktree_action_log(app, "准备开始一键合并...".to_string());
             iced::Task::batch(vec![
                 iced::Task::perform(
-                    crate::app::task::commit_merge_all_worktrees_async_with_logs(
-                        project_path,
-                        tasks,
-                        Some(log_tx),
-                    ),
+                    async {
+                        Err("办公室不直接合并分支；请配置显式 Git 任务或工作流".to_string())
+                    },
                     |result| {
                         Message::TaskBoard(TaskBoardMessage::CommitMergeAllWorktreesCompleted(
                             result,
@@ -2525,6 +2522,7 @@ pub fn update(
                     vec![count.to_string().into()],
                 ),
                 Err(error) => {
+                    push_worktree_action_log(app, error.clone());
                     app.push_localized_notification(
                         "worktree 一键合并有失败，请查看右下角通知：%s",
                         vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],

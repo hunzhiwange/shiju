@@ -1,6 +1,6 @@
-//! Worktree 像素办公室视图。
+//! 智能体运行的像素办公室视图。
 //!
-//! 本模块专注于将 Worktree 池快照渲染为像素办公室场景，
+//! 本模块将逻辑工位与智能体运行快照渲染为像素办公室场景，
 //! 包含单工位房间、走廊、楼层布局以及统计摘要。
 
 mod floor;
@@ -63,7 +63,7 @@ fn visible_task_status_count(app: &App, status: TaskStatus) -> usize {
         .count()
 }
 
-/// 构建 Worktree 像素办公室，展示完整的办公室可视化界面。
+/// 构建智能体像素办公室，展示完整的办公室可视化界面。
 pub(super) fn build_worktree_pixel_office<'a>(
     app: &'a App,
     snapshot: &'a WorktreePoolSnapshot,

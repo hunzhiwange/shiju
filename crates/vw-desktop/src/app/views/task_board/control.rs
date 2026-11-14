@@ -22,7 +22,7 @@ use self::worktree_office::build_worktree_pixel_office;
 use super::common::{button_style_danger, button_style_primary, button_style_secondary};
 
 pub(crate) fn should_render_worktree_controls(app: &App) -> bool {
-    app.project_is_git_repo
+    app.project_path.is_some()
 }
 
 fn status_chip_style(theme: &Theme, tone: Color) -> iced::widget::container::Style {
@@ -364,22 +364,29 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 )
                 .expect("valid merge lock template")
             };
-            let summary_line = text(
+            let resource_summary = if snapshot.base_branch.is_empty() {
+                String::new()
+            } else {
                 i18n.format(
-                    "待复用:%u 忙碌:%u 污染:%u 回收中:%u 失效:%u | 基线分支:%s | 目录:%s | %s",
-                    &[
-                        snapshot.idle_count.into(),
-                        snapshot.busy_count.into(),
-                        snapshot.tainted_count.into(),
-                        snapshot.recycling_count.into(),
-                        snapshot.dead_count.into(),
-                        snapshot.base_branch.clone().into(),
-                        snapshot.pool_root.clone().into(),
-                        lock_text.into(),
-                    ],
+                    " | 基线分支:%s | %s",
+                    &[snapshot.base_branch.clone().into(), lock_text.into()],
                 )
-                .expect("valid worktree summary template"),
-            )
+                .expect("valid resource summary")
+            };
+            let summary_line = text(format!(
+                "{}:{} {}:{} {}:{} {}:{} {}:{}{}",
+                i18n.__("空闲工位"),
+                snapshot.idle_count,
+                i18n.__("执行中"),
+                snapshot.busy_count,
+                i18n.__("待处理污染"),
+                snapshot.tainted_count,
+                i18n.__("回收槽位"),
+                snapshot.recycling_count,
+                i18n.__("停机槽位"),
+                snapshot.dead_count,
+                resource_summary,
+            ))
             .size(12)
             .style(worktree_summary_text_style);
 
@@ -560,11 +567,12 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                             .spacing(8)
                             .align_y(Alignment::Center),
                             text(helpers::employee_summary(app, slot)).size(12),
-                            text(
-                                crate::app::i18n::I18n::new(app.desktop_locale)
-                                    .format("路径=%s", &[(slot.path.clone()).into()])
-                                    .expect("valid task display template")
-                            )
+                            text(if slot.path.is_empty() {
+                                String::new()
+                            } else {
+                                i18n.format("路径=%s", &[slot.path.clone().into()])
+                                    .expect("valid resource path")
+                            })
                             .size(12)
                             .style(worktree_slot_path_text_style),
                             text(

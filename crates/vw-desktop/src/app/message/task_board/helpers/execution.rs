@@ -833,6 +833,31 @@ fn worktree_snapshot_from_gateway(
     crate::app::task::WorktreePoolSnapshot::from_gateway_response(snapshot)
 }
 
+/// 清理逻辑工位的运行上下文，保留忙碌工位及所有磁盘资源。
+pub(crate) async fn cleanup_office_contexts(project_path: String) -> Result<usize, String> {
+    let project_id = resolve_task_board_project_id(&project_path).await?;
+    let client = crate::app::config::gateway_client()?;
+    let snapshot = client
+        .task_pool_worktree_snapshot(
+            &vw_gateway_client::vw_api_types::task::TaskPoolWorktreeSnapshotRequest { project_id },
+        )
+        .await?;
+    let snapshot = worktree_snapshot_from_gateway(snapshot);
+    let mut count = 0;
+    for slot in snapshot.slots {
+        if matches!(
+            slot.state,
+            crate::app::task::WorktreeState::Tainted | crate::app::task::WorktreeState::Dead
+        ) {
+            let (_, result) =
+                recycle_worktree_slot_via_gateway(project_path.clone(), slot.id).await;
+            result?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 pub(crate) async fn recycle_worktree_slot_via_gateway(
     project_path: String,
     slot_id: String,

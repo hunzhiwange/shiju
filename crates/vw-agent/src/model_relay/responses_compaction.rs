@@ -91,11 +91,18 @@ impl Request {
 
     pub(crate) fn response_json(&self, body: &Value) -> Result<Value, StatusCode> {
         super::responses_chat_result::from_chat(
-            body, &self.model, &super::responses::response_id(), &self.tools,
+            body,
+            &self.model,
+            &super::responses::response_id(),
+            &self.tools,
         )
     }
 
     pub(crate) fn response_body(self, body: Body, cancel: CancellationToken) -> Body {
-        super::responses_stream::codex_chat_body(body, self.model, self.tools, self.compact, cancel)
+        if self.compact {
+            super::responses_stream::codex_chat_body(body, self.model, self.tools, true, cancel)
+        } else {
+            super::responses_stream::resident_chat_body(body, self.model, self.tools, cancel)
+        }
     }
 }

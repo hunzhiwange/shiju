@@ -137,3 +137,5 @@ mod search_citations_tests;
 mod responses_chat_result;
 #[cfg(test)]
 mod responses_chat_result_tests;
+
+mod responses_chat_stream;

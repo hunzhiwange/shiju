@@ -18,6 +18,7 @@ fn event(value: Value) -> String {
     format!("event: {}\ndata: {value}\n\n", value["type"].as_str().unwrap_or("error"))
 }
 struct Decoder {
+    resident: Option<super::responses_chat_stream::State>,
     observer: super::stream_observer::StreamObserver,
     pending: super::sse_framing::Lines,
     data: String,
@@ -55,6 +56,7 @@ impl Decoder {
             super::generation::GenerationProtocol::Chat
         };
         Self {
+            resident: None,
             observer: super::stream_observer::StreamObserver::new(protocol),
             pending: super::sse_framing::Lines::default(),
             data: String::new(),
@@ -80,6 +82,9 @@ impl Decoder {
     }
 
     fn emit(&mut self, mut value: Value) -> String {
+        if let Some(state) = &mut self.resident {
+            state.decorate(&mut value);
+        }
         value["sequence_number"] = self.sequence.into();
         self.sequence += 1;
         event(value)
@@ -127,8 +132,13 @@ impl Decoder {
         }
         let calls = self.tools.values().cloned().collect::<Vec<_>>();
         let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":if self.text_open{json!(self.text)}else{Value::Null},"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
-        let mut response =
-            responses::from_chat(&body, &self.model, &self.id, &self.tool_names, self.codex_chat)?;
+        let mut response = responses::from_chat(
+            &body,
+            &self.model,
+            &self.id,
+            &self.tool_names,
+            self.codex_chat && self.resident.is_none(),
+        )?;
         let items = response["output"].as_array_mut().ok_or(StatusCode::BAD_GATEWAY)?;
         let reasoning_id = format!("{}_rs", self.id);
         if !self.reasoning.is_empty() {
@@ -141,6 +151,11 @@ impl Decoder {
             items.insert(index, responses::reasoning_item(&late_id, &late_reasoning));
         }
         let mut out = String::new();
+        for item in items.iter_mut() {
+            if let Some(state) = &self.resident {
+                state.final_item(item);
+            }
+        }
         for (index, item) in items.iter().enumerate() {
             let item_id = &item["id"];
             if item["type"] == "message" {
@@ -171,10 +186,12 @@ impl Decoder {
                 };
                 start[field] = "".into();
                 start["status"] = "in_progress".into();
-                out.push_str(&self.emit(
-                    json!({"type":"response.output_item.added","output_index":index,"item":start}),
-                ));
-                out.push_str(&self.emit(json!({"type":delta_event,"item_id":item_id,"output_index":index,"delta":item[field]})));
+                if !self.resident.as_ref().is_some_and(|state| state.streamed(item)) {
+                    out.push_str(&self.emit(
+                        json!({"type":"response.output_item.added","output_index":index,"item":start}),
+                    ));
+                    out.push_str(&self.emit(json!({"type":delta_event,"item_id":item_id,"output_index":index,"delta":item[field]})));
+                }
                 out.push_str(&self.emit(json!({"type":done_event,"item_id":item_id,"output_index":index,(field):item[field]})));
             }
             out.push_str(&self.emit(
@@ -289,11 +306,17 @@ impl Decoder {
             // Native event order, optional fields and sequence numbers remain untouched.
             return Ok(event(chunk));
         }
+        if let Some(state) = &mut self.resident {
+            state.normalize(&mut chunk)?;
+        }
         let choices = chunk["choices"].as_array().ok_or(StatusCode::BAD_GATEWAY)?;
         if choices.len() > 1 {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-        if self.compact && !self.reason.is_null() && !choices.is_empty() {
+        if (self.compact || self.resident.is_some())
+            && !self.reason.is_null()
+            && !choices.is_empty()
+        {
             return Err(StatusCode::BAD_GATEWAY);
         }
         let mut out = String::new();
@@ -413,13 +436,23 @@ impl Decoder {
         if self.retained > LIMIT {
             return Err(StatusCode::PAYLOAD_TOO_LARGE);
         }
+        if let Some(state) = &mut self.resident {
+            let events = state.deltas(&self.tools, &self.tool_names, &self.id)?;
+            for event in events {
+                out.push_str(&self.emit(event));
+            }
+        }
         Ok(out)
     }
     fn push(&mut self, bytes: &[u8]) -> Result<String, StatusCode> {
-        self.observer.push(bytes).map_err(|error| match error {
-            super::stream_observer::InvalidStream::LimitExceeded => StatusCode::PAYLOAD_TOO_LARGE,
-            super::stream_observer::InvalidStream::Malformed => StatusCode::BAD_GATEWAY,
-        })?;
+        if self.resident.is_none() {
+            self.observer.push(bytes).map_err(|error| match error {
+                super::stream_observer::InvalidStream::LimitExceeded => {
+                    StatusCode::PAYLOAD_TOO_LARGE
+                }
+                super::stream_observer::InvalidStream::Malformed => StatusCode::BAD_GATEWAY,
+            })?;
+        }
         let mut out = String::new();
         for line in self.pending.push(bytes, LIMIT).map_err(|error| match error {
             super::stream_observer::InvalidStream::LimitExceeded => StatusCode::PAYLOAD_TOO_LARGE,
@@ -431,6 +464,9 @@ impl Decoder {
                     out.push_str(&self.frame(data.trim_end_matches('\n'))?);
                 }
             } else if let Some(data) = line.strip_prefix("data:") {
+                if self.data.len().saturating_add(data.len()).saturating_add(1) > LIMIT {
+                    return Err(StatusCode::PAYLOAD_TOO_LARGE);
+                }
                 self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
                 self.data.push('\n');
             }
@@ -514,6 +550,17 @@ pub(super) fn codex_chat_body(
 ) -> Body {
     let mut decoder = Decoder::new(model, tools, true, None);
     decoder.compact = compact;
+    decoded_body(body.into_data_stream(), decoder, cancel)
+}
+
+pub(super) fn resident_chat_body(
+    body: Body,
+    model: String,
+    tools: ChatTools,
+    cancel: CancellationToken,
+) -> Body {
+    let mut decoder = Decoder::new(model, tools, true, None);
+    decoder.resident = Some(super::responses_chat_stream::State::default());
     decoded_body(body.into_data_stream(), decoder, cancel)
 }
 

@@ -173,6 +173,9 @@ pub(super) async fn forward_json(
     route.check_provider(listener).await?;
     let messages_responses = app == AppId::Claude
         && target.url.path().trim_end_matches('/').ends_with("/responses");
+    let messages_gemini = matches!(app, AppId::Claude | AppId::ClaudeDesktop)
+        && (target.url.path().ends_with(":generateContent")
+            || target.url.path().ends_with(":streamGenerateContent"));
     #[cfg(target_os = "macos")]
     let native_messages = if app == AppId::ClaudeDesktop {
         route.desktop_native_messages(client_model.as_deref())?
@@ -185,6 +188,11 @@ pub(super) async fn forward_json(
     let native_messages = app == AppId::Claude
         && !messages_responses
         && !target.url.path().trim_end_matches('/').ends_with("/chat/completions");
+    let native_messages = native_messages && !messages_gemini;
+    // Gemini SSE belongs to its dedicated conversion task.
+    if messages_gemini && streaming {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+    }
     let native_responses =
         responses && target.url.path().trim_end_matches('/').ends_with("/responses");
     if app == AppId::Codex
@@ -210,8 +218,10 @@ pub(super) async fn forward_json(
         (outgoing, Some(bridge))
     } else {
         #[cfg(target_os = "macos")]
-        let body = if app == AppId::ClaudeDesktop {
+        let body = if app == AppId::ClaudeDesktop && !messages_gemini {
             super::desktop_routing::request(&body, native_messages)?
+        } else if messages_gemini {
+            body
         } else if messages_responses {
             crate::model_relay::messages_responses_request::to_responses(&body)?
         } else if app == AppId::Claude && !native_messages {
@@ -389,16 +399,27 @@ pub(super) async fn forward_json(
             response_scope.as_ref().map(|scope| (&*route.references, scope)),
         )
         .await?;
-        finish_messages(
-            response,
-            app,
-            client_model,
-            false,
-            native_messages,
-            messages_responses,
-            cancelled.clone(),
-        )
-        .await
+        if messages_gemini {
+            crate::model_relay::messages_gemini_result::response(
+                response,
+                &client_model.ok_or(StatusCode::BAD_REQUEST)?,
+                cancelled.clone(),
+                MAX_JSON_BYTES,
+            )
+            .await
+            .map_err(Into::into)
+        } else {
+            finish_messages(
+                response,
+                app,
+                client_model,
+                false,
+                native_messages,
+                messages_responses,
+                cancelled.clone(),
+            )
+            .await
+        }
     })
     .await?
 }
@@ -506,6 +527,14 @@ fn prepare_request_inner(
     }
     if let Some(model) = exact_model {
         body["model"] = Value::String(model.into());
+    }
+    // The authorized target owns the Gemini model/action. Only Messages
+    // payloads use this resident conversion; native Gemini has contents.
+    if body.get("messages").is_some()
+        && (target.url.path().ends_with(":generateContent")
+            || target.url.path().ends_with(":streamGenerateContent"))
+    {
+        body = crate::model_relay::messages_gemini_request::convert(&body)?;
     }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());

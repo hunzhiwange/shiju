@@ -106,3 +106,7 @@ mod messages_responses_request_tests;
 pub(crate) mod messages_responses_result;
 #[cfg(test)]
 mod messages_responses_result_tests;
+
+pub(crate) mod messages_gemini_result;
+#[cfg(test)]
+mod messages_gemini_result_tests;

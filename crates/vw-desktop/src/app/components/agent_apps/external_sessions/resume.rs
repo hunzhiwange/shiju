@@ -8,7 +8,7 @@ use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
 pub(super) struct State {
     identity: Option<ExternalSessionIdentity>,
     terminal: Option<SessionTerminal>,
-    busy: bool,
+    pub(super) busy: bool,
     generation: u64,
 }
 impl State {

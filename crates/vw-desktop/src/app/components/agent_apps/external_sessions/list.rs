@@ -96,6 +96,14 @@ pub(super) fn view(state: &State) -> Element<'_, Message> {
                 item = item.push(button(text("阅读会话")).padding([8, 12]).style(rounded_action_btn_style)
                     .on_press_maybe(session.capabilities.read.then(|| message(Event::Read(session.identity.clone())))));
                 item = item.push(super::resume::control(session, available));
+                if session.identity.provider == vw_gateway_client::vw_api_types::external_session::SessionProvider::Codex {
+                    let target = vw_gateway_client::vw_api_types::external_session::HistoryMaintenanceTarget {
+                        scope: session.identity.scope.clone(), target_host: session.identity.target_host.clone(),
+                        instance_id: session.identity.instance_id.clone(),
+                    };
+                    item = item.push(button(text("历史维护设置")).padding([8, 12]).style(rounded_action_btn_style)
+                        .on_press_maybe(available.then(|| message(Event::Maintenance(super::maintenance::Event::Open(target))))));
+                }
                 if session.capabilities.delete {
                     let event = if state.deletion.selecting {
                         delete::Event::Toggle(session.identity.clone())

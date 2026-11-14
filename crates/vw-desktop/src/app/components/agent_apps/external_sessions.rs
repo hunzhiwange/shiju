@@ -19,6 +19,8 @@ mod resume;
 mod paths;
 #[path = "external_sessions/export.rs"]
 mod export;
+#[path = "external_sessions/maintenance.rs"]
+mod maintenance;
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
 
 #[derive(Clone, Default)]
@@ -26,6 +28,7 @@ pub(crate) struct State {
     open: bool,
     sources_open: bool,
     deletion: delete::State,
+    maintenance: maintenance::State,
     resume: resume::State,
     reader: Option<reader::State>,
     list_offset: iced::widget::scrollable::AbsoluteOffset,
@@ -58,6 +61,7 @@ pub struct Scope {
 #[derive(Clone, Debug)]
 pub enum Event {
     Open,
+    Maintenance(maintenance::Event),
     Delete(delete::Event),
     Resume(resume::Event),
     Path(paths::Event),
@@ -84,9 +88,12 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
     let base = if let Some(reader) = &state.reader { reader::view(state, reader) } else { list::view(state) };
-    paths::view(state, resume::view(state, delete::view(state, base)))
+    maintenance::view(state, paths::view(state, resume::view(state, delete::view(state, base))))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Maintenance(event) = event { return maintenance::update(app, event); }
+    // Keep the catalog generation and conflicting actions fixed while maintenance is open.
+    if app.apps_catalog.external_sessions.maintenance.is_open() { return Task::none(); }
     if let Event::Export(event) = event { return export::update(app, event); }
     if let Event::Path(event) = event { return paths::update(app, event); }
     if let Event::Resume(event) = event { return resume::update(app, event); }

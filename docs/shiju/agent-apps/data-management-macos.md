@@ -349,3 +349,16 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 - 新增独立并注册 cc_data_44_locations_ui_shows_partial_cleanup、cc_data_44_locations_ui_does_not_open_remote_path_locally，以及业务层 cc_data_44_locations_resolves_only_registered_scoped_directories 测试代码。
 - 用户覆盖要求本轮仅代码：未执行任何 Cargo、格式化、单元测试、实机或字体整形渲染。未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置；无测试退出码、有效测试数或 macOS 通过证据。仅人工静态审查差异，不替代行为验证。
 - 后续统一验证：经 scripts/cargo_slot.py 入口运行 vw-desktop --bin shi-ju 和 vw-agent-apps --lib 的 cc_data_44_ 聚焦测试；补网关 resolve 的跨租户/主机鉴权和 SDK 解码测试、真实匿名分类清理部分失败集成、过期响应及 macOS 明暗主题字体与目录定位验收。本轮实现后删除任务44编号文件，plan.md保持只读。
+
+## 子任务 45：macOS 迁入与导出往返验收准备（2026-11-14，未验证）
+
+直接依赖任务41的 export_ui 和任务40的 migration_apply_ui 已有源码与本文件实现记录；两项均未提供运行通过证据。沿用唯一领域所有者 AppProviderStore、已有包导出与源读取入口，不新增业务接口。网关 migration_write_api 当前只执行供应商迁入，原生投影明确返回 partial；不能据此宣称七类闭环已验收。
+
+新增并由 agent_apps_data/mod.rs 按 macOS/test 注册 migration_acceptance_tests.rs：
+
+- cc_data_45_macos_migration_round_trip_is_idempotent：匿名 JSON v2 中文文件路径经真实只读源暂存与供应商所有者 SQLite 导入；新预览显式 skip 重导保持记录不变；真实所有者摘要记录经原生包导出与摘要校验回读；断言源字节/mtime 不变、其他租户为空。此处包回读仅验证归档，不等于包重新迁入目标。
+- cc_data_45_macos_late_failure_restores_target：真实供应商事务写入后，在终态持久化回调这一指定失败边界返回错误，断言回调确实到达、供应商事务回滚、源未变且后续正常提交可用。没有 mock 核心写入，不代表多类别恢复及进程崩溃已验证。
+
+本轮用户最高优先级要求只写代码：未执行 Cargo（含 fmt/check/test/clippy 或间接脚本）、单元测试、macOS 实机、字体渲染或最终回归。无退出码、有效运行测试数、失败/通过输出或实测前后差异；上述均为未执行的断言。未领取 Cargo 槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置，无自有构建进程或锁需释放。不读取真实用户数据。任务卡按覆盖指令实现后删除，不代表 macOS 验收通过。
+
+恢复验证授权后，通过仓库槽位入口执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_45_ -- --nocapture`，预期发现上述两个测试；届时记录真实退出码、有效测试数、实际槽位及两个绝对缓存路径。以下仍待独立验收：七类逐项选择/skip/replace及重导、原生包重新迁入后的语义一致、真实匿名 CC SQLite/WAL 副本、未选类别不变、取消及跨类别晚期回滚、跨项目/主机/主体拒绝、API→SDK→Iced完整链路、macOS保存对话框与明暗主题。已有 cc_data_33_、cc_data_36_、cc_data_37_、cc_data_41_ 测试代码可作为聚焦补验入口，不能用其存在代替运行证据；任务40记录尚缺对应行为测试。外部数据库与其他平台无验收结论。

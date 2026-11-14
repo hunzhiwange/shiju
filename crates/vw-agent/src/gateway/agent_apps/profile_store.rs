@@ -281,6 +281,7 @@ impl ProfileOperation<'_> {
     pub(crate) fn apply_prepared<P, M, S, R>(
         &self,
         scope: &SnapshotScope<'_>,
+        operation: &super::profile_operations::ProfileApplyOperation,
         prepared: vw_agent_apps::project_profiles::autosave::PreparedProfileSwitch,
         provider: P, mcp: M, skills: S, prompt: R,
     ) -> Result<vw_agent_apps::project_profiles::apply::ApplyOutcome>
@@ -296,9 +297,10 @@ impl ProfileOperation<'_> {
             -> Option<Result<(), vw_agent_apps::project_profiles::apply_prompt::PromptApplyFailure>>,
     {
         let version = prepared.target.version;
-        vw_agent_apps::project_profiles::apply::apply_prepared(
+        vw_agent_apps::project_profiles::apply::apply_prepared_controlled(
             scope, prepared, provider, mcp, skills, prompt,
             |result| self.record_application(scope, version, result),
+            |category| operation.boundary(category),
         )
     }
 

@@ -31,7 +31,7 @@ pub fn apply_prepared<P, M, S, R, W>(
     mcp: M,
     skills: S,
     prompt: R,
-    mut record: W,
+    record: W,
 ) -> Result<ApplyOutcome>
 where
     P: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Option<Item>,
@@ -40,6 +40,29 @@ where
     R: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Option<Result<(), PromptApplyFailure>>,
     W: FnMut(&ProjectProfileApplyResult) -> Result<()>,
 {
+    apply_prepared_controlled(scope, prepared, provider, mcp, skills, prompt, record, |_| false)
+}
+
+/// Called only between completed domain transactions. Persist completed items before
+/// publishing the next boundary; cancellation never drops an in-flight callback.
+pub fn apply_prepared_controlled<P, M, S, R, W, B>(
+    scope: &SnapshotScope<'_>,
+    prepared: PreparedProfileSwitch,
+    provider: P,
+    mcp: M,
+    skills: S,
+    prompt: R,
+    mut record: W,
+    mut boundary: B,
+) -> Result<ApplyOutcome>
+where
+    P: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Option<Item>,
+    M: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Vec<Item>,
+    S: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Result<SkillsApplyResult, SkillApplyFailure>,
+    R: FnOnce(&SnapshotScope<'_>, &ProjectProfilePayload) -> Option<Result<(), PromptApplyFailure>>,
+    W: FnMut(&ProjectProfileApplyResult) -> Result<()>,
+    B: FnMut(Option<Category>) -> bool,
+{
     let payload = &prepared.target.payload;
     let captured = payload.scope_captured(scope.group);
     let mut result = ProjectProfileApplyResult {
@@ -47,16 +70,40 @@ where
         status: if captured { State::Failed } else { State::Uncaptured }, items: Vec::new(),
     };
     record(&result)?;
+    if !captured && boundary(None) {
+        result.status = State::Cancelled;
+        record(&result)?;
+    }
     if captured {
+        if boundary(Some(Category::Provider)) || result.items.iter().any(|entry| entry.status == Status::Cancelled) {
+            result.status = State::Cancelled;
+            result.items.push(item(Category::Provider, None, Status::Cancelled, Some("operation_cancelled")));
+            record(&result)?;
+            return Ok(ApplyOutcome { result, autosave_warning: prepared.warning });
+        }
         result.items.push(if payload.providers.get(scope.group).is_none() {
             skipped(Category::Provider)
         } else {
             provider(scope, payload).unwrap_or_else(|| item(Category::Provider, None, Status::Failed, Some("provider_result_missing")))
         });
+        record(&result)?;
+        if boundary(Some(Category::Mcp)) || result.items.iter().any(|entry| entry.status == Status::Cancelled) {
+            result.status = State::Cancelled;
+            result.items.push(item(Category::Mcp, None, Status::Cancelled, Some("operation_cancelled")));
+            record(&result)?;
+            return Ok(ApplyOutcome { result, autosave_warning: prepared.warning });
+        }
         if payload.mcp.get(scope.group).is_none() {
             result.items.push(skipped(Category::Mcp));
         } else {
             result.items.extend(mcp(scope, payload));
+        }
+        record(&result)?;
+        if boundary(Some(Category::Skill)) || result.items.iter().any(|entry| entry.status == Status::Cancelled) {
+            result.status = State::Cancelled;
+            result.items.push(item(Category::Skill, None, Status::Cancelled, Some("operation_cancelled")));
+            record(&result)?;
+            return Ok(ApplyOutcome { result, autosave_warning: prepared.warning });
         }
         if payload.skills.get(scope.group).is_none() {
             result.items.push(skipped(Category::Skill));
@@ -74,6 +121,13 @@ where
                     result.items.push(item(Category::Skill, None, status, reason));
                 }
             }
+        }
+        record(&result)?;
+        if boundary(Some(Category::Prompt)) || result.items.iter().any(|entry| entry.status == Status::Cancelled) {
+            result.status = State::Cancelled;
+            result.items.push(item(Category::Prompt, None, Status::Cancelled, Some("operation_cancelled")));
+            record(&result)?;
+            return Ok(ApplyOutcome { result, autosave_warning: prepared.warning });
         }
         result.items.push(if payload.prompts.get(scope.group).is_none() {
             skipped(Category::Prompt)
@@ -94,7 +148,7 @@ where
             };
             item(Category::Prompt, payload.prompts.get(scope.group).clone(), status, reason)
         });
-        result.status = if result.items.iter().any(|item| item.status == Status::Cancelled) {
+        result.status = if boundary(None) || result.items.iter().any(|item| item.status == Status::Cancelled) {
             State::Cancelled
         } else if result.items.iter().all(|item| item.status == Status::Succeeded) {
             State::Applied

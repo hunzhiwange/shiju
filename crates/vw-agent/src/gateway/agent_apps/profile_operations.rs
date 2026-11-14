@@ -68,3 +68,66 @@ impl Drop for ProfileWriteGuard {
         released.notify_all();
     }
 }
+
+/// Host-owned handle retained by the authorized operation registry, independently
+/// of HTTP subscribers. IDs alone never authorize access to this handle.
+#[derive(Clone)]
+pub(crate) struct ProfileApplyOperation {
+    lifecycle: vw_agent_apps::apps::lifecycle::operations::Operation,
+    domain: tokio::sync::watch::Sender<Option<vw_api_types::project_profiles::ProjectProfileCategory>>,
+}
+
+impl ProfileApplyOperation {
+    pub(crate) fn new() -> Self {
+        Self {
+            lifecycle: vw_agent_apps::apps::lifecycle::operations::Operation::new(),
+            domain: tokio::sync::watch::Sender::new(None),
+        }
+    }
+
+    pub(crate) fn lifecycle(&self) -> &vw_agent_apps::apps::lifecycle::operations::Operation {
+        &self.lifecycle
+    }
+
+    /// Progress contains only the domain enum, never native paths, IDs or errors.
+    pub(crate) fn subscribe_domain(
+        &self,
+    ) -> tokio::sync::watch::Receiver<Option<vw_api_types::project_profiles::ProjectProfileCategory>> {
+        self.domain.subscribe()
+    }
+
+    /// The future must await its blocking worker to completion, including final
+    /// persistence. Cancellation is a signal, never an abort of that worker.
+    pub(crate) fn start<F>(&self, work: F) -> std::result::Result<(), String>
+    where
+        F: std::future::Future<Output = Result<vw_agent_apps::project_profiles::apply::ApplyOutcome>>
+            + Send + 'static,
+    {
+        use vw_agent_apps::apps::lifecycle::operations::OperationFailure;
+        use vw_api_types::project_profiles::ProjectProfileApplyStatus as Status;
+        let domain = self.domain.clone();
+        self.lifecycle.start_task(async move {
+            let outcome = work.await;
+            domain.send_replace(None);
+            match outcome {
+                Ok(outcome) => match outcome.result.status {
+                    Status::Applied | Status::Uncaptured => Ok(()),
+                    Status::Cancelled => Err(OperationFailure::Cancelled),
+                    Status::Partial | Status::Failed => Err(OperationFailure::Failed),
+                },
+                Err(_) => Err(OperationFailure::Failed),
+            }
+        })
+    }
+
+    pub(super) fn boundary(
+        &self,
+        domain: Option<vw_api_types::project_profiles::ProjectProfileCategory>,
+    ) -> bool {
+        if self.lifecycle.is_cancelled() {
+            return true;
+        }
+        self.domain.send_replace(domain);
+        false
+    }
+}

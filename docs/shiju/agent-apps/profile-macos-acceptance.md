@@ -40,3 +40,11 @@
 缺项：任务 7/8 提供同步快照回调合同，但四类实际状态读取尚无完整统一生产适配。创建调用现有 create_from_current 服务，读取明确返回 Unavailable，HTTP 503 snapshot_unavailable，零实体写入；当前不能成功创建，不能据此宣称任务故事或平台闭环完成。后续由领域所有者接入已授权实际状态读取，再补至少四个 profile_t19_ 场景（权限/租户/项目拒绝、非法 scope 零读取、坏记录、成功创建不激活），不得以目录期望状态替代原生有效状态。
 
 遵照本轮覆盖仅写代码及合同、删除编号卡；未编写或运行测试，未执行 Cargo、构建、检查、实机测试或回归。未领取槽位，CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 未设置。没有编译、行为或验收通过结论。
+
+## 任务 18：领域进度与安全取消
+
+2026-11-14：实现完成，未验证。任务 17 的 `with_operation` 锁与任务 16 的应用汇总/结果存储入口已静态核对。`ProfileApplyOperation` 复用母任务 2 的 Operation/start_task/watch 生命周期，单次提交，取消仅设信号，终态等待工作 future 完成。领域进度只发布 Provider/Mcp/Skill/Prompt 枚举；句柄由后续已授权操作注册表保留，不依赖 HTTP 订阅连接。应用调用者须将句柄传入 ProfileOperation::apply_prepared，并完整等待同一持锁 blocking worker，不能 abort 或脱离后台写入。
+
+汇总器在每个领域回调完成后保存已完成项，下一领域启动前检查取消；取消保留已提交项、记录 cancelled、不启动余项、不写 applied。领域返回 Cancelled 也停止后续领域。末领域完成后再检查取消，未拍组也支持取消。存储失败返回错误，生命周期为 Failed，保留原有保守非 applied 记录。application_result 沿任务 16 的租户/项目/主机/组约束读取持久结果，断线不重放工作。当前边界为整个领域回调，不能中止正在执行的领域事务；MCP/技能回调内部逐项事务本轮不新增中断入口。生产 API/操作注册表接线仍由后续任务完成，不宣称平台闭环。
+
+按用户本轮覆盖要求仅写代码及必需合同，未编写或执行测试，未运行 Cargo、构建、检查、实机或最终回归；无 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。没有编译或行为通过证据。后续补 profile_t18_ 聚焦场景：明确边界取消后余项零启动且成功项保留、最后领域取消不记 applied、订阅断线终态可读、持久化失败、重复提交及权限隔离。编号卡按本轮指令删除。

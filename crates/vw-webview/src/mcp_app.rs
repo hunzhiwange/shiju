@@ -11,6 +11,7 @@ use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
 use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use webview_mcp_assets::{DOCUMENT_SCRIPT, render_wrapper};
 use webview_mcp_policy::{
     APP_URL, ENGINE_APP_URL, ENGINE_WRAPPER_URL, MAX_MESSAGE_BYTES, WRAPPER_URL,
     allowed_origins, app_csp, frame_origin_allowed, internal_navigation_allowed, wrapper_csp,
@@ -60,7 +61,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             const documentNonce = '{document_nonce}';
             {}
         }})();",
-        include_str!("mcp_app_document.js"),
+        DOCUMENT_SCRIPT,
     );
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
@@ -237,32 +238,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
     });
-}
-
-fn render_wrapper(host_nonce: &str, document_nonce: &str, form_enabled: bool) -> String {
-    let forms = if form_enabled { " allow-forms" } else { "" };
-    format!(
-        r#"<!doctype html>
-<meta charset="utf-8">
-<style>
-html, body, iframe {{ margin: 0; width: 100%; height: 100%; border: 0; }}
-::-webkit-scrollbar {{ width: 4px; }}
-:root {{ color-scheme: light dark; }}
-#link-status {{ position: fixed; inset: auto 12px 12px; padding: 8px 12px; border-radius: 8px;
-    color: CanvasText; background: Canvas; border: 1px solid GrayText; font: menu; pointer-events: none; }}
-</style>
-<iframe sandbox="allow-scripts{forms}"></iframe>
-<div id="link-status" role="status" hidden></div>
-<script>
-(() => {{
-    const hostNonce = "{host_nonce}";
-    const documentNonce = "{document_nonce}";
-    const maxMessageBytes = {MAX_MESSAGE_BYTES};
-    {}
-}})();
-</script>"#,
-        include_str!("mcp_app_host.js"),
-    )
 }
 
 #[cfg(test)]

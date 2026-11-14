@@ -178,3 +178,24 @@ pub fn apply_shared_snapshot(database: &GlobalDatabase, scope: SnapshotScope<'_>
     }
     Ok(changed)
 }
+
+/// Complete configuration preimages for the exact receiving rows. Native files
+/// are untouched by this import; activation is explicitly a separate operation.
+impl SnapshotImport {
+    pub(crate) fn recovery_preimages(&self) -> Vec<vw_agent_apps::data_management::safety_snapshot::OwnerPreimage> {
+        use vw_agent_apps::data_management::safety_snapshot::*;
+        use sha2::{Digest, Sha256};
+        self.changes.iter().map(|c| OwnerPreimage {
+            target: SnapshotTarget { category: match c.namespace.as_str() {
+                "app_providers.records" => SnapshotCategory::Provider,
+                "agent_apps.prompts.v1" => SnapshotCategory::Prompt,
+                "agent_apps_user" => SnapshotCategory::Preference,
+                "project_profiles" => SnapshotCategory::Profile,
+                "agent_apps.skills.repos" => SnapshotCategory::Skill,
+                _ => SnapshotCategory::Mcp,
+            }, object_id: serde_json::to_string(&(&c.namespace, &c.key)).expect("string tuple") },
+            state: Some(PresentPreimage { revision: hex::encode(Sha256::digest(c.before.as_bytes())),
+                bytes: c.before.as_bytes().to_vec() }),
+        }).collect()
+    }
+}

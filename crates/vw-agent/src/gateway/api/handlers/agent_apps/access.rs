@@ -40,6 +40,8 @@ struct Grant {
     #[serde(default)]
     device_sync_upload: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    device_sync_download: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     device_sync_probe: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     device_sync_config: Vec<vw_api_types::id::ProjectId>,
@@ -672,6 +674,7 @@ pub(super) fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
+    DeviceSyncDownload(&'a vw_api_types::id::ProjectId),
     DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
     DataMigrationRead(&'a vw_api_types::id::ProjectId),
     DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
@@ -969,6 +972,7 @@ fn authorize_digest(
                     Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
                     Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
                     Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
+                    Capability::DeviceSyncDownload(project) => g.device_sync_download.contains(project),
                     Capability::DataBackups(project) => g.data_backups.contains(project),
                     Capability::DataExport(project) => g.data_export.contains(project),
                     Capability::UsageRead(query) => {
@@ -2057,4 +2061,18 @@ pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &Hea
     let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
     if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
     Ok(())
+}
+
+/// Download authority is independent from export authority. Recovery stays host-local.
+pub(in super::super) fn authorize_device_sync_download(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::DataManagementTarget,
+) -> Result<(PathBuf, PathBuf, PathBuf), StatusCode> {
+    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
+        &target.target_host_id, None, Capability::DeviceSyncDownload(target.scope.project_id()))?;
+    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    let credentials = a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let skills = a.host.skills_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let recovery = a.host.data_backup_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((credentials, skills, recovery))
 }

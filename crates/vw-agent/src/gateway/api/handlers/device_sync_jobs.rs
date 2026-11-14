@@ -5,7 +5,7 @@ use vw_api_types::{id::TenantScope, device_sync_task::*};
 use crate::{global_database::GlobalDatabase, device_sync::tasks};
 
 #[derive(Clone)]
-struct Policy(Option<PathBuf>);
+pub(super) struct Policy(pub(super) Option<PathBuf>);
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct UploadRequest {
@@ -18,6 +18,7 @@ struct UploadRequest {
 pub(crate) fn router() -> Router {
     Router::new()
         .route("/agent-apps/device-sync/{transport}/upload", post(upload))
+        .route("/agent-apps/device-sync/{transport}/download", post(super::device_sync_download::download))
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(axum::middleware::map_response(async |mut response: axum::response::Response| {
@@ -69,7 +70,7 @@ async fn upload(
         Ok((StatusCode::ACCEPTED, Json(status)))
     }
 }
-fn http_error(code: SyncErrorCode) -> StatusCode {
+pub(super) fn http_error(code: SyncErrorCode) -> StatusCode {
     match code {
         SyncErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
         SyncErrorCode::IdempotencyConflict | SyncErrorCode::Conflict => StatusCode::CONFLICT,
@@ -153,7 +154,7 @@ async fn run(database: GlobalDatabase, policy: Policy, headers: HeaderMap, reque
 }
 
 #[cfg(target_os = "macos")]
-fn configuration_revision(database: &GlobalDatabase, root: &std::path::Path,
+pub(super) fn configuration_revision(database: &GlobalDatabase, root: &std::path::Path,
     target: &vw_api_types::agent_apps::DataManagementTarget,
     transport: vw_api_types::device_sync_config::DeviceSyncTransport,
 ) -> Result<serde_json::Value, SyncErrorCode> {

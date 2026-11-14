@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-provider-validation",
   "crates/libs/app-config-paths",
   "crates/libs/app-icons",
   "crates/libs/content-guard",

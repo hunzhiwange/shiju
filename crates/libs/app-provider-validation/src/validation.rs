@@ -47,7 +47,7 @@ const PROTECTED: &[&str] = &[
     "traceparent",
     "tracestate",
 ];
-pub(crate) fn protected_header(name: &str) -> bool {
+pub fn protected_header(name: &str) -> bool {
     PROTECTED.contains(&name)
 }
 
@@ -74,7 +74,7 @@ pub fn endpoint(raw: &str) -> Result<(), String> {
     }
     Ok(())
 }
-pub(crate) fn header_value(value: &str) -> Result<HeaderValue, &'static str> {
+pub fn header_value(value: &str) -> Result<HeaderValue, &'static str> {
     if value.len() > 8192 {
         return Err("invalid provider request header value");
     }
@@ -202,7 +202,7 @@ pub fn metadata(app: AppId, meta: Option<&serde_json::Value>) -> Result<(), Stri
 
 /// Validate common fields from an already selected native request table.
 /// Selection, model semantics and all other application schema stay in projection owners.
-pub(super) fn native_request(
+pub fn native_request(
     url: Option<&toml_edit::Item>,
     values: Option<&toml_edit::Item>,
 ) -> Result<(), String> {

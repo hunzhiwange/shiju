@@ -1,0 +1,23 @@
+use vw_api_types::{
+    agent_apps::AppId,
+    app_providers::{ProviderProtocol, universal_sync::UniversalSyncError},
+};
+
+pub fn projected_endpoint(
+    app: AppId,
+    base_url: &str,
+) -> Result<(ProviderProtocol, String), UniversalSyncError> {
+    match app {
+        AppId::Claude => Ok((ProviderProtocol::Anthropic, base_url.into())),
+        AppId::Codex => {
+            let base = base_url.trim_end_matches('/');
+            let origin =
+                reqwest::Url::parse(base).map_err(|_| UniversalSyncError::InvalidProfile)?.path()
+                    == "/";
+            let base_url = if origin { format!("{base}/v1") } else { base.into() };
+            Ok((ProviderProtocol::OpenaiResponses, base_url))
+        }
+        AppId::Gemini => Ok((ProviderProtocol::Gemini, base_url.into())),
+        _ => Err(UniversalSyncError::UnsupportedApp),
+    }
+}

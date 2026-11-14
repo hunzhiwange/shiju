@@ -45,6 +45,31 @@ models、mcp、skills、sessions、prompts、usage 和 data_management，继续�
 并执行 git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：
 新包与调用者编译、迁移单测、锁文件一致性及三平台路径行为。
 
+## 任务 4：供应商校验规则迁移结果
+
+所有权表中 providers/endpoints.rs、endpoints_tests.rs、request_options.rs、
+validation.rs 已迁入 crates/libs/app-provider-validation/src/。
+providers/mod.rs 的 validate_identity、validate_profile 及 universal_sync 的
+projected_endpoint 纯规则随包迁移；旧位置以显式 re-export 保留真实调用路径。
+原 lib.rs 仍通过 providers 模块提供接口，无需增加顶层别名。
+
+validation_tests.rs 的普通/代理请求头、端点与清空规则测试迁入新包独立测试文件。
+其余五个测试依赖上层 create/update、preview、apps::launch，保留原包注册：
+创建/更新测试由任务 29 接收，预览测试由任务 10 接收，启动测试由任务 35 接收。
+universal_sync 的同步编排仍由任务 11 接收，不依赖新包以外的上层实现。
+Kimi 原生 validate_identity 返回事务 WriteError，保留任务 24 接收，未改变其规则。
+
+protected_header、header_value、native_request 因 models、usage 与原生投影的
+真实跨包调用最小提升为 pub，其余私有函数保持私有。真实调用者 auth、models、
+providers、usage、apps::launch 继续沿用门面；无重复实现及反向依赖。
+新库仅依赖 reqwest（关闭默认特性）、serde_json（保留 arbitrary_precision）、
+toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有其它调用，保留。
+迁移内容没有平台 cfg 或 include 资源路径；测试保持 cfg(test) 独立注册。
+
+静态证据：源码/符号检索、原始函数体及测试差异对照、Python 标准库 TOML
+成员和依赖路径审阅、git diff --check。未运行 Cargo、单元及实机测试，
+统一验收待授权：新库与直接调用者编译、迁移测试、锁文件一致性与三平台行为。
+
 ## 规模与责任
 
 源码根下共 883 个文件，其中 871 个 Rust 文件、317 个独立测试文件，共 217017 行；非 Rust 资源 12 个。独立测试按文件名 `_tests.rs` 计数，集成测试另列。

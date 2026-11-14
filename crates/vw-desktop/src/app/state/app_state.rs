@@ -902,6 +902,8 @@ pub struct App {
     pub(crate) web_search_settings: WebSearchSettingsState,
     /// 浏览器设置状态
     pub(crate) browser_settings: BrowserSettingsState,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) computer_control_settings: ComputerControlSettingsState,
     /// HTTP 请求设置状态
     pub(crate) http_request_settings: HttpRequestSettingsState,
     /// 网关设置状态

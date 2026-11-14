@@ -751,6 +751,17 @@ pub(super) fn apply_bootstrap_agent_config(
     full_agent_cfg: &vw_config_types::config::Config,
     gateway: &vw_config_types::gateway::GatewayConfig,
 ) {
+    // Control state is read through its authenticated API, never inferred from config.
+    #[cfg(not(target_arch = "wasm32"))]
+    if app.computer_control_settings.identity.as_ref()
+        != Some(&crate::app::state::ControlIdentity::current())
+    {
+        let generation = app.computer_control_settings.generation + 1;
+        let pairing_generation = app.computer_control_settings.pairing_generation + 1;
+        app.computer_control_settings = Default::default();
+        app.computer_control_settings.generation = generation;
+        app.computer_control_settings.pairing_generation = pairing_generation;
+    }
     let gateway_cfg_result = Ok(gateway.clone());
 
     #[cfg(not(target_arch = "wasm32"))]

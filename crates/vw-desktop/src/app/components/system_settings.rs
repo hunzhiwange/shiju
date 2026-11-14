@@ -422,6 +422,8 @@ pub(crate) const SETTINGS_CONTENT_SCROLL: &str = "system-settings-content-scroll
 fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         #[cfg(not(target_arch = "wasm32"))]
+        SystemTab::ComputerControl => super::system_settings_computer_control::view(app),
+        #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => super::system_settings_voice::view(app),
         SystemTab::Apps => super::system_settings_data::recovery_ui::overlay(app, super::system_settings_data::export_ui::overlay(app, column![
             super::system_settings_apps::view(
@@ -617,6 +619,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         modal_content.into()
     };
+
+    #[cfg(not(target_arch = "wasm32"))]
+    if active_tab == SystemTab::ComputerControl {
+        dialog = super::system_settings_computer_control::view_overlays(app, dialog);
+    }
 
     if active_tab == SystemTab::Worktrees {
         dialog = super::system_settings_worktrees::view_overlays(app, dialog);

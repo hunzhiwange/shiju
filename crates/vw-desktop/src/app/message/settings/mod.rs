@@ -16,6 +16,8 @@ mod apps_usage_events_tests;
 pub(crate) mod archived_chats;
 mod autonomy;
 mod browser;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod computer_control;
 mod channels;
 mod cron;
 pub(crate) mod cron_history;
@@ -153,6 +155,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::DataRecovery(event) => data_management::recovery_ui::update(app, event),
         SettingsMessage::DataExport(event) => data_management::export_ui::update(app, event),
         SettingsMessage::BackupInventory(event) => backup_inventory::update(app, event),
+        #[cfg(not(target_arch = "wasm32"))]
+        SettingsMessage::ComputerControl(event) => computer_control::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsMessage::Voice(event) => voice::update(app, event),
         SettingsMessage::ArchivedChats(message) => archived_chats::update(app, message),

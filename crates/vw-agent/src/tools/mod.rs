@@ -58,6 +58,10 @@ pub(crate) mod discovery;
 pub mod enter_worktree;
 #[cfg(unix)]
 pub mod excel_control;
+#[cfg(unix)]
+pub mod word_control;
+#[cfg(all(test, unix))]
+mod word_control_tests;
 #[cfg(all(test, unix))]
 mod excel_control_tests;
 mod executor;

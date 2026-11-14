@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
     time::Duration,
 };
 use uuid::Uuid;
@@ -123,11 +123,12 @@ impl ExcelControlTool {
         Ok(context)
     }
     fn enabled(&self) -> anyhow::Result<()> {
+        let restricted = self.runtime.host.restricted_session();
         let policy = self.runtime.policy.read();
         let user =
             policy.config().users.get(&local_user()).context("Excel control denied: disabled")?;
-        // Locked Office execution needs its own verified backend mechanism.
-        if !user.excel || self.runtime.locked.load(Ordering::SeqCst) {
+        // The paired Office runtime executes document commands without GUI input.
+        if !user.excel || (restricted && !user.locked_use) {
             return Err(denied(ControlErrorCode::PermissionDenied));
         }
         Ok(())
@@ -153,7 +154,13 @@ impl ExcelControlTool {
                 None => policy.version(),
             }
         };
+        if self.runtime.host.restricted_session() {
+            return Err(denied(ControlErrorCode::PermissionDenied));
+        }
         if !super::decision::request_control_scope_approval("excel_control.document", json!({"document_id":id,"scope":"Excel document access until revoked or gateway restart; add-in range approval still applies"}), context).await {
+            return Err(denied(ControlErrorCode::PermissionDenied));
+        }
+        if self.runtime.host.restricted_session() {
             return Err(denied(ControlErrorCode::PermissionDenied));
         }
         let mut policy = self.runtime.policy.write();
@@ -279,7 +286,10 @@ impl Tool for ExcelControlTool {
                     action: ComputerControlAction::Excel { command },
                 };
                 self.runtime.host.recheck(&request).map_err(denied)?;
-                let run = transport.execute(&owner, &handle, &request.target, &request.action);
+                let run = self.runtime.host.guard_execution(
+                    &request,
+                    transport.execute(&owner, &handle, &request.target, &request.action),
+                );
                 let result = if let Some(cancel) = context.abort_token() {
                     tokio::select! { biased; _ = cancel.cancelled() => Err(denied(ControlErrorCode::Cancelled)), result = run => result }
                 } else {

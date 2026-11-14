@@ -139,7 +139,12 @@ impl ChromeBridge {
                     "id":id, "seq":sequence, "action":command.action,
                     "target":command.target, "args":command.args});
                 let result = timeout(DEADLINE, async {
-                    write_frame(&mut writer, &request).await?;
+                    tokio::select! {
+                        biased;
+                        _ = command.reply.closed() => return Err(std::io::Error::from(std::io::ErrorKind::Interrupted)),
+                        result = write_frame(&mut writer, &request) => result?,
+                    }
+
                     tokio::select! {
                         biased;
                         _ = command.reply.closed() => Err(std::io::Error::from(std::io::ErrorKind::Interrupted)),
@@ -285,7 +290,17 @@ impl ChromeBridge {
                 Ok(ControlOutput::Observation { text: text.into(), screenshots: vec![] })
             }
             "click" if data["clicked"] == true => Ok(ControlOutput::Acknowledged),
-            "input" if data["entered"] == true => Ok(ControlOutput::Acknowledged),
+            "input" if data["entered"] == true => {
+                if host.restricted_session() {
+                    let ChromeCommand::Fill { text, .. } = command else {
+                        return Err(ControlErrorCode::InvalidRequest);
+                    };
+                    if data["value"].as_str() != Some(text.as_str()) {
+                        return Err(ControlErrorCode::BackendFailure);
+                    }
+                }
+                Ok(ControlOutput::Acknowledged)
+            },
             "navigate" if data["navigated"] == true => Ok(ControlOutput::Acknowledged),
             "upload" if data["uploaded"] == true => Ok(ControlOutput::Acknowledged),
             "download" => {

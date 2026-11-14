@@ -193,6 +193,8 @@ mod search_panel_tests;
 ///
 /// 系统设置的入口和容器组件，协调各设置子模块。
 pub mod system_settings;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod system_settings_computer_control;
 pub(crate) mod system_settings_archived_chats;
 pub mod system_settings_search;
 #[cfg(test)]

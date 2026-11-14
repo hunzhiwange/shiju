@@ -74,7 +74,7 @@ async function pageAction(action, args, expectedUrl) {
     Object.getOwnPropertyDescriptor(prototype, 'value').set.call(element, args.text);
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
-    return { entered: true };
+    return { entered: true, value: element.value };
   }
   throw new Error('unsupported_action');
 }

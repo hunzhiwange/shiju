@@ -110,6 +110,11 @@ pub(super) async fn authorize_site(
         }
         p.version()
     };
+    if crate::computer_control::native::locked_session::lock_state()
+        != crate::computer_control::native::locked_session::LockState::Unlocked
+    {
+        bail!("Unlock manually before approving a new Chrome site");
+    }
     if !super::super::decision::request_control_scope_approval(
         "computer_control.chrome_site",
         json!({"origin":origin,"scope":"website access until revoked or gateway restart"}),
@@ -118,6 +123,11 @@ pub(super) async fn authorize_site(
     .await
     {
         bail!("Chrome site approval required");
+    }
+    if crate::computer_control::native::locked_session::lock_state()
+        != crate::computer_control::native::locked_session::LockState::Unlocked
+    {
+        bail!("Session locked during Chrome site approval");
     }
     let mut p = policy.write();
     if p.version() != version {

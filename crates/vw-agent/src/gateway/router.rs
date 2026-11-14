@@ -198,6 +198,7 @@ pub(crate) fn handler_router() -> Router {
     Router::new()
         // 全局路由：健康检查、系统状态等
         .merge(handlers::global::router())
+        .merge(handlers::computer_control::router())
         .merge(handlers::agent_apps::router())
         .merge(handlers::app_providers::router())
         .merge(handlers::model_catalog::router())

@@ -14,7 +14,10 @@ use vw_api_types::computer_control::*;
 
 #[cfg(test)]
 mod input_tests;
+#[cfg(target_os = "macos")]
+mod locked_ax;
 mod macos_input;
+pub mod locked_session;
 #[cfg(target_os = "macos")]
 mod macos_observation;
 #[cfg(test)]
@@ -274,10 +277,7 @@ impl NativeObserver {
         if cancelled.is_cancelled() {
             return Err(ControlErrorCode::Cancelled.into());
         }
-        if locked.load(Ordering::SeqCst) {
-            return Err(ControlErrorCode::Unsupported.into());
-        }
-        policy.read().authorize(&local_user(), &target, false, version)?;
+        policy.read().authorize(&local_user(), &target, locked.load(Ordering::SeqCst), version)?;
         let ComputerControlTarget::NativeApp { bundle_id, process_id } = target else {
             return Err(ControlErrorCode::InvalidRequest.into());
         };
@@ -304,11 +304,14 @@ impl NativeObserver {
         if self.cancelled.is_cancelled() {
             return Err(ControlErrorCode::Cancelled.into());
         }
-        // This backend has no locked execution mechanism, even when policy allows it.
-        if self.locked.load(Ordering::SeqCst) {
-            return Err(ControlErrorCode::Unsupported.into());
+        let locked = self.locked.load(Ordering::SeqCst);
+        if locked {
+            if screenshot || !cfg!(target_os = "macos") {
+                return Err(ControlErrorCode::Unsupported.into());
+            }
+            locked_session::check_native_target(&self.app.bundle_id)?;
         }
-        self.policy.read().authorize(&local_user(), &self.app.target(), false, self.version)?;
+        self.policy.read().authorize(&local_user(), &self.app.target(), locked, self.version)?;
         if self.backend.identity(self.app.process_id)? != self.app {
             return Err(ControlErrorCode::TargetChanged.into());
         }

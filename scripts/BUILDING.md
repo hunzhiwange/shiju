@@ -400,3 +400,17 @@ Release CI sets `SKIP_BUILD=1 PROFILE=dist TARGET=<triple>` to package the
 binaries already produced by cargo-dist in `target-dir/<triple>/dist/`
 (or under `CARGO_TARGET_DIR` when overridden). This skips all Cargo invocations
 and fails if any required executable is missing, without rebuilding it.
+
+### 电脑操控接入资源
+
+macOS app 打包会在签名前将自有 Chrome/Office 资源、中继和用户安装器放到
+`Contents/Resources/computer-control`，并生成相对路径 SHA-256 清单。
+原生控制实现随桌面二进制交付；不复制 ChatGPT 私有运行时，不新增虚构 MCP。
+安装与卸载、Chrome ID 限制、Office TLS 和旁加载要求见
+`plugins/shiju-computer-control/README.md`。资源安装不授予系统或文档权限。
+
+后续本地验证应通过 `python3 scripts/cargo_slot.py` 运行打包入口，继承
+`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR`；例如在入口内设置
+`PROFILE=release SKIP_BUILD=0 MACOS_SIGN_MODE=adhoc MACOS_NOTARIZE=0`
+再执行 `bash scripts/bundle_macos.sh`。ad-hoc 仅用于开发，正式交付沿用既有
+Developer ID 签名要求；本任务不公证、不发布。

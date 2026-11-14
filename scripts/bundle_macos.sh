@@ -403,6 +403,14 @@ if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
   cp "$TARGET_DIR/${ACP_BIN_NAME}" "$DEST_DIR/${ACP_BIN_NAME}"
 fi
 
+# Native control is linked into the desktop binary. Ship only our public bridge
+# resources; do not bundle a private runtime or invent an MCP server.
+COMPUTER_CONTROL_RESOURCES="$APP_BUNDLE/Contents/Resources/computer-control"
+rm -rf "$COMPUTER_CONTROL_RESOURCES"
+python3 "$(dirname "$0")/computer_control/install_local.py" stage \
+  --source "$(cd "$(dirname "$0")/.." && pwd)" \
+  --destination "$COMPUTER_CONTROL_RESOURCES"
+
 ensure_app_icon
 
 if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then

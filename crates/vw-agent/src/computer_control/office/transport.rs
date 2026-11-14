@@ -170,6 +170,21 @@ impl OfficeTransport {
         state.sessions.disconnect_owner(owner);
     }
 
+    pub(crate) fn connected_documents(&self) -> Vec<OfficeSession> {
+        let mut state = self.state.lock();
+        let owners: Vec<_> = state.connections.values().map(|c| c.owner.clone()).collect();
+        let mut documents = Vec::new();
+        for owner in owners { documents.extend(state.sessions.discover(&owner, Instant::now())); }
+        documents
+    }
+
+    /// Trusted emergency stop cancels all document connections and pending pairings.
+    pub(crate) fn revoke_all(&self) {
+        let owners: Vec<_> = self.state.lock().connections.values().map(|c| c.owner.clone()).collect();
+        for owner in owners { self.revoke(&owner); }
+        self.state.lock().pairings.clear();
+    }
+
     /// Exact capability and identity checks surround each result. One command per
     /// document at a time; timeout invalidates the connection and every old result.
     pub async fn execute(
@@ -179,6 +194,10 @@ impl OfficeTransport {
         target: &ComputerControlTarget,
         action: &ComputerControlAction,
     ) -> Result<Value> {
+        // A dropped request must invalidate its queue and old document handle.
+        let mut execution = ExecutionLease {
+            state: self.state.clone(), owner: owner.clone(), handle: handle.clone(), armed: false,
+        };
         let id = Uuid::new_v4();
         let message = json!({"type":"command", "request_id":id.to_string(), "surface":surface_name(handle.surface), "document_id":handle.document_id.0, "generation":handle.generation.to_string(), "action":action});
         ensure!(serde_json::to_vec(&message)?.len() <= MAX_BYTES, "Office command too large");
@@ -198,6 +217,7 @@ impl OfficeTransport {
             ensure!(connection.pending.is_none(), "Office document busy");
             connection.send.try_send(message).context("Office send queue unavailable")?;
             connection.pending = Some(Pending { id, reply });
+            execution.armed = true;
         }
         let value = match tokio::time::timeout(TIMEOUT, result).await {
             Ok(Ok(value)) => value,
@@ -215,6 +235,7 @@ impl OfficeTransport {
             .sessions
             .authorize(owner, handle, target, action, Instant::now())
             .map_err(|_| anyhow::anyhow!("Office result no longer authorized"))?;
+        execution.armed = false;
         Ok(value)
     }
 
@@ -322,6 +343,7 @@ async fn serve(
     let slots = Arc::new(tokio::sync::Semaphore::new(32));
     loop {
         tokio::select! {
+            biased;
             _ = cancel.cancelled() => break,
             Some(_) = jobs.join_next(), if !jobs.is_empty() => {},
             accepted = listener.accept() => {
@@ -347,6 +369,23 @@ async fn serve(
 }
 
 // RAII cleanup also runs if the server aborts a connection during shutdown.
+struct ExecutionLease {
+    state: Arc<Mutex<State>>,
+    owner: ControlSessionId,
+    handle: OfficeHandle,
+    armed: bool,
+}
+impl Drop for ExecutionLease {
+    fn drop(&mut self) {
+        if !self.armed { return; }
+        let mut state = self.state.lock();
+        if let Some(connection) = state.connections.remove(&self.handle.generation) {
+            connection.cancel.cancel();
+        }
+        let _ = state.sessions.disconnect(&self.owner, &self.handle);
+    }
+}
+
 struct Lease {
     state: Arc<Mutex<State>>,
     owner: ControlSessionId,
@@ -455,11 +494,17 @@ async fn connection(
     tokio::pin!(lifetime);
     loop {
         tokio::select! {
+            biased;
             _ = cancel.cancelled() => break,
             _ = &mut lifetime => break,
             message = outgoing.recv() => {
                 let Some(message) = message else { break };
-                tokio::time::timeout(TIMEOUT, socket.send(Message::text(message.to_string()))).await??;
+                // Revoke wins over an already queued command or blocked socket write.
+                tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => break,
+                    result = tokio::time::timeout(TIMEOUT, socket.send(Message::text(message.to_string()))) => { result??; }
+                }
             }
             message = tokio::time::timeout(Duration::from_secs(30), socket.next()) => {
                 let Some(message) = message? else { break };

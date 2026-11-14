@@ -786,6 +786,8 @@ pub enum SettingsMessage {
     DataExport(super::data_management::export_ui::Event),
     BackupInventory(super::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
+    ComputerControl(super::computer_control::Event),
+    #[cfg(not(target_arch = "wasm32"))]
     Voice(super::voice::Event),
     ArchivedChats(super::archived_chats::ArchivedChatsMessage),
     Worktrees(super::worktrees::WorktreeSettingsMessage),

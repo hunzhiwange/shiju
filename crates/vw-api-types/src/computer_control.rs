@@ -357,3 +357,55 @@ impl TryFrom<ScreenshotReferenceWire> for ScreenshotReference {
         Self::new(value.media_id, value.mime_type, value.byte_length, value.width, value.height)
     }
 }
+
+/// Desktop management only. These operations are never exposed as model tools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlSetting { NativeApps, Chrome, Excel, Word, LockedUse }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlSettingsUpdate {
+    pub permission_version: PermissionVersion,
+    pub feature: ControlSetting,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "identity", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ControlGrantScope {
+    Application(String), ChromeOrigin(String), ExcelDocument(String), WordDocument(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlGrantRevocation {
+    pub permission_version: PermissionVersion,
+    pub scope: ControlGrantScope,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlApprovals {
+    pub permission_version: PermissionVersion,
+    pub approvals: Vec<ControlGrantScope>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlVersionResponse { pub permission_version: PermissionVersion }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlPairingConfirmation {
+    pub permission_version: PermissionVersion,
+    pub session_id: ControlSessionId,
+    pub workspace_root: Option<std::path::PathBuf>,
+    pub document_id: ControlDocumentId,
+    pub feature: ControlSetting,
+}
+
+/// One-use, sixty-second task-pane credential. Never persist or log this response.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ControlPairingResponse { pub credential: String, pub permission_version: PermissionVersion }

@@ -1019,6 +1019,8 @@ impl App {
                 save_error: None,
             },
 
+            #[cfg(not(target_arch = "wasm32"))]
+            computer_control_settings: Default::default(),
             browser_settings: super::state::BrowserSettingsState {
                 installing: false,
                 enabled: browser_cfg.enabled,

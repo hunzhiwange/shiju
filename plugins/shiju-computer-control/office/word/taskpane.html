@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://appsforoffice.microsoft.com; style-src 'unsafe-inline'; connect-src wss://localhost:* wss://127.0.0.1:* wss://[::1]:*; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>ShiJu Word 控制</title>
+  <style>
+    :root { color-scheme: light dark; font: 14px system-ui, sans-serif; }
+    body { margin: 0; padding: 16px; background: Canvas; color: CanvasText; }
+    main { max-width: 440px; margin: auto; }
+    h1 { font-size: 20px; }
+    label { display: block; margin: 14px 0 5px; }
+    input:not([type=checkbox]), select { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid GrayText; border-radius: 6px; font: inherit; background: Field; color: FieldText; }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+    button { padding: 9px 14px; margin: 16px 8px 0 0; border: 1px solid GrayText; border-radius: 6px; font: inherit; background: ButtonFace; color: ButtonText; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: default; }
+    small { display: block; margin-top: 5px; }
+    #status { overflow-wrap: anywhere; border-top: 1px solid GrayText; padding-top: 12px; }
+    * { scrollbar-width: thin; } ::-webkit-scrollbar { width: 4px; }
+  </style>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script type="module" src="./actions.mjs"></script>
+</head>
+<body><main>
+  <h1>ShiJu Word 控制</h1>
+  <p>只在你批准的段落内读写。请先使用临时文档；停止或关闭窗格会终止连接。</p>
+  <form id="pair" autocomplete="off">
+    <label for="endpoint">本机安全连接地址</label>
+    <input id="endpoint" type="url" placeholder="wss://localhost:端口/office" required spellcheck="false">
+    <label for="document-id">本次配对文档标识</label>
+    <input id="document-id" readonly spellcheck="false">
+    <small>先将此标识交给本机宿主批准配对；停止后标识会更新，必须重新批准。</small>
+    <label for="token">宿主提供的一次性配对令牌</label>
+    <input id="token" type="password" required pattern="[a-f0-9]{64}" maxlength="64" autocomplete="off">
+    <small>令牌只用于本次配对，不会保存。HTTPS 站点证书必须已获系统信任。</small>
+    <label for="paragraph">批准编辑的段落全文（必须唯一）</label>
+    <input id="paragraph" required maxlength="8192">
+    <label><input id="write" type="checkbox"> 允许修改此段落</label>
+    <label><input id="bold" type="checkbox"> 写入文字设为粗体</label>
+    <small>连接时固定批准。先读取或查找，再写入；正文变化后须重新读取。起点与终点均指批准段落，选区必须非空且位于该段落内。</small>
+    <button id="connect" type="submit" disabled>批准范围并配对</button>
+    <button id="stop" type="button">停止</button>
+  </form>
+  <p id="status" role="status" aria-live="polite">正在等待 Microsoft Word…</p>
+  <details><summary>侧载与验证准备</summary>
+    <p>使用可信 HTTPS 服务将 office 目录映射到 https://localhost:3000/office/，保留 word 与 shared 的相邻路径；在 Word 中侧载 manifest.xml。该页面不提供 TLS 服务，不包含证书或私钥。</p>
+    <p>ShiJu 宿主须将允许来源精确配置为 https://localhost:3000，按上方本次配对文档标识批准，再提供一次性令牌及 WSS 端口。批准临时文档段落后，使用显示的临时文档标识选择目标。</p>
+    <p>临时文档使用唯一中文段落，先 read_document，再 find_text、replace_text 或 insert_text；检查回读与段落外文字。保护区、重复定位或并发变化应拒绝。记录真实 Word 版本与脱敏回读。</p>
+  </details>
+</main></body>
+</html>

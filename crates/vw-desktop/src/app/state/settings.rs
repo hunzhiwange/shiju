@@ -23,6 +23,10 @@ pub(crate) mod aggregation_omo;
 mod archived_chats;
 pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 pub(crate) use archived_chats::*;
+#[cfg(not(target_arch = "wasm32"))]
+mod computer_control;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use computer_control::*;
 mod channels;
 mod cron_frequency;
 // 模板目录由下一批次的卡片与草稿入口消费。

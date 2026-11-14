@@ -136,6 +136,26 @@ impl NativeControlRuntime {
         Ok(transport)
     }
 
+    /// Management mutations serialize persistence and publication with pairing/stop.
+    pub(crate) async fn stop_all(&self) {
+        let mut sessions = self.sessions.lock().await;
+        for session in sessions.values() {
+            session.shutdown().await;
+        }
+        sessions.clear();
+        if let Some(office) = self.office_transport() { office.revoke_all(); }
+    }
+
+    pub(crate) async fn chrome_connected(&self) -> bool {
+        self.sessions.lock().await.values().any(|s| matches!(s.target, ComputerControlTarget::ChromeTab { .. }) && !s.task.is_finished() && s.expires > tokio::time::Instant::now())
+    }
+
+    pub(crate) fn control_policy(&self) -> &Arc<RwLock<ComputerControlPolicy>> { &self.policy }
+
+    pub(crate) fn office_transport(&self) -> Option<Arc<crate::computer_control::office::transport::OfficeTransport>> {
+        self.office.read().clone()
+    }
+
     async fn session(
         &self,
         owner: Owner,
@@ -246,6 +266,14 @@ impl NativeControlRuntime {
         sessions.insert(owner, session.clone());
         Ok(session)
     }
+    pub(crate) async fn stop_context(&self, context: &super::ToolUseContext) {
+        let owner = (context.tenant_scope(), context.session().into(), context.workspace_root());
+        self.stop(&owner).await;
+        if let (Some(office), Ok(owner)) = (self.office_transport(), super::excel_control::office_owner(context)) {
+            office.revoke(&owner);
+        }
+    }
+
     async fn stop(&self, owner: &Owner) {
         if let Some(session) = self.sessions.lock().await.remove(owner) {
             session.shutdown().await;
@@ -490,7 +518,7 @@ impl Tool for ComputerControlTool {
         let context = self.context()?;
         let owner = (context.tenant_scope(), context.session().into(), context.workspace_root());
         if matches!(input.action, ComputerControlAction::Stop) {
-            self.runtime.stop(&owner).await;
+            self.runtime.stop_context(&context).await;
             return Ok(ToolCallResult::from_legacy_result(ToolResult {
                 success: true,
                 output: "Native control stopped".into(),

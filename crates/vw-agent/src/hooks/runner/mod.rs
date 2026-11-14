@@ -156,6 +156,10 @@ impl HookRunner {
     ///
     /// 并行通知所有处理器网关已停止。
     pub async fn fire_gateway_stop(&self) {
+        #[cfg(unix)]
+        if let Some(runtime) = crate::tools::computer_control::NativeControlRuntime::shared() {
+            runtime.stop_all().await;
+        }
         let futs: Vec<_> = self.handlers.iter().map(|h| h.on_gateway_stop()).collect();
         join_all(futs).await;
     }
@@ -231,6 +235,13 @@ impl HookRunner {
     /// - `session_id`：会话的唯一标识符
     /// - `channel`：会话所属的通道名称
     pub async fn fire_session_end(&self, session_id: &str, channel: &str) {
+        #[cfg(unix)]
+        if let Some(context) = crate::tools::current_tool_use_context()
+            && context.session() == session_id
+            && let Some(runtime) = crate::tools::computer_control::NativeControlRuntime::shared()
+        {
+            runtime.stop_context(&context).await;
+        }
         let futs: Vec<_> =
             self.handlers.iter().map(|h| h.on_session_end(session_id, channel)).collect();
         join_all(futs).await;

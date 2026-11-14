@@ -42,6 +42,12 @@ impl NativeObserver {
     ) -> Result<(), NativeObservationError> {
         let _gate = self.observe_gate.lock().await;
         self.check(false)?;
+        if self.locked.load(Ordering::SeqCst) {
+            #[cfg(target_os = "macos")]
+            { return super::locked_ax::execute(self, input); }
+            #[cfg(not(target_os = "macos"))]
+            { return Err(ControlErrorCode::Unsupported.into()); }
+        }
         if matches!(input, NativeInput::Activate) {
             // Activation itself is authorized, but is the only action allowed
             // while the target is not frontmost. Never activate another application.

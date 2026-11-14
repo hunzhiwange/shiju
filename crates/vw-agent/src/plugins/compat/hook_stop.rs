@@ -111,6 +111,11 @@ pub(crate) async fn emit(
     active: bool,
     message: Option<&str>,
 ) -> Result<Outcome> {
+    // Cleanup is host-owned and must run even when no plugin hooks are installed.
+    #[cfg(unix)]
+    if let Some(runtime) = crate::tools::computer_control::NativeControlRuntime::shared() {
+        runtime.stop_context(&context).await;
+    }
     let mut input = json!({"session_id":context.session(), "turn_id":context.turn_id(),
         "cwd":context.workspace_root(), "model":context.model(), "permission_mode":if context.full_access_enabled() {"bypassPermissions"} else {"default"},
         "transcript_path":null, "hook_event_name":if interrupt {"Interrupt"} else {"Stop"},

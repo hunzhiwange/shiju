@@ -4,6 +4,7 @@
 //! Backends must recheck platform focus/identity and honor cancellation before effects.
 
 use super::policy::ComputerControlPolicy;
+use super::native::locked_session::{self, LockState};
 use crate::security::pairing::constant_time_eq;
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -84,6 +85,59 @@ impl ControlHost {
         }
     }
 
+    /// Unknown evidence is treated as locked for authorization. Dispatch permits
+    /// only application-runtime commands or the target-directed AX command subset.
+    fn refresh_lock(&self) -> LockState {
+        let state = locked_session::lock_state();
+        let locked = state != LockState::Unlocked;
+        self.locked.store(locked, Ordering::SeqCst);
+        state
+    }
+
+    /// Use this before considering a new interactive grant. Unknown state cannot
+    /// authorize new targets; existing target grants and locked_use stay separate.
+    pub(crate) fn restricted_session(&self) -> bool {
+        self.refresh_lock() != LockState::Unlocked
+    }
+
+    /// Bounds an Office operation by live policy and the original lock state.
+    /// Dropping the operation on error triggers its existing transport cleanup.
+    pub(crate) async fn guard_execution<T, F>(
+        &self,
+        request: &ComputerControlRequest,
+        operation: F,
+    ) -> Result<T, anyhow::Error>
+    where
+        F: Future<Output = Result<T, anyhow::Error>>,
+    {
+        let cancel = self.sessions.lock().get(&request.session_id)
+            .ok_or_else(|| anyhow::anyhow!("control denied: Disconnected"))?.cancelled.clone();
+        let state = self.refresh_lock();
+        self.recheck(request).map_err(|e| anyhow::anyhow!("control denied: {e:?}"))?;
+        let watch = async {
+            loop {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                if self.refresh_lock() != state {
+                    return ControlErrorCode::Cancelled;
+                }
+                if let Err(error) = self.recheck(request) {
+                    return error;
+                }
+            }
+        };
+        let output = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(anyhow::anyhow!("control denied: Cancelled")),
+            error = watch => return Err(anyhow::anyhow!("control denied: {error:?}")),
+            result = operation => result?,
+        };
+        if self.refresh_lock() != state {
+            return Err(anyhow::anyhow!("control denied: Cancelled"));
+        }
+        self.recheck(request).map_err(|e| anyhow::anyhow!("control denied: {e:?}"))?;
+        Ok(output)
+    }
+
     /// Called by the trusted local controller after selecting a concrete target.
     /// Tickets are memory-only, bounded-lived, and cannot authorize another target.
     pub fn issue(
@@ -94,6 +148,7 @@ impl ControlHost {
         if lifetime.is_zero() || lifetime > MAX_LIFETIME {
             return Err(ControlErrorCode::InvalidRequest);
         }
+        self.refresh_lock();
         let policy = self.policy.read();
         let version = policy.version();
         policy.authorize(&self.local_user, &target, self.locked.load(Ordering::SeqCst), version)?;
@@ -198,6 +253,10 @@ impl ControlHost {
         ) {
             return Err(ControlErrorCode::InvalidRequest);
         }
+        if matches!(request.action, ComputerControlAction::Stop) {
+            session.next_sequence += 1;
+            return Ok(());
+        }
         self.policy.read().authorize(
             &self.local_user,
             &session.target,
@@ -211,6 +270,8 @@ impl ControlHost {
     /// Backend rechecks after each asynchronous Chrome boundary, including before
     /// returning page contents. The model cannot choose the OS user or mint grants.
     pub(crate) fn recheck(&self, request: &ComputerControlRequest) -> Result<(), ControlErrorCode> {
+        let state = self.refresh_lock();
+        locked_session::require_execution(state, &request.target, &request.action)?;
         let sessions = self.sessions.lock();
         let session = sessions.get(&request.session_id).ok_or(ControlErrorCode::Disconnected)?;
         if session.cancelled.is_cancelled() || session.expires <= Instant::now() {
@@ -366,7 +427,13 @@ impl ControlHost {
                     break;
                 }
             };
-            if let Err(error) = self.authorize(&id, sequence, &request) {
+            let state = self.refresh_lock();
+            let capability = if matches!(request.action, ComputerControlAction::Stop) {
+                Ok(())
+            } else {
+                locked_session::require_execution(state, &request.target, &request.action)
+            };
+            if let Err(error) = capability.and_then(|()| self.authorize(&id, sequence, &request)) {
                 write_frame(&mut writer, &HostReply::Rejected { error }).await?;
                 break;
             }
@@ -384,6 +451,20 @@ impl ControlHost {
                 break;
             }
             // Authorization above is synchronous and immediately precedes dispatch.
+            let in_flight = request.clone();
+            let guard = async {
+                loop {
+                    tokio::time::sleep(Duration::from_millis(50)).await;
+                    if self.refresh_lock() != state {
+                        cancel.cancel();
+                        break ControlErrorCode::Cancelled;
+                    }
+                    if let Err(error) = self.recheck(&in_flight) {
+                        cancel.cancel();
+                        break error;
+                    }
+                }
+            };
             let result = tokio::select! {
                 biased;
                 _ = cancel.cancelled() => Err(ControlErrorCode::Cancelled),
@@ -408,7 +489,17 @@ impl ControlHost {
                         _ => { cancel.cancel(); Err(ControlErrorCode::Disconnected) }
                     }
                 },
-                result = execute(request, cancel.clone()) => result,
+                error = guard => Err(error),
+                result = execute(request, cancel.clone()) => {
+                    result.and_then(|output| {
+                        if self.refresh_lock() != state {
+                            cancel.cancel();
+                            return Err(ControlErrorCode::Cancelled);
+                        }
+                        self.recheck(&in_flight)?;
+                        Ok(output)
+                    })
+                },
             };
             let outcome = match result {
                 Ok(output) => ControlOutcome::Succeeded { output },
@@ -479,3 +570,7 @@ pub async fn write_frame<W: AsyncWrite + Unpin, T: Serialize>(
     .await
     .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "control write timed out"))?
 }
+
+#[cfg(test)]
+#[path = "lifecycle_tests.rs"]
+mod lifecycle_tests;

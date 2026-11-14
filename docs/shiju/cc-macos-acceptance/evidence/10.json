@@ -1,0 +1,2893 @@
+{
+  "schema_version": 1,
+  "task": 10,
+  "title": "聚合目录与客户端特殊能力",
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "instruction_override": "用户要求本轮跳过纯验证任务，删除编号卡，验证留待以后统一执行，不计通过。",
+  "baseline": {
+    "record_commit": "7ff85dbecc33758f6309dda19a1b83e19c5bf0ad",
+    "product_artifact_hash": null,
+    "note": "共享checkout有其他任务变更；记录提交不是冻结运行基线。"
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-convergence/models.md",
+      "sha256": "eb4f9361104d5de56df4545e43b75756c41e78ae8a5f43008a1376d4fd5f8b97",
+      "status": "document_not_behavior_evidence"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": 10,
+      "detail": "母任务10编号卡不存在；inventory仅引用models.md文档，逐来源及客户端特殊能力交叉项映射完整性待交付或复核。文档声明未执行当前验证。"
+    },
+    {
+      "owner": 22,
+      "detail": "runtime-contract状态prepared_unverified_not_executable；无已验证执行入口及冻结产物哈希，隔离账号和双架构主机引用未交付。"
+    }
+  ],
+  "source_selection": {
+    "basis": "owner_ref=10或owner_refs含10；仅候选清单，声明交叉项完整性未核证。",
+    "candidate_count": 313
+  },
+  "items": [
+    {
+      "source_key": "file:components.json",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/deepseek-harness-pr8771-compatibility.md",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/guides/aggregation-mode-guide-zh.md",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/images/aggregation-mode/01-cc-switch-aggregation.png",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/images/aggregation-mode/02-codex-model-picker.png",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/images/aggregation-mode/03-claude-code-model-picker.png",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/images/aggregation-mode/04-flowchart-model-routing.png",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/images/aggregation-mode/cover.png",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/user-manual/en/4-proxy/4.6-aggregation.md",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/4-proxy/4.6-aggregation.md",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/4-proxy/4.6-aggregation.md",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/claude_desktop_config.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/omo.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/omp.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/pi.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/stack.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/omp_config.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/pi_config/mod.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/providers/codex_compaction.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/services/omo.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_client_catalog.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/omp.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src-tauri/src/tray_compat.rs",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/BrandIcons.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ConfirmDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/CustomIconNameDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/DeepLinkImportDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/FirstRunNoticeDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/FrontendErrorBoundary.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/IconPicker.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/JsonEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/MarkdownEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ProviderIcon.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ProviderIconBox.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/WhatsNewDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/apps/AppsPage.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/apps/ManualUninstallDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/apps/ToolUninstallConfirmDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/apps/toolUninstallCommands.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/apps/useToolManagement.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/common/AppCountBar.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/common/AppToggleGroup.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/common/FullScreenPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/common/ListItemRow.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/common/ManagementListSearch.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/env/EnvWarningBanner.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/AddProviderDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/AuthSettingsPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/CodexStaleClientsNotice.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/DshAccount.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/EditProviderDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/KimiAccountLogin.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/LiveEditConflictDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/OpenTerminalDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/ProviderCard.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/ProviderCardActions.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/ProviderEmptyState.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/ProviderList.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ApiKeyInput.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/BasicFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ClaudeDesktopProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ClaudeFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ClaudeOfficialSection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ClaudeReasoningEffortField.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ClaudeStackModelsField.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/CodexConfigEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/CodexConfigSections.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/CodexFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/CommonConfigEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/CustomUserAgentField.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/FetchedModelPicker.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/GeminiConfigEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/GeminiConfigSections.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/GeminiFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/GrokBuildProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/InactiveFieldsPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/KimiProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/LocalProxyRequestOverridesField.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ManagedAccountRemoveDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/McodeProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/OmoFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/OpenCodeFormFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/PiProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ProviderForm.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/ProviderPresetSelector.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/RequestHeadersEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/StructuredOptionsEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/helpers/codexChatReasoning.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/helpers/kimiToml.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/helpers/opencodeFormUtils.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/helpers/requestHeaders.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/helpers/yamlNode.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/index.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useApiKeyLink.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useApiKeyState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useBaseUrlState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useCodexConfigState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useCodexTomlValidation.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useDraftEditorProjection.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useGeminiConfigState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useManagedAccountUsers.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useModelState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useOmoDraftState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useOmoModelSource.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useOpencodeFormState.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useProviderCategory.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useTemplateValues.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/modelMetadataFill.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/presetGroups.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/presetStep.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/ApiKeySection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/DirectModeFormatWarning.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/EndpointField.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/FullUrlToggle.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/GptContextWindowHint.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/ModelDropdown.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/ModelInputWithFetch.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/NativeConfigEditor.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/forms/shared/index.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/ModeDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/ModeTabs.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/RouteSettingsSheet.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/StackSettingsSheet.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/StackSubagentFields.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/SwitchModePanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/mode/useDesktopConfigMessages.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/providers/presentation.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/AboutSection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/AuthCenterPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/CodexAuthSettings.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/DirectorySettings.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/GlobalProxySettings.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/LogConfigPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/RectifierConfigPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/SettingsLayout.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/SettingsPage.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/TerminalSettings.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/ToolErrorMessage.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/ToolInstallRow.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/ToolUpgradeConfirmDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/auth/ManagedAccountsGroup.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/auth/accountDetails.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/sections/AppConfigSection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/sections/GeneralSection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/settings/sections/RoutingSection.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/shell/AppGlyph.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/shell/AppPageHeader.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/shell/NewLayoutDialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/shell/Sidebar.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/shell/WindowControls.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/theme-provider.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/accordion.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/alert.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/badge.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/button.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/card.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/checkbox.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/collapsible.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/command.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/dialog.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/dropdown-menu.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/form.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/help-tip.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/hover-tip.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/ime-safe-input.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/input.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/label.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/notice.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/page-tabs.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/popover.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/scroll-area.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/search-field.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/segmented-control.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/select.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/sheet.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/sliding-indicator.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/sonner.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/switch.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/table.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/tabs.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/textarea.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/toggle-row.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/ui/tooltip.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/universal/UniversalProviderCard.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/universal/UniversalProviderFormModal.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/universal/UniversalProviderPanel.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/components/universal/index.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/config/ompProviderPresets.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/lib/api/omo.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/lib/query/omo.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:src/types/omo.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AddProviderDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ApiKeySection.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AppCountBar.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AppToggleGroup.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AppsPage.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AuthCenterGroups.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/AuthCenterPanel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/BasicFormFields.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ClaudeDesktopProviderForm.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ClaudeFormFields.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ClaudeOfficialSection.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ClaudeStackModelsField.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexAuthSettings.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexFormFields.catalogReorder.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexFormFields.modelFetch.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexFormFields.subagent.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexFormFields.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CodexStaleClientsNotice.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CommonConfigEditor.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CommonConfigModalBehavior.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ConfirmDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/CustomIconNameDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/DeepLinkImportDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/DshAccountCard.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/DshAddProviderDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/EditProviderDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/FrontendErrorBoundary.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/FullScreenPanel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/GeminiFormFields.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/GeneralSection.trayStyle.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/GlobalProxySettings.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/GptContextWindowHint.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/GrokBuildProviderForm.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/HoverTip.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/IconPicker.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ImeSafeInput.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/JsonEditor.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/JsonEditorExternalSync.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/KimiAccountLogin.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/KimiAddProviderDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/KimiProviderForm.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ManagementListSearch.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/McodeProviderForm.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ModeDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ModelDropdown.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ModelsDevPickerDialog.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/NewLayoutDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/OmoFormFields.mergeCustomModelsIntoStore.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/OpenCodeFormFields.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/OpenTerminalDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/PiProviderForm.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/PricingEditModal.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCard.agyModel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCard.claudeAccount.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCard.codexAccount.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCard.usageExpansion.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCardActions.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderCardLayout.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.addDraftProjection.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.agyLogin.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.codexCatalog.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.codexManagedAccount.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.modeHints.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.opencodeBuiltin.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.opencodeNative.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.presetRows.golden.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderForm.stackModels.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderFormSettingsConfigSnapshot.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderIcon.customIcon.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderIconBox.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderList.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderPresetSelector.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/ProviderStatsTable.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/RequestDetailPanel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/RequestLogColumnsMenu.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/RequestLogTable.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SelectContentScroll.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SelectItemIndicator.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SessionManagerPage.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SessionMarkdown.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SessionReader.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SettingsDialog.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/Sheet.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/StackSettingsSheet.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/Switch.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/SwitchModePanel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/TablePagination.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/TrayPanel.styles.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/TrayPanel.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/TrayPanelUsageTab.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/WhatsNewNotice.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/__snapshots__/ProviderForm.presetRows.golden.test.tsx.snap",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/codexReasoningLevelsLabel.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/modelMetadataFill.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/providerPresentation.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/rememberedChoice.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/requestLogColumns.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/sessionUtils.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/components/shell/SidebarToday.test.tsx",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/config/ompProviderPresets.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "file:tests/utils/omoConfig.test.ts",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:7:read_omo_local_file",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:12:get_current_omo_provider_id",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:21:disable_current_omo",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:41:read_omo_slim_local_file",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:46:get_current_omo_slim_provider_id",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omo.rs:57:disable_current_omo_slim",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/omp.rs:23:get_omp_current_state",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/pi.rs:11:get_pi_current_state",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/pi.rs:21:update_pi_provider_usage_script",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/pi.rs:36:get_pi_session_discovery",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "event:src/components/DeepLinkImportDialog.tsx:221:deeplink-pending",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:get_pi_current_state",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:update_pi_provider_usage_script",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:get_pi_session_discovery",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:get_omp_current_state",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:read_omo_local_file",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:get_current_omo_provider_id",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:disable_current_omo",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:read_omo_slim_local_file",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:get_current_omo_slim_provider_id",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    },
+    {
+      "source_key": "registration:disable_current_omo_slim",
+      "owner_refs": [
+        "10"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 10
+    }
+  ],
+  "execution": {
+    "commands": [],
+    "exit_code": null,
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "status": "not_run",
+    "note": "未执行Cargo、构建、单元或实机测试、验收、最终回归及JSON格式检查。"
+  },
+  "environment": {
+    "macos_version": null,
+    "architecture": null,
+    "app_versions": null,
+    "status": "unverified"
+  },
+  "deferred_work": [
+    "由母10补齐逐来源和交叉项映射；由母22及构建所有者交付可重放契约、冻结产物与隔离资源。",
+    "以后统一核证原生实现、API权限错误、SDK、注册入口、条件编译、事件、TS业务规则及macOS适用性；绑定提交和产物哈希，记录实际命令、退出码和有效行为数。",
+    "以后进行证据格式检查与差异审查；历史证据当前适用性未确认，不得计为通过。"
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "不适用：未启动资源或接触用户配置。",
+    "task_card": "按最新用户指令删除，不代表验收通过。"
+  }
+}

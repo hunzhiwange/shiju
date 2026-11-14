@@ -271,6 +271,7 @@ pub(super) async fn forward_json(
         drop(body);
         (outgoing, None)
     };
+    apply_cache(&mut outgoing, route, target, &parts.headers)?;
     if let Some(shadow) = &gemini_shadow {
         let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
         let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -723,4 +724,37 @@ async fn forward_rectified(
     retry.headers_mut().remove(header::CONTENT_LENGTH);
     // Deliberately no loop: a second rejection is returned without another replay.
     Ok(transport.forward_ordered(url, retry, wire, cancelled, listener).await?)
+}
+
+/// Apply once to the final wire body, also for each independently selected retry.
+pub(super) fn apply_cache(
+    outgoing: &mut reqwest::Request,
+    route: &AuthorizedRoute,
+    target: &JsonTarget,
+    headers: &HeaderMap,
+) -> Result<(), StatusCode> {
+    if target.request_options.cache_injection != Some(true) { return Ok(()); }
+    let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+    let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let path = target.url.path().trim_end_matches('/');
+    if path.ends_with("/messages") {
+        vw_agent_apps::routing::cache_policy::inject_messages(&mut body, true);
+    } else if path.ends_with("/chat/completions") || path.ends_with("/responses") {
+        let known = target.url.host_str() == Some("api.openai.com")
+            || (target.url.host_str() == Some("api.kimi.com") && path.starts_with("/coding/"));
+        if known {
+            let super::reference_scope::ReferenceScope::Application(scope) = route.response_scope(target)? else {
+                return Err(StatusCode::FORBIDDEN);
+            };
+            let scope = serde_json::to_vec(&serde_json::json!([
+                scope.project, scope.host, scope.app, scope.account,
+                scope.provider, scope.credential_generation
+            ])).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let session = headers.get("session_id").and_then(|v| v.to_str().ok());
+            vw_agent_apps::routing::cache_policy::inject_key(&mut body, true, &scope, session);
+        }
+    }
+    *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
+    outgoing.headers_mut().remove(header::CONTENT_LENGTH);
+    Ok(())
 }

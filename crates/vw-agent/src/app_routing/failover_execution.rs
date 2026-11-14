@@ -279,6 +279,7 @@ impl Plan {
                 Some(*mapped) != request.body.get("model").and_then(Value::as_str)
             });
             let mut outgoing = dispatch::prepare_request(request.body, &candidate.target, model)?;
+            dispatch::apply_cache(&mut outgoing, request.route, &candidate.target, request.headers)?;
             let mut wire = request.wire.clone();
             wire.retain_allowed(request.headers, outgoing.headers_mut());
             if candidate.messages_api_key

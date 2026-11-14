@@ -36,6 +36,9 @@ pub struct ProviderRequestOverrides {
 #[derive(Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProviderRequestOptions {
+    /// Explicit opt-in; omission preserves the stored setting, false disables injection.
+    #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
+    pub cache_injection: Option<bool>,
     #[serde(
         default,
         deserialize_with = "present_headers",

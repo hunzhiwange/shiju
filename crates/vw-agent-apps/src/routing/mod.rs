@@ -51,3 +51,7 @@ mod classifier_guard_tests;
 pub mod budget_rectify;
 
 pub mod media_sanitize;
+
+pub mod cache_policy;
+#[cfg(test)]
+mod cache_policy_tests;

@@ -145,6 +145,9 @@ pub fn merge(
 ) -> Result<ProviderRequestOptions, String> {
     validate(app, incoming)?;
     let mut result = old.cloned().unwrap_or_default();
+    if let Some(enabled) = incoming.cache_injection {
+        result.cache_injection = Some(enabled);
+    }
     if let Some(headers) = &incoming.request_headers {
         result.request_headers = Some(headers.clone());
     }

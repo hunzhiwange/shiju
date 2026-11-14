@@ -1195,3 +1195,11 @@ forward_rectified 对指定 HTTP 400/404/415/422/501 媒体拒绝才尝试替换
 新增 tool_media 与 tool_media_request，由常驻 Messages/Responses 请求所有者提取工具媒体并清除重复文本载荷。Chat在连续工具结果之后追加用户媒体，避免打断并行工具回合；Messages/Responses/Gemini通过请求局部占位恢复到原生内容位置，不改变共享严格转换器。文件引用仅传递，不访问本机文件；Gemini只接受内嵌数据，无法映射的格式明确拒绝。dispatch已调用这些常驻转换所有者，无需增加重复分发；旧会话入口不接入。
 
 按用户最新要求未新增或运行测试，未运行Cargo、实机测试或最终回归。仅完成代码差异审阅及修改文件格式化；无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。后续统一验证需覆盖图片/文件、JSON字符串、重复base64限长、纯文本稳定、并行工具回合和协议真实HTTP链路。macOS待验收，其他平台未验证，不代表母任务8完成；编号任务文件按要求删除。
+
+## 任务70：注入有界缓存提示（代码交付，未验证）
+
+2026-11-14：任务69工具媒体转换源码已存在，沿用冻结 upstream cache_injector.rs、providers/codex.rs 及既有授权运行时/主机/应用、配置与账号接口；仅核对源码依赖，不声明外部实机前置验收完成。
+
+requestOptions.cacheInjection 显式启用（默认关闭），复用现有请求选项保存/合并 API；false 停止自动注入，保留用户缓存字段。dispatch::apply_cache 与 failover_execution 的每个候选出口消费同一 cache_policy。Messages 保留已有断点和 TTL，按 tools/system/latest/prior-user 顺序最多补足四个，跳过 thinking。OpenAI 与 Kimi coding 的 Chat/Responses 仅在真实 session_id 存在且未提供 prompt_cache_key 时生成 64 位 SHA256 身份，输入包含授权项目/主机/应用/账号/目标/凭据代次；未知上游不注入 key。不持有数据库或记录身份载荷。
+
+新增 cc_route_070_ 独立测试源码覆盖禁用、幂等、已有五断点/TTL、thinking 和账号隔离。遵照本次用户覆盖指令，未运行 Cargo、单元测试、实机或最终回归；无槽位领取，CARGO_TARGET_DIR 未设置。推荐统一验证这些策略测试与真实 HTTP 出口；macOS 尚未验收，其它平台范围外。母任务8未作完成认定。

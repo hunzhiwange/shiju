@@ -6,3 +6,8 @@ pub mod terminal_probe;
 
 #[cfg(test)]
 mod test_backend;
+
+pub mod insert_history;
+#[allow(dead_code)]
+pub mod transcript_reflow;
+pub mod resize_reflow_cap;

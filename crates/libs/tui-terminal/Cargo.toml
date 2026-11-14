@@ -8,6 +8,8 @@ license = "Apache-2.0 AND MIT"
 doctest = false
 
 [dependencies]
+tui-render = { path = "../tui-render", version = "0.6.0" }
+tui-text = { path = "../tui-text", version = "0.6.0" }
 ratatui = { version = "0.30.2", features = [
     "unstable-backend-writer",
     "unstable-rendered-line-info",

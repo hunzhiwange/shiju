@@ -71,7 +71,7 @@ pub(crate) use tui_theme::style;
 pub(crate) use tui_markdown::table_detect;
 // 终端适配层集中处理链接、调色板和启动探测，避免渲染层直接依赖环境细节。
 #[allow(dead_code)]
-mod resize_reflow_cap;
+use tui_terminal::resize_reflow_cap;
 #[allow(dead_code)]
 mod terminal_hyperlinks;
 #[allow(dead_code)]
@@ -85,7 +85,7 @@ pub(crate) mod theme_picker;
 #[allow(dead_code)]
 mod thread_transcript;
 #[allow(dead_code)]
-mod transcript_reflow;
+use tui_terminal::transcript_reflow;
 #[allow(dead_code)]
 mod tui;
 #[allow(dead_code)]

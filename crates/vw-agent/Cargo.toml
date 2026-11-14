@@ -86,6 +86,7 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 walkdir = "2"
 webpki-roots = "1.0"
 web-time = "1.1.0"
+project-storage-paths = { path = "../libs/project-storage-paths", version = "0.6.0" }
 vw-config-types = { path = "../vw-config-types", version = "0.6.0" }
 vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
 vw-agent-apps = { path = "../vw-agent-apps", version = "0.6.0" }

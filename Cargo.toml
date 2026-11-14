@@ -11,6 +11,7 @@ members = [
   "crates/libs/memory-lucid",
   "crates/libs/memory-mariadb",
   "crates/libs/patch",
+  "crates/libs/project-storage-paths",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

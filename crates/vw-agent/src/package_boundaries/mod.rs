@@ -8,3 +8,4 @@ mod memory_lucid_tests;
 mod memory_sqlite_tests;
 mod memory_markdown_tests;
 mod gateway_pairing_tests;
+mod project_storage_paths_tests;

@@ -8428,6 +8428,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "project-storage-paths"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "directories",
+ "git-discovery",
+ "git2",
+ "hex",
+ "sha2 0.11.0",
+ "tempfile",
+ "vw-config-types",
+]
+
+[[package]]
 name = "prometheus"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12498,6 +12512,7 @@ dependencies = [
  "portable-pty",
  "postgres",
  "probe-rs",
+ "project-storage-paths",
  "prometheus",
  "prost",
  "pulldown-cmark 0.13.4",

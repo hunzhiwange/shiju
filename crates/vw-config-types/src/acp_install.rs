@@ -51,6 +51,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        "amp-acp" => &["install", "-g", "amp-acp@0.12.0"],
         "sigit" => &["install", "-g", "@smbcloud/sigit@1.7.10"],
         "nova" => &["install", "-g", "@compass-ai/nova@1.1.65"],
         "grok" => &["install", "-g", "@xai-official/grok@1.0.77"],

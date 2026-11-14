@@ -1,5 +1,6 @@
 //! Explicit dispatch. A driver is disabled until its real CLI acceptance task passes.
 use super::profile::AcpLaunchProfile;
+mod amp_acp;
 mod auggie;
 mod claude;
 mod codebuddy;
@@ -34,6 +35,7 @@ pub(super) fn configure(
 ) -> anyhow::Result<()> {
     launch_route(agent, profile)?;
     match agent {
+        "amp-acp" => amp_acp::configure(profile, endpoint),
         "auggie" => auggie::configure(profile, endpoint),
         "claude" => claude::configure(profile, endpoint),
         "codex" => codex::configure(profile, endpoint),
@@ -77,7 +79,8 @@ pub(in crate::session::llm::acp) fn capabilities(
     };
     let patched = matches!(
         agent,
-        "sigit"
+        "amp-acp"
+            | "sigit"
             | "auggie"
             | "trae"
             | "qoder"
@@ -102,7 +105,11 @@ pub(in crate::session::llm::acp) fn capabilities(
         } else {
             Capability::Unsupported { source: Source::SessionModel, reason: Reason::UnsupportedCli }
         },
-        Capability::Supported { source: Source::CliLocal },
+        if agent == "amp-acp" {
+            Capability::Unsupported { source: Source::CliLocal, reason: Reason::UnsupportedCli }
+        } else {
+            Capability::Supported { source: Source::CliLocal }
+        },
     ]
 }
 
@@ -128,6 +135,7 @@ pub(in crate::session::llm::acp) fn verified_release(agent: &str) -> Option<&'st
         "codebuddy" => "2.179.3",
         "glm-acp-agent" => "1.17.1",
         "grok" => "1.0.24; 1.0.77",
+        "amp-acp" => "0.12.0 (Amp 0.0.1778732631-gc5875c; reviewed local ThreadWorker)",
         "sigit" => "1.7.10 (reviewed host boundary)",
         "dirac" => "0.5.24",
         "snow" => "0.9.14",
@@ -148,7 +156,7 @@ fn source_protocol(
 ) -> anyhow::Result<vw_shared::provider::protocols::ModelProtocol> {
     use vw_shared::provider::protocols::ModelProtocol as P;
     Ok(match agent {
-        "claude" => P::Messages,
+        "amp-acp" | "claude" => P::Messages,
         "codex" | "kiro" | "grok" => P::Responses,
         "gemini" => P::Gemini,
         "sigit" | "glm-acp-agent" | "dirac" | "auggie" | "cursor" | "droid" | "codebuddy"

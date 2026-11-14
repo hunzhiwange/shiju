@@ -59,7 +59,7 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
-        if matches!(self.agent_name.as_str(), "deepagents" | "sigit") {
+        if matches!(self.agent_name.as_str(), "deepagents" | "sigit" | "amp-acp") {
             // Local discovery, npx fallback and explicit overrides share this boundary.
             // Never execute the supplier's unpatched permission/file fallbacks.
             crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())
@@ -71,7 +71,25 @@ impl AcpClient {
                 "siGit reviewed runtime requires exactly --acp".into(),
             ));
         }
+        if self.agent_name == "amp-acp" && !args.is_empty() {
+            return Err(AcpError::Initialize(
+                "Amp reviewed runtime requires empty arguments".into(),
+            ));
+        }
         let mut env = self.config.env.clone();
+        if self.agent_name == "amp-acp" {
+            for key in [
+                "NODE_OPTIONS",
+                "NODE_PATH",
+                "BASH_ENV",
+                "ENV",
+                "LD_PRELOAD",
+                "DYLD_INSERT_LIBRARIES",
+                "DYLD_LIBRARY_PATH",
+            ] {
+                env.insert(key.into(), String::new());
+            }
+        }
         if self.agent_name == "copilot" {
             // An inherited CLI grant must not override the current host policy.
             // Explicit authorized flags remain supported; never inject a blanket grant.

@@ -91,8 +91,13 @@ fn verify(directory: &Path, contract: &Contract) -> Result<PathBuf, String> {
         return Err("ACP patched package version differs from reviewed artifact".into());
     }
     for (name, digest) in &contract.files {
-        let bytes =
-            std::fs::read(package.join(name)).map_err(|_| "Missing reviewed ACP artifact")?;
+        let bytes = std::fs::read(package.join(name)).map_err(|_| {
+            if contract.package == "amp-acp" && name.starts_with("../@sourcegraph/amp/") {
+                "Amp main CLI is missing; reinstall the reviewed runtime"
+            } else {
+                "Missing reviewed ACP artifact"
+            }
+        })?;
         if hex::encode(Sha256::digest(bytes)) != *digest {
             return Err("ACP patched artifact checksum mismatch".into());
         }
@@ -200,6 +205,16 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         verify(directory, &contract)?;
         return Ok(());
     } else {
+        if contract.package == "amp-acp" {
+            for directory in executable.ancestors() {
+                let entry =
+                    directory.join("node_modules").join(&contract.package).join(&contract.bin);
+                if entry.canonicalize().ok().as_ref() == Some(&executable) {
+                    verify(directory, &contract)?;
+                    return Ok(());
+                }
+            }
+        }
         for directory in executable.ancestors() {
             if let Ok(path) = verify(directory, &contract)
                 && path.canonicalize().ok().as_ref() == Some(&executable)
@@ -221,6 +236,9 @@ impl Drop for Stage {
 
 pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let Some(contract) = contract(agent) else { return Ok(false) };
+    if agent == "amp-acp" && !cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+        return Err("Amp reviewed local runtime is only verified on macOS arm64".into());
+    }
     if agent == "deepagents" && cfg!(windows) {
         return Err("DeepAgents reviewed runtime is not yet supported on Windows".into());
     }
@@ -250,6 +268,8 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
             "sigit.patch",
             include_str!("../../../patches/acp-model-source/sigit/host-boundary.patch"),
         ),
+        ("amp-acp/apply.py", include_str!("../../../patches/acp-model-source/amp-acp/apply.py")),
+        ("amp-acp/local.mjs", include_str!("../../../patches/acp-model-source/amp-acp/local.mjs")),
         ("deepagents-lock.json", include_str!("managed_runtime/deepagents-lock.json")),
         (
             "deepagents/apply.py",

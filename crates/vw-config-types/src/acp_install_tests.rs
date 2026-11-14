@@ -158,3 +158,13 @@ fn acp_onboarding_sigit_installer_contract() {
     }
     assert!(acp_install_command("sigit; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_amp_acp_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("amp-acp", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "amp-acp@0.12.0"]);
+    }
+    assert!(acp_install_command("amp-acp; echo unsafe").is_none());
+}

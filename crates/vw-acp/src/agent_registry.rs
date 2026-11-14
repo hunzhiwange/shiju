@@ -168,7 +168,7 @@ fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<S
             return (command, vec!["acp".to_string()]);
         }
     } else if let Some(command) = resolve_local_agent_command(definition.local_command_candidates)
-        && (!matches!(definition.name, "deepagents" | "sigit")
+        && (!matches!(definition.name, "deepagents" | "sigit" | "amp-acp")
             || crate::verify_reviewed_agent_executable(definition.name, &command).is_ok())
     {
         return (command, definition.local_args.iter().map(|arg| (*arg).to_string()).collect());
@@ -247,6 +247,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 }
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
+    BuiltInAgentDefinition {
+        name: "amp-acp",
+        display_name: "Amp",
+        command: "amp-acp",
+        args: &[],
+        env: &[],
+        local_command_candidates: &["amp-acp"],
+        local_args: &[],
+    },
     BuiltInAgentDefinition {
         name: "sigit",
         display_name: "siGit Code",

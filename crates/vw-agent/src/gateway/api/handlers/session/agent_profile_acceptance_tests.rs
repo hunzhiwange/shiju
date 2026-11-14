@@ -12,21 +12,38 @@ async fn send(workspace: &std::path::Path, session: &str, agent: &str) -> String
         Json(GatewayChatStreamRequest {
             session_id: Some(session.to_owned().into()),
             agent: Some(agent.into()),
+            model: (agent == "acp-amp-acp").then(|| "model-recovery/original".into()),
             messages: vec![json!({"role":"user","content":"验收运行"})],
-            options: Some(if agent == "main" { json!({"full_access":false}) } else { json!({"full_access":false,"cwd":workspace,"acp_model_source":"cli_local","acp_close_client_after_request":agent != "acp-deepagents"}) }),
+            options: Some(if agent == "main" { json!({"full_access":false}) } else { json!({"full_access":false,"cwd":workspace,"acp_model_source":if agent == "acp-amp-acp" { "session_model" } else { "cli_local" },"acp_close_client_after_request":agent != "acp-deepagents"}) }),
             ..Default::default()
         }),
     )
     .await
     .unwrap()
     .into_response();
-    let bytes = tokio::time::timeout(
-        std::time::Duration::from_secs(30),
-        to_bytes(response.into_body(), 2_000_000),
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let bytes = if agent == "acp-amp-acp" {
+        use futures_util::StreamExt;
+        let mut stream = response.into_body().into_data_stream();
+        let mut bytes = Vec::new();
+        let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            while let Some(chunk) = stream.next().await {
+                bytes.extend_from_slice(&chunk.unwrap());
+                assert!(bytes.len() < 2_000_000);
+            }
+        })
+        .await;
+        assert!(result.is_ok(), "Amp gateway timed out: {}", String::from_utf8_lossy(&bytes));
+        bytes
+    } else {
+        tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            to_bytes(response.into_body(), 2_000_000),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .to_vec()
+    };
     String::from_utf8(bytes.to_vec()).unwrap()
 }
 
@@ -235,14 +252,17 @@ for line in sys.stdin:
     std::fs::write(
         workspace.join(".vwacprc.json"),
         serde_json::to_vec(&json!({
-            "mcpServers": if matches!(backend, "dirac" | "nova" | "sigit") { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
+            "mcpServers": if matches!(backend, "dirac" | "nova" | "sigit" | "amp-acp") { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
         }))
         .unwrap(),
     )
     .unwrap();
     // Only the external process is replaced. The native receipt verifier, catalog,
     // persisted configuration and gateway routing remain production code.
-    let command = if backend == "sigit" {
+    let command = if backend == "amp-acp" {
+        std::env::var("SHIJU_AMP_REAL_ENTRY")
+            .expect("Amp acceptance requires the installed reviewed runtime")
+    } else if backend == "sigit" {
         use sha2::{Digest, Sha256};
         let entry = workspace.join("sigit");
         std::fs::write(&entry, format!(
@@ -276,13 +296,13 @@ for line in sys.stdin:
     };
     runtime
         .block_on(crate::config::update(json!({
-            "acp":{backend:{"command":command,"args":if backend == "sigit" { json!(["--acp"]) } else { json!([peer,capture]) },"env":{}}},
+            "acp":{backend:{"command":command,"args":if backend == "sigit" { json!(["--acp"]) } else if backend == "amp-acp" { json!([]) } else { json!([peer,capture]) },"env":{}}},
             "agents":{profile.clone():{
                 "label":"已启用 ACP 验收", "enabled":true,"system_prompt":"ACP_ACCEPTANCE_RULE",
                 "defaults":{
                     "permission":{"mode":"fixed","value":{"*":"deny"}},
                     "skills":{"mode":"fixed","value":[]},
-                    "mcp":{"mode":"fixed","value":if matches!(backend, "dirac" | "nova" | "sigit") { json!([]) } else { json!(["selected"]) }}
+                    "mcp":{"mode":"fixed","value":if matches!(backend, "dirac" | "nova" | "sigit" | "amp-acp") { json!([]) } else { json!(["selected"]) }}
                 }
             }}
         })))
@@ -314,7 +334,7 @@ for line in sys.stdin:
             .unwrap();
     }
     let directory = workspace.to_string_lossy().into_owned();
-    let rejects_mcp = matches!(backend, "dirac" | "nova" | "sigit");
+    let rejects_mcp = matches!(backend, "dirac" | "nova" | "sigit" | "amp-acp");
     let backend = backend.to_owned();
     let binding_directory = directory.clone();
     runtime
@@ -329,11 +349,19 @@ for line in sys.stdin:
                             .file_name()
                             .unwrap()
                             .to_string_lossy(),
-                        if backend == "sigit" { "sigit" } else { "python3" },
+                        if backend == "sigit" {
+                            "sigit"
+                        } else if backend == "amp-acp" {
+                            "amp-acp"
+                        } else {
+                            "python3"
+                        },
                         "only the owned peer may launch"
                     );
                     if backend == "sigit" {
                         assert_eq!(config.acp[&backend].args, ["--acp"]);
+                    } else if backend == "amp-acp" {
+                        assert!(config.acp[&backend].args.is_empty());
                     } else {
                         assert!(config.acp[&backend].args[0].ends_with("acceptance-peer.py"));
                     }
@@ -368,7 +396,45 @@ for line in sys.stdin:
     assert!(!events.contains("chat.error"), "{events}");
     assert!(events.contains("验收回复"), "{events}");
     assert!(!capture.with_extension("jsonl.denied").exists());
-    if profile == "acp-sigit" && std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some() {
+    if profile == "acp-amp-acp" {
+        let output = workspace.join("amp-preset-written.txt");
+        assert!(!output.exists(), "denied preset must not write");
+        runtime
+            .block_on(crate::config::update(json!({"agents":{profile.clone():{
+                "defaults":{"permission":{"mode":"inherit"}}
+            }}})))
+            .unwrap();
+        let response = runtime.block_on(super::stream::chat_stream(
+            Query(InstanceQuery { directory: Some(workspace.to_string_lossy().into_owned()) }),
+            HeaderMap::new(),
+            Json(GatewayChatStreamRequest {
+                session_id: Some(format!("ses_amp_allowed_{}", uuid::Uuid::new_v4()).into()),
+                agent: Some(profile.clone().into()),
+                model: Some("model-recovery/original".into()),
+                messages: vec![json!({"role":"user","content":"验收宿主写入"})],
+                options: Some(json!({"full_access":true,"cwd":workspace,"acp_model_source":"session_model","acp_close_client_after_request":true})),
+                ..Default::default()
+            }),
+        )).unwrap().into_response();
+        let allowed = runtime.block_on(async {
+            String::from_utf8(
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(30),
+                    to_bytes(response.into_body(), 2_000_000),
+                )
+                .await
+                .unwrap()
+                .unwrap()
+                .to_vec(),
+            )
+            .unwrap()
+        });
+        assert!(allowed.contains("chat.done") && !allowed.contains("chat.error"), "{allowed}");
+        assert_eq!(std::fs::read_to_string(output).unwrap(), "preset-host-write");
+    }
+    if profile == "acp-amp-acp"
+        || (profile == "acp-sigit" && std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some())
+    {
         return; // Native model-wire evidence is owned by the separate loopback fixture.
     }
 
@@ -950,4 +1016,67 @@ fn acp_onboarding_sigit_builtin_profile_persists_and_runs() {
 fn acp_onboarding_sigit_real_builtin_profile_persists_and_runs() {
     assert!(std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some());
     acp_onboarding_sigit_builtin_profile_persists_and_runs();
+}
+
+#[test]
+#[ignore = "requires the reviewed Amp runtime and an owned loopback model fixture"]
+fn acp_onboarding_amp_acp_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            &format!(
+                "{}v1/chat/completions",
+                std::env::var("SHIJU_AMP_REAL_ENDPOINT").expect("owned Amp model fixture")
+            ),
+            Some("fixture-model-token"),
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    runtime
+        .block_on(crate::config::update(
+            json!({"providers":{"model-recovery":{"adapter":"openai-compatible","models":{"original":{"tool_call":true}}}}}),
+        ))
+        .unwrap();
+    runtime.block_on(crate::provider::provider::invalidate_cache());
+    let entry = std::path::PathBuf::from(
+        std::env::var("SHIJU_AMP_REAL_ENTRY").expect("reviewed Amp runtime"),
+    );
+    let installation =
+        entry.parent().and_then(std::path::Path::parent).and_then(std::path::Path::parent).unwrap();
+    let directory = std::path::PathBuf::from(std::env::var_os("VIBEWINDOW_CONFIG_DIR").unwrap())
+        .join("acp-runtime");
+    std::fs::create_dir_all(&directory).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(installation, directory.join("amp-acp-0.12.0-model-source-v1"))
+        .unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile(&runtime, workspace.path(), "amp-acp");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-amp-acp":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-amp-acp".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
 }

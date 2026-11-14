@@ -4,7 +4,7 @@
 
 线性顺序：任务 9；本批只有此任务。所有批次串行，不存在可安全同时修改公共注册/分派文件的并行组。
 
-状态：进行中
+状态：已完成，待回归验证（生产集成未验收）
 
 目的：让 Amp 通过 ShiJu 现有 ACP 链路可安装或发现、启用并完成真实会话，准确暴露已验证能力。
 
@@ -193,3 +193,16 @@ Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖�
 - `python3 -u /tmp/shiju-amp-probe/patched-probe.py`不传--take-me-back，实际运行补丁CLI，退出0；真实原生回合仍返回OK和success，无/api/thread-actors请求。所有控制/模型请求仅127.0.0.1，使用本地合成身份及本地测试标识；不发送官方服务、不伪造远程账号、不消耗Amp额度。
 - 这些只是隔离原型，未引入仓库生产路径或登记为官方预设；不能把单轮成功当完整交付。下一实施边界：固定双包受管产物校验、生产loopback控制适配（本地会话存储、selected provider/model中继）、在原生工具执行前转宿主并拒绝本地回退、关闭环境技能/MCP/插件发现；先红灯注册/安装/预设测试，再完成真实ACP双轮/取消/恢复/拒绝及配置路由和Clippy。
 - 尚未实现宿主工具边界、固定受管安装、生产模型driver及双预设链路，因此任务进行中而非已完成。仍无仓库Rust产品代码改动，Cargo槽位与两个构建目录均未领取；仅编号文件记录更新无需提交。原型工具硬拒绝是临时保护，不作为最终“支持全部工具”结论。
+
+
+### 当前实现与待回归（2026-11-14）
+
+已实现固定双包受管安装/校验、空参数启动、私有模型桥、真实本地 ThreadWorker、宿主工具与取消/恢复边界，并派生内置 `acp-amp-acp`。能力仅声明受审 session_model，未接通的技能/MCP/原生权限扩展明确拒绝。实现细节和最新结果见 `docs/dev/evidence/acp-onboarding-amp-acp.md`。
+
+最新槽位入口为 `python3 scripts/cargo_slot.py python3 /tmp/shiju-amp-probe/verify-proof.py`；本轮槽位2，两个缓存变量同为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。旧任务手工槽位步骤已由仓库入口等价替代，未改 plan.md/prompt.md。原生测试保持 Cargo；仅 vw-agent 测试包使用 `--config profile.test.package.vw-agent.opt-level=0` 降低编译成本，不作性能结论。
+
+ACP 4项、安装1项、真实工具8组（允许/拒绝×读写编辑命令，均含4回合、重启load/history、取消继续、认证和模型错误）通过。生产预设与 catalog 当前被其他并发改动的 `ProjectId: Display`/技能 API 依赖编译错误阻断；旧测试程序运行失败，不计作当前集成证据。按任务约定保留本文件为待回归，不删除、不声称双重交付完成。
+
+下一步：无关编译恢复后，使用当前 contracts 重新编译并执行 preset（含 ignored）与 session-model 真正生产中继验收、catalog 保护及全仓 Clippy；全部满足后方可删除本任务文件。
+
+最终注册保护25项通过；受影响包及全仓 Clippy 均因未修改的 content-guard/memory-algorithms/domain-matcher lint 退出101。完整当前记录在证据文档。待回归状态保留。

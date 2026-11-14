@@ -626,5 +626,19 @@
     "source_url": "https://api.github.com/repos/getsigit/sigit/tarball/v1.7.10",
     "source_sha256": "088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e",
     "patch_sha256": "4d775d40748eb3a4fc5656034d591052c4d8e7d99cd58e238ea9f6230f9f9256"
+  },
+  "amp-acp": {
+    "package": "amp-acp",
+    "version": "0.12.0",
+    "integrity": "sha512-RuLpWELP2klRTBUz8VJtY8fm3zWHSiu5ZPRjui5xi7D7paMW/8FTq44+noRakRVg5J1SCK4IzMYcsjb7icr/Lw==",
+    "bin": "dist/index.js",
+    "engine": "@sourcegraph/amp",
+    "engine_version": "0.0.1778732631-gc5875c",
+    "files": {
+      "dist/index.js": "fc3b527cad139098f2f120992e91414e4e0b45af6a71fc479d5e4b79c1122934",
+      "dist/shiju-local.mjs": "07d8771de3eb959d22d315a81e458c2de060edd3284ab88211ffcb8fabf628f2",
+      "dist/amp-cli": "f3076f4f083423e1215e366e18ec7808a4405e973cfe66d0135b1bd10592a1d5",
+      "../@sourcegraph/amp/dist/main.js": "2cca8fdfbad3fdc9cec0d4de31946279c51a47adb9e6dd0242131f3cac7a5a1d"
+    }
   }
 }

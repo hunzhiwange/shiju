@@ -13,7 +13,7 @@ fn agent_catalog_covers_thirty_unique_backends() {
             AgentRuntime::Native => None,
         })
         .collect::<HashSet<_>>();
-    assert_eq!(backends.len(), 30);
+    assert_eq!(backends.len(), 31);
     assert!(catalog["main"].builtin);
     assert!(!catalog["acp-snow"].enabled);
     assert_eq!(
@@ -76,7 +76,7 @@ fn agent_catalog_keeps_all_backends_without_installed_clis() {
     const CHILD: &str = "SHIJU_CATALOG_EMPTY_CLI_ENV";
     if std::env::var_os(CHILD).is_some() {
         let catalog = load_agent_configs(&json!({}));
-        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 30);
+        assert_eq!(catalog.keys().filter(|key| key.starts_with("acp-")).count(), 31);
         assert_eq!(catalog["acp-snow"].runtime, AgentRuntime::Acp { backend: "snow".into() });
         return;
     }
@@ -294,4 +294,32 @@ fn acp_onboarding_sigit_catalog_binding() {
     let entry = &catalog["acp-sigit"];
     assert!(entry.enabled && entry.builtin);
     assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "sigit".into() });
+}
+
+#[test]
+fn acp_onboarding_amp_acp_builtin_preset_metadata() {
+    let catalog = load_agent_configs(&json!({}));
+    let entry = catalog.get("acp-amp-acp").expect("official Amp preset");
+    assert!(entry.builtin);
+    assert!(!entry.enabled);
+    assert!(!entry.allow_as_subagent);
+    assert_eq!(entry.label.as_deref(), Some("Amp"));
+    assert!(!entry.description.as_ref().unwrap().is_empty());
+    assert!(!entry.recommended_prompts.is_empty());
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "amp-acp".into() });
+    assert_eq!(
+        serde_json::to_value(&entry.defaults).unwrap(),
+        serde_json::to_value(vw_config_types::agent::AgentDefinitionConfig::default().defaults)
+            .unwrap()
+    );
+}
+
+#[test]
+fn acp_onboarding_amp_acp_catalog_binding() {
+    let catalog = load_agent_configs(&json!({"agents":{"acp-amp-acp":{
+        "provider":"","model":"","enabled":true,"label":"Selected Amp","runtime":{"kind":"native"},"builtin":false
+    }}}));
+    let entry = &catalog["acp-amp-acp"];
+    assert!(entry.enabled && entry.builtin);
+    assert_eq!(entry.runtime, AgentRuntime::Acp { backend: "amp-acp".into() });
 }

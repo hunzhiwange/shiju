@@ -15,13 +15,14 @@ use vw_gateway_client::{AppRoutingError, GatewayClient};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Context {
     gateway: AgentAppsContext,
-    host: String,
+    pub(super) host: String,
     generation: u64,
     access: u64,
 }
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
+    pub(super) config: super::config::State,
     context: Option<Context>,
     serial: u64,
     busy: bool,
@@ -39,6 +40,7 @@ pub(crate) enum Operation {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
+    Config(super::config::Event),
     Run(Operation),
     Loaded(Context, u64, Result<(RoutingStatus, RoutingHealth), String>),
 }
@@ -46,7 +48,12 @@ pub(crate) enum Event {
 impl State {
     pub(crate) fn invalidate(&mut self) {
         let serial = self.serial.wrapping_add(1);
-        *self = Self { serial, ..Default::default() };
+        let config_serial = self.config.next_serial();
+        *self = Self {
+            serial,
+            config: super::config::State::with_serial(config_serial),
+            ..Default::default()
+        };
     }
 
     fn finish(
@@ -92,7 +99,7 @@ fn context(catalog: &AppsCatalogState) -> Option<Context> {
     })
 }
 
-fn current(app: &App) -> Option<Context> {
+pub(super) fn current(app: &App) -> Option<Context> {
     let context = context(&app.apps_catalog)?;
     let client = crate::app::config::gateway_client().ok()?;
     if context.gateway
@@ -107,7 +114,7 @@ fn current(app: &App) -> Option<Context> {
     Some(context)
 }
 
-fn error_message(error: AppRoutingError) -> String {
+pub(super) fn error_message(error: AppRoutingError) -> String {
     match error {
         AppRoutingError::Http { status: 401 | 403, .. } => {
             "无服务操作授权，请重新连接执行主机".into()
@@ -171,10 +178,14 @@ async fn request(
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Config(event) = event {
+        return super::config::update(app, event);
+    }
     let Some(context) = current(app) else {
         return Task::none();
     };
     match event {
+        Event::Config(_) => unreachable!(),
         Event::Run(operation) => {
             let state = &mut app.apps_catalog.routing;
             if state.context.as_ref() != Some(&context) {
@@ -288,7 +299,25 @@ pub(crate) fn view(catalog: &AppsCatalogState) -> Element<'_, Message> {
             (fresh && can_control(state, Operation::Stop))
                 .then_some(message(Event::Run(Operation::Stop))),
         );
-    settings_panel(body.push(row![refresh, start, stop].spacing(8).wrap())).into()
+    settings_panel(
+        body.push(
+            row![
+                refresh,
+                start,
+                stop,
+                button(text("监听设置"))
+                    .padding([8, 12])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        connected
+                            .then_some(message(Event::Config(super::config::Event::Open(None))))
+                    )
+            ]
+            .spacing(8)
+            .wrap(),
+        ),
+    )
+    .into()
 }
 
 #[cfg(test)]

@@ -39,6 +39,7 @@ image = "0.25.9"
 include_dir = "0.7"
 libc = "0.2"
 mail-parser = "0.11"
+memory-algorithms = { path = "../libs/memory-algorithms", version = "0.6.0" }
 mime_guess = "2.0.5"
 minijinja = { version = "2.20.0", features = ["json", "loop_controls"] }
 nanohtml2text = "0.2.1"

@@ -5984,6 +5984,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-algorithms"
+version = "0.6.0"
+
+[[package]]
 name = "metal"
 version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12374,6 +12378,7 @@ dependencies = [
  "lettre",
  "libc",
  "mail-parser",
+ "memory-algorithms",
  "mime_guess",
  "minijinja",
  "mysql",

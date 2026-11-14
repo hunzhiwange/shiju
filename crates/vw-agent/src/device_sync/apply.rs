@@ -73,8 +73,9 @@ fn rollback(skills: &mut [SkillUpdate]) -> bool {
     failed
 }
 
-/// Caller holds the tenant/host sync lock and all selected resource guards for
-/// this entire synchronous call. `skills` are locally authorized, hash-checked
+/// Caller holds the tenant/host sync lock through awaited projections. Selected
+/// resource guards cover commit; release them before owners reacquire them for
+/// projection. `skills` are locally authorized, hash-checked
 /// staging updates from the skill owner, never objects decoded from remote JSON.
 /// Capture must include complete configuration and skill preimages for exactly
 /// `targets`, under those same guards (including absence and native projections).
@@ -83,17 +84,20 @@ fn rollback(skills: &mut [SkillUpdate]) -> bool {
 ///
 /// The outer error means no publication was attempted. The inner error retains
 /// recovery material even if rollback succeeded; it must never be reported as a
-/// successful synchronization. No cancellation/drop boundary occurs during commit.
+/// successful synchronization. No cancellation/drop boundary occurs during commit. After commit, await
+/// projection completion inline; do not select cancellation against this future.
 #[allow(clippy::too_many_arguments)]
-pub fn apply_snapshot(
+pub async fn apply_snapshot(
     database: &GlobalDatabase,
+    _sync_lock: &tokio::sync::OwnedMutexGuard<()>,
     scope: SnapshotScope<'_>,
     preview: SnapshotImport,
     mut skills: Vec<SkillUpdate>,
     recovery_root: &Path,
     targets: &[SnapshotTarget],
     capture: impl FnOnce() -> Result<Vec<OwnerPreimage>, SafetySnapshotError>,
-) -> Result<Result<(SafetySnapshotReceipt, usize), ApplyFailure>, SafetySnapshotError> {
+    projections: Vec<super::projection::ProjectionJob<'_>>,
+) -> Result<Result<super::projection::AppliedSnapshot, ApplyFailure>, SafetySnapshotError> {
     let safety_scope = SafetySnapshotScope {
         project: scope.project.clone(),
         principal_id: scope.principal.into(),
@@ -117,7 +121,12 @@ pub fn apply_snapshot(
             for skill in skills {
                 skill.finish();
             }
-            Ok(Ok((receipt, changed)))
+            let warnings = super::projection::refresh(projections).await;
+            Ok(Ok(super::projection::AppliedSnapshot {
+                receipt,
+                changed_records: changed,
+                warnings,
+            }))
         }
         Err(_) => {
             let rollback_failed = rollback(&mut skills);

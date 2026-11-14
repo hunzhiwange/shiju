@@ -17,3 +17,6 @@ pub mod apply;
 
 #[cfg(target_os = "macos")]
 pub mod webdav_upload;
+
+#[cfg(target_os = "macos")]
+pub mod projection;

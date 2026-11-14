@@ -31,6 +31,9 @@ pub struct PromptEntry {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PromptCatalog {
     pub revision: u64,
+    /// Successful first access, including an absent or blank native file.
+    #[serde(default)]
+    pub bootstrap_complete: bool,
     pub entries: Vec<PromptEntry>,
 }
 
@@ -177,3 +180,7 @@ impl PromptScope<'_> {
         Ok(serde_json::to_string(&(self.project.project_id(), self.host, self.app))?)
     }
 }
+
+#[cfg(target_os = "macos")]
+#[path = "prompts_bootstrap.rs"]
+mod bootstrap;

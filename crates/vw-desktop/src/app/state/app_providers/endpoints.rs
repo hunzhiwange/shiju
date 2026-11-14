@@ -6,6 +6,7 @@ pub(crate) struct Form {
     pub full_url: bool,
     pub headers: String,
     pub overrides: String,
+    pub user_agent: Option<String>,
     pub options:
         Option<vw_gateway_client::vw_api_types::app_providers::request_options::RequestOptionsView>,
     pub rows: Vec<AppProviderEndpoint>,
@@ -26,6 +27,7 @@ impl Form {
             rows: Vec::new(),
             headers: String::new(),
             overrides: String::new(),
+            user_agent: None,
             options: None,
             busy: false,
             notice: None,

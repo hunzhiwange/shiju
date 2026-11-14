@@ -61,9 +61,17 @@ pub(crate) async fn save_options(
     if !form.overrides.trim().is_empty() {
         fields.push(format!("\"localProxyRequestOverrides\":{}", form.overrides));
     }
-    let options: ProviderRequestOptions =
+    let mut options: ProviderRequestOptions =
         serde_json::from_str(&format!("{{{}}}", fields.join(",")))
             .map_err(|_| "请求选项必须是有效 JSON 对象，字段类型或重复头名称无效；草稿已保留。")?;
+    if let Some(value) = form.user_agent {
+        // This is wire assembly only. Header validity and protected names remain host policy.
+        // Overrides are replaced as a group by the API, so retain the supplied body and headers.
+        let overrides = options.local_proxy_request_overrides.get_or_insert_with(Default::default);
+        let headers = overrides.headers.get_or_insert_with(Default::default);
+        headers.retain(|name, _| !name.trim().eq_ignore_ascii_case("user-agent"));
+        headers.insert("user-agent".into(), value);
+    }
     client
         .app_provider_request_options_save(
             scope.app,
@@ -83,6 +91,8 @@ pub enum Event {
     FullUrl(bool),
     Headers(String),
     Overrides(String),
+    UserAgentEnabled(bool),
+    UserAgent(String),
     Add,
     Remove(String, AppProviderEndpointKind),
     MarkUsed(String, AppProviderEndpointKind),
@@ -202,6 +212,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     if saved {
                         form.headers.clear();
                         form.overrides.clear();
+                        form.user_agent = None;
                         form.notice = Some("请求选项已保存；未应用到原生应用或代理。".into());
                         return app.show_info_toast("请求选项已保存，未应用");
                     }
@@ -283,6 +294,10 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 Event::FullUrl(v) => form.full_url = v,
                 Event::Headers(v) => form.headers = v,
                 Event::Overrides(v) => form.overrides = v,
+                Event::UserAgentEnabled(enabled) => {
+                    form.user_agent = enabled.then(String::new);
+                }
+                Event::UserAgent(v) => form.user_agent = Some(v),
                 _ => {}
             }
         }

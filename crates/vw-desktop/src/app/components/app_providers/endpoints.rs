@@ -85,7 +85,19 @@ pub(crate) fn overlay<'a>(
                 "{\"headers\":{},\"body\":{\"temperature\":0.2}}",
                 &form.overrides,
                 Event::Overrides,
-            ));
+            ))
+            .push(
+                checkbox(form.user_agent.is_some())
+                    .label("在本次覆盖中设置 User-Agent")
+                    .style(settings_checkbox_style)
+                    .on_toggle_maybe((!form.busy).then_some(|v| message(Event::UserAgentEnabled(v)))),
+            );
+        if let Some(value) = &form.user_agent {
+            body = body
+                .push(input("User-Agent（留空移除）", value, Event::UserAgent))
+                .push(text("此字段替换上方覆盖 JSON 中的 User-Agent；整个代理覆盖组一起保存，请同时填写需要保留的头和请求体。"));
+        }
+        body = body.push(text("头名称、受保护头、请求体协议字段及 User-Agent 合法性由执行主机校验；失败保留草稿。"));
     }
     if let Some(notice) = &form.notice {
         body = body.push(text(notice));

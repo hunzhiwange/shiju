@@ -242,6 +242,7 @@ pub(crate) fn overlay<'a>(
     catalog: &'a AppsCatalogState,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let base = super::outbound::overlay(catalog, base);
     let state = &catalog.routing.config;
     if !state.open {
         return base;

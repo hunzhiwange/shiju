@@ -23,6 +23,7 @@ pub(crate) struct Context {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
     pub(super) config: super::config::State,
+    pub(super) outbound: super::outbound::State,
     context: Option<Context>,
     serial: u64,
     busy: bool,
@@ -41,16 +42,20 @@ pub(crate) enum Operation {
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     Config(super::config::Event),
+    Outbound(super::outbound::Event),
     Run(Operation),
     Loaded(Context, u64, Result<(RoutingStatus, RoutingHealth), String>),
 }
 
 impl State {
     pub(crate) fn invalidate(&mut self) {
+        self.outbound.invalidate();
+        let outbound = self.outbound.clone();
         let serial = self.serial.wrapping_add(1);
         let config_serial = self.config.next_serial();
         *self = Self {
             serial,
+            outbound,
             config: super::config::State::with_serial(config_serial),
             ..Default::default()
         };
@@ -178,6 +183,9 @@ async fn request(
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Outbound(event) = event {
+        return super::outbound::update(app, event);
+    }
     if let Event::Config(event) = event {
         return super::config::update(app, event);
     }
@@ -185,7 +193,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     match event {
-        Event::Config(_) => unreachable!(),
+        Event::Config(_) | Event::Outbound(_) => unreachable!(),
         Event::Run(operation) => {
             let state = &mut app.apps_catalog.routing;
             if state.context.as_ref() != Some(&context) {

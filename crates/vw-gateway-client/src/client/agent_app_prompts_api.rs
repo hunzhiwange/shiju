@@ -124,6 +124,24 @@ enum Operation<'a> {
 }
 
 impl GatewayClient {
+    /// A successful HTTP response may retain a disabled import after activation failed.
+    pub async fn agent_app_prompts_import_share(
+        &self,
+        scope: &AgentAppPromptsScope,
+        revision: u64,
+        import: &vw_api_types::agent_apps::ImportPromptShareRequest,
+        token: &str,
+    ) -> Result<vw_api_types::agent_apps::ImportPromptShareResult, AgentAppPromptsError> {
+        if scope.app_id != import.target_app || import.validate().is_err() {
+            return Err(AgentAppPromptsError::InvalidInput);
+        }
+        let body = serde_json::to_value(vw_api_types::agent_apps::ImportPromptShareApiRequest {
+            project_id: scope.project_id.clone(), target_host_id: scope.target_host_id.clone(),
+            revision, import: import.clone(),
+        }).map_err(|_| AgentAppPromptsError::InvalidInput)?;
+        self.prompt_request("/import-share", scope, None, Some(body), token).await
+    }
+
     pub async fn agent_app_prompts(
         &self,
         scope: &AgentAppPromptsScope,

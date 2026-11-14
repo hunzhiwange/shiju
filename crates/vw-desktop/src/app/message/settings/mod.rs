@@ -619,4 +619,6 @@ pub(crate) mod mcp_management_tools;
 
 pub(crate) mod worktrees;
 
+pub(crate) mod prompts;
+
 pub(crate) mod data_management;

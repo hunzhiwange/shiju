@@ -35,10 +35,9 @@ pub mod workspace_paths;
 #[cfg(all(test, target_os = "macos"))]
 mod workspace_paths_tests;
 
-#[cfg(target_os = "macos")]
-pub mod hermes_memory;
-#[cfg(all(test, target_os = "macos"))]
-mod hermes_memory_tests;
+pub mod prompts;
+
+pub mod sessions;
 
 #[cfg(target_os = "macos")]
 pub mod workspace_files;

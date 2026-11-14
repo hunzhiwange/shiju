@@ -39,6 +39,7 @@ pub(super) fn view<'a>(
         details = details.push(crate::app::components::openclaw_env::entry());
         details = details.push(crate::app::components::openclaw_defaults::entry());
     }
+    details = details.push(crate::app::components::system_settings_prompts::list::view(&state.prompts, app.entry.id));
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::Hermes {
         details = details.push(crate::app::components::hermes_memory::view(&state.hermes_memory));
         details = details.push(crate::app::components::hermes_dashboard::view(&state.hermes_dashboard));

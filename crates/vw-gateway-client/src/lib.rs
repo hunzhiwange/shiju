@@ -232,6 +232,18 @@ pub use client::SkillBackupError;
 
 pub use client::{HermesMemoryError, HermesMemoryScope};
 
+pub use client::{PiPromptResourcesScope, PiPromptFileKind, PiPromptFileSnapshot, PiPromptTemplate, PiPromptTemplateSummary, PiPromptTemplateDeletion, AgentAppPromptSync, AgentAppPromptSyncTarget, AgentAppPromptSyncTargetStatus};
+
+// Native prompt catalog contracts consumed by the desktop settings.
+pub use client::{AgentAppPromptCatalog, AgentAppPromptEntry, AgentAppPromptsScope, AgentAppPromptsError};
+
+pub use client::{AgentAppPromptCopies, AgentAppPromptCopyOutcome, AgentAppPromptImportSource};
+
+pub use client::{OpenClawSettingsError, OpenClawSettingsScope};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use client::ExternalSessionStream;
+
 // Backup policy consumed by desktop maintenance forms.
 pub use client::DataBackupPolicy;
 

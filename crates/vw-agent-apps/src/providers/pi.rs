@@ -201,6 +201,22 @@ impl PiFiles {
         configured_dir: Option<&Path>,
         env_dir: Option<&OsStr>,
     ) -> Result<Self, WriteError> {
+        Self::open_directory_inner(home, configured_dir, env_dir, true)
+    }
+    /// Read/API entry: never creates the native directory as a side effect.
+    pub fn open_existing_directory(
+        home: &Path,
+        configured_dir: Option<&Path>,
+        env_dir: Option<&OsStr>,
+    ) -> Result<Self, WriteError> {
+        Self::open_directory_inner(home, configured_dir, env_dir, false)
+    }
+    fn open_directory_inner(
+        home: &Path,
+        configured_dir: Option<&Path>,
+        env_dir: Option<&OsStr>,
+        create: bool,
+    ) -> Result<Self, WriteError> {
         use std::os::{
             fd::{AsRawFd, FromRawFd},
             unix::fs::OpenOptionsExt,
@@ -216,7 +232,7 @@ impl PiFiles {
             let name =
                 std::ffi::CString::new(component).map_err(|_| WriteError::InvalidResource)?;
             // SAFETY: fixed single child of the retained authorized directory.
-            if unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), 0o700) } != 0
+            if create && unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), 0o700) } != 0
                 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists
             {
                 return Err(WriteError::Io);
@@ -235,6 +251,34 @@ impl PiFiles {
             dir = unsafe { std::fs::File::from_raw_fd(fd) };
         }
         Ok(Self { directory, guard: super::live::write_guard::lock_directory(AppId::Pi, dir)? })
+    }
+    /// Resolve only the fixed prompts child beneath an authorized Pi directory.
+    /// Missing directories are empty for reads; writes prepare the private child.
+    pub fn open_prompt_templates(
+        home: &Path, configured_dir: Option<&Path>, env_dir: Option<&OsStr>, create: bool,
+    ) -> Result<Option<super::live::write_guard::AppWriteGuard>, WriteError> {
+        use std::os::{fd::{AsRawFd, FromRawFd}, unix::fs::OpenOptionsExt};
+        let mut parts = resolve_directory(home, configured_dir, env_dir)?;
+        parts.push("prompts".into());
+        let mut directory = std::fs::OpenOptions::new().read(true)
+            .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+            .open(home).map_err(|_| WriteError::InvalidResource)?;
+        for part in parts {
+            let name = std::ffi::CString::new(part).map_err(|_| WriteError::InvalidResource)?;
+            if create && unsafe { libc::mkdirat(directory.as_raw_fd(), name.as_ptr(), 0o700) } != 0
+                && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists {
+                return Err(WriteError::Io);
+            }
+            let fd = unsafe { libc::openat(directory.as_raw_fd(), name.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC) };
+            if fd < 0 {
+                return if !create && std::io::Error::last_os_error().kind() == std::io::ErrorKind::NotFound {
+                    Ok(None)
+                } else { Err(WriteError::InvalidResource) };
+            }
+            directory = unsafe { std::fs::File::from_raw_fd(fd) };
+        }
+        super::live::write_guard::lock_directory(AppId::Pi, directory).map(Some)
     }
     pub fn snapshot(&self) -> Result<(&'static str, Option<Vec<u8>>), WriteError> {
         Ok(("models.json", self.guard.read(OsStr::new("models.json"))?))

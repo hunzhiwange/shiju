@@ -50,6 +50,8 @@ pub(crate) fn router() -> Router {
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         router
             .merge(super::agent_apps_data::backup_restore_api::router())
+            .merge(super::agent_app_prompt_sync::router())
+            .layer(Extension(super::agent_app_prompt_sync::Jobs::default()))
             .merge(hermes_dashboard::router())
             .merge(hermes_memory::router())
             .merge(openclaw_settings::router())
@@ -640,8 +642,17 @@ pub(super) use access::authorize_skill_job;
 mod hermes_dashboard;
 
 #[cfg(target_os = "macos")]
+pub(super) use access::authorize_prompts_read;
+
+#[cfg(target_os = "macos")]
 #[path = "../hermes_memory.rs"]
 mod hermes_memory;
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_prompts_write;
+
+#[cfg(target_os = "macos")]
+pub(in super::super) use access::authorize_prompts_activation;
 
 #[cfg(target_os = "macos")]
 #[path = "../workspace_memory.rs"]

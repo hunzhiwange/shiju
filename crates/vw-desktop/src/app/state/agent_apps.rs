@@ -12,11 +12,7 @@ pub(crate) struct AppsCatalogState {
     pub external_sessions: crate::app::components::external_sessions::State,
     pub project_profiles: super::project_profiles::State,
     pub routing: crate::app::components::app_routing::lifecycle::State,
-    pub openclaw_tools: crate::app::components::openclaw_tools::State,
-    pub openclaw_env: crate::app::components::openclaw_env::State,
-    pub openclaw_catalog: crate::app::components::openclaw_catalog::State,
-    pub openclaw_model: crate::app::components::openclaw_model::State,
-    pub openclaw_defaults: crate::app::components::openclaw_defaults::State,
+    pub prompts: crate::app::components::system_settings_prompts::State,
     pub workspace_files: crate::app::components::workspace_files::State,
     pub daily_memory: crate::app::components::daily_memory::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
@@ -82,6 +78,7 @@ impl AppsCatalogState {
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
+        self.prompts.invalidate();
         self.project_profiles.invalidate();
         self.connection_open = false;
         self.error = Some("连接已更改，正在重新连接应用".into());
@@ -103,6 +100,7 @@ impl AppsCatalogState {
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
+        self.prompts.invalidate();
         self.project_profiles.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.context = Some(context);

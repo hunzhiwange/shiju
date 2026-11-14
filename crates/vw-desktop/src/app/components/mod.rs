@@ -488,6 +488,8 @@ pub(crate) mod agent_apps_high_availability;
 #[path = "agent_apps/hermes_dashboard.rs"]
 pub(crate) mod hermes_dashboard;
 
+pub(crate) mod system_settings_prompts;
+
 #[path = "agent_apps/hermes_memory.rs"]
 pub(crate) mod hermes_memory;
 #[cfg(test)]

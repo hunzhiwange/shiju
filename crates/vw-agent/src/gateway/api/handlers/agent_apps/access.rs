@@ -163,6 +163,13 @@ struct Grant {
     #[cfg(target_os = "macos")]
     #[serde(default)]
     mcp_acp_read: Vec<McpAcpReadPermit>,
+    /// Catalog reads include one-time inert import; no native mutation authority.
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    prompts_read: Vec<RoutingAppPermit>,
+    #[cfg(target_os = "macos")]
+    #[serde(default)]
+    prompts_write: Vec<RoutingAppPermit>,
     platform_id: String,
     company_id: String,
     host_id: String,
@@ -719,6 +726,10 @@ enum Capability<'a> {
     #[cfg(target_os = "macos")]
     AggregationRead(&'a ProjectId, AppId),
     #[cfg(target_os = "macos")]
+    PromptsRead(&'a ProjectId, AppId),
+    #[cfg(target_os = "macos")]
+    PromptsWrite(&'a ProjectId, AppId),
+    #[cfg(target_os = "macos")]
     AggregationWrite(&'a ProjectId, AppId, bool),
     #[cfg(target_os = "macos")]
     CodexRestart(&'a ProjectId),
@@ -1037,6 +1048,12 @@ fn authorize_digest(
                         .aggregation_codex_restart
                         .iter()
                         .any(|p| &p.project_id == project && p.app_id == AppId::Codex),
+                    #[cfg(target_os = "macos")]
+                    Capability::PromptsWrite(project, app) => g.prompts_write.iter()
+                        .any(|permit| &permit.project_id == project && permit.app_id == app),
+                    #[cfg(target_os = "macos")]
+                    Capability::PromptsRead(project, app) => g.prompts_read.iter()
+                        .any(|permit| &permit.project_id == project && permit.app_id == app),
                     #[cfg(target_os = "macos")]
                     Capability::AggregationRead(project, app) => {
                         g.provider_config_read
@@ -2004,6 +2021,17 @@ pub(super) fn authorize_hermes_dashboard(
         .map(|a| (a.host, a.principal))
 }
 
+/// Uses the existing tenant, principal and local-host policy dispatcher.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_prompts_read(
+    path: Option<&Path>, headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
+    let a = authorize_aggregation(path, headers, project, target,
+        Capability::PromptsRead(project.project_id(), app))?;
+    Ok((a.host.home, a.host.pi_directory, a.principal))
+}
+
 /// Explicit project memory grants; dashboard/provider grants do not imply access.
 pub(super) fn authorize_hermes_memory(
     path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
@@ -2011,6 +2039,29 @@ pub(super) fn authorize_hermes_memory(
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::HermesMemory(project.project_id(), write)).map(|a| a.host)
+}
+
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_prompts_write(
+    path: Option<&Path>, headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+) -> Result<(PathBuf, Option<PathBuf>, String), StatusCode> {
+    let a = authorize_aggregation(path, headers, project, target,
+        Capability::PromptsWrite(project.project_id(), app))?;
+    Ok((a.host.home, a.host.pi_directory, a.principal))
+}
+
+
+/// Activation also needs the executor's existing transaction root.
+#[cfg(target_os = "macos")]
+pub(in super::super) fn authorize_prompts_activation(
+    path: Option<&Path>, headers: &HeaderMap,
+    project: &vw_api_types::id::ProjectScope, target: &str, app: AppId,
+) -> Result<(PathBuf, Option<PathBuf>, String, PathBuf), StatusCode> {
+    let a = authorize_aggregation(path, headers, project, target,
+        Capability::PromptsWrite(project.project_id(), app))?;
+    Ok((a.host.home, a.host.pi_directory, a.principal,
+        a.host.credential_root.ok_or(StatusCode::SERVICE_UNAVAILABLE)?))
 }
 
 /// Workspace contents need explicit project grants, independent of providers.

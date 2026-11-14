@@ -63,8 +63,13 @@ async fn start_until<F>(
 where
     F: Future<Output = ()> + Send + 'static,
 {
+    // Inject the shared settings backend once; prompt handlers never infer a desktop HOME.
+    let database = tokio::task::spawn_blocking(|| {
+        crate::global_database::GlobalDatabase::for_home(&crate::global::paths().home)
+    }).await.map_err(|_| ApiError::internal("settings backend unavailable"))?
+        .map_err(|_| ApiError::internal("settings backend unavailable"))?;
     let sync = crate::device_sync::lifecycle::SyncLifecycle::default();
-    let router = build_router(opts.cors)
+    let router = build_router(opts.cors).layer(axum::Extension(database))
         .layer(axum::Extension(sync.clone()));
     let listener = bind_prefer(&opts.hostname, opts.port).await?;
     let addr = listener.local_addr().map_err(|e| ApiError::internal(e.to_string()))?;

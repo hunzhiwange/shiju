@@ -9,11 +9,7 @@ pub enum AppsCatalogMessage {
     ExternalSessions(crate::app::components::external_sessions::Event),
     ProjectProfiles(crate::app::message::project_profiles::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
-    OpenClawTools(crate::app::components::openclaw_tools::Event),
-    OpenClawEnv(crate::app::components::openclaw_env::Event),
-    OpenClawCatalog(crate::app::components::openclaw_catalog::Event),
-    OpenClawModel(crate::app::components::openclaw_model::Event),
-    OpenClawDefaults(crate::app::components::openclaw_defaults::Event),
+    Prompts(super::prompts::Event),
     WorkspaceFiles(crate::app::components::workspace_files::Event),
     DailyMemory(crate::app::components::daily_memory::Event),
     HermesMemory(crate::app::components::hermes_memory::Event),
@@ -66,6 +62,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
+        AppsCatalogMessage::Prompts(event) => return super::prompts::update(app, event),
         AppsCatalogMessage::WorkspaceFiles(event) => return crate::app::components::workspace_files::update(app, event),
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
@@ -136,6 +133,14 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.project_profiles.application = application;
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
+            app.apps_catalog.prompts.invalidate();
+            if app.apps_catalog.expanded.is_some() && !matches!(id, vw_gateway_client::vw_api_types::agent_apps::AppId::ClaudeDesktop | vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw) {
+                let prompts = super::prompts::update(app, super::prompts::Event::Open(id));
+                let profiles = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id)
+                    .map(|scope| crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope)))
+                    .unwrap_or_else(Task::none);
+                return Task::batch([prompts, profiles]);
+            }
             if app.apps_catalog.expanded == Some(id) {
                 if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id) {
                     return crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope));

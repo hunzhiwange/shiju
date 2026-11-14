@@ -256,6 +256,8 @@ async fn owned(
     Ok(operation)
 }
 enum OwnedOperation {
+    #[cfg(target_os = "macos")]
+    Prompt(Arc<super::super::agent_app_prompt_sync::Job>),
     Mcp(Arc<super::super::mcp_management_resync::Job>),
     Lifecycle(Operation),
     #[cfg(target_os = "macos")]
@@ -265,6 +267,8 @@ enum OwnedOperation {
 impl OwnedOperation {
     fn operation(&self) -> &Operation {
         match self {
+            #[cfg(target_os = "macos")]
+            Self::Prompt(entry) => &entry.operation,
             Self::Lifecycle(operation) => operation,
             Self::Mcp(entry) => &entry.operation,
             #[cfg(target_os = "macos")]
@@ -274,6 +278,8 @@ impl OwnedOperation {
 
     fn response(&self, id: String) -> Response {
         match self {
+            #[cfg(target_os = "macos")]
+            Self::Prompt(entry) => entry.response(id),
             Self::Lifecycle(operation) => Json(status(id, operation)).into_response(),
             Self::Mcp(entry) => entry.response(id),
             #[cfg(target_os = "macos")]
@@ -294,10 +300,16 @@ async fn resolve_operation(
     headers: HeaderMap,
     host: &str,
     id: &str,
+    #[cfg(target_os = "macos")] prompts: Option<Extension<super::super::agent_app_prompt_sync::Jobs>>,
     mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
     #[cfg(target_os = "macos")] cancel: bool,
 ) -> Result<OwnedOperation, Response> {
+    #[cfg(target_os = "macos")]
+    if let Some(Extension(jobs)) = prompts
+        && let Some(entry) = jobs.owned(id, &tenant, host, &headers, state.policy.as_deref()).map_err(IntoResponse::into_response)? {
+        return Ok(OwnedOperation::Prompt(entry));
+    }
     if let Some(Extension(jobs)) = mcp
         && let Some(entry) = jobs
             .owned(
@@ -333,6 +345,7 @@ async fn read(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    #[cfg(target_os = "macos")] prompts: Option<Extension<super::super::agent_app_prompt_sync::Jobs>>,
     mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
@@ -342,6 +355,8 @@ async fn read(
         headers,
         &target.target_host_id,
         &id,
+        #[cfg(target_os = "macos")]
+        prompts.clone(),
         mcp.clone(),
         #[cfg(target_os = "macos")]
         usage,
@@ -357,6 +372,7 @@ async fn events(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    #[cfg(target_os = "macos")] prompts: Option<Extension<super::super::agent_app_prompt_sync::Jobs>>,
     mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
@@ -366,6 +382,8 @@ async fn events(
         headers.clone(),
         &target.target_host_id,
         &id,
+        #[cfg(target_os = "macos")]
+        prompts.clone(),
         mcp.clone(),
         #[cfg(target_os = "macos")]
         usage.clone(),
@@ -385,6 +403,8 @@ async fn events(
         headers,
         &target.target_host_id,
         &id,
+        #[cfg(target_os = "macos")]
+        prompts.clone(),
         mcp.clone(),
         #[cfg(target_os = "macos")]
         usage,
@@ -400,6 +420,7 @@ async fn cancel(
     headers: HeaderMap,
     Query(target): Query<Target>,
     Path(id): Path<String>,
+    #[cfg(target_os = "macos")] prompts: Option<Extension<super::super::agent_app_prompt_sync::Jobs>>,
     mcp: McpJobs,
     #[cfg(target_os = "macos")] usage: UsageService,
 ) -> Result<Response, Response> {
@@ -409,6 +430,8 @@ async fn cancel(
         headers.clone(),
         &target.target_host_id,
         &id,
+        #[cfg(target_os = "macos")]
+        prompts.clone(),
         mcp.clone(),
         #[cfg(target_os = "macos")]
         usage.clone(),
@@ -426,6 +449,8 @@ async fn cancel(
                 headers,
                 &target.target_host_id,
                 &id,
+                #[cfg(target_os = "macos")]
+                prompts,
                 mcp,
                 #[cfg(target_os = "macos")]
                 usage,

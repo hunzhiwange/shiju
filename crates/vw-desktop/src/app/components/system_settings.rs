@@ -752,6 +752,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let dialog = crate::app::mcp_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::skill_link_preview::overlay(app, dialog);
+    #[cfg(target_os = "macos")]
+    let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
     dialog
 }
 

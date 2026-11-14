@@ -155,3 +155,27 @@ impl ImportPromptShareRequest {
         PromptResource::Application { app_id: self.target_app }.validate_application_access()
     }
 }
+
+/// Scoped transport wrapper; share metadata never selects tenant or host.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ImportPromptShareApiRequest {
+    pub project_id: ProjectId,
+    pub target_host_id: String,
+    pub revision: u64,
+    pub import: ImportPromptShareRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ImportPromptShareResult {
+    ImportedDisabled { entry: PromptEntry },
+    Activated { entry: PromptEntry },
+    ImportedActivationFailed { entry: PromptEntry, error: PromptShareActivationError },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptShareActivationError {
+    pub status: u16,
+    pub code: String,
+}

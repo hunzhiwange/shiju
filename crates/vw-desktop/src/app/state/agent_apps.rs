@@ -5,6 +5,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
     pub openclaw_model: crate::app::components::openclaw_model::State,
+    pub openclaw_defaults: crate::app::components::openclaw_defaults::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
     pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
@@ -56,6 +57,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_model.invalidate();
+        self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
         self.hermes_memory.invalidate();
         self.connection_open = false;
@@ -67,6 +69,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_model.invalidate();
+        self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
         self.hermes_memory.invalidate();
         self.generation = self.generation.wrapping_add(1);

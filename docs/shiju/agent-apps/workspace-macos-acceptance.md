@@ -217,3 +217,15 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
 
 已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。
+
+## 任务 36：桌面 OpenClaw 代理默认表单（2026-11-14）
+
+已静态核对任务 25 SDK、任务 1 合同、来源 AgentsDefaultsPanel / 模型选项 hook / HealthBanner 与底层 defaults 表单投影。应用详情新增统一设置弹窗，编辑 workspace/timeoutSeconds/contextTokens/maxConcurrent；匹配领域投影与有限数字规则，保留 model/catalog 和未知字段，空值清除字段，数字旧 timeout 别名按已有规则处理，未知旧数据保留。读取失败允许重试，保存失败保留草稿；字段错误可见，健康与写入警告展示，连接/主机/项目/请求代数使旧响应失效。配置发布沿用 SDK 和执行端分节事务，不新增本地 IO。
+
+新增两个独立测试源码，覆盖字段保留、清空及非法数字；依本轮要求未运行 Cargo、单元测试、实机测试或最终回归，不声称编译或行为验证通过。只格式化新增 Rust 文件。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证表单过滤场景、暗黑主题和中文实际渲染。
+
+## 任务 37：桌面 OpenClaw 环境表单（2026-11-14）
+
+新增 `components/agent_apps/openclaw_env.rs`，应用详情打开统一 env JSON 弹窗；复用任务 25 的专属 SDK，支持 vars/shellEnv 嵌套对象。空白、数组、null 与非法 JSON 明确拒绝；本地校验或服务端拒绝均保留草稿和错误。敏感读取 401/403 显示不可访问，未读取成功不能保存；错误不含响应正文、解析片段或敏感值，事件 Debug 不暴露草稿。保存成功保留结构化警告，toast 提示；关闭、连接切换、详情切换清空状态，作用域和请求代数拒绝旧响应。复用统一编辑器及弹窗，无中文等宽字体。
+
+已静态核对来源 EnvPanel、ToolsPanel、utils 测试、任务 1 正式合同及任务 25 SDK/DTO 和现有模型弹窗。独立测试源码覆盖失败保稿、非对象拒绝、成功警告及权限提示，仅编写，未运行。按用户最高优先要求未执行 Cargo、单元测试、实机或任何其它测试及最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证测试族、过期响应和明暗主题实际渲染。

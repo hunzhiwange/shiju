@@ -41,6 +41,7 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let base = crate::app::components::openclaw_model::overlay(&state.openclaw_model, base);
+    let base = crate::app::components::openclaw_defaults::overlay(&state.openclaw_defaults, base);
     if !state.connection_open {
         return launch::overlay(
             state,

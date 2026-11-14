@@ -43,7 +43,7 @@ impl WebDavConfig {
     }
 }
 
-fn normalize_url(value: &str) -> Result<String, &'static str> {
+pub(super) fn normalize_url(value: &str) -> Result<String, &'static str> {
     // Inspect the raw spelling before Url can erase dot segments or controls.
     if value.chars().any(|c| c.is_control() || c == '\\') {
         return Err("Invalid WebDAV address");
@@ -72,28 +72,34 @@ fn normalize_url(value: &str) -> Result<String, &'static str> {
 
 fn validate_path(value: &str) -> Result<(), &'static str> {
     for segment in value.split('/') {
-        // Decode once, rejecting residual percent signs to prevent nested encodings.
-        let mut decoded = Vec::with_capacity(segment.len());
-        let mut bytes = segment.bytes();
-        while let Some(byte) = bytes.next() {
-            if byte == b'%' {
-                let high = bytes.next().and_then(hex).ok_or("Invalid WebDAV path encoding")?;
-                let low = bytes.next().and_then(hex).ok_or("Invalid WebDAV path encoding")?;
-                decoded.push(high * 16 + low);
-            } else {
-                decoded.push(byte);
-            }
-        }
-        let decoded = std::str::from_utf8(&decoded).map_err(|_| "Invalid WebDAV path encoding")?;
-        if decoded.is_empty()
-            || decoded == "."
-            || decoded == ".."
-            || decoded.chars().any(|c| c.is_control() || matches!(c, '/' | '\\' | '%' | '?' | '#' | ':'))
-        {
-            return Err("Unsafe WebDAV path segment");
-        }
+        decode_path_segment(segment)?;
     }
     Ok(())
+}
+
+/// Decode exactly once, rejecting separators, dot segments and nested escapes.
+pub(super) fn decode_path_segment(segment: &str) -> Result<String, &'static str> {
+    // Decode once, rejecting residual percent signs to prevent nested encodings.
+    let mut decoded = Vec::with_capacity(segment.len());
+    let mut bytes = segment.bytes();
+    while let Some(byte) = bytes.next() {
+        if byte == b'%' {
+            let high = bytes.next().and_then(hex).ok_or("Invalid WebDAV path encoding")?;
+            let low = bytes.next().and_then(hex).ok_or("Invalid WebDAV path encoding")?;
+            decoded.push(high * 16 + low);
+        } else {
+            decoded.push(byte);
+        }
+    }
+    let decoded = String::from_utf8(decoded).map_err(|_| "Invalid WebDAV path encoding")?;
+    if decoded.is_empty()
+        || decoded == "."
+        || decoded == ".."
+        || decoded.chars().any(|c| c.is_control() || matches!(c, '/' | '\\' | '%' | '?' | '#' | ':'))
+    {
+        return Err("Unsafe WebDAV path segment");
+    }
+    Ok(decoded)
 }
 
 fn hex(byte: u8) -> Option<u8> {

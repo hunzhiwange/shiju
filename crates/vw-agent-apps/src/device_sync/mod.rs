@@ -5,3 +5,4 @@ pub mod artifact;
 pub mod webdav_config;
 pub mod manifest;
 pub mod archive_extract;
+pub mod webdav_url;

@@ -57,6 +57,7 @@ pub enum Event {
     Token(String),
     Connect,
     Refresh,
+    RetryService(AuthService),
     OpenBrowserPreference(bool),
     StartLogin(LoginTarget),
     RetryLogin,
@@ -229,8 +230,11 @@ pub(in crate::app) fn update_at(
                 form.token = value;
             }
         }
-        Event::Connect | Event::Refresh => {
+        Event::Connect | Event::Refresh | Event::RetryService(_) => {
             if !visible || state.account_action.is_some() || state.login.is_some() {
+                return Task::none();
+            }
+            if matches!(event, Event::RetryService(_)) && state.form.is_some() {
                 return Task::none();
             }
             if let Some(binding) = &state.binding {
@@ -272,6 +276,16 @@ pub(in crate::app) fn update_at(
                     move |result| message(Event::LocalReady { scope, generation, result }),
                 );
             };
+            let retry = if let Event::RetryService(service) = event {
+                let Some(rows) = state.rows.clone().filter(|rows| {
+                    rows.iter().any(|row| row.service == service && row.accounts.is_err())
+                }) else {
+                    return Task::none();
+                };
+                Some((service, rows))
+            } else {
+                None
+            };
             let generation = state.begin();
             return Task::perform(
                 async move {
@@ -280,7 +294,16 @@ pub(in crate::app) fn update_at(
                         password: &connection.password,
                         principal_token: connection.token.trim(),
                     };
-                    load(&client, connection.host.trim(), &credentials).await
+                    if let Some((service, mut rows)) = retry {
+                        let refreshed =
+                            load_service(&client, connection.host.trim(), &credentials, service).await;
+                        if let Some(row) = rows.iter_mut().find(|row| row.service == service) {
+                            *row = refreshed;
+                        }
+                        rows
+                    } else {
+                        load(&client, connection.host.trim(), &credentials).await
+                    }
                 },
                 move |rows| message(Event::Loaded { scope, generation, rows }),
             );

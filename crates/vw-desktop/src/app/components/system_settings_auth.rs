@@ -265,7 +265,21 @@ fn service_card<'a>(
                 ));
             }
         }
-        Err(reason) => card = card.push(settings_error_banner(*reason)),
+        Err(reason) => {
+            card = card.push(settings_error_banner(*reason)).push(
+                button(text("重试此服务").size(13))
+                    .style(rounded_action_btn_style)
+                    .padding([6, 12])
+                    .on_press_maybe(
+                        (state.connection.is_some()
+                            && state.pending.is_none()
+                            && state.login.is_none()
+                            && state.account_action.is_none()
+                            && state.form.is_none())
+                            .then(|| message(Event::RetryService(service.service))),
+                    ),
+            );
+        }
     }
 
     let focused = Some(service.service) == state.focused_service;

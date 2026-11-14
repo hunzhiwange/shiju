@@ -37,3 +37,5 @@ pub mod tasks;
 pub mod cancel;
 
 pub mod status;
+
+pub mod auto_sync;

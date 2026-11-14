@@ -8,7 +8,8 @@ use std::rc::Rc;
 use tao::event_loop::EventLoopProxy;
 use wry::{NewWindowFeatures, NewWindowResponse, WebView, WebViewBuilder};
 
-use crate::external_protocol::{ExternalProtocols, Navigation, navigation};
+use crate::external_protocol::ExternalProtocols;
+use webview_core::navigation::{ExternalTarget, Navigation, navigation};
 use crate::{UserEvent, append_log};
 
 #[cfg(target_os = "macos")]
@@ -138,7 +139,7 @@ impl PopupWindows {
     pub(crate) fn show_external_confirmation(
         &self,
         id: u64,
-        target: crate::external_protocol::ExternalTarget,
+        target: ExternalTarget,
         confirmation: crate::external_protocol::Confirmation,
     ) {
         // On Windows the dialog pumps messages. Never hold a borrow across it.

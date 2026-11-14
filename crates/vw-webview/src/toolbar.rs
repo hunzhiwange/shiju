@@ -209,7 +209,7 @@ fn normalize_toolbar_url(input: &str) -> Option<String> {
     if trimmed.is_empty() || trimmed.chars().any(char::is_whitespace) {
         return None;
     }
-    if crate::is_safe_navigation_url(trimmed) {
+    if webview_core::navigation::is_safe_navigation_url(trimmed) {
         return Some(trimmed.to_owned());
     }
 
@@ -220,7 +220,7 @@ fn normalize_toolbar_url(input: &str) -> Option<String> {
         (host == "localhost" || host.contains('.')) && port.parse::<u16>().is_ok()
     });
     if trimmed.contains(':') && !host_port && !trimmed.starts_with('[') {
-        return crate::external_protocol::ExternalTarget::parse(trimmed)
+        return webview_core::navigation::ExternalTarget::parse(trimmed)
             .map(|_| trimmed.to_owned());
     }
     let target = format!("https://{trimmed}");

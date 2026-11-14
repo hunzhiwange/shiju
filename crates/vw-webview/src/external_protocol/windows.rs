@@ -18,7 +18,7 @@ use windows::{
 };
 use wry::{WebView, WebViewExtWindows};
 
-use super::{Navigation, navigation};
+use webview_core::navigation::{Navigation, navigation};
 
 #[derive(Clone)]
 pub(crate) struct Parent(HWND);

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use url::Url;
+use webview_core::navigation::ExternalTarget;
 
 #[cfg(all(not(coverage), target_os = "macos"))]
 #[path = "external_protocol/macos.rs"]
@@ -15,116 +15,6 @@ mod platform;
 
 #[cfg(all(not(coverage), target_os = "windows"))]
 pub(crate) use platform::block_native_external_launches;
-
-pub(crate) struct ExternalTarget(Url);
-
-impl ExternalTarget {
-    pub(crate) fn parse(input: &str) -> Option<Self> {
-        // The URL parser can strip raw controls. Reject them and encoded ASCII
-        // controls before any normalization, including mail header delimiters.
-        if input.chars().any(|ch| ch.is_control() || ch.is_whitespace() || ch == '\\') {
-            return None;
-        }
-        for (index, byte) in input.bytes().enumerate() {
-            if byte == b'%' {
-                let hex = input.get(index + 1..index + 3)?;
-                if u8::from_str_radix(hex, 16).ok()?.is_ascii_control() {
-                    return None;
-                }
-            }
-        }
-        let url = Url::parse(input).ok()?;
-        let scheme = url.scheme();
-        let payload = input.split_once(':')?.1;
-        // Windows can treat a single-letter prefix as a drive-relative path.
-        if !(2..=64).contains(&scheme.len())
-            || matches!(payload, "" | "//")
-            || matches!(
-                scheme,
-                "http"
-                    | "https"
-                    | "about"
-                    | "blob"
-                    | "data"
-                    | "file"
-                    | "filesystem"
-                    | "javascript"
-                    | "vbscript"
-                    | "view-source"
-                    | "devtools"
-                    | "resource"
-                    | "jar"
-                    | "wyciwyg"
-                    | "chrome"
-                    | "edge"
-                    | "opera"
-                    | "safari"
-                    | "brave"
-                    | "vivaldi"
-                    | "firefox"
-                    | "ftp"
-                    | "ws"
-                    | "wss"
-                    | "vibe"
-                    | "vibe-mcp"
-                    | "shell"
-                    | "search"
-                    | "search-ms"
-                    | "smb"
-                    | "afp"
-                    | "nfs"
-                    | "x-man-page"
-                    | "x-scheme-handler"
-                    | "intent"
-                    | "powershell"
-                    | "cmd"
-                    | "mshta"
-                    | "msdt"
-                    | "x-callback-url"
-            )
-            || [
-                "chrome-",
-                "edge-",
-                "moz-",
-                "safari-",
-                "webkit-",
-                "ms-",
-                "microsoft-",
-                "windows-",
-                "x-ms-",
-                "apple-",
-                "x-apple",
-                "com.apple.",
-            ]
-            .iter()
-            .any(|prefix| scheme.starts_with(prefix))
-        {
-            return None;
-        }
-        Some(Self(url))
-    }
-
-    pub(crate) fn scheme(&self) -> &str {
-        self.0.scheme()
-    }
-}
-
-pub(crate) enum Navigation {
-    InWebView,
-    External(ExternalTarget),
-    Blocked,
-}
-
-pub(crate) fn navigation(url: &str, local_site: bool) -> Navigation {
-    if crate::is_page_link_url(url)
-        || matches!(url, "about:blank" | "about:srcdoc")
-        || (local_site && url.starts_with("vibe://localhost/"))
-    {
-        Navigation::InWebView
-    } else {
-        ExternalTarget::parse(url).map_or(Navigation::Blocked, Navigation::External)
-    }
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct ExternalProtocols(Rc<RefCell<Pending>>);
@@ -194,7 +84,7 @@ pub(crate) fn hand_off(
 ) -> Outcome {
     if !approved {
         Outcome::Cancelled
-    } else if open(target.scheme(), target.0.as_str()) {
+    } else if open(target.scheme(), target.as_str()) {
         Outcome::Opened
     } else {
         Outcome::Unavailable

@@ -19,6 +19,7 @@ members = [
   "crates/libs/project-storage-paths",
   "crates/libs/process-sandbox",
   "crates/libs/secret-store",
+  "crates/libs/webview-core",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

@@ -22,6 +22,10 @@ mod toolbar;
 #[cfg(not(target_arch = "wasm32"))]
 use std::borrow::Cow;
 #[cfg(not(target_arch = "wasm32"))]
+use webview_core::events::UserEvent;
+#[cfg(not(target_arch = "wasm32"))]
+use webview_core::navigation::is_safe_navigation_url;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::{self, Component, Path, PathBuf};
 
 #[cfg(target_os = "macos")]
@@ -43,28 +47,6 @@ const SHIJU_APP_RUNTIME_HOST: &str = "app.shiju.cloud";
 const SHIJU_APP_RUNTIME_SESSION_COOKIE: &str = "app_runtime_session";
 #[cfg(not(target_arch = "wasm32"))]
 const MAX_SHIJU_APP_SET_COOKIE_BYTES: usize = 16 * 1024;
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, PartialEq, Eq)]
-enum UserEvent {
-    Resize(u32, u32),
-    Move(i32, i32),
-    OpenUrl(String),
-    PopupClosed(u64),
-    OpenExternal(String),
-    #[cfg(not(coverage))]
-    ConfirmExternal,
-    NavigationChanged(String),
-    ToolbarReady,
-    ClearBrowser,
-    Back,
-    Forward,
-    Reload,
-    SetAlwaysOnTop(bool),
-    Show,
-    Hide,
-    Close,
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, PartialEq, Eq)]
@@ -401,34 +383,6 @@ fn runtime_cookie_headers(cookie: &wry::cookie::Cookie<'_>) -> Result<HeaderMap,
     let mut headers = HeaderMap::new();
     headers.insert(COOKIE, value);
     Ok(headers)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn is_safe_navigation_url(url: &str) -> bool {
-    if url.chars().any(|character| character.is_whitespace() || character.is_control()) {
-        return false;
-    }
-
-    let Some((scheme, remainder)) = url.split_once("://") else {
-        return false;
-    };
-    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
-        return false;
-    }
-
-    let authority =
-        remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
-    authority.rsplit('@').next().is_some_and(|host| !host.is_empty())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn is_page_link_url(url: &str) -> bool {
-    is_safe_navigation_url(url)
-        || (!url.chars().any(char::is_control)
-            && url.split_once(':').is_some_and(|(scheme, value)| {
-                !value.is_empty()
-                    && (scheme.eq_ignore_ascii_case("blob") || scheme.eq_ignore_ascii_case("data"))
-            }))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -779,7 +733,8 @@ fn main() {
     #[cfg(all(unix, not(target_os = "macos")))]
     use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
-    use crate::external_protocol::{ExternalProtocols, ExternalTarget};
+    use crate::external_protocol::ExternalProtocols;
+    use webview_core::navigation::ExternalTarget;
     use crate::toolbar::{
         ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
         window_regions,

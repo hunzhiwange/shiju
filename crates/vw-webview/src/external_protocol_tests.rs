@@ -1,4 +1,5 @@
-use super::{ExternalProtocols, ExternalTarget, Navigation, Outcome, hand_off, navigation};
+use super::{ExternalProtocols, Outcome, hand_off};
+use webview_core::navigation::{ExternalTarget, Navigation, navigation};
 
 fn external(url: &str) -> ExternalTarget {
     let Navigation::External(target) = navigation(url, false) else {
@@ -38,37 +39,6 @@ fn external_protocol_hands_off_confirmed_links() {
 #[test]
 fn external_protocol_rejects_unsafe_and_unconfirmed_links() {
     let requests = ExternalProtocols::default();
-    for url in [
-        "javascript:alert(1)",
-        "file:///tmp/private",
-        "ms-settings:privacy",
-        "search-ms:query=secret",
-        "shell:startup",
-        "x-apple.systempreferences:com.apple.settings",
-        "chrome://settings",
-        "view-source:https://example.test",
-        "vibe://localhost/private",
-        "mailto:a@example.test\r\nBcc:other@example.test",
-        "mailto:a@example.test?subject=%0d%0aBcc:other@example.test",
-        "tel:",
-        "1bad:payload",
-        "C:private.exe",
-        "custom://",
-    ] {
-        assert!(matches!(navigation(url, false), Navigation::Blocked), "accepted {url:?}");
-    }
-    for url in [
-        "https://example.test",
-        "http://127.0.0.1:5000",
-        "blob:https://example.test/id",
-        "data:text/plain,download",
-        "about:blank",
-    ] {
-        assert!(matches!(navigation(url, false), Navigation::InWebView));
-        assert!(ExternalTarget::parse(url).is_none());
-    }
-    assert!(matches!(navigation("vibe://localhost/index.html", true), Navigation::InWebView));
-
     let url = "shiju-unregistered:payload";
     assert!(requests.queue(external(url), None));
     let (target, _, confirmation) = requests.take().unwrap();

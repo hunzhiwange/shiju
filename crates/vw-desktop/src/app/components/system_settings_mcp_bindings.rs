@@ -143,6 +143,15 @@ pub(crate) fn panel(app: &App) -> Element<'_, Message> {
         match result {
             Ok(result) => {
                 body = body.push(text(bindings::summary(result)).size(14));
+                if result.items.iter().any(|item| {
+                    matches!(item.native_outcome, McpDistributionOutcome::Failed { .. })
+                }) {
+                    body = body.push(toolbar_button(
+                        "仅重试失败项",
+                        (!running && !catalog::loading(app))
+                            .then(|| message(BindingsMessage::RetryFailed)),
+                    ));
+                }
                 for item in &result.items {
                     body = body.push(text(bindings::item_label(item)).size(12));
                 }

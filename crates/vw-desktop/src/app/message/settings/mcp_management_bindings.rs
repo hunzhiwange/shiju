@@ -42,6 +42,7 @@ pub(crate) struct BindingsState {
 pub enum BindingsMessage {
     Select(McpCatalogRecord, bool),
     Apply(McpAppTarget, bool),
+    RetryFailed,
     Finished {
         context: catalog::Context,
         generation: u64,
@@ -221,6 +222,44 @@ pub(crate) fn update(app: &mut App, value: BindingsMessage) -> Task<Message> {
                 records.push(record);
             }
             Task::none()
+        }
+        BindingsMessage::RetryFailed => {
+            if app.mcp_settings.bindings.running || catalog::loading(app) {
+                return Task::none();
+            }
+            let Some(Ok(result)) = app.mcp_settings.bindings.result.as_ref() else {
+                return Task::none();
+            };
+            let failed: Vec<_> = result
+                .items
+                .iter()
+                .filter(|item| {
+                    matches!(item.native_outcome, McpDistributionOutcome::Failed { .. })
+                })
+                .collect();
+            let Some(first) = failed.first() else {
+                return Task::none();
+            };
+            let target = first.target.clone();
+            let enabled = first.enabled;
+            let Some(Ok(current)) = catalog::visible(app) else {
+                return app.show_error_toast("请先刷新目录再重试失败项");
+            };
+            let mut records = Vec::new();
+            for item in failed {
+                if item.target != target || item.enabled != enabled {
+                    return app.show_error_toast("失败项目标不一致，请重新选择");
+                }
+                let Some(record) =
+                    current.records.iter().find(|record| record.record == item.record)
+                else {
+                    return app.show_error_toast("失败项目录修订已变更，请重新选择");
+                };
+                records.push(record.clone());
+            }
+            // Apply performs the same capability, scope and installation checks as a new request.
+            app.mcp_settings.bindings.selected = records;
+            update(app, BindingsMessage::Apply(target, enabled))
         }
         BindingsMessage::Apply(target, enabled) => {
             if app.mcp_settings.bindings.running {

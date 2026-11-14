@@ -59,10 +59,6 @@ mod resolve_tests;
 mod overlay_tests;
 
 #[cfg(test)]
-#[path = "pack_tests.rs"]
-mod pack_tests;
-
-#[cfg(test)]
 #[path = "presets_assets_tests.rs"]
 mod presets_assets_tests;
 

@@ -4,10 +4,8 @@
 use std::fs;
 use std::path::Path;
 
-use super::{
-    ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore,
-    export_theme_dir_to_pack, import_theme_pack_into_store,
-};
+use super::{ThemeStore, export_theme_dir_to_pack, import_theme_pack_into_store};
+use theme_model::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex};
 
 fn sample_definition(id: &str) -> ThemeDefinition {
     ThemeDefinition {

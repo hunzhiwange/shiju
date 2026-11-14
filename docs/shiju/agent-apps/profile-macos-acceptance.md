@@ -116,3 +116,26 @@
 | 重复应用稳定 | 四槽编排按实际状态计算最小差异 | 连续两次应用对比实际文件和领域写入次数；第二次无冗余写入，保留未托管内容，不能只比较响应或 current |
 
 后续先完成上述生产依赖，再新增并注册独立 `gateway/api/handlers/profile_macos_tests.rs` 的 `profile_t30_macos_codex_scope_and_empty_snapshot` 场景；本轮未创建该文件，也无有效测试证据。解除验证禁令后，通过仓库共享槽位入口执行原定 `cargo test -j 1 -p vw-agent --lib profile_t30_ -- --test-threads=1`，记录实际槽位、绝对缓存路径、有效数量及退出码。测试使用可恢复的隔离 HOME/项目和既有环境锁，所有路径由执行主机环境解析；不得改用户当前配置、打印密钥或把模拟编排当实测。另行记录实际平台/版本和脱敏文件差异，原生客户端读取与窗口验收交用户完成。
+
+
+## 任务 29：macOS Desktop 独立分组（静态盘点完成，未验证）
+
+2026-11-14：按本轮覆盖要求，纯验收任务仅补充必要静态盘点。已阅读只读 plan.md、任务卡、领域契约和执行分线，使用当前共享 checkout。未新增测试或改动业务代码；编号任务卡按本轮要求删除，不表示 macOS 验收通过。
+
+直接依赖任务 27 的实现提交为 `28e326c1b`，切页保留操作的补充为 `f44508351`；已静态核对 `project_profiles_progress.rs`、任务 27 消费者契约及生产 API。进度恢复核对原操作/组合/组和网关、租户、项目、主机身份；取消回执未终结时不宣称取消成功。外部产物尚未闭环：`project_profiles_execution.rs` 的 preview/apply 当前分别返回 503 `profile_observation_unavailable` / `profile_execution_unavailable`，progress/cancel 返回 404 `profile_operation_not_found`；创建/重拍尚缺领域实际状态读取。故当前无法证明一次 Desktop 组合应用真实生效，不能用 DTO、来源测试或最近组结果替代。
+
+来源 `upstream/src-tauri/tests/profile_roundtrip.rs::claude_desktop_profile_scope_is_independent` 已阅读，未运行：它断言 Desktop 快照不填 Claude/Codex 槽、Desktop 供应商恢复及 Desktop current 标记。该来源场景未完整断言 Claude Code 文件前后不变、共享实体维护及不支持路径失败，恢复验证时需补齐目标实现证据。
+
+| 待验行为 | 当前静态落点与边界 | 后续必须取得的证据 |
+| --- | --- | --- |
+| 三组快照与标记隔离 | `vw-api-types/src/project_profiles.rs` 的 `ProjectProfileScope` / `ProjectProfilePerApp` 明确 claude、claude-desktop、codex；`merge_scope_from` 只替换指定组。`profile_store.rs` 按租户存实体，选择按执行主机/组定位并核对项目占用 | Desktop 拍摄、切换、重拍及清标记前后，对比 Claude/Codex 快照、选择与 applied 记录；其他组和项目不受写入影响 |
+| macOS 文件根隔离 | `providers/claude_desktop.rs::ClaudeDesktopFiles::open` 锁定 `$HOME/Library/Application Support/Claude/claude_desktop_config.json`、`Claude-3p/claude_desktop_config.json` 及 `Claude-3p/configLibrary/` 下固定 profile JSON 和 `_meta.json`；`providers/claude.rs` 使用独立 `.claude` 目录和 settings 文件 | 在隔离 HOME 中经真实领域服务完成 Desktop 切换，对比四个 Desktop 事务文件及 Claude Code 实际配置前像；反向切换同样核对，不只比较目录字符串 |
+| 共享实体改名与删除 | `profile_store.rs::rename` 在同一 settings 更新事务内核对版本并更新共享实体；`delete` 同事务删除实体与所有引用它的 selections。API 维护入口走该所有者；桌面维护成功后重新读取 list/current | 三组读取同一 ID 的改名结果；删除后所有主机/组引用及 application 结果均清理，其他实体保留；旧版本冲突零写入 |
+| Desktop 不支持项 | `apply_mcp.rs` 对非 null Desktop MCP 返回 Unsupported；`profile_skills.rs` 调用 `require_distribution`，Desktop 为 NoDirectorySync；`prompts/targets.rs::resolve` 明确拒绝 Desktop。组合预览 UI 当前无 Unsupported action，结果页仅输出状态与 reason_code，尚不能确认不支持项展示故事完成 | MCP、技能和提示词不支持时有明确可见结果，不借用 Claude 路径；null 类别不读写，非 null 不支持类别不能被空观察冒充成功；待执行端协议交付后核对预览、结果及 toast |
+| 路径不可用不能伪报成功 | `snapshot_current` 要求读取失败返回 Denied/Unavailable/Unsupported 等错误，禁止空集兜底；生产执行 API 当前在缺接线时拒绝执行 | 不可读目录、非法/越界路径、符号链接及未授权执行主机均零越权写入、不产生 applied；失败保留原配置且错误可见 |
+
+需先由现有执行端所有者完成真实观察、授权与领域应用接线，并冻结与任务 27 一致的操作回执；不在验收任务复制写文件逻辑或建立第二套存储。Desktop 不支持类别与仅供应商快照的兼容方式仍须在该接线中明确：当前 `snapshot_current` 顺序读取四类，不支持读取不能伪装为成功空集合。
+
+后续新增并注册独立 `gateway/api/handlers/profile_macos_tests.rs` 的 `profile_t29_macos_desktop_scope_is_independent`，通过仓库共享槽位入口执行任务卡原定聚焦命令 `cargo test -j 1 -p vw-agent --lib profile_t29_ -- --test-threads=1`，记录有效测试数、退出码、实际槽位及两个绝对缓存路径。使用可恢复的隔离 HOME/项目、既有环境锁和执行主机环境路径；记录实际 macOS/CPU、Gateway/客户端版本及脱敏文件差异，不输出令牌。原生客户端读取、窗口及深浅主题渲染另交人工核验。
+
+本轮未执行任何 Cargo 相关命令、构建、检查、单元测试、实机测试或最终回归；无测试通过数量、退出码或平台通过结论。未领取 Cargo 槽位，未设置 CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR，无本任务槽位锁需清理。

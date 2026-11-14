@@ -5,6 +5,7 @@ use ratatui::layout::Rect;
 
 pub mod line_utils;
 pub mod renderable;
+pub mod terminal_hyperlinks;
 
 /// 矩形四边需要扣除的终端单元格数量。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

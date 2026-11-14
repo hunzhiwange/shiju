@@ -85,3 +85,8 @@ pub mod hermes_dashboard;
 pub mod daily_memory_list;
 #[cfg(all(test, target_os = "macos"))]
 mod daily_memory_list_tests;
+
+#[cfg(target_os = "macos")]
+pub mod hermes_memory_limits;
+#[cfg(all(test, target_os = "macos"))]
+mod hermes_memory_limits_tests;

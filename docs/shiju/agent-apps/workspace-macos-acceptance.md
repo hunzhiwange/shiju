@@ -129,3 +129,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 静态读取来源删除函数、workspace.ts、DailyMemoryPanel 调用者、任务 1 正式合同、任务 5 读写和底层实现。新增两个 daily_delete_is_idempotent 前缀测试源码，覆盖缺失、重复删除、邻文件保留、主机拒绝、目录与越界链接拒绝；非法日期复用既有日期类型断言。未运行任何测试，没有权限失败运行证据，不声明编译或行为通过。
 
 依本轮最高优先要求未运行 Cargo、单元/实机/其它测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证。
+
+## 任务 12：Hermes 记忆预算与开关（2026-11-14）
+
+新增 hermes_memory_limits 的 read_memory_limits/prepare_memory_enabled/set_memory_enabled，消费现有 HermesMemoryKind/HermesMemoryLimits DTO；预算默认 2200/1375，两个开关默认 true，单字段无效回退，损坏 YAML 明确返回不含载荷的错误。user 映射 user_profile_enabled。编辑复用 patch_yaml 的既有 block mapping 补丁算法，仅增加限定两开关的内部入口，保留预算、外部 provider、未知字段和非目标文本；复杂 flow/reference/tag 布局拒绝修改。发布复用 HermesFiles snapshot/apply 与供应商物理锁、冲突事务，不另建 IO 所有者。调用者须先授权配置和执行主机。
+
+已静态核对来源 hermes_config.rs、任务 1 合同、任务 11 双记忆文件及现有 DTO、YAML 补丁和 Hermes 配置事务。新增三个 hermes_toggle_preserves_yaml 前缀测试源码，覆盖文本保留、双开关隔离、默认/无效字段、缺失和损坏/歧义拒绝；均未执行。依用户最高优先要求未运行 Cargo、任何测试或最终回归，不声称编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证该测试族及配置事务集成。

@@ -53,6 +53,20 @@ pub(crate) fn patch_mcp_server(
     patch_entry(pre, "mcp_servers", id, replacement.map(Yaml::Mapping).as_ref())
 }
 
+/// Hermes owns the two supported memory switches; no arbitrary section path.
+pub(crate) fn patch_hermes_memory_enabled(
+    pre: Option<&[u8]>,
+    kind: vw_api_types::hermes_memory::HermesMemoryKind,
+    enabled: bool,
+) -> Result<Vec<u8>, PatchError> {
+    use vw_api_types::hermes_memory::HermesMemoryKind;
+    let key = match kind {
+        HermesMemoryKind::Memory => "memory_enabled",
+        HermesMemoryKind::User => "user_profile_enabled",
+    };
+    patch_entry(pre, "memory", key, Some(&Yaml::Bool(enabled)))
+}
+
 fn patch_entry(
     pre: Option<&[u8]>,
     section: &str,

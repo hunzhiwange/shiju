@@ -18,8 +18,8 @@ use webview_mcp_policy::{
 };
 use wry::{WebViewBuilder, http};
 
-#[path = "mcp_app_form.rs"]
-mod form;
+#[cfg(all(not(coverage), unix))]
+use webview_mcp_form as form;
 
 enum AppEvent {
     Deliver(Value),
@@ -198,14 +198,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let _form_delegate = if form_enabled {
         let delegate = form::install(
             &webview,
-            form::FormPolicy {
-                parent: webview_external_protocol::main_dialog_parent(&window),
-                frame_domains: policy.frame_domains,
-                origins: form_origins,
-                active: active.clone(),
-                submitted: submitted.clone(),
-                pending: Rc::new(Cell::new(false)),
-            },
+            form::FormPolicy::new(
+                webview_external_protocol::main_dialog_parent(&window),
+                policy.frame_domains,
+                form_origins,
+                active.clone(),
+                submitted.clone(),
+                revoke_document,
+            ),
         )?;
         webview.load_url(WRAPPER_URL)?;
         Some(delegate)
@@ -239,7 +239,3 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 }
-
-#[cfg(test)]
-#[path = "mcp_app_tests.rs"]
-mod tests;

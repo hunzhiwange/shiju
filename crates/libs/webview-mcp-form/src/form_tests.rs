@@ -10,10 +10,8 @@ fn mcp_app_form_navigation_requires_exact_origin_and_live_document() {
         },
     };
 
-    use super::{
-        APP_URL,
-        form::{FormNavigation, FormPolicy},
-    };
+    use webview_mcp_policy::APP_URL;
+    use super::{FormNavigation, FormPolicy};
 
     let origin = "https://api.example.test:8443";
     let policy = FormPolicy {
@@ -23,6 +21,7 @@ fn mcp_app_form_navigation_requires_exact_origin_and_live_document() {
         active: Arc::new(AtomicBool::new(true)),
         submitted: Rc::new(Cell::new(false)),
         pending: Rc::new(Cell::new(false)),
+        revoke_document: || {},
     };
     let destination = format!("{origin}/submit");
     assert_eq!(policy.decide(APP_URL, false, false, false), FormNavigation::Allow);

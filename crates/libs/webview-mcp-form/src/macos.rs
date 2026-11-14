@@ -13,7 +13,7 @@ use wry::{WebView, WebViewExtMacOS};
 use super::{FormNavigation, FormPolicy};
 use webview_mcp_policy::{APP_URL, WRAPPER_URL, internal_navigation_allowed};
 
-pub(crate) struct DelegateState {
+pub struct DelegateState {
     policy: FormPolicy,
     original: Retained<ProtocolObject<dyn WKNavigationDelegate>>,
 }
@@ -22,7 +22,7 @@ define_class!(
     #[unsafe(super(NSObject))]
     #[thread_kind = MainThreadOnly]
     #[ivars = DelegateState]
-    pub(crate) struct FormDelegate;
+    pub struct FormDelegate;
 
     unsafe impl NSObjectProtocol for FormDelegate {
         #[unsafe(method(respondsToSelector:))]

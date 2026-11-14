@@ -16,6 +16,7 @@ name = "vw-webview"
 path = "src/main.rs"
 
 [dependencies]
+webview-mcp-form = { path = "../libs/webview-mcp-form", version = "0.6.0" }
 webview-popup = { path = "../libs/webview-popup", version = "0.6.0" }
 webview-media-permissions = { path = "../libs/webview-media-permissions", version = "0.6.0" }
 webview-downloads = { path = "../libs/webview-downloads", version = "0.6.0" }
@@ -44,40 +45,6 @@ wry = { version = "=0.56.1" }
 
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
 gtk = "0.18"
-webkit2gtk = "2.0.2"
-
-[target.'cfg(target_os = "macos")'.dependencies]
-block2 = "0.6"
-objc2 = { version = "0.6", features = ["exception", "disable-encoding-assertions"] }
-objc2-app-kit = { version = "0.3.0", default-features = false, features = [
-    "std",
-    "block2",
-    "objc2-core-foundation",
-    "NSAlert",
-    "NSButton",
-    "NSControl",
-    "NSResponder",
-    "NSView",
-    "NSWindow",
-    "NSWorkspace",
-] }
-objc2-foundation = { version = "0.3.0", default-features = false, features = [
-    "std",
-    "NSString",
-    "NSObject",
-    "NSNotification",
-    "NSURL",
-] }
-objc2-web-kit = { version = "0.3", default-features = false, features = [
-    "std",
-    "block2",
-    "objc2-app-kit",
-    "WKNavigationDelegate",
-    "WKUIDelegate",
-    "WKUserContentController",
-    "WKWebView",
-    "WKWebViewConfiguration",
-] }
 
 [features]
 default = ["desktop-webview"]

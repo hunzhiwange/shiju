@@ -1,10 +1,10 @@
 //! Hold the engine's original form navigation until the host confirms its HTTPS origin.
 
 #[cfg(all(not(coverage), target_os = "macos"))]
-#[path = "mcp_app_form/macos.rs"]
+#[path = "macos.rs"]
 mod platform;
 #[cfg(all(not(coverage), unix, not(target_os = "macos")))]
-#[path = "mcp_app_form/gtk.rs"]
+#[path = "gtk.rs"]
 mod platform;
 
 #[cfg(all(not(coverage), unix))]
@@ -27,16 +27,36 @@ mod supported {
         Confirm(String),
     }
 
-    pub(crate) struct FormPolicy {
+    pub struct FormPolicy {
         pub(crate) parent: Option<webview_external_protocol::Parent>,
         pub(crate) frame_domains: Vec<String>,
         pub(crate) origins: Vec<String>,
         pub(crate) active: Arc<AtomicBool>,
         pub(crate) submitted: Rc<Cell<bool>>,
         pub(crate) pending: Rc<Cell<bool>>,
+        pub(crate) revoke_document: fn(),
     }
 
     impl FormPolicy {
+        pub fn new(
+            parent: Option<webview_external_protocol::Parent>,
+            frame_domains: Vec<String>,
+            origins: Vec<String>,
+            active: Arc<AtomicBool>,
+            submitted: Rc<Cell<bool>>,
+            revoke_document: fn(),
+        ) -> Self {
+            Self {
+                parent,
+                frame_domains,
+                origins,
+                active,
+                submitted,
+                pending: Rc::new(Cell::new(false)),
+                revoke_document,
+            }
+        }
+
         pub(crate) fn decide(
             &self,
             url: &str,
@@ -76,12 +96,13 @@ mod supported {
             let pending = self.pending.clone();
             let active = self.active.clone();
             let submitted = self.submitted.clone();
+            let revoke_document = self.revoke_document;
             webview_external_protocol::confirm_mcp_form(parent, &origin, move |approved| {
                 pending.set(false);
                 let approved = approved && active.load(Ordering::Acquire);
                 submitted.set(approved);
                 if approved {
-                    crate::mcp_app::revoke_document();
+                    revoke_document();
                 } else {
                     eprintln!("MCP app form submission cancelled");
                 }
@@ -92,10 +113,12 @@ mod supported {
 }
 
 #[cfg(all(not(coverage), unix))]
-pub(crate) use supported::{FormNavigation, FormPolicy};
+pub use supported::FormPolicy;
+#[cfg(all(not(coverage), unix))]
+use supported::FormNavigation;
 
 #[cfg(all(not(coverage), target_os = "macos"))]
-pub(super) fn install(
+pub fn install(
     webview: &wry::WebView,
     policy: FormPolicy,
 ) -> wry::Result<objc2::rc::Retained<platform::FormDelegate>> {
@@ -103,7 +126,11 @@ pub(super) fn install(
 }
 
 #[cfg(all(not(coverage), unix, not(target_os = "macos")))]
-pub(super) fn install(webview: &wry::WebView, policy: FormPolicy) -> wry::Result<()> {
+pub fn install(webview: &wry::WebView, policy: FormPolicy) -> wry::Result<()> {
     platform::install(webview, policy);
     Ok(())
 }
+
+#[cfg(all(test, not(coverage), unix))]
+#[path = "form_tests.rs"]
+mod tests;

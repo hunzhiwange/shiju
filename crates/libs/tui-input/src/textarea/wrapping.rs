@@ -5,7 +5,7 @@
 //! the preceding row without changing the source text. Full logical lines reserve an insertion row.
 
 use super::text_for_display;
-use crate::width::display_width;
+use tui_text::width::display_width;
 use std::ops::Range;
 use textwrap::Options;
 use unicode_segmentation::UnicodeSegmentation;
@@ -58,7 +58,7 @@ pub(super) fn visible_prefix(text: &str, width: u16) -> &str {
 pub(super) fn wrapped_lines(text: &str, width: u16) -> Vec<Range<usize>> {
     let width = usize::from(width);
     let options = Options::new(width).wrap_algorithm(textwrap::WrapAlgorithm::FirstFit);
-    let wrapped_lines = crate::wrapping::wrap_ranges(text, &options);
+    let wrapped_lines = tui_text::wrapping::wrap_ranges(text, &options);
     if width == 0 || (wrapped_lines.len() == 1 && text.len() < width) {
         return wrapped_lines;
     }

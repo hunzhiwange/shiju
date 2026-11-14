@@ -31,12 +31,10 @@ pub(crate) struct MentionBinding {
 mod bottom_pane_view;
 #[path = "chat_composer_history.rs"]
 pub(crate) mod chat_composer_history;
-#[path = "paste_burst.rs"]
-pub(crate) mod paste_burst;
+pub(crate) use tui_input::paste_burst;
 #[path = "pending_input_preview.rs"]
 mod pending_input_preview;
-#[path = "textarea.rs"]
-pub(crate) mod textarea;
+pub(crate) use tui_input::textarea;
 pub(crate) use bottom_pane_view::BottomPaneView;
 #[path = "action_required_title.rs"]
 pub(crate) mod action_required_title;

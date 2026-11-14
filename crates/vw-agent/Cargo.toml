@@ -101,6 +101,7 @@ agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usag
 memory-sqlite = { path = "../libs/memory-sqlite", version = "0.6.0" }
 memory-lucid = { path = "../libs/memory-lucid", version = "0.6.0" }
 memory-response-cache = { path = "../libs/memory-response-cache", version = "0.6.0" }
+memory-snapshot = { path = "../libs/memory-snapshot", version = "0.6.0" }
 memory-mariadb = { path = "../libs/memory-mariadb", version = "0.6.0", optional = true }
 aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 async-compression = { version = "0.4", features = ["brotli", "deflate", "gzip", "tokio", "zlib", "zstd"] }

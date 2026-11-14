@@ -1,0 +1,21 @@
+[package]
+name = "memory-snapshot"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+project-storage-paths = { path = "../project-storage-paths", version = "0.6.0" }
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"
+
+[dev-dependencies]
+tempfile = "3"

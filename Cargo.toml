@@ -12,6 +12,7 @@ members = [
   "crates/libs/memory-postgres",
   "crates/libs/memory-lucid",
   "crates/libs/memory-response-cache",
+  "crates/libs/memory-snapshot",
   "crates/libs/memory-mariadb",
   "crates/libs/patch",
   "crates/libs/project-storage-paths",

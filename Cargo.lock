@@ -6078,6 +6078,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-snapshot"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "project-storage-paths",
+ "rusqlite",
+ "tempfile",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "memory-sqlite"
 version = "0.6.0"
 dependencies = [
@@ -12534,6 +12547,7 @@ dependencies = [
  "memory-markdown",
  "memory-postgres",
  "memory-response-cache",
+ "memory-snapshot",
  "mime_guess",
  "minijinja",
  "nanohtml2text",

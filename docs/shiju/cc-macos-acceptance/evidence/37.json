@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "task": 37,
+  "title": "核证测试文档与发布外围来源",
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "instruction_override": "用户最新指令：仅验证/构建任务本轮跳过并删除任务卡；不进行 Cargo、构建、单元测试、实机测试、验收或最终回归；未验证如实记录。",
+  "scope": "母任务22的测试、手册、whats-new、CI/发布与仓库维护外围来源；仅macOS。",
+  "baseline": {
+    "documentation_commit": "ee80139782c79b2176bfef4f44c80cf1aec1d8c3",
+    "source_commit": "ca58c0313360eae7c851fbd7553c1614c7af03e7",
+    "product_baseline_verified": false
+  },
+  "inputs": {
+    "source_manifest": ".plans/2026-11-05-CC能力完整融合/来源清单.json",
+    "inventory": "docs/shiju/cc-macos-acceptance/inventory.json",
+    "runtime_contract": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "dependency_evidence": "docs/shiju/cc-macos-acceptance/evidence/01.json"
+  },
+  "dependency_readout": {
+    "inventory_status": "prepared_unverified",
+    "runtime_contract_status": "prepared_unverified_not_executable",
+    "owner_22_mapping": "仅有archive.md文档引用，inventory明确声明逐来源实现/API/SDK/UI/测试绑定待核证；不作为交付映射。"
+  },
+  "capability_gaps": [
+    {
+      "owner": "母任务22及各领域能力所有者",
+      "gap": "缺少331项外围来源功能声明到原生交付、领域核证和运行证据的逐项语义映射；本轮不重建该映射。"
+    },
+    {
+      "owner": "正式包构建与交付任务",
+      "gap": "runtime-contract的产物路径、哈希、应用版本均未验证，不能证明macOS包装、更新源与系统条件满足正式包契约。"
+    }
+  ],
+  "coverage": {
+    "expected_source_files_from_task": 331,
+    "reviewed": 0,
+    "passed": 0,
+    "failed": 0,
+    "out_of_scope": 0,
+    "unverified": "全部外围来源；331为任务要求值，本轮未核对数量或覆盖完整性。"
+  },
+  "deferred_work": [
+    "逐项核对331个来源键及原来源哈希，分类测试、手册、whats-new、CI/发布与仓库维护。",
+    "取得前置逐来源交付映射后，将功能声明绑定领域核证或运行证据；缺失项回交能力所有者。",
+    "将macOS包装、更新源、系统条件绑定正式包契约；非macOS与维护项逐条说明范围外理由。",
+    "在后续获准验证时检查JSON格式、来源完整性、证据适用性和差异；记录实际命令、退出码与成功/失败数量。"
+  ],
+  "verification": {
+    "status": "not_run",
+    "commands": [],
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "json_format_check": "未执行，按本轮指令延期",
+    "acceptance": "未执行，不计通过"
+  },
+  "environment": {
+    "macos_version": null,
+    "architecture": null,
+    "app_version": null,
+    "artifact_sha256": null,
+    "reason": "本轮未运行或消费冻结构建产物。"
+  },
+  "cleanup": "未创建运行资源；仅写入本任务延期记录并删除任务37卡片；不修改plan.md、共享清单、用户配置或其他任务证据。"
+}

@@ -34,4 +34,3 @@ objc2-web-kit = { version = "0.3", default-features = false, features = [
     "WKWebView",
     "WKWebViewConfiguration",
 ] }
-

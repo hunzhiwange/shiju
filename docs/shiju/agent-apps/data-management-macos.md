@@ -174,3 +174,13 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 凭据按 portable_policy 不从源复制。Claude/Gemini 第三方配置须有相同目标身份的既有领域凭据，否则拒绝；Codex 只保留模型/路由 TOML 白名单及目标已有 key，不搬源 auth。官方记录仅入目录，不改变本机登录。测试文件 `providers_tests.rs` 注册四个 `cc_data_09_` 行为测试，涵盖重复执行、skip、跨主机/非法批次、源凭据拒绝；本轮均未运行。
 
 用户要求本轮只写代码，未运行 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。统一验证应执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_09_ -- --nocapture`，并补充 vw-agent 所有者真实 SQLite 事务、回退文件失败与并发版本场景。本节为交付记录，不是 macOS 验收通过证据。
+
+## 子任务 11：技能类别迁入实现（2026-11-14）
+
+入口为 data_management/skills.rs::{SkillsPreview,SkillMigration}；所有者接线为 vw-agent/src/gateway/agent_apps_skill_migration.rs::{preview_migration,migrate_skills}，复用 SkillInstallsStore 的项目/主机 settings 事务。技能资源由已授权目录提供，先复制到私有暂存并校验清单与内容摘要；非法目录、链接、元数据不符、重复身份、未知启用目标和未受管冲突均拒绝。SQLite skills 行保留来源 ID、名称、描述、仓库引用、时间、readme_url、内容摘要与启用标志；skill_repos 不另建安装记录。未支持的 JSON skills 布局显式拒绝。
+
+预览绑定来源、作用域、目标版本与文件观察摘要；逐项 skip/replace，重复输入不增行。共享根锁经 dup 复用，在同一所有者事务准备所有 SSOT/应用复制和禁用，写前调用任务 8 创建含 settings/资源/目录/链接的安全快照，提交失败反向回滚；提交后隔离目录清理失败明确报告。现有符号链接部署的覆盖可能因既有 CopyDeploy 模式约束被拒绝，不强行转为复制或绕过所有权校验。不运行安装脚本。
+
+独立测试 skills_tests.rs 注册三个 cc_data_11_ 行为测试，覆盖元数据/启用保留、skip/replace/重复、路径穿越及链接拒绝、资源发布回滚。按用户要求均未执行；未调用 Cargo、编译或实机测试，无退出码、有效测试数或通过结论；未领取槽位，未设置 CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR。仅对本任务三个新增 Rust 文件直接 rustfmt（退出 0），不代表编译或行为验证。后续统一验证入口为 scripts/cargo_slot.py 内的 cargo test -j 1 -p vw-agent-apps --lib cc_data_11_ -- --nocapture，另需覆盖网关所有者事务失败场景。
+
+共享工作区接线：agent_apps_skills_store.rs 增加 migrated/migration_snapshot 默认字段与 migration 子模块；skills/local_install.rs 放开 crate 内复制复用；copy_deploy.rs、disable_deploy.rs 增加 crate 内共享锁准备入口。以上既有文件本轮开工即未跟踪，包含其他任务的大量实现，故未整体纳入本项提交，接线变动保留工作区待集成。source.rs 的 principal_id 只读访问器已随共享工作区基线进入 HEAD。plan.md 未修改。按本轮覆盖要求实现后删除编号任务卡。

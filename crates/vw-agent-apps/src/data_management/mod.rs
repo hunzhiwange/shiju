@@ -81,3 +81,8 @@ mod mcp_tests;
 pub mod providers;
 #[cfg(test)]
 mod providers_tests;
+
+#[cfg(target_os = "macos")]
+pub mod skills;
+#[cfg(all(test, target_os = "macos"))]
+mod skills_tests;

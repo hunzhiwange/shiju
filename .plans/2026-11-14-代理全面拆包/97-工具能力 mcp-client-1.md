@@ -1,0 +1,46 @@
+# 任务 97: 工具能力 mcp-client-1
+
+先阅读并遵守 [公共执行规则](plan.md)。
+
+批次：【批次 97】 依赖：本计划批次96；线性顺序为前置计划1—22、本计划23至最后一项，无并行。
+
+状态：未开始
+
+目的：迁移，将本任务职责归入 `mcp-client`。
+
+来源任务：用户要求尽可能全部拆分vw-agent；覆盖映射见coverage.md。
+
+预计会话范围：一个领域的一组源码迁移；大领域已拆成连续任务，同包分批接线。测试源码和资源仅随实现迁移，不执行。
+
+## 文件
+
+- 目标：`crates/libs/mcp-client/Cargo.toml`、`crates/libs/mcp-client/src/lib.rs` 及保持原职责布局的子模块；包已存在则修改。
+- 公共接线：根 `Cargo.toml`、`crates/vw-agent/Cargo.toml`、`crates/vw-agent/src/lib.rs`、相关原mod.rs与搜索确认的直接调用者清单。
+- 来源及相邻测试/资源：
+- `crates/vw-agent/src/tools/mcp_common/mod.rs`
+- `crates/vw-agent/src/tools/mcp_common/tests.rs`
+- `crates/vw-agent/src/tools/mcp_common/wire_check.rs`
+- `crates/vw-agent/src/tools/mcp_common/wire_http.rs`
+- `crates/vw-agent/src/tools/mcp_common/wire_stdio.rs`
+
+## 上下文
+
+- 重点符号：`NoopClient`、`unsupported_mcp_capabilities_json`、`load_resolved_acp_config`、`load_resolved_acp_config_from`、`load_resolved_runtime_mcp_config_from`、`load_resolved_acp_config_from_with_plugin_options`、`with_server_peer`、`with_server_peer_timeout`、`with_server_client_timeout`、`RunningMcpPeer`、`runtime_stdio_cwd`、`open_server_peer`、`open_connection_check_peer`、`management_for_server`、`management_timeout`、`mcp_tool_allowed`、`auth_method_names`、`server_name`。
+- 当前文本引用候选：`plugins`、`plugins::mcp_elicitation`、`tools::current_tool_use_context`、`agent_apps::mcp`、`plugins::validate_mcp_server_protocol`、`plugins::preserve_mcp_wire_result`、`config::schema`、`plugins::mcp_client_info`、`project::instance`、`session::ui_store`、`config::get_project_for_tenant`、`plugins::mcp_session_connections`、`plugins::plugin_mcp_runtime_cwd`、`plugins::plugin_mcp_oauth_access`。这里只是导航证据，注释/测试引用不能作为真实依赖；实际执行须追踪use别名、super和调用者。
+- 领域边界：具体工具按能力分包，工厂由 tool-assembly 组合；涉及会话、插件与调度器的工具只依赖前置端口，不反向依赖会话或主循环。 MCP连接与协议客户端不得依赖 agent-plugins；插件鉴权/交互请求由调用者提供，客户端只持有现有请求边界。
+
+## 步骤
+
+1. 读取上述源码、父模块声明、相邻测试和调用者；用 `rg -n 'crate::|super::|pub\(crate\)|include!' crates/vw-agent/src` 限定到本任务查看实际依赖，记录旧路径到目标模块映射。测试文件单独排程时按其生产实现实际所有者迁入，不为测试再建包。
+2. 按领域边界迁移本任务源码；剥离应用宿主动作到已存在的窄接口，更新资源路径与必要可见性。禁止新增未调用抽象，不合并行为不同的旧实现。
+3. 建立/扩展目标最小清单，复用已拆出的真实所有者；完整转发原feature/cfg。调用者正向接线，旧位置最多薄重导出。后续任务尚未迁的调用者通过真实宿主适配接线，不让新包依赖它。
+4. 逐项审阅参数/错误/异步取消、租户、权限、全局状态、序列化与平台语义等价；仅调整测试源码导入，不运行或追加测试。将尚需闭环迁移的宿主适配具体路径写入本任务提交正文。
+5. 按公共规则记录当前静态证据、提交代码并删除本编号文件；闭环收口任务须同时消除前期业务残留。
+
+## 静态验收
+
+- 运行：`git diff --check`；逐文件阅读本任务完整差异和迁移后的清单。
+- 运行：`rg -n 'vw-agent|vw_agent|crate::app' crates/libs/mcp-client`；审阅是否存在库对主包的反向依赖，文档与测试引用单独检查。
+- 检查：本任务全部来源已迁/明确为组合转发，生产实现不重复；类型/状态只有一个所有者；工厂注册和资源完整；后续文件已分配所有者。
+- 所需证据：真实迁移映射、最小依赖、窄端口调用者、cfg/feature、直接调用接线、测试/资源迁移清单及差异检查结果。仅静态证据，不能声称编译或行为通过。
+- 待统一验收：本任务来源的既有测试、直接调用集成、原支持平台与特性、涉及UI的渲染和外部能力；将具体路径及组合写提交正文，本轮全部禁止运行。

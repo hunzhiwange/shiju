@@ -189,10 +189,6 @@ pub(super) async fn forward_json(
         && !messages_responses
         && !target.url.path().trim_end_matches('/').ends_with("/chat/completions");
     let native_messages = native_messages && !messages_gemini;
-    // Gemini SSE belongs to its dedicated conversion task.
-    if messages_gemini && streaming {
-        return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
-    }
     let native_responses =
         responses && target.url.path().trim_end_matches('/').ends_with("/responses");
     if app == AppId::Codex
@@ -244,10 +240,14 @@ pub(super) async fn forward_json(
         let body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
         crate::model_relay::native_responses::check(&body, &route.references, scope)?;
     }
-    let gemini_url = gemini
-        .as_ref()
-        .map(|gemini| gemini.url(&target.url, model.unwrap_or(&gemini.model)))
-        .transpose()?;
+    let gemini_url = if messages_gemini && streaming {
+        Some(crate::model_relay::messages_gemini_stream::stream_url(&target.url)?)
+    } else {
+        gemini
+            .as_ref()
+            .map(|gemini| gemini.url(&target.url, model.unwrap_or(&gemini.model)))
+            .transpose()?
+    };
     if let Some(url) = &gemini_url {
         *outgoing.url_mut() = url.clone();
     }
@@ -339,13 +339,22 @@ pub(super) async fn forward_json(
         }
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
         let body = crate::model_relay::sse_framing::resident_body(body);
+        let body = if messages_gemini {
+            crate::model_relay::messages_gemini_stream::response_body(
+                body,
+                client_model.clone().ok_or(StatusCode::BAD_REQUEST)?,
+                cancelled.clone(),
+            )
+        } else {
+            body
+        };
         // The Responses bridge validates its Chat source in the shared decoder.
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(
                 body,
                 if gemini.is_some() {
                     crate::model_relay::generation::GenerationProtocol::Gemini
-                } else if native_messages {
+                } else if native_messages || messages_gemini {
                     crate::model_relay::generation::GenerationProtocol::Messages
                 } else if native_responses || messages_responses {
                     crate::model_relay::generation::GenerationProtocol::Responses
@@ -359,7 +368,7 @@ pub(super) async fn forward_json(
         };
         let protocol = if gemini.is_some() {
             Protocol::Gemini
-        } else if native_messages {
+        } else if native_messages || messages_gemini {
             Protocol::Messages
         } else if native_responses || messages_responses {
             Protocol::Responses
@@ -378,6 +387,9 @@ pub(super) async fn forward_json(
         };
         parts.headers.clear();
         parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(SSE));
+        if messages_gemini {
+            return Ok(Response::from_parts(parts, body));
+        }
         return finish_messages(
             Response::from_parts(parts, body),
             app,

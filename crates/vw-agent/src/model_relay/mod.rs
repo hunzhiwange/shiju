@@ -111,6 +111,10 @@ pub(crate) mod messages_gemini_result;
 #[cfg(test)]
 mod messages_gemini_result_tests;
 
+pub(crate) mod messages_gemini_stream;
+#[cfg(test)]
+mod messages_gemini_stream_tests;
+
 pub(crate) mod messages_responses_stream;
 #[cfg(test)]
 mod messages_responses_stream_tests;

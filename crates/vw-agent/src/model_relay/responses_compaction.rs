@@ -31,10 +31,6 @@ impl Request {
     }
 
     pub(crate) fn from_responses_anthropic(body: Value) -> Result<Self, StatusCode> {
-        // Native Anthropic SSE adaptation is delivered separately.
-        if body["stream"] == true {
-            return Err(StatusCode::UNPROCESSABLE_ENTITY);
-        }
         Self::from_responses_inner(body, true)
     }
 
@@ -64,7 +60,7 @@ impl Request {
             return Err(StatusCode::BAD_REQUEST);
         }
         let compact = triggers == 1;
-        if compact && body["stream"] != true {
+        if compact && (body["stream"] != true || anthropic) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         if compact {
@@ -132,7 +128,9 @@ impl Request {
 
     pub(crate) fn response_body(self, body: Body, cancel: CancellationToken) -> Body {
         let history = self.history;
-        let body = if self.compact {
+        let body = if self.anthropic {
+            super::responses_anthropic_stream::response_body(body, self.model, self.tools, cancel)
+        } else if self.compact {
             super::responses_stream::codex_chat_body(body, self.model, self.tools, true, cancel)
         } else {
             super::responses_stream::resident_chat_body(body, self.model, self.tools, cancel)

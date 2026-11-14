@@ -153,3 +153,7 @@ mod responses_anthropic_request_tests;
 mod responses_anthropic_result;
 #[cfg(test)]
 mod responses_anthropic_result_tests;
+
+mod responses_anthropic_stream;
+#[cfg(test)]
+mod responses_anthropic_stream_tests;

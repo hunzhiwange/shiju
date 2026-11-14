@@ -449,13 +449,16 @@ async fn finish_messages(
         };
         Ok(Response::from_parts(parts, Body::from(converted.to_string())))
     } else if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && streaming {
-        crate::model_relay::messages_stream::resident_response_body(
-            response,
-            model.ok_or(StatusCode::BAD_REQUEST)?,
-            cancel,
-        )
-        .await
-        .map_err(Into::into)
+        let model = model.ok_or(StatusCode::BAD_REQUEST)?;
+        if responses {
+            crate::model_relay::messages_responses_stream::response_body(response, model, cancel)
+                .await
+                .map_err(Into::into)
+        } else {
+            crate::model_relay::messages_stream::resident_response_body(response, model, cancel)
+                .await
+                .map_err(Into::into)
+        }
     } else if app == AppId::ClaudeDesktop || app == AppId::Claude && !native {
         crate::model_relay::messages_stream::response_body(
             response,

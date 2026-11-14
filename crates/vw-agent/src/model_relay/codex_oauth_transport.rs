@@ -39,7 +39,7 @@ pub(crate) fn apply_alpha_search(request: &mut reqwest::Request, fresh: &HeaderM
 /// Images use the same account identity but have their own explicit endpoint.
 pub(crate) fn apply_image_generation(request: &mut reqwest::Request, fresh: &HeaderMap) -> Result<(), StatusCode> {
     let mut generation = request.url().clone();
-    if generation.path() != "/backend-api/codex/images/generations" {
+    if !matches!(generation.path(), "/backend-api/codex/images/generations" | "/backend-api/codex/images/edits") {
         return Err(StatusCode::UNPROCESSABLE_ENTITY);
     }
     generation.set_path("/backend-api/codex/responses");

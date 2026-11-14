@@ -201,3 +201,7 @@ mod gemini_metadata_tests;
 pub(crate) mod alpha_search;
 
 pub(crate) mod image_generation;
+
+pub(crate) mod image_edit;
+#[cfg(test)]
+mod image_edit_tests;

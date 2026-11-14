@@ -262,3 +262,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 `components/agent_apps/daily_memory.rs`，使用任务 10 的 WorkspaceMemoryScope 与每日列表/读写/删除 SDK。应用详情入口接入模态编辑器，列表展示日期、预览、字节大小和本地修改时间。今日日期取桌面 Local 时区，创建只产生草稿，保存才 PUT 明确日期。读取序号与上下文代数拒绝过期响应；删除需确认并失效未完成读取，成功写入或删除后刷新列表，错误保留草稿并显示失败。应用、主机、页面和连接切换清理状态。独立测试源码覆盖草稿创建与失效。
 
 本轮按用户要求只写代码及静态审查，未执行 Cargo、单元测试、实机测试或最终回归，不宣称验证通过。未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证使用任务规定的 `daily_editor_defers_creation_until_save` 过滤条件，并检查中文、暗色与滚动渲染。
+
+## 任务 29：桌面工作区白名单编辑（2026-11-14）
+
+接入九文件存在/缺失/读取失败列表、SDK 读取完成后的编辑、保存成功刷新和失败保留草稿；目录动作复用任务 26 SDK 并显示执行主机。读取序号、项目/网关/租户/主机与页面代数拒绝旧响应，换应用及连接时清理。统一主题控件、4px 滚动与两侧留白复用 settings_modal_layout，内容不使用等宽字体。源码测试补充乱序读取、关闭失效和缺失文件草稿。
+
+本轮仅静态审查，未执行 Cargo、任何测试或最终回归，不声称验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证 workspace_editor_ignores_stale_reads 及中文暗色渲染。按本轮要求删除任务卡，不改 plan.md/prompt.md。

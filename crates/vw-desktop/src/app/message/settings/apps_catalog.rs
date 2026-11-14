@@ -11,6 +11,7 @@ pub enum AppsCatalogMessage {
     OpenClawCatalog(crate::app::components::openclaw_catalog::Event),
     OpenClawModel(crate::app::components::openclaw_model::Event),
     OpenClawDefaults(crate::app::components::openclaw_defaults::Event),
+    WorkspaceFiles(crate::app::components::workspace_files::Event),
     DailyMemory(crate::app::components::daily_memory::Event),
     HermesMemory(crate::app::components::hermes_memory::Event),
     HermesDashboard(crate::app::components::hermes_dashboard::Event),
@@ -51,6 +52,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
         AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::OpenClawDefaults(event) => return crate::app::components::openclaw_defaults::update(app, event),
+        AppsCatalogMessage::WorkspaceFiles(event) => return crate::app::components::workspace_files::update(app, event),
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
@@ -61,6 +63,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::ToggleDetails(id) => {
             app.apps_catalog.openclaw_tools.invalidate();
             app.apps_catalog.openclaw_env.invalidate();
+            app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
@@ -149,6 +152,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
+            app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
@@ -178,6 +182,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.openclaw_env.invalidate();
             app.apps_catalog.openclaw_defaults.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
+            app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();

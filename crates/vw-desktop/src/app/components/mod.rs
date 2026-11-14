@@ -528,3 +528,6 @@ pub(crate) mod daily_memory;
 #[cfg(test)]
 #[path = "agent_apps/daily_memory_tests.rs"]
 mod daily_memory_tests;
+
+#[path = "agent_apps/workspace_files.rs"]
+pub(crate) mod workspace_files;

@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "task": 18,
+  "title": "核证配置迁入导出备份与恢复",
+  "status": "deferred_unverified",
+  "acceptance_passed": false,
+  "reason": "按用户本轮最新指令，仅验证/构建任务跳过执行并删除任务卡；验证留待以后统一执行。",
+  "scope": "仅 macOS；未开展领域核证或生产能力修复。",
+  "baseline": {
+    "read_head": "83d8af8af9de044ed88c7c3bf5e21beb177471e8",
+    "runtime_contract_baseline": "90330f6c232537e310d63821238c6f1e980fb576",
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_version": null
+  },
+  "inputs": {
+    "inventory": "docs/shiju/cc-macos-acceptance/inventory.json",
+    "runtime_contract": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "runtime_contract_status": "prepared_unverified_not_executable",
+    "parent_task_card": {
+      "path": ".plans/2026-11-05-CC能力完整融合/18-配置迁入导出备份与恢复.md",
+      "available": false,
+      "note": "读取返回 No such file or directory；不据此断言实现或持久映射不存在。"
+    }
+  },
+  "source_items": [
+    {
+      "source_key": "file:src-tauri/src/commands/import_export.rs",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src-tauri/src/database/backup.rs",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/backup_storage.rs",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src-tauri/tests/import_export_sync.rs",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/components/DatabaseUpgrade.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/components/settings/BackupListSection.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/components/settings/BackupStorageSection.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/components/settings/ImportExportSection.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/hooks/useBackupManager.ts",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/hooks/useImportExport.ts",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/components/ImportExportSection.test.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/hooks/useImportExport.extra.test.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/hooks/useImportExport.test.tsx",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:31:export_config_to_file",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:52:import_config_from_file",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:81:sync_current_providers_live",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:100:save_file_dialog",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:116:open_file_dialog",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:130:open_zip_file_dialog",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:146:create_db_backup",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:164:list_db_backups",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:174:restore_db_backup",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:203:rename_db_backup",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:215:delete_db_backup",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:226:list_backup_locations",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:235:delete_backup_location",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/import_export.rs:246:reveal_backup_location",
+      "status": "unverified",
+      "gap_owner": 18,
+      "evidence": null
+    }
+  ],
+  "cross_items": {
+    "status": "unverified",
+    "reason": "母任务卡不可读，未确认其声明的交叉项；主责来源列表不代表完整验收范围。"
+  },
+  "dependency_gaps": [
+    {
+      "owner": "前置任务1及领域18",
+      "detail": "runtime-contract 的 API、SDK、CLI、隔离配置与清理入口均未验证；无可执行核证契约。"
+    },
+    {
+      "owner": "母任务18",
+      "detail": "来源到实现和测试的映射尚未在本轮确认；data-management-contracts.md 仅为文档候选，不代表当前实现结论。"
+    },
+    {
+      "owner": "构建与资源所有者",
+      "detail": "运行产物哈希、ARM64/x64隔离主机及应用版本未交付到契约。"
+    }
+  ],
+  "execution": {
+    "commands": [],
+    "exit_codes": [],
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "note": "只有准备性文件读取与Git操作；未执行任何核证、格式验证、Cargo、构建、测试、实机或回归。"
+  },
+  "deferred_work": [
+    "恢复母任务18交付映射并确认交叉来源项",
+    "由所有者补齐已验证执行契约及冻结产物",
+    "逐来源复核实现、API权限错误、SDK与聚焦测试证据及基线适用性",
+    "执行证据JSON格式检查、差异审查及后续统一验证；分别记录ARM64/x64结果"
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "未创建运行资源，无运行清理操作；按用户要求删除编号任务卡，持久记录保留。"
+  }
+}

@@ -86,3 +86,9 @@
 新增 openclaw_env::{OpenClawEnvConfig,get_env_config,prepare_env_config,set_env_config}，严格 JSON 对象编辑，保留 vars/shellEnv 嵌套及未知值，拒绝空白、坏 JSON、数组与 null，{} 替换清空。缺失与空对象区分；读取先调用独立敏感授权策略，无 Debug 派生或原文错误。调用方仍须绑定认证范围和执行主机，后续 API 负责提供真实敏感权限策略，不将普通配置读权限冒充敏感授权。发布沿用 OpenClawFiles snapshot/apply 的物理锁、私有原子写和冲突事务，非目标分节字节保留。底层仅支持 JSON/JSONC，完整 JSON5 仍明确拒绝。
 
 静态核对来源 get_env_config/set_env_config、utils.ts、正式合同、任务 3 路径与共享配置事务。新增四个 openclaw_env_preserves_nested_values 前缀测试源码，覆盖嵌套往返、非目标注释、清空、缺失、非法输入和敏感读取拒绝；未执行。按用户本轮要求未运行 Cargo、任何测试或最终回归，不声明编译或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。本编号卡按要求删除；后续统一验证。
+
+## 任务 20：OpenClaw 工具设置（2026-11-14）
+
+新增 openclaw_tools::{get_tools_config,prepare_tools_config,set_tools_config}：profile 保留原字符串并显式区分未设置、minimal/coding/messaging/full 和未知值；allow/deny 只过滤空白项，非空文本与顺序保留；未知扩展随完整分节读写。拒绝损坏分节及扩展覆盖已知字段。配置仅供 OpenClaw 消费，不改变识矩工具授权。发布复用 OpenClawFiles 快照、供应商物理锁及事务冲突检查，调用方先授权配置与执行主机。
+
+静态核对来源 get_tools_config/set_tools_config、ToolsPanel.tsx、任务 1 正式合同、任务 3 文件边界及共享补丁层。新增三个 openclaw_tools_preserves_unknown_profile 前缀测试源码，未运行。共享解析器仅支持 JSON/JSONC，完整 JSON5 仍明确拒绝。本轮依用户要求未运行 Cargo、单元/实机/其它测试或最终回归，不声称编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证，任务卡按指令删除。

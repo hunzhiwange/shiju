@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "task": 9,
+  "status": "deferred_by_user_not_accepted",
+  "date": "2026-11-14",
+  "instruction_override": "本轮纯验证任务跳过并删除编号卡；验证统一延期，不计通过。",
+  "record_commit": "db0ab8a34da5cf7cabf8938593f409b4d41fc707",
+  "baseline_note": "共享checkout不是冻结运行版本。",
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "document_reference_only"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "document_reference_only"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "document_reference_only"
+    },
+    {
+      "path": "docs/shiju/cc-convergence/network.md",
+      "sha256": "b7874437b56c3b3a4ff632e21a645ae59b1dae527040fc9c926f4877ebb320cc",
+      "status": "document_reference_only"
+    }
+  ],
+  "dependency_gaps": [
+    "母任务9编号卡不存在；inventory指向network.md，但逐来源实现/API/SDK/UI/测试绑定仍待母9核证。",
+    "runtime-contract未提供已验证入口、二进制哈希及隔离主机；由前置任务与母22补齐。"
+  ],
+  "candidate_count": 34,
+  "source_selection": "owner_ref=9或owner_refs包含9；候选准备不证明来源完整性。",
+  "items": [
+    {
+      "source_key": "file:docs/user-manual/en/4-proxy/4.3-failover.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/4-proxy/4.3-failover.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/4-proxy/4.3-failover.md",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/failover.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/stream_check.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/failover.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/stream_check.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/circuit_breaker.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/failover_switch.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/services/speedtest.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src-tauri/src/services/stream_check.rs",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/components/providers/forms/EndpointSpeedTest.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/components/providers/forms/hooks/useSpeedTestEndpoints.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/components/proxy/AutoFailoverConfigPanel.tsx",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/hooks/useStreamCheck.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/lib/api/connectivity-check.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/lib/api/failover.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "file:src/lib/query/failover.ts",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:73:get_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:101:get_available_providers_for_failover",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:120:add_to_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:138:remove_from_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:155:get_auto_failover_enabled",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/failover.rs:172:set_auto_failover_enabled",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/stream_check.rs:14:stream_check_provider",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "event:src-tauri/src/commands/failover.rs:301:provider-switched",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "event:src-tauri/src/proxy/failover_switch.rs:116:provider-switched",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:get_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:get_available_providers_for_failover",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:add_to_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:remove_from_failover_queue",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:get_auto_failover_enabled",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:set_auto_failover_enabled",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    },
+    {
+      "source_key": "registration:stream_check_provider",
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 9
+    }
+  ],
+  "verification": {
+    "status": "not_run_by_user_instruction",
+    "effective_behavior_cases": 0,
+    "passed": null,
+    "failed": null,
+    "commands": [],
+    "exit_codes": null,
+    "format_check": "not_run",
+    "pending": [
+      "JSON格式与来源覆盖检查",
+      "母9补齐映射及交叉项，前置任务交付可执行契约",
+      "故障转移队列、启停、切换事件、连通探测、诊断权限错误及SDK核证",
+      "冻结产品差异和产物哈希后统一执行定向验证"
+    ]
+  },
+  "environment": {
+    "macos_version": null,
+    "arm64": "unverified",
+    "x64": "unverified",
+    "application_versions": null,
+    "artifact_sha256": null
+  },
+  "cleanup": {
+    "runtime_resources_created": false,
+    "credentials_accessed": false,
+    "result": "删除本任务卡，保留持久记录；无运行资源。"
+  },
+  "acceptance": {
+    "passed": false,
+    "note": "未运行Cargo、构建、测试、实机、验收或回归；延期不表示通过或上游不支持。"
+  }
+}

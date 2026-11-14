@@ -76,6 +76,7 @@ vw-gateway-client = { path = "../vw-gateway-client", version = "0.6.0" }
 vw-shared = { path = "../vw-shared", version = "0.6.0", features = ["shell-tokio"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+audio-capture = { path = "../libs/audio-capture", version = "0.6.0" }
 audio-playback = { path = "../libs/audio-playback", version = "0.6.0" }
 voice-recordings = { path = "../libs/voice-recordings", version = "0.6.0" }
 arboard = "3.4"

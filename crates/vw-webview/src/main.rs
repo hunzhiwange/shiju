@@ -6,8 +6,6 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 use webview_external_protocol::dialog::show_error_dialog;
-#[cfg(all(not(any(target_arch = "wasm32", coverage)), target_os = "macos"))]
-mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
 #[cfg(all(not(any(target_arch = "wasm32", coverage)), unix, not(target_os = "macos")))]
@@ -290,7 +288,7 @@ fn main() {
     #[cfg(unix)]
     {
         // WebKitGTK shares this download handler with related popup views.
-        builder = popup::with_downloads(builder, &log_path);
+        builder = webview_downloads::with_downloads(builder, &log_path);
     }
 
     let external = ExternalProtocols::default();
@@ -346,7 +344,7 @@ fn main() {
     media_permissions::install(&webview, window.gtk_window().upcast_ref());
 
     #[cfg(target_os = "macos")]
-    let attachment_delegate = macos_downloads::enable_attachments(&webview);
+    let attachment_delegate = webview_downloads::enable_attachments(&webview);
 
     if let Some(set_cookie) = shiju_app_set_cookie.as_deref() {
         let cookie = match runtime_cookie(set_cookie) {

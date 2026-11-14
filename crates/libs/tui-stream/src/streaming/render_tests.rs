@@ -3,10 +3,10 @@
 
 use super::StreamingRender;
 use super::render_source;
-use crate::markdown::render_streaming_markdown_agent_with_links_and_cwd;
+use tui_markdown::markdown::render_streaming_markdown_agent_with_links_and_cwd;
 use crate::streaming::StreamRenderMode;
-use crate::terminal_hyperlinks::HyperlinkLine;
-use crate::terminal_hyperlinks::visible_lines;
+use tui_render::terminal_hyperlinks::HyperlinkLine;
+use tui_render::terminal_hyperlinks::visible_lines;
 use insta::assert_debug_snapshot;
 use pretty_assertions::assert_eq;
 use std::path::Path;

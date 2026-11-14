@@ -8,7 +8,7 @@ use super::append_rich_and_assert_matches_full;
 use super::assert_rich_stream_matches_full_render;
 use super::lines_to_plain_strings;
 use super::test_cwd;
-use crate::render::highlight::MAX_HIGHLIGHT_LINE_BYTES;
+use tui_highlight::MAX_HIGHLIGHT_LINE_BYTES;
 use crate::streaming::StreamRenderMode;
 use insta::assert_debug_snapshot;
 use pretty_assertions::assert_eq;

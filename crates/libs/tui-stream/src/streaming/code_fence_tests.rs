@@ -3,8 +3,8 @@
 
 use super::OpenCodeFence;
 use super::has_possible_closing_line;
-use crate::render::highlight::MAX_HIGHLIGHT_LINE_BYTES;
-use crate::render::highlight::syntax_theme_revision;
+use tui_highlight::MAX_HIGHLIGHT_LINE_BYTES;
+use tui_highlight::syntax_theme_revision;
 
 #[test]
 // 缩进、规范化或复杂结构会改变源码时，检测器应拒绝建立快速状态。

@@ -1,7 +1,5 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-#[cfg(unix)]
-use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -159,19 +157,4 @@ impl PopupWindows {
         let closed = self.windows.borrow_mut().remove(&id);
         drop(closed);
     }
-}
-
-#[cfg(unix)]
-pub(crate) fn with_downloads<'a>(
-    builder: WebViewBuilder<'a>,
-    log_path: &Path,
-) -> WebViewBuilder<'a> {
-    let log_path = log_path.to_owned();
-    builder.with_download_started_handler(|_, _| true).with_download_completed_handler(
-        move |_, _, success| {
-            if !success {
-                append_log(&log_path, "WebView download failed.");
-            }
-        },
-    )
 }

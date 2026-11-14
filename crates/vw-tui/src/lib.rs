@@ -49,8 +49,6 @@ mod markdown;
 #[allow(dead_code)]
 pub(crate) use tui_markdown::markdown_render;
 #[allow(dead_code)]
-mod markdown_stream;
-#[allow(dead_code)]
 mod motion;
 #[allow(dead_code)]
 pub mod onboarding;
@@ -67,7 +65,7 @@ pub mod status;
 #[allow(dead_code)]
 mod status_indicator_widget;
 #[allow(dead_code)]
-mod streaming;
+pub(crate) use tui_stream::streaming;
 #[allow(dead_code)]
 pub(crate) use tui_theme::style;
 #[allow(dead_code)]

@@ -10,11 +10,11 @@
 use super::StreamRenderMode;
 use super::code_fence::OpenCodeFence;
 use super::raw_lines_from_source;
-use crate::markdown::render_markdown_agent_with_links_and_cwd;
-use crate::markdown::render_streaming_markdown_agent_with_links_and_cwd;
-use crate::render::highlight::syntax_theme_revision;
-use crate::terminal_hyperlinks::HyperlinkLine;
-use crate::terminal_hyperlinks::plain_hyperlink_lines;
+use tui_markdown::markdown::render_markdown_agent_with_links_and_cwd;
+use tui_markdown::markdown::render_streaming_markdown_agent_with_links_and_cwd;
+use tui_highlight::syntax_theme_revision;
+use tui_render::terminal_hyperlinks::HyperlinkLine;
+use tui_render::terminal_hyperlinks::plain_hyperlink_lines;
 use ratatui::text::Line;
 use std::path::Path;
 

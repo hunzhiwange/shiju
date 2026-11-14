@@ -11,7 +11,7 @@ define_class!(
     #[unsafe(super(NSObject))]
     #[thread_kind = MainThreadOnly]
     #[ivars = Retained<ProtocolObject<dyn WKNavigationDelegate>>]
-    pub(crate) struct AttachmentNavigationDelegate;
+    pub struct AttachmentNavigationDelegate;
 
     unsafe impl NSObjectProtocol for AttachmentNavigationDelegate {
         #[unsafe(method(respondsToSelector:))]
@@ -56,7 +56,7 @@ define_class!(
     }
 );
 
-pub(crate) fn enable_attachments(
+pub fn enable_attachments(
     webview: &wry::WebView,
 ) -> Option<Retained<AttachmentNavigationDelegate>> {
     use wry::WebViewExtMacOS;

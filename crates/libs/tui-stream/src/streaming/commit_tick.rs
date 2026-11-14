@@ -32,7 +32,7 @@ use super::controller::StreamController;
 /// 描述提交节拍可在所有模式运行，还是仅在追赶模式运行。
 /// Describes whether a commit tick may run in all modes or only in catch-up mode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CommitTickScope {
+pub enum CommitTickScope {
     /// 无论当前分块模式如何都运行节拍。
     /// Always run the tick, regardless of current chunking mode.
     AnyMode,
@@ -43,16 +43,16 @@ pub(crate) enum CommitTickScope {
 
 /// 描述单次提交节拍产生的结果。
 /// Describes what a single commit tick produced.
-pub(crate) struct CommitTickOutput {
+pub struct CommitTickOutput {
     /// 本节拍排空流式行所产生的历史单元。
     /// Cells produced by drained stream lines during this tick.
-    pub(crate) cells: Vec<StreamingCell>,
+    pub cells: Vec<StreamingCell>,
     /// 本节拍是否至少存在一个流式控制器。
     /// Whether at least one stream controller was present for this tick.
-    pub(crate) has_controller: bool,
+    pub has_controller: bool,
     /// 本节拍后所有现有控制器是否均为空闲。
     /// Whether all present controllers were idle after this tick.
-    pub(crate) all_idle: bool,
+    pub all_idle: bool,
 }
 
 impl Default for CommitTickOutput {
@@ -79,7 +79,7 @@ impl Default for CommitTickOutput {
 /// If callers pass stale controller references (for example, references not tied to the
 /// current turn), queue age can be misread and the policy may stay in catch-up longer
 /// than expected.
-pub(crate) fn run_commit_tick(
+pub fn run_commit_tick(
     policy: &mut AdaptiveChunkingPolicy,
     stream_controller: Option<&mut StreamController>,
     plan_stream_controller: Option<&mut PlanStreamController>,

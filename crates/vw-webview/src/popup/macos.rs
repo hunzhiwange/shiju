@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use std::path::Path;
+
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{DeclaredClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};
@@ -12,7 +14,7 @@ use wry::{
     WebViewExtMacOS,
 };
 
-use crate::macos_downloads::{AttachmentNavigationDelegate, enable_attachments};
+use webview_downloads::{AttachmentNavigationDelegate, enable_attachments};
 use crate::{DEFAULT_TITLE, SAFARI_USER_AGENT};
 
 struct CloseCallbacks {
@@ -109,7 +111,7 @@ impl Host {
         // Keep the supplied session and process relationship. The child has no
         // toolbar IPC and needs its own user scripts instead of the parent's.
         unsafe { config.setUserContentController(&WKUserContentController::new(mtm)) };
-        let webview = super::with_downloads(builder, log_path)
+        let webview = webview_downloads::with_downloads(builder, log_path)
             .with_user_agent(SAFARI_USER_AGENT)
             .with_webview_configuration(config)
             .build(&content_view)?;

@@ -15,12 +15,12 @@
 
 use std::time::Instant;
 
-use crate::table_detect::FenceKind;
-use crate::table_detect::FenceTracker;
-use crate::table_detect::is_table_delimiter_line;
-use crate::table_detect::is_table_header_line;
-use crate::table_detect::parse_table_segments;
-use crate::table_detect::strip_blockquote_prefix;
+use tui_markdown::table_detect::FenceKind;
+use tui_markdown::table_detect::FenceTracker;
+use tui_markdown::table_detect::is_table_delimiter_line;
+use tui_markdown::table_detect::is_table_header_line;
+use tui_markdown::table_detect::parse_table_segments;
+use tui_markdown::table_detect::strip_blockquote_prefix;
 
 /// 扫描累计原始源码中管道表格模式的结果。
 /// Result of scanning accumulated raw source for pipe-table patterns.

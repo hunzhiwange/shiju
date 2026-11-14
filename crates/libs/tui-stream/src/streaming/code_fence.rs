@@ -4,10 +4,10 @@
 //! 快速状态只保留受限语言标记和源码锚点，从不复制不断增长的流式代码正文。
 //! A conservative fast path for one open, top-level, language-tagged code fence.
 
-use crate::render::highlight::MAX_HIGHLIGHT_LINE_BYTES;
-use crate::render::highlight::StreamingCodeHighlighter;
-use crate::render::highlight::syntax_theme_revision;
-use crate::terminal_hyperlinks::HyperlinkLine;
+use tui_highlight::MAX_HIGHLIGHT_LINE_BYTES;
+use tui_highlight::StreamingCodeHighlighter;
+use tui_highlight::syntax_theme_revision;
+use tui_render::terminal_hyperlinks::HyperlinkLine;
 use ratatui::text::Span;
 
 /// 原始源码与 pulldown-cmark 代码文本一致的只追加围栏。

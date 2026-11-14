@@ -4,7 +4,7 @@
 //! 检索函数只返回 ID 和分数，完整记录组装由 `memory_impl` 负责。
 
 use super::SqliteMemory;
-use crate::memory::vector;
+use memory_algorithms::vector;
 use rusqlite::{Connection, params};
 use std::fmt::Write as _;
 

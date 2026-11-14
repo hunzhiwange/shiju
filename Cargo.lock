@@ -3691,14 +3691,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-discovery"
-version = "0.6.0"
-dependencies = [
- "git2",
- "tempfile",
-]
-
-[[package]]
 name = "git2"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6044,6 +6036,24 @@ dependencies = [
  "chrono",
  "memory-types",
  "mysql",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "memory-sqlite"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "memory-algorithms",
+ "memory-types",
+ "parking_lot",
+ "project-storage-paths",
+ "rusqlite",
+ "sha2 0.11.0",
+ "tempfile",
  "tokio",
  "uuid",
 ]
@@ -12427,7 +12437,6 @@ dependencies = [
  "flate2",
  "futures-util",
  "getrandom 0.4.3",
- "git-discovery",
  "git2",
  "glob",
  "hex",
@@ -12445,6 +12454,7 @@ dependencies = [
  "libc",
  "mail-parser",
  "memory-algorithms",
+ "memory-sqlite",
  "memory-lucid",
  "memory-mariadb",
  "memory-markdown",

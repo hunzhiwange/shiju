@@ -88,6 +88,37 @@ impl S3SettingsStore {
         Ok(config)
     }
 
+    /// Opaque local revision includes encrypted credential state, never returned to clients.
+    pub(crate) fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
+        use sha2::{Digest, Sha256};
+        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
+        let _ = decode(&raw)?;
+        Ok(hex::encode(Sha256::digest(raw.as_bytes())))
+    }
+
+    /// Resolve only under the shared operation lock; never expose credentials as DTOs.
+    pub(crate) fn connection(&self, tenant: &TenantScope, host: &str) -> Result<S3Config> {
+        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
+        let row = decode(&raw)?;
+        ensure!(row.config.enabled, "device sync disabled");
+        let encrypted = row.secret_ciphertext.ok_or_else(|| anyhow::anyhow!("device sync credential missing"))?;
+        let secret = self.secrets.decrypt(&encrypted)
+            .map_err(|_| anyhow::anyhow!("device sync credential unavailable"))?;
+        S3Config {
+            enabled: row.config.enabled,
+            auto_sync: row.config.auto_sync,
+            bucket: row.config.bucket,
+            region: row.config.region,
+            access_key_id: row.config.access_key_id,
+            endpoint: row.config.endpoint,
+            remote_root: row.config.remote_root,
+            profile: row.config.profile,
+            secret_access_key: secret,
+        }.normalize().map_err(anyhow::Error::msg)
+    }
+
     /// Publish the configuration and encrypted secret access key in one conditional database write.
     /// A concurrent process causes an explicit conflict rather than a lost update.
     pub async fn save(

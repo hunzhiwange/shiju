@@ -10,6 +10,8 @@ type Result<T> = std::result::Result<T, SyncErrorCode>;
 pub(super) struct Record {
     pub(super) request: SyncStartRequest,
     pub(super) status: SyncTaskStatus,
+    #[serde(default)]
+    upload_parameters: Option<String>,
     claimed: bool,
     cancel_requested: bool,
     #[serde(skip)]
@@ -34,13 +36,22 @@ pub fn initialize(database: crate::global_database::GlobalDatabase,
 /// Reusing an ID with different parameters is rejected, including after completion.
 /// Records are retained durably to preserve deduplication across restarts.
 pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncTaskStatus> {
+    accept_parameters(request, origin, None)
+}
+
+/// Include the authorized object selection and connection revision in deduplication.
+pub(crate) fn accept_upload(request: SyncStartRequest, parameters: String) -> Result<SyncTaskStatus> {
+    accept_parameters(request, SyncTaskOrigin::Manual, Some(parameters))
+}
+fn accept_parameters(request: SyncStartRequest, origin: SyncTaskOrigin,
+    upload_parameters: Option<String>) -> Result<SyncTaskStatus> {
     if request.request_id.trim().is_empty() || request.request_id.len() > 256 {
         return Err(SyncErrorCode::InvalidRequest);
     }
     let mut records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
     if let Some(record) = records.iter().find(|r| r.request.target == request.target
         && r.request.request_id == request.request_id) {
-        return if record.request == request && record.status.origin == origin {
+        return if record.request == request && record.status.origin == origin && record.upload_parameters == upload_parameters {
             Ok(record.status.clone())
         } else { Err(SyncErrorCode::IdempotencyConflict) };
     }
@@ -51,7 +62,7 @@ pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncT
         bytes_transferred: 0, total_bytes: None, state: SyncTaskState::Queued,
         warnings: Vec::new(),
     };
-    let record = Record { request, status: status.clone(), claimed: false,
+    let record = Record { request, upload_parameters, status: status.clone(), claimed: false,
         cancel_requested: false, cancellation: tokio_util::sync::CancellationToken::new(), commit_started: false, committed: false };
     super::status::persist(&record)?;
     records.push(record);

@@ -10,7 +10,8 @@ use crate::global_database::{GlobalDatabase, config::DatabaseProvider};
 /// Trusted executor selection, after authorization of every object and confirmation
 /// that selected free text/resources may leave this device. Never deserialize this
 /// structure from a remote snapshot. Empty lists select nothing, never everything.
-#[derive(Default)]
+#[derive(Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SnapshotSelection {
     pub providers: Vec<(AppId, String)>,
     pub mcp: Vec<String>,

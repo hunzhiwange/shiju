@@ -36,6 +36,9 @@ struct Principal {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Grant {
+    /// Explicit authority to export portable data to the configured remote.
+    #[serde(default)]
+    device_sync_upload: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     device_sync_probe: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
@@ -664,6 +667,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
     DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
     DataMigrationRead(&'a vw_api_types::id::ProjectId),
     DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
@@ -959,6 +963,7 @@ fn authorize_digest(
                     Capability::DeviceSyncProbe(project) => g.device_sync_probe.contains(project),
                     Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
                     Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
+                    Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
                     Capability::DataBackups(project) => g.data_backups.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
@@ -2016,3 +2021,19 @@ pub(in super::super) fn authorize_device_sync_probe(
         Capability::DeviceSyncProbe(project.project_id()))?;
     a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }
+
+/// Explicit export grant, complete principal binding and local host ownership.
+pub(in super::super) fn authorize_device_sync_upload(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::DataManagementTarget,
+) -> Result<(PathBuf, PathBuf), StatusCode> {
+    let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
+        &target.target_host_id, None, Capability::DeviceSyncUpload(target.scope.project_id()))?;
+    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    let credentials = a.host.credential_root.filter(|p| p.is_absolute())
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    let skills = a.host.skills_root.filter(|p| p.is_absolute())
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((credentials, skills))
+}
+

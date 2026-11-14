@@ -35,6 +35,7 @@ members = [
   "crates/libs/webview-init-script",
   "crates/libs/webview-launch",
   "crates/libs/webview-local-content",
+  "crates/libs/webview-mcp-policy",
   "crates/libs/webview-toolbar",
   "crates/vw-api-types",
   "crates/vw-acp",

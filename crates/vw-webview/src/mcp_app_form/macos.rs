@@ -11,7 +11,7 @@ use objc2_web_kit::{
 use wry::{WebView, WebViewExtMacOS};
 
 use super::{FormNavigation, FormPolicy};
-use crate::mcp_app::{APP_URL, WRAPPER_URL, internal_navigation_allowed};
+use webview_mcp_policy::{APP_URL, WRAPPER_URL, internal_navigation_allowed};
 
 pub(crate) struct DelegateState {
     policy: FormPolicy,

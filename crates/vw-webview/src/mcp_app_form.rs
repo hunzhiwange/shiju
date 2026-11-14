@@ -1,5 +1,4 @@
 //! Hold the engine's original form navigation until the host confirms its HTTPS origin.
-use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
 
 #[cfg(all(not(coverage), target_os = "macos"))]
 #[path = "mcp_app_form/macos.rs"]
@@ -7,22 +6,6 @@ mod platform;
 #[cfg(all(not(coverage), unix, not(target_os = "macos")))]
 #[path = "mcp_app_form/gtk.rs"]
 mod platform;
-
-pub(super) fn allowed_origins(policy: &McpAppNetworkPolicy) -> Vec<String> {
-    if cfg!(any(target_os = "windows", coverage)) {
-        return Vec::new();
-    }
-    policy
-        .connect_domains
-        .iter()
-        .filter(|origin| {
-            // GTK's action API does not identify the destination frame. Keep
-            // the form destinations disjoint from ordinary iframe navigations.
-            cfg!(target_os = "macos") || !policy.frame_domains.contains(origin)
-        })
-        .cloned()
-        .collect()
-}
 
 #[cfg(all(not(coverage), unix))]
 mod supported {
@@ -35,7 +18,7 @@ mod supported {
         },
     };
 
-    use crate::mcp_app::{frame_origin_allowed, https_origin, internal_navigation_allowed};
+    use webview_mcp_policy::{frame_origin_allowed, https_origin, internal_navigation_allowed};
 
     #[derive(Debug, PartialEq, Eq)]
     pub(crate) enum FormNavigation {

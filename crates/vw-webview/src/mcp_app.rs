@@ -10,8 +10,11 @@ use std::sync::{
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
-use url::Url;
 use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
+use webview_mcp_policy::{
+    APP_URL, ENGINE_APP_URL, ENGINE_WRAPPER_URL, MAX_MESSAGE_BYTES, WRAPPER_URL,
+    allowed_origins, app_csp, frame_origin_allowed, internal_navigation_allowed, wrapper_csp,
+};
 use wry::{WebViewBuilder, http};
 
 #[path = "mcp_app_form.rs"]
@@ -29,20 +32,6 @@ pub(super) fn revoke_document() {
     let _ = writeln!(stdout, "mcp-app-closed").and_then(|_| stdout.flush());
 }
 
-const MAX_MESSAGE_BYTES: usize = 1024 * 1024;
-const WRAPPER_URL: &str = "mcp-app://localhost/index.html";
-const APP_URL: &str = "mcp-app://localhost/app.html";
-#[cfg(target_os = "windows")]
-const ENGINE_WRAPPER_URL: &str = "http://mcp-app.localhost/index.html";
-#[cfg(not(target_os = "windows"))]
-const ENGINE_WRAPPER_URL: &str = WRAPPER_URL;
-#[cfg(target_os = "windows")]
-const ENGINE_APP_URL: &str = "http://mcp-app.localhost/app.html";
-#[cfg(not(target_os = "windows"))]
-const ENGINE_APP_URL: &str = APP_URL;
-
-const WRAPPER_CSP: &str = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'";
-
 /// Load host supplied HTML from the pipe, without granting a local-directory protocol.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut line = String::new();
@@ -58,7 +47,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .to_owned();
     let html = input["html"].as_str().ok_or("missing app HTML")?;
     let policy = McpAppNetworkPolicy::parse(input.get("csp"))?;
-    let form_origins = form::allowed_origins(&policy);
+    let form_origins = allowed_origins(&policy);
     let form_enabled = !form_origins.is_empty();
     let app_csp = app_csp(&policy);
     let wrapper_csp = wrapper_csp(&form_origins);
@@ -274,44 +263,6 @@ html, body, iframe {{ margin: 0; width: 100%; height: 100%; border: 0; }}
 </script>"#,
         include_str!("mcp_app_host.js"),
     )
-}
-
-fn app_csp(policy: &McpAppNetworkPolicy) -> String {
-    fn sources(origins: &[String]) -> String {
-        if origins.is_empty() { "'none'".into() } else { origins.join(" ") }
-    }
-    let resources = policy.resource_domains.join(" ");
-    let connect = sources(&policy.connect_domains);
-    let frame = sources(&policy.frame_domains);
-    let base = sources(&policy.base_uri_domains);
-    let media = sources(&policy.resource_domains);
-    let forms = sources(&form::allowed_origins(policy));
-    format!(
-        "default-src 'none'; script-src 'unsafe-inline' {resources}; style-src 'unsafe-inline' {resources}; font-src data: {resources}; img-src data: {resources}; media-src {media}; connect-src {connect}; frame-src {frame}; base-uri {base}; object-src 'none'; form-action {forms}"
-    )
-}
-
-fn wrapper_csp(origins: &[String]) -> String {
-    if origins.is_empty() {
-        return WRAPPER_CSP.into();
-    }
-    WRAPPER_CSP.replace("frame-src 'self';", &format!("frame-src 'self' {};", origins.join(" ")))
-}
-
-fn internal_navigation_allowed(url: &str) -> bool {
-    matches!(url, WRAPPER_URL | APP_URL | "about:blank" | "about:srcdoc")
-        || url == ENGINE_WRAPPER_URL
-        || url == ENGINE_APP_URL
-}
-
-fn https_origin(target: &str) -> Option<String> {
-    let url = Url::parse(target).ok()?;
-    (url.scheme() == "https" && url.username().is_empty() && url.password().is_none())
-        .then(|| url.origin().ascii_serialization())
-}
-
-fn frame_origin_allowed(domains: &[String], target: &str) -> bool {
-    https_origin(target).is_some_and(|origin| domains.contains(&origin))
 }
 
 #[cfg(test)]

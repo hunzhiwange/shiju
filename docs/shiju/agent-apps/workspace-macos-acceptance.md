@@ -192,3 +192,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增固定 GET/PUT `/v1/agent-apps/openclaw/settings/{model,catalog,defaults}`；查询使用 projectId/targetHostId，沿用租户上下文及 x-agent-apps-token。独立 `openclaw_settings_read/write` 项目授权在 IO 前检查，写入复用 OpenClawFiles/ProviderTransactions 与提交前授权复核；恢复/冲突返回 409，未知字段由底层分节保留，写警告映射到公开 outcome。注册沿用相邻 Hermes 在 agent_apps/mod.rs 中的路由所有者，未复制 import 或 provider 存储。
 
 已静态核对任务 1 正式合同、任务 16/17/18/22 生产接口、来源 commands/openclaw.rs 与 useOpenClawModelOptions.ts。现有 `/app-providers/openclaw/config/state` 和供应商目录保留原只读所有权；模型选项专用去重/名称回退/中文排序投影仍是前置合同中的缺项，本任务未伪造该能力。新增两个 openclaw_api_roundtrips_defaults 前缀测试源码，均未运行。本轮依用户指令未运行 Cargo、任何测试或最终回归，不声明编译或行为通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证 HTTP 权限隔离与配置事务。
+
+## 任务 24：OpenClaw 环境、工具与健康路由（2026-11-14）
+
+扩展现有 openclaw_settings 路由：GET/PUT env、GET/PUT tools、只读 GET health。env 先校验普通 settings_read，再校验独立项目级 openclaw_env_sensitive_read，授权拒绝发生在读取配置前；写入复用 settings_write、OpenClawFiles 和 ProviderTransactions。health 仅返回领域固定脱敏警告；没有新增模型选项投影或桌面排序。
+
+静态核对任务 1 合同、来源映射、commands/openclaw.rs、utils.ts 和任务 19/20/21/23 真实产物。新增 openclaw_api_protects_sensitive_env 测试源码，覆盖普通读权限拒绝 env、拒绝无目录副作用、独立授权读原值及 health 脱敏不改文件，未执行。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证该测试族与 HTTP/事务集成。

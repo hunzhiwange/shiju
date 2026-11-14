@@ -103,6 +103,8 @@ struct Grant {
     #[serde(default)]
     openclaw_settings_read: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    openclaw_env_sensitive_read: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     openclaw_settings_write: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     hermes_memory_write: Vec<vw_api_types::id::ProjectId>,
@@ -637,6 +639,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
     OpenClawSettings(&'a vw_api_types::id::ProjectId, bool),
     Workspace(&'a vw_api_types::id::ProjectId, bool),
     HermesDashboard(&'a vw_api_types::id::ProjectId),
@@ -951,6 +954,7 @@ fn authorize_digest(
                     }
                     #[cfg(target_os = "macos")]
                     Capability::UsageBatch(project) => g.usage_refresh_all.contains(project),
+                    Capability::OpenClawEnvRead(project) => g.openclaw_env_sensitive_read.contains(project),
                     Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
@@ -1831,4 +1835,13 @@ pub(super) fn authorize_openclaw_settings(
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::OpenClawSettings(project.project_id(), write)).map(|a| a.host)
+}
+
+/// Additional sensitive permission; ordinary configuration read is insufficient.
+pub(super) fn authorize_openclaw_env_read(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    target: &str,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::OpenClawEnvRead(project.project_id())).map(|a| a.host)
 }

@@ -220,10 +220,16 @@ impl AuthorizedRoute {
     }
 
     #[cfg(target_os = "macos")]
-    pub(super) fn desktop_discovery(&self) -> Option<serde_json::Value> {
+    pub(super) fn model_discovery(&self) -> Result<serde_json::Value, StatusCode> {
+        if self.cancelled.is_cancelled() {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
         match &self.json_target {
-            Some(JsonRoute::Desktop(snapshot)) => Some(snapshot.discovery()),
-            _ => None,
+            Some(JsonRoute::Desktop(snapshot)) => Ok(snapshot.discovery()),
+            Some(JsonRoute::Plain(_)) => self.provider.as_ref()
+                .ok_or(StatusCode::SERVICE_UNAVAILABLE)?.discovery(),
+            // Aggregation IDs and their catalog publication belong to the aggregation owner.
+            _ => Err(StatusCode::SERVICE_UNAVAILABLE),
         }
     }
 

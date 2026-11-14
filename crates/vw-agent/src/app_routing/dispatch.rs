@@ -51,7 +51,7 @@ pub(super) async fn forward_json(
     route.check_provider(listener).await?;
     let app = route.json_app().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     #[cfg(target_os = "macos")]
-    if app == AppId::ClaudeDesktop && request.uri().path() == "/claude-desktop/v1/models" {
+    if crate::model_relay::models::is_path(app, request.uri().path()) {
         if request.uri().query().is_some() {
             return Err(StatusCode::NOT_FOUND.into());
         }
@@ -68,7 +68,8 @@ pub(super) async fn forward_json(
         }
         let buffer = limits.try_reserve().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
         let permit = route.capacity.acquire(buffer).await.ok_or(StatusCode::TOO_MANY_REQUESTS)?;
-        let catalog = route.desktop_discovery().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        route.check_provider(listener).await?;
+        let catalog = route.model_discovery()?;
         let bytes = body_limits::encode_json(&catalog, MAX_JSON_BYTES)
             .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
         let mut response = Response::new(body_limits::buffered_response(bytes.into(), permit));

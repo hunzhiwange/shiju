@@ -121,6 +121,34 @@ impl PublishedProvider {
         serde_json::from_str::<Value>(payload).ok().as_ref() == Some(&self.row)
     }
 
+    /// Read only this published deployment, never the direct provider or a global list.
+    pub(super) fn discovery(&self) -> Result<Value, StatusCode> {
+        use vw_api_types::model_catalog::ModelCatalogIdentity;
+        let invalid = || StatusCode::UNPROCESSABLE_ENTITY;
+        let deployment = if self.scope.app_id == AppId::Codex {
+            let profile = vw_agent_apps::providers::codex_catalog::form::editable_profile(
+                &self.provider_id, &self.row,
+            ).ok_or_else(invalid)?;
+            vw_agent_apps::providers::codex_catalog::identity(
+                &self.scope.target_host_id, &self.provider_id, &profile,
+            ).map_err(|_| invalid())?
+        } else {
+            let endpoint = self.row.pointer("/claude/config/base_url")
+                .or_else(|| self.row.pointer("/settingsConfig/env/ANTHROPIC_BASE_URL"))
+                .and_then(Value::as_str).ok_or_else(invalid)?;
+            ModelCatalogIdentity {
+                target_host_id: self.scope.target_host_id.clone(),
+                app_id: self.scope.app_id,
+                provider_id: self.provider_id.clone(),
+                endpoint: endpoint.into(),
+            }
+        };
+        let catalog = vw_agent_apps::models::edits::read(
+            self.scope.project.tenant_scope(), &deployment, &self.row,
+        ).map_err(|_| invalid())?;
+        Ok(crate::model_relay::models::project(self.scope.app_id, &catalog.items))
+    }
+
     pub(super) fn model(&self, model: &str) -> String {
         vw_agent_apps::routing::target_model::resolve(
             self.scope.app_id,

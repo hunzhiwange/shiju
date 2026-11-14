@@ -191,3 +191,5 @@ pub(crate) mod compaction;
 pub(crate) mod compaction_v2;
 #[cfg(test)]
 mod compaction_v2_tests;
+
+pub(crate) mod models;

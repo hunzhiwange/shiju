@@ -132,3 +132,46 @@ pub(super) fn publish(
     }
     Err(Error::Conflict)
 }
+
+/// Enumerate the pinned directory, never reopen the caller's path.
+pub(super) fn backup_ids(parent: &File) -> Result<Vec<String>, Error> {
+    use std::os::fd::IntoRawFd;
+    let directory = open_at(parent, &name(".")?, libc::O_RDONLY | libc::O_DIRECTORY)?;
+    let fd = directory.into_raw_fd();
+    // SAFETY: fd is an owned directory; fdopendir takes ownership on success.
+    let stream = unsafe { libc::fdopendir(fd) };
+    if stream.is_null() {
+        unsafe { libc::close(fd) };
+        return Err(Error::StorageUnavailable);
+    }
+    struct Stream(*mut libc::DIR);
+    impl Drop for Stream {
+        fn drop(&mut self) {
+            // SAFETY: this guard uniquely owns the directory stream.
+            unsafe { libc::closedir(self.0) };
+        }
+    }
+    let stream = Stream(stream);
+    let mut ids = Vec::new();
+    loop {
+        // SAFETY: macOS thread-local errno and live, uniquely owned DIR pointer.
+        unsafe { *libc::__error() = 0 };
+        let entry = unsafe { libc::readdir(stream.0) };
+        if entry.is_null() {
+            if unsafe { *libc::__error() } != 0 {
+                return Err(Error::StorageUnavailable);
+            }
+            break;
+        }
+        // SAFETY: readdir's name remains valid until the next stream operation.
+        let name = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
+        let Ok(name) = name.to_str() else { continue };
+        if let Some(id) = name.strip_suffix(".local-backup") {
+            if archive_name(id).is_ok() {
+                ids.push(id.to_owned());
+            }
+        }
+    }
+    ids.sort();
+    Ok(ids)
+}

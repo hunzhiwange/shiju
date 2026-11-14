@@ -23,3 +23,8 @@ pub mod backup_create;
 mod backup_create_files;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_create_tests;
+
+#[cfg(target_os = "macos")]
+pub mod backup_list;
+#[cfg(all(test, target_os = "macos"))]
+mod backup_list_tests;

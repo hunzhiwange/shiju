@@ -61,3 +61,14 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-api-types --lib cc_data_02_ 
 ```sh
 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_ -- --nocapture
 ```
+
+
+## 子任务 23：列出目标备份（2026-11-14）
+
+实现 `data_management::backup_list::list_local_backups`，复用任务 22 的 LocalBackup 格式、校验与私有文件打开。通过 pinned descriptor 枚举目录并相对打开，不跟随符号链接，拒绝硬链接及不安全权限。仅返回与完整 ProjectScope、principal、host 匹配的 ID、类型、格式版本、实际字节数、创建时间和恢复资格状态；按时间降序、ID 排序。结构合法仅表示 RequiresOwnerValidation，恢复仍须原回执摘要、独立授权与领域校验，不宣称已可恢复。可归属的未来版本和损坏结构返回明确状态；不可解析、超限、不可读或无法安全确认身份的条目隐藏，不向其它租户泄露文件名或诊断。根目录及枚举失败明确报错，不将不可达存储当空列表。
+
+来源静态阅读：CC Switch `commands/import_export.rs::list_db_backups` 调用 `database/backup.rs::list_backups`（任务卡旧路径 backup.rs 已迁入 database），原实现读取大小、时间并倒序。本项沿用元数据列举语义，增加现有目标格式与身份安全边界，不引入整库备份体系。未接 API/SDK/UI（由后续任务负责）。
+
+独立测试源码 backup_list_tests.rs 由真实父模块按 macOS 注册：`cc_data_23_backup_list_returns_visible_metadata` 使用匿名内存 SQLite 真实用量偏好所有者捕获，覆盖元数据、列举前后字节不变、未来版本、结构损坏及不可归属损坏隐藏；`cc_data_23_backup_list_hides_other_tenant` 覆盖租户、项目、principal、host 和符号/硬链接边界。两项测试均未运行。本轮遵循用户覆盖仅实现，不执行 Cargo、构建、单元或实机测试，无通过证据、退出码或有效测试数；未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。编号卡按用户要求删除，plan.md 保持只读。
+
+待统一回归（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_23_ -- --nocapture`，届时记录实际槽位、绝对缓存路径、退出码及有效测试数。

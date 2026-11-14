@@ -30,8 +30,8 @@ impl LocalBackupReceipt {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LocalBackup {
-    format_version: u32,
-    kind: vw_api_types::agent_apps::data_management::DataArtifactKind,
+    pub(super) format_version: u32,
+    pub(super) kind: vw_api_types::agent_apps::data_management::DataArtifactKind,
     name: String,
     created_at_ms: i64,
     scope: SafetySnapshotScope,
@@ -52,7 +52,7 @@ impl LocalBackup {
     }
 }
 
-fn validate(backup: &LocalBackup, scope: &SafetySnapshotScope) -> Result<(), Error> {
+pub(super) fn validate(backup: &LocalBackup, scope: &SafetySnapshotScope) -> Result<(), Error> {
     use vw_api_types::agent_apps::data_management::DataArtifactKind;
     if backup.format_version != 1 {
         return Err(Error::VersionUnsupported);

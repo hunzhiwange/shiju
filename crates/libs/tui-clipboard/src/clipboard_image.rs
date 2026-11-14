@@ -2,9 +2,9 @@
 
 use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
 
-use crate::{V3Attachment, V3AttachmentKind};
+use tui_contracts::event::{V3Attachment, V3AttachmentKind};
 
-pub(crate) fn is_image_paste_key(event: crossterm::event::KeyEvent) -> bool {
+pub fn is_image_paste_key(event: crossterm::event::KeyEvent) -> bool {
     event.kind == crossterm::event::KeyEventKind::Press
         && matches!(event.code, crossterm::event::KeyCode::Char(value) if value.eq_ignore_ascii_case(&'v'))
         && event.modifiers.intersects(
@@ -12,7 +12,7 @@ pub(crate) fn is_image_paste_key(event: crossterm::event::KeyEvent) -> bool {
         )
 }
 
-pub(crate) fn read_clipboard_image_attachment() -> Result<V3Attachment, String> {
+pub fn read_clipboard_image_attachment() -> Result<V3Attachment, String> {
     let mut clipboard =
         arboard::Clipboard::new().map_err(|error| format!("无法访问系统剪贴板：{error}"))?;
     let image = clipboard.get_image().map_err(|error| format!("剪贴板中没有可用图片：{error}"))?;

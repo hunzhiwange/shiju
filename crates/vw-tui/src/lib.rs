@@ -21,8 +21,7 @@ pub mod chatwidget;
 // VibeWindow 适配：复制模块先于下游消费者激活，因此阶段性死代码许可只限定于本批次。
 // VibeWindow adaptation: copied modules are activated before their downstream
 // consumers, so staged dead-code allowances stay scoped to this batch only.
-mod clipboard_copy;
-mod clipboard_image;
+pub(crate) use tui_clipboard::{clipboard_copy, clipboard_image};
 #[allow(dead_code)]
 pub(crate) use tui_theme::color;
 #[allow(dead_code)]

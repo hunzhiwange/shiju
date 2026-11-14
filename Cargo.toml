@@ -16,6 +16,7 @@ members = [
   "crates/libs/voice-permissions",
   "crates/libs/file-index",
   "crates/libs/tui-contracts",
+  "crates/libs/tui-clipboard",
   "crates/libs/tui-text",
   "crates/libs/tui-render",
   "crates/libs/tui-theme",

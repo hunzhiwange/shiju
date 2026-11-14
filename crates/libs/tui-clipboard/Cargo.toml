@@ -1,0 +1,22 @@
+[package]
+name = "tui-clipboard"
+version = "0.6.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[lib]
+doctest = false
+
+[dependencies]
+tui-contracts = { path = "../tui-contracts", version = "0.6.0" }
+arboard = "3.4"
+base64 = "0.23"
+crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+image = { version = "0.25.9", default-features = false, features = ["png"] }
+tracing = "0.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

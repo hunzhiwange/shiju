@@ -513,7 +513,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             app.desktop_update.busy = false;
             app.cli_install_modal_is_checking_update = false;
-            app.app_update_progress_rx = None;
+            // The completion message may arrive before the next progress subscription tick.
+            // The producer has finished, so retain its final measured byte count before closing.
+            if let Some(receiver) = app.app_update_progress_rx.take() {
+                if let Some(progress) = receiver.try_iter().last() {
+                    app.app_update_progress = Some(progress);
+                }
+            }
             match result {
                 Ok(ready) => {
                     app.cli_install_modal_title = "安装包已就绪".into();

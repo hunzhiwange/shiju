@@ -186,3 +186,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 openclaw_settings 的 model/catalog/defaults/env/tools/health/WriteOutcome DTO，保留分节扩展、未知 profile、缺失与空对象及结构化警告和 backupPath。defaults/env 沿用领域对象形状；不新增路径或命令入口，env 独立敏感读取权限明确为调用者合同，载荷不派生 Debug。来源 WriteOutcome 为结构化 warnings，现有领域字符串 warnings 由后续路由适配。
 
 静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
+
+## 任务 23：OpenClaw 模型、目录与默认设置路由（2026-11-14）
+
+新增固定 GET/PUT `/v1/agent-apps/openclaw/settings/{model,catalog,defaults}`；查询使用 projectId/targetHostId，沿用租户上下文及 x-agent-apps-token。独立 `openclaw_settings_read/write` 项目授权在 IO 前检查，写入复用 OpenClawFiles/ProviderTransactions 与提交前授权复核；恢复/冲突返回 409，未知字段由底层分节保留，写警告映射到公开 outcome。注册沿用相邻 Hermes 在 agent_apps/mod.rs 中的路由所有者，未复制 import 或 provider 存储。
+
+已静态核对任务 1 正式合同、任务 16/17/18/22 生产接口、来源 commands/openclaw.rs 与 useOpenClawModelOptions.ts。现有 `/app-providers/openclaw/config/state` 和供应商目录保留原只读所有权；模型选项专用去重/名称回退/中文排序投影仍是前置合同中的缺项，本任务未伪造该能力。新增两个 openclaw_api_roundtrips_defaults 前缀测试源码，均未运行。本轮依用户指令未运行 Cargo、任何测试或最终回归，不声明编译或行为通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证 HTTP 权限隔离与配置事务。

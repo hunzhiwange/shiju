@@ -44,6 +44,7 @@ pub(crate) fn router() -> Router {
         router
             .merge(hermes_dashboard::router())
             .merge(hermes_memory::router())
+            .merge(openclaw_settings::router())
             .merge(workspace_memory::router())
             .merge(apps_usage_refresh::router_with_policy(policy.clone()))
             .merge(apps_usage_script::router_with_policy(policy))
@@ -620,3 +621,7 @@ mod hermes_memory;
 #[cfg(target_os = "macos")]
 #[path = "../workspace_memory.rs"]
 mod workspace_memory;
+
+#[cfg(target_os = "macos")]
+#[path = "../openclaw_settings.rs"]
+mod openclaw_settings;

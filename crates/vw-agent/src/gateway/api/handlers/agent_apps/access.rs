@@ -101,6 +101,10 @@ struct Grant {
     #[serde(default)]
     hermes_memory_read: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    openclaw_settings_read: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    openclaw_settings_write: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     hermes_memory_write: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     workspace_read: Vec<vw_api_types::id::ProjectId>,
@@ -633,6 +637,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    OpenClawSettings(&'a vw_api_types::id::ProjectId, bool),
     Workspace(&'a vw_api_types::id::ProjectId, bool),
     HermesDashboard(&'a vw_api_types::id::ProjectId),
     HermesMemory(&'a vw_api_types::id::ProjectId, bool),
@@ -946,6 +951,7 @@ fn authorize_digest(
                     }
                     #[cfg(target_os = "macos")]
                     Capability::UsageBatch(project) => g.usage_refresh_all.contains(project),
+                    Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
@@ -1816,4 +1822,13 @@ pub(super) fn authorize_workspace(
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::Workspace(project.project_id(), write)).map(|a| (a.host, a.principal))
+}
+
+/// Settings grants are scoped independently from provider import and workspace IO.
+pub(super) fn authorize_openclaw_settings(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    target: &str, write: bool,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::OpenClawSettings(project.project_id(), write)).map(|a| a.host)
 }

@@ -96,6 +96,18 @@ impl GatewayClient {
         self.apps_usage_read("/v1/apps/usage/snapshot", selection, principal_token).await
     }
 
+    /// Read provider limits using the same authorized snapshot contract.
+    pub async fn usage_limits(
+        &self,
+        selection: &UsageSnapshotQuery,
+        principal_token: &str,
+    ) -> Result<UsageSnapshotResponse, AppsUsageReadError> {
+        if principal_token.trim().is_empty() {
+            return Err(AppsUsageReadError::InvalidPrincipalToken);
+        }
+        self.apps_usage_read("/v1/usage/limits", selection, principal_token).await
+    }
+
     /// Read template metadata. Leave the query kind unset.
     pub async fn apps_usage_templates(
         &self,

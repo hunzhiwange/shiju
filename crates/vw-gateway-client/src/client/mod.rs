@@ -483,3 +483,8 @@ pub use usage_read_api::{UsageReadScope, UsageReadError};
 
 mod usage_scan_api;
 pub use usage_scan_api::*;
+
+mod usage_price_types;
+pub use usage_price_types::*;
+mod usage_price_api;
+pub use usage_price_api::UsagePriceError;

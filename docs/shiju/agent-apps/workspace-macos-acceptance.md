@@ -135,3 +135,10 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 hermes_memory_limits 的 read_memory_limits/prepare_memory_enabled/set_memory_enabled，消费现有 HermesMemoryKind/HermesMemoryLimits DTO；预算默认 2200/1375，两个开关默认 true，单字段无效回退，损坏 YAML 明确返回不含载荷的错误。user 映射 user_profile_enabled。编辑复用 patch_yaml 的既有 block mapping 补丁算法，仅增加限定两开关的内部入口，保留预算、外部 provider、未知字段和非目标文本；复杂 flow/reference/tag 布局拒绝修改。发布复用 HermesFiles snapshot/apply 与供应商物理锁、冲突事务，不另建 IO 所有者。调用者须先授权配置和执行主机。
 
 已静态核对来源 hermes_config.rs、任务 1 合同、任务 11 双记忆文件及现有 DTO、YAML 补丁和 Hermes 配置事务。新增三个 hermes_toggle_preserves_yaml 前缀测试源码，覆盖文本保留、双开关隔离、默认/无效字段、缺失和损坏/歧义拒绝；均未执行。依用户最高优先要求未运行 Cargo、任何测试或最终回归，不声称编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证该测试族及配置事务集成。
+
+
+## 任务 28：Hermes 面板启动动作（2026-11-14）
+
+静态核对任务 27 的 hermes_dashboard::probe_dashboard、来源 launch_hermes_dashboard / hermes_dashboard_command_line 和现有执行主机 command、Operation 取消/进度底座。新增固定 probe/start 及 operations/{id} GET/DELETE；SDK 同步四个动作，保留 HTTP 状态。授权策略在现有 launch 外另需 hermes_dashboard 项目 ID 列表；每次请求重验租户、主机、项目及令牌，任务观察/取消再匹配提交人。远程主机由既有策略拒绝，不把远程 loopback 当本地地址。固定 Hermes dashboard argv，继承底座环境隔离，无客户端命令或 shell 插值；运行进度不宣称 HTTP 在线。取消杀死自有进程组并回收后再确认。
+
+新增权限拒绝与 SDK 路径注入测试源码，均未执行。按本轮最高优先要求未运行 Cargo、单元/实机或其他测试、最终回归，不声称编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按指令删除；后续统一验证。

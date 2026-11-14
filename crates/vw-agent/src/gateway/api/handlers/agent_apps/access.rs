@@ -97,6 +97,8 @@ struct Grant {
     #[serde(default)]
     launch: bool,
     #[serde(default)]
+    hermes_dashboard: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     identities: Vec<IdentityPermit>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
@@ -623,6 +625,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    HermesDashboard(&'a vw_api_types::id::ProjectId),
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
@@ -936,6 +939,7 @@ fn authorize_digest(
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
+                    Capability::HermesDashboard(project) => g.launch && g.hermes_dashboard.contains(project),
                     Capability::ProviderConfigRead => g.provider_config_read,
                     #[cfg(target_os = "macos")]
                     Capability::CodexRestart(project) => g
@@ -1772,4 +1776,14 @@ pub(in super::super) fn authorize_mcp_acp_read(
         Capability::McpAcpRead(project.project_id(), session),
     )
     .map(|_| ())
+}
+
+/// Dashboard process control requires an explicit project grant on the target host.
+pub(super) fn authorize_hermes_dashboard(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    target: &str,
+) -> Result<(Host, String), StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::HermesDashboard(project.project_id()))
+        .map(|a| (a.host, a.principal))
 }

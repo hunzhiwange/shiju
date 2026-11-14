@@ -407,3 +407,5 @@ mod aggregation_publish_api_tests;
 mod aggregation_codex_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_codex_api_tests;
+
+pub mod hermes_dashboard_api;

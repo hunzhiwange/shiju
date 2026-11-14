@@ -1,5 +1,7 @@
 //! Gateway-authorized WebDAV probes and fixed-artifact uploads. Never persists settings.
 
+pub mod download;
+
 use std::{fmt, time::Duration};
 
 use reqwest::{Client, Method, StatusCode, Url};

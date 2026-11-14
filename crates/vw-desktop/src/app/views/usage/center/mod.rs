@@ -1,6 +1,7 @@
 //! SDK-backed ledger entry; current-session details remain in the parent view.
 pub mod charts;
 pub mod state;
+pub mod scan;
 pub mod logs;
 pub mod groups;
 pub mod overview;
@@ -29,6 +30,7 @@ pub enum Event {
     Load(bool),
     Refresh,
     Charts(charts::Event),
+    Scan(scan::Event),
     Logs(logs::Event),
     Groups(groups::Event),
     Tick,
@@ -39,6 +41,7 @@ pub enum Event {
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
+        Event::Scan(event) => return scan::update(app, event),
         Event::Charts(event) => return charts::update(app, event),
         Event::Logs(event) => return logs::update(app, event),
         Event::Groups(event) => return groups::update(app, event),
@@ -51,7 +54,11 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
                 return update(app, Event::Refresh);
             }
         }
-        Event::Close => app.usage_center.close(),
+        Event::Close => {
+            app.usage_center.close();
+            app.usage_center.scan.open = false;
+            return scan::activity(app, false);
+        },
         Event::Loaded(ticket, scope, result) => {
             if app.usage_center.open && app.usage_center.loading
                 && app.usage_center.sequence == ticket && identity(app).as_ref() == Some(&scope)
@@ -80,7 +87,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let charts_task = charts::load(ticket, scope.clone(), query.clone());
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
             let client = crate::app::config::gateway_client();
-            return Task::batch([logs_task, groups_task, charts_task, Task::perform(async move {
+            return Task::batch([scan::activity(app, true), logs_task, groups_task, charts_task, Task::perform(async move {
                 let result = async {
                     let client = client?;
                     client.usage_summary(&UsageReadScope {
@@ -101,6 +108,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .style(rounded_action_btn_style).on_press(Message::View(ViewMessage::UsageCenter(event)));
     let mut content = column![row![
         action("刷新用量", Event::Refresh),
+        action("扫描与修复", Event::Scan(scan::Event::Open)),
         action("最近24小时（UTC）", Event::Load(false)),
         action("关闭用量中心", Event::Close),
     ].spacing(8)].spacing(8);
@@ -117,5 +125,5 @@ pub fn view(app: &App) -> Element<'_, Message> {
         };
         content = content.push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
     }
-    content.into()
+    scan::overlay(app, content.into())
 }

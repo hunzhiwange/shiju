@@ -1,6 +1,7 @@
 use vw_gateway_client::UsageSummary;
 
 pub struct State {
+    pub scan: super::scan::State,
     pub charts: super::charts::State,
     pub logs: super::logs::State,
     pub groups: super::groups::State,
@@ -36,6 +37,6 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }

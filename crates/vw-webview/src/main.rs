@@ -20,6 +20,8 @@ mod popup;
 mod toolbar;
 
 #[cfg(not(target_arch = "wasm32"))]
+use webview_launch::{DEFAULT_TARGET, launch_log_summary, parse_launch_options};
+#[cfg(not(target_arch = "wasm32"))]
 use std::borrow::Cow;
 #[cfg(not(target_arch = "wasm32"))]
 use webview_core::events::UserEvent;
@@ -36,10 +38,6 @@ use tao::platform::windows::WindowBuilderExtWindows;
 use wry::http::{HeaderMap, HeaderValue, Request, Response, StatusCode, header::COOKIE};
 
 #[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_TARGET: &str = "about:blank";
-#[cfg(not(target_arch = "wasm32"))]
-const DEFAULT_TITLE: &str = "Vibe Window WebView";
-#[cfg(not(target_arch = "wasm32"))]
 const SAFARI_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15";
 #[cfg(not(target_arch = "wasm32"))]
 const SHIJU_APP_RUNTIME_HOST: &str = "app.shiju.cloud";
@@ -53,35 +51,6 @@ const MAX_SHIJU_APP_SET_COOKIE_BYTES: usize = 16 * 1024;
 enum StartTarget {
     Url(String),
     LocalDir { root: PathBuf, entry: String },
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, PartialEq, Eq)]
-struct LaunchOptions {
-    mode: String,
-    window_title: String,
-    width: Option<i32>,
-    height: Option<i32>,
-    pos_x: Option<i32>,
-    pos_y: Option<i32>,
-    cookies_json: String,
-    shiju_app_set_cookie_stdin: bool,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-impl Default for LaunchOptions {
-    fn default() -> Self {
-        Self {
-            mode: "window".to_string(),
-            window_title: DEFAULT_TITLE.to_string(),
-            width: None,
-            height: None,
-            pos_x: None,
-            pos_y: None,
-            cookies_json: "[]".to_string(),
-            shiju_app_set_cookie_stdin: false,
-        }
-    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -268,31 +237,6 @@ fn resolve_target(target: &str) -> StartTarget {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn parse_launch_options(args: &[String]) -> LaunchOptions {
-    let mut options = LaunchOptions::default();
-    for a in args {
-        if let Some(v) = a.strip_prefix("--mode=") {
-            options.mode = v.to_string();
-        } else if let Some(v) = a.strip_prefix("--cookies=") {
-            options.cookies_json = v.to_string();
-        } else if let Some(v) = a.strip_prefix("--width=") {
-            options.width = v.parse::<i32>().ok();
-        } else if let Some(v) = a.strip_prefix("--height=") {
-            options.height = v.parse::<i32>().ok();
-        } else if let Some(v) = a.strip_prefix("--x=") {
-            options.pos_x = v.parse::<i32>().ok();
-        } else if let Some(v) = a.strip_prefix("--y=") {
-            options.pos_y = v.parse::<i32>().ok();
-        } else if let Some(v) = a.strip_prefix("--title=") {
-            options.window_title = v.to_string();
-        } else if a == "--shiju-app-set-cookie-stdin" {
-            options.shiju_app_set_cookie_stdin = true;
-        }
-    }
-    options
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn is_trusted_shiju_app_target(target: &str) -> bool {
     let Some((scheme, remainder)) = target.split_once("://") else {
         return false;
@@ -415,35 +359,6 @@ fn parse_navigation_ipc_message(message: &str) -> Option<String> {
     }
     let url = value.get("url").and_then(serde_json::Value::as_str)?;
     is_safe_navigation_url(url).then(|| url.to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn redacted_launch_target(target: &str) -> String {
-    let Some((scheme, remainder)) = target.split_once("://") else {
-        return "<local-or-invalid>".to_string();
-    };
-    if !scheme.eq_ignore_ascii_case("http") && !scheme.eq_ignore_ascii_case("https") {
-        return "<local-or-invalid>".to_string();
-    }
-
-    let authority =
-        remainder.split_once(['/', '?', '#']).map_or(remainder, |(authority, _)| authority);
-    let host = authority.rsplit('@').next().unwrap_or_default();
-    if host.is_empty() {
-        return "<invalid>".to_string();
-    }
-
-    format!("{}://{host}", scheme.to_ascii_lowercase())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn launch_log_summary(target: &str, options: &LaunchOptions) -> String {
-    format!(
-        "Launch target={} width={} height={}",
-        redacted_launch_target(target),
-        options.width.unwrap_or(1280),
-        options.height.unwrap_or(800)
-    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]

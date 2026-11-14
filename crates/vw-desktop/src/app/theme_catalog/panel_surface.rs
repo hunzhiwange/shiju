@@ -58,18 +58,13 @@ impl PanelImageFit {
 
     /// 解析配置值；空/`None` 默认 Cover。非法值返回错误。
     pub fn parse(value: Option<&str>) -> Result<Self, String> {
-        let Some(raw) = value.map(str::trim).filter(|s| !s.is_empty()) else {
-            return Ok(Self::Cover);
-        };
-        match raw.to_ascii_lowercase().as_str() {
+        match theme_model::normalize_panel_image_fit(value)? {
             "cover" => Ok(Self::Cover),
             "contain" => Ok(Self::Contain),
             "fill" => Ok(Self::Fill),
-            "scale_down" | "scaledown" => Ok(Self::ScaleDown),
+            "scale_down" => Ok(Self::ScaleDown),
             "none" => Ok(Self::None),
-            other => Err(format!(
-                "invalid panel_image_fit `{other}`: expected cover|contain|fill|scale_down|none"
-            )),
+            other => Err(format!("unsupported normalized panel image fit `{other}`")),
         }
     }
 }

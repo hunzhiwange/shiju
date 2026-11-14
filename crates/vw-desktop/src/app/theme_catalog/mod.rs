@@ -47,10 +47,6 @@ pub use store::ThemeStore;
 pub use resolve::set_test_themes_root;
 
 #[cfg(test)]
-#[path = "model_tests.rs"]
-mod model_tests;
-
-#[cfg(test)]
 #[path = "store_tests.rs"]
 mod store_tests;
 

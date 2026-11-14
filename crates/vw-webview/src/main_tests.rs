@@ -250,41 +250,6 @@ fn resolve_target_uses_url_for_missing_file_url_and_missing_plain_path() {
 }
 
 #[test]
-fn parse_launch_options_reads_known_flags() {
-    let args = vec![
-        "--mode=embedded".to_string(),
-        "--cookies=[{\"name\":\"sid\"}]".to_string(),
-        "--shiju-app-set-cookie-stdin".to_string(),
-        "--width=1024".to_string(),
-        "--height=768".to_string(),
-        "--x=-10".to_string(),
-        "--y=25".to_string(),
-        "--title=Custom".to_string(),
-    ];
-
-    assert_eq!(
-        parse_launch_options(&args),
-        LaunchOptions {
-            mode: "embedded".to_string(),
-            window_title: "Custom".to_string(),
-            width: Some(1024),
-            height: Some(768),
-            pos_x: Some(-10),
-            pos_y: Some(25),
-            cookies_json: "[{\"name\":\"sid\"}]".to_string(),
-            shiju_app_set_cookie_stdin: true,
-        }
-    );
-}
-
-#[test]
-fn parse_launch_options_ignores_invalid_numbers() {
-    let args = vec!["--width=wide".to_string(), "--height=".to_string(), "--unknown=x".to_string()];
-
-    assert_eq!(parse_launch_options(&args), LaunchOptions::default());
-}
-
-#[test]
 fn parse_stdin_event_accepts_resize_and_move() {
     assert_eq!(parse_stdin_event(" resize 640 480 "), Some(UserEvent::Resize(640, 480)));
     assert_eq!(parse_stdin_event("move -5 20 trailing"), Some(UserEvent::Move(-5, 20)));
@@ -356,31 +321,6 @@ fn work_browser_navigation_ipc_accepts_only_safe_navigation_messages() {
         None
     );
     assert_eq!(parse_navigation_ipc_message("not-json"), None);
-}
-
-#[test]
-fn work_browser_protocol_redacts_cookie_arguments() {
-    let options = LaunchOptions {
-        mode: "embedded".to_string(),
-        window_title: "Sensitive title".to_string(),
-        width: Some(1024),
-        height: Some(768),
-        pos_x: Some(10),
-        pos_y: Some(20),
-        cookies_json: r#"[{"name":"sid","value":"cookie-secret"}]"#.to_string(),
-        shiju_app_set_cookie_stdin: true,
-    };
-
-    let summary =
-        launch_log_summary("https://user:password@example.com/path?token=url-secret", &options);
-
-    assert!(summary.contains("target=https://example.com"));
-    assert!(summary.contains("width=1024"));
-    assert!(summary.contains("height=768"));
-    assert!(!summary.contains("cookie-secret"));
-    assert!(!summary.contains("url-secret"));
-    assert!(!summary.contains("password"));
-    assert!(!summary.contains("Sensitive title"));
 }
 
 #[test]
@@ -481,8 +421,6 @@ fn build_init_script_escapes_json_values_and_embeds_cookie_config() {
 
 #[test]
 fn constants_keep_expected_defaults() {
-    assert_eq!(DEFAULT_TARGET, "about:blank");
-    assert_eq!(DEFAULT_TITLE, "Vibe Window WebView");
     assert!(SAFARI_USER_AGENT.contains("Safari/605.1.15"));
 }
 

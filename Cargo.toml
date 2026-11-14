@@ -2,6 +2,7 @@
 members = [
   "crates/libs/content-guard",
   "crates/libs/diff-text",
+  "crates/libs/theme-model",
   "crates/libs/tui-contracts",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
@@ -20,6 +21,7 @@ members = [
   "crates/libs/process-sandbox",
   "crates/libs/secret-store",
   "crates/libs/webview-core",
+  "crates/libs/webview-launch",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

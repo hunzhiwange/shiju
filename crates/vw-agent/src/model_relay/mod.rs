@@ -180,7 +180,14 @@ mod signature_rectify_tests;
 mod tool_media;
 mod tool_media_request;
 
+#[cfg(target_os = "macos")]
+pub(crate) mod copilot_transport;
+#[cfg(all(test, target_os = "macos"))]
+mod copilot_transport_tests;
+
 pub(crate) mod codex_oauth_transport;
+
+pub(crate) mod quota_gate;
 
 pub(crate) mod xai_oauth_transport;
 

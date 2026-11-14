@@ -150,6 +150,8 @@ pub(super) async fn forward_json(
     if !body.is_object() {
         return Err(StatusCode::BAD_REQUEST.into());
     }
+    #[cfg(target_os = "macos")]
+    let copilot_context = crate::model_relay::copilot_transport::Context::new(&body);
     let streaming = if let Some(gemini) = &gemini {
         gemini.streaming
     } else {
@@ -385,6 +387,11 @@ pub(super) async fn forward_json(
             crate::model_relay::xai_oauth_transport::apply(&mut outgoing, &selected.headers)?;
         }
         outgoing.headers_mut().extend(selected.headers);
+        if credential.account_adapter.provider_type()
+            == super::adapter_selection::ProviderType::GitHubCopilot
+        {
+            copilot_context.apply(&mut outgoing)?;
+        }
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -433,6 +440,15 @@ pub(super) async fn forward_json(
     let transport = &target.transport;
     #[cfg(target_os = "macos")]
     let transport = selected_egress.as_ref().map_or(transport, |egress| &egress.transport);
+    #[cfg(target_os = "macos")]
+    let quota_account = target.managed.as_ref()
+        .filter(|c| c.account_adapter.provider_type() == super::adapter_selection::ProviderType::CodexOAuth)
+        .map(|c| crate::model_relay::quota_gate::Account(
+            c.tenant.clone(), c.principal.clone(), c.host.clone(), c.account.clone()));
+    #[cfg(target_os = "macos")]
+    if let Some(account) = &quota_account {
+        crate::model_relay::quota_gate::admit(account)?;
+    }
     let started = Instant::now();
     let forward = async {
         #[cfg(target_os = "macos")]
@@ -457,7 +473,11 @@ pub(super) async fn forward_json(
         if compact {
             Ok(transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?)
         } else {
-            forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await
+            forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await?
+        };
+        #[cfg(target_os = "macos")]
+        if let Some(account) = &quota_account {
+            crate::model_relay::quota_gate::observe(account.clone(), response.headers());
         }
     };
     if streaming {

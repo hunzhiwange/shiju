@@ -2,7 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::assets::ThemeAssetSources;
-use super::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex, ThemeStore};
+use super::ThemeStore;
+use theme_model::{ThemeAssets, ThemeChrome, ThemeDefinition, ThemePaletteHex};
 
 fn sample_definition(id: &str, name: &str) -> ThemeDefinition {
     ThemeDefinition {

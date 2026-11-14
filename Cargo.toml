@@ -5,6 +5,7 @@ members = [
   "crates/libs/content-guard",
   "crates/libs/diff-text",
   "crates/libs/theme-model",
+  "crates/libs/theme-store",
   "crates/libs/preview-content",
   "crates/libs/file-index",
   "crates/libs/tui-contracts",

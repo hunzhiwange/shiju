@@ -1,4 +1,6 @@
 //! Authorized reads and writes of application failover configuration.
+#[path = "agent_apps_high_availability_health.rs"]
+mod health;
 use super::lifecycle_api::{ControlError, RoutingControl};
 use crate::{
     app_providers::AppProviderStore,
@@ -42,6 +44,7 @@ enum Resource {
 
 pub(crate) fn router() -> Router {
     Router::new()
+        .merge(health::router())
         .route("/agent-apps/high-availability/queue/members", post(member).delete(member))
         .route("/agent-apps/high-availability/queue/order", put(order))
         .route("/agent-apps/high-availability/enabled", put(enabled))

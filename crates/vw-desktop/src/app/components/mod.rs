@@ -485,6 +485,9 @@ mod editor_settings_fields;
 
 pub(crate) mod agent_apps_high_availability;
 
+#[path = "agent_apps_high_availability/policy_modal.rs"]
+pub(crate) mod agent_apps_high_availability_policy;
+
 #[path = "agent_apps/hermes_dashboard.rs"]
 pub(crate) mod hermes_dashboard;
 

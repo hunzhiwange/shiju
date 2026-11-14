@@ -28,6 +28,7 @@ impl Default for FailoverRuntime {
 pub(crate) struct ActualRoute {
     pub(crate) version: u64,
     pub(crate) provider_id: Option<String>,
+    pub(crate) failure_reason: Option<vw_api_types::agent_apps_high_availability::FailoverFailureReason>,
 }
 
 impl ActualRoute {
@@ -62,31 +63,45 @@ pub(crate) fn policy(
     database: GlobalDatabase,
     scope: &FailoverQueueScope,
 ) -> anyhow::Result<FailoverPolicy> {
-    let key = policy_key(scope)?;
+    if let Some(policy) = saved_policy(database.clone(), scope)? {
+        return Ok(policy);
+    }
+    let timeouts = crate::app_routing::config_apply::RoutingConfigStore::new(
+        database, scope.project.tenant_scope().clone(), scope.target_host_id.clone(),
+    )?.app_timeouts(&scope.project, scope.app_id)?.unwrap_or_default();
+    // Without an explicit failover policy, preserve the existing app timeouts.
+    let policy = FailoverPolicy {
+        circuit_breaker: CircuitBreakerPolicy {
+            failure_threshold: 4,
+            success_threshold: 2,
+            cooldown_secs: 60,
+            error_rate_threshold: 0.6,
+            min_requests: 10,
+        },
+        retry_timeout: RetryTimeoutPolicy {
+            max_retries: 3,
+            first_byte_timeout_secs: timeouts.first_byte_timeout_secs,
+            idle_timeout_secs: timeouts.idle_timeout_secs,
+            non_streaming_timeout_secs: timeouts.non_streaming_timeout_secs,
+        },
+    };
+    policy.validate().map_err(anyhow::Error::msg)?;
+    Ok(policy)
+}
+
+pub(crate) fn saved_policy(
+    database: GlobalDatabase,
+    scope: &FailoverQueueScope,
+) -> anyhow::Result<Option<FailoverPolicy>> {
     let saved = GatewaySettingsStore::new(database)?.get(
         scope.project.tenant_scope(),
         super::agent_apps_high_availability_store::NAMESPACE,
-        &key,
+        &policy_key(scope)?,
     )?;
-    // Defaults match the fixed upstream circuit configuration. Timeout fields
-    // are only wire compatibility: dispatch reads its authoritative AppTimeouts.
-    let policy =
-        saved.as_deref().map(serde_json::from_str).transpose()?.unwrap_or(FailoverPolicy {
-            circuit_breaker: CircuitBreakerPolicy {
-                failure_threshold: 4,
-                success_threshold: 2,
-                cooldown_secs: 60,
-                error_rate_threshold: 0.6,
-                min_requests: 10,
-            },
-            retry_timeout: RetryTimeoutPolicy {
-                max_retries: 3,
-                first_byte_timeout_secs: 60,
-                idle_timeout_secs: 120,
-                non_streaming_timeout_secs: 600,
-            },
-        });
-    policy.validate().map_err(anyhow::Error::msg)?;
+    let policy: Option<FailoverPolicy> = saved.as_deref().map(serde_json::from_str).transpose()?;
+    if let Some(policy) = &policy {
+        policy.validate().map_err(anyhow::Error::msg)?;
+    }
     Ok(policy)
 }
 

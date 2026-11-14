@@ -44,6 +44,9 @@ pub(super) fn view<'a>(
         details = details.push(crate::app::components::hermes_memory::view(&state.hermes_memory));
         details = details.push(crate::app::components::hermes_dashboard::view(&state.hermes_dashboard));
     }
+    details = details.push(button(text("高可用策略")).padding([8, 12]).style(rounded_action_btn_style)
+        .on_press(crate::app::message::agent_apps_high_availability_policy::message(
+            crate::app::message::agent_apps_high_availability_policy::Event::Open(app.entry.id))));
     for kind in &app.entry.runtime_kinds {
         details = details.push(
             text(format!(

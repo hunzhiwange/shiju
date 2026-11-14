@@ -418,14 +418,15 @@ impl Plan {
                 .commit(expected, id.as_ref(), &provider.provider_id)
                 .map_err(unavailable)?;
             if let Some(previous) = previous {
+                let reason = if connection_failed {
+                    vw_api_types::agent_apps_high_availability::FailoverFailureReason::Connection
+                } else {
+                    vw_api_types::agent_apps_high_availability::FailoverFailureReason::Other
+                };
+                actual.failure_reason = Some(reason);
                 // Serialize state and event publication together. A late
                 // request from an old version cannot roll back this target.
                 if let Some(events) = route.failover.events.read().as_ref() {
-                    let reason = if connection_failed {
-                        vw_api_types::agent_apps_high_availability::FailoverFailureReason::Connection
-                    } else {
-                        vw_api_types::agent_apps_high_availability::FailoverFailureReason::Other
-                    };
                     let _ = events.send(serde_json::json!({
                         "type": "provider-switched",
                         "source": "failover",

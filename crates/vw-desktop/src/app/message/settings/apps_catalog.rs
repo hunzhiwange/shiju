@@ -16,6 +16,7 @@ pub enum AppsCatalogMessage {
     HermesDashboard(crate::app::components::hermes_dashboard::Event),
     Launch(crate::app::components::system_settings_apps::launch::LaunchMessage),
     Preferences(crate::app::components::system_settings_apps::preferences::PreferencesMessage),
+    HighAvailability(crate::app::message::agent_apps_high_availability_policy::Event),
     Lifecycle(super::apps_lifecycle::LifecycleMessage),
     QueryInput(String),
     ToggleDetails(vw_gateway_client::vw_api_types::agent_apps::AppId),
@@ -150,6 +151,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::Drag(value) => {
             return crate::app::components::system_settings_apps::drag::update(app, value);
         }
+        AppsCatalogMessage::HighAvailability(event) => {
+            return crate::app::message::agent_apps_high_availability_policy::update(app, event);
+        }
         AppsCatalogMessage::Launch(message) => {
             return crate::app::components::system_settings_apps::launch::update(app, message);
         }
@@ -228,6 +232,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.app_providers.model_catalog = None;
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.routing.invalidate();
+            app.apps_catalog.high_availability.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
@@ -261,6 +266,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 });
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.routing.invalidate();
+            app.apps_catalog.high_availability.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();

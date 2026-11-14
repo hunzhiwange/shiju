@@ -17,10 +17,12 @@ pub(crate) struct AppsCatalogState {
     pub daily_memory: crate::app::components::daily_memory::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
     pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
+    pub failover_health: crate::app::message::agent_apps_health::State,
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
     pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
     pub model_diagnostics: crate::app::message::agent_apps_diagnostics::model_state::ModelState,
+    pub high_availability: crate::app::message::agent_apps_high_availability_policy::State,
     pub query: String,
     pub hovered: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
     pub pending_tray_app: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
@@ -66,6 +68,7 @@ impl AppsCatalogState {
         self.lifecycle.invalidate();
         self.external_sessions.invalidate();
         self.routing.invalidate();
+        self.high_availability.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
         self.external_sessions.invalidate();
@@ -88,6 +91,7 @@ impl AppsCatalogState {
     pub fn begin(&mut self, context: AgentAppsContext) -> u64 {
         self.external_sessions.invalidate();
         self.routing.invalidate();
+        self.high_availability.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_catalog.invalidate();

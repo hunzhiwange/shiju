@@ -222,6 +222,11 @@ pub(crate) fn overlay<'a>(
                     enabled,
                 ));
             }
+            if matches!(scope.app, AppId::Claude | AppId::Codex | AppId::Gemini) {
+                actions = actions.push(action("健康与实际路由", ListMessage::FailoverHealth(
+                    crate::app::message::agent_apps_health::Event::Open(id.clone())
+                ), enabled));
+            }
             if crate::app::state::app_providers::preview::available(scope.app) {
                 actions = actions.push(action(
                     "配置预览",
@@ -344,6 +349,12 @@ pub(crate) fn overlay<'a>(
                 .wrap(),
             ]
             .spacing(8);
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(app) = help.usage_app {
+                if crate::app::message::agent_apps_health::selected(app, id) {
+                    details = details.push(super::super::agent_apps_high_availability::health::view(app));
+                }
+            }
             if let Some(notes) = p.notes.filter(|notes| !notes.is_empty()) {
                 details = details.push(text(notes).size(13).style(settings_muted_text_style));
             }

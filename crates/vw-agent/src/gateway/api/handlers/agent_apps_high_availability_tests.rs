@@ -488,3 +488,97 @@ async fn ha_api_queue_write_rejects_conflicts_enabled() -> anyhow::Result<()> {
     assert_eq!(fs::read(native)?, configuration);
     Ok(())
 }
+
+#[tokio::test]
+async fn ha_api_health_and_policy_are_scope_bound() -> anyhow::Result<()> {
+    use crate::gateway::agent_apps_failover_runtime;
+    use reqwest::Method;
+    let home = tempfile::tempdir()?;
+    let policy_file = home.path().join("access.json");
+    write_policy(&policy_file, home.path(), 0);
+    let mut grants: Value = serde_json::from_slice(&fs::read(&policy_file)?)?;
+    for principal in [0, 1] {
+        grants["principals"][principal]["grants"][0]["routing_apps"] =
+            json!([{"project_id":"project", "app_id":"codex"}]);
+    }
+    grants["principals"][0]["grants"][0]["provider_config_write"] = json!(true);
+    fs::write(&policy_file, grants.to_string())?;
+    let database = GlobalDatabase::for_home(home.path())?;
+    let tenant = TenantScope::new("p", "owner")?;
+    let scope = FailoverQueueScope {
+        project: ProjectScope::new(tenant.clone(), "project".into())?,
+        target_host_id: HOST.into(), app_id: Codex,
+    };
+    AppProviderStore::new(database.clone()).map_err(anyhow::Error::msg)?.save(
+        &tenant, Codex, "provider", &AppProviderWrite {
+            name: "Custom".into(), protocol: ProviderProtocol::OpenaiResponses,
+            api_key: "fixture-key".into(), base_url: "https://fixture.example.test/v1".into(),
+            model: "fixture".into(), request_options: None,
+        },
+    ).map_err(anyhow::Error::msg)?;
+    let original = agent_apps_failover_runtime::policy(database.clone(), &scope)?;
+    let (_gateway, port) = spawn_gateway(home.path(), &policy_file).await;
+    let client = Client::builder().no_proxy().timeout(Duration::from_secs(10)).build()?;
+    let request = |method, resource: &str, host: &str, token: &str| {
+        let mut request = client.request(method,
+            format!("http://127.0.0.1:{port}/v1/agent-apps/high-availability/{resource}"))
+            .header("x-platform-id", "p").header("x-company-id", "owner")
+            .header("x-agent-apps-token", token)
+            .query(&[("projectId", "project"), ("targetHostId", host), ("appId", "codex")]);
+        if resource.starts_with("health") {
+            request = request.query(&[("providerId", "provider")]);
+        }
+        request
+    };
+    let reader = "fixture-routing-reader-token-000002";
+    for resource in ["health", "policy", "route"] {
+        let response = request(Method::GET, resource, HOST, reader).send().await?;
+        assert_eq!(response.status(), StatusCode::OK, "{resource}");
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        let body = response.json::<Value>().await?;
+        if resource == "health" {
+            assert_eq!(body["state"], "unknown");
+            assert_eq!(body["providerId"], "provider");
+            assert_eq!(body["scope"], json!(scope));
+        } else if resource == "route" {
+            assert!(body["actualProviderId"].is_null(), "reads must not create a route");
+        } else {
+            assert_eq!(body, json!(original));
+        }
+        for token in [MANAGER, "invalid-fixture-token-000000000000"] {
+            let response = request(Method::GET, resource, "other-mac", token).send().await?;
+            assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
+        }
+    }
+    let mut updated = original;
+    updated.circuit_breaker.failure_threshold = 7;
+    updated.retry_timeout.first_byte_timeout_secs = 30;
+    for token in [reader, "invalid-fixture-token-000000000000"] {
+        let response = request(Method::PUT, "policy", HOST, token).json(&updated).send().await?;
+        assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
+        assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
+        let response = request(Method::POST, "health/reset", HOST, token).send().await?;
+        assert!(matches!(response.status(), StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED));
+    }
+    for (method, resource) in [(Method::PUT, "policy"), (Method::POST, "health/reset")] {
+        let response = request(method, resource, "other-mac", MANAGER).json(&updated).send().await?;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
+    }
+    let mut invalid = updated;
+    invalid.circuit_breaker.failure_threshold = 0;
+    assert_eq!(request(Method::PUT, "policy", HOST, MANAGER).json(&invalid)
+        .send().await?.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, original);
+    let response = request(Method::PUT, "policy", HOST, MANAGER).json(&updated).send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.json::<Value>().await?, json!(updated));
+    assert_eq!(agent_apps_failover_runtime::policy(database.clone(), &scope)?, updated);
+    let response = request(Method::POST, "health/reset", HOST, MANAGER).send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.json::<Value>().await?["state"], "unknown");
+    let mut foreign = scope.clone();
+    foreign.target_host_id = "other-mac".into();
+    assert_eq!(agent_apps_failover_runtime::policy(database, &foreign)?, original);
+    Ok(())
+}

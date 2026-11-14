@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub data_export: crate::app::message::settings::data_management::export_ui::State,
     pub backups: crate::app::message::settings::backup_inventory::State,
     pub external_sessions: crate::app::components::external_sessions::State,
     pub routing: crate::app::components::app_routing::lifecycle::State,

@@ -318,3 +318,12 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 新增并注册 cc_data_38_backup_sdk_decodes_protected_conflict 与 cc_data_38_backup_sdk_preserves_remote_host_identity 本地动态端口 HTTP 测试代码，覆盖不安全字符ID、裸409、授权头、主机身份、恢复后保留失败、部分清理和策略读写。仅静态核对前置生产代码和来源 useBackupManager.ts，未运行测试，不能作为行为通过证据。
 
 按最新用户覆盖未执行任何 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。后续统一回归执行 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-gateway-client --lib cc_data_38_ -- --nocapture，并补完整端点响应、诊断 snake_case/SystemTime 解码、断连/超时、鉴权与真实保护源集成。按要求实现后删除任务卡。
+
+
+## 子任务 41：桌面导出与保存文件（2026-11-14）
+
+桌面 Apps 设置接入 system_settings_data/export_ui 与 settings/data_management/export_ui。复用任务 37 的 data_migration_export/download：显式选择七类数据、JSON 格式及授权主体 ID，目标沿用网关租户、项目和执行主机，网关重新鉴权；不推测主体身份。说明可迁移脱敏导出与本机完整回退备份的区别。不支持类别保留 SDK 明确错误。异步响应核对上下文与代次。
+
+下载成功才打开 rfd 保存对话框，取消不创建文件；显式目标使用 create_new，拒绝同名覆盖，Unix 新文件权限 0600。写入与 sync_all 成功后才显示成功 toast；写入失败清理本次新建文件并报告清理失败。路径不进入日志，中文不使用等宽字体。设置表单复用统一输入框、复选框和按钮样式、固定标题与底部及滚动内容 4px/7px 布局。
+
+新增并注册 export_ui_tests：cc_data_41_export_ui_saves_downloaded_bytes（中文名及同名拒绝）、cc_data_41_export_ui_cancel_creates_no_file、cc_data_41_export_ui_reports_missing_directory。按用户最新覆盖要求，本轮仅实现，未运行 Cargo、单元测试、实机或字体整形测试；没有通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一执行聚焦测试与 macOS 对话框、磁盘写失败和明暗主题字体渲染验收。

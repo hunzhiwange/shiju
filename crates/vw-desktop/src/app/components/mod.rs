@@ -542,3 +542,5 @@ pub(crate) mod project_profile_selection;
 
 #[path = "agent_apps/external_sessions.rs"]
 pub(crate) mod external_sessions;
+
+pub(crate) mod system_settings_data;

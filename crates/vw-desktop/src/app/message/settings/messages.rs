@@ -780,6 +780,7 @@ pub enum GeneralSettingsMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
+    DataExport(super::data_management::export_ui::Event),
     BackupInventory(super::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     Voice(super::voice::Event),

@@ -43,6 +43,7 @@ members = [
   "crates/libs/webview-mcp-assets",
   "crates/libs/webview-toolbar",
   "crates/libs/webview-storage",
+  "crates/libs/webview-runtime-cookie",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

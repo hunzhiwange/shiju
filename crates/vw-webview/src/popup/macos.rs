@@ -1,7 +1,5 @@
 use std::path::Path;
 
-use std::path::Path;
-
 use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{DeclaredClass, MainThreadMarker, MainThreadOnly, define_class, msg_send};

@@ -17,11 +17,37 @@
 //!
 //! ```ignore
 //! // 运行所有测试
-//! cargo test --package vibe-window --lib app::agent::memory::response_cache::tests
+//! cargo test -p memory-response-cache --lib memory::response_cache::tests
 //! ```
 
 use super::*;
 use tempfile::TempDir;
+
+/// 仅清理本测试独占的工作区数据目录，不清理共享 worktree 根。
+struct TestWorkspace {
+    workspace: TempDir,
+    storage: PathBuf,
+}
+
+impl TestWorkspace {
+    fn new() -> Self {
+        let workspace = TempDir::new().unwrap();
+        let storage = paths::workspace_data_dir(workspace.path()).unwrap();
+        assert!(!storage.exists(), "fixture must own a fresh workspace data directory");
+        std::fs::create_dir_all(&storage).unwrap();
+        Self { workspace, storage }
+    }
+
+    fn path(&self) -> &Path {
+        self.workspace.path()
+    }
+}
+
+impl Drop for TestWorkspace {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.storage);
+    }
+}
 
 /// 创建临时缓存实例的辅助函数
 ///
@@ -34,8 +60,8 @@ use tempfile::TempDir;
 ///
 /// # 返回值
 ///
-/// 返回元组 `(TempDir, ResponseCache)`：
-/// - `TempDir`：临时目录句柄，需要保持在作用域内以防止过早清理
+/// 返回元组 `(TestWorkspace, ResponseCache)`：
+/// - `TestWorkspace`：独占工作区及其用户态数据目录，需要保持在作用域内
 /// - `ResponseCache`：配置好的缓存实例，最大条目数为 1000
 ///
 /// # 示例
@@ -45,15 +71,15 @@ use tempfile::TempDir;
 /// // 使用 cache 进行测试...
 /// // _tmp 离开作用域时自动清理
 /// ```
-fn temp_cache(ttl_minutes: u32) -> (TempDir, ResponseCache) {
-    let tmp = TempDir::new().unwrap();
+fn temp_cache(ttl_minutes: u32) -> (TestWorkspace, ResponseCache) {
+    let tmp = TestWorkspace::new();
     let cache = ResponseCache::new(tmp.path(), ttl_minutes, 1000).unwrap();
     (tmp, cache)
 }
 
 #[test]
 fn response_cache_uses_user_scoped_data_dir() {
-    let workspace = TempDir::new().unwrap();
+    let workspace = TestWorkspace::new();
     let storage = paths::workspace_data_dir(workspace.path()).unwrap();
 
     let _cache = ResponseCache::new(workspace.path(), 60, 1000).unwrap();
@@ -222,7 +248,7 @@ fn tokens_saved_calculated() {
 /// - 验证最终条目数不超过 3
 #[test]
 fn lru_eviction() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TestWorkspace::new();
     let cache = ResponseCache::new(tmp.path(), 60, 3).unwrap(); // 最多 3 个条目
 
     for i in 0..5 {
@@ -315,7 +341,7 @@ fn unicode_prompt_handling() {
 /// 4. 验证条目 0 仍然存在（因为它被最近访问过）
 #[test]
 fn lru_eviction_keeps_most_recent() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TestWorkspace::new();
     let cache = ResponseCache::new(tmp.path(), 60, 3).unwrap();
 
     // 插入 3 个条目
@@ -346,7 +372,7 @@ fn lru_eviction_keeps_most_recent() {
 /// 并且会立即淘汰所有条目。
 #[test]
 fn cache_handles_zero_max_entries() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TestWorkspace::new();
     let cache = ResponseCache::new(tmp.path(), 60, 0).unwrap();
 
     let key = ResponseCache::cache_key("gpt-4", None, "test");
@@ -380,7 +406,7 @@ fn zero_ttl_does_not_retain_new_entries() {
 /// - 验证命中次数正确统计
 #[test]
 fn cache_concurrent_reads_no_panic() {
-    let tmp = TempDir::new().unwrap();
+    let tmp = TestWorkspace::new();
     let cache = std::sync::Arc::new(ResponseCache::new(tmp.path(), 60, 100).unwrap());
 
     let key = ResponseCache::cache_key("gpt-4", None, "concurrent");
@@ -471,7 +497,7 @@ fn new_initializes_expected_schema_and_indexes() {
 
 #[test]
 fn new_errors_when_memory_path_is_file() {
-    let workspace = TempDir::new().unwrap();
+    let workspace = TestWorkspace::new();
     let storage = paths::workspace_data_dir(workspace.path()).unwrap();
     std::fs::create_dir_all(&storage).unwrap();
     std::fs::write(storage.join("memory"), b"not a directory").unwrap();
@@ -481,7 +507,7 @@ fn new_errors_when_memory_path_is_file() {
 
 #[test]
 fn new_errors_when_database_path_is_directory() {
-    let workspace = TempDir::new().unwrap();
+    let workspace = TestWorkspace::new();
     let storage = paths::workspace_data_dir(workspace.path()).unwrap();
     let db_path = storage.join("memory").join("response_cache.db");
     std::fs::create_dir_all(&db_path).unwrap();
@@ -491,7 +517,7 @@ fn new_errors_when_database_path_is_directory() {
 
 #[test]
 fn new_errors_when_existing_schema_cannot_be_indexed() {
-    let workspace = TempDir::new().unwrap();
+    let workspace = TestWorkspace::new();
     let storage = paths::workspace_data_dir(workspace.path()).unwrap();
     let db_dir = storage.join("memory");
     std::fs::create_dir_all(&db_dir).unwrap();

@@ -6064,6 +6064,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-response-cache"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "hex",
+ "parking_lot",
+ "project-storage-paths",
+ "rusqlite",
+ "sha2 0.11.0",
+ "tempfile",
+]
+
+[[package]]
 name = "memory-sqlite"
 version = "0.6.0"
 dependencies = [
@@ -12498,6 +12512,7 @@ dependencies = [
  "memory-mariadb",
  "memory-markdown",
  "memory-postgres",
+ "memory-response-cache",
  "mime_guess",
  "minijinja",
  "nanohtml2text",

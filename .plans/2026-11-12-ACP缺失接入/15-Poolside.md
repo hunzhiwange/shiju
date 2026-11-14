@@ -12,6 +12,15 @@
 
 预计会话范围：只完成一个产品的纵向接入，复用现有协议客户端、目录和表单；不重建注册框架，不修复其他供应商。所需模型、权限与技能分支限于本接入真实支持的能力，不能复制其他供应商整套实现。
 
+## 验证阶段
+
+Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖规则执行；下方必要定向单元测试仍在任务内完成。
+
+- 开发阶段完成本任务和直接受影响行为的必要定向单元测试，优先复用现有测试；确认有效测试数及结果，不积压到最终回归。
+- 基础检查限定受影响包和目标；同一目标已被定向测试成功编译时不重复 check。Rust 不能只编译单个 `.rs` 文件，测试过滤也可能编译整个 lib-test 目标。
+- 本任务不运行整仓构建、全目标全特性 Clippy、全仓格式检查或全量测试。统一回归只补跨任务集成及公共检查，不机械重跑未受后续改动影响的已通过单元测试。
+- 仅同仓库 Rust 重型编译串行排队、复用缓存；其它语言的普通定向单元测试不套用此限制。必要定向测试通过后按原完成规则收尾；仅具体集成待验收或客观外部阻塞保留待回归。
+
 ## 文件
 
 - 修改：`crates/vw-acp/src/agent_registry.rs`，增加 `poolside` 的 `BuiltInAgentDefinition`；稳定 key 不增加别名。
@@ -47,26 +56,32 @@
 - 新增或修复必要的内置预设、配置持久化和会话选择连线：官方智能体目录可搜索，启用后出现在已启用目录及会话智能体选择器，可编辑保存默认项；重开设置/应用后保持配置；通过该预设新建会话确实启动 `poolside`，不能落回 main、其他 ACP 或另一同名预设。
 - 必读/按需修改：`crates/vw-agent/src/agent/catalog.rs`、`crates/vw-agent/src/config/schema/config_validate.rs`、`crates/vw-desktop/src/app/state/settings/agents.rs`、`crates/vw-desktop/src/app/message/settings/agents_profile.rs`；沿用已有配置和 UI 链路，不维护第二份手写目录。
 - 新增失败测试：在 `crates/vw-agent/src/agent/catalog_tests.rs` 添加 `acp_onboarding_poolside_builtin_preset_metadata`，覆盖内置标识、backend、名称/说明/推荐提示词及默认选择；在 `crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs` 添加 `acp_onboarding_poolside_builtin_profile_persists_and_runs`，通过生产配置与流入口验证保存/重读、启用/停用、新会话实际路由和身份固定。
-- 失败/通过验证命令均为 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
+- 失败/通过验证命令均为 `cargo test -j 1 -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
 - 完成门槛：ACP 适配与内置智能体任一缺失、配置保存失败或会话选择未打通，均不得标记 `已完成`；证据文档分别列出这两项交付结果。
 
-## Cargo 共享槽位规则
+## Cargo 共享槽位规则（最多 10 个）
 
-1. 从仓库根目录直接使用已存在的 `python3 scripts/cargo_slot.py <命令及参数>`；入口自动领取或核验继承 `target/rust-slot-1` 至 `rust-slot-20`，不要在外层再手工领取第二个槽位。
-2. 同一开发阶段将顺序原生检查放在一次入口调用中，持续复用缓存。例如 `python3 scripts/cargo_slot.py sh -c 'cargo check -p vw-desktop --lib && cargo clippy --all-targets --all-features -- -D warnings'`；实际 crate、features 与聚焦命令以本任务下文为准。下文裸 Cargo 表示入口内部命令，不表示允许绕过入口。
-3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
-4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
-5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
-6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及协议、权限验证继续执行；零测试和热更新通过不能替代完成验收。
+本任务保留动态领取、继承复用、双缓存路径、所有权核验及退出清理能力；直接运行原生 Cargo，共享池最多 10 个槽位。
+
+1. 同一仓库所有计划和任务共用 `target/rust-slot-1` 至 `target/rust-slot-10`；槽位编号仅为 1–10，不新增第 11 个槽位、不按任务编号固定分配、不创建任务专属缓存。
+2. 从仓库根目录以原子 `mkdir target/rust-slot-locks/slot-N.lock` 领取空闲槽位；仅创建成功者持有。占用时尝试下一个，全部占用时等待，不删除其它活跃任务的锁。
+3. 锁中记录真实持有进程 PID 以及任务/会话标识；持有进程须覆盖整个构建、验证及产物使用阶段，不能记录即将退出的临时 shell PID。遗留锁仅在核实持有进程及使用者都已退出后清理；归属或存活状态不明则保持占用。
+4. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 都设置为同一槽位的绝对路径；原生 Cargo 和所有子进程继承，不通过配置、别名或 `--target-dir` 覆盖。二进制等产物也从该槽位定位。
+5. 同阶段顺序命令和嵌套调用复用已持有槽位；继承前核验锁的持有 PID 属于当前进程或仍存活的祖先进程，路径与锁对应，不重复领取，不借用其它任务的槽位。无需包装脚本或额外测试运行器。
+6. 正常、失败与取消时先结束自有 Cargo、rustc、链接器及仍使用槽位产物的子进程，确认退出后才删除自有占用记录、释放自有槽位锁；保留缓存。不删除其它任务的锁、进程或缓存。
+7. 记录实际槽位、两个绝对缓存路径、确切验证命令、退出码和有效测试数；编译成功或零测试不能替代行为验收。
+8. 10 是缓存容量，不是编译并发数。会话并发按 `.plans/references/rust.md` 的项目覆盖规则执行，槽位隔离不解除源码、依赖及共享资源约束；同仓库高内存编译仍串行排队，不利用空闲槽位绕过内存限制。
+
+取消或超时后确认自有 Cargo/rustc、链接器及产物使用者退出，再释放槽位或重试；不能将已发信号视为已退出。顺序验证前项成功才继续，禁止失败后无条件启动后续重型检查。
 
 ## 测试计划
 
-- crate/features：`vw-acp`、`vw-config-types`、`vw-agent` 均使用其默认 features；仅规定的 clippy 使用 workspace `--all-targets --all-features`。已检查 workspace Cargo.toml 及这些 crate 的 Cargo.toml，不为此任务新增 feature。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 - 行为：`poolside` 的官方预设解析到正确安装/启动契约，在同一个 ACP 会话完成首轮、第二轮与取消，拒绝操作确实被拒绝。
 - 失败测试：先创建上述独立测试文件，以公开 `built_in_agent_specs` / `resolve_agent_spec` 验证注册和 argv，并在配置测试、目录测试中验证安装映射与 `AgentRuntime::Acp` 绑定；测试名前缀统一 `acp_onboarding_poolside`。
-- 失败验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-acp --test onboarding_poolside -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-config-types --lib acp_onboarding_poolside -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`。
+- 定向单元测试命令（任务内运行）：`cargo test -j 1 -p vw-acp --test onboarding_poolside -- --test-threads=1`；`cargo test -j 1 -p vw-config-types --lib acp_onboarding_poolside -- --test-threads=1`；`cargo test -j 1 -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`。
 - 预期失败：新增断言因 `poolside` 尚未注册、没有安装映射或没有官方预设而失败；不是语法/依赖错误，也不能用零测试当失败验证。
-- 通过验证命令：修复后重跑以上三个命令。每条命令有效测试至少 1 个，ACP 集成目标至少覆盖上述 3 个用例；模型/技能/权限新增测试也必须使用统一前缀并实际执行。
+- 通过验证命令（任务内运行）：修复后重跑以上三个命令。每条命令有效测试至少 1 个，ACP 集成目标至少覆盖上述 3 个用例；模型/技能/权限新增测试也必须使用统一前缀并实际执行。
 - 模拟策略：注册、目录、安装选择和 JSON-RPC 编解码使用生产代码；仅外部进程/网络通过临时可执行的 stdio ACP 对端替代，使用真实协议帧验证生命周期和拒绝回包，记录 initialize/new/prompt/cancel 形状。不得仅断言 mock 调用次数。真实 CLI 另行验证身份、实际模型请求与工具结果。
 
 ## 步骤
@@ -79,20 +94,22 @@
 6. 运行真实 CLI 的 initialize、session/new、两轮 prompt、cancel 以及它真实支持的 load/resume；测试拒绝文件/命令操作、错误认证、缺失可执行文件、错误模型和进程退出。客户端对端测试证明宿主逻辑，真实 CLI 测试证明供应商行为，两者证据不可互替。
 7. 对照来源和实际握手逐项核验模型目录/切换、CLI 本地模型、会话模型绑定、权限模式、MCP stdio/http/sse、技能目录和斜杠命令。仅将真实支持项接入现有分派；上游明确不支持的功能给出稳定拒绝并写证据。不能以“全部不支持”代替调查已有上游能力，也不能为了显示可用而取消现有门控。
 8. 对本产品支持的会话模型来源，使用受控本地上游响应服务和既有中继证明 provider/model 到达实际请求；认证只进入该子进程，日志/持久化不含真实密钥，CLI 原全局配置不被改写。对技能使用临时隔离目录，证明只发现选中的技能；对 MCP 验证仅所选服务进入会话，取消/恢复不扩大范围。
-9. 运行 `cargo fmt --all` 后审查差异，仅保留本任务格式变更；执行聚焦通过验证及规定 clippy。复用既有表单、4px 滚动条和 toast，中文不得使用等宽字体。
+9. 仅对本次修改文件按需格式化 后审查差异，仅保留本任务格式变更；执行聚焦通过验证及规定 clippy。复用既有表单、4px 滚动条和 toast，中文不得使用等宽字体。
 10. 记录当前证据、平台限制和来源明确不支持项。最后审查之前所有已完成接入的注册仍保留，Codex/Claude 的关键行为未变。完成状态、提交及任务文件清理由本任务“完成”契约处理。
 
-## 验证
+## 定向验证（任务内完成）
 
-- 聚焦：`python3 scripts/cargo_slot.py cargo test -p vw-acp --test onboarding_poolside -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-config-types --lib acp_onboarding_poolside -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`，记录每条退出码与有效测试数量，零测试无效。
-- 周边注册保护：`python3 scripts/cargo_slot.py cargo test -p vw-acp --lib agent_registry_tests -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib agent::catalog_tests -- --test-threads=1`。
-- 规定检查：`python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`，必须执行，修复本次引入的错误/警告；既有无关失败记录文件位置与原始错误摘要，不借机扩展范围。
+- 聚焦：`cargo test -j 1 -p vw-acp --test onboarding_poolside -- --test-threads=1`；`cargo test -j 1 -p vw-config-types --lib acp_onboarding_poolside -- --test-threads=1`；`cargo test -j 1 -p vw-agent --lib acp_onboarding_poolside -- --test-threads=1`，记录每条退出码与有效测试数量，零测试无效。
+- 周边注册保护：`cargo test -j 1 -p vw-acp --lib agent_registry_tests -- --test-threads=1`；`cargo test -j 1 -p vw-agent --lib agent::catalog_tests -- --test-threads=1`。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 - 真实验收：在隔离网关配置和临时工作目录，通过生产目录与配置启用并启动 `poolside`，记录安装/发现、agentInfo 版本、两轮消息完成、工具写入临时文件、拒绝操作、取消后可继续、load/resume 支持或明确拒绝。不得仅以握手或进程退出码判定可用。
 - 平台验收：为安装选择写 Unix/Windows 数据测试；不冒充已在其他 OS/架构运行。官方支持但未真实测的平台保留待回归记录。
 - 模型、权限、MCP、技能：证据文档逐项标注支持/上游明确不支持/环境阻塞；能力支持结论必须对应当前版本和当前运行结果。无账号时不借用其他账号、不伪造完成。
 - 所需证据：前后行为测试输出、确切命令、退出码、有效测试数、实际 Cargo 槽位及绝对路径 CARGO_TARGET_DIR、官方来源 URL/源码路径和版本、脱敏真实 CLI 回执与已审查差异。
 
 ## 完成
+
+- 任务收尾：必要定向验证通过并审查后按原完成规则处理；只有明确集成待验收或客观外部阻塞时保留待回归，不能把必要单元测试统一延后。
 
 - 只在上述当前证据证明一个产品完整接入时标记 `已完成`；上游明确不支持的可选能力须已验证拒绝路径，不能把关键安装/会话失败算成产品完成。
 - 外部依赖或缺少凭据导致核心会话无法验收：先调查合理替代路径，仍无解则仅在本文件标记 `已阻塞`，写具体原因、已尝试命令和所需输入；不得用产品登记成功替代真实接入。

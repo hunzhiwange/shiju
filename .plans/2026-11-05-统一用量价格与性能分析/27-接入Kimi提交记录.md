@@ -12,6 +12,15 @@
 
 预计会话范围：只验证“接入Kimi提交记录”这一故事；不扩展到其他适配器或完整用量中心。通常一个聚焦会话，参考30—60分钟；编译缓存未命中耗时单列，不能因此合并更多行为。
 
+## 验证阶段
+
+Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖规则执行；下方必要定向单元测试仍在任务内完成。
+
+- 开发阶段完成本任务和直接受影响行为的必要定向单元测试，优先复用现有测试；确认有效测试数及结果，不积压到最终回归。
+- 基础检查限定受影响包和目标；同一目标已被定向测试成功编译时不重复 check。Rust 不能只编译单个 `.rs` 文件，测试过滤也可能编译整个 lib-test 目标。
+- 本任务不运行整仓构建、全目标全特性 Clippy、全仓格式检查或全量测试。统一回归只补跨任务集成及公共检查，不机械重跑未受后续改动影响的已通过单元测试。
+- 仅同仓库 Rust 重型编译串行排队、复用缓存；其它语言的普通定向单元测试不套用此限制。必要定向测试通过后按原完成规则收尾；仅具体集成待验收或客观外部阻塞保留待回归。
+
 ## 文件
 
 - 拟新增/按前置交付修改：`crates/vw-agent-apps/src/usage/kimi.rs`。
@@ -23,36 +32,42 @@
 
 上游入口`/Users/xiangmin/worker/code/cc-switch/src-tauri/src/services/session_usage_kimi.rs`；先读其相邻测试和真实调用者。全部目标文件的“拟新增”定义见接口契约.md；不得把尚未交付的包当现有模块。
 
-## Cargo 共享槽位规则
+## Cargo 共享槽位规则（最多 10 个）
 
-1. 从仓库根目录直接使用已存在的 `python3 scripts/cargo_slot.py <命令及参数>`；入口自动领取或核验继承 `target/rust-slot-1` 至 `rust-slot-20`，不要在外层再手工领取第二个槽位。
-2. 同一开发阶段将顺序原生检查放在一次入口调用中，持续复用缓存。例如 `python3 scripts/cargo_slot.py sh -c 'cargo check -p vw-desktop --lib && cargo clippy --all-targets --all-features -- -D warnings'`；实际 crate、features 与聚焦命令以本任务下文为准。下文裸 Cargo 表示入口内部命令，不表示允许绕过入口。
-3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
-4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
-5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
-6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及要求的真实渲染、授权、音频与实机验收继续执行；零测试和热更新通过不能替代完成验收。
+本任务保留动态领取、继承复用、双缓存路径、所有权核验及退出清理能力；直接运行原生 Cargo，共享池最多 10 个槽位。
+
+1. 同一仓库所有计划和任务共用 `target/rust-slot-1` 至 `target/rust-slot-10`；槽位编号仅为 1–10，不新增第 11 个槽位、不按任务编号固定分配、不创建任务专属缓存。
+2. 从仓库根目录以原子 `mkdir target/rust-slot-locks/slot-N.lock` 领取空闲槽位；仅创建成功者持有。占用时尝试下一个，全部占用时等待，不删除其它活跃任务的锁。
+3. 锁中记录真实持有进程 PID 以及任务/会话标识；持有进程须覆盖整个构建、验证及产物使用阶段，不能记录即将退出的临时 shell PID。遗留锁仅在核实持有进程及使用者都已退出后清理；归属或存活状态不明则保持占用。
+4. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 都设置为同一槽位的绝对路径；原生 Cargo 和所有子进程继承，不通过配置、别名或 `--target-dir` 覆盖。二进制等产物也从该槽位定位。
+5. 同阶段顺序命令和嵌套调用复用已持有槽位；继承前核验锁的持有 PID 属于当前进程或仍存活的祖先进程，路径与锁对应，不重复领取，不借用其它任务的槽位。无需包装脚本或额外测试运行器。
+6. 正常、失败与取消时先结束自有 Cargo、rustc、链接器及仍使用槽位产物的子进程，确认退出后才删除自有占用记录、释放自有槽位锁；保留缓存。不删除其它任务的锁、进程或缓存。
+7. 记录实际槽位、两个绝对缓存路径、确切验证命令、退出码和有效测试数；编译成功或零测试不能替代行为验收。
+8. 10 是缓存容量，不是编译并发数。会话并发按 `.plans/references/rust.md` 的项目覆盖规则执行，槽位隔离不解除源码、依赖及共享资源约束；同仓库高内存编译仍串行排队，不利用空闲槽位绕过内存限制。
+
+取消或超时后确认自有 Cargo/rustc、链接器及产物使用者退出，再释放槽位或重试；不能将已发信号视为已退出。顺序验证前项成功才继续，禁止失败后无条件启动后续重型检查。
 
 ## 测试计划
 
 - 行为：Kimi已提交记录按原生完成时间和费用入账，延迟刷新不会重复且未提交内容不计费。
-- 失败验证测试：在`crates/vw-agent-apps/tests/usage_kimi.rs`新增`usage17_kimi_`前缀的行为测试组，主测试命名为`usage17_kimi_committed_record_refresh_does_not_duplicate`；每个边界独立断言，有效测试数至少为1。
-- 失败验证命令：`python3 scripts/cargo_slot.py cargo test -p vw-agent-apps --test usage_kimi usage17_kimi_ -- --nocapture`。
-- 预期失败原因：当前缺少本任务的接入Kimi提交记录行为，断言不满足；若新API尚未定义，先记录编译失败，再让测试编译后取得行为断言失败。依赖缺失或零测试不算预期失败。
-- 通过验证命令：先`cargo fmt --all`，再`python3 scripts/cargo_slot.py cargo test -p vw-agent-apps --test usage_kimi usage17_kimi_ -- --nocapture`，最后`python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`。
-- crate：`vw-agent-apps`；聚焦测试用默认features，Clippy使用全部features；仅macOS当前主机，无其他平台target。
+- 单元测试：在`crates/vw-agent-apps/tests/usage_kimi.rs`新增`usage17_kimi_`前缀的行为测试组，主测试命名为`usage17_kimi_committed_record_refresh_does_not_duplicate`；每个边界独立断言，有效测试数至少为1。
+- 定向单元测试命令（任务内运行）：`cargo test -j 1 -p vw-agent-apps --test usage_kimi usage17_kimi_ -- --nocapture`。
+- 覆盖风险（不要求制造红灯）：当前缺少本任务的接入Kimi提交记录行为，断言不满足；若新API尚未定义，先记录编译失败，再让测试编译后取得行为断言失败。依赖缺失或零测试不算预期失败。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 - 模拟策略：文件/SQLite/服务/Router/SDK用真实临时资源；仅外网拉取、不可控原生外部进程及时间边界可替代，须记录真实格式与替代边界。不得mock本任务核心逻辑。
 
 ## 步骤
 
 1. 先检查git工作区、领域前置及已有调用者，按.plans/2026-11-05-CC能力完整融合/17-统一用量价格与性能分析.md与接口契约.md核对本任务范围；不提交无关变更。
-2. 在独立测试文件建立上述失败场景，注册测试；领取Cargo共享槽位后执行失败命令并保存实际失败证据。
+2. 按需补充行为测试并审查断言；实现后运行定向测试确认通过，不强制每次编辑制造红灯。
 3. 迁入completed_ms、costs和refresh_existing；验证启动/latency/commit时间边界、缓存字段及已有记录补齐；真实会话文件夹具。
 4. 只实现让上述行为通过的最小代码；单文件约500行时按本领域子职责拆开，不能在业务文件内塞单测。
-5. 执行格式化、相同聚焦测试和强制Clippy；必要重构只在测试保持通过时进行，结束前释放槽位。
+5. 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 
-## 验证
+## 定向验证（任务内完成）
 
-- 运行：`python3 scripts/cargo_slot.py cargo test -p vw-agent-apps --test usage_kimi usage17_kimi_ -- --nocapture`；Rust修改后另执行`cargo fmt --all`和`python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 - 预期：行为测试有效数大于0且全部通过，未知/失败/权限与正常分支可辨；仅编译通过或过去测试结果不算验收。
 - 所需证据：新增失败测试路径与名称、预期失败输出、通过输出/退出码/有效数、实际macOS版本与架构、真实文件或API结果、差异审查，以及槽位/绝对CARGO_TARGET_DIR。涉及外网替代须说明来源和数据形状。
 

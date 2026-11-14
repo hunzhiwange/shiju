@@ -12,6 +12,15 @@
 
 预计会话范围：一个引擎的外部进程协议桥接；复用现有 SessionBackend/serve_with_io 和 ACP 客户端，不引入 aionrs crate 到 workspace、不移植其引擎、不新增运行引擎枚举。先通过常驻进程、审批与取消的闭环验证，之后才开放目录。复杂可选能力保持明确支持边界。
 
+## 验证阶段
+
+Rust 编译资源和会话调度按 `.plans/references/rust.md` 的项目覆盖规则执行；下方必要定向单元测试仍在任务内完成。
+
+- 开发阶段完成本任务和直接受影响行为的必要定向单元测试，优先复用现有测试；确认有效测试数及结果，不积压到最终回归。
+- 基础检查限定受影响包和目标；同一目标已被定向测试成功编译时不重复 check。Rust 不能只编译单个 `.rs` 文件，测试过滤也可能编译整个 lib-test 目标。
+- 本任务不运行整仓构建、全目标全特性 Clippy、全仓格式检查或全量测试。统一回归只补跨任务集成及公共检查，不机械重跑未受后续改动影响的已通过单元测试。
+- 仅同仓库 Rust 重型编译串行排队、复用缓存；其它语言的普通定向单元测试不套用此限制。必要定向测试通过后按原完成规则收尾；仅具体集成待验收或客观外部阻塞保留待回归。
+
 ## 来源与可行性
 
 - 官方仓库：https://github.com/iOfficeAI/aionrs 。版本发行：https://github.com/iOfficeAI/aionrs/releases 。协议：https://github.com/iOfficeAI/aionrs/blob/main/docs/json-stream-protocol.md 。
@@ -43,25 +52,31 @@
 - 新增或修复必要的内置预设、配置持久化和会话选择连线：官方智能体目录可搜索，启用后出现在已启用目录及会话智能体选择器，可编辑保存默认项；重开设置/应用后保持配置；通过该预设新建会话确实启动 `aionrs`，不能落回 main、其他 ACP 或另一同名预设。
 - 必读/按需修改：`crates/vw-agent/src/agent/catalog.rs`、`crates/vw-agent/src/config/schema/config_validate.rs`、`crates/vw-desktop/src/app/state/settings/agents.rs`、`crates/vw-desktop/src/app/message/settings/agents_profile.rs`；沿用已有配置和 UI 链路，不维护第二份手写目录。
 - 新增失败测试：在 `crates/vw-agent/src/agent/catalog_tests.rs` 添加 `acp_onboarding_aionrs_builtin_preset_metadata`，覆盖内置标识、backend、名称/说明/推荐提示词及默认选择；在 `crates/vw-agent/src/gateway/api/handlers/session/agent_profile_acceptance_tests.rs` 添加 `acp_onboarding_aionrs_builtin_profile_persists_and_runs`，通过生产配置与流入口验证保存/重读、启用/停用、新会话实际路由和身份固定。
-- 失败/通过验证命令均为 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_aionrs -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
+- 失败/通过验证命令均为 `cargo test -j 1 -p vw-agent --lib acp_onboarding_aionrs -- --test-threads=1`；先确认新增用例因内置预设缺失或路由不完整而失败，完成后至少上述 2 个新测试实际通过，零测试无效。只替代外部 CLI/模型服务边界，不 mock 目录或持久化实现。
 - 完成门槛：ACP 适配与内置智能体任一缺失、配置保存失败或会话选择未打通，均不得标记 `已完成`；证据文档分别列出这两项交付结果。
 
-## Cargo 共享槽位规则
+## Cargo 共享槽位规则（最多 10 个）
 
-1. 从仓库根目录直接使用已存在的 `python3 scripts/cargo_slot.py <命令及参数>`；入口自动领取或核验继承 `target/rust-slot-1` 至 `rust-slot-20`，不要在外层再手工领取第二个槽位。
-2. 同一开发阶段将顺序原生检查放在一次入口调用中，持续复用缓存。例如 `python3 scripts/cargo_slot.py sh -c 'cargo check -p vw-desktop --lib && cargo clippy --all-targets --all-features -- -D warnings'`；实际 crate、features 与聚焦命令以本任务下文为准。下文裸 Cargo 表示入口内部命令，不表示允许绕过入口。
-3. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 由入口设置为同一槽位绝对路径，子脚本继承，不另建构建目录、不覆盖已领取路径、不执行 clean。任务涉及的二进制从该槽位定位。
-4. 入口持有锁直到自有前台子进程组停止；常驻测试或应用存活期间不能提前释放。不启动脱离前台进程组的后台任务，不删除其它会话的锁、进程或缓存。正常、失败及中断退出后保留缓存。
-5. 槽位只隔离缓存，不解除本任务的源码、任务依赖及验收资源互斥；20 个槽位不代表应并发运行 20 个重型构建。遵守现有批次与串行约定。
-6. 完成时记录实际槽位、两个绝对目录、确切原生验证命令、退出码和有效测试数量。原生聚焦测试、整仓 `cargo clippy --all-targets --all-features -- -D warnings` 及协议、权限验证继续执行；零测试和热更新通过不能替代完成验收。
+本任务保留动态领取、继承复用、双缓存路径、所有权核验及退出清理能力；直接运行原生 Cargo，共享池最多 10 个槽位。
+
+1. 同一仓库所有计划和任务共用 `target/rust-slot-1` 至 `target/rust-slot-10`；槽位编号仅为 1–10，不新增第 11 个槽位、不按任务编号固定分配、不创建任务专属缓存。
+2. 从仓库根目录以原子 `mkdir target/rust-slot-locks/slot-N.lock` 领取空闲槽位；仅创建成功者持有。占用时尝试下一个，全部占用时等待，不删除其它活跃任务的锁。
+3. 锁中记录真实持有进程 PID 以及任务/会话标识；持有进程须覆盖整个构建、验证及产物使用阶段，不能记录即将退出的临时 shell PID。遗留锁仅在核实持有进程及使用者都已退出后清理；归属或存活状态不明则保持占用。
+4. `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 都设置为同一槽位的绝对路径；原生 Cargo 和所有子进程继承，不通过配置、别名或 `--target-dir` 覆盖。二进制等产物也从该槽位定位。
+5. 同阶段顺序命令和嵌套调用复用已持有槽位；继承前核验锁的持有 PID 属于当前进程或仍存活的祖先进程，路径与锁对应，不重复领取，不借用其它任务的槽位。无需包装脚本或额外测试运行器。
+6. 正常、失败与取消时先结束自有 Cargo、rustc、链接器及仍使用槽位产物的子进程，确认退出后才删除自有占用记录、释放自有槽位锁；保留缓存。不删除其它任务的锁、进程或缓存。
+7. 记录实际槽位、两个绝对缓存路径、确切验证命令、退出码和有效测试数；编译成功或零测试不能替代行为验收。
+8. 10 是缓存容量，不是编译并发数。会话并发按 `.plans/references/rust.md` 的项目覆盖规则执行，槽位隔离不解除源码、依赖及共享资源约束；同仓库高内存编译仍串行排队，不利用空闲槽位绕过内存限制。
+
+取消或超时后确认自有 Cargo/rustc、链接器及产物使用者退出，再释放槽位或重试；不能将已发信号视为已退出。顺序验证前项成功才继续，禁止失败后无条件启动后续重型检查。
 
 ## 测试计划
 
-- crate/features：vw-acp、vw-config-types、vw-agent 使用默认 features；workspace clippy 使用所有 features。外部 aionrs 基线使用其 Cargo.toml 默认 features，不新增 ShiJu feature。
+- 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 - 行为：ACP 客户端可通过桥接控制一个长期存活的 aionrs 会话，流式输出归属正确、拒绝阻止副作用、取消后无越轮事件。
 - 失败测试：`onboarding_aionrs.rs` 中 `acp_onboarding_aionrs_registry_contract`、`acp_onboarding_aionrs_two_turn_session`、`acp_onboarding_aionrs_denial_prevents_write`、`acp_onboarding_aionrs_cancel_keeps_turn_identity`；配置/目录测试也用 `acp_onboarding_aionrs` 前缀。
-- 失败验证：`python3 scripts/cargo_slot.py cargo test -p vw-acp --test onboarding_aionrs -- --test-threads=1`；先让注册缺失断言失败，再逐项添加桥接行为测试，不能把未实现 API 的编译错误当红灯证据。
-- 通过验证：上述命令至少 4 个有效测试；`python3 scripts/cargo_slot.py cargo test -p vw-acp --lib aionrs -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-config-types --lib acp_onboarding_aionrs -- --test-threads=1`；`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib acp_onboarding_aionrs -- --test-threads=1`。每个目标有效测试至少 1 个，不接受零测试。
+- 失败验证：`cargo test -j 1 -p vw-acp --test onboarding_aionrs -- --test-threads=1`；先让注册缺失断言失败，再逐项添加桥接行为测试，不能把未实现 API 的编译错误当红灯证据。
+- 通过验证：上述命令至少 4 个有效测试；`cargo test -j 1 -p vw-acp --lib aionrs -- --test-threads=1`；`cargo test -j 1 -p vw-config-types --lib acp_onboarding_aionrs -- --test-threads=1`；`cargo test -j 1 -p vw-agent --lib acp_onboarding_aionrs -- --test-threads=1`。每个目标有效测试至少 1 个，不接受零测试。
 - 模拟边界：生产桥接+真实 ACP 编解码对接可控的外部 NDJSON 子进程，覆盖分片、错误、审批与取消；模型网络使用受控本地 HTTP 服务。最后使用实际 aionrs 固定二进制和同一本地模型服务证明真实工具写文件与拒绝，无需借用用户第三方账号。
 
 ## 步骤
@@ -74,19 +89,21 @@
 6. 安装与发现分开处理：本地发现 aionrs 主 CLI；桥接程序从当前发行包/受控安装目录解析，不写死开发机路径。官方发行页未确认预编译包，先核对实际资产；不存在则采用固定 revision 的受控源码构建，目标目录继承领取的 CARGO_TARGET_DIR，用户级部署保留许可证与摘要。禁止猜测 npm 包或任意下载 URL；没有 Rust 构建环境必须给出可操作错误，不能悄然安装其他引擎。
 7. 注册稳定 key/display name `aionrs`，ACP 启动指向 `aionrs-acp`，由桥接启动 `aionrs --json-stream`；参数类型化构造。只在探针证明基础闭环安全可用后开放默认停用的官方预设，不新增 shiju-agent-cli 别名，不改现有原生引擎。
 8. 按实际支持接入模型来源与 MCP：私有环境和既有模型中继传递所选 provider/model，密钥不进入 argv；不能修改用户全局 .aionrs.toml。MCP 只在 ready 后、首条 message 前注入，等待 mcp_ready；更新时明确处理协议窗口限制。技能只挂载选中隔离视图，未经证实不广告任意目录支持。被拒绝的已选能力必须在发 prompt 前报错。
-9. 先 `cargo fmt --all`，仅保留本任务格式改动；执行聚焦测试与 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`。验证新二进制的打包/定位路径，通过生产会话入口使用 aionrs 发两轮、写临时文件、拒绝另一次写入和取消后继续。
+9. 运行本任务必要定向单元测试，审查差异并记录有效测试数和结果；不重复公共整仓检查。
 10. 审查注册仍保留原有与前 20 项，证据记录来源、版本、构建槽位、二进制摘要、确切命令、退出码、测试数量、真实请求/文件副作用、限制与平台覆盖。只在单一引擎端到端证据齐全后完成。
 
-## 验证
+## 定向验证（任务内完成）
 
-- 按测试计划执行所有聚焦命令；额外执行 `python3 scripts/cargo_slot.py cargo test -p vw-acp --lib agent_registry_tests -- --test-threads=1` 保护注册契约。
-- 必须执行 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`；修复本次错误，既有无关失败保留上下文；不执行全量测试、fmt check、wasm check 或 Makefile。
+- 按测试计划执行所有聚焦命令；额外执行 `cargo test -j 1 -p vw-acp --lib agent_registry_tests -- --test-threads=1` 保护注册契约。
+- 必须执行 公共检查由统一回归会话执行一次（本任务不运行）；修复本次错误，既有无关失败保留上下文；不执行全量测试、fmt check、wasm check 或 Makefile。
 - 实际 aionrs + 桥接 + ShiJu ACP 客户端证明 ready、首轮/第二轮、真实写入、拒绝无写入、取消与进程退出清理；协议帧映射测试成功不能替代此证据。
 - 安全证据包括预先配置的 allow-list/auto-approve 不能越过宿主拒绝，异常审批 ID 不被接受，密钥不进入 argv/日志/持久化；未证实前不宣称完全访问支持。
 - 记录安装/构建、二进制定位、Unix/Windows 契约测试；没有实际跨平台运行就保留明确待回归项，不把本机编译当全平台可用。
 - 最终证据包含实际槽位、绝对 CARGO_TARGET_DIR、确切命令、退出码和有效测试数，以及真实受控模型和文件副作用的脱敏回执。
 
 ## 完成
+
+- 任务收尾：必要定向验证通过并审查后按原完成规则处理；只有明确集成待验收或客观外部阻塞时保留待回归，不能把必要单元测试统一延后。
 
 - 标记 `已完成` 前须证明实际 aionrs 可通过现有产品入口完成上述安全会话闭环；可选能力上游不支持则证明明确拒绝。
 - 先调查并解决必要依赖；仍缺关键外部条件则只在本文件标记 `已阻塞`，记录已尝试路径和所需输入。只有无关既有问题阻止完成验证时可标记 `已完成，待回归`，不得伪称接入通过。

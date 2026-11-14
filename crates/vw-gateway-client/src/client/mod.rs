@@ -414,3 +414,6 @@ mod hermes_memory_api;
 pub use hermes_memory_api::{HermesMemoryError, HermesMemoryScope};
 #[cfg(test)]
 mod hermes_memory_api_tests;
+
+mod agent_app_prompts_api;
+pub use agent_app_prompts_api::*;

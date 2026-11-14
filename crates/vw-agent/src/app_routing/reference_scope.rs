@@ -18,10 +18,6 @@ pub(crate) struct ApplicationReferenceScope {
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) enum ReferenceScope {
     Session(RelayIdentity),
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "constructed by the application request entry once available")
-    )]
     Application(ApplicationReferenceScope),
 }
 

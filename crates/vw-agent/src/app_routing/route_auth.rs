@@ -109,6 +109,7 @@ pub(super) struct AuthorizedRoute {
     #[cfg(target_os = "macos")]
     pub(super) failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
     binding: VerifiedRouteBinding,
+    pub(super) references: Arc<super::reference_scope::References>,
     generation: u64,
     pub(super) cancelled: CancellationToken,
     json_target: Option<JsonRoute>,
@@ -118,6 +119,25 @@ pub(super) struct AuthorizedRoute {
 }
 
 impl AuthorizedRoute {
+    pub(super) fn response_scope(
+        &self,
+        target: &JsonTarget,
+    ) -> Result<super::reference_scope::ReferenceScope, StatusCode> {
+        if self.cancelled.is_cancelled() {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+        Ok(super::reference_scope::ReferenceScope::Application(
+            super::reference_scope::ApplicationReferenceScope {
+                project: self.binding.project.clone(),
+                host: self.binding.host.clone(),
+                app: self.binding.app,
+                account: self.binding.account.clone(),
+                provider: target.url.to_string(),
+                credential_generation: self.binding.account_generation,
+            },
+        ))
+    }
+
     #[cfg(target_os = "macos")]
     pub(super) fn validate_managed(
         &self,
@@ -608,6 +628,7 @@ impl RouteAuth {
                 #[cfg(target_os = "macos")]
                 provider,
                 binding,
+                references: Arc::default(),
                 generation,
                 cancelled: CancellationToken::new(),
                 json_target,

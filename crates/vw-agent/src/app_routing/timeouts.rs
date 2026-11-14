@@ -65,11 +65,15 @@ pub(super) async fn stream_body(
 ) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver {
-        messages: matches!(protocol, Protocol::Messages).then(|| {
-            crate::model_relay::stream_observer::StreamObserver::new(
+        messages: match protocol {
+            Protocol::Messages => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Messages,
-            )
-        }),
+            )),
+            Protocol::Responses => Some(crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Responses,
+            )),
+            _ => None,
+        },
         ..Default::default()
     };
     let prelude = first_output(&mut stream, &mut observer, first_byte_deadline, protocol).await?;
@@ -95,11 +99,15 @@ pub(super) async fn first_output_body(
 ) -> Result<Body, RouteError> {
     let mut stream = body.into_data_stream();
     let mut observer = OutputObserver {
-        messages: matches!(protocol, Protocol::Messages).then(|| {
-            crate::model_relay::stream_observer::StreamObserver::new(
+        messages: match protocol {
+            Protocol::Messages => Some(crate::model_relay::stream_observer::StreamObserver::new(
                 crate::model_relay::generation::GenerationProtocol::Messages,
-            )
-        }),
+            )),
+            Protocol::Responses => Some(crate::model_relay::stream_observer::StreamObserver::new(
+                crate::model_relay::generation::GenerationProtocol::Responses,
+            )),
+            _ => None,
+        },
         ..Default::default()
     };
     let prelude = first_output(&mut stream, &mut observer, deadline, protocol).await?;
@@ -280,6 +288,14 @@ fn messages_activity(
                 })
             }),
             Some("message_delta") => true,
+            Some("response.output_item.added") => {
+                value["item"]["name"].as_str().is_some_and(|name| !name.is_empty())
+            }
+            Some(
+                "response.function_call_arguments.delta"
+                | "response.reasoning_text.delta"
+                | "response.reasoning_summary_text.delta",
+            ) => value["delta"].as_str().is_some_and(|delta| !delta.is_empty()),
             _ => false,
         };
     Ok(if output { Activity::Output } else { Activity::Quiet })

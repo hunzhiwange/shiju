@@ -984,3 +984,33 @@ macOS arm64 自动验收。直接前置任务33为“待回归”，按调度契
 随后共享工作区其他任务删除了上述四个常量，本项未触碰该文件。重新执行 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`，自动领取槽位3，退出0，22.23秒完成；两目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。三个阶段自有入口均已退出，锁释放、缓存保留。
 
 本项状态为 **已完成**。3项本项用例及2项相邻回归通过，整仓Clippy最终退出0；不修改只读plan.md，不宣称母任务8完成。
+
+## 任务 36　转发原生 Responses 协议
+
+2026-11-14，macOS，仅本平台验收。依赖任务35提交 `8d1f6c2a7`；复用生产发布 `provider_publication::apply`、`RouteAuth`、公共传输及任务3引用所有者。外部运行时、执行主机、应用、原生配置和账号契约沿用既有实现，不新增母能力。核对 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`；`providers/codex.rs` SHA256 `56ac9e4f6c1a883403489a1d2f02402b943a937162ee7c4f00a9481893ed8783`、`handlers.rs` SHA256 `31fe8c8470f1c7256a1834512817004c67a2f1ce01fea1579485596dcffcc809` 匹配来源映射与仓库快照。
+
+实现落点：`model_relay::native_responses` 仅处理常驻来源差异。`dispatch::forward_json` 接入五个来源 Responses 路径，保持选定上游目标，GET 返回426及 `websocket_not_supported`，触发 HTTP 回退。引用表由每个 `AuthorizedRoute` 独占；作用域来自可信绑定的项目（含租户）、执行主机、应用、账号、账号代次及实际目标URL，撤销及发布代次仍由原鉴权所有者控制。请求原文及请求覆盖后的正文均检查 `previous_response_id` 与 `item_reference`；未知引用返回403，JSON响应和SSE事件登记返回的response/item标识，不改写其内容。登记表沿用4096条/标识长度上限，随路由释放。
+
+原生Responses红灯发现共享 `timeouts::OutputObserver` 将其全部事件当作Chat静默帧，合法流因此返回502。复用现有 `StreamObserver` 增加Responses分类，保留首包、空闲、取消及容量许可语义，不改旧会话白名单、不进入session/prompt或执行工具。JSON仍由原缓冲所有者持有容量许可；SSE仅观察登记，字节原样交付下游。官方上游URL与托管凭据解析仍由既有所有者处理；Windows/Linux/WSL范围外且未验证，WSL地址保留来源映射。
+
+测试：独立 `native_responses_tests.rs` 在父模块显式注册。真实回环上游由 `app_routing/dispatch_tests.rs` 复用生产鉴权与共享传输，覆盖五路径JSON/SSE、工具与扩展字段、上游认证替换、无认证与未知路径拒绝、426回退、引用连续请求及跨主机隔离。独立策略测试覆盖未知response/item引用及作用域隔离，SSE三字节分片测试确认登记与字节保持。
+
+验证记录（所有Cargo命令均由 `python3 scripts/cargo_slot.py` 执行）：
+
+| 阶段 | 入口内命令 | 结果 |
+| --- | --- | --- |
+| 红灯 | `cargo test -p vw-agent --lib cc_route_036_ -- --nocapture` | 退出101，1项执行且失败；原生SSE返回502而非200。 |
+| 最终格式化 | `cargo fmt --all` | 退出0，无无关格式化差异纳入提交。 |
+| 最终绿灯 | `cargo test -p vw-agent --lib cc_route_036_ -- --nocapture` | 退出0，3通过、0失败。 |
+| Messages回归 | `cargo test -p vw-agent --lib cc_route_035_ -- --nocapture` | 退出0，3通过。 |
+| 鉴权回归 | `cargo test -p vw-agent --lib cc_route_008_ -- --nocapture` | 退出0，3通过，覆盖各绑定维度、旧代次和在途撤销。 |
+| 全仓Clippy | `cargo clippy --all-targets --all-features -- -D warnings` | 退出0，1分03秒。 |
+| 差异检查 | `git diff --check`（限定本项路径） | 退出0。 |
+
+红灯及最终验证槽位2：`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。中间一轮绿色尝试中连续引用夹具先于响应执行，得到预期安全拒绝403，已修正夹具顺序；第二轮红灯构建主动中断，退出130，不计成功。最终原生3项通过为有效证据。链接器仍报告既有 macOS `__eh_frame` 大小警告，未影响原生测试或Clippy通过。
+
+额外超时回归：误用 `app_routing::route_auth::timeouts_tests` 得到0项，明确不计入验收。正确Cargo过滤 `app_routing::timeouts_tests` 自动领取槽位3后开始重新编译，主动中断（退出130），改为在槽位入口内执行本次已构建原生产物：`/Users/xiangmin/worker/code/shiju/target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351 app_routing::timeouts_tests --nocapture`，退出101，4项执行，2通过2失败。失败为 `cc_route_021_stream_heartbeats_do_not_extend_idle_after_output`、`cc_route_021_stream_idle_zero_disables_idle_without_a_total_timeout`，均在收到Chat夹具后返回502。
+
+随后用不含 `cc_route_036_` 的既有槽位4原生产物运行同一过滤（`/Users/xiangmin/worker/code/shiju/target/rust-slot-4/debug/deps/vw_agent-346fac923f6b2351 app_routing::timeouts_tests --nocapture`），同样退出101、2通过2失败，断言位置分别为 `timeouts_tests.rs:256`、`:300`。旧夹具缺少现有 `StreamObserver::chat` 要求的 `choices[].index`，本项未修改该校验器或这些测试，不将旧夹具问题扩大为本项修复。两次原生产物回归入口均领取槽位3，其两目录为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；槽位4仅为已有基线二进制读取位置，未领取或写入其缓存。自有入口与子进程均退出，自有锁释放、缓存保留。
+
+本项所需3项绿灯及整仓Clippy证据齐全，状态 **已完成**。额外超时回归的两项既有夹具失败保留上述复现，建议由原所有者修复；不将其描述为通过，不修改只读plan.md，不宣称母任务8完成。

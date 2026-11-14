@@ -75,3 +75,7 @@ mod native_chat_tests;
 mod native_messages_tests;
 
 pub(crate) mod native_messages;
+
+pub(crate) mod native_responses;
+#[cfg(test)]
+mod native_responses_tests;

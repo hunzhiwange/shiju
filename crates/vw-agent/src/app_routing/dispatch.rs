@@ -26,7 +26,6 @@ use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
-const RESPONSES_PATH: &str = "/v1/responses";
 const JSON: &str = "application/json";
 const SSE: &str = "text/event-stream";
 
@@ -77,11 +76,11 @@ pub(super) async fn forward_json(
         response.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
         return Ok(response);
     }
-    let responses = request.uri().path() == RESPONSES_PATH;
+    let responses = crate::model_relay::native_responses::is_path(request.uri().path());
     let supported = match app {
         AppId::Codex => {
             crate::model_relay::native_chat::is_path(request.uri().path())
-                || request.uri().path() == RESPONSES_PATH
+                || crate::model_relay::native_responses::is_path(request.uri().path())
         }
         AppId::Claude => crate::model_relay::native_messages::is_path(request.uri().path()),
         AppId::ClaudeDesktop => request.uri().path() == "/claude-desktop/v1/messages",
@@ -89,6 +88,10 @@ pub(super) async fn forward_json(
     };
     if !supported || request.uri().query().is_some() {
         return Err(StatusCode::NOT_FOUND.into());
+    }
+    if responses && request.method() == Method::GET {
+        use axum::response::IntoResponse;
+        return Ok((StatusCode::UPGRADE_REQUIRED, axum::Json(serde_json::json!({"error":{"type":"invalid_request_error","code":"websocket_not_supported","message":"Use HTTP for Responses"}}))).into_response());
     }
     if request.method() != Method::POST {
         return Err(StatusCode::METHOD_NOT_ALLOWED.into());
@@ -174,7 +177,13 @@ pub(super) async fn forward_json(
     {
         return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
     }
+    let response_scope = if native_responses { Some(route.response_scope(target)?) } else { None };
     let (mut outgoing, bridge) = if native_responses {
+        crate::model_relay::native_responses::check(
+            &body,
+            &route.references,
+            response_scope.as_ref().ok_or(StatusCode::FORBIDDEN)?,
+        )?;
         (prepare_request(&body, target, model)?, None)
     } else if responses {
         if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
@@ -194,6 +203,12 @@ pub(super) async fn forward_json(
         drop(body);
         (outgoing, None)
     };
+    if let Some(scope) = &response_scope {
+        let bytes =
+            outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+        let body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        crate::model_relay::native_responses::check(&body, &route.references, scope)?;
+    }
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
@@ -300,6 +315,11 @@ pub(super) async fn forward_json(
         } else {
             Protocol::Chat
         };
+        let body = if let Some(scope) = response_scope {
+            crate::model_relay::native_responses::stream(body, Arc::clone(&route.references), scope)
+        } else {
+            body
+        };
         let body = timeouts::stream_body(body, deadline, idle, permit, protocol).await?;
         let body = match bridge {
             Some(bridge) => bridge.response_body(body, cancelled.clone()),
@@ -321,7 +341,12 @@ pub(super) async fn forward_json(
     let deadline = started + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
     timeouts::before(deadline, async {
         let response = forward.await?;
-        let response = buffer_json_response(response, permit).await?;
+        let response = buffer_json_response(
+            response,
+            permit,
+            response_scope.as_ref().map(|scope| (&*route.references, scope)),
+        )
+        .await?;
         finish_messages(response, app, client_model, false, native_messages, cancelled.clone())
             .await
     })
@@ -354,6 +379,10 @@ async fn finish_messages(
 async fn buffer_json_response(
     response: Response,
     permit: RequestPermit,
+    references: Option<(
+        &super::reference_scope::References,
+        &super::reference_scope::ReferenceScope,
+    )>,
 ) -> Result<Response, RouteError> {
     RouteError::check_upstream(response.status())?;
     let (mut parts, body) = response.into_parts();
@@ -368,6 +397,10 @@ async fn buffer_json_response(
     let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
         .await
         .map_err(upstream_decode_status)?;
+    if let Some((references, scope)) = references {
+        let value: Value = serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        crate::model_relay::native_responses::remember(&value, references, scope)?;
+    }
     parts.headers.clear();
     parts.headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(JSON));
     Ok(Response::from_parts(parts, body_limits::buffered_response(body, permit)))

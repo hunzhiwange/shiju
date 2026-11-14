@@ -1,6 +1,7 @@
 //! SDK-backed ledger entry; current-session details remain in the parent view.
 pub mod charts;
 pub mod state;
+pub mod models;
 pub mod pricing;
 pub mod scan;
 pub mod logs;
@@ -31,6 +32,7 @@ pub enum Event {
     Load(bool),
     Refresh,
     Pricing(pricing::Event),
+    Models(models::Event),
     Charts(charts::Event),
     Scan(scan::Event),
     Logs(logs::Event),
@@ -43,6 +45,7 @@ pub enum Event {
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
+        Event::Models(event) => return models::update(app, event),
         Event::Pricing(event) => return pricing::update(app, event),
         Event::Scan(event) => return scan::update(app, event),
         Event::Charts(event) => return charts::update(app, event),
@@ -111,6 +114,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .style(rounded_action_btn_style).on_press(Message::View(ViewMessage::UsageCenter(event)));
     let mut content = column![row![
         action("刷新用量", Event::Refresh),
+        action("模型同步选择", Event::Models(models::Event::Open)),
         action("模型定价", Event::Pricing(pricing::Event::Open)),
         action("扫描与修复", Event::Scan(scan::Event::Open)),
         action("最近24小时（UTC）", Event::Load(false)),
@@ -129,5 +133,5 @@ pub fn view(app: &App) -> Element<'_, Message> {
         };
         content = content.push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
     }
-    pricing::overlay(app, scan::overlay(app, content.into()))
+    models::overlay(app, pricing::overlay(app, scan::overlay(app, content.into())))
 }

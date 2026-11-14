@@ -56,6 +56,10 @@ impl GatewayClient {
     pub async fn usage_sync_models_dev(&self, scope: &UsageScanScope) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
         self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync"], scope, None).await
     }
+    /// The host checks the enabled flag and persisted interval before fetching.
+    pub async fn usage_auto_sync_models_dev(&self, scope: &UsageScanScope) -> Result<UsagePriceSyncAccepted, UsagePriceError> {
+        self.usage_price_request(reqwest::Method::POST, &["models-dev", "sync", "auto"], scope, None).await
+    }
     pub async fn usage_rates(&self, scope: &UsageScanScope) -> Result<UsageRatesState, UsagePriceError> {
         self.usage_price_request(reqwest::Method::GET, &["rates"], scope, None).await
     }

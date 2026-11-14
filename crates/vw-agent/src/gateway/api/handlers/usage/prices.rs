@@ -26,6 +26,7 @@ pub(super) fn router() -> Router {
         .route("/usage/models-dev/candidates", get(candidates))
         .route("/usage/models-dev/config", get(config).put(save_config))
         .route("/usage/models-dev/sync", post(sync))
+        .route("/usage/models-dev/sync/auto", post(sync_auto))
         .route("/usage/rates", get(display))
         .route("/usage/rates/refresh", post(refresh))
         .route("/usage/display", get(display).put(save_display))
@@ -127,6 +128,12 @@ async fn refresh(Extension(p): Extension<Policy>,Extension(t): Extension<TenantS
     }).await.map_err(unavailable)?
 }
 async fn sync(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    sync_request(p, t, h, i, true).await
+}
+async fn sync_auto(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScope>,h: HeaderMap,Query(i): Query<Intent>) -> Result<(StatusCode,Json<Value>),StatusCode> {
+    sync_request(p, t, h, i, false).await
+}
+async fn sync_request(p: Policy, t: TenantScope, h: HeaderMap, i: Intent, force: bool) -> Result<(StatusCode,Json<Value>),StatusCode> {
     let o = tokio::task::spawn_blocking(move || authorize(&p,t,&h,&i,true)).await.map_err(unavailable)??;
     let sync = tokio::task::spawn_blocking({ let o=o.clone(); move || {
         u::models_sync::ModelsSync::new(Arc::new(Mutex::new(connection()?)),o.scope,o.target_host).map_err(unavailable)
@@ -147,7 +154,7 @@ async fn sync(Extension(p): Extension<Policy>,Extension(t): Extension<TenantScop
         tokio::select! {
             biased;
             _ = worker.cancelled() => Err(OperationFailure::Cancelled),
-            result = sync.sync(true) => {
+            result = sync.sync(force) => {
                 let result = result.map_err(|_| OperationFailure::Failed)?;
                 *saved_result.lock().map_err(|_| OperationFailure::Failed)? = Some(json!(result));
                 Ok(())

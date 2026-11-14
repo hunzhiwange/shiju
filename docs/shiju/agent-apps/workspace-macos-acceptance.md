@@ -65,3 +65,10 @@
 新增 openclaw_catalog::{get_model_catalog,set_model_catalog}，读取 agents.defaults.models 的 alias 与未知字段；缺失返回 None，显式空目录保留为空对象。候选编辑仅替换 models，保留 model、其他 defaults 及非目标文本；畸形祖先拒绝覆盖。复用 providers/live/patch_json 的 round-trip 层，发布须由调用者沿用 OpenClawFiles 与共享事务锁；没有新增配置 IO 所有者。当前底层仅支持 JSON/JSONC，完整 JSON5 明确拒绝，未扩展语法能力。
 
 已静态核对来源 get_model_catalog/set_model_catalog、任务 1 合同、任务 3 文件边界、现有 OpenClaw 与补丁层；新增三个 openclaw_catalog_preserves_defaults 前缀测试源码，覆盖 alias/未知字段、非目标 defaults 与注释、缺失/空目录及非法形状。按本轮要求未执行 Cargo 或任何测试，不声明编译或行为验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证；本任务卡按要求删除。
+
+
+## 任务 16：OpenClaw 默认模型分节（2026-11-14）
+
+新增 openclaw_model 的 get_default_model/prepare_default_model/set_default_model，复用 OpenClawFiles snapshot/apply 与物理锁、冲突检查和原子事务。保留未知扩展、回退顺序及重复值；结果包含 warnings。已有 JSONC round-trip 支持用于保留注释和非目标字节；底层明确拒绝完整 JSON5（单引号、无引号键），此限制已留源码 TODO，不能宣称 JSON5 完整交付。
+
+静态读取来源默认模型函数、前置正式合同、任务 3 路径边界、供应商事务和 patch_json；新增两个独立测试源码，覆盖字节保留、回退顺序、未知字段、幂等、缺失和非法形状。本轮按用户要求未运行 Cargo、测试或实机验收，不声明验证通过；未领取槽位，CARGO_TARGET_DIR 未设置。后续建议补齐共享 JSON5 round-trip 后统一验证。依指令删除任务卡。

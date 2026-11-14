@@ -52,3 +52,8 @@ mod daily_memory_files_tests;
 pub mod openclaw_catalog;
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_catalog_tests;
+
+#[cfg(target_os = "macos")]
+pub mod openclaw_model;
+#[cfg(all(test, target_os = "macos"))]
+mod openclaw_model_tests;

@@ -6,8 +6,7 @@
 pub use iced_code_editor::LspEvent;
 
 pub(crate) mod install;
-mod manager;
-pub(crate) use manager::LspServiceManager;
+pub(crate) use desktop_lsp::LspServiceManager;
 
 pub mod config {
     pub use iced_code_editor::{

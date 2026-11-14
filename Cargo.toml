@@ -6,6 +6,7 @@ members = [
   "crates/libs/content-guard",
   "crates/libs/diff-text",
   "crates/libs/desktop-git",
+  "crates/libs/desktop-lsp",
   "crates/libs/theme-model",
   "crates/libs/theme-store",
   "crates/libs/preview-content",

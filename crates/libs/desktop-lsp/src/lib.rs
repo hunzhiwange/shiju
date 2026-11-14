@@ -1,7 +1,9 @@
 //! 管理桌面端语言服务协议能力。
 //! 本模块把编辑器可见的诊断、补全和后台 LSP 生命周期分离。
 
-use crate::app::lsp::config::{
+#![cfg(not(target_arch = "wasm32"))]
+
+use iced_code_editor::{
     LspCommand, LspServerConfig, ensure_rust_analyzer_config, lsp_language_for_path,
     lsp_server_config, resolve_lsp_command,
 };
@@ -23,9 +25,8 @@ const METHOD_WORK_DONE_PROGRESS_CREATE: &str = "window/workDoneProgress/create";
 const PROGRESS_KIND_END: &str = "end";
 const PROJECT_SCAN_FILE_LIMIT: usize = 2048;
 
-/// 模块内可见结构体，承载 LspServiceManager 对应的状态数据。
-/// 字段保持与相邻业务流程和序列化格式一致。
-pub(crate) struct LspServiceManager {
+/// 管理按服务器和工作区隔离的语言服务进程。
+pub struct LspServiceManager {
     event_sender: mpsc::Sender<LspEvent>,
     services: HashMap<LspServiceKey, LspServiceEntry>,
     prestarted_projects: HashSet<String>,
@@ -62,7 +63,7 @@ struct SharedLspService {
 
 /// 模块内可见结构体，承载 SharedLspClient 对应的状态数据。
 /// 字段保持与相邻业务流程和序列化格式一致。
-pub(crate) struct SharedLspClient {
+struct SharedLspClient {
     service: Arc<SharedLspService>,
 }
 
@@ -81,15 +82,15 @@ enum LspRequestKind {
 }
 
 impl LspServiceManager {
-    /// 模块内可见函数，执行 new 对应的应用流程。
+    /// 执行 new 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub(crate) fn new(event_sender: mpsc::Sender<LspEvent>) -> Self {
+    pub fn new(event_sender: mpsc::Sender<LspEvent>) -> Self {
         Self { event_sender, services: HashMap::new(), prestarted_projects: HashSet::new() }
     }
 
-    /// 模块内可见函数，执行 get_or_create 对应的应用流程。
+    /// 执行 get_or_create 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub(crate) fn get_or_create(
+    pub fn get_or_create(
         &mut self,
         server_key: &str,
         root_uri: &str,
@@ -109,14 +110,14 @@ impl LspServiceManager {
         Ok(Box::new(SharedLspClient { service }))
     }
 
-    /// 模块内可见函数，执行 prestart_for_project 对应的应用流程。
+    /// 执行 prestart_for_project 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub(crate) fn prestart_for_project(&mut self, project_path: &str) {
+    pub fn prestart_for_project(&mut self, project_path: &str) {
         if !self.prestarted_projects.insert(project_path.to_string()) {
             return;
         }
 
-        let root_uri = crate::app::path_to_file_uri(Path::new(project_path));
+        let root_uri = preview_content::path_to_file_uri(Path::new(project_path));
         for server_key in detect_project_servers(project_path) {
             let service_key = LspServiceKey::new(&server_key, &root_uri);
             if self.services.contains_key(&service_key) {
@@ -136,9 +137,9 @@ impl LspServiceManager {
         }
     }
 
-    /// 模块内可见函数，执行 shutdown_all 对应的应用流程。
+    /// 执行 shutdown_all 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
-    pub(crate) fn shutdown_all(&mut self) {
+    pub fn shutdown_all(&mut self) {
         self.services.clear();
     }
 }

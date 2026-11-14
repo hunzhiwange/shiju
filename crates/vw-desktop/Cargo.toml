@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 desktop-git = { path = "../libs/desktop-git", version = "0.6.0" }
+desktop-lsp = { path = "../libs/desktop-lsp", version = "0.6.0" }
 file-index = { path = "../libs/file-index", version = "0.6.0" }
 preview-content = { path = "../libs/preview-content", version = "0.6.0" }
 theme-model = { path = "../libs/theme-model", version = "0.6.0" }

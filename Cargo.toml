@@ -53,6 +53,7 @@ members = [
   "crates/libs/webview-external-protocol",
   "crates/libs/webview-native-menu",
   "crates/libs/webview-downloads",
+  "crates/libs/webview-media-permissions",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

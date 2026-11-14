@@ -1,0 +1,19 @@
+[package]
+name = "webview-media-permissions"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_env = "musl")))'.dependencies]
+wry = { version = "=0.56.1" }
+
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = "0.18"
+webkit2gtk = "2.0.2"
+url = "2"

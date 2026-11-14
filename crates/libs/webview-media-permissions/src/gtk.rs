@@ -14,7 +14,7 @@ unsafe extern "C" {
     ) -> gtk::glib::ffi::gboolean;
 }
 
-pub(crate) fn install(webview: &wry::WebView, parent: &gtk::Window) {
+pub fn install(webview: &wry::WebView, parent: &gtk::Window) {
     let native = webview.webview();
     if let Some(settings) = WebViewExt::settings(&native) {
         settings.set_enable_media_stream(true);

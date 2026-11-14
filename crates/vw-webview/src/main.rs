@@ -8,8 +8,6 @@
 use webview_external_protocol::dialog::show_error_dialog;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
-#[cfg(all(not(any(target_arch = "wasm32", coverage)), unix, not(target_os = "macos")))]
-mod media_permissions;
 #[cfg(not(any(target_arch = "wasm32", coverage)))]
 mod popup;
 #[cfg(not(target_arch = "wasm32"))]
@@ -341,7 +339,7 @@ fn main() {
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
-    media_permissions::install(&webview, window.gtk_window().upcast_ref());
+    webview_media_permissions::install(&webview, window.gtk_window().upcast_ref());
 
     #[cfg(target_os = "macos")]
     let attachment_delegate = webview_downloads::enable_attachments(&webview);

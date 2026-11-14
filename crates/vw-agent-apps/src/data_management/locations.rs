@@ -36,7 +36,7 @@ pub struct BackupLocation {
     pub deletable: bool,
 }
 
-fn open_at(parent: &File, name: &CStr, directory: bool) -> Result<File, std::io::Error> {
+pub(super) fn open_at(parent: &File, name: &CStr, directory: bool) -> Result<File, std::io::Error> {
     // SAFETY: borrowed fd and terminated basename; returned fd has one owner.
     let fd = unsafe {
         libc::openat(
@@ -56,7 +56,7 @@ fn open_at(parent: &File, name: &CStr, directory: bool) -> Result<File, std::io:
 }
 
 // Walk every absolute-path component without following links, including ancestors.
-fn directory(path: &Path) -> Result<Option<File>, Error> {
+pub(super) fn directory(path: &Path) -> Result<Option<File>, Error> {
     if !path.is_absolute() {
         return Err(Error::UnsafeStorage);
     }
@@ -78,7 +78,7 @@ fn directory(path: &Path) -> Result<Option<File>, Error> {
     Ok(Some(dir))
 }
 
-fn names(dir: &File) -> Result<Vec<CString>, Error> {
+pub(super) fn names(dir: &File) -> Result<Vec<CString>, Error> {
     let fd = open_at(dir, c".", true).map_err(|_| Error::StorageUnavailable)?.into_raw_fd();
     // SAFETY: fdopendir takes ownership on success, otherwise close it ourselves.
     let stream = unsafe { libc::fdopendir(fd) };
@@ -209,8 +209,28 @@ pub fn list_locations(
             }
         }
     }
-    type Matcher = Option<fn(&str) -> bool>;
-    let categories: [(_, _, Matcher); 13] = [
+    let mut result = vec![database];
+    for (id, path, matcher) in categories(roots) {
+        let mut usage = BackupLocation {
+            id,
+            size_bytes: 0,
+            item_count: 0,
+            last_modified: None,
+            deletable: true,
+        };
+        if let Some(dir) = directory(&path)? {
+            walk(&dir, &mut usage, matcher, 0)?;
+        }
+        result.push(usage);
+    }
+    Ok(result)
+}
+
+pub(super) type Matcher = Option<fn(&str) -> bool>;
+pub(super) fn categories(
+    roots: &BackupLocationRoots<'_>,
+) -> [(&'static str, std::path::PathBuf, Matcher); 13] {
+    [
         ("skills", roots.app.join("skill-backups"), None),
         ("codexHistoryUnify", roots.app.join("backups/codex-official-history-unify-v1"), None),
         (
@@ -244,20 +264,5 @@ pub fn list_locations(
             Some(|n| n.starts_with("cc-switch.db.") && n.contains("-backup-")),
         ),
         ("legacyToolSearch", roots.app.join("toolsearch-backups"), None),
-    ];
-    let mut result = vec![database];
-    for (id, path, matcher) in categories {
-        let mut usage = BackupLocation {
-            id,
-            size_bytes: 0,
-            item_count: 0,
-            last_modified: None,
-            deletable: true,
-        };
-        if let Some(dir) = directory(&path)? {
-            walk(&dir, &mut usage, matcher, 0)?;
-        }
-        result.push(usage);
-    }
-    Ok(result)
+    ]
 }

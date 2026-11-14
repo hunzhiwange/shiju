@@ -65,3 +65,8 @@ mod export_files;
 mod export_tests;
 
 pub mod shared_snapshot;
+
+#[cfg(target_os = "macos")]
+pub mod location_delete;
+#[cfg(all(test, target_os = "macos"))]
+mod location_delete_tests;

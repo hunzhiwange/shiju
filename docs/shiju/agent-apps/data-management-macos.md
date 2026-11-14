@@ -136,3 +136,11 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 来源 `database/backup.rs::cleanup_db_backups` 与 `settings.rs::effective_backup_retain_count`：默认 10，u32 配置的 0 归一为 1；负数及超过 u32 的输入明确拒绝。独立 `retention_tests.rs` 已注册，包含保护源/回退点、外作用域保持、0/1、非法值及同时间稳定排序测试代码，大小写别名分支仅在文件系统存在该别名时适用。
 
 按用户覆盖要求，本轮只实现，未运行 Cargo、编译、单元或实机测试，无通过证据、退出码或有效测试数；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。待统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_28_ -- --nocapture`。仅面向 macOS，网关、调度及恢复调用接线不在本项范围。
+
+## 子任务 31：按分类清理（2026-11-14）
+
+`location_delete::delete_location` 复用任务 30 的分类白名单与文件匹配规则；拒绝未知 ID、database 和作用域不符。仅使用执行端已授权隔离根目录，不发现 HOME。描述符相对遍历不跟随链接，拒绝硬链接和特殊文件，深度限 128；文件模式不递归同名目录。使用独占非阻塞 inode 锁保留持有共享锁的恢复源，返回实际已 unlink 普通文件字节与相对路径未删条目，保留分类根目录。执行端仍须串行调度同根写操作，文件锁为协作协议。
+
+技能/历史所有者尚未暴露清理锁和备份缓存刷新生产接口；`skills` 及三个 `codexHistory*` 分类明确返回 OwnerRequired，不绕过领域所有者。本项只交付其余分类核心，不宣称这些领域清理闭环完成。独立测试代码覆盖匹配文件、数据库与未知类别拒绝、作用域、所有者缺失、保护文件与符号链接及部分释放，已在 macOS 父模块注册。
+
+按用户本轮覆盖要求，只写代码，未运行 Cargo、单元或实机测试，未领取槽位，CARGO_TARGET_DIR 未设置，无退出码或有效测试数通过证据。待统一回归：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_31_ -- --nocapture`；领域分类待真实所有者接口就绪后接通并验收。按本轮要求删除任务卡，不表示验证通过。

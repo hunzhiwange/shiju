@@ -36,6 +36,9 @@ struct Principal {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Grant {
+    /// Explicit background authority; API backup grants alone do not schedule work.
+    #[serde(default)]
+    periodic_data_backups: Vec<PeriodicDataBackupPermit>,
     #[serde(default)]
     data_backups: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
@@ -1902,4 +1905,77 @@ pub(in super::super) fn authorize_backup_inventory(
     let root = authorized.host.data_backup_root.filter(|root| root.is_absolute())
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok((root, authorized.principal))
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PeriodicDataBackupPermit {
+    project_id: String,
+    interval_hours: u32,
+}
+
+#[cfg(target_os = "macos")]
+pub(in super::super) fn periodic_data_backup_targets(
+    path: &Path,
+) -> Result<Vec<(PathBuf, vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope, u32)>, StatusCode> {
+    use vw_api_types::id::ProjectScope;
+    use vw_agent_apps::data_management::safety_snapshot::SafetySnapshotScope;
+    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let mut targets = Vec::new();
+    for principal in policy.principals {
+        for grant in principal.grants {
+            let Some(host) = policy.hosts.iter().find(|host|
+                host.id == grant.host_id && host.online && matches!(host.binding, Binding::Local)
+            ) else { continue };
+            let Some(root) = host.data_backup_root.as_ref().filter(|root| root.is_absolute()) else { continue };
+            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
+                .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+            for permit in grant.periodic_data_backups {
+                if permit.interval_hours == 0 { continue; }
+                let project = ProjectScope::new(tenant.clone(), permit.project_id.into())
+                    .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+                if !grant.data_backups.contains(project.project_id()) {
+                    return Err(StatusCode::FORBIDDEN);
+                }
+                targets.push((root.clone(), SafetySnapshotScope {
+                    project, principal_id: principal.id.clone(), host_id: host.id.clone(),
+                }, permit.interval_hours));
+            }
+        }
+    }
+    Ok(targets)
+}
+
+/// Authenticate before consuming or decoding a migration body. Policy reads are
+/// authentication IO only; source and target storage must remain untouched.
+pub(in super::super) fn authenticate_data_migration(
+    path: Option<&Path>, headers: &HeaderMap, tenant: &TenantScope,
+) -> Result<(), StatusCode> {
+    let digest = membership_digest(headers)?;
+    let local = tenant_policy_path(tenant);
+    let policy = load(path.unwrap_or(&local)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let principal = policy.principals.iter().find(|p|
+        crate::security::pairing::constant_time_eq(&p.token_sha256, &digest))
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+    if !principal.grants.iter().any(|g| g.platform_id == tenant.platform_id().as_ref()
+        && g.company_id == tenant.company_id().as_ref() && !g.data_migration_read.is_empty()) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    Ok(())
+}
+
+pub(in super::super) fn authorize_data_migration(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+    source_id: Option<&str>,
+) -> Result<Option<(PathBuf, PathBuf)>, StatusCode> {
+    let a = authorize_scoped(path, headers, target.scope.tenant_scope(), &target.target_host_id,
+        None, Capability::DataMigrationRead(target.scope.project_id()))?;
+    if a.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    source_id.map(|id| {
+        let selected = a.host.data_migration_sources.get(id).ok_or(StatusCode::FORBIDDEN)?;
+        let root = a.host.data_migration_root.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        if !root.is_absolute() || !selected.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+        Ok((root.clone(), selected.clone()))
+    }).transpose()
 }

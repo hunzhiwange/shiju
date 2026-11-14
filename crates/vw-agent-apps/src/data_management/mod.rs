@@ -100,3 +100,6 @@ pub mod preferences;
 pub mod usage;
 #[cfg(test)]
 mod usage_tests;
+
+#[cfg(target_os = "macos")]
+pub mod periodic;

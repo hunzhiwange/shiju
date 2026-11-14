@@ -638,3 +638,6 @@ mod workspace_directory;
 pub(super) use access::{authorize_project_profiles, authorize_project_profiles_maintenance};
 
 pub(super) use access::authorize_data_backups;
+
+#[cfg(target_os = "macos")]
+pub(super) use access::periodic_data_backup_targets;

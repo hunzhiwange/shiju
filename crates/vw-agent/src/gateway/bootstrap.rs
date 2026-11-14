@@ -315,10 +315,19 @@ async fn serve_gateway(
     #[cfg(not(target_arch = "wasm32"))]
     let _worktree_cleanup = crate::worktree::cleanup_host::HostCleanup::start()
         .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+
+## 子任务 29：后端周期备份（2026-11-14）
+
+网关 bootstrap 的 `periodic_backups` 生命周期每 60 秒读取受保护访问策略，退出时停止轮询；不依赖桌面页面。管理员在 grant 中显式配置 `periodic_data_backups: [{"project_id":"<project>","interval_hours":24}]`，且项目必须同时有 `data_backups` 许可；默认空，零小时关闭，仅在线本地主机和已授权绝对私有备份根。使用现有 SQLite 偏好完整事务捕获接口，其它领域和数据库不伪支持。错误使用固定脱敏日志。
+
+`data_management::periodic::periodic_backup_if_needed` 在目录锁内按完整租户/项目/用户/主机筛选有效归档，以最新归档创建时间决定到期；并发执行端重新检查，重启不会重置已有归档的周期。时间参数可控，倒退不提前创建。关闭在访问文件前返回；不接入或改变用量清理。无数据时不创建归档，失败下次轮询重试。
+
+用户本轮明确要求只写代码：未运行 Cargo、编译、单元或实机测试，不声称验证通过；未领取槽位，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 未设置。待统一回归覆盖：无页面到期创建一次、零间隔零创建、重启/并发、权限撤销、失败日志与重试；macOS 限定。
     tokio::select! {
         result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
         result = super::channel_reload::watch_gateway_channels(state, config) => result?,
         () = usage_refresh => {}
+        () = periodic_backups => {}
     }
 
     Ok(())

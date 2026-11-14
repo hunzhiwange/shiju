@@ -728,3 +728,80 @@ async fn cc_route_038_authorized_messages_to_chat_request() {
     upstream_task.abort();
     let _ = upstream_task.await;
 }
+
+#[tokio::test]
+async fn cc_route_039_authorized_chat_result() {
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/v1/chat/completions", upstream.local_addr().unwrap());
+    let (sender, mut received) = mpsc::unbounded_channel();
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(upstream, Router::new().route("/v1/chat/completions", post(move |headers: HeaderMap, Json(body): Json<Value>| {
+            let sender = sender.clone();
+            async move {
+                sender.send((headers, body)).unwrap();
+                Json(json!({"data":{"id":"r","choices":[{"message":{"role":"assistant","content":null,"refusal":"declined"},"finish_reason":"content_filter"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}}))
+            }
+        }))).await.unwrap();
+    });
+    let listener = RoutingListener::default();
+    let address = listener.start(0).unwrap();
+    let binding = VerifiedRouteBinding {
+        project: ProjectScope::new(
+            TenantScope::new("platform", "company").unwrap(),
+            "project".into(),
+        )
+        .unwrap(),
+        host: "host".into(),
+        app: AppId::Claude,
+        account: "account".into(),
+        account_generation: 1,
+    };
+    let active = listener
+        .auth
+        .issue_with_target(
+            binding,
+            Some(JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
+                url: url.parse().unwrap(),
+                authorization: "Bearer fixture".parse().unwrap(),
+                transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
+            }),
+        )
+        .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    let body = json!({"model":"fixture","max_tokens":32,"system":[{"type":"text","text":"First"},{"type":"text","text":"Second"}],"tool_choice":"any","tools":[{"name":"lookup","input_schema":{}}],"messages":[{"role":"user","content":[{"type":"image","source":{"type":"url","url":"https://example.invalid/image.png"}},{"type":"text","text":"describe"}]}]});
+    for path in ["/v1/messages", "/claude/v1/messages"] {
+        let response = client
+            .post(format!("http://{address}{path}"))
+            .bearer_auth(&active.token)
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let result: Value = response.json().await.unwrap();
+        assert_eq!(result["type"], "message");
+        assert_eq!(result["model"], "fixture");
+        assert_eq!(result["stop_reason"], "end_turn");
+        assert_eq!(result["content"], json!([{"type":"text","text":"declined"}]));
+        let (headers, outgoing) =
+            timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
+        assert_eq!(headers[header::AUTHORIZATION], "Bearer fixture");
+        assert_eq!(outgoing["messages"][0]["content"], "First\nSecond");
+        assert_eq!(outgoing["tool_choice"], "required");
+        assert_eq!(
+            outgoing["tools"][0]["function"]["parameters"],
+            json!({"type":"object","properties":{}})
+        );
+        assert_eq!(
+            outgoing["messages"][1]["content"][0]["image_url"]["url"],
+            "https://example.invalid/image.png"
+        );
+    }
+    listener.stop().await.unwrap();
+    upstream_task.abort();
+    let _ = upstream_task.await;
+}

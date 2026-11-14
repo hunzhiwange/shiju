@@ -1065,3 +1065,24 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 | 限定本项 `git diff --check` | 退出0。 |
 
 顺序验证入口：`python3 scripts/cargo_slot.py sh -c 'cargo fmt --all && cargo test -p vw-agent --lib cc_route_038_ -- --nocapture && cargo clippy --all-targets --all-features -- -D warnings && cargo test -p vw-gateway-client --lib app_routing -- --nocapture'`，退出0。所有入口实际槽位2，`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。原生产物 `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351`。入口及自有子进程结束，锁释放、缓存保留。链接器有既有macOS `__eh_frame`大小警告；全仓Clippy通过。共享工作区存在其他任务变更，只提交本项路径，不作为干净HEAD验收。
+
+## 任务39：转换 Chat 到 Messages 结果（2026-11-14）
+
+验收范围：macOS 本机自动测试；直接依赖任务38 `caf3a9ead`，复用前项核实的母任务1来源快照、母任务2公共传输、母任务3可信项目/主机授权，以及母任务4、6配置/账号契约。再次从 CC Switch 固定提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 导出 `src-tauri/src/proxy/providers/transform.rs`，与仓库 upstream 快照 SHA256 均为 `cafd48dc3c56ae4dfb5ab40358fe26571b27a4f67fdc109cee00ff7109f022f2`。读取其非流式转换、相邻测试及 Claude adapter 调用者，结合 rustcodegraph 调用图检查真实所有者。
+
+实现：`model_relay::messages_chat_result::from_chat` 包装既有严格 `messages::from_chat`，只补常驻 JSON 来源差异。识别 data.choices 封装，按来源以顶层非空元数据覆盖内层；保留文本数组、refusal 与多工具调用顺序；映射 content_filter/function_call；缓存读取遵循直传非零、nested cached_tokens、DeepSeek hit 顺序，cache creation 按来源字段优先级选择，并从总输入扣除。结果回写客户端模型名。工具只返回给客户端，不执行、不读取凭据、不进入 session/prompt。
+
+`app_routing::dispatch::finish_messages` 在授权常驻 Claude/Desktop 选择 Chat 上游且非流式时接线，保留取消与大小限制；原生 Messages、旧会话严格转换和 SSE 路径不变。未知终止原因、损坏工具 JSON、未知内容类型、异常缓存计数明确返回502，避免来源的静默丢弃/空对象回退；旧 function_call 要求非空调用ID和名称，不伪造关联标识。推理内容仍遵循底层明确拒绝策略，未扩展到后续推理/SSE任务。Windows/Linux/WSL范围外、未验证，保留来源映射；不宣称母任务8完成。
+
+状态：已完成。验证均在 `python3 scripts/cargo_slot.py` 入口内执行。
+
+| 检查 | 结果 |
+| --- | --- |
+| 红灯 `cargo test -p vw-agent --lib cc_route_039_ -- --nocapture` | 退出101，1项执行并失败，封装结果返回502导致行为断言失败；不是缺失符号。 |
+| `cargo fmt --all` | 退出0；本项差异审查通过，未纳入无关格式化。 |
+| 同命令最终绿灯 | 退出0，4通过、0失败：封装/refusal、内容数组/工具/缓存/终止映射、畸形数据/旧策略隔离、两个授权Messages路径的真实有限回环HTTP。 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 退出0，2分13秒。 |
+| `cargo test -p vw-gateway-client --lib app_routing -- --nocapture` | 默认features，退出0，7通过、0失败。 |
+| 限定本项 `git diff --check` | 退出0。 |
+
+最终顺序入口：`python3 scripts/cargo_slot.py sh -c 'cargo fmt --all && cargo test -p vw-agent --lib cc_route_039_ -- --nocapture && cargo clippy --all-targets --all-features -- -D warnings && cargo test -p vw-gateway-client --lib app_routing -- --nocapture'`，退出0。红灯与最终验证实际槽位均为2；`CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。中途审查补充标量对象校验后，主动中断一次本项未完成构建并完整重跑；不计该中断为验证证据。最终测试构建10分47秒，原生产物 `target/rust-slot-2/debug/deps/vw_agent-346fac923f6b2351`。有既有macOS链接器 `__eh_frame`大小警告，全仓Clippy通过。自有前台进程结束、槽位锁释放、缓存保留。共享工作区其他任务变更未纳入本项提交。

@@ -391,7 +391,18 @@ async fn finish_messages(
     native: bool,
     cancel: tokio_util::sync::CancellationToken,
 ) -> Result<Response, RouteError> {
-    if app == AppId::ClaudeDesktop || app == AppId::Claude && !native {
+    if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && !streaming {
+        let model = model.ok_or(StatusCode::BAD_REQUEST)?;
+        let (parts, body) = response.into_parts();
+        let bytes = tokio::select! {
+            biased;
+            () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT.into()),
+            bytes = axum::body::to_bytes(body, MAX_JSON_BYTES) => bytes.map_err(|_| StatusCode::BAD_GATEWAY)?,
+        };
+        let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        let converted = crate::model_relay::messages_chat_result::from_chat(&body, &model)?;
+        Ok(Response::from_parts(parts, Body::from(converted.to_string())))
+    } else if app == AppId::ClaudeDesktop || app == AppId::Claude && !native {
         crate::model_relay::messages_stream::response_body(
             response,
             model.ok_or(StatusCode::BAD_REQUEST)?,

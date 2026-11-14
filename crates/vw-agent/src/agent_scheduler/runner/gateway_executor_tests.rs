@@ -291,6 +291,7 @@ fn gateway_executor_workspace_methods_fail_before_pool_io_for_unregistered_proje
 
     let lease_error = executor
         .lease_workspace(LocalAgentWorkspaceRequest {
+            agent: None,
             project_path: project_path.clone(),
             task_id: task_id.clone(),
             run_id: run_id.clone(),
@@ -439,6 +440,8 @@ async fn gateway_worktree_pool_inner_helpers_map_successful_pool_responses() -> 
     pool.acquire_results.lock().push_back(Ok(TaskPoolWorktreeAcquireResponse {
         leased: true,
         slot: Some(TaskPoolWorktreeSlotDto {
+            agent_id: None,
+            run_id: None,
             id: "slot-7".to_string(),
             path: "/repo/.vw/worktrees/slot-7".to_string(),
             branch: "codex/task-worktree".to_string(),
@@ -580,6 +583,7 @@ fn execution_request(
 
 fn workspace_request(task_id: &str) -> Result<LocalAgentWorkspaceRequest> {
     Ok(LocalAgentWorkspaceRequest {
+        agent: None,
         project_path: PathBuf::from("/repo"),
         task_id: TaskId::new(task_id)?,
         run_id: RunId::new("run-1")?,

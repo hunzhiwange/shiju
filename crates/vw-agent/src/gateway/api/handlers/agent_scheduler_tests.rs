@@ -1821,13 +1821,14 @@ async fn agent_scheduler_gateway_start_is_idempotent_for_running_task() {
 // 合并测试使用真实 Git 分支和锁，验证默认目标、锁释放及失败诊断形成完整事务边界。
 
 #[tokio::test]
-async fn gateway_local_executor_prepares_git_project_without_leasing_worktree() {
+async fn task_pool_capacity_gateway_runtime_projects_logical_station() {
     let temp = tempfile::tempdir().expect("temp project root");
     let project_path = temp.path().join("project-agent-scheduler-local-worktree");
     init_merge_test_repo(&project_path, "feature/local-worktree-base");
     let (project_id, project_info) = register_merge_test_project(&project_path).await;
     let task_id = TaskId::new("task-local-worktree").expect("task id");
     let request = LocalAgentWorkspaceRequest {
+        agent: None,
         project_path: project_path.clone(),
         task_id: task_id.clone(),
         run_id: RunId::new("run-local-worktree").expect("run id"),
@@ -1843,7 +1844,27 @@ async fn gateway_local_executor_prepares_git_project_without_leasing_worktree() 
     assert_eq!(PathBuf::from(&workspace.path), project_path.canonicalize().unwrap());
     assert_eq!(workspace.branch, None);
     assert_eq!(workspace.slot_id, None);
-    let _ = project_info;
+    let pool = crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service();
+    let snapshot = pool.snapshot(&project_info).await.expect("logical snapshot");
+    assert_eq!(snapshot.busy_count, 1);
+    assert_eq!(snapshot.slots[0].run_id.as_deref(), Some("run-local-worktree"));
+    assert!(snapshot.slots[0].path.is_empty());
+    assert!(snapshot.slots[0].branch.is_empty());
+    let release_path = project_path.clone();
+    tokio::task::spawn_blocking(move || {
+        GatewayLocalAgentExecutor::default().release_workspace(
+            crate::agent_scheduler::runner::local::LocalAgentWorkspaceReleaseRequest {
+                project_path: release_path,
+                task_id,
+                run_id: RunId::new("run-local-worktree").unwrap(),
+                workspace,
+            },
+        )
+    })
+    .await
+    .expect("release join")
+    .expect("release logical station");
+    assert_eq!(pool.snapshot(&project_info).await.unwrap().busy_count, 0);
     cleanup_merge_test_project(&project_id).await;
 }
 

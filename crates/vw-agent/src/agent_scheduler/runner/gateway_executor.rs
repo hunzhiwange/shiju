@@ -211,12 +211,19 @@ fn lease_gateway_local_agent_workspace(
 ) -> Result<LocalAgentWorkspace> {
     run_gateway_future("create agent scheduler gateway worktree lease runtime", async move {
         let project = project_for_local_workspace(&request.project_path).await?;
-        lease_gateway_local_agent_workspace_for_project(
+        let task_id = vw_api_types::id::TaskId(request.task_id.as_str().to_string());
+        let run_id = request.run_id.as_str().to_string();
+        let agent = request.agent.clone();
+        let workspace = lease_gateway_local_agent_workspace_for_project(
             request,
             &project,
             &RealGatewayWorktreePoolClient,
         )
-        .await
+        .await?;
+        crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
+            .bind_run(&project, &task_id, &run_id, agent)
+            .await?;
+        Ok(workspace)
     })
 }
 
@@ -246,6 +253,14 @@ async fn lease_gateway_local_agent_workspace_for_project(
 fn release_gateway_local_agent_workspace(request: LocalAgentWorkspaceReleaseRequest) -> Result<()> {
     run_gateway_future("create agent scheduler gateway worktree release runtime", async move {
         let project = project_for_local_workspace(&request.project_path).await?;
+        crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
+            .finish_run(
+                &project,
+                &vw_api_types::id::TaskId(request.task_id.as_str().to_string()),
+                request.run_id.as_str(),
+                None,
+            )
+            .await?;
         release_gateway_local_agent_workspace_for_project(
             request,
             &project,
@@ -277,6 +292,14 @@ async fn release_gateway_local_agent_workspace_for_project(
 fn recycle_gateway_local_agent_workspace(request: LocalAgentWorkspaceRecycleRequest) -> Result<()> {
     run_gateway_future("create agent scheduler gateway worktree recycle runtime", async move {
         let project = project_for_local_workspace(&request.project_path).await?;
+        crate::app::agent::gateway::api::handlers::task_pool::task_worktree_pool_service()
+            .finish_run(
+                &project,
+                &vw_api_types::id::TaskId(request.task_id.as_str().to_string()),
+                request.run_id.as_str(),
+                Some(request.taint_reason.clone()),
+            )
+            .await?;
         recycle_gateway_local_agent_workspace_for_project(
             request,
             &project,

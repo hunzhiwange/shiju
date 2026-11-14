@@ -345,7 +345,7 @@ async fn task_plan_resumable_stream_reports_caller_stop() {
 }
 
 #[tokio::test]
-async fn task_pool_api_uses_documented_pool_routes() {
+async fn task_pool_capacity_api_client_and_cli_keep_management_operations() {
     let server = test_support::server(vec![
         (
             200,
@@ -362,8 +362,8 @@ async fn task_pool_api_uses_documented_pool_routes() {
                 "merge_target_locks": [],
                 "slots": [{
                     "id": "slot-1",
-                    "path": "/repo/.vibewindow/task-worktrees/slot-1",
-                    "branch": "main",
+                    "path": "",
+                    "branch": "",
                     "state": "idle"
                 }]
             }),
@@ -375,8 +375,8 @@ async fn task_pool_api_uses_documented_pool_routes() {
                 "leased": true,
                 "slot": {
                     "id": "slot-1",
-                    "path": "/repo/.vibewindow/task-worktrees/slot-1",
-                    "branch": "vw/task/task-1",
+                    "path": "",
+                    "branch": "",
                     "state": "busy",
                     "leased_task_id": "task-1"
                 }

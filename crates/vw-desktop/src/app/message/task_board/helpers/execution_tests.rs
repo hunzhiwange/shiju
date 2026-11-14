@@ -685,6 +685,8 @@ fn worktree_snapshot_from_gateway_preserves_counts_locks_and_slot_state() {
             age_ms: 250,
         }],
         slots: vec![TaskPoolWorktreeSlotDto {
+            agent_id: None,
+            run_id: None,
             id: "slot-a".to_string(),
             path: "/repo/.worktrees/a".to_string(),
             branch: "feature/a".to_string(),

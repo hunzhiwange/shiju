@@ -107,3 +107,34 @@ fn read_request(stream: &mut std::net::TcpStream) -> RecordedRequest {
         if body.is_empty() { Value::Null } else { serde_json::from_slice(&body).expect("json") };
     RecordedRequest { method, path, body }
 }
+
+#[tokio::test]
+async fn task_pool_capacity_api_client_and_cli_keep_management_operations() {
+    let cases = [
+        (
+            "maintain",
+            json!({"project_id":"p","desired_capacity":7}),
+            json!({"idle_count":7,"target_idle_count":7}),
+        ),
+        ("acquire", json!({"project_id":"p","task_id":"t"}), json!({"leased":false})),
+        ("release", json!({"project_id":"p","task_id":"t"}), json!({"released":true})),
+        ("recycle", json!({"project_id":"p","task_id":"t"}), json!({"recycled":true})),
+        ("slot-recycle", json!({"project_id":"p","slot_id":"s"}), json!({"recycled":true})),
+    ];
+    for (command, body, response) in cases {
+        let (port, requests) = spawn_server(vec![response]);
+        let port = port.to_string();
+        run_command(
+            &["--port", &port],
+            &["--yes", "task-pool", command, "--input", "-"],
+            body.to_string().as_bytes(),
+        )
+        .await
+        .unwrap();
+        let request = requests.recv().unwrap();
+        assert_eq!(request.method, "POST");
+        let route = if command == "slot-recycle" { "slots/recycle" } else { command };
+        assert_eq!(request.path, format!("/v1/task-pool/worktrees/{route}"));
+        assert_eq!(request.body, body);
+    }
+}

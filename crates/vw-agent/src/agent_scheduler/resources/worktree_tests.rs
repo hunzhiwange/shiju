@@ -31,11 +31,13 @@ async fn agent_worktree_provider_maps_pool_slot_to_resource_lease() -> Result<()
 
     let first = provider.acquire(request.clone()).await?.expect("worktree lease");
     let metadata = first.metadata_json.as_object().expect("metadata object");
-    let expected_path =
-        std::fs::canonicalize(fixture.pool_root.join("slot-ready"))?.to_string_lossy().to_string();
-    assert_eq!(metadata.get("slot_id").and_then(|value| value.as_str()), Some("slot-ready"));
-    assert_eq!(metadata.get("branch").and_then(|value| value.as_str()), Some("vw/task/task-alpha"));
-    assert_eq!(metadata.get("path").and_then(|value| value.as_str()), Some(expected_path.as_str()));
+    assert_eq!(first.resource_kind, ResourceKind::WorkerSlot);
+    assert_eq!(
+        metadata.get("slot_id").and_then(|value| value.as_str()),
+        Some(first.resource_id.as_str())
+    );
+    assert_eq!(metadata.get("branch").and_then(|value| value.as_str()), Some(""));
+    assert_eq!(metadata.get("path").and_then(|value| value.as_str()), Some(""));
 
     let second = provider.acquire(request.clone()).await?.expect("reused worktree lease");
     assert_eq!(second.resource_id, first.resource_id);
@@ -43,14 +45,16 @@ async fn agent_worktree_provider_maps_pool_slot_to_resource_lease() -> Result<()
 
     provider.release(&first).await?;
     let snapshot = provider.pool().snapshot(&fixture.project()).await?;
-    let released = snapshot.slots.iter().find(|slot| slot.id == "slot-ready").expect("slot");
+    let released =
+        snapshot.slots.iter().find(|slot| slot.id == first.resource_id.as_str()).expect("slot");
     assert_eq!(released.leased_task_id, None);
     assert!(released.taint_reason.is_none());
 
     let reacquired = provider.acquire(request).await?.expect("reacquired worktree lease");
     provider.recycle(&reacquired, Some("execution failed".to_string())).await?;
     let snapshot = provider.pool().snapshot(&fixture.project()).await?;
-    let recycled = snapshot.slots.iter().find(|slot| slot.id == "slot-ready").expect("slot");
+    let recycled =
+        snapshot.slots.iter().find(|slot| slot.id == first.resource_id.as_str()).expect("slot");
     assert_eq!(recycled.leased_task_id, None);
     assert_eq!(recycled.taint_reason.as_deref(), Some("execution failed"));
 
@@ -66,7 +70,7 @@ async fn agent_worktree_provider_rejects_wrong_kind_and_inactive_leases() -> Res
     let holder_id = HolderId::new("run-no-slot")?;
 
     let mut lease = ResourceLease {
-        resource_kind: ResourceKind::WorkerSlot,
+        resource_kind: ResourceKind::Worktree,
         resource_id: ResourceId::new("slot-not-worktree")?,
         holder_id,
         task_id,
@@ -77,7 +81,7 @@ async fn agent_worktree_provider_rejects_wrong_kind_and_inactive_leases() -> Res
     let recycle_error = provider.recycle(&lease, None).await.unwrap_err().to_string();
     assert!(recycle_error.contains("not a worktree lease"));
 
-    lease.resource_kind = ResourceKind::Worktree;
+    lease.resource_kind = ResourceKind::WorkerSlot;
     let release_error = provider.release(&lease).await.unwrap_err().to_string();
     assert!(release_error.contains("lease is not active for task"));
     let recycle_error = provider.recycle(&lease, None).await.unwrap_err().to_string();
@@ -181,6 +185,8 @@ fn acquire_request(holder_id: &str, task_id: &str) -> Result<AcquireResourceRequ
 
 fn slot(id: &str, leased_task_id: Option<TaskId>) -> TaskPoolWorktreeSlotDto {
     TaskPoolWorktreeSlotDto {
+        agent_id: None,
+        run_id: None,
         id: id.to_string(),
         path: format!("/tmp/{id}"),
         branch: format!("vw/task/{id}"),

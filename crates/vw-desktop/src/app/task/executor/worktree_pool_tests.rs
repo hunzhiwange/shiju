@@ -168,6 +168,8 @@ fn desktop_worktree_snapshot_maps_gateway_dto() {
                 age_ms: 0,
             }],
             slots: vec![TaskPoolWorktreeSlotDto {
+                agent_id: None,
+                run_id: None,
                 id: "slot-1".to_string(),
                 path: "/pool/slot-1".to_string(),
                 branch: "vw/task/slot-1".to_string(),

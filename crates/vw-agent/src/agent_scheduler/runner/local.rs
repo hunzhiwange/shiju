@@ -45,6 +45,7 @@ pub struct LocalAgentRunnerOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 执行器申请任务隔离工作区时接收的上下文。
 pub struct LocalAgentWorkspaceRequest {
+    pub agent: Option<String>,
     pub project_path: PathBuf,
     pub task_id: TaskId,
     pub run_id: RunId,
@@ -338,7 +339,11 @@ where
         run_id: &RunId,
         request: &LocalAgentRunnerRequest,
     ) -> Result<StoredAgentRun> {
+        let acp_agent = execution_acp_agent(task);
+        let reasoning_effort =
+            crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?;
         let workspace_request = LocalAgentWorkspaceRequest {
+            agent: execution_agent(task, acp_agent.as_deref()).or_else(|| acp_agent.clone()),
             project_path: project_path.storage_project_path().to_path_buf(),
             task_id: task.id.clone(),
             run_id: run_id.clone(),
@@ -357,17 +362,22 @@ where
                 );
             }
         };
-        self.record_workspace(
+        if let Err(error) = self.record_workspace(
             project_path,
             &task.id,
             run_id,
             &workspace,
             add_ms(request.now_ms, 4)?,
-        )?;
-
-        let acp_agent = execution_acp_agent(task);
-        let reasoning_effort =
-            crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?;
+        ) {
+            // 尚未启动执行器，可以安全释放已经领取的逻辑工位。
+            self.executor.release_workspace(LocalAgentWorkspaceReleaseRequest {
+                project_path: project_path.storage_project_path().to_path_buf(),
+                task_id: task.id.clone(),
+                run_id: run_id.clone(),
+                workspace: workspace.clone(),
+            })?;
+            return Err(error);
+        }
         let execution = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.executor.execute(LocalAgentExecutionRequest {
                 project_path: project_path.storage_project_path().to_path_buf(),

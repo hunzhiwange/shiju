@@ -1,6 +1,6 @@
-//! 通过工作树池申请、校验和释放任务工作区，并将池槽位映射为调度资源租约。
+//! 将逻辑工位池适配为现有调度资源租约；保留历史模块和构造入口。
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use serde_json::json;
 use vw_api_types::id::TaskId;
@@ -13,7 +13,7 @@ use crate::app::agent::project;
 use crate::task_worktree_pool::TaskWorktreePoolService;
 
 #[derive(Clone)]
-/// 将任务工作树池适配为调度资源提供者。
+/// 将逻辑工位池适配为调度资源提供者。
 pub struct WorktreeResourceProvider {
     pool: TaskWorktreePoolService,
     project: project::Info,
@@ -34,18 +34,20 @@ impl WorktreeResourceProvider {
 #[async_trait]
 impl ResourceProvider for WorktreeResourceProvider {
     async fn acquire(&self, request: AcquireResourceRequest) -> Result<Option<ResourceLease>> {
-        let response = self.pool.acquire_and_prepare(&self.project, &request.task_id).await?;
-        if !response.leased {
-            return Ok(None);
-        }
-        let slot = response.slot.context("worktree pool reported a lease without a slot")?;
+        let slot = self
+            .pool
+            .bind_run(&self.project, &request.task_id, request.holder_id.as_str(), None)
+            .await?;
         Ok(Some(lease_from_slot(request, slot)?))
     }
 
     async fn release(&self, lease: &ResourceLease) -> Result<()> {
         validate_worktree_lease(lease)?;
-        let response = self.pool.release_task_slot(&self.project, &lease.task_id).await?;
-        if !response.released {
+        if !self
+            .pool
+            .finish_run(&self.project, &lease.task_id, lease.holder_id.as_str(), None)
+            .await?
+        {
             bail!("worktree lease is not active for task: {}", lease.task_id.as_ref());
         }
         Ok(())
@@ -53,9 +55,11 @@ impl ResourceProvider for WorktreeResourceProvider {
 
     async fn recycle(&self, lease: &ResourceLease, taint_reason: Option<String>) -> Result<()> {
         validate_worktree_lease(lease)?;
-        let response =
-            self.pool.recycle_task_slot(&self.project, &lease.task_id, taint_reason).await?;
-        if !response.recycled {
+        if !self
+            .pool
+            .finish_run(&self.project, &lease.task_id, lease.holder_id.as_str(), taint_reason)
+            .await?
+        {
             bail!("worktree lease is not active for task: {}", lease.task_id.as_ref());
         }
         Ok(())
@@ -67,7 +71,7 @@ pub(super) fn lease_from_slot(
     slot: TaskPoolWorktreeSlotDto,
 ) -> Result<ResourceLease> {
     Ok(ResourceLease {
-        resource_kind: ResourceKind::Worktree,
+        resource_kind: ResourceKind::WorkerSlot,
         resource_id: ResourceId::new(slot.id.clone())?,
         holder_id: request.holder_id,
         task_id: leased_task_id(slot.leased_task_id, &request.task_id)?,
@@ -94,8 +98,8 @@ fn leased_task_id(slot_task_id: Option<TaskId>, request_task_id: &TaskId) -> Res
 }
 
 fn validate_worktree_lease(lease: &ResourceLease) -> Result<()> {
-    // 释放路径只接受工作树租约，防止把其它资源误交给工作树池回收。
-    if lease.resource_kind != ResourceKind::Worktree {
+    // 释放路径只接受逻辑工位租约，避免误回收 Git 或其它资源。
+    if lease.resource_kind != ResourceKind::WorkerSlot {
         bail!("resource lease is not a worktree lease");
     }
     Ok(())

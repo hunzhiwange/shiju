@@ -501,6 +501,11 @@ pub enum TaskPoolWorktreeSlotStateDto {
 /// 任务池 worktree 槽位快照。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskPoolWorktreeSlotDto {
+    /// 现有智能体定义及独立运行的投射，不创建员工账户。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
     pub id: String,
     pub path: String,
     pub branch: String,

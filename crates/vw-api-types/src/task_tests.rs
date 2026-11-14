@@ -63,6 +63,8 @@ fn task_pool_status_keys_round_trip_for_all_builtin_statuses() {
 #[test]
 fn task_worktree_pool_types_round_trip() {
     let slot = TaskPoolWorktreeSlotDto {
+        agent_id: None,
+        run_id: None,
         id: "slot-1".to_string(),
         path: "/repo/.vibewindow/task-worktrees/slot-1".to_string(),
         branch: "vw/task/task-1".to_string(),

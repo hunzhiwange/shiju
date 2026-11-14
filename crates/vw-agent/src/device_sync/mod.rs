@@ -41,3 +41,6 @@ pub mod status;
 pub mod auto_sync;
 
 pub mod lifecycle;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod skill_receive;

@@ -510,3 +510,13 @@ async fn write_form(
         .await,
     )
 }
+
+#[cfg(target_os = "macos")]
+pub(super) async fn sync_saved(database: GlobalDatabase, policy: Option<PathBuf>, headers: HeaderMap,
+    target: &vw_api_types::agent_apps::DataManagementTarget, id: &str,
+) -> Result<(), ()> {
+    let body = serde_json::from_value(serde_json::json!({"targetHostId": target.target_host_id})).map_err(|_| ())?;
+    let response = reapply(Extension(Policy(policy)), Extension(target.scope.tenant_scope().clone()),
+        Some(Extension(database)), headers, Path(id.to_owned()), Ok(Json(body))).await;
+    if response.status().is_success() { Ok(()) } else { Err(()) }
+}

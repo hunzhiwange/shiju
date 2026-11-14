@@ -11,3 +11,6 @@ pub mod webdav_transport;
 pub mod conflict;
 pub mod webdav_remote;
 pub mod s3_remote;
+
+#[cfg(target_os = "macos")]
+pub mod skill_update;

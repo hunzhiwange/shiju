@@ -191,11 +191,19 @@ impl SnapshotImport {
                 "agent_apps.prompts.v1" => SnapshotCategory::Prompt,
                 "agent_apps_user" => SnapshotCategory::Preference,
                 "project_profiles" => SnapshotCategory::Profile,
-                "agent_apps.skills.repos" => SnapshotCategory::Skill,
+                "agent_apps.skills.repos" | "agent_apps.skills.installed" => SnapshotCategory::Skill,
                 _ => SnapshotCategory::Mcp,
             }, object_id: serde_json::to_string(&(&c.namespace, &c.key)).expect("string tuple") },
             state: Some(PresentPreimage { revision: hex::encode(Sha256::digest(c.before.as_bytes())),
                 bytes: c.before.as_bytes().to_vec() }),
         }).collect()
+    }
+}
+
+impl SnapshotImport {
+    /// Trusted installation-owner delta participates in the same preimage CAS
+    /// transaction as the portable configuration, never a remote namespace/key.
+    pub(crate) fn attach_skill_state(&mut self, key: String, before: String, after: String) {
+        self.changes.push(Change { namespace: "agent_apps.skills.installed".into(), key, before, after });
     }
 }

@@ -100,6 +100,11 @@ impl RecordPublicationContext {
     pub(crate) fn replace(&self, key: &str, before: &str, after: &str) -> Result<bool, StatusCode> {
         self.replace_candidate(key, before, after, None, codex_publish::CatalogPolicy::Preserve)
     }
+    /// Rebuild saved projections after an owner transaction changed metadata.
+    /// Force planning even if this host already has a routing revision.
+    pub(crate) fn republish_saved(&self, key: &str, current: &str) -> Result<bool, StatusCode> {
+        self.replace_candidate(key, current, current, Some(&self.expected), codex_publish::CatalogPolicy::Preserve)
+    }
     /// The membership/default API uses this same planner rather than first saving
     /// a candidate state. The unchanged record participates in crash recovery.
     pub(crate) fn publish_candidate(&self, candidate: &AppState) -> Result<bool, StatusCode> {

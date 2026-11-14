@@ -308,3 +308,12 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 新增 system_settings_data/backup_list_ui 与 settings/data_management/backup_list_ui，注册 Apps 入口、状态和消息。复用任务38的创建/列表/重命名/删除/分类/策略 SDK，完整目标保留网关租户、项目、执行主机与显式主体；上下文和请求代次拦截过期响应。重命名和删除显式确认，携带 expected_revision，保护/冲突保留失败反馈；成功后重新读取列表、分类和策略。周期0关闭自动备份，数值范围及保护规则仍由后端校验。创建明确使用本机回退类别，不混作可迁移导出。复用统一设置输入框、按钮、toast及固定标题底部的4px滚动条/7px内容留白，无中文等宽字体。
 
 按最新用户覆盖仅写代码，未运行 Cargo、编译、单元测试、实机或字体整形；没有通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一回归需覆盖真实匿名备份创建、重命名刷新、受保护删除、策略错误、分类刷新、过期响应及macOS明暗主题长列表字体渲染。本轮按要求删除任务卡。
+
+### 任务 43：桌面恢复与损坏诊断向导（实现，未验证）
+
+- 复用任务 38 的 `data_backup_diagnose`、`data_backup_restore_preview`、`data_backup_restore` 和 `data_backup_restore_operation`；SDK 相关 DTO 补充根导出。
+- 应用设置入口使用现有网关、租户、项目、执行主机和授权主体；异步响应核对 catalog identity 与请求代数。诊断与预览不写数据，明确确认才提交，提交后禁止再次恢复。
+- 未来版本显示保留数据提示并禁用恢复；损坏与不可用目标仍可诊断/预览。恢复结果显示任务 ID、写前回退 ID、提交/投影/保留警告；网络失败提示结果不确定，不自动重试。
+- 复用设置弹窗固定标题/操作区、内容滚动 4px 与两侧 7px 留白、主题样式和默认字体；恢复提交错误通过 toast 提示。
+- 用户本轮明确要求仅实现：未运行 Cargo、单元测试、实机或字体整形渲染；未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置，无测试退出码与有效测试数。不得据此认定 macOS 验收通过。
+- 后续统一回归需检查确认/取消写入边界、身份切换丢弃旧响应、损坏/未来 schema、回退 ID 与投影失败，以及实际中文字体渲染。只读静态核对不能代替上述验证。

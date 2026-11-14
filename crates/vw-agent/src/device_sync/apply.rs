@@ -17,6 +17,24 @@ use crate::{
     global_database::GlobalDatabase,
 };
 
+/// Publication lease retained through the settings commit and rollback. Both
+/// single-resource callers and the multi-resource receive owner use this path.
+pub trait SnapshotSkillUpdate: Send + Sync {
+    fn publish(&mut self) -> anyhow::Result<()>;
+    fn rollback(&mut self) -> anyhow::Result<()>;
+    fn finish(self: Box<Self>);
+}
+impl SnapshotSkillUpdate for SkillUpdate {
+    fn publish(&mut self) -> anyhow::Result<()> { Ok(SkillUpdate::publish(self)?) }
+    fn rollback(&mut self) -> anyhow::Result<()> { Ok(SkillUpdate::rollback(self)?) }
+    fn finish(self: Box<Self>) { SkillUpdate::finish(*self); }
+}
+impl SnapshotSkillUpdate for vw_agent_apps::device_sync::skill_update::BatchSkillUpdate {
+    fn publish(&mut self) -> anyhow::Result<()> { Ok(Self::publish(self)?) }
+    fn rollback(&mut self) -> anyhow::Result<()> { Ok(Self::rollback(self)?) }
+    fn finish(self: Box<Self>) { Self::finish(*self); }
+}
+
 /// Failure always retains the durable receipt. A failed rollback also retains
 /// owner guards and staging trees until explicit recovery or drop; the skill
 /// owner preserves displaced trees on disk if drop cannot safely restore them.
@@ -25,7 +43,7 @@ pub struct ApplyFailure {
     pub receipt: SafetySnapshotReceipt,
     pub phase: ApplyPhase,
     pub rollback_failed: bool,
-    pending_skills: Vec<SkillUpdate>,
+    pending_skills: Vec<Box<dyn SnapshotSkillUpdate>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,7 +81,7 @@ impl ApplyFailure {
     }
 }
 
-fn rollback(skills: &mut [SkillUpdate]) -> bool {
+fn rollback(skills: &mut [Box<dyn SnapshotSkillUpdate>]) -> bool {
     let mut failed = false;
     for skill in skills.iter_mut().rev() {
         if skill.rollback().is_err() {
@@ -87,17 +105,18 @@ fn rollback(skills: &mut [SkillUpdate]) -> bool {
 /// successful synchronization. No cancellation/drop boundary occurs during commit. After commit, await
 /// projection completion inline; do not select cancellation against this future.
 #[allow(clippy::too_many_arguments)]
-pub async fn apply_snapshot(
+pub async fn apply_snapshot<S: SnapshotSkillUpdate + 'static>(
     database: &GlobalDatabase,
     _sync_lock: &tokio::sync::OwnedMutexGuard<()>,
     scope: SnapshotScope<'_>,
     preview: SnapshotImport,
-    mut skills: Vec<SkillUpdate>,
+    skills: Vec<S>,
     recovery_root: &Path,
     targets: &[SnapshotTarget],
     capture: impl FnOnce() -> Result<Vec<OwnerPreimage>, SafetySnapshotError>,
     projections: Vec<super::projection::ProjectionJob<'_>>,
 ) -> Result<Result<super::projection::AppliedSnapshot, ApplyFailure>, SafetySnapshotError> {
+    let mut skills: Vec<Box<dyn SnapshotSkillUpdate>> = skills.into_iter().map(|skill| Box::new(skill) as Box<dyn SnapshotSkillUpdate>).collect();
     let safety_scope = SafetySnapshotScope {
         project: scope.project.clone(),
         principal_id: scope.principal.into(),

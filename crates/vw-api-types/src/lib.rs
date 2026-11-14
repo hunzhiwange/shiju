@@ -59,6 +59,7 @@ pub mod mcp_app_network;
 pub mod mcp_management;
 pub mod openclaw_settings;
 pub mod project;
+pub mod project_profiles;
 pub mod provider;
 pub mod question;
 pub mod session;
@@ -179,3 +180,6 @@ pub mod hermes_dashboard;
 
 #[cfg(test)]
 mod openclaw_settings_tests;
+
+#[cfg(test)]
+mod project_profiles_tests;

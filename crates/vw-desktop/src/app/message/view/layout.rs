@@ -55,6 +55,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::WindowClosed(window_id) => {
+            if let Some(index) = app.released_main_windows.iter().position(|id| *id == window_id) {
+                app.released_main_windows.swap_remove(index);
+                return Task::none();
+            }
             if app.main_window_id == Some(window_id) {
                 #[cfg(not(target_arch = "wasm32"))]
                 {
@@ -63,6 +67,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             if mark_window_closed(&mut app.main_window_id, &mut app.task_pet_window_id, window_id)
                 == WindowClosedOutcome::Exit
+                && !(app.close_to_tray && app.main_window_id.is_none() && !app.shutdown_requested)
             {
                 #[cfg(not(target_arch = "wasm32"))]
                 {

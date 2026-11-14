@@ -38,4 +38,5 @@ pub(crate) fn poll_tray() -> Vec<crate::app::message::GeneralSettingsMessage> {
 }
 
 mod window;
-pub(crate) use window::{hide_main_window, show_main_window};
+#[cfg(not(target_os = "macos"))]
+pub(crate) use window::hide_main_window;

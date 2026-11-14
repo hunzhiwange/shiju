@@ -358,6 +358,8 @@ pub struct App {
     pub(crate) window_position: (f32, f32),
     /// 主窗口 ID
     pub(crate) main_window_id: Option<iced::window::Id>,
+    /// 主动释放后尚未收到 Closed 的窗口；迟到事件不能终止后台运行。
+    pub(crate) released_main_windows: Vec<iced::window::Id>,
     /// 独立小宠物窗口 ID
     pub(crate) task_pet_window_id: Option<iced::window::Id>,
     /// 主窗口是否已进入一次性关机流程

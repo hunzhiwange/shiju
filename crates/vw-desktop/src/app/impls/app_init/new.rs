@@ -584,6 +584,7 @@ impl App {
             cursor_position: iced::Point::ORIGIN,
             window_position: (0.0, 0.0),
             main_window_id: None,
+            released_main_windows: Vec::new(),
             task_pet_window_id: None,
             shutdown_requested: false,
             desktop_preferences_persistence: Default::default(),

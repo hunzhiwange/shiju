@@ -103,15 +103,14 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             );
         }
         GeneralSettingsMessage::TrayShow => {
-            if let Some(id) = app.main_window_id {
-                return crate::app::desktop_lifecycle::show_main_window(id);
-            }
+            return app.reopen_main_window();
         }
         GeneralSettingsMessage::TrayQuit =>
         {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(id) = app.main_window_id {
-                return crate::app::message::view::panel::start_shutdown(app, id);
+            {
+                let window_id = app.main_window_id;
+                return crate::app::message::view::panel::shutdown(app, window_id);
             }
         }
         GeneralSettingsMessage::LocaleSelected(locale) => {

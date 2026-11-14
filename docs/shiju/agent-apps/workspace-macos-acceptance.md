@@ -53,3 +53,9 @@
 已静态核对来源 commands/workspace.rs、接口边界、任务 1 正式合同、任务 3 实现与底层 write_guard；RustCodeGraph status/explore 已读取。独立测试源码覆盖九文件中文/空文本往返、缺失读取无副作用、主机拒绝、原子替换保持旧 inode、链接拒绝保留原内容及非法文件名，共五个函数，未运行。底层准备/rename 失败清理沿用既有实现，本轮没有故障注入或运行证据。
 
 按用户本轮要求仅编码与静态审查，未运行 Cargo、单元测试、实机或其它测试，未启动最终回归；没有编译或行为通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号任务文件按要求删除，后续统一验证。
+
+## 任务 5：每日记忆读取与保存（2026-11-14）
+
+新增 daily_memory_files.rs 的 read_daily_memory_file/write_daily_memory_file，复用 DailyMemoryFilename 有效公历日期类型和任务 3 的 WorkspaceDirectory。仅操作解析后的 OpenClaw workspace/memory，读取缺失返回 None，中文及空文本通过既有物理锁、私有文件与原子替换保存，拒绝主机不匹配及不安全链接。调用者须先授权内容读写并提供可信执行主机、HOME 和工作区根；不新增列表、搜索或权限入口。
+
+已静态核对来源、前置合同、日期 DTO 与文件 IO/写锁实现；新增四个 daily_roundtrip_valid_dates 前缀测试源码，未执行。依本轮要求未运行 Cargo、单元测试、实机或其他测试，未启动最终回归，不声明验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证该过滤测试及写入失败场景。本任务卡按用户指令删除。

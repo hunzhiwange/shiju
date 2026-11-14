@@ -436,7 +436,24 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
         SystemTab::ArchivedChats => super::system_settings_archived_chats::view(app),
         SystemTab::Worktrees => super::system_settings_worktrees::view(app),
         SystemTab::Providers => {
-            crate::app::components::system_settings_providers::connected::view(app)
+            use super::system_settings_common::{rounded_action_btn_style, settings_muted_text_style};
+            use iced::widget::{button, text};
+
+            column![
+                text("应用供应商由应用目录管理；选择目标应用后可查看执行主机上的配置与状态。")
+                    .size(13)
+                    .style(settings_muted_text_style),
+                button(text("管理应用供应商"))
+                    .padding([8, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press(Message::Settings(message::SettingsMessage::SystemTabSelected(
+                        SystemTab::Apps,
+                    ))),
+                crate::app::components::system_settings_providers::connected::view(app),
+            ]
+            .spacing(12)
+            .width(Length::Fill)
+            .into()
         }
         SystemTab::Models => crate::app::components::system_settings_models::view(app),
         SystemTab::Cron => crate::app::components::system_settings_cron::view(app),

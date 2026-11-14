@@ -357,7 +357,7 @@ pub(super) async fn forward_json(
                 })
                 .await;
         }
-        transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await
+        forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await
     };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
@@ -658,4 +658,41 @@ pub(super) fn is_content_type(headers: &HeaderMap, expected: &str) -> bool {
             value.split(';').next().is_some_and(|media| media.trim().eq_ignore_ascii_case(expected))
         })
     }) && values.next().is_none()
+}
+
+/// Inspect only bounded HTTP error bodies before any client output. The repaired
+/// request keeps the exact authorized URL, credentials, transport and cancellation.
+async fn forward_rectified(
+    transport: &SharedTransport,
+    url: &reqwest::Url,
+    outgoing: reqwest::Request,
+    wire: HeaderWire,
+    cancelled: tokio_util::sync::CancellationToken,
+    listener: SocketAddr,
+) -> Result<Response, RouteError> {
+    let retry = outgoing.try_clone();
+    let response = transport.forward_ordered(url, outgoing, wire.clone(), cancelled.clone(), listener).await?;
+    if !matches!(response.status().as_u16(), 400 | 422 | 502) {
+        return Ok(response);
+    }
+    let Some(mut retry) = retry else { return Ok(response); };
+    let Some(bytes) = retry.body().and_then(reqwest::Body::as_bytes) else { return Ok(response); };
+    let input: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let (mut parts, body) = response.into_parts();
+    let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
+    let bytes = decode_response::decode(body, codings, MAX_JSON_BYTES).await.map_err(upstream_decode_status)?;
+    let repaired = crate::model_relay::signature_rectify::repair(&input, parts.status, &bytes, url);
+    let repaired = match repaired {
+        Ok(value) => value,
+        Err(()) => return Err(RouteError::UnreadableAgentTask),
+    };
+    let Some(repaired) = repaired else {
+        parts.headers.remove(header::CONTENT_ENCODING);
+        parts.headers.remove(header::CONTENT_LENGTH);
+        return Ok(Response::from_parts(parts, Body::from(bytes)));
+    };
+    *retry.body_mut() = Some(body_limits::encode_json(&repaired, MAX_JSON_BYTES).map_err(request_body_status)?.into());
+    retry.headers_mut().remove(header::CONTENT_LENGTH);
+    // Deliberately no loop: a second rejection is returned without another replay.
+    Ok(transport.forward_ordered(url, retry, wire, cancelled, listener).await?)
 }

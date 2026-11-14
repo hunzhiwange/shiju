@@ -93,6 +93,7 @@ pub(super) enum RouteError {
     Status(StatusCode),
     UpstreamStatus(StatusCode),
     StreamFailed,
+    UnreadableAgentTask,
 }
 
 impl From<StatusCode> for RouteError {
@@ -109,6 +110,7 @@ impl RouteError {
     pub(super) fn status(self) -> StatusCode {
         match self {
             Self::Status(status) => status,
+            Self::UnreadableAgentTask => StatusCode::BAD_REQUEST,
             Self::UpstreamStatus(
                 status @ (StatusCode::PAYLOAD_TOO_LARGE | StatusCode::UNAUTHORIZED),
             ) => status,
@@ -121,6 +123,7 @@ impl RouteError {
 
     fn details(self) -> (&'static str, &'static str) {
         match self {
+            Self::UnreadableAgentTask => ("unreadable_encrypted_agent_task", "The current provider cannot read the encrypted agent task. Use the main agent provider for this task."),
             Self::UpstreamStatus(StatusCode::PAYLOAD_TOO_LARGE) => (
                 "upstream_request_too_large",
                 "The request exceeds the upstream provider's size limit.",

@@ -172,3 +172,7 @@ mod late_arguments_tests;
 pub(crate) mod xai_responses;
 #[cfg(test)]
 mod xai_responses_tests;
+
+pub(crate) mod signature_rectify;
+#[cfg(test)]
+mod signature_rectify_tests;

@@ -1151,3 +1151,11 @@ Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 sig
 新增 model_relay::xai_responses，仅在常驻 native_responses 分支、覆盖参数与目标模型确定后调用 prepare，之后仍执行可信引用检查。以授权 URL 的精确 api.x.ai 主机和 Responses 路径为门控，避免来源 contains 判断误命中相似主机。按冻结来源清理顶层私有字段、include 标记、grok-4.5 采样字段、递归 external_web_access，提升 additional_tools、清理 reasoning null content、过滤不支持工具及失效工具选择、兼容函数参数根 schema。协作消息、模型目录重映射、返回参数改写不属于本次清理行为。普通 Responses 与旧 session relay 不进入此层，无凭据读取或工具执行。
 
 新增 cc_route_063_ 测试源码覆盖清理、幂等、工具选择保留、schema 和非目标隔离，未执行。按用户覆盖要求未运行 Cargo、单元测试、实机测试或最终回归，没有通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务文件按要求删除；后续统一验证本项用例及 macOS 常驻入口，Windows/Linux/WSL 范围外、未验证。
+
+## 任务65：限定签名与不透明状态纠错（代码交付，未验证）
+
+2026-11-14：按用户覆盖要求不执行 Cargo、单元测试、实机测试和最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务64已有推理选项规范化提交 bf91f2376，公共传输、可信作用域、配置与账号接口沿用现有源码合同，不推定前置实机验收完成。
+
+读取冻结 upstream 的 thinking_rectifier.rs、opaque_state_rectifier.rs 与当前 dispatch/传输调用链。新增 signature_rectify，仅对明确签名或不透明状态拒绝修改可修复历史；不采用来源对泛化 invalid request 的宽泛匹配。工具参数与 call_id 保留，当前加密 agent 任务返回 unreadable_encrypted_agent_task。普通常驻分发在同一授权 URL、凭据、出口、取消令牌和原超时内最多重发一次；仅检查 HTTP 400/422/502 的有界解码错误体，成功 SSE 和流内错误均不重放。旧 session relay 不接入。
+
+故障转移路径由既有 RetryBudget 独立所有，本次未叠加纠错发送，后续需统一其请求级预算后补齐该路径。未宣称本项全行为完成。新增 cc_route_065_ 测试源码供统一验证，尚未执行。macOS 待验证，Windows/Linux/WSL 范围外、未验证。按用户覆盖要求删除编号任务文件。

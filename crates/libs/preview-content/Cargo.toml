@@ -1,0 +1,8 @@
+[package]
+name = "preview-content"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false

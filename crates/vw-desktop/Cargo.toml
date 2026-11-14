@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+preview-content = { path = "../libs/preview-content", version = "0.6.0" }
 theme-model = { path = "../libs/theme-model", version = "0.6.0" }
 diff-text = { path = "../libs/diff-text", version = "0.6.0" }
 anyhow = "1"

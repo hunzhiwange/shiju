@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": 59,
+  "title": "编写迁入及停用指南",
+  "status": "documentation_written_unverified",
+  "acceptance_passed": false,
+  "date": "2026-11-14",
+  "instruction_override": "仅交付必要文档；不运行Cargo、构建、单元测试、实机测试、验收或最终回归。删除编号卡，验证统一延期。",
+  "deliverable": "docs/shiju/cc-macos-acceptance/migration.md",
+  "baseline": {
+    "read_head": "63f2a35bd3ac2644f26e3c9acc56698ae2a083f0",
+    "read_head_tree": "e1a0f302db7a3815f28a03608f80bc6f38fbcffb",
+    "runtime_contract_baseline": "90330f6c232537e310d63821238c6f1e980fb576",
+    "worktree": "共享checkout存在其他任务改动；本任务未触及产品树。HEAD不是冻结运行产物证明。",
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_version": null
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "read_sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "read_only_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "read_sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "read_only_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/18.json",
+      "read_sha256": "19d0c9edf35b0c571eabe79502deb0d4eec701c6f6f7d5c928df950771c058ce",
+      "status": "read_only_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/agent-apps/data-management-contracts.md",
+      "read_sha256": "6ded2815eeadc22a1f8b398068a17c775da0fc6beaafeb415274459a0438e942",
+      "status": "read_only_not_revalidated"
+    },
+    {
+      "path": "docs/shiju/agent-apps/data-management-macos.md",
+      "read_sha256": "fe03ea52ccccb43213e82c56702355686bbfc69d814e258c38b5d5b86e49d016",
+      "status": "read_only_not_revalidated"
+    }
+  ],
+  "missing_parent_card": ".plans/2026-11-05-CC能力完整融合/18-配置迁入导出备份与恢复.md",
+  "dependency_gaps": [
+    {
+      "owner": "前置任务1及构建资源所有者",
+      "detail": "运行契约不可执行；缺验证入口、冻结产物、应用版本和隔离主机。"
+    },
+    {
+      "owner": "母任务18及领域所有者",
+      "detail": "交付文档记载七类生产链路与跨类别回退缺口；供应商live投影失败。未独立核证，不可停用放行。"
+    }
+  ],
+  "execution": {
+    "commands": [],
+    "exit_codes": [],
+    "behavior_cases_ran": 0,
+    "passed": null,
+    "failed": null,
+    "note": "仅文件读取、文档写入和限定路径Git提交操作；不执行验证。准备性组合读取中母任务卡报No such file or directory，不将组合命令退出0视为依赖齐全。"
+  },
+  "deferred_work": [
+    "JSON格式、内部链接、凭据及文档差异检查",
+    "补齐当前基线验证入口与产物身份",
+    "逐段复核行为与完整迁入/备份恢复/直连/停用证据",
+    "ARM64与x64各自的应用实测及最终回归"
+  ],
+  "cleanup": {
+    "runtime_resources": "未创建进程、槽位、账号或测试资源，无运行资源待清理。",
+    "task_card": "按用户覆盖要求删除任务59编号卡，持久记录保留。"
+  },
+  "scope": "仅macOS文档；不修改业务代码、只读plan或其他任务证据；未执行迁入、卸载或用户数据清理。"
+}

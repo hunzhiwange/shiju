@@ -57,6 +57,7 @@ pub mod knowledge;
 pub mod mcp;
 pub mod mcp_app_network;
 pub mod mcp_management;
+pub mod openclaw_settings;
 pub mod project;
 pub mod provider;
 pub mod question;
@@ -175,3 +176,6 @@ pub mod workspace_memory;
 mod workspace_memory_tests;
 
 pub mod hermes_dashboard;
+
+#[cfg(test)]
+mod openclaw_settings_tests;

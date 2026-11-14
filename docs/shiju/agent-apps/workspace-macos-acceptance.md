@@ -180,3 +180,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 openclaw_settings 的 model/catalog/defaults/env/tools/health/WriteOutcome DTO，保留分节扩展、未知 profile、缺失与空对象及结构化警告和 backupPath。defaults/env 沿用领域对象形状；不新增路径或命令入口，env 独立敏感读取权限明确为调用者合同，载荷不派生 Debug。来源 WriteOutcome 为结构化 warnings，现有领域字符串 warnings 由后续路由适配。
 
 静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
+
+## 任务 22：OpenClaw 设置接口类型（2026-11-14）
+
+新增 openclaw_settings 的 model/catalog/defaults/env/tools/health/WriteOutcome DTO，保留分节扩展、未知 profile、缺失与空对象及结构化警告和 backupPath。defaults/env 沿用领域对象形状；不新增路径或命令入口，env 独立敏感读取权限明确为调用者合同，载荷不派生 Debug。来源 WriteOutcome 为结构化 warnings，现有领域字符串 warnings 由后续路由适配。
+
+静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。

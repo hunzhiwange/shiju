@@ -181,3 +181,11 @@ select/current 接收既有 ProjectScope，记录 ProjectId 而不复制项目�
 macOS 执行端适配 `gateway/agent_apps/profile_skills.rs::apply_resolved_skills` 接母任务 12 的 `SkillInstallsStore::enable_with_method/disable_deploy`，保留其事务、版本检查和失败恢复；每项重新读取当前版本，沿用保存的同步模式，只传指定应用实例。profile 的 installationId 是不透明技能引用，底层 distribution 的 installation_id 则是应用实例身份，两者不可混用。执行端必须将技能引用解析成唯一目录、拒绝重复目录别名，并从该应用实例的实际部署观察 enabled；不能直接把客户端目录或期望绑定状态传入。未完成此解析、项目/主机/逐项领域授权及外层串行化前，不得调用适配器。Claude Desktop 沿底层能力明确返回 Unsupported。
 
 当前提供编排与分发适配，生产 API、原生观察/引用解析接线由后续应用任务完成；未声称平台闭环。按用户本轮覆盖要求仅写代码与必需契约，未编写或运行测试，未执行 Cargo、构建、检查、实机或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。后续补充并执行 profile_t13_ 场景：组隔离、重复应用不重物化、null/空集合区别、缺失引用、单项失败后继续、权限拒绝及 Desktop 不支持。
+
+## 任务 16：应用汇总和真实状态
+
+`project_profiles/apply.rs::apply_prepared` 消费任务 15 的 PreparedProfileSwitch，保留 autosave warning，按供应商、MCP、技能、提示词顺序完成领域回调，统一各领域返回形状；单项失败继续并返回 partial，取消结果返回 cancelled，全部必要类别确认成功才返回 applied。null 类别不读写，以 Succeeded + uncaptured_slot_skipped 表达跳过（现有 DTO 没有 Skipped）；整组未拍仅选择并返回 uncaptured。MCP/技能无差异的空结果代表领域已完成观察，不代表跳过读取。
+
+`ProfileOperation::apply_prepared` 接汇总入口，先通过同一设置事务选择目标、写入保守 Failed 状态以清除旧 applied 声明，再执行领域回调，最后事务保存结果；初始记录失败零领域写入，最后记录失败返回错误，保留保守状态。结果存于原 selected 记录的可空 application 字段，旧记录默认 None；普通 select 清除 application，clear/delete 随选择记录清理结果。application_result 在同项目/主机/组授权和槽归属检查后读取。状态是最近组合操作的确认结果，不能代替后续原生漂移观察。
+
+后续生产执行端必须在 with_operation 的同一阻塞 worker 中先 prepare_switch，再调用 apply_prepared，四个回调分别调用已有 apply_provider、apply_mcp、apply_skills、apply_prompt，沿领域服务做授权、版本和真实状态核对；异步 MCP 必须在执行端运行时完整等待，禁止脱离操作锁后台写入。本轮未接生产 API 或补造统一原生观察器。按用户覆盖要求只写代码及必需契约，未编写/执行测试，未执行 Cargo、构建、检查、实机或回归；无 Cargo 槽位，CARGO_TARGET_DIR 未设置。所有实现未经编译和行为验证，后续补 profile_t16_ 的全成功、领域失败继续、未拍零写入、autosave warning、初始/最终持久化失败及标记一致性场景。

@@ -31,6 +31,8 @@ pub(crate) struct ProfileSelection {
     pub(crate) group: ProjectProfileScope,
     pub(crate) project_id: String,
     pub(crate) profile_id: ProjectProfileId,
+    #[serde(default)]
+    pub(crate) application: Option<vw_api_types::project_profiles::ProjectProfileApplyResult>,
 }
 
 #[derive(Clone)]
@@ -260,16 +262,84 @@ impl ProfileOperation<'_> {
             }) {
                 ensure!(selection.project_id == project.project_id().as_ref(), "profile slot owned by another project");
                 selection.profile_id = id.clone();
+                selection.application = None;
             } else {
                 state.selections.push(ProfileSelection {
                     target_host_id: target_host_id.to_owned(),
                     group,
                     project_id: project.project_id().as_ref().to_owned(),
                     profile_id: id.clone(),
+                    application: None,
                 });
             }
             Ok(())
         })
+    }
+
+    /// Consume prepare_switch's authorized target while this operation owns the
+    /// outer lock. Domain adapters run sequentially on the same blocking worker.
+    pub(crate) fn apply_prepared<P, M, S, R>(
+        &self,
+        scope: &SnapshotScope<'_>,
+        prepared: vw_agent_apps::project_profiles::autosave::PreparedProfileSwitch,
+        provider: P, mcp: M, skills: S, prompt: R,
+    ) -> Result<vw_agent_apps::project_profiles::apply::ApplyOutcome>
+    where
+        P: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+            -> Option<vw_api_types::project_profiles::ProjectProfileItemResult>,
+        M: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+            -> Vec<vw_api_types::project_profiles::ProjectProfileItemResult>,
+        S: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+            -> Result<vw_agent_apps::project_profiles::apply_skills::SkillsApplyResult,
+                vw_agent_apps::project_profiles::apply_skills::SkillApplyFailure>,
+        R: FnOnce(&SnapshotScope<'_>, &vw_api_types::project_profiles::ProjectProfilePayload)
+            -> Option<Result<(), vw_agent_apps::project_profiles::apply_prompt::PromptApplyFailure>>,
+    {
+        let version = prepared.target.version;
+        vw_agent_apps::project_profiles::apply::apply_prepared(
+            scope, prepared, provider, mcp, skills, prompt,
+            |result| self.record_application(scope, version, result),
+        )
+    }
+
+    /// Callback for apply_prepared: the initial conservative record must commit
+    /// before any native write. Final metadata failure leaves no applied claim.
+    pub(crate) fn record_application(
+        &self,
+        scope: &SnapshotScope<'_>,
+        expected_version: u64,
+        result: &vw_api_types::project_profiles::ProjectProfileApplyResult,
+    ) -> Result<()> {
+        ensure!(scope.target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
+        ensure!(result.group == scope.group && result.selected, "invalid application result scope");
+        self.mutate(scope.project.tenant_scope(), |state| {
+            let profile = state.profiles.get(&result.profile_id.0).context("project profile not found")?;
+            ensure!(profile.version == expected_version, "project profile version conflict");
+            if let Some(selection) = state.selections.iter_mut().find(|selection|
+                selection.target_host_id == scope.target_host_id && selection.group == scope.group
+            ) {
+                ensure!(selection.project_id == scope.project.project_id().as_ref(), "profile slot owned by another project");
+                selection.profile_id = result.profile_id.clone();
+                selection.application = Some(result.clone());
+            } else {
+                state.selections.push(ProfileSelection {
+                    target_host_id: scope.target_host_id.to_owned(), group: scope.group,
+                    project_id: scope.project.project_id().as_ref().to_owned(),
+                    profile_id: result.profile_id.clone(), application: Some(result.clone()),
+                });
+            }
+            Ok(())
+        })
+    }
+
+    pub(crate) fn application_result(
+        &self,
+        scope: &SnapshotScope<'_>,
+    ) -> Result<Option<vw_api_types::project_profiles::ProjectProfileApplyResult>> {
+        self.current(scope.project, scope.target_host_id, scope.group)?;
+        Ok(self.read(scope.project.tenant_scope())?.selections.into_iter().find(|selection|
+            selection.target_host_id == scope.target_host_id && selection.group == scope.group
+        ).and_then(|selection| selection.application))
     }
 
     /// Clear only this authorized project's current group marker, including a

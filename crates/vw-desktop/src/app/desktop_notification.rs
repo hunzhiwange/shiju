@@ -1,11 +1,19 @@
 //! 原生桌面完成提醒；系统调用在阻塞线程执行，不携带对话内容。
 
 use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
-use crate::app::{Message, i18n::I18n};
+use crate::app::{App, Message, i18n::I18n};
 use iced::Task;
 use vw_config_types::ui::DesktopLocale;
 
 pub(crate) const SUPPORTED: bool = cfg!(any(target_os = "macos", target_os = "windows"));
+
+/// 通知只是附加提醒；权限或发送失败不能覆盖当前业务反馈。
+pub(crate) fn failure_feedback(app: &mut App, error: String) -> Task<Message> {
+    if app.active_toast.is_some() {
+        return Task::none();
+    }
+    app.show_error_toast(error)
+}
 
 pub(crate) fn completion_task(locale: DesktopLocale) -> Task<Message> {
     let i18n = I18n::new(locale);

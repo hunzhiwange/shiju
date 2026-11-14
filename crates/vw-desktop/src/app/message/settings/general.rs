@@ -159,7 +159,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         GeneralSettingsMessage::TaskCompletionNotificationPermissionChecked(result) => {
             if let Err(error) = result {
-                let feedback = app.show_error_toast(error);
+                let feedback = crate::app::desktop_notification::failure_feedback(app, error);
                 let disable = update(
                     app,
                     SettingsMessage::General(
@@ -194,10 +194,13 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         GeneralSettingsMessage::TaskCompletionNotificationSent(result) => {
             if let Err(error) = result {
                 let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-                return app.show_error_toast(format!(
-                    "{} {error}",
-                    i18n.__("系统通知发送失败，请检查系统通知权限。"),
-                ));
+                return crate::app::desktop_notification::failure_feedback(
+                    app,
+                    format!(
+                        "{} {error}",
+                        i18n.__("系统通知发送失败，请检查系统通知权限。"),
+                    ),
+                );
             }
         }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {

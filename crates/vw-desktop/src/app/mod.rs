@@ -16,6 +16,8 @@ mod desktop_integration_26_tests;
 /// desktop_models 子模块，拆分当前领域的局部职责。
 pub mod desktop_models;
 pub(crate) mod desktop_notification;
+#[cfg(test)]
+mod desktop_integration_29_tests;
 pub(crate) mod desktop_update;
 /// files 子模块，拆分当前领域的局部职责。
 pub mod files;

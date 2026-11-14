@@ -5,8 +5,6 @@ use wry::{
     WebViewExtUnix,
 };
 
-use crate::DEFAULT_TITLE;
-
 pub(super) struct Host(gtk::Window);
 
 impl Host {
@@ -14,9 +12,10 @@ impl Host {
         builder: WebViewBuilder<'_>,
         features: NewWindowFeatures,
         on_close: impl Fn() + 'static,
+        title: &str,
     ) -> wry::Result<(WebView, Self)> {
         let host = Self(gtk::Window::new(gtk::WindowType::Toplevel));
-        host.0.set_title(DEFAULT_TITLE);
+        host.0.set_title(title);
         host.0.set_default_size(960, 720);
         let opener = features.opener.webview;
         if let Some(parent) = opener.toplevel().and_downcast::<gtk::Window>() {

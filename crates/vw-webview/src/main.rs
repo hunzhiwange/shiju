@@ -8,8 +8,6 @@
 use webview_external_protocol::dialog::show_error_dialog;
 #[cfg(not(target_arch = "wasm32"))]
 mod mcp_app;
-#[cfg(not(any(target_arch = "wasm32", coverage)))]
-mod popup;
 #[cfg(not(target_arch = "wasm32"))]
 mod view_region;
 
@@ -290,10 +288,14 @@ fn main() {
     }
 
     let external = ExternalProtocols::default();
-    let popups = popup::PopupWindows::new(
+    let popups = webview_popup::PopupWindows::new(
         proxy.clone(),
         log_path.clone(),
         external.clone(),
+        #[cfg(unix)]
+        DEFAULT_TITLE,
+        #[cfg(target_os = "macos")]
+        SAFARI_USER_AGENT,
         #[cfg(windows)]
         &window,
     );

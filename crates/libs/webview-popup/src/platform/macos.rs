@@ -13,7 +13,6 @@ use wry::{
 };
 
 use webview_downloads::{AttachmentNavigationDelegate, enable_attachments};
-use crate::{DEFAULT_TITLE, SAFARI_USER_AGENT};
 
 struct CloseCallbacks {
     original: Retained<ProtocolObject<dyn WKUIDelegate>>,
@@ -77,6 +76,8 @@ impl Host {
         builder: WebViewBuilder<'_>,
         features: NewWindowFeatures,
         on_close: impl Fn() + 'static,
+        title: &str,
+        user_agent: &str,
         log_path: &Path,
     ) -> wry::Result<(WebView, Self)> {
         let mtm = MainThreadMarker::new().ok_or(wry::Error::NotMainThread)?;
@@ -98,7 +99,7 @@ impl Host {
             )
         };
         unsafe { window.setReleasedWhenClosed(false) };
-        window.setTitle(&NSString::from_str(DEFAULT_TITLE));
+        window.setTitle(&NSString::from_str(title));
         window.center();
         if let Some(parent) = features.opener.webview.window() {
             window.setLevel(parent.level());
@@ -110,7 +111,7 @@ impl Host {
         // toolbar IPC and needs its own user scripts instead of the parent's.
         unsafe { config.setUserContentController(&WKUserContentController::new(mtm)) };
         let webview = webview_downloads::with_downloads(builder, log_path)
-            .with_user_agent(SAFARI_USER_AGENT)
+            .with_user_agent(user_agent)
             .with_webview_configuration(config)
             .build(&content_view)?;
         let attachments = enable_attachments(&webview);

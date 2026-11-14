@@ -16,6 +16,7 @@ name = "vw-webview"
 path = "src/main.rs"
 
 [dependencies]
+webview-popup = { path = "../libs/webview-popup", version = "0.6.0" }
 webview-media-permissions = { path = "../libs/webview-media-permissions", version = "0.6.0" }
 webview-downloads = { path = "../libs/webview-downloads", version = "0.6.0" }
 webview-native-menu = { path = "../libs/webview-native-menu", version = "0.6.0" }
@@ -76,14 +77,6 @@ objc2-web-kit = { version = "0.3", default-features = false, features = [
     "WKUserContentController",
     "WKWebView",
     "WKWebViewConfiguration",
-] }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = [
-    "Win32_Foundation",
-    "Win32_System_Registry",
-    "Win32_UI_Shell",
-    "Win32_UI_WindowsAndMessaging",
 ] }
 
 [features]

@@ -1,3 +1,5 @@
+#![cfg(not(any(target_arch = "wasm32", coverage)))]
+
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -8,18 +10,18 @@ use wry::{NewWindowFeatures, NewWindowResponse, WebView, WebViewBuilder};
 
 use webview_external_protocol::ExternalProtocols;
 use webview_core::navigation::{ExternalTarget, Navigation, navigation};
-use crate::UserEvent;
+use webview_core::events::UserEvent;
 use webview_storage::append_log;
 
 #[cfg(target_os = "macos")]
-#[path = "popup/macos.rs"]
+#[path = "platform/macos.rs"]
 mod platform;
 #[cfg(target_os = "windows")]
-#[path = "popup/windows.rs"]
+#[path = "platform/windows.rs"]
 mod platform;
 #[cfg(unix)]
 #[cfg(not(target_os = "macos"))]
-#[path = "popup/unix.rs"]
+#[path = "platform/unix.rs"]
 mod platform;
 
 struct Popup {
@@ -28,21 +30,27 @@ struct Popup {
     _host: platform::Host,
 }
 
-pub(crate) struct PopupWindows {
+pub struct PopupWindows {
     windows: RefCell<HashMap<u64, Popup>>,
     next_id: Cell<u64>,
     proxy: EventLoopProxy<UserEvent>,
     external: ExternalProtocols,
     log_path: PathBuf,
+    #[cfg(unix)]
+    title: &'static str,
+    #[cfg(target_os = "macos")]
+    user_agent: &'static str,
     #[cfg(windows)]
     owner: platform::Owner,
 }
 
 impl PopupWindows {
-    pub(crate) fn new(
+    pub fn new(
         proxy: EventLoopProxy<UserEvent>,
         log_path: PathBuf,
         external: ExternalProtocols,
+        #[cfg(unix)] title: &'static str,
+        #[cfg(target_os = "macos")] user_agent: &'static str,
         #[cfg(windows)] owner: &tao::window::Window,
     ) -> Rc<Self> {
         Rc::new(Self {
@@ -51,12 +59,16 @@ impl PopupWindows {
             proxy,
             external,
             log_path,
+            #[cfg(unix)]
+            title,
+            #[cfg(target_os = "macos")]
+            user_agent,
             #[cfg(windows)]
             owner: platform::Owner::new(owner),
         })
     }
 
-    pub(crate) fn with_handler<'a>(
+    pub fn with_handler<'a>(
         self: &Rc<Self>,
         builder: WebViewBuilder<'a>,
         popup: Option<u64>,
@@ -116,6 +128,10 @@ impl PopupWindows {
             builder,
             features,
             on_close,
+            #[cfg(unix)]
+            self.title,
+            #[cfg(target_os = "macos")]
+            self.user_agent,
             #[cfg(target_os = "macos")]
             &self.log_path,
             #[cfg(windows)]
@@ -128,7 +144,7 @@ impl PopupWindows {
         Ok(response)
     }
 
-    pub(crate) fn show_external_confirmation(
+    pub fn show_external_confirmation(
         &self,
         id: u64,
         target: ExternalTarget,
@@ -145,7 +161,7 @@ impl PopupWindows {
         }
     }
 
-    pub(crate) fn close(&self, id: u64) {
+    pub fn close(&self, id: u64) {
         // The native callbacks only enqueue close events. Drop outside the map borrow.
         let closed = self.windows.borrow_mut().remove(&id);
         drop(closed);

@@ -20,3 +20,5 @@ pub mod usage_settings;
 
 #[cfg(test)]
 mod usage_settings_tests;
+
+pub mod prompts_store;

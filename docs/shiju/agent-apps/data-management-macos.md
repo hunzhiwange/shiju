@@ -310,3 +310,11 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 仅支持现有 backup_capture 的完整偏好归档：严格核对两个固定对象及 AppUserPreferences/AppHostPreferences 编码和内容摘要，其他 owner 不进入写入。预览返回归档修订，确认要求相同修订及显式 confirmed。目标和幂等键生成持久操作 ID，同键异参冲突；后台执行期间持有与备份维护共用的跨进程目录锁及源归档保护。恢复使用任务27的 recover_from_backup，持久化安全快照回执后，SQLite Immediate 事务重新核对两个当前前镜像，原子恢复存在/不存在状态，并在同一事务发布 committed 终态。版本冲突或事务失败不产生部分 owner 写入。孤儿任务仅在执行 PID 确认退出后报告失败，查询不自动重放恢复。安全快照使用既有独立快照格式；归档保留不会清理快照。原生投影尚未接通，明确报告 refresh_required；保留清理失败单独报告。
 
 新增并注册 `backup_restore_api_tests.rs` 的两个 `cc_data_35_` HTTP 场景代码，覆盖实际偏好变更后的恢复、回退 ID、异步终态、幂等重放、诊断及四个入口未授权拒绝。没有运行这些测试。按用户覆盖要求未调用 Cargo、构建、单元或实机测试，无通过证据、测试数量或退出码；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。仅对新增 Rust 文件执行独立 rustfmt。待统一回归使用仓库槽位入口执行 `cargo test -j 1 -p vw-agent --lib cc_data_35_ -- --nocapture`，并补充损坏归档/目标、跨作用域、并发更新、进程中断与保留保护场景。
+
+## 子任务 38：备份恢复客户端 SDK（2026-11-14，实现未验证）
+
+新增 agent_apps_data/backup_sdk.rs 与独立 backup_sdk_tests.rs，父模块公开类型和 GatewayClient::data_backup_*：创建（保留 null）、列表、重命名、删除、恢复预览/执行/查询、诊断、分类列表/清理、策略读写。复用任务37的有界原生 HTTP 传输；无自动重试、重定向、客户端路径或真实数据访问。ID 在 JSON 中传输，完整租户/项目/主机/principal 原样保留；分类统计仅描述执行主机，不能作为本机可打开目录。按任务34/35/36实际接口解码：409无正文只报告冲突，不推测保护或修订原因；恢复独立状态保留 committed、refresh_required 与 retentionFailed；部分清理保留 undeletedCount。恢复查询使用 restore/get，不能误用迁入 operations/get。
+
+新增并注册 cc_data_38_backup_sdk_decodes_protected_conflict 与 cc_data_38_backup_sdk_preserves_remote_host_identity 本地动态端口 HTTP 测试代码，覆盖不安全字符ID、裸409、授权头、主机身份、恢复后保留失败、部分清理和策略读写。仅静态核对前置生产代码和来源 useBackupManager.ts，未运行测试，不能作为行为通过证据。
+
+按最新用户覆盖未执行任何 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。后续统一回归执行 python3 scripts/cargo_slot.py cargo test -j 1 -p vw-gateway-client --lib cc_data_38_ -- --nocapture，并补完整端点响应、诊断 snake_case/SystemTime 解码、断连/超时、鉴权与真实保护源集成。按要求实现后删除任务卡。

@@ -87,7 +87,7 @@ impl GatewayClient {
         self.data_migration_bytes("export/download", &DownloadRequest { target, transfer_id }, token).await
     }
 
-    async fn data_migration_json<B: Serialize, T: DeserializeOwned>(&self, route: &str, input: &B, token: Option<&str>) -> Result<T, DataMigrationError> {
+    pub(super) async fn data_migration_json<B: Serialize, T: DeserializeOwned>(&self, route: &str, input: &B, token: Option<&str>) -> Result<T, DataMigrationError> {
         let bytes = self.data_migration_bytes(route, input, token).await?;
         serde_json::from_slice(&bytes).map_err(|_| DataMigrationError::Decode)
     }

@@ -133,3 +133,114 @@ async fn cc_route_014_listener_filters_the_authorized_outgoing_json() {
     upstream_task.abort();
     assert!(upstream_task.await.unwrap_err().is_cancelled());
 }
+
+#[tokio::test]
+async fn cc_route_034_authorized_native_chat_json_and_sse() {
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target =
+        format!("http://{}/v1/chat/completions", upstream.local_addr().unwrap()).parse().unwrap();
+    let (requests, mut received) = mpsc::unbounded_channel();
+    let result = json!({"id":"fixture","model":"fixture","choices":[{"index":0,"message":{"role":"assistant","tool_calls":[{"id":"call_1","type":"function","function":{"name":"lookup","arguments":"{\"city\":\"上海\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}});
+    let stream = format!(
+        "data: {}\n\ndata: {}\n\ndata: [DONE]\n\n",
+        json!({"model":"fixture","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"lookup","arguments":"{}"}}]},"finish_reason":null}]}),
+        json!({"model":"fixture","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":2,"completion_tokens":3,"total_tokens":5}})
+    );
+    let expected_stream = stream.clone();
+    let expected_result = result.clone();
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(
+            upstream,
+            Router::new().route(
+                "/v1/chat/completions",
+                post(move |headers: HeaderMap, Json(body): Json<Value>| {
+                    let result = result.clone();
+                    let stream = stream.clone();
+                    let requests = requests.clone();
+                    async move {
+                        let streaming = body["stream"] == true;
+                        requests.send((headers, body)).unwrap();
+                        if streaming {
+                            ([(header::CONTENT_TYPE, "text/event-stream")], stream).into_response()
+                        } else {
+                            Json(result).into_response()
+                        }
+                    }
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    });
+    let listener = RoutingListener::default();
+    let address = listener.start(0).unwrap();
+    let binding = VerifiedRouteBinding {
+        project: ProjectScope::new(
+            TenantScope::new("platform", "company").unwrap(),
+            "project".into(),
+        )
+        .unwrap(),
+        host: "host".into(),
+        app: AppId::Codex,
+        account: "account".into(),
+        account_generation: 1,
+    };
+    let active = listener
+        .auth
+        .issue_with_target(
+            binding,
+            Some(JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
+                url: target,
+                authorization: "Bearer fixture-upstream".parse().unwrap(),
+                transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
+            }),
+        )
+        .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    for path in [
+        "/chat/completions",
+        "/v1/chat/completions",
+        "/v1/v1/chat/completions",
+        "/codex/v1/chat/completions",
+    ] {
+        let url = format!("http://{address}{path}");
+        assert_eq!(
+            client.post(&url).json(&json!({})).send().await.unwrap().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        for streaming in [false, true] {
+            let body = json!({"model":"fixture","stream":streaming,"messages":[{"role":"tool","tool_call_id":"call_0","content":"done"}],"tools":[{"type":"function","function":{"name":"lookup","parameters":{"type":"object"}}}],"vendor_option":true});
+            let response =
+                client.post(&url).bearer_auth(&active.token).json(&body).send().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            if streaming {
+                assert_eq!(response.text().await.unwrap(), expected_stream);
+            } else {
+                assert_eq!(response.json::<Value>().await.unwrap(), expected_result);
+            }
+            let (headers, outgoing) =
+                timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
+            assert_eq!(headers[header::AUTHORIZATION], "Bearer fixture-upstream");
+            assert_eq!(outgoing, body);
+        }
+    }
+    for path in ["/other/v1/chat/completions", "/v1/chat/completions?x=1", "/v1/chat/completions/"]
+    {
+        let response = client
+            .post(format!("http://{address}{path}"))
+            .bearer_auth(&active.token)
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+    assert!(received.try_recv().is_err());
+    listener.stop().await.unwrap();
+    upstream_task.abort();
+    assert!(upstream_task.await.unwrap_err().is_cancelled());
+}

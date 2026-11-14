@@ -940,3 +940,24 @@ macOS 27.0（26A428）、arm64 自动验收。直接依赖任务32的 `abd4c7575
 本项状态为 **待回归**，保留任务33卡。恢复条件：桌面编辑器所有者对齐依赖接口后，动态领取共享槽位，重新执行上述整仓 Clippy；若解析代码变化，再执行本项原生聚焦测试。槽位4入口已正常退出，锁已释放，缓存保留。未修改只读 plan.md，不宣称母任务8完成。
 
 长构建诊断：对自有 rustc PID46423 采样显示 LLVM ThinLTO、指令选择及调度正在执行，无槽位/编译锁等待；物理占用23.2GiB、峰值39.1GiB，采样前约3分钟仍写入增量依赖图/查询缓存；累计 CPU 时间在连续观测中由67分增至90分。确认有正常进展后等待原生4项通过，未终止其他任务进程。全仓 Clippy 曾仅暂停自有进程组，等待其他检查结束后恢复，保持串行检查。
+
+## 任务34：转发原生 Chat 协议（2026-11-14）
+
+macOS arm64 自动验收。直接前置任务33为“待回归”，按调度契约允许继续实现，未将其当作完成回归。核对冻结 CC Switch 4.0.25 提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`：`proxy/handlers.rs` SHA256 `31fe8c8470f1c7256a1834512817004c67a2f1ce01fea1579485596dcffcc809`、`proxy/providers/codex.rs` SHA256 `56ac9e4f6c1a883403489a1d2f02402b943a937162ee7c4f00a9481893ed8783` 均与来源映射一致，并读取 `proxy/server.rs` 的直接路由注册。复用已注册 vw-agent-apps 底座、成员/执行主机/应用身份、共享传输、配置事务及账号契约。
+
+实现落点：`model_relay::native_chat::is_path` 由 `app_routing::dispatch::forward_json` 调用，仅为常驻 Codex Chat 入口识别来源明确注册的 `/chat/completions`、`/v1/chat/completions`、`/v1/v1/chat/completions`、`/codex/v1/chat/completions`，四者复用同一授权目标和 `prepare_request`/共享传输，不根据客户端路径改变上游 URL。不重复协议转换器，不放宽会话 relay 校验，不执行本地工具。JSON 缓冲及 SSE resident framing/StreamObserver/期限路径沿用既有所有者；工具调用、usage、finish_reason 保持数据透传。
+
+测试：独立 `native_chat_tests.rs` 显式注册，验证注册路径及拒绝未知路径；真实授权回环测试位于既有同职责 `app_routing/dispatch_tests.rs::cc_route_034_authorized_native_chat_json_and_sse`，避免为测试扩大认证内部可见性。覆盖四路径各 JSON/SSE（8次上游请求）、工具历史与工具声明、未知厂商字段、上游凭据替换、中文工具参数、usage/finish_reason；逐路径无凭据请求拒绝，未知前缀、尾斜杠和查询参数不达上游。测试不mock内部认证、路由或共享传输，仅替代外部上游。
+
+红灯：先提取与原 dispatch 等价的单一路径判定，再运行 `python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_034_ -- --nocapture`，槽位6；完整 crate 原生运行1项，`/chat/completions` 行为断言失败，退出101（非缺失符号）。同源独立 rustc 探针同样1项失败；修复后局部探针1项通过，不代替完整 crate 绿灯。
+
+最终阶段命令为 `python3 scripts/cargo_slot.py python3 /tmp/shiju034-validate.py`，其顺序执行：
+
+| 验证命令 | 结果 |
+| --- | --- |
+| `cargo fmt --all -- --emit stdout` | 退出0；为避免共享工作区无关格式化差异，全仓只读输出；本项5个 Rust 文件以 `rustfmt --edition 2024 --config skip_children=true` 定向写回，退出0 |
+| `cargo test -p vw-agent --lib cc_route_034_ -- --nocapture` | 退出0，2项通过、0失败/忽略，包含四路径八次授权 JSON/SSE 回环及拒绝边界 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 退出0，全仓通过 |
+| `git diff --check` | 退出0 |
+
+测试链接报告既有 macOS `__eh_frame` 超过16MiB的链接器警告，不影响测试通过。实际槽位6，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；命令入口正常退出，锁已释放，缓存保留。本项状态为已完成。Windows/Linux/WSL 范围外、未构建或验证，WSL 地址继续保留来源映射；不宣称母任务8完成。

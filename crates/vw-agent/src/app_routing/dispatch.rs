@@ -26,7 +26,6 @@ use tokio::time::Instant;
 use vw_agent_apps::routing::private_params::filter_private_params;
 use vw_api_types::{agent_apps::AppId, app_providers::validation::ProviderRequestOptions};
 
-const CHAT_PATH: &str = "/v1/chat/completions";
 const RESPONSES_PATH: &str = "/v1/responses";
 const JSON: &str = "application/json";
 const SSE: &str = "text/event-stream";
@@ -80,7 +79,10 @@ pub(super) async fn forward_json(
     }
     let responses = request.uri().path() == RESPONSES_PATH;
     let supported = match app {
-        AppId::Codex => matches!(request.uri().path(), CHAT_PATH | RESPONSES_PATH),
+        AppId::Codex => {
+            crate::model_relay::native_chat::is_path(request.uri().path())
+                || request.uri().path() == RESPONSES_PATH
+        }
         AppId::Claude => request.uri().path() == "/v1/messages",
         AppId::ClaudeDesktop => request.uri().path() == "/claude-desktop/v1/messages",
         _ => false,

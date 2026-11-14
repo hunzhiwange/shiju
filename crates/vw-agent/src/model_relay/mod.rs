@@ -66,3 +66,7 @@ pub(crate) mod stream_observer;
 mod sse_framing_tests;
 
 pub(crate) mod sse_framing;
+
+pub(crate) mod native_chat;
+#[cfg(test)]
+mod native_chat_tests;

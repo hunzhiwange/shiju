@@ -9,6 +9,7 @@ members = [
   "crates/libs/theme-store",
   "crates/libs/preview-content",
   "crates/libs/voice-recordings",
+  "crates/libs/audio-playback",
   "crates/libs/file-index",
   "crates/libs/tui-contracts",
   "crates/libs/tui-text",

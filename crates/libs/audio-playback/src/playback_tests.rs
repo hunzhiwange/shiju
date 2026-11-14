@@ -1,4 +1,4 @@
-use super::playback::{PlaybackError, fixture};
+use super::{PlaybackError, fixture};
 fn pcm(samples: &[i16]) -> Vec<u8> {
     samples.iter().flat_map(|s| s.to_le_bytes()).collect()
 }
@@ -85,12 +85,12 @@ fn voice_task_08_playback_stop_and_drop_release_stream() {
         }
     }
     let released = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let (mut player, _) = super::playback::fixture_stream(24000, 1, Stream(released.clone()));
+    let (mut player, _) = super::fixture_stream(24000, 1, Stream(released.clone()));
     player.stop();
     assert_eq!(released.load(std::sync::atomic::Ordering::SeqCst), 1);
     drop(player);
     assert_eq!(released.load(std::sync::atomic::Ordering::SeqCst), 1);
-    let (player, _) = super::playback::fixture_stream(24000, 1, Stream(released.clone()));
+    let (player, _) = super::fixture_stream(24000, 1, Stream(released.clone()));
     drop(player);
     assert_eq!(released.load(std::sync::atomic::Ordering::SeqCst), 2);
 }

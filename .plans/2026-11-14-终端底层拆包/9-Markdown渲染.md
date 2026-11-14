@@ -1,0 +1,44 @@
+# 任务 9：Markdown渲染
+
+先阅读并遵守 [公共执行规则](plan.md)，再执行本任务。
+
+批次：【批次 9】 依赖：批次 8。线性顺序：9；本批无并行任务。
+
+状态：未开始
+
+目的：完成Markdown渲染的单一职责迁移与生产接线。
+
+来源任务：用户要求从 vw-tui 开始，参考 content-guard 拆分低依赖底层。
+
+预计会话范围：仅本职责的真实启用源码、资源与直接消费者；不处理未激活复制模块或改变产品行为。
+
+## 文件
+
+- 来源：`crates/vw-tui/src/markdown.rs`
+- 来源：`crates/vw-tui/src/markdown_render.rs`
+- 来源：`crates/vw-tui/src/markdown_render/`
+- 来源：`crates/vw-tui/src/markdown_text_merge.rs`
+- 来源：`crates/vw-tui/src/table_detect.rs`
+- 目标：`crates/libs/tui-markdown/Cargo.toml`、`crates/libs/tui-markdown/src/lib.rs` 及对应同名模块/独立测试文件；目标为本任务规划新增或前置任务已创建的位置。
+- 接线：根 `Cargo.toml`、`crates/vw-tui/Cargo.toml`、`crates/vw-tui/src/lib.rs` 及上述来源的直接调用者。
+- 既有验证源码参考：`crates/vw-tui/src/markdown_render_tests.rs`；仅核对真实模块声明后保留/迁移，不运行、不新增测试。
+
+## 上下文与边界
+
+依赖 tui-text、tui-render、tui-theme、tui-highlight；保留 cwd 本地路径展示和安全链接处理。
+
+## 步骤
+
+1. 按实际模块声明核对来源及其直接调用者，记录迁移前符号、依赖与测试/资源路径。
+2. 将完整 Markdown 渲染流水线作为闭合单元提取：围栏解包、偏移映射、事件合并、表格列宽及键值回退。包含 markdown_render 的两个子模块。只移动实际启用路径。
+3. 更新必要可见性、路径依赖和重导出；逐项核对被移动项的 crate/self/super、cfg 与测试源码引用，禁止新库反向依赖 vw-tui。
+4. 按公共规则完成静态审阅、提交与任务文件清理。
+
+## 静态验收（替代测试驱动计划）
+
+- 本任务只做等价拆分；用户禁止本阶段测试、Cargo 和实机验证，不编写失败测试，也不宣称行为通过。
+- 在仓库根目录运行 `rg -n 'vw_tui|crate::|super::|include_str!|include_bytes!|#\[path' crates/libs/tui-markdown/src`，逐项解释跨模块引用；匹配结果本身不是失败。
+- 在仓库根目录运行 `git diff --check`，检查当前差异；既有无关问题单独记录，不扩大修复。
+- 阅读 `git diff -- crates/libs/tui-markdown crates/vw-tui Cargo.toml`，并直接读取尚未跟踪的新文件；不能用空 diff 代替新增文件审阅。
+- 所需证据：迁移符号/文件清单、消费者接线清单、清单依赖方向、资源及测试源码路径核对、静态检查结果及本任务提交标识。
+- 后续统一验收覆盖本任务保留的既有测试与受影响消费者；本次不执行、不生成 Cargo 运行命令。完成交接注明未编译、未测试，待统一验收。

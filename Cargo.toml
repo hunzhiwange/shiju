@@ -49,6 +49,7 @@ members = [
   "crates/libs/webview-mcp-policy",
   "crates/libs/webview-mcp-assets",
   "crates/libs/webview-mcp-form",
+  "crates/libs/webview-mcp-runtime",
   "crates/libs/webview-toolbar",
   "crates/libs/webview-storage",
   "crates/libs/webview-runtime-cookie",

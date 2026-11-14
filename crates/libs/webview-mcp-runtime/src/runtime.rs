@@ -1,95 +1,49 @@
 //! Dedicated ephemeral MCP Apps surface; ordinary browser navigation is never enabled.
+use crate::document::{Document, read_document, revoke_document};
 use serde_json::{Value, json};
 use std::cell::Cell;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::rc::Rc;
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
 };
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tao::window::WindowBuilder;
-use vw_api_types::mcp_app_network::McpAppNetworkPolicy;
-use webview_mcp_assets::{DOCUMENT_SCRIPT, render_wrapper};
 use webview_mcp_policy::{
-    APP_URL, ENGINE_APP_URL, ENGINE_WRAPPER_URL, MAX_MESSAGE_BYTES, WRAPPER_URL,
-    allowed_origins, app_csp, frame_origin_allowed, internal_navigation_allowed, wrapper_csp,
+    APP_URL, ENGINE_WRAPPER_URL, MAX_MESSAGE_BYTES, WRAPPER_URL,
+    frame_origin_allowed, internal_navigation_allowed,
 };
 use wry::{WebViewBuilder, http};
 
 #[cfg(all(not(coverage), unix))]
 use webview_mcp_form as form;
 
-enum AppEvent {
+pub(crate) enum AppEvent {
     Deliver(Value),
     PopupBlocked,
     Close,
 }
 
-// A line distinct from the page's RPC envelope, emitted only by trusted helper code.
-pub(super) fn revoke_document() {
-    let mut stdout = io::stdout().lock();
-    let _ = writeln!(stdout, "mcp-app-closed").and_then(|_| stdout.flush());
-}
-
 /// Load host supplied HTML from the pipe, without granting a local-directory protocol.
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let mut line = String::new();
-    std::io::Read::take(io::stdin().lock(), 8 * 1024 * 1024 + 1).read_line(&mut line)?;
-    if line.len() > 8 * 1024 * 1024 {
-        return Err("MCP app resource too large".into());
-    }
-    let input: Value = serde_json::from_str(&line)?;
-    let nonce = input["nonce"]
-        .as_str()
-        .filter(|s| s.len() == 32 && s.bytes().all(|b| b.is_ascii_hexdigit()))
-        .ok_or("missing host nonce")?
-        .to_owned();
-    let html = input["html"].as_str().ok_or("missing app HTML")?;
-    let policy = McpAppNetworkPolicy::parse(input.get("csp"))?;
-    let form_origins = allowed_origins(&policy);
-    let form_enabled = !form_origins.is_empty();
-    let app_csp = app_csp(&policy);
-    let wrapper_csp = wrapper_csp(&form_origins);
-    let document_nonce = format!("{:016x}{:016x}", getrandom::u64()?, getrandom::u64()?);
-    let wrapper = render_wrapper(&nonce, &document_nonce, form_enabled).into_bytes();
-    let app = Mutex::new(Some(html.as_bytes().to_vec()));
-    let bootstrap = format!(
-        "(() => {{
-            if (window === top || parent !== top || location.href !== '{ENGINE_APP_URL}') return;
-            const documentNonce = '{document_nonce}';
-            {}
-        }})();",
-        DOCUMENT_SCRIPT,
-    );
+    let Document {
+        nonce,
+        policy,
+        form_origins,
+        form_enabled,
+        app_csp,
+        wrapper_csp,
+        wrapper,
+        app,
+        bootstrap,
+    } = read_document()?;
     let event_loop = EventLoopBuilder::<AppEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
     let popup_proxy = proxy.clone();
     let active = Arc::new(AtomicBool::new(true));
-    let pipe_active = active.clone();
-    std::thread::spawn(move || {
-        let mut input = io::stdin().lock();
-        loop {
-            let mut line = String::new();
-            match std::io::Read::take(&mut input, (MAX_MESSAGE_BYTES + 1) as u64)
-                .read_line(&mut line)
-            {
-                Ok(0) | Err(_) => break,
-                Ok(_) if line.len() > MAX_MESSAGE_BYTES => break,
-                Ok(_) => {}
-            }
-            let line = line.trim_end_matches(['\r', '\n']);
-            if line == "close" {
-                break;
-            }
-            if let Ok(value) = serde_json::from_str(line) {
-                let _ = proxy.send_event(AppEvent::Deliver(value));
-            }
-        }
-        pipe_active.store(false, Ordering::Release);
-        let _ = proxy.send_event(AppEvent::Close);
-    });
+    crate::stdin_bridge::spawn(proxy, active.clone());
     let window = WindowBuilder::new().with_title("ShiJu MCP App").build(&event_loop)?;
     let submitted = Rc::new(Cell::new(false));
     let ipc_submitted = submitted.clone();

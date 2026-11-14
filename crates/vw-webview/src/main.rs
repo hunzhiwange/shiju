@@ -7,8 +7,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use webview_external_protocol::dialog::show_error_dialog;
 #[cfg(not(target_arch = "wasm32"))]
-mod mcp_app;
-#[cfg(not(target_arch = "wasm32"))]
 mod view_region;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -78,7 +76,7 @@ fn main() {
 
     let args = env::args().skip(1).collect::<Vec<_>>();
     if args.first().is_some_and(|arg| arg == "--mcp-app-stdin") {
-        if let Err(error) = mcp_app::run() {
+        if let Err(error) = webview_mcp_runtime::run() {
             eprintln!("MCP app failed: {error}");
         }
         return;

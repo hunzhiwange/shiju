@@ -29,6 +29,28 @@ pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> Element<'_, Mes
             (None, Some(_)) => "当前组合不可用，请刷新".into(),
             _ => "尚未选择当前组合".into(),
         }));
+        if group.result_error {
+            content = content.push(text("最近保存结果读取失败，请刷新重试").style(settings_muted_text_style));
+        } else if let Some(result) = &group.stored_result {
+            use vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyStatus;
+            let status = match result.status {
+                ProjectProfileApplyStatus::Applied => "已应用",
+                ProjectProfileApplyStatus::Partial => "部分应用失败",
+                ProjectProfileApplyStatus::Uncaptured => "未拍快照",
+                ProjectProfileApplyStatus::Cancelled => "已取消",
+                ProjectProfileApplyStatus::Failed => "失败",
+            };
+            content = content.push(text(format!("最近保存结果：{status}（历史记录，不确认本次请求）")));
+            content = content.push(text(format!("组合：{} · {}", result.profile_id.0,
+                if result.selected { "当时已选择" } else { "当时未确认选择" })));
+            for item in &result.items {
+                content = content.push(text(format!("{:?} · {} · {:?}{}", item.category,
+                    item.reference_id.as_deref().unwrap_or("空集合"), item.status,
+                    item.reason_code.as_ref().map(|code| format!(" · {code}")).unwrap_or_default())));
+            }
+        } else {
+            content = content.push(text("暂无最近保存的组合结果").style(settings_muted_text_style));
+        }
         let query = group.query.trim().to_lowercase();
         let mut count = 0;
         for profile in &group.profiles {

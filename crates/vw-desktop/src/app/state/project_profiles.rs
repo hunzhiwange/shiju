@@ -8,6 +8,9 @@ pub(crate) struct Group {
     pub loading: bool,
     pub loaded: bool,
     pub error: bool,
+    /// Historical group outcome; never confirms an in-flight application.
+    pub stored_result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,
+    pub result_error: bool,
 }
 #[derive(Clone, Default)]
 pub(crate) struct State {

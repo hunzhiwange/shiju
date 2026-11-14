@@ -26,7 +26,7 @@ pub enum Event {
     Saved(Identity, ProjectProfileScope, Result<(), ()>),
     Refresh(ProjectProfileScope),
     Query(ProjectProfileScope, String),
-    Loaded(Identity, ProjectProfileScope, Result<(Vec<ProjectProfile>, Option<ProjectProfileId>), ()>),
+    Loaded(Identity, ProjectProfileScope, Result<(Vec<ProjectProfile>, Option<ProjectProfileId>, Result<Option<ProjectProfileApplyResult>, ()>), ()>),
 }
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
@@ -107,7 +107,15 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             if !group.loading { return Task::none(); }
             group.loading = false;
             match result {
-                Ok((profiles, current)) => { group.profiles = profiles; group.current = current; group.loaded = true; }
+                Ok((profiles, current, stored)) => {
+                    group.profiles = profiles;
+                    group.current = current;
+                    group.loaded = true;
+                    match stored {
+                        Ok(result) if result.as_ref().is_none_or(|r| r.group == scope) => group.stored_result = result,
+                        _ => group.result_error = true,
+                    }
+                }
                 Err(()) => { group.error = true; return app.show_error_toast("组合读取失败，请重试"); }
             }
             Task::none()
@@ -119,6 +127,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             group.loading = true;
             group.loaded = false;
             group.error = false;
+            group.stored_result = None;
+            group.result_error = false;
             group.profiles.clear();
             group.current = None;
             let identity = Identity { context: context.clone(), project: project.clone(), host: app.apps_catalog.host.clone(), catalog: app.apps_catalog.generation, generation: state.generation };
@@ -128,7 +138,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                 let result = async {
                     let profiles = client.project_profile_list(&query).await.map_err(|_| ())?;
                     let current = client.project_profile_current(&query).await.map_err(|_| ())?;
-                    Ok((profiles, current.profile_id))
+                    let stored = client.project_profile_result(&query).await.map(|r| r.result).map_err(|_| ());
+                    Ok((profiles, current.profile_id, stored))
                 }.await;
                 message(Event::Loaded(identity, scope, result))
             }, |message| message)

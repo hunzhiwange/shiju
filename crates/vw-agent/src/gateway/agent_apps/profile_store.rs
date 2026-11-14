@@ -272,8 +272,9 @@ impl ProfileOperation<'_> {
         })
     }
 
-    /// Clear only this authorized project's current group marker. Native
-    /// configuration is deliberately left to its existing domain owners.
+    /// Clear only this authorized project's current group marker, including a
+    /// dangling reference. An absent marker succeeds; entities and native
+    /// configuration remain unchanged. Another project's slot is never released.
     pub(crate) fn clear(
         &self,
         project: &ProjectScope,
@@ -282,9 +283,11 @@ impl ProfileOperation<'_> {
     ) -> Result<()> {
         ensure!(target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         self.mutate(project.tenant_scope(), |state| {
-            if let Some(selection) = state.selections.iter().find(|selection| {
+            for selection in state.selections.iter().filter(|selection| {
                 selection.target_host_id == target_host_id && selection.group == group
             }) {
+                // Validate every matching record before removing any, even if
+                // persisted state contains duplicate host/group selections.
                 ensure!(selection.project_id == project.project_id().as_ref(), "profile slot owned by another project");
             }
             state.selections.retain(|selection| {

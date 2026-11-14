@@ -39,6 +39,14 @@ pub struct ProjectProfileDeleted {
     pub deleted: bool,
 }
 
+/// Persisted outcome, read after reconnect without resubmitting application.
+/// A missing outcome is not evidence that a previous write never started.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProjectProfileStoredResult {
+    pub result: Option<ProjectProfileApplyResult>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Context<'a> {
@@ -92,6 +100,52 @@ impl GatewayClient {
         self.project_profile_write(reqwest::Method::POST, "/current/clear", scope, None, None).await
     }
 
+    /// Read-only preview on the execution host. The current server returns 503
+    /// until native observations are wired; its success schema is not frozen.
+    pub async fn project_profile_preview(
+        &self, scope: &ProjectProfileApiScope, id: &ProjectProfileId, expected_version: u64,
+    ) -> Result<serde_json::Value, ProjectProfileApiError> {
+        let path = format!("{}/preview", profile_path(id)?);
+        self.project_profile_write(reqwest::Method::POST, &path, scope, Some(expected_version), None).await
+    }
+
+    /// Submit exactly once using the native no-retry/no-redirect transport.
+    /// On a transport error the outcome is unknown: read current/result after
+    /// reconnect. Neither this method nor result reads automatically replay apply.
+    /// The server currently returns 503; no successful admission schema exists yet.
+    pub async fn project_profile_apply(
+        &self, scope: &ProjectProfileApiScope, id: &ProjectProfileId, expected_version: u64,
+    ) -> Result<serde_json::Value, ProjectProfileApiError> {
+        let path = format!("{}/apply", profile_path(id)?);
+        self.project_profile_write(reqwest::Method::POST, &path, scope, Some(expected_version), None).await
+    }
+
+    /// Read the latest persisted group result, preserving partial, uncaptured,
+    /// cancelled and per-item outcomes. This is not an operation-specific receipt.
+    pub async fn project_profile_result(
+        &self, scope: &ProjectProfileApiScope,
+    ) -> Result<ProjectProfileStoredResult, ProjectProfileApiError> {
+        self.project_profile_read(scope, "/current/result").await
+    }
+
+    /// Query an admitted operation without restarting it. The current server has
+    /// no admitted operations and returns 404; retain that structured error.
+    pub async fn project_profile_progress(
+        &self, scope: &ProjectProfileApiScope, operation_id: &str,
+    ) -> Result<serde_json::Value, ProjectProfileApiError> {
+        let path = operation_path(operation_id)?;
+        self.project_profile_read(scope, &path).await
+    }
+
+    /// Request cancellation once. Only the executor can confirm cancellation;
+    /// a failed request does not synthesize a cancelled result.
+    pub async fn project_profile_cancel(
+        &self, scope: &ProjectProfileApiScope, operation_id: &str,
+    ) -> Result<serde_json::Value, ProjectProfileApiError> {
+        let path = format!("{}/cancel", operation_path(operation_id)?);
+        self.project_profile_write(reqwest::Method::POST, &path, scope, None, None).await
+    }
+
     fn profile_context<'a>(&self, scope: &'a ProjectProfileApiScope) -> Result<Context<'a>, ProjectProfileApiError> {
         if scope.project.tenant_scope() != self.endpoint().tenant_scope() {
             return Err(ProjectProfileApiError::InvalidRequest("tenant scope does not match gateway endpoint tenant scope".into()));
@@ -136,4 +190,11 @@ fn profile_path(id: &ProjectProfileId) -> Result<String, ProjectProfileApiError>
         return Err(ProjectProfileApiError::InvalidRequest("invalid project profile id".into()));
     }
     Ok(format!("/{}", encode_path_segment(&id.0)))
+}
+
+fn operation_path(id: &str) -> Result<String, ProjectProfileApiError> {
+    if id.trim().is_empty() || id == "." || id == ".." {
+        return Err(ProjectProfileApiError::InvalidRequest("invalid project profile operation id".into()));
+    }
+    Ok(format!("/operations/{}", encode_path_segment(id)))
 }

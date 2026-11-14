@@ -82,8 +82,6 @@ mod bash_view_tests;
 #[cfg(test)]
 mod command_summary_view_tests;
 #[cfg(test)]
-mod diff_utils_tests;
-#[cfg(test)]
 mod explore_summary_view_tests;
 #[cfg(test)]
 mod file_link_tests;

@@ -626,10 +626,7 @@ pub(super) fn apply_patch_header_summary(
     (file_name, parent_dir, extra)
 }
 
-pub(super) fn diff_utils_looks_like_unified_diff(s: &str) -> bool {
-    let t = s.trim();
-    !t.is_empty() && t.starts_with("--- ") && t.contains("\n+++ ") && t.contains("\n@@")
-}
+pub(super) use super::diff_utils::looks_like_unified_diff as diff_utils_looks_like_unified_diff;
 
 pub(super) fn apply_patch_secondary_text(
     theme: &Theme,

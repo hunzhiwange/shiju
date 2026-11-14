@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/libs/content-guard",
+  "crates/libs/diff-text",
   "crates/libs/tui-contracts",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",

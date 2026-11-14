@@ -229,16 +229,3 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 `components/agent_apps/openclaw_env.rs`，应用详情打开统一 env JSON 弹窗；复用任务 25 的专属 SDK，支持 vars/shellEnv 嵌套对象。空白、数组、null 与非法 JSON 明确拒绝；本地校验或服务端拒绝均保留草稿和错误。敏感读取 401/403 显示不可访问，未读取成功不能保存；错误不含响应正文、解析片段或敏感值，事件 Debug 不暴露草稿。保存成功保留结构化警告，toast 提示；关闭、连接切换、详情切换清空状态，作用域和请求代数拒绝旧响应。复用统一编辑器及弹窗，无中文等宽字体。
 
 已静态核对来源 EnvPanel、ToolsPanel、utils 测试、任务 1 正式合同及任务 25 SDK/DTO 和现有模型弹窗。独立测试源码覆盖失败保稿、非对象拒绝、成功警告及权限提示，仅编写，未运行。按用户最高优先要求未执行 Cargo、单元测试、实机或任何其它测试及最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证测试族、过期响应和明暗主题实际渲染。
-
-## 任务 37：桌面 OpenClaw 环境表单（2026-11-14）
-
-新增 `components/agent_apps/openclaw_env.rs`，应用详情打开统一 env JSON 弹窗；复用任务 25 的专属 SDK，支持 vars/shellEnv 嵌套对象。空白、数组、null 与非法 JSON 明确拒绝；本地校验或服务端拒绝均保留草稿和错误。敏感读取 401/403 显示不可访问，未读取成功不能保存；错误不含响应正文、解析片段或敏感值，事件 Debug 不暴露草稿。保存成功保留结构化警告，toast 提示；关闭、连接切换、详情切换清空状态，作用域和请求代数拒绝旧响应。复用统一编辑器及弹窗，无中文等宽字体。
-
-已静态核对来源 EnvPanel、ToolsPanel、utils 测试、任务 1 正式合同及任务 25 SDK/DTO 和现有模型弹窗。独立测试源码覆盖失败保稿、非对象拒绝、成功警告及权限提示，仅编写，未运行。按用户最高优先要求未执行 Cargo、单元测试、实机或任何其它测试及最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证测试族、过期响应和明暗主题实际渲染。
-
-
-## 任务 35：桌面 OpenClaw 模型白名单（2026-11-14）
-
-- 静态核对任务 25 的 `openclaw_settings_catalog` / `set_openclaw_settings_catalog` 及强类型 DTO；沿用应用详情导航、项目/主机/网关上下文和过期响应隔离。
-- 新增 catalog 独立弹窗，编辑 JSON 中 alias 与任意额外字段，缺分节明确提示，`{}` 可显式保存；失败保留草稿，保存只使用 catalog SDK，不写默认模型。使用统一设置编辑器及弹窗、默认字体。
-- 添加两个 `openclaw_catalog_editor_preserves_aliases` 前缀测试用例，尚未执行。按本轮最高优先指令，未运行 Cargo、单元测试或实机验证；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。不宣称编译、行为测试或 macOS 验收通过，后续统一验证。

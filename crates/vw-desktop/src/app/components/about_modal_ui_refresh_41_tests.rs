@@ -277,7 +277,7 @@ async fn ui_refresh_41_layout_and_interaction() {
         let close = position(&controls.labels, i18n.__("关闭"));
         assert_fixed_controls(title, controls.body.unwrap().0, copy, size);
         let expected = format!(
-            "{APP_NAME}\n{}\n\n{}\n{}",
+            "{APP_NAME} v{APP_VERSION}\n{}\n\n{}\n{}",
             i18n.__(ABOUT_SUBTITLE),
             i18n.__(ABOUT_DESCRIPTION),
             i18n.__(AUTHOR_INFO)

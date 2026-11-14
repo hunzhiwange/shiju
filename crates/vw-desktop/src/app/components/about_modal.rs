@@ -30,6 +30,7 @@ use iced::{Alignment, Element, Length};
 use std::hash::{Hash, Hasher};
 
 const APP_NAME: &str = "VibeWindow";
+const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 const ABOUT_TITLE: &str = "关于识矩";
 const ABOUT_SUBTITLE: &str =
     "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
@@ -38,7 +39,7 @@ const AUTHOR_INFO: &str = "开发者：刘祥敏。";
 
 #[cfg(test)]
 fn about_copy_text() -> String {
-    format!("{APP_NAME}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
+    format!("{APP_NAME} v{APP_VERSION}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
 }
 
 fn hash_copy_text(content: &str) -> u64 {
@@ -77,7 +78,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::ToggleAboutModal);
     let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let copy_text = format!(
-        "{APP_NAME}\n{}\n\n{}\n{}",
+        "{APP_NAME} v{APP_VERSION}\n{}\n\n{}\n{}",
         i18n.__(ABOUT_SUBTITLE),
         i18n.__(ABOUT_DESCRIPTION),
         i18n.__(AUTHOR_INFO)
@@ -91,7 +92,15 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         text(i18n.__(ABOUT_TITLE)).size(20),
         settings_close_button(close_message.clone()),
     );
+    // Pin notes to the installed build, never to the mutable latest update snapshot.
+    let release_notes_url =
+        format!("https://github.com/hunzhiwange/shiju/releases/tag/v{APP_VERSION}");
     let body = column![
+        text(format!("{APP_NAME} v{APP_VERSION}")).size(15),
+        button(text(i18n.__("查看此版本发行说明")).size(13))
+            .on_press(Message::View(message::ViewMessage::OpenUrlExternal(release_notes_url)))
+            .padding([8, 14])
+            .style(rounded_action_btn_style),
         text(i18n.__(ABOUT_SUBTITLE))
             .size(13)
             .width(Length::Fill)
@@ -130,7 +139,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .wrap(),
     )
     .align_right(Length::Fill);
-    let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(300);
+    let card = settings_modal_layout(header, body, Some(actions.into())).width(560).height(400);
 
     settings_modal_overlay(None, close_message, container(card).padding(12))
 }

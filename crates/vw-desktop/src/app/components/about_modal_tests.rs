@@ -13,7 +13,7 @@ fn copied_app_info_preserves_visible_metadata_and_layout() {
 
     assert_eq!(
         copy_text,
-        format!("{APP_NAME}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
+        format!("{APP_NAME} v{APP_VERSION}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
     );
     assert_eq!(copy_text.lines().count(), 5);
     assert_eq!(copy_text.lines().nth(2), Some(""));

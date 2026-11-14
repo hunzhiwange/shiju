@@ -466,3 +466,9 @@ mod computer_control_api_tests;
 mod external_sessions;
 #[cfg(not(target_arch = "wasm32"))]
 pub use external_sessions::ExternalSessionStream;
+
+mod device_sync_tasks_api;
+pub use self::device_sync_tasks_api::DeviceSyncTasksError;
+
+mod device_sync_operations_api;
+pub use device_sync_operations_api::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};

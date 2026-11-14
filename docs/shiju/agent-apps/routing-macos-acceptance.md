@@ -1123,3 +1123,14 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 依赖任务57 `98608279d` 的常驻请求接线与既有公共传输/可信作用域；来源沿用冻结快照，参考相邻 CC Switch `transform_codex_anthropic.rs` 的结果、usage、stop_reason 映射。`responses_anthropic_result::convert` 复用共享 Messages 解码和 Responses 工具身份恢复，保留文本/工具顺序、缓存读写计数、拒绝与截断状态。未知终止原因和 pause_turn 明确拒绝；thinking 与服务端工具保持既有拒绝边界，交由后续任务。真实调用为 dispatch → responses_compaction::Request::response_json → convert，无需重复修改 dispatch。旧会话路径不变。
 
 添加独立 `cc_route_058_` 测试代码。按用户覆盖要求未运行 Cargo、单元测试、实机测试或最终回归；没有通过证据，未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。仅审查代码差异；任务卡按要求删除，后续统一验证应运行本项测试及常驻回环验收。macOS 尚未验收，其他平台未验证，不表示母任务8完成。
+
+
+## 任务60：往返推理与不透明状态（代码已交付，未验证）
+
+2026-11-14：按用户本次覆盖要求仅写代码，未运行 Cargo、单元测试、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。不得据此认定母任务8验收通过。
+
+沿用任务59已接通的 Responses/Anthropic 常驻流与既有 AuthorizedRoute、共享传输及可信作用域；来源读取仓库 upstream 的 reasoning_bridge.rs、transform_codex_anthropic.rs 及其相邻用例。配置和账号仍由既有发布所有者持有。
+
+新增 reasoning_bridge，保留来源版本前缀、URL-safe 无填充编码、OpenAI reasoning 输入字段白名单（type/id/summary/encrypted_content），兼容 redacted_thinking 历史载体。Anthropic 封装仅恢复 thinking/signature 或 redacted data，不解码任意 ciphertext，不将载荷用于授权。Messages↔Responses 请求和 JSON 结果沿用现有转换所有者；dispatch 已调用这些所有者，无需重复接线，旧 session transport 不变。
+
+Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 signature；Anthropic→Responses 流保留完整签名分片，在终态追加来源 reasoning 项及其完成事件。后者暂缓 reasoning 展示并在输出末尾呈现，文本与工具仍走既有流。所有不透明状态仍受原有流大小界限约束。新增 cc_route_060_ 回归用例源码，尚未执行；后续统一验证应覆盖 JSON 往返、空 summary、历史封装白名单、签名分片及终态输出索引。Windows/Linux/WSL 范围外、未验证。

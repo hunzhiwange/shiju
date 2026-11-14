@@ -212,7 +212,30 @@ impl Decoder {
                     return Err(INVALID);
                 }
             }
-            Some("message" | "reasoning") => {
+            Some("reasoning") => {
+                if complete {
+                    if let Some(block) =
+                        super::reasoning_bridge::anthropic_block_from_openai_reasoning_item(item)
+                    {
+                        let key = (index, 0);
+                        if !self.blocks.contains_key(&key) {
+                            self.block(key, "thinking", out)?;
+                            let block_index = self.blocks.get(&key).ok_or(INVALID)?.index;
+                            out.push_str(&event(
+                                json!({"type":"content_block_delta","index":block_index,
+                                "delta":{"type":"thinking_delta","thinking":block["thinking"]}}),
+                            ));
+                            if let Some(signature) = block["signature"].as_str() {
+                                out.push_str(&event(
+                                    json!({"type":"content_block_delta","index":block_index,
+                                    "delta":{"type":"signature_delta","signature":signature}}),
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            Some("message") => {
                 let thinking = item["type"] == "reasoning";
                 let parts = &item[if thinking { "summary" } else { "content" }];
                 if let Some(parts) = parts.as_array() {
@@ -363,6 +386,10 @@ impl Decoder {
                 return Err(INVALID);
             }
             // The authoritative output item snapshot contains the final annotations.
+            return Ok(out);
+        }
+        if ty.starts_with("response.reasoning_summary_") {
+            // The complete item owns both the summary and its replay signature.
             return Ok(out);
         }
         let (kind, part, field, snapshot, close) = match ty {

@@ -18,6 +18,7 @@ fn event(value: Value) -> String {
     format!("event: {}\ndata: {value}\n\n", value["type"].as_str().unwrap_or("error"))
 }
 struct Decoder {
+    signed_blocks: Option<Arc<std::sync::Mutex<Vec<Value>>>>,
     resident: Option<super::responses_chat_stream::State>,
     observer: super::stream_observer::StreamObserver,
     pending: super::sse_framing::Lines,
@@ -70,6 +71,7 @@ impl Decoder {
             codex_chat,
             compact: false,
             tool_names,
+            signed_blocks: None,
             reasoning: String::new(),
             late_reasoning: String::new(),
             upstream_id: None,
@@ -150,6 +152,24 @@ impl Decoder {
             let index = usize::from(!self.reasoning.is_empty()) + usize::from(self.text_open);
             items.insert(index, responses::reasoning_item(&late_id, &late_reasoning));
         }
+        let signed = self
+            .signed_blocks
+            .as_ref()
+            .map(|blocks| {
+                blocks.lock().map(|blocks| blocks.clone()).map_err(|_| StatusCode::BAD_GATEWAY)
+            })
+            .transpose()?
+            .unwrap_or_default();
+        for block in signed {
+            if let Some(item) =
+                super::reasoning_bridge::responses_reasoning_item_from_anthropic_block(
+                    &format!("{}_signed_{}", self.id, items.len()),
+                    &block,
+                )
+            {
+                items.push(item);
+            }
+        }
         let mut out = String::new();
         for item in items.iter_mut() {
             if let Some(state) = &self.resident {
@@ -162,6 +182,11 @@ impl Decoder {
                 out.push_str(&self.emit(json!({"type":"response.output_text.done","item_id":item_id,"output_index":index,"content_index":0,"text":self.text,"logprobs":[]})));
                 out.push_str(&self.emit(json!({"type":"response.content_part.done","item_id":item_id,"output_index":index,"content_index":0,"part":item["content"][0]})));
             } else if item["type"] == "reasoning" {
+                if item.get("encrypted_content").is_some() {
+                    out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":index,"item":item})));
+                    out.push_str(&self.emit(json!({"type":"response.output_item.done","output_index":index,"item":item})));
+                    continue;
+                }
                 if item_id == &late_id {
                     self.emit_reasoning_delta(&mut out, &late_id, index, &late_reasoning, true);
                     self.finish_reasoning(&mut out, index, item);
@@ -173,7 +198,9 @@ impl Decoder {
                 // Search arguments are structured JSON; publish the complete client call.
                 let mut start = item.clone();
                 start["status"] = "in_progress".into();
-                out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":index,"item":start})));
+                out.push_str(&self.emit(
+                    json!({"type":"response.output_item.added","output_index":index,"item":start}),
+                ));
             } else {
                 let mut start = item.clone();
                 let (field, delta_event, done_event) = if item["type"] == "custom_tool_call" {
@@ -605,4 +632,17 @@ fn decoded_body<E: Send + 'static>(
         },
     );
     Body::from_stream(stream)
+}
+
+pub(super) fn anthropic_chat_body(
+    body: Body,
+    model: String,
+    tools: ChatTools,
+    cancel: CancellationToken,
+    blocks: Arc<std::sync::Mutex<Vec<Value>>>,
+) -> Body {
+    let mut decoder = Decoder::new(model, tools, true, None);
+    decoder.resident = Some(super::responses_chat_stream::State::default());
+    decoder.signed_blocks = Some(blocks);
+    decoded_body(body.into_data_stream(), decoder, cancel)
 }

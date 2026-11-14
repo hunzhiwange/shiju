@@ -23,6 +23,10 @@ pub(super) fn convert(
     if reason.is_some() {
         native["stop_reason"] = "max_tokens".into();
     }
+    native["content"]
+        .as_array_mut()
+        .ok_or(INVALID)?
+        .retain(|b| b["type"] != "thinking" && b["type"] != "redacted_thinking");
     let chat = super::protocol_bridge::response(ModelProtocol::Messages, &native)?;
     let mut result = super::responses_chat_result::from_chat(&chat, model, id, tools)?;
     let status = if reason.is_some() { "incomplete" } else { "completed" };
@@ -36,6 +40,16 @@ pub(super) fn convert(
     for block in body["content"].as_array().ok_or(INVALID)? {
         let index = output.len();
         match block["type"].as_str() {
+            Some("thinking" | "redacted_thinking") => {
+                if let Some(item) =
+                    super::reasoning_bridge::responses_reasoning_item_from_anthropic_block(
+                        &format!("{id}_rs_{index}"),
+                        block,
+                    )
+                {
+                    output.push(item);
+                }
+            }
             Some("text") => {
                 let text = block["text"].as_str().ok_or(INVALID)?;
                 let part = if reason == Some("content_filter") {

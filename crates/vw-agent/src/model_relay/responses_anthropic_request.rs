@@ -101,17 +101,14 @@ pub(super) fn convert(
                     json!({"type":"tool_result", "tool_use_id":id,"content":parts}),
                 );
             }
-            // Signed thinking replay belongs to the dedicated reasoning task.
             Some("reasoning") => {
-                if item.get("encrypted_content").is_some_and(|v| !v.is_null())
-                    || item.get("content").is_some_and(|v| !v.is_null())
+                if let Some(block) = item["encrypted_content"]
+                    .as_str()
+                    .and_then(super::reasoning_bridge::decode_anthropic_thinking_block)
                 {
-                    return Err(UNSUPPORTED);
+                    push(&mut messages, "assistant", block);
                 }
-                object_keys(
-                    &item,
-                    &["type", "id", "summary", "status", "content", "encrypted_content"],
-                )?;
+                // Foreign ciphertext is never decoded as an Anthropic block.
             }
             _ => return Err(UNSUPPORTED),
         }

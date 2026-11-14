@@ -88,6 +88,13 @@ pub(crate) fn with_search(
     let mut searches = 0;
     for item in normalized["output"].as_array_mut().ok_or(INVALID)? {
         match item["type"].as_str() {
+            Some("reasoning") => {
+                if let Some(block) =
+                    super::reasoning_bridge::anthropic_block_from_openai_reasoning_item(item)
+                {
+                    layout.push(Some(block));
+                }
+            }
             Some("message") => {
                 if item.get("status").is_some_and(|status| {
                     status != "completed" && !(truncated && status == "incomplete")
@@ -127,7 +134,10 @@ pub(crate) fn with_search(
             _ => return Err(INVALID),
         }
     }
-    normalized["output"].as_array_mut().ok_or(INVALID)?.retain(|v| v["type"] != "web_search_call");
+    normalized["output"]
+        .as_array_mut()
+        .ok_or(INVALID)?
+        .retain(|v| v["type"] != "web_search_call" && v["type"] != "reasoning");
     let mut chat = super::protocol_bridge::response(ModelProtocol::Responses, &normalized)
         .map_err(|_| INVALID)?;
     let usage = &body["usage"];

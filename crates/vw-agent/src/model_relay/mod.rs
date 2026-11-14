@@ -157,3 +157,8 @@ mod responses_anthropic_result_tests;
 mod responses_anthropic_stream;
 #[cfg(test)]
 mod responses_anthropic_stream_tests;
+
+pub(crate) mod reasoning_bridge;
+
+#[cfg(test)]
+mod reasoning_bridge_tests;

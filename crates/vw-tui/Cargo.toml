@@ -1,4 +1,4 @@
-# VibeWindow adaptation: isolate the copied Codex sources behind a minimal v3 shell.
+# 上层 TUI 交互装配；底层能力由 crates/libs/tui-* 提供。
 
 [package]
 name = "vw-tui"
@@ -27,33 +27,20 @@ tui-input = { path = "../libs/tui-input", version = "0.6.0" }
 tui-text = { path = "../libs/tui-text", version = "0.6.0" }
 tui-contracts = { path = "../libs/tui-contracts", version = "0.6.0" }
 tui-clipboard = { path = "../libs/tui-clipboard", version = "0.6.0" }
-base64 = "0.23"
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
-dirs = "6"
-libc = "0.2"
 pulldown-cmark = "0.13.4"
 ratatui = { version = "0.30.2", features = [
     "unstable-backend-writer",
     "unstable-rendered-line-info",
     "unstable-widget-ref",
 ] }
-regex-lite = "0.1.8"
-serde_json = { version = "1", features = ["preserve_order"] }
-supports-color = "3.0.2"
 textwrap = "0.16.2"
-tracing = "0.1"
 unicode-segmentation = "1.12.0"
 unicode-width = "0.2"
-url = "2"
-urlencoding = "2.1.3"
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
 
 [dev-dependencies]
+# custom_terminal 在测试态复用底层源码，需要其日志宏。
+tracing = "0.1"
 insta = "1.46.3"
-itertools = "0.15.0"
 pretty_assertions = "1.4.1"
-tempfile = "3.23.0"
-tokio = { version = "1", features = ["macros", "rt"] }
 vt100 = "0.16.2"

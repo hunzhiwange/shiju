@@ -1,10 +1,8 @@
-//! 复制的 VibeWindow TUI v3 源码编译外壳。
+//! TUI 上层交互装配。
 //!
-//! VibeWindow 按迁移批次激活复制的 Codex 模块，使原始渲染行为和测试继续作为事实来源。
-//! Compilation shell for the copied VibeWindow TUI v3 sources.
-//!
-//! VibeWindow adaptation: activate copied Codex modules in migration batches so
-//! their original rendering behavior and tests remain the source of truth.
+//! 保留聊天组件、底部面板、审批交互、onboarding、surface 和终端运行循环。
+//! 契约、文本、渲染、主题、流式处理、终端后端及剪贴板由 `tui-*` 库提供；
+//! 对外重导出保持既有消费者入口和底层类型所有权。
 
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
@@ -103,7 +101,7 @@ mod test_backend;
 #[path = "../tests/upstream_snapshot_matrix.rs"]
 mod upstream_snapshot_matrix;
 
-// 对外重导出维持 vw-tui 的稳定入口，内部模块仍可按批次演进。
+// 对外重导出维持 vw-cli 桥接与运行器入口，不包装或复制底层类型。
 pub use chatwidget::{ChatWidget, ChatWidgetConfig, V3ChatStatus};
 pub use custom_terminal::Terminal as CustomTerminal;
 pub use history_cell::{ExecHistoryCell, HistoryCell, history_cell_for, render_display_event};

@@ -150,6 +150,8 @@ fn update_config_panel(
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::DeviceSyncWebdav(event) => device_sync_webdav::update(app,event),
+        SettingsMessage::DeviceSyncS3(event) => device_sync_s3::update(app,event),
         SettingsMessage::MigrationPreview(event) => crate::app::components::system_settings_data::migration_preview_ui::update(app, event),
         SettingsMessage::DataBackups(event) => data_management::backup_list_ui::update(app, event),
         SettingsMessage::DataRecovery(event) => data_management::recovery_ui::update(app, event),
@@ -628,3 +630,6 @@ pub(crate) mod prompts;
 pub(crate) mod data_management;
 
 pub(crate) mod device_sync_preview;
+
+pub(crate) mod device_sync_webdav;
+pub(crate) mod device_sync_s3;

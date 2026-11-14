@@ -4,6 +4,8 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub device_sync_webdav: crate::app::message::settings::device_sync_webdav::State,
+    pub device_sync_s3: crate::app::message::settings::device_sync_s3::State,
     pub migration_preview: crate::app::components::system_settings_data::migration_preview_ui::State,
     pub data_backups: crate::app::message::settings::data_management::backup_list_ui::State,
     pub recovery: crate::app::message::settings::data_management::recovery_ui::State,

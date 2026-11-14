@@ -76,3 +76,5 @@ pub mod dedup;
 pub mod models_sync;
 
 pub mod scan_jobs;
+
+pub mod scan_schedule;

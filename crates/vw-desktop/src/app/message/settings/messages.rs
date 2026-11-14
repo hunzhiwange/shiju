@@ -784,6 +784,8 @@ pub enum SettingsMessage {
     DataBackups(super::data_management::backup_list_ui::Event),
     DataRecovery(super::data_management::recovery_ui::Event),
     DataExport(super::data_management::export_ui::Event),
+    DeviceSyncWebdav(super::device_sync_webdav::Event),
+    DeviceSyncS3(super::device_sync_s3::Event),
     BackupInventory(super::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]
     ComputerControl(super::computer_control::Event),

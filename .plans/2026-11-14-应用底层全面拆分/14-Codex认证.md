@@ -1,0 +1,45 @@
+# 任务 14：Codex认证
+
+先阅读并遵守 [公共执行规则](plan.md)。
+
+批次：【批次 14】 依赖：任务 13（及全部前序任务）
+
+状态：未开始
+
+目的：将Codex认证的内聚实现下沉到 `app-auth-codex`，维持现有行为。
+
+来源任务：无。预计会话范围：一个领域边界及其必要导出、清单和相邻测试搬迁；遇到依赖上层的编排按公共规则移交后继任务。
+
+## 文件
+
+- 新建：`crates/libs/app-auth-codex/Cargo.toml`、`crates/libs/app-auth-codex/src/lib.rs` 及下列实现对应的子模块文件。
+- 修改：根 `Cargo.toml`、`crates/vw-agent-apps/Cargo.toml`、`crates/vw-agent-apps/src/lib.rs`、下列文件所属原父模块、`docs/architecture/agent-apps-split.md`。
+- 迁移基线（含测试与原模块声明，根 mod.rs 的编排按步骤分别归位）：
+- `crates/vw-agent-apps/src/auth/codex_browser.rs`
+- `crates/vw-agent-apps/src/auth/codex_browser_tests.rs`
+- `crates/vw-agent-apps/src/auth/codex_device.rs`
+- `crates/vw-agent-apps/src/auth/codex_device_tests.rs`
+- `crates/vw-agent-apps/src/auth/codex_refresh.rs`
+- `crates/vw-agent-apps/src/auth/codex_refresh_tests.rs`
+- 测试：上述已有独立测试随所属实现迁移，不运行、不新增测试；独立测试文件不得并入业务文件。
+
+## 上下文与专属约束
+
+迁移该供应商认证及相邻测试，依赖 auth-core；读取 providers 的部分只接入下沉基础能力，不依赖应用编排。
+具体公开符号以当前文件及任务 1 的符号表为准；执行前先读取函数签名、调用者、相邻测试和平台条件。
+
+## 步骤
+
+1. 对照所有权表确认上列文件在前序任务后的实际位置；检查 use/super 路径与真实调用者，先确定最小无环依赖。
+2. 创建小型库清单和显式模块树，移动内聚实现、原有独立测试与关联资源，保留 cfg 和原错误语义。文件级重导出不能造成子包回依赖。
+3. 根 mod.rs 同时含分发和叶子实现时分别落位：叶子根函数随本包移动；跨适配器分发留在后继服务包；原包仅保留必要导出。未闭合符号须指定后继编号，不得遗忘。
+4. 在 workspace 注册成员；原包声明直接路径依赖并在原模块位置 re-export；移除原实现重复定义，更新测试私有访问和 include 路径。清理原包已无人使用的直接依赖，但保留其它任务仍需依赖。
+5. 用源码检索及 Python 标准库 TOML 读取审阅新增包直接依赖、文件路径、导出和平台特性，核实不引入循环；更新所有权表中本任务迁移结果和待统一验收项。
+
+## 静态验证计划
+
+结构重构保持行为；用户禁止执行测试，因此不安排失败/通过测试命令。
+运行 `git diff --check`、`git diff --stat`、`rg -n 'vw_agent_apps|vw-agent-apps' crates/libs/app-auth-codex`、`rg -n 'app-auth-codex' Cargo.toml crates/vw-agent-apps/Cargo.toml`。
+预期：差异无空白错误；新包不依赖旧门面（检索应无实际回依赖）；成员和直接路径依赖存在；源码所有权和测试注册完整。
+所需证据：实际文件移动列表、关键符号导出及调用者检索结果、TOML 路径人工/标准库审阅、cfg 和资源路径对照、待统一验收声明。检索无匹配的退出码 1 本身不是失败，需审阅语义。
+统一验收关注：`app-auth-codex` 与直接调用者的目标编译、迁移单测和原平台行为；本轮全部不执行。

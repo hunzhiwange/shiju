@@ -1,0 +1,22 @@
+[package]
+name = "app-config-paths"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+vw-api-types = { path = "../../vw-api-types" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+base64 = "0.23"
+sha2 = "0.11"
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+tempfile = "3"

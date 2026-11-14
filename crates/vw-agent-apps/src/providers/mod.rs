@@ -97,9 +97,7 @@ pub mod universal_sync;
 #[cfg(test)]
 mod universal_sync_tests;
 
-pub mod paths;
-#[cfg(test)]
-mod paths_tests;
+pub use app_config_paths as paths;
 
 pub mod live;
 

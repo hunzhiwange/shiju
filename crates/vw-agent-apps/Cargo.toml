@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-config-paths = { path = "../libs/app-config-paths" }
 app-icons = { path = "../libs/app-icons" }
 prost = "0.14"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }

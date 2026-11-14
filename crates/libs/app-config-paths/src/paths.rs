@@ -47,7 +47,7 @@ fn profile(raw: Option<&str>) -> Result<Option<&str>, &'static str> {
     }
     Ok(Some(name))
 }
-pub(crate) fn bounded(home: &Path, raw: &str) -> Result<PathBuf, &'static str> {
+pub fn bounded(home: &Path, raw: &str) -> Result<PathBuf, &'static str> {
     if raw.is_empty() || raw.len() > 4096 || raw.chars().any(char::is_control) {
         return Err("invalid configuration directory");
     }
@@ -79,7 +79,7 @@ fn probe(home: &Path, path: &Path, directory: bool) -> ConfigPathState {
 }
 
 #[cfg(unix)]
-pub(crate) fn open_beneath(
+pub fn open_beneath(
     home: &Path,
     path: &Path,
     directory: bool,
@@ -296,7 +296,7 @@ pub fn read(
 /// Fixed persistent Agy profiles below the administrator's private execution root.
 /// Host, tenant and provider come from authenticated dispatch, never request filesystem paths.
 #[cfg(target_os = "macos")]
-pub(crate) fn agy_profile_directory(
+pub fn agy_profile_directory(
     root: &Path,
     host: &str,
     tenant: &vw_api_types::id::TenantScope,

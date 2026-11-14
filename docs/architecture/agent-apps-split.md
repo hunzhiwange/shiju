@@ -24,6 +24,27 @@ PNG 完整解码、64 KiB URI / 256 像素边界、名称限制和错误码均�
 Python 标准库 TOML 审阅确认成员及直接依赖路径存在；git diff --check 无空白错误。
 未运行 Cargo、单元及实机测试，统一验收待授权：新包和调用者编译、迁移测试、锁文件一致性及平台行为。
 
+## 任务 3：应用路径规则迁移结果
+
+所有权表中 `providers/paths.rs`、`providers/paths_tests.rs` 现归
+`crates/libs/app-config-paths/src/`；新增 lib.rs 显式注册实现和独立测试。
+原 providers 模块以 `pub use app_config_paths as paths` 保留调用路径，
+无需新增 lib.rs 顶层别名。没有留存实现或后继接收项。
+
+`execution_environment`、`read` 保持公开；真实跨包调用所需的 `bounded`、
+unix `open_beneath`、macOS `agy_profile_directory` 从 pub(crate) 最小提升为 pub。
+profile/probe 仍私有。调用者包括 providers/live、providers/agy、auth、aggregation、
+models、mcp、skills、sessions、prompts、usage 和 data_management，继续沿用原门面。
+环境白名单、HOME 约束、描述符相对遍历、符号链接拒绝、错误及平台 cfg 均保持。
+测试内容原样搬迁，仍在 macOS 条件下注册；无 include 资源路径。
+
+新包仅依赖 vw-api-types、unix libc 及 macOS base64/sha2/serde_json，
+测试依赖 tempfile；原包这些依赖仍有其它真实调用，不删除。
+根 workspace 与原包直接路径依赖已接线；无反向依赖或重复实现。
+静态审阅使用源码差异、导出/调用者检索、Python 标准库 TOML 路径与依赖图检查，
+并执行 git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：
+新包与调用者编译、迁移单测、锁文件一致性及三平台路径行为。
+
 ## 规模与责任
 
 源码根下共 883 个文件，其中 871 个 Rust 文件、317 个独立测试文件，共 217017 行；非 Rust 资源 12 个。独立测试按文件名 `_tests.rs` 计数，集成测试另列。

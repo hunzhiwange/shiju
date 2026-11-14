@@ -70,6 +70,7 @@ pub mod task;
 pub mod task_lifecycle;
 pub mod todo;
 pub mod tools;
+pub mod usage;
 pub mod voice;
 pub mod workflow;
 pub mod worktree;
@@ -182,6 +183,9 @@ pub mod hermes_dashboard;
 
 #[cfg(test)]
 mod openclaw_settings_tests;
+
+#[cfg(test)]
+mod usage_tests;
 
 #[cfg(test)]
 mod project_profiles_tests;

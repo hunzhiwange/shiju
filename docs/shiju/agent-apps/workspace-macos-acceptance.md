@@ -34,6 +34,12 @@
 
 按本轮最高优先要求，未运行 Cargo、单元测试、实机测试或其它测试，未启动回归。未领取槽位，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 未设置；没有编译或测试通过结论。后续统一验证。
 
+## 任务 40：其他应用专属入口（2026-11-14）
+
+已完成 AGY/DSH/MiniMax/Pi/OMP 六类能力的静态入口核对，详见 [workspace-special-entrypoints.md](workspace-special-entrypoints.md)。来源命令→唯一领域→目标供应商 API/SDK/Iced 接点、原生提示词路径及尚未核实链路均已登记。特别保留 AGY 绑定 quota、DSH 五授权动作、MiniMax/Hermes key、Pi usage/discovery、OMP builtin default 的专属语义；五应用提示词/会话均有来源，未误写不适用。
+
+只读证据为 RustCodeGraph status/explore（退出 0）及实际源文件、路由、SDK 和历史证据文档审查。完整运行链和错误路径缺项保持明确，不重签历史验收。本轮依用户最高优先要求未运行 Cargo、单元测试、实机或其他测试，也未启动最终回归；无新增运行通过结论。静态盘点完成后删除任务 40 卡，后续按文档缺项统一验证。
+
 ## 任务 11：Hermes 双记忆文件（2026-11-14）
 
 新增 `hermes_memory.rs::HermesMemory`，复用任务 3 的 `WorkspaceDirectory`：严格将 memory/user 映射到 Hermes 根下 memories/MEMORY.md、memories/USER.md。缺失内容为空并保留 exists；读错误原样传播。写入复用目录描述符、物理锁与私有原子替换，不读取开关、不截断内容、不覆盖另一文件。调用者须先授权并传入可信主机、HOME 与解析后的应用根。

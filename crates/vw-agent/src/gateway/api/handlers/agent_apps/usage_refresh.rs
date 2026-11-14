@@ -523,6 +523,14 @@ impl UsageRefresh {
         if operation.is_cancelled() {
             return Err(RefreshError::Revoked);
         }
+        if let Some((vw_api_types::agent_apps_auth::AuthService::CodexOauth,
+            vw_agent_apps::usage::binding::UsageAccount::Managed(account))) = &query.key.account
+        {
+            crate::model_relay::quota_gate::publish(
+                crate::model_relay::quota_gate::Account(
+                    query.key.project.tenant_scope().clone(), query.key.principal.clone(),
+                    query.key.host.clone(), account.clone()), &result);
+        }
         let snapshot = state.cache.record(&query.key, result, Instant::now());
         Ok(Publication { snapshot, version: uuid::Uuid::new_v4() })
     }

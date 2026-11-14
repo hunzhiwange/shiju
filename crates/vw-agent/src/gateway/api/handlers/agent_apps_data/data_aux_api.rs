@@ -27,6 +27,7 @@ pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
         .route("/agent-apps/data/export/download", post(download))
         .route("/agent-apps/data/locations/list", post(locations))
         .route("/agent-apps/data/locations/delete", post(clean))
+        .route("/agent-apps/data/locations/resolve", post(resolve))
         .route("/agent-apps/data/policy", post(settings))
         .layer(Extension(State { policy, downloads: Arc::new(Mutex::new(HashMap::new())) }))
         .layer(axum::extract::DefaultBodyLimit::max(16*1024))
@@ -98,4 +99,16 @@ async fn category(state:State, tenant:TenantScope, headers:HeaderMap, input:Inpu
             Ok(Json(json!({"freedBytes":report.freed_bytes,"undeletedCount":report.undeleted.len()})))
         } else { Ok(Json(json!(vw_agent_apps::data_management::locations::list_locations(&roots,&scope).map_err(|_|StatusCode::SERVICE_UNAVAILABLE)?))) }
     }).await.map_err(|_|StatusCode::SERVICE_UNAVAILABLE)?
+}
+
+async fn resolve(Extension(state): Extension<State>, Extension(tenant): Extension<TenantScope>, headers: HeaderMap, Json(input): Json<Input>) -> Result<Json<Value>, StatusCode> {
+    tokio::task::spawn_blocking(move || {
+        let root = authorize(&state, &tenant, &headers, &input.target)?;
+        let (app, device, environment) = super::super::agent_apps::data_location_roots(state.policy.as_deref(), &headers, &input.target)?;
+        let scope = scope(&input.target);
+        let roots = vw_agent_apps::data_management::locations::BackupLocationRoots { scope: &scope, local_backups: &root, app: &app, device: &device, environment: &environment };
+        let path = vw_agent_apps::data_management::locations::location_path(&roots, &scope, input.category_id.as_deref().ok_or(StatusCode::BAD_REQUEST)?)
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+        Ok(Json(json!(path)))
+    }).await.map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
 }

@@ -69,3 +69,20 @@ fn cc_data_30_locations_does_not_follow_symlink() {
     symlink(&root, root.join("skill-backups")).unwrap();
     assert!(list_locations(&roots, &scope).is_err());
 }
+
+#[test]
+fn cc_data_44_locations_resolves_only_registered_scoped_directories() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    fs::create_dir(root.join("skill-backups")).unwrap();
+    let scope = scope();
+    let roots = BackupLocationRoots { scope: &scope, local_backups: &root, app: &root, device: &root, environment: &root };
+    assert_eq!(location_path(&roots, &scope, "skills").unwrap(), root.join("skill-backups"));
+    assert!(location_path(&roots, &scope, "../private").is_err());
+    let mut other = scope.clone();
+    other.host_id = "other-host".into();
+    assert!(location_path(&roots, &other, "database").is_err());
+    fs::remove_dir(root.join("skill-backups")).unwrap();
+    symlink(&root, root.join("skill-backups")).unwrap();
+    assert!(location_path(&roots, &scope, "skills").is_err());
+}

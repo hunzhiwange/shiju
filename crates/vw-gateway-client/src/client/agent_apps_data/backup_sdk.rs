@@ -205,3 +205,9 @@ impl GatewayClient {
         .await
     }
 }
+
+impl GatewayClient {
+    pub async fn data_backup_location_path(&self, target: &DataManagementTarget, category_id: &str, token: Option<&str>) -> Result<String, DataMigrationError> {
+        self.data_migration_json("locations/resolve", &serde_json::json!({"target": target, "categoryId": category_id}), token).await
+    }
+}

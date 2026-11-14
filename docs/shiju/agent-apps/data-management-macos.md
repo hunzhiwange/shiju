@@ -340,3 +340,12 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 - 复用设置弹窗固定标题/操作区、内容滚动 4px 与两侧 7px 留白、主题样式和默认字体；恢复提交错误通过 toast 提示。
 - 用户本轮明确要求仅实现：未运行 Cargo、单元测试、实机或字体整形渲染；未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置，无测试退出码与有效测试数。不得据此认定 macOS 验收通过。
 - 后续统一回归需检查确认/取消写入边界、身份切换丢弃旧响应、损坏/未来 schema、回退 ID 与投影失败，以及实际中文字体渲染。只读静态核对不能代替上述验证。
+
+## 子任务 44：桌面分类清理与目录定位（2026-11-14，实现未验证）
+
+- 沿用任务38/42的备份维护状态、消息与弹窗，新增 locations_ui 展示完整分类统计；保留服务端 deletable，database 即使误标可删也不提供整类清理。清理二次确认调用 delete-location SDK，展示 freedBytes 和 undeletedCount，部分清理不标为全部成功；结果保留到刷新后，失败提示核对真实状态。
+- 补齐直接依赖目录能力：业务层 location_path 只解析管理员登记根下的已知分类 ID，核对 scope，复用逐段拒绝符号链接的 directory 校验；网关新增 locations/resolve，沿用租户、主体、主机和分类根鉴权，SDK 返回执行主机路径。无客户端任意路径输入，无后端系统打开命令。
+- 桌面仅在 loopback 网关且 target_host_id 为本机 HOST_ID 时提供定位，回包再次核对身份和代次后使用 reveal_gateway_path_locally。远程只显示目标主机信息，不访问本机同名目录。沿用设置弹窗、主题按钮、固定标题底部和滚动布局，不使用中文等宽字体。
+- 新增独立并注册 cc_data_44_locations_ui_shows_partial_cleanup、cc_data_44_locations_ui_does_not_open_remote_path_locally，以及业务层 cc_data_44_locations_resolves_only_registered_scoped_directories 测试代码。
+- 用户覆盖要求本轮仅代码：未执行任何 Cargo、格式化、单元测试、实机或字体整形渲染。未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置；无测试退出码、有效测试数或 macOS 通过证据。仅人工静态审查差异，不替代行为验证。
+- 后续统一验证：经 scripts/cargo_slot.py 入口运行 vw-desktop --bin shi-ju 和 vw-agent-apps --lib 的 cc_data_44_ 聚焦测试；补网关 resolve 的跨租户/主机鉴权和 SDK 解码测试、真实匿名分类清理部分失败集成、过期响应及 macOS 明暗主题字体与目录定位验收。本轮实现后删除任务44编号文件，plan.md保持只读。

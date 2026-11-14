@@ -3,12 +3,14 @@ use crate::app::{App, Message};
 use crate::app::message::SettingsMessage;
 use super::export_ui::{identity, Identity};
 use iced::Task;
-use vw_gateway_client::DataBackupPolicy;
+use vw_gateway_client::{DataBackupPolicy, DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
 use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management::*};
 
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
     Open, Close, Principal(String), Name(String), Interval(String), Retain(String),
+    Reveal(String), Revealed(Identity, u64, Result<String, String>),
+    Cleanup(String), Cleaned(Identity, u64, Result<DataBackupLocationDeletion, String>),
     Refresh, Create, Rename(DataBackupSummary), Delete(DataBackupSummary), Cancel, Confirm, SavePolicy,
     Loaded(Identity, u64, Result<Snapshot, String>),
     Changed(Identity, u64, Result<(), String>),
@@ -17,10 +19,10 @@ pub(crate) enum Event {
 pub(crate) struct Snapshot {
     rows: Vec<DataBackupSummary>,
     policy: DataBackupPolicy,
-    locations: Vec<(String, u64, u64)>,
+    locations: Vec<DataBackupLocation>,
 }
 #[derive(Clone, Debug)]
-pub(crate) enum Pending { Rename(DataBackupSummary), Delete(DataBackupSummary) }
+pub(crate) enum Pending { Cleanup(String), Rename(DataBackupSummary), Delete(DataBackupSummary) }
 #[derive(Clone, Default)]
 pub(crate) struct State {
     pub open: bool,
@@ -30,8 +32,9 @@ pub(crate) struct State {
     pub interval: String,
     pub retain: String,
     pub rows: Vec<DataBackupSummary>,
-    pub locations: Vec<(String, u64, u64)>,
+    pub locations: Vec<DataBackupLocation>,
     pub pending: Option<Pending>,
+    pub cleanup_result: Option<String>,
     identity: Option<Identity>,
     generation: u64,
 }
@@ -53,6 +56,47 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     if !state.open || state.identity.as_ref() != Some(&current) { return Task::none(); }
     match event {
+        Event::Revealed(request, generation, result) if request == current && generation == state.generation && state.busy => {
+            // Recheck identity before any local filesystem or system action.
+            state.busy = false;
+            let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
+            if !super::locations_ui::can_reveal(client.endpoint().is_loopback(), &current.host) { return app.show_error_toast("远程目录不可在本机定位"); }
+            return match result {
+                Ok(path) => {
+                    state.busy = true;
+                    Task::perform(async move {
+                        crate::app::config::reveal_gateway_path_locally(client.endpoint(), &path).await
+                    }, move |result| message(Event::Changed(current.clone(), generation, result)))
+                }
+                Err(error) => app.show_error_toast(error),
+            };
+        }
+        Event::Reveal(id) => {
+            let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
+            if !super::locations_ui::can_reveal(client.endpoint().is_loopback(), &current.host) { return app.show_error_toast("远程目录不可在本机定位"); }
+            if state.busy || !state.locations.iter().any(|location| location.id == id) || state.principal.trim().is_empty() { return Task::none(); }
+            let Ok(scope) = ProjectScope::new(current.context.tenant.clone(), current.project.clone().into()) else { return Task::none(); };
+            let target = DataManagementTarget { scope, target_host_id: current.host.clone(), principal_id: state.principal.trim().to_owned() };
+            state.busy = true;
+            state.generation = state.generation.wrapping_add(1);
+            let generation = state.generation;
+            let token = app.apps_catalog.token.clone();
+            return Task::perform(async move {
+                let result = client.data_backup_location_path(&target, &id, Some(&token)).await.map_err(|e| e.to_string());
+                message(Event::Revealed(current, generation, result))
+            }, |message| message);
+        }
+        Event::Cleaned(request, generation, result) if request == current && generation == state.generation && state.busy => {
+            state.busy = false;
+            state.pending = None;
+            return match result {
+                Ok(report) => {
+                    state.cleanup_result = Some(super::locations_ui::cleanup_summary(&report));
+                    update(app, Event::Refresh)
+                }
+                Err(error) => app.show_error_toast(format!("清理结果可能不完整，请刷新分类核对：{error}")),
+            };
+        }
         Event::Loaded(request, generation, result) if request == current && generation == state.generation && state.busy => {
             state.busy = false;
             return match result {
@@ -77,7 +121,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         _ if state.busy => return Task::none(),
         Event::Close => state.open = false,
         Event::Principal(value) => {
-            state.principal = value;
+            state.principal = value; state.cleanup_result = None;
             state.rows.clear(); state.locations.clear(); state.pending = None;
             state.interval.clear(); state.retain.clear();
         }
@@ -86,6 +130,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         Event::Retain(value) => state.retain = value,
         Event::Rename(row) => { state.name = row.name.clone(); state.pending = Some(Pending::Rename(row)); }
         Event::Delete(row) => state.pending = Some(Pending::Delete(row)),
+        Event::Cleanup(id) => {
+            if state.locations.iter().any(|location| location.id == id && super::locations_ui::can_cleanup(location)) {
+                state.pending = Some(Pending::Cleanup(id));
+            }
+        }
         Event::Cancel => state.pending = None,
         action @ (Event::Refresh | Event::Create | Event::Confirm | Event::SavePolicy) => {
             if state.principal.trim().is_empty() { return app.show_error_toast("请填写授权主体 ID"); }
@@ -100,6 +149,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             } else { None };
             if matches!(action, Event::Create) && state.name.trim().is_empty() { return app.show_error_toast("请填写备份名称"); }
             if matches!(action, Event::Confirm) && (state.pending.is_none() || (matches!(state.pending, Some(Pending::Rename(_))) && state.name.trim().is_empty())) { return Task::none(); }
+            if let Some(Pending::Cleanup(id)) = &state.pending {
+                if matches!(action, Event::Confirm) && !state.locations.iter().any(|location| location.id == *id && super::locations_ui::can_cleanup(location)) { return Task::none(); }
+            }
             let pending = state.pending.clone();
             let name = state.name.trim().to_owned();
             state.busy = true;
@@ -107,13 +159,20 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let generation = state.generation;
             let token = app.apps_catalog.token.clone();
             return Task::perform(async move {
+                if matches!(action, Event::Confirm) {
+                    if let Some(Pending::Cleanup(id)) = &pending {
+                        let result = client.data_backup_delete_location(&DeleteDataBackupLocationRequest {
+                            target, category_id: id.clone(), confirmed: true,
+                        }, Some(&token)).await.map_err(|e| e.to_string());
+                        return message(Event::Cleaned(current, generation, result));
+                    }
+                }
                 if matches!(action, Event::Refresh) {
                     let result = async {
                         let request = ListDataBackupsRequest { target: target.clone() };
                         let rows = client.data_backup_list(&request, Some(&token)).await.map_err(|e| e.to_string())?;
                         let policy = client.data_backup_policy(&target, Some(&token)).await.map_err(|e| e.to_string())?;
-                        let locations = client.data_backup_locations(&request, Some(&token)).await.map_err(|e| e.to_string())?
-                            .into_iter().map(|item| (item.id, item.item_count, item.size_bytes)).collect();
+                        let locations = client.data_backup_locations(&request, Some(&token)).await.map_err(|e| e.to_string())?;
                         Ok(Snapshot { rows, policy, locations })
                     }.await;
                     return message(Event::Loaded(current, generation, result));
@@ -129,6 +188,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         Event::Confirm => match pending {
                             Some(Pending::Rename(row)) => { client.data_backup_rename(&RenameDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, name }, Some(&token)).await.map_err(|e| e.to_string())?; }
                             Some(Pending::Delete(row)) => { client.data_backup_delete(&DeleteDataBackupRequest { target, backup_id: row.backup_id, expected_revision: row.revision, confirmed: true }, Some(&token)).await.map_err(|e| format!("删除失败（可能存在保护或版本冲突）；请刷新后核对：{e}"))?; }
+                            Some(Pending::Cleanup(_)) => return Err("分类清理必须走独立确认路径".into()),
                             None => return Err("没有待确认操作".into()),
                         },
                         Event::SavePolicy => { client.data_backup_set_policy(&target, &policy.expect("validated policy"), Some(&token)).await.map_err(|e| e.to_string())?; }

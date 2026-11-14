@@ -33,6 +33,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
     ].spacing(12).width(Length::Fill);
     if let Some(pending) = &state.pending {
         let prompt = match pending {
+            Pending::Cleanup(id) => format!("确认永久清理分类 {id}？可能因保护规则仅清理部分文件。"),
             Pending::Rename(row) => format!("确认重命名备份“{}”？", row.name),
             Pending::Delete(row) => format!("确认永久删除备份“{}”？受保护或版本冲突将拒绝删除。", row.name),
         };
@@ -48,10 +49,7 @@ pub(crate) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
                 action("删除", Event::Delete(backup.clone()), enabled && state.pending.is_none())].spacing(10),
         ].spacing(8)));
     }
-    body = body.push(text("执行主机备份分类"));
-    for (id, count, bytes) in &state.locations {
-        body = body.push(text(format!("{id}：{count} 项，{bytes} 字节")));
-    }
+    body = body.push(super::locations_ui::view(app));
     let footer = row![text(if state.busy { "正在处理…" } else { "修改后自动刷新列表、分类与策略；网络失败后请先刷新核对。" }),
         action("关闭", Event::Close, enabled)].spacing(10);
     settings_modal_overlay(Some(base), message(Event::Close), settings_modal_layout(header, body, Some(footer.into())).width(760).height(680))

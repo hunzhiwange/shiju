@@ -69,3 +69,5 @@ pub mod pricing_batch;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod models_selection;
+
+pub mod dedup;

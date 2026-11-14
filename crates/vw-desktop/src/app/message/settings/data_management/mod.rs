@@ -3,3 +3,5 @@ pub(crate) mod export_ui;
 mod export_ui_tests;
 pub(crate) mod backup_list_ui;
 pub(crate) mod recovery_ui;
+
+pub(crate) mod locations_ui;

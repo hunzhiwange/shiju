@@ -96,6 +96,7 @@ pub fn initialize_usage_store(connection: &mut Connection) -> Result<(), UsageSt
         )
         .map_err(storage_error)?;
     super::retention::initialize_retention(&transaction)?;
+    super::dedup::initialize(&transaction)?;
     super::exchange_store::initialize_exchange_store(&transaction)
         .map_err(|_| UsageStoreError::StorageUnavailable)?;
     super::source_settings::initialize_source_settings(&transaction)
@@ -170,7 +171,27 @@ pub fn save_usage_record_in_transaction(
     if let Some(record_id) = existing {
         return Ok(UsageSaveOutcome::Replayed { record_id });
     }
-    // Different sources are merged only by the later evidence-based reconciler.
+    let matched = super::dedup::find(transaction, &scope_key, identity, value)?;
+    if let Some(record_id) = matched.canonical {
+        super::dedup::attach(transaction, &scope_key, &record_id, value)?;
+        let archived: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM usage_archived_records WHERE scope_key=?1 AND record_id=?2)",
+            params![scope_key, record_id], |row| row.get(0),
+        ).map_err(storage_error)?;
+        let sql = if archived {
+            "INSERT INTO usage_archived_identities(scope_key,identity_key,record_id) VALUES (?1,?2,?3)"
+        } else {
+            "INSERT INTO usage_source_identities(scope_key,identity_key,record_id) VALUES (?1,?2,?3)"
+        };
+        transaction.execute(sql, params![scope_key, identity_key, record_id]).map_err(storage_error)?;
+        let payload = serde_json::to_string(&value).map_err(|_| UsageStoreError::InvalidInput)?;
+        super::dedup::receipt(transaction, &scope_key, &identity_key, &record_id, &payload)?;
+        super::source_settings::advance_statistics_revision(transaction, scope, &identity.target_host, &identity.app)?;
+        return Ok(UsageSaveOutcome::Replayed { record_id });
+    }
+    let mut value = value.clone();
+    value.record.suspected_duplicate_of = matched.suspected;
+    // A semantic collision remains a distinct request.
     // A caller-chosen colliding canonical ID must never silently attach a source.
     let exists: bool = transaction
         .query_row(
@@ -182,7 +203,7 @@ pub fn save_usage_record_in_transaction(
     if exists {
         return Err(UsageStoreError::IdentityConflict);
     }
-    let payload = serde_json::to_string(value).map_err(|_| UsageStoreError::InvalidInput)?;
+    let payload = serde_json::to_string(&value).map_err(|_| UsageStoreError::InvalidInput)?;
     transaction.execute(
         "INSERT INTO usage_records(scope_key,record_id,payload_json,error_message) VALUES (?1,?2,?3,?4)",
         params![scope_key, value.record.id, payload, value.failure.map(UsageFailure::message)],
@@ -191,6 +212,7 @@ pub fn save_usage_record_in_transaction(
         "INSERT INTO usage_source_identities(scope_key,identity_key,record_id) VALUES (?1,?2,?3)",
         params![scope_key, identity_key, value.record.id],
     ).map_err(storage_error)?;
+    super::dedup::receipt(transaction, &scope_key, &identity_key, &value.record.id, &payload)?;
     super::source_settings::advance_statistics_revision(
         transaction, scope, &identity.target_host, &identity.app,
     )?;

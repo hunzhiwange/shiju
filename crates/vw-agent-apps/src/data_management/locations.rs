@@ -266,3 +266,14 @@ pub(super) fn categories(
         ("legacyToolSearch", roots.app.join("toolsearch-backups"), None),
     ]
 }
+
+/// Resolve only executor-registered categories, never a caller-supplied path.
+pub fn location_path(roots: &BackupLocationRoots<'_>, scope: &SafetySnapshotScope, id: &str) -> Result<std::path::PathBuf, Error> {
+    if roots.scope != scope { return Err(Error::ScopeMismatch); }
+    let path = if id == "database" { roots.local_backups.to_owned() } else {
+        categories(roots).into_iter().find(|(key, _, _)| *key == id)
+            .map(|(_, path, _)| path).ok_or(Error::InvalidSelection)?
+    };
+    if directory(&path)?.is_none() { return Err(Error::InvalidSelection); }
+    path.canonicalize().map_err(|_| Error::InvalidSelection)
+}

@@ -17,6 +17,8 @@ use crate::app::components::top_bar::menu_actions::NativeMenuAction;
 use crate::app::components::top_bar::menus::MenuEntry;
 use crate::app::message::view::ViewMessage;
 
+const QUIT_MENU_ID: &str = "shiju.quit";
+
 static INSTALLED_SNAPSHOT: Lazy<Mutex<Option<NativeMenuSnapshot>>> = Lazy::new(|| Mutex::new(None));
 
 /// 按快照安装或重建原生菜单。
@@ -68,7 +70,11 @@ fn native_menu_events() -> impl iced::futures::Stream<Item = Message> {
                     Ok(Err(error)) if error.is_timeout() => continue,
                     _ => break,
                 };
-                let message = if let Some(tab_id) = parse_window_tab_menu_id(event.id.as_ref()) {
+                let message = if event.id.as_ref() == QUIT_MENU_ID {
+                    Message::Settings(crate::app::message::settings::SettingsMessage::General(
+                        crate::app::message::settings::GeneralSettingsMessage::TrayQuit,
+                    ))
+                } else if let Some(tab_id) = parse_window_tab_menu_id(event.id.as_ref()) {
                     Message::View(ViewMessage::TabSelected(tab_id.to_string()))
                 } else if let Some(action) = NativeMenuAction::from_id(event.id.as_ref()) {
                     Message::NativeMenu(action)
@@ -103,7 +109,15 @@ fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)>
     app_menu.append(&PredefinedMenuItem::hide_others(Some(i18n.__("隐藏其他")))).ok()?;
     app_menu.append(&PredefinedMenuItem::show_all(Some(i18n.__("显示全部")))).ok()?;
     app_menu.append(&PredefinedMenuItem::separator()).ok()?;
-    app_menu.append(&PredefinedMenuItem::quit(Some(i18n.__("退出识矩")))).ok()?;
+    // 使用应用消息完成保存和本地清理，避免系统 terminate 绕过退出流程。
+    app_menu
+        .append(&MenuItem::with_id(
+            QUIT_MENU_ID,
+            i18n.__("退出识矩"),
+            true,
+            Some(Accelerator::new(Some(Modifiers::SUPER), Code::KeyQ)),
+        ))
+        .ok()?;
     menu.append(&app_menu).ok()?;
 
     for (title, entries) in menu_sections(snapshot) {

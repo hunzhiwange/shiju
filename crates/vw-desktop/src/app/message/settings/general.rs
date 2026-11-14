@@ -95,6 +95,21 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 crate::app::desktop_lifecycle::remove_tray();
             }
         }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::InstanceTick => {
+            let requests = crate::app::single_instance::poll();
+            if requests.is_empty() || app.shutdown_requested {
+                return Task::none();
+            }
+            let unsupported = requests.iter().any(|args| !args.is_empty());
+            let wake = app.reopen_main_window();
+            if unsupported {
+                return Task::batch([wake, app.show_error_toast(
+                    "已唤醒主窗口；当前尚不支持启动参数".to_string(),
+                )]);
+            }
+            return wake;
+        }
         GeneralSettingsMessage::TrayTick => {
             return Task::batch(
                 crate::app::desktop_lifecycle::poll_tray().into_iter().map(|message| {

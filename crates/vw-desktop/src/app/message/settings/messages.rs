@@ -748,6 +748,8 @@ pub enum GeneralSettingsMessage {
     LaunchAtLoginSaved(Result<bool, String>),
     LaunchAtLoginRefreshed(Result<bool, String>),
     CloseToTrayToggled(bool),
+    #[cfg(target_os = "macos")]
+    InstanceTick,
     TrayTick,
     TrayShow,
     TrayQuit,

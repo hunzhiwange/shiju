@@ -221,6 +221,17 @@ pub fn main() -> iced::Result {
         return Ok(());
     }
 
+    // Helpers bypass the desktop instance gate; every GUI launch acquires it before App::new.
+    #[cfg(target_os = "macos")]
+    let _instance = match app::single_instance::acquire_or_forward() {
+        Ok(Some(guard)) => guard,
+        Ok(None) => return Ok(()),
+        Err(error) => {
+            eprintln!("无法启动识矩单实例：{error}");
+            std::process::exit(1);
+        }
+    };
+
     #[cfg(target_arch = "wasm32")]
     {
         console_log::init().expect("Initialize logger");

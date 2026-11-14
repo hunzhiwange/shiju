@@ -1,0 +1,22 @@
+[package]
+name = "memory-postgres"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+memory-types = { path = "../memory-types", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+parking_lot = "0.12"
+postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.11", features = ["v4", "js"] }
+rustls-pki-types = "1.14.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
+tokio-postgres-rustls = "0.14.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }

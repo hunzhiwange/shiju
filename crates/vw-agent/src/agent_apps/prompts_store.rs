@@ -184,3 +184,7 @@ impl PromptScope<'_> {
 #[cfg(target_os = "macos")]
 #[path = "prompts_bootstrap.rs"]
 mod bootstrap;
+
+#[cfg(target_os = "macos")]
+#[path = "profile_prompt_store.rs"]
+mod profile_prompt_store;

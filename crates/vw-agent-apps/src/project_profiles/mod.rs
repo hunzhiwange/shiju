@@ -10,3 +10,5 @@ pub mod autosave;
 pub mod apply_skills;
 
 pub mod apply_mcp;
+
+pub mod apply_prompt;

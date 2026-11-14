@@ -26,3 +26,9 @@
 - selected 与 applied 分离；逐项状态包含成功、缺失、冲突、拒绝、失败、取消、不支持。调用者只有确认全部所需步骤后才可返回 applied；取消保留已提交结果。
 - 已编写 5 个 `profile_t02_` 独立测试，覆盖 null/空集合、三组映射和独立覆盖、空提示词、非法组拒绝、部分成功序列化。源码审阅不等于测试通过。
 - 按本轮明确覆盖要求，未执行 Cargo、构建、检查、任何测试、实机验收或最终回归；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置，无测试通过数量或退出码。后续解除禁令后通过仓库 cargo_slot.py 运行任务卡原定聚焦测试。
+
+## 任务 14：应用提示词槽位
+
+2026-11-14：实现指定组 `project_profiles/apply_prompt.rs` 与 `PromptsStore::apply_profile_prompt` 执行端适配。null 不读写；空串停用；相同激活项不重写；目标缺失返回 Missing，保留当前选择。读取在原生槽锁内取得目录 revision 和文件前像；激活调用母任务 13 的 activate_ordinary，停用调用 reconcile_ordinary，保留原事务、授权和冲突检查。无 current 标记或快照写入。调用者仍须完成执行主机路径解析、项目与物理槽授权及外层操作串行化；尚未接生产应用 API，不构成平台闭环。
+
+按用户本轮覆盖要求，仅写代码及必要合同，未编写或运行测试，未执行 Cargo、构建、检查、实机或最终回归。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。实现未经编译或行为验证。后续需验证 profile_t14_ 的 null、空串、重复应用零写入、缺失引用保留、版本/原生前像冲突、授权拒绝与组隔离，再验收 macOS。

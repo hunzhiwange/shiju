@@ -560,7 +560,7 @@ fn missing_project_path_clears_stale_worktree_snapshot_state() {
 }
 
 #[test]
-fn non_git_project_skips_worktree_snapshot_refresh() {
+fn non_git_project_schedules_logical_pool_refresh() {
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/tmp/non-git-project".to_string());
     app.project_is_git_repo = false;
@@ -581,17 +581,17 @@ fn non_git_project_skips_worktree_snapshot_refresh() {
 
     let refresh = super::maybe_schedule_worktree_snapshot_refresh(&mut app, true);
 
-    assert_eq!(refresh.units(), 0);
-    assert!(!app.task_board_worktree_snapshot_loading);
-    assert!(app.task_board_worktree_snapshot.is_none());
-    assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 0);
+    assert_eq!(refresh.units(), 1);
+    assert!(app.task_board_worktree_snapshot_loading);
+    assert!(app.task_board_worktree_snapshot.is_some());
+    assert_eq!(app.task_board_last_worktree_snapshot_at_ms, 99);
 
     let maintain = super::schedule_worktree_pool_maintenance(&mut app, "/tmp/non-git-project", 0);
-    assert_eq!(maintain.units(), 0);
-    assert!(!app.task_board_worktree_maintenance_in_flight);
+    assert_eq!(maintain.units(), 1);
+    assert!(app.task_board_worktree_maintenance_in_flight);
 
     let recycle = super::recycle_assigned_task_worktree_for_removal(&app, "T-1");
-    assert_eq!(recycle.units(), 0);
+    assert_eq!(recycle.units(), 1);
 }
 
 #[test]
@@ -1009,4 +1009,20 @@ fn lifecycle_status(
         next: next.map(str::to_string),
         transitions: Vec::new(),
     }
+}
+
+#[test]
+fn task_pool_desktop_scheduler_prepares_logical_capacity_without_worktrees() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some(path.clone());
+    app.project_is_git_repo = false;
+    app.task_board_settings.max_concurrent = 7;
+    let task = super::schedule_worktree_pool_maintenance(&mut app, &path, 0);
+    assert_eq!(task.units(), 1);
+    assert!(app.task_board_worktree_maintenance_in_flight);
+    assert_eq!(app.task_board_settings.max_concurrent, 7);
+    assert!(!directory.path().join(".git").exists());
+    assert!(!directory.path().join(".worktrees").exists());
 }

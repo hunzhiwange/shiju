@@ -1003,6 +1003,11 @@ const DEV_LIFECYCLE_TRANSITIONS: &[TaskStatusTransition] = &[
     },
     TaskStatusTransition {
         from: TaskStatus::Running,
+        to: TaskStatus::Completed,
+        intent: TaskTransitionIntent::ExecutionSucceeded,
+    },
+    TaskStatusTransition {
+        from: TaskStatus::Running,
         to: TaskStatus::CodeComplete,
         intent: TaskTransitionIntent::ExecutionSucceeded,
     },

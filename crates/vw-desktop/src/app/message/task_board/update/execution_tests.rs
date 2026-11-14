@@ -39,7 +39,9 @@ fn manual_retry_continues_existing_session_only_for_failed_tasks() {
 
 #[test]
 fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
+    let directory = tempfile::tempdir().unwrap();
     let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some(directory.path().to_string_lossy().into_owned());
     app.project_is_git_repo = true;
     app.task_board_executor_running = false;
     app.task_board_last_log_flush_at_ms = 99;
@@ -47,6 +49,7 @@ fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
     app.task_board_timeout_scan_cursor = 4;
     app.task_board_schedule_scan_cursor = 5;
 
+    let prior_review_deadline = app.task_board_next_auto_review_tick_at_ms;
     let _ = super::update(&mut app, super::TaskBoardMessage::StartExecution);
 
     assert!(app.task_board_executor_running);
@@ -55,52 +58,62 @@ fn start_and_stop_execution_toggle_executor_state_and_scan_cursors() {
     assert_eq!(app.task_board_timeout_scan_cursor, 0);
     assert_eq!(app.task_board_schedule_scan_cursor, 0);
     assert!(app.task_board_next_scheduler_tick_at_ms > 0);
-    assert!(app.task_board_next_auto_review_tick_at_ms > 0);
+    assert_eq!(app.task_board_next_auto_review_tick_at_ms, prior_review_deadline);
 
     let _ = super::update(&mut app, super::TaskBoardMessage::StopExecution);
 
     assert!(!app.task_board_executor_running);
 }
 
-#[test]
-fn non_git_project_rejects_task_execution_with_toast() {
-    use crate::app::task::{Task, TaskStatus};
-
-    let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/tmp/non-git-exec".to_string());
+#[tokio::test]
+async fn task_pool_desktop_non_git_can_start_and_retry() {
+    use iced_runtime::futures::futures::StreamExt;
+    let gateway = DesktopRecordingGateway::start();
+    let directory = tempfile::tempdir().unwrap();
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some(directory.path().to_string_lossy().into_owned());
     app.project_is_git_repo = false;
-    app.task_board_executor_running = false;
-    let mut task = Task::new(1);
-    task.id = "T-non-git".to_string();
-    task.status = TaskStatus::Pending;
-    app.task_board_tasks = vec![task];
-
-    let start = super::update(&mut app, super::TaskBoardMessage::StartExecution);
-    assert_eq!(start.units(), 1);
-    assert!(!app.task_board_executor_running);
+    let _ = super::update(&mut app, super::TaskBoardMessage::StartExecution);
+    assert!(app.task_board_executor_running);
+    for status in [crate::app::task::TaskStatus::Pending, crate::app::task::TaskStatus::Failed] {
+        let mut task = crate::app::task::Task::new(1);
+        task.status = status;
+        task.id = "desktop-task".into();
+        app.task_board_tasks = vec![task];
+        let command = super::update(
+            &mut app,
+            super::TaskBoardMessage::ExecuteTask { task_id: "desktop-task".into() },
+        );
+        let mut stream = iced_runtime::task::into_stream(command).unwrap();
+        let result =
+            tokio::time::timeout(std::time::Duration::from_secs(10), stream.next()).await.unwrap();
+        match result {
+            Some(iced_runtime::Action::Output(crate::app::Message::TaskBoard(
+                super::TaskBoardMessage::AgentSchedulerStatusLoaded { result, .. },
+            ))) => {
+                result.expect("scheduler response must deserialize");
+            }
+            _ => panic!("expected scheduler status output"),
+        }
+    }
+    app.task_board_settings.max_concurrent = 7;
+    let tick = super::update(&mut app, super::TaskBoardMessage::ExecutionTick);
+    let mut stream = iced_runtime::task::into_stream(tick).unwrap();
+    for _ in 0..2 {
+        tokio::time::timeout(std::time::Duration::from_secs(10), stream.next()).await.unwrap();
+    }
+    let requests = gateway.finish();
     assert!(
-        app.active_toast.as_ref().is_some_and(|toast| {
-            matches!(toast.kind, crate::app::state::ToastKind::Error)
-                && (toast.message.contains("Git") || toast.message.contains("git"))
-        }),
-        "StartExecution should toast for non-git projects"
+        requests
+            .iter()
+            .any(|(_, body)| body.get("desired_capacity") == Some(&serde_json::json!(7)))
     );
-
-    app.active_toast = None;
-    let execute = super::update(
-        &mut app,
-        super::TaskBoardMessage::ExecuteTask { task_id: "T-non-git".to_string() },
-    );
-    assert_eq!(execute.units(), 1);
-    assert!(!app.task_board_executor.is_running("T-non-git"));
-    assert_eq!(app.task_board_tasks[0].status, TaskStatus::Pending);
-    assert!(
-        app.active_toast.as_ref().is_some_and(|toast| {
-            matches!(toast.kind, crate::app::state::ToastKind::Error)
-                && (toast.message.contains("Git") || toast.message.contains("git"))
-        }),
-        "ExecuteTask should toast for non-git projects"
-    );
+    let commands: Vec<_> =
+        requests.iter().filter(|(_, body)| body.get("command").is_some()).collect();
+    assert_eq!(commands.len(), 2);
+    assert_eq!(commands[0].1["command"], "start");
+    assert_eq!(commands[1].1["command"], "retry");
+    assert!(requests.iter().all(|(path, _)| !path.contains("/git/")));
 }
 
 #[test]
@@ -367,4 +380,143 @@ fn manual_execute_ignores_task_already_waiting_for_worktree() {
             .iter()
             .any(|entry| { entry.message.contains("任务已在执行或等待工作区") })
     );
+}
+
+#[test]
+fn task_pool_desktop_success_does_not_append_git_actions() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().to_string_lossy().into_owned();
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some(path.clone());
+    let mut task = crate::app::task::Task::new(1);
+    task.status = crate::app::task::TaskStatus::Running;
+    let id = task.id.clone();
+    app.task_board_tasks.push(task);
+    let _ = super::super::execution_results_update::update(
+        &mut app,
+        super::TaskBoardMessage::TaskExecutionCompleted {
+            project_path: path,
+            task_id: id,
+            result: Ok("done".into()),
+        },
+    );
+    let task = &app.task_board_tasks[0];
+    assert_eq!(task.status, crate::app::task::TaskStatus::Completed);
+    assert!(task.merge_source_branch.is_none());
+    assert!(task.merge_target_branch.is_none());
+    assert!(task.selected_worktree_path.is_none());
+    assert!(!directory.path().join(".git").exists());
+}
+
+struct DesktopRecordingGateway {
+    _directory: tempfile::TempDir,
+    previous: Option<std::ffi::OsString>,
+    stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    handle: Option<std::thread::JoinHandle<Vec<(String, serde_json::Value)>>>,
+}
+
+impl DesktopRecordingGateway {
+    fn start() -> Self {
+        use vw_config_types::ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
+        let directory = tempfile::tempdir().unwrap();
+        let previous = std::env::var_os("VIBEWINDOW_CONFIG_DIR");
+        unsafe {
+            std::env::set_var("VIBEWINDOW_CONFIG_DIR", directory.path());
+        }
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut config = GatewayClientSystemSettingsConfig::default();
+        config.set_servers(
+            vec![GatewayClientServerConfig {
+                id: "test".into(),
+                name: "test".into(),
+                host: "127.0.0.1".into(),
+                port: listener.local_addr().unwrap().port(),
+                bearer_token: "test-token".into(),
+                ..Default::default()
+            }],
+            "test".into(),
+        );
+        std::fs::write(
+            directory.path().join("gateway-client-bootstrap.json"),
+            serde_json::to_vec(&config).unwrap(),
+        )
+        .unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let done = stop.clone();
+        let handle = std::thread::spawn(move || {
+            use serde_json::json;
+            use std::io::{Read, Write};
+            let mut requests = Vec::new();
+            while !done.load(std::sync::atomic::Ordering::SeqCst) {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    continue;
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut bytes = Vec::new();
+                let mut buffer = [0; 4096];
+                let (headers, body) = loop {
+                    let n = stream.read(&mut buffer).unwrap();
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&buffer[..n]);
+                    if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&bytes[..end]).to_string();
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                let (key, value) = line.split_once(':')?;
+                                key.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap_or(0);
+                        if bytes.len() >= end + 4 + length {
+                            break (
+                                headers,
+                                serde_json::from_slice::<serde_json::Value>(
+                                    &bytes[end + 4..end + 4 + length],
+                                )
+                                .unwrap_or(json!({})),
+                            );
+                        }
+                    }
+                };
+                let path =
+                    headers.lines().next().unwrap().split_whitespace().nth(1).unwrap().to_string();
+                let response = if path.contains("projects/resolve") {
+                    json!({"project": {"id":"project-test", "name":"test", "directory":body["directory"], "display_path":"test", "status":"ready", "created_at_ms":1,"updated_at_ms":1,"git":{"is_repo":false,"has_uncommitted_changes":false}}})
+                } else if body.get("desired_capacity").is_some() {
+                    json!({"idle_count":7,"target_idle_count":7})
+                } else if body.get("command").is_some() {
+                    json!({"accepted":true})
+                } else if body.get("task_id").is_some() {
+                    json!({"task_id":"desktop-task", "task":{"id":"desktop-task", "title":"test", "kind":"finite", "status":"failed", "created_at_ms":1,"updated_at_ms":1}})
+                } else {
+                    json!({"project_id":"project-test","tasks":[]})
+                };
+                requests.push((path, body));
+                let response = response.to_string();
+                write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", response.len(), response).unwrap();
+            }
+            requests
+        });
+        Self { _directory: directory, previous, stop, handle: Some(handle) }
+    }
+    fn finish(mut self) -> Vec<(String, serde_json::Value)> {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.handle.take().unwrap().join().unwrap()
+    }
+}
+impl Drop for DesktopRecordingGateway {
+    fn drop(&mut self) {
+        self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        match self.previous.take() {
+            Some(value) => unsafe { std::env::set_var("VIBEWINDOW_CONFIG_DIR", value) },
+            None => unsafe { std::env::remove_var("VIBEWINDOW_CONFIG_DIR") },
+        }
+    }
 }

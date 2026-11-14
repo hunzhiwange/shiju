@@ -1280,10 +1280,6 @@ pub(crate) fn recycle_assigned_task_worktree_for_removal(
     app: &crate::app::App,
     task_id: &str,
 ) -> iced::Task<crate::app::Message> {
-    if !app.project_is_git_repo {
-        return iced::Task::none();
-    }
-
     let Some(project_path) = &app.project_path else {
         return iced::Task::none();
     };

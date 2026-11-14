@@ -56,7 +56,6 @@ pub(super) fn update(
         let mut should_recycle_worktree = false;
         let mut recycle_reason: Option<String> = None;
         let staff_handoff_task = iced::Task::none();
-        let mut should_schedule_auto_review_tick = false;
             if let Some(task) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
                 for log in final_logs {
                     append_task_log_stream(task, &log);
@@ -96,14 +95,13 @@ pub(super) fn update(
                         } else {
                             crate::app::task::TaskTransitionIntent::ExecutionSucceeded
                         };
-                        if task.apply_task_transition(TaskStatus::CodeComplete, succeed_intent).is_err()
+                        if task.apply_task_transition(TaskStatus::Completed, succeed_intent).is_err()
                         {
-                            task.mark_paused("执行成功但状态机拒绝进入代码完成".to_string());
+                            task.mark_paused("执行成功但状态机拒绝进入完成".to_string());
                             should_recycle_worktree = true;
                             recycle_reason = task.pause_reason.clone();
                         } else {
-                            task.add_localized_log("等待代码完成调度", vec![]);
-                            should_schedule_auto_review_tick = true;
+                            task.add_localized_log("任务已完成", vec![]);
                         }
                         if matches!(task.status, TaskStatus::CodeReview | TaskStatus::PrSubmitted) {
                         }
@@ -138,20 +136,14 @@ pub(super) fn update(
                 task_clone,
                 "保存执行结果",
             );
-            let mut tasks = vec![
+            let tasks = vec![
                 persist_task,
                 staff_handoff_task,
                 schedule_scheduler_tick_with_deadline(app),
             ];
-            if should_schedule_auto_review_tick {
-                tasks.push(schedule_auto_review_tick_with_deadline(app));
-            }
             return iced::Task::batch(tasks);
         }
-        let mut tasks = vec![staff_handoff_task, schedule_scheduler_tick_with_deadline(app)];
-        if should_schedule_auto_review_tick {
-            tasks.push(schedule_auto_review_tick_with_deadline(app));
-        }
+        let tasks = vec![staff_handoff_task, schedule_scheduler_tick_with_deadline(app)];
         iced::Task::batch(tasks)
         }
     TaskBoardMessage::TaskCodeReviewCompleted { project_path, task_id, result } => {

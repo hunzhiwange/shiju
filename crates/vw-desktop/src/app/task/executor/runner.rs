@@ -10,11 +10,6 @@ use super::gateway_output::GatewayVisibleOutputFilter;
 use super::process_utils::{emit_stderr_log, emit_stdout_log};
 use super::state::TaskLogStream;
 #[cfg(not(target_arch = "wasm32"))]
-use super::state::{
-    GIT_SOURCE_BRANCH_TAG, GIT_SUMMARY_TAG, GIT_TARGET_BRANCH_TAG, GIT_WORKTREE_PATH_TAG,
-    SelectedExecutionWorkspace,
-};
-#[cfg(not(target_arch = "wasm32"))]
 use super::worktree_admin::resolve_task_execution_workspace;
 use super::*;
 #[cfg(not(target_arch = "wasm32"))]
@@ -89,7 +84,6 @@ fn gateway_prompt_options_for_mode(
     let mut options = Map::new();
     options.insert("acp_test".to_string(), json!(acp_enabled));
     options.insert("cwd".to_string(), json!(execution_path));
-    options.insert("full_access".to_string(), json!(!acp_enabled));
     // A named agent may resolve to ACP at the gateway even without an explicit backend.
     options.insert("acp_background".to_string(), json!(true));
     if acp_enabled {
@@ -1193,23 +1187,8 @@ pub async fn execute_task_plan_async(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Debug, Clone)]
-struct GitPrepareOutcome {
-    summary: String,
-    source_branch: Option<String>,
-    target_branch: Option<String>,
-    worktree_path: Option<String>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 struct GatewayGitContext {
     project_id: vw_gateway_client::vw_api_types::id::ProjectId,
-    worktree_id: Option<vw_gateway_client::vw_api_types::id::WorktreeId>,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn format_git_summary(add: &str, commit: &str, merge: &str) -> String {
-    format!("Git动作摘要: add={}; commit={}; merge={}", add, commit, merge)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1234,7 +1213,7 @@ fn resolve_gateway_git_context(
 
     let target_directory = normalize_gateway_path(git_directory);
     if target_directory == normalize_gateway_path(&project.directory) {
-        return Ok(GatewayGitContext { project_id: project.id, worktree_id: None });
+        return Ok(GatewayGitContext { project_id: project.id });
     }
 
     let project_scope = crate::app::session_gateway::active_project_scope(project.id.clone())?;
@@ -1244,11 +1223,11 @@ fn resolve_gateway_git_context(
         .find(|worktree| normalize_gateway_path(&worktree.directory) == target_directory)
         .map(|worktree| worktree.id);
 
-    let Some(worktree_id) = worktree_id else {
+    let Some(_) = worktree_id else {
         return Err(format!("网关未登记任务 worktree，拒绝绕过网关执行 git: {}", git_directory));
     };
 
-    Ok(GatewayGitContext { project_id: project.id, worktree_id: Some(worktree_id) })
+    Ok(GatewayGitContext { project_id: project.id })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1350,59 +1329,6 @@ fn execute_gateway_git_merge_with_retry(
         }
     }
     Err("网关合并重试耗尽".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn execute_git_prepare_actions(
-    task: &Task,
-    project_path: &str,
-    workspace: &SelectedExecutionWorkspace,
-    sender: Option<&Sender<TaskLogStream>>,
-) -> Result<GitPrepareOutcome, String> {
-    emit_stdout_log(sender, "[GATEWAY GIT] 请求网关执行 add/commit 自动流程".to_string());
-    let context = resolve_gateway_git_context(project_path, &workspace.execution_path)?;
-    let client = crate::app::config::gateway_client()?;
-    let commit_message = build_task_commit_message(task, &format!("task({})", task.id));
-    let response = super::block_on_gateway(client.git_commit(
-        &vw_gateway_client::vw_api_types::git::GitCommitRequest {
-            project_id: context.project_id,
-            worktree_id: context.worktree_id,
-            message: commit_message.clone(),
-            stage_all: true,
-            selected_files: Vec::new(),
-            selected_hunks: Vec::new(),
-            selected_lines: Vec::new(),
-            selected_old_lines: Vec::new(),
-        },
-    ))?;
-    if !response.ok {
-        return Err("网关未确认 git commit 成功".to_string());
-    }
-    if response.created {
-        emit_stdout_log(
-            sender,
-            format!(
-                "[GATEWAY GIT] commit 成功 sha={} message={}",
-                response.commit.sha, response.commit.message
-            ),
-        );
-    } else {
-        emit_stdout_log(sender, "[GATEWAY GIT] 无变更，跳过 commit".to_string());
-    }
-    let add_status = "成功(网关)".to_string();
-    let commit_status = if response.created {
-        format!("成功({})", commit_message)
-    } else {
-        "跳过(无变更)".to_string()
-    };
-    let merge_status = "跳过(等待审核后再合并)".to_string();
-
-    Ok(GitPrepareOutcome {
-        summary: format_git_summary(&add_status, &commit_status, &merge_status),
-        source_branch: workspace.selected_worktree_branch.clone(),
-        target_branch: workspace.merge_target_branch.clone(),
-        worktree_path: workspace.selected_worktree_path.clone(),
-    })
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -1749,34 +1675,7 @@ fn execute_task_blocking_in_mode(
         execution_result = Ok(execution_output);
     }
 
-    let final_result = match execution_result {
-        Ok(exec) => match execute_git_prepare_actions(&task, &project_path, &workspace, sender_ref)
-        {
-            Ok(git) => {
-                let mut output = format!("{}\n{}:{}", exec, GIT_SUMMARY_TAG, git.summary);
-                if let Some(source) = git.source_branch {
-                    output.push_str(&format!("\n{}:{}", GIT_SOURCE_BRANCH_TAG, source));
-                }
-                if let Some(target) = git.target_branch {
-                    output.push_str(&format!("\n{}:{}", GIT_TARGET_BRANCH_TAG, target));
-                }
-                if let Some(worktree_path) = git.worktree_path {
-                    output.push_str(&format!("\n{}:{}", GIT_WORKTREE_PATH_TAG, worktree_path));
-                }
-                Ok(output)
-            }
-            Err(git_err) => Err(format!("任务执行成功，但 Git 流程失败: {}", git_err)),
-        },
-        Err(exec_err) => {
-            emit_stdout_log(
-                sender_ref,
-                format!("[GATEWAY GIT] 跳过 add/commit/merge，原因=执行失败: {}", exec_err),
-            );
-            Err(exec_err)
-        }
-    };
-
-    (task.id, final_result)
+    (task.id, execution_result)
 }
 
 /// 公开的 execute_task_async 函数。

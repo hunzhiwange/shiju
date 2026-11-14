@@ -157,14 +157,6 @@ static CLAIMED_WORKTREES: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
 
 /// 模块内部可见的 GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS 常量，集中保存该模块复用的稳定取值。
 pub(super) const GIT_MAINTENANCE_COMMAND_TIMEOUT_SECS: u64 = 30;
-/// 模块内部可见的 GIT_SUMMARY_TAG 常量，集中保存该模块复用的稳定取值。
-pub(super) const GIT_SUMMARY_TAG: &str = "__VW_GIT_SUMMARY__";
-/// 模块内部可见的 GIT_SOURCE_BRANCH_TAG 常量，集中保存该模块复用的稳定取值。
-pub(super) const GIT_SOURCE_BRANCH_TAG: &str = "__VW_GIT_SOURCE_BRANCH__";
-/// 模块内部可见的 GIT_TARGET_BRANCH_TAG 常量，集中保存该模块复用的稳定取值。
-pub(super) const GIT_TARGET_BRANCH_TAG: &str = "__VW_GIT_TARGET_BRANCH__";
-/// 模块内部可见的 GIT_WORKTREE_PATH_TAG 常量，集中保存该模块复用的稳定取值。
-pub(super) const GIT_WORKTREE_PATH_TAG: &str = "__VW_GIT_WORKTREE_PATH__";
 /// 模块内部可见的 claimed_worktrees 函数。
 ///
 /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。

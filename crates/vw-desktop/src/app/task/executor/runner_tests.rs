@@ -268,7 +268,7 @@ fn task_plan_root_path(home: &std::path::Path) -> std::path::PathBuf {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn gateway_prompt_options_grants_full_access_for_internal_design_route() {
+fn task_pool_desktop_background_execution_inherits_agent_permissions() {
     let options = super::gateway_prompt_options_for_mode(
         "/tmp/project",
         false,
@@ -276,7 +276,7 @@ fn gateway_prompt_options_grants_full_access_for_internal_design_route() {
     );
 
     assert_eq!(options.get("cwd").and_then(serde_json::Value::as_str), Some("/tmp/project"));
-    assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
+    assert!(!options.contains_key("full_access"));
     assert_eq!(options.get("acp_test").and_then(serde_json::Value::as_bool), Some(false));
     assert!(!options.contains_key("acp_permission_mode"));
 }
@@ -290,7 +290,7 @@ fn gateway_prompt_options_uses_approval_for_background_acp_agents() {
         super::GatewayPromptSessionMode::Fresh,
     );
 
-    assert_eq!(options["full_access"], false);
+    assert!(!options.contains_key("full_access"));
     assert_eq!(options["acp_background"], true);
     assert_eq!(
         options.get("acp_permission_mode").and_then(serde_json::Value::as_str),
@@ -993,11 +993,7 @@ fn task_split_plan_dir_name_is_deterministic_from_task_id() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn format_git_summary_and_normalize_gateway_path_are_stable() {
-    assert_eq!(
-        super::format_git_summary("ok", "skip", "done"),
-        "Git动作摘要: add=ok; commit=skip; merge=done"
-    );
+fn normalize_gateway_path_is_stable() {
     assert_eq!(super::normalize_gateway_path("C:\\repo\\worktree\\"), "C:/repo/worktree");
     assert_eq!(super::normalize_gateway_path("/repo/worktree///"), "/repo/worktree");
     assert_eq!(super::normalize_gateway_path(""), "");

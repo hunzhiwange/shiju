@@ -23,11 +23,10 @@ fn late_success_requires_the_specific_running_timeout_failure() {
 }
 
 #[test]
-fn execution_success_uses_workflow_transition_to_review() {
+fn execution_success_uses_workflow_transition_to_completed() {
     use crate::app::task::{Task, TaskStatus};
 
-    // 关闭自动审核：执行成功后只推进到 CodeComplete，后续 review/merge
-    // 由 Agent Scheduler command/tick 接管，桌面不再直接推进审核阶段。
+    // 普通任务直接完成，Git 与审核由显式任务或工作流执行。
     let (mut app, _task) = crate::app::App::new();
     app.project_path = Some("/tmp/vibewindow-exec-success-test".to_string());
 
@@ -54,10 +53,10 @@ fn execution_success_uses_workflow_transition_to_review() {
         .expect("task should remain in task board");
     assert!(task.logs.iter().any(|entry| {
         entry.status_from == Some(TaskStatus::Running)
-            && entry.status_to == Some(TaskStatus::CodeComplete)
+            && entry.status_to == Some(TaskStatus::Completed)
     }));
-    assert_eq!(task.status, TaskStatus::CodeComplete);
-    assert!(task.logs.iter().any(|entry| entry.message.contains("等待代码完成调度")));
+    assert_eq!(task.status, TaskStatus::Completed);
+    assert!(task.logs.iter().any(|entry| entry.message.contains("任务已完成")));
     assert!(!task.logs.iter().any(|entry| entry.message.contains("状态转移被状态机拒绝")));
 }
 

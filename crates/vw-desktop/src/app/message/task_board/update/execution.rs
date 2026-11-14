@@ -19,37 +19,6 @@ fn add_agent_scheduler_command_log_once(task: &mut Task, message: &str) {
     }
 }
 
-fn wake_agent_scheduler(
-    app: &crate::app::App,
-    mapper: fn(Result<AgentSchedulerWakeResponse, String>) -> TaskBoardMessage,
-) -> iced::Task<crate::app::Message> {
-    let Some(project_path) = app.project_path.clone() else {
-        return iced::Task::none();
-    };
-    let now_ms = crate::app::time::now_ms();
-    let dispatch_mode = app.task_board_settings.agent_scheduler_dispatch_mode;
-    let max_concurrent = Some(app.task_board_settings.max_concurrent.clamp(1, 10));
-    iced::Task::perform(
-        async move {
-            let scope = resolve_task_board_scheduler_scope(&project_path).await?;
-            let client = crate::app::config::gateway_client()?;
-            let response = client
-                .agent_scheduler_wake(
-                    &scope,
-                    &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerWakeRequest {
-                        now_ms: TimestampMs(i64::try_from(now_ms).unwrap_or(i64::MAX)),
-                        dispatch_mode,
-                        max_concurrent,
-                        auto_promote_pool_tasks: true,
-                    },
-                )
-                .await?;
-            Ok(response)
-        },
-        move |result| Message::TaskBoard(mapper(result)),
-    )
-}
-
 fn agent_scheduler_lifecycle_error(app: &crate::app::App) -> Option<String> {
     let workflow_id = app.task_board_settings.workflow_id.clone();
     task_workflow_by_id(&workflow_id)
@@ -137,8 +106,8 @@ pub(super) fn update(
 ) -> iced::Task<crate::app::Message> {
     dispatch_task_board_messages!(message,
     TaskBoardMessage::StartExecution => {
-        if !app.project_is_git_repo {
-            return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前项目不是 Git 仓库，无法启动依赖 worktree 的任务调度", vec![]);
+        if !app.project_path.as_deref().is_some_and(|path| std::path::Path::new(path).is_dir()) {
+            return app.show_error_toast("项目目录不存在".to_string());
         }
         app.task_board_executor_running = true;
         app.task_board_last_log_flush_at_ms = 0;
@@ -146,12 +115,7 @@ pub(super) fn update(
         app.task_board_timeout_scan_cursor = 0;
         app.task_board_schedule_scan_cursor = 0;
         app.task_board_next_scheduler_tick_at_ms = next_deadline_ms(scheduler_tick_interval_secs(app));
-        app.task_board_next_auto_review_tick_at_ms =
-            next_deadline_ms(TASK_AUTO_CODE_REVIEW_TICK_INTERVAL_SECS);
-        iced::Task::batch(vec![
-            iced::Task::done(Message::TaskBoard(TaskBoardMessage::ExecutionTick)),
-            schedule_auto_review_tick_with_deadline(app),
-        ])
+        iced::Task::done(Message::TaskBoard(TaskBoardMessage::ExecutionTick))
     }
     TaskBoardMessage::StopExecution => {
         app.task_board_executor_running = false;
@@ -165,10 +129,13 @@ pub(super) fn update(
             return iced::Task::none();
         }
 
-            wake_agent_scheduler_after_registering_pending(
+            let maintenance = app.project_path.clone().map(|path| {
+                schedule_worktree_pool_maintenance(app, &path, 0)
+            }).unwrap_or_else(iced::Task::none);
+            iced::Task::batch(vec![maintenance, wake_agent_scheduler_after_registering_pending(
                 app,
                 TaskBoardMessage::AgentSchedulerExecutionWakeCompleted,
-            )
+            )])
         }
         TaskBoardMessage::AgentSchedulerExecutionWakeCompleted(result) => {
             let response = match result {
@@ -251,15 +218,7 @@ pub(super) fn update(
             schedule_agent_scheduler_command_in_flight_status_sync(project_path, task_id),
         ])
     }
-    TaskBoardMessage::AutoCodeReviewTick => {
-            if !app.task_board_executor_running {
-                return iced::Task::none();
-            }
-            iced::Task::batch(vec![
-                wake_agent_scheduler(app, TaskBoardMessage::AgentSchedulerExecutionWakeCompleted),
-                schedule_auto_review_tick_with_deadline(app),
-            ])
-        }
+    TaskBoardMessage::AutoCodeReviewTick => { iced::Task::none() }
     TaskBoardMessage::SimulateStep { task_id } => {
         if !app.task_board_executor_running {
             return iced::Task::none();
@@ -307,12 +266,7 @@ pub(super) fn update(
             };
             dispatch_agent_scheduler_promote_wake(app, response)
         }
-    TaskBoardMessage::AutoMergeTick => {
-        if !app.task_board_executor_running || app.project_path.is_none() {
-            return iced::Task::none();
-        }
-            wake_agent_scheduler(app, TaskBoardMessage::AgentSchedulerAutoMergeWakeCompleted)
-        }
+    TaskBoardMessage::AutoMergeTick => { iced::Task::none() }
         TaskBoardMessage::AgentSchedulerAutoMergeWakeCompleted(result) => {
             let response = match result {
                 Ok(response) => response,
@@ -324,9 +278,6 @@ pub(super) fn update(
             dispatch_agent_scheduler_merge_wake(app, response)
         }
         TaskBoardMessage::ExecuteTask { task_id } => {
-            if !app.project_is_git_repo {
-                return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前项目不是 Git 仓库，无法执行依赖 worktree 的任务", vec![]);
-            }
             if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
                 if let Some(project_path) = &app.project_path {
                     let path = project_path.clone();

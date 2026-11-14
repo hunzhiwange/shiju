@@ -1,0 +1,28 @@
+[package]
+name = "memory-sqlite"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+memory-types = { path = "../memory-types", version = "0.6.0" }
+project-storage-paths = { path = "../project-storage-paths", version = "0.6.0" }
+memory-algorithms = { path = "../memory-algorithms", version = "0.6.0" }
+parking_lot = "0.12"
+uuid = { version = "1.11", features = ["v4", "js"] }
+sha2 = "0.11"
+anyhow = "1"
+async-trait = "0.1.89"
+chrono = { version = "0.4", features = ["serde"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"

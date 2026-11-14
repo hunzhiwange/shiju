@@ -2,8 +2,8 @@
 
 // 零维嵌入器绕过计算；命中缓存时刷新访问时间，容量满时淘汰旧项。
 use super::*;
-use crate::app::agent::memory::embeddings::EmbeddingProvider;
-use crate::memory::vector;
+use crate::memory::embeddings::EmbeddingProvider;
+use memory_algorithms::vector;
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

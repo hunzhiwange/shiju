@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "task": 5,
+  "status": "deferred_unverified",
+  "recorded_on": "2026-11-14",
+  "instruction_override": "Verification-only task skipped per latest user instruction. No Cargo, build, unit tests, device tests, acceptance or final regression. Remove numbered card and retain this deferral record.",
+  "recording_head": "63be38d7cb4c4bdb1dfce5b41da511981b45b771",
+  "source_commit": "ca58c0313360eae7c851fbd7553c1614c7af03e7",
+  "inputs": [
+    "docs/shiju/cc-macos-acceptance/inventory.json",
+    "docs/shiju/cc-macos-acceptance/runtime-contract.json"
+  ],
+  "historical_references": [
+    {
+      "path": "docs/shiju/cc-convergence/models.md",
+      "sha256": "eb4f9361104d5de56df4545e43b75756c41e78ae8a5f43008a1376d4fd5f8b97"
+    },
+    {
+      "path": "docs/shiju/model-catalog/implementation-evidence.md",
+      "sha256": "b09af1306e0451e422e68bb0f3b7dc5f6244fed06887b498827e7cce0c396381"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": "mother_task_5",
+      "detail": "Original mother task card absent. Historical implementation-evidence.md mapping and cc-convergence/models.md are available but not revalidated against current tree."
+    },
+    {
+      "owner": "task_1_and_domain_owners",
+      "detail": "Runtime contract status is prepared_unverified_not_executable; verified API/SDK/CLI entrypoints unavailable."
+    },
+    {
+      "owner": "build_and_macos_owners",
+      "detail": "Current artifact hashes, isolated ARM64/x64 resources and target application versions unavailable."
+    }
+  ],
+  "source_items": [
+    {
+      "source_key": "file:src-tauri/src/commands/model_fetch.rs",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src-tauri/src/model_capabilities.rs",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/model_fetch.rs",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/appConfig.tsx",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/claudeDesktopProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/claudeProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/codexProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/codexProviderPresets.tokenPlanTextOnly.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/codexProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/codexProviderPresets.zhipuFlashVision.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/codexTemplates.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/constants.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/dshProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/dshProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/geminiProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/grokBuildProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/grokBuildProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/jiekouProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/kimiProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/kimiProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/mcodeProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/mcodeProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/opencodeProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/piModelCatalog.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/piProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/ppioProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/presetFamilies.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/presetModelMetadata.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/presetSearchAliases.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/universalProviderPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/config/userAgentPresets.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/hooks/useModelMetadataFill.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/lib/inputModality.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/lib/modelMetadata.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:src/lib/modelsDev.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/config/presetModelMetadata.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/hooks/useModelMetadataFill.test.tsx",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "file:tests/lib/modelMetadata.test.ts",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/model_fetch.rs:21:get_agy_models",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/model_fetch.rs:109:get_opencode_models",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/model_fetch.rs:181:fetch_models_for_config",
+      "status": "unverified",
+      "owner": 5,
+      "evidence": null
+    }
+  ],
+  "cross_items": {
+    "status": "unverified",
+    "reason": "Mother card absent; primary ownership selection does not establish complete cross-item coverage."
+  },
+  "execution": {
+    "commands": [],
+    "exit_code": null,
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "note": "Input reading only; no verification executed."
+  },
+  "artifact_sha256": null,
+  "macos_version": null,
+  "architecture": null,
+  "app_version": null,
+  "deferred_work": [
+    "Supply current executable contracts, complete primary/cross-domain mappings and frozen artifacts.",
+    "Reconcile each source key with implementation, API permissions/errors, SDK, UI, platform conditions and focused test evidence at the current baseline.",
+    "Run evidence format and necessary behavioral verification during future unified execution; historical pass counts are not current passes."
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "No runtime resources created. Numbered task card removed per instruction."
+  },
+  "acceptance_passed": false
+}

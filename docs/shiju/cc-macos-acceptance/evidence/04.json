@@ -1,0 +1,1865 @@
+{
+  "schema_version": 1,
+  "task": 4,
+  "status": "deferred_unverified",
+  "date": "2026-11-14",
+  "disposition": "Verification-only task skipped and card deleted under latest user instruction. No acceptance claimed.",
+  "baseline": {
+    "record_commit": "63be38d7cb4c4bdb1dfce5b41da511981b45b771",
+    "source_commit": "ca58c0313360eae7c851fbd7553c1614c7af03e7",
+    "frozen_artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_versions": null,
+    "note": "Shared checkout contains unrelated changes. Record commit is not a verified runtime baseline."
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "not_revalidated"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "not_revalidated"
+    }
+  ],
+  "sources": [
+    {
+      "source_key": "file:docs/images/claude-codex-routing/01-claude-providers-require-routing.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/images/claude-codex-routing/02-responses-provider-form.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/images/codex-claude-routing/01-codex-providers-require-routing.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/images/codex-claude-routing/02-claude-codex-provider-form.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/images/codex-deepseek-routing/01-codex-providers-require-routing.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/images/codex-kimi-routing/01-codex-providers-require-routing.png",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/pi-live-provider-sync-requirements-zh.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.1-add.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.2-switch.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.3-edit.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.4-sort-duplicate.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.5-usage-query.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/en/2-providers/2.6-claude-desktop.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.1-add.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.2-switch.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.3-edit.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.4-sort-duplicate.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.5-usage-query.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/2-providers/2.6-claude-desktop.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.1-add.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.2-switch.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.3-edit.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.4-sort-duplicate.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.5-usage-query.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/2-providers/2.6-claude-desktop.md",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/agy_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/app_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/codex_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/custom_icon.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/env.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/provider.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/providers.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/providers_seed.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/providers_tests.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/universal_providers.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/provider.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/dsh_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/gemini_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/grok_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/jsonc_document.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/kimi_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/engine.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/floor.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/mod.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/patch/dotenv.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/patch/json.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/patch/mod.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/patch/toml.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/project/claude.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/project/codex.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/project/gemini.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/project/grok.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/project/mod.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/live/residue.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mcode_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/contract.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/controller.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/current.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/mod.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/operation.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/mode/state.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/opencode_config.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/provider.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/env_checker.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/env_manager.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/agy_direct.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/claude_direct.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/claude_editor.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/claude_official.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_direct.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_editor.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_login.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_official_models.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/codex_terminal.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/editor_toml.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/endpoints.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/gemini_auth.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/gemini_direct.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/gemini_editor.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/grok_direct.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/grok_editor.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/icon.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/live.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/mod.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/opencode_tests.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/pi.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/src/services/provider/usage.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/tests/provider_commands.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src-tauri/tests/provider_service.rs",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/hooks/useProviderActions.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/api/env.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/api/providers.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/lib/schemas/provider.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerCapabilities.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerCapabilities.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerConfigUtils.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerConfigUtils.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerIcon.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerIcon.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:src/utils/providerMetaUtils.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/claudeDesktopProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/claudeProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/codexChatProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/commandCodeProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/longcatProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/moarkProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/opencodeProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/piProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/subrouterProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/therouterProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/config/tokenPlanProviderPresets.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/hooks/useAddProviderMutation.test.tsx",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/hooks/useProviderActions.test.tsx",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/hooks/useSwitchProviderResult.test.tsx",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/hooks/useUpdateProviderMutation.test.tsx",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/utils/providerConfigUtils.baseUrl.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/utils/providerConfigUtils.bedrock.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/utils/providerConfigUtils.codex.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "file:tests/utils/providerMetaUtils.test.ts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:13:get_claude_config_status",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:67:get_config_status",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:195:get_claude_code_config_path",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:200:get_config_dir",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:227:open_config_folder",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:263:pick_directory",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:294:get_app_config_path",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:300:open_app_config_folder",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:317:reveal_app_log_file",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:334:get_claude_common_config_snippet",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:344:set_claude_common_config_snippet",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:368:get_common_config_snippet",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:379:set_common_config_snippet",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/config.rs:452:extract_common_config_snippet",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/custom_icon.rs:10:get_custom_icons",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/custom_icon.rs:18:add_custom_icon",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/custom_icon.rs:30:rename_custom_icon",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/custom_icon.rs:42:delete_custom_icon",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/env.rs:7:check_env_conflicts",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/env.rs:13:delete_env_vars",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/env.rs:19:restore_env_backup",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:25:get_providers",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:40:get_current_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:54:add_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:75:update_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:104:get_provider_editor_view",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:139:delete_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:156:add_provider_to_live_config",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:173:remove_provider_from_live_config",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:207:switch_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:302:import_default_config",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:314:get_claude_desktop_status",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:323:get_claude_desktop_default_routes",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:329:import_claude_desktop_providers_from_claude",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:387:ensure_claude_desktop_official_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:403:ensure_codex_official_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:414:ensure_grokbuild_official_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:570:queryProviderUsage",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:893:testUsageScript",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:923:read_live_provider_settings",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:929:test_api_endpoints",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:939:get_custom_endpoints",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:953:add_custom_endpoint",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:968:remove_custom_endpoint",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:983:update_endpoint_last_used",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1003:update_providers_sort_order",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1043:get_universal_providers",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1053:get_universal_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1080:upsert_universal_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1097:delete_universal_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1114:sync_universal_provider",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1131:import_opencode_providers_from_live",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1142:get_opencode_live_provider_ids",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1150:get_opencode_default_model",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/provider.rs:1155:set_opencode_default_model",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "event:src-tauri/src/commands/provider.rs:603:usage-cache-updated",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "event:src-tauri/src/commands/provider.rs:1034:universal-provider-synced",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "event:src-tauri/src/mode/controller.rs:854:proxy-official-warning",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    },
+    {
+      "source_key": "event:src/lib/api/providers.ts:201:provider-switched",
+      "status": "unverified",
+      "owner": 4,
+      "macos_applicability": "pending_review",
+      "implementation": null,
+      "api": null,
+      "sdk": null,
+      "tests": null
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": "mother task 4",
+      "detail": "Original mother task card absent. Existing provider-contracts.md and provider-macos-acceptance.md are historical references, not current verified per-source evidence."
+    },
+    {
+      "owner": "acceptance task 1 / domain owners",
+      "detail": "runtime-contract.json is prepared_unverified_not_executable; verified API/SDK/CLI, isolation and cleanup entries unavailable."
+    },
+    {
+      "owner": "build / execution owners",
+      "detail": "Frozen binaries, hashes, architecture-specific hosts and application versions not supplied."
+    }
+  ],
+  "cross_items": {
+    "status": "unverified",
+    "detail": "Complete cross-domain source set requires mother task 4 delivery mapping; primary-owner list is not full coverage."
+  },
+  "execution": {
+    "commands": [],
+    "exit_code": null,
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "acceptance_passed": false,
+    "json_format_check": "not_run",
+    "cleanup": "No runtime resources created; user configuration untouched."
+  },
+  "deferred_work": [
+    "Obtain mother task 4 per-source implementation/API/SDK/test and cross-domain mapping.",
+    "Review registration, conditional compilation, events, TS rules and macOS applicability.",
+    "Verify CRUD, secret semantics, transaction switching, access errors, locking, failure recovery and tenant isolation against frozen artifacts.",
+    "Run contracted focused checks later; record exit codes, effective case counts, redacted logs and artifact hashes; distinguish ARM64 and x64.",
+    "JSON format validation and all acceptance deferred by user instruction. Missing capabilities and unverified behavior remain gaps, never passes."
+  ]
+}

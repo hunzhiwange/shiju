@@ -16,6 +16,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tui-highlight = { path = "../libs/tui-highlight", version = "0.6.0" }
 tui-render = { path = "../libs/tui-render", version = "0.6.0" }
 tui-theme = { path = "../libs/tui-theme", version = "0.6.0" }
 tui-terminal = { path = "../libs/tui-terminal", version = "0.6.0" }
@@ -37,10 +38,8 @@ ratatui = { version = "0.30.2", features = [
 regex-lite = "0.1.8"
 serde_json = { version = "1", features = ["preserve_order"] }
 supports-color = "3.0.2"
-syntect = "5"
 textwrap = "0.16.2"
 tracing = "0.1"
-two-face = { version = "0.5", default-features = false, features = ["syntect-default-onig"] }
 unicode-segmentation = "1.12.0"
 unicode-width = "0.2"
 url = "2"

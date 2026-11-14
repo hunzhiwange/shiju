@@ -22,7 +22,7 @@ use syntect::util::LinesWithEndings;
 /// An absent state means the whole fence already uses the permanent plain-text fallback because
 /// its language is unknown or a size limit was exceeded. The caller owns the rendered prefix.
 /// 只保留 syntect 解析状态并遵守普通高亮护栏；状态缺失表示围栏已永久退回纯文本，已渲染前缀由调用方持有。
-pub(crate) struct StreamingCodeHighlighter {
+pub struct StreamingCodeHighlighter {
     state: Option<HighlightedCode>,
 }
 
@@ -39,7 +39,7 @@ impl StreamingCodeHighlighter {
     /// Unknown languages and oversized input retain a permanent plain-text fallback. A changed
     /// theme or failed replay returns `None`, requiring the caller to render the whole fence again.
     /// 根据规范渲染器已经输出的代码重建解析状态；主题变化、未知语言、超限或重放失败均返回 `None`。
-    pub(crate) fn new(code: &str, lang: &str, theme_revision: u64) -> Option<Self> {
+    pub fn new(code: &str, lang: &str, theme_revision: u64) -> Option<Self> {
         let theme = match theme_lock().read() {
             Ok(theme) => theme,
             Err(poisoned) => poisoned.into_inner(),
@@ -76,7 +76,7 @@ impl StreamingCodeHighlighter {
     /// also removes old colors when the aggregate input crosses a highlighting limit.
     /// 消费旧状态并只高亮新提交的完整行；追加行必须以换行结尾才能维持解析状态。
     /// 返回 `None` 时调用方重绘整个围栏，也会在总输入越界时清除旧颜色。
-    pub(crate) fn append(mut self, appended: &str) -> Option<(Self, Vec<Line<'static>>)> {
+    pub fn append(mut self, appended: &str) -> Option<(Self, Vec<Line<'static>>)> {
         if !appended.ends_with('\n') {
             return None;
         }

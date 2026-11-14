@@ -237,6 +237,13 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
             if scope.host.is_empty() || app.apps_catalog.token.is_empty() {
                 return app.show_error_toast("请先连接应用执行主机");
             }
+            // Reloading the same list must not discard an unsaved or in-flight draft.
+            // A different host/application still starts a fresh scope below.
+            if app.app_providers.scope.as_ref() == Some(&scope)
+                && (app.app_providers.form.is_some() || app.app_providers.editor.is_some())
+            {
+                return Task::none();
+            }
             let generation = app.app_providers.begin(scope.clone());
             let token = app.apps_catalog.token.clone();
             return Task::perform(load(client, scope.clone(), token), move |result| {
@@ -397,7 +404,10 @@ pub(crate) fn update(app: &mut App, value: ListMessage) -> Task<Message> {
                 return Task::none();
             }
             match result {
-                Ok(_) => return update(app, ListMessage::Refresh),
+                Ok(_) => {
+                    app.app_providers.editor = None;
+                    return update(app, ListMessage::Refresh);
+                }
                 Err(e) => {
                     if let Some(f) = app.app_providers.editor.as_mut() {
                         f.saving = false;

@@ -2,7 +2,7 @@
 //!
 //! 本模块只负责视图组合与样式适配，不持有业务状态，也不扩大外部能力边界。
 
-use iced::widget::{column, container, mouse_area, row};
+use iced::widget::{button, column, container, mouse_area, row, text, tooltip};
 use iced::{Element, Length};
 
 use crate::app::{App, Message, message};
@@ -12,6 +12,25 @@ use super::super::handles::HResizeHandle;
 use super::super::styles::left_rail_style;
 use super::chrome::overlay_divider;
 use super::sessions_panel::project_sessions_panel_container;
+
+/// 在两种侧栏状态下提供同一应用工作区入口，沿用设置页的连接与加载流程。
+fn workspace_rail(app: &App, collapsed_hover_mode: bool) -> Element<'_, Message> {
+    let open = Message::View(message::ViewMessage::OpenSystemSettingsTab(
+        crate::app::components::system_settings::SystemTab::Apps,
+    ));
+    let entry = button(text("工作区").size(12))
+        .padding([8, 6])
+        .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+        .on_press(open);
+    column![
+        projects_list(app, collapsed_hover_mode),
+        tooltip(entry, text("应用工作区"), tooltip::Position::Right),
+    ]
+    .align_x(iced::alignment::Horizontal::Center)
+    .spacing(8)
+    .height(Length::Fill)
+    .into()
+}
 
 /// 构建侧栏界面。
 ///
@@ -35,7 +54,7 @@ pub fn sidebar_group(
     corner_radius: f32,
 ) -> (Element<'_, Message>, Option<Element<'_, Message>>) {
     if app.show_settings {
-        let projects_list: Element<'_, Message> = projects_list(app, false);
+        let projects_list = workspace_rail(app, false);
 
         let sidebar = container(
             container(
@@ -73,7 +92,7 @@ pub fn sidebar_group(
             Some(resize_handle.into()),
         )
     } else {
-        let projects_list: Element<'_, Message> = projects_list(app, true);
+        let projects_list = workspace_rail(app, true);
 
         let settings_toggle = container(
             container(projects_list)

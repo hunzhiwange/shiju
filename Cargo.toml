@@ -7,6 +7,7 @@ members = [
   "crates/libs/preview-content",
   "crates/libs/tui-contracts",
   "crates/libs/tui-text",
+  "crates/libs/tui-input",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/git-discovery",

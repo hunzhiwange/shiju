@@ -16,6 +16,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tui-input = { path = "../libs/tui-input", version = "0.6.0" }
 tui-text = { path = "../libs/tui-text", version = "0.6.0" }
 tui-contracts = { path = "../libs/tui-contracts", version = "0.6.0" }
 arboard = "3.4"

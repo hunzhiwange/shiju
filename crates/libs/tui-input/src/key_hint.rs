@@ -46,7 +46,7 @@ const SHIFT_PREFIX: &str = "shift + ";
 /// This does not model multi-key chords or partial matches; callers that need
 /// sequences must keep that state outside this type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(crate) struct KeyBinding {
+pub struct KeyBinding {
     key: KeyCode,
     modifiers: KeyModifiers,
 }
@@ -54,13 +54,13 @@ pub(crate) struct KeyBinding {
 /// 由单键或双键和弦组成的用户可见快捷键。
 /// A user-visible shortcut made from one key or a two-key chord.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(crate) enum ShortcutHint {
+pub enum ShortcutHint {
     Single(KeyBinding),
     Chord { prefix: KeyBinding, completion: KeyBinding },
 }
 
 impl ShortcutHint {
-    pub(crate) fn display_label(self) -> String {
+    pub fn display_label(self) -> String {
         match self {
             Self::Single(binding) => binding.display_label(),
             Self::Chord { prefix, completion } => {
@@ -69,7 +69,7 @@ impl ShortcutHint {
         }
     }
 
-    pub(crate) fn is_press(self, event: KeyEvent) -> bool {
+    pub fn is_press(self, event: KeyEvent) -> bool {
         matches!(self, Self::Single(binding) if binding.is_press(event))
     }
 }
@@ -81,10 +81,11 @@ impl From<KeyBinding> for ShortcutHint {
 }
 
 impl KeyBinding {
-    pub(crate) const fn new(key: KeyCode, modifiers: KeyModifiers) -> Self {
+    pub const fn new(key: KeyCode, modifiers: KeyModifiers) -> Self {
         Self { key, modifiers }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_event(event: KeyEvent) -> Self {
         let (key, modifiers) = normalize_key_parts(event.code, event.modifiers);
         Self { key, modifiers }
@@ -96,11 +97,12 @@ impl KeyBinding {
             && (event.kind == KeyEventKind::Press || event.kind == KeyEventKind::Repeat)
     }
 
+    #[allow(dead_code)]
     pub(crate) const fn parts(&self) -> (KeyCode, KeyModifiers) {
         (self.key, self.modifiers)
     }
 
-    pub(crate) fn display_label(&self) -> String {
+    pub fn display_label(&self) -> String {
         let modifiers = modifiers_to_string(self.modifiers);
         let key = match self.key {
             KeyCode::Enter => "enter".to_string(),
@@ -154,7 +156,7 @@ fn c0_control_char_to_ctrl_char(ch: char) -> Option<char> {
 /// Implementations are expected to treat the slice as alternatives for one
 /// action. They should not interpret order as priority for dispatch; order is
 /// reserved for UI hint selection via `primary_binding`.
-pub(crate) trait KeyBindingListExt {
+pub trait KeyBindingListExt {
     /// 集合中任一绑定匹配 `event` 时为真。
     /// True when any binding in this set matches `event`.
     fn is_pressed(&self, event: KeyEvent) -> bool;
@@ -176,7 +178,7 @@ impl KeyBindingListExt for [KeyBinding] {
 /// plain `j` update the query while still allowing `Ctrl+J` to move. Calling
 /// this after normalizing keybindings would blur that distinction and cause
 /// printable search input to disappear.
-pub(crate) fn is_plain_text_key_event(event: KeyEvent) -> bool {
+pub fn is_plain_text_key_event(event: KeyEvent) -> bool {
     matches!(
         event,
         KeyEvent {
@@ -189,23 +191,23 @@ pub(crate) fn is_plain_text_key_event(event: KeyEvent) -> bool {
     )
 }
 
-pub(crate) const fn plain(key: KeyCode) -> KeyBinding {
+pub const fn plain(key: KeyCode) -> KeyBinding {
     KeyBinding::new(key, KeyModifiers::NONE)
 }
 
-pub(crate) const fn alt(key: KeyCode) -> KeyBinding {
+pub const fn alt(key: KeyCode) -> KeyBinding {
     KeyBinding::new(key, KeyModifiers::ALT)
 }
 
-pub(crate) const fn shift(key: KeyCode) -> KeyBinding {
+pub const fn shift(key: KeyCode) -> KeyBinding {
     KeyBinding::new(key, KeyModifiers::SHIFT)
 }
 
-pub(crate) const fn ctrl(key: KeyCode) -> KeyBinding {
+pub const fn ctrl(key: KeyCode) -> KeyBinding {
     KeyBinding::new(key, KeyModifiers::CONTROL)
 }
 
-pub(crate) const fn ctrl_alt(key: KeyCode) -> KeyBinding {
+pub const fn ctrl_alt(key: KeyCode) -> KeyBinding {
     KeyBinding::new(key, KeyModifiers::CONTROL.union(KeyModifiers::ALT))
 }
 
@@ -244,173 +246,22 @@ fn key_hint_style() -> Style {
     Style::default().dim()
 }
 
-pub(crate) fn has_ctrl_or_alt(mods: KeyModifiers) -> bool {
+pub fn has_ctrl_or_alt(mods: KeyModifiers) -> bool {
     (mods.contains(KeyModifiers::CONTROL) || mods.contains(KeyModifiers::ALT)) && !is_altgr(mods)
 }
 
 #[cfg(windows)]
 #[inline]
-pub(crate) fn is_altgr(mods: KeyModifiers) -> bool {
+pub fn is_altgr(mods: KeyModifiers) -> bool {
     mods.contains(KeyModifiers::ALT) && mods.contains(KeyModifiers::CONTROL)
 }
 
 #[cfg(not(windows))]
 #[inline]
-pub(crate) fn is_altgr(_mods: KeyModifiers) -> bool {
+pub fn is_altgr(_mods: KeyModifiers) -> bool {
     false
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn is_press_accepts_press_and_repeat_but_rejects_release() {
-        let binding = ctrl(KeyCode::Char('k'));
-        let press = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::CONTROL);
-        let repeat = KeyEvent { kind: KeyEventKind::Repeat, ..press };
-        let release = KeyEvent { kind: KeyEventKind::Release, ..press };
-        let wrong_modifiers = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE);
-
-        assert!(binding.is_press(press));
-        assert!(binding.is_press(repeat));
-        assert!(!binding.is_press(release));
-        assert!(!binding.is_press(wrong_modifiers));
-    }
-
-    #[test]
-    fn keybinding_list_ext_matches_any_binding() {
-        let bindings = [plain(KeyCode::Char('a')), ctrl(KeyCode::Char('b'))];
-
-        assert!(bindings.is_pressed(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE)));
-        assert!(bindings.is_pressed(KeyEvent::new(KeyCode::Char('b'), KeyModifiers::CONTROL)));
-        assert!(!bindings.is_pressed(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)));
-    }
-
-    #[test]
-    fn shifted_letter_binding_matches_uppercase_char_events() {
-        let binding = shift(KeyCode::Char('a'));
-
-        assert!(binding.is_press(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::SHIFT)));
-        assert!(binding.is_press(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::NONE)));
-        assert!(binding.is_press(KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT)));
-    }
-
-    #[test]
-    fn shift_letter_binding_preserves_other_modifiers_with_uppercase_compat() {
-        let binding =
-            KeyBinding::new(KeyCode::Char('i'), KeyModifiers::CONTROL | KeyModifiers::SHIFT);
-
-        assert!(binding.is_press(KeyEvent::new(KeyCode::Char('I'), KeyModifiers::CONTROL)));
-    }
-
-    #[test]
-    fn shift_letter_binding_does_not_match_plain_lowercase_or_other_uppercase() {
-        let binding = shift(KeyCode::Char('o'));
-
-        assert!(!binding.is_press(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE)));
-        assert!(!binding.is_press(KeyEvent::new(KeyCode::Char('P'), KeyModifiers::NONE)));
-    }
-
-    #[test]
-    fn ctrl_letter_binding_matches_c0_control_char_events() {
-        let binding = ctrl(KeyCode::Char('p'));
-
-        assert!(binding.is_press(KeyEvent::new(KeyCode::Char('\u{0010}'), KeyModifiers::NONE)));
-        assert!(!binding.is_press(KeyEvent::new(KeyCode::Char('\u{0010}'), KeyModifiers::ALT)));
-    }
-
-    #[test]
-    fn ctrl_bindings_match_all_supported_c0_control_char_events() {
-        let cases = [
-            (' ', '\u{0000}'),
-            ('a', '\u{0001}'),
-            ('b', '\u{0002}'),
-            ('c', '\u{0003}'),
-            ('d', '\u{0004}'),
-            ('e', '\u{0005}'),
-            ('f', '\u{0006}'),
-            ('g', '\u{0007}'),
-            ('h', '\u{0008}'),
-            ('i', '\u{0009}'),
-            ('j', '\u{000a}'),
-            ('k', '\u{000b}'),
-            ('l', '\u{000c}'),
-            ('m', '\u{000d}'),
-            ('n', '\u{000e}'),
-            ('o', '\u{000f}'),
-            ('p', '\u{0010}'),
-            ('q', '\u{0011}'),
-            ('r', '\u{0012}'),
-            ('s', '\u{0013}'),
-            ('t', '\u{0014}'),
-            ('u', '\u{0015}'),
-            ('v', '\u{0016}'),
-            ('w', '\u{0017}'),
-            ('x', '\u{0018}'),
-            ('y', '\u{0019}'),
-            ('z', '\u{001a}'),
-            ('4', '\u{001c}'),
-            ('5', '\u{001d}'),
-            ('6', '\u{001e}'),
-            ('7', '\u{001f}'),
-        ];
-
-        for (ctrl_char, c0_char) in cases {
-            assert!(
-                ctrl(KeyCode::Char(ctrl_char))
-                    .is_press(KeyEvent::new(KeyCode::Char(c0_char), KeyModifiers::NONE)),
-                "expected raw C0 {c0_char:?} to match ctrl-{ctrl_char}"
-            );
-            assert!(
-                !ctrl(KeyCode::Char(ctrl_char))
-                    .is_press(KeyEvent::new(KeyCode::Char(c0_char), KeyModifiers::ALT)),
-                "expected modified raw C0 {c0_char:?} not to match ctrl-{ctrl_char}"
-            );
-        }
-    }
-
-    #[test]
-    fn ctrl_binding_does_not_match_ambiguous_c0_escape_or_delete() {
-        assert!(
-            !ctrl(KeyCode::Char('['))
-                .is_press(KeyEvent::new(KeyCode::Char('\u{001b}'), KeyModifiers::NONE,))
-        );
-        assert!(
-            !ctrl(KeyCode::Char('?'))
-                .is_press(KeyEvent::new(KeyCode::Char('\u{007f}'), KeyModifiers::NONE,))
-        );
-    }
-
-    #[test]
-    fn history_search_ctrl_bindings_match_c0_control_char_events() {
-        assert!(
-            ctrl(KeyCode::Char('r'))
-                .is_press(KeyEvent::new(KeyCode::Char('\u{0012}'), KeyModifiers::NONE))
-        );
-        assert!(
-            ctrl(KeyCode::Char('s'))
-                .is_press(KeyEvent::new(KeyCode::Char('\u{0013}'), KeyModifiers::NONE))
-        );
-    }
-
-    #[test]
-    fn ctrl_alt_sets_both_modifiers() {
-        assert_eq!(
-            ctrl_alt(KeyCode::Char('v')).parts(),
-            (KeyCode::Char('v'), KeyModifiers::CONTROL | KeyModifiers::ALT)
-        );
-    }
-
-    #[test]
-    fn has_ctrl_or_alt_checks_supported_modifier_combinations() {
-        assert!(!has_ctrl_or_alt(KeyModifiers::NONE));
-        assert!(has_ctrl_or_alt(KeyModifiers::CONTROL));
-        assert!(has_ctrl_or_alt(KeyModifiers::ALT));
-
-        #[cfg(windows)]
-        assert!(!has_ctrl_or_alt(KeyModifiers::CONTROL | KeyModifiers::ALT));
-        #[cfg(not(windows))]
-        assert!(has_ctrl_or_alt(KeyModifiers::CONTROL | KeyModifiers::ALT));
-    }
-}
+#[path = "key_hint_tests.rs"]
+mod tests;

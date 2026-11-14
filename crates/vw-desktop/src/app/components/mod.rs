@@ -522,3 +522,9 @@ pub(crate) mod hermes_memory_limits;
 #[cfg(test)]
 #[path = "agent_apps/hermes_memory_limits_tests.rs"]
 mod hermes_memory_limits_tests;
+
+#[path = "agent_apps/daily_memory.rs"]
+pub(crate) mod daily_memory;
+#[cfg(test)]
+#[path = "agent_apps/daily_memory_tests.rs"]
+mod daily_memory_tests;

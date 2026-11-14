@@ -256,3 +256,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 扩展任务 32 双记忆编辑器，预算/双开关由 SDK 读取，按 UTF-16 单元展示剩余或超限，不截断原文；禁用仍可编辑并提示跳过记忆。开关写入成功后同作用域刷新，失败保留原状态并显示脱敏 SDK 错误及 toast；刷新失败明确提示已保存但状态待刷新。模型仅展示供应商领域快照及修改入口说明。复用统一控件、默认字体与既有页面作用域/代次校验，离页或切换连接使旧响应失效。
 
 静态读取来源 HermesMemoryPanel/hermesMemoryDrafts/相邻测试、任务 1 正式合同、任务 32、SDK/DTO 和统一设置控件；新增两个 hermes_budget_matches_utf16_count 前缀测试源码，覆盖中文、emoji、组合字符、零预算及超限保留。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证该测试族、开关失败/刷新及实际明暗渲染。
+
+## 任务 30：桌面每日记忆列表与编辑（2026-11-14）
+
+新增 `components/agent_apps/daily_memory.rs`，使用任务 10 的 WorkspaceMemoryScope 与每日列表/读写/删除 SDK。应用详情入口接入模态编辑器，列表展示日期、预览、字节大小和本地修改时间。今日日期取桌面 Local 时区，创建只产生草稿，保存才 PUT 明确日期。读取序号与上下文代数拒绝过期响应；删除需确认并失效未完成读取，成功写入或删除后刷新列表，错误保留草稿并显示失败。应用、主机、页面和连接切换清理状态。独立测试源码覆盖草稿创建与失效。
+
+本轮按用户要求只写代码及静态审查，未执行 Cargo、单元测试、实机测试或最终回归，不宣称验证通过。未领取槽位，CARGO_TARGET_DIR 未设置。后续统一验证使用任务规定的 `daily_editor_defers_creation_until_save` 过滤条件，并检查中文、暗色与滚动渲染。

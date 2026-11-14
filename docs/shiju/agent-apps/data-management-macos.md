@@ -96,3 +96,9 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 匿名 fixture `data_management/fixtures/schema_18.sql` 摘取冻结来源实际建表定义并移除 v18 之后的列，不读取用户库。新增独立注册测试 `cc_data_05_upgrade_migrates_supported_copy`、`cc_data_05_upgrade_failure_preserves_source`，包含游标保留、幂等、失败事务回滚、源字节保留、缺表及版本拒绝断言。这些断言尚未执行。
 
 按用户本轮覆盖要求，未执行 Cargo、编译、格式化、单元或实机测试；无退出码、有效通过数或运行前后差异证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一回归入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_05_ -- --nocapture`，并回归 `cc_data_03_`、`cc_data_04_` 的暂存调用行为。
+
+## 子任务 30：备份分类占用（2026-11-14）
+
+实现 `data_management::locations::list_locations`，执行端提供已授权且仅含当前租户/项目/主机数据的四个根目录及作用域；不从 HOME 自动发现，不接收客户端路径，不返回本机路径。十四类白名单沿用来源分类及文件匹配规则，缺失类别保留零值。目录分类统计顶层条目、递归普通文件字节与最新文件修改时间，忽略 `.DS_Store` 和子项符号链接；绝对路径逐级打开、描述符相对遍历，不跟随祖先或类别目录链接，权限/枚举/读取元数据失败显式错误，递归深度上限 128。数据库分类沿用任务 23 的原生作用域过滤归档列表、大小与归档创建时间，不另扫旧数据库。该列表原有的无法确定归属归档省略语义继续保留；其它分类只允许执行端已隔离目录，不扫描混合租户旧根目录。
+
+新增独立测试 `cc_data_30_locations_measures_whitelisted_categories`、`cc_data_30_locations_does_not_follow_symlink`，通过 macOS 父模块注册。按本轮用户覆盖要求，未运行 Cargo、单元测试或实机验收；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。仅完成代码与静态审阅，不能视为验证通过。统一回归需执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_30_ -- --nocapture`，并补权限失败、全部分类匹配与真实备份列表集成场景。

@@ -42,3 +42,8 @@ mod backup_delete_tests;
 pub mod backup_rename;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_rename_tests;
+
+#[cfg(target_os = "macos")]
+pub mod locations;
+#[cfg(all(test, target_os = "macos"))]
+mod locations_tests;

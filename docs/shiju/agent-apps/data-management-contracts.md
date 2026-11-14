@@ -84,3 +84,11 @@ shiju --config-dir /absolute/isolated/config gateway --host 127.0.0.1 --port 193
 ## 子任务 3：来源只读暂存入口
 
 `vw-agent-apps/src/data_management/source.rs::read_selected_source` 已实现用户选定副本的 SQLite/JSON 识别与只读暂存，私有文件捕获/JSON 解析分别在 `source_files.rs` / `source_json.rs`；父模块注册到业务包 `data_management`，不另建永久 CC 存储。调用方提供已授权根与 SourceScope（ProjectScope、host、principal），原始载荷通过同作用域的 `SourceSnapshot::records` 供后续领域预览校验，不调用类别写入。SQLite schema 上限 24、JSON 版本 2；摘要不包含源路径、原始字段或发行版本猜测。DTO 的传输 ID 授权及摘要转换仍由后续网关任务交付，不将业务函数误报为已注册 API。实现边界及待回归过滤条件见 [macOS 交付记录](data-management-macos.md)。本轮未运行 Cargo 或任何测试，不能据此宣称读取一致性或源不变断言已通过。
+
+## 子任务 8：迁入前回退点（2026-11-14）
+
+`vw-agent-apps/src/data_management/safety_snapshot.rs` 交付 macOS 回退归档核心，私有存储在 `safety_snapshot_files.rs`，父模块 `data_management/mod.rs` 注册。`create_safety_snapshot` / `open_safety_snapshot` / `with_safety_snapshot` 绑定 ProjectScope、principal、执行主机及精确 SnapshotTarget 集合；OwnerPreimage 保存所有者编码的完整字节和 revision/文件身份，None 表示原先不存在。不同类别、重复、多余或缺失对象不能作为完整回退点。归档不是可迁移导出，不暴露原始载荷给 DTO，不执行任意 SQL、namespace 或路径命令。
+
+调用方必须先授权并在现有领域事务/锁内捕获所选对象及其依赖资源，保持锁至提交，或提交前对全部版本做 CAS。该模块只校验捕获集合，不自行读取七类存储，也不能把顺次读取变成跨数据库/Keychain/原生文件的原子快照。消费任务必须交付对应所有者捕获与恢复接线；尚未接线的类别不支持执行，不能以空集合或仅 ID 代替资源。`with_safety_snapshot` 只在持久化和完整回读成功后调用写入闭包；写入闭包失败仍返回回执与独立错误，供所有者按写后版本恢复，不能谎报零写入。回退点准备错误才阻止该闭包。
+
+0700 根目录由执行主机既有授权目录所有者提供；模块要求其已存在、归当前用户且无符号链接，不自动选择 HOME、下载目录或远端路径。descriptor-relative openat/O_NOFOLLOW 逐级打开目录，UUID 子目录 0700、文件 0600，拒绝硬链接；文件与目录 sync_all 后重新打开，以最多 64 MiB、SHA-256、格式版本、身份与完整选择集合校验。回执应随拥有任务受控持久化，摘要不是针对本机所有者篡改的认证。保留清理、跨类别迁入/恢复、网关授权及任务回执存储仍由后续消费任务实现。本轮没有 Cargo、编译、单元或实机测试通过证据。

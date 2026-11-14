@@ -17,6 +17,8 @@ mod delete;
 mod resume;
 #[path = "external_sessions/paths.rs"]
 mod paths;
+#[path = "external_sessions/export.rs"]
+mod export;
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
 
 #[derive(Clone, Default)]
@@ -59,6 +61,7 @@ pub enum Event {
     Delete(delete::Event),
     Resume(resume::Event),
     Path(paths::Event),
+    Export(export::Event),
     Details(details::Event),
     Image(images::Event),
     Find(find::Event),
@@ -84,6 +87,7 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
     paths::view(state, resume::view(state, delete::view(state, base)))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Export(event) = event { return export::update(app, event); }
     if let Event::Path(event) = event { return paths::update(app, event); }
     if let Event::Resume(event) = event { return resume::update(app, event); }
     if let Event::Delete(event) = event { return delete::update(app, event); }

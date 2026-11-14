@@ -25,6 +25,7 @@ pub(super) struct State {
     pub(super) details: details::State,
     pub(super) images: images::State,
     pub(super) find: find::State,
+    pub(super) exporting: bool,
 }
 impl State {
     pub(super) fn cancel(&self) {
@@ -258,6 +259,7 @@ fn start(app: &mut App, identity: ExternalSessionIdentity) -> Task<Message> {
         details: details::State::default(),
         images: images::State::default(),
         find: find::State::default(),
+        exporting: false,
     });
     Task::batch([
         task,
@@ -368,6 +370,7 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State) -> Element<'a
         state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
             .map(|session| super::resume::control(session, !state.busy && !state.deletion.busy()))
             .unwrap_or_else(|| text("会话已不在当前目录，请刷新").into()),
+        super::export::controls(state, reader),
         find::controls(reader),
         text(status).style(settings_muted_text_style),
         row![

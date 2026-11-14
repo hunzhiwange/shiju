@@ -235,20 +235,54 @@ for line in sys.stdin:
     std::fs::write(
         workspace.join(".vwacprc.json"),
         serde_json::to_vec(&json!({
-            "mcpServers": if matches!(backend, "dirac" | "nova") { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
+            "mcpServers": if matches!(backend, "dirac" | "nova" | "sigit") { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
         }))
         .unwrap(),
     )
     .unwrap();
+    // Only the external process is replaced. The native receipt verifier, catalog,
+    // persisted configuration and gateway routing remain production code.
+    let command = if backend == "sigit" {
+        use sha2::{Digest, Sha256};
+        let entry = workspace.join("sigit");
+        std::fs::write(&entry, format!(
+            "#!/usr/bin/env python3\nimport runpy,sys\nsys.argv={}\nrunpy.run_path(sys.argv[0],run_name='__main__')\n",
+            json!([peer, capture])
+        )).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&entry, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let contracts: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../vw-acp/src/managed_runtime/contracts.json"
+        )))
+        .unwrap();
+        std::fs::write(
+            workspace.join("build-receipt.json"),
+            serde_json::to_vec(&json!({
+                "version": contracts["sigit"]["version"],
+                "source_sha256": contracts["sigit"]["source_sha256"],
+                "patch_sha256": contracts["sigit"]["patch_sha256"],
+                "sha256": hex::encode(Sha256::digest(std::fs::read(&entry).unwrap()))
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        entry.to_string_lossy().into_owned()
+    } else {
+        "python3".to_owned()
+    };
     runtime
         .block_on(crate::config::update(json!({
-            "acp":{backend:{"command":"python3","args":[peer,capture],"env":{}}},
+            "acp":{backend:{"command":command,"args":if backend == "sigit" { json!(["--acp"]) } else { json!([peer,capture]) },"env":{}}},
             "agents":{profile.clone():{
                 "label":"已启用 ACP 验收", "enabled":true,"system_prompt":"ACP_ACCEPTANCE_RULE",
                 "defaults":{
                     "permission":{"mode":"fixed","value":{"*":"deny"}},
                     "skills":{"mode":"fixed","value":[]},
-                    "mcp":{"mode":"fixed","value":if matches!(backend, "dirac" | "nova") { json!([]) } else { json!(["selected"]) }}
+                    "mcp":{"mode":"fixed","value":if matches!(backend, "dirac" | "nova" | "sigit") { json!([]) } else { json!(["selected"]) }}
                 }
             }}
         })))
@@ -265,8 +299,22 @@ for line in sys.stdin:
             }
         }}}))).unwrap();
     }
+    if backend == "sigit" && std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some() {
+        runtime
+            .block_on(crate::config::update(json!({"acp":{"sigit":{
+                "command": std::env::var("SHIJU_SIGIT_REAL_ENTRY").unwrap(), "args":["--acp"],
+                "env": {
+                    "HOME":workspace.join("isolated-home"),
+                    "SIGIT_CONFIG_DIR":workspace.join("isolated-state"),
+                    "SIGIT_MCP":"off", "ONDE_DISABLE_PULSE":"1",
+                    "OPENAI_BASE_URL":std::env::var("SHIJU_SIGIT_REAL_ENDPOINT").unwrap(),
+                    "OPENAI_API_KEY":"synthetic-only", "SIGIT_MODEL":"preset-selected-model"
+                }
+            }}})))
+            .unwrap();
+    }
     let directory = workspace.to_string_lossy().into_owned();
-    let rejects_mcp = matches!(backend, "dirac" | "nova");
+    let rejects_mcp = matches!(backend, "dirac" | "nova" | "sigit");
     let backend = backend.to_owned();
     let binding_directory = directory.clone();
     runtime
@@ -277,10 +325,18 @@ for line in sys.stdin:
                 Box::pin(async move {
                     let config = crate::config::get_current().await.unwrap();
                     assert_eq!(
-                        config.acp[&backend].command, "python3",
+                        std::path::Path::new(&config.acp[&backend].command)
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy(),
+                        if backend == "sigit" { "sigit" } else { "python3" },
                         "only the owned peer may launch"
                     );
-                    assert!(config.acp[&backend].args[0].ends_with("acceptance-peer.py"));
+                    if backend == "sigit" {
+                        assert_eq!(config.acp[&backend].args, ["--acp"]);
+                    } else {
+                        assert!(config.acp[&backend].args[0].ends_with("acceptance-peer.py"));
+                    }
                     let key = format!("acp-{backend}");
                     let catalog = crate::agent::catalog::merged_agent_catalog(&config.agents);
                     assert!(catalog[&key].builtin && catalog[&key].enabled);
@@ -312,6 +368,10 @@ for line in sys.stdin:
     assert!(!events.contains("chat.error"), "{events}");
     assert!(events.contains("验收回复"), "{events}");
     assert!(!capture.with_extension("jsonl.denied").exists());
+    if profile == "acp-sigit" && std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some() {
+        return; // Native model-wire evidence is owned by the separate loopback fixture.
+    }
+
     let requests: Vec<Value> = std::fs::read_to_string(capture)
         .unwrap()
         .lines()
@@ -841,4 +901,53 @@ fn acp_onboarding_nova_builtin_profile_persists_and_runs() {
 fn acp_onboarding_nova_real_builtin_profile_persists_and_runs() {
     assert!(std::env::var_os("SHIJU_NOVA_REAL_PROFILE").is_some());
     acp_onboarding_nova_builtin_profile_persists_and_runs();
+}
+
+#[test]
+fn acp_onboarding_sigit_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile(&runtime, workspace.path(), "sigit");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-sigit":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-sigit".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
+#[test]
+#[ignore = "requires the reviewed siGit build and an owned loopback model endpoint"]
+fn acp_onboarding_sigit_real_builtin_profile_persists_and_runs() {
+    assert!(std::env::var_os("SHIJU_SIGIT_REAL_ENTRY").is_some());
+    acp_onboarding_sigit_builtin_profile_persists_and_runs();
 }

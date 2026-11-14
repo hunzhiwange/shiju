@@ -616,5 +616,15 @@
       "dist/cli.js": "d65ca9295356f90c11402e3ec9f39856324329a8a7acbdfe79592444e471abce",
       "dist/shiju-guard.mjs": "b491916bf936fc6691dea6de7eb215ad8101eaf7fa8234b26aaadbd289e88df9"
     }
+  },
+  "sigit": {
+    "layout": "native",
+    "package": "@smbcloud/sigit",
+    "version": "1.7.10",
+    "bin": "sigit",
+    "files": {},
+    "source_url": "https://api.github.com/repos/getsigit/sigit/tarball/v1.7.10",
+    "source_sha256": "088809cfc43ceda419913488390a65e830ac8ff66f1b5dd14a8d833d6b46369e",
+    "patch_sha256": "4d775d40748eb3a4fc5656034d591052c4d8e7d99cd58e238ea9f6230f9f9256"
   }
 }

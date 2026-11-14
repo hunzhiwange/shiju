@@ -128,6 +128,48 @@ if contract.get('layout') == 'python':
         run([str(python), str(assets / 'hermes/apply_patch.py'), '--package-dir', str(site)])
     check_files(site, contract['files'])
     raise SystemExit(0)
+if agent == 'sigit':
+    # Fixed upstream source plus the reviewed host-only tool boundary.
+    if not os.environ.get('CARGO_TARGET_DIR'):
+        raise RuntimeError('siGit source build requires the repository cargo_slot.py entry')
+    archive = assets / 'sigit.tar.gz'
+    with urllib.request.urlopen(contract['source_url'], timeout=60) as response, archive.open('wb') as output:
+        shutil.copyfileobj(response, output)
+    if digest(archive) != contract['source_sha256'] or digest(assets / 'sigit.patch') != contract['patch_sha256']:
+        raise RuntimeError('siGit source/patch checksum mismatch')
+    source = assets / 'sigit-source'
+    source.mkdir()
+    with tarfile.open(archive) as package:
+        members = []
+        for member in package.getmembers():
+            name = Path(member.name)
+            if name.is_absolute() or '..' in name.parts:
+                raise RuntimeError('Unsafe siGit source archive')
+            # Fixed upstream documentation aliases; never extract symbolic links.
+            if member.issym() and (tuple(name.parts[1:]), member.linkname) in (
+                (('.claude', 'skills'), '../.agents/skills'),
+                (('AGENTS.md',), '.agents/AGENTS.md'),
+                (('CLAUDE.md',), '.agents/AGENTS.md'),
+            ):
+                continue
+            if not (member.isfile() or member.isdir()):
+                raise RuntimeError('Unsafe siGit source archive')
+            members.append(member)
+        package.extractall(source, members=members)
+    roots = list(source.iterdir())
+    if len(roots) != 1 or not roots[0].is_dir():
+        raise RuntimeError('Unexpected siGit source layout')
+    source = roots[0]
+    run(['patch', '--batch', '--forward', '-p1', '-d', str(source), '-i', str(assets / 'sigit.patch')])
+    env = dict(os.environ, MISTRALRS_METAL_PRECOMPILE='0')
+    subprocess.run(['cargo', 'build', '--locked', '-p', 'sigit', '--bin', 'sigit'], cwd=source, env=env, check=True)
+    runtime.mkdir()
+    shutil.copy2(Path(env['CARGO_TARGET_DIR']) / 'debug/sigit', runtime / 'sigit')
+    (runtime / 'build-receipt.json').write_text(json.dumps({
+        'version': contract['version'], 'source_sha256': contract['source_sha256'],
+        'patch_sha256': contract['patch_sha256'], 'sha256': digest(runtime / 'sigit')}))
+    raise SystemExit(0)
+
 if contract.get('layout') == 'native':
     # This is the real upstream Rust CLI, built from the fixed, reviewed source.
     # Cargo inherits the caller's shared-slot directories when run from this repository.

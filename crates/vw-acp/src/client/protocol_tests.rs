@@ -798,3 +798,41 @@ async fn acp_skill_mount_lifecycle_failed_restore_never_creates_replacement() {
         .await;
     }
 }
+
+#[tokio::test]
+async fn acp_onboarding_sigit_mcp_selection_rejects_before_new_or_load() {
+    let mcp =
+        vec![acp::McpServer::Http(acp::McpServerHttp::new("selected", "https://example.test/mcp"))];
+    with_connection(TestAgent::with_new_session_ids(["unexpected"]), async |conn, agent| {
+        let client = AcpClient::new(
+            "sigit",
+            AcpAgentConfig {
+                command: "sigit".into(),
+                args: vec!["--acp".into()],
+                env: HashMap::new(),
+            },
+        )
+        .with_mcp_servers(mcp);
+        let cwd = Path::new("/tmp/shiju-sigit-protocol");
+        assert!(
+            client
+                .new_session_info(&conn, cwd)
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("does not support MCP")
+        );
+        assert!(
+            client
+                .load_session_info(&conn, cwd, "saved".into())
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("does not support MCP")
+        );
+        let state = agent.state.lock();
+        assert!(state.new_session_requests.is_empty());
+        assert!(state.load_session_requests.is_empty());
+    })
+    .await;
+}

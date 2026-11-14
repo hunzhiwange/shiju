@@ -2,8 +2,13 @@
 
 use serde_json::Value;
 
-const MAP_OBJECT_PATHS: &[&str] =
-    &["request_token_usage", "messages.Agent.tool_results", "agent_config.env"];
+// Map keys are protocol/user identifiers; nested values still obey local field rules.
+const MAP_OBJECT_PATHS: &[&str] = &[
+    "request_token_usage",
+    "messages.Agent.tool_results",
+    "agent_config.env",
+    "vwacp.desired_config_options",
+];
 const OPAQUE_VALUE_PATHS: &[&str] =
     &["agent_capabilities", "messages.Agent.content.ToolUse.input", "vwacp.config_options"];
 const ZED_TAG_KEYS: &[&str] = &[

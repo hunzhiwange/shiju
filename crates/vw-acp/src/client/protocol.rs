@@ -241,6 +241,11 @@ impl AcpClient {
     }
 
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
+        if self.agent_name == "sigit" && !self.mcp_servers.is_empty() {
+            return Err(AcpError::Initialize(
+                "siGit reviewed host-only runtime does not support MCP servers".into(),
+            ));
+        }
         if self.agent_name == "nova" && !self.mcp_servers.is_empty() {
             return Err(AcpError::NewSession(
                 "Nova owner approval mode does not support MCP servers".into(),

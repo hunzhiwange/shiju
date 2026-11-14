@@ -127,6 +127,7 @@ pub fn reviewed_agent_command(agent: &str) -> Result<Option<(String, Vec<String>
             path.to_string_lossy().into_owned(),
             match agent {
                 "vibe" => vec![],
+                "sigit" => vec!["--acp".into()],
                 "trae" => vec!["acp".into(), "serve".into()],
                 "droid" => vec!["exec".into(), "--output-format".into(), "acp".into()],
                 _ => vec!["acp".into()],
@@ -186,9 +187,10 @@ pub fn verify_reviewed_agent_executable(agent: &str, command: &str) -> Result<()
         {
             return Ok(());
         }
-        if hex::encode(Sha256::digest(
-            std::fs::read(&executable).map_err(|_| "Cannot read Goose artifact")?,
-        )) == "758bb14d83ac54928b52ed2740870b5708d141d46bc9e7cbe2c2a08c146deccc"
+        if agent == "goose"
+            && hex::encode(Sha256::digest(
+                std::fs::read(&executable).map_err(|_| "Cannot read native ACP artifact")?,
+            )) == "758bb14d83ac54928b52ed2740870b5708d141d46bc9e7cbe2c2a08c146deccc"
         {
             return Ok(());
         }
@@ -244,6 +246,10 @@ pub(super) async fn install(agent: &str) -> Result<bool, String> {
     let assets = stage.0.join("assets");
     for (name, text) in [
         ("install.py", include_str!("managed_runtime/install.py")),
+        (
+            "sigit.patch",
+            include_str!("../../../patches/acp-model-source/sigit/host-boundary.patch"),
+        ),
         ("deepagents-lock.json", include_str!("managed_runtime/deepagents-lock.json")),
         (
             "deepagents/apply.py",

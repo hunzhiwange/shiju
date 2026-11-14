@@ -59,13 +59,18 @@ impl AcpClient {
             return Err(AcpError::EmptyCommand);
         }
 
-        if self.agent_name == "deepagents" {
+        if matches!(self.agent_name.as_str(), "deepagents" | "sigit") {
             // Local discovery, npx fallback and explicit overrides share this boundary.
             // Never execute the supplier's unpatched permission/file fallbacks.
-            crate::verify_reviewed_agent_executable("deepagents", self.config.command.trim())
+            crate::verify_reviewed_agent_executable(&self.agent_name, self.config.command.trim())
                 .map_err(AcpError::Initialize)?;
         }
         let args = self.launch_args()?;
+        if self.agent_name == "sigit" && args != ["--acp"] {
+            return Err(AcpError::Initialize(
+                "siGit reviewed runtime requires exactly --acp".into(),
+            ));
+        }
         let mut env = self.config.env.clone();
         if self.agent_name == "copilot" {
             // An inherited CLI grant must not override the current host policy.

@@ -1,0 +1,261 @@
+--- a/crates/cli/src/main.rs
++++ b/crates/cli/src/main.rs
+@@ -37,8 +37,10 @@
+ mod frontmatter;
+ mod harness_markup;
+ mod headless;
++#[expect(dead_code, reason = "Host adapter retains schema, not ambient hook execution")]
+ mod hooks;
+ mod inline_tool_calls;
++#[expect(dead_code, reason = "Host adapter does not preload project instruction files")]
+ mod instructions;
+ mod mcp;
+ mod models;
+@@ -841,7 +843,7 @@
+         )
+     };
+     if let Some(project_instructions) =
+-        instructions::load_workspace_instructions(cwd, additional_roots)
++        None::<String>
+     {
+         message.push_str("\n\n");
+         message.push_str(&project_instructions);
+@@ -852,6 +854,7 @@
+ fn agent_tools_as_specs() -> Vec<ToolSpec> {
+     let mut specs: Vec<ToolSpec> = tools::all_tools()
+         .into_iter()
++        .filter(|t| matches!(t.name, "read_file" | "create_file" | "edit_file" | "multi_edit" | "run_command"))
+         .map(|t| ToolSpec {
+             name: t.name.to_string(),
+             description: t.description.to_string(),
+@@ -862,7 +865,7 @@
+     // Advertise the `skill` tool only when skills are present, so models without
+     // any skills installed don't see a dangling capability (Agent Skills format,
+     // https://agentskills.io). Discovery metadata lives in the tool description.
+-    let discovered = skills::discover_skills();
++    let discovered = Vec::<skills::Skill>::new();
+     if !discovered.is_empty() {
+         specs.push(ToolSpec {
+             name: skills::SKILL_TOOL_NAME.to_string(),
+@@ -873,7 +876,7 @@
+ 
+     // Delegated research (`task`) is offered only when a subagent backend can
+     // actually be built — same conditional pattern as the `skill` tool above.
+-    if tools::subagent_available() {
++    if false {
+         specs.push(tools::task_tool_spec());
+     }
+ 
+@@ -3066,10 +3069,7 @@
+         self.advertise_commands(cx, session_id.clone());
+ 
+         // Run SessionStart hooks
+-        let hook_settings = settings::load().hooks;
+-        if hook_settings.has_hooks() {
+-            hooks::run_session_start_hooks(&hook_settings, cwd, &session_key);
+-        }
++
+ 
+         Ok(config_options)
+     }
+@@ -3231,10 +3231,7 @@
+         self.advertise_commands(cx, new_id.clone());
+ 
+         // Run SessionStart hooks
+-        let hook_settings = settings::load().hooks;
+-        if hook_settings.has_hooks() {
+-            hooks::run_session_start_hooks(&hook_settings, &args.cwd, &new_id.to_string());
+-        }
++
+ 
+         let modes = build_session_modes(&new_id.to_string());
+         Ok(ForkSessionResponse::new(new_id)
+@@ -3272,10 +3269,7 @@
+         self.advertise_commands(cx, session_id.clone());
+ 
+         // Run SessionStart hooks
+-        let hook_settings = settings::load().hooks;
+-        if hook_settings.has_hooks() {
+-            hooks::run_session_start_hooks(&hook_settings, &args.cwd, &session_id.to_string());
+-        }
++
+ 
+         let modes = build_session_modes(&session_id.to_string());
+         Ok(NewSessionResponse::new(session_id)
+@@ -3787,7 +3781,10 @@
+                 // the user starts out `pending`, everything else is already
+                 // running. A repeated call is never run, so never asked about.
+                 let decision = (!repeated).then(|| {
+-                    permissions::decision_for(&session_id.to_string(), &tc.name, &tc.arguments)
++                    match permissions::decision_for(&session_id.to_string(), &tc.name, &tc.arguments) {
++ permissions::Decision::Deny(reason) => permissions::Decision::Deny(reason),
++ _ => permissions::Decision::Ask,
++ }
+                 });
+                 let announced_status = match decision {
+                     Some(permissions::Decision::Ask) => ToolCallStatus::Pending,
+@@ -3870,7 +3867,7 @@
+                             // Worked out while the session still holds the
+                             // workspace: a relative path resolves against
+                             // its cwd.
+-                            let preview = tools::preview_file_change(&tc.name, &tc.arguments).await;
++                            let preview = None;
+                             // The answer can take as long as the user likes.
+                             if release_while_waiting {
+                                 workspace.release();
+--- a/crates/cli/src/client_fs.rs
++++ b/crates/cli/src/client_fs.rs
+@@ -106,41 +106,19 @@
+     /// The file's text: the client's copy when it can read, the disk's when it
+     /// cannot or the request failed.
+     pub async fn read(&self, path: &Path) -> std::io::Result<String> {
+-        if self.read {
+-            let request = self.fs.read_text_file(&self.session_id, path);
+-            match tokio::time::timeout(CLIENT_FS_TIMEOUT, request).await {
+-                Ok(Ok(content)) => return Ok(content),
+-                Ok(Err(error)) => log::warn!(
+-                    "fs/read_text_file failed for {}: {error}; reading from disk",
+-                    path.display()
+-                ),
+-                Err(_) => log::warn!(
+-                    "fs/read_text_file timed out for {}; reading from disk",
+-                    path.display()
+-                ),
+-            }
+-        }
+-        std::fs::read_to_string(path)
++        if !self.read { return Err(std::io::Error::other("Host file read capability required")); }
++        tokio::time::timeout(CLIENT_FS_TIMEOUT, self.fs.read_text_file(&self.session_id, path))
++            .await.map_err(|_| std::io::Error::other("Host file read timed out"))?
++            .map_err(std::io::Error::other)
+     }
+ 
+     /// Write the file's text through the client when it can write, and to the
+     /// disk when it cannot or the request failed.
+     pub async fn write(&self, path: &Path, content: &str) -> std::io::Result<()> {
+-        if self.write {
+-            let request = self.fs.write_text_file(&self.session_id, path, content);
+-            match tokio::time::timeout(CLIENT_FS_TIMEOUT, request).await {
+-                Ok(Ok(())) => return Ok(()),
+-                Ok(Err(error)) => log::warn!(
+-                    "fs/write_text_file failed for {}: {error}; writing to disk",
+-                    path.display()
+-                ),
+-                Err(_) => log::warn!(
+-                    "fs/write_text_file timed out for {}; writing to disk",
+-                    path.display()
+-                ),
+-            }
+-        }
+-        std::fs::write(path, content)
++        if !self.write { return Err(std::io::Error::other("Host file write capability required")); }
++        tokio::time::timeout(CLIENT_FS_TIMEOUT, self.fs.write_text_file(&self.session_id, path, content))
++            .await.map_err(|_| std::io::Error::other("Host file write timed out"))?
++            .map_err(std::io::Error::other)
+     }
+ }
+ 
+--- a/crates/cli/src/tools.rs
++++ b/crates/cli/src/tools.rs
+@@ -515,27 +515,7 @@
+     arguments: &str,
+     tool_call_id: Option<&str>,
+ ) -> ToolOutcome {
+-    // Settings are read once per call (not once per hook phase) so a
+-    // deployment without any [hooks] configured pays one cheap TOML parse
+-    // per tool call rather than two.
+-    let hook_settings = crate::settings::load().hooks;
+-    let cwd = std::env::current_dir().ok();
+-
+-    if let Some(cwd) = &cwd
+-        && !hook_settings.pre_tool_use.is_empty()
+-    {
+-        crate::hooks::run_pre_tool_use_hooks(&hook_settings, name, arguments, cwd);
+-    }
+-
+-    let result = execute_tool_impl(name, arguments, tool_call_id).await;
+-
+-    if let Some(cwd) = &cwd
+-        && !hook_settings.post_tool_use.is_empty()
+-    {
+-        crate::hooks::run_post_tool_use_hooks(&hook_settings, name, &result.output, cwd);
+-    }
+-
+-    result
++    execute_tool_impl(name, arguments, tool_call_id).await
+ }
+ 
+ async fn execute_tool_impl(name: &str, arguments: &str, tool_call_id: Option<&str>) -> ToolOutcome {
+@@ -552,6 +532,8 @@
+         return exec_run_command_via_client(arguments, &call, &route, tool_call_id).await;
+     }
+ 
++    return format!("Error: tool {name} requires a verified host route; native fallback is disabled").into();
++    #[allow(unreachable_code)]
+     match name {
+         TASK_TOOL_NAME => exec_task(arguments).await.into(),
+         WEB_SEARCH_TOOL_NAME => exec_web_search(arguments).await.into(),
+@@ -1846,6 +1828,7 @@
+ /// Reads the file the same way the call will, through the client when the
+ /// path is routed there, so the preview matches an unsaved buffer. Resolves
+ /// relative paths against the cwd, so call it while the session is installed.
++#[expect(dead_code, reason = "Host permission requests must not preload file contents")]
+ pub async fn preview_file_change(name: &str, arguments: &str) -> Option<FileChange> {
+     match name {
+         "create_file" => {
+@@ -2796,7 +2779,7 @@
+ /// model cannot tell the two apart; a client that cannot start the terminal
+ /// gets the command run locally instead.
+ async fn exec_run_command_via_client(
+-    arguments: &str,
++    _arguments: &str,
+     call: &RunCommandCall,
+     route: &crate::client_terminal::Route,
+     tool_call_id: Option<&str>,
+@@ -2808,7 +2791,6 @@
+         call.command,
+         call.cwd.display()
+     );
+-    let commit_watch = CommitWatch::start(&call.command, &call.cwd);
+ 
+     let run = route
+         .run(
+@@ -2822,25 +2804,14 @@
+ 
+     let (output, terminal_id) = match run {
+         Run::NotStarted(error) => {
+-            log::warn!("client terminal could not start the command: {error}; running it locally");
+-            let arguments = arguments.to_owned();
+-            let owner = active_session();
+-            return tokio::task::spawn_blocking(move || {
+-                exec_run_command(&arguments, owner.as_deref())
+-            })
+-            .await
+-            .unwrap_or_else(|err| format!("Error: run_command task failed: {err}"))
+-            .into();
++            return format!("Error: host terminal rejected command: {error}").into();
+         }
+         Run::Exited {
+             terminal_id,
+             status,
+             output,
+         } => {
+-            let mut combined = client_output_text(output);
+-            if let Some(watch) = commit_watch {
+-                watch.finish(&mut combined);
+-            }
++            let combined = client_output_text(output);
+             let result = command_result(
+                 status.exit_code.map(i64::from),
+                 status.signal.as_deref(),
+--- a/crates/cli/src/mcp.rs
++++ b/crates/cli/src/mcp.rs
+@@ -431,6 +431,8 @@
+ /// (unless opted out) plus any from `mcp.toml`. Project-local entries override
+ /// global ones, and a user entry named `sigit` overrides the official default.
+ fn load_configs() -> Vec<ServerDef> {
++    return Vec::new();
++    #[allow(unreachable_code)]
+     if disabled_by_env() {
+         log::info!("mcp: disabled via SIGIT_MCP");
+         return Vec::new();

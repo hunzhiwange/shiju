@@ -148,3 +148,13 @@ fn acp_onboarding_nova_installer_contract() {
     }
     assert!(acp_install_command("nova; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_sigit_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("sigit", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "@smbcloud/sigit@1.7.10"]);
+    }
+    assert!(acp_install_command("sigit; echo unsafe").is_none());
+}

@@ -534,3 +534,5 @@ pub(crate) mod workspace_files;
 
 #[path = "agent_apps/daily_memory_search.rs"]
 pub(crate) mod daily_memory_search;
+
+pub(crate) mod app_routing;

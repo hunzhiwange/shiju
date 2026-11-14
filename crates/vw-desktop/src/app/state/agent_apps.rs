@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub routing: crate::app::components::app_routing::lifecycle::State,
     pub openclaw_tools: crate::app::components::openclaw_tools::State,
     pub openclaw_env: crate::app::components::openclaw_env::State,
     pub openclaw_catalog: crate::app::components::openclaw_catalog::State,
@@ -59,6 +60,7 @@ impl AppsCatalogState {
         self.model_diagnostics.invalidate_access();
         self.token.clear();
         self.lifecycle.invalidate();
+        self.routing.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_catalog.invalidate();
@@ -76,6 +78,7 @@ impl AppsCatalogState {
     }
 
     pub fn begin(&mut self, context: AgentAppsContext) -> u64 {
+        self.routing.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_catalog.invalidate();

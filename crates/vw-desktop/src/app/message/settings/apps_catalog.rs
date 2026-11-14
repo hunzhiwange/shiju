@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    Routing(crate::app::components::app_routing::lifecycle::Event),
     OpenClawTools(crate::app::components::openclaw_tools::Event),
     OpenClawEnv(crate::app::components::openclaw_env::Event),
     OpenClawCatalog(crate::app::components::openclaw_catalog::Event),
@@ -47,6 +48,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawTools(event) => return crate::app::components::openclaw_tools::update(app, event),
         AppsCatalogMessage::OpenClawEnv(event) => return crate::app::components::openclaw_env::update(app, event),
         AppsCatalogMessage::OpenClawCatalog(event) => return crate::app::components::openclaw_catalog::update(app, event),
@@ -144,6 +146,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::HostInput(host) => {
             app.app_providers.model_catalog = None;
             app.apps_catalog.lifecycle.invalidate();
+            app.apps_catalog.routing.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
@@ -174,6 +177,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                     project: app.project_path.clone(),
                 });
             app.apps_catalog.lifecycle.invalidate();
+            app.apps_catalog.routing.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.openclaw_catalog.invalidate();
@@ -265,9 +269,16 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
                 }
-                return crate::app::components::system_settings_apps::preferences::update(
-                    app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,
-                );
+                return Task::batch([
+                    crate::app::components::system_settings_apps::preferences::update(
+                        app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,
+                    ),
+                    crate::app::components::app_routing::lifecycle::update(
+                        app, crate::app::components::app_routing::lifecycle::Event::Run(
+                            crate::app::components::app_routing::lifecycle::Operation::Refresh,
+                        ),
+                    ),
+                ]);
             }
         }
     }

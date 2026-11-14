@@ -1260,3 +1260,13 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 2026-11-14：新增 POST `/v1/app-routing/hosts/{host}/projects/{project}/apps/{app}/mode`，DTO `RoutingModeRequest`、SDK `apply_app_routing_mode`。复用 `provider_publication::apply` 与母任务4 ClaudeMode 原事务：授权项目/成员/主机与供应商编辑范围一致后，监听就绪才能签发并通过原生客户端配置交付凭证；切换轮换、Direct/Detach 先恢复配置再撤销。错误保留结构化状态，不返回凭证。当前仅支持既有 Claude 保存供应商契约；官方账号和其它应用明确拒绝，不扩展母任务4/6。
 
 已读取冻结 upstream commands/proxy.rs 的接入/退出与路由切换调用者，以及 services/proxy.rs；任务109生产绑定、鉴权/浏览器/Host 防护与任务85请求状态源码存在。仅核对源码合同，不宣称外部前置验收完成。依用户本次覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。本项行为及 macOS 验收留待统一验证，Windows/Linux/WSL 范围外。主计划只读。
+
+## 任务88：桌面服务状态与启停（代码交付，未验证）
+
+2026-11-14：任务87客户端主机 DTO/SDK/网关源码已存在；来源采用冻结 upstream `src/lib/query/proxy.ts`、`src/lib/api/proxy.ts` 及来源映射。网关 `RoutingControl` / 常驻监听器、成员与执行主机授权、原生应用配置事务及账号接口沿用现有所有者，仅确认源码合同可用，不推定母任务1–6外部验收完成。
+
+新增 `vw-desktop/app/components/app_routing/lifecycle.rs`，接入现有应用设置目录、AppsCatalogMessage 和 AppsCatalogState。仅通过 SDK `app_routing_status/health/start/stop` 展示服务状态、就绪健康及服务端回读的实际 SocketAddr（含动态端口/IPv6）；启停后回读健康。已停止状态不发健康请求，运行后 health 的 not_ready 显示未就绪。失败/超时清除旧状态，已知结构化错误码转为固定中文并走 toast，不显示任意响应正文。状态和消息不保存凭据，令牌仅由现有授权状态传入短期请求。
+
+刷新采用目录加载后一次读取及显式刷新，禁止同上下文请求重叠；状态/健康及启停整体15秒超时，不后台轮询、不自动重试写操作。网关/租户/项目/主机/目录代次/授权代次与请求序号共同拒绝旧回复，主机/令牌变化时失效。启停只由明确点击触发，桌面关闭不发 stop，不接管监听器生命周期。复用 settings_panel、主次按钮及现有页面滚动容器，中文默认字体，实际地址独立 ASCII 等宽控件。
+
+添加三个独立 `cc_route_088_` 测试源码，覆盖实际端口、失败清除状态、旧主机/授权/序号回复拒绝及错误载荷脱敏。依用户最新覆盖要求未运行 Cargo、相关脚本、单元测试、实机或最终回归，未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置；没有红绿灯、退出码或有效通过数。后续统一验证 SDK 回环启停/超时/授权、中文实际渲染及关闭窗口后服务继续运行；macOS 待验收，其它平台与 WSL 地址行为范围外/未验证。编号任务文件按用户要求删除，不代表母任务8完成。

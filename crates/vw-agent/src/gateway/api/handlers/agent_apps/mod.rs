@@ -654,3 +654,7 @@ pub(super) use access::authorize_device_sync_config;
 pub(super) use access::authorize_device_sync_probe;
 
 pub(super) use access::authorize_device_sync_upload;
+
+#[cfg(target_os = "macos")]
+pub(super) use access::data_location_roots;
+pub(super) use access::authorize_data_export;

@@ -171,6 +171,9 @@ fn field_exclusion(key: &str, value: &Value, location: MigrationLocation) -> Opt
     {
         return None;
     }
+    if matches!(key, "apporder" | "visibleapps") && value.as_array().is_some_and(|items| items.iter().all(Value::is_string)) {
+        return None;
+    }
     if key == "tags" && value.as_array().is_some_and(|items| items.iter().all(Value::is_string)) {
         return None;
     }

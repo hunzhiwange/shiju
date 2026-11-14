@@ -51,6 +51,8 @@ struct Grant {
     #[serde(default)]
     data_backups: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    data_export: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     #[serde(default)]
     preferences_write: bool,
@@ -560,6 +562,8 @@ pub(super) struct Host {
     /// Existing private directory, selected only by the administrator.
     #[serde(default)]
     pub data_backup_root: Option<PathBuf>,
+    #[serde(default)]
+    data_location_roots: Option<[PathBuf; 3]>,
     /// Explicit source references; never populated from desktop paths.
     #[serde(default)]
     pub data_migration_sources: std::collections::BTreeMap<String, PathBuf>,
@@ -672,6 +676,7 @@ enum Capability<'a> {
     DataMigrationRead(&'a vw_api_types::id::ProjectId),
     DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
     DataBackups(&'a vw_api_types::id::ProjectId),
+    DataExport(&'a vw_api_types::id::ProjectId),
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
     ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
     OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
@@ -965,6 +970,7 @@ fn authorize_digest(
                     Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
                     Capability::DeviceSyncUpload(project) => g.device_sync_upload.contains(project),
                     Capability::DataBackups(project) => g.data_backups.contains(project),
+                    Capability::DataExport(project) => g.data_export.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
                     }
@@ -2037,3 +2043,18 @@ pub(in super::super) fn authorize_device_sync_upload(
     Ok((credentials, skills))
 }
 
+
+#[cfg(target_os = "macos")]
+pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
+    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
+    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
+    if ![&app,&device,&environment].iter().all(|p|p.is_absolute()) { return Err(StatusCode::SERVICE_UNAVAILABLE); }
+    Ok((app,device,environment))
+}
+
+pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(),StatusCode> {
+    let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
+    if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    Ok(())
+}

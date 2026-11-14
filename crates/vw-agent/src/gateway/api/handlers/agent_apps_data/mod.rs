@@ -14,3 +14,9 @@ pub(crate) mod migration_write_api;
 
 #[cfg(all(test, target_os = "macos"))]
 mod migration_write_api_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod data_aux_api;
+
+#[cfg(all(test, target_os = "macos"))]
+mod data_aux_api_tests;

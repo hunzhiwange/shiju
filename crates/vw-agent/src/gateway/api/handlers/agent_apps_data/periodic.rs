@@ -23,6 +23,14 @@ pub(crate) async fn run(policy: PathBuf) {
                 .map_err(|_| BackupFailure)?;
             let mut failed = false;
             for (root, scope, hours) in targets {
+                let target = vw_api_types::agent_apps::data_management::DataManagementTarget {
+                    scope: scope.project.clone(), target_host_id: scope.host_id.clone(), principal_id: scope.principal_id.clone(),
+                };
+                let settings = match super::data_aux_api::load_settings(&database, &target) {
+                    Ok(value) => value,
+                    Err(_) => { failed = true; continue; }
+                };
+                let hours = settings.as_ref().map_or(hours, |s| s.interval_hours);
                 let result = periodic_backup_if_needed::<BackupFailure>(
                     &root, &scope, hours, chrono::Utc::now().timestamp_millis(), || {
                         super::backup_capture::capture_preferences(
@@ -30,7 +38,22 @@ pub(crate) async fn run(policy: PathBuf) {
                         ).map_err(|_| BackupFailure)
                     },
                 );
-                if result.is_err() { failed = true; }
+                match result {
+                    Err(_) => failed = true,
+                    Ok(Some(_)) => {
+                        if let Some(settings) = settings {
+                            use vw_agent_apps::data_management::{backup_api, retention};
+                            let cleanup = (|| {
+                                let _guard = backup_api::lock_directory(&root).map_err(|_| BackupFailure)?;
+                                let policy = retention::RetentionPolicy::new(i64::from(settings.retain_count)).map_err(|_| BackupFailure)?;
+                                retention::cleanup_local_backups(&root, &scope, policy).map_err(|_| BackupFailure)?;
+                                Ok::<(), BackupFailure>(())
+                            })();
+                            if cleanup.is_err() { failed = true; }
+                        }
+                    }
+                    Ok(None) => {}
+                }
             }
             if failed { Err(BackupFailure) } else { Ok(()) }
         }).await;

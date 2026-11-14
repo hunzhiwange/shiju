@@ -243,3 +243,11 @@ macOS 执行端 `vw-agent/src/agent_apps/data_import.rs::commit_selected` 用封
 独立 `apply_tests.rs` 注册了 `cc_data_16_apply_commits_only_selected_categories` 与 `cc_data_16_apply_rejects_stale_preview`：匿名内存 SQLite 真实用量写入、重导零写、空选择、类别替换、源摘要及目标修订变化。仅新增测试代码，没有执行。后续统一回归需编译 vw-agent 的 macOS 执行端并执行 vw-agent-apps 的 cc_data_16_ 定向测试。
 
 按用户覆盖要求未执行 Cargo、单元测试或实机验证；未领取槽位，两个 Cargo 缓存变量均未设置，无退出码、有效测试数或通过结论。仅对新增 Rust 文件运行独立 rustfmt（非 Cargo）。此前卡片中的跨类别事务前置判断已更正，任务17仍单独实施。
+
+## 子任务 17：失败恢复编排（2026-11-14）
+
+`data_management/rollback.rs::apply_with_rollback` 复用任务 16 的分发和任务 8 的归档校验。写前校验授权 scope、摘要、精确目标集合与类别覆盖；失败后先恢复可能已部分提交的失败类别，再逆序恢复已完成类别，逐类别保留失败，返回原回执及 recovery_required，停止剩余导入。所有者回调必须覆盖引用/资源并持锁或校验本次写后版本；不支持恢复的所有者不得进入执行。调用方需持久化回执与恢复失败类别，并在修复前拒绝同作用域后续任务；此核心未接入网关任务持久化或七类所有者自动恢复，不宣称已具备全链路写入阻断。
+
+新增独立 `rollback_tests.rs` 两个 `cc_data_17_` 场景，由父模块注册；使用隔离 SQLite 引用关系和真实回退归档，指定边界注入晚期提交与恢复失败。它们覆盖编排，不冒充七类业务适配器验收。
+
+按本轮覆盖要求未运行 Cargo、编译、单元或实机测试，测试结果未知。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。统一回归待运行：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_17_ -- --nocapture`，另需核验所有者恢复与任务持久化接线。

@@ -107,3 +107,8 @@ pub mod periodic;
 pub mod apply;
 #[cfg(test)]
 mod apply_tests;
+
+#[cfg(target_os = "macos")]
+pub mod rollback;
+#[cfg(all(test, target_os = "macos"))]
+mod rollback_tests;

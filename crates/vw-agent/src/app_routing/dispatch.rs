@@ -385,6 +385,13 @@ pub(super) async fn forward_json(
         } else {
             body
         };
+        let body = if native_responses
+            && !matches!(target.url.host_str(), Some("api.openai.com" | "chatgpt.com" | "chat.openai.com"))
+        {
+            crate::model_relay::late_arguments::body(body)
+        } else {
+            body
+        };
         // The Responses bridge validates its Chat source in the shared decoder.
         let body = if bridge.is_none() {
             crate::model_relay::stream_observer::validated_body(

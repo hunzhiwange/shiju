@@ -164,3 +164,7 @@ pub(crate) mod reasoning_bridge;
 mod reasoning_bridge_tests;
 
 mod inline_think;
+
+pub(crate) mod late_arguments;
+#[cfg(test)]
+mod late_arguments_tests;

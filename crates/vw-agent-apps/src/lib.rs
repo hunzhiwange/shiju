@@ -77,3 +77,6 @@ mod openclaw_tools_tests;
 pub mod openclaw_health;
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_health_tests;
+
+#[cfg(target_os = "macos")]
+pub mod hermes_dashboard;

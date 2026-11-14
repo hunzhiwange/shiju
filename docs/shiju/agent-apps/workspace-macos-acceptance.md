@@ -98,3 +98,11 @@
 新增 openclaw_health 的配置只读扫描和纯值诊断，迁移 invalid_tools_profile、legacy_agents_timeout、stringified_env_vars、stringified_env_shell_env 四分支；缺文件空列表，解析失败 config_parse_failed，读取失败保留错误。结构化 code/path 与固定 message 不包含环境变量、令牌、未知 profile 或解析器原文。文件读取复用 providers::openclaw::read 的执行主机 HOME 受控边界，不创建目录，不写配置。调用者须先授权配置与主机。现有共享解析器仅支持 JSON/JSONC，完整 JSON5 尚不支持，超出支持范围返回解析警告。
 
 已静态核对任务 1 合同、任务 3 文件边界、来源扫描函数及 HealthBanner。新增三个 openclaw_health_reports_without_mutation 前缀测试源码，覆盖四分支、固定路径、敏感值不输出、合法 profile、缺失/损坏、只读字节与链接拒绝，未执行。依用户本轮要求未运行 Cargo、任何测试或最终回归，不声称验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
+
+## 任务 27：Hermes 面板探测（2026-11-14）
+
+新增 macOS hermes_dashboard::probe_dashboard：先拒绝空或不匹配的可信执行主机身份，再读取执行端 HERMES_WEB_PORT，trim 后有效 u16 使用原值，否则 9119。no_proxy、1200ms 总超时，仅探测 127.0.0.1 的 /api/status；任意 HTTP 响应（含 401/500/302）为在线，网络失败为离线，客户端构建失败独立报错。禁用 HTTP 重定向，避免探测越过 loopback。只接受页面路径，拒绝协议、双斜杠 authority、反斜杠、编码分隔符、控制字符、路径穿越及 query/fragment；不读取或注入 session token，不启动浏览器。调用者须先完成项目/动作授权并可信分派；远程 loopback 不可直接当桌面可用地址。
+
+静态阅读来源 commands/hermes.rs::open_hermes_web_ui、TS 调用者、接口边界、任务 1 正式合同与任务 3 主机边界；RustCodeGraph status/explore 已读取，宽查询截断不作为不存在的证明。新增三个 hermes_probe_distinguishes_offline 前缀独立测试源码，覆盖端口回退、页面拒绝、本地 HTTP 状态、无 Authorization 请求头、超时、连接失败及主机拒绝，均未执行。
+
+遵照本轮最高优先要求，未执行任何 Cargo、单元测试、实机或其它测试，未启动回归，不声称编译或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，后续统一验证上述测试族。

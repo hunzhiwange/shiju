@@ -6,7 +6,7 @@ use ratatui::style::Stylize;
 use std::collections::BTreeSet;
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::width::display_width;
+use tui_text::width::display_width;
 
 /// 将令牌数压缩为状态卡片使用的 `K` 计数形式。
 pub(super) fn format_tokens_compact(tokens: u64) -> String {

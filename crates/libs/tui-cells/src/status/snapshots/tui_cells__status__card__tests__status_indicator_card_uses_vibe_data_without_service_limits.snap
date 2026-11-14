@@ -1,5 +1,5 @@
 ---
-source: crates/vw-tui/src/status/card.rs
+source: crates/libs/tui-cells/src/status/card_tests.rs
 expression: rendered
 ---
 ╭──────────────────────────────────────────────────────────────────────────────╮

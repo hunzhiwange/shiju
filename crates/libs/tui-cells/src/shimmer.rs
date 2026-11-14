@@ -9,9 +9,9 @@ use ratatui::style::Modifier;
 use ratatui::style::Style;
 use ratatui::text::Span;
 
-use crate::color::blend;
-use crate::terminal_palette::default_bg;
-use crate::terminal_palette::default_fg;
+use tui_theme::color::blend;
+use tui_theme::terminal_palette::default_bg;
+use tui_theme::terminal_palette::default_fg;
 
 static PROCESS_START: OnceLock<Instant> = OnceLock::new();
 

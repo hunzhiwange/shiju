@@ -6,7 +6,6 @@
 //! History cells copied from Codex and adapted to VibeWindow display data.
 
 use ratatui::prelude::*;
-use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::render::line_utils::prefix_lines;
 use crate::vibe::event::V3DisplayEvent;
@@ -21,29 +20,7 @@ pub use messages::{AgentMessageCell, PlainHistoryCell, UserHistoryCell};
 pub(crate) use patches::PatchHistoryCell;
 pub use session::SessionHistoryCell;
 
-/// 复制版 Codex 转录中的单个展示单元。
-/// A single display unit in the copied Codex transcript.
-pub trait HistoryCell: std::fmt::Debug + Send + Sync + std::any::Any {
-    fn display_lines(&self, width: u16) -> Vec<Line<'static>>;
-
-    fn raw_lines(&self) -> Vec<Line<'static>> {
-        self.display_lines(u16::MAX)
-    }
-
-    fn desired_height(&self, width: u16) -> u16 {
-        Paragraph::new(Text::from(self.display_lines(width)))
-            .wrap(Wrap { trim: false })
-            .line_count(width)
-            .try_into()
-            .unwrap_or(u16::MAX)
-    }
-}
-
-impl dyn HistoryCell {
-    pub fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
+pub use tui_render::history_cell::HistoryCell;
 
 /// 将每个 VibeWindow 展示事件映射到对应的复制版历史或执行单元。
 /// Maps every VibeWindow display event to one of the copied history/exec cells.

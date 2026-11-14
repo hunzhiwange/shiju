@@ -30,7 +30,7 @@ pub use tui_contracts::diff_model;
 #[allow(dead_code)]
 mod diff_render;
 #[allow(dead_code)]
-pub mod exec_cell;
+pub use tui_cells::exec_cell;
 #[allow(dead_code)]
 mod git_action_directives;
 #[allow(dead_code)]
@@ -48,7 +48,7 @@ mod markdown;
 #[allow(dead_code)]
 pub(crate) use tui_markdown::markdown_render;
 #[allow(dead_code)]
-mod motion;
+use tui_cells::motion;
 #[allow(dead_code)]
 pub mod onboarding;
 #[allow(dead_code)]
@@ -60,7 +60,7 @@ pub(crate) mod resume_picker;
 #[allow(dead_code)]
 pub mod selection_list;
 #[allow(dead_code)]
-pub mod status;
+pub use tui_cells::status;
 #[allow(dead_code)]
 mod status_indicator_widget;
 #[allow(dead_code)]

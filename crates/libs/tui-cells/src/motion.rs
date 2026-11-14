@@ -17,7 +17,7 @@ mod shimmer;
 use shimmer::shimmer_spans;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum MotionMode {
+pub enum MotionMode {
     /// 允许随时间变化的动画表现。
     Animated,
     /// 使用静态或隐藏的无动画表现。
@@ -25,18 +25,18 @@ pub(crate) enum MotionMode {
 }
 
 impl MotionMode {
-    pub(crate) fn from_animations_enabled(animations_enabled: bool) -> Self {
+    pub fn from_animations_enabled(animations_enabled: bool) -> Self {
         if animations_enabled { Self::Animated } else { Self::Reduced }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ReducedMotionIndicator {
+pub enum ReducedMotionIndicator {
     Hidden,
     StaticBullet,
 }
 
-pub(crate) fn activity_indicator(
+pub fn activity_indicator(
     start_time: Option<Instant>,
     motion_mode: MotionMode,
     reduced_motion_indicator: ReducedMotionIndicator,
@@ -51,7 +51,7 @@ pub(crate) fn activity_indicator(
     }
 }
 
-pub(crate) fn shimmer_text(text: &str, motion_mode: MotionMode) -> Vec<Span<'static>> {
+pub fn shimmer_text(text: &str, motion_mode: MotionMode) -> Vec<Span<'static>> {
     match motion_mode {
         MotionMode::Animated => shimmer_spans(text),
         MotionMode::Reduced => {
@@ -79,36 +79,5 @@ fn animated_activity_indicator(start_time: Option<Instant>) -> Span<'static> {
 }
 
 #[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    // 减少动态效果模式必须严格采用调用方声明的静态回退。
-    fn reduced_motion_activity_indicator_uses_explicit_fallback() {
-        assert_eq!(
-            activity_indicator(
-                /*start_time*/ None,
-                MotionMode::Reduced,
-                ReducedMotionIndicator::Hidden,
-            ),
-            None
-        );
-        assert_eq!(
-            activity_indicator(
-                /*start_time*/ None,
-                MotionMode::Reduced,
-                ReducedMotionIndicator::StaticBullet,
-            ),
-            Some("•".dim())
-        );
-    }
-
-    #[test]
-    // 关闭动画后闪烁文本保持原文，空输入仍不产生 span。
-    fn reduced_motion_shimmer_text_is_plain_text() {
-        assert_eq!(shimmer_text("Loading", MotionMode::Reduced), vec!["Loading".into()]);
-        assert_eq!(shimmer_text("", MotionMode::Reduced), Vec::<Span<'static>>::new());
-    }
-}
+#[path = "motion_tests.rs"]
+mod tests;

@@ -274,10 +274,23 @@ impl AuthorizedRoute {
         let store = Arc::clone(self.timeout_store.as_ref().ok_or(StatusCode::SERVICE_UNAVAILABLE)?);
         let project = self.binding.project.clone();
         let app = self.binding.app;
-        tokio::task::spawn_blocking(move || store.app_timeouts(&project, app))
+        let provider_scope = self.provider.as_ref()
+            .map(|provider| (provider.database.clone(), provider.scope.clone()));
+        tokio::task::spawn_blocking(move || -> anyhow::Result<AppTimeouts> {
+            if let Some((database, scope)) = provider_scope
+                && let Some(policy) = crate::gateway::agent_apps_failover_runtime::saved_policy(database, &scope)?
+            {
+                let retry = policy.retry_timeout;
+                return Ok(AppTimeouts {
+                    first_byte_timeout_secs: retry.first_byte_timeout_secs,
+                    idle_timeout_secs: retry.idle_timeout_secs,
+                    non_streaming_timeout_secs: retry.non_streaming_timeout_secs,
+                });
+            }
+            Ok(store.app_timeouts(&project, app)?.unwrap_or_default())
+        })
             .await
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
-            .map(Option::unwrap_or_default)
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
     }
 
@@ -336,6 +349,7 @@ impl ActiveRoutes {
                 capacity = Some(Arc::clone(&route.capacity));
                 route.cancelled.cancel();
                 route.gemini_shadow.clear();
+                route.responses_history.clear();
                 false
             } else {
                 true
@@ -350,12 +364,53 @@ pub(super) struct RouteAuth {
     pub(crate) requests: Arc<super::request_status::Requests>,
     #[cfg(target_os = "macos")]
     failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
-                route.responses_history.clear();
     active: Mutex<ActiveRoutes>,
     publication: Arc<Mutex<()>>,
 }
 
 impl RouteAuth {
+    #[cfg(target_os = "macos")]
+    pub(super) fn failover_health(
+        &self,
+        key: &vw_agent_apps::high_availability::health::HealthKey,
+        policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+        reset: bool,
+    ) -> vw_agent_apps::high_availability::health::HealthSnapshot {
+        if reset {
+            self.failover.health.reset(key);
+        }
+        self.failover.health.snapshot(key, policy, std::time::Instant::now())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(super) fn failover_route(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    ) -> Result<vw_api_types::agent_apps_high_availability::FailoverRouteResponse, StatusCode> {
+        let _publication = self.publication.lock();
+        let active = self.active.lock();
+        let route = active.grants.values().find(|route| {
+            route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id)
+                && !route.cancelled.is_cancelled()
+        });
+        let mut response = vw_api_types::agent_apps_high_availability::FailoverRouteResponse {
+            scope: scope.clone(),
+            configured_provider_id: None,
+            actual_provider_id: None,
+            failure_reason: None,
+        };
+        if let Some(route) = route
+            && let Some(provider) = &route.provider
+        {
+            provider.check_current()?;
+            response.configured_provider_id = Some(provider.provider_id.clone().into());
+            let actual = route.actual_route.lock();
+            response.actual_provider_id = actual.provider_id.clone().map(Into::into);
+            response.failure_reason = actual.failure_reason;
+        }
+        Ok(response)
+    }
+
     #[cfg(target_os = "macos")]
     pub(super) fn set_failover_events(
         &self,
@@ -544,6 +599,7 @@ impl RouteAuth {
                 if route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id) {
                     route.cancelled.cancel();
                 route.gemini_shadow.clear();
+                route.responses_history.clear();
                     false
                 } else {
                     true
@@ -599,7 +655,6 @@ impl RouteAuth {
             )
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             Some(Arc::new(store))
-                route.responses_history.clear();
         } else {
             None
         };
@@ -666,6 +721,7 @@ impl RouteAuth {
                 provider,
                 binding,
                 references: Arc::default(),
+                responses_history: Arc::default(),
                 gemini_shadow: Arc::default(),
                 generation,
                 cancelled: CancellationToken::new(),
@@ -689,6 +745,7 @@ impl RouteAuth {
             if route.provider.is_some() {
                 route.cancelled.cancel();
                 route.gemini_shadow.clear();
+                route.responses_history.clear();
                 false
             } else {
                 true
@@ -707,6 +764,7 @@ impl RouteAuth {
         {
             route.cancelled.cancel();
                 route.gemini_shadow.clear();
+                route.responses_history.clear();
         }
     }
 
@@ -721,7 +779,6 @@ impl RouteAuth {
         self.active.lock().grants.get(&digest).cloned()
     }
 }
-                responses_history: Arc::default(),
 
 fn credential(headers: &HeaderMap) -> Option<&str> {
     let mut bearer = headers.get_all(header::AUTHORIZATION).iter();
@@ -745,7 +802,6 @@ where
         return;
     };
     let Ok(Ok((connection, prefix, wire))) =
-                route.responses_history.clear();
         timeout(header_wire::HEAD_TIMEOUT, header_wire::capture(connection)).await
     else {
         return;
@@ -764,7 +820,6 @@ where
         async move {
             let protocol = Protocol::for_path(request.uri().path());
             let error = |status| RouteError::from(status).response(protocol);
-                route.responses_history.clear();
             let has_origin = request.headers().contains_key(header::ORIGIN);
             if !browser_guard::allows_host(&request, local_addr)
                 || (has_origin && !browser_guard::is_desktop_route(request.uri()))

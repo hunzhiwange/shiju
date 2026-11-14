@@ -15,3 +15,6 @@ pub use request_status::*;
 
 mod mode_attach;
 pub use mode_attach::*;
+
+mod client_host;
+pub use client_host::*;

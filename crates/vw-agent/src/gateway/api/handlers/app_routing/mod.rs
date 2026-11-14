@@ -37,3 +37,6 @@ pub(crate) use request_status::request_status;
 
 mod mode_attach;
 pub(crate) use mode_attach::attach_mode;
+
+mod client_host;
+pub(crate) use client_host::{get_client_host, put_client_host};

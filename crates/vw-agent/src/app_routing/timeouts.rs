@@ -15,6 +15,9 @@ use serde_json::Value;
 use std::{convert::Infallible, future::Future, time::Duration};
 use tokio::time::{Instant, sleep_until};
 
+// Preserve the upstream streaming protection without changing buffered-request settings.
+pub(super) const STREAM_TOTAL_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct AppTimeouts {
     pub(crate) first_byte_timeout_secs: u16,
@@ -59,6 +62,7 @@ pub(super) async fn before<T>(
 pub(super) async fn stream_body(
     body: Body,
     first_byte_deadline: Instant,
+    total_deadline: Instant,
     idle: Duration,
     permit: RequestPermit,
     protocol: Protocol,
@@ -80,7 +84,13 @@ pub(super) async fn stream_body(
         },
         ..Default::default()
     };
-    let prelude = first_output(&mut stream, &mut observer, first_byte_deadline, protocol).await?;
+    let prelude = first_output(
+        &mut stream,
+        &mut observer,
+        first_byte_deadline.min(total_deadline),
+        protocol,
+    )
+    .await?;
     let state = TimedStream {
         prelude: Some(prelude.bytes.into()),
         upstream: (prelude.activity != Activity::End).then_some(stream),
@@ -88,7 +98,8 @@ pub(super) async fn stream_body(
         protocol,
         idle,
         idle_deadline: (!idle.is_zero()).then(|| Instant::now() + idle),
-        _permit: permit,
+        total_deadline,
+        permit: Some(permit),
     };
     Ok(Body::from_stream(stream::unfold(state, TimedStream::next)))
 }
@@ -172,20 +183,23 @@ struct TimedStream {
     protocol: Protocol,
     idle: Duration,
     idle_deadline: Option<Instant>,
-    _permit: RequestPermit,
+    total_deadline: Instant,
+    permit: Option<RequestPermit>,
 }
 
 impl TimedStream {
     async fn next(mut self) -> Option<(Result<Bytes, Infallible>, Self)> {
         if let Some(bytes) = self.prelude.take() {
+            if self.upstream.is_none() {
+                self.permit = None;
+            }
             return Some((Ok(bytes), self));
         }
         loop {
             let upstream = self.upstream.as_mut()?;
-            let chunk = match self.idle_deadline {
-                Some(deadline) => before(deadline, upstream.next()).await,
-                None => Ok(upstream.next().await),
-            };
+            let deadline =
+                self.idle_deadline.map_or(self.total_deadline, |idle| idle.min(self.total_deadline));
+            let chunk = before(deadline, upstream.next()).await;
             let mut batch = OutputBatch::default();
             let result = match chunk {
                 Ok(Some(Ok(bytes))) => self.observer.observe(&bytes, &mut batch),
@@ -198,6 +212,7 @@ impl TimedStream {
                             .is_some_and(|observer| observer.finish().is_ok()) =>
                 {
                     self.upstream = None;
+                    self.permit = None;
                     return None;
                 }
                 Ok(_) => Err(RouteError::StreamFailed),
@@ -210,7 +225,10 @@ impl TimedStream {
                 Activity::Output if !self.idle.is_zero() => {
                     self.idle_deadline = Some(Instant::now() + self.idle);
                 }
-                Activity::End => self.upstream = None,
+                Activity::End => {
+                    self.upstream = None;
+                    self.permit = None;
+                }
                 _ => {}
             }
             if !batch.bytes.is_empty() {

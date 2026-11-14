@@ -458,6 +458,7 @@ fn apps_attached_except(
 }
 
 pub(crate) enum ControlError {
+    ClientProjectionUnsupported,
     InvalidInput,
     InvalidConfig,
     UnsupportedApp,
@@ -511,6 +512,11 @@ impl From<ListenerError> for ControlError {
 impl IntoResponse for ControlError {
     fn into_response(self) -> Response {
         let (status, code, message) = match self {
+            Self::ClientProjectionUnsupported => (
+                StatusCode::NOT_IMPLEMENTED,
+                "client_projection_unsupported",
+                "Executor-wide client projection transaction is unavailable",
+            ),
             Self::InvalidInput => {
                 (StatusCode::BAD_REQUEST, "invalid_input", "Expected an empty JSON object")
             }

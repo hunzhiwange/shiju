@@ -50,7 +50,7 @@ impl Protocol {
     fn json(self, error: RouteError) -> Value {
         let (code, message) = error.details();
         let status = error.status();
-        match self {
+        let mut value = match self {
             Self::Messages => json!({
                 "type": "error",
                 "error": {"type": messages_type(status), "message": message},
@@ -61,7 +61,11 @@ impl Protocol {
             Self::Gemini => json!({
                 "error": {"code": status.as_u16(), "status": gemini_status(status), "message": message},
             }),
+        };
+        if error.replay_is_unsafe() {
+            value["error"]["replay_safe"] = Value::Bool(false);
         }
+        value
     }
 
     pub(super) fn terminal(self, error: RouteError, sequence_number: u64) -> String {
@@ -69,7 +73,7 @@ impl Protocol {
             Self::Messages => format!("event: error\ndata: {}\n\n", self.json(error)),
             Self::Responses => {
                 let (code, message) = error.details();
-                let event = json!({
+                let mut event = json!({
                     "type": "response.failed",
                     "sequence_number": sequence_number,
                     "response": {
@@ -79,6 +83,9 @@ impl Protocol {
                         "error": {"code": code, "message": message},
                     },
                 });
+                if error.replay_is_unsafe() {
+                    event["response"]["error"]["replay_safe"] = Value::Bool(false);
+                }
                 format!("event: response.failed\ndata: {event}\n\n")
             }
             Self::Chat | Self::Gemini => format!("data: {}\n\n", self.json(error)),
@@ -120,6 +127,22 @@ impl RouteError {
             }
             Self::UpstreamStatus(_) | Self::StreamFailed => StatusCode::BAD_GATEWAY,
         }
+    }
+
+    // A response failure or deadline after dispatch cannot prove that the
+    // provider did not execute. Tell clients to preserve partial output and
+    // avoid replaying requests whose side effects are unknown.
+    fn replay_is_unsafe(self) -> bool {
+        matches!(
+            self,
+            Self::UpstreamStatus(_)
+                | Self::StreamFailed
+                | Self::Status(
+                    StatusCode::BAD_GATEWAY
+                        | StatusCode::GATEWAY_TIMEOUT
+                        | StatusCode::REQUEST_TIMEOUT
+                )
+        )
     }
 
     fn details(self) -> (&'static str, &'static str) {

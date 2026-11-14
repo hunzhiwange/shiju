@@ -470,8 +470,8 @@ pub(super) async fn forward_json(
                 })
                 .await;
         }
-        if compact {
-            Ok(transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?)
+        let response = if compact {
+            transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?
         } else {
             forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await?
         };
@@ -479,6 +479,7 @@ pub(super) async fn forward_json(
         if let Some(account) = &quota_account {
             crate::model_relay::quota_gate::observe(account.clone(), response.headers());
         }
+        Ok::<_, RouteError>(response)
     };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
@@ -558,7 +559,15 @@ pub(super) async fn forward_json(
         } else {
             body
         };
-        let body = timeouts::stream_body(body, deadline, idle, permit, protocol).await?;
+        let body = timeouts::stream_body(
+            body,
+            deadline,
+            started + timeouts::STREAM_TOTAL_TIMEOUT,
+            idle,
+            permit,
+            protocol,
+        )
+        .await?;
         let body = match bridge {
             Some(bridge) => bridge.response_body(body, cancelled.clone()),
             None => body,

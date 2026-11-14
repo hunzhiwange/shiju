@@ -19,6 +19,7 @@ async fn ha_idle_and_total_deadlines_bound_stream_releases_permit() {
     let body = stream_body(
         Body::from_stream(upstream),
         Instant::now() + Duration::from_secs(1),
+        Instant::now() + STREAM_TOTAL_TIMEOUT,
         Duration::from_secs(1),
         permit,
         Protocol::Messages,

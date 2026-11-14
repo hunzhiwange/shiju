@@ -95,6 +95,24 @@ impl RoutingListener {
     }
 
     #[cfg(target_os = "macos")]
+    pub(crate) fn failover_health(
+        &self,
+        key: &vw_agent_apps::high_availability::health::HealthKey,
+        policy: &vw_api_types::agent_apps_high_availability::CircuitBreakerPolicy,
+        reset: bool,
+    ) -> vw_agent_apps::high_availability::health::HealthSnapshot {
+        self.auth.failover_health(key, policy, reset)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub(crate) fn failover_route(
+        &self,
+        scope: &vw_api_types::agent_apps_high_availability::FailoverQueueScope,
+    ) -> Result<vw_api_types::agent_apps_high_availability::FailoverRouteResponse, axum::http::StatusCode> {
+        self.auth.failover_route(scope)
+    }
+
+    #[cfg(target_os = "macos")]
     pub(crate) fn set_failover_events(
         &self,
         events: tokio::sync::broadcast::Sender<serde_json::Value>,

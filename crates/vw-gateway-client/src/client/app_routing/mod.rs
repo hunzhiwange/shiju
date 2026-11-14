@@ -23,3 +23,5 @@ mod outbound_scan_tests;
 mod request_status;
 
 mod mode_attach;
+
+mod client_host;

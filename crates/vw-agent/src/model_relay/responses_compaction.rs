@@ -1,4 +1,4 @@
-//! Codex Responses compaction through the existing Chat conversion.
+//! Resident Responses requests using shared Chat/Anthropic encoders and scoped history.
 
 use super::responses::ChatTools;
 use axum::{body::Body, http::StatusCode};
@@ -21,11 +21,24 @@ pub(crate) struct Request {
     model: String,
     tools: ChatTools,
     compact: bool,
+    anthropic: bool,
     history: Option<super::responses_history::Context>,
 }
 
 impl Request {
-    pub(crate) fn from_responses(mut body: Value) -> Result<Self, StatusCode> {
+    pub(crate) fn from_responses(body: Value) -> Result<Self, StatusCode> {
+        Self::from_responses_inner(body, false)
+    }
+
+    pub(crate) fn from_responses_anthropic(body: Value) -> Result<Self, StatusCode> {
+        // Native Anthropic SSE adaptation is delivered separately.
+        if body["stream"] == true {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
+        Self::from_responses_inner(body, true)
+    }
+
+    fn from_responses_inner(mut body: Value, anthropic: bool) -> Result<Self, StatusCode> {
         if body.get("stream").is_some_and(|v| !v.is_boolean()) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
@@ -60,8 +73,12 @@ impl Request {
             body.remove("parallel_tool_calls");
             body.insert("tool_choice".into(), json!("none"));
         }
-        let (chat, tools) = super::responses_chat_request::convert(body)?;
-        Ok(Self { chat, model, tools, compact, history: None })
+        let (chat, tools) = if anthropic {
+            super::responses_anthropic_request::convert(body, 4096)?
+        } else {
+            super::responses_chat_request::convert(body)?
+        };
+        Ok(Self { chat, model, tools, compact, anthropic, history: None })
     }
 
     pub(crate) fn with_history(mut self, history: super::responses_history::Context) -> Self {
@@ -71,6 +88,11 @@ impl Request {
 
     /// The bridge owns its wire shape even when the provider has request overrides.
     pub(crate) fn apply_wire_controls(&self, body: &mut Map<String, Value>) {
+        if self.anthropic {
+            // Provider overrides cannot reintroduce a Responses/Chat wire shape.
+            *body = self.chat.as_object().expect("converted Messages object").clone();
+            return;
+        }
         for field in [
             "stream",
             "stream_options",
@@ -96,13 +118,25 @@ impl Request {
     }
 
     pub(crate) fn response_json(&self, body: &Value) -> Result<Value, StatusCode> {
+        let chat;
+        let body = if self.anthropic {
+            chat = super::protocol_bridge::response(
+                vw_shared::provider::ModelProtocol::Messages,
+                body,
+            )?;
+            &chat
+        } else {
+            body
+        };
         let response = super::responses_chat_result::from_chat(
             body,
             &self.model,
             &super::responses::response_id(),
             &self.tools,
         )?;
-        if let Some(history) = &self.history { history.remember(&response)?; }
+        if let Some(history) = &self.history {
+            history.remember(&response)?;
+        }
         Ok(response)
     }
 
@@ -113,6 +147,9 @@ impl Request {
         } else {
             super::responses_stream::resident_chat_body(body, self.model, self.tools, cancel)
         };
-        match history { Some(history) => history.stream(body), None => body }
+        match history {
+            Some(history) => history.stream(body),
+            None => body,
+        }
     }
 }

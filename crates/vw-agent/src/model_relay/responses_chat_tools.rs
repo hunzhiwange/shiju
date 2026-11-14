@@ -129,7 +129,7 @@ impl ChatTools {
         Ok(json!({"type":"function","function":{"name":wire}}))
     }
 
-    pub(super) fn replay(&self, item: &Value) -> Result<Value, StatusCode> {
+    pub(in crate::model_relay) fn replay(&self, item: &Value) -> Result<Value, StatusCode> {
         let custom = item["type"] == "custom_tool_call";
         let arguments = if custom {
             super::object_keys(

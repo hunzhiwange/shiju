@@ -145,3 +145,7 @@ pub(crate) mod responses_history;
 mod responses_history_tests;
 
 mod tool_namespace;
+
+mod responses_anthropic_request;
+#[cfg(test)]
+mod responses_anthropic_request_tests;

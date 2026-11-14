@@ -1108,3 +1108,12 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 新增 `search_citations` 及私有 Markdown 保护模块，复用冻结来源的 Unicode scalar 到 UTF-8 偏移换算、代码区域/引用链接识别及 URL 去重。JSON 渲染引用并以最终消息注解补充搜索来源标题、保留 page_age；失败搜索仍沿用既有错误映射。SSE 文本缓冲至 output_item 完成再渲染，搜索结果延迟至终帧获取最终注解元数据；不执行工具、不接触凭据、不改变旧会话白名单。
 
 已添加 `cc_route_045_` 四个独立测试用例，覆盖中文/emoji、现有链接/引用链接/代码块、来源元数据和 SSE 晚到引用。按用户最新覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归，无红绿灯、有效测试数或通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。后续统一验证须检查上述测试及 SSE 完成帧重放、错误搜索与引用晚到行为。仅 macOS 待验收，其它平台未验证。任务文件按用户要求删除，不代表母任务8已验收。
+
+
+## 任务57：转换 Responses 到 Anthropic 请求（2026-11-14，未验证）
+
+依赖任务56的 `ChatTools` 命名空间/自定义工具映射已在当前工作区交付；沿用公共传输、可信 `JsonTarget`、应用/执行主机作用域及配置/账号契约，不新增配置写入或账号能力。冻结来源 `ca58c0313360eae7c851fbd7553c1614c7af03e7` 的 `proxy/providers/transform_codex_anthropic.rs` 与仓库 upstream 逐字节一致，SHA256 `4ae2b3248c9cb775f2306c4868b80b4a4c6b00a79e2684eca0f0f08f00a550f9`。来源及当前调用链已读取；依赖代码存在不代表依赖行为已经验证。
+
+`responses_anthropic_request::convert` 复用既有 Responses 控制字段/工具映射与 Messages 请求编码，补充 instructions、system/developer 优先级、图文/URL与base64 PDF文件、工具结果媒体、合并角色、leading user、末尾assistant空白及不完整并行工具回合清理。工具只作为客户端数据传递，不执行、不获取媒体或凭据；不改旧会话白名单。文件ID、非HTTP地址、非法base64、未知内容与未支持的推理回放明确拒绝。未指定输出上限时使用4096；不宣称自动匹配模型能力。`responses_compaction::Request` 与授权 `dispatch` 接线 `/messages` 目标，JSON结果仅复用既有 Messages→Chat→Responses 解码，不扩展任务58的结果语义；Anthropic流式请求明确422，留待对应流任务。
+
+独立测试文件添加4个 `cc_route_057_` 用例，覆盖指令/leading user/末尾空白、媒体及命名空间自定义工具身份、部分并行回合/孤立结果、媒体拒绝与旧会话隔离。按用户本次覆盖要求，未运行任何Cargo命令/脚本、单元测试、实机测试或最终回归，无红绿灯、退出码或有效测试数证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。代码仅做定向格式化和差异审查，后续统一验证需运行 `cc_route_057_` 并补授权回环HTTP验收。任务卡按用户要求删除，不表示macOS或母任务8已经验收；其他平台未验证。

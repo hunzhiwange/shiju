@@ -219,15 +219,28 @@ pub(super) async fn forward_json(
         )?;
         (prepare_request(&body, target, model)?, None)
     } else if responses {
-        if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
+        let anthropic = target.url.path().trim_end_matches('/').ends_with("/messages");
+        if !anthropic && !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
         }
         let mut body = body;
         let history = crate::model_relay::responses_history::Context::prepare(
             Arc::clone(&route.responses_history), route.response_scope(target)?, &mut body,
         )?;
-        let bridge = responses_compaction::Request::from_responses(body)?.with_history(history);
+        let bridge = if anthropic {
+            responses_compaction::Request::from_responses_anthropic(body)?
+        } else {
+            responses_compaction::Request::from_responses(body)?
+        }.with_history(history);
         let outgoing = prepare_request_inner(&bridge.chat, target, model, Some(&bridge))?;
+        let mut outgoing = outgoing;
+        if anthropic {
+            outgoing.headers_mut().insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+            if !target.authorization.as_bytes().starts_with(b"Bearer ") {
+                outgoing.headers_mut().remove(header::AUTHORIZATION);
+                outgoing.headers_mut().insert("x-api-key", target.authorization.clone());
+            }
+        }
         (outgoing, Some(bridge))
     } else {
         #[cfg(target_os = "macos")]

@@ -72,3 +72,11 @@
 新增 openclaw_model 的 get_default_model/prepare_default_model/set_default_model，复用 OpenClawFiles snapshot/apply 与物理锁、冲突检查和原子事务。保留未知扩展、回退顺序及重复值；结果包含 warnings。已有 JSONC round-trip 支持用于保留注释和非目标字节；底层明确拒绝完整 JSON5（单引号、无引号键），此限制已留源码 TODO，不能宣称 JSON5 完整交付。
 
 静态读取来源默认模型函数、前置正式合同、任务 3 路径边界、供应商事务和 patch_json；新增两个独立测试源码，覆盖字节保留、回退顺序、未知字段、幂等、缺失和非法形状。本轮按用户要求未运行 Cargo、测试或实机验收，不声明验证通过；未领取槽位，CARGO_TARGET_DIR 未设置。后续建议补齐共享 JSON5 round-trip 后统一验证。依指令删除任务卡。
+
+## 任务 18：OpenClaw 代理默认设置（2026-11-14）
+
+新增 openclaw_defaults.rs：完整 agents.defaults 读写保留扩展字段；四个表单字段投影、空白清除、有限数字校验；读取优先 timeoutSeconds，已知数字 timeout 保存迁移。未知旧字段不迁移。保存消费 OpenClawFiles 快照及既有 apply 事务，复用供应商/模型物理锁，冲突及恢复错误原样传播。调用方须先完成配置和执行主机授权。
+
+静态核对来源 get_agents_defaults/set_agents_defaults、AgentsDefaultsPanel.tsx、utils.ts，任务 1 合同、任务 3 文件边界及 provider 配置事务。共享解析器当前仅支持 JSON/JSONC，完整 JSON5 的单引号/裸键明确拒绝，不能声称完整 JSON5 已验收；此限制与现有 provider 一致，未另造解析器。新增三个独立测试源码覆盖投影、扩展保留、清空、有限数拒绝、旧 timeout、缺失及损坏区分，未执行。
+
+依用户本轮要求未运行 Cargo、任何测试或最终回归，不声明编译或运行验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证 openclaw_defaults_projects_fields 过滤场景与事务集成。

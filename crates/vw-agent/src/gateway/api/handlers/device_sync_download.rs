@@ -10,7 +10,7 @@ use crate::{device_sync::tasks, global_database::GlobalDatabase};
 use super::app_routing::RoutingControl as DownloadRouting;
 #[cfg(not(target_os = "macos"))]
 #[derive(Clone)]
-struct DownloadRouting;
+pub(super) struct DownloadRouting;
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -115,4 +115,3 @@ impl BatchSkillUpdate {
         self.ssot.finish();
     }
 }
-

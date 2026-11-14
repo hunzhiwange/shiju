@@ -802,3 +802,6 @@ impl AppProviderStore {
             .and_then(|context| context.failure.lock().ok().and_then(|failure| *failure))
     }
 }
+
+#[cfg(target_os = "macos")]
+mod data_import;

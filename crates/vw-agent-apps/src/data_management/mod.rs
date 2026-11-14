@@ -77,3 +77,7 @@ pub mod backup_api;
 pub mod mcp;
 #[cfg(test)]
 mod mcp_tests;
+
+pub mod providers;
+#[cfg(test)]
+mod providers_tests;

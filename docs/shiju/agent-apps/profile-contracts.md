@@ -145,3 +145,15 @@ select/current 接收既有 ProjectScope，记录 ProjectId 而不复制项目�
 `project_profiles/create.rs::create_from_current` 先 trim 并拒绝空名称，再调用任务 7 的四类快照入口，成功后生成独立 UUID 并执行一次插入。`ProjectProfileStore::create_from_current` 核对执行主机，通过既有 `save(..., None)` 事务写入同租户实体；不调用 select、apply，不改当前指针。快照失败不调用存储，存储失败不返回实体。其余组保留未拍状态。调用者仍须先授权项目、主机及四类读取；生产读取适配与 API 接线尚待后续任务。
 
 本轮按用户覆盖要求仅实现代码及契约，未编写或运行测试，未执行 Cargo、构建、检查、实机测试和最终回归；无 Cargo 槽位，CARGO_TARGET_DIR 未设置。静态核对了任务 3 存储、任务 7 快照及来源 create 调用顺序，未经编译和行为验证。后续补充并执行 profile_t08_ 场景：创建不激活、空名称不读取/写入、快照失败无实体、事务失败不改变指针。
+
+## 任务 4：共享组合重命名合同
+
+`ProjectProfileStore::rename(tenant, id, name, expected_version)` 在既有租户状态事务内读取实体并调用 `project_profiles::rename::rename`；不接收客户端快照或时间。名称 trim 后非空，缺失实体、版本不符或版本耗尽明确报错，失败不保存。成功仅修改 name、updatedAt（执行端 UTC Unix 秒）及递增的并发版本；payload 和全部主机/组/project 指针保持原值。同名请求也按一次元数据写入处理。DTO 新增可空 updatedAt，缺省反序列化为 None；不增加第二存储所有者。后续 API 必须先执行租户鉴权及执行主机授权/分派再调用该入口。
+
+本轮按用户覆盖要求仅实现代码与必要合同，未编写或运行测试，未运行 Cargo、构建、检查、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。实现未验证；后续需补 profile_t04_ 的快照/三组标记保留、空白拒绝、租户隔离、版本冲突/溢出及重启读回场景，再执行任务原定聚焦测试。
+
+## 任务 8：从当前快照创建组合
+
+`project_profiles/create.rs::create_from_current` 先 trim 并拒绝空名称，再调用任务 7 的四类快照入口，成功后生成独立 UUID 并执行一次插入。`ProjectProfileStore::create_from_current` 核对执行主机，通过既有 `save(..., None)` 事务写入同租户实体；不调用 select、apply，不改当前指针。快照失败不调用存储，存储失败不返回实体。其余组保留未拍状态。调用者仍须先授权项目、主机及四类读取；生产读取适配与 API 接线尚待后续任务。
+
+本轮按用户覆盖要求仅实现代码及契约，未编写或运行测试，未执行 Cargo、构建、检查、实机测试和最终回归；无 Cargo 槽位，CARGO_TARGET_DIR 未设置。静态核对了任务 3 存储、任务 7 快照及来源 create 调用顺序，未经编译和行为验证。后续补充并执行 profile_t08_ 场景：创建不激活、空名称不读取/写入、快照失败无实体、事务失败不改变指针。

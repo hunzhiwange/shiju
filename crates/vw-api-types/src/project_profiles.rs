@@ -116,6 +116,9 @@ pub struct ProjectProfile {
     pub name: String,
     /// Optimistic concurrency token, rechecked before executing a preview.
     pub version: u64,
+    /// Executor UTC Unix seconds of the last metadata update, if recorded.
+    #[serde(default)]
+    pub updated_at: Option<i64>,
     pub payload: ProjectProfilePayload,
 }
 

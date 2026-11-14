@@ -128,6 +128,24 @@ impl ProjectProfileStore {
         })
     }
 
+    /// Rename the stored entity under the same transaction as the version check.
+    /// Loading here avoids overwriting a concurrently updated snapshot.
+    pub(crate) fn rename(
+        &self,
+        tenant: &TenantScope,
+        id: &ProjectProfileId,
+        name: &str,
+        expected_version: u64,
+    ) -> Result<ProjectProfile> {
+        self.mutate(tenant, |state| {
+            let profile = state.profiles.get_mut(&id.0).context("project profile not found")?;
+            vw_agent_apps::project_profiles::rename::rename(
+                profile, name, expected_version, chrono::Utc::now().timestamp(),
+            )?;
+            Ok(profile.clone())
+        })
+    }
+
     /// Selection records ownership of a host/group slot, not successful application.
     /// A different project must explicitly release its slot before reassignment.
     pub(crate) fn select(

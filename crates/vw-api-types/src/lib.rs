@@ -48,6 +48,7 @@ pub mod apps_usage;
 pub mod chat;
 pub mod common;
 pub mod computer_control;
+pub mod device_sync_config;
 pub mod error;
 pub mod file;
 pub mod git;

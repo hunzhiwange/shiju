@@ -47,7 +47,7 @@ fn main_window_settings_use_expected_desktop_defaults() {
     let settings = main_window_settings();
 
     assert_eq!(settings.size, MAIN_WINDOW_SIZE);
-    assert_eq!(settings.maximized, cfg!(not(target_arch = "wasm32")));
+    assert_eq!(settings.maximized, cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos"))));
     assert!(matches!(settings.position, iced::window::Position::Centered));
     assert!(!settings.exit_on_close_request);
 }

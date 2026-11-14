@@ -42,7 +42,7 @@ fn main_window_platform_settings() -> iced::window::settings::PlatformSpecific {
 fn main_window_settings() -> iced::window::Settings {
     let window = iced::window::Settings {
         size: MAIN_WINDOW_SIZE,
-        maximized: cfg!(not(target_arch = "wasm32")),
+        maximized: cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos"))),
         position: iced::window::Position::Centered,
         platform_specific: main_window_platform_settings(),
         exit_on_close_request: false,
@@ -198,7 +198,11 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
     {
         app.register_window_ids(main_window_id, None);
 
-        (app, iced::Task::batch([startup_task, main_window_task.map(|_| app::Message::None)]))
+        let restore_window = app.restore_main_window_state();
+        (
+            app,
+            iced::Task::batch([startup_task, main_window_task.discard().chain(restore_window)]),
+        )
     }
 }
 

@@ -117,7 +117,7 @@ dispatch2 = "0.3"
 mac-usernotifications = "0.3.1"
 muda = { version = "0.19", default-features = false }
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSEvent", "NSResponder", "NSWindow", "NSView"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAlert", "NSApplication", "NSButton", "NSControl", "NSEvent", "NSResponder", "NSScreen", "NSWindow", "NSView"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString"] }
 
 [target.'cfg(windows)'.dependencies]

@@ -97,7 +97,7 @@ impl GatewayClient {
             "download", None, Some(request), token, 202).await?;
         decode(&bytes)
     }
-    async fn device_sync_operation_request<B: Serialize>(&self, method: reqwest::Method,
+    pub(super) async fn device_sync_operation_request<B: Serialize>(&self, method: reqwest::Method,
         transport: DeviceSyncTransport, operation: &str, scope: Option<(&ProjectId, &str)>,
         body: Option<&B>, token: &str, expected_status: u16) -> Result<Vec<u8>, DeviceSyncOperationsError> {
         use DeviceSyncOperationsError as E;

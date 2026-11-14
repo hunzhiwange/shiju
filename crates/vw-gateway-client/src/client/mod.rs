@@ -472,3 +472,6 @@ pub use self::device_sync_tasks_api::DeviceSyncTasksError;
 
 mod device_sync_operations_api;
 pub use device_sync_operations_api::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};
+
+#[cfg(not(target_arch = "wasm32"))]
+mod device_sync_config_api;

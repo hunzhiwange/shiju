@@ -79,11 +79,12 @@ pub(super) async fn forward_json(
     let gemini = (app == AppId::Gemini)
         .then(|| crate::model_relay::native_gemini::Request::parse(request.uri()))
         .flatten();
-    let responses = crate::model_relay::native_responses::is_path(request.uri().path());
+    let compact = crate::model_relay::compaction::is_path(request.uri().path());
+    let responses = compact || crate::model_relay::native_responses::is_path(request.uri().path());
     let supported = match app {
         AppId::Codex => {
             crate::model_relay::native_chat::is_path(request.uri().path())
-                || crate::model_relay::native_responses::is_path(request.uri().path())
+                || responses
         }
         AppId::Gemini => gemini.is_some(),
         AppId::Claude => crate::model_relay::native_messages::is_path(request.uri().path()),
@@ -139,6 +140,10 @@ pub(super) async fn forward_json(
             _ => return Err(StatusCode::BAD_REQUEST.into()),
         }
     };
+
+    if compact && streaming {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+    }
 
     // Inspect original Messages history before conversion, overrides or any retry owner.
     if matches!(app, AppId::Claude | AppId::ClaudeDesktop)
@@ -201,8 +206,11 @@ pub(super) async fn forward_json(
         && !messages_responses
         && !target.url.path().trim_end_matches('/').ends_with("/chat/completions");
     let native_messages = native_messages && !messages_gemini;
+    let compact_url = compact
+        .then(|| crate::model_relay::compaction::url(&target.url))
+        .transpose()?;
     let native_responses =
-        responses && target.url.path().trim_end_matches('/').ends_with("/responses");
+        responses && (compact || target.url.path().trim_end_matches('/').ends_with("/responses"));
     if app == AppId::Codex
         && !responses
         && target.url.path().trim_end_matches('/').ends_with("/responses")
@@ -309,10 +317,18 @@ pub(super) async fn forward_json(
             .map(|gemini| gemini.url(&target.url, model.unwrap_or(&gemini.model)))
             .transpose()?
     };
-    if let Some(url) = &gemini_url {
+    if compact {
+        let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+        let body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        if body.get("stream").is_some_and(|value| value != &Value::Bool(false)) {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+        }
+    }
+    let endpoint_url = compact_url.as_ref().or(gemini_url.as_ref());
+    if let Some(url) = endpoint_url {
         *outgoing.url_mut() = url.clone();
     }
-    let authorized_url = gemini_url.as_ref().unwrap_or(&target.url);
+    let authorized_url = endpoint_url.unwrap_or(&target.url);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
     #[cfg(target_os = "macos")]
@@ -402,7 +418,11 @@ pub(super) async fn forward_json(
                 })
                 .await;
         }
-        forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await
+        if compact {
+            Ok(transport.forward_ordered(authorized_url, outgoing, wire, cancelled.clone(), listener).await?)
+        } else {
+            forward_rectified(transport, authorized_url, outgoing, wire, cancelled.clone(), listener).await
+        }
     };
     if streaming {
         let deadline = started + Duration::from_secs(timeouts.first_byte_timeout_secs.into());
@@ -504,6 +524,7 @@ pub(super) async fn forward_json(
         let response = buffer_json_response(
             response,
             permit,
+            compact,
             response_scope.as_ref().map(|scope| (&*route.references, scope)),
         )
         .await?;
@@ -596,12 +617,15 @@ async fn finish_messages(
 async fn buffer_json_response(
     response: Response,
     permit: RequestPermit,
+    preserve_status: bool,
     references: Option<(
         &super::reference_scope::References,
         &super::reference_scope::ReferenceScope,
     )>,
 ) -> Result<Response, RouteError> {
-    RouteError::check_upstream(response.status())?;
+    if !preserve_status {
+        RouteError::check_upstream(response.status())?;
+    }
     let (mut parts, body) = response.into_parts();
     body_limits::check_declared_length(&parts.headers, MAX_JSON_BYTES)
         .map_err(|_| StatusCode::BAD_GATEWAY)?;
@@ -614,7 +638,7 @@ async fn buffer_json_response(
     let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
         .await
         .map_err(upstream_decode_status)?;
-    if let Some((references, scope)) = references {
+    if let Some((references, scope)) = references.filter(|_| parts.status.is_success()) {
         let value: Value = serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_GATEWAY)?;
         crate::model_relay::native_responses::remember(&value, references, scope)?;
     }

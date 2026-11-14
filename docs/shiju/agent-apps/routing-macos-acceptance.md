@@ -1219,3 +1219,11 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 新增 gemini_oauth_transport：来源为托管 GeminiCli 时沿用每次 ManagedCredential::resolve 取得的 Bearer，刷新只通过母任务6账号服务；解析凭据前和最终发送前均限制官方 HTTPS generativelanguage.googleapis.com、443、v1/v1beta models 生成端点，查询仅允许流式 alt=sse。最终清除混用的 API key、Cookie 与代理认证，固定 GeminiCLI 客户端头。静态 Gemini 生成端点使用发布的 API key，原生及 Messages 桥接均在覆盖字段处理后统一设置 x-goog-api-key，不按密钥前缀猜测 OAuth，不新增刷新缓存、调度或协议转换器。旧会话 relay 不接入。
 
 遵照用户本次覆盖指令，不运行 Cargo、相关脚本、单元测试、实机或最终回归；未新增测试，无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖 API key / OAuth 来源选择、覆盖头冲突、原生与桥接 JSON/SSE、过期与撤销账号、刷新失败及第三方出口拒绝。macOS 待验收，其它平台范围外；任务文件按要求删除，不代表母任务8完成。
+
+## 任务76：转发 Responses 压缩端点（代码交付，未验证）
+
+2026-11-14：任务75 Gemini OAuth 接线已存在（c744785cb）；来源快照、公共传输、可信应用/执行主机作用域、配置与账号接口源码可用，不推定外部前置实机验收完成。读取冻结 upstream handlers.rs、server.rs、providers/codex_compaction.rs 与当前 dispatch 调用链。
+
+新增 model_relay::compaction，识别 /responses/compact、/v1/responses/compact、/v1/v1/responses/compact、/codex/v1/responses/compact、/grokbuild/v1/responses/compact；dispatch 从同一已选原生 Responses 目标派生 compact URL，复用模型映射、凭据解析、出口及作用域校验。Chat/Messages/Gemini 目标明确拒绝，不伪造摘要。压缩只接受非流式请求（包括覆盖后的最终请求），响应复用有界解压和容量释放，保留原生 JSON 内容与 HTTP 状态，仅成功响应登记引用。压缩不进入签名自动修复重放，避免改写原生压缩状态；旧会话 relay 不变。
+
+按本次用户覆盖要求只交付代码，不新增或运行测试，不运行 Cargo/相关脚本、实机或最终回归。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无验证通过证据。后续统一验证需覆盖五个别名、原生及 OAuth 目标路径/身份、模型映射、非支持 provider 拒绝、覆盖后 stream 拒绝、引用作用域、HTTP 错误与原生 compaction 密文/状态保留。macOS 待验收，其它平台范围外。编号任务文件按要求删除，不代表母任务8完成。

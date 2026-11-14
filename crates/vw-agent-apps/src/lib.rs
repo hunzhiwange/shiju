@@ -92,3 +92,5 @@ pub mod daily_memory_search;
 mod daily_memory_search_tests;
 
 pub mod project_profiles;
+
+pub mod data_management;

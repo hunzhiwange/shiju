@@ -207,6 +207,39 @@ impl ProfileOperation<'_> {
         })
     }
 
+    /// Import the resolved category in one settings transaction. The caller owns
+    /// migration authorization and a durable preimage; dependency readers must
+    /// retain their locks/CAS boundary through this commit. Never selects/applies.
+    pub(crate) fn import_profiles(
+        &self,
+        scope: &vw_agent_apps::data_management::source::SourceScope,
+        source: &vw_agent_apps::data_management::source::SourceSnapshot,
+        preview: &vw_agent_apps::data_management::profiles::ProfilePreview,
+        decisions: &[(uuid::Uuid, vw_agent_apps::data_management::preview::Decision)],
+        exists: impl FnMut(
+            vw_api_types::project_profiles::ProjectProfileCategory,
+            ProjectProfileScope, &str,
+        ) -> bool,
+    ) -> Result<usize> {
+        ensure!(scope.project().tenant_scope() == self.tenant, "profile operation tenant mismatch");
+        ensure!(scope.host_id() == self.store.execution_host_id, "profile host requires executor dispatch");
+        self.mutate(self.tenant, |state| {
+            let existing = state.profiles.values().cloned().collect::<Vec<_>>();
+            let rows = preview.resolve(scope, source, &existing, decisions, exists)
+                .map_err(|_| anyhow::anyhow!("profile import conflict"))?;
+            let count = rows.len();
+            for mut row in rows {
+                row.version = match state.profiles.get(&row.id.0) {
+                    Some(previous) => previous.version.checked_add(1).context("profile version exhausted")?,
+                    None => 1,
+                };
+                row.updated_at = Some(chrono::Utc::now().timestamp());
+                state.profiles.insert(row.id.0.clone(), row);
+            }
+            Ok(count)
+        })
+    }
+
     /// Delete a tenant-shared entity and every selection referring to it atomically.
     /// Callers must authorize shared-entity deletion, including other host selections.
     pub(crate) fn delete(

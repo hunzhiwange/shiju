@@ -184,3 +184,11 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 独立测试 skills_tests.rs 注册三个 cc_data_11_ 行为测试，覆盖元数据/启用保留、skip/replace/重复、路径穿越及链接拒绝、资源发布回滚。按用户要求均未执行；未调用 Cargo、编译或实机测试，无退出码、有效测试数或通过结论；未领取槽位，未设置 CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR。仅对本任务三个新增 Rust 文件直接 rustfmt（退出 0），不代表编译或行为验证。后续统一验证入口为 scripts/cargo_slot.py 内的 cargo test -j 1 -p vw-agent-apps --lib cc_data_11_ -- --nocapture，另需覆盖网关所有者事务失败场景。
 
 共享工作区接线：agent_apps_skills_store.rs 增加 migrated/migration_snapshot 默认字段与 migration 子模块；skills/local_install.rs 放开 crate 内复制复用；copy_deploy.rs、disable_deploy.rs 增加 crate 内共享锁准备入口。以上既有文件本轮开工即未跟踪，包含其他任务的大量实现，故未整体纳入本项提交，接线变动保留工作区待集成。source.rs 的 principal_id 只读访问器已随共享工作区基线进入 HEAD。plan.md 未修改。按本轮覆盖要求实现后删除编号任务卡。
+
+## 子任务 13：项目组合迁入（2026-11-14）
+
+实现 `data_management/profiles.rs::{prepare,ProfilePreview::resolve}` 与唯一所有者 `ProfileOperation::import_profiles`。SQLite profiles payload 的供应商、MCP、技能与规则 ID 按应用和类别映射，技能转换为 installationId；None、空集合与空规则停用标记保留。未选中或目标缺失的引用显示 InvalidReference，只允许 skip；执行再次检查目标存在性。整个类别在 ProjectProfileStore 同一 settings 事务中写入，保留当前选择，不触发应用；revision 防止陈旧预览，重复预览相同内容默认跳过。来源 sort_order/created_at/updated_at 不迁入：目标无排序字段，版本和更新时间由所有者产生。
+
+调用者仍须完成鉴权、回退点捕获，并持有所选领域依赖锁/CAS 至提交；此入口不代表 API 执行编排已接线。匿名独立测试 `cc_data_13_profiles_remap_selected_references` 和 `cc_data_13_profiles_reject_dangling_reference` 已注册，覆盖映射、幂等、skip/replace、悬空及提交前引用失效。
+
+按用户最新覆盖要求，仅写代码与静态阅读：未运行 Cargo、构建、单元或实机测试，不能声称通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。待统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_13_ -- --nocapture`，并补充真实存储事务的原子失败与作用域验收。

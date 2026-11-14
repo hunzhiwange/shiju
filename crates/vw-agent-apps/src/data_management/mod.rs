@@ -86,3 +86,7 @@ mod providers_tests;
 pub mod skills;
 #[cfg(all(test, target_os = "macos"))]
 mod skills_tests;
+
+pub mod profiles;
+#[cfg(test)]
+mod profiles_tests;

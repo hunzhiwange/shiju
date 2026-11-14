@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
     pub lifecycle: crate::app::components::system_settings_apps::lifecycle::LifecycleState,
@@ -52,6 +53,7 @@ impl AppsCatalogState {
         self.lifecycle.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
+        self.hermes_dashboard.invalidate();
         self.connection_open = false;
         self.error = Some("连接已更改，正在重新连接应用".into());
         true
@@ -60,6 +62,7 @@ impl AppsCatalogState {
     pub fn begin(&mut self, context: AgentAppsContext) -> u64 {
         self.preferences.invalidate();
         self.launch.invalidate();
+        self.hermes_dashboard.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.context = Some(context);
         self.loading = true;

@@ -484,3 +484,6 @@ mod editor_settings_fields_tests;
 mod editor_settings_fields;
 
 pub(crate) mod agent_apps_high_availability;
+
+#[path = "agent_apps/hermes_dashboard.rs"]
+pub(crate) mod hermes_dashboard;

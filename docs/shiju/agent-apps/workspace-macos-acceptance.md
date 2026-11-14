@@ -148,3 +148,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 daily_memory_search::search_daily_memory_files，复用 WorkspaceDirectory 的执行主机、描述符相对读取及合法普通文件边界；使用现有 lifecycle::operations::Operation 取消信号，分块读取和遍历时检查取消，取消返回独立错误、不返回部分结果。日期及全文小写匹配、非重叠内容计数、日期降序，首处上下文按原文字符生成；日期单独命中返回前 120 字符。小写展开的字节位置映射回原文字位置，不建立持久原文索引。本领域 API 的授权与任务终态仍由后续路由任务接线，不冒用供应商操作。
 
 静态核对任务 1 合同、任务 7 列表、来源 workspace.rs 与 DailyMemoryPanel.tsx。新增三个 daily_search_handles_unicode_offsets 前缀测试源码，覆盖中文/emoji、İ 展开、计数、日期摘要与排序、无效日期/链接/目录跳过、缺失无副作用、主机拒绝、无效 UTF-8 与预取消；均未运行。本轮按用户要求未执行 Cargo、任何测试或最终回归，不声称编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证搜索测试族及作用域任务接线。
+
+## 任务 39：桌面 Hermes Web 入口（2026-11-14）
+
+应用详情复用现有目录、项目/租户/主机/令牌上下文，通过 hermes_dashboard SDK 探测、确认启动、查询进度及取消；服务端确认在线后才打开其返回的 HTTP(S) loopback URL。远程网关或非本地主机明确拒绝，无 localhost 回退。异步响应校验上下文、项目、主机、目录代次与请求代次，切换连接失效；启动后持续重新探测，轮询有界，操作 ID 保留供查询或取消。无深层配置编辑器、命令转发或新权限。
+
+静态核对来源 useHermes.ts、api/hermes.ts、App.tsx，接口边界、来源映射及任务 1 正式合同索引，任务 28 正式条目和实际 API/SDK。依用户本轮要求仅写代码和只读审查，未执行 Cargo、任何测试或最终回归，不声称编译、渲染或行为通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除。建议后续统一验证离线重试、取消、过期响应、权限拒绝与明暗主题实际渲染。

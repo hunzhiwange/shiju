@@ -5,13 +5,12 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use super::super::*;
-    use crate::app::Shell;
     use git2::{IndexAddOption, Repository, Signature};
     use std::fs;
     use std::path::Path;
     use tempfile::TempDir;
 
-    const SOURCE: &str = include_str!("git.rs");
+    const SOURCE: &str = include_str!("lib.rs");
 
     fn source_declares_symbol(name: &str) -> bool {
         let needles = [
@@ -607,7 +606,6 @@ mod native {
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use super::super::*;
-    use crate::app::Shell;
 
     #[test]
     fn wasm_git_operations_return_explicit_unsupported_results() {

@@ -198,3 +198,9 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 新增 `data_management/prompts.rs::normalize`，严格解析 SQLite prompts 与 JSON /prompts；校验应用、身份、正文、单一活动条目，保留正文和创建时间。目标唯一所有者为 `PromptsStore`，`preview_data_migration` 与 `commit_data_migration` 按认证 SourceScope 绑定源及目标快照，每应用目录整体处理 skip/replace；保留活动选择但不发布原生文件。SQLite 类别批量 CAS 写前保存 Prompt 回退快照，拒绝陈旧预览及不支持的 PostgreSQL 批量写入；重复迁入无新增行。源 updated_at 不在现有 PromptEntry 合同中，不扩展存储模型。
 
 新增 apps 解码边界测试及 agent 所有者新增、重复、skip、replace、陈旧预览和原生文件不变测试代码。遵照本轮用户覆盖要求，未运行 Cargo、单元测试或实机测试，无通过证据；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。后续统一回归运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_12_ -- --nocapture` 及相同入口 `-p vw-agent --lib cc_data_12_`，并补非法源整类别不写入、跨租户/项目/主机拒绝及 SQLite 源回归。
+
+## 子任务 14：偏好迁入实现（未验证）
+
+`data_management/preferences.rs::prepare` 显式接收匿名/用户选择的 CC 设备 settings.json 字节，仅迁入 appOrder、visibleApps，复用 normalize_preferences；SQLite settings 的通用片段不冒充设备偏好。其他字段均不写入。PreferencesPreview 绑定项目、租户、主机、principal、来源摘要及目标原始记录；冲突须 Replace 或 Skip，非法字段值整类拒绝。`agent_apps/preferences_import.rs::apply` 经 GatewaySettingsStore 的 insert_if_absent/compare_exchange 原子提交唯一 agent_apps_user 记录；不写 agent_apps_host。该内部入口要求调用方先完成迁入授权和持久回退点，尚未接线后续迁入调度/API。
+
+按本轮明确覆盖要求，仅实现并静态阅读，未执行 Cargo、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无测试通过或退出码证据。后续统一回归需覆盖新增、Skip、Replace、重复执行不写入、来源/目标过期、跨作用域拒绝、非法记录无半写及本机路径/系统集成排除，并核对真实 SQLite/PostgreSQL 所有者行为。

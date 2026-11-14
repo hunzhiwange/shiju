@@ -94,3 +94,5 @@ mod profiles_tests;
 pub mod prompts;
 #[cfg(test)]
 mod prompts_tests;
+
+pub mod preferences;

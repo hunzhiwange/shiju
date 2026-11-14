@@ -56,6 +56,7 @@ where
         id: ProjectProfileId(uuid::Uuid::new_v4().to_string()),
         name: name.to_owned(),
         version: 1,
+        updated_at: None,
         payload,
     };
     insert(profile).map_err(CreateError::Storage)

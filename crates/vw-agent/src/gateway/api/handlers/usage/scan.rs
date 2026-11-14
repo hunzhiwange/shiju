@@ -7,8 +7,6 @@ use vw_agent_apps::{usage as u, apps::lifecycle::operations::{Operation, Operati
 use vw_api_types::{TenantScope, id::TaskId};
 use super::super::external_sessions::usage_scan::{self as host, Intent};
 use u::scan_jobs::ScanOwner;
-#[path = "scan_events.rs"]
-mod scan_events;
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -20,7 +18,6 @@ fn unavailable<T>(_: T) -> StatusCode { StatusCode::SERVICE_UNAVAILABLE }
 
 pub(super) fn router() -> Router {
     Router::new()
-        .route("/usage/events", get(scan_events::events))
         .route("/usage/scans/last", get(last))
         .route("/usage/jobs/{id}", get(job))
         .route("/usage/jobs/{id}/cancel", post(cancel))
@@ -77,7 +74,7 @@ async fn settings(Extension(p): Extension<Policy>, Extension(t): Extension<Tenan
         let mut rows = Vec::new();
         for (_,app,_) in host::ADAPTERS {
             let state = u::source_settings::load_source_settings(&connection,&o.scope,&o.target_host,app).map_err(unavailable)?;
-            rows.push(json!({"app":app,"settings":state.settings,"revision":state.settings_revision,"statistics_revision":state.statistics_revision}));
+            rows.push(json!({"app":app,"settings":state.settings,"revision":state.settings_revision}));
         }
         Ok(Json(json!(rows)))
     }).await.map_err(unavailable)?

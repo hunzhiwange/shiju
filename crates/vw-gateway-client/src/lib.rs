@@ -253,3 +253,5 @@ pub use client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagno
 pub use client::{DataBackupLocation, DataBackupLocationDeletion, DeleteDataBackupLocationRequest};
 
 pub use client::{DeviceSyncOperationsError, DeviceSyncSelection, DeviceSyncUploadRequest, DeviceSyncDownloadRequest};
+
+pub use client::{UsageScanScope, UsageSourceSettings, UsageSourceSettingsState, UsageSettingsSaved, UsageJobSnapshot, UsageLastScan, UsageCacheRevision, UsageRevisionEvent, UsageScanError};

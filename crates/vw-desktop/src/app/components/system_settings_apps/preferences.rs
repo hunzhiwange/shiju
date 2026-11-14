@@ -276,7 +276,9 @@ pub(crate) fn visible_rows(
 ) -> Vec<&super::catalog::CatalogRow> {
     let mut rows: Vec<_> = state.rows.iter().collect();
     if let Some(saved) = &state.preferences.saved {
-        rows.retain(|app| saved.user.visible_apps.contains(&app.entry.id));
+        // An explicit tray navigation reveals its destination without rewriting preferences.
+        rows.retain(|app| state.expanded == Some(app.entry.id)
+            || saved.user.visible_apps.contains(&app.entry.id));
         rows.sort_by_key(|app| {
             let id =
                 serde_json::to_value(app.entry.id).ok().and_then(|v| v.as_str().map(str::to_owned));

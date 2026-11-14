@@ -185,6 +185,33 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }),
             );
         }
+        GeneralSettingsMessage::TrayOpenApp(id) => {
+            if app.shutdown_requested {
+                return Task::none();
+            }
+            app.show_system_settings = true;
+            app.system_settings_help_tab = None;
+            app.active_menu = None;
+            app.apps_catalog.query.clear();
+            let page = super::update(app, SettingsMessage::SystemTabSelected(
+                crate::app::components::system_settings::SystemTab::Apps,
+            ));
+            app.apps_catalog.pending_tray_app = Some(id);
+            // Catalog connection/loading may reset the expanded row. Resolve after loading.
+            let details = if !app.apps_catalog.loading
+                && app.apps_catalog.rows.iter().any(|row| row.entry.id == id)
+            {
+                app.apps_catalog.pending_tray_app = None;
+                if app.apps_catalog.expanded != Some(id) {
+                    super::apps_catalog::update(app, super::AppsCatalogMessage::ToggleDetails(id))
+                } else {
+                    Task::none()
+                }
+            } else {
+                Task::none()
+            };
+            return Task::batch([app.reopen_main_window(), page, details]);
+        }
         GeneralSettingsMessage::TrayShow => {
             return app.reopen_main_window();
         }

@@ -773,6 +773,7 @@ pub enum GeneralSettingsMessage {
         result: Result<(), String>,
     },
     TrayShow,
+    TrayOpenApp(vw_gateway_client::vw_api_types::agent_apps::AppId),
     TrayQuit,
 }
 

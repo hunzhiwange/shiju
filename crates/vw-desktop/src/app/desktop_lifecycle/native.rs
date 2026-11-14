@@ -8,6 +8,25 @@ use auto_launch::{AutoLaunch, AutoLaunchBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, Submenu};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
+use vw_gateway_client::vw_api_types::agent_apps::AppId;
+
+const APP_PAGES: &[(AppId, &str, &str)] = &[
+    (AppId::Claude, "shiju.tray.app.claude", "Claude"),
+    (AppId::ClaudeDesktop, "shiju.tray.app.claude-desktop", "Claude Desktop"),
+    (AppId::Codex, "shiju.tray.app.codex", "Codex"),
+    (AppId::Gemini, "shiju.tray.app.gemini", "Gemini"),
+    (AppId::GrokBuild, "shiju.tray.app.grokbuild", "Grok Build"),
+    (AppId::OpenCode, "shiju.tray.app.opencode", "OpenCode"),
+    (AppId::OpenClaw, "shiju.tray.app.openclaw", "OpenClaw"),
+    (AppId::Hermes, "shiju.tray.app.hermes", "Hermes"),
+    (AppId::Pi, "shiju.tray.app.pi", "Pi"),
+    (AppId::Mcode, "shiju.tray.app.mcode", "Mcode"),
+    (AppId::Kimi, "shiju.tray.app.kimi", "Kimi"),
+    (AppId::Dsh, "shiju.tray.app.dsh", "Dsh"),
+    (AppId::Agy, "shiju.tray.app.agy", "Agy"),
+    (AppId::Omp, "shiju.tray.app.omp", "Omp"),
+];
+
 const SHOW_ID: &str = "shiju.tray.show";
 const QUIT_ID: &str = "shiju.tray.quit";
 thread_local! {
@@ -16,6 +35,7 @@ thread_local! {
 
 struct LocalizedTray {
     _icon: TrayIcon,
+    apps: Submenu,
     providers: Submenu,
     provider_rows: Vec<(String, String, MenuItem)>,
     provider_signature: String,
@@ -32,6 +52,7 @@ pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
         if let Some(tray) = slot.borrow().as_ref() {
             let i18n = crate::app::i18n::I18n::new(locale);
             tray.show.set_text(i18n.__("显示主窗口"));
+            tray.apps.set_text(i18n.__("应用列表"));
             tray.providers.set_text(i18n.__("切换当前应用供应商"));
             tray.quit.set_text(i18n.__("退出识矩"));
             tray.status.set_text(tray_status_label(locale, tray.shutting_down, tray.background));
@@ -50,6 +71,7 @@ pub(crate) fn refresh_tray_state(
             tray.shutting_down = shutting_down;
             tray.background = background;
             tray.status.set_text(tray_status_label(locale, shutting_down, background));
+            tray.apps.set_enabled(!shutting_down);
             tray.show.set_enabled(!shutting_down);
             tray.quit.set_enabled(!shutting_down);
         }
@@ -261,6 +283,12 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
         let i18n = crate::app::i18n::I18n::new(locale);
         let menu = Menu::new();
         let status = MenuItem::new(tray_status_label(locale, false, false), false, None);
+        let apps = Submenu::new(i18n.__("应用列表"), true);
+        for (_, event_id, label) in APP_PAGES {
+            apps.append(&MenuItem::with_id(*event_id, *label, true, None))
+                .map_err(|err| err.to_string())?;
+        }
+        menu.append(&apps).map_err(|err| err.to_string())?;
         let providers = Submenu::new(i18n.__("切换当前应用供应商"), false);
         menu.append(&providers).map_err(|err| err.to_string())?;
         let show = MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None);
@@ -286,6 +314,7 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
                 .with_icon(icon)
                 .build()
                 .map_err(|err| err.to_string())?,
+            apps,
             providers,
             provider_rows: Vec::new(),
             provider_signature: String::new(),
@@ -313,6 +342,10 @@ pub(crate) fn poll_tray() -> Vec<GeneralSettingsMessage> {
         .filter_map(|event| match event.id.as_ref() {
             SHOW_ID => Some(GeneralSettingsMessage::TrayShow),
             QUIT_ID => Some(GeneralSettingsMessage::TrayQuit),
+            id if APP_PAGES.iter().any(|(_, event_id, _)| *event_id == id) => {
+                APP_PAGES.iter().find(|(_, event_id, _)| *event_id == id)
+                    .map(|(app, _, _)| GeneralSettingsMessage::TrayOpenApp(*app))
+            }
             id => TRAY.with(|slot| {
                 slot.borrow().as_ref()?.provider_rows.iter()
                     .find(|(event_id, _, _)| event_id == id)

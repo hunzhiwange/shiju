@@ -339,7 +339,19 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
                 }
+                let navigation = if let Some(id) = app.apps_catalog.pending_tray_app.take() {
+                    if app.apps_catalog.rows.iter().any(|row| row.entry.id == id)
+                        && app.apps_catalog.expanded != Some(id)
+                    {
+                        update(app, AppsCatalogMessage::ToggleDetails(id))
+                    } else {
+                        Task::none()
+                    }
+                } else {
+                    Task::none()
+                };
                 return Task::batch([
+                    navigation,
                     crate::app::components::system_settings_apps::preferences::update(
                         app, crate::app::components::system_settings_apps::preferences::PreferencesMessage::Load,
                     ),

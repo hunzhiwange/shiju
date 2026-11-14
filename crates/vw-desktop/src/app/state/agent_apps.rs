@@ -22,6 +22,7 @@ pub(crate) struct AppsCatalogState {
     pub model_diagnostics: crate::app::message::agent_apps_diagnostics::model_state::ModelState,
     pub query: String,
     pub hovered: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
+    pub pending_tray_app: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
     pub expanded: Option<vw_gateway_client::vw_api_types::agent_apps::AppId>,
     pub drag: crate::app::components::system_settings_apps::drag::DragState,
     pub host: String,

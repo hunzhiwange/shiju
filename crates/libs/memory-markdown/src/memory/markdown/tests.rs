@@ -10,7 +10,7 @@
 //! 所有测试均使用临时目录作为工作空间，确保测试隔离性和可重复性。
 
 use super::*;
-use tempfile::TempDir;
+use super::test_support::TempWorkspace as TempDir;
 
 /// 创建临时工作空间和 MarkdownMemory 实例
 ///

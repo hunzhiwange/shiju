@@ -11,7 +11,7 @@ fn sqlite_memory_type_name_remains_stable() {
 #[test]
 fn sqlite_memory_uses_user_scoped_data_dir() {
     let workspace = tempfile::TempDir::new().unwrap();
-    let storage = project_storage_paths::paths::project_data_dir(workspace.path()).unwrap();
+    let storage = crate::app::agent::memory::paths::project_data_dir(workspace.path()).unwrap();
 
     let _memory = SqliteMemory::new(workspace.path()).unwrap();
 
@@ -22,7 +22,7 @@ fn sqlite_memory_uses_user_scoped_data_dir() {
 #[test]
 fn with_embedder_preserves_constructor_configuration() {
     let workspace = tempfile::TempDir::new().unwrap();
-    let embedder = std::sync::Arc::new(crate::memory::embeddings::NoopEmbedding);
+    let embedder = std::sync::Arc::new(crate::app::agent::memory::embeddings::NoopEmbedding);
 
     let memory =
         SqliteMemory::with_embedder(workspace.path(), embedder, 0.25, 0.75, 12, Some(1)).unwrap();
@@ -36,7 +36,7 @@ fn with_embedder_preserves_constructor_configuration() {
 #[test]
 fn sqlite_memory_reports_blocked_memory_directory() {
     let workspace = tempfile::TempDir::new().unwrap();
-    let storage = project_storage_paths::paths::project_data_dir(workspace.path()).unwrap();
+    let storage = crate::app::agent::memory::paths::project_data_dir(workspace.path()).unwrap();
     std::fs::create_dir_all(&storage).unwrap();
     std::fs::write(storage.join("memory"), b"not a directory").unwrap();
 

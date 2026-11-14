@@ -1240,11 +1240,3 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 2026-11-14：复用任务79发现入口及任务2/3授权传输底座；来源参考 `proxy/handlers.rs::handle_gemini` 的无请求体 GET 与 URI 动作转发。新增 `model_relay/gemini_metadata.rs`，常驻 dispatch 单独处理 GET 列表/单模型和 POST countTokens，保留可信来源版本及前缀，列表仅放行 pageSize/pageToken；拒绝未知动作、错误方法与客户端凭据查询。计数 JSON 原样转发，不进入生成、工具、缓存注入或故障转移。Messages count_tokens 来源无路由，明确返回501，不估算 token。静态 API key 与托管 Gemini OAuth 分别沿用现有认证；OAuth 的官方主机约束保留。
 
 已添加独立 `cc_route_080_` 用例，但按用户本次覆盖要求未运行 Cargo、单元测试、实机或最终回归；无通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖真实回环转发、认证、压缩、取消及方法边界；macOS 尚未验收，其它平台范围外。主计划未修改。
-
-## 任务 81　独立 Alpha 搜索（代码已写，统一验证待执行）
-
-2026-11-14：直接依赖任务80提交 `51fa25341` 的元数据分发与既有授权监听器可用；读取固定 upstream handlers.rs 的 handle_alpha_search、forwarder.rs 的相邻端点重写以及 server.rs 的四别名/完整URL场景，并核对原始来源 handlers.rs。母任务来源快照、运行时、执行主机/应用、配置发布与账号接口仅确认源码合同存在，不推定外部前置已实机验收。
-
-新增 alpha_search 端点策略，常驻 Codex 分发四个来源别名到所选 Responses/Responses compact URL 的相邻 alpha/search。保留前缀大小写、转义路径、配置查询和客户端查询；不确定的目标返回422。JSON body 解压后原样发送，沿用可信目标选择、应用/主机授权、容量、取消、时限及出口传输，不执行工具或生成转换/修复。保留上游JSON状态及载荷。静态凭据来自发布；托管账号仅支持 Codex OAuth，复用新鲜账号头并限制官方HTTPS搜索端点，其他托管类型明确拒绝。旧会话relay与生成OAuth路径白名单不变。
-
-按用户最新覆盖要求只写代码，未新增或运行测试，未运行Cargo命令/脚本、实机或最终回归；无红绿灯、退出码、有效测试数或通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR未设置。后续统一验证需覆盖四别名、完整URL/compact/大小写与转义前缀、query/body保持、opaque目标拒绝、应用/主机/模型权限、刷新及撤销、压缩/取消/超时和上游错误状态。仅macOS待验收，其它平台范围外；按要求删除编号任务文件，不表示母任务8验收完成。主计划只读未修改。

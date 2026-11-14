@@ -4,7 +4,7 @@
 //! 并通过访问时间做简单的容量淘汰。
 
 use super::SqliteMemory;
-use memory_algorithms::vector;
+use crate::memory::vector;
 use chrono::Local;
 use rusqlite::params;
 

@@ -197,5 +197,3 @@ pub(crate) mod models;
 pub(crate) mod gemini_metadata;
 #[cfg(test)]
 mod gemini_metadata_tests;
-
-pub(crate) mod alpha_search;

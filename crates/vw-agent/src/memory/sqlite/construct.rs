@@ -4,8 +4,8 @@
 //! 嵌入模型由调用方注入；默认构造函数使用空嵌入器以保留纯关键词检索能力。
 
 use super::SqliteMemory;
-use crate::memory::embeddings::{EmbeddingProvider, NoopEmbedding};
-use project_storage_paths::paths;
+use crate::app::agent::memory::embeddings::{EmbeddingProvider, NoopEmbedding};
+use crate::app::agent::memory::paths;
 use std::path::Path;
 use std::sync::Arc;
 

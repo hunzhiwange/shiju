@@ -2,7 +2,7 @@
 
 // Markdown fixture 检查标题只写一次，并让召回评分、限制和过滤保持可重复。
 use super::*;
-use tempfile::TempDir;
+use super::test_support::TempWorkspace as TempDir;
 
 fn temp_memory() -> (TempDir, MarkdownMemory) {
     let tmp = TempDir::new().unwrap();

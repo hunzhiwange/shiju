@@ -5984,6 +5984,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-markdown"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "memory-types",
+ "project-storage-paths",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "memory-postgres"
 version = "0.6.0"
 dependencies = [
@@ -6023,24 +6036,6 @@ dependencies = [
  "chrono",
  "memory-types",
  "mysql",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "memory-sqlite"
-version = "0.6.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "memory-algorithms",
- "memory-types",
- "parking_lot",
- "project-storage-paths",
- "rusqlite",
- "sha2 0.11.0",
- "tempfile",
  "tokio",
  "uuid",
 ]
@@ -12441,9 +12436,9 @@ dependencies = [
  "libc",
  "mail-parser",
  "memory-algorithms",
- "memory-sqlite",
  "memory-lucid",
  "memory-mariadb",
+ "memory-markdown",
  "memory-postgres",
  "mime_guess",
  "minijinja",

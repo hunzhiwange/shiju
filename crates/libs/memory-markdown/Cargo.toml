@@ -1,0 +1,24 @@
+[package]
+name = "memory-markdown"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+memory-types = { path = "../memory-types", version = "0.6.0" }
+project-storage-paths = { path = "../project-storage-paths", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+chrono = { version = "0.4", features = ["serde"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["fs"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+tokio = { version = "1", features = ["sync", "macros", "time", "rt", "process", "signal"] }

@@ -5,7 +5,7 @@
 
 use super::SqliteMemory;
 use crate::memory::traits::{Memory, MemoryCategory, MemoryEntry};
-use memory_algorithms::vector;
+use crate::memory::vector;
 use async_trait::async_trait;
 use chrono::Local;
 use rusqlite::params;

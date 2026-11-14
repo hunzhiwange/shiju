@@ -97,10 +97,10 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::InstanceTick => {
-            let requests = crate::app::single_instance::poll();
             if app.shutdown_requested {
                 return Task::none();
             }
+            let requests = crate::app::single_instance::poll();
             let mut unsupported = false;
             for args in &requests {
                 match crate::app::deep_links::receive_arguments(args) {

@@ -70,6 +70,7 @@ fn acquire_at(directory: &Path, args: Vec<String>) -> io::Result<Option<Instance
     let receiver = UnixDatagram::bind(socket_path)?;
     receiver.set_nonblocking(true)?;
     *REQUESTS.lock().map_err(|_| io::Error::other("实例接收锁不可用"))? = Some(receiver);
+    super::deep_links::receive_arguments(&args)?;
     Ok(Some(InstanceGuard { _lock: lock }))
 }
 

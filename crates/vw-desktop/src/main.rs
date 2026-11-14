@@ -248,6 +248,9 @@ pub fn main() -> iced::Result {
         tracing::info!(target: "vw_desktop", "Windows renderer forced: ICED_BACKEND=wgpu WGPU_BACKEND=dx12");
     }
 
+    #[cfg(target_os = "macos")]
+    app::deep_links::install_url_handler();
+
     let result = iced::daemon(boot_app, app::App::update, app::App::view_window)
         .title(app::App::title_for_window)
         .theme(app::App::theme_for_window)

@@ -432,7 +432,15 @@ pub(super) async fn forward_json(
             response_scope.as_ref().map(|scope| (&*route.references, scope)),
         )
         .await?;
-        if messages_gemini {
+        if let Some(bridge) = bridge {
+            let (parts, body) = response.into_parts();
+            let bytes = axum::body::to_bytes(body, MAX_JSON_BYTES)
+                .await.map_err(|_| StatusCode::BAD_GATEWAY)?;
+            let value: Value = serde_json::from_slice(&bytes)
+                .map_err(|_| StatusCode::BAD_GATEWAY)?;
+            let converted = bridge.response_json(&value)?;
+            Ok(Response::from_parts(parts, Body::from(converted.to_string())))
+        } else if messages_gemini {
             crate::model_relay::messages_gemini_result::response_with_shadow(
                 response,
                 &client_model.ok_or(StatusCode::BAD_REQUEST)?,

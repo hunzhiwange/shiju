@@ -133,3 +133,7 @@ mod hosted_search_tests;
 pub(crate) mod search_citations;
 #[cfg(test)]
 mod search_citations_tests;
+
+mod responses_chat_result;
+#[cfg(test)]
+mod responses_chat_result_tests;

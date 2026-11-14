@@ -25,7 +25,7 @@ pub(crate) struct Request {
 
 impl Request {
     pub(crate) fn from_responses(mut body: Value) -> Result<Self, StatusCode> {
-        if body["stream"] != true {
+        if body.get("stream").is_some_and(|v| !v.is_boolean()) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         let model = body["model"]
@@ -50,6 +50,9 @@ impl Request {
             return Err(StatusCode::BAD_REQUEST);
         }
         let compact = triggers == 1;
+        if compact && body["stream"] != true {
+            return Err(StatusCode::UNPROCESSABLE_ENTITY);
+        }
         if compact {
             let body = body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
             body.remove("text");
@@ -84,6 +87,12 @@ impl Request {
         if self.compact {
             body.remove("response_format");
         }
+    }
+
+    pub(crate) fn response_json(&self, body: &Value) -> Result<Value, StatusCode> {
+        super::responses_chat_result::from_chat(
+            body, &self.model, &super::responses::response_id(), &self.tools,
+        )
     }
 
     pub(crate) fn response_body(self, body: Body, cancel: CancellationToken) -> Body {

@@ -198,3 +198,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 扩展现有 openclaw_settings 路由：GET/PUT env、GET/PUT tools、只读 GET health。env 先校验普通 settings_read，再校验独立项目级 openclaw_env_sensitive_read，授权拒绝发生在读取配置前；写入复用 settings_write、OpenClawFiles 和 ProviderTransactions。health 仅返回领域固定脱敏警告；没有新增模型选项投影或桌面排序。
 
 静态核对任务 1 合同、来源映射、commands/openclaw.rs、utils.ts 和任务 19/20/21/23 真实产物。新增 openclaw_api_protects_sensitive_env 测试源码，覆盖普通读权限拒绝 env、拒绝无目录副作用、独立授权读原值及 health 脱敏不改文件，未执行。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证该测试族与 HTTP/事务集成。
+
+## 任务 25：OpenClaw 设置客户端 SDK（2026-11-14）
+
+新增 `openclaw_settings_api`，五个固定分节 model/catalog/defaults/env/tools 的 GET/PUT 与 health GET 使用任务 23–24 实际路由和任务 22 DTO；公开 OpenClawSettingsScope、OpenClawSettingsError。projectId/targetHostId 查询与端点租户头共同传递作用域，敏感凭证头使用原生禁止重定向/重试传输。保留 null、空对象、未知 profile、扩展字段、backupPath 与结构化 warnings；HTTP 状态错误单独保留，错误不含载荷或凭证。供应商读取继续使用已有 app_provider_get/openclaw_state，模型选项使用 model_catalog，不另造业务所有者。
+
+静态核对来源 openclaw.ts/useOpenClaw.ts、正式 workspace-contracts、现有路由与相邻 SDK。新增三个 openclaw_sdk_preserves_warnings 前缀测试源码，覆盖分节往返、缺失、扩展、警告、方法/路径/租户/凭证/请求体、拒绝/冲突/解码及传输错误；仅编写，未运行。按本轮要求未执行 Cargo、任何测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无编译或测试通过结论。任务卡删除，后续统一验证。

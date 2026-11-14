@@ -417,3 +417,8 @@ mod hermes_memory_api_tests;
 
 mod agent_app_prompts_api;
 pub use agent_app_prompts_api::*;
+
+mod openclaw_settings_api;
+pub use openclaw_settings_api::{OpenClawSettingsError, OpenClawSettingsScope};
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod openclaw_settings_api_tests;

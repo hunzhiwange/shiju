@@ -1,4 +1,5 @@
 //! SDK-backed ledger entry; current-session details remain in the parent view.
+pub mod charts;
 pub mod state;
 pub mod logs;
 pub mod groups;
@@ -27,6 +28,7 @@ fn identity(app: &App) -> Option<Identity> {
 pub enum Event {
     Load(bool),
     Refresh,
+    Charts(charts::Event),
     Logs(logs::Event),
     Groups(groups::Event),
     Tick,
@@ -37,6 +39,7 @@ pub enum Event {
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
+        Event::Charts(event) => return charts::update(app, event),
         Event::Logs(event) => return logs::update(app, event),
         Event::Groups(event) => return groups::update(app, event),
         Event::Filter(change) => {
@@ -66,15 +69,18 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let ticket = app.usage_center.begin();
             let logs_task = logs::reset(app, query.clone());
             let Some(scope) = identity(app) else {
+                app.usage_center.charts.loading = false;
+                app.usage_center.charts.result = Some(Err("请选择项目与执行主机".into()));
                 app.usage_center.groups.loading = false;
                 app.usage_center.groups.result = Some(Err("请选择项目与执行主机".into()));
                 app.usage_center.loading = false;
                 app.usage_center.result = Some(Err("请选择项目与执行主机".into()));
                 return logs_task;
             };
+            let charts_task = charts::load(ticket, scope.clone(), query.clone());
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
             let client = crate::app::config::gateway_client();
-            return Task::batch([logs_task, groups_task, Task::perform(async move {
+            return Task::batch([logs_task, groups_task, charts_task, Task::perform(async move {
                 let result = async {
                     let client = client?;
                     client.usage_summary(&UsageReadScope {
@@ -109,7 +115,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 None => "请选择用量范围".into(),
             }
         };
-        content = content.push(text(label).size(14)).push(groups::view(app)).push(logs::view(app));
+        content = content.push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
     }
     content.into()
 }

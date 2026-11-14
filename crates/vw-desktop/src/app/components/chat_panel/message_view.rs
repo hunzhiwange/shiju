@@ -78,7 +78,7 @@ use self::styles::{
 };
 use self::text::{
     message_text_body, session_control_selection_card, split_session_control_selection,
-    task_session_visible_text, user_message_editor_body,
+    task_session_visible_text, user_message_editor_body, user_message_preview,
 };
 
 use super::selectable_text::{SelectableTextPolicy, selectable_text_policy};
@@ -496,6 +496,23 @@ pub(crate) fn message_view_with_runtime<'a>(
     ));
     let reset_press = Message::Chat(message::ChatMessage::ToggleResetMenu(idx));
 
+    let user_text = if is_user {
+        let (text, _) = split_session_control_selection(cleaned_attachment_text.trim());
+        normalize_display_text(text.trim()).into_owned()
+    } else {
+        String::new()
+    };
+    let user_preview = user_message_preview(&user_text);
+    let user_expanded = app.chat_message_expanded.contains(&idx);
+    let user_collapsed = user_preview.is_some() && !user_expanded;
+    let plain_text_body = |text: String| {
+        if user_collapsed {
+            message_text_body(format!("{}…", user_preview.unwrap_or_default()), true)
+        } else {
+            message_text_body(text, true)
+        }
+    };
+
     let body = if assistant_like && !prefer_attachment_card_render {
         render_assistant_body(
             app,
@@ -511,8 +528,8 @@ pub(crate) fn message_view_with_runtime<'a>(
         )
     } else {
         let mut body = column![].spacing(8);
-        let use_editor =
-            should_use_user_message_editor(app, idx, content, attachment_items.is_empty());
+        let use_editor = !user_collapsed
+            && should_use_user_message_editor(app, idx, content, attachment_items.is_empty());
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         if use_editor {
             if let Some(view) = user_message_editor_body(app, idx, app.theme().palette().text) {
@@ -521,7 +538,7 @@ pub(crate) fn message_view_with_runtime<'a>(
         } else {
             let text = normalize_display_text(text.trim()).into_owned();
             if !text.is_empty() {
-                body = body.push(message_text_body(text, true));
+                body = body.push(plain_text_body(text));
             }
         }
         if let Some(selection) = selection {
@@ -543,7 +560,7 @@ pub(crate) fn message_view_with_runtime<'a>(
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         let text = normalize_display_text(text.trim()).into_owned();
         if !text.is_empty() {
-            attachment_body = attachment_body.push(message_text_body(text, true));
+            attachment_body = attachment_body.push(plain_text_body(text));
         }
         if let Some(selection) = selection {
             attachment_body = attachment_body.push(session_control_selection_card(
@@ -561,7 +578,7 @@ pub(crate) fn message_view_with_runtime<'a>(
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         let text = normalize_display_text(text.trim()).into_owned();
         if !text.is_empty() {
-            attachment_body = attachment_body.push(message_text_body(text, true));
+            attachment_body = attachment_body.push(plain_text_body(text));
         }
         if let Some(selection) = selection {
             attachment_body = attachment_body.push(session_control_selection_card(
@@ -570,6 +587,25 @@ pub(crate) fn message_view_with_runtime<'a>(
             ));
         }
         attachment_body
+    } else {
+        body
+    };
+    let body = if user_preview.is_some() {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+        let toggle = button(
+            row![
+                iced_text(i18n.__(if user_expanded { "收起" } else { "查看更多" })).size(13),
+                icon_svg(if user_expanded { Icon::ChevronUp } else { Icon::ChevronDown })
+                    .width(Length::Fixed(14.0))
+                    .height(Length::Fixed(14.0)),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 8])
+        .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+        .on_press(Message::Chat(message::ChatMessage::ToggleUserMessage(idx)));
+        body.push(toggle)
     } else {
         body
     };

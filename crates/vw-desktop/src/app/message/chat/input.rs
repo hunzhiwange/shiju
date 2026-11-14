@@ -477,6 +477,22 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.show_chat_fullscreen_overlay = false;
             Task::none()
         }
+        ChatMessage::ToggleUserMessage(idx) => {
+            if !app
+                .chat
+                .get(idx)
+                .is_some_and(|entry| entry.role == crate::app::models::ChatRole::User)
+            {
+                return Task::none();
+            }
+            if !app.chat_message_expanded.remove(&idx) {
+                app.chat_message_expanded.insert(idx);
+            }
+            app.chat_message_measured_heights.remove(&idx);
+            app.chat_virtualizer.preserve_current_anchor_around();
+            app.refine_chat_message_estimated_heights(idx, idx.saturating_add(1));
+            super::measure_visible_chat_messages_task()
+        }
         ChatMessage::ToggleThink(msg_idx, think_idx, default_expanded) => {
             let key = ((msg_idx as u64) << 32) | (think_idx as u64);
             let had_expanded_override = app.chat_think_expanded.remove(&key);

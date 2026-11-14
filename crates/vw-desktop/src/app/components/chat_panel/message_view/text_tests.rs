@@ -220,3 +220,18 @@ fn text_and_session_cards_construct_for_segmented_and_empty_inputs() {
         SessionControlSelection { tools: Vec::new(), skills: Vec::new(), shiju_skills: Vec::new() },
     );
 }
+
+#[test]
+fn user_message_preview_respects_character_and_line_boundaries() {
+    use super::text::user_message_preview;
+    assert_eq!(user_message_preview(""), None);
+    assert_eq!(user_message_preview(&"中".repeat(800)), None);
+    let long = format!("{}😀结尾", "中".repeat(800));
+    assert_eq!(user_message_preview(&long), Some("中".repeat(800).as_str()));
+    let twelve_lines = ["短行"; 12].join("\n");
+    assert_eq!(user_message_preview(&twelve_lines), None);
+    assert_eq!(
+        user_message_preview(&format!("{twelve_lines}\n第十三行")),
+        Some(twelve_lines.as_str())
+    );
+}

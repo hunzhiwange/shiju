@@ -868,6 +868,9 @@ pub enum ChatMessage {
     /// 展开或折叠指定消息中的思考块
     ToggleThink(usize, usize, bool),
 
+    /// 切换长用户消息的全文展示。
+    ToggleUserMessage(usize),
+
     /// 思考块悬停进入
     ///
     /// 鼠标进入思考块区域
@@ -1245,6 +1248,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ToolTextEditorAction(_, _, _, _)
         | ChatMessage::MarkdownBlockEditorAction(_, _, _, _)
         | ChatMessage::ThinkEditorAction(_, _, _)
+        | ChatMessage::ToggleUserMessage(_)
         | ChatMessage::ToggleThink(_, _, _)
         | ChatMessage::ThinkHover(_, _)
         | ChatMessage::ThinkHoverLeave

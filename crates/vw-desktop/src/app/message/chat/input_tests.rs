@@ -1026,3 +1026,21 @@ fn session_entry_recommendations_close_for_other_input_menus() {
     let _ = super::update(&mut app, ChatMessage::SessionAgentSelected(None));
     assert!(!app.show_recommended_prompt_menu);
 }
+
+#[test]
+fn user_message_toggle_preserves_source_and_invalidates_height() {
+    let (mut app, _) = crate::app::App::new();
+    let source = "中文长消息\n".repeat(30);
+    app.chat.push(chat_entry(ChatRole::User, &source));
+    app.chat.push(chat_entry(ChatRole::Assistant, "answer"));
+    app.chat_message_measured_heights.insert(0, 200.0);
+    let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(0));
+    assert!(app.chat_message_expanded.contains(&0));
+    assert!(!app.chat_message_measured_heights.contains_key(&0));
+    assert_eq!(app.chat[0].content, source);
+    let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(0));
+    assert!(!app.chat_message_expanded.contains(&0));
+    let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(1));
+    let _ = super::update(&mut app, ChatMessage::ToggleUserMessage(99));
+    assert!(app.chat_message_expanded.is_empty());
+}

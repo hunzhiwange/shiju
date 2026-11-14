@@ -858,3 +858,45 @@ fn message_view_builds_tool_role_with_metadata() {
 
     std::hint::black_box(view);
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn long_user_message_expands_and_collapses_with_attachments() {
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("tiny-skia headless renderer");
+    let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 5000.0));
+    for attachment in ["", "\n[DOCUMENT:/tmp/reference.pdf]"] {
+        let content = format!("{}{attachment}", "中文消息与日志 output\n".repeat(60));
+        let (mut app, _) = App::new();
+        app.chat_message_editors.push(iced::widget::text_editor::Content::with_text(&content));
+        let cache = ChatRenderCacheEntry::default();
+        let mut heights = Vec::new();
+        for expanded in [false, true, false] {
+            if expanded {
+                app.chat_message_expanded.insert(0);
+            } else {
+                app.chat_message_expanded.remove(&0);
+            }
+            let mut element =
+                message_view(&app, 0, ChatRole::User, &content, &[], None, None, &cache, false);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            heights.push(node.bounds().height);
+            for theme in [Theme::Light, Theme::Dark] {
+                element.as_widget().draw(
+                    &tree,
+                    &mut renderer,
+                    &theme,
+                    &renderer::Style::default(),
+                    Layout::new(&node),
+                    mouse::Cursor::Unavailable,
+                    &Rectangle::with_size(Size::new(700.0, 5000.0)),
+                );
+            }
+        }
+        assert!(heights[1] > heights[0] + 200.0, "{heights:?}");
+        assert_eq!(heights[0], heights[2]);
+    }
+}

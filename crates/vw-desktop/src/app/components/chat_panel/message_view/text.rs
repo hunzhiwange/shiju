@@ -30,6 +30,20 @@ pub(super) struct SessionControlSelection {
     pub(super) shiju_skills: Vec<String>,
 }
 
+/// 返回长用户消息的预览边界，始终保持 UTF-8 字符完整。
+pub(super) fn user_message_preview(text: &str) -> Option<&str> {
+    let mut lines = 1;
+    for (count, (offset, ch)) in text.char_indices().enumerate() {
+        if count == 800 || (ch == '\n' && lines == 12) {
+            return Some(text[..offset].trim_end());
+        }
+        if ch == '\n' {
+            lines += 1;
+        }
+    }
+    None
+}
+
 pub(super) fn estimate_text_height(text: &str) -> f32 {
     const CHARS_PER_LINE: usize = 72;
     const LINE_HEIGHT: f32 = 24.0;

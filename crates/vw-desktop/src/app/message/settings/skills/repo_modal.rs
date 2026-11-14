@@ -161,3 +161,12 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 #[cfg(test)]
 #[path = "repo_modal_tests.rs"]
 mod tests;
+
+/// A repository selection must belong to the active gateway, project and host.
+pub(crate) fn sync_inventory(app: &App) -> Option<&SkillReposResponse> {
+    let state = &app.skills_settings.repositories;
+    (state.context.as_ref() == app.apps_catalog.context.as_ref()
+        && state.project.as_deref() == app.project_id.as_deref()
+        && state.host == app.apps_catalog.host)
+        .then_some(state.snapshot.as_ref()).flatten()
+}

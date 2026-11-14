@@ -108,19 +108,10 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             .spacing(8),
         );
     }
-    let selection = state.selection.clone();
-    let mut preferences =
-        checkbox(selection.preferences).label("同步偏好设置").style(settings_checkbox_style);
-    if enabled {
-        preferences = preferences.on_toggle(move |value| {
-            let mut selected = selection.clone();
-            selected.preferences = value;
-            message(Event::Selection(selected))
-        });
-    }
     body = body
-        .push(text("同步范围（需明确选择）"))
-        .push(preferences)
+        .push(super::selection::view(app, &state.selection, enabled, |s| {
+            message(Event::Selection(s))
+        }))
         .push(state.preview.view().map(|event| message(Event::Preview(event))))
         .push(state.task_panel.view().map(|event| message(Event::TaskPanel(event))));
     let mut save = button(if state.busy { "处理中…" } else { "保存" })

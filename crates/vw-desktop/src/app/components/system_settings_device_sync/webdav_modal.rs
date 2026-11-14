@@ -35,17 +35,9 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     };
     let mut enabled = checkbox(s.draft.enabled).label("启用此连接").style(settings_checkbox_style);
     let mut auto = checkbox(s.draft.auto_sync).label("自动上传").style(settings_checkbox_style);
-    let mut preferences =
-        checkbox(s.selection.preferences).label("同步偏好设置").style(settings_checkbox_style);
     if editable {
         enabled = enabled.on_toggle(|v| message(Event::Enabled(v)));
         auto = auto.on_toggle(|v| message(Event::Auto(v)));
-        let selection = s.selection.clone();
-        preferences = preferences.on_toggle(move |v| {
-            let mut next = selection.clone();
-            next.preferences = v;
-            message(Event::Selection(next))
-        });
     }
     let mut body = column![
         text("连接仅作用于当前项目与主机；不会同步凭据或设备专属数据。"),
@@ -74,8 +66,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         field("同步用户标识", &s.principal, Event::Principal, editable, false),
         enabled,
         auto,
-        preferences,
-        text("当前界面提供偏好设置选择；空选择不会同步任何内容。"),
+        super::selection::view(app, &s.selection, editable, |s| message(Event::Selection(s))),
     ]
     .spacing(12);
     if s.auto_confirmation {

@@ -125,3 +125,11 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
 #[cfg(test)]
 #[path = "install_view_tests.rs"]
 mod tests;
+
+/// Only expose inventory from the active authenticated catalog generation.
+pub(crate) fn sync_inventory(app: &App) -> Option<&SkillInventoryResponse> {
+    let state = &app.skills_settings.install;
+    (state.context.as_ref() == app.apps_catalog.context.as_ref()
+        && state.catalog == app.apps_catalog.generation)
+        .then_some(state.inventory.as_ref()).flatten()
+}

@@ -1,4 +1,5 @@
 pub(crate) mod s3_modal;
+mod selection;
 pub(crate) mod task_panel;
 pub(crate) mod webdav_modal;
 

@@ -181,3 +181,5 @@ mod tool_media;
 mod tool_media_request;
 
 pub(crate) mod codex_oauth_transport;
+
+pub(crate) mod xai_oauth_transport;

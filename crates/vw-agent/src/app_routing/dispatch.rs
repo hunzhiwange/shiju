@@ -343,6 +343,11 @@ pub(super) async fn forward_json(
         {
             crate::model_relay::codex_oauth_transport::apply(&mut outgoing, &selected.headers)?;
         }
+        if credential.account_adapter.provider_type()
+            == super::adapter_selection::ProviderType::XaiOAuth
+        {
+            crate::model_relay::xai_oauth_transport::apply(&mut outgoing, &selected.headers)?;
+        }
         outgoing.headers_mut().extend(selected.headers);
     }
 

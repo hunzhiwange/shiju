@@ -298,6 +298,12 @@ impl ManagedCredential {
                 crate::model_relay::codex_oauth_transport::validate_url(&url)
                     .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
             }
+            if provider == ProviderType::XaiOAuth {
+                let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                crate::model_relay::xai_oauth_transport::validate_url(&url)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+            }
             let mut selected = managed_target(
                 &self.owner,
                 &self.account_adapter,

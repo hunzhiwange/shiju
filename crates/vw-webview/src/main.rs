@@ -26,6 +26,8 @@ use std::borrow::Cow;
 #[cfg(not(target_arch = "wasm32"))]
 use webview_core::events::UserEvent;
 #[cfg(not(target_arch = "wasm32"))]
+use webview_ipc::{navigation_event_line, parse_navigation_ipc_message, parse_stdin_event};
+#[cfg(not(target_arch = "wasm32"))]
 use webview_core::navigation::is_safe_navigation_url;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{self, Component, Path, PathBuf};
@@ -330,15 +332,6 @@ fn runtime_cookie_headers(cookie: &wry::cookie::Cookie<'_>) -> Result<HeaderMap,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn navigation_event_line(url: &str) -> Option<String> {
-    if !is_safe_navigation_url(url) {
-        return None;
-    }
-    let encoded = serde_json::to_string(url).ok()?;
-    Some(format!("navigation {encoded}"))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn emit_navigation_url(url: &str) {
     use std::io::Write;
 
@@ -349,37 +342,6 @@ fn emit_navigation_url(url: &str) {
     let mut output = stdout.lock();
     let _ = writeln!(output, "{line}");
     let _ = output.flush();
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_navigation_ipc_message(message: &str) -> Option<String> {
-    let value = serde_json::from_str::<serde_json::Value>(message).ok()?;
-    if value.get("type").and_then(serde_json::Value::as_str) != Some("navigation") {
-        return None;
-    }
-    let url = value.get("url").and_then(serde_json::Value::as_str)?;
-    is_safe_navigation_url(url).then(|| url.to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn parse_stdin_event(line: &str) -> Option<UserEvent> {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    match parts.as_slice() {
-        ["resize", w, h, ..] => Some(UserEvent::Resize(w.parse().ok()?, h.parse().ok()?)),
-        ["move", x, y, ..] => Some(UserEvent::Move(x.parse().ok()?, y.parse().ok()?)),
-        ["navigate", url] if is_safe_navigation_url(url) => {
-            Some(UserEvent::OpenUrl((*url).to_string()))
-        }
-        ["back"] => Some(UserEvent::Back),
-        ["forward"] => Some(UserEvent::Forward),
-        ["reload"] => Some(UserEvent::Reload),
-        ["raise"] => Some(UserEvent::SetAlwaysOnTop(true)),
-        ["lower"] => Some(UserEvent::SetAlwaysOnTop(false)),
-        ["show"] => Some(UserEvent::Show),
-        ["hide"] => Some(UserEvent::Hide),
-        ["close"] => Some(UserEvent::Close),
-        _ => None,
-    }
 }
 
 #[cfg(not(any(target_arch = "wasm32", coverage)))]

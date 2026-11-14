@@ -22,6 +22,7 @@ members = [
   "crates/libs/process-sandbox",
   "crates/libs/secret-store",
   "crates/libs/webview-core",
+  "crates/libs/webview-ipc",
   "crates/libs/webview-launch",
   "crates/vw-api-types",
   "crates/vw-acp",

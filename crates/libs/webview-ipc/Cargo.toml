@@ -1,0 +1,15 @@
+[package]
+name = "webview-ipc"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[lib]
+doctest = false
+
+[dependencies]
+webview-core = { path = "../webview-core", version = "0.6.0" }
+serde_json = "1"

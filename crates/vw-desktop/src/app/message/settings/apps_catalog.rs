@@ -32,6 +32,14 @@ pub enum AppsCatalogMessage {
     ConnectionClose,
     HostInput(String),
     TokenInput(String),
+    RefreshObservation(vw_gateway_client::vw_api_types::agent_apps::AppId),
+    ObservationLoaded {
+        context: AgentAppsContext,
+        host: String,
+        generation: u64,
+        id: vw_gateway_client::vw_api_types::agent_apps::AppId,
+        result: Result<vw_gateway_client::vw_api_types::agent_apps::AppReadResponse, vw_gateway_client::AgentAppsReadError>,
+    },
     Refresh,
     EnsureLoaded,
     Loaded {
@@ -58,6 +66,55 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
+        AppsCatalogMessage::RefreshObservation(id) => {
+            if app.apps_catalog.loading { return Task::none(); }
+            let client = match crate::app::config::gateway_client() {
+                Ok(client) => client,
+                Err(_) => return app.show_error_toast("网关不可用，请重新连接"),
+            };
+            let context = AgentAppsContext {
+                gateway: client.endpoint().base_url(),
+                tenant: client.endpoint().tenant_scope().clone(),
+                project: app.project_path.clone(),
+            };
+            if app.apps_catalog.context.as_ref() != Some(&context)
+                || app.apps_catalog.host.is_empty() || app.apps_catalog.token.is_empty()
+            { return app.show_error_toast("请先连接应用服务"); }
+            if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) {
+                return Task::none();
+            }
+            // Serialize observation retries; host/token changes still invalidate the generation.
+            app.apps_catalog.loading = true;
+            let generation = app.apps_catalog.generation;
+            let host = app.apps_catalog.host.clone();
+            let token = app.apps_catalog.token.clone();
+            return Task::perform(async move {
+                let result = client.agent_apps_installations_authorized(&host, id, &token).await;
+                Message::Settings(SettingsMessage::AppsCatalog(AppsCatalogMessage::ObservationLoaded {
+                    context, host, generation, id, result,
+                }))
+            }, |message| message);
+        }
+        AppsCatalogMessage::ObservationLoaded { context, host, generation, id, result } => {
+            let current = crate::app::config::gateway_client().ok().map(|client| AgentAppsContext {
+                gateway: client.endpoint().base_url(),
+                tenant: client.endpoint().tenant_scope().clone(),
+                project: app.project_path.clone(),
+            });
+            if current.as_ref() != Some(&context)
+                || app.apps_catalog.context.as_ref() != Some(&context)
+                || app.apps_catalog.host != host || app.apps_catalog.generation != generation
+                || !app.apps_catalog.loading
+            { return Task::none(); }
+            app.apps_catalog.loading = false;
+            app.apps_catalog.loaded_at = None;
+            let error = result.as_ref().err().map(catalog::error_label);
+            if let Some(row) = app.apps_catalog.rows.iter_mut().find(|row| row.entry.id == id) {
+                row.observation = result;
+            } else { return Task::none(); }
+            if let Some(error) = error { return app.show_error_toast(error); }
+            return Task::none();
+        }
         AppsCatalogMessage::QueryInput(query) => {
             app.apps_catalog.query = query;
             app.apps_catalog.drag = Default::default();

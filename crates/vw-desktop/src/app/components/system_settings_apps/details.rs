@@ -15,7 +15,14 @@ pub(super) fn view<'a>(
     state: &'a AppsCatalogState,
     app: &'a catalog::CatalogRow,
 ) -> Element<'a, Message> {
-    let mut details = column![text("运行状态").size(15)].spacing(10);
+    let mut details = column![
+        text("运行状态").size(15),
+        button(text("重新探测此应用").size(SETTINGS_CONTROL_TEXT_SIZE))
+            .padding([8, 12])
+            .style(rounded_action_btn_style)
+            .on_press_maybe((!state.loading && state.drag.source.is_none()).then(||
+                message(AppsCatalogMessage::RefreshObservation(app.entry.id)))),
+    ].spacing(10);
     details = details.push(crate::app::components::app_routing::config::timeout_button(app.entry.id));
     details = details.push(crate::app::components::app_routing::outbound::entry(app.entry.id));
     details = details.push(crate::app::components::app_routing::requests::entry(app.entry.id));

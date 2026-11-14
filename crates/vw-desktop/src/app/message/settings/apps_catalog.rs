@@ -68,6 +68,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            let application = app.apps_catalog.project_profiles.application.take().filter(|f| f.submitted);
+            app.apps_catalog.project_profiles.invalidate();
+            app.apps_catalog.project_profiles.application = application;
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
         }
         AppsCatalogMessage::Drag(value) => {

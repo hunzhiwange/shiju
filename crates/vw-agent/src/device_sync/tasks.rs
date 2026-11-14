@@ -219,3 +219,17 @@ fn rank(phase: SyncTaskPhase) -> u8 {
         SyncTaskPhase::RollingBack => 8, SyncTaskPhase::PersistingStatus => 9,
     }
 }
+
+/// Gateway shutdown cancels only automatic work; commit boundaries remain owned
+/// by the execution future and are awaited by the lifecycle owner.
+pub(super) fn cancel_automatic(target: &DataManagementTarget,
+    transport: vw_api_types::device_sync_config::DeviceSyncTransport) -> Result<()> {
+    let ids = {
+        let records = records().lock().map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+        records.iter().filter(|r| &r.status.target == target && r.status.transport == transport
+            && r.status.origin == SyncTaskOrigin::Auto && !r.status.state.is_terminal())
+            .map(|r| r.status.task_id.clone()).collect::<Vec<_>>()
+    };
+    for id in ids { request_cancel(target, &id)?; }
+    Ok(())
+}

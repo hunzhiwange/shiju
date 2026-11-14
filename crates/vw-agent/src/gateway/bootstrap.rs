@@ -86,12 +86,15 @@ pub(crate) async fn run_gateway_until(
     config: Config,
     shutdown: impl std::future::Future<Output = Result<()>>,
 ) -> Result<()> {
-    crate::app_routing::gateway_owner::run_with_routing(
+    let sync = crate::device_sync::lifecycle::SyncLifecycle::default();
+    let result = crate::app_routing::gateway_owner::run_with_routing(
         // The gateway startup future contains large config and router state.
-        async |routing| Box::pin(serve_gateway(host, port, config, routing)).await,
+        async |routing| Box::pin(serve_gateway(host, port, config, sync.clone(), routing)).await,
         shutdown,
     )
-    .await
+    .await;
+    sync.shutdown().await.map_err(|_| anyhow::anyhow!("device sync shutdown failed"))?;
+    result
 }
 
 #[allow(clippy::too_many_lines)]
@@ -99,6 +102,7 @@ async fn serve_gateway(
     host: &str,
     port: u16,
     mut config: Config,
+    sync: crate::device_sync::lifecycle::SyncLifecycle,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))] routing: &Arc<
         crate::app_routing::RoutingListener,
     >,
@@ -290,7 +294,8 @@ async fn serve_gateway(
         .layer(DefaultBodyLimit::disable())
         .layer(from_fn(request_timeout_middleware))
         .merge(super::router::management_auth_router())
-        .layer(cors);
+        .layer(cors)
+        .layer(axum::Extension(sync));
 
     #[cfg(target_os = "macos")]
     let refresh_service = api::handlers::agent_apps::init_usage_refresh().await;

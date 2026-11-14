@@ -63,15 +63,19 @@ async fn start_until<F>(
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    let router = build_router(opts.cors);
+    let sync = crate::device_sync::lifecycle::SyncLifecycle::default();
+    let router = build_router(opts.cors)
+        .layer(axum::Extension(sync.clone()));
     let listener = bind_prefer(&opts.hostname, opts.port).await?;
     let addr = listener.local_addr().map_err(|e| ApiError::internal(e.to_string()))?;
     let handle = tokio::spawn(async move {
         // Ctrl-C 时优雅停机，让已接收的请求有机会完成响应。
-        axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
+        let result = axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
             .with_graceful_shutdown(shutdown)
             .await
-            .map_err(|e| ApiError::internal(e.to_string()))
+            .map_err(|e| ApiError::internal(e.to_string()));
+        sync.shutdown().await.map_err(|_| ApiError::internal("device sync shutdown failed"))?;
+        result
     });
     Ok((addr, handle))
 }

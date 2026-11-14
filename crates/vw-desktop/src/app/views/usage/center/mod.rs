@@ -66,13 +66,15 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let ticket = app.usage_center.begin();
             let logs_task = logs::reset(app, query.clone());
             let Some(scope) = identity(app) else {
+                app.usage_center.groups.loading = false;
+                app.usage_center.groups.result = Some(Err("请选择项目与执行主机".into()));
                 app.usage_center.loading = false;
                 app.usage_center.result = Some(Err("请选择项目与执行主机".into()));
-                return Task::none();
+                return logs_task;
             };
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
             let client = crate::app::config::gateway_client();
-            return Task::batch([groups_task, Task::perform(async move {
+            return Task::batch([logs_task, groups_task, Task::perform(async move {
                 let result = async {
                     let client = client?;
                     client.usage_summary(&UsageReadScope {
@@ -107,7 +109,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 None => "请选择用量范围".into(),
             }
         };
-        content = content.push(text(label).size(14)).push(groups::view(app));
+        content = content.push(text(label).size(14)).push(groups::view(app)).push(logs::view(app));
     }
     content.into()
 }

@@ -32,6 +32,6 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }

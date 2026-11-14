@@ -73,20 +73,19 @@ fn launcher() -> Result<AutoLaunch, String> {
 }
 
 pub(crate) fn launch_at_login_enabled() -> bool {
+    read_launch_at_login().unwrap_or_else(|error| {
+        tracing::warn!(%error, "failed to read login launch state");
+        false
+    })
+}
+
+pub(crate) fn read_launch_at_login() -> Result<bool, String> {
     #[cfg(target_os = "macos")]
-    if std::env::current_exe().ok().is_some_and(|path| macos_app_bundle(&path).is_none()) {
+    if macos_app_bundle(&std::env::current_exe().map_err(|err| err.to_string())?).is_none() {
         // 保留旧项的可关闭入口，避免升级后遗留开发目录的启动代理。
-        return legacy_launcher()
-            .and_then(|launcher| launcher.is_enabled().map_err(|err| err.to_string()))
-            .unwrap_or(false);
+        return legacy_launcher()?.is_enabled().map_err(|err| err.to_string());
     }
-    match launcher().and_then(|launcher| launcher.is_enabled().map_err(|err| err.to_string())) {
-        Ok(enabled) => enabled,
-        Err(error) => {
-            tracing::warn!(%error, "failed to read login launch state");
-            false
-        }
-    }
+    launcher()?.is_enabled().map_err(|err| err.to_string())
 }
 
 pub(crate) fn set_launch_at_login(enabled: bool) -> Result<bool, String> {
@@ -98,10 +97,14 @@ pub(crate) fn set_launch_at_login(enabled: bool) -> Result<bool, String> {
         }
     }
     let launcher = launcher()?;
-    if enabled { launcher.enable() } else { launcher.disable() }.map_err(|err| err.to_string())?;
+    // 已处于目标状态时不重复注册，避免系统拒绝重复操作。
+    if launcher.is_enabled().map_err(|err| err.to_string())? != enabled {
+        if enabled { launcher.enable() } else { launcher.disable() }
+            .map_err(|err| err.to_string())?;
+    }
     let actual = launcher.is_enabled().map_err(|err| err.to_string())?;
     if actual != enabled {
-        return Err("系统尚未启用登录项，请在系统设置 → 通用 → 登录项中检查识矩及其授权".into());
+        return Err("登录项状态与请求不一致，请在系统设置 → 通用 → 登录项中检查识矩及其授权".into());
     }
     #[cfg(target_os = "macos")]
     if enabled {

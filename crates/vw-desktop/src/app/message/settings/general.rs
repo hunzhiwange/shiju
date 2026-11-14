@@ -44,7 +44,38 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.launch_at_login_busy = false;
             match result {
                 Ok(enabled) => app.launch_at_login = enabled,
-                Err(error) => return app.show_error_toast(format!("设置开机启动失败：{error}")),
+                Err(error) => {
+                    // 系统注册或旧项清理可能已部分成功；回读期间禁止再次写入。
+                    app.launch_at_login_busy = true;
+                    let toast = app.show_error_toast(format!("设置开机启动失败：{error}"));
+                    let refresh = Task::perform(
+                        async {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                tokio::task::spawn_blocking(
+                                    crate::app::desktop_lifecycle::read_launch_at_login,
+                                )
+                                .await
+                                .map_err(|err| err.to_string())?
+                            }
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                crate::app::desktop_lifecycle::read_launch_at_login()
+                            }
+                        },
+                        |result| Message::Settings(SettingsMessage::General(
+                            GeneralSettingsMessage::LaunchAtLoginRefreshed(result),
+                        )),
+                    );
+                    return Task::batch([toast, refresh]);
+                }
+            }
+        }
+        GeneralSettingsMessage::LaunchAtLoginRefreshed(result) => {
+            app.launch_at_login_busy = false;
+            match result {
+                Ok(enabled) => app.launch_at_login = enabled,
+                Err(error) => return app.show_error_toast(format!("读取开机启动状态失败：{error}")),
             }
         }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {

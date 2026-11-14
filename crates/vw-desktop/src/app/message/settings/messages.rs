@@ -746,6 +746,7 @@ pub enum GeneralSettingsMessage {
     TaskCompletionNotificationPermissionChecked(Result<(), String>),
     LaunchAtLoginToggled(bool),
     LaunchAtLoginSaved(Result<bool, String>),
+    LaunchAtLoginRefreshed(Result<bool, String>),
     CloseToTrayToggled(bool),
     TrayTick,
     TrayShow,

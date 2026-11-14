@@ -11,6 +11,10 @@ pub(crate) fn launch_at_login_enabled() -> bool {
     false
 }
 #[cfg(target_arch = "wasm32")]
+pub(crate) fn read_launch_at_login() -> Result<bool, String> {
+    Err("浏览器不支持开机启动".into())
+}
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn close_to_tray_enabled() -> bool {
     false
 }

@@ -30,3 +30,8 @@ pub mod target_model;
 mod target_model_tests;
 
 pub mod gemini_schema;
+
+pub mod moonshot_schema;
+
+#[cfg(test)]
+mod moonshot_schema_tests;

@@ -377,6 +377,18 @@ impl RelayBackend for ProviderRelayBackend {
             };
             let (mut converted, tools) = super::responses::to_chat(&input, codex_chat)?;
             response_tools = tools;
+            // Only the Codex Responses -> Chat bridge needs Moonshot's draft-07 form.
+            // Gate on the resolved endpoint, including any deployment URL override.
+            if codex_chat
+                && route.target == P::Chat
+                && vw_agent_apps::routing::moonshot_schema::upstream_requires_ref_sibling_all_of(
+                    &route.endpoint.url,
+                )
+            {
+                vw_agent_apps::routing::moonshot_schema::wrap_ref_siblings_in_chat_tools(
+                    &mut converted,
+                );
+            }
             if route.target == P::Chat && (codex_chat || effort.is_some()) {
                 super::responses::configure_codex_chat(&mut converted, model, effort.as_deref());
             }

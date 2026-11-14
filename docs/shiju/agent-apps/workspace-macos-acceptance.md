@@ -250,3 +250,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 POST `/v1/agent-apps/openclaw/workspace/open-directory`，沿用 projectId/targetHostId 查询上下文与租户、令牌认证。body 仅接受 `{"subdir":"workspace"}` 或 `{"subdir":"memory"}`，未知字段/目录被 serde 拒绝。要求 workspace_write 项目权限；离线返回 503、远程绑定返回 501，均不回退客户端路径。安全目录所有者以授权执行 HOME 为根，descriptor 相对创建固定目录并拒绝链接；系统 opener 在持有目录描述符对应 cwd 中打开 Finder，失败返回 500。SDK `open_workspace_directory` 复用作用域和错误传递；取消等待不能撤销已接收的系统动作。
 
 注册复用既有 agent_apps 路由所有者，没有重复领域服务。后续统一验证应覆盖权限拒绝、两种目录、符号链接、远程/离线、SDK 上下文与 macOS Finder 实际行为；本文不声称任何运行验证通过。
+
+## 任务 33：桌面 Hermes 预算与开关（2026-11-14）
+
+扩展任务 32 双记忆编辑器，预算/双开关由 SDK 读取，按 UTF-16 单元展示剩余或超限，不截断原文；禁用仍可编辑并提示跳过记忆。开关写入成功后同作用域刷新，失败保留原状态并显示脱敏 SDK 错误及 toast；刷新失败明确提示已保存但状态待刷新。模型仅展示供应商领域快照及修改入口说明。复用统一控件、默认字体与既有页面作用域/代次校验，离页或切换连接使旧响应失效。
+
+静态读取来源 HermesMemoryPanel/hermesMemoryDrafts/相邻测试、任务 1 正式合同、任务 32、SDK/DTO 和统一设置控件；新增两个 hermes_budget_matches_utf16_count 前缀测试源码，覆盖中文、emoji、组合字符、零预算及超限保留。按用户最高优先要求未运行 Cargo、任何测试或最终回归，不声明编译、渲染或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除；建议后续统一验证该测试族、开关失败/刷新及实际明暗渲染。

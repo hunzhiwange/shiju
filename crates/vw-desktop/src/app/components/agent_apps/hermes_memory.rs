@@ -30,6 +30,7 @@ impl Draft {
 #[derive(Clone, Default)]
 pub(crate) struct State {
     pub drafts: [Draft; 2],
+    pub limits: super::hermes_memory_limits::State,
     pub active: usize,
     pub generation: u64,
     pub open: bool,
@@ -46,12 +47,14 @@ pub enum Event {
     Open, Select(usize), Edit(text_editor::Action), Save, Retry,
     Loaded(Scope, usize, Result<HermesMemoryResponse, String>),
     Saved(Scope, usize, Result<HermesWriteOutcome, String>),
+    Limits(super::hermes_memory_limits::Event),
+    Metadata(Scope, super::hermes_memory_limits::Reply),
 }
-fn message(event: Event) -> Message {
+pub(super) fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
         crate::app::message::settings::AppsCatalogMessage::HermesMemory(event)))
 }
-fn kind(index: usize) -> HermesMemoryKind { if index == 0 { HermesMemoryKind::Memory } else { HermesMemoryKind::User } }
+pub(super) fn kind(index: usize) -> HermesMemoryKind { if index == 0 { HermesMemoryKind::Memory } else { HermesMemoryKind::User } }
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
     if !state.open { return button(text("打开 Hermes 记忆")).padding([8,12]).style(rounded_action_btn_style).on_press(message(Event::Open)).into(); }
     let draft = &state.drafts[state.active];
@@ -62,7 +65,7 @@ pub(crate) fn view(state: &State) -> Element<'_, Message> {
     }
     let mut editor = settings_text_editor(&draft.editor).height(220);
     if draft.saved.is_some() { editor = editor.on_action(|action| message(Event::Edit(action))); }
-    column![tabs, text(draft.path.as_deref().unwrap_or("执行主机路径尚未返回")), editor,
+    column![tabs, super::hermes_memory_limits::view(&state.limits, state.active, &draft.editor.text()), text(draft.path.as_deref().unwrap_or("执行主机路径尚未返回")), editor,
         row![button(text(if draft.saving.is_some() { "保存中" } else { "保存" })).padding([8,12]).style(primary_action_btn_style)
             .on_press_maybe((draft.dirty() && draft.saving.is_none()).then(|| message(Event::Save))),
             button(text("重新读取")).padding([8,12]).style(rounded_action_btn_style)
@@ -74,7 +77,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
     let Some(project) = app.project_id.clone().filter(|id| !id.is_empty()) else { return Task::none(); };
     let state = &mut app.apps_catalog.hermes_memory;
-    let reply_scope = match &event { Event::Loaded(scope, ..) | Event::Saved(scope, ..) => Some(scope), _ => None };
+    let reply_scope = match &event { Event::Loaded(scope, ..) | Event::Saved(scope, ..) | Event::Metadata(scope, ..) => Some(scope), _ => None };
     if let Some(scope) = reply_scope {
         if !state.open || scope.context != context || scope.host != app.apps_catalog.host || scope.project != project
             || scope.catalog != app.apps_catalog.generation || scope.generation != state.generation { return Task::none(); }
@@ -82,6 +85,9 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return app.show_error_toast("请先连接应用服务");
     }
     match event {
+        Event::Metadata(_, reply) => {
+            return super::hermes_memory_limits::apply(app, reply);
+        }
         Event::Loaded(_, index, result) => {
             let draft = &mut state.drafts[index]; draft.loading = false;
             match result { Ok(response) if response.kind == kind(index) => draft.hydrate(response),
@@ -104,11 +110,17 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             return Task::none();
         }
         Event::Open => { if state.open { return Task::none(); } state.open = true; }
-        Event::Save | Event::Retry => { if !state.open { return Task::none(); } }
+        Event::Limits(_) | Event::Save | Event::Retry => { if !state.open { return Task::none(); } }
     }
     let scope = Scope { context, host: app.apps_catalog.host.clone(), project: project.to_string(), catalog: app.apps_catalog.generation, generation: state.generation };
     let query = HermesMemoryScope { project_id: project.into(), target_host_id: scope.host.clone() };
     let token = app.apps_catalog.token.clone();
+    if let Event::Limits(action) = event {
+        return super::hermes_memory_limits::request(&mut state.limits, action, client, query, token, scope);
+    }
+    let metadata = if matches!(event, Event::Open | Event::Retry) {
+        super::hermes_memory_limits::request(&mut state.limits, super::hermes_memory_limits::Event::Refresh, client.clone(), query.clone(), token.clone(), scope.clone())
+    } else { Task::none() };
     if matches!(event, Event::Save) {
         let index = state.active;
         let draft = &mut state.drafts[index];
@@ -120,7 +132,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }, |message| message);
     }
     let indices: Vec<usize> = if matches!(event, Event::Open) { vec![0,1] } else { vec![state.active] };
-    Task::batch(indices.into_iter().filter_map(|index| {
+    let reads = Task::batch(indices.into_iter().filter_map(|index| {
         if state.drafts[index].loading || state.drafts[index].saving.is_some() { return None; }
         state.drafts[index].loading = true;
         let (client, query, token, scope) = (client.clone(), query.clone(), token.clone(), scope.clone());
@@ -128,5 +140,6 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             let result = client.hermes_memory(&query, kind(index), &token).await.map_err(|_| "读取失败".into());
             message(Event::Loaded(scope, index, result))
         }, |message| message))
-    }).collect::<Vec<_>>())
+    }).collect::<Vec<_>>());
+    Task::batch([metadata, reads])
 }

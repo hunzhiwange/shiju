@@ -21,7 +21,7 @@ async-trait = "0.1.89"
 base64 = "0.23"
 flate2 = "1"
 tar = "0.4"
-chacha20poly1305 = "0.10.1"
+secret-store = { path = "../libs/secret-store", version = "0.6.0" }
 chardetng = "1"
 encoding_rs = "0.8"
 chrono = { version = "0.4", features = ["serde"] }

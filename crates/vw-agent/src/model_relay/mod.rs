@@ -205,3 +205,5 @@ pub(crate) mod image_generation;
 pub(crate) mod image_edit;
 #[cfg(test)]
 mod image_edit_tests;
+
+pub(crate) mod forced_sse;

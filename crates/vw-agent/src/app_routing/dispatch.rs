@@ -418,6 +418,18 @@ pub(super) async fn forward_json(
     }
     #[cfg(target_os = "macos")]
     let selected_egress = route.egress(egress)?;
+    // Select the actual upstream wire protocol before the request is moved.
+    use crate::model_relay::generation::GenerationProtocol as UpstreamProtocol;
+    let path = outgoing.url().path().trim_end_matches('/');
+    let aggregate_protocol = if path.ends_with(":generateContent") || path.ends_with(":streamGenerateContent") {
+        UpstreamProtocol::Gemini
+    } else if path.ends_with("/messages") {
+        UpstreamProtocol::Messages
+    } else if path.ends_with("/responses") {
+        UpstreamProtocol::Responses
+    } else {
+        UpstreamProtocol::Chat
+    };
     let transport = &target.transport;
     #[cfg(target_os = "macos")]
     let transport = selected_egress.as_ref().map_or(transport, |egress| &egress.transport);
@@ -556,6 +568,7 @@ pub(super) async fn forward_json(
             response,
             permit,
             compact,
+            Some(aggregate_protocol),
             response_scope.as_ref().map(|scope| (&*route.references, scope)),
         )
         .await?;
@@ -649,6 +662,7 @@ async fn buffer_json_response(
     response: Response,
     permit: RequestPermit,
     preserve_status: bool,
+    aggregate_protocol: Option<crate::model_relay::generation::GenerationProtocol>,
     references: Option<(
         &super::reference_scope::References,
         &super::reference_scope::ReferenceScope,
@@ -663,12 +677,21 @@ async fn buffer_json_response(
     // Read the actual coding before Connection nominations strip any fields.
     let codings = ContentCodings::from_headers(&parts.headers).map_err(upstream_decode_status)?;
     header_wire::strip_hop_headers(&mut parts.headers);
-    if !is_content_type(&parts.headers, JSON) {
+    let forced_sse = is_content_type(&parts.headers, SSE)
+        && parts.status.is_success() && aggregate_protocol.is_some();
+    if !is_content_type(&parts.headers, JSON) && !forced_sse {
         return Err(StatusCode::BAD_GATEWAY.into());
     }
     let body = decode_response::decode(body, codings, MAX_JSON_BYTES)
         .await
         .map_err(upstream_decode_status)?;
+    let body = if forced_sse {
+        crate::model_relay::forced_sse::aggregate(
+            &body, aggregate_protocol.ok_or(StatusCode::BAD_GATEWAY)?, MAX_JSON_BYTES,
+        )?.into()
+    } else {
+        body
+    };
     if let Some((references, scope)) = references.filter(|_| parts.status.is_success()) {
         let value: Value = serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_GATEWAY)?;
         crate::model_relay::native_responses::remember(&value, references, scope)?;
@@ -924,7 +947,7 @@ async fn forward_gemini_metadata(
     let deadline = Instant::now() + Duration::from_secs(timeouts.non_streaming_timeout_secs.into());
     timeouts::before(deadline, async {
         let response = transport.forward_ordered(&url, outgoing, wire, cancelled, listener).await?;
-        buffer_json_response(response, permit, true, None).await
+        buffer_json_response(response, permit, true, None, None).await
     }).await?
 }
 
@@ -1027,7 +1050,7 @@ async fn forward_alpha_search(
         if images {
             buffer_image_response(response, permit).await
         } else {
-            buffer_json_response(response, permit, true, None).await
+            buffer_json_response(response, permit, true, None, None).await
         }
     }).await?
 }

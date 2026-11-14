@@ -79,12 +79,14 @@ pub(super) fn handle_clipboard_paste_resolved(
         }
         ClipboardPastePayload::Empty => focus_input_editor(app),
         ClipboardPastePayload::LocalizedError { source, arguments } => {
-            app.push_localized_notification(source, arguments);
-            focus_input_editor(app)
+            app.show_localized_toast(crate::app::state::ToastKind::Error, source, arguments)
         }
         ClipboardPastePayload::Error(error) => {
-            app.push_notification(error);
-            focus_input_editor(app)
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "粘贴失败：%s",
+                vec![error.into()],
+            )
         }
     }
 }

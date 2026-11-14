@@ -14,6 +14,8 @@ pub(crate) mod desktop_lifecycle;
 #[cfg(test)]
 mod desktop_integration_46_tests;
 #[cfg(test)]
+mod desktop_integration_46_tests;
+#[cfg(test)]
 mod desktop_integration_26_tests;
 /// desktop_models 子模块，拆分当前领域的局部职责。
 pub mod desktop_models;

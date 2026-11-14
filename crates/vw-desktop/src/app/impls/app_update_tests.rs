@@ -647,21 +647,13 @@ fn copy_code_records_content_hash_without_executing_clipboard_task() {
 }
 
 #[test]
-fn copy_file_missing_path_records_empty_content_hash_without_panicking() {
-    use std::hash::{Hash, Hasher};
-
+fn copy_file_missing_path_preserves_clipboard_feedback() {
     let mut app = test_app();
-    let missing_path =
-        std::env::temp_dir().join(format!("vibe-window-missing-copy-file-{}", std::process::id()));
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    String::new().hash(&mut hasher);
-    let expected_hash = hasher.finish();
-
-    let _clipboard_task =
-        app.update(Message::CopyFile(missing_path.to_string_lossy().into_owned()));
-
-    assert_eq!(app.last_copied_code_hash, Some(expected_hash));
-    assert!(app.last_copy_time.is_some());
+    app.last_copied_code_hash = Some(42);
+    let missing_path = std::env::temp_dir()
+        .join(format!("vibe-window-missing-copy-file-{}", std::process::id()));
+    let _ = app.update(Message::CopyFile(missing_path.to_string_lossy().into_owned()));
+    assert_eq!(app.last_copied_code_hash, Some(42));
 }
 
 #[test]

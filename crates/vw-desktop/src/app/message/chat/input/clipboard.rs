@@ -89,7 +89,14 @@ fn read_native_clipboard_payload() -> ClipboardPastePayload {
         ));
     }
 
-    clipboard_text_payload(clipboard.get_text().ok())
+    match clipboard.get_text() {
+        Ok(text) => clipboard_text_payload(Some(text)),
+        Err(arboard::Error::ContentNotAvailable) => ClipboardPastePayload::Empty,
+        Err(_) => ClipboardPastePayload::LocalizedError {
+            source: "读取系统剪贴板失败或访问被拒绝",
+            arguments: vec![],
+        },
+    }
 }
 #[cfg(test)]
 #[path = "clipboard_tests.rs"]

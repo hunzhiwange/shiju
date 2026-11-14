@@ -159,6 +159,10 @@ pub enum Message {
         message_idx: usize,
     },
     CopyFile(String),
+    ClipboardCopyFinished {
+        hash: u64,
+        result: Result<(), String>,
+    },
     CopyDone,
     CopyFeedbackExpired(u64),
     CloseError,

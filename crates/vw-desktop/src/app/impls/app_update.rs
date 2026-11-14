@@ -130,9 +130,29 @@ fn copy_code(app: &mut App, text: String) -> Task<Message> {
     app.last_copy_time = Some(SystemTime::now());
 
     Task::batch(vec![
-        iced::clipboard::write(text).map(|_: ()| Message::CopyDone),
+        copy_text_task(text, hash),
         message::after(Duration::from_secs(2), Message::CopyFeedbackExpired(hash)),
     ])
+}
+
+// Only called by explicit copy actions; never poll or read clipboard contents here.
+fn copy_text_task(text: String, hash: u64) -> Task<Message> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Task::perform(
+            async move {
+                arboard::Clipboard::new()
+                    .and_then(|mut clipboard| clipboard.set_text(text))
+                    .map_err(|_| "系统剪贴板不可用或访问被拒绝".to_string())
+            },
+            move |result| Message::ClipboardCopyFinished { hash, result },
+        )
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = hash;
+        iced::clipboard::write(text).map(|_: ()| Message::CopyDone)
+    }
 }
 
 impl App {
@@ -1146,26 +1166,30 @@ impl App {
 
             // 复制文件内容到剪贴板
             Message::CopyFile(path) => {
-                use std::hash::{Hash, Hasher};
-                use std::time::Duration;
-                use web_time::SystemTime;
+                match std::fs::read_to_string(path) {
+                    Ok(content) => copy_code(self, content),
+                    Err(_) => self.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "读取文件失败，未修改剪贴板",
+                        vec![],
+                    ),
+                }
+            }
 
-                // 读取文件内容，失败时使用空字符串
-                let content = std::fs::read_to_string(path).unwrap_or_default();
-
-                // 计算文件内容的哈希值
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                content.hash(&mut hasher);
-                let h = hasher.finish();
-
-                // 记录最后复制的哈希值和时间
-                self.last_copied_code_hash = Some(h);
-                self.last_copy_time = Some(SystemTime::now());
-
-                Task::batch(vec![
-                    iced::clipboard::write(content).map(|_: ()| Message::CopyDone),
-                    message::after(Duration::from_secs(2), Message::CopyFeedbackExpired(h)),
-                ])
+            Message::ClipboardCopyFinished { hash, result } => {
+                if result.is_err() {
+                    if self.last_copied_code_hash == Some(hash) {
+                        self.last_copied_code_hash = None;
+                        self.last_copy_time = None;
+                    }
+                    self.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "复制失败：系统剪贴板不可用或访问被拒绝",
+                        vec![],
+                    )
+                } else {
+                    Task::none()
+                }
             }
 
             // 复制完成消息，无需执行任何操作

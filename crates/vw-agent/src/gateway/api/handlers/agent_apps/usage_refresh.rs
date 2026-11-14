@@ -532,7 +532,9 @@ impl UsageRefresh {
                     query.key.host.clone(), account.clone()), &result);
         }
         let snapshot = state.cache.record(&query.key, result, Instant::now());
-        Ok(Publication { snapshot, version: uuid::Uuid::new_v4() })
+        let version = uuid::Uuid::new_v4();
+        crate::usage_bridge::events::cache_updated(&query.key, version);
+        Ok(Publication { snapshot, version })
     }
 
     async fn query(

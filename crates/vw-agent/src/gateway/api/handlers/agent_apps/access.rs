@@ -2472,3 +2472,12 @@ pub(in super::super) fn authorize_usage_ledger_read(
         Capability::UsageLedgerRead(project.project_id()))?;
     Ok(())
 }
+
+/// Event subscriptions retain the authenticated principal for quota isolation.
+pub(in super::super) fn authorize_usage_events(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+) -> Result<String, StatusCode> {
+    let authorization = authorize_scoped(path, headers, project.tenant_scope(), host, None,
+        Capability::UsageLedgerRead(project.project_id()))?;
+    Ok(authorization.principal)
+}

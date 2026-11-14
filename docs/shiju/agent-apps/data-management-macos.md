@@ -293,3 +293,11 @@ AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内
 policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，以完整目标 JSON 为键；零小时禁用，保留数量至少一。任务29轮询只在已有 periodic_data_backups 管理员授权目标内读取覆盖设置，不扩大后台权限；成功新建后使用现有 retention 清理。未设置时沿用管理员间隔。
 
 按用户最新覆盖仅写代码，未运行任何 Cargo、单元或实机测试，无通过证据、退出码或有效测试数。未领取槽位，CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 未设置。待统一回归：macOS 下执行 cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_36_ -- --nocapture，并覆盖跨身份/撤权/过期、分类隔离、周期与保留设置回读。
+
+## 子任务 37：迁入导出客户端 SDK（2026-11-14）
+
+唯一实现为 `vw-gateway-client/src/client/agent_apps_data/migration_sdk.rs`，由 client 父模块注册；公开 `DataMigrationError`、`DataExportTransfer` 及 `GatewayClient::data_migration_*` 方法。沿用任务 32 的管理员授权来源 ID，识别返回暂存 transferId 后预览；没有上传 API，SDK 不伪造上传或传递客户端路径。消费任务 33 的执行、查询、取消和显式 retry-projections，原样保留 committed、rollback、partial、逐项结果及取消意图。消费任务 36 的导出句柄响应和 POST 下载（携带完整 target），下载返回有界字节，不擅自落盘。
+
+请求沿用 native_transport 与 apply_request_context，继承租户/网关身份，应用 grant 标记 sensitive，禁自动重试与重定向；超时只返回 Timeout，不自动重放写入。HTTP 保留状态及可解析的封闭 DataManagementError，不保留原始错误载荷、URL 或令牌。成功体限 64 MiB、错误体限 16 KiB。不将未支持类别的 501 转为成功。后续 UI 必须按操作身份查询歧义结果，不把网络超时当作未提交。
+
+新增并注册独立 `migration_sdk_tests.rs`：cc_data_37_migration_sdk_preserves_operation_status、cc_data_37_migration_sdk_does_not_retry_write、cc_data_37_source_preview_and_portable_download，使用本地 TCP HTTP 夹具，覆盖部分提交状态、协议、授权头、结构化失败及导出下载；尚未执行。按用户覆盖本轮没有 Cargo、编译、单元或实机测试，没有通过证据、退出码或有效测试数；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。统一验证入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-gateway-client --lib cc_data_37_ -- --nocapture`；另待验证超时、传输断开、超限响应与跨作用域服务端拒绝。

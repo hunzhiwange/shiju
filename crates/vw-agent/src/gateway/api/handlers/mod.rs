@@ -436,3 +436,5 @@ pub(crate) mod agent_apps_data;
 mod backup_inventory;
 
 mod device_sync_config;
+
+mod device_sync_probe;

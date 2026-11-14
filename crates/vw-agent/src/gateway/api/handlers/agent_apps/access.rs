@@ -37,6 +37,8 @@ struct Principal {
 #[serde(deny_unknown_fields)]
 struct Grant {
     #[serde(default)]
+    device_sync_probe: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     device_sync_config: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     data_migration_read: Vec<vw_api_types::id::ProjectId>,
@@ -662,6 +664,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
     DataMigrationRead(&'a vw_api_types::id::ProjectId),
     DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
     DataBackups(&'a vw_api_types::id::ProjectId),
@@ -953,6 +956,7 @@ fn authorize_digest(
         .filter(|g| {
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
+                    Capability::DeviceSyncProbe(project) => g.device_sync_probe.contains(project),
                     Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
                     Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
                     Capability::DataBackups(project) => g.data_backups.contains(project),
@@ -2001,4 +2005,14 @@ pub(in super::super) fn authorize_device_sync_config(
     let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
         Capability::DeviceSyncConfig(project.project_id()))?;
     Ok(authorized.principal)
+}
+
+/// Explicit permission to send draft credentials from this local execution host.
+pub(in super::super) fn authorize_device_sync_probe(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+) -> Result<PathBuf, StatusCode> {
+    vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let a = authorize_scoped(path, headers, project.tenant_scope(), host, None,
+        Capability::DeviceSyncProbe(project.project_id()))?;
+    a.host.credential_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }

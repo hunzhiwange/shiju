@@ -48,6 +48,46 @@ impl S3SettingsStore {
         raw.as_deref().map(decode).transpose().map(|row| row.map(|row| row.config))
     }
 
+    /// Resolve a draft without publishing settings or encrypting replacement material.
+    pub fn resolve_probe(&self, tenant: &TenantScope, host: &str,
+        request: UpdateS3SyncConfigRequest) -> Result<S3Config> {
+        let mut config = S3Config {
+            enabled: false,
+            auto_sync: request.auto_sync,
+            bucket: request.bucket,
+            region: request.region,
+            access_key_id: request.access_key_id,
+            endpoint: request.endpoint,
+            remote_root: request.remote_root,
+            profile: request.profile,
+            secret_access_key: String::new(),
+        }.normalize().map_err(anyhow::Error::msg)?;
+        config.secret_access_key = match request.secret {
+            SyncSecretUpdate::Replace { value } => {
+                ensure!(!value.is_empty(), "empty replacement credential");
+                value
+            }
+            SyncSecretUpdate::Clear {} => String::new(),
+            SyncSecretUpdate::Keep {} => {
+                let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+                    .ok_or_else(|| anyhow::anyhow!("no saved connection for Keep"))?;
+                let old = decode(&raw)?;
+                ensure!(old.config.bucket == config.bucket
+            && old.config.region == config.region
+            && old.config.access_key_id == config.access_key_id
+            && old.config.endpoint == config.endpoint
+            && old.config.remote_root == config.remote_root
+            && old.config.profile == config.profile, "Keep requires the same connection identity");
+                match old.secret_ciphertext {
+                    Some(value) => self.secrets.decrypt(&value)
+                        .map_err(|_| anyhow::anyhow!("credential decryption failed"))?,
+                    None => String::new(),
+                }
+            }
+        };
+        Ok(config)
+    }
+
     /// Publish the configuration and encrypted secret access key in one conditional database write.
     /// A concurrent process causes an explicit conflict rather than a lost update.
     pub async fn save(

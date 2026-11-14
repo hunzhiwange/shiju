@@ -47,6 +47,42 @@ impl WebDavSettingsStore {
         raw.as_deref().map(decode).transpose().map(|row| row.map(|row| row.config))
     }
 
+    /// Resolve a draft without publishing settings or encrypting replacement material.
+    pub fn resolve_probe(&self, tenant: &TenantScope, host: &str,
+        request: UpdateWebDavSyncConfigRequest) -> Result<WebDavConfig> {
+        let mut config = WebDavConfig {
+            enabled: request.enabled,
+            auto_sync: request.auto_sync,
+            base_url: request.base_url,
+            username: request.username,
+            remote_root: request.remote_root,
+            profile: request.profile,
+            password: String::new(),
+        }.normalize().map_err(anyhow::Error::msg)?;
+        config.password = match request.secret {
+            SyncSecretUpdate::Replace { value } => {
+                ensure!(!value.is_empty(), "empty replacement credential");
+                value
+            }
+            SyncSecretUpdate::Clear {} => String::new(),
+            SyncSecretUpdate::Keep {} => {
+                let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+                    .ok_or_else(|| anyhow::anyhow!("no saved connection for Keep"))?;
+                let old = decode(&raw)?;
+                ensure!(old.config.base_url == config.base_url
+            && old.config.username == config.username
+            && old.config.remote_root == config.remote_root
+            && old.config.profile == config.profile, "Keep requires the same connection identity");
+                match old.password_ciphertext {
+                    Some(value) => self.secrets.decrypt(&value)
+                        .map_err(|_| anyhow::anyhow!("credential decryption failed"))?,
+                    None => String::new(),
+                }
+            }
+        };
+        Ok(config)
+    }
+
     /// Publish the configuration and encrypted password in one conditional database write.
     /// A concurrent process causes an explicit conflict rather than a lost update.
     pub async fn save(

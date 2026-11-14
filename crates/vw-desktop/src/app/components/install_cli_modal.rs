@@ -310,6 +310,18 @@ fn view_inner<'a>(
         } else {
             action_row
         };
+        let action_row = if use_app_update_action
+            && desktop_update.is_some_and(|state| state.download_abort.is_some())
+        {
+            action_row.push(
+                button(text(i18n.__("取消下载")).size(13))
+                    .on_press(Message::View(message::ViewMessage::CancelAppUpdate))
+                    .padding([8, 16])
+                    .style(rounded_action_btn_style),
+            )
+        } else {
+            action_row
+        };
         let action_row = if show_install_action {
             let install_label =
                 if use_app_update_action { "下载安装包" } else { "安装 CLI" };

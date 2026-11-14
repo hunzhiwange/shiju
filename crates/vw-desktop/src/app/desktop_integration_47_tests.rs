@@ -66,7 +66,7 @@ async fn desktop_integration_47_download_uses_current_snapshot() {
             .expect("snapshot validation timeout")
             .expect("download result");
         match action {
-            iced_runtime::Action::Output(Message::View(ViewMessage::AppUpdatePrepared(Err(
+            iced_runtime::Action::Output(Message::View(ViewMessage::AppUpdateDownloadPrepared(_, Err(
                 error,
             )))) => {
                 assert!(error.contains("No desktop installers available"), "{error}");

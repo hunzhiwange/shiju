@@ -859,7 +859,7 @@ async fn app_update_download_consumes_checked_snapshot_without_refetching_latest
         .unwrap();
     match action {
         iced_runtime::Action::Output(crate::app::Message::View(
-            ViewMessage::AppUpdatePrepared(Err(error)),
+            ViewMessage::AppUpdateDownloadPrepared(_, Err(error)),
         )) => {
             assert!(error.contains("exactly six"), "{error}");
         }

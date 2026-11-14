@@ -177,6 +177,9 @@ pub enum ViewMessage {
     AppUpdateSourceSaved(Result<(), String>),
     #[cfg(not(target_arch = "wasm32"))]
     AppUpdatePrepared(Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    AppUpdateDownloadPrepared(u64, Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
+    CancelAppUpdate,
     OpenAppInstaller,
     OpenAppInstallerDirectory,
     AppInstallerDirectoryOpened(Result<(), String>),
@@ -742,6 +745,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         msg @ ViewMessage::WebInstall(_) => panel::update(app, msg),
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),
+        #[cfg(not(target_arch = "wasm32"))]
+        msg @ ViewMessage::AppUpdateDownloadPrepared(_, _) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
         ViewMessage::TraverseFormFocus(window, reverse) => {
             if app.task_pet_window_id == Some(window)
@@ -996,6 +1001,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenAppInstaller
         | ViewMessage::OpenAppInstallerDirectory
         | ViewMessage::AppInstallerDirectoryOpened(_)
+        | ViewMessage::CancelAppUpdate
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

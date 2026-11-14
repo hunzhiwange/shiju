@@ -492,25 +492,52 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.cli_install_modal_message = "正在下载并校验安装包...".into();
                 app.app_update_progress = None;
                 app.app_update_progress_rx = Some(progress_rx);
-                Task::perform(
+                app.desktop_update.request += 1;
+                let request = app.desktop_update.request;
+                let (task, handle) = Task::perform(
                     async move {
                         crate::app::installer_update::prepare_desktop_update(&release, progress_tx)
                             .await
                             .map_err(|error| error.to_string())
                     },
-                    |result| Message::View(ViewMessage::AppUpdatePrepared(result)),
-                )
+                    move |result| Message::View(ViewMessage::AppUpdateDownloadPrepared(request, result)),
+                ).abortable();
+                app.desktop_update.download_abort = Some(handle);
+                task
             }
             #[cfg(target_arch = "wasm32")]
             {
                 app_update_error(app, "当前平台不支持应用更新".into())
             }
         }
+        ViewMessage::CancelAppUpdate => {
+            // Installation is irreversible here; only an active download is cancellable.
+            let Some(handle) = app.desktop_update.download_abort.take() else {
+                return Task::none();
+            };
+            handle.abort();
+            app.desktop_update.request += 1;
+            app.desktop_update.busy = false;
+            app.cli_install_modal_is_checking_update = false;
+            app.cli_install_modal_show_install_action = app.desktop_update.installable();
+            app.cli_install_modal_message = "下载已取消，可重新下载安装包。".into();
+            app.app_update_progress_rx = None;
+            app.app_update_progress = None;
+            Task::none()
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::AppUpdateDownloadPrepared(request, result) => {
+            if request != app.desktop_update.request || app.desktop_update.download_abort.is_none() {
+                return Task::none();
+            }
+            update(app, ViewMessage::AppUpdatePrepared(result))
+        }
         #[cfg(not(target_arch = "wasm32"))]
         ViewMessage::AppUpdatePrepared(result) => {
             if !app.desktop_update.busy {
                 return Task::none();
             }
+            app.desktop_update.download_abort = None;
             app.desktop_update.busy = false;
             app.cli_install_modal_is_checking_update = false;
             // The completion message may arrive before the next progress subscription tick.

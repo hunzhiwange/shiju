@@ -23,6 +23,7 @@ pub(crate) struct DesktopUpdate {
     pub request: u64,
     pub checking: bool,
     pub busy: bool,
+    pub download_abort: Option<iced::task::Handle>,
     pub release: Option<DesktopRelease>,
     #[cfg(not(target_arch = "wasm32"))]
     pub ready: Option<super::installer_update::PreparedDesktopUpdate>,
@@ -51,6 +52,7 @@ impl DesktopUpdate {
             request: 0,
             checking: false,
             busy: false,
+            download_abort: None,
             release: None,
             #[cfg(not(target_arch = "wasm32"))]
             ready: None,

@@ -270,3 +270,7 @@ fn installer_kind(os: &str) -> Result<InstallerKind> {
         _ => bail!("不支持的安装平台：{os}"),
     }
 }
+
+#[cfg(test)]
+#[path = "desktop_integration_49_tests.rs"]
+mod desktop_integration_49_tests;

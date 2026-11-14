@@ -31,3 +31,5 @@ pub mod s3_download;
 pub mod webdav_download;
 
 pub mod change_events;
+
+pub mod tasks;

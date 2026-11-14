@@ -111,3 +111,13 @@ pub struct WebDavSyncConfigResponse {
     pub last_status: Option<crate::device_sync_task::SyncTaskStatus>,
     pub active_task_id: Option<crate::id::TaskId>,
 }
+
+/// Authorized host-local S3 connection; secret material is never a response field.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct S3SyncConfigResponse {
+    pub config: Option<S3SyncConfig>,
+    pub last_status: Option<crate::device_sync_task::SyncTaskStatus>,
+    pub active_task_id: Option<crate::id::TaskId>,
+}
+

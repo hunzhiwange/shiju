@@ -160,3 +160,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增固定 memory/{kind} GET/PUT、memory-limits GET、memory/{kind}/enabled PUT 和 model GET。注册沿现有 Hermes dashboard 的 agent_apps 子模块入口；未增加 model 写端点。新增管理员策略 hermes_memory_read/hermes_memory_write 项目 ID 白名单，复用认证租户、令牌与主机分派，默认拒绝；写权限不隐含读权限。双文件复用 HermesMemory，配置读写复用 Hermes 原生 reader、HermesFiles 与 ProviderTransactions；开关提交前重验授权并保留恢复/冲突状态。供应商领域补充 model_snapshot 白名单投影，排除凭据和 URL。
 
 静态核对任务 1 合同、任务 12/13 产物及来源 get_hermes_model_config；新增 hermes_api_isolates_memory 测试源码，覆盖无权限、跨项目/租户/主机拒绝、真实双记忆和 YAML 回读、模型敏感字段排除。按本轮要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议统一验证上述测试族和 HTTP 集成。
+
+## 任务 15：Hermes 记忆客户端 SDK（2026-11-14）
+
+新增 `hermes_memory_api.rs`，公开 HermesMemoryScope/HermesMemoryError；封装任务 14 的 GET/PUT memory/{kind}、GET memory-limits、PUT memory/{kind}/enabled 与只读 GET model。项目与执行主机通过编码查询参数传递，租户沿用 endpoint 上下文，独立授权令牌标记敏感并使用禁止重定向的 native_transport。保留 exists、中文全文、备份 outcome、空模型及 HTTP 状态；错误不包含原始内容/令牌。开关成功后调用方可同作用域刷新限制，写失败直接返回错误。
+
+已静态核对来源 hermes.ts/useHermes.ts、任务 1 正式合同、接口边界、任务 14 已提交路由与 DTO。新增三个 hermes_sdk_preserves_outcome 前缀测试源码，覆盖请求方法/路径/查询/租户/令牌/body、缺失与空文件、长文本不截断、备份、刷新限制、模型缺失与存在、拒绝/冲突/IO 状态、解码失败和传输失败。本轮按用户要求未运行 Cargo 或任何测试，不声明编译或行为验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。建议后续统一运行该过滤测试。本编号任务文件按要求删除。

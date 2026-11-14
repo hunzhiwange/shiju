@@ -409,3 +409,8 @@ mod aggregation_codex_api;
 mod aggregation_codex_api_tests;
 
 pub mod hermes_dashboard_api;
+
+mod hermes_memory_api;
+pub use hermes_memory_api::{HermesMemoryError, HermesMemoryScope};
+#[cfg(test)]
+mod hermes_memory_api_tests;

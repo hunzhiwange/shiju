@@ -214,3 +214,5 @@ pub use voice_stream::VoiceStream;
 pub use client::AggregationOmoError;
 
 pub use client::AggregationApiError;
+
+pub use client::{HermesMemoryError, HermesMemoryScope};

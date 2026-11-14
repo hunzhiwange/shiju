@@ -24,6 +24,7 @@ pub(super) fn view(state: &State) -> Element<'_, Message> {
                 .on_press(message(Event::GroupByTime(false))),
             button(text("按时间分组")).padding([8, 12]).style(rounded_action_btn_style)
                 .on_press(message(Event::GroupByTime(true))),
+            super::paths::source_button(),
         ].spacing(8).wrap(),
     ].spacing(8);
     if state.busy { header = header.push(text("正在读取会话…").style(settings_muted_text_style)); }
@@ -86,6 +87,7 @@ pub(super) fn view(state: &State) -> Element<'_, Message> {
                     .unwrap_or_else(|| "时间未知".into());
                 item = item.push(text(format!("{} · {}", date, session.project_dir.as_deref().unwrap_or("未知项目")))
                     .size(12).style(settings_muted_text_style));
+                item = item.push(super::paths::controls(state, session));
                 // Source locations are display metadata, never filesystem read authority.
                 if session.source_path.as_deref().is_some_and(|path|
                     path.replace('\\', "/").contains("/archived_sessions/")) {

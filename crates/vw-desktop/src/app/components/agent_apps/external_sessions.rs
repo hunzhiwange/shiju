@@ -15,11 +15,14 @@ mod find;
 mod delete;
 #[path = "external_sessions/resume.rs"]
 mod resume;
+#[path = "external_sessions/paths.rs"]
+mod paths;
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
 
 #[derive(Clone, Default)]
 pub(crate) struct State {
     open: bool,
+    sources_open: bool,
     deletion: delete::State,
     resume: resume::State,
     reader: Option<reader::State>,
@@ -55,6 +58,7 @@ pub enum Event {
     Open,
     Delete(delete::Event),
     Resume(resume::Event),
+    Path(paths::Event),
     Details(details::Event),
     Image(images::Event),
     Find(find::Event),
@@ -77,9 +81,10 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
     let base = if let Some(reader) = &state.reader { reader::view(state, reader) } else { list::view(state) };
-    resume::view(state, delete::view(state, base))
+    paths::view(state, resume::view(state, delete::view(state, base)))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Path(event) = event { return paths::update(app, event); }
     if let Event::Resume(event) = event { return resume::update(app, event); }
     if let Event::Delete(event) = event { return delete::update(app, event); }
     if let Event::Details(event) = event { return details::update(app, event); }
@@ -98,6 +103,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             state.cancel_reader();
             state.deletion = delete::State::default();
             state.open = false;
+            state.sources_open = false;
             state.busy = false;
             state.generation = state.generation.wrapping_add(1);
             return Task::none();

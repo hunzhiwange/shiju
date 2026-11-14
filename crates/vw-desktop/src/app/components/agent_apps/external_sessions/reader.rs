@@ -361,6 +361,10 @@ pub(super) fn view<'a>(state: &'a super::State, reader: &'a State) -> Element<'a
     };
     let base = column![
         header,
+        super::paths::source_button(),
+        state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
+            .map(|session| super::paths::controls(state, session))
+            .unwrap_or_else(|| text("来源位置不可用").into()),
         state.page.as_ref().and_then(|page| page.sessions.iter().find(|s| s.identity == reader.identity))
             .map(|session| super::resume::control(session, !state.busy && !state.deletion.busy()))
             .unwrap_or_else(|| text("会话已不在当前目录，请刷新").into()),

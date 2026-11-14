@@ -2,7 +2,7 @@
 use super::voice_draft::Phase;
 use crate::app::voice::preferences::Preferences;
 use crate::app::voice::{
-    recordings::{Entry, Store},
+    recordings::{self, Entry},
     recordings_playback::Replay,
 };
 use crate::app::{App, Message};
@@ -61,7 +61,7 @@ impl State {
         self.endpoint = None;
     }
     fn refresh(&mut self) -> Result<(), String> {
-        self.entries = Store::local()?.list()?;
+        self.entries = recordings::local()?.list()?;
         self.problem = None;
         Ok(())
     }
@@ -111,12 +111,12 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
         }
         Event::Delete(id) => {
             app.voice.recordings.stop();
-            Store::local()?.delete(&id)?;
+            recordings::local()?.delete(&id)?;
             app.voice.recordings.refresh()?;
         }
         Event::Clear => {
             app.voice.recordings.stop();
-            Store::local()?.clear()?;
+            recordings::local()?.clear()?;
             app.voice.recordings.refresh()?;
         }
         Event::Play(id) => {
@@ -127,7 +127,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
                 return Err("请先结束当前语音活动再回放录音。".into());
             }
             app.voice.recordings.stop();
-            let wav = Store::local()?.read(&id)?;
+            let wav = recordings::local()?.read(&id)?;
             app.voice.recordings.replay = Some(Replay::start(wav)?);
             return Ok(tick(app.voice.recordings.generation));
         }
@@ -152,7 +152,7 @@ fn handle(app: &mut App, event: Event) -> Result<Task<Message>, String> {
             let endpoint = crate::app::gateway_client_endpoint();
             let preferences = Preferences::load()?;
             app.voice.recordings.stop();
-            let wav = Store::local()?.read(&id)?;
+            let wav = recordings::local()?.read(&id)?;
             let state = &mut app.voice.recordings;
             state.scope = Some(scope.clone());
             state.endpoint = Some(endpoint.clone());

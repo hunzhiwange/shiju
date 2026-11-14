@@ -588,7 +588,7 @@ fn retain_completed(state: &mut State) -> Option<String> {
     let result = (|| {
         let preferences = crate::app::voice::preferences::Preferences::load()?;
         if preferences.retain_recordings {
-            let store = crate::app::voice::recordings::Store::local()?;
+            let store = crate::app::voice::recordings::local()?;
             store.save(true, &audio)?;
             state.recordings.entries = store.list()?;
         }

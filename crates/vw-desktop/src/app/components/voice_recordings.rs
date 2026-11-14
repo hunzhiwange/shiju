@@ -20,7 +20,7 @@ pub(super) fn content(state: &State) -> Element<'_, Message> {
     let mut items=column![
         settings_field_label("最近本机录音"),
         text("主动开启后仅在本机保存最近二十段成功听写（总计最多 64 MiB）；关闭后停止新增，已有录音可手动删除。").style(settings_muted_text_style),
-        text(crate::app::voice::recordings::Store::path().map(|p|p.display().to_string()).unwrap_or_else(|e|e)).size(12),
+        text(crate::app::voice::recordings::path().map(|p|p.display().to_string()).unwrap_or_else(|e|e)).size(12),
         row![action("刷新",Event::Refresh),action("删除全部",Event::Clear)].spacing(8),
     ].spacing(10);
     if let Some(problem) = &state.problem {

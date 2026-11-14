@@ -7,6 +7,7 @@ use std::collections::HashSet;
 pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode> {
     let effort = responses::codex_chat_effort(&mut body)?;
     if let Some(items) = body["input"].as_array_mut() {
+        super::responses_history::preserve_invalid(items);
         let mut pending = HashSet::new();
         let mut deferred = Vec::new();
         let mut normalized = Vec::new();
@@ -40,6 +41,11 @@ pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode>
                 Some("reasoning") => {}
                 _ => {
                     // Never put a user turn inside an unfinished parallel tool round.
+                    if !pending.is_empty() && item["role"] == "assistant"
+                        && item["content"].as_str().is_some_and(|text| text.starts_with("[Historical tool call with invalid arguments; context only,")) {
+                        deferred.push(item);
+                        continue;
+                    }
                     if !pending.is_empty() {
                         return Err(StatusCode::UNPROCESSABLE_ENTITY);
                     }

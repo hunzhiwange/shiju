@@ -222,7 +222,11 @@ pub(super) async fn forward_json(
         if !target.url.path().trim_end_matches('/').ends_with("/chat/completions") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
         }
-        let bridge = responses_compaction::Request::from_responses(body)?;
+        let mut body = body;
+        let history = crate::model_relay::responses_history::Context::prepare(
+            Arc::clone(&route.responses_history), route.response_scope(target)?, &mut body,
+        )?;
+        let bridge = responses_compaction::Request::from_responses(body)?.with_history(history);
         let outgoing = prepare_request_inner(&bridge.chat, target, model, Some(&bridge))?;
         (outgoing, Some(bridge))
     } else {

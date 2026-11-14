@@ -21,6 +21,7 @@ pub(crate) struct Request {
     model: String,
     tools: ChatTools,
     compact: bool,
+    history: Option<super::responses_history::Context>,
 }
 
 impl Request {
@@ -60,7 +61,12 @@ impl Request {
             body.insert("tool_choice".into(), json!("none"));
         }
         let (chat, tools) = super::responses_chat_request::convert(body)?;
-        Ok(Self { chat, model, tools, compact })
+        Ok(Self { chat, model, tools, compact, history: None })
+    }
+
+    pub(crate) fn with_history(mut self, history: super::responses_history::Context) -> Self {
+        self.history = Some(history);
+        self
     }
 
     /// The bridge owns its wire shape even when the provider has request overrides.
@@ -90,19 +96,23 @@ impl Request {
     }
 
     pub(crate) fn response_json(&self, body: &Value) -> Result<Value, StatusCode> {
-        super::responses_chat_result::from_chat(
+        let response = super::responses_chat_result::from_chat(
             body,
             &self.model,
             &super::responses::response_id(),
             &self.tools,
-        )
+        )?;
+        if let Some(history) = &self.history { history.remember(&response)?; }
+        Ok(response)
     }
 
     pub(crate) fn response_body(self, body: Body, cancel: CancellationToken) -> Body {
-        if self.compact {
+        let history = self.history;
+        let body = if self.compact {
             super::responses_stream::codex_chat_body(body, self.model, self.tools, true, cancel)
         } else {
             super::responses_stream::resident_chat_body(body, self.model, self.tools, cancel)
-        }
+        };
+        match history { Some(history) => history.stream(body), None => body }
     }
 }

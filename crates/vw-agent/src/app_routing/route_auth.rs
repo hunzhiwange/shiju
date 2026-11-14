@@ -114,6 +114,7 @@ pub(super) struct AuthorizedRoute {
     pub(super) publication: Arc<Mutex<()>>,
     binding: VerifiedRouteBinding,
     pub(super) references: Arc<super::reference_scope::References>,
+    pub(super) responses_history: Arc<crate::model_relay::responses_history::Store>,
     pub(super) gemini_shadow: Arc<crate::model_relay::gemini_shadow::Store>,
     generation: u64,
     pub(super) cancelled: CancellationToken,
@@ -342,6 +343,7 @@ impl ActiveRoutes {
 pub(super) struct RouteAuth {
     #[cfg(target_os = "macos")]
     failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
+                route.responses_history.clear();
     active: Mutex<ActiveRoutes>,
     publication: Arc<Mutex<()>>,
 }
@@ -590,6 +592,7 @@ impl RouteAuth {
             )
             .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
             Some(Arc::new(store))
+                route.responses_history.clear();
         } else {
             None
         };
@@ -711,6 +714,7 @@ impl RouteAuth {
         self.active.lock().grants.get(&digest).cloned()
     }
 }
+                responses_history: Arc::default(),
 
 fn credential(headers: &HeaderMap) -> Option<&str> {
     let mut bearer = headers.get_all(header::AUTHORIZATION).iter();
@@ -734,6 +738,7 @@ where
         return;
     };
     let Ok(Ok((connection, prefix, wire))) =
+                route.responses_history.clear();
         timeout(header_wire::HEAD_TIMEOUT, header_wire::capture(connection)).await
     else {
         return;
@@ -752,6 +757,7 @@ where
         async move {
             let protocol = Protocol::for_path(request.uri().path());
             let error = |status| RouteError::from(status).response(protocol);
+                route.responses_history.clear();
             let has_origin = request.headers().contains_key(header::ORIGIN);
             if !browser_guard::allows_host(&request, local_addr)
                 || (has_origin && !browser_guard::is_desktop_route(request.uri()))

@@ -33,3 +33,5 @@ pub mod webdav_download;
 pub mod change_events;
 
 pub mod tasks;
+
+pub mod cancel;

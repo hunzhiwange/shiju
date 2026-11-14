@@ -42,6 +42,7 @@ pub struct DownloadApplied {
 /// success. Neither failure path returns a baseline or modifies one in storage.
 #[allow(clippy::too_many_arguments)]
 pub async fn download_s3_snapshot(
+    execution: &super::tasks::SyncTaskExecution,
     database: &GlobalDatabase,
     sync_lock: &tokio::sync::OwnedMutexGuard<()>,
     scope: SnapshotScope<'_>,
@@ -110,8 +111,12 @@ pub async fn download_s3_snapshot(
         .ok_or_else(|| anyhow::anyhow!("S3 synchronization manifest disappeared"))?;
     ensure!(current.bytes == original.bytes && current.metadata.etag == original.metadata.etag,
         "S3 synchronization changed; refresh preview");
+    execution.begin_commit().map_err(|_| anyhow::anyhow!("device sync cancelled before local publication"))?;
     let result = apply_snapshot(database, sync_lock, scope, import, skills,
         recovery_root, targets, capture, projections).await?;
+    if result.as_ref().map_or_else(|failure| failure.rollback_failed, |_| true) {
+        execution.mark_committed().map_err(|_| anyhow::anyhow!("device sync commit status unavailable"))?;
+    }
     Ok(result.map(|applied| DownloadApplied {
         applied, baseline: SyncBaseline { snapshot_id: manifest.snapshot_id },
     }))

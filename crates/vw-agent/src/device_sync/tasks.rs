@@ -11,6 +11,7 @@ struct Record {
     status: SyncTaskStatus,
     claimed: bool,
     cancel_requested: bool,
+    cancellation: tokio_util::sync::CancellationToken,
     commit_started: bool,
     committed: bool,
 }
@@ -41,7 +42,7 @@ pub fn accept(request: SyncStartRequest, origin: SyncTaskOrigin) -> Result<SyncT
         warnings: Vec::new(),
     };
     records.push(Record { request, status: status.clone(), claimed: false,
-        cancel_requested: false, commit_started: false, committed: false });
+        cancel_requested: false, cancellation: tokio_util::sync::CancellationToken::new(), commit_started: false, committed: false });
     Ok(status)
 }
 fn with_record<T>(target: &DataManagementTarget, id: &TaskId,
@@ -56,20 +57,32 @@ pub fn status(target: &DataManagementTarget, id: &TaskId) -> Result<SyncTaskStat
     with_record(target, id, |r| Ok(r.status.clone()))
 }
 pub fn cancel(target: &DataManagementTarget, id: &TaskId) -> Result<SyncTaskStatus> {
+    match super::cancel::cancel(target, id)? {
+        super::cancel::CancelOutcome::Accepted(status) => Ok(status),
+        super::cancel::CancelOutcome::TooLate(_) => Err(SyncErrorCode::TooLate),
+    }
+}
+
+pub(super) fn request_cancel(target: &DataManagementTarget, id: &TaskId)
+    -> Result<super::cancel::CancelOutcome> {
     with_record(target, id, |r| {
-        if r.commit_started { return Err(SyncErrorCode::TooLate); }
+        if r.commit_started || (r.status.state.is_terminal()
+            && r.status.state != SyncTaskState::Cancelled) {
+            return Ok(super::cancel::CancelOutcome::TooLate(r.status.clone()));
+        }
         if !r.status.state.is_terminal() {
             r.cancel_requested = true;
+            r.cancellation.cancel();
             if !r.claimed { r.status.state = SyncTaskState::Cancelled; }
         }
-        Ok(r.status.clone())
+        Ok(super::cancel::CancelOutcome::Accepted(r.status.clone()))
     })
 }
 
 /// Exclusive execution lease; dropping the worker records interruption, never success.
 /// Callers await transfer/apply inline under run_with_sync_lock. Never race a
-/// commit future against cancellation. Start the commit boundary before the first
-/// remote write or local publication, and mark committed after publication succeeds.
+/// commit future against cancellation. Start the commit boundary before manifest
+/// publication or local application, and mark committed after publication succeeds.
 pub struct SyncTaskExecution { target: DataManagementTarget, id: TaskId, owns_execution: bool }
 impl SyncTaskExecution {
     pub fn checkpoint(&self, phase: SyncTaskPhase, bytes: u64, total: Option<u64>) -> Result<()> {
@@ -142,14 +155,22 @@ where F: FnOnce(SyncTaskExecution) -> Fut,
     })?;
     // Only this retained guard finalizes interruption; reporting handles do not.
     let guard = SyncTaskExecution { target: target.clone(), id: id.clone(), owns_execution: true };
-    let result = operation(SyncTaskExecution {
+    let cancellation = with_record(target, id, |r| Ok(r.cancellation.clone()))?;
+    let mut work = Box::pin(operation(SyncTaskExecution {
         target: target.clone(), id: id.clone(), owns_execution: false,
-    }).await;
+    }));
+    let result = tokio::select! {
+        biased;
+        () = cancellation.cancelled() => Err(SyncErrorCode::Cancelled),
+        result = &mut work => result,
+    };
+    // Drop requests, staging directories and lock waiters before publishing Cancelled.
+    drop(work);
     with_record(target, id, |r| {
         r.status.state = match result {
             Ok(_) if r.cancel_requested && !r.commit_started => SyncTaskState::Cancelled,
             Ok(snapshot) => SyncTaskState::Succeeded { snapshot },
-            Err(SyncErrorCode::Cancelled) if !r.commit_started => SyncTaskState::Cancelled,
+            Err(_) if r.cancel_requested && !r.commit_started => SyncTaskState::Cancelled,
             Err(code) => SyncTaskState::Failed {
                 error: SyncError { code, incompatibility: None }, committed: r.committed },
         };

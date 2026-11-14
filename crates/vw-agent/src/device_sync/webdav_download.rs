@@ -33,6 +33,7 @@ use super::{apply::{ApplyFailure, apply_snapshot}, projection::{AppliedSnapshot,
 /// An inner failure retains its durable recovery receipt; no baseline is returned.
 #[allow(clippy::too_many_arguments)]
 pub async fn download_webdav_snapshot(
+    execution: &super::tasks::SyncTaskExecution,
     database: &GlobalDatabase,
     sync_lock: &tokio::sync::OwnedMutexGuard<()>,
     scope: SnapshotScope<'_>,
@@ -84,8 +85,12 @@ pub async fn download_webdav_snapshot(
     // Preparation can take time. Reject any manifest change before recovery or
     // publication; staged updates drop without touching the live configuration.
     recheck(&reader, &initial).await?;
+    execution.begin_commit().map_err(|_| anyhow::anyhow!("device sync cancelled before local publication"))?;
     let applied = apply_snapshot(database, sync_lock, scope, import, updates,
         recovery_root, targets, capture, projections).await?;
+    if applied.as_ref().map_or_else(|failure| failure.rollback_failed, |_| true) {
+        execution.mark_committed().map_err(|_| anyhow::anyhow!("device sync commit status unavailable"))?;
+    }
     Ok(applied.map(|report| (report, SyncBaseline { snapshot_id: manifest.snapshot_id })))
 }
 

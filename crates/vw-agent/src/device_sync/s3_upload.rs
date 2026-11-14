@@ -25,6 +25,7 @@ use super::export::export_shared_snapshot;
 /// report that failure separately while retaining the successful transfer fact.
 #[allow(clippy::too_many_arguments)]
 pub async fn upload_s3_snapshot(
+    execution: &super::tasks::SyncTaskExecution,
     database: &GlobalDatabase,
     scope: SnapshotScope<'_>,
     selection: &SnapshotSelection,
@@ -66,6 +67,7 @@ pub async fn upload_s3_snapshot(
             let actual = read_manifest(&reader, version).await?;
             conflict::verify_published_snapshot(&snapshot_id,
                 actual.as_ref().map(|value| value.snapshot_id.as_str()))?;
+            execution.begin_commit().map_err(|_| anyhow::anyhow!("device sync cancelled before baseline publication"))?;
             return Ok(SyncBaseline { snapshot_id });
         }
         SyncDecision::Upload => {}
@@ -76,7 +78,9 @@ pub async fn upload_s3_snapshot(
     preview.recheck_remote(current.as_ref().map(|value| value.snapshot_id.as_str()))?;
     writer.upload(UploadArtifact::Config, snapshot.config_json).await?;
     writer.upload(UploadArtifact::Skills, snapshot.skills.bytes).await?;
+    execution.begin_commit().map_err(|_| anyhow::anyhow!("device sync cancelled before manifest publication"))?;
     writer.upload(UploadArtifact::Manifest, manifest_bytes).await?;
+    execution.mark_committed().map_err(|_| anyhow::anyhow!("device sync commit status unavailable"))?;
     let published = read_manifest(&reader, version).await?;
     conflict::verify_published_snapshot(&snapshot_id,
         published.as_ref().map(|value| value.snapshot_id.as_str()))?;

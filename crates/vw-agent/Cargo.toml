@@ -12,7 +12,6 @@ autotests = false
 doctest = false
 
 [dependencies]
-memory-postgres = { path = "../libs/memory-postgres", version = "0.6.0", optional = true }
 anyhow = "1"
 async-trait = "0.1.89"
 base64 = "0.23"
@@ -94,6 +93,7 @@ vw-shared = { path = "../vw-shared", version = "0.6.0", features = ["shell-tokio
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+memory-lucid = { path = "../libs/memory-lucid", version = "0.6.0" }
 memory-mariadb = { path = "../libs/memory-mariadb", version = "0.6.0", optional = true }
 aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", rev = "3401d28a7353c6e90cf4372f52c682cb2d02986b", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 async-compression = { version = "0.4", features = ["brotli", "deflate", "gzip", "tokio", "zlib", "zstd"] }
@@ -185,7 +185,7 @@ firecrawl = []
 "web-fetch-html2md" = []
 "web-fetch-plaintext" = []
 probe = ["dep:probe-rs"]
-memory-postgres = ["dep:memory-postgres"]
+memory-postgres = []
 memory-mariadb = ["dep:memory-mariadb"]
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 sandbox-bubblewrap = []

@@ -5984,20 +5984,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "memory-postgres"
+name = "memory-lucid"
 version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
+ "memory-sqlite",
  "memory-types",
  "parking_lot",
- "postgres",
- "rustls",
- "rustls-pki-types",
+ "tempfile",
  "tokio",
- "tokio-postgres-rustls",
- "uuid",
 ]
 
 [[package]]
@@ -12409,8 +12406,8 @@ dependencies = [
  "libc",
  "mail-parser",
  "memory-algorithms",
+ "memory-lucid",
  "memory-mariadb",
- "memory-postgres",
  "mime_guess",
  "minijinja",
  "nanohtml2text",

@@ -428,3 +428,5 @@ mod mcp_management_tools;
 
 #[cfg(all(test, target_os = "macos"))]
 mod mcp_management_tools_tests;
+
+pub(crate) mod project_profiles;

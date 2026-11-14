@@ -17,6 +17,7 @@ use vw_api_types::{
 pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(read::router())
+        .merge(super::project_profiles::router())
         .merge(super::aggregation_read::router())
         .merge(super::aggregation_desktop::router())
         .merge(super::aggregation_codex_settings::router())
@@ -630,3 +631,5 @@ mod openclaw_settings;
 #[cfg(target_os = "macos")]
 #[path = "../workspace_directory.rs"]
 mod workspace_directory;
+
+pub(super) use access::authorize_project_profiles;

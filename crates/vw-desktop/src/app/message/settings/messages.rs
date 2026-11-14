@@ -753,6 +753,13 @@ pub enum GeneralSettingsMessage {
     #[cfg(target_os = "macos")]
     InstanceTick,
     TrayTick,
+    TrayProviderSwitch(String),
+    TrayProviderSwitched {
+        scope: crate::app::state::app_providers::list::Scope,
+        generation: u64,
+        id: String,
+        result: Result<(), String>,
+    },
     TrayShow,
     TrayQuit,
 }

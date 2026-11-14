@@ -129,7 +129,15 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             return wake;
         }
+        GeneralSettingsMessage::TrayProviderSwitch(id) => {
+            return crate::app::desktop_lifecycle::tray_switch::start(app, id);
+        }
+        GeneralSettingsMessage::TrayProviderSwitched { scope, generation, id, result } => {
+            return crate::app::desktop_lifecycle::tray_switch::finish(app, scope, generation, id, result);
+        }
         GeneralSettingsMessage::TrayTick => {
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app::desktop_lifecycle::refresh_tray_providers(app);
             #[cfg(not(target_arch = "wasm32"))]
             crate::app::desktop_lifecycle::refresh_tray_state(
                 app.desktop_locale,

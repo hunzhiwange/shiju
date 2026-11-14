@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::app::message::GeneralSettingsMessage;
 use auto_launch::{AutoLaunch, AutoLaunchBuilder};
-use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+use tray_icon::menu::{Menu, MenuEvent, MenuItem, Submenu};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 
 const SHOW_ID: &str = "shiju.tray.show";
@@ -16,6 +16,9 @@ thread_local! {
 
 struct LocalizedTray {
     _icon: TrayIcon,
+    providers: Submenu,
+    provider_rows: Vec<(String, String, MenuItem)>,
+    provider_signature: String,
     show: MenuItem,
     quit: MenuItem,
     status: MenuItem,
@@ -29,6 +32,7 @@ pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
         if let Some(tray) = slot.borrow().as_ref() {
             let i18n = crate::app::i18n::I18n::new(locale);
             tray.show.set_text(i18n.__("显示主窗口"));
+            tray.providers.set_text(i18n.__("切换当前应用供应商"));
             tray.quit.set_text(i18n.__("退出识矩"));
             tray.status.set_text(tray_status_label(locale, tray.shutting_down, tray.background));
         }
@@ -49,6 +53,37 @@ pub(crate) fn refresh_tray_state(
             tray.show.set_enabled(!shutting_down);
             tray.quit.set_enabled(!shutting_down);
         }
+    });
+}
+
+/// Reflect only the SDK-backed snapshot; plain items do not toggle optimistically.
+pub(crate) fn refresh_tray_providers(app: &crate::app::App) {
+    use vw_gateway_client::vw_api_types::app_providers::catalog::ProviderSelection;
+    TRAY.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        let Some(tray) = slot.as_mut() else { return };
+        let state = &app.app_providers;
+        let enabled = !app.shutdown_requested && !state.loading && state.tray_switch.is_none();
+        let scope = state.scope.as_ref().filter(|s| super::tray_switch::supports(s.app));
+        let snapshot = scope.and(state.snapshot.as_ref());
+        let signature = format!("{:?}:{:?}:{:?}:{enabled}", state.scope, state.generation, snapshot);
+        if signature == tray.provider_signature { return }
+        for (_, _, item) in tray.provider_rows.drain(..) {
+            let _ = tray.providers.remove(&item);
+        }
+        tray.providers.set_enabled(enabled && snapshot.is_some());
+        if let Some(snapshot) = snapshot {
+            for (index, row) in snapshot.catalog.rows.iter().enumerate() {
+                let checked = matches!(&snapshot.catalog.in_use, ProviderSelection::Selected { id } if id == &row.provider.id);
+                let label = format!("{}{}", if checked { "✓ " } else { "" }, row.provider.name);
+                let event_id = format!("shiju.tray.provider.{}.{}", state.generation, index);
+                let item = MenuItem::with_id(event_id.clone(), label, enabled, None);
+                if tray.providers.append(&item).is_ok() {
+                    tray.provider_rows.push((event_id, row.provider.id.clone(), item));
+                }
+            }
+        }
+        tray.provider_signature = signature;
     });
 }
 
@@ -226,6 +261,8 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
         let i18n = crate::app::i18n::I18n::new(locale);
         let menu = Menu::new();
         let status = MenuItem::new(tray_status_label(locale, false, false), false, None);
+        let providers = Submenu::new(i18n.__("切换当前应用供应商"), false);
+        menu.append(&providers).map_err(|err| err.to_string())?;
         let show = MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None);
         let quit = MenuItem::with_id(QUIT_ID, i18n.__("退出识矩"), true, None);
         menu.append(&status).map_err(|err| err.to_string())?;
@@ -249,6 +286,9 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
                 .with_icon(icon)
                 .build()
                 .map_err(|err| err.to_string())?,
+            providers,
+            provider_rows: Vec::new(),
+            provider_signature: String::new(),
             show,
             quit,
             status,
@@ -273,7 +313,11 @@ pub(crate) fn poll_tray() -> Vec<GeneralSettingsMessage> {
         .filter_map(|event| match event.id.as_ref() {
             SHOW_ID => Some(GeneralSettingsMessage::TrayShow),
             QUIT_ID => Some(GeneralSettingsMessage::TrayQuit),
-            _ => None,
+            id => TRAY.with(|slot| {
+                slot.borrow().as_ref()?.provider_rows.iter()
+                    .find(|(event_id, _, _)| event_id == id)
+                    .map(|(_, provider, _)| GeneralSettingsMessage::TrayProviderSwitch(provider.clone()))
+            }),
         })
         .collect()
 }

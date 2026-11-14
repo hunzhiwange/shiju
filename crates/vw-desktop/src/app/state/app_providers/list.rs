@@ -25,6 +25,7 @@ pub(crate) struct ListState {
     pub generation: u64,
     pub query: String,
     pub loading: bool,
+    pub tray_switch: Option<String>,
     pub snapshot: Option<Snapshot>,
     pub editor: Option<Editor>,
     pub form: Option<super::edit::EditForm>,
@@ -87,6 +88,7 @@ impl ListState {
         self.paths = None;
         self.pi_directory = None;
         self.codex_subagent = None;
+        self.tray_switch = None;
         self.loading = true;
         self.error = None;
         self.generation

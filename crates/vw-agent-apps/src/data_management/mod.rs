@@ -5,3 +5,14 @@ mod source_json;
 
 #[cfg(test)]
 mod source_tests;
+
+pub mod portable_policy;
+#[cfg(test)]
+mod portable_policy_tests;
+
+#[cfg(target_os = "macos")]
+pub mod safety_snapshot;
+#[cfg(target_os = "macos")]
+mod safety_snapshot_files;
+#[cfg(all(test, target_os = "macos"))]
+mod safety_snapshot_tests;

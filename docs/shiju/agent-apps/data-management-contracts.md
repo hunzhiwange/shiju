@@ -80,3 +80,7 @@ shiju --config-dir /absolute/isolated/config gateway --host 127.0.0.1 --port 193
 - 响应以计数、封闭枚举和不透明句柄表达预览/错误，无任意 JSON、原始载荷、SQL、异常消息或路径字段。拒绝未知操作与未知请求字段。DTO 无法自动净化任意字符串：来源版本、摘要和所有句柄均由所有者校验/生成，禁止把密钥放入这些字段；跨字段一致性、非空选择及版本兼容规则属于后续业务实现。
 
 按本轮明确覆盖要求，未调用 Cargo、未编译、未运行单元或实机测试；静态阅读不能证明序列化行为测试通过。后续验证入口见 `data-management-macos.md` 子任务 2 小节。
+
+## 子任务 3：来源只读暂存入口
+
+`vw-agent-apps/src/data_management/source.rs::read_selected_source` 已实现用户选定副本的 SQLite/JSON 识别与只读暂存，私有文件捕获/JSON 解析分别在 `source_files.rs` / `source_json.rs`；父模块注册到业务包 `data_management`，不另建永久 CC 存储。调用方提供已授权根与 SourceScope（ProjectScope、host、principal），原始载荷通过同作用域的 `SourceSnapshot::records` 供后续领域预览校验，不调用类别写入。SQLite schema 上限 24、JSON 版本 2；摘要不包含源路径、原始字段或发行版本猜测。DTO 的传输 ID 授权及摘要转换仍由后续网关任务交付，不将业务函数误报为已注册 API。实现边界及待回归过滤条件见 [macOS 交付记录](data-management-macos.md)。本轮未运行 Cargo 或任何测试，不能据此宣称读取一致性或源不变断言已通过。

@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "task": 22,
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "scope": "核对已有 macOS 验收产物；仅验证任务，本轮按用户最新指令跳过执行并删除编号任务卡。",
+  "acceptance_passed": false,
+  "baseline": {
+    "recorded_head": "513276fdb8ec9529211f7bb8f78a8fa0e072aad7",
+    "contract_baseline_commit": "90330f6c232537e310d63821238c6f1e980fb576",
+    "product_tree_matches_frozen_input": "unverified"
+  },
+  "dependencies": [
+    {
+      "task": 2,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/02.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 3,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/03.json",
+      "reported_status": "verification_deferred_by_user",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 4,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/04.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 5,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/05.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 6,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/06.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 7,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/07.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 8,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/08.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 9,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/09.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 10,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/10.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 11,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/11.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 12,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/12.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 13,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/13.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 14,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/14.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 15,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/15.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 16,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/16.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 17,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/17.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 18,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/18.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 19,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/19.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 20,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/20.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    },
+    {
+      "task": 21,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/21.json",
+      "reported_status": "deferred_unverified",
+      "applicability": "not_revalidated"
+    }
+  ],
+  "contract": {
+    "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "reported_status": "prepared_unverified_not_executable",
+    "verified_entrypoints": "未提供已验证入口；本轮不核证",
+    "binary_paths": null,
+    "binary_sha256": null,
+    "artifact_note": "契约未提供冻结产物引用；未搜索或核对本机现存产物，不宣称产物不存在。"
+  },
+  "capability_gaps": {
+    "status": "unresolved_not_revalidated",
+    "owners": "母任务2、3、20及各领域所有者",
+    "details": "契约已验证入口为空，前置证据均延期或未验证；不能据此宣布来源能力不支持，也不能视为验收通过。"
+  },
+  "execution": {
+    "cargo_invoked": false,
+    "builds_run": false,
+    "tests_run": false,
+    "device_acceptance_run": false,
+    "final_regression_run": false,
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "commands": [],
+    "exit_code": null,
+    "cargo_slot": null,
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_BUILD_DIR": null,
+    "cleanup": "未领取槽位、未启动产品进程、未创建运行资源，无需清理。"
+  },
+  "deferred_work": [
+    "复核任务2–21自动证据来源、版本、有效用例与当前适用性",
+    "核对当前产品树与冻结输入及基线提交",
+    "取得可用产物引用后记录路径、SHA-256、架构、features和版本；不自动触发构建",
+    "检查本JSON格式及差异；任何后续运行另记实际命令、退出码和有效用例数"
+  ],
+  "limitations": "本轮仅准备延期持久产物；未执行验收、格式检查、构建、测试或最终回归。没有本轮运行故事或通过证据。",
+  "task_card_disposition": "按用户最新指令删除；不表示通过验收。"
+}

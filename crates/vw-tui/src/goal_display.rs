@@ -36,6 +36,7 @@ pub fn step_status_label(status: V3StepStatus) -> &'static str {
     }
 }
 
+#[allow(unused_imports)]
 pub use tui_cells::step::{format_step, step_status_marker};
 
 #[cfg(test)]

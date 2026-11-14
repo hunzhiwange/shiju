@@ -4,6 +4,27 @@ use vw_api_types::{
     app_providers::presentation::{AppProviderPresentation, AppProviderPresentationEntry},
 };
 impl GatewayClient {
+    /// Read persisted presentation and apply its category/index/identity ordering.
+    /// Callers render these rows directly, including after a refresh or save.
+    pub async fn app_provider_presented_catalog(
+        &self,
+        app: AppId,
+        host: &str,
+        token: &str,
+    ) -> Result<(vw_api_types::app_providers::catalog::ProviderCatalog, Vec<AppProviderPresentationEntry>), String> {
+        let mut catalog = self.app_provider_catalog(app, host, token).await?;
+        let presentation = self.app_provider_presentation_list(app).await?;
+        catalog.rows.sort_by_key(|row| {
+            let value = presentation.iter().find(|entry| entry.id == row.provider.id);
+            (
+                value.and_then(|entry| entry.presentation.category.clone()).unwrap_or_default(),
+                value.and_then(|entry| entry.presentation.sort_index).unwrap_or(u32::MAX),
+                row.provider.id.clone(),
+            )
+        });
+        Ok((catalog, presentation))
+    }
+
     pub async fn app_provider_presentation_set(
         &self,
         app: AppId,

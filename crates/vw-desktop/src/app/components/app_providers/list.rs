@@ -163,15 +163,7 @@ pub(crate) fn overlay<'a>(
             );
         }
         body = body.push(settings_panel(status));
-        let mut rows = snapshot.catalog.rows.iter().collect::<Vec<_>>();
-        rows.sort_by_key(|r| {
-            let p = state.presentation(&r.provider.id);
-            (
-                p.category.unwrap_or_default(),
-                p.sort_index.unwrap_or(u32::MAX),
-                r.provider.id.clone(),
-            )
-        });
+        let rows = &snapshot.catalog.rows;
         if rows.is_empty() {
             body = body
                 .push(settings_panel(text("没有已保存的供应商").style(settings_muted_text_style)));

@@ -81,6 +81,17 @@ impl S3DownloadTarget {
         Ok(Self { config, prefix, client })
     }
 
+    /// Encoded manifest path only, using the same addressing as the actual GET.
+    /// Excludes the origin, credentials and query parameters.
+    pub fn manifest_path(&self) -> Result<String, S3DownloadError> {
+        super::super::s3_signing::build_object_url(
+            &self.config,
+            &format!("{}/manifest.json", self.prefix),
+        )
+        .map(|url| url.path().to_owned())
+        .map_err(|message| error("query", message))
+    }
+
     /// Only 404 returns None. Authentication failures and missing ETag are errors.
     pub async fn head(&self, artifact: &str) -> Result<Option<RemoteMetadata>, S3DownloadError> {
         let response = self.send(Method::HEAD, artifact, Instant::now() + IDLE_TIMEOUT).await?;

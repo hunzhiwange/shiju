@@ -72,7 +72,7 @@ pub enum SourceCategory {
     Usage,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SourceFormat { Sqlite, Json }
+pub enum SourceFormat { Sqlite, Json, Sql }
 
 /// Safe summary only. No raw values, filesystem paths or credentials.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,9 +94,9 @@ pub struct SourceRecord {
 
 /// Owned, immutable staging. It does not keep a connection to the source.
 pub struct SourceSnapshot {
-    scope: SourceScope,
-    summary: SourceSummary,
-    records: Vec<SourceRecord>,
+    pub(super) scope: SourceScope,
+    pub(super) summary: SourceSummary,
+    pub(super) records: Vec<SourceRecord>,
 }
 impl SourceSnapshot {
     pub fn summary(&self, scope: &SourceScope) -> Result<&SourceSummary, SourceError> {
@@ -182,6 +182,10 @@ fn read_sqlite(main: &[u8], wal: Option<&[u8]>, records: &mut Vec<SourceRecord>)
         .map_err(|_| SourceError::InvalidData)?;
     connection.execute_batch("PRAGMA trusted_schema=OFF; PRAGMA query_only=ON; BEGIN DEFERRED;")
         .map_err(|_| SourceError::InvalidData)?;
+    read_connection(&connection, records)
+}
+
+pub(super) fn read_connection(connection: &Connection, records: &mut Vec<SourceRecord>) -> Result<u32, SourceError> {
     let version: u32 = connection.pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|_| SourceError::InvalidData)?;
     if version > MAX_SCHEMA_VERSION {

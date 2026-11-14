@@ -72,3 +72,11 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 独立测试源码 backup_list_tests.rs 由真实父模块按 macOS 注册：`cc_data_23_backup_list_returns_visible_metadata` 使用匿名内存 SQLite 真实用量偏好所有者捕获，覆盖元数据、列举前后字节不变、未来版本、结构损坏及不可归属损坏隐藏；`cc_data_23_backup_list_hides_other_tenant` 覆盖租户、项目、principal、host 和符号/硬链接边界。两项测试均未运行。本轮遵循用户覆盖仅实现，不执行 Cargo、构建、单元或实机测试，无通过证据、退出码或有效测试数；未领取槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。编号卡按用户要求删除，plan.md 保持只读。
 
 待统一回归（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_23_ -- --nocapture`，届时记录实际槽位、绝对缓存路径、退出码及有效测试数。
+
+## 子任务 4：SQL 隔离暂存实现（2026-11-14）
+
+`data_management/sql_stage.rs::stage_sql` 接受已授权上传字节与 SourceScope，不接受目标数据库或路径。只在一次性内存 SQLite 执行 SQL；authorizer 正向白名单拒绝 ATTACH/DETACH、VACUUM、虚拟表、函数及除 foreign_keys/user_version 外的 PRAGMA，未知动作默认拒绝，不输出 SQL 错误或载荷。输入上限 64 MiB，数据库上限 256 MiB，单值上限 16 MiB，VM progress handler 有界；临时存储固定内存。校验精确首行导出头、事务闭合、七张来源必需表及 integrity_check，再复用 source::read_connection 校验版本、关键列并提取有界记录。返回原作用域绑定的 SourceSnapshot，不迁移 schema、不写目标、不授予领域执行权限。此入口未接入上传 API，调用者必须先授权输入及目标身份。
+
+独立测试注册于 data_management/mod.rs，过滤族 `cc_data_04_`，覆盖匿名导出形状、隔离作用域、跨文件攻击无磁盘副作用、危险 PRAGMA、空头、截断事务、关键列缺失与未来版本。夹具依照来源 dump_sql 格式手工构造，未调用来源程序导出真实文件，不作为真实导出兼容性已验证证据。
+
+按本轮用户覆盖要求，仅完成代码和测试代码，未运行 Cargo、编译、单元或实机测试；无退出码、有效测试数或通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。后续统一验证使用仓库 cargo_slot.py 入口执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_04_ -- --nocapture`，另补来源真实匿名导出兼容验证。

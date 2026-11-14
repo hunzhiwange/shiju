@@ -173,3 +173,11 @@ select/current 接收既有 ProjectScope，记录 ProjectId 而不复制项目�
 后续任务 16 必须消费 `PreparedProfileSwitch.target` 和 warning，不能绕过准备入口；任务 17/18 必须串行化同一租户/主机/项目/组的整个 prepare/apply/select 生命周期，并在应用前执行既有权限和版本校验。本入口不应用配置、不移动指针；四领域实际读取适配及生产应用调用者尚未交付，不能声称平台闭环。
 
 按用户覆盖要求仅实现代码与必需合同，未编写/执行测试，未运行 Cargo、构建、检查、实机或最终回归；无 Cargo 槽位，CARGO_TARGET_DIR 未设置。实现未经编译和行为验证。后续需补 profile_t15_ 场景：跨组合保存当前组、同组合不覆盖、无当前组合、目标缺失/非法载荷零写入、快照/事务失败 warning 继续、其他组保留和并发版本冲突。
+
+## 任务 13：技能槽位应用合同
+
+`project_profiles/apply_skills.rs::apply_skills` 对指定组执行惰性读取与逐项分发：null 不读不写，空集合停用当前启用项；仅启用位不同才调用分发，缺失引用逐项返回 Missing，单项失败继续，结果按引用排序。已启用项不重物化。读取失败整体返回错误，不伪造空集合；结果不更新快照或 selected/applied 指针，也不下载或安装技能。
+
+macOS 执行端适配 `gateway/agent_apps/profile_skills.rs::apply_resolved_skills` 接母任务 12 的 `SkillInstallsStore::enable_with_method/disable_deploy`，保留其事务、版本检查和失败恢复；每项重新读取当前版本，沿用保存的同步模式，只传指定应用实例。profile 的 installationId 是不透明技能引用，底层 distribution 的 installation_id 则是应用实例身份，两者不可混用。执行端必须将技能引用解析成唯一目录、拒绝重复目录别名，并从该应用实例的实际部署观察 enabled；不能直接把客户端目录或期望绑定状态传入。未完成此解析、项目/主机/逐项领域授权及外层串行化前，不得调用适配器。Claude Desktop 沿底层能力明确返回 Unsupported。
+
+当前提供编排与分发适配，生产 API、原生观察/引用解析接线由后续应用任务完成；未声称平台闭环。按用户本轮覆盖要求仅写代码与必需契约，未编写或运行测试，未执行 Cargo、构建、检查、实机或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。后续补充并执行 profile_t13_ 场景：组隔离、重复应用不重物化、null/空集合区别、缺失引用、单项失败后继续、权限拒绝及 Desktop 不支持。

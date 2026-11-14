@@ -7,3 +7,4 @@ pub mod create;
 pub mod preview;
 pub mod resnapshot;
 pub mod autosave;
+pub mod apply_skills;

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "task": 56,
+  "title": "编写API交付说明",
+  "date": "2026-11-14",
+  "status": "documentation_written_unverified_not_accepted",
+  "instruction_override": "最新用户要求仅写必要产物；不运行Cargo、构建、测试、验收或回归；删除编号任务卡，验证延期。",
+  "deliverable": "docs/shiju/cc-macos-acceptance/api.md",
+  "input_contract": {
+    "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "status": "prepared_unverified_not_executable",
+    "verified_api": null
+  },
+  "baseline": {
+    "contract_commit": "90330f6c232537e310d63821238c6f1e980fb576",
+    "observed_head": "63f2a35bd3ac2644f26e3c9acc56698ae2a083f0",
+    "note": "共享checkout读时HEAD，不作为冻结产物或一致性核证"
+  },
+  "source_review": "阅读任务、计划、契约、领域文档；rustcodegraph status/explore/node及图未覆盖文件读取。静态阅读不是行为证据。",
+  "capability_gaps": [
+    {
+      "owner": "母2及各领域",
+      "key": "verified_entrypoints.api",
+      "detail": "契约API值为空，无当前成功请求或部署契约"
+    },
+    {
+      "owner": "项目组合执行API所有者",
+      "key": "project_profiles_execution",
+      "detail": "preview/apply返回503，操作查询和取消返回404；真实观察、执行worker、注册表未交付"
+    }
+  ],
+  "execution": {
+    "behavior_commands": [],
+    "exit_code": null,
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "observations": [],
+    "format_check": "not_run",
+    "link_check": "not_run",
+    "unit_tests": "not_run",
+    "build": "not_run",
+    "acceptance": "not_run",
+    "final_regression": "not_run"
+  },
+  "runtime": {
+    "macos_version": null,
+    "arm64": "unverified",
+    "x64": "unverified",
+    "app_version": null,
+    "artifact_hashes": null
+  },
+  "deferred_work": [
+    "逐项绑定冻结产品树、包哈希及真实部署入口",
+    "补充认证/隔离、成功及拒绝响应、错误、进度恢复和安全取消证据",
+    "执行JSON格式、链接、示例脱敏核对及差异审查；未运行检查不得计通过"
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "task_card": "按用户要求删除56号卡，持久记录保留"
+  },
+  "conclusion": "完成本轮可落地的中文文档；未验收、不计通过；主动延期不标阻塞，真实能力缺口保留。"
+}

@@ -2,3 +2,5 @@
 pub mod targets;
 
 pub mod template_slug;
+
+pub mod template_metadata;

@@ -7,6 +7,8 @@ use crate::{global_database::GlobalDatabase, gateway::agent_apps::profile_store:
 
 #[path = "project_profiles_maintenance.rs"]
 mod maintenance;
+#[path = "project_profiles_execution.rs"]
+mod execution;
 
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
@@ -34,6 +36,7 @@ pub(super) fn router() -> Router {
         .route("/agent-apps/project-profiles", get(list).post(create))
         .route("/agent-apps/project-profiles/current", get(current))
         .merge(maintenance::router())
+        .merge(execution::router())
         .layer(DefaultBodyLimit::max(16 * 1024))
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
 }

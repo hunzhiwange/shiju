@@ -74,3 +74,5 @@ pub mod dedup;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod models_sync;
+
+pub mod scan_jobs;

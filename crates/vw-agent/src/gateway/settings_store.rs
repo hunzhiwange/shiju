@@ -202,6 +202,42 @@ impl GatewaySettingsStore {
         })
     }
 
+    /// MCP migration compares the complete observed namespace before publishing
+    /// its prepared batch. PostgreSQL is explicitly unsupported until its batch
+    /// locking contract is implemented; no sequential fallback is safe.
+    #[cfg(target_os = "macos")]
+    pub(crate) fn apply_mcp_migration(
+        &self,
+        tenant: &TenantScope,
+        namespace: &str,
+        expected: &[GatewaySetting],
+        replacements: &[GatewaySetting],
+    ) -> Result<bool> {
+        validate_identifier(namespace, "MCP namespace")?;
+        for row in replacements {
+            validate_identifier(&row.config_key, "MCP key")?;
+            validate_identifier(&row.payload_json, "MCP payload")?;
+        }
+        let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
+            bail!("atomic MCP migration is not supported by this backend");
+        };
+        database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+            let current = {
+                let mut statement = transaction.prepare(
+                    "SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key"
+                )?;
+                statement.query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), namespace], |row| {
+                    Ok(GatewaySetting { config_key: row.get(0)?, payload_json: row.get(1)? })
+                })?.collect::<rusqlite::Result<Vec<_>>>()?
+            };
+            if current != expected { return Ok(false); }
+            for row in replacements {
+                upsert_sqlite(transaction, tenant, namespace, &row.config_key, &row.payload_json, current_timestamp_ms()?)?;
+            }
+            Ok(true)
+        })
+    }
+
     /// Atomically insert a new scoped key; conflicts leave payload and timestamp unchanged.
     pub(crate) fn insert_if_absent(
         &self,

@@ -73,3 +73,7 @@ mod location_delete_tests;
 
 #[cfg(target_os = "macos")]
 pub mod backup_api;
+
+pub mod mcp;
+#[cfg(test)]
+mod mcp_tests;

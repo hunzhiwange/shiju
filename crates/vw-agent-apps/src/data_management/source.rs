@@ -53,6 +53,9 @@ pub struct SourceScope {
     principal_id: String,
 }
 impl SourceScope {
+    pub fn project(&self) -> &ProjectScope { &self.project }
+    pub fn principal_id(&self) -> &str { &self.principal_id }
+    pub fn host_id(&self) -> &str { &self.host_id }
     pub fn new(project: ProjectScope, host_id: String, principal_id: String) -> Result<Self, SourceError> {
         if host_id.trim().is_empty() || principal_id.trim().is_empty() {
             return Err(SourceError::InvalidScope);

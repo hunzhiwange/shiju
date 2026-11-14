@@ -205,3 +205,11 @@ mod host_scope_tests;
 
 #[cfg(target_os = "macos")]
 pub(crate) mod profile_slot;
+
+#[cfg(target_os = "macos")]
+mod data_migration;
+#[cfg(target_os = "macos")]
+pub use data_migration::{McpMigration, McpMigrationCommit};
+
+#[cfg(all(test, target_os = "macos"))]
+mod data_migration_tests;

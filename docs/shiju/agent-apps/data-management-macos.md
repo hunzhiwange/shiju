@@ -155,3 +155,22 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 创建的生产捕获范围目前明确为 **Preferences**：从显式注入 GlobalDatabase 的 SQLite 只读事务中捕获当前 principal 的 agent_apps_user 与当前执行主机的 agent_apps_host 完整原值/明确不存在，保持事务到归档持久化。其它类别、portable_export 与非 SQLite 捕获明确返回 501，不用可迁移 SharedSnapshot 冒充完整本机前镜像；本项未补其它领域捕获。全体不存在返回 null，无可见备份。请求键与完整作用域哈希生成稳定归档 ID，同一键现存备份的名称/类别不一致返回冲突；标签改名后重放原创建请求也返回冲突。首次发布与 ID 移动为两阶段，后阶段失败可能留下随机 ID 的有效归档，需重新列举核对，不承诺跨归档/数据库事务或自动回滚。现有旧归档可列举维护，无第二套回执库。
 
 新增并注册 `cc_data_34_backup_api_maintains_isolated_backups` 与 `cc_data_34_backup_api_rejects_cross_tenant_id` 源码，使用匿名临时 SQLite、私有归档根与本地动态端口真实 HTTP，覆盖创建/列举/改中文标签/旧 revision 拒绝/删除及外租户拒绝。按用户要求**未运行** Cargo、构建、单元或实机测试；无通过证据、测试数或退出码。未领取 Cargo 槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。仅对新增文件运行独立 rustfmt 排版，不代表编译或行为验证。统一回归需执行仓库槽位包装下的 `cargo test -j 1 -p vw-agent --lib cc_data_34_ -- --nocapture`，并补鉴权拒绝、保护源、并发与发布后失败场景。
+
+## 子任务 10：MCP 迁入实现（2026-11-14，未验证）
+
+- `data_management/mcp.rs::normalize` 严格解析 SQLite mcp_servers 与统一 JSON mcp.servers，整类先校验、拒绝重复 ID、非法定义及需另行授权的字段；保留元数据与各应用启用意图。旧版分应用 JSON 明确拒绝。
+- `McpCatalogStore::{preview_data_migration,commit_data_migration}` 为唯一目录所有者接线，固定来源绑定项目、主机与 principal，接收执行主机已授权的安装目标；预览以完整私有定义摘要比较，避免通用可迁移过滤忽略 command/args/enabled 导致误判相同。来源摘要、冲突决策与整个目录快照均重新核对。
+- 先通过任务 8 的 `with_safety_snapshot` 持久化所改目录条目的完整前镜像（含不存在标记），再在 SQLite Immediate 事务中比较完整 namespace 并批量写入；任一错误回滚整类。回执与写入结果分别返回，过期快照不覆盖并发变更。相同内容重新预览后跳过，替换推进 revision；墓碑不复活。原生状态固定 NotVerified，不执行 MCP、不授予 runtime/ACP 工具能力、不分发原生文件。
+- 当前批量事务只支持 SQLite；PostgreSQL 明确拒绝，无逐条降级。此为内部所有者入口，网关授权、任务回执持久化与多类别恢复调度仍由对应后续任务接入，不宣称 API 已发布。
+- 新增业务包 `cc_data_10_mcp_preserves_scope_and_enabled_state`、`cc_data_10_mcp_import_never_executes_command` 和所有者 `cc_data_10_owner_add_skip_replace_and_repeat_without_duplicate_rows`；全部仅编写、未运行。统一回归应分别运行 vw-agent-apps / vw-agent 的 `--lib cc_data_10_` 定向测试，并补 SQLite 故障注入、主机/项目隔离及授权目标边界。
+- 本轮按用户覆盖要求未执行任何 Cargo、单元或实机测试，无退出码、有效测试数或验证通过证据；未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。只格式化本次独立新增 Rust 文件。按覆盖要求实现后删除编号任务卡，不能据卡片删除推断验收通过。
+
+## 子任务 9：供应商迁入代码交付（2026-11-14）
+
+新增 `data_management/providers.rs::{prepare,ProviderPreview::resolve}`，封装来源摘要、目标记录摘要、身份与随机预览句柄到保留载荷的映射；SQLite/JSON 来源按应用 ID 和供应商 ID 关联端点，重复 ID、非法端点、孤立引用和非法图标使整批准备失败。元数据复用 presentation/icons/endpoints 所有者校验，不复制 is_current 或 failover 队列作为激活动作。仅支持 Claude、Gemini、Codex；其它应用、Bedrock/Vertex 和无法解析的配置明确拒绝。内联自定义图标沿用既有校验，外部图标 ID 不伪装成有效图片。
+
+`AppProviderStore::{preview_cc_providers,import_cc_providers}` 是现有所有者的新业务入口，非 HTTP 路由。调用方必须先授权 SourceScope；执行时 SQLite Immediate 事务内重新读取同租户完整供应商集合，校验预览版本和决策，捕获完整原记录/不存在状态，通过任务8创建回退点后在唯一 namespace 原子提交。失败由 SQLite 回滚类别，不逐行补偿，不触碰 live；绑定原生发布/账号的记录拒绝。PostgreSQL 明确不支持此入口，不切换后端。回退归档保留完整前镜像；恢复入口与 API 调度仍由后续任务接线。
+
+凭据按 portable_policy 不从源复制。Claude/Gemini 第三方配置须有相同目标身份的既有领域凭据，否则拒绝；Codex 只保留模型/路由 TOML 白名单及目标已有 key，不搬源 auth。官方记录仅入目录，不改变本机登录。测试文件 `providers_tests.rs` 注册四个 `cc_data_09_` 行为测试，涵盖重复执行、skip、跨主机/非法批次、源凭据拒绝；本轮均未运行。
+
+用户要求本轮只写代码，未运行 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。统一验证应执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_09_ -- --nocapture`，并补充 vw-agent 所有者真实 SQLite 事务、回退文件失败与并发版本场景。本节为交付记录，不是 macOS 验收通过证据。

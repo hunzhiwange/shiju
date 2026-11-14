@@ -138,3 +138,13 @@ fn acp_onboarding_grok_installer_contract() {
     }
     assert!(acp_install_command("grok; echo unsafe").is_none());
 }
+
+#[test]
+fn acp_onboarding_nova_installer_contract() {
+    use super::{AcpInstallPlatform, acp_install_command_for_platform};
+    for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+        let (_, args) = acp_install_command_for_platform("nova", platform).unwrap();
+        assert_eq!(args, ["install", "-g", "@compass-ai/nova@1.1.65"]);
+    }
+    assert!(acp_install_command("nova; echo unsafe").is_none());
+}

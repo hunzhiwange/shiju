@@ -221,8 +221,8 @@ for line in sys.stdin:
     if 'id' not in r or 'method' not in r: continue
     with open(sys.argv[1], 'a') as f: f.write(line)
     m=r['method']
-    if m=='initialize': result={'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}
-    elif m=='session/new': result={'sessionId':'acceptance'}
+    if m=='initialize': result={'protocolVersion':1,'agentCapabilities':{'_meta':{'compass.owner-approval.v1':True}},'_meta':{'ownerApprovalRequired':True},'authMethods':[]}
+    elif m=='session/new': result={'sessionId':'acceptance','_meta':{'ownerApprovalRequired':True}}
     elif m=='session/prompt':
         print(json.dumps({'jsonrpc':'2.0','id':900,'method':'fs/write_text_file','params':{'sessionId':'acceptance','path':sys.argv[1]+'.denied','content':'must not write'}}),flush=True)
         permission=json.loads(sys.stdin.readline())
@@ -235,7 +235,7 @@ for line in sys.stdin:
     std::fs::write(
         workspace.join(".vwacprc.json"),
         serde_json::to_vec(&json!({
-            "mcpServers": if backend == "dirac" { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
+            "mcpServers": if matches!(backend, "dirac" | "nova") { json!([]) } else if backend == "dimcode" { json!([{"name":"selected","type":"http","url":"https://example.test/mcp"}]) } else { json!([{"name":"selected","command":"controlled-mcp"}]) }
         }))
         .unwrap(),
     )
@@ -248,13 +248,25 @@ for line in sys.stdin:
                 "defaults":{
                     "permission":{"mode":"fixed","value":{"*":"deny"}},
                     "skills":{"mode":"fixed","value":[]},
-                    "mcp":{"mode":"fixed","value":if backend == "dirac" { json!([]) } else { json!(["selected"]) }}
+                    "mcp":{"mode":"fixed","value":if matches!(backend, "dirac" | "nova") { json!([]) } else { json!(["selected"]) }}
                 }
             }}
         })))
         .unwrap();
+    if backend == "nova" && std::env::var_os("SHIJU_NOVA_REAL_PROFILE").is_some() {
+        std::fs::write(&peer, "import runpy,os\nrunpy.run_path(os.environ['SHIJU_NOVA_TEST_FIXTURE'],run_name='__main__')\n").unwrap();
+        runtime.block_on(crate::config::update(json!({"acp":{"nova":{
+            "command":"python3","args":[peer,capture],"env":{
+                "HOME":std::env::var("SHIJU_NOVA_TEST_HOME").unwrap(),
+                "SHIJU_NOVA_TEST_ENTRY":std::env::var("SHIJU_NOVA_TEST_ENTRY").unwrap(),
+                "SHIJU_NOVA_TEST_FIXTURE":concat!(env!("CARGO_MANIFEST_DIR"),"/../vw-acp/tests/fixtures/nova_real_peer.py"),
+                "SHIJU_NOVA_TEST_CAPTURE":capture,
+                "SHIJU_NOVA_TEST_EXPECTED_MODEL":"claude-sonnet-4-6"
+            }
+        }}}))).unwrap();
+    }
     let directory = workspace.to_string_lossy().into_owned();
-    let is_dirac = backend == "dirac";
+    let rejects_mcp = matches!(backend, "dirac" | "nova");
     let backend = backend.to_owned();
     let binding_directory = directory.clone();
     runtime
@@ -306,7 +318,16 @@ for line in sys.stdin:
         .map(|line| serde_json::from_str(line).unwrap())
         .collect();
     let new = requests.iter().find(|r| r["method"] == "session/new").unwrap();
-    if is_dirac {
+    if profile == "acp-nova" {
+        let initialize = requests.iter().find(|r| r["method"] == "initialize").unwrap();
+        assert_eq!(
+            initialize["params"]["clientCapabilities"]["_meta"]["compass.owner-approval.v1"],
+            true
+        );
+        assert_eq!(new["params"]["_meta"]["compass.owner-approval.v1"], true);
+        assert_eq!(new["params"]["_meta"]["compass.peers-disabled"], true);
+    }
+    if rejects_mcp {
         assert_eq!(new["params"]["mcpServers"], json!([]));
     } else {
         assert_eq!(new["params"]["mcpServers"][0]["name"], "selected");
@@ -771,4 +792,53 @@ fn acp_onboarding_grok_builtin_profile_persists_and_runs() {
         }),
     ));
     assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
+#[test]
+fn acp_onboarding_nova_builtin_profile_persists_and_runs() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    struct RealTransport(Option<std::ffi::OsString>);
+    impl Drop for RealTransport {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => std::env::set_var("VW_RECOVERY_WINDOW_HTTP", value),
+                    None => std::env::remove_var("VW_RECOVERY_WINDOW_HTTP"),
+                }
+            }
+        }
+    }
+    let _transport = RealTransport(std::env::var_os("VW_RECOVERY_WINDOW_HTTP"));
+    unsafe {
+        std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
+    }
+    let workspace = tempfile::tempdir().unwrap();
+    assert_acp_profile(&runtime, workspace.path(), "nova");
+    runtime
+        .block_on(crate::config::update(json!({"agents":{"acp-nova":{"enabled":false}}})))
+        .unwrap();
+    let disabled = runtime.block_on(super::stream::chat_stream(
+        Query(InstanceQuery { directory: Some(workspace.path().to_string_lossy().into_owned()) }),
+        HeaderMap::new(),
+        Json(GatewayChatStreamRequest {
+            session_id: Some(format!("ses_disabled_{}", uuid::Uuid::new_v4()).into()),
+            agent: Some("acp-nova".into()),
+            messages: vec![json!({"role":"user","content":"must reject"})],
+            ..Default::default()
+        }),
+    ));
+    assert!(disabled.is_err(), "disabled preset must reject before execution");
+}
+
+#[test]
+#[ignore = "requires the official Nova package and authorized isolated local consent"]
+fn acp_onboarding_nova_real_builtin_profile_persists_and_runs() {
+    assert!(std::env::var_os("SHIJU_NOVA_REAL_PROFILE").is_some());
+    acp_onboarding_nova_builtin_profile_persists_and_runs();
 }

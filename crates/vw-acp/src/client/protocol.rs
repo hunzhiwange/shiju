@@ -10,9 +10,13 @@ impl AcpClient {
         &self,
         conn: &acp::ClientSideConnection,
     ) -> Result<(), AcpError> {
-        let capabilities = acp::ClientCapabilities::new()
+        let mut capabilities = acp::ClientCapabilities::new()
             .fs(acp::FileSystemCapabilities::new().read_text_file(true).write_text_file(true))
             .terminal(true);
+        if self.agent_name == "nova" {
+            capabilities = capabilities
+                .meta(Map::from_iter([("compass.owner-approval.v1".into(), json!(true))]));
+        }
         let response = conn.initialize(
             acp::InitializeRequest::new(acp::ProtocolVersion::V1)
                 .client_info(
@@ -33,6 +37,19 @@ impl AcpClient {
         } else {
             response.await.map_err(|err| AcpError::Initialize(err.to_string()))?
         };
+        if self.agent_name == "nova" {
+            let caps = serde_json::to_value(&response.agent_capabilities)
+                .map_err(|e| AcpError::Initialize(e.to_string()))?;
+            let initialization =
+                serde_json::to_value(&response).map_err(|e| AcpError::Initialize(e.to_string()))?;
+            if caps["_meta"]["compass.owner-approval.v1"] != true
+                || initialization["_meta"]["ownerApprovalRequired"] != true
+            {
+                return Err(AcpError::Initialize(
+                    "Nova lacks mandatory owner approval capability".into(),
+                ));
+            }
+        }
         if self.agent_name.eq_ignore_ascii_case("codex")
             && self.skill_mounts.as_ref().is_some_and(|selection| !selection.skills.is_empty())
         {
@@ -224,6 +241,11 @@ impl AcpClient {
     }
 
     fn validate_mcp_contract(&self) -> Result<(), AcpError> {
+        if self.agent_name == "nova" && !self.mcp_servers.is_empty() {
+            return Err(AcpError::NewSession(
+                "Nova owner approval mode does not support MCP servers".into(),
+            ));
+        }
         if self.agent_name == "dirac" && !self.mcp_servers.is_empty() {
             return Err(AcpError::Prompt(
                 "Dirac does not consume ACP MCP servers; session-scoped MCP is unavailable".into(),
@@ -269,6 +291,13 @@ impl AcpClient {
         } else {
             conn.new_session(request).await.map_err(|err| AcpError::NewSession(err.to_string()))?
         };
+        if self.agent_name == "nova"
+            && serde_json::to_value(&session).map_err(|e| AcpError::NewSession(e.to_string()))?["_meta"]
+                ["ownerApprovalRequired"]
+                != true
+        {
+            return Err(AcpError::NewSession("Nova session did not confirm owner approval".into()));
+        }
         self.actor_state.lock().iflow_acknowledged_mode = None;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
             session_id: session.session_id.to_string(),
@@ -309,7 +338,7 @@ impl AcpClient {
             .mcp_servers(self.mcp_servers.clone());
         if (managed_claude_settings(&self.config).is_some()
             || self.skill_mounts.is_some()
-            || self.agent_name == "kiro")
+            || matches!(self.agent_name.as_str(), "kiro" | "nova"))
             && let Some(meta) = self.mounted_session_meta()
         {
             request = request.meta(meta);
@@ -318,6 +347,11 @@ impl AcpClient {
             .load_session(request)
             .await
             .map_err(|err| AcpError::LoadSession(err.to_string()))?;
+        if self.agent_name == "nova"
+            && serde_json::to_value(&response).map_err(|e| AcpError::LoadSession(e.to_string()))?["_meta"]["conversationHistoryLength"].as_u64().unwrap_or(0) == 0
+        {
+            return Err(AcpError::LoadSession("Nova did not restore a recorded conversation; refusing its empty-session fallback".into()));
+        }
         self.actor_state.lock().iflow_acknowledged_mode = None;
         self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
             session_id: session_id.clone(),
@@ -353,9 +387,9 @@ impl AcpClient {
         cwd: &Path,
         session_id: String,
     ) -> Result<SessionInfo, AcpError> {
-        // Kiro documents presets on new/load, not resume. Restore the same ID
-        // through load so the current client policy accompanies restoration.
-        if self.agent_name == "kiro" {
+        // Restore Kiro and Nova through load so the current client approval
+        // contract accompanies restoration.
+        if matches!(self.agent_name.as_str(), "kiro" | "nova") {
             return self.load_session_info(conn, cwd, session_id).await;
         }
         self.validate_mcp_contract()?;

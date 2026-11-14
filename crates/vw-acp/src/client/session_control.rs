@@ -137,6 +137,24 @@ impl AcpClient {
             &runtime.expected_session_id,
         )
         .await?;
+        if self.agent_name == "nova" {
+            let state = self.actor_state.lock();
+            let advertised = state
+                .session_capabilities
+                .as_ref()
+                .and_then(|info| info.models.as_ref())
+                .is_some_and(|models| {
+                    models
+                        .available_models
+                        .iter()
+                        .any(|entry| entry.model_id.0.as_ref() == model.as_str())
+                });
+            if !advertised {
+                return Err(AcpError::SetSessionModel(
+                    "Nova model is not in the current session catalog".into(),
+                ));
+            }
+        }
         let error_context = format!(r#"for model "{}""#, model);
         runtime
             .conn

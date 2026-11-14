@@ -51,6 +51,7 @@ pub fn acp_install_command_for_platform(
                 ),
             });
         }
+        "nova" => &["install", "-g", "@compass-ai/nova@1.1.65"],
         "grok" => &["install", "-g", "@xai-official/grok@1.0.77"],
         "glm-acp-agent" => &["install", "-g", "glm-acp-agent@1.17.1"],
         "dirac" => &["install", "-g", "dirac-cli@0.5.24"],

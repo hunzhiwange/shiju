@@ -38,6 +38,14 @@ impl AcpClient {
         &self,
         discard_stderr: bool,
     ) -> Result<ProcessHandles, AcpError> {
+        self.spawn_child_at(discard_stderr, None)
+    }
+
+    pub(super) fn spawn_child_at(
+        &self,
+        discard_stderr: bool,
+        directory: Option<&Path>,
+    ) -> Result<ProcessHandles, AcpError> {
         if self.agent_name.starts_with("vw-session-model:")
             || self.config.command.starts_with("vw-session-model:")
         {
@@ -151,6 +159,9 @@ impl AcpClient {
             #[cfg(not(windows))]
             vw_shared::shell::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
+        }
+        if let Some(directory) = directory {
+            cmd.current_dir(directory);
         }
         cmd.args(&args)
             .stdin(Stdio::piped())

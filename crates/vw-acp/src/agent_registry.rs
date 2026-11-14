@@ -248,6 +248,15 @@ fn normalize_agent_spec_for_name(name: &str, spec: &AgentCommandSpec) -> AgentCo
 
 const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
+        name: "nova",
+        display_name: "Nova",
+        command: "npx",
+        args: &["-y", "@compass-ai/nova@1.1.65", "acp"],
+        env: &[],
+        local_command_candidates: &["nova"],
+        local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
         name: "grok",
         display_name: "Grok Build",
         command: "npx",

@@ -80,6 +80,7 @@ mod kimi_access;
 mod lifecycle;
 #[path = "client/message_io.rs"]
 mod message_io;
+mod nova_io;
 #[path = "client/process.rs"]
 mod process;
 #[path = "client/process_signals.rs"]

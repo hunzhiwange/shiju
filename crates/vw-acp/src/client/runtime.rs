@@ -54,7 +54,12 @@ impl AcpClient {
     }
 
     async fn spawn_actor_runtime(&self, cwd: &Path) -> Result<ActorRuntime, AcpError> {
-        let ProcessHandles { mut child, stderr_task } = self.spawn_child()?;
+        // Nova performs project-state work before its first session/new RPC.
+        let ProcessHandles { mut child, stderr_task } = if self.agent_name == "nova" {
+            self.spawn_child_at(false, Some(cwd))?
+        } else {
+            self.spawn_child()?
+        };
         let pid = child.id();
         let outgoing = TappedWriter::new(
             child.stdin.take().ok_or(AcpError::MissingStdin)?,
@@ -64,7 +69,10 @@ impl AcpClient {
         let expected_session_id = Arc::new(Mutex::new(None::<String>));
         let (event_tx, event_rx) = mpsc::unbounded_channel::<InternalEvent>();
         let incoming = TappedReader::new(
-            child.stdout.take().ok_or(AcpError::MissingStdout)?,
+            nova_io::NovaReader::new(
+                child.stdout.take().ok_or(AcpError::MissingStdout)?,
+                self.agent_name == "nova",
+            ),
             self.make_message_tap(AcpMessageDirection::Inbound),
         )
         .compat();

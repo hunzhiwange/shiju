@@ -34,6 +34,12 @@ pub struct PromptCatalog {
     pub entries: Vec<PromptEntry>,
 }
 
+/// Each target reports its own persisted copy or authorization/storage failure.
+pub struct PromptCopyResult {
+    pub app: AppId,
+    pub result: Result<PromptEntry>,
+}
+
 #[derive(Clone)]
 pub struct PromptsStore(GatewaySettingsStore);
 
@@ -59,6 +65,44 @@ impl PromptsStore {
             entries.push(entry);
             Ok(())
         })
+    }
+
+    /// Copy the authorized source snapshot into independent disabled catalogs.
+    /// Authorization is evaluated for the source and every target on this host.
+    /// Partial success is intentional; a failed target never rolls back siblings.
+    /// The callback must check resource permissions, not just app availability.
+    pub fn copy_to_apps(
+        &self,
+        source: PromptScope<'_>,
+        id: &str,
+        targets: &[AppId],
+        mut authorize: impl FnMut(PromptScope<'_>) -> Result<()>,
+    ) -> Result<Vec<PromptCopyResult>> {
+        authorize(source)?;
+        vw_api_types::agent_apps::PromptResource::Application { app_id: source.app }
+            .validate_application_access()
+            .map_err(|_| anyhow::anyhow!("unsupported prompt copy source"))?;
+        let original = self.get(source, id)?
+            .ok_or_else(|| anyhow::anyhow!("prompt not found"))?;
+        let mut results = Vec::with_capacity(targets.len());
+        for (index, &app) in targets.iter().enumerate() {
+            let result = (|| {
+                ensure!(app != source.app, "prompt copy target must differ from source");
+                ensure!(!targets[..index].contains(&app), "duplicate prompt copy target");
+                let scope = PromptScope { app, ..source };
+                authorize(scope)?;
+                let id = vw_agent_apps::prompts::copy::new_copy_id(app, &original.content)
+                    .map_err(anyhow::Error::msg)?;
+                let entry = PromptEntry { id, ..original.clone() };
+                let catalog = self.list(scope)?;
+                // Existing same-name entries are preserved. CAS rejects concurrent
+                // catalog changes instead of overwriting them or retrying invisibly.
+                self.create(scope, catalog.revision, entry.clone())?;
+                Ok(entry)
+            })();
+            results.push(PromptCopyResult { app, result });
+        }
+        Ok(results)
     }
 
     pub fn update(&self, scope: PromptScope<'_>, revision: u64, entry: PromptEntry) -> Result<PromptCatalog> {

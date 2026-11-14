@@ -1,0 +1,19 @@
+[package]
+name = "memory-mariadb"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+memory-types = { path = "../memory-types", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+chrono = { version = "0.4", features = ["serde"] }
+mysql = "27.0.0"
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time", "test-util", "process", "signal"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tokio = { version = "1", features = ["sync", "macros", "time", "rt", "process", "signal"] }

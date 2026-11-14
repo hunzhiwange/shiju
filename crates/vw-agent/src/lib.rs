@@ -273,6 +273,9 @@ pub mod plugins;
 // 基于 git2 的只读仓库发现
 pub(crate) mod git_repository;
 
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod package_boundaries;
+
 // 项目上下文
 pub mod project;
 

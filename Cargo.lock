@@ -5984,6 +5984,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-mariadb"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "memory-types",
+ "mysql",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "memory-algorithms"
 version = "0.6.0"
 
@@ -12379,9 +12392,9 @@ dependencies = [
  "libc",
  "mail-parser",
  "memory-algorithms",
+ "memory-mariadb",
  "mime_guess",
  "minijinja",
- "mysql",
  "nanohtml2text",
  "nostr-sdk",
  "nusb",

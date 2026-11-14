@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "task": 19,
+  "title": "核证WebDAV与S3设备同步",
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "instruction_override": "最新用户指令要求仅验证/构建任务本轮跳过并删除任务卡；禁止 Cargo、构建、单元测试、实机测试、验收和最终回归。",
+  "scope": "仅 macOS；本轮仅保存延期记录，未改变生产代码。",
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "status": "prepared_unverified；未核证主责16来源及交叉项"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "status": "prepared_unverified_not_executable；不代表已验证执行入口"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "status": "前置任务持久记录；本轮未核证适用性"
+    },
+    {
+      "path": ".plans/2026-11-05-CC能力完整融合/19-WebDAV与S3设备同步.md",
+      "status": "读取时文件不存在；未重建来源映射"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": 19,
+      "detail": "母任务卡读取时不存在；逐来源实现/API/SDK/UI/聚焦测试映射与交叉项声明待提供或定位，不据此判定生产能力缺失。"
+    },
+    {
+      "owner": 1,
+      "detail": "运行契约自报 prepared_unverified_not_executable，已验证入口、构建产物、账号及主机引用缺失；本轮不核证。"
+    }
+  ],
+  "execution": {
+    "behavior_commands": [],
+    "exit_code": null,
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "observations": [],
+    "format_check": "not_run",
+    "unit_tests": "not_run",
+    "build": "not_run",
+    "acceptance": "not_run",
+    "final_regression": "not_run",
+    "note": "文档读取不计行为证据；零用例不能通过。"
+  },
+  "runtime": {
+    "macos_version": null,
+    "architectures": {
+      "arm64": "unverified",
+      "x64": "unverified"
+    },
+    "app_version": null,
+    "baseline_commit": null,
+    "artifact_hashes": null
+  },
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "未创建运行资源；删除本任务编号卡，保留本延期记录。"
+  },
+  "deferred_work": [
+    "母19提供或定位逐来源映射及交叉项；母1及构建所有者交付可执行隔离契约与冻结产物。",
+    "以后统一核对WebDAV与S3注册、权限与错误、SDK、同步冲突和任务状态、macOS适用性及等价入口证据；不在验收中扩成实现修复。",
+    "以后执行JSON格式检查和领域核证；保存真实命令、退出码、有效用例数、实际观察、证据提交及产物哈希、架构与应用版本，零用例不得通过。"
+  ],
+  "conclusion": "本轮跳过核证并延期，不计通过，不因主动跳过验证标记阻塞。",
+  "source_items": [
+    {
+      "source_key": "file:src-tauri/src/commands/s3_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/webdav_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/s3.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/s3_auto_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/s3_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/sync_protocol.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/webdav.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/webdav_auto_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/webdav_sync.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/webdav_sync/archive.rs",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:src/components/settings/WebdavSyncSection.tsx",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "file:tests/components/WebdavSyncSection.test.tsx",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/s3_sync.rs:99:s3_test_connection",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/s3_sync.rs:116:s3_sync_upload",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/s3_sync.rs:127:s3_sync_download",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/s3_sync.rs:162:s3_sync_save_settings",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/s3_sync.rs:183:s3_sync_fetch_remote_info",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:104:webdav_test_connection",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:124:webdav_sync_upload",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:135:webdav_sync_download",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:170:webdav_sync_save_settings",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:193:webdav_sync_clear_settings",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/webdav_sync.rs:201:webdav_sync_fetch_remote_info",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "event:src-tauri/src/services/s3_auto_sync.rs:91:s3-sync-status-updated",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    },
+    {
+      "source_key": "event:src-tauri/src/services/webdav_auto_sync.rs:91:webdav-sync-status-updated",
+      "status": "unverified",
+      "gap_owner": 19,
+      "reason": "本轮按用户指令延期核证；实现与测试绑定、macOS适用性及当前产物一致性未验证。"
+    }
+  ]
+}

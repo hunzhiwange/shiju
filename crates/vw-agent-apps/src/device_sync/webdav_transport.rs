@@ -1,4 +1,4 @@
-//! Gateway-authorized connection probes. Never persists settings or uploads data.
+//! Gateway-authorized WebDAV probes and fixed-artifact uploads. Never persists settings.
 
 use std::{fmt, time::Duration};
 
@@ -119,4 +119,91 @@ fn status_error(operation: &'static str, status: StatusCode, url: &Url) -> WebDa
         _ => "服务器拒绝 WebDAV 请求",
     };
     WebDavError { operation, status: Some(status), message }
+}
+
+/// Closed upload names: callers cannot supply paths or arbitrary destinations.
+#[derive(Clone, Copy)]
+pub enum UploadArtifact {
+    Config,
+    Skills,
+    Manifest,
+}
+
+impl UploadArtifact {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Config => super::manifest::CONFIG_ARTIFACT,
+            Self::Skills => super::manifest::SKILLS_ARTIFACT,
+            Self::Manifest => "manifest.json",
+        }
+    }
+
+    fn content_type(self) -> &'static str {
+        match self {
+            Self::Config => "application/json",
+            Self::Skills => "application/zip",
+            Self::Manifest => "application/octet-stream",
+        }
+    }
+}
+
+/// A locally validated destination. Construction does not authorize network use.
+/// Gateway must resolve credentials and authorize host access before upload.
+/// No Debug implementation: this value owns execution-side credentials.
+pub struct WebDavUploadTarget {
+    config: WebDavConfig,
+    data_compat_version: u32,
+    client: Client,
+}
+
+impl WebDavUploadTarget {
+    /// Compatibility must be supplied by the shared snapshot owner.
+    pub fn new(config: WebDavConfig, data_compat_version: u32) -> Result<Self, WebDavError> {
+        let config = config.normalize().map_err(upload_error)?;
+        if !config.enabled || config.base_url.is_empty() || config.username.is_empty() {
+            return Err(upload_error("上传需要启用的 WebDAV 地址和用户名"));
+        }
+        // Validate every destination component before accepting any bytes.
+        super::webdav_url::build_artifact_url(
+            &config.base_url, &config.remote_root, &config.profile,
+            data_compat_version, "manifest.json",
+        ).map_err(upload_error)?;
+        let client = build_client().map_err(|_| upload_error("无法创建 WebDAV 客户端"))?;
+        Ok(Self { config, data_compat_version, client })
+    }
+
+    /// Upload exactly these staged bytes. The caller owns snapshot filtering,
+    /// directory preparation and publication order (manifest last).
+    /// A timeout may leave remote bytes written; no automatic retry is performed.
+    pub async fn upload(&self, artifact: UploadArtifact, bytes: Vec<u8>) -> Result<(), WebDavError> {
+        let limit = match artifact {
+            UploadArtifact::Manifest => super::manifest::MAX_MANIFEST_BYTES as u64,
+            _ => super::artifact::MAX_ARTIFACT_SIZE,
+        };
+        if bytes.len() as u64 > limit {
+            return Err(upload_error("上传制品超过大小限制"));
+        }
+        let url = super::webdav_url::build_artifact_url(
+            &self.config.base_url, &self.config.remote_root, &self.config.profile,
+            self.data_compat_version, artifact.name(),
+        ).map_err(upload_error)?;
+        let response = self.client.put(url.clone())
+            .basic_auth(&self.config.username, Some(&self.config.password))
+            .header(reqwest::header::CONTENT_TYPE, artifact.content_type())
+            .timeout(Duration::from_secs(30))
+            .body(bytes)
+            .send().await.map_err(|error| WebDavError {
+                operation: "PUT",
+                status: None,
+                message: if error.is_timeout() { "请求超时" } else { "网络请求失败" },
+            })?;
+        if !response.status().is_success() {
+            return Err(status_error("PUT", response.status(), &url));
+        }
+        Ok(())
+    }
+}
+
+fn upload_error(message: &'static str) -> WebDavError {
+    WebDavError { operation: "PUT", status: None, message }
 }

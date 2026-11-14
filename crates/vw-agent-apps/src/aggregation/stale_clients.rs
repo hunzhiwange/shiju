@@ -46,7 +46,7 @@ pub async fn read(
     )
 }
 
-pub(super) async fn process_table() -> Option<String> {
+pub(crate) async fn process_table() -> Option<String> {
     let mut child = Command::new("/bin/ps")
         .args(["-ww", "-Ao", "pid=,etime=,command="])
         .env("LC_ALL", "C")

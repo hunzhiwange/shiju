@@ -24,6 +24,30 @@ pub struct ProviderLaunch {
     pub(crate) agy_account: Option<std::fs::File>,
 }
 impl ProviderLaunch {
+    /// Execution-host only. Keep this owner alive through terminal reap so its
+    /// provider and account leases outlive the credential-bearing child.
+    #[cfg(target_os = "macos")]
+    pub fn apply_resume_credentials(&self, command: &mut Command) -> Result<(), String> {
+        if let Some(lease) = &self.agy {
+            lease.validate().map_err(|_| "Agy profile changed before resume")?;
+        }
+        // A provider may only supply credentials for its own native data directory.
+        // Never replace a selected session's directory with a provider default.
+        let selected = command.get_args().filter_map(|a| a.to_str())
+            .find_map(|a| a.strip_prefix("--gemini_dir="))
+            .ok_or("Agy resume directory missing")?;
+        let expected = self.args.iter().find_map(|a| a.strip_prefix("--gemini_dir="))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| self.env.iter().find(|(k, _)| *k == "HOME")
+                .map(|(_, home)| std::path::PathBuf::from(home).join(".gemini"))
+                .unwrap_or_default());
+        if std::path::Path::new(selected) != expected {
+            return Err("Agy provider does not own this resume directory".into());
+        }
+        for (key, value) in &self.env { command.env(key, value); }
+        Ok(())
+    }
+
     #[cfg(target_os = "macos")]
     pub fn hold_agy_account(&mut self, lease: std::fs::File) {
         self.agy_account = Some(lease);

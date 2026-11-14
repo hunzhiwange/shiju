@@ -68,6 +68,7 @@ impl AppsCatalogState {
         self.model_diagnostics.invalidate_access();
         self.token.clear();
         self.lifecycle.invalidate();
+        self.external_sessions.invalidate();
         self.routing.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();
@@ -88,6 +89,7 @@ impl AppsCatalogState {
     }
 
     pub fn begin(&mut self, context: AgentAppsContext) -> u64 {
+        self.external_sessions.invalidate();
         self.routing.invalidate();
         self.preferences.invalidate();
         self.launch.invalidate();

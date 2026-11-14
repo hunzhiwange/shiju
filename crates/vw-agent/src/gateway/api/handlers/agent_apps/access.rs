@@ -557,6 +557,18 @@ struct NativeLoginOwner {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Host {
+    /// Existing private directory, selected only by the administrator.
+    #[serde(default)]
+    pub data_backup_root: Option<PathBuf>,
+    #[serde(default)]
+    data_location_roots: Option<[PathBuf; 3]>,
+    /// Explicit source references; never populated from desktop paths.
+    #[serde(default)]
+    pub data_migration_sources: std::collections::BTreeMap<String, PathBuf>,
+    #[serde(default)]
+    pub data_migration_root: Option<PathBuf>,
+    #[serde(default)]
+    external_session_instances: Vec<ExternalHistoryInstance>,
     pub id: String,
     pub online: bool,
     pub binding: Binding,
@@ -984,6 +996,11 @@ fn authorize_digest(
                     Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
                     Capability::ProjectProfilesMaintain(project) => g.project_profiles_maintain.contains(project),
                     Capability::ProjectProfiles(project, create) => if create { g.project_profiles_create.contains(project) } else { g.project_profiles_read.contains(project) },
+                    Capability::ExternalHistory(project) => g.external_sessions_read.iter().any(|p| &p.project_id == project),
+                    Capability::ExternalHistoryMaintenance(project) => g.external_sessions_maintenance.iter().any(|p| &p.project_id == project),
+                    Capability::ExternalHistoryDelete(project) => g.external_sessions_delete.iter().any(|p| &p.project_id == project),
+                    Capability::ExternalHistoryResume(project) => g.external_sessions_resume.iter().any(|p| &p.project_id == project),
+                    Capability::ExternalTerminalSettings => g.external_terminal_settings,
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
@@ -1121,6 +1138,13 @@ fn authorize_digest(
         Some(permit.clone())
     } else {
         None
+    };
+    let external_history = match capability {
+        Capability::ExternalHistoryResume(project) => grants.iter().flat_map(|g| &g.external_sessions_resume).filter(|p| &p.project_id == project).cloned().collect(),
+        Capability::ExternalHistoryMaintenance(project) => grants.iter().flat_map(|g| &g.external_sessions_maintenance).filter(|p| &p.project_id == project).cloned().collect(),
+        Capability::ExternalHistoryDelete(project) => grants.iter().flat_map(|g| &g.external_sessions_delete).filter(|p| &p.project_id == project).cloned().collect(),
+        Capability::ExternalHistory(project) => grants.iter().flat_map(|g| &g.external_sessions_read).filter(|p| &p.project_id == project).cloned().collect(),
+        _ => Vec::new(),
     };
     let identities = grants.into_iter().flat_map(|g| g.identities.clone()).collect();
     let native_slots = policy

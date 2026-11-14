@@ -23,6 +23,7 @@ use super::providers::refresh_task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(tab) => {
+            app.apps_catalog.external_sessions.cancel_reader();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();
@@ -35,6 +36,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            app.apps_catalog.external_sessions.cancel_reader();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.project_profiles.invalidate();

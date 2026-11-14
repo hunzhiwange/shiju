@@ -431,6 +431,7 @@ mod mcp_management_tools_tests;
 
 pub(crate) mod project_profiles;
 
+mod external_sessions;
 mod backup_inventory;
 
 mod device_sync_config;

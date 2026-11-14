@@ -274,7 +274,6 @@ pub(super) fn worktree_log_preview_lines(
     lines.into_iter().skip(offset).take(visible).collect()
 }
 
-
 /// 列表与像素办公室共用同一智能体/run 投影，工位身份和容量由池维护。
 pub(super) fn employee_summary(app: &App, slot: &crate::app::task::WorktreeSlotSnapshot) -> String {
     let activity = crate::app::task::agent_activity::project_activity(

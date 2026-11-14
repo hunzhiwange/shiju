@@ -22,6 +22,7 @@ pub(crate) fn router() -> Router {
         .merge(super::device_sync_tasks::router())
         .merge(super::device_sync_config::router())
         .merge(read::router())
+        .merge(super::external_sessions::router())
         .merge(super::project_profiles::router())
         .merge(super::aggregation_read::router())
         .merge(super::aggregation_desktop::router())

@@ -58,6 +58,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),
         AppsCatalogMessage::Routing(event) => return crate::app::components::app_routing::lifecycle::update(app, event),
         AppsCatalogMessage::OpenClawTools(event) => return crate::app::components::openclaw_tools::update(app, event),
         AppsCatalogMessage::ExternalSessions(event) => return crate::app::components::external_sessions::update(app, event),

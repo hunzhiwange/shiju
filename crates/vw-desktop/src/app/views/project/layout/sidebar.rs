@@ -25,6 +25,11 @@ fn workspace_rail(app: &App, collapsed_hover_mode: bool) -> Element<'_, Message>
     column![
         projects_list(app, collapsed_hover_mode),
         tooltip(entry, text("应用工作区"), tooltip::Position::Right),
+        button(text("外部会话").size(12))
+            .padding([8, 6])
+            .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+            .on_press(crate::app::components::external_sessions::message(
+                crate::app::components::external_sessions::Event::Open)),
     ]
     .align_x(iced::alignment::Horizontal::Center)
     .spacing(8)

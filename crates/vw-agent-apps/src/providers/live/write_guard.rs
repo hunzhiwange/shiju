@@ -357,6 +357,26 @@ pub(crate) struct PreparedWrite<'a> {
     pub(super) delete: bool,
 }
 impl PreparedWrite<'_> {
+    /// Preserve history timestamps before publication; never reopen the target.
+    pub(crate) fn set_modified(&self, modified: std::time::SystemTime) -> Result<(), WriteError> {
+        // SAFETY: retained directory and exclusively created staging name.
+        let raw = unsafe {
+            libc::openat(
+                self.directory.as_raw_fd(),
+                self.temp.as_ptr(),
+                libc::O_WRONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if raw < 0 {
+            return Err(WriteError::Io);
+        }
+        // SAFETY: newly owned descriptor returned by openat.
+        let file = unsafe { File::from_raw_fd(raw) };
+        file.set_times(fs::FileTimes::new().set_modified(modified))
+            .and_then(|()| file.sync_all())
+            .map_err(|_| WriteError::Io)
+    }
+
     pub(crate) fn commit(self) -> Result<(), WriteError> {
         self.publish()
     }

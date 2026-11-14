@@ -682,6 +682,15 @@ pub enum ViewMessage {
 /// // task 可能包含需要在事件循环中执行的命令
 /// ```
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
+    if matches!(&message,
+        ViewMessage::WorkspaceModeSelected(_) | ViewMessage::WorkProjectHome
+        | ViewMessage::ToggleSystemSettings | ViewMessage::TaskPetOpenSettings
+        | ViewMessage::OpenAcpSettings | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenSystemSettingsModelDetail(_, _)
+        | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
+        app.apps_catalog.external_sessions.cancel_reader();
+    }
+
     if app.task_pet_size_draft.is_some()
         && matches!(
             &message,

@@ -83,7 +83,7 @@ pub(super) async fn forward_json(
             crate::model_relay::native_chat::is_path(request.uri().path())
                 || request.uri().path() == RESPONSES_PATH
         }
-        AppId::Claude => request.uri().path() == "/v1/messages",
+        AppId::Claude => crate::model_relay::native_messages::is_path(request.uri().path()),
         AppId::ClaudeDesktop => request.uri().path() == "/claude-desktop/v1/messages",
         _ => false,
     };

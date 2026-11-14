@@ -961,3 +961,26 @@ macOS arm64 自动验收。直接前置任务33为“待回归”，按调度契
 | `git diff --check` | 退出0 |
 
 测试链接报告既有 macOS `__eh_frame` 超过16MiB的链接器警告，不影响测试通过。实际槽位6，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；命令入口正常退出，锁已释放，缓存保留。本项状态为已完成。Windows/Linux/WSL 范围外、未构建或验证，WSL 地址继续保留来源映射；不宣称母任务8完成。
+
+
+## 任务35：转发原生 Messages 协议（2026-11-14）
+
+仅 macOS arm64 自动验收；依赖任务34提交 `3a329575b`。沿用已注册 vw-agent-apps、公共传输与成员/项目/执行主机授权，以及母任务4/6原生配置事务与账号作用域。未启动真实桌面或访问真实模型账号，不代表母任务8完成；Windows/Linux/WSL范围外且未验证。
+
+来源冻结提交 `ca58c0313360eae7c851fbd7553c1614c7af03e7`：仓库 upstream 的 `proxy/providers/claude.rs` 和 `proxy/handlers.rs` 与相邻 cc-switch 固定 Git 对象逐字节相等，SHA256 分别为 `0abde3dbac0f7e03bd00c194aeed823dd17c66603cd3fff907ff23f3d8e39432`、`31fe8c8470f1c7256a1834512817004c67a2f1ce01fea1579485596dcffcc809`。读取来源适配器、handlers 和 server 路由注册，并复核真实 dispatch、DesktopPublication、messages_stream 与相邻授权/透传测试。RustCodeGraph status 有索引，explore 长时间无输出后终止，回退原文件导航。
+
+实现：`model_relay::native_messages::is_path` 仅识别来源明确注册的 `/v1/messages`、`/claude/v1/messages`，由 `app_routing::dispatch::forward_json` 的 Claude 分支调用。同职责底座已能透传原生 JSON/SSE，因此只补入口差异，不复制转换器。Desktop 保留独立 `/claude-desktop/v1/messages` 与应用凭据；不将其并入普通 Claude 路径。不修改旧会话字段白名单，不读取新凭据、不执行本地工具、不进入 session/prompt。既有私有字段过滤、授权目标、JSON大小限制、SSE framing/观察器及超时沿用原所有者。
+
+### 本次验证
+
+- 红灯：`python3 scripts/cargo_slot.py cargo test -p vw-agent --lib cc_route_035_ -- --nocapture`，槽位6，退出101，2项中1通过1失败；来源别名 `/claude/v1/messages` 预期200实际404，失败来自行为断言。原生thinking被旧会话窄转换器拒绝的隔离测试通过。
+- `cargo fmt --all` 退出0；已检查差异，无本项引入的无关格式化变更。
+- 绿灯：完全相同聚焦命令，槽位6，退出0，3项通过、0失败或忽略。真实有限回环HTTP上游记录请求，覆盖两个来源路径的JSON与SSE、tool_use/tool_result、图文、thinking签名及signature_delta、input_json_delta、usage与stop_reason、供应商扩展字段、未认证拒绝、未知路径/query/尾斜杠及Claude凭据访问Desktop路径拒绝。请求JSON和返回SSE逐值/字节相等，工具仅返回客户端。
+- 已构建原生测试产物 `target/rust-slot-6/debug/deps/vw_agent-346fac923f6b2351` 分别以 `cc_route_008_route_auth_binds_each_dimension` 和 `aggregation_t46_desktop_discovery_and_messages_use_one_scoped_listener` 过滤运行，各退出0、1项通过。覆盖独立Desktop应用凭据、租户/项目/主机/账号代次、原生Desktop目标认证和模型映射、Desktop凭据访问普通Messages拒绝及撤销。
+- 红绿测试链接报告既有 macOS `__eh_frame` 大小警告，不影响通过。后续Cargo授权回归因共享源码变化重编译，主动中断（入口报Operation not permitted，退出1）；已核对自有子进程及槽位6锁均退出，改为上述已构建产物回归，不将中断当作通过。
+- 槽位6两目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-6`；后续回归与Clippy入口自动领取槽位4，两目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。当前共享源码含其他任务改动，未将验证描述成干净HEAD验收。
+- 整仓 `cargo clippy --all-targets --all-features -- -D warnings` 槽位4退出101：`crates/vw-desktop/src/app/task/executor/state.rs:161–167` 的 `GIT_SUMMARY_TAG`、`GIT_SOURCE_BRANCH_TAG`、`GIT_TARGET_BRANCH_TAG`、`GIT_WORKTREE_PATH_TAG` 四个既有未使用常量触发 dead_code。本项未修改该文件，未扩展修复无关桌面功能。入口退出后槽位4/6自有锁均释放，保留缓存。`git diff --check` 通过。
+
+随后共享工作区其他任务删除了上述四个常量，本项未触碰该文件。重新执行 `python3 scripts/cargo_slot.py cargo clippy --all-targets --all-features -- -D warnings`，自动领取槽位3，退出0，22.23秒完成；两目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。三个阶段自有入口均已退出，锁释放、缓存保留。
+
+本项状态为 **已完成**。3项本项用例及2项相邻回归通过，整仓Clippy最终退出0；不修改只读plan.md，不宣称母任务8完成。

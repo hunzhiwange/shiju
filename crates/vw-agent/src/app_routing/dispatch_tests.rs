@@ -244,3 +244,116 @@ async fn cc_route_034_authorized_native_chat_json_and_sse() {
     upstream_task.abort();
     assert!(upstream_task.await.unwrap_err().is_cancelled());
 }
+
+#[tokio::test]
+async fn cc_route_035_authorized_native_messages_json_and_sse() {
+    let upstream = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = format!("http://{}/v1/messages", upstream.local_addr().unwrap()).parse().unwrap();
+    let (requests, mut received) = mpsc::unbounded_channel();
+    let result = json!({"id":"m","type":"message","role":"assistant","model":"fixture","content":[{"type":"thinking","thinking":"reason","signature":"signed-fixture"},{"type":"tool_use","id":"call_1","name":"lookup","input":{"city":"上海"}}],"stop_reason":"tool_use","usage":{"input_tokens":2,"output_tokens":3}});
+    let stream = [
+        json!({"type":"message_start","message":{"id":"m","type":"message","role":"assistant","model":"fixture","content":[]}}),
+        json!({"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}),
+        json!({"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"reason"}}),
+        json!({"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"signed-fixture"}}),
+        json!({"type":"content_block_stop","index":0}),
+        json!({"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"call_1","name":"lookup","input":{}}}),
+        json!({"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"city\":\"上海\"}"}}),
+        json!({"type":"content_block_stop","index":1}),
+        json!({"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":3}}),
+        json!({"type":"message_stop"}),
+    ].iter().map(|event| format!("data: {event}\n\n")).collect::<String>();
+    let expected_stream = stream.clone();
+    let expected_result = result.clone();
+    let upstream_task = tokio::spawn(async move {
+        axum::serve(
+            upstream,
+            Router::new().route(
+                "/v1/messages",
+                post(move |headers: HeaderMap, Json(body): Json<Value>| {
+                    let result = result.clone();
+                    let stream = stream.clone();
+                    let requests = requests.clone();
+                    async move {
+                        let streaming = body["stream"] == true;
+                        requests.send((headers, body)).unwrap();
+                        if streaming {
+                            ([(header::CONTENT_TYPE, "text/event-stream")], stream).into_response()
+                        } else {
+                            Json(result).into_response()
+                        }
+                    }
+                }),
+            ),
+        )
+        .await
+        .unwrap();
+    });
+    let listener = RoutingListener::default();
+    let address = listener.start(0).unwrap();
+    let binding = VerifiedRouteBinding {
+        project: ProjectScope::new(
+            TenantScope::new("platform", "company").unwrap(),
+            "project".into(),
+        )
+        .unwrap(),
+        host: "host".into(),
+        app: AppId::Claude,
+        account: "account".into(),
+        account_generation: 1,
+    };
+    let active = listener
+        .auth
+        .issue_with_target(
+            binding,
+            Some(JsonTarget {
+                #[cfg(target_os = "macos")]
+                managed: None,
+                url: target,
+                authorization: "Bearer fixture-upstream".parse().unwrap(),
+                transport: SharedTransport::new().unwrap(),
+                request_options: Default::default(),
+            }),
+        )
+        .unwrap();
+    let client =
+        reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(10)).build().unwrap();
+    for path in ["/v1/messages", "/claude/v1/messages"] {
+        let url = format!("http://{address}{path}");
+        assert_eq!(
+            client.post(&url).json(&json!({})).send().await.unwrap().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        for streaming in [false, true] {
+            let body = json!({"model":"fixture","max_tokens":128,"stream":streaming,"thinking":{"type":"enabled","budget_tokens":64},"messages":[{"role":"assistant","content":[{"type":"thinking","thinking":"reason","signature":"signed-fixture"},{"type":"tool_use","id":"call_0","name":"lookup","input":{}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"call_0","content":"done"},{"type":"image","source":{"type":"base64","media_type":"image/png","data":"fixture"}},{"type":"text","text":"你好"}]}],"tools":[{"name":"lookup","input_schema":{"type":"object"}}],"vendor_option":true});
+            let response =
+                client.post(&url).bearer_auth(&active.token).json(&body).send().await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            if streaming {
+                assert_eq!(response.text().await.unwrap(), expected_stream);
+            } else {
+                assert_eq!(response.json::<Value>().await.unwrap(), expected_result);
+            }
+            let (headers, outgoing) =
+                timeout(Duration::from_secs(10), received.recv()).await.unwrap().unwrap();
+            assert_eq!(headers[header::AUTHORIZATION], "Bearer fixture-upstream");
+            assert_eq!(outgoing, body);
+        }
+    }
+    for path in
+        ["/other/v1/messages", "/v1/messages?x=1", "/v1/messages/", "/claude-desktop/v1/messages"]
+    {
+        let response = client
+            .post(format!("http://{address}{path}"))
+            .bearer_auth(&active.token)
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+    assert!(received.try_recv().is_err());
+    listener.stop().await.unwrap();
+    upstream_task.abort();
+    assert!(upstream_task.await.unwrap_err().is_cancelled());
+}

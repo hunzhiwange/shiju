@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub openclaw_env: crate::app::components::openclaw_env::State,
     pub openclaw_model: crate::app::components::openclaw_model::State,
     pub openclaw_defaults: crate::app::components::openclaw_defaults::State,
     pub hermes_memory: crate::app::components::hermes_memory::State,
@@ -57,6 +58,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_model.invalidate();
+        self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
         self.hermes_memory.invalidate();
@@ -69,6 +71,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.openclaw_model.invalidate();
+        self.openclaw_env.invalidate();
         self.openclaw_defaults.invalidate();
         self.hermes_dashboard.invalidate();
         self.hermes_memory.invalidate();

@@ -9,6 +9,8 @@ pub(crate) struct LifecycleState {
     pub operation: Option<AppOperationStatus>,
     pub busy: bool,
     pub uncertain: bool,
+    /// A cancellation request is in flight or has been acknowledged; only SDK status ends it.
+    pub cancel_requested: bool,
     pub error: Option<String>,
     pub generation: u64,
 }
@@ -24,6 +26,9 @@ impl LifecycleState {
             {
                 return false;
             }
+        }
+        if status.phase == AppOperationPhase::Terminal {
+            self.cancel_requested = false;
         }
         self.operation = Some(status);
         true
@@ -96,16 +101,23 @@ pub(crate) fn progress(state: &LifecycleState) -> Element<'_, Message> {
                         .padding([8, 16])
                         .style(rounded_action_btn_style)
                         .on_press(event(LifecycleMessage::Refresh)),
-                    button(text("取消操作"))
+                    button(text(if state.cancel_requested { "已请求取消" } else { "取消操作" }))
                         .padding([8, 16])
                         .style(rounded_action_btn_style)
-                        .on_press(event(LifecycleMessage::Cancel)),
+                        .on_press_maybe((!state.cancel_requested).then_some(event(LifecycleMessage::Cancel))),
                 ]
                 .spacing(10),
             );
         }
     } else if state.busy {
         content = content.push(text("正在预检或提交，请稍候…"));
+    }
+    if state.cancel_requested {
+        content = content.push(
+            text("正在请求取消或等待服务端确认；任务仍可能完成，以最终状态为准。")
+                .size(13)
+                .style(settings_muted_text_style),
+        );
     }
     if let Some(error) = &state.error {
         content = content.push(settings_error_banner(error.clone()));
@@ -181,3 +193,7 @@ pub(crate) fn overlay<'a>(
         .max_height(484.0);
     settings_modal_overlay(Some(base), close, container(card).padding(12).center(Length::Fill))
 }
+
+#[cfg(test)]
+#[path = "../../desktop_integration_20_tests.rs"]
+mod desktop_integration_20_tests;

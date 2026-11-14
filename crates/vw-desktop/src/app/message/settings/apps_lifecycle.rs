@@ -191,6 +191,10 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
             }
             let id = operation.operation_id.clone();
             if matches!(message, LifecycleMessage::Cancel) {
+                if state.cancel_requested {
+                    return Task::none();
+                }
+                state.cancel_requested = true;
                 Work::Cancel(id)
             } else {
                 Work::Read(id)
@@ -217,6 +221,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
                 }
                 Ok(LifecycleResult::Status(status)) => {
                     if !state.accept_status(status) {
+                        state.cancel_requested = false;
                         return app.show_error_toast("操作响应不匹配，拒绝覆盖当前状态");
                     }
                     state.error = None;
@@ -232,6 +237,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
                     Work::Poll(operation.operation_id.clone())
                 }
                 Err(error) => {
+                    state.cancel_requested = false;
                     state.uncertain |= error.uncertain;
                     state.error = Some(error.label.clone());
                     return app.show_error_toast(error.label);

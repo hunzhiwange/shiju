@@ -90,6 +90,14 @@ pub struct RoutingListener {
 
 impl RoutingListener {
     #[cfg(target_os = "macos")]
+    pub(crate) fn set_failover_events(
+        &self,
+        events: tokio::sync::broadcast::Sender<serde_json::Value>,
+    ) {
+        self.auth.set_failover_events(events);
+    }
+
+    #[cfg(target_os = "macos")]
     pub(crate) fn set_aggregation_lifecycle(
         &self,
         context: crate::gateway::aggregation_lifecycle::AggregationLifecycle,

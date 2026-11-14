@@ -108,6 +108,10 @@ pub(super) struct AuthorizedRoute {
     pub(super) provider: Option<super::provider_publication::PublishedProvider>,
     #[cfg(target_os = "macos")]
     pub(super) failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
+    #[cfg(target_os = "macos")]
+    pub(super) actual_route: Mutex<crate::gateway::agent_apps_failover_runtime::ActualRoute>,
+    #[cfg(target_os = "macos")]
+    pub(super) publication: Arc<Mutex<()>>,
     binding: VerifiedRouteBinding,
     pub(super) references: Arc<super::reference_scope::References>,
     generation: u64,
@@ -119,6 +123,11 @@ pub(super) struct AuthorizedRoute {
 }
 
 impl AuthorizedRoute {
+    #[cfg(target_os = "macos")]
+    pub(super) fn generation(&self) -> u64 {
+        self.generation
+    }
+
     pub(super) fn response_scope(
         &self,
         target: &JsonTarget,
@@ -332,10 +341,18 @@ pub(super) struct RouteAuth {
     #[cfg(target_os = "macos")]
     failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
     active: Mutex<ActiveRoutes>,
-    publication: Mutex<()>,
+    publication: Arc<Mutex<()>>,
 }
 
 impl RouteAuth {
+    #[cfg(target_os = "macos")]
+    pub(super) fn set_failover_events(
+        &self,
+        events: tokio::sync::broadcast::Sender<serde_json::Value>,
+    ) {
+        *self.failover.events.write() = Some(events);
+    }
+
     #[cfg(target_os = "macos")]
     pub(super) fn prepare(&self, binding: &VerifiedRouteBinding) -> anyhow::Result<()> {
         binding.validate()?;
@@ -626,6 +643,10 @@ impl RouteAuth {
         active.grants.insert(
             digest,
             Arc::new(AuthorizedRoute {
+                #[cfg(target_os = "macos")]
+                actual_route: Mutex::default(),
+                #[cfg(target_os = "macos")]
+                publication: Arc::clone(&self.publication),
                 #[cfg(target_os = "macos")]
                 failover: Arc::clone(&self.failover),
                 #[cfg(target_os = "macos")]

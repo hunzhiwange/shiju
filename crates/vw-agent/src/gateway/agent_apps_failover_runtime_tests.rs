@@ -233,3 +233,152 @@ async fn failing_tls() -> anyhow::Result<(String, Arc<AtomicUsize>, tokio::task:
     });
     Ok((url, connections, server))
 }
+
+#[tokio::test]
+async fn ha_switch_commits_once_without_client_config_write() -> anyhow::Result<()> {
+    let home = tempfile::tempdir()?;
+    let root = home.path().join("credentials");
+    let native = home.path().join(".claude");
+    fs::create_dir(&root)?;
+    fs::set_permissions(&root, fs::Permissions::from_mode(0o700))?;
+    fs::create_dir(&native)?;
+    let database = GlobalDatabase::for_home(home.path())?;
+    let scope = FailoverQueueScope {
+        project: ProjectScope::new(TenantScope::new("p", "owner")?, "project".into())?,
+        target_host_id: "host".into(),
+        app_id: AppId::Claude,
+    };
+    let tenant = scope.project.tenant_scope();
+    let tx = ProviderTransactions::new(&root, ExecutionHostId::new("host").unwrap()).unwrap();
+    let mut guard = lock_app(AppId::Claude, &native).unwrap();
+    tx.commit(
+        tenant,
+        &mut guard,
+        &[],
+        PendingTarget { pointer: Some("alpha".into()), ..Default::default() },
+    ).unwrap();
+    drop(guard);
+
+    let (unavailable, connections, failed_server) = failing_tls().await?;
+    let hits = Arc::new(AtomicUsize::new(0));
+    let record = hits.clone();
+    let barrier = Arc::new(tokio::sync::Barrier::new(2));
+    let upstream = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let endpoint = format!("http://{}", upstream.local_addr()?);
+    let server = tokio::spawn(async move {
+        axum::serve(upstream, Router::new().route(
+            "/v1/messages",
+            post(move |headers: axum::http::HeaderMap, Json(body): Json<Value>| {
+                let hits = record.clone();
+                let barrier = barrier.clone();
+                async move {
+                    assert_eq!(headers["x-api-key"], "beta-key");
+                    assert_eq!(body["messages"][0]["content"], "private request");
+                    if hits.fetch_add(1, Ordering::SeqCst) < 2 {
+                        // Both plans have the original route version before
+                        // either successful response can publish a switch.
+                        tokio::time::timeout(std::time::Duration::from_secs(10), barrier.wait())
+                            .await.unwrap();
+                    }
+                    Json(json!({"id":"fixture","type":"message","role":"assistant",
+                        "model":"fixture","content":[{"type":"text","text":"ok"}],
+                        "stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}))
+                }
+            }),
+        )).await.unwrap();
+    });
+    let store = AppProviderStore::new(database.clone()).map_err(anyhow::Error::msg)?;
+    for (id, base_url) in [("alpha", unavailable), ("beta", endpoint)] {
+        store.claude_save(tenant, id, &ClaudeProfile {
+            name: id.into(),
+            config: ClaudeConfig::ThirdParty {
+                base_url, api_key: format!("{id}-key"), api_key_header: true,
+            },
+            model: Some("fixture".into()),
+        }, None, true).map_err(anyhow::Error::msg)?;
+    }
+    let routing = RoutingListener::default();
+    let (events, mut receiver) = tokio::sync::broadcast::channel(16);
+    routing.set_failover_events(events);
+    let address = routing.start(0)?;
+    provider_publication::apply(database.clone(), &routing, home.path(), &root, &scope,
+        &ModeApplyAction::Proxy { provider_id: "alpha".into() }).unwrap();
+    let queues = FailoverQueueStore::new(database.clone())?;
+    let providers = ["alpha", "beta"].map(|id| ProviderSnapshot {
+        provider: AppProviderSummary {
+            id: id.into(), app_id: AppId::Claude, name: id.into(), configured: true,
+        },
+        auth: ProviderAuth::ThirdParty,
+    });
+    let saved = queues.update(&scope, FailoverQueueVersion(0), |queue, _| {
+        for id in ["alpha", "beta"] {
+            queue.add(id, &providers).map_err(|error| anyhow::anyhow!("{error:?}"))?;
+        }
+        Ok(())
+    })?;
+    let saved = set_enabled(database, &routing, home.path(), &root, &scope, saved.version, true)?;
+    let bytes = fs::read(native.join("settings.json"))?;
+    let config: Value = serde_json::from_slice(&bytes)?;
+    let token = config["env"]["ANTHROPIC_AUTH_TOKEN"].as_str().unwrap();
+    let state = tx.state(AppId::Claude).unwrap();
+    let client = reqwest::Client::builder().no_proxy()
+        .timeout(std::time::Duration::from_secs(15)).build()?;
+    let send = || client.post(format!("http://{address}/v1/messages"))
+        .header("x-api-key", token)
+        .json(&json!({"model":"fixture","messages":[{"role":"user","content":"private request"}]}))
+        .send();
+    let (first, second) = tokio::join!(send(), send());
+    for response in [first?, second?] {
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = response.json().await?;
+        assert_eq!(body["content"][0]["text"], "ok");
+    }
+    assert_eq!(connections.load(Ordering::SeqCst), 2);
+    let event = receiver.try_recv()?;
+    assert_eq!(event["type"], "provider-switched");
+    assert_eq!(event["scope"], serde_json::to_value(&scope)?);
+    assert_eq!(event["configuredProviderId"], "alpha");
+    assert_eq!(event["previousProviderId"], "alpha");
+    assert_eq!(event["actualProviderId"], "beta");
+    assert_eq!(event["reason"], "connection");
+    assert_eq!(event["version"], 1);
+    assert!(event["generation"].as_u64().unwrap() > 0);
+    assert!(uuid::Uuid::parse_str(event["correlationId"].as_str().unwrap()).is_ok());
+    let public = event.to_string();
+    for secret in ["alpha-key", "beta-key", "private request", token] {
+        assert!(!public.contains(secret));
+    }
+    let response = send().await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    let _: Value = response.json().await?;
+    assert_eq!(hits.load(Ordering::SeqCst), 3);
+    assert_eq!(connections.load(Ordering::SeqCst), 2, "new requests must use the committed target");
+    assert!(matches!(receiver.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Empty)));
+    assert_eq!(fs::read(native.join("settings.json"))?, bytes);
+    assert_eq!(tx.state(AppId::Claude).unwrap(), state);
+    assert!(tx.pending(AppId::Claude).unwrap().is_none());
+    assert_eq!(queues.get(&scope)?, saved);
+    routing.stop().await?;
+    for task in [server, failed_server] {
+        task.abort();
+        assert!(task.await.unwrap_err().is_cancelled());
+    }
+    Ok(())
+}
+
+#[test]
+fn ha_switch_old_version_cannot_roll_back_new_route() -> anyhow::Result<()> {
+    use super::agent_apps_failover_runtime::ActualRoute;
+    let mut actual = ActualRoute::default();
+    assert_eq!(actual.commit(0, "beta", "alpha")?, Some("alpha".into()));
+    assert_eq!(actual.commit(0, "alpha", "alpha")?, None);
+    assert_eq!(actual.commit(0, "gamma", "alpha")?, None);
+    assert_eq!(actual.provider_id.as_deref(), Some("beta"));
+    assert_eq!(actual.version, 1);
+    assert_eq!(actual.commit(1, "gamma", "alpha")?, Some("beta".into()));
+    assert_eq!(actual.version, 2);
+    actual.version = u64::MAX;
+    assert!(actual.commit(u64::MAX, "beta", "alpha").is_err());
+    assert_eq!(actual.provider_id.as_deref(), Some("gamma"));
+    Ok(())
+}

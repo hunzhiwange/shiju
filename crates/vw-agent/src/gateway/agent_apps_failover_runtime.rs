@@ -10,13 +10,49 @@ use vw_api_types::agent_apps_high_availability::{
 
 pub(crate) struct FailoverRuntime {
     pub(crate) health: HealthRegistry,
+    pub(crate) events: parking_lot::RwLock<Option<tokio::sync::broadcast::Sender<serde_json::Value>>>,
 }
 
 impl Default for FailoverRuntime {
     fn default() -> Self {
         Self {
+            events: parking_lot::RwLock::new(None),
             health: HealthRegistry::new(NonZeroUsize::new(1024).unwrap(), Duration::from_secs(300)),
         }
+    }
+}
+
+/// One observation per resident grant; replacing or revoking the grant retires
+/// its observations too. No client configuration or durable intent is written.
+#[derive(Clone, Default)]
+pub(crate) struct ActualRoute {
+    pub(crate) version: u64,
+    pub(crate) provider_id: Option<String>,
+}
+
+impl ActualRoute {
+    pub(crate) fn commit(
+        &mut self,
+        expected: u64,
+        provider_id: &str,
+        configured: &str,
+    ) -> anyhow::Result<Option<String>> {
+        if self.version != expected {
+            return Ok(None);
+        }
+        let previous = self.provider_id.as_deref().unwrap_or(configured);
+        if previous == provider_id {
+            self.provider_id = Some(provider_id.into());
+            return Ok(None);
+        }
+        let next = self
+            .version
+            .checked_add(1)
+            .ok_or_else(|| anyhow::anyhow!("actual route version exhausted"))?;
+        let previous = previous.to_owned();
+        self.provider_id = Some(provider_id.into());
+        self.version = next;
+        Ok(Some(previous))
     }
 }
 

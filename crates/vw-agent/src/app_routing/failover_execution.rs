@@ -44,6 +44,8 @@ pub(super) struct Plan {
     candidates: Vec<Candidate>,
     max_retries: u8,
     policy: CircuitBreakerPolicy,
+    actual_version: u64,
+    correlation_id: String,
 }
 
 fn unavailable<T>(_: T) -> StatusCode {
@@ -84,7 +86,8 @@ pub(super) async fn prepare(route: Arc<AuthorizedRoute>) -> Result<Option<Plan>,
         if provider.scope.app_id != AppId::Claude {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
-        Plan::prepare(provider, &route.failover, queue).map(Some)
+        let actual = route.actual_route.lock().clone();
+        Plan::prepare(provider, &route.failover, queue, actual).map(Some)
     })
     .await
     .map_err(unavailable)?
@@ -95,6 +98,7 @@ impl Plan {
         provider: &PublishedProvider,
         runtime: &FailoverRuntime,
         queue: FailoverQueueState,
+        actual: agent_apps_failover_runtime::ActualRoute,
     ) -> Result<Self, StatusCode> {
         let scope = &provider.scope;
         let policy = agent_apps_failover_runtime::policy(provider.database.clone(), scope)
@@ -115,7 +119,7 @@ impl Plan {
             account: HealthAccount::Unbound,
         };
         let now = std::time::Instant::now();
-        let selected = select(
+        let mut selected = select(
             &SelectionSnapshot {
                 app: scope.app_id,
                 tenant: scope.project.tenant_scope(),
@@ -127,6 +131,14 @@ impl Plan {
             |id| runtime.health.is_available(&key(id), &policy.circuit_breaker, now),
         )
         .map_err(unavailable)?;
+        // Keep the successful resident target first without changing queue
+        // priority, the configured provider, or its native preimage proof.
+        if let Some(id) = &actual.provider_id
+            && let Some(index) = selected.iter().position(|entry| &entry.provider.id == id)
+        {
+            let current = selected.remove(index);
+            selected.insert(0, current);
+        }
         let mut candidates = Vec::new();
         for entry in selected {
             let id = &entry.provider.id;
@@ -188,6 +200,8 @@ impl Plan {
             candidates,
             max_retries: policy.retry_timeout.max_retries,
             policy: policy.circuit_breaker,
+            actual_version: actual.version,
+            correlation_id: uuid::Uuid::new_v4().to_string(),
         })
     }
 
@@ -297,14 +311,16 @@ impl Plan {
             match result {
                 Ok(Ok(response)) => {
                     if response.status().is_success() {
-                        return observe(
+                        let response = observe(
                             response,
                             permit,
                             cancelled.clone(),
                             (request.body.get("stream") == Some(&Value::Bool(true)))
                                 .then_some(request.deadline),
                         )
-                        .await;
+                        .await?;
+                        self.publish_actual(request.route, candidate, failure.is_some()).await?;
+                        return Ok(response);
                     }
                     let status = response.status();
                     permit.record(
@@ -357,6 +373,78 @@ impl Plan {
                 }
             }
         }
+    }
+
+    async fn publish_actual(
+        &self,
+        route: &Arc<AuthorizedRoute>,
+        candidate: &Candidate,
+        connection_failed: bool,
+    ) -> Result<(), StatusCode> {
+        let route = Arc::clone(route);
+        let queue = self.queue.clone();
+        let row = candidate.row.clone();
+        let id = candidate.key.provider_id.clone();
+        let expected = self.actual_version;
+        let correlation_id = self.correlation_id.clone();
+        tokio::task::spawn_blocking(move || {
+            let provider = route.provider.as_ref().ok_or(StatusCode::CONFLICT)?;
+            // Do not acquire the native lock under the publication lock: mode
+            // changes take those locks in the opposite order.
+            provider.check_current()?;
+            let _publication = route.publication.lock();
+            if route.cancelled.is_cancelled() {
+                return Err(StatusCode::CONFLICT);
+            }
+            if FailoverQueueStore::new(provider.database.clone())
+                .map_err(unavailable)?
+                .get(&provider.scope)
+                .map_err(unavailable)?
+                != queue
+                || AppProviderStore::preview_record(
+                    &provider.database,
+                    provider.scope.project.tenant_scope(),
+                    provider.scope.app_id,
+                    id.as_ref(),
+                )
+                .map_err(unavailable)?
+                    != row
+            {
+                return Err(StatusCode::CONFLICT);
+            }
+            let mut actual = route.actual_route.lock();
+            let previous = actual
+                .commit(expected, id.as_ref(), &provider.provider_id)
+                .map_err(unavailable)?;
+            if let Some(previous) = previous {
+                // Serialize state and event publication together. A late
+                // request from an old version cannot roll back this target.
+                if let Some(events) = route.failover.events.read().as_ref() {
+                    let reason = if connection_failed {
+                        vw_api_types::agent_apps_high_availability::FailoverFailureReason::Connection
+                    } else {
+                        vw_api_types::agent_apps_high_availability::FailoverFailureReason::Other
+                    };
+                    let _ = events.send(serde_json::json!({
+                        "type": "provider-switched",
+                        "source": "failover",
+                        "scope": provider.scope,
+                        "configuredProviderId": provider.provider_id,
+                        "previousProviderId": previous,
+                        "actualProviderId": id,
+                        "reason": reason,
+                        "correlationId": correlation_id,
+                        "generation": route.generation(),
+                        "version": actual.version,
+                        "queueVersion": queue.version,
+                        "timestamp": chrono::Utc::now().to_rfc3339(),
+                    }));
+                }
+            }
+            Ok(())
+        })
+        .await
+        .map_err(unavailable)?
     }
 }
 

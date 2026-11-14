@@ -180,6 +180,8 @@ async fn serve_gateway(
     let multimodal_config = config.multimodal.clone();
 
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel::<serde_json::Value>(256);
+    #[cfg(target_os = "macos")]
+    routing.set_failover_events(event_tx.clone());
     let channels = super::channel_reload::build_gateway_channels(&config.channels_config);
 
     let gateway_skeys = config.gateway.skeys.clone();

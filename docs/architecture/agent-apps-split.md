@@ -4,6 +4,26 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 2：图标规则迁移结果
+
+`icons/{library,name,validation}.rs` 及三个对应独立测试原样迁入
+`crates/libs/app-icons/src/`；原 `icons/mod.rs` 成为新包 `src/lib.rs`，保留显式模块树与测试注册。
+所有权表中任务 2 的七个原路径现由 `app-icons` 所有；原目录已移除，无留存符号或后继接收项。
+
+根 workspace 注册 `app-icons`，`vw-agent-apps` 直接路径依赖并以
+`pub use app_icons as icons` 保留调用路径。新包仅依赖 base64、png、vw-api-types，
+后者不依赖原门面，无反向依赖。原包 base64 仍有生产调用，png 仅供应商测试使用，移至 dev-dependencies。
+
+公开接口保持 `library::{add_icon,rename_icon,delete_icon}`、`name::normalize_icon_name`、
+`validation::{is_valid_custom_icon,CUSTOM_ICON_PREFIX,MAX_CUSTOM_ICON_LENGTH}`。
+真实调用者 providers/icons、providers/universal、agent_apps/store 和 gateway 相邻测试沿用门面。
+PNG 完整解码、64 KiB URI / 256 像素边界、名称限制和错误码均未改动。
+迁移文件无平台 cfg 或 include 资源路径；三个测试模块仍只在 cfg(test) 注册。
+
+静态审阅：文件内容与原版逐字对照，源码检索确认导出和调用接线、无重复实现或反向依赖，
+Python 标准库 TOML 审阅确认成员及直接依赖路径存在；git diff --check 无空白错误。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包和调用者编译、迁移测试、锁文件一致性及平台行为。
+
 ## 规模与责任
 
 源码根下共 883 个文件，其中 871 个 Rust 文件、317 个独立测试文件，共 217017 行；非 Rust 资源 12 个。独立测试按文件名 `_tests.rs` 计数，集成测试另列。

@@ -4,7 +4,7 @@
 //! remain with callers. The preserved `upstream` snapshot is reference material
 //! and is not part of this library's module tree or build.
 
-pub mod icons;
+pub use app_icons as icons;
 
 pub mod device_sync;
 

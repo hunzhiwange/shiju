@@ -1,0 +1,13 @@
+[package]
+name = "app-icons"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+base64 = "0.23"
+png = "0.18"
+vw-api-types = { path = "../../vw-api-types" }

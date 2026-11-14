@@ -103,6 +103,10 @@ struct Grant {
     #[serde(default)]
     hermes_memory_write: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    workspace_read: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    workspace_write: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     identities: Vec<IdentityPermit>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
@@ -629,6 +633,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    Workspace(&'a vw_api_types::id::ProjectId, bool),
     HermesDashboard(&'a vw_api_types::id::ProjectId),
     HermesMemory(&'a vw_api_types::id::ProjectId, bool),
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
@@ -944,6 +949,7 @@ fn authorize_digest(
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
+                    Capability::Workspace(project, write) => if write { g.workspace_write.contains(project) } else { g.workspace_read.contains(project) },
                     Capability::HermesMemory(project, write) => if write { g.hermes_memory_write.contains(project) } else { g.hermes_memory_read.contains(project) },
                     Capability::HermesDashboard(project) => g.launch && g.hermes_dashboard.contains(project),
                     Capability::ProviderConfigRead => g.provider_config_read,
@@ -1801,4 +1807,13 @@ pub(super) fn authorize_hermes_memory(
 ) -> Result<Host, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::HermesMemory(project.project_id(), write)).map(|a| a.host)
+}
+
+/// Workspace contents need explicit project grants, independent of providers.
+pub(super) fn authorize_workspace(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    target: &str, write: bool,
+) -> Result<(Host, String), StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::Workspace(project.project_id(), write)).map(|a| (a.host, a.principal))
 }

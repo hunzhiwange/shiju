@@ -166,3 +166,17 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 `hermes_memory_api.rs`，公开 HermesMemoryScope/HermesMemoryError；封装任务 14 的 GET/PUT memory/{kind}、GET memory-limits、PUT memory/{kind}/enabled 与只读 GET model。项目与执行主机通过编码查询参数传递，租户沿用 endpoint 上下文，独立授权令牌标记敏感并使用禁止重定向的 native_transport。保留 exists、中文全文、备份 outcome、空模型及 HTTP 状态；错误不包含原始内容/令牌。开关成功后调用方可同作用域刷新限制，写失败直接返回错误。
 
 已静态核对来源 hermes.ts/useHermes.ts、任务 1 正式合同、接口边界、任务 14 已提交路由与 DTO。新增三个 hermes_sdk_preserves_outcome 前缀测试源码，覆盖请求方法/路径/查询/租户/令牌/body、缺失与空文件、长文本不截断、备份、刷新限制、模型缺失与存在、拒绝/冲突/IO 状态、解码失败和传输失败。本轮按用户要求未运行 Cargo 或任何测试，不声明编译或行为验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。建议后续统一运行该过滤测试。本编号任务文件按要求删除。
+
+## 任务 9：工作区领域授权路由（2026-11-14）
+
+固定接入九文件 GET/PUT、每日列表和 GET/PUT/DELETE、POST search 与 GET/DELETE search/{id}。真实认证租户、令牌、项目及目标主机经既有 access dispatcher 核验后才进入 IO；新增 workspace_read/workspace_write 项目白名单，默认拒绝，供应商和 Hermes 权限不隐含内容访问。根目录沿来源 workspace.rs 固定为可信执行主机 HOME/.openclaw/workspace，不接受客户端路径或远程本机回退。注册沿已有 agent_apps 子模块入口，未复制领域实现。
+
+搜索复用 Operation，绑定租户/项目/主机/提交人，查询和取消重新授权，取消等待阻塞读取退出后回收任务，不返回部分结果；最多保留 128 个任务，GET 保留结果供重试，DELETE 释放。缺失文件返回 null，空文本保留；路径、IO 和授权错误返回非成功状态，不含原文。新增 workspace_api_denies_foreign_host_and_project_without_io 测试源码，未执行。
+
+静态读取任务 1 正式合同、接口边界、来源 workspace.rs、任务 2/4/6/7/8 生产类型及实现和相邻 Hermes 路由/授权。按本轮要求未运行 Cargo、任何测试或最终回归；没有编译或行为验证通过结论。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；后续统一验证权限拒绝无 IO、HTTP 路由和取消竞争。
+
+## 任务 22：OpenClaw 设置接口类型（2026-11-14）
+
+新增 openclaw_settings 的 model/catalog/defaults/env/tools/health/WriteOutcome DTO，保留分节扩展、未知 profile、缺失与空对象及结构化警告和 backupPath。defaults/env 沿用领域对象形状；不新增路径或命令入口，env 独立敏感读取权限明确为调用者合同，载荷不派生 Debug。来源 WriteOutcome 为结构化 warnings，现有领域字符串 warnings 由后续路由适配。
+
+静态阅读任务 1 合同、接口边界、来源映射、来源 commands/openclaw.rs、openclaw.ts、types.ts 与现有领域源码，读取 RustCodeGraph status/explore。新增三个 openclaw_wire_preserves_extra_fields 前缀测试源码，未执行。按用户要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。

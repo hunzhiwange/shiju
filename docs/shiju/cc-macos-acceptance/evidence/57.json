@@ -1,0 +1,50 @@
+{
+  "task": 57,
+  "status": "documentation_written_unverified",
+  "date": "2026-11-14",
+  "scope": "macOS Rust SDK 使用说明；不修改业务源码",
+  "document": "docs/shiju/cc-macos-acceptance/sdk.md",
+  "baseline_commit": "63f2a35bd3ac2644f26e3c9acc56698ae2a083f0",
+  "input_sha256": {
+    "docs/shiju/cc-macos-acceptance/runtime-contract.json": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+    "crates/vw-gateway-client/src/client/mod.rs": "7e2bd75d999b24d554e25497dc42e1092f7bc9893a58158f35c7985f739c7011",
+    "crates/vw-gateway-client/src/client/agent_apps_settings_api.rs": "263af44c5a2ef34d4a911de45200a811cf4dd15db0da7c7bbf08f81aea1af1e8",
+    "crates/vw-gateway-client/src/client/agent_apps_auth_read.rs": "d8f7af52877d171617981cc5fe2d7f58fa45c75381ea8aec241b45c34e448958",
+    "crates/vw-gateway-client/src/client/agent_apps_auth_flow.rs": "5e62f8f25de1db75d63ca7446f33e2991fb95caf0b15212831fbc0699e62ed84"
+  },
+  "dependencies": {
+    "task_1": "准备材料已存在，运行契约未验证",
+    "sdk_entrypoint": "verified_entrypoints.sdk.value=null; status=unverified",
+    "accepted_example": null,
+    "owner": "各领域 SDK 所有者；来源母任务22"
+  },
+  "verification": {
+    "executed": [],
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "exit_code": null,
+    "format_check": "not_run",
+    "link_check": "not_run",
+    "acceptance": "not_run",
+    "deferred": [
+      "前置领域核证与真实验收证据",
+      "复用已编译并验收的SDK示例及命令",
+      "所有产品行为的当前证据引用",
+      "JSON格式、链接、脱敏与差异验证",
+      "冻结产物、macOS架构与版本绑定",
+      "统一回归"
+    ],
+    "reason": "用户最新指令禁止本轮验证；源码阅读仅用于编写说明，不计为运行证据"
+  },
+  "observations": [],
+  "artifact_sha256": null,
+  "macos_architecture": "unverified",
+  "application_version": "unverified",
+  "cleanup": {
+    "status": "not_applicable",
+    "reason": "未启动运行进程、未创建账号或修改用户配置"
+  },
+  "task_card": "按用户最新指令删除；不表示验收通过",
+  "next_action": "补齐已验证执行契约和示例后统一验证，缺能力回交领域所有者"
+}

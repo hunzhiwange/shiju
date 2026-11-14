@@ -792,3 +792,37 @@ async fn handlers_reject_blank_required_fields_before_config_lookup() {
     assert_eq!(err.status, axum::http::StatusCode::BAD_REQUEST);
     assert_eq!(err.message, "skill_id is required");
 }
+
+#[test]
+fn cp12_plugin_merge_success() {
+    let directory = tempfile::tempdir().expect("directory");
+    let path = directory.path().to_string_lossy().into_owned();
+    let local = vw_gateway_client::DesktopSkillCatalogEntryDto {
+        id: "local".into(), title: "Shared".into(), description: String::new(),
+        kind: "personal".into(), resource_count: 0, installed: true, enabled: true,
+        source: "workspace".into(), source_path: Some(path), origin: None,
+        namespace: None, package_type: None, source_pack: None,
+    };
+    let mut plugin = local.clone();
+    plugin.id = "plugin:owner/skill".into();
+    plugin.source = "plugin".into();
+    plugin.source_pack = Some("owner".into());
+    plugin.enabled = false;
+    let mut items = vec![local];
+    super::merge_plugin_catalog(&mut items, vec![plugin.clone(), plugin.clone()]);
+    assert_eq!(items, vec![plugin]);
+}
+
+#[test]
+fn cp12_plugin_merge_rejects_without_side_effects() {
+    let directory = tempfile::tempdir().expect("directory");
+    let skill = directory.path().join("skills/owned");
+    write_markdown_skill(&skill, "Owned", "Plugin skill");
+    let original = std::fs::read(skill.join("SKILL.md")).expect("document");
+    let provider = vw_config_types::skills::SkillsDirectoryProvider::default();
+    let project = directory.path().to_str();
+    assert!(super::set_local_skill_enabled(project, "plugin:owner/skill", true, provider).is_err());
+    assert!(super::delete_local_skill(project, "plugin:owner/skill", provider).is_err());
+    assert_eq!(std::fs::read(skill.join("SKILL.md")).expect("document"), original);
+    assert!(!super::local_skill_disabled_marker_path(&skill).exists());
+}

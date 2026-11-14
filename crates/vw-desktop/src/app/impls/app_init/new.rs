@@ -962,6 +962,12 @@ impl App {
 
             // ========== 技能设置 ==========
             skills_settings: super::state::SkillsSettingsState {
+                market: Default::default(),
+                repositories: Default::default(),
+                claude_config: Default::default(),
+                jobs: Default::default(),
+                install: Default::default(),
+                import: Default::default(),
                 auto_load_project_skills: skills_cfg.auto_load_project_skills,
                 directory_provider: skills_cfg.directory_provider,
                 prompt_injection_mode: skills_cfg.prompt_injection_mode,

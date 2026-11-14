@@ -191,9 +191,13 @@ pub(crate) async fn catalog_get(
     Query(query): Query<SkillsCatalogQuery>,
 ) -> Result<Json<Vec<DesktopSkillCatalogEntryDto>>, ApiError> {
     let project_path = normalize_optional_project_path(query.project_path);
-    let directory_provider = crate::app::agent::config::get().await.skills.directory_provider;
+    let config = crate::app::agent::config::get().await;
+    let directory_provider = config.skills.directory_provider;
     let items = tokio::task::spawn_blocking(move || {
-        collect_catalog_skills(project_path.as_deref(), directory_provider)
+        let mut items = collect_catalog_skills(project_path.as_deref(), directory_provider)?;
+        let plugins = plugin_catalog(project_path.as_deref(), &config)?;
+        merge_plugin_catalog(&mut items, plugins);
+        Ok::<_, String>(items)
     })
     .await
     .map_err(|err| ApiError::internal(format!("desktop skills catalog task failed: {err}")))?
@@ -223,9 +227,24 @@ pub(crate) async fn detail_get(
     if skill_id.is_empty() {
         return Err(ApiError::bad_request("skill_id is required"));
     }
-    let directory_provider = crate::app::agent::config::get().await.skills.directory_provider;
+    let config = crate::app::agent::config::get().await;
+    let directory_provider = config.skills.directory_provider;
 
     let detail = tokio::task::spawn_blocking(move || {
+        if skill_id.starts_with("plugin:") {
+            let item = plugin_catalog(project_path.as_deref(), &config)?
+                .into_iter().find(|item| item.id == skill_id)
+                .ok_or_else(|| format!("未找到插件技能: {skill_id}"))?;
+            let path = PathBuf::from(item.source_path.as_deref().ok_or("插件技能缺少路径")?);
+            let (document_name, document_content) = read_local_skill_document(&path)?;
+            return Ok(DesktopSkillDetailDto {
+                id: item.id, title: item.title, description: item.description,
+                kind: item.kind, installed: true, enabled: item.enabled,
+                source: item.source, source_path: item.source_path,
+                document_name, document_content,
+                can_install: false, can_toggle: false, can_delete: false,
+            });
+        }
         resolve_skill_detail(project_path.as_deref(), &skill_id, directory_provider)
     })
     .await
@@ -317,10 +336,12 @@ pub(crate) async fn set_enabled_post(
     if skill_id.is_empty() {
         return Err(ApiError::bad_request("skill_id is required"));
     }
-    let directory_provider = crate::app::agent::config::get().await.skills.directory_provider;
+    let config = crate::app::agent::config::get().await;
+    let directory_provider = config.skills.directory_provider;
 
     let enabled = body.enabled;
     let path = tokio::task::spawn_blocking(move || {
+        reject_plugin_mutation(project_path.as_deref(), &skill_id, directory_provider, &config)?;
         set_local_skill_enabled(project_path.as_deref(), &skill_id, enabled, directory_provider)
     })
     .await
@@ -351,9 +372,11 @@ pub(crate) async fn delete_post(
     if skill_id.is_empty() {
         return Err(ApiError::bad_request("skill_id is required"));
     }
-    let directory_provider = crate::app::agent::config::get().await.skills.directory_provider;
+    let config = crate::app::agent::config::get().await;
+    let directory_provider = config.skills.directory_provider;
 
     let path = tokio::task::spawn_blocking(move || {
+        reject_plugin_mutation(project_path.as_deref(), &skill_id, directory_provider, &config)?;
         delete_local_skill(project_path.as_deref(), &skill_id, directory_provider)
     })
     .await
@@ -435,6 +458,74 @@ fn collect_catalog_skills(
     });
 
     Ok(items)
+}
+
+fn reject_plugin_mutation(
+    project_path: Option<&str>,
+    skill_id: &str,
+    provider: SkillsDirectoryProvider,
+    config: &crate::config::Config,
+) -> Result<(), String> {
+    let directory = resolve_local_skill_dir(project_path, skill_id, provider)?;
+    let directory = std::fs::canonicalize(directory).map_err(|error| error.to_string())?;
+    let workspace = project_path.map(Path::new).unwrap_or(&config.workspace_dir);
+    let config_dir = config.config_path.parent().unwrap_or(&config.workspace_dir);
+    let options = crate::plugins::PluginDiscoveryOptions::new(
+        workspace, config_dir, config.plugins.clone(),
+    );
+    let discovery = crate::plugins::discover_plugins(&options).map_err(|error| error.to_string())?;
+    for plugin in discovery.installed {
+        if directory.starts_with(&plugin.manifest.root) {
+            return Err("插件技能由所属插件管理，不能单独切换或删除".into());
+        }
+    }
+    Ok(())
+}
+
+// Owner and relative path form an unambiguous identity even across marketplaces.
+fn plugin_catalog(
+    project_path: Option<&str>,
+    config: &crate::config::Config,
+) -> Result<Vec<DesktopSkillCatalogEntryDto>, String> {
+    let workspace = project_path.map(Path::new).unwrap_or(&config.workspace_dir);
+    let skills = crate::plugins::catalog_skills(workspace, config)
+        .map_err(|error| format!("读取插件技能失败: {error}"))?;
+    Ok(skills.into_iter().filter_map(|(skill, enabled)| {
+        let owner = skill.plugin_source?;
+        let directory = skill.location?.parent()?.to_path_buf();
+        let identity = serde_json::to_string(&(
+            &owner.plugin_id, &owner.relative_skill_path,
+        )).ok()?;
+        Some(DesktopSkillCatalogEntryDto {
+            id: format!("plugin:{identity}"), title: skill.name,
+            description: skill.description, kind: "personal".into(),
+            resource_count: count_skill_resources(&directory), installed: true, enabled,
+            source: "plugin".into(), source_path: Some(directory.to_string_lossy().into_owned()),
+            origin: Some("plugin".into()), namespace: Some(owner.namespace),
+            package_type: Some("plugin-skill".into()), source_pack: Some(owner.plugin_id),
+        })
+    }).collect())
+}
+
+fn merge_plugin_catalog(
+    items: &mut Vec<DesktopSkillCatalogEntryDto>,
+    plugins: Vec<DesktopSkillCatalogEntryDto>,
+) {
+    // A local alias of a plugin path must retain the plugin ownership boundary.
+    for plugin in plugins {
+        items.retain(|item| {
+            match (item.source_path.as_deref(), plugin.source_path.as_deref()) {
+                (Some(left), Some(right)) => {
+                    match (std::fs::canonicalize(left), std::fs::canonicalize(right)) {
+                        (Ok(left), Ok(right)) => left != right,
+                        _ => left != right,
+                    }
+                }
+                _ => true,
+            }
+        });
+        items.push(plugin);
+    }
 }
 
 fn skill_kind_sort_key(kind: &str) -> u8 {
@@ -763,6 +854,9 @@ fn resolve_local_skill_dir(
     skill_id: &str,
     directory_provider: SkillsDirectoryProvider,
 ) -> Result<PathBuf, String> {
+    if skill_id.starts_with("plugin:") {
+        return Err("插件技能由所属插件管理，不能单独切换或删除".into());
+    }
     let skill = discover_local_skills(project_path, directory_provider)?
         .into_iter()
         .find(|item| item.id == skill_id)

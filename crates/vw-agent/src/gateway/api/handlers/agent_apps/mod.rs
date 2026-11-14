@@ -620,6 +620,21 @@ pub(super) use access::authorize_codex_restart;
 #[cfg(target_os = "macos")]
 pub(super) use access::authorize_mcp_acp_read;
 
+pub(super) use access::authorize_skill_repos;
+
+pub(super) use access::authorize_claude_config;
+
+pub(super) use access::authorize_skill_inventory;
+
+pub(super) use access::{authorize_skill_install, authorize_skill_install_owner};
+
+pub(super) use access::authorize_skill_import;
+
+#[cfg(target_os = "macos")]
+pub(super) use access::authorize_skill_bindings;
+
+pub(super) use access::authorize_skill_job;
+
 #[cfg(target_os = "macos")]
 #[path = "../hermes_dashboard.rs"]
 mod hermes_dashboard;

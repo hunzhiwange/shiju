@@ -173,6 +173,8 @@ mod computer_control_tests;
 #[cfg(test)]
 mod voice_tests;
 
+pub mod agent_apps_skills;
+
 #[cfg(test)]
 mod hermes_memory_tests;
 

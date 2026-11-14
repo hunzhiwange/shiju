@@ -28,7 +28,7 @@ pub mod high_availability;
 
 pub mod diagnostics;
 
-pub mod prompts;
+pub mod skills;
 
 #[cfg(target_os = "macos")]
 pub mod workspace_paths;

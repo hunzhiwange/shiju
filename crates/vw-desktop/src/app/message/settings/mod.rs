@@ -53,7 +53,7 @@ mod runtime;
 mod scheduler;
 mod security;
 mod sessions;
-mod skills;
+pub(crate) mod skills;
 mod storage;
 mod tabs;
 pub(crate) mod backup_inventory;
@@ -349,6 +349,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::SkillsSetEnabledCompleted { .. }
         | SettingsMessage::SkillsDeleteRequested(_)
         | SettingsMessage::SkillsDeleteCompleted { .. }
+        | SettingsMessage::SkillsBackups(_)
+        | SettingsMessage::SkillsStorage(_)
+        | SettingsMessage::SkillsBindings(_)
+        | SettingsMessage::SkillsClaudeConfig(_)
+        | SettingsMessage::SkillsJobs(_)
+        | SettingsMessage::SkillsUpdates(_)
+        | SettingsMessage::SkillsInstall(_)
+        | SettingsMessage::SkillsMarket(_)
+        | SettingsMessage::SkillsImport(_)
+        | SettingsMessage::SkillRepositories(_)
         | SettingsMessage::SkillsHelpOpen
         | SettingsMessage::SkillsHelpClose => skills::update(app, message),
         SettingsMessage::DialogueFlowPermissionRefresh

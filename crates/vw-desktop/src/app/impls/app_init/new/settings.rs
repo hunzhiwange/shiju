@@ -234,7 +234,14 @@ pub(super) fn build_skills_settings(
     let skills_cfg = &full_agent_cfg.skills;
 
     crate::app::state::SkillsSettingsState {
-        auto_load_project_skills: skills_cfg.auto_load_project_skills,
+        market: Default::default(),
+        repositories: Default::default(),
+        claude_config: Default::default(),
+                updates: Default::default(),
+            jobs: Default::default(),
+                install: Default::default(),
+                import: Default::default(),
+                auto_load_project_skills: skills_cfg.auto_load_project_skills,
         directory_provider: skills_cfg.directory_provider,
         prompt_injection_mode: skills_cfg.prompt_injection_mode,
         active_tab: crate::app::state::SkillsSettingsTab::Skills,

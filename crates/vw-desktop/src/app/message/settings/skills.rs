@@ -16,6 +16,18 @@ use vw_gateway_client::{
 
 use super::messages::SettingsMessage;
 
+pub(crate) mod updates_view;
+pub(crate) mod install_view;
+pub(crate) mod jobs_view;
+pub(crate) mod market_view;
+pub(crate) mod repo_modal;
+pub(crate) mod deeplink;
+pub(crate) mod import_modal;
+pub(crate) mod claude_view;
+pub(crate) mod bindings_view;
+pub(crate) mod storage_modal;
+pub(crate) mod backup_modal;
+
 const INSTALL_COMMAND_TEMPLATE: &str = "shiju skills install <source>";
 
 fn clear_selected_detail(app: &mut App) {
@@ -228,6 +240,36 @@ fn persist_skills_settings(app: &mut App) -> Task<Message> {
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
+    if let SettingsMessage::SkillsBackups(event) = message {
+        return backup_modal::update(app, event);
+    }
+    if let SettingsMessage::SkillsStorage(event) = message {
+        return storage_modal::update(app, event);
+    }
+    if let SettingsMessage::SkillsBindings(event) = message {
+        return bindings_view::update(app, event);
+    }
+    if let SettingsMessage::SkillsUpdates(event) = message {
+        return updates_view::update(app, event);
+    }
+    if let SettingsMessage::SkillsClaudeConfig(event) = message {
+        return claude_view::update(app, event);
+    }
+    if let SettingsMessage::SkillsJobs(event) = message {
+        return jobs_view::update(app, event);
+    }
+    if let SettingsMessage::SkillsInstall(event) = message {
+        return install_view::update(app, event);
+    }
+    if let SettingsMessage::SkillsMarket(event) = message {
+        return market_view::update(app, event);
+    }
+    if let SettingsMessage::SkillRepositories(event) = message {
+        return repo_modal::update(app, event);
+    }
+    if let SettingsMessage::SkillsImport(event) = message {
+        return import_modal::update(app, event);
+    }
     match message {
         SettingsMessage::SkillsProjectSelected(project_path) => {
             if app.project_path.as_deref() == Some(project_path.as_str()) {

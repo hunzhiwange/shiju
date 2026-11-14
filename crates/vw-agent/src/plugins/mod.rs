@@ -58,7 +58,7 @@ pub use loader::{
 };
 pub use manifest::load_plugin_manifest;
 pub(crate) use mcp::{merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_options};
-pub(crate) use skills::load_plugin_skills;
+pub(crate) use skills::{catalog_skills, load_plugin_skills};
 /// 已完成路径审计和字段规范化的插件清单类型。
 pub use types::{
     PluginAuthor, PluginAuthorDetails, PluginHookSource, PluginIdentity, PluginInstallMetadata,

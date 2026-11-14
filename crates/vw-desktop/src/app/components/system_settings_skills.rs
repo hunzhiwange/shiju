@@ -1,6 +1,17 @@
 //! 技能配置设置界面组件。
 
 mod browser;
+mod updates_view;
+mod install_view;
+mod jobs_view;
+mod market_view;
+mod repo_modal;
+mod deeplink;
+mod import_modal;
+mod claude_view;
+mod bindings_view;
+mod storage_modal;
+mod backup_modal;
 mod catalog;
 mod help;
 mod plugin_install_modal;
@@ -173,6 +184,47 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
             ))
             .width(Length::Fill),
+            iced::widget::button("仓库管理")
+                .padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(Message::Settings(message::SettingsMessage::SkillRepositories(
+                    crate::app::message::settings::skills::repo_modal::Event::Open))),
+            iced::widget::button("Claude 配置").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::claude_view::message(
+                    crate::app::message::settings::skills::claude_view::Event::Open)),
+            iced::widget::button("技能市场").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::market_view::message(
+                    crate::app::message::settings::skills::market_view::Event::Open)),
+            iced::widget::button("更新与卸载").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::updates_view::message(
+                    crate::app::message::settings::skills::updates_view::Event::Open)),
+            iced::widget::button("详情与安装").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::install_view::message(
+                    crate::app::message::settings::skills::install_view::Event::Open)),
+            iced::widget::button("导入技能").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::import_modal::message(
+                    crate::app::message::settings::skills::import_modal::Event::Open)),
+            iced::widget::button("任务进度").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::jobs_view::message(
+                    crate::app::message::settings::skills::jobs_view::Event::Open)),
+            iced::widget::button("应用绑定").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::bindings_view::message(
+                    crate::app::message::settings::skills::bindings_view::Event::Open)),
+            iced::widget::button("存储与同步").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::storage_modal::message(
+                    crate::app::message::settings::skills::storage_modal::Event::Open)),
+            iced::widget::button("备份与恢复").padding([8, 10])
+                .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+                .on_press(crate::app::message::settings::skills::backup_modal::message(
+                    crate::app::message::settings::skills::backup_modal::Event::Open)),
             help_btn,
         ]
         .align_y(Alignment::Start),
@@ -193,7 +245,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let dialog = browser::view_overlays(app, dialog);
-    help::view_overlays(app, dialog)
+    let dialog = help::view_overlays(app, dialog);
+    let dialog = repo_modal::view(app, dialog);
+    let dialog = claude_view::view(app, dialog);
+    let dialog = bindings_view::view(app, dialog);
+    let dialog = storage_modal::view(app, dialog);
+    let dialog = backup_modal::view(app, dialog);
+    let dialog = market_view::view(app, dialog);
+    let dialog = install_view::view(app, dialog);
+    let dialog = import_modal::view(app, dialog);
+    let dialog = jobs_view::view(app, dialog);
+    updates_view::view(app, dialog)
 }
 
 #[cfg(test)]

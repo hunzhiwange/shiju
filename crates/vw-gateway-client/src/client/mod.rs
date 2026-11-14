@@ -412,6 +412,23 @@ mod aggregation_codex_api;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod aggregation_codex_api_tests;
 
+mod agent_apps_skills;
+
+pub use agent_apps_skills::MarketSearchError;
+pub use agent_apps_skills::{SkillDiscoveryError, SkillInventoryError, SkillImportError};
+
+pub use agent_apps_skills::SkillInstallError;
+
+pub use agent_apps_skills::SkillJobError;
+
+pub use agent_apps_skills::SkillUpdateError;
+
+pub use agent_apps_skills::SkillBindingError;
+
+pub use agent_apps_skills::SkillUninstallError;
+
+pub use agent_apps_skills::SkillStorageError;
+
 pub mod hermes_dashboard_api;
 
 mod hermes_memory_api;

@@ -78,6 +78,43 @@ pub(super) fn load_plugin_skill_inventory(
     inventory
 }
 
+/// Read-only catalog projection, including disabled packages. Never materialize commands.
+pub(crate) fn catalog_skills(
+    workspace: &Path,
+    config: &Config,
+) -> anyhow::Result<Vec<(Skill, bool)>> {
+    let options = PluginDiscoveryOptions::new(
+        workspace.to_path_buf(), plugin_config_dir(config), config.plugins.clone(),
+    );
+    let discovery = super::discover_plugins(&options)?;
+    let mut result = Vec::new();
+    for plugin in discovery.installed {
+        let format = package_format(&plugin.manifest);
+        let roots = skill_roots(&plugin.manifest)?;
+        let mut inventory = PluginSkillInventory::default();
+        let mut visited = HashSet::new();
+        let mut names = HashSet::new();
+        for root in roots {
+            let (files, errors) = skill_files(&root, format);
+            if let Some((path, message)) = errors.first() {
+                anyhow::bail!("invalid plugin skill path {}: {message}", path.display());
+            }
+            for file in files {
+                let Some(directory) = file.parent() else { continue };
+                if !visited.insert(directory.to_path_buf()) { continue; }
+                if let Some(skill) = load_candidate(
+                    &plugin, directory, format, config, SkillLoadMode::MetadataOnly, &mut inventory,
+                )? {
+                    if names.insert(skill.name.clone()) {
+                        result.push((skill, plugin.disabled_marker.is_none()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
 fn load_plugin(
     plugin: &DiscoveredPlugin,
     config: &Config,

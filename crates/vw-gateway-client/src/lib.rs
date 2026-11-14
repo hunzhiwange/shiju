@@ -34,6 +34,8 @@ mod stream;
 mod tests;
 
 pub use client::AppRoutingError;
+pub use client::SkillInstallError;
+pub use client::{MarketSearchError, SkillDiscoveryError, SkillInventoryError, SkillImportError};
 pub use client::AgentAppsHighAvailabilityError;
 /// 保留每步原始 LLM 载荷的会话 UI 批量加载结果。
 pub use client::SessionUiLoadResult;
@@ -215,6 +217,18 @@ pub use voice_stream::VoiceStream;
 pub use client::AggregationOmoError;
 
 pub use client::AggregationApiError;
+
+pub use client::SkillJobError;
+
+pub use client::SkillUpdateError;
+
+pub use client::SkillBindingError;
+
+pub use client::SkillUninstallError;
+
+pub use client::SkillStorageError;
+
+pub use client::SkillBackupError;
 
 pub use client::{HermesMemoryError, HermesMemoryScope};
 

@@ -169,6 +169,16 @@ pub(crate) struct PluginCatalogItem {
 
 #[derive(Debug, Clone)]
 pub(crate) struct SkillsSettingsState {
+    pub(crate) bindings: crate::app::message::settings::skills::bindings_view::State,
+    pub(crate) backups: crate::app::message::settings::skills::backup_modal::State,
+    pub(crate) storage: crate::app::message::settings::skills::storage_modal::State,
+    pub(crate) claude_config: crate::app::message::settings::skills::claude_view::State,
+    pub(crate) jobs: crate::app::message::settings::skills::jobs_view::State,
+    pub(crate) updates: crate::app::message::settings::skills::updates_view::State,
+    pub(crate) install: crate::app::message::settings::skills::install_view::State,
+    pub(crate) market: crate::app::message::settings::skills::market_view::State,
+    pub(crate) import: crate::app::message::settings::skills::import_modal::State,
+    pub(crate) repositories: crate::app::message::settings::skills::repo_modal::State,
     /// 是否让委托代理默认加载项目及父级技能
     pub(crate) auto_load_project_skills: bool,
     /// 技能目录提供方
@@ -220,6 +230,16 @@ pub(crate) struct SkillsSettingsState {
 impl Default for SkillsSettingsState {
     fn default() -> Self {
         Self {
+            updates: Default::default(),
+            jobs: Default::default(),
+            install: Default::default(),
+            market: Default::default(),
+            import: Default::default(),
+            repositories: Default::default(),
+            bindings: Default::default(),
+            backups: Default::default(),
+            storage: Default::default(),
+            claude_config: Default::default(),
             auto_load_project_skills: true,
             directory_provider: vw_config_types::skills::SkillsDirectoryProvider::Vibewindow,
             prompt_injection_mode: vw_config_types::skills::SkillsPromptInjectionMode::Compact,

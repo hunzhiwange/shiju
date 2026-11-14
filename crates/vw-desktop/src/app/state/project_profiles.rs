@@ -52,6 +52,9 @@ pub(crate) struct Management {
 #[derive(Clone)]
 pub(crate) struct Application {
     pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub owner: crate::app::message::project_profiles::Identity,
+    pub operation_id: Option<String>,
+    pub cancelling: bool,
     pub id: ProjectProfileId,
     pub version: u64,
     pub name: String,

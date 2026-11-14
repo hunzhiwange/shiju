@@ -32,8 +32,16 @@ pub(super) fn overlay<'a>(state: &'a State, scope: ProjectProfileScope, base: El
                 item.reason_code.as_ref().map(|r| format!(" · {r}")).unwrap_or_default())));
         }
     }
+    if let Some(operation) = &form.operation_id {
+        body = body.push(text(format!("操作：{operation}")));
+        if form.cancelling && form.result.is_none() { body = body.push(text("已请求取消，等待执行主机确认；已完成项不会自动撤销。")); }
+    }
     let actions = row![
-        button(text("关闭")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((!form.loading).then_some(close.clone())),
+        button(text("查询进度")).padding([8, 14]).style(rounded_action_btn_style)
+            .on_press_maybe((!form.loading && form.operation_id.is_some() && form.result.is_none()).then(|| message(Event::Apply(scope, ApplyEvent::Recover)))),
+        button(text("取消操作")).padding([8, 14]).style(rounded_action_btn_style)
+            .on_press_maybe((!form.loading && !form.cancelling && form.operation_id.is_some() && form.result.is_none()).then(|| message(Event::Apply(scope, ApplyEvent::Cancel)))),
+        button(text("关闭")).padding([8, 14]).style(rounded_action_btn_style).on_press_maybe((!form.loading && (!form.submitted || form.result.is_some())).then_some(close.clone())),
         button(text("确认应用一次")).padding([8, 14]).style(primary_action_btn_style)
             .on_press_maybe((!form.loading && !form.submitted && form.preview.is_some()).then(|| message(Event::Apply(scope, ApplyEvent::Confirm))))
     ].spacing(10);

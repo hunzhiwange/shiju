@@ -201,3 +201,11 @@ macOS 执行端适配 `gateway/agent_apps/profile_skills.rs::apply_resolved_skil
 `ProfileOperation::apply_prepared` 接汇总入口，先通过同一设置事务选择目标、写入保守 Failed 状态以清除旧 applied 声明，再执行领域回调，最后事务保存结果；初始记录失败零领域写入，最后记录失败返回错误，保留保守状态。结果存于原 selected 记录的可空 application 字段，旧记录默认 None；普通 select 清除 application，clear/delete 随选择记录清理结果。application_result 在同项目/主机/组授权和槽归属检查后读取。状态是最近组合操作的确认结果，不能代替后续原生漂移观察。
 
 后续生产执行端必须在 with_operation 的同一阻塞 worker 中先 prepare_switch，再调用 apply_prepared，四个回调分别调用已有 apply_provider、apply_mcp、apply_skills、apply_prompt，沿领域服务做授权、版本和真实状态核对；异步 MCP 必须在执行端运行时完整等待，禁止脱离操作锁后台写入。本轮未接生产 API 或补造统一原生观察器。按用户覆盖要求只写代码及必需契约，未编写/执行测试，未执行 Cargo、构建、检查、实机或回归；无 Cargo 槽位，CARGO_TARGET_DIR 未设置。所有实现未经编译和行为验证，后续补 profile_t16_ 的全成功、领域失败继续、未拍零写入、autosave warning、初始/最终持久化失败及标记一致性场景。
+
+## 任务 27：桌面操作进度、取消与恢复
+
+桌面 `project_profiles_progress.rs` 只通过 SDK progress/cancel 操作已受理的 operationId，不调用 apply 重试，也不以 current/result 的最近组结果冒充操作回执。桌面所需执行端回执形状为 `{operationId, profileId, group, result}`，result 为 null 表示仍在执行，非空必须是现有 ProjectProfileApplyResult；受理、进度和取消回执都须携带同一个操作 ID、组合 ID 和组。此为待执行端交付的消费者契约，当前服务端 apply 仍拒绝执行、progress/cancel 返回 404，尚不具备生产闭环。未知形状、错误或缺少操作 ID 均保持未确认，禁止重发；不得使用伪造受理 ID 或旧组结果绕过。
+
+同一进程内切换详情保留已提交状态，重连或回到目标组仅查询原操作；身份按网关、租户、项目及执行主机核对。更换身份、令牌或重启应用不提供跨会话恢复保证。查询正常待执行回执后每两秒继续查询；网络失败停止轮询，保留 ID 供重连/手动查询。取消仅提交一次，未收到真实终态不得显示取消成功；取消或部分失败使用独立 toast，逐项结果保留，完成只刷新目标组。没有受理 ID 的未知请求保持阻止再次应用，需执行主机人工核对。
+
+按本轮覆盖要求仅编写代码与必需契约，未编写/运行测试，未运行 Cargo、构建、检查、实机或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。以上未经编译和行为验证；后续需验证切页/断线恢复仅查询原操作、重复确认与取消防重、身份隔离、取消/部分失败展示及目标组刷新，并完成执行端协议交付和 macOS 渲染验收。

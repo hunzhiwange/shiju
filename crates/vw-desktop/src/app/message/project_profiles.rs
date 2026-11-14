@@ -3,6 +3,8 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 #[path = "project_profiles_apply.rs"]
 mod apply;
+#[path = "project_profiles_progress.rs"]
+mod progress;
 pub use apply::Event as ApplyEvent;
 use crate::app::state::project_profiles::{Action, Management};
 use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};
@@ -32,6 +34,11 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     if let Event::Apply(scope, event) = event { return apply::update(app, scope, event); }
+    if let Event::Refresh(scope) = &event {
+        if app.apps_catalog.project_profiles.application.as_ref().is_some_and(|f| f.scope == *scope && f.submitted && f.result.is_none()) {
+            return apply::update(app, *scope, apply::Event::Recover);
+        }
+    }
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
     let Some(project) = app.project_id.clone().filter(|id| !id.trim().is_empty()) else { return Task::none(); };

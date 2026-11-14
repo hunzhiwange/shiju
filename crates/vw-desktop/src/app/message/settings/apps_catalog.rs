@@ -141,6 +141,10 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         }
         AppsCatalogMessage::ConnectionOpen => {
             app.apps_catalog.connection_open = true;
+            if let Some(scope) = app.apps_catalog.project_profiles.application.as_ref().map(|f| f.scope) {
+                return crate::app::message::project_profiles::update(app,
+                    crate::app::message::project_profiles::Event::Apply(scope, crate::app::message::project_profiles::ApplyEvent::Recover));
+            }
         }
         AppsCatalogMessage::ConnectionClose => app.apps_catalog.connection_open = false,
         AppsCatalogMessage::HostInput(host) => {

@@ -493,14 +493,6 @@ fn prepare_request_inner(
     if let Some(model) = exact_model {
         body["model"] = Value::String(model.into());
     }
-    // The authorized target owns the Gemini model/action. Only Messages
-    // payloads use this resident conversion; native Gemini has contents.
-    if body.get("messages").is_some()
-        && (target.url.path().ends_with(":generateContent")
-            || target.url.path().ends_with(":streamGenerateContent"))
-    {
-        body = crate::model_relay::messages_gemini_request::convert(&body)?;
-    }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());
     *outgoing.body_mut() =

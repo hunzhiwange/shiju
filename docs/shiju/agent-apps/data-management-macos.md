@@ -88,3 +88,11 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 来源静态核对：CC Switch commands/import_export.rs::rename_db_backup → database/backup.rs::rename_backup；本项沿用文件重命名语义，目标使用已有 ID 合同，不引入第二份备份格式。独立测试 backup_rename_tests.rs 注册到 macOS 父模块，过滤 cc_data_24_，覆盖选中项移动、原字节和其它文件保留、碰撞、非法 ID、同名、外部主机、源/目标符号链接、大小写等价和四线程竞争唯一成功。
 
 遵循本轮用户覆盖：仅实现和静态审阅，未运行 Cargo、构建、单元或实机测试，无退出码、有效测试数或通过结论。未领取槽位；CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，plan.md 未修改。后续统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_24_ -- --nocapture`。
+
+## 子任务 5：迁入副本 schema 升级（2026-11-14，未验证）
+
+`source_upgrade.rs::upgrade_staged_copy` 接入 SQLite 私有临时副本和 SQL 内存暂存入口，按冻结来源 `database/schema.rs` 的 18→24 步骤新增应用启用列与 parser_state；单事务失败回滚，不接受目标数据库连接。原文件及摘要不变，暂存摘要 version 表示升级后的 schema。当前支持 18–24，0–17 涉及数据重写的迁移尚不支持，显式返回 UnsupportedVersion；未来版本拒绝。旧版本缺必需源表/列直接失败，不调用 create_tables 补造数据。24 维持已有只读解析合同。
+
+匿名 fixture `data_management/fixtures/schema_18.sql` 摘取冻结来源实际建表定义并移除 v18 之后的列，不读取用户库。新增独立注册测试 `cc_data_05_upgrade_migrates_supported_copy`、`cc_data_05_upgrade_failure_preserves_source`，包含游标保留、幂等、失败事务回滚、源字节保留、缺表及版本拒绝断言。这些断言尚未执行。
+
+按用户本轮覆盖要求，未执行 Cargo、编译、格式化、单元或实机测试；无退出码、有效通过数或运行前后差异证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一回归入口：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_05_ -- --nocapture`，并回归 `cc_data_03_`、`cc_data_04_` 的暂存调用行为。

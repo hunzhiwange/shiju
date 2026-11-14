@@ -100,3 +100,7 @@ shiju --config-dir /absolute/isolated/config gateway --host 127.0.0.1 --port 193
 归档固定为 `local_rollback`，带版本、用户标签、创建时间、租户/项目/principal/主机身份与完整前镜像；无可迁移包或下载句柄。全体目标明确不存在时返回 None，捕获缺失/重复/越界则失败。备份回执仅包含不透明 ID 与 SHA-256，不是授权。重新打开时要求原授权作用域、摘要、版本、类型及结构均匹配；领域恢复仍须单独授权并按版本保护执行。
 
 macOS 私有文件实现为 `backup_create_files.rs`：已存在的执行主机 0700 根目录、逐级无符号链接打开、0600 普通单链接文件、隐藏临时名称、完整写入与 fsync、重新打开并完整反序列化校验后，通过 descriptor-relative `renameatx_np(RENAME_EXCL)` 原子发布 `.local-backup` 文件。冲突最多尝试 1024 个后缀，不覆盖已有文件（包括大小写等价名称）；用户标签不参与路径构造。失败清理自有临时文件及私有捕获目录；发布已完成但父目录 fsync 失败时保留归档并报告存储错误，不能谎报未提交。未改变任务 8 的存储格式和写前回退用途。本轮按用户要求未运行 Cargo、单元或实机测试。
+
+## 子任务 5：暂存副本升级落点
+
+唯一桥为 `data_management/source_upgrade.rs`，由 `source.rs::read_sqlite` 的私有临时文件和 `sql_stage.rs::stage_sql` 的内存连接调用；均在提取记录前升级。支持 schema 18–24，较旧版本显式拒绝，未来版本拒绝；不注册宿主存储迁移器、不运行来源 create_tables。摘要 version 为升级后的版本，SHA-256 仍绑定原输入。JSON 保持原解析路径。本轮仅实现，未编译或执行测试，详见 macOS 记录子任务 5。

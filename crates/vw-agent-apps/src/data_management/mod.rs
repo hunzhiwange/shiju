@@ -51,3 +51,7 @@ mod backup_delete_tests;
 mod source_upgrade;
 #[cfg(test)]
 mod source_upgrade_tests;
+
+mod source_upgrade;
+#[cfg(test)]
+mod source_upgrade_tests;

@@ -117,7 +117,8 @@ impl SourceSnapshot {
 
 /// Read only a user-selected copy under a server-authorized root. The caller
 /// must authorize the sensitive read before calling; this is not an HTTP API.
-/// No HOME discovery, source migrations, checkpoints or target writes occur.
+/// No HOME discovery, source writes, checkpoints or target writes occur.
+/// Supported old SQLite schemas are upgraded only in the disposable copy.
 pub fn read_selected_source(
     scope: &SourceScope,
     authorized_root: &Path,
@@ -178,9 +179,12 @@ fn read_sqlite(main: &[u8], wal: Option<&[u8]>, records: &mut Vec<SourceRecord>)
     let path = directory.path().join("source.db");
     source_files::write_private(&path, main)?;
     if let Some(wal) = wal { source_files::write_private(&source_files::wal_path(&path), wal)?; }
-    let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+    let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_WRITE)
         .map_err(|_| SourceError::InvalidData)?;
-    connection.execute_batch("PRAGMA trusted_schema=OFF; PRAGMA query_only=ON; BEGIN DEFERRED;")
+    connection.execute_batch("PRAGMA trusted_schema=OFF;")
+        .map_err(|_| SourceError::InvalidData)?;
+    super::source_upgrade::upgrade_staged_copy(&connection)?;
+    connection.execute_batch("PRAGMA query_only=ON; BEGIN DEFERRED;")
         .map_err(|_| SourceError::InvalidData)?;
     read_connection(&connection, records)
 }
@@ -192,7 +196,7 @@ pub(super) fn read_connection(connection: &Connection, records: &mut Vec<SourceR
         return Err(SourceError::FutureVersion { found: version, supported: MAX_SCHEMA_VERSION });
     }
     // user_version alone does not identify a CC database. Older schemas are
-    // staged as-is; downstream converters decide which fields they support.
+    // accepted here only after the caller has applied the staging bridge.
     for (table, columns) in [
         ("providers", &["id", "app_type", "name", "settings_config"][..]),
         ("settings", &["key", "value"][..]),

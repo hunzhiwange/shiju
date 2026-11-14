@@ -8,7 +8,7 @@ const HEADER: &str = "-- CC Switch SQLite 导出";
 const MAX_SQL_BYTES: usize = 64 * 1024 * 1024;
 
 /// Caller authorizes the uploaded bytes and binds the authenticated scope.
-/// No target connection or path is accepted, and no migrations are performed.
+/// No target connection or path is accepted, and migrations affect only the disposable copy.
 /// The returned records still require domain validation before any target write.
 pub fn stage_sql(scope: &SourceScope, sql: &str) -> Result<SourceSnapshot, SourceError> {
     if sql.len() > MAX_SQL_BYTES { return Err(SourceError::TooLarge); }
@@ -42,6 +42,7 @@ pub fn stage_sql(scope: &SourceScope, sql: &str) -> Result<SourceSnapshot, Sourc
     let integrity: String = connection.query_row("PRAGMA integrity_check", [], |row| row.get(0))
         .map_err(|_| SourceError::InvalidData)?;
     if integrity != "ok" { return Err(SourceError::InvalidData); }
+    super::source_upgrade::upgrade_staged_copy(&connection)?;
     connection.execute_batch("PRAGMA query_only=ON;").map_err(|_| SourceError::InvalidData)?;
     let mut records = Vec::new();
     let version = source::read_connection(&connection, &mut records)?;

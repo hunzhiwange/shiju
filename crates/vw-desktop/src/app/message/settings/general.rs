@@ -98,10 +98,20 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         #[cfg(target_os = "macos")]
         GeneralSettingsMessage::InstanceTick => {
             let requests = crate::app::single_instance::poll();
-            if requests.is_empty() || app.shutdown_requested {
+            if app.shutdown_requested {
                 return Task::none();
             }
-            let unsupported = requests.iter().any(|args| !args.is_empty());
+            let mut unsupported = false;
+            for args in &requests {
+                match crate::app::deep_links::receive_arguments(args) {
+                    Ok(other) => unsupported |= other,
+                    Err(_) => return app.show_error_toast("无法暂存启动链接".to_string()),
+                }
+            }
+            let links = crate::app::deep_links::take_notification();
+            if requests.is_empty() && !links {
+                return Task::none();
+            }
             let wake = app.reopen_main_window();
             if unsupported {
                 return Task::batch([wake, app.show_error_toast(
@@ -111,6 +121,15 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             return wake;
         }
         GeneralSettingsMessage::TrayTick => {
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app::desktop_lifecycle::refresh_tray_state(
+                app.desktop_locale,
+                app.shutdown_requested,
+                cfg!(target_os = "macos") && app.main_window_id.is_none(),
+            );
+            if app.shutdown_requested {
+                return Task::none();
+            }
             return Task::batch(
                 crate::app::desktop_lifecycle::poll_tray().into_iter().map(|message| {
                     Task::done(Message::Settings(SettingsMessage::General(message)))

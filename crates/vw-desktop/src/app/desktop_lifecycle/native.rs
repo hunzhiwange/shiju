@@ -18,6 +18,9 @@ struct LocalizedTray {
     _icon: TrayIcon,
     show: MenuItem,
     quit: MenuItem,
+    status: MenuItem,
+    shutting_down: bool,
+    background: bool,
 }
 
 /// Update existing native items without creating a tray when the preference is disabled.
@@ -27,8 +30,41 @@ pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
             let i18n = crate::app::i18n::I18n::new(locale);
             tray.show.set_text(i18n.__("显示主窗口"));
             tray.quit.set_text(i18n.__("退出识矩"));
+            tray.status.set_text(tray_status_label(locale, tray.shutting_down, tray.background));
         }
     });
+}
+
+/// Uses only the application snapshot; no disk or SDK request runs on the UI thread.
+pub(crate) fn refresh_tray_state(
+    locale: vw_config_types::ui::DesktopLocale,
+    shutting_down: bool,
+    background: bool,
+) {
+    TRAY.with(|slot| {
+        if let Some(tray) = slot.borrow_mut().as_mut() {
+            tray.shutting_down = shutting_down;
+            tray.background = background;
+            tray.status.set_text(tray_status_label(locale, shutting_down, background));
+            tray.show.set_enabled(!shutting_down);
+            tray.quit.set_enabled(!shutting_down);
+        }
+    });
+}
+
+fn tray_status_label(
+    locale: vw_config_types::ui::DesktopLocale,
+    shutting_down: bool,
+    background: bool,
+) -> &'static str {
+    let i18n = crate::app::i18n::I18n::new(locale);
+    if shutting_down {
+        i18n.__("正在退出")
+    } else if background {
+        i18n.__("后台运行中")
+    } else {
+        i18n.__("运行中")
+    }
 }
 
 fn legacy_launcher() -> Result<AutoLaunch, String> {
@@ -189,8 +225,10 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
         }
         let i18n = crate::app::i18n::I18n::new(locale);
         let menu = Menu::new();
+        let status = MenuItem::new(tray_status_label(locale, false, false), false, None);
         let show = MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None);
         let quit = MenuItem::with_id(QUIT_ID, i18n.__("退出识矩"), true, None);
+        menu.append(&status).map_err(|err| err.to_string())?;
         menu.append(&show).map_err(|err| err.to_string())?;
         menu.append(&quit).map_err(|err| err.to_string())?;
         let image = image::load_from_memory(include_bytes!(
@@ -210,6 +248,9 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
                 .map_err(|err| err.to_string())?,
             show,
             quit,
+            status,
+            shutting_down: false,
+            background: false,
         });
         Ok(())
     })
@@ -224,6 +265,8 @@ pub(crate) fn remove_tray() {
 pub(crate) fn poll_tray() -> Vec<GeneralSettingsMessage> {
     MenuEvent::receiver()
         .try_iter()
+        // Bound work per tick even if native menu events keep arriving.
+        .take(32)
         .filter_map(|event| match event.id.as_ref() {
             SHOW_ID => Some(GeneralSettingsMessage::TrayShow),
             QUIT_ID => Some(GeneralSettingsMessage::TrayQuit),

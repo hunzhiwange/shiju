@@ -23,3 +23,6 @@ pub mod projection;
 
 #[cfg(target_os = "macos")]
 pub mod s3_upload;
+
+#[cfg(target_os = "macos")]
+pub mod s3_download;

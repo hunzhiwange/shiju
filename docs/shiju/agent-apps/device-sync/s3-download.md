@@ -1,9 +1,9 @@
-# S3 下载契约
+# S3 下载应用契约
 
-入口为 `device_sync::s3_transport::S3DownloadTarget`，提供 `head`、`download_manifest` 和 `download`。Gateway 须先授权主机网络访问并解析凭据；构造目标不会授予网络权限。兼容版本由共享快照所有者提供，不允许为零。
+`device_sync::s3_download::download_s3_snapshot` 在已授权的租户/主机同步锁内执行，接收同一目的地、profile、数据兼容版本的基线与下载预览。读取固定 manifest、config.json、skills.zip；两份制品均通过大小和 SHA256 校验后才解析配置、解压和准备技能更新。当前本地快照重新参与冲突判定，防止旧预览覆盖本地变更。
 
-对象路径与上传保持一致，仅接受 manifest.json、config.json 和 skills.zip。GET/HEAD 使用现有 SigV4 签名器，直接发送签名请求；禁止重定向和自动重试。仅 HTTP 404 返回 None，403、206 及其它非 200 状态均返回错误。成功响应必须提供非空 ETag，原样返回该值。
+技能准备回调由本地主机执行器提供，使用现有技能所有者和保存的哈希、绑定构造 `SkillUpdate`，不得发布；远端只提供内容，不提供本地路径和授权。协调入口拒绝归档中未声明的技能以及哈希或更新集合不一致。准备完成后重新读取 manifest，内容与 ETag 必须均保持不变。固定 key 仍属于乐观并发协议，不能提供跨设备锁。
 
-manifest 上限沿用 MAX_MANIFEST_BYTES；制品由 ArtifactDeclaration 限定大小及 SHA256，并受 MAX_ARTIFACT_SIZE 限制。逐块校验，成功 EOF、长度与摘要全部满足后才返回暂存字节，不写文件或应用配置。空闲时限 120 秒，总时限为 300 秒加每 16 KiB 一秒，与 WebDAV 下载一致。禁用透明解压并拒绝非 identity 内容编码，避免摘要与传输字节不一致。
+统一 `apply_snapshot` 负责安全快照、发布、回滚与投影。内部应用失败保留 `ApplyFailure` 恢复信息，不返回基线；成功返回 `DownloadApplied`，其中投影警告表示配置已提交，应重试投影而非重放导入。调用者只可将返回基线保存到原连接作用域，不修改其他目的地或 profile 的基线。
 
-本轮按用户指令仅实现与静态审阅，未运行 Cargo、单元测试、loopback 或实机验证；未领取槽位，CARGO_TARGET_DIR 未设置。后续统一回归需覆盖签名 GET/HEAD、ETag、404/403/206、超限、截断、摘要不符及超时。
+本轮仅完成代码审阅，按用户要求未执行编译、Cargo、单元测试、实机测试或其他测试；后续统一验证，暂无运行通过证据。

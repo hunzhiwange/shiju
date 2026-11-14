@@ -4,9 +4,6 @@ pub mod permissions;
 #[cfg(target_os = "macos")]
 mod permissions_macos;
 
-#[cfg(test)]
-mod permissions_tests;
-
 #[cfg(not(target_arch = "wasm32"))]
 pub mod capture;
 #[cfg(not(target_arch = "wasm32"))]

@@ -10,6 +10,7 @@ members = [
   "crates/libs/preview-content",
   "crates/libs/voice-recordings",
   "crates/libs/audio-playback",
+  "crates/libs/voice-permissions",
   "crates/libs/file-index",
   "crates/libs/tui-contracts",
   "crates/libs/tui-text",

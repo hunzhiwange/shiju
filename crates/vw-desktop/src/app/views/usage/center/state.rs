@@ -1,6 +1,7 @@
 use vw_gateway_client::UsageSummary;
 
 pub struct State {
+    pub pricing: super::pricing::State,
     pub scan: super::scan::State,
     pub charts: super::charts::State,
     pub logs: super::logs::State,
@@ -16,6 +17,7 @@ impl State {
     pub fn close(&mut self) {
         self.charts = super::charts::State::default();
         self.groups = super::groups::State::default();
+        self.pricing.close();
         self.open = false;
         self.sequence = self.sequence.wrapping_add(1);
         self.loading = false;
@@ -37,6 +39,6 @@ impl State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
+        Self { pricing: super::pricing::State::default(), scan: super::scan::State::default(), charts: super::charts::State::default(), logs: super::logs::State::default(), groups: super::groups::State::default(), query: super::overview::default_query(), open: false, sequence: 0, loading: false, result: None }
     }
 }

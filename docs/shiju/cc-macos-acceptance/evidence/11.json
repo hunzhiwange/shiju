@@ -1,0 +1,1116 @@
+{
+  "schema_version": 1,
+  "task": 11,
+  "title": "核证MCP统一管理与应用分发",
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "scope": "仅 macOS；纯核证任务本轮跳过，保存延期记录并删除编号卡。",
+  "instruction_override": "最新用户指令禁止构建、Cargo、单元测试、实机测试、验收及最终回归；本轮不以主动跳过验证作为阻塞，不计通过。",
+  "baseline": {
+    "record_commit": "8755d98cf1967bce381c69fb9f9162a4509664f4",
+    "product_artifact_hash": null,
+    "note": "共享 checkout 有其他任务变更；记录提交不代表冻结运行版本，未核证产品树或产物一致性。"
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "document_reference_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "document_reference_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "document_reference_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-convergence/mcp.md",
+      "sha256": "092291c7e69c094ea7be0aa6c500ece55e617e4b614cc561bffcb69235c48f58",
+      "status": "document_reference_not_behavior_evidence"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": 11,
+      "detail": "原母任务11编号卡读取失败（不存在）；inventory 指向 mcp.md，该文提供调用链及测试文件候选，明确未运行测试，不能替代逐来源实现/API/SDK/UI/聚焦测试映射。额外交叉项待所有者确认，不重建能力。"
+    },
+    {
+      "owner": 22,
+      "detail": "runtime-contract 状态 prepared_unverified_not_executable，verified_entrypoints 未提供已验证入口；缺冻结产物、隔离资源及当前基线行为证据。母11与母22补交后方可核证。"
+    }
+  ],
+  "source_selection": {
+    "basis": "owner_ref=11 或 owner_refs 含11；仅准备来源候选，未验证覆盖完整性及母任务额外交叉项。",
+    "candidate_count": 83,
+    "coverage_validation": "deferred"
+  },
+  "items": [
+    {
+      "source_key": "file:docs/user-manual/en/3-extensions/3.1-mcp.md",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:docs/user-manual/ja/3-extensions/3.1-mcp.md",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:docs/user-manual/zh/3-extensions/3.1-mcp.md",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/claude_mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/database/dao/mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/deeplink/mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/gemini_mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/agy.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/claude.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/codex.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/dsh.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/gemini.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/grokbuild.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/hermes.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/kimi.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/mcode.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/mod.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/omp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/opencode.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/pi.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/mcp/validation.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/mcp.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/mcp_connectivity.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/mcp_connectivity/tests.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/fixtures/mcp_connectivity_server.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/mcp_bytes.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/mcp/claude.json",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/mcp/codex-config.toml",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/mcp/codex-section.toml",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/golden/snapshots/mcp/gemini-settings.json",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src-tauri/tests/mcp_commands.rs",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/deeplink/McpConfirmation.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/AppMatrix.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/McpFormModal.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/UnifiedMcpPanel.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/formBits.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/mcpDraft.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/components/mcp/useVisibleAppIds.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/config/mcpPresets.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/hooks/useMcp.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/hooks/useMcpConnectivity.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/icons/extracted/mcp.svg",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:src/lib/api/mcp.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:tests/components/McpFormModal.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:tests/components/UnifiedMcpPanel.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:tests/components/mcpDraft.test.ts",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:tests/hooks/useMcpBulkToggle.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "file:tests/hooks/useMcpConnectivity.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:16:start_mcp_connectivity_checks",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:38:cancel_mcp_connectivity_checks",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:44:get_claude_mcp_status",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:50:read_claude_mcp_config",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:56:upsert_claude_mcp_server",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:62:delete_claude_mcp_server",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:68:validate_mcp_command",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:101:upsert_mcp_server_in_config",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:163:delete_mcp_server_in_config",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:173:set_mcp_enabled",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:194:get_mcp_servers",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:202:upsert_mcp_server",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:211:delete_mcp_server",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:217:toggle_mcp_app",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:231:import_mcp_from_apps",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:240:resync_mcp_to_apps",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/mcp.rs:84:get_mcp_config",
+      "kind": "command",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:get_claude_mcp_status",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:44:get_claude_mcp_status"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:read_claude_mcp_config",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:50:read_claude_mcp_config"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:upsert_claude_mcp_server",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:56:upsert_claude_mcp_server"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:delete_claude_mcp_server",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:62:delete_claude_mcp_server"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:validate_mcp_command",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:68:validate_mcp_command"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:get_mcp_config",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:84:get_mcp_config"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:upsert_mcp_server_in_config",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:101:upsert_mcp_server_in_config"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:delete_mcp_server_in_config",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:163:delete_mcp_server_in_config"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:set_mcp_enabled",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:173:set_mcp_enabled"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:get_mcp_servers",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:194:get_mcp_servers"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:start_mcp_connectivity_checks",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:16:start_mcp_connectivity_checks"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:cancel_mcp_connectivity_checks",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:38:cancel_mcp_connectivity_checks"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:upsert_mcp_server",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:202:upsert_mcp_server"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:delete_mcp_server",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:211:delete_mcp_server"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:toggle_mcp_app",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:217:toggle_mcp_app"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:import_mcp_from_apps",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:231:import_mcp_from_apps"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    },
+    {
+      "source_key": "registration:resync_mcp_to_apps",
+      "kind": "registration",
+      "owner_refs": [
+        "11"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/mcp.rs:240:resync_mcp_to_apps"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 11,
+      "reason": "延期核证：原生管理与应用分发、权限错误、SDK、macOS适用性及测试证据均未验证；不能判定已实现或上游不支持。"
+    }
+  ],
+  "execution": {
+    "behavior_commands": [],
+    "exit_code": null,
+    "ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "observations": [],
+    "format_check": "not_run",
+    "acceptance": "not_run",
+    "unit_tests": "not_run",
+    "build": "not_run",
+    "final_regression": "not_run",
+    "note": "文档读取和候选整理不计行为用例；零用例不能通过。"
+  },
+  "runtime": {
+    "macos_version": null,
+    "architectures": {
+      "arm64": "unverified",
+      "x64": "unverified"
+    },
+    "app_versions": null,
+    "artifact_hashes": null
+  },
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "未启动应用或创建隔离数据，无运行资源需清理；仅删除本任务编号卡。"
+  },
+  "deferred_work": [
+    "母11补齐逐来源实现、API权限/错误、SDK、UI与聚焦测试映射并声明交叉项。",
+    "母22及前置任务交付冻结版本、可执行隔离契约和构建产物。",
+    "以后统一核对注册、条件编译、事件和TS业务规则、当前等价入口与证据适用性。",
+    "执行证据JSON格式检查、差异审查及领域行为验证，记录真实命令、退出码、有效用例数和实际观察；缺账号或主机仍记未验证。"
+  ]
+}

@@ -203,3 +203,17 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
 
 已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。
+
+## 任务 34：桌面 OpenClaw 模型选择（2026-11-14）
+
+新增 `components/agent_apps/openclaw_model.rs`，从应用详情打开统一设置弹窗；调用任务 25 的 model/catalog/health SDK 与 model PUT。读取失败不开放保存；当前未配置值保留；保存排除 primary、空值和重复 fallback，保留 model 扩展字段。写警告与只读健康提示在弹窗展示，错误使用 toast。网关、租户、项目、执行主机、目录与请求代数共同拒绝过期响应，关闭和切换连接使请求失效。配置 JSON5 原文仍由底层分节事务维护。
+
+静态核对发现母 5 的供应商 provider/model 专用选项投影尚未提供；本次只消费 SDK 白名单键与 alias，不在桌面复制供应商解析或中文排序。白名单以外的当前值显示“未配置”。供应商全集与中文排序等价性仍需后续补齐投影。
+
+补充独立行为测试源码两个场景（未配置值、扩展字段与回退去重），未执行。按本轮最高优先指令，没有运行 Cargo、单元/实机或其它测试、最终回归；没有领取槽位，CARGO_TARGET_DIR 未设置。仅源码审查，不宣称编译或验收通过。任务卡按指令删除，后续统一验证。
+
+## 任务 32：桌面 Hermes 双记忆草稿（2026-11-14）
+
+新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
+
+已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。

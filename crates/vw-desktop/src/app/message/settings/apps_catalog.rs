@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    OpenClawModel(crate::app::components::openclaw_model::Event),
     HermesMemory(crate::app::components::hermes_memory::Event),
     HermesDashboard(crate::app::components::hermes_dashboard::Event),
     Launch(crate::app::components::system_settings_apps::launch::LaunchMessage),
@@ -40,6 +41,7 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::OpenClawModel(event) => return crate::app::components::openclaw_model::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
         AppsCatalogMessage::QueryInput(query) => {
@@ -128,6 +130,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.openclaw_model.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
@@ -151,6 +154,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.lifecycle.invalidate();
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
+            app.apps_catalog.openclaw_model.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();

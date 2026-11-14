@@ -493,3 +493,10 @@ pub(crate) mod hermes_memory;
 #[cfg(test)]
 #[path = "agent_apps/hermes_memory_tests.rs"]
 mod hermes_memory_tests;
+
+#[path = "agent_apps/openclaw_model.rs"]
+pub(crate) mod openclaw_model;
+
+#[cfg(test)]
+#[path = "agent_apps/openclaw_model_tests.rs"]
+mod openclaw_model_tests;

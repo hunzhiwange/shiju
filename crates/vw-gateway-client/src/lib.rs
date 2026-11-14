@@ -216,3 +216,5 @@ pub use client::AggregationOmoError;
 pub use client::AggregationApiError;
 
 pub use client::{HermesMemoryError, HermesMemoryScope};
+
+pub use client::{OpenClawSettingsError, OpenClawSettingsScope};

@@ -16,6 +16,9 @@ pub(super) fn view<'a>(
     app: &'a catalog::CatalogRow,
 ) -> Element<'a, Message> {
     let mut details = column![text("运行状态").size(15)].spacing(10);
+    if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::OpenClaw {
+        details = details.push(crate::app::components::openclaw_model::entry());
+    }
     if app.entry.id == vw_gateway_client::vw_api_types::agent_apps::AppId::Hermes {
         details = details.push(crate::app::components::hermes_memory::view(&state.hermes_memory));
         details = details.push(crate::app::components::hermes_dashboard::view(&state.hermes_dashboard));

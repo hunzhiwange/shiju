@@ -44,6 +44,9 @@ mod messages_thinking_tests;
 mod responses_tests;
 
 mod responses;
+mod responses_chat_request;
+#[cfg(test)]
+mod responses_chat_request_tests;
 pub(crate) mod responses_compaction;
 #[cfg(test)]
 mod responses_compaction_tests;

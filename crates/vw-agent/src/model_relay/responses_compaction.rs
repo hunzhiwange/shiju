@@ -1,6 +1,6 @@
 //! Codex Responses compaction through the existing Chat conversion.
 
-use super::responses::{self, ChatTools};
+use super::responses::ChatTools;
 use axum::{body::Body, http::StatusCode};
 use serde_json::{Map, Value, json};
 use tokio_util::sync::CancellationToken;
@@ -33,18 +33,15 @@ impl Request {
             .filter(|name| !name.trim().is_empty())
             .ok_or(StatusCode::BAD_REQUEST)?
             .to_owned();
-        let items = body["input"].as_array_mut().ok_or(StatusCode::UNPROCESSABLE_ENTITY)?;
+        let mut empty = Vec::new();
+        let items = body["input"].as_array_mut().unwrap_or(&mut empty);
         let mut triggers = 0;
-        let mut has_history = false;
         for item in items {
             match item["type"].as_str() {
                 Some("compaction_trigger") => {
                     super::messages::object_keys(item, &["type"])?;
                     triggers += 1;
                     *item = json!({"type":"message","role":"user","content":PROMPT});
-                }
-                Some("compaction" | "compaction_summary" | "context_compaction") => {
-                    has_history = true;
                 }
                 _ => {}
             }
@@ -53,17 +50,13 @@ impl Request {
             return Err(StatusCode::BAD_REQUEST);
         }
         let compact = triggers == 1;
-        if !compact && !has_history {
-            return Err(StatusCode::UNPROCESSABLE_ENTITY);
-        }
-        responses::codex_chat_effort(&mut body)?;
         if compact {
             let body = body.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
             body.remove("text");
             body.remove("parallel_tool_calls");
             body.insert("tool_choice".into(), json!("none"));
         }
-        let (chat, tools) = responses::to_chat(&body, true)?;
+        let (chat, tools) = super::responses_chat_request::convert(body)?;
         Ok(Self { chat, model, tools, compact })
     }
 
@@ -77,6 +70,7 @@ impl Request {
             "tools",
             "tool_choice",
             "parallel_tool_calls",
+            "reasoning_effort",
         ] {
             if let Some(value) = self.chat.get(field) {
                 body.insert(field.into(), value.clone());

@@ -8,6 +8,7 @@ use vw_api_types::hermes_memory::{HermesMemoryKind, HermesMemoryResponse};
 #[derive(Debug)]
 pub struct HermesMemory {
     directory: Option<WorkspaceDirectory>,
+    path: std::path::PathBuf,
 }
 
 impl HermesMemory {
@@ -21,6 +22,7 @@ impl HermesMemory {
         create: bool,
     ) -> Result<Self, PathError> {
         Ok(Self {
+            path: resolved_root.join("memories"),
             directory: WorkspaceDirectory::open(
                 authorized_host,
                 executor_host,
@@ -40,6 +42,7 @@ impl HermesMemory {
         };
         Ok(HermesMemoryResponse {
             kind,
+            path: Some(self.path.join(filename(kind)).to_string_lossy().into_owned()),
             exists: content.is_some(),
             content: content.unwrap_or_default(),
         })

@@ -197,3 +197,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 封装任务 9 已存在的固定 workspace files GET/PUT、daily 列表及 GET/PUT/DELETE、search POST 和 search/{id} GET/DELETE。使用真实 workspace_memory DTO，公开 WorkspaceMemoryScope/WorkspaceMemoryError 与绑定提交客户端及作用域的 WorkspaceSearch；取消请求前禁止本地后续 poll，取消失败可重试，不返回取消响应中的结果。项目/目标主机由 reqwest 编码查询传递，租户沿端点上下文，授权头标为敏感并复用禁止重定向/重试的原生传输。保留 null/空文本及 HTTP 状态，204 写入不尝试 JSON 解码；不开放任意路径。目录动作不在任务 9 路由内，仍由任务 26 所有。
 
 静态核对任务 1 正式合同、接口边界、来源映射、workspace.ts、相邻 desktop/Hermes SDK 测试及任务 9 真实路由。新增 workspace_sdk_preserves_scope 前缀测试源码，覆盖方法/路径/编码/租户/令牌/body、空与缺失、中文、HTTP 拒绝与解码失败、搜索提交/查询和取消失败后停止接收。按用户本轮要求未运行 Cargo、单元/实机或其它测试及最终回归，不声明编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证该过滤测试和正式 Gateway 集成。
+
+## 任务 32：桌面 Hermes 双记忆草稿（2026-11-14）
+
+新增 Hermes 双记忆编辑入口，memory/user 独立草稿、首次水合保留编辑、切标签保留、保存快照确认及失败保留；离开详情、设置页、切换连接或主机时清空并以作用域和代次丢弃旧响应。读取路径由授权执行主机返回可选 path，不推测本机 HOME；未返回时明确提示。复用统一编辑器、按钮及 toast，中文使用默认字体。新增 hermes_drafts_preserve_inflight_edits 两个独立测试源码。
+
+已静态核对任务 15 SDK、任务 1 合同、来源 HermesMemoryPanel/hermesMemoryDrafts 及相邻测试。按本轮要求未运行 Cargo、任何测试或最终回归，不声称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族、旧响应及实际渲染。

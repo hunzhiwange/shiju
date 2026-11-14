@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    HermesMemory(crate::app::components::hermes_memory::Event),
     HermesDashboard(crate::app::components::hermes_dashboard::Event),
     Launch(crate::app::components::system_settings_apps::launch::LaunchMessage),
     Preferences(crate::app::components::system_settings_apps::preferences::PreferencesMessage),
@@ -39,12 +40,14 @@ impl std::fmt::Debug for AppsCatalogMessage {
 }
 pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message> {
     match message {
+        AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
         AppsCatalogMessage::QueryInput(query) => {
             app.apps_catalog.query = query;
             app.apps_catalog.drag = Default::default();
         }
         AppsCatalogMessage::ToggleDetails(id) => {
+            app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
         }
         AppsCatalogMessage::Drag(value) => {
@@ -126,6 +129,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
+            app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.host = host;
             app.apps_catalog.drag = Default::default();
@@ -148,6 +152,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.preferences.invalidate();
             app.apps_catalog.launch.invalidate();
             app.apps_catalog.hermes_dashboard.invalidate();
+            app.apps_catalog.hermes_memory.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.token = token;
             app.apps_catalog.drag = Default::default();

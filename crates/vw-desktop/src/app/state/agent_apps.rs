@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub hermes_memory: crate::app::components::hermes_memory::State,
     pub hermes_dashboard: crate::app::components::hermes_dashboard::State,
     pub launch: crate::app::components::system_settings_apps::launch::LaunchState,
     pub preferences: crate::app::components::system_settings_apps::preferences::PreferencesState,
@@ -54,6 +55,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.hermes_dashboard.invalidate();
+        self.hermes_memory.invalidate();
         self.connection_open = false;
         self.error = Some("连接已更改，正在重新连接应用".into());
         true
@@ -63,6 +65,7 @@ impl AppsCatalogState {
         self.preferences.invalidate();
         self.launch.invalidate();
         self.hermes_dashboard.invalidate();
+        self.hermes_memory.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.context = Some(context);
         self.loading = true;

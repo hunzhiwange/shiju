@@ -17,6 +17,9 @@ pub struct HermesMemoryResponse {
     pub kind: HermesMemoryKind,
     pub content: String,
     pub exists: bool,
+    /// Authorized executor path; never synthesized by desktop clients.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 /// The resource kind is supplied in the route, not repeated in the body.

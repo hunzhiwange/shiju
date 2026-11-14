@@ -43,7 +43,7 @@ fn hermes_wire_limits_and_enabled_round_trip() {
 fn hermes_wire_memory_preserves_text_and_missing_state() {
     for exists in [true, false] {
         let response =
-            HermesMemoryResponse { kind: HermesMemoryKind::User, content: String::new(), exists };
+            HermesMemoryResponse { kind: HermesMemoryKind::User, content: String::new(), exists, path: None };
         assert_eq!(
             serde_json::from_value::<HermesMemoryResponse>(
                 serde_json::to_value(&response).unwrap()

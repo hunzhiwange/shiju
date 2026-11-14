@@ -23,6 +23,7 @@ use super::providers::refresh_task;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::TabSelected(tab) => {
+            app.apps_catalog.hermes_memory.invalidate();
             if app.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
@@ -32,6 +33,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         SettingsMessage::SystemTabSelected(tab) => {
+            app.apps_catalog.hermes_memory.invalidate();
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
                 return Task::none();
             }

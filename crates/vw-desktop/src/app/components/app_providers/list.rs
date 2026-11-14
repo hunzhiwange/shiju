@@ -390,6 +390,7 @@ pub(crate) fn overlay<'a>(
         ListMessage::Aggregation(crate::app::message::settings::aggregation_list::Event::Open),
         ready,
     ));
+    actions = actions.push(action("备用队列", ListMessage::Failover(crate::app::message::agent_apps_high_availability::Event::Open), ready));
     if mode::available(scope.app) {
         actions = actions.push(action("供应商模式", ListMessage::Mode(ModeEvent::Open), ready));
     }

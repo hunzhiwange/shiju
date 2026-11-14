@@ -267,3 +267,5 @@ pub(crate) mod voice_recordings;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod voice_hotkeys;
+
+pub(crate) mod agent_apps_high_availability;

@@ -482,3 +482,5 @@ mod system_settings_worktrees_tests;
 mod editor_settings_fields_tests;
 
 mod editor_settings_fields;
+
+pub(crate) mod agent_apps_high_availability;

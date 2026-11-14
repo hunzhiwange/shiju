@@ -21,6 +21,9 @@ impl LocalBackupReceipt {
     pub fn id(&self) -> &str {
         &self.id
     }
+    pub(super) fn renamed(&self, id: String) -> Self {
+        Self { id, digest: self.digest }
+    }
     pub fn digest(&self) -> &[u8; 32] {
         &self.digest
     }
@@ -102,7 +105,7 @@ pub(super) fn validate(backup: &LocalBackup, scope: &SafetySnapshotScope) -> Res
     Ok(())
 }
 
-fn decode(
+pub(super) fn decode(
     bytes: &[u8],
     receipt: &LocalBackupReceipt,
     scope: &SafetySnapshotScope,

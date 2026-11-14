@@ -37,3 +37,17 @@ mod sql_stage_tests;
 pub mod backup_delete;
 #[cfg(all(test, target_os = "macos"))]
 mod backup_delete_tests;
+
+#[cfg(target_os = "macos")]
+pub mod backup_rename;
+#[cfg(all(test, target_os = "macos"))]
+mod backup_rename_tests;
+
+#[cfg(target_os = "macos")]
+pub mod backup_delete;
+#[cfg(all(test, target_os = "macos"))]
+mod backup_delete_tests;
+
+mod source_upgrade;
+#[cfg(test)]
+mod source_upgrade_tests;

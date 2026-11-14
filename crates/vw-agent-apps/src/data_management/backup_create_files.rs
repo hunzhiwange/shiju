@@ -194,3 +194,37 @@ pub(super) fn lock_backup(file: &File, exclusive: bool) -> Result<(), Error> {
     }
     Ok(())
 }
+
+/// Rename within a pinned private root. Never use exists-then-rename: only the
+/// kernel's exclusive operation arbitrates concurrent destination claims.
+pub(super) fn rename_backup(parent: &File, source: &str, target: &str) -> Result<(), Error> {
+    let source_name = archive_name(source)?;
+    let target_name = archive_name(target)?;
+    if source == target {
+        return Err(Error::Conflict);
+    }
+    // Recheck the source type immediately before publication; no symlink or
+    // multiply-linked archive may be moved through this entry point.
+    let _source = open_backup(parent, source)?;
+    // SAFETY: both names are validated basenames relative to a live descriptor.
+    if unsafe {
+        libc::renameatx_np(
+            parent.as_raw_fd(),
+            source_name.as_ptr(),
+            parent.as_raw_fd(),
+            target_name.as_ptr(),
+            libc::RENAME_EXCL,
+        )
+    } != 0
+    {
+        return Err(
+            if std::io::Error::last_os_error().kind() == std::io::ErrorKind::AlreadyExists {
+                Error::Conflict
+            } else {
+                Error::StorageUnavailable
+            },
+        );
+    }
+    // A sync failure is reported, but the committed destination is retained.
+    parent.sync_all().map_err(|_| Error::StorageUnavailable)
+}

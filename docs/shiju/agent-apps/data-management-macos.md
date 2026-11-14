@@ -80,3 +80,11 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 独立测试注册于 data_management/mod.rs，过滤族 `cc_data_04_`，覆盖匿名导出形状、隔离作用域、跨文件攻击无磁盘副作用、危险 PRAGMA、空头、截断事务、关键列缺失与未来版本。夹具依照来源 dump_sql 格式手工构造，未调用来源程序导出真实文件，不作为真实导出兼容性已验证证据。
 
 按本轮用户覆盖要求，仅完成代码和测试代码，未运行 Cargo、编译、单元或实机测试；无退出码、有效测试数或通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。后续统一验证使用仓库 cargo_slot.py 入口执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_04_ -- --nocapture`，另补来源真实匿名导出兼容验证。
+
+## 子任务 24：无覆盖重命名备份（2026-11-14）
+
+`backup_rename::rename_local_backup` 复用任务 22 的私有根目录、备份格式和回执摘要校验以及任务 23 的 ID 语义。输入原回执、完整租户/项目/principal/host 与目标 ID；先校验归档摘要及作用域，再在固定目录描述符内以 macOS renameatx_np(RENAME_EXCL) 原子移动，不改内容、内嵌显示标签和摘要，返回新 ID 回执。目标沿用现有小写 ASCII ID 限制，拒绝空值、分隔符、控制字符和同名；源拒绝符号/硬链接，目标链接与既存文件不覆盖。大小写等价目标由文件系统原子判定。目录同步失败可能发生于提交后，明确报错并保留目标供调用者核对。调用者先授权执行主机根目录与作用域；未接 API/SDK/UI。
+
+来源静态核对：CC Switch commands/import_export.rs::rename_db_backup → database/backup.rs::rename_backup；本项沿用文件重命名语义，目标使用已有 ID 合同，不引入第二份备份格式。独立测试 backup_rename_tests.rs 注册到 macOS 父模块，过滤 cc_data_24_，覆盖选中项移动、原字节和其它文件保留、碰撞、非法 ID、同名、外部主机、源/目标符号链接、大小写等价和四线程竞争唯一成功。
+
+遵循本轮用户覆盖：仅实现和静态审阅，未运行 Cargo、构建、单元或实机测试，无退出码、有效测试数或通过结论。未领取槽位；CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，plan.md 未修改。后续统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_24_ -- --nocapture`。

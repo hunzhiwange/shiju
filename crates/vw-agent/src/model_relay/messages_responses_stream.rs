@@ -25,6 +25,7 @@ struct Block {
 
 pub(super) struct Decoder {
     model: String,
+    terminal: bool,
     search: super::hosted_search::Search,
     hosted: BTreeMap<u64, Vec<Value>>,
     id: Option<String>,
@@ -40,6 +41,7 @@ impl Decoder {
     pub(super) fn new(model: String) -> Self {
         Self {
             model,
+            terminal: false,
             search: Default::default(),
             hosted: BTreeMap::new(),
             id: None,
@@ -111,6 +113,10 @@ impl Decoder {
         if block.closed {
             return Err(INVALID);
         }
+        if kind == "text" {
+            block.text.push_str(suffix);
+            return Ok(());
+        }
         let delta = match kind {
             "text" => json!({"type":"text_delta","text":suffix}),
             "thinking" => json!({"type":"thinking_delta","thinking":suffix}),
@@ -126,6 +132,9 @@ impl Decoder {
 
     fn close(&mut self, key: (u64, u64), out: &mut String) -> Result<(), StatusCode> {
         let block = self.blocks.get_mut(&key).ok_or(INVALID)?;
+        if block.kind == "text" {
+            return Ok(());
+        }
         if !block.closed {
             if block.kind == "tool_use" {
                 let input: Value = serde_json::from_str(&block.text).map_err(|_| INVALID)?;
@@ -159,7 +168,7 @@ impl Decoder {
         self.items.insert(index, item.clone());
         match item["type"].as_str() {
             Some("web_search_call") => {
-                if complete {
+                if complete && self.terminal {
                     let ordinal = self
                         .items
                         .range(..=index)
@@ -229,6 +238,25 @@ impl Decoder {
                             true,
                             out,
                         )?;
+                        if complete && kind == "text" {
+                            let block =
+                                self.blocks.get_mut(&(index, part_index as u64)).ok_or(INVALID)?;
+                            if !block.closed {
+                                let rendered =
+                                    super::search_citations::output_text_with_url_citations(part)
+                                        .unwrap_or_else(|| block.text.clone());
+                                if !rendered.is_empty() {
+                                    out.push_str(&event(
+                                        json!({"type":"content_block_delta","index":block.index,
+                                        "delta":{"type":"text_delta","text":rendered}}),
+                                    ));
+                                }
+                                out.push_str(&event(
+                                    json!({"type":"content_block_stop","index":block.index}),
+                                ));
+                                block.closed = true;
+                            }
+                        }
                     }
                 } else if complete {
                     return Err(INVALID);
@@ -278,8 +306,25 @@ impl Decoder {
             if self.items.keys().any(|index| *index as usize >= output.len()) {
                 return Err(INVALID);
             }
+            self.terminal = true;
             for (index, item) in output.iter().enumerate() {
-                self.item(index as u64, item, true, &mut out)?;
+                let mut item = item.clone();
+                if item["type"] == "web_search_call" {
+                    if let Some(result) = final_message["content"].as_array().and_then(|parts| {
+                        parts.iter().find(|part| {
+                            part["type"] == "web_search_tool_result"
+                                && part["tool_use_id"] == item["id"]
+                        })
+                    }) {
+                        if result["content"].is_array() {
+                            if item.get("action").is_none() {
+                                item["action"] = json!({});
+                            }
+                            item["action"]["sources"] = result["content"].clone();
+                        }
+                    }
+                }
+                self.item(index as u64, &item, true, &mut out)?;
             }
             out.push_str(&event(json!({"type":"message_delta","delta":{
                 "stop_reason":final_message["stop_reason"],"stop_sequence":null},"usage":final_message["usage"]})));
@@ -309,6 +354,16 @@ impl Decoder {
                 | "response.web_search_call.completed"
         ) {
             return if item["type"] == "web_search_call" { Ok(out) } else { Err(INVALID) };
+        }
+        if ty == "response.output_text.annotation.added" {
+            if item["type"] != "message"
+                || value["content_index"].as_u64().is_none()
+                || !value["annotation"].is_object()
+            {
+                return Err(INVALID);
+            }
+            // The authoritative output item snapshot contains the final annotations.
+            return Ok(out);
         }
         let (kind, part, field, snapshot, close) = match ty {
             "response.output_text.delta" | "response.refusal.delta" => {

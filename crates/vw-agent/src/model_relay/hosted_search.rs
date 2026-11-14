@@ -124,7 +124,7 @@ impl Search {
             if let Some(sources) = item["action"].get("sources") {
                 for source in sources.as_array().ok_or(invalid)? {
                     let url = source["url"].as_str().ok_or(invalid)?;
-                    results.push(json!({"type":"web_search_result","url":url,"title":source["title"].as_str().unwrap_or(url),"encrypted_content":""}));
+                    results.push(json!({"type":"web_search_result","url":url,"title":source["title"].as_str().unwrap_or(url),"encrypted_content":source.get("encrypted_content").cloned().unwrap_or(json!("")),"page_age":source.get("page_age").cloned().unwrap_or(Value::Null)}));
                 }
             }
             json!(results)

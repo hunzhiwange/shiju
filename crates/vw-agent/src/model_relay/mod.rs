@@ -126,3 +126,7 @@ mod gemini_shadow_tests;
 pub(crate) mod hosted_search;
 #[cfg(test)]
 mod hosted_search_tests;
+
+pub(crate) mod search_citations;
+#[cfg(test)]
+mod search_citations_tests;

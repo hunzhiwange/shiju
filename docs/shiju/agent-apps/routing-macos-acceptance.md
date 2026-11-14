@@ -1100,3 +1100,11 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 全仓 `cargo clippy --all-targets --all-features -- -D warnings` 在槽位4退出0，包含测试目标；最终日志 `/tmp/shiju-task40-validation.log` 记录 `focused=101 clippy=0`。`cargo fmt --all` 退出0，排除本项以外格式化差异后无额外改动，最终差异检查通过。槽位2、3、4、10的 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-N`（N为对应实际槽位号）。缓存保留。
 
 替代原生验证：`CARGO_BUILD_JOBS=1 python3 scripts/cargo_slot.py cargo test -p vw-agent --lib --config 'profile.test.package.vw-agent.opt-level=0' cc_route_040_ -- --nocapture` 在槽位3退出0，4项通过、0失败，默认features未变，仅vw-agent测试包优化级别降为0。产物 `target/rust-slot-3/debug/deps/vw_agent-d51a7b7fffcc3d18`，日志 `/tmp/shiju-task40-lowopt.log`。两个Cargo目录均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-3`。这证明本项四个边界场景通过，但不替代指定默认优化命令及行为红灯证据；状态为 **待回归**，任务文件保留。所有自有命令已退出，锁释放、缓存保留；Windows/Linux/WSL范围外且未验证。
+
+## 任务45：渲染搜索引用与结果元数据（2026-11-14，未验证）
+
+依赖沿用任务44提交 `23b35c14c` 的托管搜索接线、公共传输与可信作用域；来源为母任务1冻结的 `crates/vw-agent-apps/upstream/src-tauri/src/proxy/providers/transform_responses.rs`。现有 dispatch 的 JSON/SSE 入口继续调用同一结果所有者，无需修改共享分发文件。
+
+新增 `search_citations` 及私有 Markdown 保护模块，复用冻结来源的 Unicode scalar 到 UTF-8 偏移换算、代码区域/引用链接识别及 URL 去重。JSON 渲染引用并以最终消息注解补充搜索来源标题、保留 page_age；失败搜索仍沿用既有错误映射。SSE 文本缓冲至 output_item 完成再渲染，搜索结果延迟至终帧获取最终注解元数据；不执行工具、不接触凭据、不改变旧会话白名单。
+
+已添加 `cc_route_045_` 四个独立测试用例，覆盖中文/emoji、现有链接/引用链接/代码块、来源元数据和 SSE 晚到引用。按用户最新覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归，无红绿灯、有效测试数或通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。后续统一验证须检查上述测试及 SSE 完成帧重放、错误搜索与引用晚到行为。仅 macOS 待验收，其它平台未验证。任务文件按用户要求删除，不代表母任务8已验收。

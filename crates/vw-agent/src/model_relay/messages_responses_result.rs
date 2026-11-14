@@ -34,6 +34,56 @@ pub(crate) fn with_search(
     if truncated {
         normalized["incomplete_details"]["reason"] = json!("max_output_tokens");
     }
+    let candidates: Vec<_> = body["output"]
+        .as_array()
+        .ok_or(INVALID)?
+        .iter()
+        .flat_map(super::search_citations::web_search_results_from_output_item)
+        .collect();
+    let mut attributed = std::collections::HashSet::new();
+    for item in normalized["output"].as_array_mut().ok_or(INVALID)? {
+        if item["type"] == "web_search_call"
+            && item["status"] == "completed"
+            && item.get("error").is_none_or(Value::is_null)
+        {
+            if item.get("action").is_some_and(|v| !v.is_object())
+                || item["action"].get("sources").is_some_and(|v| {
+                    !v.as_array().is_some_and(|sources| {
+                        sources.iter().all(|source| source["url"].is_string())
+                    })
+                })
+            {
+                return Err(INVALID);
+            }
+            let mut results = super::search_citations::web_search_results_from_action(item);
+            super::search_citations::merge_web_search_result_metadata(&mut results, &candidates);
+            for result in &results {
+                if let Some(url) = result["url"].as_str() {
+                    attributed.insert(url.to_owned());
+                }
+            }
+            if item.get("action").is_none() {
+                item["action"] = json!({});
+            }
+            item["action"]["sources"] = json!(results);
+        }
+    }
+    if let Some(item) =
+        normalized["output"].as_array_mut().ok_or(INVALID)?.iter_mut().find(|item| {
+            item["type"] == "web_search_call"
+                && item["status"] == "completed"
+                && item.get("error").is_none_or(Value::is_null)
+        })
+    {
+        let sources = item["action"]["sources"].as_array_mut().ok_or(INVALID)?;
+        for candidate in candidates {
+            if let Some(url) = candidate["url"].as_str() {
+                if attributed.insert(url.to_owned()) {
+                    sources.push(candidate);
+                }
+            }
+        }
+    }
     let mut layout = Vec::new();
     let mut searches = 0;
     for item in normalized["output"].as_array_mut().ok_or(INVALID)? {
@@ -51,7 +101,11 @@ pub(crate) fn with_search(
                         let text = part["refusal"].as_str().ok_or(INVALID)?.to_owned();
                         *part = json!({"type":"output_text","text":text});
                     }
-                    let text = part["text"].as_str().ok_or(INVALID)?;
+                    let text = super::search_citations::output_text_with_url_citations(part)
+                        .unwrap_or_else(|| part["text"].as_str().unwrap_or_default().to_owned());
+                    if !part["text"].is_string() {
+                        return Err(INVALID);
+                    }
                     if !text.is_empty() {
                         layout.push(Some(json!({"type":"text","text":text})));
                     }

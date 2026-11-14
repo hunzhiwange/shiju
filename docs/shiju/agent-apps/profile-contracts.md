@@ -151,3 +151,11 @@ select/current 接收既有 ProjectScope，记录 ProjectId 而不复制项目�
 `ProjectProfileStore::rename(tenant, id, name, expected_version)` 在既有租户状态事务内读取实体并调用 `project_profiles::rename::rename`；不接收客户端快照或时间。名称 trim 后非空，缺失实体、版本不符或版本耗尽明确报错，失败不保存。成功仅修改 name、updatedAt（执行端 UTC Unix 秒）及递增的并发版本；payload 和全部主机/组/project 指针保持原值。同名请求也按一次元数据写入处理。DTO 新增可空 updatedAt，缺省反序列化为 None；不增加第二存储所有者。后续 API 必须先执行租户鉴权及执行主机授权/分派再调用该入口。
 
 本轮按用户覆盖要求仅实现代码与必要合同，未编写或运行测试，未运行 Cargo、构建、检查、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。实现未验证；后续需补 profile_t04_ 的快照/三组标记保留、空白拒绝、租户隔离、版本冲突/溢出及重启读回场景，再执行任务原定聚焦测试。
+
+## 任务 10：目标组最小只读预览
+
+`project_profiles/preview.rs::preview` 接收目标 payload、指定组和执行端授权读取的 `PreviewState`（四类现存引用及实际启用位）。按供应商、MCP、技能、提示词以及各类别 ID 字典序输出；null 跳过，空 MCP/技能集合停用已启用项，空提示词停用当前激活项。集合去重，重排不改变结果；缺失引用逐项返回 Missing，不产生执行动作。供应商/提示词使用领域 Select 操作，不拆成先停用再启用；悬空单选保留现有激活项。
+
+该函数仅借用输入，无配置、快照或 current 标记写入入口。PreviewState 必须来自同一授权项目、执行主机与应用组的实际领域观察，读取失败和不支持不能用空集合代替；技能键为 installationId。当前未接 API/四类读取适配，后续任务须完成授权分派与观察接线，应用前重新校验版本、权限和状态，不能把预览当执行凭据。
+
+本轮按用户覆盖要求仅写代码及必需契约，未编写或运行测试，未运行 Cargo、构建、检查、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。实现未验证；后续补 profile_t10_ 场景，验证零写入、null/空集区别、逐项悬空、重复与重排最小差异、三组隔离及提示词停用。

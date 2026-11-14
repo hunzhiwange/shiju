@@ -17,7 +17,7 @@ struct Context { project_id: ProjectId, target_host_id: String }
 
 pub(super) fn router() -> Router {
     Router::new()
-        .route("/agent-apps/device-sync/webdav/config", get(read).put(write))
+        .route("/agent-apps/device-sync/webdav/config", get(read).put(write).delete(clear))
         .route("/agent-apps/device-sync/s3/config", get(read_s3).put(write_s3))
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(axum::middleware::map_response(async |mut response: axum::response::Response| {
@@ -138,4 +138,17 @@ async fn write_s3(Extension(tenant): Extension<TenantScope>,
         &tokio_util::sync::CancellationToken::new()).await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
     s3_response(database, &target, Some(config))
+}
+
+/// Clearing is idempotent and never touches remote objects or another transport.
+async fn clear(Extension(tenant): Extension<TenantScope>,
+    injected: Option<Extension<GlobalDatabase>>, headers: HeaderMap, Query(query): Query<Context>)
+    -> Result<StatusCode, StatusCode> {
+    let target = authorize(tenant, &headers, query)?;
+    let store = WebDavSettingsStore::new(database(injected)?, &crate::global::paths().home)
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    store.clear(target.scope.tenant_scope(), &target.target_host_id,
+        &tokio_util::sync::CancellationToken::new()).await
+        .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok(StatusCode::NO_CONTENT)
 }

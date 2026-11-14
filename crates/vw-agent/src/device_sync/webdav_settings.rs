@@ -112,6 +112,29 @@ impl WebDavSettingsStore {
         Ok(config)
     }
 
+    /// Remove this host's configuration and its embedded encrypted credential together.
+    /// Queued operations reload after acquiring this same lock and cannot reuse the secret.
+    pub async fn clear(
+        &self,
+        tenant: &TenantScope,
+        host: &str,
+        cancellation: &CancellationToken,
+    ) -> Result<()> {
+        let key = scope_key(host)?;
+        let lock_tenant = serde_json::to_string(&(
+            tenant.platform_id().as_ref(), tenant.company_id().as_ref(),
+        ))?;
+        let _guard = acquire_sync_lock(&lock_tenant, host, cancellation).await?;
+        let previous = self.settings.get(tenant, NAMESPACE, &key)
+            .map_err(|_| anyhow::anyhow!("WebDAV settings unavailable"))?;
+        if let Some(previous) = previous {
+            let changed = self.settings.compare_delete(tenant, NAMESPACE, &key, &previous)
+                .map_err(|_| anyhow::anyhow!("WebDAV settings removal failed"))?;
+            ensure!(changed, "WebDAV connection changed concurrently; reload before clearing");
+        }
+        Ok(())
+    }
+
     /// Publish the configuration and encrypted password in one conditional database write.
     /// A concurrent process causes an explicit conflict rather than a lost update.
     pub async fn save(

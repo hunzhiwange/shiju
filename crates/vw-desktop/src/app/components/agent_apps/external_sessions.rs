@@ -21,6 +21,8 @@ mod paths;
 mod export;
 #[path = "external_sessions/maintenance.rs"]
 mod maintenance;
+#[path = "external_sessions/compression.rs"]
+mod compression;
 use vw_gateway_client::{AgentAppsReadError, vw_api_types::external_session::*};
 
 #[derive(Clone, Default)]
@@ -29,6 +31,7 @@ pub(crate) struct State {
     sources_open: bool,
     deletion: delete::State,
     maintenance: maintenance::State,
+    compression: compression::State,
     resume: resume::State,
     reader: Option<reader::State>,
     list_offset: iced::widget::scrollable::AbsoluteOffset,
@@ -62,6 +65,7 @@ pub struct Scope {
 pub enum Event {
     Open,
     Maintenance(maintenance::Event),
+    Compression(compression::Event),
     Delete(delete::Event),
     Resume(resume::Event),
     Path(paths::Event),
@@ -88,9 +92,11 @@ pub(crate) fn message(event: Event) -> Message {
 }
 pub(crate) fn view(state: &State) -> Element<'_, Message> {
     let base = if let Some(reader) = &state.reader { reader::view(state, reader) } else { list::view(state) };
-    maintenance::view(state, paths::view(state, resume::view(state, delete::view(state, base))))
+    compression::view(state, maintenance::view(state, paths::view(state, resume::view(state, delete::view(state, base)))))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Compression(event) = event { return compression::update(app, event); }
+    if app.apps_catalog.external_sessions.compression.is_open() { return Task::none(); }
     if let Event::Maintenance(event) = event { return maintenance::update(app, event); }
     // Keep the catalog generation and conflicting actions fixed while maintenance is open.
     if app.apps_catalog.external_sessions.maintenance.is_open() { return Task::none(); }

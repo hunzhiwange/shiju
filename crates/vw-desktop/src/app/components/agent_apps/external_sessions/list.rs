@@ -102,7 +102,9 @@ pub(super) fn view(state: &State) -> Element<'_, Message> {
                         instance_id: session.identity.instance_id.clone(),
                     };
                     item = item.push(button(text("历史维护设置")).padding([8, 12]).style(rounded_action_btn_style)
-                        .on_press_maybe(available.then(|| message(Event::Maintenance(super::maintenance::Event::Open(target))))));
+                        .on_press_maybe(available.then(|| message(Event::Maintenance(super::maintenance::Event::Open(target.clone()))))));
+                    item = item.push(button(text("压缩设置与磁盘统计")).padding([8, 12]).style(rounded_action_btn_style)
+                        .on_press_maybe(available.then(|| message(Event::Compression(super::compression::Event::Open(target))))));
                 }
                 if session.capabilities.delete {
                     let event = if state.deletion.selecting {

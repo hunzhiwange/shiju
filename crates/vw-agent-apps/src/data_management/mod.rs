@@ -112,3 +112,6 @@ mod apply_tests;
 pub mod rollback;
 #[cfg(all(test, target_os = "macos"))]
 mod rollback_tests;
+
+#[cfg(target_os = "macos")]
+pub mod operations;

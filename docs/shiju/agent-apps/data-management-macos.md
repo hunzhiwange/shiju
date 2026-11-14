@@ -251,3 +251,11 @@ macOS 执行端 `vw-agent/src/agent_apps/data_import.rs::commit_selected` 用封
 新增独立 `rollback_tests.rs` 两个 `cc_data_17_` 场景，由父模块注册；使用隔离 SQLite 引用关系和真实回退归档，指定边界注入晚期提交与恢复失败。它们覆盖编排，不冒充七类业务适配器验收。
 
 按本轮覆盖要求未运行 Cargo、编译、单元或实机测试，测试结果未知。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。统一回归待运行：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_17_ -- --nocapture`，另需核验所有者恢复与任务持久化接线。
+
+## 子任务 18：迁入进度与安全取消（2026-11-14）
+
+新增 macOS `data_management/operations.rs::ImportOperation`，复用共享 `Operation` 执行器、`DataOperationProgress` 和任务 17 的 `apply_with_rollback`。查询与取消核对完整目标身份；提交锁与取消锁排序，提交临界区明确拒绝取消，类别间接受取消后停止派发并逆序恢复已尝试写入的所有者。未执行的类别不调用恢复；恢复失败报告 Partial/RecoveryFailed，不冒报 Cancelled。重复取消和终态查询保留原结果，终态先通过保存回调持久化再发布。
+
+接线合同：授权任务所有者提供持久化保存回调、保存回退回执，持有目标级迁入/恢复互斥锁直至 run 返回，并以共享执行器调度 run；本项不实现 API 或第二套调度器。保存失败必须向调用者报告并保留恢复责任。计数以类别为单位；committed 保守保留尝试写入事实。尚未证明七类业务接线或进程重启恢复行为。
+
+按本轮用户覆盖要求，仅实现并静态阅读，未执行 Cargo、编译、单元或实机测试；没有验证通过证据，未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。统一回归需覆盖取消后恢复、提交临界区拒绝、重复取消、跨作用域拒绝、保存失败、恢复冲突与目标互斥。

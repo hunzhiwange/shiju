@@ -105,6 +105,21 @@ impl WorkspaceDirectory {
         }))
     }
 
+    /// Open Finder on the held inode, using its descriptor as the child cwd.
+    /// No caller-controlled pathname is passed to the system opener.
+    pub fn open_in_finder(&self) -> Result<(), PathError> {
+        let status = std::process::Command::new("/usr/bin/open")
+            .args(["-a", "Finder", "."])
+            .current_dir(format!("/dev/fd/{}", self.directory.as_raw_fd()))
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map_err(|_| PathError::Io)?;
+        if !status.success() { return Err(PathError::Io); }
+        Ok(())
+    }
+
     /// Enumerates the held directory without reopening its path. A fresh open
     /// description keeps repeated enumerations independent of directory offsets.
     pub(crate) fn filenames(&self) -> Result<Vec<String>, PathError> {

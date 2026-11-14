@@ -242,3 +242,11 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 静态核对任务 1 合同、任务 25 tools GET/PUT SDK 与 DTO、来源 ToolsPanel/EnvPanel/utils 测试及现有设置弹窗。新增工具弹窗：四个已知 profile、未设置和未知值分别展示，未知原值及扩展字段保留；allow/deny 可增删编辑，保存过滤空白条目，失败保留草稿，成功展示结构化写入警告。使用统一表单与可滚动弹窗、默认字体及 toast；连接、主机、详情切换及关闭使旧请求失效。
 
 补充三个独立测试源码，覆盖 profile 区分、未知值/扩展保留、空白条目过滤和失败保稿及写入警告，均未执行。按本轮用户要求未运行 Cargo、任何测试或最终回归，不宣称编译、渲染或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议后续统一验证上述测试族及暗黑主题中文实际渲染。
+
+## 任务 26：工作区目录主机动作（2026-11-14）
+
+仅静态源码审查，未执行 Cargo、单元测试、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR 未设置。
+
+新增 POST `/v1/agent-apps/openclaw/workspace/open-directory`，沿用 projectId/targetHostId 查询上下文与租户、令牌认证。body 仅接受 `{"subdir":"workspace"}` 或 `{"subdir":"memory"}`，未知字段/目录被 serde 拒绝。要求 workspace_write 项目权限；离线返回 503、远程绑定返回 501，均不回退客户端路径。安全目录所有者以授权执行 HOME 为根，descriptor 相对创建固定目录并拒绝链接；系统 opener 在持有目录描述符对应 cwd 中打开 Finder，失败返回 500。SDK `open_workspace_directory` 复用作用域和错误传递；取消等待不能撤销已接收的系统动作。
+
+注册复用既有 agent_apps 路由所有者，没有重复领域服务。后续统一验证应覆盖权限拒绝、两种目录、符号链接、远程/离线、SDK 上下文与 macOS Finder 实际行为；本文不声称任何运行验证通过。

@@ -427,3 +427,5 @@ mod workspace_memory_api;
 pub use workspace_memory_api::{WorkspaceMemoryScope, WorkspaceMemoryError, WorkspaceSearch, WorkspaceSearchResponse};
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod workspace_memory_api_tests;
+
+mod workspace_directory_api;

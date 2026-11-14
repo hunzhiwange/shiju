@@ -94,7 +94,7 @@ impl GatewayClient {
         }
         Ok((WorkspaceSearch { client: self.clone(), scope: scope.clone(), id, cancelled: false }, response))
     }
-    async fn workspace_request(&self, method: reqwest::Method, resource: &str, scope: &WorkspaceMemoryScope, token: &str, body: Option<serde_json::Value>) -> Result<reqwest::Response, WorkspaceMemoryError> {
+    pub(super) async fn workspace_request(&self, method: reqwest::Method, resource: &str, scope: &WorkspaceMemoryScope, token: &str, body: Option<serde_json::Value>) -> Result<reqwest::Response, WorkspaceMemoryError> {
         use WorkspaceMemoryError as E;
         if scope.target_host_id.trim().is_empty() || token.trim().is_empty() { return Err(E::InvalidInput); }
         let mut credential = reqwest::header::HeaderValue::from_str(token).map_err(|_| E::InvalidInput)?;

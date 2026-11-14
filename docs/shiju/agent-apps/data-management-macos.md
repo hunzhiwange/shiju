@@ -362,3 +362,16 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 本轮用户最高优先级要求只写代码：未执行 Cargo（含 fmt/check/test/clippy 或间接脚本）、单元测试、macOS 实机、字体渲染或最终回归。无退出码、有效运行测试数、失败/通过输出或实测前后差异；上述均为未执行的断言。未领取 Cargo 槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置，无自有构建进程或锁需释放。不读取真实用户数据。任务卡按覆盖指令实现后删除，不代表 macOS 验收通过。
 
 恢复验证授权后，通过仓库槽位入口执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_45_ -- --nocapture`，预期发现上述两个测试；届时记录真实退出码、有效测试数、实际槽位及两个绝对缓存路径。以下仍待独立验收：七类逐项选择/skip/replace及重导、原生包重新迁入后的语义一致、真实匿名 CC SQLite/WAL 副本、未选类别不变、取消及跨类别晚期回滚、跨项目/主机/主体拒绝、API→SDK→Iced完整链路、macOS保存对话框与明暗主题。已有 cc_data_33_、cc_data_36_、cc_data_37_、cc_data_41_ 测试代码可作为聚焦补验入口，不能用其存在代替运行证据；任务40记录尚缺对应行为测试。外部数据库与其他平台无验收结论。
+
+## 子任务 46：macOS 备份恢复验收代码（2026-11-14，未执行）
+
+直接依赖 42、43、44 的生产入口及上文记录已静态核对：桌面备份列表、恢复向导、分类清理消费既有 SDK 和网关所有者。依赖本身尚未验证，本项不将其转为通过证据。
+
+新增 backup_acceptance_tests.rs，由真实父模块在 macOS test 条件注册两项测试代码：
+
+- cc_data_46_macos_backup_restore_retention_round_trip：匿名私有临时目录、动态端口真实 HTTP 与 SQLite，创建、中文重命名、修改偏好、确认恢复与有界终态轮询；断言实际数据还原、提交与写前回退 ID、未选 namespace 和外租户哨兵不变，最后删除与列表核对。保留源锁时调用真实保留所有者执行 retain=1，断言源不可删除、可清理项消失及源字节不变。网关恢复当前使用默认保留策略，因此此处不能证明网关 retain=1 闭环。
+- cc_data_46_macos_corrupt_backup_preserves_target：损坏字节及未来 format_version 经 HTTP 预览和确认恢复均须拒绝，断言 SQLite、源文件字节和目录条目保持不变。不 mock 核心恢复。
+
+本轮用户覆盖仅允许实现：未运行任何 Cargo、格式化、间接构建脚本、单元测试、实机、字体渲染或最终回归。无有效测试数、退出码、通过输出、运行期 API/SDK 响应和数据前后差异证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无自有构建进程或锁需要清理。按要求删除编号任务卡仅表示实现交付，不表示 macOS 验收通过。
+
+后续经 scripts/cargo_slot.py 入口运行 cargo test -j 1 -p vw-agent --lib cc_data_46_ -- --nocapture，确认两项实际执行通过。还须补源与精确写前回退同时保护、定时备份脱离页面、分类清理边界与部分失败、跨项目/主机拒绝、SDK 结果及匿名差异。当前网关仅接完整偏好恢复，不能外推七类闭环。按母计划人工验收真实 macOS 明暗主题、长列表、中文字体整形与目录定位；本轮均未启动。

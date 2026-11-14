@@ -28,3 +28,6 @@ mod backup_restore_api_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod migration_acceptance_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+mod backup_acceptance_tests;

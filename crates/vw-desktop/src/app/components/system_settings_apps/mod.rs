@@ -41,6 +41,7 @@ pub(crate) fn view_overlays<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let base = crate::app::components::workspace_files::overlay(&state.workspace_files, &state.host, base);
+    let base = crate::app::components::app_routing::requests::overlay(state, base);
     let base = crate::app::components::daily_memory::overlay(&state.daily_memory, base);
     let base = crate::app::components::openclaw_tools::overlay(&state.openclaw_tools, base);
     let base = crate::app::components::openclaw_env::overlay(&state.openclaw_env, base);

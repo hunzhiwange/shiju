@@ -22,6 +22,7 @@ pub(crate) struct Context {
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {
+    pub(super) requests: super::requests::State,
     pub(super) config: super::config::State,
     pub(super) outbound: super::outbound::State,
     context: Option<Context>,
@@ -41,6 +42,7 @@ pub(crate) enum Operation {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Event {
+    Requests(super::requests::Event),
     Config(super::config::Event),
     Outbound(super::outbound::Event),
     Run(Operation),
@@ -49,12 +51,15 @@ pub(crate) enum Event {
 
 impl State {
     pub(crate) fn invalidate(&mut self) {
+        self.requests.invalidate();
+        let requests = self.requests.clone();
         self.outbound.invalidate();
         let outbound = self.outbound.clone();
         let serial = self.serial.wrapping_add(1);
         let config_serial = self.config.next_serial();
         *self = Self {
             serial,
+            requests,
             outbound,
             config: super::config::State::with_serial(config_serial),
             ..Default::default()
@@ -183,6 +188,9 @@ async fn request(
 }
 
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Requests(event) = event {
+        return super::requests::update(app, event);
+    }
     if let Event::Outbound(event) = event {
         return super::outbound::update(app, event);
     }
@@ -193,7 +201,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         return Task::none();
     };
     match event {
-        Event::Config(_) | Event::Outbound(_) => unreachable!(),
+        Event::Requests(_) | Event::Config(_) | Event::Outbound(_) => unreachable!(),
         Event::Run(operation) => {
             let state = &mut app.apps_catalog.routing;
             if state.context.as_ref() != Some(&context) {

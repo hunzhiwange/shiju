@@ -19,6 +19,7 @@ pub struct Snapshot {
 }
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ListState {
+    pub leave: super::leave::LeaveState,
     pub failover: crate::app::message::agent_apps_high_availability::State,
     pub scope: Option<Scope>,
     pub generation: u64,

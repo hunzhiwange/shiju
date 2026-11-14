@@ -741,7 +741,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         app.system_settings_help_tab,
     );
 
-    dialog
+    crate::app::message::app_providers::leave::overlay(app, dialog)
 }
 
 pub(super) const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";

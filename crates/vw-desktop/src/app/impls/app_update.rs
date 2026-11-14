@@ -812,6 +812,9 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        if crate::app::message::app_providers::leave::intercept(self, &message) {
+            return Task::none();
+        }
         #[cfg(not(target_arch = "wasm32"))]
         {
             message::voice::invalidate(self);
@@ -1256,7 +1259,8 @@ impl App {
         let cleanup = message::settings::mcp_management_probe::invalidate(self);
         let tools_cleanup = message::settings::mcp_management_tools::invalidate(self);
         let cron_history = message::settings::cron_history::reconcile(self);
-        let task = Task::batch([task, cleanup, tools_cleanup, cron_history]);
+        let leave = crate::app::message::app_providers::leave::resume(self);
+        let task = Task::batch([task, cleanup, tools_cleanup, cron_history, leave]);
         if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }

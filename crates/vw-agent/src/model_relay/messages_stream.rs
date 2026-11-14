@@ -183,29 +183,36 @@ impl Decoder {
         if !self.resident {
             self.observer.push(bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
         }
-        self.size += bytes.len();
-        if self.size > LIMIT {
-            return Err(StatusCode::BAD_GATEWAY);
-        }
+        // Parse resident input only through the terminal frame. Framing the whole
+        // network chunk first would reject malformed bytes after a valid [DONE].
+        let resident = self.resident;
         let mut out = String::new();
-        for line in self.pending.push(bytes, LIMIT).map_err(|_| StatusCode::BAD_GATEWAY)? {
-            // A resident terminal marker ends this entity, even if duplicated in one chunk.
+        for fragment in bytes.split_inclusive(|byte| resident && *byte == b'\n') {
             if self.resident && self.done {
                 break;
             }
-            if self.resident {
-                self.observer
-                    .push(format!("{line}\n").as_bytes())
-                    .map_err(|_| StatusCode::BAD_GATEWAY)?;
+            self.size += fragment.len();
+            if self.size > LIMIT {
+                return Err(StatusCode::BAD_GATEWAY);
             }
-            if line.is_empty() {
-                if !self.data.is_empty() {
-                    let data = std::mem::take(&mut self.data);
-                    out.push_str(&self.frame(data.trim_end_matches('\n'))?);
+            for line in self.pending.push(fragment, LIMIT).map_err(|_| StatusCode::BAD_GATEWAY)? {
+                if self.resident && self.done {
+                    break;
                 }
-            } else if let Some(data) = line.strip_prefix("data:") {
-                self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
-                self.data.push('\n');
+                if self.resident {
+                    self.observer
+                        .push(format!("{line}\n").as_bytes())
+                        .map_err(|_| StatusCode::BAD_GATEWAY)?;
+                }
+                if line.is_empty() {
+                    if !self.data.is_empty() {
+                        let data = std::mem::take(&mut self.data);
+                        out.push_str(&self.frame(data.trim_end_matches('\n'))?);
+                    }
+                } else if let Some(data) = line.strip_prefix("data:") {
+                    self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
+                    self.data.push('\n');
+                }
             }
         }
         Ok(out)

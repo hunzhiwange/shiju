@@ -19,8 +19,8 @@ pub mod deep_links;
 pub(crate) mod provider_link_preview;
 #[cfg(target_os = "macos")]
 pub(crate) mod skill_link_preview;
-#[cfg(test)]
-mod desktop_integration_46_tests;
+#[cfg(target_os = "macos")]
+pub(crate) mod prompt_link_preview;
 #[cfg(test)]
 mod desktop_integration_46_tests;
 #[cfg(test)]

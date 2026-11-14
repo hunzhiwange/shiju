@@ -94,6 +94,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return app.show_error_toast("无法拒绝技能链接");
             }
         }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::PromptLinkPreview(id) => {
+            return crate::app::prompt_link_preview::handoff(app, id);
+        }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::PromptLinkRejected(id) => {
+            if crate::app::deep_links::acknowledge(id).is_err() {
+                return app.show_error_toast("无法取消提示词链接");
+            }
+        }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
             if enabled
                 && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale)
@@ -128,7 +138,8 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if requests.is_empty() && !links {
                 return Task::none();
             }
-            if crate::app::provider_link_preview::pending().is_some() {
+            if crate::app::provider_link_preview::pending().is_some()
+                || crate::app::prompt_link_preview::pending().is_some() {
                 app.show_settings = true;
             }
             let wake = app.reopen_main_window();

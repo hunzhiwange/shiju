@@ -762,6 +762,8 @@ pub(crate) fn traverse_select_focus(reverse: bool) -> iced::Task<Message> {
         operate(scope(scope_id, focusable::focus_next::<()>())).discard()
     }
 }
+    #[cfg(target_os = "macos")]
+    let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "system_settings_ui_refresh_04_tests.rs"]

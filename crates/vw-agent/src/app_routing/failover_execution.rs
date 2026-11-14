@@ -63,6 +63,24 @@ pub(super) async fn prepare(route: Arc<AuthorizedRoute>) -> Result<Option<Plan>,
         if !queue.enabled {
             return Ok(None);
         }
+        let store = AppProviderStore::new(provider.database.clone()).map_err(unavailable)?;
+        let providers = store
+            .failover_providers(&provider.scope.project, provider.scope.app_id)
+            .map_err(unavailable)?;
+        let current = providers
+            .iter()
+            .find(|entry| entry.provider.id == provider.provider_id)
+            .ok_or(StatusCode::CONFLICT)?;
+        // Credential ownership, rather than a UI category or stale queue flag,
+        // decides admission. Official requests retain the original target and
+        // its account-bound state without constructing a replay budget.
+        match current.auth {
+            vw_agent_apps::providers::failover::ProviderAuth::OfficialAccount => return Ok(None),
+            vw_agent_apps::providers::failover::ProviderAuth::Unknown => {
+                return Err(StatusCode::UNPROCESSABLE_ENTITY);
+            }
+            vw_agent_apps::providers::failover::ProviderAuth::ThirdParty => {}
+        }
         if provider.scope.app_id != AppId::Claude {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }

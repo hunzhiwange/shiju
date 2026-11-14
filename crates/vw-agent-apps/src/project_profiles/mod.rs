@@ -4,3 +4,4 @@ pub mod rename;
 pub mod snapshot;
 pub mod create;
 pub mod preview;
+pub mod resnapshot;

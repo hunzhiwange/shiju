@@ -73,6 +73,42 @@ impl ProjectProfileStore {
         ).map_err(|error| anyhow::anyhow!("{error}"))
     }
 
+    /// Capture on the authorized executor, then merge under the storage transaction.
+    /// Callers must authorize the project and all four domain reads beforehand.
+    pub(crate) fn resnapshot<P, M, S, R>(
+        &self,
+        id: &ProjectProfileId,
+        expected_version: u64,
+        scope: &SnapshotScope<'_>,
+        read_provider: P,
+        read_mcp: M,
+        read_skills: S,
+        read_prompt: R,
+    ) -> Result<ProjectProfile>
+    where
+        P: FnOnce(&SnapshotScope<'_>) -> Result<ProviderModeStatus, SnapshotReadFailure>,
+        M: FnOnce(&SnapshotScope<'_>) -> Result<Vec<String>, SnapshotReadFailure>,
+        S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
+        R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
+    {
+        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        // Reject corrupt storage, missing identities and stale requests before reads.
+        let previous = self.get(scope.project.tenant_scope(), id)?
+            .context("project profile not found")?;
+        ensure!(previous.version == expected_version, "project profile version conflict");
+        let snapshot = vw_agent_apps::project_profiles::snapshot::snapshot_current(
+            scope, read_provider, read_mcp, read_skills, read_prompt,
+        )?;
+        // Native reads never run while holding the settings transaction/record lock.
+        self.mutate(scope.project.tenant_scope(), |state| {
+            let profile = state.profiles.get_mut(&id.0).context("project profile not found")?;
+            vw_agent_apps::project_profiles::resnapshot::merge_snapshot(
+                profile, &snapshot, scope.group, expected_version, chrono::Utc::now().timestamp(),
+            )?;
+            Ok(profile.clone())
+        })
+    }
+
     /// Stable ID ordering is independent of database provider or insertion order.
     pub(crate) fn list(&self, tenant: &TenantScope) -> Result<Vec<ProjectProfile>> {
         Ok(self.read(tenant)?.profiles.into_values().collect())

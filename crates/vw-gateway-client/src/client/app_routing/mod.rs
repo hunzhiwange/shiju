@@ -19,3 +19,5 @@ mod outbound_probe_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod outbound_scan_tests;
+
+mod request_status;

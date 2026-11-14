@@ -9,3 +9,6 @@ pub use lifecycle_api::*;
 pub use outbound_api::*;
 pub use outbound_probe::*;
 pub use outbound_scan::*;
+
+mod request_status;
+pub use request_status::*;

@@ -347,6 +347,7 @@ impl ActiveRoutes {
 
 #[derive(Default)]
 pub(super) struct RouteAuth {
+    pub(crate) requests: Arc<super::request_status::Requests>,
     #[cfg(target_os = "macos")]
     failover: Arc<crate::gateway::agent_apps_failover_runtime::FailoverRuntime>,
                 route.responses_history.clear();
@@ -787,7 +788,10 @@ where
             request.headers_mut().remove(API_KEY);
             request.extensions_mut().insert(wire);
             request.extensions_mut().insert(disconnect.clone());
-            Ok(dispatch(request, route).await)
+            let Some(observer) = auth.requests.begin(route.binding.project.clone(), route.binding.host.clone(), route.binding.app) else {
+                return Ok(error(StatusCode::SERVICE_UNAVAILABLE));
+            };
+            Ok(observer.response(dispatch(request, route).await))
         }
     });
     // One request per connection lets revocation drop the whole HTTP future,

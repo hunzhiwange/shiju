@@ -95,3 +95,5 @@ pub mod adapter_selection;
 
 #[cfg(target_os = "macos")]
 mod failover_execution;
+
+pub(crate) mod request_status;

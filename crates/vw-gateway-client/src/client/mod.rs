@@ -475,3 +475,8 @@ pub use device_sync_operations_api::{DeviceSyncOperationsError, DeviceSyncSelect
 
 #[cfg(not(target_arch = "wasm32"))]
 mod device_sync_config_api;
+
+mod usage_read_types;
+pub use usage_read_types::*;
+mod usage_read_api;
+pub use usage_read_api::{UsageReadScope, UsageReadError};

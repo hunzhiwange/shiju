@@ -37,4 +37,3 @@ fn writes_semantic_web_link_without_changing_visible_text() {
     assert!(output.contains("\x1b]8;;https://example.com/long/path\x07"));
     assert_eq!(line.line.spans[0].content, destination);
 }
-

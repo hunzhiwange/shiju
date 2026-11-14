@@ -1,6 +1,6 @@
 //! Read-only configuration diagnostics. Callers authorize configuration access
 //! and supply the trusted execution host HOME; no ambient HOME fallback.
-use crate::providers::{live::{patch_json::object_value, write_guard::WriteError}, openclaw};
+use crate::providers::{live::{patch_json5::object_value, write_guard::WriteError}, openclaw};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
@@ -25,13 +25,12 @@ pub fn scan_openclaw_config_health(home: &Path) -> Result<Vec<OpenClawHealthWarn
     Ok(scan_openclaw_health_from_bytes(source.as_deref()))
 }
 
-/// Shared parser currently supports JSON/JSONC, not full JSON5. Parser details
-/// and input values are deliberately excluded from diagnostics.
+/// Shared JSON5 parser details and input values are excluded from diagnostics.
 pub fn scan_openclaw_health_from_bytes(source: Option<&[u8]>) -> Vec<OpenClawHealthWarning> {
     let Some(source) = source else { return Vec::new() };
     match object_value(source) {
         Ok(value) => scan_openclaw_health_from_value(&value),
-        Err(_) => vec![warning("config_parse_failed", "OpenClaw configuration could not be parsed by the supported JSON/JSONC parser.", "openclaw.json")],
+        Err(_) => vec![warning("config_parse_failed", "OpenClaw configuration could not be parsed by the JSON5 parser.", "openclaw.json")],
     }
 }
 

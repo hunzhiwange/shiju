@@ -1,11 +1,10 @@
 //! agents.defaults editing under the existing OpenClaw configuration transaction.
 //! Callers authorize the executor and config action before opening OpenClawFiles.
-//! JSONC trivia is preserved. Unsupported JSON5 syntax fails closed in the shared
-//! parser (single quotes and bare keys); full JSON5 support remains a shared-parser TODO.
+//! JSON5 comments, quote styles and non-target tokens are preserved by the shared parser.
 use crate::providers::{
     live::{
         commit::{AppState, ProviderTransactions},
-        patch_json::{object_value, replace_object_preserving_trivia},
+        patch_json5::{object_value, replace_object_preserving_trivia},
         write_guard::WriteError,
     },
     openclaw::OpenClawFiles,

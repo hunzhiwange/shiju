@@ -53,3 +53,9 @@ fn openclaw_health_reports_without_mutation_file_bytes() {
     std::os::unix::fs::symlink(temp.path().join("outside"), &path).unwrap();
     assert!(scan_openclaw_config_health(temp.path()).is_err());
 }
+
+#[test]
+fn openclaw_health_accepts_json5_configuration_without_rewriting() {
+    let source = b"{tools:{profile:'coding'}, env:{vars:{}, shellEnv:{}}, extra:NaN,}";
+    assert!(scan_openclaw_health_from_bytes(Some(source)).is_empty());
+}

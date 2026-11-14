@@ -3,7 +3,7 @@
 use crate::providers::{
     live::{
         commit::{AppState, ProviderTransactions},
-        patch_json::{object_value, replace_member_preserving_trivia},
+        patch_json5::{object_value, replace_member_preserving_trivia},
         write_guard::WriteError,
     },
     openclaw::OpenClawFiles,
@@ -58,8 +58,7 @@ pub fn get_tools_config(pre: Option<&[u8]>) -> Result<Option<OpenClawToolsConfig
     }).transpose()
 }
 
-/// Build a candidate without IO. Shared parser supports JSON/JSONC; unsupported
-/// JSON5 syntax fails closed. Non-target text is retained by the shared patcher.
+/// Build a candidate without IO. The shared JSON5 parser retains non-target text.
 pub fn prepare_tools_config(
     pre: Option<&[u8]>,
     tools: &OpenClawToolsConfig,

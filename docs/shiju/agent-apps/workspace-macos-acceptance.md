@@ -106,3 +106,10 @@
 静态阅读来源 commands/hermes.rs::open_hermes_web_ui、TS 调用者、接口边界、任务 1 正式合同与任务 3 主机边界；RustCodeGraph status/explore 已读取，宽查询截断不作为不存在的证明。新增三个 hermes_probe_distinguishes_offline 前缀独立测试源码，覆盖端口回退、页面拒绝、本地 HTTP 状态、无 Authorization 请求头、超时、连接失败及主机拒绝，均未执行。
 
 遵照本轮最高优先要求，未执行任何 Cargo、单元测试、实机或其它测试，未启动回归，不声称编译或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，后续统一验证上述测试族。
+
+
+## 任务 16 补齐：共享 JSON5 解析与 round-trip（2026-11-14）
+
+本条取代上文任务 16 的 JSON5 缺项结论。新增 providers/live/patch_json5：复用既有叶节点协调算法，以 json-five 0.3.1 的 JSON5 tokenizer/serde 解码定位原文 byte spans，只替换变化值，不通过 AST formatter 重印文件。因此单引号、裸键/转义键、Unicode 空白、行续接、十六进制、小数、Infinity/NaN、注释及尾逗号等非目标原文保留；解码后重复键仍拒绝，原有 1MiB 输入边界和解析深度限制保留。JSONC 通用模块合同不变。
+
+OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改用共享 JSON5 模块，配置发布仍复用 OpenClawFiles/ProviderTransactions，未新增写入所有者。新增独立 JSON5 测试源码并调整旧裸键拒绝断言；只读审查了来源配置函数及 json-five 0.3.1 原始 tokenizer/parser/de 源码，未运行任何测试、Cargo 或实机检查。不声称编译或行为验证通过。新增轻量解析依赖；按本轮禁令未调用 Cargo 更新 Cargo.lock，后续统一验证阶段需先解析依赖更新锁文件。未领取槽位，CARGO_TARGET_DIR 未设置。

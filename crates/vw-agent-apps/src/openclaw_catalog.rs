@@ -2,7 +2,7 @@
 //! Callers authorize the executor and publish candidates through OpenClawFiles
 //! and the existing provider transaction, retaining the shared physical lock.
 use crate::providers::live::{
-    patch_json::{object_value, replace_member_preserving_trivia},
+    patch_json5::{object_value, replace_member_preserving_trivia},
     write_guard::WriteError,
 };
 use serde::{Deserialize, Serialize};

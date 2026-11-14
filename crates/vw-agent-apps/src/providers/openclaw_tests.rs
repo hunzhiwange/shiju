@@ -110,7 +110,6 @@ fn cc04_openclaw_malformed_and_undeclared_models_are_rejected() {
         br#"{"models":{"providers":[]}}"#,
         br#"{"agents":{"defaults":{"model":{"fallbacks":"bad"}}}}"#,
         br#"{"models":{},"models":{}}"#,
-        b"{models:{}}",
     ] {
         assert!(patch(Some(pre), "one", None, None).is_err());
     }
@@ -196,4 +195,12 @@ fn cc04_openclaw_catalog_reads_members_without_unique_current_or_secrets() {
     assert_eq!(before, read(home.path()).unwrap().unwrap());
     std::fs::write(&file, b"{bad}").unwrap();
     assert!(super::delete::ensure_unreferenced(home.path(), AppId::OpenClaw, "unused").is_err());
+}
+
+#[test]
+fn cc04_openclaw_json5_provider_edits_preserve_non_target_tokens() {
+    let source = b"{models:{providers:{one:{models:[{id:'x'}]}}}, agents:{defaults:{model:{primary:'one/x'}}}, env:{n:NaN, key:'keep'}}";
+    let next = patch(Some(source), "one", Some(&json!({"models":[{"id":"x"}], "api":"openai-completions"})), None).unwrap();
+    assert!(String::from_utf8(next.clone()).unwrap().contains("env:{n:NaN, key:'keep'}"));
+    assert_eq!(state(Some(&next)).unwrap().model.as_deref(), Some("one/x"));
 }

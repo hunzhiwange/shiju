@@ -1,11 +1,12 @@
 //! Default-model section preparation. Publication uses the provider configuration
 //! lock and transaction; callers authorize the executor and configuration action.
-//! The existing round-trip parser accepts JSONC, and rejects unsupported JSON5
-//! syntax rather than rewriting the document or silently losing comments.
-// TODO(task 16): the shared provider parser must support full JSON5 before
-// claiming JSON5 acceptance; single quotes/unquoted keys remain rejected.
+//! Shared JSON5 token edits retain non-target bytes and comments.
 use crate::providers::{
-    live::{commit::{AppState, ProviderTransactions}, patch_json::{object_value, replace_object_preserving_trivia}, write_guard::WriteError},
+    live::{
+        commit::{AppState, ProviderTransactions},
+        patch_json5::{object_value, replace_object_preserving_trivia},
+        write_guard::WriteError,
+    },
     openclaw::OpenClawFiles,
 };
 use serde::{Deserialize, Serialize};
@@ -40,7 +41,9 @@ fn document(pre: Option<&[u8]>) -> Result<Value, WriteError> {
 /// Missing section is distinct from malformed data. No filesystem side effects.
 pub fn get_default_model(pre: Option<&[u8]>) -> Result<Option<OpenClawDefaultModel>, WriteError> {
     let value = document(pre)?;
-    value.pointer("/agents/defaults/model").cloned()
+    value
+        .pointer("/agents/defaults/model")
+        .cloned()
         .map(|v| serde_json::from_value(v).map_err(|_| WriteError::InvalidResource))
         .transpose()
 }
@@ -57,12 +60,20 @@ pub fn prepare_default_model(
     }
     let mut value = document(pre)?;
     let root = value.as_object_mut().ok_or(WriteError::InvalidResource)?;
-    let defaults = root.entry("agents").or_insert_with(|| serde_json::json!({}))
-        .as_object_mut().ok_or(WriteError::InvalidResource)?
-        .entry("defaults").or_insert_with(|| serde_json::json!({}))
-        .as_object_mut().ok_or(WriteError::InvalidResource)?;
-    let section = defaults.entry("model").or_insert_with(|| serde_json::json!({}))
-        .as_object_mut().ok_or(WriteError::InvalidResource)?;
+    let defaults = root
+        .entry("agents")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or(WriteError::InvalidResource)?
+        .entry("defaults")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or(WriteError::InvalidResource)?;
+    let section = defaults
+        .entry("model")
+        .or_insert_with(|| serde_json::json!({}))
+        .as_object_mut()
+        .ok_or(WriteError::InvalidResource)?;
     section.insert("primary".into(), Value::String(model.primary.clone()));
     if model.fallbacks.is_empty() {
         section.remove("fallbacks");

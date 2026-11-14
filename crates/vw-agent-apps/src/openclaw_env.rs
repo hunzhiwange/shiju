@@ -1,13 +1,12 @@
 //! Sensitive OpenClaw env section. Executor/config authorization belongs to the
 //! caller; raw reads additionally require its independent sensitive-read policy.
-//! Candidate edits preserve non-target bytes using the shared JSON/JSONC parser.
-//! Full JSON5 remains unsupported by that parser and is explicitly rejected.
+//! Candidate edits preserve non-target bytes using the shared JSON5 token parser.
 use crate::{
     openclaw_model::OpenClawWriteOutcome,
     providers::{
         live::{
             commit::{AppState, ProviderTransactions},
-            patch_json::{object_value, replace_member_preserving_trivia},
+            patch_json5::{object_value, replace_member_preserving_trivia},
             write_guard::WriteError,
         },
         openclaw::OpenClawFiles,

@@ -1,6 +1,6 @@
-//! Incremental OpenClaw JSON/JSONC edits; shared transactions own publication.
+//! Incremental OpenClaw JSON5 edits; shared transactions own publication.
 use super::live::{
-    patch_json::{JsonPatch, object_value},
+    patch_json5::{JsonPatch, object_value},
     write_guard::WriteError,
 };
 use serde_json::{Value, json};
@@ -174,7 +174,7 @@ pub fn patch(
     }
     patch.apply(pre).map_err(|_| WriteError::InvalidResource)
 }
-/// Read-only, fixed authorized HOME; JSON5 syntax is explicitly rejected by the parser.
+/// Read-only, fixed authorized HOME; JSON5 is decoded by the shared configuration parser.
 pub fn read(home: &Path) -> Result<Option<Vec<u8>>, WriteError> {
     super::catalog::read_file(home, &[".openclaw", "openclaw.json"])
         .map_err(|_| WriteError::InvalidResource)

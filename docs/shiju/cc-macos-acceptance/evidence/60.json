@@ -1,0 +1,52 @@
+{
+  "task": 60,
+  "date": "2026-11-14",
+  "status": "documentation_written_unverified",
+  "document": "docs/shiju/cc-macos-acceptance/licenses.md",
+  "scope": "来源许可及正式包声明核对准备，不修改生产行为",
+  "source_commit": "ca58c0313360eae7c851fbd7553c1614c7af03e7",
+  "source_version": "4.0.25 (来源声明，非目标应用版本)",
+  "inputs": [
+    ".plans/2026-11-05-CC能力完整融合/来源清单.json",
+    "external:cc-switch/package.json",
+    "crates/vw-agent-apps/CC-Switch-LICENSE",
+    "docs/shiju/cc-convergence/归档清单.json",
+    "docs/shiju/cc-macos-acceptance/runtime-contract.json"
+  ],
+  "dependencies": {
+    "task_1": "准备材料存在；契约未验证、不可执行",
+    "binary_paths": null,
+    "binary_sha256": null,
+    "owner": "构建任务及母任务22/来源能力所有者"
+  },
+  "verification": {
+    "executed": [],
+    "exit_code": null,
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "acceptance": "not_run",
+    "format_check": "not_run",
+    "link_check": "not_run",
+    "reason": "用户最新指令禁止本轮验证；输入阅读仅用于编写，不计作验收证据",
+    "deferred": [
+      "来源、归档与保留许可证一致性",
+      "实际依赖及资源第三方声明清单",
+      "两架构正式包随附声明及版本/哈希绑定",
+      "运行更新配置来源隔离",
+      "领域及真实验收证据适用性",
+      "JSON格式、内部链接及内容核证",
+      "统一回归"
+    ]
+  },
+  "artifact_sha256": null,
+  "macos_architecture": "unverified",
+  "application_version": "unverified",
+  "observations": [],
+  "cleanup": {
+    "status": "not_applicable",
+    "reason": "未启动运行进程或修改用户配置"
+  },
+  "task_card": "按用户指令删除，不表示验收通过",
+  "next_action": "补齐冻结正式包及前置证据后统一核对"
+}

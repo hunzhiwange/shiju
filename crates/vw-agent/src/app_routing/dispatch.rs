@@ -173,6 +173,11 @@ pub(super) async fn forward_json(
     route.check_provider(listener).await?;
     let messages_responses = app == AppId::Claude
         && target.url.path().trim_end_matches('/').ends_with("/responses");
+    let hosted_search = if messages_responses {
+        crate::model_relay::hosted_search::request(&body)?.2
+    } else {
+        Default::default()
+    };
     let messages_gemini = matches!(app, AppId::Claude | AppId::ClaudeDesktop)
         && (target.url.path().ends_with(":generateContent")
             || target.url.path().ends_with(":streamGenerateContent"));
@@ -412,6 +417,7 @@ pub(super) async fn forward_json(
             true,
             native_messages,
             messages_responses,
+            hosted_search.clone(),
             cancelled,
         )
         .await;
@@ -444,7 +450,8 @@ pub(super) async fn forward_json(
                 false,
                 native_messages,
                 messages_responses,
-                    cancelled.clone(),
+                hosted_search.clone(),
+                cancelled.clone(),
             )
             .await
         }
@@ -459,6 +466,7 @@ async fn finish_messages(
     streaming: bool,
     native: bool,
     responses: bool,
+    hosted_search: crate::model_relay::hosted_search::Search,
     cancel: tokio_util::sync::CancellationToken,
 ) -> Result<Response, RouteError> {
     if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && !streaming {
@@ -471,7 +479,7 @@ async fn finish_messages(
         };
         let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
         let converted = if responses {
-            crate::model_relay::messages_responses_result::from_responses(&body, &model)?
+            crate::model_relay::messages_responses_result::with_search(&body, &model, &hosted_search)?
         } else {
             crate::model_relay::messages_chat_result::from_chat(&body, &model)?
         };
@@ -479,7 +487,7 @@ async fn finish_messages(
     } else if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && streaming {
         let model = model.ok_or(StatusCode::BAD_REQUEST)?;
         if responses {
-            crate::model_relay::messages_responses_stream::response_body(response, model, cancel)
+            crate::model_relay::messages_responses_stream::with_search(response, model, cancel, hosted_search)
                 .await
                 .map_err(Into::into)
         } else {

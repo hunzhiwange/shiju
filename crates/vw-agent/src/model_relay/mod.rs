@@ -122,3 +122,7 @@ mod messages_responses_stream_tests;
 pub(crate) mod gemini_shadow;
 #[cfg(test)]
 mod gemini_shadow_tests;
+
+pub(crate) mod hosted_search;
+#[cfg(test)]
+mod hosted_search_tests;

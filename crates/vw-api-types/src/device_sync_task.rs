@@ -179,3 +179,12 @@ pub struct SyncTaskStatus {
     pub state: SyncTaskState,
     pub warnings: Vec<SyncTaskWarning>,
 }
+
+/// Cancellation is a request: accepted running work must still be polled.
+/// TooLate preserves the actual state, including commits still in flight.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SyncTaskCancelResponse {
+    Accepted { status: SyncTaskStatus },
+    TooLate { status: SyncTaskStatus },
+}

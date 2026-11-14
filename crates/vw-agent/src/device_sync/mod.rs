@@ -20,3 +20,6 @@ pub mod webdav_upload;
 
 #[cfg(target_os = "macos")]
 pub mod projection;
+
+#[cfg(target_os = "macos")]
+pub mod s3_upload;

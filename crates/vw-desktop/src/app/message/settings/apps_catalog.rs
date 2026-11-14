@@ -6,6 +6,7 @@ use iced::Task;
 
 #[derive(Clone)]
 pub enum AppsCatalogMessage {
+    ProjectProfiles(crate::app::message::project_profiles::Event),
     Routing(crate::app::components::app_routing::lifecycle::Event),
     OpenClawTools(crate::app::components::openclaw_tools::Event),
     OpenClawEnv(crate::app::components::openclaw_env::Event),
@@ -58,6 +59,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
         AppsCatalogMessage::DailyMemory(event) => return crate::app::components::daily_memory::update(app, event),
         AppsCatalogMessage::HermesMemory(event) => return crate::app::components::hermes_memory::update(app, event),
         AppsCatalogMessage::HermesDashboard(event) => return crate::app::components::hermes_dashboard::update(app, event),
+        AppsCatalogMessage::ProjectProfiles(event) => return crate::app::message::project_profiles::update(app, event),
         AppsCatalogMessage::QueryInput(query) => {
             app.apps_catalog.query = query;
             app.apps_catalog.drag = Default::default();
@@ -68,7 +70,13 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.expanded = (app.apps_catalog.expanded != Some(id)).then_some(id);
+            if app.apps_catalog.expanded == Some(id) {
+                if let Some(scope) = vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope::for_app(id) {
+                    return crate::app::message::project_profiles::update(app, crate::app::message::project_profiles::Event::Refresh(scope));
+                }
+            }
         }
         AppsCatalogMessage::Drag(value) => {
             return crate::app::components::system_settings_apps::drag::update(app, value);
@@ -158,6 +166,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.host = host;
             app.apps_catalog.drag = Default::default();
@@ -189,6 +198,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             app.apps_catalog.workspace_files.invalidate();
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
+            app.apps_catalog.project_profiles.invalidate();
             app.apps_catalog.model_diagnostics.invalidate_access();
             app.apps_catalog.token = token;
             app.apps_catalog.drag = Default::default();

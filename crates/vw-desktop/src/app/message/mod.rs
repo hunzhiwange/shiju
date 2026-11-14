@@ -269,3 +269,5 @@ pub(crate) mod voice_recordings;
 mod voice_hotkeys;
 
 pub(crate) mod agent_apps_high_availability;
+
+pub(crate) mod project_profiles;

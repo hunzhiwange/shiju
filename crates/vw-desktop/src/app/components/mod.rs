@@ -536,3 +536,6 @@ pub(crate) mod workspace_files;
 pub(crate) mod daily_memory_search;
 
 pub(crate) mod app_routing;
+
+#[path = "project_profiles/selection.rs"]
+pub(crate) mod project_profile_selection;

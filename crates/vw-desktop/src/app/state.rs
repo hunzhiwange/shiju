@@ -95,3 +95,5 @@ pub(crate) mod agent_apps_auth;
 pub(crate) use agent_apps::AppsCatalogState;
 
 pub(crate) mod app_providers;
+
+pub(crate) mod project_profiles;

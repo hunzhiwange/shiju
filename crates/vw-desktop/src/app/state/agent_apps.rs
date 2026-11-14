@@ -4,6 +4,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 
 #[derive(Clone, Default)]
 pub(crate) struct AppsCatalogState {
+    pub project_profiles: super::project_profiles::State,
     pub routing: crate::app::components::app_routing::lifecycle::State,
     pub openclaw_tools: crate::app::components::openclaw_tools::State,
     pub openclaw_env: crate::app::components::openclaw_env::State,
@@ -72,6 +73,7 @@ impl AppsCatalogState {
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
+        self.project_profiles.invalidate();
         self.connection_open = false;
         self.error = Some("连接已更改，正在重新连接应用".into());
         true
@@ -90,6 +92,7 @@ impl AppsCatalogState {
         self.workspace_files.invalidate();
         self.daily_memory.invalidate();
         self.hermes_memory.invalidate();
+        self.project_profiles.invalidate();
         self.generation = self.generation.wrapping_add(1);
         self.context = Some(context);
         self.loading = true;

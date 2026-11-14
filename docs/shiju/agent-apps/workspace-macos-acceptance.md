@@ -191,3 +191,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 新增 `openclaw_settings_api`，五个固定分节 model/catalog/defaults/env/tools 的 GET/PUT 与 health GET 使用任务 23–24 实际路由和任务 22 DTO；公开 OpenClawSettingsScope、OpenClawSettingsError。projectId/targetHostId 查询与端点租户头共同传递作用域，敏感凭证头使用原生禁止重定向/重试传输。保留 null、空对象、未知 profile、扩展字段、backupPath 与结构化 warnings；HTTP 状态错误单独保留，错误不含载荷或凭证。供应商读取继续使用已有 app_provider_get/openclaw_state，模型选项使用 model_catalog，不另造业务所有者。
 
 静态核对来源 openclaw.ts/useOpenClaw.ts、正式 workspace-contracts、现有路由与相邻 SDK。新增三个 openclaw_sdk_preserves_warnings 前缀测试源码，覆盖分节往返、缺失、扩展、警告、方法/路径/租户/凭证/请求体、拒绝/冲突/解码及传输错误；仅编写，未运行。按本轮要求未执行 Cargo、任何测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无编译或测试通过结论。任务卡删除，后续统一验证。
+
+## 任务 10：工作区客户端 SDK（2026-11-14）
+
+封装任务 9 已存在的固定 workspace files GET/PUT、daily 列表及 GET/PUT/DELETE、search POST 和 search/{id} GET/DELETE。使用真实 workspace_memory DTO，公开 WorkspaceMemoryScope/WorkspaceMemoryError 与绑定提交客户端及作用域的 WorkspaceSearch；取消请求前禁止本地后续 poll，取消失败可重试，不返回取消响应中的结果。项目/目标主机由 reqwest 编码查询传递，租户沿端点上下文，授权头标为敏感并复用禁止重定向/重试的原生传输。保留 null/空文本及 HTTP 状态，204 写入不尝试 JSON 解码；不开放任意路径。目录动作不在任务 9 路由内，仍由任务 26 所有。
+
+静态核对任务 1 正式合同、接口边界、来源映射、workspace.ts、相邻 desktop/Hermes SDK 测试及任务 9 真实路由。新增 workspace_sdk_preserves_scope 前缀测试源码，覆盖方法/路径/编码/租户/令牌/body、空与缺失、中文、HTTP 拒绝与解码失败、搜索提交/查询和取消失败后停止接收。按用户本轮要求未运行 Cargo、单元/实机或其它测试及最终回归，不声明编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证该过滤测试和正式 Gateway 集成。

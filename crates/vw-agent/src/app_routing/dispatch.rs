@@ -693,6 +693,13 @@ async fn forward_rectified(
         Ok(value) => value,
         Err(()) => return Err(RouteError::UnreadableAgentTask),
     };
+    // Share the existing single replay allowance with signature repair.
+    // Inspect the decoded error message only for the Messages endpoint.
+    let repaired = repaired.or_else(|| {
+        url.path().trim_end_matches('/').ends_with("/messages").then(|| {
+            vw_agent_apps::routing::budget_rectify::repair(&input, parts.status.as_u16(), &bytes)
+        }).flatten()
+    });
     let Some(repaired) = repaired else {
         parts.headers.remove(header::CONTENT_ENCODING);
         parts.headers.remove(header::CONTENT_LENGTH);

@@ -47,3 +47,5 @@ mod thinking_options_tests;
 pub mod classifier_guard;
 #[cfg(test)]
 mod classifier_guard_tests;
+
+pub mod budget_rectify;

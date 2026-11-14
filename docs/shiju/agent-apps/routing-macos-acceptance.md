@@ -1168,3 +1168,11 @@ Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 sig
 新增 routing::classifier_guard 唯一纯策略，逐字沿用来源两个错误子串、tools 非空门控和三次 assistant 分隔的失败工具回合阈值；并行工具结果只计一个回合，普通错误、成功/混合结果及新用户输入解除匹配。dispatch::forward_json 仅对 Claude/ClaudeDesktop 原始 Messages 历史调用，在协议转换、覆盖及 failover prepare 前返回 ClassifierLoop（HTTP 400），明确未发送上游、修复模型映射或余额后发送新用户消息；工具权限检查仍必需。不增加重试或故障转移策略，不涉及旧会话路径。
 
 独立注册五个 cc_route_066_ 测试源码，覆盖阈值、重置、无工具、普通错误、并行结果和文本块。遵照用户最新要求，未运行 Cargo 相关命令/脚本、单元测试、实机测试或最终回归，无通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。后续统一验证需执行策略测试并补授权 HTTP 回环零上游发送验收。任务卡按要求删除；macOS 未验收，Windows/Linux/WSL 范围外且未验证，不表示母任务8完成。
+
+## 任务67：限定思考预算纠错（代码交付，未验证）
+
+2026-11-14：直接依赖任务66提交26bea1482已有分类器拦截源码。母任务来源快照、授权运行时、主机/应用、原生配置和账号接口沿用既有合同，仅确认源码可用，不推定实机前置验收通过。读取冻结 upstream thinking_budget_rectifier.rs 与当前 dispatch 调用者。
+
+routing::budget_rectify::repair 仅匹配 HTTP 400 的 JSON error.message/message 中明确 thinking、budget_tokens/budget tokens 与 1024 最小值约束；跳过 adaptive、非对象、不可解析错误和无需修改的 body。沿用来源 budget=32000、max_tokens不足32001时升至64000，保留较大上限及其余字段。dispatch::forward_rectified 仅在 Messages 端点调用，与签名修复共享一次重发额度，保留原授权目标、凭据、出口、取消和外层超时；二次拒绝直接返回，不新增结果记录点，沿用外层响应处理。启用独立故障转移队列时仍由 failover_execution 所有，不在本项扩大其发送预算。
+
+遵照用户覆盖要求，未运行 Cargo、相关脚本、单元测试、实机测试或最终回归，无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖预算错误、其他400、adaptive、无效body、无变化、单次重发及最终结果记录。任务卡按要求删除；macOS未验收，其他平台范围外，不表示母任务8完成。

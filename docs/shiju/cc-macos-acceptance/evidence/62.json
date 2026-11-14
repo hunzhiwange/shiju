@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "task": 62,
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "acceptance_passed": false,
+  "scope": "workspace 全 targets/features 最终 Clippy 门禁；纯验证任务，按用户最新指令跳过并删除任务卡。",
+  "baseline": {
+    "recorded_head": "e76d80a7098c439256c6afebc24936f92fc57d26",
+    "product_tree_matches_frozen_input": "unverified",
+    "note": "共享 checkout 存在其他任务产品树改动；未冻结或核验其适用性。"
+  },
+  "dependencies": [
+    {
+      "task": 22,
+      "path": "docs/shiju/cc-macos-acceptance/evidence/22.json",
+      "reported_status": "deferred_by_user_not_accepted",
+      "applicability": "not_revalidated"
+    }
+  ],
+  "contract": {
+    "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "reported_status": "prepared_unverified_not_executable",
+    "verified_entrypoints": "未提供已验证入口",
+    "binary_paths": null,
+    "binary_sha256": null,
+    "macos_architecture_app_version": "unverified"
+  },
+  "capability_gaps": {
+    "status": "unresolved_not_revalidated",
+    "details": "契约入口及冻结产物引用未验证，依赖22未验收；不推断生产能力缺失。",
+    "owners": "母任务22及冻结输入/领域所有者"
+  },
+  "execution": {
+    "cargo_invoked": false,
+    "builds_run": false,
+    "tests_run": false,
+    "clippy_run": false,
+    "device_acceptance_run": false,
+    "final_regression_run": false,
+    "commands": [],
+    "exit_code": null,
+    "behavior_cases_run": 0,
+    "passed": 0,
+    "failed": 0,
+    "cargo_slot": null,
+    "CARGO_TARGET_DIR": null,
+    "CARGO_BUILD_BUILD_DIR": null,
+    "cleanup": "未领取槽位、未创建运行资源，无需释放。"
+  },
+  "deferred_work": [
+    "后续统一执行时重新核对依赖22、冻结产品树及契约，不沿用本轮为通过证据。",
+    "依届时仓库槽位规则运行全 targets/features Clippy 门禁；本卡未列出确切唯一命令，执行前由契约或所有者明确，不伪造已执行命令。",
+    "保存完整脱敏日志、实际命令、退出码、基线及产物信息；缺陷回交来源能力所有者。",
+    "本证据格式检查及验收均留待后续执行。"
+  ],
+  "limitations": "本轮仅生成延期记录；未运行任何 Cargo、构建、单元测试、实机测试、验收或最终回归。无通过证据。",
+  "task_card_disposition": "按最新指令删除，不表示 Clippy 通过。"
+}

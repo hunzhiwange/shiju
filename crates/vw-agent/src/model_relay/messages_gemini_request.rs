@@ -30,7 +30,7 @@ pub(crate) fn convert(body: &Value) -> Result<Value, StatusCode> {
     }
     // Use the existing strict owner for text, generation controls and correlated tools.
     let chat = super::messages_chat_request::to_chat(&normalized)?;
-    let mut output = super::protocol_bridge::request(ModelProtocol::Gemini, &chat)?;
+    let mut output = super::tool_media::request(ModelProtocol::Gemini, &chat)?;
     // A source user media message contributes exactly one Chat message. Prefix
     // conversion accounts for tool results expanding earlier source messages.
     for (index, parts) in media_messages {

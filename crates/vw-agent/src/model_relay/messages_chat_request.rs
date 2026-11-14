@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 pub(crate) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
     // Validate the original blocks before normalizing source annotations.
     let mut normalized = body.clone();
+    let media = super::tool_media::messages(&mut normalized);
     if let Some(choice) = body.get("tool_choice").and_then(Value::as_str) {
         if !matches!(choice, "auto" | "any" | "none") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -41,6 +42,7 @@ pub(crate) fn to_chat(body: &Value) -> Result<Value, StatusCode> {
             clean_schema(&mut tool["function"]["parameters"], true);
         }
     }
+    super::tool_media::attach(&mut chat, media);
     Ok(chat)
 }
 

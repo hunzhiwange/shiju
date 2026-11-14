@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::collections::HashSet;
 
 pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode> {
+    let media = super::tool_media::responses(&mut body);
     let search = super::tool_namespace::normalize(&mut body)?;
     let effort = responses::codex_chat_effort(&mut body)?;
     if let Some(items) = body["input"].as_array_mut() {
@@ -79,5 +80,6 @@ pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode>
     if let Some(effort) = effort {
         chat["reasoning_effort"] = effort.into();
     }
+    super::tool_media::attach(&mut chat, media);
     Ok((chat, tools))
 }

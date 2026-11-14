@@ -1186,3 +1186,12 @@ routing::budget_rectify::repair 仅匹配 HTTP 400 的 JSON error.message/messag
 forward_rectified 对指定 HTTP 400/404/415/422/501 媒体拒绝才尝试替换，并要求实际发生替换；404仅接受明确 no endpoints found that support image input。与签名/预算修复共享一次重发额度，第二次错误直接返回。沿用同授权目标、凭据、出口、取消与超时；独立故障转移队列沿用既有所有者，不在此扩展。成功 SSE、流内拒绝、旧会话路径不进入媒体重放。
 
 按用户最新覆盖要求，仅写代码，未新增或执行测试，未运行 Cargo、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。没有红绿灯、退出码或有效测试数证据。后续统一验证需覆盖能力声明优先级、图片/工具输出/缓存标记、无图与非图片保留、指定错误及二次拒绝不重试、真实HTTP执行链。仅macOS待验收，其余平台未验证；按要求删除编号任务文件，不代表母任务8验收完成。
+
+
+## 任务69：处理工具回传多模态（代码交付，未验证）
+
+2026-11-14：直接依赖任务68的媒体策略源码已存在；沿用冻结 upstream tool_media.rs/transform_responses.rs 的识别、32层遍历边界与8KiB data URL、16KiB残留base64阈值。仅确认母任务来源、常驻运行时、可信作用域与配置/账号接口的源码合同，不推定外部前置已实机验收。
+
+新增 tool_media 与 tool_media_request，由常驻 Messages/Responses 请求所有者提取工具媒体并清除重复文本载荷。Chat在连续工具结果之后追加用户媒体，避免打断并行工具回合；Messages/Responses/Gemini通过请求局部占位恢复到原生内容位置，不改变共享严格转换器。文件引用仅传递，不访问本机文件；Gemini只接受内嵌数据，无法映射的格式明确拒绝。dispatch已调用这些常驻转换所有者，无需增加重复分发；旧会话入口不接入。
+
+按用户最新要求未新增或运行测试，未运行Cargo、实机测试或最终回归。仅完成代码差异审阅及修改文件格式化；无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。后续统一验证需覆盖图片/文件、JSON字符串、重复base64限长、纯文本稳定、并行工具回合和协议真实HTTP链路。macOS待验收，其他平台未验证，不代表母任务8完成；编号任务文件按要求删除。

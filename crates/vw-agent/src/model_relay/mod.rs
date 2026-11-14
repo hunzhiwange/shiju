@@ -176,3 +176,6 @@ mod xai_responses_tests;
 pub(crate) mod signature_rectify;
 #[cfg(test)]
 mod signature_rectify_tests;
+
+mod tool_media;
+mod tool_media_request;

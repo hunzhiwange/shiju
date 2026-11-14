@@ -94,7 +94,28 @@ pub(super) fn convert(
             Some("function_call_output" | "custom_tool_call_output") => {
                 object_keys(&item, &["type", "id", "call_id", "output", "status"])?;
                 let id = item["call_id"].as_str().filter(|s| !s.is_empty()).ok_or(BAD)?;
-                let parts = content(&item["output"])?;
+                let parts = if let Some(plan) =
+                    super::tool_media::plan_chat_tool_output_media(item["output"].clone())
+                {
+                    let mut parts = vec![json!({"type":"text","text":plan.tool_content})];
+                    for part in plan.media_parts {
+                        let input = match part["type"].as_str() {
+                            Some("image_url") => {
+                                json!({"type":"input_image","image_url":part["image_url"]["url"]})
+                            }
+                            Some("file") => {
+                                let mut file = part["file"].clone();
+                                file["type"] = "input_file".into();
+                                file
+                            }
+                            _ => return Err(UNSUPPORTED),
+                        };
+                        parts.extend(content(&json!([input]))?);
+                    }
+                    parts
+                } else {
+                    content(&item["output"])?
+                };
                 push(
                     &mut messages,
                     "user",
@@ -199,7 +220,7 @@ fn complete_turns(messages: Vec<Value>) -> Vec<Value> {
     result
 }
 
-fn content(value: &Value) -> Result<Vec<Value>, StatusCode> {
+pub(super) fn content(value: &Value) -> Result<Vec<Value>, StatusCode> {
     if let Some(text) = value.as_str() {
         return Ok(if text.trim().is_empty() {
             vec![]

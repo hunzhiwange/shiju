@@ -73,7 +73,7 @@ fn convert(body: &Value) -> Result<Value, StatusCode> {
     } else {
         None
     };
-    let mut output = super::protocol_bridge::request(ModelProtocol::Responses, &chat)?;
+    let mut output = super::tool_media::request(ModelProtocol::Responses, &chat)?;
     if let Some(instructions) = instructions {
         output["instructions"] = instructions;
     }

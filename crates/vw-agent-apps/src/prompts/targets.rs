@@ -40,6 +40,9 @@ pub fn resolve(
     if app == ClaudeDesktop {
         return Err("Claude Desktop does not support native prompt files");
     }
+    if app == Omp {
+        return super::omp::resolve(home, override_dir, environment);
+    }
     let resolved = paths::read(home, app, override_dir, environment)?;
     let directory = if app == Agy {
         // The provider directory is for CLI settings. Shared customizations live

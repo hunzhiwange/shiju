@@ -8,3 +8,5 @@ pub mod template_metadata;
 pub mod shared_import;
 
 pub mod mcode;
+
+pub mod omp;

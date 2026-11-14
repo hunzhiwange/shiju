@@ -17,3 +17,11 @@
 静态核对：已读取任务 1 正式合同、来源 commands/hermes.rs、src/lib/api/hermes.ts、hermes_config.rs 类型与 TS 定义；RustCodeGraph status/explore 定位现有所有者；API 模块只登记模块及独立测试。新增五个测试函数，覆盖未知 kind 拒绝、预算/开关往返、中文长文本与缺失状态、模型敏感字段拒绝、备份 outcome 往返；仅写入测试源码，未运行。
 
 按用户本轮最高优先要求，不执行 Cargo、单元测试、实机测试或最终回归；没有编译或运行通过结论。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。
+
+## 任务 3：执行主机文件边界（2026-11-14）
+
+新增 `workspace_paths.rs::WorkspaceDirectory`，消费执行端解析的 OpenClaw workspace 或 Hermes 应用根，限定 HOME 内的 workspace、memory、memories。调用者须先授权 tenant/project/action，并传递可信分派的授权主机及当前执行端身份；身份不匹配或为空直接拒绝，不回退本机。目录逐级 openat/O_NOFOLLOW，按需 mkdirat 后重新安全打开；文件只接受单段相对名称和普通单链接文件。读写删除共用保留的目录描述符，写入复用现有 AppWriteGuard 物理锁和私有文件原子替换，删除使用 unlinkat。没有新增远程协议或路径解析所有者。
+
+静态审查来源 workspace 命令、OpenClaw/Hermes 目录解析、前置 workspace-contracts、providers/paths 和 live/write_guard；补充独立测试源码，覆盖父目录/文件链接、主机不匹配、绝对路径/穿越、缺失目录与正常读写删除，未执行。模块仅在 macOS 注册，其他平台未验收。
+
+遵照本轮要求未执行任何 Cargo、单元/实机/其它测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。仅以源码审查交付，不声称编译或行为验证通过；后续统一验证。编号任务文件依用户要求删除。

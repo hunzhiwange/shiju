@@ -27,3 +27,8 @@ pub mod high_availability;
 pub mod diagnostics;
 
 pub mod prompts;
+
+#[cfg(target_os = "macos")]
+pub mod workspace_paths;
+#[cfg(all(test, target_os = "macos"))]
+mod workspace_paths_tests;

@@ -7,6 +7,7 @@ use std::fs;
 use std::io::Write;
 
 use super::*;
+use preview_content::PREVIEW_MAX_BYTES;
 
 fn write_temp_file(name: &str, bytes: &[u8]) -> tempfile::NamedTempFile {
     let mut file = tempfile::Builder::new().prefix(name).tempfile().expect("create temp file");
@@ -41,28 +42,6 @@ fn safe_preview_reports_binary_files_instead_of_raw_bytes() {
     assert!(!truncated);
     assert!(content.contains("二进制文件"));
     assert!(content.contains("不支持文本预览"));
-}
-
-#[test]
-fn unsupported_preview_kind_is_case_insensitive_and_rejects_archives_and_pdf() {
-    for extension in ["zip", "TAR", "gz", "rar", "7z", "bz2", "xz"] {
-        let path = format!("artifact.{extension}");
-        assert_eq!(unsupported_preview_kind(&path), Some("压缩包"));
-    }
-    assert_eq!(unsupported_preview_kind("document.PDF"), Some("PDF"));
-    assert_eq!(unsupported_preview_kind("notes.txt"), None);
-    assert_eq!(unsupported_preview_kind("README"), None);
-}
-
-#[test]
-fn read_preview_sample_is_bounded_and_missing_files_are_treated_as_text() {
-    let bytes = vec![b'a'; 5000];
-    let file = write_temp_file("preview_sample", &bytes);
-    let path = file.path().to_string_lossy().to_string();
-    let missing = format!("{}.missing", file.path().display());
-
-    assert_eq!(read_preview_sample(&path).map(|sample| sample.len()), Some(4096));
-    assert!(file_looks_like_text(&missing));
 }
 
 #[test]

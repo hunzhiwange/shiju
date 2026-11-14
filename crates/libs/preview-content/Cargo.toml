@@ -6,3 +6,6 @@ license = "MIT"
 
 [lib]
 doctest = false
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,4 +1,4 @@
-//! 预览文本清理、换行、搜索与文件 URI 转换。
+//! 预览文件读取、文本清理、换行、搜索与文件 URI 转换。
 
 pub const PREVIEW_MAX_BYTES: usize = 300_000;
 const PREVIEW_MAX_LINE: usize = 512;
@@ -288,3 +288,9 @@ pub fn compute_search_matches(content: &str, terms: &[String]) -> Vec<(usize, us
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+mod file;
+pub use file::{
+    FilePreview, UnsupportedPreviewKind, file_looks_like_text, read_file_preview, read_preview_text,
+    unsupported_preview_kind,
+};

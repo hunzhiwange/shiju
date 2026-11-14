@@ -27,7 +27,7 @@
 pub use preview_content::{compute_search_matches, format_text_preview_content};
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use preview_content::path_to_file_uri;
-use preview_content::{PREVIEW_MAX_BYTES, strip_ansi_and_controls, wrap_long_lines};
+use preview_content::file_looks_like_text;
 
 use crate::app::components::editor::Editor;
 use iced::widget::Id;
@@ -134,182 +134,21 @@ impl std::fmt::Debug for PreviewTab {
     }
 }
 
-/// 安全预览文件文本内容
-///
-/// 读取文件内容并进行安全处理，包括清理控制字符、
-/// 自动换行和截断。返回适合显示的纯文本内容。
-///
-/// # 参数
-///
-/// - `path`: 要预览的文件路径
-///
-/// # 返回值
-///
-/// 返回处理后的文件内容字符串。如果文件过大，
-/// 会在内容开头添加"文件较大，预览已截断。"提示。
-///
-/// # 限制
-///
-/// - 最大读取字节数：300,000 字节（约 300KB）
-/// - 每行最大字符数：512 字符
-/// - 最大行数：5000 行
-///
-/// # 示例
-///
-/// ```ignore
-/// use crate::app::preview::safe_preview_text;
-///
-/// let content = safe_preview_text("/path/to/file.txt");
-/// println!("{}", content);
-/// ```
+/// 读取并格式化文件文本，保留桌面截断提示。
 pub fn safe_preview_text(path: &str) -> String {
-    /// 最大读取字节数（约 300KB）
-    const MAX_BYTES: usize = 300_000;
-    /// 每行最大字符数
-    const MAX_LINE: usize = 512;
-    /// 最大行数
-    const MAX_LINES: usize = 5000;
-
-    let mut truncated = false;
-    let mut buf: Vec<u8> = Vec::new();
-
-    // 尝试读取文件（限制字节数）
-    let read_ok = (|| {
-        use std::fs::File;
-        use std::io::{BufReader, Read};
-
-        let f = File::open(path)?;
-
-        // 检查文件大小，标记是否需要截断
-        if let Ok(m) = f.metadata()
-            && m.len() > MAX_BYTES as u64
-        {
-            truncated = true;
-        }
-
-        let reader = BufReader::new(f);
-        let mut take = reader.take(MAX_BYTES as u64);
-        take.read_to_end(&mut buf)?;
-
-        Ok::<(), std::io::Error>(())
-    })()
-    .is_ok();
-
-    // 转换为字符串
-    let content = if read_ok {
-        String::from_utf8_lossy(&buf).to_string()
-    } else {
-        // 回退：尝试直接读取整个文件
-        std::fs::read_to_string(path).unwrap_or_else(|_| String::new())
-    };
-
-    // 清理 ANSI 转义序列和控制字符
-    let cleaned = strip_ansi_and_controls(&content);
-
-    // 长行自动换行
-    let wrapped = wrap_long_lines(&cleaned, MAX_LINE);
-
-    // 限制行数
-    let limited = {
-        let mut out = String::new();
-        for (line_index, line) in wrapped.lines().enumerate() {
-            if line_index >= MAX_LINES {
-                truncated = true;
-                break;
-            }
-            out.push_str(line);
-            out.push('\n');
-        }
-        out
-    };
-
-    // 如果被截断，添加提示信息
+    let (content, truncated) = preview_content::read_preview_text(path);
     if truncated {
-        let mut head = String::new();
-        head.push_str("文件较大，预览已截断。\n\n");
-        head.push_str(&limited);
-        head
+        format!("文件较大，预览已截断。\n\n{content}")
     } else {
-        limited
+        content
     }
 }
 
-/// 安全预览文件（带类型检测）
-///
-/// 读取文件内容并根据文件类型进行智能处理。
-/// 对于二进制文件（图片、压缩包、PDF），返回类型信息而非内容。
-/// 对于文本文件，进行安全处理后返回内容。
-///
-/// # 参数
-///
-/// - `path`: 要预览的文件路径
-///
-/// # 返回值
-///
-/// 返回元组 `(内容, 是否被截断)`：
-/// - 内容：文件的文本内容或类型描述
-/// - 是否被截断：`true` 表示文件被截断，`false` 表示完整显示
-///
-/// # 支持的文件类型
-///
-/// - **图片**: png, jpg, jpeg, gif, bmp, webp, svg
-/// - **压缩包**: zip, tar, gz, rar, 7z, bz2, xz
-/// - **文档**: pdf
-/// - **其他**: 作为文本文件处理
-///
-/// # 限制
-///
-/// - 最大读取字节数：300,000 字节（约 300KB）
-/// - 每行最大字符数：512 字符
-/// - 最大行数：5000 行
-///
-/// # 示例
-///
-/// ```ignore
-/// use crate::app::preview::safe_preview;
-///
-/// let (content, truncated) = safe_preview("/path/to/image.png");
-/// println!("类型信息: {}", content);
-/// assert_eq!(truncated, false);
-///
-/// let (content, truncated) = safe_preview("/path/to/large.log");
-/// println!("内容: {}", content);
-/// ```
 fn unsupported_preview_kind(path: &str) -> Option<&'static str> {
-    let ext = std::path::Path::new(path)
-        .extension()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
-
-    if matches!(ext.as_str(), "zip" | "tar" | "gz" | "rar" | "7z" | "bz2" | "xz") {
-        Some("压缩包")
-    } else if ext == "pdf" {
-        Some("PDF")
-    } else {
-        None
-    }
-}
-
-fn read_preview_sample(path: &str) -> Option<Vec<u8>> {
-    use std::fs::File;
-    use std::io::{Read, Take};
-
-    const SAMPLE_BYTES: u64 = 4096;
-
-    let file = File::open(path).ok()?;
-    let mut sample = Vec::new();
-    let mut take: Take<File> = file.take(SAMPLE_BYTES);
-    take.read_to_end(&mut sample).ok()?;
-    Some(sample)
-}
-
-fn file_looks_like_text(path: &str) -> bool {
-    let Some(sample) = read_preview_sample(path) else {
-        return true;
-    };
-
-    std::str::from_utf8(&sample).is_ok()
+    preview_content::unsupported_preview_kind(path).map(|kind| match kind {
+        preview_content::UnsupportedPreviewKind::Archive => "压缩包",
+        preview_content::UnsupportedPreviewKind::Pdf => "PDF",
+    })
 }
 
 pub fn preview_open_error(path: &str) -> Option<String> {
@@ -336,71 +175,21 @@ pub fn preview_open_error_message(path: &str) -> Option<crate::app::i18n::format
 }
 
 pub fn safe_preview(path: &str) -> (String, bool) {
-    let mut truncated = false;
-
-    // 获取文件扩展名（转小写）
-    let ext = std::path::Path::new(path)
-        .extension()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
-        .unwrap_or_default();
-
-    // 检测文件类型
-    let is_image = matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "bmp" | "webp");
-    let is_svg = ext.as_str() == "svg";
-    // 处理图片文件
-    if is_image || is_svg {
-        let name = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
-        let info = format!("文件: {}\n类型: 图片\n", name);
-        return (info, false);
-    }
-
-    if let Some(kind) = unsupported_preview_kind(path) {
-        let name = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
-        let info = format!("文件: {}\n类型: {}\n不支持文本预览\n", name, kind);
-        return (info, false);
-    }
-
-    if !file_looks_like_text(path) {
-        let name = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
-        let info = format!("文件: {}\n类型: 二进制文件\n不支持文本预览\n", name);
-        return (info, false);
-    }
-
-    let mut buf: Vec<u8> = Vec::new();
-
-    // 尝试读取文件（限制字节数）
-    let read_ok = (|| {
-        use std::fs::File;
-        use std::io::{BufReader, Read};
-
-        let f = File::open(path)?;
-
-        // 检查文件大小，标记是否需要截断
-        if let Ok(m) = f.metadata()
-            && m.len() > PREVIEW_MAX_BYTES as u64
-        {
-            truncated = true;
-        }
-
-        let reader = BufReader::new(f);
-        let mut take = reader.take(PREVIEW_MAX_BYTES as u64);
-        take.read_to_end(&mut buf)?;
-
-        Ok::<(), std::io::Error>(())
-    })()
-    .is_ok();
-
-    // 转换为字符串
-    let content = if read_ok {
-        String::from_utf8_lossy(&buf).to_string()
-    } else {
-        // 回退：尝试直接读取整个文件
-        std::fs::read_to_string(path).unwrap_or_else(|_| String::new())
+    use preview_content::{FilePreview, UnsupportedPreviewKind};
+    let kind = match preview_content::read_file_preview(path) {
+        FilePreview::Text { content, truncated } => return (content, truncated),
+        FilePreview::Image => "图片",
+        FilePreview::Unsupported(UnsupportedPreviewKind::Archive) => "压缩包",
+        FilePreview::Unsupported(UnsupportedPreviewKind::Pdf) => "PDF",
+        FilePreview::Binary => "二进制文件",
     };
-
-    let (formatted, content_truncated) = format_text_preview_content(&content);
-    (formatted, truncated || content_truncated)
+    let name = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path);
+    let info = if kind == "图片" {
+        format!("文件: {}\n类型: 图片\n", name)
+    } else {
+        format!("文件: {}\n类型: {}\n不支持文本预览\n", name, kind)
+    };
+    (info, false)
 }
 
 #[cfg(test)]

@@ -1142,3 +1142,12 @@ Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 sig
 任务60已有 reasoning_bridge 及流接线源码；来源快照、常驻监听器和授权 dispatch 已存在。此处仅确认代码依赖，未补做母任务实机验收。新增 cc_route_061_ 测试源码覆盖合法字符边界分片、两种标签、正文标签、未闭合尾部及幂等 flush，供后续统一验证。
 
 按本次用户覆盖要求，未运行任何 Cargo 命令、单元测试、实机或最终回归；没有红绿灯、退出码或有效测试数证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。仅作源码审阅及局部 rustfmt；macOS 行为待统一验证，Windows/Linux/WSL 范围外、未验证。
+
+
+## 任务63：xAI 原生 Responses 差异（代码已交付，未验证）
+
+来源为冻结 upstream 的 transform_codex_responses_xai_sanitize.rs 请求清理函数及 codex.rs 的原生目标门控；直接依赖任务62已有 late_arguments 和常驻 dispatch 接线。公共传输、可信作用域、配置发布和托管账号仍沿用既有所有者；仅确认源码契约存在，不推定母任务验收通过。
+
+新增 model_relay::xai_responses，仅在常驻 native_responses 分支、覆盖参数与目标模型确定后调用 prepare，之后仍执行可信引用检查。以授权 URL 的精确 api.x.ai 主机和 Responses 路径为门控，避免来源 contains 判断误命中相似主机。按冻结来源清理顶层私有字段、include 标记、grok-4.5 采样字段、递归 external_web_access，提升 additional_tools、清理 reasoning null content、过滤不支持工具及失效工具选择、兼容函数参数根 schema。协作消息、模型目录重映射、返回参数改写不属于本次清理行为。普通 Responses 与旧 session relay 不进入此层，无凭据读取或工具执行。
+
+新增 cc_route_063_ 测试源码覆盖清理、幂等、工具选择保留、schema 和非目标隔离，未执行。按用户覆盖要求未运行 Cargo、单元测试、实机测试或最终回归，没有通过证据；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务文件按要求删除；后续统一验证本项用例及 macOS 常驻入口，Windows/Linux/WSL 范围外、未验证。

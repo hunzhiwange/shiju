@@ -168,3 +168,7 @@ mod inline_think;
 pub(crate) mod late_arguments;
 #[cfg(test)]
 mod late_arguments_tests;
+
+pub(crate) mod xai_responses;
+#[cfg(test)]
+mod xai_responses_tests;

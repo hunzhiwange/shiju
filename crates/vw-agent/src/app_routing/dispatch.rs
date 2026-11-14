@@ -270,6 +270,12 @@ pub(super) async fn forward_json(
         shadow.replay(&mut body)?;
         *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
     }
+    if native_responses {
+        let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+        let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        crate::model_relay::xai_responses::prepare(&mut body, &target.url);
+        *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
+    }
     if let Some(scope) = &response_scope {
         let bytes =
             outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;

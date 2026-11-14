@@ -1,0 +1,54 @@
+{
+  "task": 61,
+  "date": "2026-11-14",
+  "status": "documentation_written_unverified",
+  "document": "docs/shiju/cc-macos-acceptance/packages.md",
+  "scope": "仅 macOS ARM64/x64 交付清单；未构建或发布",
+  "inputs": [
+    "scripts/bundle_macos.sh",
+    "docs/shiju-release-runbook.md",
+    "crates/vw-desktop/Cargo.toml",
+    "docs/shiju/cc-macos-acceptance/runtime-contract.json"
+  ],
+  "dependencies": {
+    "task_1": "准备输入存在，冻结包及主机引用未验证",
+    "missing_source_keys": [
+      "artifacts.binary_paths",
+      "artifacts.binary_sha256",
+      "resources.arm64_host_ref",
+      "resources.x64_host_ref"
+    ],
+    "owner": "构建任务及母任务22"
+  },
+  "source_version": "0.6.0（源码声明，不是实际包版本）",
+  "product_baseline_commit": null,
+  "artifact_sha256": null,
+  "macos_version": null,
+  "architecture": "ARM64/x64 均未验证",
+  "application_version": null,
+  "verification": {
+    "executed": [],
+    "exit_code": null,
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "acceptance": "not_run",
+    "reason": "用户最新指令禁止本轮验证；文件阅读用于编写，不计验收证据",
+    "deferred": [
+      "JSON格式与内部链接检查",
+      "包类型、版本、配置及来源核对",
+      "冻结产品树及工作区差异绑定",
+      "两架构实际包路径、大小、SHA-256及架构核验",
+      "签名、公证、Gatekeeper及最低macOS支持核证",
+      "用户原生安装及启动验收",
+      "最终回归"
+    ]
+  },
+  "observations": [],
+  "cleanup": {
+    "status": "not_applicable",
+    "reason": "未启动应用或创建运行资源，未改用户配置"
+  },
+  "task_card": "按用户最新指令删除，不代表验收通过",
+  "next_action": "补齐两架构冻结包和构建证据后统一核验"
+}

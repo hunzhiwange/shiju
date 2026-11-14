@@ -49,6 +49,27 @@ impl ProjectProfileStore {
         })
     }
 
+    /// One synchronous executor job owns the entire read/apply/save/select sequence.
+    /// Invoke from a blocking worker, after project/host/domain authorization.
+    pub(crate) fn with_operation<T>(
+        &self,
+        tenant: &TenantScope,
+        work: impl FnOnce(&ProfileOperation<'_>) -> Result<T>,
+    ) -> Result<T> {
+        let _guard = super::profile_operations::lock(tenant, &self.execution_host_id)?;
+        work(&ProfileOperation { store: self, tenant, _worker: std::marker::PhantomData })
+    }
+}
+
+/// Only constructed while the outer operation lock is held. Never send this
+/// borrowed context to another job or retain it across an await.
+pub(crate) struct ProfileOperation<'a> {
+    store: &'a ProjectProfileStore,
+    tenant: &'a TenantScope,
+    _worker: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+impl ProfileOperation<'_> {
     /// Called on the authorized executor with domain readers for the same scope.
     /// Creation only inserts an entity; existing host/group pointers are preserved.
     pub(crate) fn create_from_current<P, M, S, R>(
@@ -66,7 +87,8 @@ impl ProjectProfileStore {
         S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
         R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
     {
-        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        ensure!(scope.project.tenant_scope() == self.tenant, "profile operation tenant mismatch");
+        ensure!(scope.target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         vw_agent_apps::project_profiles::create::create_from_current(
             name, scope, read_provider, read_mcp, read_skills, read_prompt,
             |profile| self.save(scope.project.tenant_scope(), profile, None),
@@ -91,7 +113,8 @@ impl ProjectProfileStore {
         S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
         R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
     {
-        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        ensure!(scope.project.tenant_scope() == self.tenant, "profile operation tenant mismatch");
+        ensure!(scope.target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         // Reject corrupt storage, missing identities and stale requests before reads.
         let previous = self.get(scope.project.tenant_scope(), id)?
             .context("project profile not found")?;
@@ -127,7 +150,8 @@ impl ProjectProfileStore {
         S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
         R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
     {
-        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        ensure!(scope.project.tenant_scope() == self.tenant, "profile operation tenant mismatch");
+        ensure!(scope.target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         // Decoding the complete stored state rejects malformed target payloads
         // before any native reads or automatic writes can happen.
         let target = self.get(scope.project.tenant_scope(), target_id)?
@@ -227,7 +251,7 @@ impl ProjectProfileStore {
         id: &ProjectProfileId,
         expected_version: u64,
     ) -> Result<()> {
-        ensure!(target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        ensure!(target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         self.mutate(project.tenant_scope(), |state| {
             let profile = state.profiles.get(&id.0).context("project profile not found")?;
             ensure!(profile.version == expected_version, "project profile version conflict");
@@ -248,13 +272,35 @@ impl ProjectProfileStore {
         })
     }
 
+    /// Clear only this authorized project's current group marker. Native
+    /// configuration is deliberately left to its existing domain owners.
+    pub(crate) fn clear(
+        &self,
+        project: &ProjectScope,
+        target_host_id: &str,
+        group: ProjectProfileScope,
+    ) -> Result<()> {
+        ensure!(target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
+        self.mutate(project.tenant_scope(), |state| {
+            if let Some(selection) = state.selections.iter().find(|selection| {
+                selection.target_host_id == target_host_id && selection.group == group
+            }) {
+                ensure!(selection.project_id == project.project_id().as_ref(), "profile slot owned by another project");
+            }
+            state.selections.retain(|selection| {
+                selection.target_host_id != target_host_id || selection.group != group
+            });
+            Ok(())
+        })
+    }
+
     pub(crate) fn current(
         &self,
         project: &ProjectScope,
         target_host_id: &str,
         group: ProjectProfileScope,
     ) -> Result<Option<ProjectProfileId>> {
-        ensure!(target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        ensure!(target_host_id == self.store.execution_host_id, "profile host requires executor dispatch");
         let state = self.read(project.tenant_scope())?;
         let selection = state.selections.iter().find(|selection| {
             selection.target_host_id == target_host_id && selection.group == group
@@ -270,7 +316,8 @@ impl ProjectProfileStore {
     }
 
     fn read(&self, tenant: &TenantScope) -> Result<ProfileState> {
-        decode(self.settings.get(tenant, NAMESPACE, KEY)?.as_deref())
+        ensure!(tenant == self.tenant, "profile operation tenant mismatch");
+        decode(self.store.settings.get(tenant, NAMESPACE, KEY)?.as_deref())
     }
 
     fn mutate<T>(
@@ -278,7 +325,8 @@ impl ProjectProfileStore {
         tenant: &TenantScope,
         update: impl FnOnce(&mut ProfileState) -> Result<T>,
     ) -> Result<T> {
-        self.settings.update_with_preimages(tenant, NAMESPACE, KEY, &[], |raw| {
+        ensure!(tenant == self.tenant, "profile operation tenant mismatch");
+        self.store.settings.update_with_preimages(tenant, NAMESPACE, KEY, &[], |raw| {
             let mut state = decode(raw)?;
             let result = update(&mut state)?;
             Ok((result, Some(serde_json::to_string(&state)?)))

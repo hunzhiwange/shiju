@@ -25,6 +25,8 @@ struct Block {
 
 pub(super) struct Decoder {
     model: String,
+    search: super::hosted_search::Search,
+    hosted: BTreeMap<u64, Vec<Value>>,
     id: Option<String>,
     pub(super) done: bool,
     lines: super::sse_framing::Lines,
@@ -38,6 +40,8 @@ impl Decoder {
     pub(super) fn new(model: String) -> Self {
         Self {
             model,
+            search: Default::default(),
+            hosted: BTreeMap::new(),
             id: None,
             done: false,
             lines: Default::default(),
@@ -154,6 +158,43 @@ impl Decoder {
         }
         self.items.insert(index, item.clone());
         match item["type"].as_str() {
+            Some("web_search_call") => {
+                if complete {
+                    let ordinal = self
+                        .items
+                        .range(..=index)
+                        .filter(|(_, item)| item["type"] == "web_search_call")
+                        .count() as u64;
+                    let blocks = self.search.blocks(item, ordinal)?;
+                    if let Some(previous) = self.hosted.get(&index) {
+                        if previous != &blocks {
+                            return Err(INVALID);
+                        }
+                    } else {
+                        for (part, content) in blocks.iter().enumerate() {
+                            let key = (index, part as u64);
+                            let block_index = self.blocks.len();
+                            if block_index >= 1024 {
+                                return Err(INVALID);
+                            }
+                            out.push_str(&event(json!({"type":"content_block_start","index":block_index,"content_block":content})));
+                            out.push_str(&event(
+                                json!({"type":"content_block_stop","index":block_index}),
+                            ));
+                            self.blocks.insert(
+                                key,
+                                Block {
+                                    index: block_index,
+                                    kind: "hosted",
+                                    text: String::new(),
+                                    closed: true,
+                                },
+                            );
+                        }
+                        self.hosted.insert(index, blocks);
+                    }
+                }
+            }
             Some("function_call") => {
                 self.block((index, 0), "tool_use", out)?;
                 if let Some(args) = item["arguments"].as_str() {
@@ -229,8 +270,11 @@ impl Decoder {
             let mut normalized = response.clone();
             normalized["output"] =
                 output.iter().filter(|v| v["type"] != "reasoning").cloned().collect();
-            let final_message =
-                super::messages_responses_result::from_responses(&normalized, &self.model)?;
+            let final_message = super::messages_responses_result::with_search(
+                &normalized,
+                &self.model,
+                &self.search,
+            )?;
             if self.items.keys().any(|index| *index as usize >= output.len()) {
                 return Err(INVALID);
             }
@@ -257,6 +301,14 @@ impl Decoder {
         let item = self.items.get(&index).ok_or(INVALID)?;
         if value.get("item_id").is_some_and(|id| item.get("id") != Some(id)) {
             return Err(INVALID);
+        }
+        if matches!(
+            ty,
+            "response.web_search_call.in_progress"
+                | "response.web_search_call.searching"
+                | "response.web_search_call.completed"
+        ) {
+            return if item["type"] == "web_search_call" { Ok(out) } else { Err(INVALID) };
         }
         let (kind, part, field, snapshot, close) = match ty {
             "response.output_text.delta" | "response.refusal.delta" => {
@@ -351,6 +403,15 @@ pub(crate) async fn response_body(
     model: String,
     cancel: CancellationToken,
 ) -> Result<Response, StatusCode> {
+    with_search(response, model, cancel, Default::default()).await
+}
+
+pub(crate) async fn with_search(
+    response: Response,
+    model: String,
+    cancel: CancellationToken,
+    search: super::hosted_search::Search,
+) -> Result<Response, StatusCode> {
     if !response
         .headers()
         .get("content-type")
@@ -359,8 +420,10 @@ pub(crate) async fn response_body(
     {
         return Err(INVALID);
     }
+    let mut decoder = Decoder::new(model);
+    decoder.search = search;
     let stream = futures_util::stream::unfold(
-        (response.into_body().into_data_stream(), Decoder::new(model), cancel),
+        (response.into_body().into_data_stream(), decoder, cancel),
         |(mut stream, mut decoder, cancel)| async move {
             if decoder.done {
                 return None;

@@ -6,6 +6,14 @@ use vw_shared::provider::ModelProtocol;
 const INVALID: StatusCode = StatusCode::BAD_GATEWAY;
 
 pub(crate) fn from_responses(body: &Value, model: &str) -> Result<Value, StatusCode> {
+    with_search(body, model, &super::hosted_search::Search::default())
+}
+
+pub(crate) fn with_search(
+    body: &Value,
+    model: &str,
+    search: &super::hosted_search::Search,
+) -> Result<Value, StatusCode> {
     if body.get("error").is_some_and(|error| !error.is_null()) {
         return Err(INVALID);
     }
@@ -27,6 +35,7 @@ pub(crate) fn from_responses(body: &Value, model: &str) -> Result<Value, StatusC
         normalized["incomplete_details"]["reason"] = json!("max_output_tokens");
     }
     let mut layout = Vec::new();
+    let mut searches = 0;
     for item in normalized["output"].as_array_mut().ok_or(INVALID)? {
         match item["type"].as_str() {
             Some("message") => {
@@ -48,6 +57,12 @@ pub(crate) fn from_responses(body: &Value, model: &str) -> Result<Value, StatusC
                     }
                 }
             }
+            Some("web_search_call") => {
+                searches += 1;
+                for block in search.blocks(item, searches)? {
+                    layout.push(Some(block));
+                }
+            }
             Some("function_call") => {
                 // Partial tool arguments cannot safely be returned as executable input.
                 if item.get("status").is_some_and(|status| status != "completed") {
@@ -58,6 +73,7 @@ pub(crate) fn from_responses(body: &Value, model: &str) -> Result<Value, StatusC
             _ => return Err(INVALID),
         }
     }
+    normalized["output"].as_array_mut().ok_or(INVALID)?.retain(|v| v["type"] != "web_search_call");
     let mut chat = super::protocol_bridge::response(ModelProtocol::Responses, &normalized)
         .map_err(|_| INVALID)?;
     let usage = &body["usage"];
@@ -86,6 +102,9 @@ pub(crate) fn from_responses(body: &Value, model: &str) -> Result<Value, StatusC
         .map(|part| part.or_else(|| tools.next()).ok_or(INVALID))
         .collect::<Result<Vec<_>, _>>()?;
     result["content"] = content.into();
+    if searches > 0 {
+        result["usage"]["server_tool_use"] = json!({"web_search_requests":searches});
+    }
     Ok(result)
 }
 

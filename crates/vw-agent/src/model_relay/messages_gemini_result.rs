@@ -118,11 +118,22 @@ pub(crate) fn convert(body: &Value, model: &str) -> Result<Value, StatusCode> {
 }
 
 /// Applies only after the common bounded upstream decoder has accepted JSON.
+#[cfg(test)]
 pub(crate) async fn response(
     response: axum::response::Response,
     model: &str,
     cancel: tokio_util::sync::CancellationToken,
     max_bytes: usize,
+) -> Result<axum::response::Response, StatusCode> {
+    response_with_shadow(response, model, cancel, max_bytes, None).await
+}
+
+pub(crate) async fn response_with_shadow(
+    response: axum::response::Response,
+    model: &str,
+    cancel: tokio_util::sync::CancellationToken,
+    max_bytes: usize,
+    shadow: Option<super::gemini_shadow::Context>,
 ) -> Result<axum::response::Response, StatusCode> {
     let (parts, body) = response.into_parts();
     let bytes = tokio::select! {
@@ -130,7 +141,8 @@ pub(crate) async fn response(
         () = cancel.cancelled() => return Err(StatusCode::REQUEST_TIMEOUT),
         bytes = axum::body::to_bytes(body, max_bytes) => bytes.map_err(|_| INVALID)?,
     };
-    let body: Value = serde_json::from_slice(&bytes).map_err(|_| INVALID)?;
+    let mut body: Value = serde_json::from_slice(&bytes).map_err(|_| INVALID)?;
+    if let Some(shadow) = shadow { shadow.capture(&mut body)?; }
     let body = convert(&body, model)?;
     Ok(axum::response::Response::from_parts(parts, axum::body::Body::from(body.to_string())))
 }

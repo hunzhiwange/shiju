@@ -118,3 +118,7 @@ mod messages_gemini_stream_tests;
 pub(crate) mod messages_responses_stream;
 #[cfg(test)]
 mod messages_responses_stream_tests;
+
+pub(crate) mod gemini_shadow;
+#[cfg(test)]
+mod gemini_shadow_tests;

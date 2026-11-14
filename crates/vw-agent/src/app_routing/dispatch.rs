@@ -197,6 +197,14 @@ pub(super) async fn forward_json(
     {
         return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
     }
+    let gemini_shadow = if messages_gemini {
+        Some(crate::model_relay::gemini_shadow::Context {
+            store: Arc::clone(&route.gemini_shadow),
+            scope: route.response_scope(target)?,
+            cancelled: cancelled.clone(),
+            session: body.pointer("/metadata/user_id").and_then(Value::as_str).unwrap_or("").to_owned(),
+        })
+    } else { None };
     let response_scope = if native_responses { Some(route.response_scope(target)?) } else { None };
     let (mut outgoing, bridge) = if native_responses {
         crate::model_relay::native_responses::check(
@@ -234,6 +242,12 @@ pub(super) async fn forward_json(
         drop(body);
         (outgoing, None)
     };
+    if let Some(shadow) = &gemini_shadow {
+        let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+        let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        shadow.replay(&mut body)?;
+        *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
+    }
     if let Some(scope) = &response_scope {
         let bytes =
             outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
@@ -340,10 +354,11 @@ pub(super) async fn forward_json(
         let idle = Duration::from_secs(timeouts.idle_timeout_secs.into());
         let body = crate::model_relay::sse_framing::resident_body(body);
         let body = if messages_gemini {
-            crate::model_relay::messages_gemini_stream::response_body(
+            crate::model_relay::messages_gemini_stream::response_body_with_shadow(
                 body,
                 client_model.clone().ok_or(StatusCode::BAD_REQUEST)?,
                 cancelled.clone(),
+                gemini_shadow.clone(),
             )
         } else {
             body
@@ -412,11 +427,12 @@ pub(super) async fn forward_json(
         )
         .await?;
         if messages_gemini {
-            crate::model_relay::messages_gemini_result::response(
+            crate::model_relay::messages_gemini_result::response_with_shadow(
                 response,
                 &client_model.ok_or(StatusCode::BAD_REQUEST)?,
                 cancelled.clone(),
                 MAX_JSON_BYTES,
+                gemini_shadow,
             )
             .await
             .map_err(Into::into)
@@ -428,7 +444,7 @@ pub(super) async fn forward_json(
                 false,
                 native_messages,
                 messages_responses,
-                cancelled.clone(),
+                    cancelled.clone(),
             )
             .await
         }

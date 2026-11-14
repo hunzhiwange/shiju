@@ -114,6 +114,7 @@ pub(super) struct AuthorizedRoute {
     pub(super) publication: Arc<Mutex<()>>,
     binding: VerifiedRouteBinding,
     pub(super) references: Arc<super::reference_scope::References>,
+    pub(super) gemini_shadow: Arc<crate::model_relay::gemini_shadow::Store>,
     generation: u64,
     pub(super) cancelled: CancellationToken,
     json_target: Option<JsonRoute>,
@@ -327,6 +328,7 @@ impl ActiveRoutes {
                 // Keep sharing the budget with requests that are unwinding.
                 capacity = Some(Arc::clone(&route.capacity));
                 route.cancelled.cancel();
+                route.gemini_shadow.clear();
                 false
             } else {
                 true
@@ -532,6 +534,7 @@ impl RouteAuth {
             self.active.lock().grants.retain(|_, route| {
                 if route.binding.has_scope(&scope.project, &scope.target_host_id, scope.app_id) {
                     route.cancelled.cancel();
+                route.gemini_shadow.clear();
                     false
                 } else {
                     true
@@ -653,6 +656,7 @@ impl RouteAuth {
                 provider,
                 binding,
                 references: Arc::default(),
+                gemini_shadow: Arc::default(),
                 generation,
                 cancelled: CancellationToken::new(),
                 json_target,
@@ -674,6 +678,7 @@ impl RouteAuth {
         self.active.lock().grants.retain(|_, route| {
             if route.provider.is_some() {
                 route.cancelled.cancel();
+                route.gemini_shadow.clear();
                 false
             } else {
                 true
@@ -691,6 +696,7 @@ impl RouteAuth {
             && let Some(route) = active.grants.remove(&issued.digest)
         {
             route.cancelled.cancel();
+                route.gemini_shadow.clear();
         }
     }
 

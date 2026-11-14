@@ -17,9 +17,11 @@ fn event(value: Value) -> String {
 struct Tool {
     call: Value,
     generated: bool,
+    signature: Option<Value>,
 }
 
 pub(super) struct Decoder {
+    shadow: Option<super::gemini_shadow::Context>,
     observer: super::stream_observer::StreamObserver,
     lines: super::sse_framing::Lines,
     data: String,
@@ -40,6 +42,7 @@ pub(super) struct Decoder {
 impl Decoder {
     pub(super) fn new(model: String) -> Self {
         Self {
+            shadow: None,
             observer: super::stream_observer::StreamObserver::new(
                 super::generation::GenerationProtocol::Gemini,
             ),
@@ -119,7 +122,18 @@ impl Decoder {
                 json!([{"index":0,"finishReason":"SAFETY","content":{"parts":[]}}]);
             value.as_object_mut().ok_or(BAD)?.remove("promptFeedback");
         }
-        self.observer.push(format!("data: {value}\n\n").as_bytes()).map_err(|_| BAD)?;
+        let mut observed = value.clone();
+        if self.shadow.is_some() {
+            if let Some(parts) = observed.pointer_mut("/candidates/0/content/parts").and_then(Value::as_array_mut) {
+                for part in parts {
+                    if let Some(object) = part.as_object_mut() {
+                        object.remove("thoughtSignature");
+                        object.remove("thought_signature");
+                    }
+                }
+            }
+        }
+        self.observer.push(format!("data: {observed}\n\n").as_bytes()).map_err(|_| BAD)?;
         if let Some(usage) = value.get("usageMetadata") {
             if !usage.is_object() {
                 return Err(BAD);
@@ -204,6 +218,7 @@ impl Decoder {
                         .or_else(|| {
                             self.tools.get(position).filter(|t| t.generated).map(|_| position)
                         });
+                    let signature = part.get("thoughtSignature").or_else(|| part.get("thought_signature")).filter(|v| !v.is_null()).cloned();
                     let mut call = json!({"name":name,"args":args});
                     if let Some(index) = existing {
                         let tool = &mut self.tools[index];
@@ -211,6 +226,7 @@ impl Decoder {
                             return Err(BAD);
                         }
                         call["id"] = id.map_or_else(|| tool.call["id"].clone(), |id| json!(id));
+                        if signature.is_some() { tool.signature = signature; }
                         tool.generated &= id.is_none();
                         tool.call = call;
                     } else {
@@ -222,7 +238,7 @@ impl Decoder {
                                 "toolu_{}",
                                 uuid::Uuid::new_v4().simple()
                             )));
-                        self.tools.push(Tool { call, generated: id.is_none() });
+                        self.tools.push(Tool { call, generated: id.is_none(), signature });
                     }
                     position += 1;
                 }
@@ -247,12 +263,19 @@ impl Decoder {
         if self.done || !self.lines.is_empty() || !self.data.is_empty() {
             return Err(BAD);
         }
-        let parts = self.tools.iter().map(|t| json!({"functionCall":t.call})).collect::<Vec<_>>();
+        let parts = self.tools.iter().map(|t| {
+            let mut call = t.call.clone();
+            if t.generated && self.shadow.is_some() { call.as_object_mut().expect("validated call").remove("id"); }
+            let mut part = json!({"functionCall":call});
+            if let Some(signature) = &t.signature { part["thoughtSignature"] = signature.clone(); }
+            part
+        }).collect::<Vec<_>>();
         let mut body = json!({"responseId":self.id,"candidates":[{"index":0,
             "content":{"parts":parts},"finishReason":self.reason.as_deref().ok_or(BAD)?}]});
         if let Some(usage) = &self.usage {
             body["usageMetadata"] = usage.clone();
         }
+        if let Some(shadow) = &self.shadow { shadow.capture(&mut body)?; }
         let result = super::messages_gemini_result::convert(&body, &self.model)?;
         let mut output = self.start();
         let mut index = 0;
@@ -291,9 +314,16 @@ pub(crate) fn stream_url(target: &reqwest::Url) -> Result<reqwest::Url, StatusCo
     request.url(&base, &request.model)
 }
 
+#[cfg(test)]
 pub(crate) fn response_body(body: Body, model: String, cancel: CancellationToken) -> Body {
+    response_body_with_shadow(body, model, cancel, None)
+}
+
+pub(crate) fn response_body_with_shadow(body: Body, model: String, cancel: CancellationToken, shadow: Option<super::gemini_shadow::Context>) -> Body {
+    let mut decoder = Decoder::new(model);
+    decoder.shadow = shadow;
     Body::from_stream(futures_util::stream::unfold(
-        (body.into_data_stream(), Decoder::new(model), cancel),
+        (body.into_data_stream(), decoder, cancel),
         |(mut stream, mut decoder, cancel)| async move {
             if decoder.done {
                 return None;

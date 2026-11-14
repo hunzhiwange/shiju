@@ -180,8 +180,12 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
     on_event: &mut (dyn FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
-    // 初始化请求构建器，设置模型和消息
+    // Each tool round and caller retry owns a distinct ledger identity.
     let model_name = model.name();
+    let mut native_usage = crate::usage_bridge::native::NativeRequest::begin(
+        &provider_id, &model_name, None,
+    );
+    let result = async {
     let config = crate::config::get().await;
     let guarded =
         crate::hooks::authorize_model_request(&config, &model_name).await.map_err(|_| {
@@ -604,10 +608,20 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     let finish_reason =
         if has_tool_calls { Some("tool_calls".to_string()) } else { Some("stop".to_string()) };
 
+    if let Some(request) = native_usage.as_mut() {
+        request.complete(last_usage.as_ref().map(|_| crate::usage_bridge::native::ui_tokens(&usage)));
+    }
     // 发送完成事件
     on_event(StreamEvent::Done { finish_reason, usage });
 
     Ok(())
+    }.await;
+    if result.is_err() && !matches!(&result, Err(Error::Aborted))
+        && let Some(request) = native_usage.as_mut()
+    {
+        request.fail();
+    }
+    result
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

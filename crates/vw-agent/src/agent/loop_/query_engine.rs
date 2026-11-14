@@ -118,6 +118,8 @@ impl RecordingObserver {
         Self { inner, state: Mutex::new(RecordingObserverState::default()) }
     }
 
+    // SessionLlmProvider delegates real attempts to Gateway/aisdk. These totals
+    // are UI snapshots only; the lower request bridge owns ledger observations.
     fn usage_snapshot(&self) -> QueryEngineUsage {
         self.state.lock().expect("recording observer state poisoned").usage.clone()
     }

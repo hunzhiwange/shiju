@@ -52,7 +52,11 @@ pub(super) fn find(
             || previous.kind == identity.kind
             || !matches!((previous.kind, identity.kind),
                 (UsageSourceKind::Native, UsageSourceKind::Relay) |
-                (UsageSourceKind::Relay, UsageSourceKind::Native)) { continue; }
+                (UsageSourceKind::Relay, UsageSourceKind::Native) |
+                (UsageSourceKind::Shiju, UsageSourceKind::Native) |
+                (UsageSourceKind::Native, UsageSourceKind::Shiju) |
+                (UsageSourceKind::Shiju, UsageSourceKind::Relay) |
+                (UsageSourceKind::Relay, UsageSourceKind::Shiju)) { continue; }
         let payload: String = row.get(2).map_err(storage)?;
         let stored: StoredUsageRecord = serde_json::from_str(&payload)
             .map_err(|_| UsageStoreError::StorageUnavailable)?;

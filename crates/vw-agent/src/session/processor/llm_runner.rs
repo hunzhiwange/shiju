@@ -255,6 +255,7 @@ fn spawn_real_llm_stream_thread(
             }
         };
         runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async move {
+            let usage_session = session_id.clone();
             let request = async move {
                 llm::stream_chat_with_tools_for_session_with_abort(
                     &session_id,
@@ -270,6 +271,7 @@ fn spawn_real_llm_stream_thread(
                     },
                 );
             };
+            let request = crate::usage_bridge::native::with_session(usage_session, request);
             let request = async move {
                 match tool_context {
                     Some(context) => crate::tools::scope_tool_use_context(context, request).await,

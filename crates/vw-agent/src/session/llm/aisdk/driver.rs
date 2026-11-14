@@ -162,32 +162,60 @@ pub(crate) async fn dispatch_stream_request(
     }
     macro_rules! send_model {
         ($resolved:expr) => {{
-            let lm = $resolved.map_err(|error| {
-                log_build_failed(provider_id, model, &request_info.request_url, error)
-            })?;
-            do_stream_request_aisdk_with_model(
-                provider_id.to_string(),
-                lm,
-                request_info.request_url,
-                request_info.enforce_strict_tool_schema,
-                provider::resolve_native_search_capabilities(
-                    &model.capabilities,
-                    &model.api.adapter,
-                    request_info.path_override.as_deref().unwrap_or("chat/completions"),
+            let mut attempt = 0_u64;
+            loop {
+                let lm = $resolved.map_err(|error| {
+                    log_build_failed(provider_id, model, &request_info.request_url, error)
+                })?;
+                let mut emitted = false;
+                let mut terminal_error = None;
+                let mut forward = |event| {
+                    if let StreamEvent::Error(_) = &event {
+                        terminal_error = Some(event);
+                    } else {
+                        emitted = true;
+                        on_event(event);
+                    }
+                };
+                let result = do_stream_request_aisdk_with_model(
+                    provider_id.to_string(),
+                    lm,
+                    request_info.request_url.clone(),
+                    request_info.enforce_strict_tool_schema,
+                    provider::resolve_native_search_capabilities(
+                        &model.capabilities,
+                        &model.api.adapter,
+                        request_info.path_override.as_deref().unwrap_or("chat/completions"),
+                    )
+                    .native_tool_search,
+                    request_info.messages.clone(),
+                    request_info.wire_messages.clone(),
+                    tools,
+                    temperature,
+                    top_p,
+                    max_output_tokens,
+                    merged_options,
+                    0,
+                    abort,
+                    &mut forward,
                 )
-                .native_tool_search,
-                request_info.messages,
-                request_info.wire_messages,
-                tools,
-                temperature,
-                top_p,
-                max_output_tokens,
-                merged_options,
-                retries,
-                abort,
-                on_event,
-            )
-            .await
+                .await;
+                let retryable = matches!(&result,
+                    Err(Error::Api(crate::session::message::AssistantError::APIError {
+                        is_retryable: true, ..
+                    })));
+                if !emitted && retryable && attempt < retries {
+                    attempt += 1;
+                    let delay = std::time::Duration::from_millis(
+                        100_u64.saturating_mul(1_u64 << attempt.min(5)),
+                    );
+                    tokio::time::sleep(delay).await;
+                    if abort.is_some_and(|rx| *rx.borrow()) { break Err(Error::Aborted); }
+                    continue;
+                }
+                if let Some(event) = terminal_error { on_event(event); }
+                break result;
+            }
         }};
     }
     if request_info.request_url.ends_with("/messages") {

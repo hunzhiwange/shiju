@@ -133,6 +133,11 @@ pub(crate) fn with_tenant_scope_sync<T>(tenant: TenantScope, operation: impl FnO
     SESSION_TENANT_SCOPE.sync_scope(tenant, operation)
 }
 
+/// Metering must never invent a default tenant when execution context is absent.
+pub(crate) fn explicit_tenant_scope() -> Option<TenantScope> {
+    SESSION_TENANT_SCOPE.try_with(Clone::clone).ok()
+}
+
 pub(crate) fn current_tenant_scope() -> TenantScope {
     SESSION_TENANT_SCOPE.try_with(Clone::clone).unwrap_or_default()
 }

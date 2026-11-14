@@ -262,6 +262,9 @@ pub(crate) async fn do_stream_request_acp(
         }
         vw_api_types::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    // Managed SessionModel requests are metered by the owned relay. Never bill
+    // their ACP session snapshots a second time.
+    let mut request_usage = std::collections::HashMap::new();
     let mut normalized_acp_cfg = launch_profile
         .as_ref()
         .map(|profile| profile.config().clone())
@@ -704,6 +707,15 @@ pub(crate) async fn do_stream_request_acp(
                     }
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
+                            if launch_profile.is_none()
+                                && let Some((id, usage)) = super::updates::request_usage(&message)
+                            {
+                                if request_usage.len() < 4096 || request_usage.contains_key(&id) {
+                                    request_usage.insert(id, usage);
+                                } else {
+                                    tracing::warn!("ACP request usage observation limit reached");
+                                }
+                            }
                             forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                     }
@@ -733,6 +745,15 @@ pub(crate) async fn do_stream_request_acp(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
+                            if launch_profile.is_none()
+                                && let Some((id, usage)) = super::updates::request_usage(&message)
+                            {
+                                if request_usage.len() < 4096 || request_usage.contains_key(&id) {
+                                    request_usage.insert(id, usage);
+                                } else {
+                                    tracing::warn!("ACP request usage observation limit reached");
+                                }
+                            }
                             forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                         break;
@@ -742,6 +763,15 @@ pub(crate) async fn do_stream_request_acp(
                 tokio::select! {
                     maybe_message = acp_message_rx.recv() => {
                         if let Some(message) = maybe_message {
+                            if launch_profile.is_none()
+                                && let Some((id, usage)) = super::updates::request_usage(&message)
+                            {
+                                if request_usage.len() < 4096 || request_usage.contains_key(&id) {
+                                    request_usage.insert(id, usage);
+                                } else {
+                                    tracing::warn!("ACP request usage observation limit reached");
+                                }
+                            }
                             forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                     }
@@ -771,6 +801,15 @@ pub(crate) async fn do_stream_request_acp(
                             }
                         }
                         while let Ok(message) = acp_message_rx.try_recv() {
+                            if launch_profile.is_none()
+                                && let Some((id, usage)) = super::updates::request_usage(&message)
+                            {
+                                if request_usage.len() < 4096 || request_usage.contains_key(&id) {
+                                    request_usage.insert(id, usage);
+                                } else {
+                                    tracing::warn!("ACP request usage observation limit reached");
+                                }
+                            }
                             forward_acp_message(&message, on_event, &mut latest_usage, &mut delta_count, &mut tool_updates);
                         }
                         break;
@@ -872,6 +911,14 @@ pub(crate) async fn do_stream_request_acp(
             return Err(to_api_error(error));
         }
 
+        for (id, usage) in request_usage.drain() {
+            if let Some(mut request) = crate::usage_bridge::native::NativeRequest::begin(
+                &model.provider_id, &model.api.id, Some(&acp_session_id),
+            ) {
+                request.native_identity(&acp_agent_name, &id);
+                request.complete(Some(usage));
+            }
+        }
         on_event(StreamEvent::Done { finish_reason, usage: latest_usage });
 
         tracing::info!(

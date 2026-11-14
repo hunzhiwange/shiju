@@ -471,3 +471,26 @@ pub(super) fn forward_acp_message(
 #[cfg(test)]
 #[path = "updates_tests.rs"]
 mod updates_tests;
+
+/// Only explicitly request-scoped metadata is eligible for the request ledger.
+/// Standard session usage snapshots remain UI-only.
+pub(super) fn request_usage(message: &AcpJsonRpcMessage) -> Option<(String, vw_api_types::usage::UsageTokens)> {
+    use vw_api_types::usage::*;
+    let update = session_update_payload_from_message(message)?;
+    if update.get("sessionUpdate")?.as_str()? != "usage_update" { return None; }
+    let usage = update.get("_meta")?.get("usage")?;
+    let id = usage.get("request_id").or_else(|| usage.get("requestId"))?.as_str()?;
+    if id.trim().is_empty() || id.len() > 512 || id.contains('\0') { return None; }
+    let read = |keys: &[&str]| keys.iter().find_map(|key| usage.get(*key).and_then(Value::as_u64));
+    let tokens = UsageTokens {
+        input: read(&["input_tokens", "inputTokens"]),
+        output: read(&["output_tokens", "outputTokens"]),
+        reasoning: read(&["reasoning_tokens", "thought_tokens"]),
+        cache_read: read(&["cache_read_input_tokens", "cached_tokens"]),
+        cache_creation: read(&["cache_creation_input_tokens"]), cache_creation_1h: None,
+        input_semantics: UsageInputSemantics::Unknown,
+        reasoning_semantics: UsageReasoningSemantics::Unknown,
+    };
+    if tokens.input.is_none() && tokens.output.is_none() { return None; }
+    Some((id.to_owned(), tokens))
+}

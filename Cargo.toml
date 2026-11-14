@@ -27,6 +27,7 @@ members = [
   "crates/libs/webview-core",
   "crates/libs/webview-ipc",
   "crates/libs/webview-launch",
+  "crates/libs/webview-local-content",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

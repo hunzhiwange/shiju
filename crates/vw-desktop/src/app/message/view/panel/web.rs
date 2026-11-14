@@ -43,8 +43,44 @@ fn save_bookmarks(app: &mut App) -> Task<Message> {
     app.save_desktop_preference("web_bookmarks", bookmarks)
 }
 
+/// Only accepts URLs already validated by `update`; do not expose OS error payloads or URLs.
+#[cfg(not(target_arch = "wasm32"))]
+fn open_in_browser(app: &mut App, url: &str) -> Task<Message> {
+    match open::that(url) {
+        Ok(()) => Task::none(),
+        Err(_) => app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "无法打开浏览器，请检查系统默认浏览器设置后重试",
+            vec![],
+        ),
+    }
+}
+
 /// 处理网页打开与书签 Cookie 配置；独立 WebView 不可用时回退系统浏览器。
-pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
+pub fn update(app: &mut App, mut message: ViewMessage) -> Task<Message> {
+    // Validate before either the WebView helper or the system URL handler sees input.
+    let target = match &mut message {
+        ViewMessage::OpenWebUrl(url)
+        | ViewMessage::OpenWebUrlWithTitle(url, _)
+        | ViewMessage::OpenWebUrlWithTitleAndSize(url, _, _, _)
+        | ViewMessage::OpenUrlExternal(url) => Some(url),
+        _ => None,
+    };
+    if let Some(target) = target {
+        let parsed = reqwest::Url::parse(target.trim());
+        match parsed {
+            Ok(url) if matches!(url.scheme(), "http" | "https") && url.host_str().is_some() => {
+                *target = url.into();
+            }
+            _ => {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法打开网页：仅允许有效的 HTTP 或 HTTPS 地址",
+                    vec![],
+                );
+            }
+        }
+    }
     match message {
         ViewMessage::OpenWebUrl(_url) => {
             #[cfg(not(target_arch = "wasm32"))]
@@ -73,7 +109,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     }
                 }
                 if !spawned {
-                    let _ = open::that(_url);
+                    return open_in_browser(app, &_url);
                 }
             }
             Task::none()
@@ -106,7 +142,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     }
                 }
                 if !spawned {
-                    let _ = open::that(_url);
+                    return open_in_browser(app, &_url);
                 }
             }
             Task::none()
@@ -158,7 +194,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     }
                 }
                 if !spawned {
-                    let _ = open::that(url);
+                    return open_in_browser(app, &url);
                 }
             }
             Task::none()
@@ -166,8 +202,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenUrlExternal(_url) => {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                let _ = open::that(_url);
+                open_in_browser(app, &_url)
             }
+            #[cfg(target_arch = "wasm32")]
             Task::none()
         }
         ViewMessage::ToggleWebLinksMenu => {

@@ -109,6 +109,41 @@ impl ProjectProfileStore {
         })
     }
 
+    /// Validate the target before autosaving the previous selection. Does not apply
+    /// configuration or move the pointer. The operation owner must serialize the
+    /// entire prepare/apply/select sequence for this authorized host/project/group.
+    pub(crate) fn prepare_switch<P, M, S, R>(
+        &self,
+        target_id: &ProjectProfileId,
+        scope: &SnapshotScope<'_>,
+        read_provider: P,
+        read_mcp: M,
+        read_skills: S,
+        read_prompt: R,
+    ) -> Result<vw_agent_apps::project_profiles::autosave::PreparedProfileSwitch>
+    where
+        P: FnOnce(&SnapshotScope<'_>) -> Result<ProviderModeStatus, SnapshotReadFailure>,
+        M: FnOnce(&SnapshotScope<'_>) -> Result<Vec<String>, SnapshotReadFailure>,
+        S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
+        R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
+    {
+        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        // Decoding the complete stored state rejects malformed target payloads
+        // before any native reads or automatic writes can happen.
+        let target = self.get(scope.project.tenant_scope(), target_id)?
+            .context("target project profile not found")?;
+        let current = self.current(scope.project, scope.target_host_id, scope.group)?;
+        vw_agent_apps::project_profiles::autosave::prepare_switch(
+            target, current.as_ref(), scope.group, |previous| -> Result<()> {
+                let profile = self.get(scope.project.tenant_scope(), previous)?
+                    .context("previous project profile not found")?;
+                self.resnapshot(previous, profile.version, scope,
+                    read_provider, read_mcp, read_skills, read_prompt)?;
+                Ok(())
+            },
+        )
+    }
+
     /// Stable ID ordering is independent of database provider or insertion order.
     pub(crate) fn list(&self, tenant: &TenantScope) -> Result<Vec<ProjectProfile>> {
         Ok(self.read(tenant)?.profiles.into_values().collect())

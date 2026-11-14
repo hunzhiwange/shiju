@@ -9,6 +9,7 @@ pub fn settings_text_input<'a, Message: Clone>(
     value: &str,
 ) -> TextInput<'a, Message> {
     text_input(placeholder, value)
+        .font(iced::Font::DEFAULT)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
@@ -18,7 +19,9 @@ pub fn settings_text_input<'a, Message: Clone>(
 pub fn settings_text_editor<Message: Clone>(
     content: &text_editor::Content,
 ) -> TextEditor<'_, PlainText, Message> {
+    // 设置内容可在编辑中变为中文，不随内容切换为等宽字体。
     text_editor(content)
+        .font(iced::Font::DEFAULT)
         .padding(SETTINGS_CONTROL_PADDING)
         .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_editor_style)

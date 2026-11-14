@@ -17,7 +17,7 @@ mod media_permissions;
 #[cfg(not(any(target_arch = "wasm32", coverage)))]
 mod popup;
 #[cfg(not(target_arch = "wasm32"))]
-mod toolbar;
+mod view_region;
 
 #[cfg(not(target_arch = "wasm32"))]
 use webview_local_content::{
@@ -424,7 +424,8 @@ fn main() {
 
     use crate::external_protocol::ExternalProtocols;
     use webview_core::navigation::ExternalTarget;
-    use crate::toolbar::{
+    use crate::view_region::to_wry_rect;
+    use webview_toolbar::{
         ToolbarAction, parse_toolbar_ipc_message, toolbar_address_script, toolbar_html,
         window_regions,
     };
@@ -558,7 +559,7 @@ fn main() {
                 toolbar_html()
             })
             .with_clipboard(true)
-            .with_bounds(region.to_wry_rect())
+            .with_bounds(to_wry_rect(region))
             .with_on_page_load_handler(move |event, _url| {
                 if matches!(event, wry::PageLoadEvent::Finished) {
                     let _ = toolbar_ready_proxy.send_event(UserEvent::ToolbarReady);
@@ -657,7 +658,7 @@ fn main() {
     }
 
     if independent_mode {
-        builder = builder.with_bounds(content_region.to_wry_rect());
+        builder = builder.with_bounds(to_wry_rect(content_region));
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -850,9 +851,9 @@ fn main() {
                 if let (Some(toolbar), Some(toolbar_region)) =
                     (toolbar_webview.as_ref(), toolbar_region)
                 {
-                    let _ = toolbar.set_bounds(toolbar_region.to_wry_rect());
+                    let _ = toolbar.set_bounds(to_wry_rect(toolbar_region));
                 }
-                let _ = webview.set_bounds(content_region.to_wry_rect());
+                let _ = webview.set_bounds(to_wry_rect(content_region));
             }
             Event::WindowEvent { window_id, event: WindowEvent::CloseRequested, .. }
                 if window_id == window.id() =>
@@ -876,5 +877,5 @@ mod edit_menu_tests;
 mod main_tests;
 
 #[cfg(test)]
-#[path = "toolbar_tests.rs"]
-mod toolbar_tests;
+#[path = "view_region_tests.rs"]
+mod view_region_tests;

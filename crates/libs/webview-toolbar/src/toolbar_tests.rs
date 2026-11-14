@@ -1,10 +1,11 @@
 //! 独立窗口导航工具栏的契约测试。
 //!
 //! 验证生成的控件与图标保持稳定、安全 URL 才能进入工具栏 IPC，
-//! 并检查工具栏和内容视图在不同窗口模式下的区域划分与坐标转换。
+//! 并检查工具栏和内容视图在不同窗口模式下的区域划分。
 
-use super::toolbar::{
-    TOOLBAR_REGION_HEIGHT, ToolbarAction, ViewRegion, parse_toolbar_ipc_message,
+use crate::layout::TOOLBAR_REGION_HEIGHT;
+use crate::{
+    ToolbarAction, ViewRegion, parse_toolbar_ipc_message,
     toolbar_address_script, toolbar_html, window_regions,
 };
 
@@ -30,11 +31,11 @@ fn toolbar_html_reuses_work_browser_controls_and_icons() {
     assert!(html.contains("address.select()"));
 
     for icon in [
-        include_str!("../../../assets/icons/bootstrap/arrow-left.svg"),
-        include_str!("../../../assets/icons/bootstrap/arrow-right.svg"),
-        include_str!("../../../assets/icons/bootstrap/arrow-clockwise.svg"),
-        include_str!("../../../assets/icons/bootstrap/globe.svg"),
-        include_str!("../../../assets/icons/bootstrap/x-lg.svg"),
+        include_str!("../../../../assets/icons/bootstrap/arrow-left.svg"),
+        include_str!("../../../../assets/icons/bootstrap/arrow-right.svg"),
+        include_str!("../../../../assets/icons/bootstrap/arrow-clockwise.svg"),
+        include_str!("../../../../assets/icons/bootstrap/globe.svg"),
+        include_str!("../../../../assets/icons/bootstrap/x-lg.svg"),
     ] {
         assert!(html.contains(icon));
     }
@@ -104,18 +105,5 @@ fn window_regions_reserve_toolbar_only_for_independent_mode() {
     assert_eq!(
         window_regions(900, 600, false),
         (None, ViewRegion { x: 0, y: 0, width: 900, height: 600 })
-    );
-}
-
-#[test]
-fn view_region_converts_to_logical_wry_bounds() {
-    let region = ViewRegion { x: 12, y: 46, width: 876, height: 554 };
-
-    assert_eq!(
-        region.to_wry_rect(),
-        wry::Rect {
-            position: wry::dpi::LogicalPosition::new(12, 46).into(),
-            size: wry::dpi::LogicalSize::new(876, 554).into(),
-        }
     );
 }

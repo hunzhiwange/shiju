@@ -16,6 +16,7 @@ name = "vw-webview"
 path = "src/main.rs"
 
 [dependencies]
+webview-toolbar = { path = "../libs/webview-toolbar", version = "0.6.0" }
 webview-local-content = { path = "../libs/webview-local-content", version = "0.6.0" }
 webview-ipc = { path = "../libs/webview-ipc", version = "0.6.0" }
 webview-launch = { path = "../libs/webview-launch", version = "0.6.0" }

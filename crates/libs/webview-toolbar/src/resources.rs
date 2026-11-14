@@ -1,12 +1,10 @@
-//! 独立 WebView 窗口的本地导航工具栏。
+//! 工具栏 HTML、脚本与共享图标引用。
 
-pub(crate) const TOOLBAR_REGION_HEIGHT: u32 = 46;
-
-const ARROW_LEFT_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-left.svg");
-const ARROW_RIGHT_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-right.svg");
-const RELOAD_ICON: &str = include_str!("../../../assets/icons/bootstrap/arrow-clockwise.svg");
-const GLOBE_ICON: &str = include_str!("../../../assets/icons/bootstrap/globe.svg");
-const CLOSE_ICON: &str = include_str!("../../../assets/icons/bootstrap/x-lg.svg");
+const ARROW_LEFT_ICON: &str = include_str!("../../../../assets/icons/bootstrap/arrow-left.svg");
+const ARROW_RIGHT_ICON: &str = include_str!("../../../../assets/icons/bootstrap/arrow-right.svg");
+const RELOAD_ICON: &str = include_str!("../../../../assets/icons/bootstrap/arrow-clockwise.svg");
+const GLOBE_ICON: &str = include_str!("../../../../assets/icons/bootstrap/globe.svg");
+const CLOSE_ICON: &str = include_str!("../../../../assets/icons/bootstrap/x-lg.svg");
 
 const TOOLBAR_TEMPLATE: &str = r#"<!doctype html>
 <html lang="zh-CN">
@@ -143,34 +141,7 @@ const TOOLBAR_TEMPLATE: &str = r#"<!doctype html>
 </html>
 "#;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ToolbarAction {
-    Back,
-    Forward,
-    Navigate(String),
-    Reload,
-    OpenExternal(String),
-    Clear,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ViewRegion {
-    pub(crate) x: u32,
-    pub(crate) y: u32,
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-}
-
-impl ViewRegion {
-    pub(crate) fn to_wry_rect(self) -> wry::Rect {
-        wry::Rect {
-            position: wry::dpi::LogicalPosition::new(self.x, self.y).into(),
-            size: wry::dpi::LogicalSize::new(self.width, self.height).into(),
-        }
-    }
-}
-
-pub(crate) fn toolbar_html() -> String {
+pub fn toolbar_html() -> String {
     TOOLBAR_TEMPLATE
         .replace("__ARROW_LEFT__", ARROW_LEFT_ICON)
         .replace("__ARROW_RIGHT__", ARROW_RIGHT_ICON)
@@ -179,71 +150,7 @@ pub(crate) fn toolbar_html() -> String {
         .replace("__CLOSE__", CLOSE_ICON)
 }
 
-pub(crate) fn toolbar_address_script(address: &str) -> Result<String, serde_json::Error> {
+pub fn toolbar_address_script(address: &str) -> Result<String, serde_json::Error> {
     let address = serde_json::to_string(address)?;
     Ok(format!("window.VibeWindowToolbar?.setAddress({address});"))
-}
-
-pub(crate) fn parse_toolbar_ipc_message(message: &str) -> Option<ToolbarAction> {
-    let value = serde_json::from_str::<serde_json::Value>(message).ok()?;
-    match value.get("type").and_then(serde_json::Value::as_str)? {
-        "back" => Some(ToolbarAction::Back),
-        "forward" => Some(ToolbarAction::Forward),
-        "navigate" => toolbar_url(&value).map(ToolbarAction::Navigate),
-        "reload" => Some(ToolbarAction::Reload),
-        "open_external" => toolbar_url(&value).map(ToolbarAction::OpenExternal),
-        "close" => Some(ToolbarAction::Clear),
-        _ => None,
-    }
-}
-
-fn toolbar_url(value: &serde_json::Value) -> Option<String> {
-    normalize_toolbar_url(value.get("url")?.as_str()?)
-}
-
-fn normalize_toolbar_url(input: &str) -> Option<String> {
-    if input.chars().any(char::is_control) {
-        return None;
-    }
-    let trimmed = input.trim().trim_matches(['`', '"', '\'']).trim();
-    if trimmed.is_empty() || trimmed.chars().any(char::is_whitespace) {
-        return None;
-    }
-    if webview_core::navigation::is_safe_navigation_url(trimmed) {
-        return Some(trimmed.to_owned());
-    }
-
-    // Preserve host:port shorthand while treating actual URI schemes as
-    // explicit. A rejected scheme must never be rewritten as an HTTPS host.
-    let host_port = trimmed.split_once(':').is_some_and(|(host, rest)| {
-        let port = rest.split(['/', '?', '#']).next().unwrap_or_default();
-        (host == "localhost" || host.contains('.')) && port.parse::<u16>().is_ok()
-    });
-    if trimmed.contains(':') && !host_port && !trimmed.starts_with('[') {
-        return webview_core::navigation::ExternalTarget::parse(trimmed)
-            .map(|_| trimmed.to_owned());
-    }
-    let target = format!("https://{trimmed}");
-    url::Url::parse(&target).ok()?.has_host().then_some(target)
-}
-
-pub(crate) fn window_regions(
-    width: u32,
-    height: u32,
-    independent: bool,
-) -> (Option<ViewRegion>, ViewRegion) {
-    if !independent {
-        return (None, ViewRegion { x: 0, y: 0, width, height });
-    }
-
-    let toolbar_height = TOOLBAR_REGION_HEIGHT.min(height);
-    (
-        Some(ViewRegion { x: 0, y: 0, width, height: toolbar_height }),
-        ViewRegion {
-            x: 0,
-            y: toolbar_height,
-            width,
-            height: height.saturating_sub(toolbar_height),
-        },
-    )
 }

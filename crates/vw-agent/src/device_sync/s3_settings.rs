@@ -128,6 +128,8 @@ impl S3SettingsStore {
         request: UpdateS3SyncConfigRequest,
         cancellation: &CancellationToken,
     ) -> Result<S3SyncConfig> {
+        // A connection toggle is not an authorized object selection or remote baseline.
+        ensure!(!request.auto_sync, "automatic device sync requires an authorized upload plan");
         let key = scope_key(host)?;
         let lock_tenant =
             serde_json::to_string(&(tenant.platform_id().as_ref(), tenant.company_id().as_ref()))?;

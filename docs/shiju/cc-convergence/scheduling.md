@@ -31,3 +31,15 @@
 ## 静态检查
 
 RustCodeGraph status确认索引存在；宽查询未覆盖设备同步细节、files筛选无结果，转rg和原文件读取。已读取准入证据及上述实际调用链。未领取Cargo槽位，未执行任何构建或测试。`git diff --check`仅用于本文及任务卡空白检查，不代表行为验收。
+
+## Recovery implementation (supersedes blocked status above)
+
+The missing contract is not just a timer: SnapshotSelection requires explicit authorization and confirmation of each exported resource; connection DTOs carry neither that selection nor a confirmed remote baseline. A boolean cannot authorize exporting all free text or skills. No automatic upload plan or default tenant is invented here.
+
+Both WebDAVSettingsStore::save and S3SettingsStore::save now reject auto_sync=true before credential encryption or persistence. Configuration handlers return 422 after authorization for that unsupported toggle. Existing stored auto_sync=true values do not create workers; users must disable the toggle when saving until an authorized upload-plan contract exists.
+
+After saving manual configuration, or clearing WebDAV configuration, handlers await the injected gateway SyncLifecycle::stop for the same authorized target and transport. Store calls release the business lock before stop awaits workers, avoiding a lock cycle. Standalone routers with no lifecycle extension have no gateway worker to stop. Errors return 503. No second registry, timer or desktop worker is introduced.
+
+Task13 is now complete within the safe cleanup scope and its card is deleted. Automatic start remains unsupported and must not be reported as delivered. Later work needs explicit persistent object-selection, execution-target and remote-baseline contracts before wiring start/recovery. This evidence does not authorize removal of unsupported upstream behavior as though equivalent. Task17 may continue caller analysis while retaining this limitation.
+
+No business data was accessed or changed. No Cargo, build or test command ran. Static diff whitespace checks passed. Future unified validation must cover store rejection without side effects, API 422, stop waiting after disable/clear, and scope isolation. Revert only this task's settings-store/handler and evidence hunks, preserving unrelated work.

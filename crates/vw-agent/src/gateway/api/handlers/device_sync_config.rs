@@ -61,10 +61,13 @@ async fn read(Extension(tenant): Extension<TenantScope>,
     response(database, &target, config)
 }
 async fn write(Extension(tenant): Extension<TenantScope>,
+    sync: Option<Extension<crate::device_sync::lifecycle::SyncLifecycle>>,
     injected: Option<Extension<GlobalDatabase>>, headers: HeaderMap, Query(query): Query<Context>,
     Json(request): Json<UpdateWebDavSyncConfigRequest>)
     -> Result<Json<WebDavSyncConfigResponse>, StatusCode> {
     let target = authorize(tenant, &headers, query)?;
+    // Do not silently accept a toggle that lacks an authorized upload selection/baseline.
+    if request.auto_sync { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
     // Validate the entire draft before opening the settings/credential stores.
     vw_agent_apps::device_sync::webdav_config::WebDavConfig {
         enabled: request.enabled, auto_sync: request.auto_sync,
@@ -80,6 +83,10 @@ async fn write(Extension(tenant): Extension<TenantScope>,
     let config = store.save(target.scope.tenant_scope(), &target.target_host_id, request,
         &tokio_util::sync::CancellationToken::new()).await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    if let Some(Extension(sync)) = sync {
+        sync.stop(&target, DeviceSyncTransport::Webdav).await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    }
     response(database, &target, Some(config))
 }
 
@@ -103,10 +110,13 @@ async fn read_s3(Extension(tenant): Extension<TenantScope>,
 }
 
 async fn write_s3(Extension(tenant): Extension<TenantScope>,
+    sync: Option<Extension<crate::device_sync::lifecycle::SyncLifecycle>>,
     injected: Option<Extension<GlobalDatabase>>, headers: HeaderMap, Query(query): Query<Context>,
     Json(request): Json<UpdateS3SyncConfigRequest>)
     -> Result<Json<S3SyncConfigResponse>, StatusCode> {
     let target = authorize(tenant, &headers, query)?;
+    // Do not silently accept a toggle that lacks an authorized upload selection/baseline.
+    if request.auto_sync { return Err(StatusCode::UNPROCESSABLE_ENTITY); }
     // Validate metadata without manufacturing or resolving a plaintext credential.
     let normalized = vw_agent_apps::device_sync::s3_config::S3Config {
         enabled: false, auto_sync: request.auto_sync,
@@ -137,11 +147,16 @@ async fn write_s3(Extension(tenant): Extension<TenantScope>,
     let config = store.save(target.scope.tenant_scope(), &target.target_host_id, request,
         &tokio_util::sync::CancellationToken::new()).await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    if let Some(Extension(sync)) = sync {
+        sync.stop(&target, DeviceSyncTransport::S3).await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    }
     s3_response(database, &target, Some(config))
 }
 
 /// Clearing is idempotent and never touches remote objects or another transport.
 async fn clear(Extension(tenant): Extension<TenantScope>,
+    sync: Option<Extension<crate::device_sync::lifecycle::SyncLifecycle>>,
     injected: Option<Extension<GlobalDatabase>>, headers: HeaderMap, Query(query): Query<Context>)
     -> Result<StatusCode, StatusCode> {
     let target = authorize(tenant, &headers, query)?;
@@ -150,5 +165,9 @@ async fn clear(Extension(tenant): Extension<TenantScope>,
     store.clear(target.scope.tenant_scope(), &target.target_host_id,
         &tokio_util::sync::CancellationToken::new()).await
         .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    if let Some(Extension(sync)) = sync {
+        sync.stop(&target, DeviceSyncTransport::Webdav).await
+            .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    }
     Ok(StatusCode::NO_CONTENT)
 }

@@ -25,6 +25,7 @@ It updates these package manifests:
   crates/vw-shared/Cargo.toml
   crates/vw-tui/Cargo.toml
   crates/vw-webview/Cargo.toml
+  crates/libs/webview-*/Cargo.toml (discovered automatically)
 
 It also updates matching package entries in Cargo.lock.
 It also updates local path dependency version constraints between VibeWindow crates.
@@ -240,6 +241,25 @@ LOCK_PACKAGE_NAMES=(
   "vw-tui"
   "vw-webview"
 )
+
+# WebView responsibilities are versioned together with their binary consumers.
+# Discover manifests rather than maintaining a second list for each extracted crate.
+for manifest in crates/libs/webview-*/Cargo.toml; do
+  [[ -f "$manifest" ]] || die "Missing WebView library manifests"
+  package_name="$(awk '
+    /^\[package\][[:space:]]*$/ { in_package = 1; next }
+    /^\[/ { in_package = 0 }
+    in_package && /^name[[:space:]]*=/ {
+      sub(/^name[[:space:]]*=[[:space:]]*"/, "")
+      sub(/".*$/, "")
+      print
+      exit
+    }
+  ' "$manifest")"
+  [[ -n "$package_name" ]] || die "Missing package name: $manifest"
+  MANIFEST_FILES+=("$manifest")
+  LOCK_PACKAGE_NAMES+=("$package_name")
+done
 
 for manifest in "${MANIFEST_FILES[@]}"; do
   [[ -f "$manifest" ]] || die "Missing manifest: $manifest"

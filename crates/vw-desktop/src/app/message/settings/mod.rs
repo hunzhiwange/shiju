@@ -150,6 +150,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::MigrationPreview(event) => crate::app::components::system_settings_data::migration_preview_ui::update(app, event),
         SettingsMessage::DataBackups(event) => data_management::backup_list_ui::update(app, event),
+        SettingsMessage::DataRecovery(event) => data_management::recovery_ui::update(app, event),
         SettingsMessage::DataExport(event) => data_management::export_ui::update(app, event),
         SettingsMessage::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]

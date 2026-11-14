@@ -220,3 +220,5 @@ pub use client::{HermesMemoryError, HermesMemoryScope};
 
 // Backup policy consumed by desktop maintenance forms.
 pub use client::DataBackupPolicy;
+
+pub use client::{DataBackupPreview, PreviewDataBackupRequest, DataRecoveryDiagnosis, DataTargetHealth, DataBackupRestoreStatus, DataRestoreProgress, DataRestoreStatus};

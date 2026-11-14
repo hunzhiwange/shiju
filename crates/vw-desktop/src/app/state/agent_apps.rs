@@ -6,6 +6,7 @@ use crate::app::components::system_settings_apps::catalog::CatalogRow;
 pub(crate) struct AppsCatalogState {
     pub migration_preview: crate::app::components::system_settings_data::migration_preview_ui::State,
     pub data_backups: crate::app::message::settings::data_management::backup_list_ui::State,
+    pub recovery: crate::app::message::settings::data_management::recovery_ui::State,
     pub data_export: crate::app::message::settings::data_management::export_ui::State,
     pub backups: crate::app::message::settings::backup_inventory::State,
     pub external_sessions: crate::app::components::external_sessions::State,

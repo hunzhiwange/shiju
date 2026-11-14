@@ -423,7 +423,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => super::system_settings_voice::view(app),
-        SystemTab::Apps => super::system_settings_data::export_ui::overlay(app, column![
+        SystemTab::Apps => super::system_settings_data::recovery_ui::overlay(app, super::system_settings_data::export_ui::overlay(app, column![
             super::system_settings_apps::view(
                 &app.apps_catalog,
                 crate::app::i18n::I18n::new(app.desktop_locale),

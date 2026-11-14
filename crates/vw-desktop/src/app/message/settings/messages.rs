@@ -778,6 +778,7 @@ pub enum GeneralSettingsMessage {
 pub enum SettingsMessage {
     MigrationPreview(crate::app::components::system_settings_data::migration_preview_ui::Event),
     DataBackups(super::data_management::backup_list_ui::Event),
+    DataRecovery(super::data_management::recovery_ui::Event),
     DataExport(super::data_management::export_ui::Event),
     BackupInventory(super::backup_inventory::Event),
     #[cfg(not(target_arch = "wasm32"))]

@@ -162,3 +162,5 @@ pub(crate) mod reasoning_bridge;
 
 #[cfg(test)]
 mod reasoning_bridge_tests;
+
+mod inline_think;

@@ -50,6 +50,18 @@ struct Native {
 }
 
 impl Decoder {
+    // Flush only a held prefix/tail. This does not synthesize successful completion.
+    fn flush_inline(&mut self) -> String {
+        if !self.resident.as_ref().is_some_and(|state| state.inline_think.has_pending_content()) {
+            return String::new();
+        }
+        let reason = std::mem::replace(&mut self.reason, Value::Null);
+        let chunk = json!({"id":self.id,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
+        let out = self.frame(&chunk.to_string()).unwrap_or_default();
+        self.reason = reason;
+        out
+    }
+
     fn new(model: String, tool_names: ChatTools, codex_chat: bool, native: Option<Native>) -> Self {
         let protocol = if native.is_some() {
             super::generation::GenerationProtocol::Responses
@@ -95,11 +107,12 @@ impl Decoder {
         json!({"id":self.id,"object":"response","created_at":chrono::Utc::now().timestamp(),"model":self.model,"status":"in_progress","output":[],"usage":null,"error":null,"incomplete_details":null})
     }
     fn failure(&mut self, message: &str) -> String {
+        let tail = self.flush_inline();
         self.done = true;
         let mut response = self.initial();
         response["status"] = "failed".into();
         response["error"] = json!({"code":"relay_error","message":message});
-        self.emit(json!({"type":"response.failed","response":response}))
+        tail + &self.emit(json!({"type":"response.failed","response":response}))
     }
     fn emit_reasoning_delta(
         &mut self,
@@ -286,7 +299,8 @@ impl Decoder {
             if self.native.is_some() {
                 return Err(StatusCode::BAD_GATEWAY);
             }
-            return self.finish();
+            let tail = self.flush_inline();
+            return self.finish().map(|out| tail + &out);
         }
         let mut chunk: Value = serde_json::from_str(data).map_err(|_| StatusCode::BAD_GATEWAY)?;
         if chunk.get("error").is_some()

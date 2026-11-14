@@ -9,6 +9,7 @@ pub(super) struct State {
     order: BTreeMap<String, usize>,
     calls: BTreeMap<String, (String, String, usize)>,
     legacy: Option<bool>,
+    pub(super) inline_think: vw_agent_apps::routing::inline_think::InlineThinkSplitter,
 }
 
 impl State {
@@ -43,7 +44,7 @@ impl State {
                 choice["finish_reason"] = "tool_calls".into();
             }
         }
-        Ok(())
+        super::inline_think::normalize(&mut self.inline_think, chunk)
     }
 
     pub(super) fn deltas(

@@ -1134,3 +1134,11 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 新增 reasoning_bridge，保留来源版本前缀、URL-safe 无填充编码、OpenAI reasoning 输入字段白名单（type/id/summary/encrypted_content），兼容 redacted_thinking 历史载体。Anthropic 封装仅恢复 thinking/signature 或 redacted data，不解码任意 ciphertext，不将载荷用于授权。Messages↔Responses 请求和 JSON 结果沿用现有转换所有者；dispatch 已调用这些所有者，无需重复接线，旧 session transport 不变。
 
 Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 signature；Anthropic→Responses 流保留完整签名分片，在终态追加来源 reasoning 项及其完成事件。后者暂缓 reasoning 展示并在输出末尾呈现，文本与工具仍走既有流。所有不透明状态仍受原有流大小界限约束。新增 cc_route_060_ 回归用例源码，尚未执行；后续统一验证应覆盖 JSON 往返、空 summary、历史封装白名单、签名分片及终态输出索引。Windows/Linux/WSL 范围外、未验证。
+
+## 任务61：切分内嵌思考文本流（代码已交付，未验证）
+
+复用固定 upstream 快照 inline_think 的首块状态机，在 routing/inline_think.rs 提供唯一策略。真实调用链为 app_routing/dispatch → model_relay 的 resident Messages/Responses SSE 适配 → inline_think::normalize；已有 sse_framing 在任意网络字节边界恢复 UTF-8 与 JSON，拆分器消费解码后的 content 增量。只识别正文首块，支持 think/thinking 与来源的混配闭合行为；思考即时输出，工具、finish、DONE、EOF/错误边界冲刷残留，异常结束仍返回原失败事件。非流式与原生 relay 策略不在本项扩展。
+
+任务60已有 reasoning_bridge 及流接线源码；来源快照、常驻监听器和授权 dispatch 已存在。此处仅确认代码依赖，未补做母任务实机验收。新增 cc_route_061_ 测试源码覆盖合法字符边界分片、两种标签、正文标签、未闭合尾部及幂等 flush，供后续统一验证。
+
+按本次用户覆盖要求，未运行任何 Cargo 命令、单元测试、实机或最终回归；没有红绿灯、退出码或有效测试数证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。仅作源码审阅及局部 rustfmt；macOS 行为待统一验证，Windows/Linux/WSL 范围外、未验证。

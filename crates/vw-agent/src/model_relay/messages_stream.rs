@@ -35,8 +35,23 @@ struct Decoder {
     resident: bool,
     thinking: Option<String>,
     content: String,
+    inline_think: vw_agent_apps::routing::inline_think::InlineThinkSplitter,
+    reasoning_open: bool,
+    block_index: usize,
 }
 impl Decoder {
+    // Flush only a held prefix/tail. This does not synthesize successful completion.
+    fn flush_inline(&mut self) -> String {
+        if !self.resident && self.inline_think.has_pending_content() {
+            return String::new();
+        }
+        let reason = std::mem::replace(&mut self.reason, Value::Null);
+        let chunk = json!({"id":self.id,"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
+        let out = self.frame(&chunk.to_string()).unwrap_or_default();
+        self.reason = reason;
+        out
+    }
+
     fn frame(&mut self, data: &str) -> Result<String, StatusCode> {
         if self.done {
             return Err(StatusCode::BAD_GATEWAY);
@@ -45,6 +60,7 @@ impl Decoder {
             if !self.started || self.reason.is_null() {
                 return Err(StatusCode::BAD_GATEWAY);
             }
+            let tail = self.flush_inline();
             let calls = self.tools.values().cloned().collect::<Vec<_>>();
             // Validate the full tool arguments before reporting a successful stream end.
             let body = json!({"id":self.id,"choices":[{"message":{"role":"assistant","content":null,"tool_calls":calls},"finish_reason":self.reason}],"usage":self.usage});
@@ -53,10 +69,10 @@ impl Decoder {
             } else {
                 from_chat(&body, &self.model)?
             };
-            let mut out = String::new();
-            let mut index = 0;
-            if self.text_open {
-                out.push_str(&event(json!({"type":"content_block_stop","index":0})));
+            let mut out = tail;
+            let mut index = self.block_index;
+            if self.text_open || self.reasoning_open {
+                out.push_str(&event(json!({"type":"content_block_stop","index":index})));
                 index += 1;
             }
             for block in final_message["content"].as_array().ok_or(StatusCode::BAD_GATEWAY)? {
@@ -70,7 +86,7 @@ impl Decoder {
             self.done = true;
             return Ok(out);
         }
-        let chunk: Value = serde_json::from_str(data).map_err(|_| StatusCode::BAD_GATEWAY)?;
+        let mut chunk: Value = serde_json::from_str(data).map_err(|_| StatusCode::BAD_GATEWAY)?;
         if chunk.get("error").is_some() {
             return Err(StatusCode::BAD_GATEWAY);
         }
@@ -87,6 +103,9 @@ impl Decoder {
                 return Err(StatusCode::BAD_GATEWAY);
             }
             return Ok(event(chunk));
+        }
+        if self.resident {
+            super::inline_think::normalize(&mut self.inline_think, &mut chunk)?;
         }
         let choices = chunk["choices"].as_array().ok_or(StatusCode::BAD_GATEWAY)?;
         if choices.len() > 1 {
@@ -119,6 +138,24 @@ impl Decoder {
                 if let Some(part) = delta.get("reasoning_content").filter(|v| !v.is_null()) {
                     thought.push_str(part.as_str().ok_or(StatusCode::BAD_GATEWAY)?);
                 }
+            } else if self.resident {
+                if let Some(part) = delta.get("reasoning_content").filter(|v| !v.is_null()) {
+                    let part = part.as_str().ok_or(StatusCode::BAD_GATEWAY)?;
+                    if !part.is_empty() {
+                        if self.text_open {
+                            out.push_str(&event(
+                                json!({"type":"content_block_stop","index":self.block_index}),
+                            ));
+                            self.text_open = false;
+                            self.block_index += 1;
+                        }
+                        if !self.reasoning_open {
+                            out.push_str(&event(json!({"type":"content_block_start","index":self.block_index,"content_block":{"type":"thinking","thinking":""}})));
+                            self.reasoning_open = true;
+                        }
+                        out.push_str(&event(json!({"type":"content_block_delta","index":self.block_index,"delta":{"type":"thinking_delta","thinking":part}})));
+                    }
+                }
             } else {
                 super::messages::validate_chat_reasoning(delta)?;
             }
@@ -127,11 +164,18 @@ impl Decoder {
                     self.content.push_str(text);
                 }
                 if !text.is_empty() {
+                    if self.reasoning_open {
+                        out.push_str(&event(
+                            json!({"type":"content_block_stop","index":self.block_index}),
+                        ));
+                        self.reasoning_open = false;
+                        self.block_index += 1;
+                    }
                     if !self.text_open {
-                        out.push_str(&event(json!({"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}})));
+                        out.push_str(&event(json!({"type":"content_block_start","index":self.block_index,"content_block":{"type":"text","text":""}})));
                         self.text_open = true;
                     }
-                    out.push_str(&event(json!({"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":text}})));
+                    out.push_str(&event(json!({"type":"content_block_delta","index":self.block_index,"delta":{"type":"text_delta","text":text}})));
                 }
             } else if !delta["content"].is_null() {
                 return Err(StatusCode::UNPROCESSABLE_ENTITY);
@@ -364,10 +408,12 @@ async fn response_body_policy(
                         ));
                     }
                     Err(_) => {
+                        let tail = decoder.flush_inline();
                         decoder.done = true;
-                        let out = event(
-                            json!({"type":"error","error":{"type":"api_error","message":"Unsupported or invalid upstream Messages conversion"}}),
-                        );
+                        let out = tail
+                            + &event(
+                                json!({"type":"error","error":{"type":"api_error","message":"Unsupported or invalid upstream Messages conversion"}}),
+                            );
                         return Some((Ok(Bytes::from(out)), (stream, decoder, cancel)));
                     }
                 }

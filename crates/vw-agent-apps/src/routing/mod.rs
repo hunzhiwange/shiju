@@ -35,3 +35,7 @@ pub mod moonshot_schema;
 
 #[cfg(test)]
 mod moonshot_schema_tests;
+
+pub mod inline_think;
+#[cfg(test)]
+mod inline_think_tests;

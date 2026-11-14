@@ -21,6 +21,10 @@
 - 依赖边界：mcp-policy、mcp-assets、mcp-form、external-protocol、原有 getrandom/tao/wry。新库只保留实际使用的直接依赖；目标依赖沿用原 cfg/features。
 - 测试源码随职责迁移至独立 `*_tests.rs`，混合文件按函数分拆，保留现有断言和 fixture，不运行。
 
+## 逻辑归属约束
+
+仅拥有MCP进程事件循环与组装；表单逻辑归webview-mcp-form（任务16），引用其真实导出，不把它重命名复制为runtime内部实现。
+
 ## 实施步骤
 
 只移动剩余 MCP 启动和事件循环，拆 stdin_bridge.rs、document.rs、runtime.rs。随机 nonce、活跃文档状态、表单撤销和父进程通信顺序保持，不把资产和策略复制回运行时。

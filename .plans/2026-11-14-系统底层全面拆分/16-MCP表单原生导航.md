@@ -21,6 +21,10 @@
 - 依赖边界：mcp-policy、external-protocol、wry 和原生目标依赖；不得依赖 mcp-runtime。新库只保留实际使用的直接依赖；目标依赖沿用原 cfg/features。
 - 测试源码随职责迁移至独立 `*_tests.rs`，混合文件按函数分拆，保留现有断言和 fixture，不运行。
 
+## 逻辑归属约束
+
+拥有表单状态及原生适配，事件循环组装归webview-mcp-runtime（任务17）；纯策略归任务7。旧版同放runtime不代表逻辑相同，禁止复制状态或靠别名接线。
+
 ## 实施步骤
 
 独立迁移原生表单策略状态和两平台 delegate。原 revoke_document 反向调用改为创建 FormPolicy 时传入的具体撤销回调，不新增 trait；确认 approved 且 active 后同步调用同一撤销逻辑。纯来源选择引用 policy；动态表单测试源码移入同库。

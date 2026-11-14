@@ -26,7 +26,7 @@
 | `agent-health` | 41 |
 | `agent-heartbeat` | 352 |
 | `agent-hooks` | 69 |
-| `agent-identity` | 42 |
+| `agent-identity-loader` | 42 |
 | `agent-installation` | 43 |
 | `agent-integrations` | 44 |
 | `agent-knowledge` | 70, 71, 72, 73, 74 |
@@ -1698,16 +1698,16 @@
 | `hooks/traits/mod_tests.rs` | 任务 69 → agent-hooks |
 | `hooks/traits/tests.rs` | 任务 69 → agent-hooks |
 | `id/mod.rs` | 任务 356 → agent-composition |
-| `identity/load.rs` | 任务 42 → agent-identity |
-| `identity/load_tests.rs` | 任务 42 → agent-identity |
-| `identity/mod.rs` | 任务 42 → agent-identity |
+| `identity/load.rs` | 任务 42 → agent-identity-loader |
+| `identity/load_tests.rs` | 任务 42 → agent-identity-loader |
+| `identity/mod.rs` | 任务 42 → agent-composition（宿主重导出接线，模型来自agent-identity，加载来自agent-identity-loader） |
 | `identity/model.rs` | 前置任务 3 |
 | `identity/model_tests.rs` | 前置任务 3 |
 | `identity/normalize.rs` | 前置任务 3 |
 | `identity/normalize_tests.rs` | 前置任务 3 |
 | `identity/prompt.rs` | 前置任务 3 |
 | `identity/prompt_tests.rs` | 前置任务 3 |
-| `identity/tests.rs` | 任务 42 → agent-identity |
+| `identity/tests.rs` | 任务 42 → agent-identity-loader |
 | `installation/mod.rs` | 任务 43 → agent-installation |
 | `installation/mod_tests.rs` | 任务 43 → agent-installation |
 | `installation/tests.rs` | 任务 43 → agent-installation |

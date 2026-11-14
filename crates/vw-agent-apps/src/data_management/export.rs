@@ -103,7 +103,9 @@ pub fn verify_portable_package(bytes: &[u8], digest: &[u8; 32]) -> Result<Vec<Po
     let mut parts = Vec::new();
     for (index, name) in ["manifest.json", "data.json"].iter().enumerate() {
         let entry = archive.by_index(index).map_err(|_| Error::Corrupt)?;
-        if entry.name() != *name || !entry.is_file() || entry.size() > MAX_SNAPSHOT_BYTES as u64 {
+        if entry.name() != *name || !entry.is_file()
+            || entry.unix_mode().is_some_and(|mode| mode & 0o170000 != 0 && mode & 0o170000 != 0o100000)
+            || entry.size() > MAX_SNAPSHOT_BYTES as u64 {
             return Err(Error::Corrupt);
         }
         let mut data = Vec::new();

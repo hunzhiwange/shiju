@@ -117,3 +117,8 @@ mod rollback_tests;
 pub mod operations;
 
 pub mod post_import;
+
+#[cfg(target_os = "macos")]
+pub mod package_import;
+#[cfg(all(test, target_os = "macos"))]
+mod package_import_tests;

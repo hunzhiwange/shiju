@@ -75,7 +75,7 @@ pub enum SourceCategory {
     Usage,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SourceFormat { Sqlite, Json, Sql }
+pub enum SourceFormat { Sqlite, Json, Sql, PortablePackage }
 
 /// Safe summary only. No raw values, filesystem paths or credentials.
 #[derive(Debug, Clone, PartialEq, Eq)]

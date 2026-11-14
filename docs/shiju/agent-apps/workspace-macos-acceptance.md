@@ -142,3 +142,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 静态核对任务 27 的 hermes_dashboard::probe_dashboard、来源 launch_hermes_dashboard / hermes_dashboard_command_line 和现有执行主机 command、Operation 取消/进度底座。新增固定 probe/start 及 operations/{id} GET/DELETE；SDK 同步四个动作，保留 HTTP 状态。授权策略在现有 launch 外另需 hermes_dashboard 项目 ID 列表；每次请求重验租户、主机、项目及令牌，任务观察/取消再匹配提交人。远程主机由既有策略拒绝，不把远程 loopback 当本地地址。固定 Hermes dashboard argv，继承底座环境隔离，无客户端命令或 shell 插值；运行进度不宣称 HTTP 在线。取消杀死自有进程组并回收后再确认。
 
 新增权限拒绝与 SDK 路径注入测试源码，均未执行。按本轮最高优先要求未运行 Cargo、单元/实机或其他测试、最终回归，不声称编译或验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按指令删除；后续统一验证。
+
+## 任务 8：每日记忆中文全文搜索（2026-11-14）
+
+新增 daily_memory_search::search_daily_memory_files，复用 WorkspaceDirectory 的执行主机、描述符相对读取及合法普通文件边界；使用现有 lifecycle::operations::Operation 取消信号，分块读取和遍历时检查取消，取消返回独立错误、不返回部分结果。日期及全文小写匹配、非重叠内容计数、日期降序，首处上下文按原文字符生成；日期单独命中返回前 120 字符。小写展开的字节位置映射回原文字位置，不建立持久原文索引。本领域 API 的授权与任务终态仍由后续路由任务接线，不冒用供应商操作。
+
+静态核对任务 1 合同、任务 7 列表、来源 workspace.rs 与 DailyMemoryPanel.tsx。新增三个 daily_search_handles_unicode_offsets 前缀测试源码，覆盖中文/emoji、İ 展开、计数、日期摘要与排序、无效日期/链接/目录跳过、缺失无副作用、主机拒绝、无效 UTF-8 与预取消；均未运行。本轮按用户要求未执行 Cargo、任何测试或最终回归，不声称编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证搜索测试族及作用域任务接线。

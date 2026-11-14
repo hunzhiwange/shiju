@@ -1,7 +1,7 @@
 //! SDK-backed ledger entry; current-session details remain in the parent view.
+pub mod display;
 pub mod charts;
 pub mod state;
-pub mod models;
 pub mod pricing;
 pub mod scan;
 pub mod logs;
@@ -31,8 +31,8 @@ fn identity(app: &App) -> Option<Identity> {
 pub enum Event {
     Load(bool),
     Refresh,
+    Display(display::Event),
     Pricing(pricing::Event),
-    Models(models::Event),
     Charts(charts::Event),
     Scan(scan::Event),
     Logs(logs::Event),
@@ -45,9 +45,9 @@ pub enum Event {
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
-        Event::Models(event) => return models::update(app, event),
-        Event::Pricing(event) => return pricing::update(app, event),
+        Event::Display(event) => return display::update(app, event),
         Event::Scan(event) => return scan::update(app, event),
+        Event::Pricing(event) => return pricing::update(app, event),
         Event::Charts(event) => return charts::update(app, event),
         Event::Logs(event) => return logs::update(app, event),
         Event::Groups(event) => return groups::update(app, event),
@@ -93,7 +93,7 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             let charts_task = charts::load(ticket, scope.clone(), query.clone());
             let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
             let client = crate::app::config::gateway_client();
-            return Task::batch([scan::activity(app, true), logs_task, groups_task, charts_task, Task::perform(async move {
+            return Task::batch([display::update(app, display::Event::AutoLoad), scan::activity(app, true), logs_task, groups_task, charts_task, Task::perform(async move {
                 let result = async {
                     let client = client?;
                     client.usage_summary(&UsageReadScope {
@@ -114,9 +114,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .style(rounded_action_btn_style).on_press(Message::View(ViewMessage::UsageCenter(event)));
     let mut content = column![row![
         action("刷新用量", Event::Refresh),
-        action("模型同步选择", Event::Models(models::Event::Open)),
-        action("模型定价", Event::Pricing(pricing::Event::Open)),
         action("扫描与修复", Event::Scan(scan::Event::Open)),
+        action("币种与显示", Event::Display(display::Event::Open)),
+        action("模型定价", Event::Pricing(pricing::Event::Open)),
         action("最近24小时（UTC）", Event::Load(false)),
         action("关闭用量中心", Event::Close),
     ].spacing(8)].spacing(8);
@@ -125,13 +125,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let label = if app.usage_center.loading { "正在加载用量…".into() } else {
             match &app.usage_center.result {
                 Some(Ok(summary)) if summary.counts.total_requests == 0 => "暂无用量".into(),
-                Some(Ok(summary)) => format!("请求 {} · 计费请求 {} · 成功 {} · 失败 {} · 已知费用 {} USD · 未知费用请求 {}",
-                    summary.counts.total_requests, summary.counts.billable_requests, summary.succeeded_requests, summary.failed_requests, summary.known_cost_usd, summary.counts.unknown_cost_requests),
+                Some(Ok(summary)) => format!("请求 {} · 计费请求 {} · 成功 {} · 失败 {} · 已知费用 {} · 未知费用请求 {}",
+                    summary.counts.total_requests, summary.counts.billable_requests, summary.succeeded_requests, summary.failed_requests, display::amount(app, &summary.known_cost_usd), summary.counts.unknown_cost_requests),
                 Some(Err(error)) => format!("用量加载失败：{error}"),
                 None => "请选择用量范围".into(),
             }
         };
-        content = content.push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
+        content = content.push(text(display::status(app)).size(13)).push(text(label).size(14)).push(charts::view(app)).push(groups::view(app)).push(logs::view(app));
     }
-    models::overlay(app, pricing::overlay(app, scan::overlay(app, content.into())))
+    display::overlay(app, pricing::overlay(app, scan::overlay(app, content.into())))
 }

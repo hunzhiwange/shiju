@@ -6,6 +6,8 @@
 
 状态：已完成，待回归验证（生产集成未验收）
 
+2026-11-14 再次执行生产 preset 验收，仍因 `vw-gateway-client/src/client/agent_apps_skills/repos_api.rs:7` 对 `ProjectId` 调用 `to_string()` 的 E0599 无法编译；0 项测试执行、0 次模型请求。外层退出 1/Cargo 101，槽位 2 已释放，两个缓存路径均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。确切命令和日志见证据文档“再次回归”；未使用旧产物继续模型验收，保留待回归。
+
 目的：让 Amp 通过 ShiJu 现有 ACP 链路可安装或发现、启用并完成真实会话，准确暴露已验证能力。
 
 来源任务：固定参考源码 `025_sync_and_add_acp_registry_agents.sql` 中 `amp-acp`；完整来源路径见同目录 `差异清单.md`。

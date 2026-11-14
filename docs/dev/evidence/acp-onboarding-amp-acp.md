@@ -1,5 +1,11 @@
 # Amp ACP 受管本地运行时证据
 
+## 2026-11-14 再次回归
+
+执行 `python3 scripts/cargo_slot.py python3 scripts/acp_onboarding_amp_acp_acceptance.py --runtime /tmp/shiju-amp-probe/ready --mode preset`，外层退出 1，内部 Cargo 编译退出 101。槽位 2，两个缓存变量均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
+
+当前仍被 `crates/vw-gateway-client/src/client/agent_apps_skills/repos_api.rs:7` 的 E0599 阻断：`ProjectId` 未实现 Display，不能调用 `to_string()`。有效测试数为 0，模型请求数为 0，不计通过；未继续使用旧测试程序运行 session-model。日志在 `/tmp/shiju-amp-probe/recheck-preset.log`。已确认本轮 Cargo/rustc 退出、槽位锁释放。未改无关模块，生产预设与模型中继仍待回归。
+
 实机：macOS arm64。目标是使用会话选中的模型，无需 Amp 账号。本文所述产物是固定官方版本的本地补丁构建，未覆盖用户的 CLI 或全局配置。
 
 ## 来源与路线

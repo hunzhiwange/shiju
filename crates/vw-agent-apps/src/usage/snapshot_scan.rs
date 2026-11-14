@@ -9,6 +9,13 @@ pub fn scan_codex(connection: &mut Connection, scope: &ProjectScope, key: &Usage
     path: &Path, files: Vec<PathBuf>) -> Result<usize, UsageCursorError> {
     if key.app != "codex" { return Err(UsageCursorError::InvalidRecord); }
     let mut lineage = super::codex_lineage::CodexLineage::new(files)?;
+    let records = codex_records(&mut lineage, path)?;
+    commit(connection, scope, key, records)
+}
+
+/// Shared projection for incremental scans and atomic rebuild replay.
+fn codex_records(lineage: &mut super::codex_lineage::CodexLineage, path: &Path)
+    -> Result<Vec<(Option<String>, String, UsageRecord)>, UsageCursorError> {
     let records = lineage.project(path)?.into_iter().map(|event| {
         let time = event.timestamp.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
             .map(|t| UsageUnixSeconds(t.timestamp())).ok_or(UsageCursorError::InvalidRecord)?;
@@ -23,7 +30,25 @@ pub fn scan_codex(connection: &mut Connection, scope: &ProjectScope, key: &Usage
             performance, suspected_duplicate_of: None,
         }))
     }).collect::<Result<Vec<_>, UsageCursorError>>()?;
-    commit(connection, scope, key, records)
+    Ok(records)
+}
+
+/// Preserve exactly the same native identities as ordinary snapshot ingestion.
+pub fn replay_codex(writer: &super::codex_rebuild::CodexRebuildWriter<'_, '_>,
+    lineage: &mut super::codex_lineage::CodexLineage, key: &UsageCursorKey, path: &Path)
+    -> Result<(), super::codex_rebuild::CodexRebuildError> {
+    use super::codex_rebuild::CodexRebuildError as E;
+    for (session, request, mut record) in codex_records(lineage, path).map_err(|_| E::ReplayFailed)? {
+        let identity = UsageSourceIdentity { target_host: key.target_host.clone(), app: key.app.clone(),
+            instance_id: key.instance_id.clone(), file_identity: key.file_identity.clone(),
+            kind: UsageSourceKind::Native, native_session_id: session.clone(), native_request_id: request.clone() };
+        let encoded = serde_json::to_vec(&identity).map_err(|_| E::ReplayFailed)?;
+        record.id = format!("{}:{:x}", key.app, Sha256::digest(encoded));
+        record.sources.push(UsageSourceRef { source_id: record.id.clone(), kind: UsageSourceKind::Native,
+            app: key.app.clone(), native_session_id: session, native_request_id: Some(request) });
+        writer.save(&identity, &StoredUsageRecord { record, status_code: None, failure: None })?;
+    }
+    Ok(())
 }
 
 pub fn scan_pi(connection: &mut Connection, scope: &ProjectScope, key: &UsageCursorKey,

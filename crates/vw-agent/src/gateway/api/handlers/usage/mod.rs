@@ -1,3 +1,4 @@
 //! Read-only canonical usage ledger endpoints.
 mod read;
-pub(crate) use read::router;
+mod scan;
+pub(crate) fn router() -> axum::Router { read::router().merge(scan::router()) }

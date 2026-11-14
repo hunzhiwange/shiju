@@ -4,11 +4,11 @@ use vw_agent_apps::{sessions::{source::SourceRegistry, providers as p}, usage::{
 use vw_api_types::{ProjectScope, external_session::*};
 
 static SCHEDULES: OnceLock<Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>>> = OnceLock::new();
-fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>> {
+pub(in super::super) fn schedules() -> &'static Mutex<HashMap<ScanOwner, usage::scan_schedule::ScanSchedule>> {
     SCHEDULES.get_or_init(Default::default)
 }
 
-pub(crate) async fn run(policy: PathBuf) {
+pub(in super::super) async fn run(policy: PathBuf) {
     let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
@@ -89,7 +89,7 @@ fn cycle_inner(policy: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] = [
+pub(in super::super) const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] = [
     (ScanAdapter::Claude,"claude",SessionProvider::Claude), (ScanAdapter::Codex,"codex",SessionProvider::Codex),
     (ScanAdapter::Gemini,"gemini",SessionProvider::Gemini), (ScanAdapter::OpenCode,"opencode",SessionProvider::Opencode),
     (ScanAdapter::GrokBuild,"grokbuild",SessionProvider::Grokbuild), (ScanAdapter::Pi,"pi",SessionProvider::Pi),
@@ -98,13 +98,13 @@ const ADAPTERS: [(ScanAdapter, &str, SessionProvider); 11] = [
     (ScanAdapter::Dsh,"dsh",SessionProvider::Dsh),
 ];
 
-struct Work {
-    path: PathBuf,
+pub(in super::super) struct Work {
+    pub(in super::super) path: PathBuf,
     root: PathBuf,
-    identity: ExternalSessionIdentity,
+    pub(in super::super) identity: ExternalSessionIdentity,
     registry: SourceRegistry,
 }
-fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
+pub(in super::super) fn discover(scope: &ProjectScope, host: &str, provider: SessionProvider,
     instances: &[(PathBuf, super::super::agent_apps::ExternalHistoryInstance)],
     worktree: &str) -> anyhow::Result<Vec<Work>> {
     let mut files = Vec::new();
@@ -181,22 +181,23 @@ fn dispatch(connection: &mut rusqlite::Connection, scope: &ProjectScope,
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Intent {
-    project_id: vw_api_types::id::ProjectId,
-    target_host: String,
-    active: Option<bool>,
-    paused: Option<bool>,
+pub(in super::super) struct Intent {
+    pub(in super::super) project_id: vw_api_types::id::ProjectId,
+    pub(in super::super) target_host: String,
+    pub(in super::super) active: Option<bool>,
+    pub(in super::super) paused: Option<bool>,
 }
 pub(super) fn router() -> axum::Router {
     axum::Router::new()
         .route("/usage/activity", axum::routing::post(page_activity))
         .route("/usage/scans", axum::routing::post(manual_scan))
 }
-fn authorized_owner(policy: &super::catalog::Policy, tenant: vw_api_types::TenantScope,
+pub(in super::super) fn authorized_owner(policy: Option<&Path>, tenant: vw_api_types::TenantScope,
     headers: &axum::http::HeaderMap, intent: &Intent) -> Result<ScanOwner, axum::http::StatusCode> {
     let scope = ProjectScope::new(tenant, intent.project_id.clone()).map_err(|_| axum::http::StatusCode::BAD_REQUEST)?;
     let (principal, _, _) = super::super::agent_apps::authorize_external_history(
-        policy.0.as_deref(), headers, &scope, &intent.target_host)?;
+        policy, headers, &scope, &intent.target_host)?;
+    if intent.target_host != crate::usage_bridge::context::local_host().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)? { return Err(axum::http::StatusCode::FORBIDDEN); }
     Ok(ScanOwner { scope, principal, target_host: intent.target_host.clone() })
 }
 async fn page_activity(
@@ -205,7 +206,7 @@ async fn page_activity(
     headers: axum::http::HeaderMap, axum::Json(intent): axum::Json<Intent>,
 ) -> Result<axum::http::StatusCode, axum::http::StatusCode> {
     tokio::task::spawn_blocking(move || {
-        let owner = authorized_owner(&policy, tenant, &headers, &intent)?;
+        let owner = authorized_owner(policy.0.as_deref(), tenant, &headers, &intent)?;
         let mut schedules = schedules().lock().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
         let schedule = schedules.get_mut(&owner).ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
         if let Some(active) = intent.active { schedule.set_page_active(active); }
@@ -219,7 +220,7 @@ async fn manual_scan(
     headers: axum::http::HeaderMap, axum::Json(intent): axum::Json<Intent>,
 ) -> Result<(axum::http::StatusCode, axum::Json<ScanJob>), axum::http::StatusCode> {
     tokio::task::spawn_blocking(move || {
-        let owner = authorized_owner(&policy, tenant, &headers, &intent)?;
+        let owner = authorized_owner(policy.0.as_deref(), tenant, &headers, &intent)?;
         let mut schedules = schedules().lock().map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
         let schedule = schedules.get_mut(&owner).ok_or(axum::http::StatusCode::SERVICE_UNAVAILABLE)?;
         let job = schedule.manual_sync(Instant::now()).map_err(|_| axum::http::StatusCode::SERVICE_UNAVAILABLE)?;

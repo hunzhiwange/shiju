@@ -113,6 +113,14 @@ impl ScanSchedule {
         })
     }
 
+    pub fn job(&self, id: &vw_api_types::id::TaskId) -> Result<ScanJob, ScanJobError> {
+        self.jobs.get(&self.owner, id)
+    }
+
+    pub fn cancel(&self, id: &vw_api_types::id::TaskId) -> Result<ScanJob, ScanJobError> {
+        self.jobs.cancel(&self.owner, id)
+    }
+
     pub fn last_complete_scan(&self) -> Result<Option<SystemTime>, ScanJobError> {
         self.jobs.last_complete_scan(&self.owner)
     }

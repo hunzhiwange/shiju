@@ -566,7 +566,9 @@ fn settings_shell(
     help_tab: SystemTab,
 ) -> Element<'_, Message> {
     let close_message = Message::View(message::ViewMessage::ToggleSystemSettings);
-    let mut actions = row![].spacing(6).align_y(Alignment::Center);
+    let mut actions = row![super::system_settings_device_sync::entry_points()]
+        .spacing(6)
+        .align_y(Alignment::Center);
     if let Some(help) = system_settings_help::help_button(app.desktop_locale, help_tab) {
         actions = actions.push(help);
     }
@@ -771,7 +773,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let dialog = crate::app::skill_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::prompt_link_preview::overlay(app, dialog);
-    dialog
+    super::system_settings_device_sync::overlay(app, dialog)
 }
 
 pub(super) const SELECT_FOCUS_SCOPE: &str = "system-settings-select-focus";

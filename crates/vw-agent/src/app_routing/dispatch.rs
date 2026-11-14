@@ -374,6 +374,7 @@ pub(super) async fn forward_json(
             client_model,
             true,
             native_messages,
+            messages_responses,
             cancelled,
         )
         .await;
@@ -388,8 +389,16 @@ pub(super) async fn forward_json(
             response_scope.as_ref().map(|scope| (&*route.references, scope)),
         )
         .await?;
-        finish_messages(response, app, client_model, false, native_messages, cancelled.clone())
-            .await
+        finish_messages(
+            response,
+            app,
+            client_model,
+            false,
+            native_messages,
+            messages_responses,
+            cancelled.clone(),
+        )
+        .await
     })
     .await?
 }
@@ -400,6 +409,7 @@ async fn finish_messages(
     model: Option<String>,
     streaming: bool,
     native: bool,
+    responses: bool,
     cancel: tokio_util::sync::CancellationToken,
 ) -> Result<Response, RouteError> {
     if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && !streaming {
@@ -411,7 +421,11 @@ async fn finish_messages(
             bytes = axum::body::to_bytes(body, MAX_JSON_BYTES) => bytes.map_err(|_| StatusCode::BAD_GATEWAY)?,
         };
         let body: Value = serde_json::from_slice(&bytes).map_err(|_| StatusCode::BAD_GATEWAY)?;
-        let converted = crate::model_relay::messages_chat_result::from_chat(&body, &model)?;
+        let converted = if responses {
+            crate::model_relay::messages_responses_result::from_responses(&body, &model)?
+        } else {
+            crate::model_relay::messages_chat_result::from_chat(&body, &model)?
+        };
         Ok(Response::from_parts(parts, Body::from(converted.to_string())))
     } else if (app == AppId::ClaudeDesktop || app == AppId::Claude) && !native && streaming {
         crate::model_relay::messages_stream::resident_response_body(

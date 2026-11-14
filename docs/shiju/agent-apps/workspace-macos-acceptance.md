@@ -34,12 +34,6 @@
 
 按本轮最高优先要求，未运行 Cargo、单元测试、实机测试或其它测试，未启动回归。未领取槽位，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 未设置；没有编译或测试通过结论。后续统一验证。
 
-## 任务 40：其他应用专属入口（2026-11-14）
-
-已完成 AGY/DSH/MiniMax/Pi/OMP 六类能力的静态入口核对，详见 [workspace-special-entrypoints.md](workspace-special-entrypoints.md)。来源命令→唯一领域→目标供应商 API/SDK/Iced 接点、原生提示词路径及尚未核实链路均已登记。特别保留 AGY 绑定 quota、DSH 五授权动作、MiniMax/Hermes key、Pi usage/discovery、OMP builtin default 的专属语义；五应用提示词/会话均有来源，未误写不适用。
-
-只读证据为 RustCodeGraph status/explore（退出 0）及实际源文件、路由、SDK 和历史证据文档审查。完整运行链和错误路径缺项保持明确，不重签历史验收。本轮依用户最高优先要求未运行 Cargo、单元测试、实机或其他测试，也未启动最终回归；无新增运行通过结论。静态盘点完成后删除任务 40 卡，后续按文档缺项统一验证。
-
 ## 任务 11：Hermes 双记忆文件（2026-11-14）
 
 新增 `hermes_memory.rs::HermesMemory`，复用任务 3 的 `WorkspaceDirectory`：严格将 memory/user 映射到 Hermes 根下 memories/MEMORY.md、memories/USER.md。缺失内容为空并保留 exists；读错误原样传播。写入复用目录描述符、物理锁与私有原子替换，不读取开关、不截断内容、不覆盖另一文件。调用者须先授权并传入可信主机、HOME 与解析后的应用根。
@@ -65,13 +59,6 @@
 新增 openclaw_catalog::{get_model_catalog,set_model_catalog}，读取 agents.defaults.models 的 alias 与未知字段；缺失返回 None，显式空目录保留为空对象。候选编辑仅替换 models，保留 model、其他 defaults 及非目标文本；畸形祖先拒绝覆盖。复用 providers/live/patch_json 的 round-trip 层，发布须由调用者沿用 OpenClawFiles 与共享事务锁；没有新增配置 IO 所有者。当前底层仅支持 JSON/JSONC，完整 JSON5 明确拒绝，未扩展语法能力。
 
 已静态核对来源 get_model_catalog/set_model_catalog、任务 1 合同、任务 3 文件边界、现有 OpenClaw 与补丁层；新增三个 openclaw_catalog_preserves_defaults 前缀测试源码，覆盖 alias/未知字段、非目标 defaults 与注释、缺失/空目录及非法形状。按本轮要求未执行 Cargo 或任何测试，不声明编译或行为验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证；本任务卡按要求删除。
-
-
-## 任务 16：OpenClaw 默认模型分节（2026-11-14）
-
-新增 openclaw_model 的 get_default_model/prepare_default_model/set_default_model，复用 OpenClawFiles snapshot/apply 与物理锁、冲突检查和原子事务。保留未知扩展、回退顺序及重复值；结果包含 warnings。已有 JSONC round-trip 支持用于保留注释和非目标字节；底层明确拒绝完整 JSON5（单引号、无引号键），此限制已留源码 TODO，不能宣称 JSON5 完整交付。
-
-静态读取来源默认模型函数、前置正式合同、任务 3 路径边界、供应商事务和 patch_json；新增两个独立测试源码，覆盖字节保留、回退顺序、未知字段、幂等、缺失和非法形状。本轮按用户要求未运行 Cargo、测试或实机验收，不声明验证通过；未领取槽位，CARGO_TARGET_DIR 未设置。后续建议补齐共享 JSON5 round-trip 后统一验证。依指令删除任务卡。
 
 ## 任务 18：OpenClaw 代理默认设置（2026-11-14）
 

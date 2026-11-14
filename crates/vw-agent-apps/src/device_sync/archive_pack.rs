@@ -16,13 +16,21 @@ pub struct PackedSkillsArchive {
 pub fn pack_skills_archive(root: &Path) -> Result<PackedSkillsArchive, &'static str> {
     #[cfg(unix)]
     {
-        native::pack(root)
+        native::pack(root, None)
     }
     #[cfg(not(unix))]
     {
         let _ = root;
         Err("secure skills archive capture is unsupported on this platform")
     }
+}
+
+/// Capture only selected, validated first-level skill directories under a held root lock.
+pub fn pack_selected_skills_archive(root: &Path, directories: &[String]) -> Result<PackedSkillsArchive, &'static str> {
+    #[cfg(unix)]
+    { native::pack(root, Some(directories)) }
+    #[cfg(not(unix))]
+    { let _ = (root, directories); Err("secure skills archive capture is unsupported on this platform") }
 }
 
 #[cfg(unix)]
@@ -44,14 +52,33 @@ mod native {
 
     const MAX_ENTRIES: usize = 10_000;
 
-    pub(super) fn pack(root: &Path) -> Result<PackedSkillsArchive, &'static str> {
+    pub(super) fn pack(root: &Path, selected: Option<&[String]>) -> Result<PackedSkillsArchive, &'static str> {
         let root = fs::canonicalize(root).map_err(|_| "cannot resolve skills root")?;
         let anchor = OpenOptions::new().read(true)
             .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
             .open(&root).map_err(|_| "cannot open skills root")?;
         let mut files = BTreeMap::new();
         let mut visited = BTreeSet::new();
-        let mut pending = vec![root.clone()];
+        let mut pending = match selected {
+            None => vec![root.clone()],
+            Some(directories) => {
+                let mut unique = BTreeSet::new();
+                for directory in directories {
+                    if directory.is_empty() || directory.len() > 255 || directory.starts_with('.')
+                        || matches!(directory.to_ascii_lowercase().as_str(), "credentials" | "secrets" | "logs" | "cache" | "backups")
+                        || directory.chars().any(|c| c.is_control() || matches!(c, '/' | '\\' | ':')) {
+                        return Err("invalid selected skill directory");
+                    }
+                    if !unique.insert(directory) { return Err("duplicate selected skill directory"); }
+                    let path = root.join(directory);
+                    let metadata = fs::symlink_metadata(&path).map_err(|_| "selected skill is missing")?;
+                    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+                        return Err("selected skill must be a real directory");
+                    }
+                }
+                directories.iter().map(|directory| root.join(directory)).collect()
+            }
+        };
         let mut count = 0usize;
         while let Some(directory) = pending.pop() {
             if !visited.insert(directory.clone()) {
@@ -63,8 +90,22 @@ mod native {
                     return Err("skills archive entry limit exceeded");
                 }
                 let entry = entry.map_err(|_| "cannot read skills entry")?;
+                if selected.is_some() {
+                    let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+                    if name.starts_with('.') || matches!(name.as_str(), "credentials" | "secrets" | "logs" | "cache" | "backups") {
+                        return Err("selected skill contains private or device resources");
+                    }
+                    if fs::symlink_metadata(entry.path()).map_err(|_| "cannot inspect selected skill")?.file_type().is_symlink() {
+                        return Err("selected skills cannot contain symbolic links");
+                    }
+                }
                 let target = fs::canonicalize(entry.path())
                     .map_err(|_| "cannot resolve skills entry or symbolic link")?;
+                if let Some(directories) = selected {
+                    if !directories.iter().any(|directory| target.starts_with(root.join(directory))) {
+                        return Err("skills symbolic link escapes selected resources");
+                    }
+                }
                 let relative = target.strip_prefix(&root)
                     .map_err(|_| "skills symbolic link escapes authorized root")?;
                 if relative.as_os_str().is_empty() {

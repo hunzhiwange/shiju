@@ -63,3 +63,5 @@ pub mod export;
 mod export_files;
 #[cfg(all(test, target_os = "macos"))]
 mod export_tests;
+
+pub mod shared_snapshot;

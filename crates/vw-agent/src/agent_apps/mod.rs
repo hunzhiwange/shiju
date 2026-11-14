@@ -22,3 +22,6 @@ pub mod usage_settings;
 mod usage_settings_tests;
 
 pub mod prompts_store;
+
+#[cfg(target_os = "macos")]
+pub mod shared_snapshot;

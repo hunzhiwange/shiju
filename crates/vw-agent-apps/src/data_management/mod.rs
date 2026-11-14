@@ -47,3 +47,7 @@ mod backup_rename_tests;
 pub mod locations;
 #[cfg(all(test, target_os = "macos"))]
 mod locations_tests;
+
+pub mod preview;
+#[cfg(test)]
+mod preview_tests;

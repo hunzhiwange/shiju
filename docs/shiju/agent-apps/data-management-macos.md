@@ -102,3 +102,11 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 实现 `data_management::locations::list_locations`，执行端提供已授权且仅含当前租户/项目/主机数据的四个根目录及作用域；不从 HOME 自动发现，不接收客户端路径，不返回本机路径。十四类白名单沿用来源分类及文件匹配规则，缺失类别保留零值。目录分类统计顶层条目、递归普通文件字节与最新文件修改时间，忽略 `.DS_Store` 和子项符号链接；绝对路径逐级打开、描述符相对遍历，不跟随祖先或类别目录链接，权限/枚举/读取元数据失败显式错误，递归深度上限 128。数据库分类沿用任务 23 的原生作用域过滤归档列表、大小与归档创建时间，不另扫旧数据库。该列表原有的无法确定归属归档省略语义继续保留；其它分类只允许执行端已隔离目录，不扫描混合租户旧根目录。
 
 新增独立测试 `cc_data_30_locations_measures_whitelisted_categories`、`cc_data_30_locations_does_not_follow_symlink`，通过 macOS 父模块注册。按本轮用户覆盖要求，未运行 Cargo、单元测试或实机验收；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。仅完成代码与静态审阅，不能视为验证通过。统一回归需执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_30_ -- --nocapture`，并补权限失败、全部分类匹配与真实备份列表集成场景。
+
+## 子任务 7：选择与冲突预览（2026-11-14，仅实现）
+
+新增 `data_management/preview.rs::{build_preview,ImportPreview::resolve}`，父模块注册独立 `preview_tests.rs`。只将选中类别传给只读领域规范化适配器；复用 portable_policy 的 CrossDevice 过滤后比较，输出新增、不同、相同、无效引用，不输出载荷、名称或字段指针。不透明 UUID 将决策限制在当前预览；不同项必须显式 skip/replace，无效引用只能 skip；重复、多余决策拒绝。来源完整摘要（含 WAL）、目标修订和 SourceScope 绑定，准备执行时重新核对。无文件或数据库写入。
+
+这是供后续逐类别迁入任务消费的预览核心，并非已接通 API 或七类目标存储。领域适配器负责解析、身份匹配与引用校验，必须在同一目标一致性边界捕获 revision，执行者在锁/CAS 内重验并重新授权；未支持类别返回 UnsupportedCategory。未实现 keep_both，不将 DTO 可表达能力当作业务支持。
+
+按本轮用户覆盖要求：未执行 Cargo、编译、单元测试、实机测试；未领取槽位，CARGO_TARGET_DIR 未设置，无退出码或有效测试数通过证据。新增两项静态测试代码，待统一回归执行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_07_ -- --nocapture`。静态实现不能证明运行行为，任务卡按本轮要求删除。

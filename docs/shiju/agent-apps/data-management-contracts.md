@@ -104,3 +104,7 @@ macOS 私有文件实现为 `backup_create_files.rs`：已存在的执行主机 
 ## 子任务 5：暂存副本升级落点
 
 唯一桥为 `data_management/source_upgrade.rs`，由 `source.rs::read_sqlite` 的私有临时文件和 `sql_stage.rs::stage_sql` 的内存连接调用；均在提取记录前升级。支持 schema 18–24，较旧版本显式拒绝，未来版本拒绝；不注册宿主存储迁移器、不运行来源 create_tables。摘要 version 为升级后的版本，SHA-256 仍绑定原输入。JSON 保持原解析路径。本轮仅实现，未编译或执行测试，详见 macOS 记录子任务 5。
+
+## 子任务 7：只读预览落点
+
+唯一实现 `data_management/preview.rs` 使用既有 SourceSnapshot、SourceScope 和 portable_policy；`build_preview` 接收所选类别与只读领域规范化闭包，未支持类别必须明确失败。领域输入不实现 Debug/Serialize，显示结果只含 UUID、类别、四类差异和排除计数。`ImportPreview::resolve` 校验来源摘要、身份及目标 revision，拒绝未决冲突、未知或重复决策，无效引用仅可跳过。仅支持 skip/replace；keep_both 不支持。目标读取、引用校验和锁/CAS 仍归对应领域所有者，后续消费任务接线；本函数不声明已覆盖七类迁入、API 或事务执行。当前未运行 Cargo 或测试。

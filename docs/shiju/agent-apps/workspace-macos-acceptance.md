@@ -154,3 +154,9 @@ OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改�
 应用详情复用现有目录、项目/租户/主机/令牌上下文，通过 hermes_dashboard SDK 探测、确认启动、查询进度及取消；服务端确认在线后才打开其返回的 HTTP(S) loopback URL。远程网关或非本地主机明确拒绝，无 localhost 回退。异步响应校验上下文、项目、主机、目录代次与请求代次，切换连接失效；启动后持续重新探测，轮询有界，操作 ID 保留供查询或取消。无深层配置编辑器、命令转发或新权限。
 
 静态核对来源 useHermes.ts、api/hermes.ts、App.tsx，接口边界、来源映射及任务 1 正式合同索引，任务 28 正式条目和实际 API/SDK。依用户本轮要求仅写代码和只读审查，未执行 Cargo、任何测试或最终回归，不声称编译、渲染或行为通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除。建议后续统一验证离线重试、取消、过期响应、权限拒绝与明暗主题实际渲染。
+
+## 任务 14：Hermes 记忆与模型路由（2026-11-14）
+
+新增固定 memory/{kind} GET/PUT、memory-limits GET、memory/{kind}/enabled PUT 和 model GET。注册沿现有 Hermes dashboard 的 agent_apps 子模块入口；未增加 model 写端点。新增管理员策略 hermes_memory_read/hermes_memory_write 项目 ID 白名单，复用认证租户、令牌与主机分派，默认拒绝；写权限不隐含读权限。双文件复用 HermesMemory，配置读写复用 Hermes 原生 reader、HermesFiles 与 ProviderTransactions；开关提交前重验授权并保留恢复/冲突状态。供应商领域补充 model_snapshot 白名单投影，排除凭据和 URL。
+
+静态核对任务 1 合同、任务 12/13 产物及来源 get_hermes_model_config；新增 hermes_api_isolates_memory 测试源码，覆盖无权限、跨项目/租户/主机拒绝、真实双记忆和 YAML 回读、模型敏感字段排除。按本轮要求未运行 Cargo 或任何测试，不声明编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除；建议统一验证上述测试族和 HTTP 集成。

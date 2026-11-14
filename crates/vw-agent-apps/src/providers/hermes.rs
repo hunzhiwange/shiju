@@ -492,3 +492,16 @@ impl HermesFiles {
         )
     }
 }
+
+/// Allowlisted read-only model projection. Native configuration stays private.
+pub fn model_snapshot(pre: Option<&[u8]>) -> Result<Option<vw_api_types::hermes_memory::HermesModelSnapshot>, WriteError> {
+    let document = document(pre)?;
+    let Some(model) = document.get("model").filter(|v| !v.is_null()) else { return Ok(None) };
+    if !model.is_object() { return invalid(); }
+    Ok(Some(vw_api_types::hermes_memory::HermesModelSnapshot {
+        default: model.get("default").and_then(Value::as_str).map(str::to_owned),
+        provider: model.get("provider").and_then(Value::as_str).map(str::to_owned),
+        context_length: model.get("context_length").and_then(Value::as_u64),
+        max_tokens: model.get("max_tokens").and_then(Value::as_u64),
+    }))
+}

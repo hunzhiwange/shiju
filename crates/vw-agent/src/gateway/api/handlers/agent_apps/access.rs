@@ -99,6 +99,10 @@ struct Grant {
     #[serde(default)]
     hermes_dashboard: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    hermes_memory_read: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    hermes_memory_write: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     identities: Vec<IdentityPermit>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
@@ -626,6 +630,7 @@ pub(super) fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     HermesDashboard(&'a vw_api_types::id::ProjectId),
+    HermesMemory(&'a vw_api_types::id::ProjectId, bool),
     UsageRead(&'a vw_api_types::apps_usage::UsageSnapshotQuery),
     #[cfg(target_os = "macos")]
     UsageScript(&'a UsageSnapshotQuery, UsageScriptAction),
@@ -939,6 +944,7 @@ fn authorize_digest(
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
                     Capability::Launch => g.launch,
+                    Capability::HermesMemory(project, write) => if write { g.hermes_memory_write.contains(project) } else { g.hermes_memory_read.contains(project) },
                     Capability::HermesDashboard(project) => g.launch && g.hermes_dashboard.contains(project),
                     Capability::ProviderConfigRead => g.provider_config_read,
                     #[cfg(target_os = "macos")]
@@ -1786,4 +1792,13 @@ pub(super) fn authorize_hermes_dashboard(
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::HermesDashboard(project.project_id()))
         .map(|a| (a.host, a.principal))
+}
+
+/// Explicit project memory grants; dashboard/provider grants do not imply access.
+pub(super) fn authorize_hermes_memory(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::id::ProjectScope,
+    target: &str, write: bool,
+) -> Result<Host, StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::HermesMemory(project.project_id(), write)).map(|a| a.host)
 }

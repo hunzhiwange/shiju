@@ -43,6 +43,7 @@ pub(crate) fn router() -> Router {
         let policy = std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(std::path::PathBuf::from);
         router
             .merge(hermes_dashboard::router())
+            .merge(hermes_memory::router())
             .merge(apps_usage_refresh::router_with_policy(policy.clone()))
             .merge(apps_usage_script::router_with_policy(policy))
     };
@@ -610,3 +611,7 @@ pub(super) use access::authorize_mcp_acp_read;
 #[cfg(target_os = "macos")]
 #[path = "../hermes_dashboard.rs"]
 mod hermes_dashboard;
+
+#[cfg(target_os = "macos")]
+#[path = "../hermes_memory.rs"]
+mod hermes_memory;

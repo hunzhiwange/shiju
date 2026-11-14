@@ -8,3 +8,4 @@ pub mod archive_extract;
 pub mod webdav_url;
 pub mod s3_signing;
 pub mod webdav_transport;
+pub mod conflict;

@@ -11,3 +11,6 @@ pub mod export;
 
 #[cfg(target_os = "macos")]
 pub mod import;
+
+#[cfg(target_os = "macos")]
+pub mod apply;

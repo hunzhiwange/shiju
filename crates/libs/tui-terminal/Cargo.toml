@@ -2,7 +2,7 @@
 name = "tui-terminal"
 version = "0.6.0"
 edition = "2024"
-license = "Apache-2.0"
+license = "Apache-2.0 AND MIT"
 
 [lib]
 doctest = false
@@ -15,9 +15,12 @@ ratatui = { version = "0.30.2", features = [
 ] }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
 libc = "0.2"
+tracing = "0.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
 
 [dev-dependencies]
+insta = "1.46.3"
+vt100 = "0.16.2"
 pretty_assertions = "1.4.1"

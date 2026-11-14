@@ -1,9 +1,9 @@
 //! VibeWindow terminal lifecycle built from the copied Codex TUI boundary.
 //!
-//! The rendering backend remains in `custom_terminal`; this module owns only the
+//! The rendering backend is provided by `tui-terminal`; this module owns only the
 //! process terminal modes that must always be restored, including error and panic paths.
 //!
-//! v3 终端生命周期建立在复制的 Codex TUI 边界之上；绘制后端仍属于 `custom_terminal`，
+//! v3 终端生命周期建立在复制的 Codex TUI 边界之上；绘制后端由 `tui-terminal` 提供，
 //! 本模块只负责原始模式、光标、括号粘贴、鼠标和屏幕缓冲区的成对启停，错误与 panic 路径也必须恢复。
 
 use std::io;

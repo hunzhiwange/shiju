@@ -320,8 +320,7 @@ mod clipboard_image;
 mod color;
 #[allow(dead_code)]
 mod custom_terminal;
-#[allow(dead_code)]
-pub mod diff_model;
+pub use tui_contracts::diff_model;
 #[allow(dead_code)]
 mod diff_render;
 #[allow(dead_code)]

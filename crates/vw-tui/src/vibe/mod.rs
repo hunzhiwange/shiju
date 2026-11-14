@@ -3,8 +3,7 @@
 //!
 //! 动作、展示事件与根表面在此分层导出，避免 UI 直接依赖运行时协议。
 
-pub mod action;
-pub mod event;
+pub use tui_contracts::{action, event};
 pub mod surface;
 
 #[cfg(test)]

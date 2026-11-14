@@ -5,6 +5,9 @@ use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
+use vw_agent_apps::project_profiles::snapshot::{SnapshotReadFailure, SnapshotScope};
+use vw_api_types::app_providers::mode_state::ProviderModeStatus;
+use vw_api_types::project_profiles::ProjectProfileSkillRef;
 use vw_api_types::id::{ProjectScope, TenantScope};
 use vw_api_types::project_profiles::{ProjectProfile, ProjectProfileId, ProjectProfileScope};
 
@@ -44,6 +47,30 @@ impl ProjectProfileStore {
             settings: GatewaySettingsStore::new(database)?,
             execution_host_id,
         })
+    }
+
+    /// Called on the authorized executor with domain readers for the same scope.
+    /// Creation only inserts an entity; existing host/group pointers are preserved.
+    pub(crate) fn create_from_current<P, M, S, R>(
+        &self,
+        name: &str,
+        scope: &SnapshotScope<'_>,
+        read_provider: P,
+        read_mcp: M,
+        read_skills: S,
+        read_prompt: R,
+    ) -> Result<ProjectProfile>
+    where
+        P: FnOnce(&SnapshotScope<'_>) -> Result<ProviderModeStatus, SnapshotReadFailure>,
+        M: FnOnce(&SnapshotScope<'_>) -> Result<Vec<String>, SnapshotReadFailure>,
+        S: FnOnce(&SnapshotScope<'_>) -> Result<Vec<ProjectProfileSkillRef>, SnapshotReadFailure>,
+        R: FnOnce(&SnapshotScope<'_>) -> Result<Option<String>, SnapshotReadFailure>,
+    {
+        ensure!(scope.target_host_id == self.execution_host_id, "profile host requires executor dispatch");
+        vw_agent_apps::project_profiles::create::create_from_current(
+            name, scope, read_provider, read_mcp, read_skills, read_prompt,
+            |profile| self.save(scope.project.tenant_scope(), profile, None),
+        ).map_err(|error| anyhow::anyhow!("{error}"))
     }
 
     /// Stable ID ordering is independent of database provider or insertion order.

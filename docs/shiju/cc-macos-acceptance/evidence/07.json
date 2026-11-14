@@ -1,0 +1,656 @@
+{
+  "schema_version": 1,
+  "task": 7,
+  "title": "余额套餐额度与查询脚本",
+  "date": "2026-11-14",
+  "status": "deferred_by_user_not_accepted",
+  "scope": "仅 macOS；本轮仅生成必要持久记录，不执行核证或行为验证。",
+  "instruction_override": "最新用户指令覆盖原卡完成门槛；纯验证任务跳过并删除编号卡，验证以后统一执行，不计通过。",
+  "baseline": {
+    "record_commit": "1f2169c981f8144480c01802bb1eac328744ad50",
+    "product_artifact_hash": null,
+    "note": "共享 checkout 存在其他任务变更；记录提交不是冻结运行版本。未采集产品树差异或运行快照。"
+  },
+  "inputs": [
+    {
+      "path": "docs/shiju/cc-macos-acceptance/inventory.json",
+      "sha256": "9d89b0b81e2e8242dedde32b2d0e0b5823e56e042e74ccb4e9088da709a2a046",
+      "status": "read_only_document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+      "sha256": "51a870079c4f2c3abb109e43c6b3ef64504b693fec37165371491d01a5915c50",
+      "status": "read_only_document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-macos-acceptance/evidence/01.json",
+      "sha256": "a3e3d3e75312c6c793bc1bdc2a0ad026df276bc186bdad2200fa0d3079fab755",
+      "status": "read_only_document_not_behavior_evidence"
+    },
+    {
+      "path": "docs/shiju/cc-convergence/usage.md",
+      "sha256": "d3ea0d7d42b3875461aa239b9cefd45ef9042da36089eb00760fad6f31168c4d",
+      "status": "read_only_document_not_behavior_evidence"
+    }
+  ],
+  "dependency_gaps": [
+    {
+      "owner": 7,
+      "detail": "母任务7原编号卡不存在；inventory 指向 usage.md，但该文为用量价格唯一入账路径说明，明确余额/套餐职责不同，不能替代余额套餐查询脚本逐来源实现、API、SDK及测试映射。缺失映射须由母7补交，不在本轮重建能力。"
+    },
+    {
+      "owner": 22,
+      "detail": "runtime-contract 状态 prepared_unverified_not_executable，已验证入口、产物、隔离资源均未交付可执行证据；母7与母22需交付当前基线绑定合同。"
+    }
+  ],
+  "source_selection": {
+    "basis": "inventory entries 的 owner_ref=7 或 owner_refs 包含7；包括注册交叉候选。仅准备后续工作，不证明来源完整性，母任务额外交叉项因映射缺失尚未确认。",
+    "candidate_count": 47,
+    "coverage_validation": "deferred"
+  },
+  "items": [
+    {
+      "source_key": "file:docs/images/claude-official-accounts/prompts/01-cover-claude-subscriptions.md",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/balance.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/coding_plan.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/commands/subscription.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/proxy/codex_quota_protection.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/agy_account/quota.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/balance.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/coding_plan.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/subscription.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/subscription_agy.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/services/subscription_grok.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src-tauri/src/usage_script.rs",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/AgyAccountQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/ClaudeAccountQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/CodexOauthAccountQuota.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/CodexOauthQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/CopilotQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/KimiAccountQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/SubscriptionQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/XaiOauthQuotaFooter.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/quota/QuotaBreakdown.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/quota/QuotaLines.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/quota/quotaRules.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/quota/useQuotaDisplay.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/settings/CodexQuotaProtectionSettings.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/settings/auth/AccountQuota.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/components/settings/auth/RefreshAllQuotaButton.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/config/codingPlanProviders.test.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/config/codingPlanProviders.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/lib/api/subscription.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/lib/managedAccountUsage.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/lib/query/subscription.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:src/types/subscription.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/components/CodexQuotaProtectionSettings.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/components/KimiAccountQuotaFooter.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/components/QuotaLines.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/components/SubscriptionQuotaFooter.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/components/quotaRules.test.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/hooks/useClaudeAccountQuota.test.tsx",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "file:tests/lib/managedAccountUsage.test.ts",
+      "kind": "file",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/balance.rs:3:get_balance",
+      "kind": "command",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/coding_plan.rs:3:get_coding_plan_quota",
+      "kind": "command",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "command:src-tauri/src/commands/subscription.rs:18:get_subscription_quota",
+      "kind": "command",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "event:src-tauri/src/commands/subscription.rs:35:usage-cache-updated",
+      "kind": "event",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "registration:get_subscription_quota",
+      "kind": "registration",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/subscription.rs:18:get_subscription_quota"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "registration:get_coding_plan_quota",
+      "kind": "registration",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/coding_plan.rs:3:get_coding_plan_quota"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    },
+    {
+      "source_key": "registration:get_balance",
+      "kind": "registration",
+      "owner_refs": [
+        "7"
+      ],
+      "candidate_source_keys": [
+        "command:src-tauri/src/commands/balance.rs:3:get_balance"
+      ],
+      "status": "unverified",
+      "evidence": null,
+      "gap_owner": 7,
+      "reason": "按用户指令延期核证；余额、套餐、额度、查询脚本的当前等价入口、macOS适用性、API权限错误、SDK及测试证据均未验证。"
+    }
+  ],
+  "verification": {
+    "status": "not_run_by_user_instruction",
+    "effective_behavior_cases": 0,
+    "passed": null,
+    "failed": null,
+    "commands": [],
+    "exit_codes": null,
+    "format_check": "not_run",
+    "cargo_build_unit_runtime_acceptance_regression": "not_run",
+    "pending": [
+      "JSON格式及独立来源完整性检查",
+      "母7补交余额套餐额度与查询脚本逐来源映射、额外交叉项及已交付查询契约",
+      "逐项核证API权限/错误、SDK、脚本执行边界、缓存与失败行为的现有证据及当前适用性",
+      "母22绑定产品提交、差异、产物哈希、macOS版本、架构和应用版本后组织统一验证；缺账号或主机仍记未验证"
+    ]
+  },
+  "environment": {
+    "macos_version": null,
+    "architectures": {
+      "arm64": "unverified",
+      "x64": "unverified"
+    },
+    "application_versions": null
+  },
+  "cleanup": {
+    "runtime_resources_created": false,
+    "credentials_accessed": false,
+    "result": "无本任务运行资源；按最新用户指令删除任务7编号卡，持久保留本JSON。"
+  },
+  "acceptance": {
+    "passed": false,
+    "note": "本轮可实施持久产物已落地；真实能力与执行契约缺口保留，延期不代表验收通过或上游不支持。"
+  }
+}

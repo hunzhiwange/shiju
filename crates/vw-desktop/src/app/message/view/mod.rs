@@ -611,6 +611,7 @@ pub enum ViewMessage {
     UsageTurnStepRawOpen(String, u32),
     /// 关闭使用量步骤原始记录弹窗
     UsageStepRawClose,
+    UsageCenter(crate::app::views::usage::center::Event),
     /// 打开聊天中点击的绝对路径。
     OpenChatPath(String),
     ChatPathKindResolved {
@@ -688,6 +689,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::OpenAcpSettings | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::GoHome | ViewMessage::TabSelected(_) | ViewMessage::TabClosed(_)) {
+        app.usage_center.close();
         app.apps_catalog.external_sessions.cancel_reader();
     }
 
@@ -1105,6 +1107,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::UsageStepRawOpen(_)
         | ViewMessage::UsageTurnStepRawOpen(_, _)
         | ViewMessage::UsageStepRawClose
+        | ViewMessage::UsageCenter(_)
         | ViewMessage::OpenChatPath(_)
         | ViewMessage::ChatPathKindResolved { .. }
         | ViewMessage::OpenPathInFinder(_)

@@ -17,6 +17,7 @@ use iced::Element;
 
 use crate::app::{App, Message};
 
+pub mod center;
 mod components;
 mod data;
 mod layout;
@@ -52,6 +53,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let usage_data = data::UsageData::from_app(app);
     // 使用提取的数据构建完整的使用统计视图布局
     let content: Element<'_, Message> = iced::widget::column![
+        center::view(app),
         external_usage_entry(),
         layout::build_usage_view(app, &usage_data),
     ]

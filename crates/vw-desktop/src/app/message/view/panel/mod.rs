@@ -163,6 +163,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::UsageTurnStepRawLoaded(_, _, _, _)
         | ViewMessage::UsageStepRawOpen(_)
         | ViewMessage::UsageTurnStepRawOpen(_, _)
+        | ViewMessage::UsageCenter(_)
         | ViewMessage::UsageStepRawClose => usage::update(app, message),
 
         ViewMessage::OpenWebUrl(_)

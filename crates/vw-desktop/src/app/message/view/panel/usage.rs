@@ -29,6 +29,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         message => message,
     };
     match message {
+        ViewMessage::UsageCenter(event) => crate::app::views::usage::center::update(app, event),
         ViewMessage::UsageModelInfoLoaded(info) => {
             app.usage_model_info = info;
             Task::none()

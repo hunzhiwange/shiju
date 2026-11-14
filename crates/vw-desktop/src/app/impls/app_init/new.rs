@@ -415,6 +415,7 @@ impl App {
             trajectory_raw_attempts: std::collections::HashMap::new(),
             trajectory_raw_errors: std::collections::HashMap::new(),
             usage_model_info: None,
+            usage_center: Default::default(),
             usage_step_expanded: std::collections::HashSet::new(),
             usage_step_raw_payloads: std::collections::HashMap::new(),
             usage_step_raw_loading: std::collections::HashSet::new(),

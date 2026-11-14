@@ -87,6 +87,7 @@ pub(crate) enum NativeStartupState {
 
 #[allow(dead_code)]
 pub struct App {
+    pub(crate) usage_center: crate::app::views::usage::center::state::State,
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) voice: crate::app::message::voice::State,
     pub(crate) git_repository: crate::app::components::git_panel::repository_ops::RepositoryState,

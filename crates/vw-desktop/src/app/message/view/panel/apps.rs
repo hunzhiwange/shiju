@@ -63,6 +63,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::OpenUsage => {
+            app.usage_center.close();
             let id = "usage".to_string();
             let insert_at =
                 if app.open_tabs.first().map(|t| t.id.as_str()) == Some("home") { 1 } else { 0 };

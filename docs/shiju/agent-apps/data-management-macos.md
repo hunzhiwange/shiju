@@ -375,3 +375,88 @@ policy 在 GatewaySettingsStore 的 data_backup_policy 命名空间持久化，�
 本轮用户覆盖仅允许实现：未运行任何 Cargo、格式化、间接构建脚本、单元测试、实机、字体渲染或最终回归。无有效测试数、退出码、通过输出、运行期 API/SDK 响应和数据前后差异证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无自有构建进程或锁需要清理。按要求删除编号任务卡仅表示实现交付，不表示 macOS 验收通过。
 
 后续经 scripts/cargo_slot.py 入口运行 cargo test -j 1 -p vw-agent --lib cc_data_46_ -- --nocapture，确认两项实际执行通过。还须补源与精确写前回退同时保护、定时备份脱离页面、分类清理边界与部分失败、跨项目/主机拒绝、SDK 结果及匿名差异。当前网关仅接完整偏好恢复，不能外推七类闭环。按母计划人工验收真实 macOS 明暗主题、长列表、中文字体整形与目录定位；本轮均未启动。
+
+
+## 子任务 47：静态来源与交付审计（2026-11-14）
+
+**仅完成静态交付，不声明可验收。** 用户覆盖要求禁止 Cargo、测试、实机与字体渲染；本节只阅读来源、实现和正式记录，核对来源文件 SHA-256 与母清单一致（13/13），命令候选 14 项。编号卡删除仅表示本项静态文档工作结束，不能视作母任务18完成。只读 plan.md 与历史来源清单保持原样，未读取真实用户数据。
+
+下表实现名相对 `crates/vw-agent-apps/src/data_management/`；网关相对 `crates/vw-agent/src/gateway/api/handlers/agent_apps_data/`；SDK 相对 `crates/vw-gateway-client/src/client/agent_apps_data/`；桌面视图相对 `crates/vw-desktop/src/app/components/system_settings_data/`，消息处理在 `app/message/settings/data_management/`。这些是源码落点，均非运行证据。
+
+### 13 个主责来源文件
+
+| 来源（相对 cc-switch） | 当前实现/证据落点 | 状态 |
+| --- | --- | --- |
+| `src-tauri/src/commands/import_export.rs` | 业务 source/sql_stage/package_import/export；网关 migration_read_api/migration_write_api/data_aux_api；SDK migration_sdk；桌面 migration_preview_ui/migration_apply_ui/export_ui | 哈希一致；行为未验证 |
+| `src-tauri/src/database/backup.rs` | 业务 source_upgrade/backup_create/backup_list/backup_rename/backup_delete/backup_restore/recovery/retention/periodic；网关 backup_crud_api/backup_restore_api | 哈希一致；行为未验证 |
+| `src-tauri/src/services/backup_storage.rs` | 业务 locations/location_delete；网关 data_aux_api；SDK backup_sdk；桌面 locations_ui | 哈希一致；行为未验证 |
+| `src-tauri/tests/import_export_sync.rs` | 业务 post_import；网关 migration_write_api；migration_acceptance_tests（未执行） | 哈希一致；行为未验证 |
+| `src/components/DatabaseUpgrade.tsx` | 业务 source_upgrade/recovery；网关 backup_restore_api；桌面 recovery_ui | 哈希一致；行为未验证 |
+| `src/components/settings/BackupListSection.tsx` | 网关 backup_crud_api/backup_restore_api；SDK backup_sdk；桌面 backup_list_ui/recovery_ui | 哈希一致；行为未验证 |
+| `src/components/settings/BackupStorageSection.tsx` | 网关 data_aux_api；SDK backup_sdk；桌面 locations_ui | 哈希一致；行为未验证 |
+| `src/components/settings/ImportExportSection.tsx` | 网关 migration_read_api/migration_write_api/data_aux_api；SDK migration_sdk；桌面 migration_preview_ui/migration_apply_ui/export_ui | 哈希一致；行为未验证 |
+| `src/hooks/useBackupManager.ts` | SDK backup_sdk；桌面 backup_list_ui/recovery_ui/locations_ui | 哈希一致；行为未验证 |
+| `src/hooks/useImportExport.ts` | SDK migration_sdk；桌面 migration_preview_ui/migration_apply_ui/export_ui | 哈希一致；行为未验证 |
+| `tests/components/ImportExportSection.test.tsx` | 桌面 export_ui_tests、迁入 UI（完整交互用例待补） | 哈希一致；行为未验证 |
+| `tests/hooks/useImportExport.extra.test.tsx` | migration_sdk_tests/migration_write_api_tests（非来源测试逐条等价证明） | 哈希一致；行为未验证 |
+| `tests/hooks/useImportExport.test.tsx` | migration_acceptance_tests/export_ui_tests（非来源测试逐条等价证明） | 哈希一致；行为未验证 |
+
+### 14 个命令候选（不代表注册或跨平台可用）
+
+| 来源命令 | 当前对应 | 限制与证据 |
+| --- | --- | --- |
+| export_config_to_file | export::export_portable_package → data_aux_api → migration_sdk → export_ui | 网关仅偏好 NativePackage；桌面 JSON 请求与此限制需联调，不能宣称导出闭环 |
+| import_config_from_file | source::read_selected_source/sql_stage/package_import → migration_read_api/migration_write_api → migration_sdk → migration_preview_ui/migration_apply_ui | 网关写入仅供应商；远程上传缺项 |
+| sync_current_providers_live | post_import → migration_write_api retry-projections | ProviderLive 当前返回失败；部分提交不能冒充成功 |
+| save_file_dialog | 桌面消息 export_ui，rfd | 对话框/取消/磁盘错误未实测 |
+| open_file_dialog | migration_preview_ui | 本机选择与远程受控传输闭环待验证，SDK不提供上传 |
+| open_zip_file_dialog | package_import/skills 归档校验 | 技能安装入口归母任务12，不宣称本项有等价安装能力 |
+| create_db_backup | backup_create::create_local_backup → backup_crud_api → backup_sdk → backup_list_ui | 当前网关仅捕获偏好，非整宿主库 |
+| list_db_backups | backup_list::list_local_backups → backup_crud_api → backup_sdk → backup_list_ui | 空、不可读、跨身份待测 |
+| restore_db_backup | backup_restore/recovery → backup_restore_api → backup_sdk → recovery_ui | 仅完整偏好恢复；refresh_required 尚需原生投影 |
+| rename_db_backup | backup_rename → backup_crud_api → backup_sdk → backup_list_ui | 修订冲突/保护待测 |
+| delete_db_backup | backup_delete → backup_crud_api → backup_sdk → backup_list_ui | 活跃恢复源保护待测 |
+| list_backup_locations | locations::list_locations → data_aux_api → backup_sdk → locations_ui | 要求管理员登记隔离根；无默认 HOME 扫描 |
+| delete_backup_location | location_delete::delete_location → data_aux_api → backup_sdk → locations_ui | database 禁删；skills/codexHistory* 缺所有者，明确 OwnerRequired/501 |
+| reveal_backup_location | locations::location_path → locations/resolve → SDK → locations_ui | 仅本机主机且 loopback 网关调用本地定位，远端不冒充本机；未实测 |
+
+### 交叉业务规则与缺项
+
+- schema/DAO：source/source_upgrade/sql_stage 仅读取暂存桥，支持 schema 18–24；领域写入沿用真实所有者，不能把来源 SQL 全库替换目标。SQL 与原生包核心存在不代表网关或桌面所有格式接通。
+- sync_support::run_post_import_sync 包含供应商、规则、价格、设置缓存、日志级别、用量缓存；本项目 post_import 有编排落点，但当前生产迁入的 ProviderLive 失败，未证明其余投影及缓存等价。来源 useImportExport 在导入后刷新再同步并保留 backupId；目标应保留 committed/partial 与回退 ID，不能由前端再全量同步抹掉部分失败。
+- 三个设置组件涵盖恢复二次确认、重命名/删除、清理确认、目录定位、导出取消与反馈；目标对应上述 UI。useBackupManager 创建/改名/删除后刷新列表和分类，恢复后全缓存失效，skills 清理还刷新技能备份。目标刷新与领域缓存协作尚未获运行证据，skills 清理当前明确不支持，不能以空结果替代。
+- DatabaseUpgrade 的升级/失败恢复 UI 对应 source_upgrade/recovery/recovery_ui；本项目不接 CC 更新下载源。来源有能力而目标尚未接通与来源范围外必须区分，不能把 501、失败投影或未测交互记为已覆盖。
+- 七类：providers、mcp、skills、prompts、profiles、preferences、usage 各有同名业务模块；生产网关仅供应商迁入，偏好导出/捕获/恢复。其余类别的完整 API→SDK→UI 正反向链路仍缺，跨类别回退和原生包重新迁入语义也未获证据。
+- 权限、租户/项目/主机/principal、源只读、选择/冲突/幂等、取消、回退、部分失败均有相关实现或测试代码，但没有运行通过证据。keep_both 当前预览不支持。跨后端、外部数据库、真实进程中断与跨类别恢复不能从 SQLite 局部测试代码外推。
+
+### 14 个备份分类逐项核对
+
+| 来源分类 ID | 当前静态状态（全部未验证） |
+| --- | --- |
+| `database` | 原生归档列表统计，整类禁删 |
+| `skills` | 已登记统计；删除缺领域所有者，OwnerRequired/501 |
+| `codexHistoryUnify` | 已登记统计；删除缺领域所有者，OwnerRequired/501 |
+| `codexHistoryUnifyRestore` | 已登记统计；删除缺领域所有者，OwnerRequired/501 |
+| `codexHistoryProviderMigration` | 已登记统计；删除缺领域所有者，OwnerRequired/501 |
+| `liveFirstWrite` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `hermes` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `openclaw` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `proxyLiveBackup` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `envVars` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `legacyConfigBackups` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `legacyConfigArchive` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `legacyDbUpgrade` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+| `legacyToolSearch` | 已登记作用域内统计/清理规则；边界与部分失败待测 |
+
+
+legacy 项仅处理明确授权隔离根中的现有文件；不扫描旧 HOME。分类数齐全只证明登记齐全，不证明各领域保护、缓存失效或清理语义已经完成。
+
+### 直接依赖与后续证据关口
+
+任务45的 migration_acceptance_tests.rs 注册两个 cc_data_45_ 测试，任务46的 backup_acceptance_tests.rs 注册两个 cc_data_46_ 测试。前者供应商事务/归档回读不等于包重新迁入；后者偏好恢复与直接所有者 retain=1 不等于网关保留策略闭环。两者均未执行：有效测试数、退出码、槽位、CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 和运行期差异证据均无，不能记为0失败或通过。
+
+恢复验证授权后，按前述45/46小节的仓库槽位入口分别运行 cc_data_45_ 与 cc_data_46_（本轮不执行），记录实际测试数、失败数、退出码及槽位；再补七类/格式、取消/部分失败/回退、权限与保护源的聚焦场景。缺失生产接线须先实现，不能仅靠重跑已有测试关闭缺项。任务40尚缺对应行为测试；隔离实机启动入口及其他未验证项继续以合同和本文件各节为准。
+
+人工 macOS 清单继续单列：保存/打开对话框取消、真实匿名备份维护与诊断、目录定位、明暗主题、长列表与中文字体整形；仅在完整隔离数据根与凭据根就绪后按母计划人工验收，不修改 HOME。本轮未启动服务、实机或最终回归，无自有构建槽位和进程待清理。
+
+本节静态检查：13个来源文件摘要与清单匹配，13文件/14命令/14分类逐项列出。文档差异检查 `git diff --check -- docs/shiju/agent-apps/data-management-macos.md .plans/2026-11-05-配置迁入导出备份与恢复/来源映射.md` 退出0；此退出码仅指文档空白检查，不提供编译、行为或平台通过证据。

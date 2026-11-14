@@ -1,0 +1,9 @@
+thread 'main' (99028066) panicked at /Users/xiangmin/.cargo/registry/src/rsproxy.cn-e3de039b2554c837/cosmic-text-0.15.0/src/glyph_cache.rs:100:18:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'main' (99028066) panicked at vendor/iced_winit/src/lib.rs:277:43:
+Send event: SendError { kind: Disconnected }
+
+thread 'main' (99028066) panicked at /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library/core/src/panicking.rs:225:5:
+panic in a function that cannot unwind

@@ -702,6 +702,20 @@ where
         node.move_to(position)
     }
 
+    fn overlay<'a>(
+        &'a mut self,
+        layout: Layout<'a>,
+        renderer: &RendererT,
+    ) -> Option<overlay::Element<'a, Message, ThemeT, RendererT>> {
+        self.overlay.as_widget_mut().overlay(
+            self.tree,
+            layout,
+            renderer,
+            &layout.bounds(),
+            Vector::ZERO,
+        )
+    }
+
     /// 处理 update 对应的局部职责。
     ///
     /// # 参数
@@ -739,6 +753,28 @@ where
             return;
         }
 
+        let bounds = layout.bounds();
+        let cursor_position = cursor.position();
+
+        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
+            && let Some(on_close) = &self.on_close
+            && let Some(cursor_position) = cursor_position
+            && (self.close_on_target_click || !self.target_bounds.contains(cursor_position))
+            && !bounds.contains(cursor_position)
+        {
+            shell.publish(on_close.clone());
+            if self.capture_outside_click {
+                shell.capture_event();
+            }
+        }
+
+        self.overlay
+            .as_widget_mut()
+            .update(self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds);
+
+        if shell.is_event_captured() {
+            return;
+        }
         if self.capture_keyboard
             && matches!(
                 event,
@@ -762,25 +798,6 @@ where
             shell.capture_event();
             return;
         }
-
-        let bounds = layout.bounds();
-        let cursor_position = cursor.position();
-
-        if let Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) = event
-            && let Some(on_close) = &self.on_close
-            && let Some(cursor_position) = cursor_position
-            && (self.close_on_target_click || !self.target_bounds.contains(cursor_position))
-            && !bounds.contains(cursor_position)
-        {
-            shell.publish(on_close.clone());
-            if self.capture_outside_click {
-                shell.capture_event();
-            }
-        }
-
-        self.overlay
-            .as_widget_mut()
-            .update(self.tree, event, layout, cursor, renderer, clipboard, shell, &bounds);
 
         if matches!(event, Event::Mouse(_))
             && let Some(cursor_position) = cursor_position
@@ -860,3 +877,7 @@ where
 #[cfg(test)]
 #[path = "point_below_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "point_below_controls_tests.rs"]
+mod controls_tests;

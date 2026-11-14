@@ -1,0 +1,93 @@
+editor-config-final-app-tests.log
+   Compiling vw-desktop v0.6.0 (<ShiJu>/crates/vw-desktop)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 38s
+     Running unittests src/lib.rs (target/rust-slot-3/debug/deps/vw_desktop-1db2608820d61a4a)
+
+running 6 tests
+test app::components::overlays::point_below::controls_tests::editor_config_popup_delivers_keyboard_to_focused_input ... ok
+test app::components::overlays::point_below::controls_tests::editor_config_popup_exposes_nested_picker ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_messages_change_real_editing ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_options_keep_settings_open ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_wrap_column_validates_active_instance ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_renders_chinese_and_runtime_wrap ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 9798 filtered out; finished in 0.42s
+
+
+editor-config-unicode-final-tests.log
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/iced_code_editor-69457ba44f796c90)
+
+running 17 tests
+test canvas_editor::wrap_settings_tests::editor_config_wrap_folds_and_font_resize_keep_layout_consistent ... ok
+test canvas_editor::indent_settings_tests::editor_config_indent_levels_cover_mixed_and_blank_lines ... ok
+test canvas_editor::option_behavior_tests::editor_config_option_folding_restores_hidden_lines ... ok
+test canvas_editor::wrap_settings_tests::editor_config_wrap_zero_normalizes_to_one_column ... ok
+test canvas_editor::wrap_settings_tests::editor_config_wrap_runtime_width_resize_selection_and_undo ... ok
+test canvas_editor::wrap_settings_tests::editor_config_wrap_toggle_preserves_text_and_coordinates ... ok
+test canvas_editor::option_behavior_tests::editor_config_option_auto_indent_changes_enter_and_undo ... ok
+test canvas_editor::indent_settings_tests::editor_config_indent_tab_messages_follow_style_and_undo ... ok
+test canvas_editor::wrap_settings_tests::editor_config_wrap_builder_invalidates_warm_drawing ... ok
+test canvas_editor::indent_settings_tests::editor_config_indent_toggles_change_real_commands_without_editing ... ok
+test canvas_editor::indent_settings_tests::editor_config_indent_style_invalidates_warm_geometry ... ok
+test canvas_editor::unicode_render_tests::editor_config_unicode_draws_cjk_glyphs_instead_of_blank_cells ... ok
+test canvas_editor::render::view::option_sticky_tests::editor_config_option_sticky_layer_tracks_scroll_toggle_and_folding ... ok
+test canvas_editor::indent_settings_tests::editor_config_indent_rendering_survives_wrap_fold_scroll_and_themes ... ok
+test canvas_editor::option_behavior_tests::editor_config_option_visual_toggles_round_trip ... ok
+test canvas_editor::option_behavior_tests::editor_config_option_vim_changes_navigation_insertion_and_cursor ... ok
+test canvas_editor::option_behavior_tests::editor_config_option_auto_brackets_pair_skip_surround_and_undo ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 663 filtered out; finished in 0.37s
+
+
+editor-config-unicode-bottom-clippy-final.log
+    Checking iced-code-editor v0.5.3 (<editor>/iced-code-editor)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.83s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+
+editor-config-host-final-build.log
+     Locking 1 package to highest Rust 1.99.1 compatible version
+      Adding iced-code-editor v0.5.4 (<v0.5.4-with-unicode-fix>/iced-code-editor)
+   Compiling vw-api-types v0.6.0 (<ShiJu>/crates/vw-api-types)
+   Compiling iced-code-editor v0.5.4 (<v0.5.4-with-unicode-fix>/iced-code-editor)
+   Compiling vw-gateway-client v0.6.0 (<ShiJu>/crates/vw-gateway-client)
+   Compiling vw-desktop v0.6.0 (<ShiJu>/crates/vw-desktop)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 3m 02s
+
+editor-config-host-final-clippy.log
+    Checking vw-acp v0.6.0 (<ShiJu>/crates/vw-acp)
+    Checking iced-code-editor v0.5.4 (<v0.5.4-with-unicode-fix>/iced-code-editor)
+    Checking vw-desktop v0.6.0 (<ShiJu>/crates/vw-desktop)
+    Checking vw-agent-apps v0.6.0 (<ShiJu>/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (<ShiJu>/crates/vw-agent)
+    Checking vw-cli v0.6.0 (<ShiJu>/crates/vw-cli)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 2m 04s
+
+editor-config-default-final-tests.log
+   Compiling vw-provider-resolver v0.6.0 (<ShiJu>/crates/vw-provider-resolver)
+   Compiling vw-gateway-client v0.6.0 (<ShiJu>/crates/vw-gateway-client)
+   Compiling vw-desktop v0.6.0 (<ShiJu>/crates/vw-desktop)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 50s
+     Running unittests src/lib.rs (target/rust-slot-6/debug/deps/vw_desktop-4e161c20c33bf980)
+
+running 6 tests
+test app::components::overlays::point_below::controls_tests::editor_config_popup_exposes_nested_picker ... ok
+test app::components::overlays::point_below::controls_tests::editor_config_popup_delivers_keyboard_to_focused_input ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_wrap_column_validates_active_instance ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_options_keep_settings_open ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_messages_change_real_editing ... ok
+test app::components::preview_panel::view::editor_options_tests::editor_config_app_renders_chinese_and_runtime_wrap ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 9800 filtered out; finished in 0.30s
+
+
+editor-config-default-final-clippy.log
+    Checking vw-acp v0.6.0 (<ShiJu>/crates/vw-acp)
+    Checking iced-code-editor v0.5.4 (https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.5.4#e8ec1e34)
+    Checking vw-desktop v0.6.0 (<ShiJu>/crates/vw-desktop)
+    Checking vw-agent-apps v0.6.0 (<ShiJu>/crates/vw-agent-apps)
+    Checking vw-agent v0.6.0 (<ShiJu>/crates/vw-agent)
+    Checking vw-cli v0.6.0 (<ShiJu>/crates/vw-cli)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 1m 40s

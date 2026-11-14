@@ -85,7 +85,9 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             if !app.apps_catalog.rows.iter().any(|row| row.entry.id == id) {
                 return Task::none();
             }
-            // Serialize observation retries; host/token changes still invalidate the generation.
+            // A retry is a new read: reject completions from every earlier request,
+            // including a catalog load that used the same host and credentials.
+            app.apps_catalog.generation = app.apps_catalog.generation.wrapping_add(1);
             app.apps_catalog.loading = true;
             let generation = app.apps_catalog.generation;
             let host = app.apps_catalog.host.clone();

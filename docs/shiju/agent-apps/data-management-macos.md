@@ -118,3 +118,21 @@ python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_22_
 来源 `database/backup.rs::cleanup_db_backups` 与 `settings.rs::effective_backup_retain_count`：默认 10，u32 配置的 0 归一为 1；负数及超过 u32 的输入明确拒绝。独立 `retention_tests.rs` 已注册，包含保护源/回退点、外作用域保持、0/1、非法值及同时间稳定排序测试代码，大小写别名分支仅在文件系统存在该别名时适用。
 
 按用户覆盖要求，本轮只实现，未运行 Cargo、编译、单元或实机测试，无通过证据、退出码或有效测试数；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。待统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_28_ -- --nocapture`。仅面向 macOS，网关、调度及恢复调用接线不在本项范围。
+
+## 子任务 20：可迁移数据包导出（2026-11-14）
+
+`data_management/export.rs::export_portable_package` 接收已授权 SafetySnapshotScope、显式类别和逐类别所有者捕获闭包；闭包必须按原租户/项目/principal/主机读取规范化对象并保持一致性锁，不支持类别返回错误。此项交付业务核心，未接网关、传输或七类生产捕获，不宣称端到端导出已验收。包内不记录来源作用域或路径，复用 portable_policy 的 CrossDevice 默认过滤（含凭据、路径、系统集成、执行权限与未知字段）；正文中的用户自由文本仍需所有者确认可公开，过滤器不是任意正文秘密检测器。
+
+复用既有 zip 依赖，固定 manifest.json/data.json 两条目，清单绑定格式版本 1、portable_export、完整类别与数据 SHA-256；回执另绑定整个包 SHA-256。verify_portable_package 拒绝额外条目、版本/类型/摘要不符、类别不一致、不安全字段及超限（64 MiB、10000 条）。不复制本机回退前镜像，不执行 SQL。
+
+macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 0600 隐藏临时文件，写入、同步、完整回读校验后 RENAME_EXCL 发布 UUID.shiju-package；拒绝覆盖，不接受客户端文件名。调用者必须在整个操作期间独占该导出目录；错误清理自有临时文件，发布后的目录同步错误清理自有结果。父模块已注册独立 export_tests.rs，覆盖成功脱敏/完整校验、损坏包、捕获失败、校验失败清理及覆盖冲突。
+
+遵从本轮用户覆盖要求：未运行 Cargo、编译、单元或实机测试；无退出码或有效通过数，不声明验证通过。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。待统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_20_ -- --nocapture`；还需生产所有者捕获和下载授权集成验证。
+
+## 子任务 28：按数量清理备份（2026-11-14）
+
+`data_management/retention.rs::cleanup_local_backups` 复用 `backup_list` 与 `backup_delete`，仅清理同租户/项目/principal/主机、结构有效的本机回退归档。按创建时间升序及 ID 升序裁决相同时间；保护源与回退点沿用 LocalBackup 持有的 inode 文件锁，受保护项可以使最终数量超过策略。不可解析或不支持的归档不参与计数、不自动删除；存储错误立即返回，先前删除可能已提交，调用方应重新列举。调用方应串行调度同一根的保留清理；此模块不提供批次原子事务。
+
+来源 `database/backup.rs::cleanup_db_backups` 与 `settings.rs::effective_backup_retain_count`：默认 10，u32 配置的 0 归一为 1；负数及超过 u32 的输入明确拒绝。独立 `retention_tests.rs` 已注册，包含保护源/回退点、外作用域保持、0/1、非法值及同时间稳定排序测试代码，大小写别名分支仅在文件系统存在该别名时适用。
+
+按用户覆盖要求，本轮只实现，未运行 Cargo、编译、单元或实机测试，无通过证据、退出码或有效测试数；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。待统一回归命令（未执行）：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_28_ -- --nocapture`。仅面向 macOS，网关、调度及恢复调用接线不在本项范围。

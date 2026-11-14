@@ -56,3 +56,10 @@ mod preview_tests;
 pub mod retention;
 #[cfg(all(test, target_os = "macos"))]
 mod retention_tests;
+
+#[cfg(target_os = "macos")]
+pub mod export;
+#[cfg(target_os = "macos")]
+mod export_files;
+#[cfg(all(test, target_os = "macos"))]
+mod export_tests;

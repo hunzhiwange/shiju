@@ -104,6 +104,9 @@ struct Grant {
     usage_refresh: Vec<UsageRefreshPermit>,
     #[serde(default)]
     usage_read: Vec<UsageReadPermit>,
+    /// Project-wide canonical ledger access, independent of balance and native history grants.
+    #[serde(default)]
+    usage_ledger_read_projects: Vec<vw_api_types::id::ProjectId>,
     #[cfg(target_os = "macos")]
     #[serde(default)]
     usage_settings_read: Vec<UsageReadPermit>,
@@ -713,6 +716,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    UsageLedgerRead(&'a vw_api_types::id::ProjectId),
     DeviceSyncProbe(&'a vw_api_types::id::ProjectId),
     DeviceSyncUpload(&'a vw_api_types::id::ProjectId),
     DeviceSyncDownload(&'a vw_api_types::id::ProjectId),
@@ -1061,6 +1065,7 @@ fn authorize_digest(
                     Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
                     Capability::ProjectProfilesMaintain(project) => g.project_profiles_maintain.contains(project),
                     Capability::ProjectProfiles(project, create) => if create { g.project_profiles_create.contains(project) } else { g.project_profiles_read.contains(project) },
+                    Capability::UsageLedgerRead(project) => g.usage_ledger_read_projects.contains(project),
                     Capability::ExternalHistory(project) => g.external_sessions_read.iter().any(|p| &p.project_id == project),
                     Capability::ExternalHistoryMaintenance(project) => g.external_sessions_maintenance.iter().any(|p| &p.project_id == project),
                     Capability::ExternalHistoryDelete(project) => g.external_sessions_delete.iter().any(|p| &p.project_id == project),
@@ -2456,4 +2461,14 @@ pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_ty
         }
     }
     Ok(targets)
+}
+
+/// Ledger records combine native and relay sources, so a native instance grant
+/// cannot authorize project-wide ledger queries.
+pub(in super::super) fn authorize_usage_ledger_read(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+) -> Result<(), StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), host, None,
+        Capability::UsageLedgerRead(project.project_id()))?;
+    Ok(())
 }

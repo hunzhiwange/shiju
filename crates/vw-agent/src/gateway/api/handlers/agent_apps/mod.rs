@@ -719,3 +719,5 @@ pub(super) use access::authorize_device_sync_download;
 pub(super) use access::usage_scan_targets;
 
 pub(super) use access::ExternalHistoryInstance;
+
+pub(super) use access::authorize_usage_ledger_read;

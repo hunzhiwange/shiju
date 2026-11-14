@@ -340,7 +340,15 @@ impl App {
         let gateway_health_tick =
             iced::time::every(gateway_health_interval).map(|_| Message::GatewayHealthTick);
 
+        let usage_center_tick = if self.usage_center.open && self.screen == crate::app::Screen::Usage {
+            iced::time::every(std::time::Duration::from_secs(60)).map(|_| {
+                Message::View(message::ViewMessage::UsageCenter(crate::app::views::usage::center::Event::Tick))
+            })
+        } else {
+            Subscription::none()
+        };
         Subscription::batch(vec![
+            usage_center_tick,
             cron_history_subscription(self),
             #[cfg(not(target_arch = "wasm32"))]
             iced::time::every(self.voice.hotkeys.interval())

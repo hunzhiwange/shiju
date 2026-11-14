@@ -1,9 +1,12 @@
 //! SDK-backed ledger entry; current-session details remain in the parent view.
 pub mod state;
+pub mod logs;
+pub mod groups;
+pub mod overview;
 use crate::app::{App, Message, message::ViewMessage};
 use iced::{Element, Task, widget::{button, column, row, text}};
 use vw_gateway_client::{UsageReadScope, UsageSummary};
-use vw_gateway_client::vw_api_types::usage::{UsageQuery, UsageRange, UsageFilter};
+use vw_gateway_client::vw_api_types::usage::UsageRange;
 use crate::app::state::agent_apps_auth::Scope;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,12 +26,28 @@ fn identity(app: &App) -> Option<Identity> {
 #[derive(Clone, Debug)]
 pub enum Event {
     Load(bool),
+    Refresh,
+    Logs(logs::Event),
+    Groups(groups::Event),
+    Tick,
+    Filter(overview::Change),
     Close,
     Loaded(u64, Identity, Result<UsageSummary, String>),
 }
 
 pub fn update(app: &mut App, event: Event) -> Task<Message> {
     match event {
+        Event::Logs(event) => return logs::update(app, event),
+        Event::Groups(event) => return groups::update(app, event),
+        Event::Filter(change) => {
+            overview::apply(&mut app.usage_center.query, change);
+            return update(app, Event::Refresh);
+        }
+        Event::Tick => {
+            if app.usage_center.open && app.screen == crate::app::Screen::Usage {
+                return update(app, Event::Refresh);
+            }
+        }
         Event::Close => app.usage_center.close(),
         Event::Loaded(ticket, scope, result) => {
             if app.usage_center.open && app.usage_center.loading
@@ -39,27 +58,30 @@ pub fn update(app: &mut App, event: Event) -> Task<Message> {
             }
         }
         Event::Load(all) => {
+            app.usage_center.query.range = if all { UsageRange::All } else { UsageRange::Rolling { seconds: 86400 } };
+            return update(app, Event::Refresh);
+        }
+        Event::Refresh => {
+            let query = app.usage_center.query.clone();
             let ticket = app.usage_center.begin();
+            let logs_task = logs::reset(app, query.clone());
             let Some(scope) = identity(app) else {
                 app.usage_center.loading = false;
                 app.usage_center.result = Some(Err("请选择项目与执行主机".into()));
                 return Task::none();
             };
+            let groups_task = groups::load(ticket, scope.clone(), query.clone(), "UTC".into());
             let client = crate::app::config::gateway_client();
-            return Task::perform(async move {
+            return Task::batch([groups_task, Task::perform(async move {
                 let result = async {
                     let client = client?;
-                    let query = UsageQuery {
-                        range: if all { UsageRange::All } else { UsageRange::Rolling { seconds: 86400 } },
-                        filter: UsageFilter::default(), cursor: None, limit: None,
-                    };
                     client.usage_summary(&UsageReadScope {
                         project_id: scope.project.clone().into(), target_host: scope.host.clone(),
                         time_zone: "UTC".into(),
                     }, &query).await.map_err(|e| e.to_string())
                 }.await;
                 (scope, result)
-            }, move |(scope, result)| Message::View(ViewMessage::UsageCenter(Event::Loaded(ticket, scope, result))));
+            }, move |(scope, result)| Message::View(ViewMessage::UsageCenter(Event::Loaded(ticket, scope, result))))]);
         }
     }
     Task::none()
@@ -70,21 +92,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let action = |label: &'static str, event| button(text(label).size(13)).padding([6, 10])
         .style(rounded_action_btn_style).on_press(Message::View(ViewMessage::UsageCenter(event)));
     let mut content = column![row![
-        action("全部用量 / 重试", Event::Load(true)),
+        action("刷新用量", Event::Refresh),
         action("最近24小时（UTC）", Event::Load(false)),
         action("关闭用量中心", Event::Close),
     ].spacing(8)].spacing(8);
     if app.usage_center.open {
+        content = content.push(overview::view(&app.usage_center.query));
         let label = if app.usage_center.loading { "正在加载用量…".into() } else {
             match &app.usage_center.result {
                 Some(Ok(summary)) if summary.counts.total_requests == 0 => "暂无用量".into(),
-                Some(Ok(summary)) => format!("请求 {} · 已知费用 {} USD · 未知费用请求 {}",
-                    summary.counts.total_requests, summary.known_cost_usd, summary.counts.unknown_cost_requests),
+                Some(Ok(summary)) => format!("请求 {} · 计费请求 {} · 成功 {} · 失败 {} · 已知费用 {} USD · 未知费用请求 {}",
+                    summary.counts.total_requests, summary.counts.billable_requests, summary.succeeded_requests, summary.failed_requests, summary.known_cost_usd, summary.counts.unknown_cost_requests),
                 Some(Err(error)) => format!("用量加载失败：{error}"),
                 None => "请选择用量范围".into(),
             }
         };
-        content = content.push(text(label).size(14));
+        content = content.push(text(label).size(14)).push(groups::view(app));
     }
     content.into()
 }

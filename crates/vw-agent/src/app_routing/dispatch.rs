@@ -141,6 +141,11 @@ pub(super) async fn forward_json(
         }
     };
 
+    let compact_v2 = app == AppId::Codex && !compact
+        && crate::model_relay::compaction_v2::is_request(&body);
+    if compact_v2 && !streaming {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
+    }
     if compact && streaming {
         return Err(StatusCode::UNPROCESSABLE_ENTITY.into());
     }
@@ -490,6 +495,13 @@ pub(super) async fn forward_json(
         } else {
             Protocol::Chat
         };
+        let body = if compact_v2 && native_responses
+            && !matches!(target.url.host_str(), Some("api.openai.com" | "chatgpt.com" | "chat.openai.com"))
+        {
+            crate::model_relay::compaction_v2::response_body(body, cancelled.clone())
+        } else {
+            body
+        };
         let body = if let Some(scope) = response_scope {
             crate::model_relay::native_responses::stream(body, Arc::clone(&route.references), scope)
         } else {
@@ -694,6 +706,9 @@ fn prepare_request_inner(
         let official = matches!(target.url.host_str(),
             Some("api.openai.com" | "chatgpt.com" | "chat.openai.com"));
         vw_agent_apps::routing::compaction_replay::prepare_native(&mut body, official);
+        if !official {
+            crate::model_relay::compaction_v2::prepare_native(&mut body)?;
+        }
     }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());

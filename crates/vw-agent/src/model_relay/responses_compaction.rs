@@ -5,7 +5,7 @@ use axum::{body::Body, http::StatusCode};
 use serde_json::{Map, Value, json};
 use tokio_util::sync::CancellationToken;
 
-const PROMPT: &str = "You are performing a CONTEXT CHECKPOINT COMPACTION. Create a handoff summary for another LLM that will resume the task.
+pub(super) const PROMPT: &str = "You are performing a CONTEXT CHECKPOINT COMPACTION. Create a handoff summary for another LLM that will resume the task.
 
 Include:
 - Current progress and key decisions made
@@ -60,7 +60,7 @@ impl Request {
             return Err(StatusCode::BAD_REQUEST);
         }
         let compact = triggers == 1;
-        if compact && (body["stream"] != true || anthropic) {
+        if compact && (body["stream"] != true) {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         if compact {
@@ -129,7 +129,14 @@ impl Request {
     pub(crate) fn response_body(self, body: Body, cancel: CancellationToken) -> Body {
         let history = self.history;
         let body = if self.anthropic {
-            super::responses_anthropic_stream::response_body(body, self.model, self.tools, cancel)
+            let body = super::responses_anthropic_stream::response_body(
+                body, self.model, self.tools, cancel.clone(),
+            );
+            if self.compact {
+                super::compaction_v2::response_body(body, cancel)
+            } else {
+                body
+            }
         } else if self.compact {
             super::responses_stream::codex_chat_body(body, self.model, self.tools, true, cancel)
         } else {

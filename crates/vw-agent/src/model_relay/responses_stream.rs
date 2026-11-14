@@ -267,7 +267,8 @@ impl Decoder {
             Some("stop") => None,
             Some("length") => Some("max_output_tokens"),
             Some("content_filter") => Some("content_filter"),
-            _ => return Err(StatusCode::BAD_GATEWAY),
+            Some(reason) => Some(reason),
+            None => return Err(StatusCode::BAD_GATEWAY),
         };
         if let Some(reason) = incomplete {
             response["status"] = "incomplete".into();

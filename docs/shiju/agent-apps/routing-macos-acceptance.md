@@ -1227,3 +1227,10 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 新增 model_relay::compaction，识别 /responses/compact、/v1/responses/compact、/v1/v1/responses/compact、/codex/v1/responses/compact、/grokbuild/v1/responses/compact；dispatch 从同一已选原生 Responses 目标派生 compact URL，复用模型映射、凭据解析、出口及作用域校验。Chat/Messages/Gemini 目标明确拒绝，不伪造摘要。压缩只接受非流式请求（包括覆盖后的最终请求），响应复用有界解压和容量释放，保留原生 JSON 内容与 HTTP 状态，仅成功响应登记引用。压缩不进入签名自动修复重放，避免改写原生压缩状态；旧会话 relay 不变。
 
 按本次用户覆盖要求只交付代码，不新增或运行测试，不运行 Cargo/相关脚本、实机或最终回归。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无验证通过证据。后续统一验证需覆盖五个别名、原生及 OAuth 目标路径/身份、模型映射、非支持 provider 拒绝、覆盖后 stream 拒绝、引用作用域、HTTP 错误与原生 compaction 密文/状态保留。macOS 待验收，其它平台范围外。编号任务文件按要求删除，不代表母任务8完成。
+
+
+### 任务78：V2压缩请求与流（源码已实现，未验证）
+
+2026-11-14：任务77的 compaction_replay、公共传输及可信作用域代码已存在；来源采用冻结 upstream codex_compaction.rs 和 handlers.rs。仅确认源码前置，不推定外部实机验收通过。常驻 dispatch 识别 compaction_trigger，第三方原生 Responses 生成禁用工具选择的摘要请求；Chat 复用既有摘要流，Anthropic 复用既有转换后生成可重放 compaction 条目。官方目标继续原生协议。incomplete 保留原原因，空摘要失败；流沿用取消令牌及上游 Body 生命周期，不进入本地模型或工具循环。新增 cc_route_078_ 测试源码。
+
+按用户本次覆盖要求，未运行 Cargo、单元测试、实机测试或最终回归，未领取槽位，CARGO_TARGET_DIR 未设置；无退出码或通过测试数。下一步统一验证新增请求、流、取消和授权回环场景。

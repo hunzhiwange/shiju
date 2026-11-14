@@ -149,3 +149,7 @@ mod tool_namespace;
 mod responses_anthropic_request;
 #[cfg(test)]
 mod responses_anthropic_request_tests;
+
+mod responses_anthropic_result;
+#[cfg(test)]
+mod responses_anthropic_result_tests;

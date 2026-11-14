@@ -118,22 +118,12 @@ impl Request {
     }
 
     pub(crate) fn response_json(&self, body: &Value) -> Result<Value, StatusCode> {
-        let chat;
-        let body = if self.anthropic {
-            chat = super::protocol_bridge::response(
-                vw_shared::provider::ModelProtocol::Messages,
-                body,
-            )?;
-            &chat
+        let id = super::responses::response_id();
+        let response = if self.anthropic {
+            super::responses_anthropic_result::convert(body, &self.model, &id, &self.tools)?
         } else {
-            body
+            super::responses_chat_result::from_chat(body, &self.model, &id, &self.tools)?
         };
-        let response = super::responses_chat_result::from_chat(
-            body,
-            &self.model,
-            &super::responses::response_id(),
-            &self.tools,
-        )?;
         if let Some(history) = &self.history {
             history.remember(&response)?;
         }

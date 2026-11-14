@@ -1117,3 +1117,9 @@ macOS 本机自动验收；依赖任务36提交 `6c280ef6c`，复用公共授权
 `responses_anthropic_request::convert` 复用既有 Responses 控制字段/工具映射与 Messages 请求编码，补充 instructions、system/developer 优先级、图文/URL与base64 PDF文件、工具结果媒体、合并角色、leading user、末尾assistant空白及不完整并行工具回合清理。工具只作为客户端数据传递，不执行、不获取媒体或凭据；不改旧会话白名单。文件ID、非HTTP地址、非法base64、未知内容与未支持的推理回放明确拒绝。未指定输出上限时使用4096；不宣称自动匹配模型能力。`responses_compaction::Request` 与授权 `dispatch` 接线 `/messages` 目标，JSON结果仅复用既有 Messages→Chat→Responses 解码，不扩展任务58的结果语义；Anthropic流式请求明确422，留待对应流任务。
 
 独立测试文件添加4个 `cc_route_057_` 用例，覆盖指令/leading user/末尾空白、媒体及命名空间自定义工具身份、部分并行回合/孤立结果、媒体拒绝与旧会话隔离。按用户本次覆盖要求，未运行任何Cargo命令/脚本、单元测试、实机测试或最终回归，无红绿灯、退出码或有效测试数证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。代码仅做定向格式化和差异审查，后续统一验证需运行 `cc_route_057_` 并补授权回环HTTP验收。任务卡按用户要求删除，不表示macOS或母任务8已经验收；其他平台未验证。
+
+## 任务58：Anthropic JSON 到 Responses 结果（2026-11-14，未验证）
+
+依赖任务57 `98608279d` 的常驻请求接线与既有公共传输/可信作用域；来源沿用冻结快照，参考相邻 CC Switch `transform_codex_anthropic.rs` 的结果、usage、stop_reason 映射。`responses_anthropic_result::convert` 复用共享 Messages 解码和 Responses 工具身份恢复，保留文本/工具顺序、缓存读写计数、拒绝与截断状态。未知终止原因和 pause_turn 明确拒绝；thinking 与服务端工具保持既有拒绝边界，交由后续任务。真实调用为 dispatch → responses_compaction::Request::response_json → convert，无需重复修改 dispatch。旧会话路径不变。
+
+添加独立 `cc_route_058_` 测试代码。按用户覆盖要求未运行 Cargo、单元测试、实机测试或最终回归；没有通过证据，未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。仅审查代码差异；任务卡按要求删除，后续统一验证应运行本项测试及常驻回环验收。macOS 尚未验收，其他平台未验证，不表示母任务8完成。

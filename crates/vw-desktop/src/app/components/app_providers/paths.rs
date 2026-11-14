@@ -46,6 +46,12 @@ pub(super) fn overlay<'a>(
     body = body.push(settings_panel(column![
         settings_field_label("覆盖目录"),
         if editable { input.on_input(|value| message(Event::Draft(value))) } else { input },
+        action("选择本机目录…", Event::PickFolder, editable && form.local_open, false),
+        text(if form.local_open {
+            "取消选择会保留当前输入；选择后点击保存，由网关验证目录。"
+        } else {
+            "请填写执行主机上的目录，保存时仅由网关验证；远端主机不会打开本机选择器。"
+        }).size(13).style(settings_muted_text_style),
         text("目录须位于执行主机的授权用户目录内，且已经存在。存在生效供应商或未完成事务时不可更改。")
             .size(13).style(settings_muted_text_style),
     ].spacing(8)));

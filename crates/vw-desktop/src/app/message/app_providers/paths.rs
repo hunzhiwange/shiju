@@ -17,6 +17,13 @@ pub enum Event {
     Refresh,
     Draft(String),
     Save,
+    PickFolder,
+    Picked {
+        scope: Scope,
+        generation: u64,
+        catalog_generation: u64,
+        result: Result<Option<String>, ()>,
+    },
     OpenFolder,
     Completed {
         scope: Scope,
@@ -66,12 +73,14 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         }
         return Task::none();
     }
-    if let Event::Completed { scope: completed, generation, .. } = &event
+    if let Event::Completed { scope: completed, generation, .. }
+    | Event::Picked { scope: completed, generation, .. } = &event
         && (*completed != scope || form.pending != Some(*generation))
     {
         return Task::none();
     }
-    if let Event::Completed { catalog_generation, .. } = &event
+    if let Event::Completed { catalog_generation, .. }
+    | Event::Picked { catalog_generation, .. } = &event
         && *catalog_generation != app.apps_catalog.generation
     {
         state.paths = None;
@@ -89,6 +98,37 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     form.local_open =
         client.endpoint().is_loopback() && scope.host == vw_shared::local_apps::HOST_ID;
     let (action, opening_folder) = match event {
+        Event::PickFolder if form.pending.is_none() && form.local_open => {
+            state.generation = state.generation.wrapping_add(1);
+            let generation = state.generation;
+            form.pending = Some(generation);
+            form.error = None;
+            let catalog_generation = app.apps_catalog.generation;
+            let token = app.apps_catalog.token.clone();
+            return Task::perform(pick_local(client, scope.clone(), token), move |result| {
+                message(Event::Picked {
+                    scope: scope.clone(),
+                    generation,
+                    catalog_generation,
+                    result,
+                })
+            });
+        }
+        Event::Picked { result, .. } => {
+            form.pending = None;
+            if !form.local_open {
+                return Task::none();
+            }
+            match result {
+                Ok(Some(path)) => {
+                    form.draft = path;
+                    form.error = None;
+                }
+                Ok(None) => {}
+                Err(()) => return app.show_error_toast("无法选择本机配置目录。"),
+            }
+            return Task::none();
+        }
         Event::Draft(value) if form.pending.is_none() => {
             form.draft = value;
             form.error = None;
@@ -155,6 +195,29 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             opening_folder,
         })
     })
+}
+
+async fn pick_local(
+    client: GatewayClient,
+    scope: Scope,
+    token: String,
+) -> Result<Option<String>, ()> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // A loopback URL alone does not prove this gateway belongs to the local user.
+        let home = tokio::task::spawn_blocking(move || {
+            local::launch_directory(&client, &scope.host, &token, None).ok_or(())
+        })
+        .await
+        .map_err(|_| ())??;
+        let selected = rfd::AsyncFileDialog::new().set_directory(home).pick_folder().await;
+        selected.map(|file| file.path().to_str().map(str::to_owned).ok_or(())).transpose()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (client, scope, token);
+        Err(())
+    }
 }
 
 async fn execute(

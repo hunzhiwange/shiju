@@ -66,3 +66,6 @@ pub mod pricing;
 pub(crate) mod import_store;
 
 pub mod pricing_batch;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod models_selection;

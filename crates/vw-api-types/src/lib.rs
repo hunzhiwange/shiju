@@ -169,3 +169,7 @@ mod voice_tests;
 
 #[cfg(test)]
 mod hermes_memory_tests;
+
+pub mod workspace_memory;
+#[cfg(test)]
+mod workspace_memory_tests;

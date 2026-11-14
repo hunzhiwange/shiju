@@ -25,3 +25,11 @@
 静态审查来源 workspace 命令、OpenClaw/Hermes 目录解析、前置 workspace-contracts、providers/paths 和 live/write_guard；补充独立测试源码，覆盖父目录/文件链接、主机不匹配、绝对路径/穿越、缺失目录与正常读写删除，未执行。模块仅在 macOS 注册，其他平台未验收。
 
 遵照本轮要求未执行任何 Cargo、单元/实机/其它测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 不适用。仅以源码审查交付，不声称编译或行为验证通过；后续统一验证。编号任务文件依用户要求删除。
+
+## 任务 2：工作区文件接口类型（2026-11-14）
+
+已实现 `vw_api_types::workspace_memory`：九个大小写敏感的白名单文件、私有值封装的合法公历 `DailyMemoryFilename`（0001–9999）、workspace/memory 目录枚举、缺失与空内容区分、写入/搜索/打开目录请求、每日列表与搜索 DTO。元数据保持 u64 字节大小和 Unix 秒时间；列表/搜索保留来源 camelCase 字段。内容、预览与查询类型不派生 Debug，避免普通调试日志输出记忆。无新增依赖、路由或权限扩展。
+
+静态核对来源 workspace.rs、workspace.ts、接口边界及任务 1 workspace-contracts.md；前置授权/主机/取消缺项留给对应生产任务，本 DTO 不冒充其实现。独立测试源码覆盖九文件往返、路径与未知值拒绝、世纪闰年、非法日期、null/空字符串、中文与大文件元数据。
+
+按本轮最高优先要求，未运行 Cargo、单元测试、实机测试或其它测试，未启动回归。未领取槽位，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 未设置；没有编译或测试通过结论。后续统一验证。

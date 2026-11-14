@@ -26,3 +26,6 @@ pub mod s3_upload;
 
 #[cfg(target_os = "macos")]
 pub mod s3_download;
+
+#[cfg(target_os = "macos")]
+pub mod webdav_download;

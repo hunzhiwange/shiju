@@ -8,3 +8,9 @@ mod backup_crud_api_tests;
 pub(crate) mod periodic;
 
 pub(crate) mod migration_read_api;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod migration_write_api;
+
+#[cfg(all(test, target_os = "macos"))]
+mod migration_write_api_tests;

@@ -28,33 +28,32 @@ const TTL: Duration = Duration::from_secs(300);
 const MAX_SOURCES: usize = 2;
 const MAX_PREVIEWS: usize = 16;
 #[derive(Clone)]
-struct State {
-    policy: Option<PathBuf>,
-    cache: Arc<Mutex<Cache>>,
+pub(super) struct State {
+    pub(super) policy: Option<PathBuf>,
+    pub(super) cache: Arc<Mutex<Cache>>,
 }
 #[derive(Default)]
-struct Cache {
-    sources: HashMap<String, Staged>,
-    previews: HashMap<String, HeldPreview>,
+pub(super) struct Cache {
+    pub(super) sources: HashMap<String, Staged>,
+    pub(super) previews: HashMap<String, HeldPreview>,
 }
-struct Staged {
+pub(super) struct Staged {
     created: Instant,
-    target: DataManagementTarget,
-    source_id: String,
-    snapshot: SourceSnapshot,
+    pub(super) target: DataManagementTarget,
+    pub(super) source_id: String,
+    pub(super) snapshot: Arc<SourceSnapshot>,
     summary: DataSourceSummary,
 }
-struct HeldPreview {
+pub(super) struct HeldPreview {
     created: Instant,
-    // Keep normalized values and their handles together for a later executor;
-    // issuance does not grant write permission and no execute route is added.
-    _target: DataManagementTarget,
-    _transfer: String,
-    _preview: ProviderPreview,
-    _response: DataImportPreview,
+    // Server-retained values shared with the separately authorized write API.
+    pub(super) _target: DataManagementTarget,
+    pub(super) _transfer: String,
+    pub(super) _preview: Arc<ProviderPreview>,
+    pub(super) _response: DataImportPreview,
 }
 impl Cache {
-    fn expire(&mut self) {
+    pub(super) fn expire(&mut self) {
         self.sources.retain(|_, s| s.created.elapsed() < TTL);
         self.previews
             .retain(|_, p| p.created.elapsed() < TTL && self.sources.contains_key(&p._transfer));
@@ -64,15 +63,18 @@ pub(crate) fn router() -> Router {
     router_with_policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))
 }
 pub(super) fn router_with_policy(policy: Option<PathBuf>) -> Router {
-    Router::new()
+    let router = Router::new()
         .route("/agent-apps/data/sources/identify", post(identify))
-        .route("/agent-apps/data/import/preview", post(preview))
-        .layer(Extension(State { policy, cache: Arc::new(Mutex::new(Cache::default())) }))
-        .layer(axum::middleware::map_response(async |mut r: axum::response::Response| {
+        .route("/agent-apps/data/import/preview", post(preview));
+    #[cfg(target_os = "macos")]
+    let router = router.merge(super::migration_write_api::router());
+    router.layer(Extension(State { policy, cache: Arc::new(Mutex::new(Cache::default())) })).layer(
+        axum::middleware::map_response(async |mut r: axum::response::Response| {
             r.headers_mut()
                 .insert(header::CACHE_CONTROL, header::HeaderValue::from_static("no-store"));
             r
-        }))
+        }),
+    )
 }
 // Request is deliberately last: authentication runs before body decoding. Errors
 // contain only status codes, never JSON rejection details or source contents.
@@ -139,7 +141,7 @@ async fn identify(
                 created: Instant::now(),
                 target: input.target,
                 source_id: input.transfer_id.0,
-                snapshot,
+                snapshot: Arc::new(snapshot),
                 summary: summary.clone(),
             },
         );
@@ -284,7 +286,7 @@ async fn preview(
                 created: Instant::now(),
                 _target: input.target,
                 _transfer: input.transfer_id.0,
-                _preview: normalized,
+                _preview: Arc::new(normalized),
                 _response: result.clone(),
             },
         );
@@ -293,7 +295,7 @@ async fn preview(
     .await
     .map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?
 }
-fn source_scope(target: &DataManagementTarget) -> Result<SourceScope, StatusCode> {
+pub(super) fn source_scope(target: &DataManagementTarget) -> Result<SourceScope, StatusCode> {
     SourceScope::new(
         target.scope.clone(),
         target.target_host_id.clone(),

@@ -267,3 +267,18 @@ macOS 执行端 `vw-agent/src/agent_apps/data_import.rs::commit_selected` 用封
 The authorized caller must retain the shared import/restore/delete exclusion guard and owner transaction/CAS guards; owner validation, restoration and receipt persistence use explicit callbacks, following existing rollback orchestration. This is a core entry point, not seven-owner or gateway integration. Independent registered tests cover retain=1 and exact current-state capture using the real usage-source settings owner with SQLite, and corrupt-source rejection before callbacks.
 
 Per user override: no Cargo, compilation, unit tests or device tests were run. No passing evidence, exit code or test count is claimed. No slot was acquired; CARGO_TARGET_DIR and CARGO_BUILD_BUILD_DIR were not set. Deferred test filter: `cargo test -j 1 -p vw-agent-apps --lib cc_data_26_ -- --nocapture`, through the repository slot entry. Static source comparison: commands/import_export.rs::restore_db_backup and database/backup.rs::restore_with_retain_one_keeps_source_and_exact_safety_snapshot.
+
+
+## 子任务 33：迁入写入与操作 API（2026-11-14）
+
+在现有 migration_read_api 路由内共享服务端来源与预览，新增 macOS migration_write_api。POST `/agent-apps/data/import/execute` 提交确认预览；`/agent-apps/data/operations/get`、`cancel`、`retry-projections` 分别查询、提交前取消、重试投影。查询/取消使用现有请求 DTO，重试使用 GetDataOperationRequest 的完整目标与 operationId。来源读取沿用管理员来源引用；读请求需要迁入读取授权，写入、取消和重试额外要求供应商配置写入与同项目备份权限。身份核对包含租户、项目、主机和 principal，跨目标 ID 返回 404，错误不回显底层载荷。
+
+仅接现有预览实际支持的供应商类别，不扩展其它类别的预览或恢复。以共享 Operation 后台执行，返回 queued；SQLite gateway_settings 固定命名空间保存操作及回退回执。目标+幂等键生成稳定操作 ID，输入摘要防止同键异参；终态可脱离已过期预览重放。目录锁复用 backup_api，租户级活动任务排斥覆盖共享供应商目录。取消与 worker 领取使用 SQLite Immediate 事务排序：queued 可取消，已提交临界区返回冲突，终态取消幂等。
+
+AppProviderStore::import_cc_providers_recorded 在既有真实供应商事务内保存终态和回退回执；保存失败一并回滚目录写入，避免另建事务造成提交事实丢失。未成功提交的进程残留操作仅在 PID 已确认不存在时由查询标为 HostUnavailable；不自动重新迁入，不删除其它进程任务。PID 重用或存活状态不明时保持保守占用。
+
+投影能力边界：本入口不扩大原生发布权限，供应商提交后保留 provider_live 的 Partial/ProjectionFailed；其它未选择类别不报告虚构刷新失败。重试调用任务19的 retry_projections，保留尚不可用的原生投影失败，不重放目录导入，不声称原生刷新成功。完整原生投影适配仍需领域发布入口交付，本项没有以成功空回调掩盖该边界。
+
+新增独立 migration_write_api_tests.rs 并注册两个 cc_data_33_ HTTP 场景：修订拒绝、幂等重放/冲突、真实目录提交、部分失败和不重放写入的重试；已授权其它项目的查询、取消与重试拒绝，以及终态取消幂等。夹具仅使用匿名 JSON、隔离 SQLite、临时目录和动态 HTTP 端口。
+
+按本轮用户覆盖要求未运行任何 Cargo、编译、单元或实机测试；仅静态阅读与对修改文件运行独立 rustfmt，没有验证通过证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置，无测试退出码及有效测试数。统一验证待运行：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent --lib cc_data_33_ -- --nocapture`，另需覆盖真实原生投影适配及进程中断边界。

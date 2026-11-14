@@ -67,16 +67,31 @@ impl SyncManifest {
         manifest.normalize(supported_data_version)
     }
 
-    /// Also validate locally constructed manifests before publication.
-    pub fn normalize(mut self, supported_data_version: u32) -> Result<Self, &'static str> {
-        if self.format != FORMAT {
-            return Err("Unsupported sync manifest format");
+    /// Validate native structure and identity for a preview, retaining unsupported
+    /// versions. This does not authorize downloading or applying the artifacts.
+    pub fn inspect_slice(bytes: &[u8]) -> Result<Self, &'static str> {
+        if bytes.len() > MAX_MANIFEST_BYTES {
+            return Err("Manifest exceeds 1 MiB");
         }
+        let manifest: Self =
+            serde_json::from_slice(bytes).map_err(|_| "Invalid native sync manifest")?;
+        manifest.normalize_content()
+    }
+
+    /// Also validate locally constructed manifests before publication.
+    pub fn normalize(self, supported_data_version: u32) -> Result<Self, &'static str> {
         if self.protocol_version != PROTOCOL_VERSION {
             return Err("Unsupported sync protocol version");
         }
         if self.data_compat_version != supported_data_version {
             return Err("Unsupported sync data compatibility version");
+        }
+        self.normalize_content()
+    }
+
+    fn normalize_content(mut self) -> Result<Self, &'static str> {
+        if self.format != FORMAT {
+            return Err("Unsupported sync manifest format");
         }
         if !is_sha256(&self.snapshot_id) || self.snapshot_id != self.artifacts.snapshot_id()? {
             return Err("Invalid sync snapshot identity");

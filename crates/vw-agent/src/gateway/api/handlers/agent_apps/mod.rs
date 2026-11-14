@@ -18,6 +18,7 @@ pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(super::backup_inventory::router())
         .merge(super::agent_apps_data::backup_crud_api::router())
+        .merge(super::agent_apps_data::migration_read_api::router())
         .merge(read::router())
         .merge(super::project_profiles::router())
         .merge(super::aggregation_read::router())
@@ -641,3 +642,5 @@ pub(super) use access::authorize_data_backups;
 
 #[cfg(target_os = "macos")]
 pub(super) use access::periodic_data_backup_targets;
+
+pub(super) use access::{authenticate_data_migration, authorize_data_migration};

@@ -221,3 +221,14 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 `data_management::periodic::periodic_backup_if_needed` 在目录锁内按完整租户/项目/用户/主机筛选有效归档，以最新归档创建时间决定到期；并发执行端重新检查，重启不会重置已有归档的周期。时间参数可控，倒退不提前创建。关闭在访问文件前返回；不接入或改变用量清理。无数据时不创建归档，失败下次轮询重试。
 
 用户本轮明确要求只写代码：未运行 Cargo、编译、单元或实机测试，不声称验证通过；未领取槽位，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 未设置。待统一回归覆盖：无页面到期创建一次、零间隔零创建、重启/并发、权限撤销、失败日志与重试；macOS 限定。
+
+
+## 子任务 32：来源识别与只读预览 API（2026-11-14）
+
+`migration_read_api.rs` 注册 POST `/agent-apps/data/sources/identify` 与 `/agent-apps/data/import/preview`。认证在读取请求体前执行，随后核对租户、项目、principal 与执行主机；响应 no-store，无来源路径、配置正文或错误载荷。管理员策略新增项目权限 `data_migration_read`、主机 `data_migration_root` 和 `data_migration_sources`（来源 ID 到绝对路径映射）；默认空即拒绝，既有备份权限不隐含迁入权限。
+
+本项选择任务允许的主机授权来源分支，不提供上传接口。identify 请求的 transferId 首次为管理员登记的来源 ID；返回新的服务端随机暂存引用，preview 只接受该返回引用。识别沿用只读 source 所有者，不接受客户端路径；最多保留两份暂存，生命周期五分钟，原始数据不返回客户端。授权撤销在预览时重新检查；来源和预览按原租户/项目/principal/主机绑定，过期引用在后续请求时清理。进程重启丢弃全部引用。格式准确标记 sqlite/json/sql，未知发行版本明确为 unknown，不将 schema 猜作发行版本。
+
+预览目前接通真实供应商领域 `providers::prepare` 与 AppProviderStore 读取，另需原有 provider_config_read 授权；仅支持供应商 All 选择，其他类别返回 501，条目选择返回 400。目标观察、来源与规范化值保留在服务端有界缓存（最多16份预览）；revision 是绑定该记录的不透明随机引用。无写入或执行路由；后续执行必须重新授权、核对源及目标 revision 并取得回退点，不能仅凭 DTO 提交。响应只含计数、UUID 和允许的冲突决策，不回显供应商名称、配置、路径或凭据。读取并非跨条目事务快照，后续执行须使用领域 resolve/CAS 拒绝目标变化。
+
+按最新用户要求仅实现并静态阅读，未运行 Cargo、单元测试或实机测试，无通过结论；未领取槽位，两个 Cargo 缓存路径未设置。后续统一验证需补实际 HTTP 成功、401/403、跨身份引用、过期/限额及凭据脱敏场景。

@@ -92,3 +92,52 @@ fn daily_roundtrip_valid_dates_unsafe_write_preserves_original() {
     );
     assert_eq!(fs::read_to_string(alias).unwrap(), "原文");
 }
+
+#[test]
+fn daily_delete_is_idempotent_preserves_other_files_and_missing_directories() {
+    use super::daily_memory_files::delete_daily_memory_file;
+    let home = tempfile::tempdir().unwrap();
+    let root = home.path().join("workspace");
+    let name = "2026-11-14.md".parse().unwrap();
+    delete_daily_memory_file("host", "host", home.path(), &root, &name).unwrap();
+    assert!(!root.exists());
+    write_daily_memory_file("host", "host", home.path(), &root, &name, "中文").unwrap();
+    let other = root.join("memory/2026-11-13.md");
+    fs::write(&other, "保留").unwrap();
+    for _ in 0..2 {
+        delete_daily_memory_file("host", "host", home.path(), &root, &name).unwrap();
+        assert!(!root.join("memory/2026-11-14.md").exists());
+        assert_eq!(fs::read_to_string(&other).unwrap(), "保留");
+    }
+}
+
+#[test]
+fn daily_delete_is_idempotent_rejects_unsafe_entries_and_wrong_host() {
+    use super::daily_memory_files::delete_daily_memory_file;
+    let home = tempfile::tempdir().unwrap();
+    let root = home.path().join("workspace");
+    let name = "2026-11-14.md".parse().unwrap();
+    assert_eq!(
+        delete_daily_memory_file("other", "host", home.path(), &root, &name),
+        Err(PathError::UnauthorizedHost)
+    );
+    assert!(!root.exists());
+    fs::create_dir_all(root.join("memory/2026-11-14.md")).unwrap();
+    let path = root.join("memory/2026-11-14.md");
+    assert_eq!(
+        delete_daily_memory_file("host", "host", home.path(), &root, &name),
+        Err(PathError::UnsafeEntry)
+    );
+    assert!(path.is_dir());
+    fs::remove_dir(&path).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("private.md");
+    fs::write(&target, "不可删除").unwrap();
+    symlink(&target, &path).unwrap();
+    assert_eq!(
+        delete_daily_memory_file("host", "host", home.path(), &root, &name),
+        Err(PathError::UnsafeEntry)
+    );
+    assert!(fs::symlink_metadata(&path).unwrap().file_type().is_symlink());
+    assert_eq!(fs::read_to_string(&target).unwrap(), "不可删除");
+}

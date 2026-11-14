@@ -50,3 +50,27 @@ pub fn write_daily_memory_file(
     .ok_or(PathError::Io)?;
     directory.write(filename.as_str(), content)
 }
+
+/// Deletes only a validated daily filename after the caller authorizes writing.
+/// Missing directories and files succeed without creating anything. The shared
+/// directory boundary rejects unsafe entries and propagates deletion IO errors.
+pub fn delete_daily_memory_file(
+    authorized_host: &str,
+    executor_host: &str,
+    home: &Path,
+    workspace_root: &Path,
+    filename: &DailyMemoryFilename,
+) -> Result<(), PathError> {
+    let Some(directory) = WorkspaceDirectory::open(
+        authorized_host,
+        executor_host,
+        home,
+        workspace_root,
+        WorkspaceArea::OpenClawMemory,
+        false,
+    )?
+    else {
+        return Ok(());
+    };
+    directory.delete(filename.as_str())
+}

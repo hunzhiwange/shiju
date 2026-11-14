@@ -113,3 +113,12 @@
 本条取代上文任务 16 的 JSON5 缺项结论。新增 providers/live/patch_json5：复用既有叶节点协调算法，以 json-five 0.3.1 的 JSON5 tokenizer/serde 解码定位原文 byte spans，只替换变化值，不通过 AST formatter 重印文件。因此单引号、裸键/转义键、Unicode 空白、行续接、十六进制、小数、Infinity/NaN、注释及尾逗号等非目标原文保留；解码后重复键仍拒绝，原有 1MiB 输入边界和解析深度限制保留。JSONC 通用模块合同不变。
 
 OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改用共享 JSON5 模块，配置发布仍复用 OpenClawFiles/ProviderTransactions，未新增写入所有者。新增独立 JSON5 测试源码并调整旧裸键拒绝断言；只读审查了来源配置函数及 json-five 0.3.1 原始 tokenizer/parser/de 源码，未运行任何测试、Cargo 或实机检查。不声称编译或行为验证通过。新增轻量解析依赖；按本轮禁令未调用 Cargo 更新 Cargo.lock，后续统一验证阶段需先解析依赖更新锁文件。未领取槽位，CARGO_TARGET_DIR 未设置。
+
+
+## 任务 6：每日记忆幂等删除（2026-11-14）
+
+新增 daily_memory_files::delete_daily_memory_file，复用合法公历 DailyMemoryFilename 和 WorkspaceDirectory::delete。缺目录不创建、缺文件和重复删除成功；执行主机校验、不跟随链接、普通单链接文件限制、物理锁及 unlinkat/目录同步错误传播沿用底层边界。调用者须先授权内容写入并提供可信执行主机、HOME 与解析后的工作区根，不新增权限或路由。
+
+静态读取来源删除函数、workspace.ts、DailyMemoryPanel 调用者、任务 1 正式合同、任务 5 读写和底层实现。新增两个 daily_delete_is_idempotent 前缀测试源码，覆盖缺失、重复删除、邻文件保留、主机拒绝、目录与越界链接拒绝；非法日期复用既有日期类型断言。未运行任何测试，没有权限失败运行证据，不声明编译或行为通过。
+
+依本轮最高优先要求未运行 Cargo、单元/实机/其它测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证。

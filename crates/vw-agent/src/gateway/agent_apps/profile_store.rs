@@ -83,6 +83,24 @@ impl ProjectProfileStore {
         })
     }
 
+    /// Delete a tenant-shared entity and every selection referring to it atomically.
+    /// Callers must authorize shared-entity deletion, including other host selections.
+    pub(crate) fn delete(
+        &self,
+        tenant: &TenantScope,
+        id: &ProjectProfileId,
+        expected_version: u64,
+    ) -> Result<()> {
+        ensure!(!id.0.trim().is_empty(), "empty project profile id");
+        self.mutate(tenant, |state| {
+            let profile = state.profiles.get(&id.0).context("project profile not found")?;
+            ensure!(profile.version == expected_version, "project profile version conflict");
+            state.profiles.remove(&id.0);
+            state.selections.retain(|selection| &selection.profile_id != id);
+            Ok(())
+        })
+    }
+
     /// Selection records ownership of a host/group slot, not successful application.
     /// A different project must explicitly release its slot before reassignment.
     pub(crate) fn select(

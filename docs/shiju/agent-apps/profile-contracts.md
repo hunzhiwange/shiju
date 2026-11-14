@@ -118,6 +118,12 @@ select/current 接收既有 ProjectScope，记录 ProjectId 而不复制项目�
 
 本轮仅实现代码与契约，按用户要求未运行构建、检查、单元测试、实机测试或最终回归；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。重启读回、租户/主机/组隔离、版本并发和项目槽位冲突仍待后续定向验证，不作通过声明。
 
+## 任务 5：删除实体与引用标记合同
+
+`ProjectProfileStore::delete(tenant, id, expected_version)` 在既有 `mutate` 事务内核对实体存在及版本，再删除实体并移除当前租户内所有指向该 ID 的选择记录，覆盖三组、所有项目及主机。其他实体及其标记、其他租户的同名 ID 不变；缺失实体、版本冲突或存储错误返回失败。实体和标记作为同一状态记录提交，沿用 SQLite Immediate / PostgreSQL 行锁事务，不新增逐条写入路径。共享实体删除需调用方授权；清理跨主机元数据不触发远端配置变更，也不撤销已经应用的配置。后续 API 任务需接此入口并传入版本前提。
+
+本轮仅代码与必要契约静态审阅，未编写/执行测试，未运行 Cargo、构建、检查、实机测试或回归；未领取槽位，CARGO_TARGET_DIR 未设置，不作验证通过声明。待后续验证三组匹配标记清理、其他实体/租户/主机隔离、版本冲突与写入失败原子性。
+
 ## 任务 7：指定组快照读取合同
 
 `snapshot_current` 已落在 `vw-agent-apps/src/project_profiles/snapshot.rs`，通过四个惰性读取闭包接收同一 `SnapshotScope`（ProjectScope、授权目标主机、指定组）。供应商消费领域 `ProviderModeStatus.in_use_provider`，不使用 direct_provider 回退；没有有效供应商返回错误。MCP/技能只传启用引用集合，提示词只传激活 ID；成功读取无提示词用 None 表达，输出为空串。返回值仅填指定组，其余组保持 null；任一读取错误都不返回可保存的部分载荷。集合排序去重，不复制密钥、正文或原生配置。

@@ -125,6 +125,21 @@ pub(super) struct AuthorizedRoute {
 }
 
 impl AuthorizedRoute {
+    pub(super) fn usage(&self, model: Option<String>, protocol: crate::model_relay::generation::GenerationProtocol)
+        -> Result<crate::usage_bridge::relay::RequestUsage, StatusCode> {
+        if self.cancelled.is_cancelled() { return Err(StatusCode::UNAUTHORIZED); }
+        #[cfg(target_os = "macos")]
+        let provider = self.provider.as_ref().map(|p| p.provider_id.clone());
+        #[cfg(not(target_os = "macos"))]
+        let provider = None;
+        let app = serde_json::to_value(self.binding.app).ok()
+            .and_then(|v| v.as_str().map(str::to_owned)).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+        crate::usage_bridge::relay::RequestUsage::new(
+            crate::usage_bridge::context::database().map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?,
+            self.binding.project.clone(), self.binding.host.clone(), app, provider, model, None, protocol,
+        ).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)
+    }
+
     #[cfg(target_os = "macos")]
     pub(super) fn generation(&self) -> u64 {
         self.generation

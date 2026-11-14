@@ -416,3 +416,5 @@ pub mod app_providers;
 pub mod app_routing;
 
 mod model_catalog;
+
+pub(crate) mod usage_bridge;

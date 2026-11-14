@@ -140,6 +140,7 @@ impl Drop for RelayServer {
 struct RequestGuard {
     cancel: CancellationToken,
     _permit: OwnedSemaphorePermit,
+    usage: Option<crate::usage_bridge::relay::RequestUsage>,
 }
 impl Drop for RequestGuard {
     fn drop(&mut self) {
@@ -256,7 +257,26 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         rate.1 += 1;
     }
     let cancel = state.binding.cancelled.child_token();
-    let guard = RequestGuard { cancel: cancel.clone(), _permit: permit };
+    let usage = if metadata || kiro_control { None } else {
+        use crate::model_relay::generation::GenerationProtocol;
+        let protocol = match path {
+            "/v1/messages" => GenerationProtocol::Messages,
+            "/v1/responses" => GenerationProtocol::Responses,
+            "/v1beta/generateContent" | "/v1beta/streamGenerateContent" => GenerationProtocol::Gemini,
+            _ => GenerationProtocol::Chat,
+        };
+        let identity = &state.binding.identity;
+        let result = (|| -> anyhow::Result<_> {
+            let scope = vw_api_types::id::ProjectScope::new(identity.tenant.clone(), identity.project.clone().into())?;
+            crate::usage_bridge::relay::RequestUsage::new(
+                crate::usage_bridge::context::database()?, scope, crate::usage_bridge::context::local_host()?,
+                "shiju-relay".into(), Some(identity.provider.clone()), Some(identity.model.clone()),
+                Some(identity.session.clone()), protocol,
+            )
+        })();
+        match result { Ok(usage) => Some(usage), Err(_) => return StatusCode::SERVICE_UNAVAILABLE.into_response() }
+    };
+    let mut guard = RequestGuard { cancel: cancel.clone(), _permit: permit, usage };
     let deadline = Instant::now() + REQUEST_TIMEOUT;
     let deadline = state.binding.expires.map_or(deadline, |expires| expires.min(deadline));
     let response = async {
@@ -364,17 +384,31 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     let response = tokio::select! {
         biased;
         () = cancel.cancelled() => return StatusCode::UNAUTHORIZED.into_response(),
-        () = tokio::time::sleep_until(deadline.into()) => return StatusCode::GATEWAY_TIMEOUT.into_response(),
+        () = tokio::time::sleep_until(deadline.into()) => {
+            if let Some(usage) = &mut guard.usage {
+                usage.fail(StatusCode::GATEWAY_TIMEOUT);
+            }
+            return StatusCode::GATEWAY_TIMEOUT.into_response();
+        },
         response = response => response,
     };
     let response = match response {
         Ok(response) => response,
-        Err(status) => return status.into_response(),
+        Err(status) => {
+            if let Some(usage) = &mut guard.usage {
+                usage.fail(status);
+            }
+            return status.into_response();
+        },
     };
     // Never expose redirects (including Location credentials) or arbitrary backend errors.
     if !response.status().is_success() {
+        if let Some(usage) = &mut guard.usage {
+            usage.fail(response.status());
+        }
         return StatusCode::BAD_GATEWAY.into_response();
     }
+    let usage = guard.usage.take();
     let (mut parts, body) = response.into_parts();
     let content_type = parts.headers.get(axum::http::header::CONTENT_TYPE).cloned();
     parts.headers.clear();
@@ -387,13 +421,14 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
             use futures_util::StreamExt;
             tokio::select! {
                 biased;
-                () = guard.cancel.cancelled() => None,
-                () = tokio::time::sleep_until(deadline.into()) => None,
+                () = guard.cancel.cancelled() => Some((Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "relay cancelled")), (stream, guard, deadline))),
+                () = tokio::time::sleep_until(deadline.into()) => Some((Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "relay timed out")), (stream, guard, deadline))),
                 next = stream.next() => next.map(|chunk| (chunk.map_err(|_| std::io::Error::other("relay stream failed")), (stream, guard, deadline))),
             }
         },
     );
-    Response::from_parts(parts, Body::from_stream(stream))
+    let response = Response::from_parts(parts, Body::from_stream(stream));
+    match usage { Some(usage) => usage.response(response), None => response }
 }
 
 #[cfg(test)]

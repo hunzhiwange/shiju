@@ -187,6 +187,15 @@ pub(super) async fn forward_json(
         .as_ref()
         .map(|gemini| gemini.model.clone())
         .or_else(|| body.get("model").and_then(Value::as_str).map(str::to_owned));
+    let protocol = if gemini.is_some() { crate::model_relay::generation::GenerationProtocol::Gemini }
+        else if responses { crate::model_relay::generation::GenerationProtocol::Responses }
+        else if matches!(app, AppId::Claude | AppId::ClaudeDesktop) { crate::model_relay::generation::GenerationProtocol::Messages }
+        else { crate::model_relay::generation::GenerationProtocol::Chat };
+    let mut usage = route.usage(client_model.clone(), protocol)?;
+    // Queue failover can select another provider after dispatch begins.
+    #[cfg(target_os = "macos")]
+    if failover.is_some() { usage.unknown_provider(); }
+    let result: Result<Response, RouteError> = async {
     let (target, model, cancelled) = route.select_json(client_model.as_deref())?;
 
     #[cfg(target_os = "macos")]
@@ -634,6 +643,15 @@ pub(super) async fn forward_json(
         }
     })
     .await?
+    }.await;
+    match result {
+        Ok(response) => Ok(usage.response(response)),
+        Err(error) => {
+            usage.fail(error.status());
+            Err(error)
+        }
+    }
+
 }
 
 async fn finish_messages(

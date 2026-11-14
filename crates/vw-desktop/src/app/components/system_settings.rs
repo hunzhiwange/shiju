@@ -430,6 +430,7 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
             ),
             crate::app::message::settings::backup_inventory::view(app),
             super::system_settings_data::export_ui::view(app),
+            super::system_settings_data::backup_list_ui::view(app),
         ].spacing(12).into()),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(app),
@@ -746,6 +747,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     #[cfg(target_os = "macos")]
     let dialog = crate::app::provider_link_preview::overlay(dialog);
     #[cfg(target_os = "macos")]
+    let dialog = super::system_settings_data::backup_list_ui::overlay(app, dialog);
     let dialog = crate::app::mcp_link_preview::overlay(app, dialog);
     #[cfg(target_os = "macos")]
     let dialog = crate::app::skill_link_preview::overlay(app, dialog);

@@ -6,9 +6,9 @@ use vw_gateway_client::vw_api_types::{ProjectScope, agent_apps::data_management:
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Identity {
-    context: AgentAppsContext,
-    project: String,
-    host: String,
+    pub(super) context: AgentAppsContext,
+    pub(super) project: String,
+    pub(super) host: String,
     catalog: u64,
 }
 #[derive(Clone, Debug)]

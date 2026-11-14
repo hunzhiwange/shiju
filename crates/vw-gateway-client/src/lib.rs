@@ -217,3 +217,6 @@ pub use client::AggregationOmoError;
 pub use client::AggregationApiError;
 
 pub use client::{HermesMemoryError, HermesMemoryScope};
+
+// Backup policy consumed by desktop maintenance forms.
+pub use client::DataBackupPolicy;

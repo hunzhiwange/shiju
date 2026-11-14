@@ -441,7 +441,24 @@ fn card<'a>(state: &'a AppsCatalogState, app: &'a CatalogRow) -> Element<'a, Mes
         .on_press(crate::app::message::app_providers::list::message(
             crate::app::message::app_providers::list::ListMessage::Open(app.entry.id),
         ));
-    let actions = row![providers, primary, toggle].spacing(8).align_y(Alignment::Center);
+    let mut actions = row![providers].spacing(8).align_y(Alignment::Center);
+    // Dedicated applications retain their workspace / explicit Claude Code entry.
+    if !matches!(app.entry.id, AppId::ClaudeDesktop | AppId::OpenClaw) {
+        let event = if expanded {
+            AppsCatalogMessage::Prompts(crate::app::message::settings::prompts::Event::Open(
+                app.entry.id,
+            ))
+        } else {
+            AppsCatalogMessage::ToggleDetails(app.entry.id)
+        };
+        actions = actions.push(
+            button(text("提示词").size(SETTINGS_CONTROL_TEXT_SIZE))
+                .padding([8, 11])
+                .style(rounded_action_btn_style)
+                .on_press_maybe((!busy).then_some(message(event))),
+        );
+    }
+    let actions = actions.push(primary).push(toggle);
     let summary = row![handle, brand(app.entry.id), description, actions]
         .spacing(12)
         .align_y(Alignment::Center);

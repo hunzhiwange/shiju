@@ -16,7 +16,7 @@ use vw_api_types::{
 };
 
 const GOLDEN: &str =
-    include_str!("../../../upstream/src-tauri/tests/golden/snapshots/mcp/codex-config.toml");
+    include_str!("../../../tests/fixtures/mcp/codex-config.toml");
 
 struct Fixture {
     root: tempfile::TempDir,

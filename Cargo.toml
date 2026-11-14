@@ -35,7 +35,6 @@ exclude = [
   "vendor/block",
   "vendor/block/test_utils",
   "vendor/iced_term",
-  "crates/vw-agent-apps/upstream/src-tauri",
 ]
 resolver = "3"
 

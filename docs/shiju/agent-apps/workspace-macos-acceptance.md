@@ -92,3 +92,9 @@
 新增 openclaw_tools::{get_tools_config,prepare_tools_config,set_tools_config}：profile 保留原字符串并显式区分未设置、minimal/coding/messaging/full 和未知值；allow/deny 只过滤空白项，非空文本与顺序保留；未知扩展随完整分节读写。拒绝损坏分节及扩展覆盖已知字段。配置仅供 OpenClaw 消费，不改变识矩工具授权。发布复用 OpenClawFiles 快照、供应商物理锁及事务冲突检查，调用方先授权配置与执行主机。
 
 静态核对来源 get_tools_config/set_tools_config、ToolsPanel.tsx、任务 1 正式合同、任务 3 文件边界及共享补丁层。新增三个 openclaw_tools_preserves_unknown_profile 前缀测试源码，未运行。共享解析器仅支持 JSON/JSONC，完整 JSON5 仍明确拒绝。本轮依用户要求未运行 Cargo、单元/实机/其它测试或最终回归，不声称编译或验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证，任务卡按指令删除。
+
+## 任务 21：OpenClaw 配置健康扫描（2026-11-14）
+
+新增 openclaw_health 的配置只读扫描和纯值诊断，迁移 invalid_tools_profile、legacy_agents_timeout、stringified_env_vars、stringified_env_shell_env 四分支；缺文件空列表，解析失败 config_parse_failed，读取失败保留错误。结构化 code/path 与固定 message 不包含环境变量、令牌、未知 profile 或解析器原文。文件读取复用 providers::openclaw::read 的执行主机 HOME 受控边界，不创建目录，不写配置。调用者须先授权配置与主机。现有共享解析器仅支持 JSON/JSONC，完整 JSON5 尚不支持，超出支持范围返回解析警告。
+
+已静态核对任务 1 合同、任务 3 文件边界、来源扫描函数及 HealthBanner。新增三个 openclaw_health_reports_without_mutation 前缀测试源码，覆盖四分支、固定路径、敏感值不输出、合法 profile、缺失/损坏、只读字节与链接拒绝，未执行。依用户本轮要求未运行 Cargo、任何测试或最终回归，不声称验证通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，后续统一验证。

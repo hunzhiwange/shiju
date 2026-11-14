@@ -1,3 +1,4 @@
+mod git_discovery_tests;
 #[cfg(feature = "memory-mariadb")]
 mod memory_mariadb_tests;
 #[cfg(feature = "memory-postgres")]

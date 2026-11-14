@@ -271,6 +271,7 @@ pub mod permission;
 pub mod plugins;
 
 // 基于 git2 的只读仓库发现
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod git_repository;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

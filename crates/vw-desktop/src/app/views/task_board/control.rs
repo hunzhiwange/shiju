@@ -559,6 +559,7 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center),
+                            text(helpers::employee_summary(app, slot)).size(12),
                             text(
                                 crate::app::i18n::I18n::new(app.desktop_locale)
                                     .format("路径=%s", &[(slot.path.clone()).into()])

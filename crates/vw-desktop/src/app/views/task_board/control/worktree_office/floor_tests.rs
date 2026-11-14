@@ -20,6 +20,8 @@ fn keep_element(element: Element<'_, Message>) {
 
 fn slot(id: &str, state: WorktreeState) -> WorktreeSlotSnapshot {
     WorktreeSlotSnapshot {
+        agent_id: None,
+        run_id: None,
         id: id.to_string(),
         path: format!("/tmp/{id}"),
         branch: format!("feature/{id}"),

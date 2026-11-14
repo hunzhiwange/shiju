@@ -15,6 +15,8 @@ fn test_app(window_width: f32) -> App {
 
 fn slot(id: &str, state: WorktreeState) -> WorktreeSlotSnapshot {
     WorktreeSlotSnapshot {
+        agent_id: None,
+        run_id: None,
         id: id.to_string(),
         path: format!("/tmp/{id}"),
         branch: format!("feature/{id}"),

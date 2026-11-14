@@ -257,6 +257,8 @@ fn gateway_snapshot_conversion_preserves_empty_boundary() {
 #[test]
 fn public_worktree_snapshots_keep_counts_and_slots() {
     let slot = super::WorktreeSlotSnapshot {
+        agent_id: None,
+        run_id: None,
         id: "slot-1".to_string(),
         path: "/slot".to_string(),
         branch: "vw/task/1".to_string(),

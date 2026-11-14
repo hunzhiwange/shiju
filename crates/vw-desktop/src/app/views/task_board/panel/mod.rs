@@ -708,7 +708,11 @@ fn build_agent_options(app: &App, selected_key: &str) -> Vec<TaskBoardAgentOptio
         if is_retired_builtin_agent_key(&entry.key) {
             continue;
         }
-        if entry.key != MAIN_AGENT_KEY && !entry.enabled && selected_key != entry.key {
+        if !crate::app::task::agent_activity::agent_available(
+            &entry.key,
+            &app.agents_settings.entries,
+        ) && selected_key != entry.key
+        {
             continue;
         }
 

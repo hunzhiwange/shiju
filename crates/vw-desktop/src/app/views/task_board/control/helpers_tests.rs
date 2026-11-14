@@ -19,6 +19,8 @@ fn all_worktree_states() -> [crate::app::task::WorktreeState; 5] {
 
 fn slot(task_id: Option<&str>) -> crate::app::task::WorktreeSlotSnapshot {
     crate::app::task::WorktreeSlotSnapshot {
+        agent_id: None,
+        run_id: None,
         id: "slot-1".to_string(),
         path: "/tmp/slot-1".to_string(),
         branch: "feature/task".to_string(),
@@ -235,4 +237,21 @@ fn worktree_log_preview_lines_normalizes_truncates_and_keeps_latest_three() {
             "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz...".to_string(),
         ]
     );
+}
+
+#[test]
+fn task_pool_employee_summary_retains_unavailable_run() {
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.entries.clear();
+    let mut slot = slot(Some("history-task"));
+    slot.agent_id = Some("deleted-agent".into());
+    slot.run_id = Some("history-run".into());
+    let summary = super::employee_summary(&app, &slot);
+    assert!(summary.contains("deleted-agent"));
+    assert!(summary.contains("history-task"));
+    assert!(summary.contains("history-run"));
+    assert!(!crate::app::task::agent_activity::agent_available(
+        "deleted-agent",
+        &app.agents_settings.entries
+    ));
 }

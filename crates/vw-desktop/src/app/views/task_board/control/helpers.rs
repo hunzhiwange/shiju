@@ -274,6 +274,28 @@ pub(super) fn worktree_log_preview_lines(
     lines.into_iter().skip(offset).take(visible).collect()
 }
 
+
+/// 列表与像素办公室共用同一智能体/run 投影，工位身份和容量由池维护。
+pub(super) fn employee_summary(app: &App, slot: &crate::app::task::WorktreeSlotSnapshot) -> String {
+    let activity = crate::app::task::agent_activity::project_activity(
+        std::slice::from_ref(slot),
+        &app.agents_settings.entries,
+        &app.task_board_tasks,
+    )
+    .remove(0);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    format!(
+        "{} [{}] · {} · {}={} · task={} · run={}",
+        activity.label,
+        activity.key.as_deref().unwrap_or("—"),
+        i18n.__(if activity.available { "可用" } else { "不可用" }),
+        i18n.__("当前任务数"),
+        activity.current_task_count,
+        activity.task_id.as_deref().unwrap_or("—"),
+        activity.run_id.as_deref().unwrap_or("—")
+    )
+}
+
 #[cfg(test)]
 #[path = "helpers_tests.rs"]
 mod helpers_tests;

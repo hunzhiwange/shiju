@@ -23,6 +23,8 @@ fn task(id: &str, status: TaskStatus, deleted: bool, archived: bool) -> Task {
 
 fn slot(id: &str, state: WorktreeState) -> WorktreeSlotSnapshot {
     WorktreeSlotSnapshot {
+        agent_id: None,
+        run_id: None,
         id: id.to_string(),
         path: format!("/tmp/{id}"),
         branch: format!("task/{id}"),

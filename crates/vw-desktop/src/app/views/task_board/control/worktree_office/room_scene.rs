@@ -168,12 +168,12 @@ fn build_worktree_room_scene<'a>(
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
             }),
-        text(i18n.format("分支 %s", &[slot.branch.clone().into()]).expect("valid room template"))
-            .size(11)
-            .style(move |theme: &Theme| {
+        text(super::super::helpers::employee_summary(app, slot)).size(11).style(
+            move |theme: &Theme| {
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.82)) }
-            }),
+            }
+        ),
         task_line,
     ]
     .spacing(3)

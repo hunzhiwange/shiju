@@ -54,6 +54,8 @@ pub struct WorktreePoolSnapshot {
 /// 公开的 WorktreeSlotSnapshot 结构体，承载该模块边界内传递的结构化状态。
 #[derive(Debug, Clone)]
 pub struct WorktreeSlotSnapshot {
+    pub agent_id: Option<String>,
+    pub run_id: Option<String>,
     pub id: String,
     pub path: String,
     pub branch: String,
@@ -100,6 +102,8 @@ impl WorktreePoolSnapshot {
                 .slots
                 .into_iter()
                 .map(|slot| WorktreeSlotSnapshot {
+                    agent_id: slot.agent_id,
+                    run_id: slot.run_id,
                     id: slot.id,
                     path: slot.path,
                     branch: slot.branch,

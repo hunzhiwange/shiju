@@ -12,6 +12,7 @@
 //! - Header sanitization (handled by axum/hyper)
 
 mod agent;
+pub(crate) mod agent_apps;
 pub mod agent_apps_diagnostic_executors;
 pub mod agent_apps_diagnostic_jobs;
 #[cfg(target_os = "macos")]

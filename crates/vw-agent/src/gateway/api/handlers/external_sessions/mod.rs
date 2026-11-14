@@ -21,3 +21,5 @@ mod maintenance;
 mod compression;
 
 mod markdown;
+
+pub(crate) mod usage_scan;

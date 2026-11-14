@@ -19,6 +19,7 @@ pub(super) struct Snapshots(Arc<Mutex<HashMap<String, Snapshot>>>);
 pub(super) struct Policy(pub(super) Option<PathBuf>);
 pub(in super::super) fn router() -> Router {
     Router::new()
+        .merge(super::usage_scan::router())
         .route("/external-sessions/markdown", axum::routing::post(super::markdown::read))
         .route("/external-sessions/compression/query", axum::routing::post(super::compression::read))
         .route("/external-sessions/compression", axum::routing::post(super::compression::write))

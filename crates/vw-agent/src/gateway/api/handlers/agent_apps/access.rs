@@ -2431,3 +2431,29 @@ pub(in super::super) fn authorize_device_sync_download(
     let recovery = a.host.data_backup_root.filter(|p| p.is_absolute()).ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
     Ok((credentials, skills, recovery))
 }
+
+/// Background usage only consumes administrator-bound read grants on local hosts.
+/// Project registration is rechecked by the worker before opening any source.
+pub(in super::super) fn usage_scan_targets(path: &Path) -> Result<Vec<(vw_api_types::ProjectScope, String, PathBuf, ExternalHistoryInstance)>, StatusCode> {
+    let policy = load(path).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
+    let mut targets = Vec::new();
+    for principal in &policy.principals {
+        for grant in &principal.grants {
+            let Some(host) = policy.hosts.iter().find(|host| host.id == grant.host_id && host.id == vw_shared::local_apps::HOST_ID
+                && host.online && matches!(host.binding, Binding::Local)) else { continue };
+            let tenant = TenantScope::new(&grant.platform_id, &grant.company_id)
+                .map_err(|_| StatusCode::FORBIDDEN)?;
+            for permit in &grant.external_sessions_read {
+                let project = vw_api_types::ProjectScope::new(tenant.clone(), permit.project_id.clone())
+                    .map_err(|_| StatusCode::FORBIDDEN)?;
+                for instance in host.external_session_instances.iter().filter(|instance|
+                    instance.provider == permit.provider && instance.instance_id == permit.instance_id) {
+                    if instance.root.is_absolute() && instance.root.starts_with(&host.home) {
+                        targets.push((project.clone(), principal.id.clone(), host.home.clone(), instance.clone()));
+                    }
+                }
+            }
+        }
+    }
+    Ok(targets)
+}

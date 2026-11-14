@@ -715,3 +715,7 @@ pub(super) use access::data_location_roots;
 pub(super) use access::authorize_data_export;
 
 pub(super) use access::authorize_device_sync_download;
+
+pub(super) use access::usage_scan_targets;
+
+pub(super) use access::ExternalHistoryInstance;

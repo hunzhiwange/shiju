@@ -455,7 +455,7 @@ mod computer_control_tests;
 
 pub(crate) mod project_profiles;
 
-mod external_sessions;
+pub(crate) mod external_sessions;
 mod backup_inventory;
 
 pub(crate) mod agent_apps_data;

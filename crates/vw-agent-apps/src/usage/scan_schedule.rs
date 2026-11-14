@@ -12,6 +12,7 @@ use super::{
 
 pub const BACKGROUND_SCAN_INTERVAL: Duration = Duration::from_secs(600);
 
+#[derive(Clone)]
 pub struct ScanSchedule {
     jobs: ScanJobs,
     owner: ScanOwner,
@@ -21,6 +22,7 @@ pub struct ScanSchedule {
     page_due: bool,
     last_background: Option<Instant>,
     last_page: Option<Instant>,
+    manual: Option<ScanJob>,
 }
 
 impl ScanSchedule {
@@ -28,15 +30,17 @@ impl ScanSchedule {
         Self {
             jobs, owner, sources: HashMap::new(), paused: false,
             page_active: false, page_due: false,
-            last_background: None, last_page: None,
+            last_background: None, last_page: None, manual: None,
         }
     }
 
     /// Supply preferences loaded by the authenticated host, never path grants.
     /// Unconfigured sources stay disabled until the host loads their settings.
     pub fn set_source(&mut self, adapter: ScanAdapter, settings: UsageSourceSettings) {
-        self.sources.insert(adapter, settings);
-        self.page_due = true;
+        if self.sources.get(&adapter) != Some(&settings) {
+            self.sources.insert(adapter, settings);
+            self.page_due = true;
+        }
     }
 
     pub fn set_paused(&mut self, paused: bool) {
@@ -62,6 +66,7 @@ impl ScanSchedule {
     /// so suspend/recovery and the ten-minute boundary need no real-time waits.
     /// Deadlines advance to now, skipping missed periods rather than replaying.
     pub fn tick(&mut self, now: Instant) -> Result<Option<ScanJob>, ScanJobError> {
+        if let Some(job) = self.manual.take() { return Ok(Some(job)); }
         if self.paused || !self.sources.values().any(|source| source.scan_enabled) {
             return Ok(None);
         }
@@ -88,6 +93,7 @@ impl ScanSchedule {
         self.last_background = Some(now);
         self.last_page = Some(now);
         self.page_due = false;
+        self.manual = Some(job.clone());
         Ok(job)
     }
 

@@ -78,3 +78,5 @@ pub mod models_sync;
 pub mod scan_jobs;
 
 pub mod scan_schedule;
+
+pub mod snapshot_scan;

@@ -16,6 +16,7 @@ use vw_api_types::{
 
 pub(crate) fn router() -> Router {
     let router = Router::new()
+        .merge(super::agent_apps_data::backup_crud_api::router())
         .merge(read::router())
         .merge(super::project_profiles::router())
         .merge(super::aggregation_read::router())
@@ -633,3 +634,5 @@ mod openclaw_settings;
 mod workspace_directory;
 
 pub(super) use access::{authorize_project_profiles, authorize_project_profiles_maintenance};
+
+pub(super) use access::authorize_data_backups;

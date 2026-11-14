@@ -144,3 +144,14 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 技能/历史所有者尚未暴露清理锁和备份缓存刷新生产接口；`skills` 及三个 `codexHistory*` 分类明确返回 OwnerRequired，不绕过领域所有者。本项只交付其余分类核心，不宣称这些领域清理闭环完成。独立测试代码覆盖匹配文件、数据库与未知类别拒绝、作用域、所有者缺失、保护文件与符号链接及部分释放，已在 macOS 父模块注册。
 
 按用户本轮覆盖要求，只写代码，未运行 Cargo、单元或实机测试，未领取槽位，CARGO_TARGET_DIR 未设置，无退出码或有效测试数通过证据。待统一回归：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_31_ -- --nocapture`；领域分类待真实所有者接口就绪后接通并验收。按本轮要求删除任务卡，不表示验证通过。
+
+
+## 子任务 34：备份维护 HTTP API（2026-11-14）
+
+`agent_apps_data/backup_crud_api.rs` 通过既有 agent_apps 路由挂载四个 POST 入口 `/agent-apps/data/backups/{create,list,rename,delete}`，请求沿用 data_management DTO。复用受保护 access policy 文件与 token 校验，新增显式项目许可 `data_backups`（默认空）与执行主机 `data_backup_root`（默认无）；根必须为已存在的绝对 0700 私有目录。请求不接受根路径；租户与 Extension 身份一致，principal 与 token 身份一致，主机须在线本地，所有归档按完整作用域过滤。不复用导出、技能或生命周期权限扩大访问。
+
+沿用原 local_rollback 格式；`backup_api` 从真实归档读取标签、类别、摘要及大小，摘要作为 revision。目录 flock 串行化本 API 的跨进程操作；标签更新保留 ID、完整 owner 内容，持有源独占锁检查 revision 后以隐藏临时文件 fsync/readback/rename 原子替换。删除在同一源独占锁内验证 revision，再 unlink 与目录同步；受保护源返回冲突。底层 ID 重命名也补持有源独占锁，避免绕过保护。响应错误只有状态码，统一 no-store，不返回原始配置、路径或异常信息。
+
+创建的生产捕获范围目前明确为 **Preferences**：从显式注入 GlobalDatabase 的 SQLite 只读事务中捕获当前 principal 的 agent_apps_user 与当前执行主机的 agent_apps_host 完整原值/明确不存在，保持事务到归档持久化。其它类别、portable_export 与非 SQLite 捕获明确返回 501，不用可迁移 SharedSnapshot 冒充完整本机前镜像；本项未补其它领域捕获。全体不存在返回 null，无可见备份。请求键与完整作用域哈希生成稳定归档 ID，同一键现存备份的名称/类别不一致返回冲突；标签改名后重放原创建请求也返回冲突。首次发布与 ID 移动为两阶段，后阶段失败可能留下随机 ID 的有效归档，需重新列举核对，不承诺跨归档/数据库事务或自动回滚。现有旧归档可列举维护，无第二套回执库。
+
+新增并注册 `cc_data_34_backup_api_maintains_isolated_backups` 与 `cc_data_34_backup_api_rejects_cross_tenant_id` 源码，使用匿名临时 SQLite、私有归档根与本地动态端口真实 HTTP，覆盖创建/列举/改中文标签/旧 revision 拒绝/删除及外租户拒绝。按用户要求**未运行** Cargo、构建、单元或实机测试；无通过证据、测试数或退出码。未领取 Cargo 槽位，CARGO_TARGET_DIR / CARGO_BUILD_BUILD_DIR 未设置。仅对新增文件运行独立 rustfmt 排版，不代表编译或行为验证。统一回归需执行仓库槽位包装下的 `cargo test -j 1 -p vw-agent --lib cc_data_34_ -- --nocapture`，并补鉴权拒绝、保护源、并发与发布后失败场景。

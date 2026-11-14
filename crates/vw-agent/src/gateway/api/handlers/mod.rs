@@ -430,3 +430,5 @@ mod mcp_management_tools;
 mod mcp_management_tools_tests;
 
 pub(crate) mod project_profiles;
+
+pub(crate) mod agent_apps_data;

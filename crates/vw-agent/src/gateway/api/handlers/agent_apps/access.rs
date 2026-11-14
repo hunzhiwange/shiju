@@ -37,6 +37,8 @@ struct Principal {
 #[serde(deny_unknown_fields)]
 struct Grant {
     #[serde(default)]
+    data_backups: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
     #[serde(default)]
     preferences_write: bool,
@@ -543,6 +545,9 @@ struct NativeLoginOwner {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Host {
+    /// Existing private directory, selected only by the administrator.
+    #[serde(default)]
+    pub data_backup_root: Option<PathBuf>,
     pub id: String,
     pub online: bool,
     pub binding: Binding,
@@ -645,6 +650,7 @@ pub(super) fn authorize_identity_launch(
 
 #[derive(Clone, Copy)]
 enum Capability<'a> {
+    DataBackups(&'a vw_api_types::id::ProjectId),
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
     ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
     OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
@@ -933,6 +939,7 @@ fn authorize_digest(
         .filter(|g| {
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
+                    Capability::DataBackups(project) => g.data_backups.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
                     }
@@ -1872,4 +1879,16 @@ pub(super) fn authorize_project_profiles_maintenance(
 ) -> Result<String, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::ProjectProfilesMaintain(project.project_id())).map(|a| a.host.id)
+}
+
+/// Backup authority is independent of inventory, export and lifecycle grants.
+pub(in super::super) fn authorize_data_backups(
+    path: Option<&Path>, headers: &HeaderMap,
+    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+) -> Result<PathBuf, StatusCode> {
+    let authorized = authorize_scoped(path, headers, target.scope.tenant_scope(),
+        &target.target_host_id, None, Capability::DataBackups(target.scope.project_id()))?;
+    if authorized.principal != target.principal_id { return Err(StatusCode::FORBIDDEN); }
+    authorized.host.data_backup_root.filter(|root| root.is_absolute())
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }

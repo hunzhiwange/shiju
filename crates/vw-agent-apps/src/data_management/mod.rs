@@ -70,3 +70,6 @@ pub mod shared_snapshot;
 pub mod location_delete;
 #[cfg(all(test, target_os = "macos"))]
 mod location_delete_tests;
+
+#[cfg(target_os = "macos")]
+pub mod backup_api;

@@ -228,3 +228,26 @@ pub(super) fn rename_backup(parent: &File, source: &str, target: &str) -> Result
     // A sync failure is reported, but the committed destination is retained.
     parent.sync_all().map_err(|_| Error::StorageUnavailable)
 }
+
+/// Caller holds the source lock and has checked its revision. Publish the new
+/// label atomically; a failure after rename may have committed and needs reread.
+pub(super) fn replace(parent: &File, id: &str, bytes: &[u8]) -> Result<(), Error> {
+    let child = name(&format!(".backup-label-{}", uuid::Uuid::new_v4()))?;
+    let mut file = open_at(parent, &child, libc::O_RDWR | libc::O_CREAT | libc::O_EXCL)?;
+    let pending = Pending { parent, child };
+    private(&file, false)?;
+    file.write_all(bytes).map_err(|_| Error::StorageUnavailable)?;
+    file.sync_all().map_err(|_| Error::StorageUnavailable)?;
+    let mut reread = Vec::new();
+    open_at(parent, &pending.child, libc::O_RDONLY)?
+        .take(MAX_SNAPSHOT_BYTES as u64 + 1).read_to_end(&mut reread)
+        .map_err(|_| Error::StorageUnavailable)?;
+    if reread != bytes { return Err(Error::Corrupt); }
+    let destination = archive_name(id)?;
+    // SAFETY: both names belong to the pinned private directory.
+    if unsafe { libc::renameat(parent.as_raw_fd(), pending.child.as_ptr(),
+        parent.as_raw_fd(), destination.as_ptr()) } != 0 {
+        return Err(Error::StorageUnavailable);
+    }
+    parent.sync_all().map_err(|_| Error::StorageUnavailable)
+}

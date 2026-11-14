@@ -30,6 +30,7 @@ members = [
   "crates/libs/secret-store",
   "crates/libs/webview-core",
   "crates/libs/webview-ipc",
+  "crates/libs/webview-init-script",
   "crates/libs/webview-launch",
   "crates/libs/webview-local-content",
   "crates/libs/webview-toolbar",

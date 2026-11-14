@@ -174,13 +174,3 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 凭据按 portable_policy 不从源复制。Claude/Gemini 第三方配置须有相同目标身份的既有领域凭据，否则拒绝；Codex 只保留模型/路由 TOML 白名单及目标已有 key，不搬源 auth。官方记录仅入目录，不改变本机登录。测试文件 `providers_tests.rs` 注册四个 `cc_data_09_` 行为测试，涵盖重复执行、skip、跨主机/非法批次、源凭据拒绝；本轮均未运行。
 
 用户要求本轮只写代码，未运行 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。统一验证应执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_09_ -- --nocapture`，并补充 vw-agent 所有者真实 SQLite 事务、回退文件失败与并发版本场景。本节为交付记录，不是 macOS 验收通过证据。
-
-## 子任务 9：供应商迁入代码交付（2026-11-14）
-
-新增 `data_management/providers.rs::{prepare,ProviderPreview::resolve}`，封装来源摘要、目标记录摘要、身份与随机预览句柄到保留载荷的映射；SQLite/JSON 来源按应用 ID 和供应商 ID 关联端点，重复 ID、非法端点、孤立引用和非法图标使整批准备失败。元数据复用 presentation/icons/endpoints 所有者校验，不复制 is_current 或 failover 队列作为激活动作。仅支持 Claude、Gemini、Codex；其它应用、Bedrock/Vertex 和无法解析的配置明确拒绝。内联自定义图标沿用既有校验，外部图标 ID 不伪装成有效图片。
-
-`AppProviderStore::{preview_cc_providers,import_cc_providers}` 是现有所有者的新业务入口，非 HTTP 路由。调用方必须先授权 SourceScope；执行时 SQLite Immediate 事务内重新读取同租户完整供应商集合，校验预览版本和决策，捕获完整原记录/不存在状态，通过任务8创建回退点后在唯一 namespace 原子提交。失败由 SQLite 回滚类别，不逐行补偿，不触碰 live；绑定原生发布/账号的记录拒绝。PostgreSQL 明确不支持此入口，不切换后端。回退归档保留完整前镜像；恢复入口与 API 调度仍由后续任务接线。
-
-凭据按 portable_policy 不从源复制。Claude/Gemini 第三方配置须有相同目标身份的既有领域凭据，否则拒绝；Codex 只保留模型/路由 TOML 白名单及目标已有 key，不搬源 auth。官方记录仅入目录，不改变本机登录。测试文件 `providers_tests.rs` 注册四个 `cc_data_09_` 行为测试，涵盖重复执行、skip、跨主机/非法批次、源凭据拒绝；本轮均未运行。
-
-用户要求本轮只写代码，未运行 Cargo、编译、单元或实机测试；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置，无退出码或有效测试数。统一验证应执行 `cargo test -j 1 -p vw-agent-apps --lib cc_data_09_ -- --nocapture`，并补充 vw-agent 所有者真实 SQLite 事务、回退文件失败与并发版本场景。本节为交付记录，不是 macOS 验收通过证据。

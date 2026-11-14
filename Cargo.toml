@@ -45,6 +45,7 @@ members = [
   "crates/libs/webview-toolbar",
   "crates/libs/webview-storage",
   "crates/libs/webview-runtime-cookie",
+  "crates/libs/webview-external-protocol",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

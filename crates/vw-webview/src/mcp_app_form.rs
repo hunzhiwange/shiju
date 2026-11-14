@@ -28,7 +28,7 @@ mod supported {
     }
 
     pub(crate) struct FormPolicy {
-        pub(crate) parent: Option<crate::external_protocol::Parent>,
+        pub(crate) parent: Option<webview_external_protocol::Parent>,
         pub(crate) frame_domains: Vec<String>,
         pub(crate) origins: Vec<String>,
         pub(crate) active: Arc<AtomicBool>,
@@ -76,7 +76,7 @@ mod supported {
             let pending = self.pending.clone();
             let active = self.active.clone();
             let submitted = self.submitted.clone();
-            crate::external_protocol::confirm_mcp_form(parent, &origin, move |approved| {
+            webview_external_protocol::confirm_mcp_form(parent, &origin, move |approved| {
                 pending.set(false);
                 let approved = approved && active.load(Ordering::Acquire);
                 submitted.set(approved);

@@ -20,8 +20,3 @@ fn user_event_open_url_keeps_url_payload() {
 fn coverage_main_is_empty() {
     main();
 }
-
-#[test]
-fn show_error_dialog_accepts_message() {
-    show_error_dialog("VibeWindow WebView", "test error");
-}

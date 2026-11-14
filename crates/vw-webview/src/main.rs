@@ -7,7 +7,7 @@
 #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 mod edit_menu;
 #[cfg(not(target_arch = "wasm32"))]
-mod external_protocol;
+use webview_external_protocol::dialog::show_error_dialog;
 #[cfg(all(not(any(target_arch = "wasm32", coverage)), target_os = "macos"))]
 mod macos_downloads;
 #[cfg(not(target_arch = "wasm32"))]
@@ -60,23 +60,6 @@ fn emit_navigation_url(url: &str) {
     let _ = output.flush();
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn show_error_dialog(title: &str, description: &str) {
-    #[cfg(target_os = "windows")]
-    {
-        let _ = rfd::MessageDialog::new()
-            .set_title(title)
-            .set_description(description)
-            .set_level(rfd::MessageLevel::Error)
-            .set_buttons(rfd::MessageButtons::Ok)
-            .show();
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        eprintln!("{title}: {description}");
-    }
-}
-
 #[cfg(not(any(target_arch = "wasm32", coverage)))]
 fn main() {
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -93,7 +76,7 @@ fn main() {
     #[cfg(all(unix, not(target_os = "macos")))]
     use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
-    use crate::external_protocol::ExternalProtocols;
+    use webview_external_protocol::ExternalProtocols;
     use webview_core::navigation::ExternalTarget;
     use crate::view_region::to_wry_rect;
     use webview_toolbar::{
@@ -356,7 +339,7 @@ fn main() {
     };
 
     #[cfg(windows)]
-    if external_protocol::block_native_external_launches(&webview, local_root.is_some()).is_err() {
+    if webview_external_protocol::block_native_external_launches(&webview, local_root.is_some()).is_err() {
         show_error_dialog("VibeWindow WebView", "无法安装外部协议保护。");
         return;
     }
@@ -430,7 +413,7 @@ fn main() {
             Event::UserEvent(UserEvent::OpenExternal(u)) => {
                 if is_safe_navigation_url(&u) {
                     if open::that(u).is_err() {
-                        external_protocol::show_browser_open_error(&window);
+                        webview_external_protocol::show_browser_open_error(&window);
                     }
                 } else if let Some(target) = ExternalTarget::parse(&u) {
                     external.request(target, None, &proxy);
@@ -445,8 +428,8 @@ fn main() {
                 if let Some((target, popup, confirmation)) = external.take() {
                     if let Some(id) = popup {
                         popups.show_external_confirmation(id, target, confirmation);
-                    } else if let Some(parent) = external_protocol::main_dialog_parent(&window) {
-                        external_protocol::show_confirmation(parent, target, confirmation);
+                    } else if let Some(parent) = webview_external_protocol::main_dialog_parent(&window) {
+                        webview_external_protocol::show_confirmation(parent, target, confirmation);
                     }
                 }
             }

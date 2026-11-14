@@ -5,7 +5,7 @@ use tao::platform::unix::WindowExtUnix;
 use wry::{WebView, WebViewExtUnix};
 
 #[derive(Clone)]
-pub(crate) struct Parent(gtk::Window);
+pub struct Parent(gtk::Window);
 
 impl Parent {
     pub(super) fn from_window(window: &tao::window::Window) -> Option<Self> {

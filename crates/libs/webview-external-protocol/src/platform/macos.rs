@@ -8,7 +8,7 @@ use tao::platform::macos::WindowExtMacOS;
 use wry::{WebView, WebViewExtMacOS};
 
 #[derive(Clone)]
-pub(crate) struct Parent(Retained<NSWindow>);
+pub struct Parent(Retained<NSWindow>);
 
 impl Parent {
     pub(super) fn from_window(window: &tao::window::Window) -> Option<Self> {

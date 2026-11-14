@@ -8,7 +8,7 @@ use std::rc::Rc;
 use tao::event_loop::EventLoopProxy;
 use wry::{NewWindowFeatures, NewWindowResponse, WebView, WebViewBuilder};
 
-use crate::external_protocol::ExternalProtocols;
+use webview_external_protocol::ExternalProtocols;
 use webview_core::navigation::{ExternalTarget, Navigation, navigation};
 use crate::UserEvent;
 use webview_storage::append_log;
@@ -131,7 +131,7 @@ impl PopupWindows {
             self.owner,
         )?;
         #[cfg(windows)]
-        crate::external_protocol::block_native_external_launches(&webview, false)?;
+        webview_external_protocol::block_native_external_launches(&webview, false)?;
         let response = platform::response(&webview);
         self.windows.borrow_mut().insert(id, Popup { webview, _host: host });
         Ok(response)
@@ -141,16 +141,16 @@ impl PopupWindows {
         &self,
         id: u64,
         target: ExternalTarget,
-        confirmation: crate::external_protocol::Confirmation,
+        confirmation: webview_external_protocol::Confirmation,
     ) {
         // On Windows the dialog pumps messages. Never hold a borrow across it.
         let parent = self
             .windows
             .borrow()
             .get(&id)
-            .and_then(|popup| crate::external_protocol::dialog_parent(&popup.webview));
+            .and_then(|popup| webview_external_protocol::dialog_parent(&popup.webview));
         if let Some(parent) = parent {
-            crate::external_protocol::show_confirmation(parent, target, confirmation);
+            webview_external_protocol::show_confirmation(parent, target, confirmation);
         }
     }
 

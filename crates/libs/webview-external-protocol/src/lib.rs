@@ -1,23 +1,27 @@
+#![cfg(not(target_arch = "wasm32"))]
+
+pub mod dialog;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use webview_core::navigation::ExternalTarget;
 
 #[cfg(all(not(coverage), target_os = "macos"))]
-#[path = "external_protocol/macos.rs"]
+#[path = "platform/macos.rs"]
 mod platform;
 #[cfg(all(not(coverage), target_os = "windows"))]
-#[path = "external_protocol/windows.rs"]
+#[path = "platform/windows.rs"]
 mod platform;
 #[cfg(all(not(coverage), unix, not(target_os = "macos")))]
-#[path = "external_protocol/unix.rs"]
+#[path = "platform/unix.rs"]
 mod platform;
 
 #[cfg(all(not(coverage), target_os = "windows"))]
-pub(crate) use platform::block_native_external_launches;
+pub use platform::block_native_external_launches;
 
 #[derive(Clone, Default)]
-pub(crate) struct ExternalProtocols(Rc<RefCell<Pending>>);
+pub struct ExternalProtocols(Rc<RefCell<Pending>>);
 
 #[derive(Default)]
 enum Pending {
@@ -28,7 +32,7 @@ enum Pending {
 }
 
 impl ExternalProtocols {
-    pub(crate) fn queue(&self, target: ExternalTarget, popup: Option<u64>) -> bool {
+    fn queue(&self, target: ExternalTarget, popup: Option<u64>) -> bool {
         let mut pending = self.0.borrow_mut();
         if !matches!(*pending, Pending::Idle) {
             return false;
@@ -38,18 +42,18 @@ impl ExternalProtocols {
     }
 
     #[cfg(not(coverage))]
-    pub(crate) fn request(
+    pub fn request(
         &self,
         target: ExternalTarget,
         popup: Option<u64>,
-        proxy: &tao::event_loop::EventLoopProxy<crate::UserEvent>,
+        proxy: &tao::event_loop::EventLoopProxy<webview_core::events::UserEvent>,
     ) {
         if self.queue(target, popup) {
-            let _ = proxy.send_event(crate::UserEvent::ConfirmExternal);
+            let _ = proxy.send_event(webview_core::events::UserEvent::ConfirmExternal);
         }
     }
 
-    pub(crate) fn take(&self) -> Option<(ExternalTarget, Option<u64>, Confirmation)> {
+    pub fn take(&self) -> Option<(ExternalTarget, Option<u64>, Confirmation)> {
         let mut pending = self.0.borrow_mut();
         match std::mem::replace(&mut *pending, Pending::Confirming) {
             Pending::Queued(target, popup) => Some((target, popup, Confirmation(self.clone()))),
@@ -61,7 +65,7 @@ impl ExternalProtocols {
     }
 }
 
-pub(crate) struct Confirmation(ExternalProtocols);
+pub struct Confirmation(ExternalProtocols);
 
 impl Drop for Confirmation {
     fn drop(&mut self) {
@@ -71,13 +75,13 @@ impl Drop for Confirmation {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Outcome {
+enum Outcome {
     Opened,
     Cancelled,
     Unavailable,
 }
 
-pub(crate) fn hand_off(
+fn hand_off(
     target: ExternalTarget,
     approved: bool,
     open: impl FnOnce(&str, &str) -> bool,
@@ -92,10 +96,10 @@ pub(crate) fn hand_off(
 }
 
 #[cfg(all(not(coverage), unix))]
-pub(crate) use platform::Parent;
+pub use platform::Parent;
 
 #[cfg(all(not(coverage), unix))]
-pub(crate) fn confirm_mcp_form(parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
+pub fn confirm_mcp_form(parent: &Parent, origin: &str, done: impl FnOnce(bool) + 'static) {
     parent.show(
         "提交 MCP 表单",
         &format!("是否向 {origin} 发送表单数据？提交后将显示隔离的响应页面。"),
@@ -105,17 +109,17 @@ pub(crate) fn confirm_mcp_form(parent: &Parent, origin: &str, done: impl FnOnce(
 }
 
 #[cfg(not(coverage))]
-pub(crate) fn dialog_parent(webview: &wry::WebView) -> Option<platform::Parent> {
+pub fn dialog_parent(webview: &wry::WebView) -> Option<platform::Parent> {
     platform::Parent::from_webview(webview)
 }
 
 #[cfg(not(coverage))]
-pub(crate) fn main_dialog_parent(window: &tao::window::Window) -> Option<platform::Parent> {
+pub fn main_dialog_parent(window: &tao::window::Window) -> Option<platform::Parent> {
     platform::Parent::from_window(window)
 }
 
 #[cfg(not(coverage))]
-pub(crate) fn show_confirmation(
+pub fn show_confirmation(
     parent: platform::Parent,
     target: ExternalTarget,
     confirmation: Confirmation,
@@ -136,7 +140,7 @@ pub(crate) fn show_confirmation(
 }
 
 #[cfg(not(coverage))]
-pub(crate) fn show_browser_open_error(window: &tao::window::Window) {
+pub fn show_browser_open_error(window: &tao::window::Window) {
     if let Some(parent) = main_dialog_parent(window) {
         parent.show("无法打开外部浏览器", "系统未能打开此网页。", false, |_| {});
     }

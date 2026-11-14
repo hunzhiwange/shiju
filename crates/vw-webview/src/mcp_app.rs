@@ -199,7 +199,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let delegate = form::install(
             &webview,
             form::FormPolicy {
-                parent: crate::external_protocol::main_dialog_parent(&window),
+                parent: webview_external_protocol::main_dialog_parent(&window),
                 frame_domains: policy.frame_domains,
                 origins: form_origins,
                 active: active.clone(),

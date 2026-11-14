@@ -21,7 +21,7 @@ use wry::{WebView, WebViewExtWindows};
 use webview_core::navigation::{Navigation, navigation};
 
 #[derive(Clone)]
-pub(crate) struct Parent(HWND);
+pub struct Parent(HWND);
 
 impl Parent {
     pub(super) fn from_window(window: &tao::window::Window) -> Option<Self> {
@@ -79,7 +79,7 @@ fn wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain([0]).collect()
 }
 
-pub(crate) fn block_native_external_launches(
+pub fn block_native_external_launches(
     webview: &WebView,
     local_site: bool,
 ) -> wry::Result<()> {

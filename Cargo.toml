@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/domain-matcher",
   "crates/libs/patch",
   "crates/vw-api-types",
   "crates/vw-acp",

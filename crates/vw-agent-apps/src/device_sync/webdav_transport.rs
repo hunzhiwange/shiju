@@ -174,6 +174,32 @@ impl WebDavUploadTarget {
         Ok(Self { config, data_compat_version, client })
     }
 
+    /// Prepare the native version collections, retaining existing collections only
+    /// after a successful probe. No artifact or manifest is written here.
+    pub async fn prepare_collections(&self) -> Result<(), WebDavError> {
+        test_connection(self.config.clone()).await?;
+        let mut url = super::webdav_url::build_artifact_url(
+            &self.config.base_url, &self.config.remote_root, &self.config.profile,
+            self.data_compat_version, "manifest.json",
+        ).map_err(upload_error)?;
+        url.path_segments_mut().map_err(|_| upload_error("Invalid collection"))?.pop();
+        let mut collections = Vec::new();
+        for _ in 0..3 {
+            collections.push(url.clone());
+            url.path_segments_mut().map_err(|_| upload_error("Invalid collection"))?.pop();
+        }
+        for mut url in collections.into_iter().rev() {
+            url.path_segments_mut().map_err(|_| upload_error("Invalid collection"))?.push("");
+            let status = request(&self.client, "MKCOL", &url, &self.config).await?;
+            if status.is_success() { continue; }
+            if matches!(status, StatusCode::METHOD_NOT_ALLOWED | StatusCode::CONFLICT)
+                && request(&self.client, "PROPFIND", &url, &self.config).await?.is_success()
+            { continue; }
+            return Err(status_error("MKCOL", status, &url));
+        }
+        Ok(())
+    }
+
     /// Upload exactly these staged bytes. The caller owns snapshot filtering,
     /// directory preparation and publication order (manifest last).
     /// A timeout may leave remote bytes written; no automatic retry is performed.

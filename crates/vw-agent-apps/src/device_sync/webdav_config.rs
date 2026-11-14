@@ -4,6 +4,7 @@ use reqwest::Url;
 
 /// Execution-side input, never a public DTO or a persisted secret record.
 /// Deliberately has no Debug or serialization implementation.
+#[derive(Clone)]
 pub struct WebDavConfig {
     pub enabled: bool,
     pub auto_sync: bool,

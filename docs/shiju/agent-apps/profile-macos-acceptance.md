@@ -1,5 +1,25 @@
 # 项目组合 macOS 交付证据
 
+## 任务 28：Claude 组合闭环静态盘点（未验证）
+
+2026-11-14：按本轮覆盖要求，仅完成源码与依赖盘点及必要交付合同；未运行 Cargo、构建、检查、单元测试、实机测试或最终回归。未启动 Gateway、未调用 SDK、未创建隔离 HOME 或配置产物；无测试数量、运行退出码、平台版本或脱敏前后差异证据。未领取 Cargo 槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，不表示 Claude 闭环已实现或验收通过。
+
+直接依赖任务 27 已有桌面进度实现 `vw-desktop/src/app/message/project_profiles_progress.rs`；其回执绑定 operationId、profileId、group，缺少有效回执时保持未知结果，不重发应用。对应提交 `28e326c1b`、`f44508351` 可追溯。当前执行端仍存在以下缺项，桌面产物不能代替执行端交付：
+
+| 验收环节 | 当前源码入口（路径相对 crates） | 静态结论及后续交付条件 |
+| --- | --- | --- |
+| 四类实际状态快照、创建 A/B | vw-agent/src/gateway/api/handlers/project_profiles.rs | create 的四个读取回调均返回 Unavailable；需领域所有者接同一授权项目/主机/组的有效状态读取，不能用目录期望值替代 |
+| 重拍 | vw-agent/src/gateway/api/handlers/project_profiles_maintenance.rs | Resnapshot 明确返回 snapshot_unavailable；需接真实读取及版本事务 |
+| 预览和应用 | vw-agent/src/gateway/api/handlers/project_profiles_execution.rs | 授权、槽归属、实体/版本核对后分别返回 503 profile_observation_unavailable / profile_execution_unavailable；尚未接 prepare_switch、四类执行回调和结果持久化 worker |
+| 进度、取消和断线恢复 | 同上；vw-gateway-client/src/client/project_profile_api.rs | 服务端操作查询/取消返回 404；SDK 已有独立方法，但成功载荷尚未冻结，需绑定租户/项目/主机/组的操作注册表与本次操作终态，不能复用最近组结果作回执 |
+| 直连/代理保持、自动保存和跨组隔离 | vw-agent-apps/src/project_profiles/{apply_provider,autosave,apply}.rs | 有领域回调和编排合同，生产 API 尚未接通；仅阅读函数不能确认配置恢复或代理发布成功 |
+
+生产注册静态可追溯至 handlers/agent_apps/mod.rs → project_profiles::router，并由 gateway/router.rs 和 gateway/bootstrap.rs 合入；实际 SDK 路径为 `/v1/agent-apps/project-profiles`。未新增第二套路由、观察器或占位测试，拟定的 profile_macos_tests.rs 本轮未新增。
+
+来源 `vw-agent-apps/upstream/src-tauri/tests/profile_roundtrip.rs` 的 `profile_snapshot_apply_roundtrip_restores_configuration` 定义四类引用恢复与 Desktop 独立断言；`profile_switch_in_routing_mode_changes_the_route_only` 定义代理模式保持、有效路由切换、直连指针保留及退出代理恢复。来源测试直接调用旧 ProfileService，不经过本仓库 Gateway/SDK，不能作为目标闭环证据。
+
+解除验证禁令且上述生产入口交付后，独立 macOS 场景 `profile_t28_macos_claude_roundtrip` 应通过真实 Gateway/SDK，在可恢复隔离 HOME、临时项目及动态端口下创建 A/B，逐项断言供应商、MCP、技能、提示词恢复；离开 A 前改变配置，再返回 A 核对自动保存，仅 Claude 组改变。直连与代理分别覆盖，代理下同时核对有效路由、直连指针及原生代理配置保持；比较 Desktop/Codex 快照、指针与文件前像，补权限拒绝、版本冲突及失败不冒充 applied 的断言。环境变更持既有环境锁，原生客户端窗口核验仍交用户。后续通过仓库 cargo_slot.py 执行原卡的 profile_t28_ 聚焦测试，记录实际槽位、两个绝对缓存路径、命令/退出码/有效数量、macOS/CPU 与 Gateway/SDK 版本，以及脱敏路径与差异；不得记录密钥、令牌或敏感正文。
+
 ## 任务 11：应用供应商槽位
 
 2026-11-14：已实现指定组供应商槽位编排与模块注册，合同见 [profile-provider-apply.md](profile-provider-apply.md)。null 不调用领域入口；同一有效供应商不调用写回调；缺失引用逐项 Missing。切换保留当前模式，核对实际目标、attached、stack 和非活动指针；发布待恢复不能返回成功。文件投影、登录事务、路由发布与权限仍归原领域执行端，生产回调由后续应用编排接线，当前不构成平台闭环。

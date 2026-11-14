@@ -1211,3 +1211,11 @@ requestOptions.cacheInjection 显式启用（默认关闭），复用现有请�
 新增 codex_oauth_transport 官方出口检查与最终身份头检查；ManagedCredential::resolve 在解析凭据前拒绝第三方地址、非 HTTPS、查询/片段及非 Responses 端点。dispatch 消费每次 resolve 的凭据包，拒绝空白账号和无效 Bearer，覆盖客户端/提供商的账号与官方 originator/version。过期刷新、撤销/账号代次检查继续复用 AuthAccountStore::codex_access_token 与 CodexRefresh；不新建 token 缓存或授权流程，不修改旧 session relay。仅支持官方 responses 与 responses/compact 出口，不增加其他协议转换。
 
 遵照用户本次覆盖要求，仅写代码，未运行 Cargo、单元测试、实机测试或最终回归，未新增测试；无红绿灯或验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证应覆盖官方账号头、覆盖优先级、空白账号、过期/撤销后的连续请求及第三方 URL 拒绝。macOS 待验收，其它平台未验证；任务卡按要求删除，不代表母任务8完成。
+
+## 任务75：Gemini OAuth 路由传输（代码交付，未验证）
+
+2026-11-14：直接依赖任务74的 xai_oauth_transport 与 dispatch 接线已存在（abae6a0e3）。已读取冻结 upstream proxy/providers/gemini.rs，以及现有公共传输、可信应用/主机授权、配置发布与 AuthAccountStore::gemini_access_token / GeminiRefresh 接口。仅确认源码依赖可用，不推定母任务1–6外部前置已经实机验收。
+
+新增 gemini_oauth_transport：来源为托管 GeminiCli 时沿用每次 ManagedCredential::resolve 取得的 Bearer，刷新只通过母任务6账号服务；解析凭据前和最终发送前均限制官方 HTTPS generativelanguage.googleapis.com、443、v1/v1beta models 生成端点，查询仅允许流式 alt=sse。最终清除混用的 API key、Cookie 与代理认证，固定 GeminiCLI 客户端头。静态 Gemini 生成端点使用发布的 API key，原生及 Messages 桥接均在覆盖字段处理后统一设置 x-goog-api-key，不按密钥前缀猜测 OAuth，不新增刷新缓存、调度或协议转换器。旧会话 relay 不接入。
+
+遵照用户本次覆盖指令，不运行 Cargo、相关脚本、单元测试、实机或最终回归；未新增测试，无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖 API key / OAuth 来源选择、覆盖头冲突、原生与桥接 JSON/SSE、过期与撤销账号、刷新失败及第三方出口拒绝。macOS 待验收，其它平台范围外；任务文件按要求删除，不代表母任务8完成。

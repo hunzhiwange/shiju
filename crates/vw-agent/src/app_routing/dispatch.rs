@@ -312,10 +312,6 @@ pub(super) async fn forward_json(
     if let Some(url) = &gemini_url {
         *outgoing.url_mut() = url.clone();
     }
-    if gemini.is_some() && !target.authorization.as_bytes().starts_with(b"Bearer ") {
-        outgoing.headers_mut().remove(header::AUTHORIZATION);
-        outgoing.headers_mut().insert("x-goog-api-key", target.authorization.clone());
-    }
     let authorized_url = gemini_url.as_ref().unwrap_or(&target.url);
     let mut wire = parts.extensions.remove::<HeaderWire>().unwrap_or_default();
     wire.retain_allowed(&parts.headers, outgoing.headers_mut());
@@ -359,6 +355,26 @@ pub(super) async fn forward_json(
         outgoing
             .headers_mut()
             .insert(header::ACCEPT_ENCODING, HeaderValue::from_static("identity"));
+    }
+    // Final authentication follows the authorized destination/source after overrides.
+    // Managed OAuth was resolved above by the account owner; never refresh here.
+    let managed_gemini = {
+        #[cfg(target_os = "macos")]
+        { target.managed.as_ref().is_some_and(|credential| {
+            credential.account_adapter.provider_type()
+                == super::adapter_selection::ProviderType::GeminiCli
+        }) }
+        #[cfg(not(target_os = "macos"))]
+        { false }
+    };
+    if managed_gemini {
+        crate::model_relay::gemini_oauth_transport::apply_oauth(&mut outgoing)?;
+    } else if outgoing.url().path().ends_with(":generateContent")
+        || outgoing.url().path().ends_with(":streamGenerateContent")
+    {
+        crate::model_relay::gemini_oauth_transport::apply_api_key(
+            &mut outgoing, &target.authorization,
+        )?;
     }
     #[cfg(target_os = "macos")]
     let selected_egress = route.egress(egress)?;

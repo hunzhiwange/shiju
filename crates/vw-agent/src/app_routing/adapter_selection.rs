@@ -298,6 +298,12 @@ impl ManagedCredential {
                 crate::model_relay::codex_oauth_transport::validate_url(&url)
                     .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
             }
+            if provider == ProviderType::GeminiCli {
+                let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                crate::model_relay::gemini_oauth_transport::validate_url(&url)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+            }
             if provider == ProviderType::XaiOAuth {
                 let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
                     .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;

@@ -18,6 +18,7 @@ members = [
   "crates/libs/tui-render",
   "crates/libs/tui-theme",
   "crates/libs/tui-highlight",
+  "crates/libs/tui-markdown",
   "crates/libs/tui-terminal",
   "crates/libs/tui-input",
   "crates/libs/domain-matcher",

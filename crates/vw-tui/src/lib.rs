@@ -47,11 +47,9 @@ pub(crate) use tui_text::live_wrap;
 #[allow(dead_code)]
 mod markdown;
 #[allow(dead_code)]
-mod markdown_render;
+pub(crate) use tui_markdown::markdown_render;
 #[allow(dead_code)]
 mod markdown_stream;
-#[allow(dead_code)]
-mod markdown_text_merge;
 #[allow(dead_code)]
 mod motion;
 #[allow(dead_code)]
@@ -73,7 +71,7 @@ mod streaming;
 #[allow(dead_code)]
 pub(crate) use tui_theme::style;
 #[allow(dead_code)]
-mod table_detect;
+pub(crate) use tui_markdown::table_detect;
 // 终端适配层集中处理链接、调色板和启动探测，避免渲染层直接依赖环境细节。
 #[allow(dead_code)]
 mod resize_reflow_cap;

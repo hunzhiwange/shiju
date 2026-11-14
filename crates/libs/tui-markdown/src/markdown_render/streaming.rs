@@ -20,19 +20,19 @@ use std::path::Path;
 
 /// 渲染行以及仅保持最后一个块可变所需的块元数据。
 /// Rendered lines and the block metadata needed to keep only the final block mutable.
-pub(crate) struct StreamingMarkdownRender {
+pub struct StreamingMarkdownRender {
     /// 与下列元数据由同一次解析生成的带样式输出。
     /// Styled output produced by the same parser pass that collected the metadata below.
-    pub(crate) lines: Vec<HyperlinkLine>,
+    pub lines: Vec<HyperlinkLine>,
     /// 存在更早块时，最后一个顶层块的字节偏移。
     /// Byte offset of the final top-level block when at least one earlier block exists.
-    pub(crate) last_top_level_block_start: Option<usize>,
+    pub last_top_level_block_start: Option<usize>,
     /// 引用定义是否可能回溯改变其他块的渲染。
     /// Whether a reference definition can retroactively change another block's rendering.
-    pub(crate) has_reference_link_definition: bool,
+    pub has_reference_link_definition: bool,
     /// 首块是否为原始 HTML；此类块与已保留前缀拼接时不插入分隔符。
     /// Whether the first block is raw HTML, which joins a retained prefix without a separator.
-    pub(crate) first_top_level_block_is_html: bool,
+    pub first_top_level_block_is_html: bool,
 }
 
 /// 渲染 `input`，同时跟踪最后一个仍可能变化的顶层块。
@@ -42,7 +42,7 @@ pub(crate) struct StreamingMarkdownRender {
 ///
 /// Every reported byte offset indexes the exact `input` passed here. Callers that transform source
 /// before rendering must map the offset back to their original source before retaining a prefix.
-pub(crate) fn render_streaming_markdown_lines_with_width_and_cwd(
+pub fn render_streaming_markdown_lines_with_width_and_cwd(
     input: &str,
     width: Option<usize>,
     cwd: Option<&Path>,

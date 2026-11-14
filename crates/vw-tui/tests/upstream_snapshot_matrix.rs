@@ -14,7 +14,9 @@ const V3_SNAPSHOT_COUNT: usize = 50;
 // 数量、命名、残留 `.new` 文件和白名单分类共同防止快照静默漂移。
 fn upstream_snapshot_matrix() {
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let snapshots = snapshot_files(&crate_root);
+    let markdown_root = crate_root.join("../libs/tui-markdown");
+    let mut snapshots = snapshot_files(&crate_root);
+    snapshots.extend(snapshot_files(&markdown_root));
     let upstream = named_snapshots(&snapshots, "codex_tui__");
     let v3 = named_snapshots(&snapshots, "vw_tui__");
     let relocated = snapshot_files(&crate_root.join("upstream_snapshots"));
@@ -25,6 +27,7 @@ fn upstream_snapshot_matrix() {
     assert_eq!(relocated.len(), RELOCATED_UPSTREAM_SNAPSHOT_COUNT);
     assert!(snapshots.iter().all(|path| path.extension().is_some_and(|ext| ext == "snap")));
     assert!(snapshot_files_with_extension(&crate_root, "new").is_empty());
+    assert!(snapshot_files_with_extension(&markdown_root, "new").is_empty());
 
     let source_root = Path::new(UPSTREAM_TUI);
     if source_root.is_dir() {

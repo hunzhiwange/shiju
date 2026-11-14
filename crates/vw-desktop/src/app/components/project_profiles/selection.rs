@@ -1,6 +1,8 @@
 //! Profile chooser and maintenance; applying belongs to the apply workflow.
 #[path = "management.rs"]
 mod management;
+#[path = "apply.rs"]
+mod apply;
 use crate::app::state::project_profiles::Action;
 use crate::app::{Message, state::project_profiles::State, message::project_profiles::{Event, message}};
 use crate::app::components::system_settings_common::*;
@@ -12,7 +14,7 @@ pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> Element<'_, Mes
         settings_text_input("按组合名称搜索", &group.query).on_input(move |query| message(Event::Query(scope, query))),
         button(text(if group.loading { "读取中" } else { "刷新组合" })).padding([8,12]).style(rounded_action_btn_style)
             .on_press_maybe((!group.loading).then(|| message(Event::Refresh(scope))))].spacing(8);
-    let enabled = !group.loading && state.management.is_none();
+    let enabled = !group.loading && state.management.is_none() && state.application.is_none();
     content = content.push(button(text("创建组合")).padding([8, 12]).style(rounded_action_btn_style)
         .on_press_maybe(enabled.then(|| message(Event::Open(scope, Action::Create)))));
     if group.current.is_some() {
@@ -35,9 +37,10 @@ pub(crate) fn view(state: &State, scope: ProjectProfileScope) -> Element<'_, Mes
             content = content.push(text(format!("{}{}{}", profile.name,
                 if group.current.as_ref() == Some(&profile.id) { " · 当前" } else { "" },
                 if profile.payload.scope_captured(scope) { "" } else { " · 未拍快照" })));
+            content = content.push(apply::action(profile, scope, enabled));
             content = content.push(management::actions(profile, scope, enabled));
         }
         if count == 0 { content = content.push(text("没有匹配的组合").style(settings_muted_text_style)); }
     }
-    management::overlay(state, scope, content.into())
+    apply::overlay(state, scope, management::overlay(state, scope, content.into()))
 }

@@ -1,6 +1,9 @@
 //! SDK reads are tied to the current project, execution host and request generation.
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
+#[path = "project_profiles_apply.rs"]
+mod apply;
+pub use apply::Event as ApplyEvent;
 use crate::app::state::project_profiles::{Action, Management};
 use vw_gateway_client::{project_profile_api::ProjectProfileApiScope, vw_api_types::{ProjectScope, project_profiles::*}};
 #[derive(Clone)]
@@ -13,6 +16,7 @@ pub struct Identity {
 }
 #[derive(Clone)]
 pub enum Event {
+    Apply(ProjectProfileScope, apply::Event),
     Open(ProjectProfileScope, Action),
     Name(ProjectProfileScope, String),
     Close(ProjectProfileScope),
@@ -27,18 +31,20 @@ pub(crate) fn message(event: Event) -> Message {
         crate::app::message::settings::AppsCatalogMessage::ProjectProfiles(event)))
 }
 pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
+    if let Event::Apply(scope, event) = event { return apply::update(app, scope, event); }
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
     let Some(project) = app.project_id.clone().filter(|id| !id.trim().is_empty()) else { return Task::none(); };
     if app.apps_catalog.context.as_ref() != Some(&context) || !app.apps_catalog.connection_open || app.apps_catalog.token.is_empty() {
         return Task::none();
     }
-    let scope = match &event { Event::Open(s, _) | Event::Name(s, _) | Event::Close(s) | Event::Submit(s) | Event::Saved(_, s, _) | Event::Refresh(s) | Event::Query(s, _) | Event::Loaded(_, s, _) => *s };
+    let scope = match &event { Event::Apply(..) => unreachable!(), Event::Open(s, _) | Event::Name(s, _) | Event::Close(s) | Event::Submit(s) | Event::Saved(_, s, _) | Event::Refresh(s) | Event::Query(s, _) | Event::Loaded(_, s, _) => *s };
     if app.apps_catalog.expanded != Some(scope.app_id()) { return Task::none(); }
     let state = &mut app.apps_catalog.project_profiles;
     match event {
+        Event::Apply(..) => unreachable!(),
         Event::Open(_, action) => {
-            if state.management.is_some() || state.groups.get(scope).loading { return Task::none(); }
+            if state.application.is_some() || state.management.is_some() || state.groups.get(scope).loading { return Task::none(); }
             let name = match &action {
                 Action::Create | Action::Clear => String::new(),
                 Action::Rename(id, version) | Action::Resnapshot(id, version) | Action::Delete(id, version) => {
@@ -100,7 +106,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             Task::none()
         }
         Event::Refresh(_) => {
-            if state.management.is_some() { return Task::none(); }
+            if state.management.is_some() || state.application.as_ref().is_some_and(|f| f.loading) { return Task::none(); }
             state.generation = state.generation.wrapping_add(1);
             let group = state.groups.get_mut(scope);
             group.loading = true;

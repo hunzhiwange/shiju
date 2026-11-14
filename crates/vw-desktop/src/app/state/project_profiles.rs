@@ -14,6 +14,7 @@ pub(crate) struct State {
     pub groups: ProjectProfilePerApp<Group>,
     pub generation: u64,
     pub management: Option<Management>,
+    pub application: Option<Application>,
 }
 impl State {
     pub fn invalidate(&mut self) {
@@ -46,3 +47,35 @@ pub(crate) struct Management {
     pub name: String,
     pub busy: bool,
 }
+
+/// A submitted write is never replayed from this modal, even after transport failure.
+#[derive(Clone)]
+pub(crate) struct Application {
+    pub scope: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub id: ProjectProfileId,
+    pub version: u64,
+    pub name: String,
+    pub loading: bool,
+    pub submitted: bool,
+    pub preview: Option<Preview>,
+    pub result: Option<vw_gateway_client::vw_api_types::project_profiles::ProjectProfileApplyResult>,
+    pub error: Option<&'static str>,
+}
+/// Fail closed until the executor supplies this complete, structured preview.
+#[derive(Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Preview {
+    pub group: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileScope,
+    pub captured: bool,
+    pub items: Vec<PreviewItem>,
+}
+#[derive(Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PreviewItem {
+    pub category: vw_gateway_client::vw_api_types::project_profiles::ProjectProfileCategory,
+    pub reference_id: String,
+    pub action: PreviewAction,
+}
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum PreviewAction { Select, Enable, Disable, Missing }

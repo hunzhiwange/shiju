@@ -149,6 +149,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return Task::none();
             }
             if crate::app::provider_link_preview::pending().is_some()
+                || crate::app::mcp_link_preview::pending().is_some()
                 || crate::app::prompt_link_preview::pending().is_some() {
                 app.show_settings = true;
             }

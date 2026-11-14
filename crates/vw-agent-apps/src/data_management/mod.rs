@@ -90,3 +90,7 @@ mod skills_tests;
 pub mod profiles;
 #[cfg(test)]
 mod profiles_tests;
+
+pub mod prompts;
+#[cfg(test)]
+mod prompts_tests;

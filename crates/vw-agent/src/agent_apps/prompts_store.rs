@@ -188,3 +188,12 @@ mod bootstrap;
 #[cfg(target_os = "macos")]
 #[path = "profile_prompt_store.rs"]
 mod profile_prompt_store;
+
+#[cfg(target_os = "macos")]
+#[path = "prompt_data_migration.rs"]
+mod data_migration;
+#[cfg(target_os = "macos")]
+pub use data_migration::{PromptMigration, PromptMigrationCommit};
+#[cfg(all(test, target_os = "macos"))]
+#[path = "prompt_data_migration_tests.rs"]
+mod data_migration_tests;

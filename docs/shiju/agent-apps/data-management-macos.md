@@ -192,3 +192,9 @@ macOS export_files.rs 在已授权现有 0700 私有根目录描述符内创建 
 调用者仍须完成鉴权、回退点捕获，并持有所选领域依赖锁/CAS 至提交；此入口不代表 API 执行编排已接线。匿名独立测试 `cc_data_13_profiles_remap_selected_references` 和 `cc_data_13_profiles_reject_dangling_reference` 已注册，覆盖映射、幂等、skip/replace、悬空及提交前引用失效。
 
 按用户最新覆盖要求，仅写代码与静态阅读：未运行 Cargo、构建、单元或实机测试，不能声称通过；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 均未设置。待统一验证：`python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_13_ -- --nocapture`，并补充真实存储事务的原子失败与作用域验收。
+
+## 任务 12：规则与提示词迁入（实现，未验证）
+
+新增 `data_management/prompts.rs::normalize`，严格解析 SQLite prompts 与 JSON /prompts；校验应用、身份、正文、单一活动条目，保留正文和创建时间。目标唯一所有者为 `PromptsStore`，`preview_data_migration` 与 `commit_data_migration` 按认证 SourceScope 绑定源及目标快照，每应用目录整体处理 skip/replace；保留活动选择但不发布原生文件。SQLite 类别批量 CAS 写前保存 Prompt 回退快照，拒绝陈旧预览及不支持的 PostgreSQL 批量写入；重复迁入无新增行。源 updated_at 不在现有 PromptEntry 合同中，不扩展存储模型。
+
+新增 apps 解码边界测试及 agent 所有者新增、重复、skip、replace、陈旧预览和原生文件不变测试代码。遵照本轮用户覆盖要求，未运行 Cargo、单元测试或实机测试，无通过证据；未领取 Cargo 槽位，CARGO_TARGET_DIR 未设置。后续统一回归运行 `python3 scripts/cargo_slot.py cargo test -j 1 -p vw-agent-apps --lib cc_data_12_ -- --nocapture` 及相同入口 `-p vw-agent --lib cc_data_12_`，并补非法源整类别不写入、跨租户/项目/主机拒绝及 SQLite 源回归。

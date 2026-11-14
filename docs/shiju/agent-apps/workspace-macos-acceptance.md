@@ -80,3 +80,9 @@
 静态核对来源 get_agents_defaults/set_agents_defaults、AgentsDefaultsPanel.tsx、utils.ts，任务 1 合同、任务 3 文件边界及 provider 配置事务。共享解析器当前仅支持 JSON/JSONC，完整 JSON5 的单引号/裸键明确拒绝，不能声称完整 JSON5 已验收；此限制与现有 provider 一致，未另造解析器。新增三个独立测试源码覆盖投影、扩展保留、清空、有限数拒绝、旧 timeout、缺失及损坏区分，未执行。
 
 依用户本轮要求未运行 Cargo、任何测试或最终回归，不声明编译或运行验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。编号卡按要求删除，建议后续统一验证 openclaw_defaults_projects_fields 过滤场景与事务集成。
+
+## 任务 19：OpenClaw 环境设置（2026-11-14）
+
+新增 openclaw_env::{OpenClawEnvConfig,get_env_config,prepare_env_config,set_env_config}，严格 JSON 对象编辑，保留 vars/shellEnv 嵌套及未知值，拒绝空白、坏 JSON、数组与 null，{} 替换清空。缺失与空对象区分；读取先调用独立敏感授权策略，无 Debug 派生或原文错误。调用方仍须绑定认证范围和执行主机，后续 API 负责提供真实敏感权限策略，不将普通配置读权限冒充敏感授权。发布沿用 OpenClawFiles snapshot/apply 的物理锁、私有原子写和冲突事务，非目标分节字节保留。底层仅支持 JSON/JSONC，完整 JSON5 仍明确拒绝。
+
+静态核对来源 get_env_config/set_env_config、utils.ts、正式合同、任务 3 路径与共享配置事务。新增四个 openclaw_env_preserves_nested_values 前缀测试源码，覆盖嵌套往返、非目标注释、清空、缺失、非法输入和敏感读取拒绝；未执行。按用户本轮要求未运行 Cargo、任何测试或最终回归，不声明编译或行为验证通过。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。本编号卡按要求删除；后续统一验证。

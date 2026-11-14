@@ -62,3 +62,8 @@ mod openclaw_model_tests;
 pub mod openclaw_defaults;
 #[cfg(all(test, target_os = "macos"))]
 mod openclaw_defaults_tests;
+
+#[cfg(target_os = "macos")]
+pub mod openclaw_env;
+#[cfg(all(test, target_os = "macos"))]
+mod openclaw_env_tests;

@@ -751,6 +751,10 @@ pub enum GeneralSettingsMessage {
     #[cfg(target_os = "macos")]
     ProviderLinkRejected(u64),
     #[cfg(target_os = "macos")]
+    McpLinkPreview(u64),
+    #[cfg(target_os = "macos")]
+    McpLinkRejected(u64),
+    #[cfg(target_os = "macos")]
     SkillLinkPreview(u64),
     #[cfg(target_os = "macos")]
     SkillLinkRejected(u64),

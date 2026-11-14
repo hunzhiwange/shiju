@@ -16,7 +16,14 @@ use vw_gateway_client::vw_api_types::{agent_apps::AppId, mcp_management::McpConn
 pub(crate) fn panel<'a>(app: &App, state: &'a ImportState) -> Element<'a, Message> {
     let idle = !state.importing && !state.loading;
     let mut body = column![text(format!("目标主机：{}", state.context.host)), text("原生文件由授权目标主机读取；剪贴板只读取本机。取消确认不写入；确认只导入目录，不改写原生文件、不连接服务、不启用运行时或 ACP。").size(12).style(settings_muted_text_style)].spacing(10).width(Length::Fill);
-    if let Some(draft) = &state.draft {
+    if !state.link_drafts.is_empty() {
+        body = body.push(text(format!("MCP 深链：{} 项", state.link_drafts.len())))
+            .push(text("仅保存当前租户目录定义；链接指定的应用与 enabled 不授予执行或分发权限。连接参数已隐藏。"));
+        for (index, entry) in state.link_drafts.iter().enumerate() {
+            body = body.push(text(format!("第 {} 项 · {}", index + 1,
+                if entry.is_ok() { "等待确认" } else { "格式不支持，确认后列为失败" }))));
+        }
+    } else if let Some(draft) = &state.draft {
         let transport = match draft.connection {
             McpConnectionDefinition::Stdio { .. } => "stdio",
             McpConnectionDefinition::StreamableHttp { .. } => "HTTP",

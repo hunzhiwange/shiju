@@ -79,6 +79,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         }
         #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::McpLinkPreview(id) => {
+            return crate::app::mcp_link_preview::handoff(app, id);
+        }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::McpLinkRejected(id) => {
+            if crate::app::deep_links::acknowledge(id).is_err() {
+                return app.show_error_toast("无法拒绝 MCP 链接");
+            }
+        }
+        #[cfg(target_os = "macos")]
         GeneralSettingsMessage::ProviderLinkRejected(id) => {
             if crate::app::deep_links::acknowledge(id).is_err() {
                 return app.show_error_toast("无法拒绝供应商链接".to_string());

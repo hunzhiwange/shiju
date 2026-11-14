@@ -18,6 +18,7 @@ pub(crate) struct ImportState {
     pub(crate) source: Option<McpAppTarget>,
     pub(crate) account: String,
     pub(crate) draft: Option<McpCreateRequest>,
+    pub(crate) link_drafts: Vec<Result<McpCreateRequest, String>>,
     pub(crate) preview: Option<McpNativePreview>,
     pub(crate) loading: bool,
     pub(crate) importing: bool,
@@ -61,6 +62,7 @@ impl ImportState {
             source: None,
             account: String::new(),
             draft: None,
+            link_drafts: Vec::new(),
             preview: None,
             loading: false,
             importing: false,
@@ -71,7 +73,7 @@ impl ImportState {
         !self.loading
             && !self.importing
             && self.result.is_none()
-            && (self.draft.is_some()
+            && (!self.link_drafts.is_empty() || self.draft.is_some()
                 || self.preview.as_ref().is_some_and(|p| {
                     Some(&p.target) == self.source.as_ref() && p.status == McpNativeStatus::Present
                 }))
@@ -195,6 +197,16 @@ fn open_draft(app: &mut App, request: McpCreateRequest) -> Task<Message> {
     state.draft = Some(request);
     app.mcp_settings.import = Some(state);
     Task::none()
+}
+/// Capture the same authorized scope as native imports without issuing a request.
+pub(crate) fn open_link(app: &mut App, drafts: Vec<Result<McpCreateRequest, String>>) -> bool {
+    if app.mcp_settings.import.is_some() || drafts.is_empty() { return false; }
+    let Some(context) = catalog::context(app).filter(|c| authorized(app, c)) else { return false };
+    if drafts.iter().flatten().any(|d| d.target_host_id != context.host) { return false; }
+    let mut state = ImportState::new(context);
+    state.link_drafts = drafts;
+    app.mcp_settings.import = Some(state);
+    true
 }
 pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
     if matches!(event, ImportMessage::Open) {
@@ -330,7 +342,7 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
                 return Task::none();
             }
             let source = state.source.clone();
-            if state.draft.is_none() && !source.as_ref().is_some_and(|t| targets(app).contains(t)) {
+            if state.link_drafts.is_empty() && state.draft.is_none() && !source.as_ref().is_some_and(|t| targets(app).contains(t)) {
                 return app.show_error_toast("安装实例已变化，请重新预览");
             }
             let Ok(client) = crate::app::config::gateway_client() else {
@@ -339,6 +351,7 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
             let state = app.mcp_settings.import.as_mut().unwrap();
             state.importing = true;
             let draft = state.draft.clone();
+            let link_drafts = state.link_drafts.clone();
             let account = source
                 .as_ref()
                 .filter(|t| t.app_id == AppId::Claude)
@@ -346,7 +359,21 @@ pub(crate) fn update(app: &mut App, event: ImportMessage) -> Task<Message> {
             let token = app.apps_catalog.token.clone();
             return Task::perform(
                 async move {
-                    let result = if let Some(draft) = draft {
+                    let result = if !link_drafts.is_empty() {
+                        let mut labels = Vec::new();
+                        for (index, entry) in link_drafts.into_iter().enumerate() {
+                            let outcome = match entry {
+                                Err(error) => error,
+                                Ok(draft) => match client.mcp_management_create(&draft, &token).await {
+                                    Ok(_) => "成功：已保存定义，未启用或分发".into(),
+                                    Err(vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. }) => "失败：定义冲突，未覆盖".into(),
+                                    Err(_) => "失败：未确认保存成功，请刷新目录核实".into(),
+                                },
+                            };
+                            labels.push(format!("第 {} 项 · {outcome}", index + 1));
+                        }
+                        Ok(labels)
+                    } else if let Some(draft) = draft {
                         client
                             .mcp_management_create(&draft, &token)
                             .await

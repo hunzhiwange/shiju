@@ -13,7 +13,7 @@ use objc2_app_kit::{NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem};
 use objc2_foundation::{MainThreadMarker, NSObject, NSObjectProtocol, NSString};
 use tao::event_loop::EventLoopProxy;
 
-use crate::UserEvent;
+use webview_core::events::UserEvent;
 
 static MENU_PROXY: Mutex<Option<EventLoopProxy<UserEvent>>> = Mutex::new(None);
 static CURRENT_URL: Mutex<String> = Mutex::new(String::new());
@@ -157,12 +157,12 @@ impl MenuTarget {
 }
 
 /// 兼容旧调用名。
-pub(crate) fn install_edit_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
+pub fn install_edit_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
     install_native_menu(proxy, initial_url);
 }
 
 /// 安装 macOS 主菜单。
-pub(crate) fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
+fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url: &str) {
     let Some(mtm) = MainThreadMarker::new() else {
         return;
     };
@@ -197,7 +197,7 @@ pub(crate) fn install_native_menu(proxy: EventLoopProxy<UserEvent>, initial_url:
 }
 
 /// 同步当前页面地址，供「在外部浏览器中打开」使用。
-pub(crate) fn set_current_url(url: &str) {
+pub fn set_current_url(url: &str) {
     if let Ok(mut guard) = CURRENT_URL.lock() {
         *guard = url.to_string();
     }

@@ -16,6 +16,7 @@ name = "vw-webview"
 path = "src/main.rs"
 
 [dependencies]
+webview-native-menu = { path = "../libs/webview-native-menu", version = "0.6.0" }
 webview-external-protocol = { path = "../libs/webview-external-protocol", version = "0.6.0" }
 webview-runtime-cookie = { path = "../libs/webview-runtime-cookie", version = "0.6.0" }
 webview-mcp-assets = { path = "../libs/webview-mcp-assets", version = "0.6.0" }
@@ -51,11 +52,7 @@ objc2-app-kit = { version = "0.3.0", default-features = false, features = [
     "objc2-core-foundation",
     "NSAlert",
     "NSButton",
-    "NSApplication",
     "NSControl",
-    "NSEvent",
-    "NSMenu",
-    "NSMenuItem",
     "NSResponder",
     "NSView",
     "NSWindow",

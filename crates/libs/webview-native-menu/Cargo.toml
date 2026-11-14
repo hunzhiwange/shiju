@@ -1,0 +1,29 @@
+[package]
+name = "webview-native-menu"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "macos"))'.dependencies]
+webview-core = { path = "../webview-core", version = "0.6.0" }
+tao = { version = "0.34" }
+objc2 = { version = "0.6", features = ["exception", "disable-encoding-assertions"] }
+objc2-app-kit = { version = "0.3.0", default-features = false, features = [
+    "std",
+    "NSApplication",
+    "NSEvent",
+    "NSMenu",
+    "NSMenuItem",
+    "NSResponder",
+] }
+objc2-foundation = { version = "0.3.0", default-features = false, features = [
+    "std",
+    "NSString",
+    "NSObject",
+] }

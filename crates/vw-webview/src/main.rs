@@ -4,8 +4,6 @@
 
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
-#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
-mod edit_menu;
 #[cfg(not(target_arch = "wasm32"))]
 use webview_external_protocol::dialog::show_error_dialog;
 #[cfg(all(not(any(target_arch = "wasm32", coverage)), target_os = "macos"))]
@@ -117,7 +115,7 @@ fn main() {
     let proxy = event_loop.create_proxy();
     let embedded_mode = options.mode == "embedded";
     #[cfg(target_os = "macos")]
-    edit_menu::install_edit_menu(proxy.clone(), &url);
+    webview_native_menu::install_edit_menu(proxy.clone(), &url);
     {
         let stdin_proxy = proxy.clone();
         thread::spawn(move || {
@@ -448,7 +446,7 @@ fn main() {
                     }
                 }
                 #[cfg(target_os = "macos")]
-                edit_menu::set_current_url(&current_url);
+                webview_native_menu::set_current_url(&current_url);
             }
             Event::UserEvent(UserEvent::ToolbarReady) => {
                 if let Some(toolbar) = toolbar_webview.as_ref()
@@ -488,7 +486,7 @@ fn main() {
                 browser_cleared = true;
                 current_url.clear();
                 #[cfg(target_os = "macos")]
-                edit_menu::set_current_url("");
+                webview_native_menu::set_current_url("");
                 let _ = webview.load_url(DEFAULT_TARGET);
                 if let Some(toolbar) = toolbar_webview.as_ref()
                     && let Ok(script) = toolbar_address_script("")
@@ -521,10 +519,6 @@ fn main() {
 
 #[cfg(any(target_arch = "wasm32", coverage))]
 fn main() {}
-
-#[cfg(all(test, target_os = "macos"))]
-#[path = "edit_menu_tests.rs"]
-mod edit_menu_tests;
 
 #[cfg(test)]
 #[path = "main_tests.rs"]

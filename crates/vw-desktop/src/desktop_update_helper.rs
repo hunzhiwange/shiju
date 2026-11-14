@@ -124,10 +124,20 @@ pub fn run_if_requested() -> Option<Result<()>> {
         let request: UpdateRequest = serde_json::from_str(&input)?;
         verify_ready(&request.ready)?;
         preflight(&request.executable, &request.ready)?;
+        #[cfg(target_os = "macos")]
+        macos::validate_install(&request)?;
         let i18n = crate::app::i18n::I18n::new(request.locale);
         let parent = ParentProcess::open(request.parent_pid)?;
         println!("ready");
         std::io::stdout().flush()?;
+        // A wait timeout means the original client is still running; only recover
+        // the client after its exit has actually been observed.
+        #[cfg(target_os = "macos")]
+        let result = {
+            parent.wait()?;
+            install(&request)
+        };
+        #[cfg(not(target_os = "macos"))]
         let result = parent.wait().and_then(|()| install(&request));
         match result {
             Ok(()) => {
@@ -139,7 +149,14 @@ pub fn run_if_requested() -> Option<Result<()>> {
                 if answer == rfd::MessageDialogResult::Yes {
                     if let Err(error) = launch(&request.executable) {
                         #[cfg(target_os = "macos")]
-                        macos::rollback(&request)?;
+                        {
+                            macos::rollback(&request).with_context(|| {
+                                format!("启动新版失败：{error:#}；回滚未完成")
+                            })?;
+                            macos::launch(&request.executable).with_context(|| {
+                                format!("启动新版失败：{error:#}；旧版已恢复，但重新启动失败")
+                            })?;
+                        }
                         rfd::MessageDialog::new()
                             .set_title(i18n.__("ShiJu 启动失败"))
                             .set_description(crate::app::i18n::native::update_diagnostic(
@@ -156,6 +173,13 @@ pub fn run_if_requested() -> Option<Result<()>> {
                 macos::cleanup(&request)?;
             }
             Err(error) => {
+                #[cfg(target_os = "macos")]
+                let error = match macos::launch(&request.executable) {
+                    Ok(()) => error,
+                    Err(recovery) => error.context(format!(
+                        "旧版应用保持原位，但重新启动失败：{recovery:#}"
+                    )),
+                };
                 eprintln!("更新失败：{error:#}");
                 let answer = rfd::MessageDialog::new()
                     .set_title(i18n.__("ShiJu 更新失败"))

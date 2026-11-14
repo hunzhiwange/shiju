@@ -119,10 +119,15 @@ fn paths(request: &UpdateRequest) -> Result<(PathBuf, PathBuf)> {
     Ok((stage.join("ShiJu.app"), target))
 }
 
-pub(super) fn install(request: &UpdateRequest) -> Result<()> {
+pub(super) fn validate_install(request: &UpdateRequest) -> Result<()> {
     let (staged, target) = paths(request)?;
     validate_bundle(&staged, &target, &request.executable)?;
-    validate_version(&staged, request.ready.version())?;
+    validate_version(&staged, request.ready.version())
+}
+
+pub(super) fn install(request: &UpdateRequest) -> Result<()> {
+    validate_install(request)?;
+    let (staged, target) = paths(request)?;
     swap_bundles(&staged, &target)
 }
 

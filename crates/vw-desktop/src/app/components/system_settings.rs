@@ -423,10 +423,13 @@ fn settings_content(app: &App, active_tab: SystemTab) -> Element<'_, Message> {
     let content: Element<'_, Message> = match active_tab {
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Voice => super::system_settings_voice::view(app),
-        SystemTab::Apps => super::system_settings_apps::view(
-            &app.apps_catalog,
-            crate::app::i18n::I18n::new(app.desktop_locale),
-        ),
+        SystemTab::Apps => column![
+            super::system_settings_apps::view(
+                &app.apps_catalog,
+                crate::app::i18n::I18n::new(app.desktop_locale),
+            ),
+            crate::app::message::settings::backup_inventory::view(app),
+        ].spacing(12).into(),
         #[cfg(not(target_arch = "wasm32"))]
         SystemTab::Auth => super::system_settings_auth::view(app),
         SystemTab::General => crate::app::components::system_settings_general::view(app),

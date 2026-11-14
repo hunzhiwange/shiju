@@ -16,6 +16,7 @@ use vw_api_types::{
 
 pub(crate) fn router() -> Router {
     let router = Router::new()
+        .merge(super::backup_inventory::router())
         .merge(super::agent_apps_data::backup_crud_api::router())
         .merge(read::router())
         .merge(super::project_profiles::router())
@@ -164,6 +165,7 @@ mod read;
 mod read_tests;
 
 mod access;
+pub(super) use access::authorize_backup_inventory;
 pub(super) use access::AccountTermination;
 #[cfg(target_os = "macos")]
 pub(crate) use access::{AuthorizedMcpProbe, McpProbeAccess};

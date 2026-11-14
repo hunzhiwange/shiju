@@ -1892,3 +1892,14 @@ pub(in super::super) fn authorize_data_backups(
     authorized.host.data_backup_root.filter(|root| root.is_absolute())
         .ok_or(StatusCode::SERVICE_UNAVAILABLE)
 }
+
+/// Resolve backup inventory ownership from authentication, never desktop claims.
+pub(in super::super) fn authorize_backup_inventory(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+) -> Result<(PathBuf, String), StatusCode> {
+    let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
+        Capability::DataBackups(project.project_id()))?;
+    let root = authorized.host.data_backup_root.filter(|root| root.is_absolute())
+        .ok_or(StatusCode::SERVICE_UNAVAILABLE)?;
+    Ok((root, authorized.principal))
+}

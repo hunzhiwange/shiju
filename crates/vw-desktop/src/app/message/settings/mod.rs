@@ -56,6 +56,7 @@ mod sessions;
 mod skills;
 mod storage;
 mod tabs;
+pub(crate) mod backup_inventory;
 mod themes;
 mod tunnel;
 mod types;
@@ -147,6 +148,7 @@ fn update_config_panel(
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
+        SettingsMessage::BackupInventory(event) => backup_inventory::update(app, event),
         #[cfg(not(target_arch = "wasm32"))]
         SettingsMessage::Voice(event) => voice::update(app, event),
         SettingsMessage::ArchivedChats(message) => archived_chats::update(app, message),

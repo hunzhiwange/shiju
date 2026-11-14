@@ -94,8 +94,18 @@ pub(crate) fn finish(form: &mut Form, result: Result<Outcome, String>) {
                     error.clone()
                 });
             }
-            form.rows = rows.ok();
-            form.current = current.ok();
+            // Failed reads must not discard the last usable list or saved icon.
+            if let Ok(rows) = rows {
+                form.rows = Some(rows);
+            } else if let Some(deleted) = &deleted {
+                // The delete already succeeded even when the follow-up download failed.
+                if let Some(rows) = &mut form.rows {
+                    rows.retain(|row| &row.id != deleted);
+                }
+            }
+            if let Ok(current) = current {
+                form.current = Some(current);
+            }
             if let Some(Change::Select { icon_id }) = &form.selection
                 && (deleted.as_ref() == Some(icon_id)
                     || form

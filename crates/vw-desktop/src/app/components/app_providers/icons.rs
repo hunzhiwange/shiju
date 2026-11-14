@@ -33,7 +33,12 @@ fn thumbnail(data: &str) -> Option<image::Handle> {
     if !(1..=256).contains(&width) || !(1..=256).contains(&height) {
         return None;
     }
-    Some(image::Handle::from_bytes(png))
+    // Decode before creating a handle so truncated or corrupt images use the fallback too.
+    // Dimensions and encoded size are bounded above; never pass paths or URLs to Iced.
+    let pixels = ::image::load_from_memory_with_format(&png, ::image::ImageFormat::Png)
+        .ok()?
+        .into_rgba8();
+    Some(image::Handle::from_rgba(pixels.width(), pixels.height(), pixels.into_raw()))
 }
 
 fn preview(data: &str) -> Element<'static, Message> {

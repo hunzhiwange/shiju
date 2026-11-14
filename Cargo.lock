@@ -1757,6 +1757,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "content-guard"
+version = "0.6.0"
+dependencies = [
+ "regex",
+ "serde",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12336,6 +12344,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "console 0.16.2",
+ "content-guard",
  "console_error_panic_hook",
  "console_log",
  "cron",

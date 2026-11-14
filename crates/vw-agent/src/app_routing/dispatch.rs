@@ -687,6 +687,14 @@ fn prepare_request_inner(
         target.url.host_str().unwrap_or_default(),
         target.url.path(),
     );
+    if body.get("input").is_some()
+        && (target.url.path().trim_end_matches('/').ends_with("/responses")
+            || target.url.path().trim_end_matches('/').ends_with("/responses/compact"))
+    {
+        let official = matches!(target.url.host_str(),
+            Some("api.openai.com" | "chatgpt.com" | "chat.openai.com"));
+        vw_agent_apps::routing::compaction_replay::prepare_native(&mut body, official);
+    }
     header_wire::strip_hop_headers(outgoing.headers_mut());
     header_wire::strip_rebuilt_entity_headers(outgoing.headers_mut());
     *outgoing.body_mut() =

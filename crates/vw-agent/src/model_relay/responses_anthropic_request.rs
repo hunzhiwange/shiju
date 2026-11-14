@@ -122,6 +122,15 @@ pub(super) fn convert(
                     json!({"type":"tool_result", "tool_use_id":id,"content":parts}),
                 );
             }
+            Some("compaction" | "compaction_summary" | "context_compaction") => {
+                object_keys(&item, &["type", "id", "encrypted_content"])?;
+                if item.get("encrypted_content").is_some_and(|v| !v.is_null() && !v.is_string()) {
+                    return Err(BAD);
+                }
+                if let Some(text) = vw_agent_apps::routing::compaction_replay::replay_item(&item) {
+                    push(&mut messages, "user", json!({"type":"text", "text":text}));
+                }
+            }
             Some("reasoning") => {
                 if let Some(block) = item["encrypted_content"]
                     .as_str()

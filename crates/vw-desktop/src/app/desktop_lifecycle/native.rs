@@ -11,7 +11,24 @@ use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 const SHOW_ID: &str = "shiju.tray.show";
 const QUIT_ID: &str = "shiju.tray.quit";
 thread_local! {
-    static TRAY: RefCell<Option<TrayIcon>> = const { RefCell::new(None) };
+    static TRAY: RefCell<Option<LocalizedTray>> = const { RefCell::new(None) };
+}
+
+struct LocalizedTray {
+    _icon: TrayIcon,
+    show: MenuItem,
+    quit: MenuItem,
+}
+
+/// Update existing native items without creating a tray when the preference is disabled.
+pub(crate) fn refresh_tray_locale(locale: vw_config_types::ui::DesktopLocale) {
+    TRAY.with(|slot| {
+        if let Some(tray) = slot.borrow().as_ref() {
+            let i18n = crate::app::i18n::I18n::new(locale);
+            tray.show.set_text(i18n.__("显示主窗口"));
+            tray.quit.set_text(i18n.__("退出识矩"));
+        }
+    });
 }
 
 fn legacy_launcher() -> Result<AutoLaunch, String> {
@@ -169,10 +186,10 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
         }
         let i18n = crate::app::i18n::I18n::new(locale);
         let menu = Menu::new();
-        menu.append(&MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None))
-            .map_err(|err| err.to_string())?;
-        menu.append(&MenuItem::with_id(QUIT_ID, i18n.__("退出识矩"), true, None))
-            .map_err(|err| err.to_string())?;
+        let show = MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None);
+        let quit = MenuItem::with_id(QUIT_ID, i18n.__("退出识矩"), true, None);
+        menu.append(&show).map_err(|err| err.to_string())?;
+        menu.append(&quit).map_err(|err| err.to_string())?;
         let image = image::load_from_memory(include_bytes!(
             "../../../../../assets/logo/icons.iconset/icon_32x32.png"
         ))
@@ -181,14 +198,16 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
         let (width, height) = image.dimensions();
         let icon =
             Icon::from_rgba(image.into_raw(), width, height).map_err(|err| err.to_string())?;
-        *slot = Some(
-            TrayIconBuilder::new()
+        *slot = Some(LocalizedTray {
+            _icon: TrayIconBuilder::new()
                 .with_tooltip("ShiJu")
                 .with_menu(Box::new(menu))
                 .with_icon(icon)
                 .build()
                 .map_err(|err| err.to_string())?,
-        );
+            show,
+            quit,
+        });
         Ok(())
     })
 }

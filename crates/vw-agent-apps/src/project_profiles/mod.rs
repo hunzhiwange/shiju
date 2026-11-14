@@ -8,3 +8,5 @@ pub mod preview;
 pub mod resnapshot;
 pub mod autosave;
 pub mod apply_skills;
+
+pub mod apply_mcp;

@@ -202,3 +202,6 @@ mod security_tests;
 
 #[cfg(all(test, target_os = "macos"))]
 mod host_scope_tests;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod profile_slot;

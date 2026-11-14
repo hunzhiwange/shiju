@@ -67,3 +67,16 @@ shiju --config-dir /absolute/isolated/config gateway --host 127.0.0.1 --port 193
 ## 交付边界
 
 七类现有所有者和父模块已登记；缺口为数据管理专属 API/SDK/DTO/任务实现、跨类别回退、敏感操作授权、远程传输与完整隔离启动入口。逐类别任务只等待自己的实际接口，不等待所有母任务整体完结。本文锁定消费约束，不补造前置实现，不将静态阅读等同功能验收。仅面向 macOS，未运行任何平台验收。
+
+## 子任务 2：传输类型落点（2026-11-14）
+
+唯一 DTO 落点为 `crates/vw-api-types/src/agent_apps/data_management.rs`，由 `agent_apps/mod.rs` 注册并公开导出；独立测试由同一父模块注册。此项补齐上文的 DTO 缺口，不表示业务包、API 路由、SDK、授权、任务调度或跨类别回退已经实现。
+
+- `DataManagementTarget` 复用 `ProjectScope`（含 TenantScope），同时显式绑定执行主机与 principal。请求字段仅是待鉴权声明，网关必须与认证身份核对。任务查询与取消仍绑定原目标，复用 `TaskId`、`TaskStatus`，不创建第二套调度器。
+- 识别使用受控上传的 `DataTransferId`；`DataSourceSummary` 承载源版本、schema、格式版本、归档格式与 SHA-256 摘要。版本和摘要须由服务端检查后产生，不由客户端声明代替校验。`DataCategory` 封闭为供应商、MCP、技能、规则、组合、偏好、用量。
+- `PreviewDataImportRequest` / `DataImportPreview` / `ExecuteDataImportRequest` 分离预览与执行；选择条目使用服务端签发的安全句柄，冲突只允许 skip、keep_both、replace，且每项声明允许的决策。`revision` 必须绑定源摘要、选择、冲突和目标观察版本；提交按幂等键核对完整输入并重新鉴权。首次识别后的具体句柄枚举由读取/预览任务交付，不允许直接把原始配置值或来源路径当句柄。
+- `ExportDataRequest` 只代表可迁移导出；`DataArtifactKind` 区分 portable_export 与 local_rollback；备份创建、列举、改名、删除、恢复使用独立请求类型与 `DataBackupId`。本机回退不得返回下载引用，恢复须检查原主机、范围、摘要、版本并先创建新回退点。名称是用户自定义备份标签，不能从源凭据或配置正文生成。
+- `DataOperationProgress` 复用任务状态，额外提供阶段、计数、取消意图、提交事实、逐项结果和回退状态。`DataOperationResult::Partial` 表示部分失败；提交后投影失败不能抹掉 `committed`。取消请求不承诺立即撤销，终态以所有者完成或回滚的事实为准。
+- 响应以计数、封闭枚举和不透明句柄表达预览/错误，无任意 JSON、原始载荷、SQL、异常消息或路径字段。拒绝未知操作与未知请求字段。DTO 无法自动净化任意字符串：来源版本、摘要和所有句柄均由所有者校验/生成，禁止把密钥放入这些字段；跨字段一致性、非空选择及版本兼容规则属于后续业务实现。
+
+按本轮明确覆盖要求，未调用 Cargo、未编译、未运行单元或实机测试；静态阅读不能证明序列化行为测试通过。后续验证入口见 `data-management-macos.md` 子任务 2 小节。

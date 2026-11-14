@@ -84,6 +84,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return app.show_error_toast("无法拒绝供应商链接".to_string());
             }
         }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::SkillLinkPreview(id) => {
+            return crate::app::skill_link_preview::handoff(app, id);
+        }
+        #[cfg(target_os = "macos")]
+        GeneralSettingsMessage::SkillLinkRejected(id) => {
+            if crate::app::deep_links::acknowledge(id).is_err() {
+                return app.show_error_toast("无法拒绝技能链接");
+            }
+        }
         GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
             if enabled
                 && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale)

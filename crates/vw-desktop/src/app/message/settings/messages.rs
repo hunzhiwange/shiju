@@ -751,6 +751,10 @@ pub enum GeneralSettingsMessage {
     #[cfg(target_os = "macos")]
     ProviderLinkRejected(u64),
     #[cfg(target_os = "macos")]
+    SkillLinkPreview(u64),
+    #[cfg(target_os = "macos")]
+    SkillLinkRejected(u64),
+    #[cfg(target_os = "macos")]
     InstanceTick,
     TrayTick,
     TrayProviderSwitch(String),

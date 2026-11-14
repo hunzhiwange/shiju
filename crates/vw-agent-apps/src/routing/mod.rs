@@ -49,3 +49,5 @@ pub mod classifier_guard;
 mod classifier_guard_tests;
 
 pub mod budget_rectify;
+
+pub mod media_sanitize;

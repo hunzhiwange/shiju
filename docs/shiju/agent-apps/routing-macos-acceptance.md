@@ -1176,3 +1176,13 @@ Responses→Messages 流在完整 reasoning item 到达后发送 summary 与 sig
 routing::budget_rectify::repair 仅匹配 HTTP 400 的 JSON error.message/message 中明确 thinking、budget_tokens/budget tokens 与 1024 最小值约束；跳过 adaptive、非对象、不可解析错误和无需修改的 body。沿用来源 budget=32000、max_tokens不足32001时升至64000，保留较大上限及其余字段。dispatch::forward_rectified 仅在 Messages 端点调用，与签名修复共享一次重发额度，保留原授权目标、凭据、出口、取消和外层超时；二次拒绝直接返回，不新增结果记录点，沿用外层响应处理。启用独立故障转移队列时仍由 failover_execution 所有，不在本项扩大其发送预算。
 
 遵照用户覆盖要求，未运行 Cargo、相关脚本、单元测试、实机测试或最终回归，无验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证需覆盖预算错误、其他400、adaptive、无效body、无变化、单次重发及最终结果记录。任务卡按要求删除；macOS未验收，其他平台范围外，不表示母任务8完成。
+
+## 任务68：处理文本模型媒体拒绝（代码交付，未验证）
+
+2026-11-14：任务67的 budget_rectify 与单次修复入口已存在，沿用母任务来源快照、授权运行时、执行主机/应用和配置/账号合同，仅确认源码依赖，未推定实机验收完成。读取固定 upstream media_sanitizer.rs、tool_media.rs 及当前真实 dispatch 调用链。
+
+新增 routing::media_sanitize，复用 models::capabilities 的显式声明并关闭模型名称启发式；目标模型与覆盖确定后，由 PublishedProvider 提供同部署设置进行主动图片替换。未知/支持图片能力保留原图。Messages/Chat、Responses、Gemini 图片以 [Unsupported Image] 留痕，保留缓存控制和工具身份；工具内容支持 JSON 字符串、typed image 与整段 image data URL，遍历上限32，不遍历工具参数/schema，不下载媒体。非图片文件和音频不在本项范围。
+
+forward_rectified 对指定 HTTP 400/404/415/422/501 媒体拒绝才尝试替换，并要求实际发生替换；404仅接受明确 no endpoints found that support image input。与签名/预算修复共享一次重发额度，第二次错误直接返回。沿用同授权目标、凭据、出口、取消与超时；独立故障转移队列沿用既有所有者，不在此扩展。成功 SSE、流内拒绝、旧会话路径不进入媒体重放。
+
+按用户最新覆盖要求，仅写代码，未新增或执行测试，未运行 Cargo、实机测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR不适用。没有红绿灯、退出码或有效测试数证据。后续统一验证需覆盖能力声明优先级、图片/工具输出/缓存标记、无图与非图片保留、指定错误及二次拒绝不重试、真实HTTP执行链。仅macOS待验收，其余平台未验证；按要求删除编号任务文件，不代表母任务8验收完成。

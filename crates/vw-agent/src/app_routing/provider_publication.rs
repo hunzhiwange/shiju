@@ -129,6 +129,12 @@ impl PublishedProvider {
         )
     }
 
+    pub(super) fn sanitize_images(&self, body: &mut Value, model: &str) -> usize {
+        vw_agent_apps::routing::media_sanitize::prepare(
+            body, self.row.get("settingsConfig").unwrap_or(&Value::Null), model,
+        )
+    }
+
     pub(super) fn apply_headers(&self, headers: &mut axum::http::HeaderMap) {
         if self.messages_api_key
             && let Some(key) = headers.remove(header::AUTHORIZATION)

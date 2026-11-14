@@ -283,6 +283,17 @@ pub(super) async fn forward_json(
         crate::model_relay::xai_responses::prepare(&mut body, &target.url);
         *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
     }
+    #[cfg(target_os = "macos")]
+    if let Some(provider) = &route.provider {
+        let bytes = outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
+        let mut body: Value = serde_json::from_slice(bytes).map_err(|_| StatusCode::BAD_REQUEST)?;
+        let effective_model = body.get("model").and_then(Value::as_str)
+            .or(model).or(client_model.as_deref()).unwrap_or("").to_owned();
+        if provider.sanitize_images(&mut body, &effective_model) > 0 {
+            *outgoing.body_mut() = Some(body_limits::encode_json(&body, MAX_JSON_BYTES).map_err(request_body_status)?.into());
+            outgoing.headers_mut().remove(header::CONTENT_LENGTH);
+        }
+    }
     if let Some(scope) = &response_scope {
         let bytes =
             outgoing.body().and_then(reqwest::Body::as_bytes).ok_or(StatusCode::BAD_REQUEST)?;
@@ -679,7 +690,7 @@ async fn forward_rectified(
 ) -> Result<Response, RouteError> {
     let retry = outgoing.try_clone();
     let response = transport.forward_ordered(url, outgoing, wire.clone(), cancelled.clone(), listener).await?;
-    if !matches!(response.status().as_u16(), 400 | 422 | 502) {
+    if !matches!(response.status().as_u16(), 400 | 404 | 415 | 422 | 501 | 502) {
         return Ok(response);
     }
     let Some(mut retry) = retry else { return Ok(response); };
@@ -699,6 +710,9 @@ async fn forward_rectified(
         url.path().trim_end_matches('/').ends_with("/messages").then(|| {
             vw_agent_apps::routing::budget_rectify::repair(&input, parts.status.as_u16(), &bytes)
         }).flatten()
+    });
+    let repaired = repaired.or_else(|| {
+        vw_agent_apps::routing::media_sanitize::repair(&input, parts.status.as_u16(), &bytes)
     });
     let Some(repaired) = repaired else {
         parts.headers.remove(header::CONTENT_ENCODING);

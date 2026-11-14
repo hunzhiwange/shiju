@@ -121,3 +121,25 @@ pub struct S3SyncConfigResponse {
     pub active_task_id: Option<crate::id::TaskId>,
 }
 
+/// Saved-connection preview. Contains no endpoint, path, ETag or credential.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+pub enum DeviceSyncRemoteResponse {
+    Empty,
+    Snapshot {
+        device_name: String,
+        created_at: String,
+        snapshot_id: String,
+        protocol_version: u32,
+        data_compat_version: u32,
+        compatibility: DeviceSyncRemoteCompatibility,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceSyncRemoteCompatibility {
+    Compatible,
+    UnsupportedProtocol,
+    UnsupportedDataVersion,
+}

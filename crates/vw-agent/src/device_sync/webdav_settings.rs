@@ -47,6 +47,35 @@ impl WebDavSettingsStore {
         raw.as_deref().map(decode).transpose().map(|row| row.map(|row| row.config))
     }
 
+    /// Opaque local revision includes encrypted credential state, never returned to clients.
+    pub(crate) fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
+        use sha2::{Digest, Sha256};
+        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
+        let _ = decode(&raw)?;
+        Ok(hex::encode(Sha256::digest(raw.as_bytes())))
+    }
+
+    /// Resolve only under the shared operation lock; never expose credentials as DTOs.
+    pub(crate) fn connection(&self, tenant: &TenantScope, host: &str) -> Result<WebDavConfig> {
+        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
+            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
+        let row = decode(&raw)?;
+        ensure!(row.config.enabled, "device sync disabled");
+        let encrypted = row.password_ciphertext.ok_or_else(|| anyhow::anyhow!("device sync credential missing"))?;
+        let secret = self.secrets.decrypt(&encrypted)
+            .map_err(|_| anyhow::anyhow!("device sync credential unavailable"))?;
+        WebDavConfig {
+            enabled: row.config.enabled,
+            auto_sync: row.config.auto_sync,
+            base_url: row.config.base_url,
+            username: row.config.username,
+            remote_root: row.config.remote_root,
+            profile: row.config.profile,
+            password: secret,
+        }.normalize().map_err(anyhow::Error::msg)
+    }
+
     /// Resolve a draft without publishing settings or encrypting replacement material.
     pub fn resolve_probe(&self, tenant: &TenantScope, host: &str,
         request: UpdateWebDavSyncConfigRequest) -> Result<WebDavConfig> {
@@ -81,35 +110,6 @@ impl WebDavSettingsStore {
             }
         };
         Ok(config)
-    }
-
-    /// Opaque local revision includes encrypted credential state, never returned to clients.
-    pub(crate) fn revision(&self, tenant: &TenantScope, host: &str) -> Result<String> {
-        use sha2::{Digest, Sha256};
-        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
-            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
-        let _ = decode(&raw)?;
-        Ok(hex::encode(Sha256::digest(raw.as_bytes())))
-    }
-
-    /// Resolve only under the shared operation lock; never expose credentials as DTOs.
-    pub(crate) fn connection(&self, tenant: &TenantScope, host: &str) -> Result<WebDavConfig> {
-        let raw = self.settings.get(tenant, NAMESPACE, &scope_key(host)?)?
-            .ok_or_else(|| anyhow::anyhow!("device sync not configured"))?;
-        let row = decode(&raw)?;
-        ensure!(row.config.enabled, "device sync disabled");
-        let encrypted = row.password_ciphertext.ok_or_else(|| anyhow::anyhow!("device sync credential missing"))?;
-        let secret = self.secrets.decrypt(&encrypted)
-            .map_err(|_| anyhow::anyhow!("device sync credential unavailable"))?;
-        WebDavConfig {
-            enabled: row.config.enabled,
-            auto_sync: row.config.auto_sync,
-            base_url: row.config.base_url,
-            username: row.config.username,
-            remote_root: row.config.remote_root,
-            profile: row.config.profile,
-            password: secret,
-        }.normalize().map_err(anyhow::Error::msg)
     }
 
     /// Publish the configuration and encrypted password in one conditional database write.

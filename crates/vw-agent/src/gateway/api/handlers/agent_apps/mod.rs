@@ -18,6 +18,7 @@ pub(crate) fn router() -> Router {
     let router = Router::new()
         .merge(super::device_sync_probe::router())
         .merge(super::backup_inventory::router())
+        .merge(super::device_sync_config::router())
         .merge(super::device_sync_jobs::router())
         .merge(super::device_sync_tasks::router())
         .merge(super::agent_apps_data::backup_crud_api::router())
@@ -682,6 +683,8 @@ pub(super) use access::authorize_external_history_maintenance;
 pub(super) use access::periodic_data_backup_targets;
 
 pub(super) use access::{authenticate_data_migration, authorize_data_migration};
+
+pub(super) use access::authorize_device_sync_upload;
 
 pub(super) use access::authorize_device_sync_config;
 

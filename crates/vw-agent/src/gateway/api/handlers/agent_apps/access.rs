@@ -36,6 +36,10 @@ struct Principal {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Grant {
+    #[serde(default)]
+    device_sync_probe: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
+    device_sync_config: Vec<vw_api_types::id::ProjectId>,
     /// Explicit authority to export portable data to the configured remote.
     #[serde(default)]
     device_sync_upload: Vec<vw_api_types::id::ProjectId>,
@@ -2193,25 +2197,8 @@ pub(in super::super) fn authorize_data_migration(
     }).transpose()
 }
 
-/// Authenticate before consuming or decoding a migration body. Policy reads are
-/// authentication IO only; source and target storage must remain untouched.
-pub(in super::super) fn authenticate_data_migration(
-    path: Option<&Path>, headers: &HeaderMap, tenant: &TenantScope,
-) -> Result<(), StatusCode> {
-    let digest = membership_digest(headers)?;
-    let local = tenant_policy_path(tenant);
-    let policy = load(path.unwrap_or(&local)).map_err(|_| StatusCode::SERVICE_UNAVAILABLE)?;
-    let principal = policy.principals.iter().find(|p|
-        crate::security::pairing::constant_time_eq(&p.token_sha256, &digest))
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if !principal.grants.iter().any(|g| g.platform_id == tenant.platform_id().as_ref()
-        && g.company_id == tenant.company_id().as_ref() && !g.data_migration_read.is_empty()) {
-        return Err(StatusCode::FORBIDDEN);
-    }
-    Ok(())
-}
-
-pub(in super::super) fn authorize_data_migration(
+/// Explicit export grant, complete principal binding and local host ownership.
+pub(in super::super) fn authorize_device_sync_upload(
     path: Option<&Path>, headers: &HeaderMap,
     target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
     source_id: Option<&str>,

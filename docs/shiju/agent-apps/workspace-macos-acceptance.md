@@ -115,14 +115,6 @@
 OpenClaw model/catalog/defaults/env/tools、provider 配置及 health 统一改用共享 JSON5 模块，配置发布仍复用 OpenClawFiles/ProviderTransactions，未新增写入所有者。新增独立 JSON5 测试源码并调整旧裸键拒绝断言；只读审查了来源配置函数及 json-five 0.3.1 原始 tokenizer/parser/de 源码，未运行任何测试、Cargo 或实机检查。不声称编译或行为验证通过。新增轻量解析依赖；按本轮禁令未调用 Cargo 更新 Cargo.lock，后续统一验证阶段需先解析依赖更新锁文件。未领取槽位，CARGO_TARGET_DIR 未设置。
 
 
-## 任务 6：每日记忆幂等删除（2026-11-14）
-
-新增 daily_memory_files::delete_daily_memory_file，复用合法公历 DailyMemoryFilename 和 WorkspaceDirectory::delete。缺目录不创建、缺文件和重复删除成功；执行主机校验、不跟随链接、普通单链接文件限制、物理锁及 unlinkat/目录同步错误传播沿用底层边界。调用者须先授权内容写入并提供可信执行主机、HOME 与解析后的工作区根，不新增权限或路由。
-
-静态读取来源删除函数、workspace.ts、DailyMemoryPanel 调用者、任务 1 正式合同、任务 5 读写和底层实现。新增两个 daily_delete_is_idempotent 前缀测试源码，覆盖缺失、重复删除、邻文件保留、主机拒绝、目录与越界链接拒绝；非法日期复用既有日期类型断言。未运行任何测试，没有权限失败运行证据，不声明编译或行为通过。
-
-依本轮最高优先要求未运行 Cargo、单元/实机/其它测试或最终回归；未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。任务卡按要求删除，建议后续统一验证。
-
 ## 任务 7：每日记忆列表元数据（2026-11-14）
 
 新增 daily_memory_list::list_daily_memory_files，复用任务 5 的日期 DTO 和任务 3 的 WorkspaceDirectory；仅合法公历日期普通单链接文件参与列表，按日期降序，返回字节大小、Unix 秒修改时间与前 200 个 Unicode 字符。缺目录空列表且不创建，非法名字、符号/硬链接及特殊文件不读，读取和枚举错误显式返回。底层新增 descriptor 相对目录枚举与普通文件打开，逐级 nofollow 和执行主机校验保持；内容与元数据来自同一打开文件。

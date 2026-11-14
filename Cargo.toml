@@ -3,6 +3,7 @@ members = [
   "crates/libs/content-guard",
   "crates/libs/domain-matcher",
   "crates/libs/memory-algorithms",
+  "crates/libs/memory-postgres",
   "crates/libs/memory-mariadb",
   "crates/libs/patch",
   "crates/vw-api-types",

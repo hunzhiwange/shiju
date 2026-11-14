@@ -5984,6 +5984,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "memory-postgres"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "memory-types",
+ "parking_lot",
+ "postgres",
+ "rustls",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-postgres-rustls",
+ "uuid",
+]
+
+[[package]]
 name = "memory-mariadb"
 version = "0.6.0"
 dependencies = [
@@ -12393,6 +12410,7 @@ dependencies = [
  "mail-parser",
  "memory-algorithms",
  "memory-mariadb",
+ "memory-postgres",
  "mime_guess",
  "minijinja",
  "nanohtml2text",

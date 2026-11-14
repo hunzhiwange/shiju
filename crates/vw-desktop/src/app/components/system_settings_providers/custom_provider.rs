@@ -545,7 +545,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let footer_row =
             row![
-                Space::new().width(Length::Fill),
                 button(text(connection_text(app.desktop_locale, "取消")))
                     .on_press(close_message.clone())
                     .padding([8, 14])
@@ -559,7 +558,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             ]
             .spacing(10)
             .align_y(Alignment::Center)
-            .width(Length::Fill);
+            .width(Length::Fill)
+            .wrap()
+            .align_x(iced::alignment::Horizontal::Right);
 
         let mut header = column![header_row, tabs].spacing(12);
         if let Some(error) = &s.save_error {
@@ -570,7 +571,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             .style(custom_modal_card_style)
             .width(780)
             .height(620);
-        base = settings_modal_overlay(Some(base), close_message, container(card).padding(12));
+        base = settings_modal_overlay(Some(base), close_message, card);
     }
 
     base

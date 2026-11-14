@@ -425,9 +425,10 @@ fn modal_overlay<'a>(
     );
 
     let card = if dismiss_on_backdrop { opaque(card) } else { card };
-    let centered = container(card).center_x(Length::Fill).center_y(Length::Fill);
+    // 缩放会减少逻辑可用尺寸；先预留窗口边距，再让卡片和内容滚动区收缩。
+    let centered = container(card).padding(12).center_x(Length::Fill).center_y(Length::Fill);
     let modal_layer: Element<'_, Message> =
-        if dismiss_on_backdrop { centered.padding(12).into() } else { opaque(centered) };
+        if dismiss_on_backdrop { centered.into() } else { opaque(centered) };
 
     let modal_stack: Element<'a, Message> = stack![overlay, modal_layer].into();
 

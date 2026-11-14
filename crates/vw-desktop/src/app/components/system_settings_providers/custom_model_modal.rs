@@ -16,7 +16,7 @@ use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::SettingsMessage;
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
-use iced::widget::{Space, button, checkbox, column, container, responsive, row, text};
+use iced::widget::{button, checkbox, column, container, responsive, row, text};
 use iced::{Alignment, Background, Element, Length, Theme};
 use std::borrow::Cow;
 
@@ -490,7 +490,6 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         }
 
         let actions = row![
-            Space::new().width(Length::Fill),
             button(text(connection_text(app.desktop_locale, "取消")))
                 .on_press(close_message.clone())
                 .padding([8, 14])
@@ -501,13 +500,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 .style(primary_action_btn_style),
         ]
         .spacing(10)
-        .align_y(Alignment::Center);
+        .align_y(Alignment::Center)
+        .width(Length::Fill)
+        .wrap()
+        .align_x(iced::alignment::Horizontal::Right);
 
         let card = settings_modal_layout(header, body, Some(actions.into()))
             .style(custom_modal_card_style)
             .width(840)
             .height(680);
-        base = settings_modal_overlay(Some(base), close_message, container(card).padding(12));
+        base = settings_modal_overlay(Some(base), close_message, card);
     }
 
     base

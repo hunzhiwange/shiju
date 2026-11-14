@@ -13,8 +13,8 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 use ratatui::widgets::WidgetRef;
 
-use crate::render::Insets;
-use crate::render::RectExt as _;
+use crate::Insets;
+use crate::RectExt as _;
 
 /// 所有可组合 TUI 组件共同实现的测量、绘制与光标契约。
 pub trait Renderable {

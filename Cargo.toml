@@ -11,6 +11,7 @@ members = [
   "crates/libs/file-index",
   "crates/libs/tui-contracts",
   "crates/libs/tui-text",
+  "crates/libs/tui-render",
   "crates/libs/tui-theme",
   "crates/libs/tui-terminal",
   "crates/libs/tui-input",

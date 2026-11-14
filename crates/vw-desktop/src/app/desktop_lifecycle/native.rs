@@ -243,6 +243,9 @@ pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<
             _icon: TrayIconBuilder::new()
                 .with_tooltip("ShiJu")
                 .with_menu(Box::new(menu))
+                // Keep the panel as a native menu: AppKit anchors it to the status
+                // item on its screen and owns edge fitting and dismissal (Esc/outside click).
+                .with_menu_on_left_click(true)
                 .with_icon(icon)
                 .build()
                 .map_err(|err| err.to_string())?,

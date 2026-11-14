@@ -4,6 +4,7 @@ members = [
   "crates/libs/diff-text",
   "crates/libs/theme-model",
   "crates/libs/tui-contracts",
+  "crates/libs/tui-text",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
   "crates/libs/git-discovery",

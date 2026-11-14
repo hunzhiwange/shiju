@@ -333,10 +333,10 @@ pub mod history_cell;
 #[allow(dead_code)]
 mod insert_history;
 #[allow(dead_code)]
-mod line_truncation;
+pub(crate) use tui_text::line_truncation;
 // Markdown 与实时换行模块共同维护流式内容的稳定布局。
 #[allow(dead_code)]
-pub(crate) mod live_wrap;
+pub(crate) use tui_text::live_wrap;
 #[allow(dead_code)]
 mod markdown;
 #[allow(dead_code)]
@@ -377,7 +377,7 @@ mod terminal_palette;
 #[allow(dead_code, unused_imports)]
 mod terminal_probe;
 #[allow(dead_code)]
-mod text_formatting;
+pub(crate) use tui_text::text_formatting;
 #[allow(dead_code)]
 pub(crate) mod theme_picker;
 #[allow(dead_code)]
@@ -390,9 +390,9 @@ mod tui;
 mod ui_consts;
 pub mod vibe;
 #[allow(dead_code)]
-mod width;
+pub(crate) use tui_text::width;
 #[allow(dead_code)]
-mod wrapping;
+pub(crate) use tui_text::wrapping;
 
 // 测试后端仅为 crate 内测试提供可控终端缓冲区。
 #[cfg(test)]

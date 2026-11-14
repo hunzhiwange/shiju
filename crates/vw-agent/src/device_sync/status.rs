@@ -138,3 +138,16 @@ pub fn history(target: &DataManagementTarget, transport: DeviceSyncTransport) ->
     let mut journal = decode(raw.as_deref(), target).map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
     Ok(journal.history(transport).clone())
 }
+
+/// Read without initialization: observing settings must not interrupt live workers.
+pub fn connection_status(database: GlobalDatabase, target: &DataManagementTarget,
+    transport: DeviceSyncTransport) -> Result<(Option<SyncTaskStatus>, Option<vw_api_types::id::TaskId>)> {
+    let store = GatewaySettingsStore::new(database).map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    let raw = store.get(target.scope.tenant_scope(), NAMESPACE, &key(target)?)
+        .map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    let journal = decode(raw.as_deref(), target).map_err(|_| SyncErrorCode::StatePersistenceFailed)?;
+    let records: Vec<_> = journal.records.iter().filter(|r| r.status.transport == transport).collect();
+    let active = records.iter().rev().find(|r| !r.status.state.is_terminal())
+        .map(|r| r.status.task_id.clone());
+    Ok((records.last().map(|r| r.status.clone()), active))
+}

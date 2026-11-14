@@ -434,3 +434,5 @@ pub(crate) mod project_profiles;
 pub(crate) mod agent_apps_data;
 
 mod backup_inventory;
+
+mod device_sync_config;

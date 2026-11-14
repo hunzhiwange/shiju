@@ -37,6 +37,8 @@ struct Principal {
 #[serde(deny_unknown_fields)]
 struct Grant {
     #[serde(default)]
+    device_sync_config: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     data_migration_read: Vec<vw_api_types::id::ProjectId>,
     /// Explicit background authority; API backup grants alone do not schedule work.
     #[serde(default)]
@@ -661,6 +663,7 @@ pub(super) fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     DataMigrationRead(&'a vw_api_types::id::ProjectId),
+    DeviceSyncConfig(&'a vw_api_types::id::ProjectId),
     DataBackups(&'a vw_api_types::id::ProjectId),
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
     ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
@@ -951,6 +954,7 @@ fn authorize_digest(
             action.is_none_or(|a| g.actions.contains(&a))
                 && match capability {
                     Capability::DataMigrationRead(project) => g.data_migration_read.contains(project),
+                    Capability::DeviceSyncConfig(project) => g.device_sync_config.contains(project),
                     Capability::DataBackups(project) => g.data_backups.contains(project),
                     Capability::UsageRead(query) => {
                         g.usage_read.iter().any(|permit| permit.matches(query))
@@ -1987,4 +1991,14 @@ pub(in super::super) fn authorize_data_migration(
         if !root.is_absolute() || !selected.is_absolute() { return Err(StatusCode::SERVICE_UNAVAILABLE); }
         Ok((root.clone(), selected.clone()))
     }).transpose()
+}
+
+/// Device-sync settings require an explicit host/project grant, independent of backups.
+pub(in super::super) fn authorize_device_sync_config(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope, host: &str,
+) -> Result<String, StatusCode> {
+    vw_agent_apps::providers::validate_identity(host).map_err(|_| StatusCode::BAD_REQUEST)?;
+    let authorized = authorize_scoped(path, headers, project.tenant_scope(), host, None,
+        Capability::DeviceSyncConfig(project.project_id()))?;
+    Ok(authorized.principal)
 }

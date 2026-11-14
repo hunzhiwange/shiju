@@ -102,3 +102,12 @@ impl fmt::Debug for UpdateS3SyncConfigRequest {
         f.write_str("UpdateS3SyncConfigRequest { [redacted] }")
     }
 }
+
+/// Authorized local connection and discoverable background work; no credential material.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WebDavSyncConfigResponse {
+    pub config: Option<WebDavSyncConfig>,
+    pub last_status: Option<crate::device_sync_task::SyncTaskStatus>,
+    pub active_task_id: Option<crate::id::TaskId>,
+}

@@ -169,6 +169,11 @@ impl Decoder {
                     self.finish_reasoning(&mut out, index, item);
                 }
                 continue;
+            } else if item["type"] == "tool_search_call" {
+                // Search arguments are structured JSON; publish the complete client call.
+                let mut start = item.clone();
+                start["status"] = "in_progress".into();
+                out.push_str(&self.emit(json!({"type":"response.output_item.added","output_index":index,"item":start})));
             } else {
                 let mut start = item.clone();
                 let (field, delta_event, done_event) = if item["type"] == "custom_tool_call" {

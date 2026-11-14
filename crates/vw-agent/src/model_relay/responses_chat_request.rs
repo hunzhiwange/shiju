@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::collections::HashSet;
 
 pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode> {
+    let search = super::tool_namespace::normalize(&mut body)?;
     let effort = responses::codex_chat_effort(&mut body)?;
     if let Some(items) = body["input"].as_array_mut() {
         super::responses_history::preserve_invalid(items);
@@ -14,7 +15,9 @@ pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode>
         for mut item in std::mem::take(items) {
             match item["type"].as_str() {
                 Some("function_call" | "custom_tool_call") => {
-                    let id = item["call_id"].as_str().filter(|id| !id.is_empty())
+                    let id = item["call_id"]
+                        .as_str()
+                        .filter(|id| !id.is_empty())
                         .ok_or(StatusCode::BAD_REQUEST)?;
                     if !pending.insert(id.to_owned()) {
                         return Err(StatusCode::BAD_REQUEST);
@@ -41,8 +44,14 @@ pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode>
                 Some("reasoning") => {}
                 _ => {
                     // Never put a user turn inside an unfinished parallel tool round.
-                    if !pending.is_empty() && item["role"] == "assistant"
-                        && item["content"].as_str().is_some_and(|text| text.starts_with("[Historical tool call with invalid arguments; context only,")) {
+                    if !pending.is_empty()
+                        && item["role"] == "assistant"
+                        && item["content"].as_str().is_some_and(|text| {
+                            text.starts_with(
+                                "[Historical tool call with invalid arguments; context only,",
+                            )
+                        })
+                    {
                         deferred.push(item);
                         continue;
                     }
@@ -63,7 +72,10 @@ pub(super) fn convert(mut body: Value) -> Result<(Value, ChatTools), StatusCode>
         normalized.append(&mut deferred);
         *items = normalized;
     }
-    let (mut chat, tools) = responses::to_chat(&body, true)?;
+    let (mut chat, mut tools) = responses::to_chat(&body, true)?;
+    if search {
+        tools.mark_search();
+    }
     if let Some(effort) = effort {
         chat["reasoning_effort"] = effort.into();
     }

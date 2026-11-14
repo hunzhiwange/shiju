@@ -143,3 +143,5 @@ mod responses_chat_stream;
 pub(crate) mod responses_history;
 #[cfg(test)]
 mod responses_history_tests;
+
+mod tool_namespace;

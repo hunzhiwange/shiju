@@ -10,6 +10,7 @@ struct Tool {
     name: String,
     namespace: Option<String>,
     custom: bool,
+    search: bool,
 }
 
 #[derive(Default, PartialEq, Eq, Debug)]
@@ -99,9 +100,20 @@ impl ChatTools {
         let Entry::Vacant(entry) = self.0.entry(name_on_wire.clone()) else {
             return Err(UNSUPPORTED);
         };
-        entry.insert(Tool { name: name.into(), namespace: namespace.map(str::to_owned), custom });
+        entry.insert(Tool {
+            name: name.into(),
+            namespace: namespace.map(str::to_owned),
+            custom,
+            search: false,
+        });
         function["name"] = name_on_wire.into();
         Ok(json!({"type":"function","function":function}))
+    }
+
+    pub(in crate::model_relay) fn mark_search(&mut self) {
+        if let Some(tool) = self.0.get_mut("tool_search") {
+            tool.search = true;
+        }
     }
 
     pub(super) fn choice(&self, choice: &Value) -> Result<Value, StatusCode> {
@@ -110,7 +122,7 @@ impl ChatTools {
         let namespace = namespace(choice)?;
         let wire = chat_name(name, namespace);
         match choice["type"].as_str() {
-            Some("function") if !self.0.get(&wire).is_some_and(|tool| tool.custom) => {}
+            Some("function") if self.0.get(&wire).is_some_and(|tool| !tool.custom) => {}
             Some("custom") if self.0.get(&wire).is_some_and(|tool| tool.custom) => {}
             _ => return Err(UNSUPPORTED),
         }
@@ -155,7 +167,17 @@ impl ChatTools {
     ) -> Result<Value, StatusCode> {
         let name = string(block, "name")?;
         let tool = self.0.get(name);
-        let mut item = if let Some(tool) = tool.filter(|tool| tool.custom) {
+        let mut item = if tool.is_some_and(|tool| tool.search) {
+            let arguments: Value = serde_json::from_str(
+                call["function"]["arguments"].as_str().ok_or(StatusCode::BAD_GATEWAY)?,
+            )
+            .map_err(|_| StatusCode::BAD_GATEWAY)?;
+            if !arguments.is_object() {
+                return Err(StatusCode::BAD_GATEWAY);
+            }
+            json!({"type":"tool_search_call","id":id,"status":status,
+                "call_id":block["id"],"execution":"client","arguments":arguments})
+        } else if let Some(tool) = tool.filter(|tool| tool.custom) {
             let input = &block["input"];
             super::object_keys(input, &["input"]).map_err(|_| StatusCode::BAD_GATEWAY)?;
             let input = input["input"].as_str().ok_or(StatusCode::BAD_GATEWAY)?;

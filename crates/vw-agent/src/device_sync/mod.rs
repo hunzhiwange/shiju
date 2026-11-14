@@ -8,3 +8,6 @@ pub mod s3_settings;
 
 #[cfg(target_os = "macos")]
 pub mod export;
+
+#[cfg(target_os = "macos")]
+pub mod import;

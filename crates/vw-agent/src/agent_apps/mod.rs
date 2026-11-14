@@ -25,3 +25,5 @@ pub mod prompts_store;
 
 #[cfg(target_os = "macos")]
 pub mod shared_snapshot;
+#[cfg(target_os = "macos")]
+pub mod shared_snapshot_import;

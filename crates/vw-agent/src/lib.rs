@@ -190,6 +190,9 @@ pub mod cron;
 // 守护进程管理
 pub mod daemon;
 
+/// Shared device synchronization coordination.
+pub mod device_sync;
+
 // 诊断工具
 pub mod doctor;
 

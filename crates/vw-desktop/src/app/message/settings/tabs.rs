@@ -25,7 +25,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::TabSelected(tab) => {
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
-            app.apps_catalog.project_profiles.invalidate();
             if app.system_settings_tab == SystemTab::Worktrees {
                 super::worktrees::recovery::invalidate(app);
             }
@@ -37,7 +36,6 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SystemTabSelected(tab) => {
             app.apps_catalog.daily_memory.invalidate();
             app.apps_catalog.hermes_memory.invalidate();
-            app.apps_catalog.project_profiles.invalidate();
             if app.cron_settings.add_draft.submitting || app.cron_settings.edit_draft.submitting {
                 return Task::none();
             }

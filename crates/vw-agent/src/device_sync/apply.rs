@@ -104,23 +104,39 @@ pub async fn apply_snapshot(
         host_id: scope.host.into(),
     };
     let receipt = create_safety_snapshot(recovery_root, &safety_scope, targets, capture)?;
-    for skill in &mut skills {
-        if skill.publish().is_err() {
-            let rollback_failed = rollback(&mut skills);
-            return Ok(Err(ApplyFailure {
-                receipt,
-                phase: ApplyPhase::Skills,
-                rollback_failed,
-                pending_skills: skills,
-            }));
-        }
-    }
-    match apply_shared_snapshot(database, scope, preview) {
-        Ok(changed) => {
-            // Disarm filesystem rollback only after the database owner commits.
-            for skill in skills {
-                skill.finish();
+    let publication = super::change_events::without_echo(scope.project.tenant_scope(), || {
+        for skill in &mut skills {
+            if skill.publish().is_err() {
+                let rollback_failed = rollback(&mut skills);
+                return Err(ApplyFailure {
+                    receipt,
+                    phase: ApplyPhase::Skills,
+                    rollback_failed,
+                    pending_skills: skills,
+                });
             }
+        }
+        match apply_shared_snapshot(database, scope, preview) {
+            Ok(changed) => {
+                // Disarm filesystem rollback only after the database owner commits.
+                for skill in skills {
+                    skill.finish();
+                }
+                Ok((changed, receipt))
+            }
+            Err(_) => {
+                let rollback_failed = rollback(&mut skills);
+                Err(ApplyFailure {
+                    receipt,
+                    phase: ApplyPhase::Configuration,
+                    rollback_failed,
+                    pending_skills: skills,
+                })
+            }
+        }
+    });
+    match publication {
+        Ok((changed, receipt)) => {
             let warnings = super::projection::refresh(projections).await;
             Ok(Ok(super::projection::AppliedSnapshot {
                 receipt,
@@ -128,14 +144,6 @@ pub async fn apply_snapshot(
                 warnings,
             }))
         }
-        Err(_) => {
-            let rollback_failed = rollback(&mut skills);
-            Ok(Err(ApplyFailure {
-                receipt,
-                phase: ApplyPhase::Configuration,
-                rollback_failed,
-                pending_skills: skills,
-            }))
-        }
+        Err(failure) => Ok(Err(failure)),
     }
 }

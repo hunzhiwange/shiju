@@ -130,27 +130,32 @@ impl GatewaySettingsStore {
         config_key: &str,
         payload_json: &str,
     ) -> Result<()> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
-        validate_identifier(payload_json, "gateway settings payload")?;
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
+            validate_identifier(payload_json, "gateway settings payload")?;
 
-        let updated_at_ms = current_timestamp_ms()?;
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                upsert_sqlite(
-                    &connection,
-                    tenant,
-                    namespace,
-                    config_key,
-                    payload_json,
-                    updated_at_ms,
-                )
+            let updated_at_ms = current_timestamp_ms()?;
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let connection = database.connect_sqlite()?;
+                    upsert_sqlite(
+                        &connection,
+                        tenant,
+                        namespace,
+                        config_key,
+                        payload_json,
+                        updated_at_ms,
+                    )
+                }
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    store.upsert(tenant, namespace, config_key, payload_json, updated_at_ms)
+                }
             }
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                store.upsert(tenant, namespace, config_key, payload_json, updated_at_ms)
-            }
-        }
+
+        })()?;
+        crate::device_sync::change_events::committed(tenant, namespace);
+        Ok(result)
     }
 
     /// Hold referenced configurations stable through the same write transaction.
@@ -162,44 +167,57 @@ impl GatewaySettingsStore {
         preimages: &[GatewaySettingPreimage],
         update: impl FnOnce(Option<&str>) -> Result<(T, Option<String>)>,
     ) -> Result<T> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
-        for preimage in preimages {
-            validate_identifier(preimage.namespace, "gateway settings namespace")?;
-            validate_identifier(&preimage.config_key, "gateway settings config key")?;
-        }
-        let database = match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => database,
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                return store
-                    .update_with_preimages(tenant, namespace, config_key, preimages, update);
-            }
-        };
-
-        database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+        let mut changed = false;
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
             for preimage in preimages {
-                let current =
-                    get_sqlite(transaction, tenant, preimage.namespace, &preimage.config_key)?;
-                ensure!(
-                    current.as_deref() == Some(preimage.payload_json.as_str()),
-                    "referenced configuration changed"
-                );
+                validate_identifier(preimage.namespace, "gateway settings namespace")?;
+                validate_identifier(&preimage.config_key, "gateway settings config key")?;
             }
-            let current = get_sqlite(transaction, tenant, namespace, config_key)?;
-            let (result, replacement) = update(current.as_deref())?;
-            if let Some(payload) = replacement {
-                validate_identifier(&payload, "gateway settings payload")?;
-                upsert_sqlite(
-                    transaction,
-                    tenant,
-                    namespace,
-                    config_key,
-                    &payload,
-                    current_timestamp_ms()?,
-                )?;
-            }
-            Ok(result)
-        })
+            let update = |current: Option<&str>| {
+                let (result, replacement) = update(current)?;
+                changed = replacement.as_deref().is_some_and(|value| Some(value) != current);
+                Ok((result, replacement))
+            };
+            let database = match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => database,
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    return store
+                        .update_with_preimages(tenant, namespace, config_key, preimages, update);
+                }
+            };
+
+            database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                for preimage in preimages {
+                    let current =
+                        get_sqlite(transaction, tenant, preimage.namespace, &preimage.config_key)?;
+                    ensure!(
+                        current.as_deref() == Some(preimage.payload_json.as_str()),
+                        "referenced configuration changed"
+                    );
+                }
+                let current = get_sqlite(transaction, tenant, namespace, config_key)?;
+                let (result, replacement) = update(current.as_deref())?;
+                if let Some(payload) = replacement {
+                    validate_identifier(&payload, "gateway settings payload")?;
+                    upsert_sqlite(
+                        transaction,
+                        tenant,
+                        namespace,
+                        config_key,
+                        &payload,
+                        current_timestamp_ms()?,
+                    )?;
+                }
+                Ok(result)
+            })
+
+        })()?;
+        if changed {
+            crate::device_sync::change_events::committed(tenant, namespace);
+        }
+        Ok(result)
     }
 
     #[cfg(target_os = "macos")]
@@ -221,29 +239,41 @@ impl GatewaySettingsStore {
         expected: &[GatewaySetting],
         replacements: &[GatewaySetting],
     ) -> Result<bool> {
-        validate_identifier(namespace, "migration namespace")?;
-        for row in replacements {
-            validate_identifier(&row.config_key, "migration key")?;
-            validate_identifier(&row.payload_json, "migration payload")?;
-        }
-        let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
-            bail!("atomic catalog migration is not supported by this backend");
-        };
-        database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
-            let current = {
-                let mut statement = transaction.prepare(
-                    "SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key"
-                )?;
-                statement.query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), namespace], |row| {
-                    Ok(GatewaySetting { config_key: row.get(0)?, payload_json: row.get(1)? })
-                })?.collect::<rusqlite::Result<Vec<_>>>()?
-            };
-            if current != expected { return Ok(false); }
+        let result = (|| -> Result<_> {
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "migration namespace")?;
             for row in replacements {
-                upsert_sqlite(transaction, tenant, namespace, &row.config_key, &row.payload_json, current_timestamp_ms()?)?;
+                validate_identifier(&row.config_key, "migration key")?;
+                validate_identifier(&row.payload_json, "migration payload")?;
             }
-            Ok(true)
-        })
+            let GatewaySettingsStoreProvider::Sqlite(database) = &self.provider else {
+                bail!("atomic catalog migration is not supported by this backend");
+            };
+            database.with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                let current = {
+                    let mut statement = transaction.prepare(
+                        "SELECT config_key, payload_json FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 ORDER BY config_key"
+                    )?;
+                    statement.query_map(params![tenant.platform_id().as_ref(), tenant.company_id().as_ref(), namespace], |row| {
+                        Ok(GatewaySetting { config_key: row.get(0)?, payload_json: row.get(1)? })
+                    })?.collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                if current != expected { return Ok(false); }
+                for row in replacements {
+                    upsert_sqlite(transaction, tenant, namespace, &row.config_key, &row.payload_json, current_timestamp_ms()?)?;
+                }
+                Ok(true)
+            })
+
+        })()?;
+        if result {
+            crate::device_sync::change_events::committed(tenant, namespace);
+        }
+        Ok(result)
+
+        })()?;
+        if result { crate::device_sync::change_events::committed(tenant, namespace); }
+        Ok(result)
     }
 
     /// Atomically insert a new scoped key; conflicts leave payload and timestamp unchanged.
@@ -254,35 +284,42 @@ impl GatewaySettingsStore {
         config_key: &str,
         payload_json: &str,
     ) -> Result<bool> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
-        validate_identifier(payload_json, "gateway settings payload")?;
-        let updated_at_ms = current_timestamp_ms()?;
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                let changed = connection
-                    .execute(
-                        "INSERT INTO gateway_settings (
-                        platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                     ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            namespace,
-                            config_key,
-                            payload_json,
-                            updated_at_ms
-                        ],
-                    )
-                    .context("insert tenant SQLite gateway setting")?;
-                Ok(changed == 1)
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
+            validate_identifier(payload_json, "gateway settings payload")?;
+            let updated_at_ms = current_timestamp_ms()?;
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let connection = database.connect_sqlite()?;
+                    let changed = connection
+                        .execute(
+                            "INSERT INTO gateway_settings (
+                            platform_id, company_id, namespace, config_key, payload_json, updated_at_ms
+                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+                         ON CONFLICT (platform_id, company_id, namespace, config_key) DO NOTHING",
+                            params![
+                                tenant.platform_id().as_ref(),
+                                tenant.company_id().as_ref(),
+                                namespace,
+                                config_key,
+                                payload_json,
+                                updated_at_ms
+                            ],
+                        )
+                        .context("insert tenant SQLite gateway setting")?;
+                    Ok(changed == 1)
+                }
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    store.insert_if_absent(tenant, namespace, config_key, payload_json, updated_at_ms)
+                }
             }
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                store.insert_if_absent(tenant, namespace, config_key, payload_json, updated_at_ms)
-            }
+
+        })()?;
+        if result {
+            crate::device_sync::change_events::committed(tenant, namespace);
         }
+        Ok(result)
     }
 
     /// Conditional scoped update: stale readers cannot replace newer fields or metadata.
@@ -294,40 +331,47 @@ impl GatewaySettingsStore {
         expected: &str,
         payload_json: &str,
     ) -> Result<bool> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
-        validate_identifier(payload_json, "gateway settings payload")?;
-        let updated_at_ms = current_timestamp_ms()?;
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                let changed = connection
-                    .execute(
-                        "UPDATE gateway_settings SET payload_json = ?5, updated_at_ms = ?6
-                     WHERE platform_id = ?1 AND company_id = ?2 AND namespace = ?3
-                       AND config_key = ?4 AND payload_json = ?7",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            namespace,
-                            config_key,
-                            payload_json,
-                            updated_at_ms,
-                            expected
-                        ],
-                    )
-                    .context("conditionally update tenant SQLite gateway setting")?;
-                Ok(changed == 1)
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
+            validate_identifier(payload_json, "gateway settings payload")?;
+            let updated_at_ms = current_timestamp_ms()?;
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let connection = database.connect_sqlite()?;
+                    let changed = connection
+                        .execute(
+                            "UPDATE gateway_settings SET payload_json = ?5, updated_at_ms = ?6
+                         WHERE platform_id = ?1 AND company_id = ?2 AND namespace = ?3
+                           AND config_key = ?4 AND payload_json = ?7",
+                            params![
+                                tenant.platform_id().as_ref(),
+                                tenant.company_id().as_ref(),
+                                namespace,
+                                config_key,
+                                payload_json,
+                                updated_at_ms,
+                                expected
+                            ],
+                        )
+                        .context("conditionally update tenant SQLite gateway setting")?;
+                    Ok(changed == 1)
+                }
+                GatewaySettingsStoreProvider::Postgres(store) => store.compare_exchange(
+                    tenant,
+                    namespace,
+                    config_key,
+                    expected,
+                    payload_json,
+                    updated_at_ms,
+                ),
             }
-            GatewaySettingsStoreProvider::Postgres(store) => store.compare_exchange(
-                tenant,
-                namespace,
-                config_key,
-                expected,
-                payload_json,
-                updated_at_ms,
-            ),
+
+        })()?;
+        if result {
+            crate::device_sync::change_events::committed(tenant, namespace);
         }
+        Ok(result)
     }
 
     /// Remove only the exact scoped record checked by the domain reference guard.
@@ -338,17 +382,24 @@ impl GatewaySettingsStore {
         config_key: &str,
         expected: &str,
     ) -> Result<bool> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                Ok(connection.execute("DELETE FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 AND config_key=?4 AND payload_json=?5",params![tenant.platform_id().as_ref(),tenant.company_id().as_ref(),namespace,config_key,expected])?==1)
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let connection = database.connect_sqlite()?;
+                    Ok(connection.execute("DELETE FROM gateway_settings WHERE platform_id=?1 AND company_id=?2 AND namespace=?3 AND config_key=?4 AND payload_json=?5",params![tenant.platform_id().as_ref(),tenant.company_id().as_ref(),namespace,config_key,expected])?==1)
+                }
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    store.compare_delete(tenant, namespace, config_key, expected)
+                }
             }
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                store.compare_delete(tenant, namespace, config_key, expected)
-            }
+
+        })()?;
+        if result {
+            crate::device_sync::change_events::committed(tenant, namespace);
         }
+        Ok(result)
     }
 
     /// 删除单条设置并返回是否命中记录。
@@ -358,31 +409,38 @@ impl GatewaySettingsStore {
         namespace: &str,
         config_key: &str,
     ) -> Result<bool> {
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(config_key, "gateway settings config key")?;
+        let result = (|| -> Result<_> {
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(config_key, "gateway settings config key")?;
 
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let connection = database.connect_sqlite()?;
-                let changed = connection
-                    .execute(
-                        "DELETE FROM gateway_settings
-                         WHERE platform_id = ?1 AND company_id = ?2
-                           AND namespace = ?3 AND config_key = ?4",
-                        params![
-                            tenant.platform_id().as_ref(),
-                            tenant.company_id().as_ref(),
-                            namespace,
-                            config_key,
-                        ],
-                    )
-                    .context("delete tenant SQLite gateway setting")?;
-                Ok(changed == 1)
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let connection = database.connect_sqlite()?;
+                    let changed = connection
+                        .execute(
+                            "DELETE FROM gateway_settings
+                             WHERE platform_id = ?1 AND company_id = ?2
+                               AND namespace = ?3 AND config_key = ?4",
+                            params![
+                                tenant.platform_id().as_ref(),
+                                tenant.company_id().as_ref(),
+                                namespace,
+                                config_key,
+                            ],
+                        )
+                        .context("delete tenant SQLite gateway setting")?;
+                    Ok(changed == 1)
+                }
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    store.delete(tenant, namespace, config_key)
+                }
             }
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                store.delete(tenant, namespace, config_key)
-            }
+
+        })()?;
+        if result {
+            crate::device_sync::change_events::committed(tenant, namespace);
         }
+        Ok(result)
     }
 
     /// Remove a record and its matching reference together. A failed host
@@ -395,39 +453,46 @@ impl GatewaySettingsStore {
         reference: Option<(&str, &str, &str)>,
         cleanup: impl FnOnce() -> Result<(), E>,
     ) -> Result<Result<(), E>> {
-        let (namespace, key) = record;
-        validate_identifier(namespace, "gateway settings namespace")?;
-        validate_identifier(key, "gateway settings config key")?;
-        let (ref_ns, ref_key, ref_value) = reference
-            .map_or((None, None, None), |(ns, key, value)| (Some(ns), Some(key), Some(value)));
-        match &self.provider {
-            GatewaySettingsStoreProvider::Sqlite(database) => {
-                let mut connection = database.connect_sqlite()?;
-                let tx = connection.transaction()?;
-                tx.execute(
-                    "DELETE FROM gateway_settings WHERE platform_id = ?1 AND company_id = ?2
-                     AND ((namespace = ?3 AND config_key = ?4)
-                          OR (namespace = ?5 AND config_key = ?6 AND payload_json = ?7))",
-                    params![
-                        tenant.platform_id().as_ref(),
-                        tenant.company_id().as_ref(),
-                        namespace,
-                        key,
-                        ref_ns,
-                        ref_key,
-                        ref_value,
-                    ],
-                )?;
-                if let Err(error) = cleanup() {
-                    return Ok(Err(error));
+        let result = (|| -> Result<_> {
+            let (namespace, key) = record;
+            validate_identifier(namespace, "gateway settings namespace")?;
+            validate_identifier(key, "gateway settings config key")?;
+            let (ref_ns, ref_key, ref_value) = reference
+                .map_or((None, None, None), |(ns, key, value)| (Some(ns), Some(key), Some(value)));
+            match &self.provider {
+                GatewaySettingsStoreProvider::Sqlite(database) => {
+                    let mut connection = database.connect_sqlite()?;
+                    let tx = connection.transaction()?;
+                    tx.execute(
+                        "DELETE FROM gateway_settings WHERE platform_id = ?1 AND company_id = ?2
+                         AND ((namespace = ?3 AND config_key = ?4)
+                              OR (namespace = ?5 AND config_key = ?6 AND payload_json = ?7))",
+                        params![
+                            tenant.platform_id().as_ref(),
+                            tenant.company_id().as_ref(),
+                            namespace,
+                            key,
+                            ref_ns,
+                            ref_key,
+                            ref_value,
+                        ],
+                    )?;
+                    if let Err(error) = cleanup() {
+                        return Ok(Err(error));
+                    }
+                    tx.commit()?;
+                    Ok(Ok(()))
                 }
-                tx.commit()?;
-                Ok(Ok(()))
+                GatewaySettingsStoreProvider::Postgres(store) => {
+                    store.delete_with_reference(tenant, record, reference, cleanup)
+                }
             }
-            GatewaySettingsStoreProvider::Postgres(store) => {
-                store.delete_with_reference(tenant, record, reference, cleanup)
-            }
+
+        })()?;
+        if result.is_ok() {
+            crate::device_sync::change_events::committed(tenant, record.0);
         }
+        Ok(result)
     }
 
     /// SELECT-only catalog snapshot for scoped native configuration revisions.

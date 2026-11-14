@@ -521,7 +521,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.mcp_settings.save_error = None;
             app.mcp_settings.inspect_error = None;
             app.mcp_settings.status_message = None;
-            refresh_all_task()
+            let catalog = super::mcp_management_list::update(
+                app,
+                super::mcp_management_list::CatalogMessage::Refresh,
+            );
+            Task::batch([refresh_all_task(), catalog])
         }
         McpMessage::Loaded(result) => {
             app.mcp_settings.loading = false;

@@ -3451,6 +3451,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway-pairing"
+version = "0.6.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "parking_lot",
+ "rand 0.10.3",
+ "sha2 0.11.0",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vw-config-types",
+]
+
+[[package]]
 name = "gdk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12436,6 +12451,7 @@ dependencies = [
  "fern",
  "flate2",
  "futures-util",
+ "gateway-pairing",
  "getrandom 0.4.3",
  "git2",
  "glob",

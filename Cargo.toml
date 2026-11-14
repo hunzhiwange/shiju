@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-pairing",
   "crates/libs/content-guard",
   "crates/libs/domain-matcher",
   "crates/libs/memory-algorithms",

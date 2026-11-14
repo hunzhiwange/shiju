@@ -292,6 +292,12 @@ impl ManagedCredential {
         // Keep account exchange state out of the connection's concrete future.
         Box::pin(async move {
             let provider = self.account_adapter.provider_type();
+            if provider == ProviderType::CodexOAuth {
+                let url = target_url(provider, self.base.as_ref().map(reqwest::Url::as_str), &self.endpoint)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+                crate::model_relay::codex_oauth_transport::validate_url(&url)
+                    .map_err(|_| vw_api_types::agent_apps_auth::AuthErrorCode::InvalidInput)?;
+            }
             let mut selected = managed_target(
                 &self.owner,
                 &self.account_adapter,

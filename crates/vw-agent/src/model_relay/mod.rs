@@ -179,3 +179,5 @@ mod signature_rectify_tests;
 
 mod tool_media;
 mod tool_media_request;
+
+pub(crate) mod codex_oauth_transport;

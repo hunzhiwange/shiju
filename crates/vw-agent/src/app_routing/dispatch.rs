@@ -338,6 +338,11 @@ pub(super) async fn forward_json(
         for name in ["authorization", "x-api-key", "x-goog-api-key", "chatgpt-account-id"] {
             outgoing.headers_mut().remove(name);
         }
+        if credential.account_adapter.provider_type()
+            == super::adapter_selection::ProviderType::CodexOAuth
+        {
+            crate::model_relay::codex_oauth_transport::apply(&mut outgoing, &selected.headers)?;
+        }
         outgoing.headers_mut().extend(selected.headers);
     }
 

@@ -1203,3 +1203,11 @@ forward_rectified 对指定 HTTP 400/404/415/422/501 媒体拒绝才尝试替换
 requestOptions.cacheInjection 显式启用（默认关闭），复用现有请求选项保存/合并 API；false 停止自动注入，保留用户缓存字段。dispatch::apply_cache 与 failover_execution 的每个候选出口消费同一 cache_policy。Messages 保留已有断点和 TTL，按 tools/system/latest/prior-user 顺序最多补足四个，跳过 thinking。OpenAI 与 Kimi coding 的 Chat/Responses 仅在真实 session_id 存在且未提供 prompt_cache_key 时生成 64 位 SHA256 身份，输入包含授权项目/主机/应用/账号/目标/凭据代次；未知上游不注入 key。不持有数据库或记录身份载荷。
 
 新增 cc_route_070_ 独立测试源码覆盖禁用、幂等、已有五断点/TTL、thinking 和账号隔离。遵照本次用户覆盖指令，未运行 Cargo、单元测试、实机或最终回归；无槽位领取，CARGO_TARGET_DIR 未设置。推荐统一验证这些策略测试与真实 HTTP 出口；macOS 尚未验收，其它平台范围外。母任务8未作完成认定。
+
+## 任务72：Codex OAuth 路由传输（代码交付，未验证）
+
+2026-11-14：依赖任务71的 copilot_transport 与 dispatch 接线已存在；已读取固定 upstream 的 codex.rs、codex_oauth_auth.rs/forwarder 及现有账号、运行时、可信作用域合同。仅确认源码接口可用，不推定母任务1–6的外部验收完成。
+
+新增 codex_oauth_transport 官方出口检查与最终身份头检查；ManagedCredential::resolve 在解析凭据前拒绝第三方地址、非 HTTPS、查询/片段及非 Responses 端点。dispatch 消费每次 resolve 的凭据包，拒绝空白账号和无效 Bearer，覆盖客户端/提供商的账号与官方 originator/version。过期刷新、撤销/账号代次检查继续复用 AuthAccountStore::codex_access_token 与 CodexRefresh；不新建 token 缓存或授权流程，不修改旧 session relay。仅支持官方 responses 与 responses/compact 出口，不增加其他协议转换。
+
+遵照用户本次覆盖要求，仅写代码，未运行 Cargo、单元测试、实机测试或最终回归，未新增测试；无红绿灯或验证通过证据。未领取槽位，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR 未设置。后续统一验证应覆盖官方账号头、覆盖优先级、空白账号、过期/撤销后的连续请求及第三方 URL 拒绝。macOS 待验收，其它平台未验证；任务卡按要求删除，不代表母任务8完成。

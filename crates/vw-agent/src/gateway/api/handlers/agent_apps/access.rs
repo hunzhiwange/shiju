@@ -115,6 +115,8 @@ struct Grant {
     #[serde(default)]
     project_profiles_create: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
+    project_profiles_maintain: Vec<vw_api_types::id::ProjectId>,
+    #[serde(default)]
     workspace_write: Vec<vw_api_types::id::ProjectId>,
     #[serde(default)]
     identities: Vec<IdentityPermit>,
@@ -644,6 +646,7 @@ pub(super) fn authorize_identity_launch(
 #[derive(Clone, Copy)]
 enum Capability<'a> {
     ProjectProfiles(&'a vw_api_types::id::ProjectId, bool),
+    ProjectProfilesMaintain(&'a vw_api_types::id::ProjectId),
     OpenClawEnvRead(&'a vw_api_types::id::ProjectId),
     OpenClawSettings(&'a vw_api_types::id::ProjectId, bool),
     Workspace(&'a vw_api_types::id::ProjectId, bool),
@@ -961,6 +964,7 @@ fn authorize_digest(
                     Capability::UsageBatch(project) => g.usage_refresh_all.contains(project),
                     Capability::OpenClawEnvRead(project) => g.openclaw_env_sensitive_read.contains(project),
                     Capability::OpenClawSettings(project, write) => if write { g.openclaw_settings_write.contains(project) } else { g.openclaw_settings_read.contains(project) },
+                    Capability::ProjectProfilesMaintain(project) => g.project_profiles_maintain.contains(project),
                     Capability::ProjectProfiles(project, create) => if create { g.project_profiles_create.contains(project) } else { g.project_profiles_read.contains(project) },
                     Capability::Read => true,
                     Capability::PreferencesWrite => g.preferences_write,
@@ -1859,4 +1863,13 @@ pub(super) fn authorize_project_profiles(
 ) -> Result<String, StatusCode> {
     authorize_scoped(path, headers, project.tenant_scope(), target, None,
         Capability::ProjectProfiles(project.project_id(), create)).map(|a| a.host.id)
+}
+
+/// Maintenance is an explicit shared-entity grant, independent of creation.
+pub(super) fn authorize_project_profiles_maintenance(
+    path: Option<&Path>, headers: &HeaderMap, project: &vw_api_types::ProjectScope,
+    target: &str,
+) -> Result<String, StatusCode> {
+    authorize_scoped(path, headers, project.tenant_scope(), target, None,
+        Capability::ProjectProfilesMaintain(project.project_id())).map(|a| a.host.id)
 }

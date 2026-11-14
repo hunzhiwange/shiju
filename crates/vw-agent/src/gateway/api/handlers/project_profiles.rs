@@ -5,6 +5,9 @@ use std::path::PathBuf;
 use vw_api_types::{ProjectId, ProjectScope, TenantScope, project_profiles::ProjectProfileScope};
 use crate::{global_database::GlobalDatabase, gateway::agent_apps::profile_store::ProjectProfileStore};
 
+#[path = "project_profiles_maintenance.rs"]
+mod maintenance;
+
 #[derive(Clone)]
 struct Policy(Option<PathBuf>);
 #[derive(Deserialize)]
@@ -30,6 +33,7 @@ pub(super) fn router() -> Router {
     Router::new()
         .route("/agent-apps/project-profiles", get(list).post(create))
         .route("/agent-apps/project-profiles/current", get(current))
+        .merge(maintenance::router())
         .layer(DefaultBodyLimit::max(16 * 1024))
         .layer(Extension(Policy(std::env::var_os("SHIJU_AGENT_APPS_ACCESS_FILE").map(PathBuf::from))))
 }

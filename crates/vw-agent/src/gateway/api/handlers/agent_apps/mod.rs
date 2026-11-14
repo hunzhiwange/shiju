@@ -632,4 +632,4 @@ mod openclaw_settings;
 #[path = "../workspace_directory.rs"]
 mod workspace_directory;
 
-pub(super) use access::authorize_project_profiles;
+pub(super) use access::{authorize_project_profiles, authorize_project_profiles_maintenance};

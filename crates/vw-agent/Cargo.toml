@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+process-sandbox = { path = "../libs/process-sandbox", version = "0.6.0" }
 memory-types = { path = "../libs/memory-types", version = "0.6.0" }
 gateway-pairing = { path = "../libs/gateway-pairing", version = "0.6.0" }
 memory-markdown = { path = "../libs/memory-markdown", version = "0.6.0" }
@@ -162,9 +163,6 @@ rusqlite = "0.37.0"
 [target.'cfg(target_os = "macos")'.dependencies]
 system-configuration = "0.7"
 
-[target.'cfg(target_os = "linux")'.dependencies]
-landlock = { version = "0.4.5", optional = true }
-
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console = "0.16"
 console_error_panic_hook = "0.1"
@@ -197,8 +195,8 @@ probe = ["dep:probe-rs"]
 memory-postgres = ["dep:memory-postgres"]
 memory-mariadb = ["dep:memory-mariadb"]
 observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
-sandbox-bubblewrap = []
-sandbox-landlock = ["dep:landlock"]
+sandbox-bubblewrap = ["process-sandbox/sandbox-bubblewrap"]
+sandbox-landlock = ["process-sandbox/sandbox-landlock"]
 shell-ast = ["dep:tree-sitter", "dep:tree-sitter-bash"]
 channel-lark = ["dep:prost"]
 whatsapp-web = ["dep:prost", "dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport"]

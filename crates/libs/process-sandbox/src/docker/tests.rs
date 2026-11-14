@@ -20,7 +20,7 @@
 //! # 运行测试
 //!
 //! ```bash
-//! cargo test --package vibe-agent --lib security::docker::tests
+//! cargo test --package process-sandbox --lib docker::tests
 //! ```
 
 use super::*;

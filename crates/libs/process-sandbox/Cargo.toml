@@ -1,0 +1,23 @@
+[package]
+name = "process-sandbox"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+async-trait = "0.1.89"
+tracing = "0.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+landlock = { version = "0.4.5", optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+sandbox-bubblewrap = []
+sandbox-landlock = ["dep:landlock"]

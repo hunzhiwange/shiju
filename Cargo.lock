@@ -8466,6 +8466,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "process-sandbox"
+version = "0.6.0"
+dependencies = [
+ "async-trait",
+ "landlock",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "project-storage-paths"
 version = "0.6.0"
 dependencies = [
@@ -12535,7 +12545,6 @@ dependencies = [
  "image",
  "include_dir",
  "js-sys",
- "landlock",
  "lettre",
  "libc",
  "mail-parser",
@@ -12562,6 +12571,7 @@ dependencies = [
  "portable-pty",
  "postgres",
  "probe-rs",
+ "process-sandbox",
  "project-storage-paths",
  "prometheus",
  "prost",

@@ -16,6 +16,7 @@ members = [
   "crates/libs/memory-mariadb",
   "crates/libs/patch",
   "crates/libs/project-storage-paths",
+  "crates/libs/process-sandbox",
   "crates/vw-api-types",
   "crates/vw-acp",
   "crates/vw-config-types",

@@ -103,3 +103,7 @@ mod usage_tests;
 
 #[cfg(target_os = "macos")]
 pub mod periodic;
+
+pub mod apply;
+#[cfg(test)]
+mod apply_tests;

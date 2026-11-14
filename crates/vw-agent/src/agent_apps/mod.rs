@@ -29,3 +29,6 @@ pub mod shared_snapshot;
 pub mod shared_snapshot_import;
 
 pub mod preferences_import;
+
+#[cfg(target_os = "macos")]
+pub(crate) mod data_import;

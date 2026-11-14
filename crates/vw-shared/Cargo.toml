@@ -14,6 +14,7 @@ hex = "0.4"
 libc = "0.2"
 once_cell = "1"
 parking_lot = "0.12"
+patch = { path = "../libs/patch", version = "0.6.0" }
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

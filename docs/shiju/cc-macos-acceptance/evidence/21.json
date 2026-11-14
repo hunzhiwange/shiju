@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task": 21,
+  "status": "deferred_unverified",
+  "acceptance_passed": false,
+  "reason": "User instruction: skip verification-only work this round, delete task card, and defer all verification.",
+  "baseline": {
+    "read_head": "ccb02c107e9570d5c1a264e2d03e37722cdacb6b",
+    "runtime_contract_baseline": "90330f6c232537e310d63821238c6f1e980fb576",
+    "artifact_sha256": null,
+    "macos_version": null,
+    "architecture": null,
+    "app_version": null
+  },
+  "inputs": {
+    "inventory": "docs/shiju/cc-macos-acceptance/inventory.json",
+    "runtime_contract": "docs/shiju/cc-macos-acceptance/runtime-contract.json",
+    "runtime_contract_status": "prepared_unverified_not_executable",
+    "parent_task_card": "Unavailable at the task-specified path; this does not establish absence of implementation or persistent mapping.",
+    "document_candidates": [
+      "docs/shiju/cc-convergence/handoff.md",
+      "docs/shiju/cc-convergence/snapshot-removal.md"
+    ],
+    "candidate_status": "Not revalidated"
+  },
+  "source_items": [],
+  "cross_items": {
+    "status": "unverified",
+    "reason": "Parent task declarations have not been recovered; primary ownership is not a complete scope."
+  },
+  "dependency_gaps": [
+    {
+      "owner": "task 1 and mother 21",
+      "detail": "Runtime contract is not executable; verified API, SDK, CLI, isolated configuration and cleanup entries are absent."
+    },
+    {
+      "owner": "mother 21 and convergence subplan",
+      "detail": "Source-to-implementation/test mapping, deletion list, unique owners and caller migration have not been verified this round. Implementation status remains unknown."
+    },
+    {
+      "owner": "build and resource owners",
+      "detail": "Frozen artifact hashes, isolated ARM64/x64 hosts and application versions are not supplied in the contract."
+    }
+  ],
+  "execution": {
+    "commands": [],
+    "exit_codes": [],
+    "behavior_cases_ran": 0,
+    "passed": 0,
+    "failed": 0,
+    "note": "Preparation reads and Git operations only. No Cargo, build, tests, device runs, acceptance, JSON format check or regression executed. Zero cases cannot pass."
+  },
+  "deferred_work": [
+    "Recover mother 21 mapping and cross-domain scope; if no exclusive source items exist, verify deletion list, unique ownership and caller migration instead.",
+    "Verify registration, conditional compilation, events, TS business rules and macOS applicability.",
+    "Review native implementation, API permissions/errors, SDK and focused test evidence against the frozen product tree; return gaps to capability owners.",
+    "Obtain executable contracts and frozen artifacts; record actual observations separately for ARM64 and x64.",
+    "Run JSON format checking and deferred acceptance/regression later; record actual commands, exit codes and case counts."
+  ],
+  "cleanup": {
+    "runtime_resources_created": false,
+    "result": "No runtime resources created. Task card removed as requested; this persistent record remains. Product convergence and cleanup are unverified."
+  }
+}

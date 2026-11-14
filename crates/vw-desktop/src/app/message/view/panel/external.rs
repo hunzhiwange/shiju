@@ -54,8 +54,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         },
         ViewMessage::OpenPathInFinder(path) => Task::perform(
             async move {
-                let result =
-                    crate::app::session_gateway::gateway_external_reveal_async(&path).await;
+                let result = match crate::app::gateway_client() {
+                    Ok(client) => {
+                        crate::app::config::reveal_gateway_path_locally(client.endpoint(), &path).await
+                    }
+                    Err(error) => Err(error),
+                };
                 ViewMessage::PathRevealFinished { path, result }
             },
             Message::View,
@@ -79,13 +83,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::perform(
                 async move {
-                    let _ = crate::app::session_gateway::gateway_external_open_async(
-                        &path,
-                        target.as_str(),
-                    )
-                    .await;
+                    let result = open_project_external(&path, target).await;
+                    ViewMessage::PathRevealFinished { path, result }
                 },
-                |_| Message::None,
+                Message::View,
             )
         }
         ViewMessage::OpenProjectInExternalWith(target) => {
@@ -100,13 +101,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             let open = Task::perform(
                 async move {
-                    let _ = crate::app::session_gateway::gateway_external_open_async(
-                        &path,
-                        target.as_str(),
-                    )
-                    .await;
+                    let result = open_project_external(&path, target).await;
+                    ViewMessage::PathRevealFinished { path, result }
                 },
-                |_| Message::None,
+                Message::View,
             );
             Task::batch([save, open])
         }
@@ -123,6 +121,15 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             iced::clipboard::write(path)
         }
         _ => Task::none(),
+    }
+}
+
+async fn open_project_external(path: &str, target: ExternalOpenApp) -> Result<(), String> {
+    if target == ExternalOpenApp::Finder {
+        let client = crate::app::gateway_client()?;
+        crate::app::config::reveal_gateway_path_locally(client.endpoint(), path).await
+    } else {
+        crate::app::session_gateway::gateway_external_open_async(path, target.as_str()).await
     }
 }
 

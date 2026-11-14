@@ -2,4 +2,3 @@
 
 pub mod s3_config;
 pub mod webdav_config;
-pub mod manifest;

@@ -17,6 +17,9 @@ mod cli_bootstrap;
 mod cron_jobs;
 #[path = "config_desktop.rs"]
 mod desktop;
+#[path = "config_file_manager.rs"]
+mod file_manager;
+pub(crate) use file_manager::reveal_gateway_path_locally;
 #[path = "config_gateway.rs"]
 mod gateway;
 #[path = "config_system_settings.rs"]

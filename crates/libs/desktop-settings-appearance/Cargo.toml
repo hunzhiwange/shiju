@@ -1,0 +1,16 @@
+[package]
+name = "desktop-settings-appearance"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+[lib]
+doctest = false
+[dependencies]
+iced = { version = "0.14", features = ["advanced"] }
+config-ui = { path = "../config-ui", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-settings-shell = { path = "../desktop-settings-shell", version = "0.6.0" }
+desktop-theme = { path = "../desktop-theme", version = "0.6.0" }
+tracing = "0.1"
+desktop-settings-security = { path = "../desktop-settings-security", version = "0.6.0" }

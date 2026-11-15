@@ -42,6 +42,7 @@ desktop-ui-controls = { path = "../libs/desktop-ui-controls", version = "0.6.0" 
 desktop-settings-memory = { path = "../libs/desktop-settings-memory", version = "0.6.0" }
 desktop-settings-cron = { path = "../libs/desktop-settings-cron", version = "0.6.0" }
 desktop-settings-security = { path = "../libs/desktop-settings-security", version = "0.6.0" }
+desktop-settings-appearance = { path = "../libs/desktop-settings-appearance", version = "0.6.0" }
 vw-api-types = { path = "../vw-api-types", version = "0.6.0" }
 gateway-desktop-settings = { path = "../libs/gateway-desktop-settings", version = "0.6.0" }
 gateway-skill-market = { path = "../libs/gateway-skill-market", version = "0.6.0" }

@@ -6,16 +6,15 @@ use super::*;
 use iced::advanced::widget::Tree;
 use config_ui::QuickMessageConfig;
 
-fn app() -> App {
-    App::new().0
-}
-
+struct Fixture { quick_messages: Vec<config_ui::QuickMessageConfig> }
+fn app() -> Fixture { Fixture { quick_messages: config_ui::AppSystemSettingsConfig::default().quick_messages } }
 fn config(text: &str, group: QuickMessageGroup, kind: QuickMessageKind) -> QuickMessageConfig {
     QuickMessageConfig { text: text.to_string(), group, kind }
 }
 
-fn view_tree(app: &App) -> Tree {
-    let element = view(app);
+fn view_tree(app: &Fixture) -> Tree {
+    let theme = iced::Theme::Dark;
+    let element = view(&View { quick_messages: &app.quick_messages, desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: &theme }, |_,_,_,_| iced::widget::Space::new().into());
     Tree::new(element.as_widget())
 }
 
@@ -49,27 +48,27 @@ fn quick_message_settings_view_supports_empty_and_default_lists() {
 
 #[test]
 fn quick_message_settings_view_messages_preserve_indices_and_variants() {
-    let Message::Settings(SettingsMessage::QuickMessages(QuickMessagesMessage::Add)) =
+    let Message::Add =
         add_message()
     else {
         panic!("unexpected add message");
     };
-    let Message::Settings(SettingsMessage::QuickMessages(QuickMessagesMessage::Save)) =
+    let Message::Save =
         save_message()
     else {
         panic!("unexpected save message");
     };
-    let Message::Settings(SettingsMessage::QuickMessages(QuickMessagesMessage::Remove(3))) =
+    let Message::Remove(3) =
         remove_message(3)
     else {
         panic!("unexpected remove message");
     };
-    let Message::Settings(SettingsMessage::QuickMessages(QuickMessagesMessage::MoveUp(4))) =
+    let Message::MoveUp(4) =
         move_up_message(4)
     else {
         panic!("unexpected move-up message");
     };
-    let Message::Settings(SettingsMessage::QuickMessages(QuickMessagesMessage::MoveDown(5))) =
+    let Message::MoveDown(5) =
         move_down_message(5)
     else {
         panic!("unexpected move-down message");

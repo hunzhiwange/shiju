@@ -154,7 +154,7 @@ impl agent_app_services::data_import::PreparedImport for PreparedCategory<'_> {
                 recovery,
             } => {
                 receipts.push((category, recovery.clone()));
-                super::preferences_import::apply(
+                agent_app_services::preferences_import::apply(
                     database, scope, preview, settings, *decision,
                 )?;
             }

@@ -8,7 +8,8 @@ use {
 use super::usage_settings::{
     UsageDisplay, UsageSettings, UsageSettingsError, UsageSettingsScope, UsageSettingsStore,
 };
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 
 fn saved_settings() -> Value {
     json!({
@@ -95,7 +96,7 @@ fn usage_usage_settings_returns_expected_result() -> anyhow::Result<()> {
 
 #[test]
 fn usage_usage_settings_postgres_returns_expected_result() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::postgres_test_database!();
+    let fixture = agent_database::test_support::postgres_test_database!();
     verify_round_trip(fixture.database().clone())
 }
 

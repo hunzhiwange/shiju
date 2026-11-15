@@ -11,7 +11,7 @@ const IMAGES: [&str; 2] = [
 
 #[test]
 fn cc_base_icon_postgres_atomic_concurrent_adds() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let db = fixture.database().clone();
     let store = IconLibraryStore::new(db)?;
     let tenant = TenantScope::new("p", "c")?;
@@ -37,7 +37,7 @@ fn cc_base_icon_postgres_atomic_concurrent_adds() -> anyhow::Result<()> {
 
 #[test]
 fn cc_base_icon_postgres_atomic_business_failure_and_mutations() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let store = IconLibraryStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("p", "c")?;
     let original = store.add_icon(&tenant, "原名", IMAGES[0], "id", 1).unwrap().icon;
@@ -53,7 +53,7 @@ fn cc_base_icon_postgres_atomic_business_failure_and_mutations() -> anyhow::Resu
 
 #[test]
 fn cc_base_icon_postgres_atomic_sql_failure_rolls_back() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let db = fixture.database().clone();
     let store = IconLibraryStore::new(db.clone())?;
     let tenant = TenantScope::new("p", "c")?;
@@ -74,11 +74,11 @@ fn cc_base_icon_postgres_atomic_sql_failure_rolls_back() -> anyhow::Result<()> {
 
 #[test]
 fn cc_base_icon_postgres_atomic_matches_sqlite() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let home = tempfile::tempdir()?;
     let stores = [
         IconLibraryStore::new(fixture.database().clone())?,
-        IconLibraryStore::new(crate::global_database::GlobalDatabase::for_home(home.path())?)?,
+        IconLibraryStore::new(agent_database::GlobalDatabase::for_home(home.path())?)?,
     ];
     let tenant = TenantScope::new("p", "c")?;
     for store in &stores {
@@ -97,7 +97,7 @@ fn cc_base_icon_postgres_atomic_matches_sqlite() -> anyhow::Result<()> {
 #[test]
 fn cc_base_icon_postgres_atomic_drop_and_business_error_remove_placeholder() -> anyhow::Result<()> {
     use super::store::{ICON_KEY, ICON_NAMESPACE};
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let store = IconLibraryStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("p", "c")?;
     assert_eq!(store.rename_icon(&tenant, "missing", "name"), Err(AgentAppsErrorCode::NotFound));
@@ -125,7 +125,7 @@ fn cc_base_icon_postgres_atomic_drop_and_business_error_remove_placeholder() -> 
 
 #[test]
 fn cc_base_icon_postgres_atomic_other_tenant_is_not_locked() -> anyhow::Result<()> {
-    let fixture = crate::global_database::test_support::PostgresTestDatabase::from_environment()?;
+    let fixture = agent_database::test_support::PostgresTestDatabase::from_environment()?;
     let store = IconLibraryStore::new(fixture.database().clone())?;
     let tenant = TenantScope::new("p", "locked")?;
     store.add_icon(&tenant, "图标", IMAGES[0], "id", 1).unwrap();

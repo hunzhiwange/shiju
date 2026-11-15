@@ -4,8 +4,9 @@ use vw_api_transport::id::TenantScope;
 
 use super::store::IconLibraryStore;
 const IMAGE: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
-use crate::global_database::test_support::PostgresTestDatabase;
-use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
+use agent_database::test_support::PostgresTestDatabase;
+use app_settings_store::settings_store::GatewaySettingsStore;
+use agent_database::GlobalDatabase;
 
 fn exercise(
     database: GlobalDatabase,

@@ -1,7 +1,7 @@
 //! Preview-bound prompt catalog migration; no native file IO or activation.
 use super::{PromptCatalog, PromptScope, PromptsStore, NAMESPACE};
 use anyhow::{Result, ensure};
-use crate::gateway::settings_store::GatewaySetting;
+use app_settings_store::settings_store::GatewaySetting;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use std::{collections::BTreeMap, path::Path};

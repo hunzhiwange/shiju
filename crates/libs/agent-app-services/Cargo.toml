@@ -8,6 +8,10 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
+tracing = "0.1"
+thiserror = "2.0.18"
+vw-api-apps-usage = { path = "../api-apps-usage", version = "0.6.0" }
 anyhow = "1"
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 acp-types = { path = "../acp-types", version = "0.6.0" }
@@ -33,6 +37,8 @@ tokio-util = { version = "0.7.18", features = ["rt"] }
 vw-api-app-diagnostics = { path = "../api-app-diagnostics", version = "0.6.0" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+hex = "0.4"
+libc = "0.2"
 uuid = { version = "1.11", features = ["v4", "js"] }
 
 [dev-dependencies]
@@ -41,3 +47,9 @@ tempfile = "3"
 tokio = { version = "1", features = ["rt", "time", "net", "io-util", "sync", "macros"] }
 uuid = { version = "1.11", features = ["v4", "js"] }
 vw-api-types = { path = "../../vw-api-types", version = "0.6.0" }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"

@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+agent-app-services = { path = "../agent-app-services", version = "0.6.0" }
 agent-paths = { path = "../agent-paths", version = "0.6.0" }
 gateway-pairing = { path = "../gateway-pairing", version = "0.6.0" }
 local-app-auth = { path = "../local-app-auth", version = "0.6.0" }

@@ -1,5 +1,5 @@
 use super::store::IconLibraryStore;
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use std::sync::{Arc, Barrier};
 use {
     vw_api_app_identity::AgentAppsErrorCode,

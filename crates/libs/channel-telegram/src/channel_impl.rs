@@ -19,7 +19,7 @@
 
 use super::TelegramChannel;
 use channel_types::{Channel, ChannelMessage, SendMessage};
-use crate::app::agent::config::StreamMode;
+use agent_config::runtime::StreamMode;
 use async_trait::async_trait;
 
 /// 为 TelegramChannel 实现 Channel trait

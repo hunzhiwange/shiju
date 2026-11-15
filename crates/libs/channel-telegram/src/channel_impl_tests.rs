@@ -2,7 +2,7 @@
 
 use super::TelegramChannel;
 use channel_types::{Channel, SendMessage};
-use crate::app::agent::config::StreamMode;
+use agent_config::runtime::StreamMode;
 use axum::{
     Router,
     body::Bytes,

@@ -15,8 +15,8 @@
 //! - **流式响应**：支持流式模式下的草稿消息更新
 
 use super::TelegramChannel;
-use crate::app::agent::config::{Config, StreamMode};
-use crate::app::agent::security::pairing::PairingGuard;
+use agent_config::runtime::{Config, StreamMode};
+use gateway_pairing::pairing::PairingGuard;
 use anyhow::Context;
 use parking_lot::Mutex;
 use std::sync::{Arc, RwLock};
@@ -64,7 +64,7 @@ impl TelegramChannel {
             bot_token,
             allowed_users: Arc::new(RwLock::new(normalized_allowed)),
             pairing: None,
-            client: crate::channels::http::proxied_client("channel.telegram"),
+            client: channel_support::http::proxied_client("channel.telegram"),
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 1000,
             last_draft_edit: Mutex::new(std::collections::HashMap::new()),
@@ -284,7 +284,7 @@ impl TelegramChannel {
     /// - 无法找到用户主目录或打开共享数据库
     /// - 配置 payload 解密、反序列化或校验失败
     pub(super) async fn load_config_without_env() -> anyhow::Result<Config> {
-        crate::app::agent::config::get_global_for_tenant_without_env(
+        agent_config::runtime::get_global_for_tenant_without_env(
             &vw_api_transport::TenantScope::default(),
         )
         .await
@@ -331,7 +331,7 @@ impl TelegramChannel {
         // 如果用户不在列表中，添加并保存
         if !telegram.allowed_users.iter().any(|u| u == &normalized) {
             telegram.allowed_users.push(normalized);
-            crate::app::agent::config::schema::save_config(&config)
+            agent_config::runtime_schema::save_config(&config)
                 .await
                 .context("Failed to persist Telegram allowlist to the system config database")?;
         }

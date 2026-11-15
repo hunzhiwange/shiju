@@ -12,7 +12,7 @@
 //! - **符号链接安全**: 测试对符号链接的安全检查
 
 use super::*;
-use crate::app::agent::channels::telegram::tests::helpers::*;
+use crate::tests::helpers::*;
 
 /// 测试解析附件标记能够提取多种类型的附件
 ///

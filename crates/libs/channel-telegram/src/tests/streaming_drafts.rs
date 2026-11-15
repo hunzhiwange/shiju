@@ -10,7 +10,7 @@
 use super::*;
 use channel_types::SendMessage;
 use channel_types::Channel;
-use crate::app::agent::config::StreamMode;
+use agent_config::runtime::StreamMode;
 
 /// 测试 `supports_draft_updates` 方法是否正确响应流式模式配置
 ///

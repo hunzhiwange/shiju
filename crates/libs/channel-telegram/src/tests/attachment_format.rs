@@ -267,7 +267,7 @@ fn markdown_attachment_not_detected_by_multimodal_image_markers() {
     );
     let messages = vec![model_types::ChatMessage::user(content)];
     assert_eq!(
-        crate::app::agent::multimodal::count_image_markers(&messages),
+        agent_multimodal::count_image_markers(&messages),
         0,
         "markdown file must not trigger image marker detection"
     );
@@ -304,7 +304,7 @@ fn is_image_extension_recognizes_images() {
 fn photo_image_marker_detected_by_multimodal() {
     let photo_content = "[IMAGE:/tmp/workspace/photo_1_2.jpg]";
     let messages = vec![model_types::ChatMessage::user(photo_content.to_string())];
-    let count = crate::app::agent::multimodal::count_image_markers(&messages);
+    let count = agent_multimodal::count_image_markers(&messages);
     assert_eq!(count, 1, "multimodal should detect exactly one image marker");
 }
 
@@ -323,7 +323,7 @@ fn photo_image_marker_with_caption() {
     assert_eq!(content, "[IMAGE:/tmp/workspace/photo_1_2.jpg]\n\nLook at this screenshot");
 
     let messages = vec![model_types::ChatMessage::user(content)];
-    assert_eq!(crate::app::agent::multimodal::count_image_markers(&messages), 1);
+    assert_eq!(agent_multimodal::count_image_markers(&messages), 1);
 }
 
 /// 端到端测试：附件保存和内容格式化
@@ -355,7 +355,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     );
     let doc_msgs = vec![model_types::ChatMessage::user(doc_content)];
     assert_eq!(
-        crate::app::agent::multimodal::count_image_markers(&doc_msgs),
+        agent_multimodal::count_image_markers(&doc_msgs),
         0,
         "document content must not contain image markers"
     );
@@ -375,7 +375,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
 
     let photo_msgs = vec![model_types::ChatMessage::user(photo_content.clone())];
     assert_eq!(
-        crate::app::agent::multimodal::count_image_markers(&photo_msgs),
+        agent_multimodal::count_image_markers(&photo_msgs),
         1,
         "multimodal must detect exactly one image marker in photo content"
     );
@@ -385,7 +385,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     let _ = write!(captioned, "\n\nCheck this out");
     let cap_msgs = vec![model_types::ChatMessage::user(captioned.clone())];
     assert_eq!(
-        crate::app::agent::multimodal::count_image_markers(&cap_msgs),
+        agent_multimodal::count_image_markers(&cap_msgs),
         1,
         "caption must not break image marker detection"
     );
@@ -399,7 +399,7 @@ fn e2e_attachment_saves_file_and_formats_content() {
     assert!(!md_content.contains("[IMAGE:"), "markdown must not get [IMAGE:] marker: {md_content}");
     let md_msgs = vec![model_types::ChatMessage::user(md_content)];
     assert_eq!(
-        crate::app::agent::multimodal::count_image_markers(&md_msgs),
+        agent_multimodal::count_image_markers(&md_msgs),
         0,
         "markdown file must not trigger image marker detection"
     );
@@ -449,7 +449,7 @@ fn groq_provider_rejects_photo_with_vision_error() {
     let messages = vec![model_types::ChatMessage::user(
         "[IMAGE:/tmp/photo.jpg]\n\nDescribe this image".to_string(),
     )];
-    let marker_count = crate::app::agent::multimodal::count_image_markers(&messages);
+    let marker_count = agent_multimodal::count_image_markers(&messages);
     assert_eq!(marker_count, 1, "must detect image marker in photo content");
 }
 

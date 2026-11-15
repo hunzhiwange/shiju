@@ -136,7 +136,7 @@ pub fn strip_tool_call_tags(message: &str) -> String {
     }
 
     // 首先使用通用函数移除标准工具调用标签
-    let cleaned = crate::app::agent::channels::strip_tool_call_tags(message);
+    let cleaned = channel_support::format::strip_tool_call_tags(message);
     // 然后移除遗留格式的 "erte...ttri" 标签
     strip_legacy_erte_ttri_tags(&cleaned).trim_end().to_string()
 }

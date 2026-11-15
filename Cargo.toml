@@ -87,6 +87,7 @@ members = [
   "crates/libs/session-port",
   "crates/libs/app-operations",
   "crates/libs/channel-types",
+  "crates/libs/channel-telegram",
   "crates/libs/channel-slack",
   "crates/libs/channel-email-channel",
   "crates/libs/channel-imessage",

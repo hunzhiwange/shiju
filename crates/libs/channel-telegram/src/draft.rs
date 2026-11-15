@@ -55,7 +55,7 @@ impl TelegramChannel {
         message: &SendMessage,
     ) -> anyhow::Result<Option<String>> {
         // 检查流式模式是否启用，未启用则直接返回
-        if self.stream_mode == crate::app::agent::config::StreamMode::Off {
+        if self.stream_mode == agent_config::runtime::StreamMode::Off {
             return Ok(None);
         }
 

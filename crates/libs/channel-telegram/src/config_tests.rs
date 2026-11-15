@@ -1,8 +1,8 @@
 // 本文件验证 Telegram 配置规范化、身份绑定与系统配置持久化。
 
 use super::TelegramChannel;
-use crate::app::agent::config::{Config, StreamMode, SystemConfigStore, TelegramConfig};
-use crate::global_database::GlobalDatabase;
+use agent_config::runtime::{Config, StreamMode, SystemConfigStore, TelegramConfig};
+use agent_database::GlobalDatabase;
 use axum::{
     Router,
     body::Body,
@@ -62,7 +62,7 @@ async fn seed_system_config(home: &Path, mut config: Config) -> std::path::PathB
     let config_path = config_dir.join("vibewindow.json");
     config.config_path = config_path.clone();
     config.workspace_dir = config_dir.join("workspace");
-    crate::app::agent::config::schema::save_config(&config)
+    agent_config::runtime_schema::save_config(&config)
         .await
         .expect("seed system config database");
     config_path

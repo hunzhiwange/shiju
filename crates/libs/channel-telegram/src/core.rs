@@ -20,7 +20,7 @@ impl TelegramChannel {
     ///
     /// 返回一个配置了代理的 `reqwest::Client` 实例
     pub(super) fn http_client(&self) -> reqwest::Client {
-        crate::channels::http::proxied_client("channel.telegram")
+        channel_support::http::proxied_client("channel.telegram")
     }
 
     /// 净化 Telegram API 错误信息
@@ -35,7 +35,7 @@ impl TelegramChannel {
     ///
     /// 返回净化后的错误信息字符串
     pub(super) fn sanitize_telegram_error(input: &str) -> String {
-        let sanitized = crate::app::agent::providers::sanitize_api_error(input);
+        let sanitized = agent_providers::sanitize_api_error(input);
         static BOT_TOKEN_RE: std::sync::LazyLock<regex::Regex> =
             std::sync::LazyLock::new(|| regex::Regex::new(r"bot[^/\s]+").unwrap());
         BOT_TOKEN_RE.replace_all(&sanitized, "bot[redacted]").into_owned()

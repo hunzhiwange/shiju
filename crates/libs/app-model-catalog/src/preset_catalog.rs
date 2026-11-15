@@ -9,15 +9,11 @@ use super::{
 use app_provider_validation::{projected_endpoint, validation::endpoint};
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::LazyLock};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        ProviderProtocol,
-        universal::{UniversalApps, UniversalModels},
-        universal_sync::UniversalSyncError,
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_edit::universal::UniversalApps;
+use vw_api_app_provider_edit::universal::UniversalModels;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncError;
 use vw_api_app_identity::{AppId};
-    },
-};
 
 static CLAUDE_PRESETS: LazyLock<Vec<ClaudePreset>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("presets/claude.json"))

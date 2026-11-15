@@ -5,15 +5,16 @@ use crate::{
 };
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item};
-use vw_api_app_diagnostics::DiagnosticEndpointSource::{self, Custom, Draft, Preset, SavedConfig};
-use vw_api_types::{
-    agent_apps::AppId,
+use vw_api_app_diagnostics::DiagnosticEndpointSource;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Custom;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Draft;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::Preset;
+use vw_api_app_diagnostics::DiagnosticEndpointSource::SavedConfig;
 
-};
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct EndpointCandidate {
-use vw_api_app_identity::{AppId};
     pub url: String,
     pub sources: Vec<DiagnosticEndpointSource>,
 }

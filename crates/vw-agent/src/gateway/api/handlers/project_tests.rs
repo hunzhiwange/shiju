@@ -491,11 +491,11 @@ async fn project_get_and_update_round_trip_storage() {
         Json(UpdateProjectRequest {
             name: Some("Updated".to_string()),
             active_worktree_id: None,
-            icon: Some(vw_api_types::project::IconUpdateDto {
+            icon: Some(vw_api_project::IconUpdateDto {
                 override_icon: Some("rocket".to_string()),
                 color: Some("#123456".to_string()),
             }),
-            commands: Some(vw_api_types::project::CommandsUpdateDto {
+            commands: Some(vw_api_project::CommandsUpdateDto {
                 start: Some("cargo run".to_string()),
             }),
         }),
@@ -1112,7 +1112,7 @@ async fn worktree_environment_ui_project_command_roundtrip_and_clear() {
             default_tenant_scope(),
             local_project_path(id.clone()),
             Json(UpdateProjectRequest {
-                commands: Some(vw_api_types::project::CommandsUpdateDto { start: start.clone() }),
+                commands: Some(vw_api_project::CommandsUpdateDto { start: start.clone() }),
                 ..Default::default()
             }),
         )

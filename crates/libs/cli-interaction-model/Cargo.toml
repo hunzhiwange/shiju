@@ -13,8 +13,8 @@ session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 todo-types = { path = "../todo-types", version = "0.6.0" }
-config-skills = { path = "../config-skills", version = "0.6.0" }
 crossterm = { git = "https://github.com/openai-oss-forks/crossterm", rev = "45fecb9508105988f42fe6ff0441783ed3717f92" }
+config-skills = { path = "../config-skills", version = "0.6.0" }
 question-types = { path = "../question-types", version = "0.6.0" }
 serde_json = "1"
 unicode-segmentation = "1"

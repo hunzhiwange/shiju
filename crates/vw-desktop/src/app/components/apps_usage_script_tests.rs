@@ -4,9 +4,10 @@ use std::{
     time::Duration,
 };
 
+use gateway_app_usage::{AppsUsageTemplate};
 use iced::widget::text_editor::{Action, Edit};
 use serde_json::json;
-use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_usage::AppsUsageTemplate, vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}}};
 
 use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
@@ -78,7 +79,7 @@ async fn usage_usage_script_returns_expected_result() {
     });
     let client = GatewayClient::new(endpoint).unwrap();
     let selection = selection();
-    let templates = client.apps_usage_templates(&selection, TOKEN).await.unwrap();
+    let templates = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_templates(&selection, TOKEN).await.unwrap();
     let mut draft = Draft::new(templates);
     assert_eq!(draft.source.text().trim_end(), PRESET);
     draft

@@ -1,7 +1,6 @@
 use super::endpoints::{EndpointCandidate, collect};
 use crate::providers::endpoints;
 use serde_json::json;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::self;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::Custom;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::Draft;
@@ -9,11 +8,11 @@ use vw_api_app_diagnostics::DiagnosticEndpointSource::Preset;
 use vw_api_app_diagnostics::DiagnosticEndpointSource::SavedConfig;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange::Add;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointKind;
+use vw_api_app_identity::{AppId};
 
 fn candidate(url: &str, sources: &[DiagnosticEndpointSource]) -> EndpointCandidate {
     EndpointCandidate { url: url.into(), sources: sources.to_vec() }
 }
-use vw_api_app_identity::{AppId};
 
 #[test]
 fn diagnostic_endpoints_merge_without_duplicates() {

@@ -9,9 +9,9 @@ use std::{
     time::Duration,
 };
 use {
-    gateway_endpoint::GatewayEndpoint,
     gateway_app_auth::AgentAppsAuthCredentials,
     vw_gateway_client::GatewayClient,
+    gateway_endpoint::GatewayEndpoint,
     vw_api_app_auth::AuthCredentialState,
     vw_api_app_auth::AuthService,
     vw_api_transport::id::TenantScope,

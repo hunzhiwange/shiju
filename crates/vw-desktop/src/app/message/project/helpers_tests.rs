@@ -18,7 +18,7 @@ use tempfile::tempdir;
 use vw_api_transport::common::TimestampMs;
 use vw_api_file::file::{FileNodeDto, FileNodeKind};
 use vw_api_transport::id::ProjectId;
-use vw_gateway_client::vw_api_types::project::{ProjectDto, ProjectGitStateDto, ProjectStatus};
+use vw_api_project::{ProjectDto, ProjectGitStateDto, ProjectStatus};
 
 async fn collect_task_messages(task: iced::Task<crate::app::Message>) -> Vec<crate::app::Message> {
     use iced_runtime::futures::futures::StreamExt;

@@ -5,8 +5,8 @@ use crate::app::{
     state::app_providers::list::Scope,
 };
 use iced::Task;
-use gateway_endpoint::GatewayAuth;
 use gateway_app_settings::AgentAppsSettingsError;
+use gateway_endpoint::GatewayAuth;
 use vw_gateway_client::GatewayClient;
 use vw_api_chat_identity::ReasoningEffortDto;
 use vw_api_app_identity::AppId;

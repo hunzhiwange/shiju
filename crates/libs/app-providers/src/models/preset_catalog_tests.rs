@@ -1,14 +1,10 @@
 use super::preset_catalog::universal_preset;
 use crate::providers::{universal, universal_sync, update};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        ProviderProtocol,
-        create::ProviderSecretWrite,
-        universal::{UniversalConfig, UniversalProviderWrite},
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_base::create::ProviderSecretWrite;
+use vw_api_app_provider_edit::universal::UniversalConfig;
+use vw_api_app_provider_edit::universal::UniversalProviderWrite;
 use vw_api_app_identity::{AppId};
-    },
-};
 
 #[test]
 fn catalog_presets_universal_matches_native_projection_for_custom_paths() {

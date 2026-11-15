@@ -78,8 +78,8 @@ vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", ver
 vw-api-app-provider-terminal = { path = "../libs/api-app-provider-terminal", version = "0.6.0" }
 vw-api-app-provider-profiles = { path = "../libs/api-app-provider-profiles", version = "0.6.0" }
 vw-api-app-provider-base = { path = "../libs/api-app-provider-base", version = "0.6.0" }
-vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
 session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }
+vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
 vw-api-app-auth = { path = "../libs/api-app-auth", version = "0.6.0" }
 vw-api-knowledge = { path = "../libs/api-knowledge", version = "0.6.0" }
 vw-api-workflow = { path = "../libs/api-workflow", version = "0.6.0" }
@@ -90,6 +90,7 @@ vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.6.0"
 gateway-app-settings = { path = "../libs/gateway-app-settings", version = "0.6.0" }
 gateway-app-failover = { path = "../libs/gateway-app-failover", version = "0.6.0" }
 gateway-app-diagnostics = { path = "../libs/gateway-app-diagnostics", version = "0.6.0" }
+vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
 gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.6.0" }
@@ -99,22 +100,22 @@ vw-api-file = { path = "../libs/api-file", version = "0.6.0" }
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
 gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }
 todo-types = { path = "../libs/todo-types", version = "0.6.0" }
-vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 gateway-session = { path = "../libs/gateway-session", version = "0.6.0" }
 question-types = { path = "../libs/question-types", version = "0.6.0" }
+vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 gateway-project-profile = { path = "../libs/gateway-project-profile", version = "0.6.0" }
 vw-api-todo = { path = "../libs/api-todo", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }
 vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }
 gateway-project = { path = "../libs/gateway-project", version = "0.6.0" }
-gateway-config = { path = "../libs/gateway-config", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }
-vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
+gateway-config = { path = "../libs/gateway-config", version = "0.6.0" }
 gateway-chat-stream = { path = "../libs/gateway-chat-stream", version = "0.6.0" }
+vw-api-app-identity = { path = "../libs/api-app-identity", version = "0.6.0" }
 vw-api-chat-identity = { path = "../libs/api-chat-identity", version = "0.6.0" }
 gateway-http = { path = "../libs/gateway-http", version = "0.6.0" }
-vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../libs/api-transport", version = "0.6.0" }
 futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

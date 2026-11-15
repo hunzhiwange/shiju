@@ -25,7 +25,7 @@ use {
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,
 };
-use vw_gateway_client::vw_api_types::project::{ProjectDto, ResolveProjectRequest};
+use vw_api_project::{ProjectDto, ResolveProjectRequest};
 use vw_gateway_client::{
     GatewayAuth, GatewayChatStreamRequest, GatewayClient, GatewayEndpoint,
 };
@@ -319,7 +319,7 @@ impl GatewayUiRuntime {
         let directory =
             directory.to_str().ok_or_else(|| "project directory is not valid UTF-8".to_string())?;
         let request = ResolveProjectRequest { directory: directory.to_string(), create_if_missing };
-        self.gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(self.endpoint().tenant_scope(), &request)
+        gateway_project::GatewayProjectClient::new(self.client.transport().clone()).project_resolve(self.endpoint().tenant_scope(), &request)
             .await
             .map(|response| response.project)
     }

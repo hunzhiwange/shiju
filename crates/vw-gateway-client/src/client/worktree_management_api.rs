@@ -2,7 +2,7 @@
 use super::GatewayClient;
 use {
     vw_api_transport::common::OperationAck,
-    vw_api_types::project::ProjectScopeDto,
+    vw_api_project::ProjectScopeDto,
     vw_api_worktree::*,
 };
 impl GatewayClient {

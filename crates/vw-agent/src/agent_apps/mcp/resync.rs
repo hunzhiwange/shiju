@@ -2,7 +2,6 @@
 
 use vw_agent_apps::apps::{catalog::catalog, lifecycle::operations::Operation};
 use {
-    vw_api_types::agent_apps::AppId,
     vw_api_mcp_management::McpAppTarget,
     vw_api_mcp_management::McpBatchOutcome,
     vw_api_mcp_management::McpCatalogScope,
@@ -15,12 +14,12 @@ use {
     vw_api_mcp_management::McpFailureCode,
     vw_api_mcp_management::McpRecordRef,
 };
+use vw_api_app_identity::{AppId};
 
 use super::{
     McpBindingTarget, McpCatalogStore, StoredCatalogEntry, binding::native_definition,
     catalog_create::catalog_location,
 };
-use vw_api_app_identity::{AppId};
 use crate::{
     agent_apps::auth_accounts::{AuthAccountScope, AuthAccountStore},
     global_database::run_sync_database,

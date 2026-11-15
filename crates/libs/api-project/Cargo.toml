@@ -1,0 +1,13 @@
+[package]
+name = "vw-api-project"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-session = { path = "../api-session", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

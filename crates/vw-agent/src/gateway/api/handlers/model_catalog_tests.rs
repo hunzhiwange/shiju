@@ -1,3 +1,4 @@
+use gateway_model_catalog::GatewayModelCatalogClient;
 use crate::{
     app_providers::AppProviderStore, gateway::middleware::tenant_scope_middleware,
     global_database::GlobalDatabase, project,
@@ -12,7 +13,7 @@ use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::common::PaginationRequest;
 use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::*;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_model_catalog::{AgentAppsReadError}};
 
 const TOKEN: &str = "model-catalog-test-application-credential";
 const EDITOR_TOKEN: &str = "model-catalog-test-editor-credential";
@@ -164,8 +165,8 @@ impl Fixture {
         (server, endpoint)
     }
 
-    fn client(&self) -> GatewayClient {
-        GatewayClient::new(self.endpoint.clone()).unwrap()
+    fn client(&self) -> GatewayModelCatalogClient {
+        GatewayModelCatalogClient::new(gateway_http::GatewayTransport::new(self.endpoint.clone()).unwrap())
     }
 }
 
@@ -197,12 +198,11 @@ async fn catalog_api_read_denies_other_project_or_tenant() {
     let mut project = f.project.clone();
     project.project_id = "other-project".into();
     assert_http(f.client().model_catalog(&project, &f.query, TOKEN).await, 403);
-    let client = GatewayClient::new(
+    let client = GatewayModelCatalogClient::new(gateway_http::GatewayTransport::new(
         f.endpoint
             .clone()
             .with_tenant_scope(TenantScope::new("platform", "other-company").unwrap()),
-    )
-    .unwrap();
+    ).unwrap());
     assert_http(client.model_catalog(&f.project, &f.query, TOKEN).await, 404);
 }
 

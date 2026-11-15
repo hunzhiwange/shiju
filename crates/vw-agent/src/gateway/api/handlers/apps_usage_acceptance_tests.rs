@@ -1,5 +1,6 @@
 //! Windowless macOS acceptance through the SDK, HTTP router, and scoped storage.
 
+use gateway_app_usage::{AppsUsageOperation, AppsUsageWriteError};
 use std::time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -21,7 +22,7 @@ use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TaskId;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;
-use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_usage::AppsUsageOperation, gateway_app_usage::AppsUsageWriteError, vw_gateway_client::GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
 use super::{
     FIXTURE_CA, FIXTURE_CERT, FIXTURE_KEY, Fixture, NativeTransport, OTHER_TOKEN, TOKEN,
@@ -105,7 +106,7 @@ fn grant_refresh(
 async fn terminal(client: &GatewayClient, id: &TaskId) -> AppsUsageOperation {
     tokio::time::timeout(std::time::Duration::from_secs(8), async {
         loop {
-            let event = client.apps_usage_operation_events(HOST, id, TOKEN).await.unwrap();
+            let event = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_events(HOST, id, TOKEN).await.unwrap();
             if event.operation.phase == vw_api_app_operations::AppOperationPhase::Terminal {
                 return event;
             }
@@ -116,7 +117,7 @@ async fn terminal(client: &GatewayClient, id: &TaskId) -> AppsUsageOperation {
 }
 
 async fn refresh(client: &GatewayClient, query: &UsageSnapshotQuery) -> AppsUsageOperation {
-    let operation = client.apps_usage_refresh(query, TOKEN).await.unwrap();
+    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(query, TOKEN).await.unwrap();
     let event = terminal(client, &operation.operation_id).await;
     assert_eq!(event.items.len(), 1);
     assert_eq!(Some(event.items[0].kind), query.kind);
@@ -148,7 +149,8 @@ async fn usage_macos_api_returns_expected_result() {
     }
     assert_eq!(codex_requests.try_recv().unwrap(), "Bearer fixture-oauth-original");
 
-    let read = |query| client.apps_usage_snapshot(query, TOKEN);
+    let usage = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone());
+    let read = |query| usage.apps_usage_snapshot(query, TOKEN);
     let wallet_result = read(&wallet).await.unwrap().snapshot.unwrap();
     assert!(matches!(&wallet_result.result.outcome,
         UsageQueryOutcome::Success { data: UsageQueryData::Balance(wallets) }
@@ -202,7 +204,7 @@ async fn usage_macos_api_rejects_invalid_input() {
     let (client, server) = sdk(router).await;
     let wallet = selection("wallet", UsageQueryKind::Balance);
 
-    let denied = client.apps_usage_refresh(&wallet, TOKEN).await;
+    let denied = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(&wallet, TOKEN).await;
     assert!(
         matches!(denied, Err(AppsUsageWriteError::Http {
         status: 403, error: Some(ref error),
@@ -212,7 +214,7 @@ async fn usage_macos_api_rejects_invalid_input() {
     assert!(native.requests.try_recv().is_err());
     grant_refresh(&mut fixture, "wallet", WALLET_ORIGIN, wallet.kind);
     let hold_response = native.release.acquire().await.unwrap();
-    let operation = client.apps_usage_refresh(&wallet, TOKEN).await.unwrap();
+    let operation = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_refresh(&wallet, TOKEN).await.unwrap();
     assert_eq!(
         tokio::time::timeout(std::time::Duration::from_secs(5), native.requests.recv())
             .await
@@ -221,17 +223,17 @@ async fn usage_macos_api_rejects_invalid_input() {
         Some("/user/balance"),
     );
     let forbidden =
-        client.apps_usage_operation_cancel(HOST, &operation.operation_id, OTHER_TOKEN).await;
+        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_cancel(HOST, &operation.operation_id, OTHER_TOKEN).await;
     assert!(matches!(forbidden, Err(AppsUsageWriteError::Http { status: 404, .. })));
     let cancelled =
-        client.apps_usage_operation_cancel(HOST, &operation.operation_id, TOKEN).await.unwrap();
+        gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_operation_cancel(HOST, &operation.operation_id, TOKEN).await.unwrap();
     assert_eq!(cancelled.operation.status, TaskStatus::Cancelled);
     drop(hold_response);
-    assert!(client.apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_none());
+    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_none());
 
     assert_eq!(refresh(&client, &wallet).await.operation.status, TaskStatus::Completed);
-    assert!(client.apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_some());
-    assert!(client.apps_usage_snapshot(&wallet, OTHER_TOKEN).await.unwrap().snapshot.is_none());
+    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, TOKEN).await.unwrap().snapshot.is_some());
+    assert!(gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&wallet, OTHER_TOKEN).await.unwrap().snapshot.is_none());
     server.abort();
 }
 

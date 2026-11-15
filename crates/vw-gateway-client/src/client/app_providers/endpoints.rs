@@ -1,5 +1,4 @@
 use super::GatewayClient;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpoint;
 use vw_api_app_provider_edit::endpoints::AppProviderEndpointChange;
 use vw_api_app_identity::{AppId};

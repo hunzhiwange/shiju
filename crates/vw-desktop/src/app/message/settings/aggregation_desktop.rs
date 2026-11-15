@@ -5,8 +5,8 @@ use crate::app::{
     state::app_providers::{desktop::Form, list::Scope},
 };
 use iced::Task;
-use gateway_endpoint::GatewayAuth;
 use gateway_aggregation_desktop::{AgentAppsSettingsError, GatewayAggregationDesktopClient};
+use gateway_endpoint::GatewayAuth;
 use gateway_http::GatewayTransport;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::*;

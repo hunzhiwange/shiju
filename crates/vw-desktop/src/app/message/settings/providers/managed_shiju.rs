@@ -17,7 +17,7 @@ fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), 
         return Err(Feedback::owned("识矩模型授权响应无效", vec![]));
     }
     let info = auth_types::Info::Api(auth_types::ApiInfo { key: token.key.expose().to_string() });
-    auth::store::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
+    auth::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
         .map_err(|_| Feedback::owned("识矩模型凭据保存失败，请检查认证文件权限", vec![]))
 }
 
@@ -39,8 +39,8 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
         return Task::none();
     }
     let path = super::models::auth_filepath();
-    if auth::store::get_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_some() {
-        if auth::store::remove_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_err() {
+    if auth::get_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_some() {
+        if auth::remove_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_err() {
             return app.show_error_toast(
                 Feedback::owned("无法清理识矩模型凭据，请检查认证文件权限", vec![])
                     .display(app.desktop_locale),

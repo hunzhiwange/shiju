@@ -163,7 +163,7 @@ impl LspServiceEntry {
         let mut process = Command::new(&command.program);
         #[cfg(windows)]
         process.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        vw_shared::shell::apply_augmented_path_std_command(&mut process);
+        shell_command::apply_augmented_path_std_command(&mut process);
         let mut child = process
             .args(&command.args)
             .stdin(Stdio::piped())
@@ -318,12 +318,12 @@ fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, St
                 .iter()
                 .find_map(|name| std::env::var(name).ok().filter(|value| !value.trim().is_empty()));
             let program = configured_program
-                .and_then(|program| vw_shared::shell::resolve_executable(&program))
+                .and_then(|program| shell_command::resolve_executable(&program))
                 .or_else(|| {
                     config
                         .default_command
                         .first()
-                        .and_then(|program| vw_shared::shell::resolve_executable(program))
+                        .and_then(|program| shell_command::resolve_executable(program))
                 })
                 .ok_or(original_error)?;
             LspCommand {
@@ -333,7 +333,7 @@ fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, St
         }
     };
 
-    let resolved = vw_shared::shell::resolve_executable(&command.program)
+    let resolved = shell_command::resolve_executable(&command.program)
         .ok_or_else(|| format!("LSP server program {} not found", command.program))?;
     command.program = resolved.to_string_lossy().into_owned();
 
@@ -341,7 +341,7 @@ fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, St
         let mut probe = Command::new(&command.program);
         #[cfg(windows)]
         probe.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        vw_shared::shell::apply_augmented_path_std_command(&mut probe);
+        shell_command::apply_augmented_path_std_command(&mut probe);
         let output = probe
             .arg("--version")
             .output()

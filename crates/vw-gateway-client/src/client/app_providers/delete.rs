@@ -1,5 +1,4 @@
 use super::GatewayClient;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::delete::AppProviderDelete;
 use vw_api_app_provider_edit::delete::AppProviderDeleted;
 use vw_api_app_identity::{AppId};

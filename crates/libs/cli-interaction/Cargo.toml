@@ -12,6 +12,7 @@ session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
+cli-gateway-workspace = { path = "../cli-gateway-workspace", version = "0.6.0" }
 cli-gateway-automation = { path = "../cli-gateway-automation", version = "0.6.0" }
 vw-api-acp-model = { path = "../api-acp-model", version = "0.6.0" }
 cli-gateway-session = { path = "../cli-gateway-session", version = "0.6.0" }

@@ -9,16 +9,16 @@ use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
 };
-use vw_gateway_client::vw_api_types::project::{
+use vw_api_project::{
     ListProjectsRequest, ProjectStatus, ResolveProjectRequest, UpdateProjectRequest,
 };
 use vw_api_worktree::{
     CreateWorktreeRequest, DeleteWorktreeRequest, ResetWorktreeRequest,
 };
 
-use super::context::ApiContext;
-use super::input::read_json_input;
-use super::output;
+use cli_api_core::context::ApiContext;
+use cli_api_core::input::read_json_input;
+use cli_api_core::output;
 
 /// 项目与 worktree 接口族。
 #[derive(Subcommand, Debug)]

@@ -24,7 +24,7 @@ pub(super) fn auth_filepath() -> std::path::PathBuf {
         .unwrap_or_else(|| {
             home.join(".local").join("share").join(config_runtime_paths::APP_DIR_NAME)
         });
-    shared_auth::store::resolve_filepath(&home, &data)
+    shared_auth::resolve_filepath(&home, &data)
 }
 
 #[cfg(test)]
@@ -39,7 +39,7 @@ pub fn current_provider_api_key(provider_id: &str) -> Option<String> {
     if crate::app::state::is_shiju_official_provider_id(provider_id) {
         return None;
     }
-    match shared_auth::store::get_from(&auth_filepath(), provider_id) {
+    match shared_auth::get_from(&auth_filepath(), provider_id) {
         Some(auth_types::Info::Api(info)) => Some(info.key),
         Some(auth_types::Info::Wellknown(info)) => Some(info.key),
         _ => None,
@@ -489,7 +489,7 @@ pub async fn connect_provider(
     Feedback,
 > {
     let path = auth_filepath();
-    shared_auth::store::set_to(
+    shared_auth::set_to(
         &path,
         &provider_id,
         &auth_types::Info::Api(auth_types::ApiInfo { key: api_key }),
@@ -548,7 +548,7 @@ pub async fn disconnect_provider(
     Feedback,
 > {
     let path = auth_filepath();
-    shared_auth::store::remove_from(&path, &provider_id).map_err(|e| e.to_string())?;
+    shared_auth::remove_from(&path, &provider_id).map_err(|e| e.to_string())?;
     config::remove_global_provider_via_gateway(&provider_id).await.map_err(Feedback::gateway)?;
     model_provider::invalidate_cache().await;
     let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
@@ -584,7 +584,7 @@ pub async fn save_custom_provider(
         && !draft.api_key.trim().is_empty()
     {
         let path = auth_filepath();
-        shared_auth::store::set_to(
+        shared_auth::set_to(
             &path,
             &provider_id,
             &auth_types::Info::Api(auth_types::ApiInfo { key: draft.api_key.trim().to_string() }),

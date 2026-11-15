@@ -1695,7 +1695,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             Task::perform(
                 async move {
                     let result = async {
-                        use {vw_gateway_client::GatewayClient, vw_api_session::GatewaySessionForkBody, vw_api_session::GatewaySessionForkTarget};
+                        use {vw_gateway_client::GatewayClient};
+use vw_api_session::{
+    GatewaySessionForkBody,
+    GatewaySessionForkTarget,
+};
 
                         let client = GatewayClient::new(endpoint)?;
                         let destination = match target {

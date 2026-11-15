@@ -76,12 +76,6 @@ pub mod voice;
 pub mod workflow;
 pub mod worktree;
 
-#[cfg(test)]
-#[path = "project_tests.rs"]
-mod project_tests;
-#[cfg(test)]
-#[path = "question_tests.rs"]
-mod question_tests;
 
 pub use vw_api_chat_identity::ReasoningEffortDto;
 pub use common::*;

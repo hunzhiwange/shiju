@@ -46,12 +46,11 @@ mod host_reads {
     use axum::{Router, body::to_bytes, middleware};
     use sha2::{Digest, Sha256};
     use std::{os::unix::fs::PermissionsExt, path::Path};
-use vw_api_types::agent_apps::AppId;
-    use vw_api_app_provider_base::AppProviderWrite;
+use vw_api_app_provider_base::AppProviderWrite;
     use vw_api_app_provider_base::ProviderProtocol;
     use vw_api_app_provider_edit::catalog::*;
-    const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
     use vw_api_app_identity::{AppId};
+    const TOKEN: &str = "fixture-config-reader-token-over-32-chars";
     fn policy(root: &Path) -> std::path::PathBuf {
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o700)).unwrap();
         let path = root.join("access.json");

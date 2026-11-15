@@ -1,12 +1,7 @@
 use super::preset_catalog::{universal_preset, universal_presets};
-use vw_api_types::{
-    agent_apps::AppId,
-    app_providers::{
-        ProviderProtocol,
+use vw_api_app_provider_base::ProviderProtocol;
+use vw_api_app_provider_edit::universal_sync::UniversalSyncError;
 use vw_api_app_identity::{AppId};
-        universal_sync::UniversalSyncError,
-    },
-};
 
 #[test]
 fn catalog_presets_universal_loads_universal_endpoints() {

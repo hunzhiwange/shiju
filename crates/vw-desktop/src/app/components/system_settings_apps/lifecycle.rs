@@ -1,7 +1,7 @@
 use vw_api_app_operations::{AppActionPreview, AppActionPreviewRequest, AppLifecycleAction, AppOperationPhase, AppOperationStatus};
 use vw_api_app_identity::{AppInstallationSource};
 //! Desktop interaction state; plans, preflight and execution belong to the gateway.
-use vw_api_types::{agent_apps::*, };
+use vw_api_types::{agent_apps::* };
 use vw_api_task::TaskStatus;
 
 #[derive(Clone, Debug, Default)]

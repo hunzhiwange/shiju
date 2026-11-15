@@ -575,7 +575,7 @@ fn acp_model_source_relay_gemini_matches_idless_tools_and_preserves_reasoning_us
 
 #[test]
 fn model_protocol_018_gemini_native_requirements_are_selected_explicitly() {
-    use vw_provider_resolver::protocol_routes::RouteCapability as C;
+    use provider_protocol_routes::RouteCapability as C;
     for (extra, capability) in [
         (json!({"generationConfig":{"thinkingConfig":{"thinkingBudget":1024}}}), C::Thinking),
         (json!({"generationConfig":{"responseMimeType":"application/json"}}), C::StructuredOutput),

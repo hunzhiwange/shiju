@@ -6,13 +6,11 @@ use crate::app::{
     state::app_providers::model_catalog::{CatalogForm, FillState},
 };
 use iced::Task;
-use vw_gateway_client::{
-    AgentAppsReadError, GatewayClient,
-    vw_api_types::model_catalog::{
+use gateway_model_catalog::{AgentAppsReadError, GatewayModelCatalogClient};
+use vw_api_model_catalog::{
         ModelCatalogFillCommitRequest, ModelCatalogFillPreviewRequest,
         ModelCatalogFillPreviewResponse, ModelCatalogReadResponse, ModelMetadataDto,
         ScopedModelCatalogIdentity,
-    },
 };
 
 #[derive(Clone)]
@@ -75,7 +73,7 @@ fn failure(error: AgentAppsReadError, writing: bool) -> &'static str {
     }
 }
 
-pub(super) fn update(app: &mut App, client: GatewayClient, event: Event) -> Task<Message> {
+pub(super) fn update(app: &mut App, client: GatewayModelCatalogClient, event: Event) -> Task<Message> {
     let generation = &mut app.app_providers.generation;
     let Some(form) = &mut app.app_providers.model_catalog else { return Task::none() };
     match event {

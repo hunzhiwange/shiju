@@ -13,13 +13,11 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 use tokio_util::sync::CancellationToken;
-use vw_api_app_diagnostics::{
-        DiagnosticFailureCode, DiagnosticJobState, DiagnosticOutcome, DiagnosticResult,
-    };
-use vw_api_types::{
-    agent_apps::AppId,
+use vw_api_app_diagnostics::DiagnosticFailureCode;
+use vw_api_app_diagnostics::DiagnosticJobState;
+use vw_api_app_diagnostics::DiagnosticOutcome;
+use vw_api_app_diagnostics::DiagnosticResult;
 
-};
 use vw_api_app_identity::{AppId};
 
 #[tokio::test]

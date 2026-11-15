@@ -8,3 +8,5 @@ pub mod status_animation;
 #[cfg(test)]
 #[path = "status_animation_tests.rs"]
 mod status_animation_tests;
+pub mod svg_path;
+pub mod single_line_label;

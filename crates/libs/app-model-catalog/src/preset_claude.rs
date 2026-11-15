@@ -2,11 +2,10 @@
 
 use super::preset_search::{PresetPlan, PresetRegion};
 use serde::Deserialize;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopMappingMode;
 use vw_api_app_provider_profiles::desktop_mapping::DesktopModelRoute;
-    },
-};
+use vw_api_app_provider_edit::universal::ClaudeModels;
+use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

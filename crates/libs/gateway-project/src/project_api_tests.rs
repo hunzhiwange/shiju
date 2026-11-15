@@ -7,7 +7,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use vw_api_types::project::{
+use vw_api_project::{
     ListProjectsRequest, ProjectStatus, ResolveProjectRequest, UpdateProjectRequest,
 };
 use vw_api_worktree::{

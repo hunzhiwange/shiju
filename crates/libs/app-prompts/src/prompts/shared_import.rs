@@ -3,14 +3,13 @@
 use base64::{Engine as _, prelude::*};
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use vw_api_types::agent_apps::{AppId};
 use vw_api_app_operations::{ActivatePromptRequest, ImportPromptShareRequest, PromptActivationChoice, PromptEntry, PromptEntryRequest, PromptResource, PromptSharePayload};
+use vw_api_app_identity::{AppId};
 
 /// Already URL-decoded fields; protocol registration belongs to OS dispatch.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SharedPromptFields {
-use vw_api_app_identity::{AppId};
     pub resource: String,
     pub app: Option<AppId>,
     pub name: Option<String>,

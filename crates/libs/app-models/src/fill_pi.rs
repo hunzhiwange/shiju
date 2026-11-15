@@ -1,6 +1,3 @@
-use vw_api_model_catalog::{
-        ModelCapabilityState, ModelMetadataField, ModelMetadataProvenance, ModelMetadataSource,
-    };
 //! Read-only projection of Pi thinking settings into a native model draft.
 
 use super::{
@@ -13,10 +10,12 @@ use reqwest::Url;
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
+use vw_api_model_catalog::ModelCapabilityState;
+use vw_api_model_catalog::ModelMetadataField;
+use vw_api_model_catalog::ModelMetadataProvenance;
+use vw_api_model_catalog::ModelMetadataSource;
 use vw_api_app_provider_terminal::pi::PiProfile;
-use vw_api_types::{
-    agent_apps::AppId,
-};
+
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Default, PartialEq, Eq)]

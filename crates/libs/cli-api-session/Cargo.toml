@@ -13,8 +13,8 @@ session-ui-types = { path = "../session-ui-types", version = "0.6.0" }
 vw-api-agent-scheduler = { path = "../api-agent-scheduler", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-chat = { path = "../api-chat", version = "0.6.0" }
-vw-api-session = { path = "../api-session", version = "0.6.0" }
 gateway-session = { path = "../gateway-session", version = "0.6.0" }
+vw-api-session = { path = "../api-session", version = "0.6.0" }
 cli-api-core = { path = "../cli-api-core", version = "0.6.0" }
 vw-api-transport = { path = "../api-transport", version = "0.6.0" }
 anyhow = "1"

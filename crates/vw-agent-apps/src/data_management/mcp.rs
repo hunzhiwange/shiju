@@ -4,15 +4,14 @@ use crate::mcp::{catalog::McpCatalogDraft, validation::parse_native};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use {
-    vw_api_types::agent_apps::AppId,
     vw_api_mcp_management::McpCatalogRecord,
     vw_api_mcp_management::McpCatalogScope,
     vw_api_mcp_management::McpConnectionDefinition,
     vw_api_mcp_management::McpFailureCode,
 };
+use vw_api_app_identity::{AppId};
 
 pub struct MigrationMcpRecord {
-use vw_api_app_identity::{AppId};
     pub record: McpCatalogRecord,
     pub connection: McpConnectionDefinition,
     pub applications: Vec<(AppId, bool)>,

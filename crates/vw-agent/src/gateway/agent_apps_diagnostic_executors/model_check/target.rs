@@ -174,7 +174,7 @@ impl ModelTarget {
     /// production selector; a client protocol never authorizes another URL.
     pub(super) fn select_protocol(&self, source: GenerationProtocol) -> Result<()> {
         use crate::model_relay::routing;
-        use vw_provider_resolver::protocol_routes::RouteCapability;
+        use provider_protocol_routes::RouteCapability;
         use model_protocols::{
             ProtocolAuthentication, ProtocolEndpoint, ProtocolEvidence, ProtocolEvidenceKind,
             ProtocolModelScope,

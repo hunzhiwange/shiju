@@ -1,13 +1,12 @@
-use vw_api_model_catalog::{ModelMetadataDto, ModelMetadataField, ModelMetadataProvenance};
 //! Read-only metadata fill for OpenCode-shaped model drafts.
 
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
-use vw_api_types::{
-    agent_apps::AppId,
-};
-
+use vw_api_model_catalog::ModelMetadataDto;
+use vw_api_model_catalog::ModelMetadataField;
+use vw_api_model_catalog::ModelMetadataProvenance;
 use vw_api_app_identity::{AppId};
+
 // OpenCode's native integer schema requires exact JavaScript integers.
 const MAX_NATIVE_LIMIT: u64 = 9_007_199_254_740_991;
 

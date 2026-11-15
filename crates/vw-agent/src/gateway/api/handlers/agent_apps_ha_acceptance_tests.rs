@@ -104,10 +104,10 @@ async fn ha_macos_headless_routing_acceptance() -> anyhow::Result<()> {
     }
     let (_gateway, port) = spawn_gateway(home.path(), &policy).await;
     let client = Client::builder().no_proxy().timeout(Duration::from_secs(15)).build()?;
-    let sdk = vw_gateway_client::GatewayClient::new(
+    let sdk = gateway_app_failover::GatewayAppFailoverClient::new(gateway_http::GatewayTransport::new(
         gateway_endpoint::GatewayEndpoint::new("127.0.0.1", port)
             .with_tenant_scope(tenant.clone()),
-    ).map_err(anyhow::Error::msg)?;
+    ).map_err(anyhow::Error::msg)?);
     let sdk_scope = FailoverQueueQuery {
         project_id: "project".into(), target_host_id: HOST.into(), app_id: Claude,
     };

@@ -3,7 +3,7 @@
 //! through `save`; a failed save stops further writes. No payloads are reported.
 use vw_api_app_operations::{DataManagementError, DataManagementErrorCode, DataManagementTarget, DataOperation, DataOperationPhase, DataOperationProgress, DataOperationResult, DataRollbackState};
 use std::{collections::BTreeSet, path::Path, sync::{Arc, Mutex}};
-use vw_api_types::{agent_apps::*, };
+use vw_api_types::{agent_apps::* };
 use vw_api_task::TaskStatus;
 use crate::apps::lifecycle::operations::Operation;
 use super::{rollback::{apply_with_rollback, RollbackError}, safety_snapshot::{OwnerPreimage, SafetySnapshotReceipt, SnapshotTarget}, source::{SourceCategory, SourceScope, SourceSnapshot, SourceSummary}};

@@ -42,11 +42,14 @@ vw-api-task = { path = "../libs/api-task", version = "0.6.0" }
 vw-api-task-lifecycle = { path = "../libs/api-task-lifecycle", version = "0.6.0" }
 vw-api-settings = { path = "../libs/api-settings", version = "0.6.0" }
 vw-api-provider = { path = "../libs/api-provider", version = "0.6.0" }
+vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }
 vw-api-git = { path = "../libs/api-git", version = "0.6.0" }
 vw-api-file = { path = "../libs/api-file", version = "0.6.0" }
+vw-api-chat = { path = "../libs/api-chat", version = "0.6.0" }
 vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 vw-api-todo = { path = "../libs/api-todo", version = "0.6.0" }
+vw-api-question = { path = "../libs/api-question", version = "0.6.0" }
 vw-api-acp-model = { path = "../libs/api-acp-model", version = "0.6.0" }
 vw-api-mcp-network = { path = "../libs/api-mcp-network", version = "0.6.0" }
 vw-api-tools = { path = "../libs/api-tools", version = "0.6.0" }

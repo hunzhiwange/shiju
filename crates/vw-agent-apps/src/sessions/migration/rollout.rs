@@ -18,12 +18,12 @@ use std::{
     os::unix::fs::MetadataExt,
     path::Path,
 };
-use vw_api_external_session::{ExternalSessionIdentity, SessionProvider, SessionSource};
-use vw_api_types::{
-    agent_apps::AppId,
+use vw_api_external_session::{ExternalSessionIdentity,
+    SessionProvider,
+    SessionSource,
 };
-
 use vw_api_app_identity::{AppId};
+
 // Fail explicitly rather than allocate unbounded decoded history on a worker.
 const MAX_BYTES: u64 = 256 * 1024 * 1024;
 

@@ -8,7 +8,6 @@ use sha2::{Digest, Sha256};
 use std::time::Duration;
 use tokio::time::timeout;
 use {
-    vw_api_types::agent_apps::AppId,
     vw_api_app_diagnostics::DiagnosticFailureCode,
     vw_api_app_diagnostics::DiagnosticJobState,
     vw_api_app_diagnostics::DiagnosticOutcome,
@@ -16,8 +15,8 @@ use {
     vw_api_mcp_management::McpConfigValue,
     vw_api_mcp_management::McpConnectionDefinition,
 };
-
 use vw_api_app_identity::{AppId};
+
 #[test]
 fn diagnostic_mcp_stdio_cancellation_reaps_process_tree_handshake() -> anyhow::Result<()> {
     with_database(|db| {

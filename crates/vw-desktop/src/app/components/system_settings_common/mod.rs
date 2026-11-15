@@ -17,12 +17,6 @@ mod utils;
 #[path = "help_tests.rs"]
 mod help_tests;
 #[cfg(test)]
-#[path = "icons_tests.rs"]
-mod icons_tests;
-#[cfg(test)]
-#[path = "panels_tests.rs"]
-mod panels_tests;
-#[cfg(test)]
 #[path = "styles_tests.rs"]
 mod styles_tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]

@@ -180,7 +180,7 @@ impl AcpClient {
             // Desktop processes may have only the system PATH. Restore the runtime
             // PATH used to resolve the adapter so its shebang can also find Node.
             #[cfg(not(windows))]
-            vw_shared::shell::apply_augmented_path_tokio_command(&mut cmd);
+            shell_command::apply_augmented_path_tokio_command(&mut cmd);
             cmd.envs(&env);
         }
         if let Some(directory) = directory {

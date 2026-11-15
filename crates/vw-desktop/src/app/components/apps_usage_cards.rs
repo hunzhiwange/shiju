@@ -4,10 +4,10 @@ use std::collections::{HashMap, HashSet};
 
 use iced::Task;
 use {
-    gateway_endpoint::GatewayEndpoint,
     gateway_app_auth::AgentAppsAuthCredentials,
     gateway_app_auth::AgentAppsAuthReadError,
     vw_gateway_client::GatewayClient,
+    gateway_endpoint::GatewayEndpoint,
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthCredentialState,
     vw_api_app_auth::AuthErrorCode,
@@ -341,7 +341,7 @@ async fn read(
         let mut refresh_failure = None;
         if refresh == Some(selection.provider_id.as_str()) {
             if selection.kind.is_none()
-                && let Ok(initial) = client.apps_usage_snapshot(&selection, &context.token).await
+                && let Ok(initial) = gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_snapshot(&selection, &context.token).await
                 && let [kind] = initial.capabilities.as_slice()
             {
                 selection.kind = Some(*kind);

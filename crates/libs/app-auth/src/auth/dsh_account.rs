@@ -20,16 +20,16 @@ use serde_yaml::{Mapping, Value as Yaml};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use uuid::Uuid;
-use vw_api_types::{
-    agent_apps::AppId,
-};
-use vw_api_app_auth::{
-        AuthAccount, AuthCredentialState, AuthErrorCode, AuthFlow, AuthService, AuthStartRequest,
-        AuthStartResponse,
-    };
+use vw_api_app_auth::AuthAccount;
+use vw_api_app_auth::AuthCredentialState;
+use vw_api_app_auth::AuthErrorCode;
+use vw_api_app_auth::AuthFlow;
+use vw_api_app_auth::AuthService;
+use vw_api_app_auth::AuthStartRequest;
+use vw_api_app_auth::AuthStartResponse;
+use vw_api_app_identity::{AppId};
 
 const DEVICE_RECORD: &str = "deepseek-account-platform/device";
-use vw_api_app_identity::{AppId};
 const STATUS_PATH: &str = "/auth-api/v0/users/current";
 const MAX_STATUS_BYTES: usize = 64 * 1024;
 

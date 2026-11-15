@@ -2,7 +2,6 @@
 use super::validation::custom_user_agent;
 use reqwest::header::USER_AGENT;
 use serde_json::Value;
-use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::request_options::*;
 use vw_api_app_provider_base::validation::ProviderRequestOptions;
 use vw_api_app_identity::{AppId};

@@ -7,7 +7,9 @@ use std::collections::HashSet;
 
 use serde::Deserialize;
 use vw_api_session::{
-    GatewaySessionForkBody, GatewaySessionPatchBody, GatewaySessionResetBody,
+    GatewaySessionForkBody,
+    GatewaySessionPatchBody,
+    GatewaySessionResetBody,
     GatewaySessionSummarizeBody,
 };
 use session_info::Info;

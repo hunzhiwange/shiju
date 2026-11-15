@@ -1,15 +1,15 @@
-use vw_api_model_catalog::{CodexNativeModel, SavedCodexCatalog};
 //! Editable Codex supplier fields. Opaque TOML and credentials stay on the executor.
 use super::{identity, settings};
 use crate::providers::{basic, projection, validate_identity, validation};
 use serde_json::Value;
 use toml_edit::{DocumentMut, Item, Table, TableLike, value};
-use vw_api_types::agent_apps::AppId;
+use vw_api_model_catalog::CodexNativeModel;
+use vw_api_model_catalog::SavedCodexCatalog;
 use vw_api_app_provider_profiles::codex_catalog::*;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
-
 use vw_api_app_auth::AuthErrorCode;
 use vw_api_app_identity::{AppId};
+
 type Result<T> = std::result::Result<T, &'static str>;
 const INVALID: &str = "invalid or unsupported Codex editor configuration";
 const ROUTE_FIELDS: &[&str] = &["base_url", "name", "wire_api", "requires_openai_auth"];

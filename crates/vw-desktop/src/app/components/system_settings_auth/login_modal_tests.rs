@@ -11,8 +11,8 @@ use std::{
 };
 use tokio::sync::oneshot;
 use {
-    gateway_endpoint::GatewayEndpoint,
     vw_gateway_client::GatewayClient,
+    gateway_endpoint::GatewayEndpoint,
     vw_api_transport::TimestampMs,
     vw_api_app_auth::AuthRegion,
     vw_api_transport::id::TenantScope,

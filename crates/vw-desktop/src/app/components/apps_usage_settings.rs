@@ -1,9 +1,10 @@
 //! Native usage settings for the selected application provider.
 
+use gateway_app_usage::{AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageReadError, AppsUsageSettings, AppsUsageSigningCredentialRefs, AppsUsageWriteError};
 use std::fmt;
 
 use iced::Task;
-use {gateway_app_usage::AppsUsageCredentialRefs, gateway_app_usage::AppsUsageDisplay, gateway_app_usage::AppsUsageReadError, gateway_app_usage::AppsUsageSettings, gateway_app_usage::AppsUsageSigningCredentialRefs, gateway_app_usage::AppsUsageWriteError, vw_gateway_client::GatewayClient, vw_api_types::{
+use {vw_gateway_client::GatewayClient, vw_api_types::{
         agent_apps::AppId,
         apps_usage::{
             UsageSnapshotQuery,
@@ -313,7 +314,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
         editor.modal =
             Some(Modal { scope, selection: selection.clone(), ticket, phase: Phase::Loading });
         return Task::perform(
-            async move { client.apps_usage_settings(&selection, &token).await },
+            async move { gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_settings(&selection, &token).await },
             move |result| send(Event::Loaded(ticket, result)),
         );
     }
@@ -408,7 +409,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                         *saving = true;
                         return Task::perform(
                             async move {
-                                client.apps_usage_save_settings(&selection, &settings, &token).await
+                                gateway_app_usage::GatewayAppUsageClient::new(client.transport().clone()).apps_usage_save_settings(&selection, &settings, &token).await
                             },
                             move |result| send(Event::Saved(ticket, result)),
                         );

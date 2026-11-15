@@ -1,3 +1,4 @@
+use gateway_model_catalog::GatewayModelCatalogClient;
 use crate::{
     app_providers::AppProviderStore, gateway::middleware::tenant_scope_middleware,
     global_database::GlobalDatabase, project,
@@ -17,7 +18,7 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_types::model_catalog::*,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsReadError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_model_catalog::{AgentAppsReadError}};
 
 const TOKEN: &str = "model-discovery-application-credential";
 const OTHER_TOKEN: &str = "model-discovery-different-principal";
@@ -190,8 +191,8 @@ impl Fixture {
         }
     }
 
-    fn client(&self) -> GatewayClient {
-        GatewayClient::new(self.endpoint.clone()).unwrap()
+    fn client(&self) -> GatewayModelCatalogClient {
+        GatewayModelCatalogClient::new(gateway_http::GatewayTransport::new(self.endpoint.clone()).unwrap())
     }
 
     async fn start(&self) -> ModelDiscoveryStatus {
@@ -345,12 +346,11 @@ async fn catalog_api_discovery_task_id_does_not_grant_ownership() {
     );
     let other = ModelCatalogProject { project_id: "other-project".into(), ..f.project.clone() };
     assert_http(client.cancel_model_discovery(&other, "mac", &created.task_id, TOKEN).await, 404);
-    let other = GatewayClient::new(
+    let other = GatewayModelCatalogClient::new(gateway_http::GatewayTransport::new(
         f.endpoint
             .clone()
             .with_tenant_scope(TenantScope::new("platform", "other-company").unwrap()),
-    )
-    .unwrap();
+    ).unwrap());
     assert_http(other.model_discovery(&f.project, "mac", &created.task_id, TOKEN).await, 404);
     assert_eq!(f.cancel(&created.task_id).await.state, ModelDiscoveryState::Cancelled);
 }

@@ -4,6 +4,7 @@ members = [
   "crates/libs/json-extract",
   "crates/libs/acp-prompt-runner",
   "crates/libs/gateway-model-provider",
+  "crates/libs/gateway-model-catalog",
   "crates/libs/acp-owner-process",
   "crates/libs/todo-types",
   "crates/libs/api-session",

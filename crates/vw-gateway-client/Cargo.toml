@@ -9,6 +9,7 @@ license = "MIT"
 
 [dependencies]
 gateway-model-provider = { path = "../libs/gateway-model-provider", version = "0.6.0" }
+gateway-model-catalog = { path = "../libs/gateway-model-catalog", version = "0.6.0" }
 todo-types = { path = "../libs/todo-types", version = "0.6.0" }
 vw-api-session = { path = "../libs/api-session", version = "0.6.0" }
 gateway-session = { path = "../libs/gateway-session", version = "0.6.0" }

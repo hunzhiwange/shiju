@@ -1,3 +1,4 @@
+use gateway_model_catalog::GatewayModelCatalogClient;
 //! Cross the SDK, SQLite, resolver and execution boundaries on macOS.
 
 use std::{
@@ -247,8 +248,8 @@ impl Fixture {
             .with_tenant_scope(self.tenant.clone())
     }
 
-    fn client(&self) -> GatewayClient {
-        GatewayClient::new(self.endpoint()).unwrap()
+    fn client(&self) -> GatewayModelCatalogClient {
+        GatewayModelCatalogClient::new(gateway_http::GatewayTransport::new(self.endpoint()).unwrap())
     }
 
     async fn read(&self, deployment: &ModelCatalogIdentity) -> ModelCatalogReadResponse {

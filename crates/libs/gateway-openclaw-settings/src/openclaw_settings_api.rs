@@ -3,7 +3,7 @@ use super::GatewayOpenClawSettingsClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::id::ProjectId,
-    vw_api_types::openclaw_settings::*,
+    vw_api_openclaw_settings::*,
 };
 
 #[derive(Debug, Clone, Serialize)]

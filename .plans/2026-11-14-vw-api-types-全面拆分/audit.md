@@ -2718,3 +2718,7 @@
 ## 任务43静态迁移记录
 
 计算机控制定义（含宏生成的三类 ID、截图私有校验）与六个既有测试迁入 `vw-api-computer-control`；旧模块显式重导出同一类型。agent、desktop、gateway-client 及已从 agent 提取的 `office-control-sessions` 直接依赖新库；后者移除旧门面依赖。新库仅依赖 serde/serde_json，无反向依赖。仅完成静态检查；未运行 Cargo、测试及实机验证，未来验收仍按任务43原列行为执行。
+
+## 任务46执行补充
+
+OpenClaw 设置契约及三个既有测试迁入 `crates/libs/api-openclaw-settings`，原 `openclaw_settings` 模块明确重导出同一类型。实际直接消费者为 vw-agent 处理器、vw-desktop OpenClaw 编辑器及测试、vw-gateway-client 兼容客户端，以及执行期间已落地的 gateway-openclaw-settings 领域客户端及测试；均改用新库。新库仅依赖 serde/serde_json，不反向依赖门面。定义、serde 属性与原断言保留，测试仅修改导入与注册。已做路径/清单人工审查与 git diff --check；未运行 Cargo、测试及实机验证，未来验收范围见原任务计划。

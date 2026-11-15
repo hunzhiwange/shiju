@@ -1,5 +1,5 @@
 //! Sensitive env editor; payloads never enter Debug output or error messages.
-use vw_api_types::openclaw_settings::*;
+use vw_api_openclaw_settings::*;
 use crate::app::{App, Message, state::AgentAppsContext};
 use crate::app::components::system_settings_common::*;
 use iced::{Element, Length, Task, widget::{button, column, container, row, text, text_editor}};

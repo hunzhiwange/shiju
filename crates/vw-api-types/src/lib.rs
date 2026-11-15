@@ -107,8 +107,6 @@ pub mod workspace_memory;
 
 pub mod hermes_dashboard;
 
-#[cfg(test)]
-mod openclaw_settings_tests;
 
 #[cfg(test)]
 mod project_profiles_tests;

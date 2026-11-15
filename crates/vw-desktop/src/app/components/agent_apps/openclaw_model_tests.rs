@@ -1,5 +1,5 @@
 use super::openclaw_model::*;
-use vw_gateway_client::vw_api_types::openclaw_settings::OpenClawDefaultModel;
+use vw_api_openclaw_settings::OpenClawDefaultModel;
 
 #[test]
 fn openclaw_model_editor_preserves_selection_missing_from_catalog() {

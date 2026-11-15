@@ -1,5 +1,5 @@
 //! Defaults form consumes the gateway section; configuration IO stays on the executor.
-use vw_api_types::openclaw_settings::*;
+use vw_api_openclaw_settings::*;
 use crate::app::components::system_settings_common::*;
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::{

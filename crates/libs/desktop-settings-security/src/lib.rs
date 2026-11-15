@@ -26,3 +26,6 @@ impl<T> SettingsTabDescriptor<T> {
 }
 
 pub mod app_init;
+
+mod security_config;
+pub mod security_update;

@@ -253,7 +253,7 @@ fn codex_plugin_compat_t61_public_marketplace_cli_lifecycle() {
     #[derive(Parser)]
     struct Args {
         #[command(subcommand)]
-        command: crate::cli_commands::PluginCommands,
+        command: agent_cli_types::PluginCommands,
     }
     let t = tempfile::tempdir().unwrap();
     let source = public_original(t.path(), "superpowers-7.0.1");

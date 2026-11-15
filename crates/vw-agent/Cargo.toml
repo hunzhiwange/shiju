@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+agent-cli-types = { path = "../libs/agent-cli-types", version = "0.6.0" }
 agent-auth = { path = "../libs/agent-auth", version = "0.6.0" }
 agent-approval = { path = "../libs/agent-approval", version = "0.6.0" }
 app-settings-store = { path = "../libs/app-settings-store", version = "0.6.0" }

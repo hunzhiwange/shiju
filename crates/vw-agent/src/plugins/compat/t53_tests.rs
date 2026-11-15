@@ -1,5 +1,6 @@
 use crate::plugins::{handle_command, load_plugin_manifest};
-use crate::{cli_commands::PluginCommands, config::Config};
+use agent_cli_types::PluginCommands;
+use crate::config::Config;
 use clap::Parser;
 use std::{fs, path::Path};
 #[derive(Parser)]

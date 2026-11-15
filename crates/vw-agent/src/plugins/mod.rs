@@ -31,7 +31,7 @@ pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};
 pub(crate) use compat::mcp_resources::{RawResponse as RawMcpResponse, call as call_mcp_resource};
 
 /// 插件管理命令与命令行执行入口。
-pub use crate::cli_commands::PluginCommands;
+pub use agent_cli_types::PluginCommands;
 pub use cli::handle_command;
 pub use compat::hook_manifest::{
     CodexHookDiagnostic, CodexHookEvent, CodexHookHandler, CodexHookMatcherGroup,

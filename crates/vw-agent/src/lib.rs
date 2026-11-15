@@ -154,11 +154,6 @@
 // 模块声明
 // ============================================================================
 
-mod cli_commands;
-#[cfg(test)]
-#[path = "cli_commands_tests.rs"]
-mod cli_commands_tests;
-
 // 核心编排与执行
 pub mod acp;
 pub mod agent;
@@ -395,7 +390,7 @@ pub mod workflow;
 // 公共类型重导出
 // ============================================================================
 
-pub use cli_commands::{
+pub use agent_cli_types::{
     ChannelCommands, CronCommands, IntegrationCommands, MemoryCommands, MigrateCommands,
     PluginCommands, ServiceCommands, SkillCommands,
 };

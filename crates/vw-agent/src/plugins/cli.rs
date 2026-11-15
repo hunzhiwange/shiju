@@ -19,11 +19,11 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
         PluginCommands::Marketplace { command } => {
             let config_dir = config.config_path.parent().context("missing config directory")?;
             match command {
-                crate::cli_commands::PluginMarketplaceCommands::Add { source } => {
+                agent_cli_types::PluginMarketplaceCommands::Add { source } => {
                     let entry = super::add_plugin_marketplace(config_dir, Path::new(&source))?;
                     println!("Marketplace registered: {} at {}", entry.name, entry.root.display());
                 }
-                crate::cli_commands::PluginMarketplaceCommands::List => {
+                agent_cli_types::PluginMarketplaceCommands::List => {
                     for entry in super::list_plugin_marketplaces(config_dir)? {
                         println!("{} at {}", entry.name, entry.root.display());
                     }

@@ -21,7 +21,7 @@
 //! # 使用示例
 //!
 //! ```ignore
-//! use transcript::{TranscriptEntry, TranscriptRole, transcript_to_lines};
+//! use cli_transcript::{TranscriptEntry, TranscriptRole, transcript_to_lines};
 //!
 //! // 创建对话条目
 //! let entry = TranscriptEntry::new(TranscriptRole::User, "Hello, agent!");
@@ -58,10 +58,8 @@ mod truncate_tests;
 pub(crate) use assistant_segments::{
     assistant_segments_to_lines_with_meta, parse_assistant_segments,
 };
-#[cfg(test)]
-pub(crate) use structured_stream::build_streaming_transcript_view;
-#[cfg(test)]
-pub(crate) use summary::transcript_to_lines;
+pub use structured_stream::build_streaming_transcript_view;
+pub use summary::transcript_to_lines;
 pub(crate) use toolcards::{render_tool_card, tool_summary_cli};
 pub(crate) use truncate::truncate_chars_cli;
 
@@ -75,9 +73,9 @@ use std::collections::BTreeSet;
 /// `id` 用于在渲染层与 TUI 交互层之间关联同一个思考块，
 /// `open` 表示该块是否仍处于流式思考中（尚未遇到闭合标签）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ThinkBlockMeta {
-    pub(crate) id: u64,
-    pub(crate) open: bool,
+pub struct ThinkBlockMeta {
+    pub id: u64,
+    pub open: bool,
 }
 
 /// 计算思考块当前是否应当展开
@@ -106,7 +104,7 @@ mod tests;
 /// 定义对话中每个条目的发送者或类型，用于决定显示样式。
 /// 不同角色在 CLI 界面中使用不同的颜色和格式进行区分。
 #[derive(Clone, Copy)]
-pub(crate) enum TranscriptRole {
+pub enum TranscriptRole {
     /// 系统消息（如提示词、内部状态）
     System,
     /// 用户输入的消息
@@ -124,13 +122,13 @@ pub(crate) enum TranscriptRole {
 /// 表示对话中的一条记录，包含角色、时间戳和文本内容。
 /// 这是对话记录的基本存储单元，用于在 CLI 界面中展示历史对话。
 #[derive(Clone)]
-pub(crate) struct TranscriptEntry {
+pub struct TranscriptEntry {
     /// 消息的角色类型
-    pub(crate) role: TranscriptRole,
+    pub role: TranscriptRole,
     /// 消息创建时间（本地时区）
-    pub(crate) at: chrono::DateTime<chrono::Local>,
+    pub at: chrono::DateTime<chrono::Local>,
     /// 消息文本内容
-    pub(crate) text: String,
+    pub text: String,
 }
 
 impl TranscriptEntry {
@@ -153,7 +151,7 @@ impl TranscriptEntry {
     /// let user_msg = TranscriptEntry::new(TranscriptRole::User, "你好");
     /// let assistant_msg = TranscriptEntry::new(TranscriptRole::Assistant, String::from("你好！"));
     /// ```
-    pub(crate) fn new(role: TranscriptRole, text: impl Into<String>) -> Self {
+    pub fn new(role: TranscriptRole, text: impl Into<String>) -> Self {
         Self { role, at: chrono::Local::now(), text: text.into() }
     }
 }

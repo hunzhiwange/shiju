@@ -130,7 +130,7 @@ pub(crate) fn should_render_structured_stream(draft: &str) -> bool {
 /// 返回空字符串作为剩余草稿的设计原因是：结构化内容（如思考过程和工具调用）
 /// 已经被解析并格式化后追加到转录列表中，因此不需要在草稿区域重复显示。
 /// 这样可以避免内容重复，同时保持用户界面的清晰性。
-pub(crate) fn build_streaming_transcript_view(
+pub fn build_streaming_transcript_view(
     transcript: &[TranscriptEntry],
     draft: &str,
     expand_tool_details: bool,

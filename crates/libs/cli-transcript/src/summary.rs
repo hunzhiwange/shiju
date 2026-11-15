@@ -105,7 +105,7 @@ fn assistant_think_id_salt(visible_entry_idx: usize) -> u64 {
 /// - 预分配向量容量以减少重新分配
 /// - 使用迭代器避免中间集合
 /// - 仅在必要时克隆或转换数据
-pub(crate) fn transcript_to_lines<'a>(
+pub fn transcript_to_lines<'a>(
     transcript: &'a [TranscriptEntry],
     expand_tool_blocks: bool,
     expand_think_all: bool,

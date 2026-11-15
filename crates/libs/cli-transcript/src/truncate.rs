@@ -29,7 +29,7 @@
 /// # 示例
 ///
 /// ```ignore
-/// use crate::app::agent::agent::loop_::cli::transcript::truncate::truncate_chars_cli;
+/// use crate::truncate::truncate_chars_cli;
 ///
 /// // 正常截断
 /// let result = truncate_chars_cli("Hello, World!", 5);

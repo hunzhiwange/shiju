@@ -1,0 +1,29 @@
+[package]
+name = "task-plan-runner"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+async-trait = "0.1"
+futures-util = "0.3"
+tokio = { version = "1", features = ["sync", "time", "macros", "rt-multi-thread"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+tracing = "0.1"
+session-engine = { path = "../session-engine" }
+agent-paths = { path = "../agent-paths" }
+config-runtime-paths = { path = "../config-runtime-paths" }
+vw-api-task = { path = "../api-task" }
+vw-api-transport = { path = "../api-transport" }
+session-info = { path = "../session-info" }
+session-ui-types = { path = "../session-ui-types" }
+session-store = { path = "../session-store" }
+agent-project = { path = "../agent-project" }
+agent-database = { path = "../agent-database" }
+agent-installation = { path = "../agent-installation" }

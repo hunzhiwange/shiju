@@ -28,9 +28,7 @@ pub use runner::{
 };
 pub use schedule::build_batch_stages;
 
-#[cfg(test)]
-#[path = "schedule_tests.rs"]
-mod schedule_tests;
+// schedule tests live in task-plan-runner.
 
 #[cfg(test)]
 #[path = "runner_tests.rs"]
@@ -44,9 +42,7 @@ mod prompts_tests;
 #[path = "session_bind_tests.rs"]
 mod session_bind_tests;
 
-#[cfg(test)]
-#[path = "model_tests.rs"]
-mod model_tests;
+// model tests live in task-plan-runner.
 
 #[cfg(test)]
 #[path = "goal_tests.rs"]

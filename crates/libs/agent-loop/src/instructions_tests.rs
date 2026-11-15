@@ -2,7 +2,7 @@
 //! 工具协议和 Shell 策略分别覆盖排序、去重、截断与只读模式提示。
 
 use super::*;
-use crate::app::agent::tools::ToolSpec;
+use tool_types::ToolSpec;
 use async_trait::async_trait;
 
 struct Testcov0095Tool;
@@ -29,8 +29,8 @@ impl Tool for Testcov0095Tool {
     async fn execute(
         &self,
         _args: serde_json::Value,
-    ) -> anyhow::Result<crate::app::agent::tools::ToolResult> {
-        Ok(crate::app::agent::tools::ToolResult::default())
+    ) -> anyhow::Result<tool_types::ToolResult> {
+        Ok(tool_types::ToolResult::default())
     }
 }
 
@@ -115,7 +115,7 @@ fn tool_instructions_emit_protocol_before_tool_specs() {
 
 #[test]
 fn shell_policy_deduplicates_and_sorts_allowed_commands() {
-    let autonomy = crate::app::agent::config::AutonomyConfig {
+    let autonomy = config_security::AutonomyConfig {
         allowed_commands: vec!["git".to_string(), "  ls  ".to_string(), "git".to_string()],
         ..Default::default()
     };
@@ -128,8 +128,8 @@ fn shell_policy_deduplicates_and_sorts_allowed_commands() {
 
 #[test]
 fn shell_policy_read_only_returns_disabled_message() {
-    let autonomy = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::ReadOnly,
+    let autonomy = config_security::AutonomyConfig {
+        level: agent_security::AutonomyLevel::ReadOnly,
         allowed_commands: vec!["git".to_string()],
         ..Default::default()
     };
@@ -143,15 +143,15 @@ fn shell_policy_read_only_returns_disabled_message() {
 
 #[test]
 fn shell_policy_handles_wildcard_empty_and_risk_flags() {
-    let wildcard = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::Full,
+    let wildcard = config_security::AutonomyConfig {
+        level: agent_security::AutonomyLevel::Full,
         allowed_commands: vec!["*".to_string(), "git".to_string()],
         require_approval_for_medium_risk: false,
         block_high_risk_commands: false,
         ..Default::default()
     };
-    let empty = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::Full,
+    let empty = config_security::AutonomyConfig {
+        level: agent_security::AutonomyLevel::Full,
         allowed_commands: vec![" ".to_string()],
         require_approval_for_medium_risk: false,
         block_high_risk_commands: true,
@@ -170,8 +170,8 @@ fn shell_policy_handles_wildcard_empty_and_risk_flags() {
 
 #[test]
 fn shell_policy_limits_displayed_allowed_commands() {
-    let autonomy = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::Supervised,
+    let autonomy = config_security::AutonomyConfig {
+        level: agent_security::AutonomyLevel::Supervised,
         allowed_commands: (0..66).map(|index| format!("cmd-{index:02}")).collect(),
         require_approval_for_medium_risk: true,
         block_high_risk_commands: false,
@@ -189,8 +189,8 @@ fn shell_policy_limits_displayed_allowed_commands() {
 
 #[test]
 fn shell_policy_full_mode_lists_commands_without_supervised_approval_note() {
-    let autonomy = crate::app::agent::config::AutonomyConfig {
-        level: crate::app::agent::security::AutonomyLevel::Full,
+    let autonomy = config_security::AutonomyConfig {
+        level: agent_security::AutonomyLevel::Full,
         allowed_commands: vec!["  zsh  ".to_string(), "cargo".to_string()],
         require_approval_for_medium_risk: true,
         block_high_risk_commands: false,

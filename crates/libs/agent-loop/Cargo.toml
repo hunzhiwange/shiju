@@ -52,6 +52,10 @@ model-types = { path = "../model-types", version = "0.6.0" }
 agent-defaults = { path = "../agent-defaults", version = "0.6.0" }
 serde_json = "1"
 tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-services = { path = "../tool-services", version = "0.6.0" }
+futures-util = "0.3"
+config-security = { path = "../config-security", version = "0.6.0" }
+config-reliability = { path = "../config-reliability", version = "0.6.0" }
 
 
 [dev-dependencies]

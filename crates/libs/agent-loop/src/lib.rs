@@ -18,3 +18,7 @@ pub mod agent;
 
 pub mod approval;
 pub mod context;
+pub mod cron;
+pub mod execution;
+pub mod history;
+pub mod instructions;

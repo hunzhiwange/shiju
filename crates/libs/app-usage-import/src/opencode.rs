@@ -113,7 +113,7 @@ pub fn scan_opencode_database(
     {
         return Err(invalid());
     }
-    let (mut native, _) = crate::sessions::providers::opencode_sqlite::open(data_root)
+    let (mut native, _) = app_session_sqlite::opencode_sqlite::open(data_root)
         .map_err(|_| OpenCodeScanError::SourceUnavailable)?;
     let snapshot = native.transaction().map_err(|_| OpenCodeScanError::SourceUnavailable)?;
     let schema = detect_schema(&snapshot)?;

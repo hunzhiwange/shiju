@@ -2,11 +2,11 @@ use std::fs::File;
 
 use rusqlite::Connection;
 use serde_json::{Value, json};
-use vw_agent_apps::usage::{
-    cost::ModelPricing,
-    cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor},
-    gemini::{collect_gemini_session_files, parse_gemini_tokens, scan_gemini_file},
-    store::{StoredUsageRecord, initialize_usage_store},
+use {
+    app_usage_core::cost::ModelPricing,
+    app_usage_store::cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor},
+    app_usage_import::gemini::{collect_gemini_session_files, parse_gemini_tokens, scan_gemini_file},
+    app_usage_store::store::{StoredUsageRecord, initialize_usage_store},
 };
 use {
     vw_api_transport::id::ProjectId,

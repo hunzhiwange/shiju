@@ -1,0 +1,31 @@
+[package]
+name = "app-usage-import"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+app-session-core = { path = "../app-session-core" }
+app-session-native = { path = "../app-session-native" }
+app-session-gemini = { path = "../app-session-gemini" }
+app-session-sqlite = { path = "../app-session-sqlite" }
+app-usage-core = { path = "../app-usage-core" }
+app-usage-store = { path = "../app-usage-store" }
+vw-api-transport = { path = "../api-transport" }
+vw-api-usage = { path = "../api-usage" }
+vw-api-external-session = { path = "../api-external-session" }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+prost = "0.14"
+uuid = { version = "1.11", features = ["js"] }
+rusqlite = { version = "0.37.0", features = ["bundled", "hooks", "limits"] }
+rust_decimal = { version = "1", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+
+[dev-dependencies]
+app-session-claude = { path = "../app-session-claude" }
+tempfile = "3"

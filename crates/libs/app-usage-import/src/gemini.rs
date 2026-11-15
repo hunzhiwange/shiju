@@ -19,7 +19,7 @@ use super::store::{
     StoredUsageRecord, UsageSaveOutcome, UsageSourceIdentity, UsageStoreError,
     save_usage_record_in_transaction,
 };
-use crate::sessions::providers::gemini::{is_session_file, parse_session_document};
+use app_session_gemini::gemini::{is_session_file, parse_session_document};
 
 const MAX_BYTES: u64 = 128 * 1024 * 1024;
 const SNAPSHOT_VERSION: &str = "gemini-snapshot-v1";

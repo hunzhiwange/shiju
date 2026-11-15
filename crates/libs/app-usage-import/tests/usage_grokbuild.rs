@@ -2,7 +2,7 @@
 use std::{fs::{File, OpenOptions}, io::Write};
 use rusqlite::Connection;
 use serde_json::json;
-use vw_agent_apps::usage::{cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor}, grokbuild::{scan_grokbuild_file, collect_grokbuild_session_files}, store::{initialize_usage_store, StoredUsageRecord}};
+use {app_usage_store::cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor}, app_usage_import::grokbuild::{scan_grokbuild_file, collect_grokbuild_session_files}, app_usage_store::store::{initialize_usage_store, StoredUsageRecord}};
 use {
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,

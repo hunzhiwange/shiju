@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/app-usage-import",
   "crates/libs/app-usage-codex",
   "crates/libs/app-usage-scripts",
   "crates/libs/app-usage-subscriptions",

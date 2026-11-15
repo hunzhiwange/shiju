@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 use serde_json::{Value, json};
-use vw_agent_apps::usage::pi_children::project_files;
+use app_usage_import::pi_children::project_files;
 
 fn write(path: &Path, id: &str, entries: &[Value]) {
     fs::create_dir_all(path.parent().unwrap()).unwrap();

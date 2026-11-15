@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+app-usage-import = { path = "../libs/app-usage-import" }
 app-usage-codex = { path = "../libs/app-usage-codex" }
 app-usage-scripts = { path = "../libs/app-usage-scripts" }
 app-usage-coding = { path = "../libs/app-usage-coding" }
@@ -84,7 +85,6 @@ app-provider-validation = { path = "../libs/app-provider-validation" }
 app-provider-projection = { path = "../libs/app-provider-projection" }
 app-config-paths = { path = "../libs/app-config-paths" }
 app-icons = { path = "../libs/app-icons" }
-prost = "0.14"
 tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
 reqwest = { version = "0.13", default-features = false, features = ["form", "json", "rustls"] }
 serde = { version = "1", features = ["derive"] }

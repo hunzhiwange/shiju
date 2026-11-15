@@ -58,7 +58,7 @@ pub fn scan_mcode_database(
         .into_iter().any(|s| s.trim().is_empty() || s.contains('\0')) {
         return Err(invalid());
     }
-    let native = crate::sessions::providers::mcode::open_database(data_root)
+    let native = app_session_native::mcode::open_database(data_root)
         .map_err(|_| MCodeScanError::SourceUnavailable)?;
     let Some(mut native) = native else { return Ok(MCodeScanOutcome::default()); };
     let snapshot = native.transaction().map_err(source_error)?;

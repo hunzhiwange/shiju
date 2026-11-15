@@ -1146,8 +1146,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `skills/update_check_tests.rs` | 103 | 43 |
 | `skills/zip_install.rs` | 81 | 43 |
 | `skills/zip_install_tests.rs` | 45 | 43 |
-| `usage/agy.rs` | 248 | 62 |
-| `usage/agy_native.rs` | 189 | 62 |
+| `crates/libs/app-usage-import/src/agy.rs` | 248 | 62 |
+| `crates/libs/app-usage-import/src/agy_native.rs` | 189 | 62 |
 | `usage/balances/deepseek.rs` | 154 | 57 |
 | `usage/balances/deepseek_tests.rs` | 110 | 57 |
 | `usage/balances/mod.rs` | 6 | 57 |
@@ -1165,8 +1165,8 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `crates/libs/app-usage-core/src/binding_tests.rs` | 225 | 55 |
 | `usage/cache.rs` → `app-usage-store/src/cache.rs` | 120 | 56 |
 | `usage/cache_tests.rs` → `app-usage-subscriptions/src/cache_tests.rs`（订阅回放集成） | 149 | 59 |
-| `usage/claude.rs` | 96 | 62 |
-| `usage/claude_scan.rs` | 312 | 62 |
+| `crates/libs/app-usage-import/src/claude.rs` | 96 | 62 |
+| `crates/libs/app-usage-import/src/claude_scan.rs` | 312 | 62 |
 | `usage/codex_delta.rs` | 245 | 61 |
 | `usage/codex_lineage.rs` | 377 | 61 |
 | `usage/codex_rebuild.rs` | 148 | 61 |
@@ -1195,25 +1195,25 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `usage/dedup.rs` → `app-usage-store/src/dedup.rs` | 101 | 56 |
 | `crates/libs/app-usage-core/src/detect.rs` | 115 | 55 |
 | `crates/libs/app-usage-core/src/detect_tests.rs` | 117 | 55 |
-| `usage/dsh.rs` | 189 | 62 |
+| `crates/libs/app-usage-import/src/dsh.rs` | 189 | 62 |
 | `crates/libs/app-usage-core/src/exchange.rs` | 219 | 55 |
 | `usage/exchange_store.rs` → `app-usage-store/src/exchange_store.rs` | 128 | 56 |
-| `usage/gemini.rs` | 224 | 62 |
-| `usage/grokbuild.rs` | 199 | 62 |
+| `crates/libs/app-usage-import/src/gemini.rs` | 224 | 62 |
+| `crates/libs/app-usage-import/src/grokbuild.rs` | 199 | 62 |
 | `usage/groups.rs` → `app-usage-store/src/groups.rs` | 368 | 56 |
 | `usage/import_store.rs` → `app-usage-store/src/import_store.rs` | 46 | 56 |
-| `usage/kimi.rs` | 217 | 62 |
+| `crates/libs/app-usage-import/src/kimi.rs` | 217 | 62 |
 | `usage/limits.rs` → `app-usage-store/src/limits.rs` | 266 | 56 |
 | `usage/logs.rs` | 244 | 63 |
-| `usage/mcode.rs` | 172 | 62 |
+| `crates/libs/app-usage-import/src/mcode.rs` | 172 | 62 |
 | `usage/mod.rs` | 82 | 63 |
 | `crates/libs/app-usage-core/src/model_names.rs` | 239 | 55 |
 | `usage/models_selection.rs` | 156 | 63 |
 | `usage/models_sync.rs` | 163 | 63 |
-| `usage/omp.rs` | 74 | 62 |
-| `usage/opencode.rs` | 319 | 62 |
-| `usage/pi.rs` | 233 | 62 |
-| `usage/pi_children.rs` | 180 | 62 |
+| `crates/libs/app-usage-import/src/omp.rs` | 74 | 62 |
+| `crates/libs/app-usage-import/src/opencode.rs` | 319 | 62 |
+| `crates/libs/app-usage-import/src/pi.rs` | 233 | 62 |
+| `crates/libs/app-usage-import/src/pi_children.rs` | 180 | 62 |
 | `crates/libs/app-usage-core/src/presentation/balance.rs` | 89 | 55 |
 | `crates/libs/app-usage-core/src/presentation/balance_tests.rs` | 154 | 55 |
 | `crates/libs/app-usage-core/src/presentation/credits.rs` | 1 | 55 |
@@ -2844,3 +2844,14 @@ app-usage-scripts 唯一拥有原 usage/scripts 全部11个文件（mod.rs 改�
 - workspace 和门面注册直接路径依赖；新增包只声明实际使用的九项依赖，保留 chrono std、serde_json arbitrary_precision 及 rusqlite bundled/hooks/limits。原包依赖仍由其它模块使用，保留。macOS FileStamp cfg 保持原样，无关联静态资源。
 - 静态证据：逐文件与 HEAD 差异仅有依赖导入及统计修订函数路径；Python 3.13 标准库 tomllib 审阅65份递归清单，路径存在、无环、无旧门面依赖；七个测试逐字对照仅导入变化。反向依赖检索无匹配，git diff --check 通过。RustCodeGraph status 可读，explore 无输出后取消，未更新旧索引，以源码核实调用者。
 - 未运行 Cargo、单元及实机测试，统一验收待授权：新增包及 snapshot_scan 等直接调用者目标编译、迁移测试、游标/去重/继承/事务回滚与三平台行为、清单及锁文件一致性。Cargo.lock 未修改；静态迁移完成不表示编译或行为通过。
+
+
+### 任务62：其它应用用量导入迁移结果
+
+app-usage-import 唯一拥有 agy、agy_native、claude、claude_scan、dsh、gemini、grokbuild、kimi、mcode、omp、opencode、pi、pi_children 共13个实现文件。usage/mod.rs 重导出12个公开模块，agy_native 保持包内；lib.rs 既有 usage 入口无需修改。八个独立集成测试 usage_{claude_scan,dsh,gemini,grokbuild,kimi,mcode,pi,pi_children}.rs 随实现迁移，仅调整导入，未新增测试。
+
+会话读取直接依赖 app-session-core/native/gemini/sqlite，账本与解析类型依赖 app-usage-store/core；Claude 测试另以 dev-dependency 引用 app-session-claude。私有辅助符号保持原可见性；函数体除所有者路径外逐文件保持一致。原门面 prost 无剩余调用，移除直接依赖，其它依赖仍有调用而保留。实现无平台 cfg 或资源 include，测试原有 unix cfg 保持。
+
+任务61记录中的 snapshot_scan 编排接收编号更正为任务63，与该任务文件范围一致；logs、scan_jobs、scan_schedule、snapshot_scan、models_selection/models_sync 留原位由任务63接收，本任务无未闭合叶子符号。网关 external_sessions/usage_scan 及 snapshot_scan 继续使用原门面路径。
+
+静态审阅：差异无空白错误；workspace 和门面路径已注册；新包无 vw-agent-apps 回依赖；清单路径和递归依赖闭包经 Python 标准库审阅。未运行 Cargo、单元及实机测试，统一验收待授权：新包和直接调用者目标编译、八个迁移测试、三平台行为及清单/锁文件一致性。Cargo.lock 未修改。

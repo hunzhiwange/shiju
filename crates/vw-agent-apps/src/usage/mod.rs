@@ -4,8 +4,8 @@
 pub mod balances;
 pub use app_usage_core::binding;
 pub use app_usage_store::cache;
-pub mod claude;
-pub mod claude_scan;
+pub use app_usage_import::claude;
+pub use app_usage_import::claude_scan;
 pub use app_usage_codex::codex_delta;
 pub use app_usage_codex::codex_lineage;
 pub use app_usage_codex::codex_rebuild;
@@ -15,8 +15,8 @@ pub use app_usage_store::cursors;
 #[cfg(not(target_arch = "wasm32"))]
 pub use app_usage_coding as coding;
 pub use app_usage_core::detect;
-pub mod gemini;
-pub mod grokbuild;
+pub use app_usage_import::gemini;
+pub use app_usage_import::grokbuild;
 pub use app_usage_store::limits;
 pub mod logs;
 pub use app_usage_core::exchange;
@@ -25,24 +25,24 @@ pub use app_usage_core::tokens;
 pub use app_usage_core::model_names;
 pub use app_usage_core::presentation;
 pub use app_usage_core::ranges;
-pub mod pi;
-pub mod pi_children;
+pub use app_usage_import::pi;
+pub use app_usage_import::pi_children;
 pub use app_usage_scripts as scripts;
 pub use app_usage_store::store;
 pub use app_usage_store::source_settings;
 #[cfg(target_os = "macos")]
 pub use app_usage_subscriptions as subscriptions;
 
-pub mod opencode;
+pub use app_usage_import::opencode;
 
-pub mod mcode;
+pub use app_usage_import::mcode;
 
-pub mod agy;
-mod agy_native;
+pub use app_usage_import::agy;
 
-pub mod kimi;
 
-pub mod dsh;
+pub use app_usage_import::kimi;
+
+pub use app_usage_import::dsh;
 
 pub use app_usage_store::retention;
 
@@ -52,7 +52,7 @@ pub use app_usage_store::groups;
 
 pub use app_usage_store::series;
 
-pub mod omp;
+pub use app_usage_import::omp;
 
 pub use app_usage_store::pricing;
 

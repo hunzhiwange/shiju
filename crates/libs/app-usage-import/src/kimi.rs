@@ -9,7 +9,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_usage::*,
 };
-use crate::sessions::providers::kimi_requests::{RequestIndex, RequestInfo, timestamp_ms};
+use app_session_native::kimi_requests::{RequestIndex, RequestInfo, timestamp_ms};
 use super::{
     cost::{ModelPricing, calculate},
     cursors::{UsageCursor, UsageCursorError, UsageCursorKey},

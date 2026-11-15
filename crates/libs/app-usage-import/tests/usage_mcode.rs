@@ -1,10 +1,10 @@
 //! Fixtures authored for deferred validation; these tests have not been run.
 use rusqlite::Connection;
-use vw_agent_apps::usage::{
-    cursors::{UsageCursorKey, initialize_usage_cursors},
-    mcode::scan_mcode_database,
-    source_settings::initialize_source_settings,
-    store::{StoredUsageRecord, initialize_usage_store},
+use {
+    app_usage_store::cursors::{UsageCursorKey, initialize_usage_cursors},
+    app_usage_import::mcode::scan_mcode_database,
+    app_usage_store::source_settings::initialize_source_settings,
+    app_usage_store::store::{StoredUsageRecord, initialize_usage_store},
 };
 use {
     vw_api_transport::id::ProjectId,

@@ -118,7 +118,7 @@ pub(super) fn generations_for_transcript(
         .ok_or("Missing Antigravity root")?;
     let id = session.file_name().ok_or("Missing session id")?;
     let path = root.join("conversations").join(id).with_extension("db");
-    crate::sessions::providers::agy::checked_path(&path)?;
+    app_session_native::agy::checked_path(&path)?;
     match std::fs::metadata(&path) {
         Ok(meta) if meta.is_file() => {}
         Ok(_) => return Err("Invalid Antigravity database".into()),

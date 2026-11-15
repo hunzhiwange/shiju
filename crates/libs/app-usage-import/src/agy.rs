@@ -121,7 +121,7 @@ pub fn scan_agy_transcript(
     if !settings.settings.scan_enabled {
         return Err(UsageCursorError::ScanDisabled.into());
     }
-    let rows = crate::sessions::providers::agy::records(transcript)
+    let rows = app_session_native::agy::records(transcript)
         .map_err(|_| AgyScanError::SourceUnavailable)?;
     let steps: Vec<_> = rows
         .iter()
@@ -165,7 +165,7 @@ pub fn scan_agy_transcript(
         {
             continue;
         }
-        let Some(timestamp) = crate::sessions::providers::agy::timestamp(row) else {
+        let Some(timestamp) = app_session_native::agy::timestamp(row) else {
             outcome.deferred += 1;
             continue;
         };

@@ -3,13 +3,12 @@ use std::io::Write;
 use rusqlite::Connection;
 use serde_json::{Value, json};
 use tempfile::TempDir;
-use vw_agent_apps::{
-    sessions::{providers::claude::scan_sessions, source::SourceRegistry},
-    usage::{
-        claude_scan::scan_session,
-        cursors::initialize_usage_cursors,
-        store::{StoredUsageRecord, initialize_usage_store},
-    },
+use app_session_claude::claude::scan_sessions;
+use app_session_core::source::SourceRegistry;
+use {
+        app_usage_import::claude_scan::scan_session,
+        app_usage_store::cursors::initialize_usage_cursors,
+        app_usage_store::store::{StoredUsageRecord, initialize_usage_store},
 };
 use {
     vw_api_transport::ProjectId,
@@ -59,7 +58,7 @@ impl Fixture {
         initialize_usage_cursors(&connection).unwrap();
         Self { _root: root, file, connection, registry, identity: meta.identity }
     }
-    fn scan(&mut self) -> vw_agent_apps::usage::cursors::UsageScanOutcome {
+    fn scan(&mut self) -> app_usage_store::cursors::UsageScanOutcome {
         scan_session(&mut self.connection, &self.registry, &self.identity).unwrap()
     }
     fn append(&self, rows: &str) {

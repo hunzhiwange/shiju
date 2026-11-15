@@ -2,10 +2,10 @@
 use std::{fs::{File, OpenOptions}, io::Write};
 use rusqlite::Connection;
 use serde_json::json;
-use vw_agent_apps::usage::{
-    cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor},
-    dsh::scan_dsh_file,
-    store::{StoredUsageRecord, initialize_usage_store},
+use {
+    app_usage_store::cursors::{UsageCursorKey, initialize_usage_cursors, load_usage_cursor},
+    app_usage_import::dsh::scan_dsh_file,
+    app_usage_store::store::{StoredUsageRecord, initialize_usage_store},
 };
 use {
     vw_api_transport::id::ProjectId,

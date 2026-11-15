@@ -21,7 +21,7 @@ use super::cursors::{
     UsageCursorError, UsageCursorKey, UsageScanOutcome, scan_usage_file_with_finish,
 };
 use super::store::{StoredUsageRecord, UsageSourceIdentity};
-use crate::sessions::source::SourceRegistry;
+use app_session_core::source::SourceRegistry;
 
 pub const MIN_PLAUSIBLE_LATENCY_MS: i64 = 100;
 const MAX_PLAUSIBLE_LATENCY_MS: i64 = 60 * 60 * 1000;

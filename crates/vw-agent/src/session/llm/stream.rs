@@ -37,7 +37,7 @@
 //! }).await?;
 //! ```
 
-use crate::app::agent::auth;
+use agent_auth as auth;
 use crate::app::agent::config;
 use crate::app::agent::installation;
 use crate::app::agent::project::instance;

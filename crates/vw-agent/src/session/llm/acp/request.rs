@@ -10,7 +10,7 @@ use acp_types::{AcpJsonRpcMessage, PromptRequest, SessionStrategy};
 use acp_lifecycle::apply_lifecycle_snapshot_to_record;
 use acp_storage::write_session_record;
 
-use crate::app::agent::auth;
+use agent_auth as auth;
 use crate::app::agent::config;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::{message, ui_types};

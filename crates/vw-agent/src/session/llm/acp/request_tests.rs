@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use serde_json::json;
 use tokio::sync::watch;
 
-use crate::app::agent::auth;
+use agent_auth as auth;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::{llm::StreamEvent, message};
 

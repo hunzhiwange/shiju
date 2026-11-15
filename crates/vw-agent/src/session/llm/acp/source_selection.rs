@@ -43,7 +43,7 @@ pub(crate) async fn select(
                 .await
                 .map_err(|e| e.to_string())?
                 .ok_or("Provider is unavailable")?;
-            let auth = crate::auth::get(&resolved.provider_id);
+            let auth = agent_auth::get(&resolved.provider_id);
             super::request::validate_session_model(&resolved, &provider, auth.as_ref())
                 .map_err(|e| e.to_string())?;
             let (_, command) = super::config::lookup_acp_command(

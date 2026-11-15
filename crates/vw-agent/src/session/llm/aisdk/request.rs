@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::auth;
+use agent_auth as auth;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::env;
 #[cfg(not(target_arch = "wasm32"))]

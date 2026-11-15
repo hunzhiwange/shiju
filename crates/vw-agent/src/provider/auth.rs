@@ -17,7 +17,7 @@
 //! 3. 用户完成授权后，通过 `callback()` 处理回调
 //! 4. 或者直接通过 `api()` 设置 API 密钥
 
-use crate::app::agent::auth;
+use agent_auth as auth;
 use serde::{Deserialize, Serialize};
 
 /// 认证方法枚举

@@ -131,6 +131,7 @@ members = [
   "crates/libs/api-app-operations",
   "crates/libs/message-types",
   "crates/libs/auth-file-store",
+  "crates/libs/agent-auth",
   "crates/libs/api-workflow",
   "crates/libs/api-knowledge",
   "crates/libs/auth-types",

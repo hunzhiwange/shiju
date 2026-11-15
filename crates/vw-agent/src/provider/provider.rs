@@ -26,7 +26,7 @@
 //! ```
 
 use super::model_catalog;
-use crate::app::agent::auth;
+use agent_auth as auth;
 use crate::app::agent::config;
 use crate::app::agent::env;
 use crate::app::agent::project::instance;

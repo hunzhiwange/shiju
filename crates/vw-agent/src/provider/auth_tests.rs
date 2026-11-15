@@ -102,9 +102,9 @@ async fn api_stores_and_replaces_key_in_auth_store() {
     let provider_id = format!("provider-auth-test-{}", uuid::Uuid::new_v4());
     api(&provider_id, "first-placeholder-key").await.expect("api key should store");
 
-    let stored = crate::app::agent::auth::get(&provider_id).expect("auth should be stored");
+    let stored = agent_auth::get(&provider_id).expect("auth should be stored");
     match stored {
-        crate::app::agent::auth::Info::Api(info) => assert_eq!(info.key, "first-placeholder-key"),
+        agent_auth::Info::Api(info) => assert_eq!(info.key, "first-placeholder-key"),
         other => panic!("unexpected auth info: {other:?}"),
     }
 
@@ -112,15 +112,15 @@ async fn api_stores_and_replaces_key_in_auth_store() {
         .await
         .expect("replacement api key should store");
 
-    let stored = crate::app::agent::auth::get(&provider_id).expect("auth should be stored");
+    let stored = agent_auth::get(&provider_id).expect("auth should be stored");
     match stored {
-        crate::app::agent::auth::Info::Api(info) => {
+        agent_auth::Info::Api(info) => {
             assert_eq!(info.key, "replacement-placeholder-key");
         }
         other => panic!("unexpected auth info: {other:?}"),
     }
 
-    crate::app::agent::auth::remove(&provider_id).expect("auth cleanup should succeed");
+    agent_auth::remove(&provider_id).expect("auth cleanup should succeed");
 }
 
 #[test]

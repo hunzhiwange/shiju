@@ -169,7 +169,7 @@ pub(crate) mod app;
 
 // 内部模块（仅在当前 crate 内可见）
 pub mod approval;
-pub mod auth;
+pub use agent_auth as auth;
 
 // 事件总线
 pub mod bus;

@@ -48,7 +48,7 @@ fn auth_store_facade_sets_gets_lists_and_removes_unique_provider() {
 
 #[test]
 fn auth_service_from_config_uses_empty_state_and_plaintext_secrets() {
-    let config = crate::app::agent::config::Config::default();
+    let config = config_aggregate::Config::default();
     let service = AuthService::from_config(&config);
 
     assert!(service.state_dir.as_os_str().is_empty());

@@ -11,7 +11,7 @@ mod openai_oauth_tests;
 
 pub use auth_types::{ApiInfo, Info, OAUTH_DUMMY_KEY, OauthInfo, WellKnownInfo};
 
-use crate::app::agent::global;
+use agent_paths as global;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -111,7 +111,7 @@ impl AuthService {
     /// # 返回值
     ///
     /// 返回默认认证服务实例。
-    pub fn from_config(_config: &crate::app::agent::config::Config) -> Self {
+    pub fn from_config(_config: &config_aggregate::Config) -> Self {
         Self { state_dir: std::path::PathBuf::new(), secrets_encrypt: false }
     }
 

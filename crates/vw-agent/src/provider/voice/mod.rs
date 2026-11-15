@@ -84,7 +84,7 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
         .await
         .map_err(|_| TranscriptionError::Service(VoiceErrorCode::ProviderUnavailable))?
         .ok_or_else(|| TranscriptionError::Service(VoiceErrorCode::ProviderAuth))?;
-    let auth = crate::auth::get(id);
+    let auth = agent_auth::get(id);
     let key = provider
         .key
         .as_deref()
@@ -98,7 +98,7 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
                 .find(|key| provider_model_discovery::is_real_bearer(key))
         })
         .or_else(|| match auth {
-            Some(crate::auth::Info::Api(api)) => Some(api.key),
+            Some(agent_auth::Info::Api(api)) => Some(api.key),
             _ => None,
         })
         .filter(|key| provider_model_discovery::is_real_bearer(key))

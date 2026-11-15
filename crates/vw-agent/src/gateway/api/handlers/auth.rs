@@ -8,7 +8,7 @@ use axum::Router;
 use axum::extract::Path;
 use axum::routing::put;
 
-use crate::app::agent::auth;
+use agent_auth as auth;
 use crate::app::agent::gateway::ApiError;
 
 /// 构建认证管理路由。

@@ -98,7 +98,7 @@ async fn response_json(response: axum::response::Response) -> serde_json::Value 
 }
 
 fn set_document_status_for_test(document_id: &str, status: &str) {
-    let conn = GlobalDatabase::for_home(&crate::global::paths().home)
+    let conn = GlobalDatabase::for_home(&agent_paths::paths().home)
         .expect("global knowledge database")
         .connect()
         .expect("open knowledge db");
@@ -119,7 +119,7 @@ fn router_builds_with_app_state() {
 fn knowledge_db_path_uses_global_database_path() {
     ensure_test_home();
 
-    let expected = GlobalDatabase::for_home(&crate::global::paths().home)
+    let expected = GlobalDatabase::for_home(&agent_paths::paths().home)
         .expect("global database")
         .path()
         .to_path_buf();
@@ -133,7 +133,7 @@ async fn knowledge_gateway_writes_shared_database_without_touching_legacy_file()
     let _guard = KNOWLEDGE_TEST_LOCK.lock().await;
     ensure_test_home();
     let suffix = uuid::Uuid::new_v4().to_string();
-    let paths = crate::global::paths();
+    let paths = agent_paths::paths();
     let database = GlobalDatabase::for_home(&paths.home).expect("global database");
     let legacy_path = config_runtime_paths::home_config_dir(&paths.home)
         .join("knowledge")
@@ -221,7 +221,7 @@ async fn knowledge_embedding_status_reports_resolved_config() {
 #[tokio::test]
 async fn knowledge_embedding_status_reports_unavailable_vector_provider() {
     let Json(status) =
-        knowledge_embedding_status_from_config(crate::app::agent::config::Config::default())
+        knowledge_embedding_status_from_config(agent_config::runtime::Config::default())
             .await
             .expect("embedding status should succeed");
 
@@ -334,7 +334,7 @@ async fn knowledge_embedding_test_sanitizes_provider_error() {
 
 #[tokio::test]
 async fn knowledge_embedding_test_rejects_invalid_overrides() {
-    let config = crate::app::agent::config::Config::default();
+    let config = agent_config::runtime::Config::default();
     let blank_provider = knowledge_embedding_test_with_config(
         config.clone(),
         Json(KnowledgeEmbeddingTestRequest {
@@ -379,7 +379,7 @@ async fn knowledge_embedding_test_rejects_invalid_overrides() {
 
 #[tokio::test]
 async fn knowledge_embedding_test_reports_none_and_unsupported_providers() {
-    let config = crate::app::agent::config::Config::default();
+    let config = agent_config::runtime::Config::default();
     let Json(none) = knowledge_embedding_test_with_config(
         config.clone(),
         Json(KnowledgeEmbeddingTestRequest {
@@ -976,28 +976,28 @@ async fn knowledge_document_update_and_batch_routes_apply_store_changes() {
 #[tokio::test]
 async fn knowledge_store_helper_uses_state_config() {
     let (event_tx, _) = tokio::sync::broadcast::channel(4);
-    let state = AppState {
+    let state: AppState<(), (), ()> = AppState {
         config: std::sync::Arc::new(parking_lot::Mutex::new(
-            crate::app::agent::config::Config::default(),
+            agent_config::runtime::Config::default(),
         )),
         provider: std::sync::Arc::new(StaticProvider),
         model: "test".to_string(),
         temperature: 0.0,
-        mem: std::sync::Arc::new(crate::app::agent::memory::NoneMemory::new()),
+        mem: std::sync::Arc::new(agent_memory::NoneMemory::new()),
         auto_save: false,
-        pairing: std::sync::Arc::new(crate::app::agent::security::PairingGuard::new(false, &[])),
+        pairing: std::sync::Arc::new(gateway_pairing::pairing::PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
-        rate_limiter: std::sync::Arc::new(crate::app::agent::gateway::GatewayRateLimiter::new(
+        rate_limiter: std::sync::Arc::new(gateway_types::GatewayRateLimiter::new(
             10, 10, 10,
         )),
-        idempotency_store: std::sync::Arc::new(crate::app::agent::gateway::IdempotencyStore::new(
+        idempotency_store: std::sync::Arc::new(gateway_types::IdempotencyStore::new(
             std::time::Duration::from_secs(60),
             10,
         )),
-        observer: std::sync::Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: std::sync::Arc::new(observer_backends::noop::NoopObserver),
         tools_registry: std::sync::Arc::new(Vec::new()),
         tools_registry_exec: std::sync::Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -1010,7 +1010,7 @@ async fn knowledge_store_helper_uses_state_config() {
     assert!(store.status().full_text);
     assert_eq!(
         knowledge_db_path(),
-        GlobalDatabase::for_home(&crate::global::paths().home)
+        GlobalDatabase::for_home(&agent_paths::paths().home)
             .expect("global database")
             .path()
             .to_path_buf()
@@ -1033,13 +1033,13 @@ impl model_types::Provider for StaticProvider {
     }
 }
 
-fn embedding_config(base_url: &str, api_key: Option<&str>) -> crate::app::agent::config::Config {
-    let mut config = crate::app::agent::config::Config::default();
+fn embedding_config(base_url: &str, api_key: Option<&str>) -> agent_config::runtime::Config {
+    let mut config = agent_config::runtime::Config::default();
     config.api_key = api_key.map(str::to_string);
     config.memory.embedding_provider = "none".to_string();
     config.memory.embedding_model = "hint:knowledge".to_string();
     config.memory.embedding_dimensions = 1536;
-    config.embedding_routes = vec![crate::app::agent::config::EmbeddingRouteConfig {
+    config.embedding_routes = vec![agent_config::runtime::EmbeddingRouteConfig {
         hint: "knowledge".to_string(),
         provider: format!("custom:{base_url}"),
         model: "mock-embedding".to_string(),

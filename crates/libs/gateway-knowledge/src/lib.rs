@@ -15,3 +15,8 @@ mod knowledge_api;
 
 #[cfg(test)]
 mod test_support;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod handlers;
+#[cfg(not(target_arch = "wasm32"))]
+pub use handlers::{router, knowledge_store, knowledge_db_path};

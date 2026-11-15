@@ -31,5 +31,8 @@ gateway-project = { path = "../gateway-project", version = "0.6.0" }
 gateway-config = { path = "../gateway-config", version = "0.6.0" }
 gateway-model-provider = { path = "../gateway-model-provider", version = "0.6.0" }
 
+url = "2"
+
 [dev-dependencies]
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

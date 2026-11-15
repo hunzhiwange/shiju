@@ -33,3 +33,7 @@ fn localized_toast(kind: ToastKind, text: &str, args: Vec<String>) -> Task<Effec
 fn parse_comma_or_newline_list(value: &str) -> Vec<String> {
     value.split([',', '\n']).map(str::trim).filter(|s| !s.is_empty()).map(str::to_string).collect()
 }
+
+pub mod wecom_delivery;
+#[cfg(test)]
+mod wecom_delivery_tests;

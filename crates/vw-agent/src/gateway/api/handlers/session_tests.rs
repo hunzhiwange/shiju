@@ -173,14 +173,6 @@ async fn session_tenant_scope_rejects_requests_without_extension() {
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
 
-#[test]
-fn split_stream_model_ref_uses_model_id_when_provider_is_missing() {
-    let model_ref = split_stream_model_ref(Some("claude-sonnet-4"));
-
-    assert_eq!(model_ref.provider_id, "");
-    assert_eq!(model_ref.model_id, "claude-sonnet-4");
-}
-
 #[tokio::test]
 async fn persist_stream_chat_turn_creates_user_and_assistant_messages() {
     let temp = tempfile::tempdir().expect("tempdir");

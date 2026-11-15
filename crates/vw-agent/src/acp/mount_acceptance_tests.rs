@@ -37,6 +37,7 @@ fn acp_server_mount_acceptance_tenant_and_same_directory_session_isolation() {
         .args(["--exact", "acp::mount_acceptance_tests::isolation_worker", "--nocapture"])
         .env("ACP_ACCEPTANCE_ISOLATION_ROOT", root.path())
         .env("VW_MODEL_RECOVERY_TEST_ROOT", root.path().join("home"))
+        .env("VIBEWINDOW_TEST_ROOT", root.path().join("home"))
         .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", root.path().join("home"))
         .output()
         .unwrap();

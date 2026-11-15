@@ -458,6 +458,7 @@ async fn run_process(root: &Path, phase: &str) {
             .env("TMPDIR", root)
             .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("VW_MODEL_RECOVERY_TEST_ROOT", root)
+            .env("VIBEWINDOW_TEST_ROOT", root)
             // The test session store otherwise creates a different SQLite file per PID.
             .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", root)
             .env("VIBEWINDOW_CONFIG_DIR", root.join("config"))

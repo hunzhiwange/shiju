@@ -21,6 +21,7 @@ async fn cc_mcp_t50_acp_http_reads_only_explicitly_granted_scoped_sessions() {
         let output = std::process::Command::new(std::env::current_exe().unwrap())
             .args(["--exact","gateway::api::handlers::mcp_management_tools_tests::cc_mcp_t50_acp_http_reads_only_explicitly_granted_scoped_sessions","--nocapture"])
             .env("VW_TASK50_READ_ROOT",fixture.path()).env("VW_MODEL_RECOVERY_TEST_ROOT",fixture.path().join("home"))
+            .env("VIBEWINDOW_TEST_ROOT",fixture.path().join("home"))
             .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT",fixture.path().join("home")).output().unwrap();
         assert!(
             output.status.success(),

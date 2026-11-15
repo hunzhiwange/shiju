@@ -22,6 +22,7 @@ async fn cc_mcp_t29_read_mounts_checks_exact_identity_and_exposes_only_committed
             .args(["--exact", "acp::catalog_mounts_tests::cc_mcp_t29_read_mounts_checks_exact_identity_and_exposes_only_committed_references", "--nocapture"])
             .env("VW_T29_READ_ROOT", fixture.path())
             .env("VW_MODEL_RECOVERY_TEST_ROOT", fixture.path().join("home"))
+            .env("VIBEWINDOW_TEST_ROOT", fixture.path().join("home"))
             .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", fixture.path().join("home"))
             .output().unwrap();
         assert!(

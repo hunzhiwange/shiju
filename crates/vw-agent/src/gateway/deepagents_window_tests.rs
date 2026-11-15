@@ -23,13 +23,14 @@ async fn acp_onboarding_deepagents_desktop_gateway_fixture() {
         }
     }
     let _restore = Restore(
-        ["VW_MODEL_RECOVERY_TEST_ROOT", "VW_RECOVERY_WINDOW_HTTP"]
+        ["VW_MODEL_RECOVERY_TEST_ROOT", "VIBEWINDOW_TEST_ROOT", "VW_RECOVERY_WINDOW_HTTP"]
             .into_iter()
             .map(|key| (key, std::env::var_os(key)))
             .collect(),
     );
     unsafe {
         std::env::set_var("VW_MODEL_RECOVERY_TEST_ROOT", &root);
+        std::env::set_var("VIBEWINDOW_TEST_ROOT", &root);
         std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
     }
     let workspace = root.join("workspace");

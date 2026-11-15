@@ -194,6 +194,7 @@ fn worker(root: &std::path::Path, phase: &str) {
         .env("ACP_MOUNT_RECOVERY_ROOT", root)
         .env("ACP_MOUNT_RECOVERY_PHASE", phase)
         .env("VW_MODEL_RECOVERY_TEST_ROOT", root.join("home"))
+        .env("VIBEWINDOW_TEST_ROOT", root.join("home"))
         .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", root.join("home"))
         .output()
         .unwrap();

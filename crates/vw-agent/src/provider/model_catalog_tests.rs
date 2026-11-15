@@ -39,6 +39,7 @@ async fn run_isolated(test: &str) -> bool {
             .env("HOME", root.path())
             .env("TMPDIR", root.path())
             .env("VW_MODEL_RECOVERY_TEST_ROOT", root.path())
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
             .env("VIBEWINDOW_CONFIG_DIR", root.path().join("config"))
             .env("VIBEWINDOW_DISABLE_MODELS_FETCH", "1")
             .env("SHIJU_CATALOG_PROJECTION_RUNTIME_KEY", RUNTIME_KEY)

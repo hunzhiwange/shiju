@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+agent-paths = { path = "../libs/agent-paths", version = "0.6.0" }
 agent-async = { path = "../libs/agent-async", version = "0.6.0" }
 observer-prometheus = { path = "../libs/observer-prometheus", version = "0.6.0" }
 observer-backends = { path = "../libs/observer-backends", version = "0.6.0" }

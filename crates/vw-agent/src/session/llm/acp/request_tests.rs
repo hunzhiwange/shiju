@@ -93,6 +93,7 @@ async fn acp_local_blank_anchor_resumes_existing_session() {
             .args(["--exact", &name, "--nocapture"])
             .env("SHIJU_ACP_LOCAL_RECOVERY_FIXTURE", root.path())
             .env("VW_MODEL_RECOVERY_TEST_ROOT", root.path())
+            .env("VIBEWINDOW_TEST_ROOT", root.path())
             .env("VIBEWINDOW_CONFIG_DIR", root.path())
             .env("HOME", root.path())
             .status()

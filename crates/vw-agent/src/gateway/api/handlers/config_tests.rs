@@ -1101,6 +1101,7 @@ async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _root = EnvGuard::set("VW_MODEL_RECOVERY_TEST_ROOT", home.path().as_os_str());
+    let _paths_root = EnvGuard::set("VIBEWINDOW_TEST_ROOT", home.path().as_os_str());
     let _config_dir =
         EnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path().join("config").as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");

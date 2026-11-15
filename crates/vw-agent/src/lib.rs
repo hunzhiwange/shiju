@@ -216,8 +216,8 @@ pub mod gateway;
 // 目标引擎
 pub use goal_engine as goals;
 
-// 全局状态
-pub mod global;
+// 全局路径（与独立库共用进程级缓存）
+pub use agent_paths as global;
 
 // 全局 SQLite 连接基础（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]

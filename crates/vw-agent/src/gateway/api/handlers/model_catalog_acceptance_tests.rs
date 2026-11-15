@@ -61,6 +61,7 @@ async fn isolated(test: &str) -> bool {
             .env("TMPDIR", &home)
             .env("VIBEWINDOW_CONFIG_DIR", home.join("config"))
             .env("VW_MODEL_RECOVERY_TEST_ROOT", &home)
+            .env("VIBEWINDOW_TEST_ROOT", &home)
             .env("VW_RECOVERY_WINDOW_HTTP", "1")
             .env("VIBEWINDOW_DISABLE_MODELS_FETCH", "1")
             .env("SHIJU_AGENT_APPS_ACCESS_FILE", home.join("access.json"))

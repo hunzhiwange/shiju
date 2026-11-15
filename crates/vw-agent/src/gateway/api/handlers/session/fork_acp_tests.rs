@@ -12,6 +12,7 @@ async fn process(root: &FsPath, phase: &str) {
         .env("HOME", root)
         .env("TMPDIR", root)
         .env("VW_MODEL_RECOVERY_TEST_ROOT", root)
+        .env("VIBEWINDOW_TEST_ROOT", root)
         .env("VW_RECOVERY_WINDOW_HTTP", "1")
         .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", root)
         .env("VIBEWINDOW_CONFIG_DIR", root.join("config"))

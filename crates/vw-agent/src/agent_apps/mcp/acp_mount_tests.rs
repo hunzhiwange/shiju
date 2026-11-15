@@ -62,6 +62,7 @@ async fn cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server()
             .args(["--exact", "agent_apps::mcp::acp_mount_tests::cc_mcp_t29_explicit_catalog_selection_mounts_only_the_selected_server", "--nocapture"])
             .env("VW_T29_FIXTURE", fixture.path())
             .env("VW_MODEL_RECOVERY_TEST_ROOT", fixture.path().join("home"))
+            .env("VIBEWINDOW_TEST_ROOT", fixture.path().join("home"))
             .env("VW_ACP_MOUNT_RECOVERY_DB_ROOT", fixture.path().join("home"))
             .output()
             .unwrap();

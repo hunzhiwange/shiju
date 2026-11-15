@@ -324,6 +324,7 @@ pub(crate) fn run() {
             "--test-threads=1",
         ])
         .env("VW_MODEL_RECOVERY_TEST_ROOT", &root)
+        .env("VIBEWINDOW_TEST_ROOT", &root)
         .env("VW_RECOVERY_WINDOW_HTTP", "1")
         .env("VIBEWINDOW_CONFIG_DIR", root.join("config"))
         .env_remove("VIBEWINDOW_WORKSPACE")

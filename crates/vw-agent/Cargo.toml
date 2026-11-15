@@ -12,6 +12,8 @@ autotests = false
 doctest = false
 
 [dependencies]
+workflow-core = { path = "../libs/workflow-core", version = "0.6.0" }
+workflow-template-contract = { path = "../libs/workflow-template-contract", version = "0.6.0" }
 task-scheduler-core = { path = "../libs/task-scheduler-core", version = "0.6.0" }
 device-sync = { path = "../libs/device-sync", version = "0.6.0" }
 gateway-agent-app = { path = "../libs/gateway-agent-app", version = "0.6.0" }

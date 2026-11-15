@@ -29,7 +29,7 @@ fn record(yaml: &str) -> WorkflowRecord {
     }
 }
 fn yaml() -> String {
-    include_str!("../../../../../vw-agent/resources/workflows/cloud_video_edit.yaml").into()
+    include_str!("../../../../../libs/workflow-template-contract/resources/cloud_video_edit.yaml").into()
 }
 
 #[test]

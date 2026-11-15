@@ -3,7 +3,7 @@
 // 数据库 fixture 为每次测试创建独立模式，重点确认相同记录不会跨租户可见。
 use super::*;
 
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::test_support::PostgresTestDatabase;
 
 fn body(name: &str, description: &str, workflow_yaml: &str) -> WorkflowRecordUpsertBody {
     WorkflowRecordUpsertBody {
@@ -16,7 +16,7 @@ fn body(name: &str, description: &str, workflow_yaml: &str) -> WorkflowRecordUps
 
 #[test]
 fn postgres_workflow_store_crud_preserves_tenant_scope_and_creation_time() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let store = PostgresWorkflowStore::new(fixture.database().clone()).expect("workflow store");
     let tenant_a = TenantScope::new("platform-a", "company-a").expect("tenant A");
     let tenant_b = TenantScope::new("platform-a", "company-b").expect("tenant B");

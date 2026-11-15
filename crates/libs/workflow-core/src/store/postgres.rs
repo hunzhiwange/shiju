@@ -6,7 +6,7 @@ use anyhow::{Context, Result, bail};
 use vw_api_transport::TenantScope;
 use vw_api_workflow::{WorkflowRecord, WorkflowRecordSummary, WorkflowRecordUpsertBody};
 
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 
 const WORKFLOW_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS workflow_workflows (

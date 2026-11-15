@@ -4,8 +4,8 @@
 use super::*;
 use tempfile::TempDir;
 
-use crate::global_database::config::DatabaseProvider;
-use crate::global_database::test_support::PostgresTestDatabase;
+use agent_database::config::DatabaseProvider;
+use agent_database::test_support::PostgresTestDatabase;
 
 #[test]
 fn workflow_postgres_provider_is_wired() {
@@ -35,7 +35,7 @@ async fn workflow_workflows_are_isolated_by_tenant() {
     let (_home, database) = database();
     assert_workflow_workflows_are_isolated_by_tenant(database).await;
 
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     assert_workflow_workflows_are_isolated_by_tenant(fixture.database().clone()).await;
     fixture.cleanup().expect("clean PostgreSQL test database");
 }
@@ -215,7 +215,7 @@ fn workflow_store_rejects_partially_scoped_table_missing_company_id() {
 
 #[test]
 fn workflow_postgres_store_rejects_unscoped_new_table_without_mutation() {
-    let fixture = crate::global_database::test_support::postgres_test_database_unit!();
+    let fixture = agent_database::test_support::postgres_test_database_unit!();
     let database = fixture.database().clone();
     let mut connection = database.connect_postgres().expect("PostgreSQL connection");
     connection

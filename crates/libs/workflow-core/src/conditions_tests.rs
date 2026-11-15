@@ -2,7 +2,7 @@
 //! 同时覆盖 Dify 兼容字段、旧式标识和无匹配默认值，确保迁移输入稳定运行。
 
 use super::{conditions_match, select_case_handle};
-use crate::workflow::variables::VariablePool;
+use crate::variables::VariablePool;
 use serde_json::{Value, json};
 
 #[test]

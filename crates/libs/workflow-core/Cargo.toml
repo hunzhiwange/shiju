@@ -1,0 +1,39 @@
+[package]
+name = "workflow-core"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+minijinja = { version = "2.20.0", features = ["json", "loop_controls"] }
+regex = "1"
+serde_json = "1"
+serde_yaml = "0.9"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0" }
+workflow-template-contract = { path = "../workflow-template-contract", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
+anyhow = "1"
+postgres = { version = "0.19.12", features = ["with-chrono-0_4"] }
+hex = "0.4"
+sha2 = "0.11"
+thiserror = "2"
+uuid = { version = "1.11", features = ["v4", "js"] }
+tokio = { version = "1", features = ["rt"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/libs/workflow-core",
+  "crates/libs/workflow-template-contract",
   "crates/libs/channel-signal",
   "crates/libs/channel-whatsapp-storage",
   "crates/libs/channel-nextcloud-talk",

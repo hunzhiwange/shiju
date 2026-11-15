@@ -2,7 +2,7 @@
 //! 畸形标记保持原文，合法但缺失的变量则按契约渲染为空文本。
 
 use super::{render_jinja_value_template, render_template, value_to_text};
-use crate::workflow::variables::VariablePool;
+use crate::variables::VariablePool;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 

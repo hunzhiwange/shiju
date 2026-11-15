@@ -1,7 +1,7 @@
 //! 系统模板使用原子插入与条件更新，禁止初始化覆盖租户编辑。
 use super::*;
 
-pub(in crate::workflow) async fn write_template_record(
+pub(crate) async fn write_template_record(
     database: GlobalDatabase,
     tenant: TenantScope,
     body: WorkflowRecordUpsertBody,

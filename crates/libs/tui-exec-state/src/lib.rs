@@ -7,14 +7,14 @@ use std::time::{Duration, Instant};
 
 use ratatui::text::Line;
 
-use crate::exec_cell::{
+use tui_cells::exec_cell::{
     CommandOutput, ExecCall, ExecCell, ExecCommandSource, OutputLinesParams, output_lines,
 };
-use crate::history_cell::HistoryCell;
+use tui_cells::history_cell::HistoryCell;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// 描述 `CallMutation` 在当前界面流程中传递的数据。
-pub(super) enum CallMutation {
+pub enum CallMutation {
     Applied,
     MissingStart,
     Duplicate,
@@ -23,7 +23,7 @@ pub(super) enum CallMutation {
 
 #[derive(Clone, Debug)]
 /// 描述 `LifecycleExecCell` 在本模块状态转换中传递的数据。
-pub(super) struct LifecycleExecCell {
+pub struct LifecycleExecCell {
     cell: ExecCell,
     live_output: HashMap<String, String>,
 }
@@ -45,7 +45,7 @@ impl HistoryCell for LifecycleExecCell {
                 call_lines.extend(output_lines(
                     output,
                     OutputLinesParams {
-                        max_lines: crate::exec_cell::TOOL_CALL_MAX_LINES,
+                        max_lines: tui_cells::exec_cell::TOOL_CALL_MAX_LINES,
                         width: usize::from(width).saturating_sub(2).max(1),
                     },
                 ));
@@ -58,7 +58,7 @@ impl HistoryCell for LifecycleExecCell {
 }
 
 #[derive(Debug, Default)]
-pub(super) struct ExecState {
+pub struct ExecState {
     cell: Option<ExecCell>,
     call_indexes: HashMap<String, usize>,
     live_output: HashMap<String, String>,
@@ -67,15 +67,15 @@ pub(super) struct ExecState {
 
 impl ExecState {
     // 判断 `is_active` 对应的界面条件是否成立。
-    pub(super) fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.cell.is_some()
     }
 
-    pub(super) fn has_running_calls(&self) -> bool {
+    pub fn has_running_calls(&self) -> bool {
         self.cell.as_ref().is_some_and(|cell| cell.calls.iter().any(|call| call.duration.is_none()))
     }
 
-    pub(super) fn start(&mut self, call_id: String, tool: String, command: String) -> CallMutation {
+    pub fn start(&mut self, call_id: String, tool: String, command: String) -> CallMutation {
         if self.terminal_call_ids.contains(&call_id) {
             return CallMutation::AlreadyTerminal;
         }
@@ -100,7 +100,7 @@ impl ExecState {
     }
 
     // 计算 `append_output` 所需的界面结果。
-    pub(super) fn append_output(&mut self, call_id: &str, delta: &str) -> CallMutation {
+    pub fn append_output(&mut self, call_id: &str, delta: &str) -> CallMutation {
         if self.terminal_call_ids.contains(call_id) {
             return CallMutation::AlreadyTerminal;
         }
@@ -111,7 +111,7 @@ impl ExecState {
         CallMutation::Applied
     }
 
-    pub(super) fn finish(
+    pub fn finish(
         &mut self,
         call_id: &str,
         output: String,
@@ -139,7 +139,7 @@ impl ExecState {
     }
 
     // 处理 `finish_running` 对应的界面事件并同步相关状态。
-    pub(super) fn finish_running(&mut self, exit_code: i32, message: &str) -> Vec<String> {
+    pub fn finish_running(&mut self, exit_code: i32, message: &str) -> Vec<String> {
         let Some(cell) = self.cell.as_mut() else {
             return Vec::new();
         };
@@ -164,14 +164,14 @@ impl ExecState {
         call_ids
     }
 
-    pub(super) fn snapshot(&self) -> Option<LifecycleExecCell> {
+    pub fn snapshot(&self) -> Option<LifecycleExecCell> {
         self.cell.as_ref().map(|cell| LifecycleExecCell {
             cell: cell.clone(),
             live_output: self.live_output.clone(),
         })
     }
 
-    pub(super) fn clear_group(&mut self) {
+    pub fn clear_group(&mut self) {
         self.cell = None;
         self.call_indexes.clear();
         self.live_output.clear();

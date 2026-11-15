@@ -16,6 +16,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tui-exec-state = { path = "../libs/tui-exec-state", version = "0.6.0" }
 tui-transcript = { path = "../libs/tui-transcript", version = "0.6.0" }
 tui-bottom-pane = { path = "../libs/tui-bottom-pane", version = "0.6.0" }
 tui-popups = { path = "../libs/tui-popups", version = "0.6.0" }

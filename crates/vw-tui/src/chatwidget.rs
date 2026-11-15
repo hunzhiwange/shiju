@@ -29,7 +29,7 @@ use ratatui::text::Line;
 
 mod command_lifecycle;
 mod constructor;
-mod exec_state;
+use tui_exec_state as exec_state;
 mod input_queue;
 mod input_submission;
 mod interrupts;

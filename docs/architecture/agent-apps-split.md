@@ -4,6 +4,33 @@
 
 未运行 Cargo、rustc、单元测试、实机测试或最终回归；静态审阅不代表编译或行为验收。Cargo.lock 未修改，清单一致性及三平台条件留待授权统一验收。
 
+## 任务 15：Claude 认证基础迁移结果
+
+`auth/claude_keychain.rs`、`auth/claude_login_files.rs` 已移动至
+`crates/libs/app-auth-claude/src/`；`claude_rotation::{check_generation,expiry}`
+一并下沉。原 auth 模块保留重导出，lib.rs 经 auth 保持原调用路径。
+原 macOS cfg、文件权限、锁、错误类型和 JSON arbitrary_precision 保持。
+Directory/CliLock 及代际函数因账户租约、provider 登录和 usage 的真实跨包调用
+最小公开；WriteError 直接来自 app-config-write，KeychainEntry 来自 app-auth-core。
+新包不依赖门面或 provider 编排，原包直接依赖仍有其它消费者，未删除。
+
+依赖未闭合部分按公共规则交接：`auth/claude_login.rs` 及独立
+claude_login_tests 依赖 CredentialFileStore/账户租约，留任务 22 接收；
+claude_rotation 的状态类型、get_claude_login_switch/default_login_available
+依赖事务及 LoginHost，留任务 22，若需登录服务则由任务 23 闭合。
+claude_recover_tests、claude_rotation_tests、claude_snapshot_tests 全部保留注册，
+随事务登录编排由任务 23 接收。providers/claude_login 的 LoginMaterial 和
+LoginHost 当前共享私有快照字段、Journal、事务恢复检查点；任务 23 必须收完，
+再按真实消费拆其凭据叶子，不能仅用跨包 path 或反向依赖绕过边界。
+没有新增、删除测试或复制业务实现；没有 include 资源路径变化。
+
+静态审阅：迁移源码对照仅改变 import 和必要可见性，代际函数体保持原样；
+全部四个独立测试文件及其 cfg/注册保持。系统 Python 无 tomllib，未完成
+TOML 标准库解析；逐行审阅清单并用 Python 确认 path 均存在，workspace 与直接
+依赖已注册，源码检索无门面回依赖，git diff --check 无空白错误。
+未运行 Cargo、单元及实机测试，统一验收待授权：新包及调用者编译、迁移单测、
+平台条件、账户登录/快照/恢复行为和 Cargo.lock 一致性。Cargo.lock 未修改。
+
 ## 任务 9：模型预设与能力迁移结果
 
 15 个模块（capabilities、codex_template、identity、pi_thinking、preset_catalog、
@@ -454,12 +481,12 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `auth/agy_refresh_tests.rs` | 221 | 19 |
 | `auth/binding_tests.rs` | 139 | 22 |
 | `auth/browser_callback.rs` | 331 | 13 |
-| `auth/claude_keychain.rs` | 86 | 15 |
+| `auth/claude_keychain.rs` | 86 | 15 → `crates/libs/app-auth-claude/src/claude_keychain.rs` |
 | `auth/claude_login.rs` | 572 | 15 |
-| `auth/claude_login_files.rs` | 247 | 15 |
+| `auth/claude_login_files.rs` | 247 | 15 → `crates/libs/app-auth-claude/src/claude_login_files.rs` |
 | `auth/claude_login_tests.rs` | 389 | 15 |
 | `auth/claude_recover_tests.rs` | 302 | 15 |
-| `auth/claude_rotation.rs` | 113 | 15 |
+| `auth/claude_rotation.rs` | 113 | 15 代际/到期规则已下沉；事务状态编排 → 22/23 |
 | `auth/claude_rotation_tests.rs` | 209 | 15 |
 | `auth/claude_snapshot_tests.rs` | 216 | 15 |
 | `auth/codex_browser.rs` | 201 | 14 |

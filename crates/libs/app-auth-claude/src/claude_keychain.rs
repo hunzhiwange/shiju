@@ -1,5 +1,5 @@
 //! The only replaceable OS boundary. Secrets never enter arguments, errors or logs.
-use super::keychain::KeychainEntry;
+use app_auth_core::keychain::KeychainEntry;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::path::Path;

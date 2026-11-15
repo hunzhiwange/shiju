@@ -1,5 +1,5 @@
 //! Descriptor-relative access to fixed login/profile/journal children.
-use crate::providers::live::write_guard::WriteError;
+use app_config_write::write_guard::WriteError;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{
     ffi::CString,
@@ -11,7 +11,7 @@ use std::{
     },
     path::Path,
 };
-pub(crate) struct Directory(pub File);
+pub struct Directory(pub File);
 impl Directory {
     pub fn open(path: &Path) -> Result<Self, WriteError> {
         let file = File::options()
@@ -142,7 +142,7 @@ impl Directory {
 
 /// Cooperates with Claude's proper-lockfile directories. Only our dead PID markers
 /// can be reclaimed; unknown or live CLI locks are never removed.
-pub(crate) struct CliLock {
+pub struct CliLock {
     parent: File,
     name: CString,
     directory: File,

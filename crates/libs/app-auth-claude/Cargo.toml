@@ -1,0 +1,13 @@
+[package]
+name = "app-auth-claude"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-auth-core = { path = "../app-auth-core" }
+app-config-write = { path = "../app-config-write" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+sha2 = "0.11"
+libc = "0.2"
+vw-api-transport = { path = "../api-transport" }

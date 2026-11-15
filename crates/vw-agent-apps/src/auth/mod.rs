@@ -52,11 +52,11 @@ pub use app_auth_core::flow;
 mod flow_tests;
 
 #[cfg(target_os = "macos")]
-pub mod claude_keychain;
+pub use app_auth_claude::claude_keychain;
 #[cfg(target_os = "macos")]
 pub mod claude_login;
 #[cfg(target_os = "macos")]
-pub(crate) mod claude_login_files;
+pub(crate) use app_auth_claude::claude_login_files;
 #[cfg(all(test, target_os = "macos"))]
 mod claude_login_tests;
 #[cfg(all(test, target_os = "macos"))]

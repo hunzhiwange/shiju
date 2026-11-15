@@ -7,7 +7,7 @@ impl ActiveRunner {
         &mut self,
         app: &mut V3GatewayApp,
         pause_request_id: String,
-        result: Result<Box<vw_api_workflow::WorkflowRunResponse>, String>,
+        result: Result<Box<vw_gateway_client::vw_api_types::workflow::WorkflowRunResponse>, String>,
     ) {
         self.interaction_in_flight = false;
         match result {

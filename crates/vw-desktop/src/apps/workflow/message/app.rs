@@ -1,7 +1,7 @@
 //! 工作流应用级消息处理，负责应用元数据编辑和工作流文件生命周期操作。
 
 use super::*;
-use vw_api_workflow::is_builtin_workflow_uuid;
+use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;
 
 /// 构建或更新 handle 相关行为。
 ///

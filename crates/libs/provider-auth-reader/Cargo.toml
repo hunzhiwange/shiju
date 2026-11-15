@@ -5,9 +5,9 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+auth-file-store = { path = "../auth-file-store", version = "0.6.0" }
 auth-types = { path = "../auth-types", version = "0.6.0" }
 provider-runtime-paths = { path = "../provider-runtime-paths", version = "0.6.0" }
-vw-shared = { path = "../../vw-shared", version = "0.6.0" }
 
 [dev-dependencies]
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }

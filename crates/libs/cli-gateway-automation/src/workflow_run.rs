@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use serde_json::{Value, json};
-use vw_api_workflow::{
+use vw_gateway_client::vw_api_types::workflow::{
     WorkflowPauseDto, WorkflowResumeRequest, WorkflowRunResponse, WorkflowRunStatus,
 };
 use vw_gateway_client::{

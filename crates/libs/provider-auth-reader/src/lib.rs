@@ -15,7 +15,7 @@ use provider_runtime_paths as global;
 /// 路径由全局 home/data 目录共同决定，以保持桌面端与测试环境行为一致。
 fn filepath() -> PathBuf {
     let paths = global::paths();
-    vw_shared::auth::store::resolve_filepath(&paths.home, &paths.data)
+    auth_file_store::resolve_filepath(&paths.home, &paths.data)
 }
 
 /// 读取指定 provider 的认证信息。
@@ -28,14 +28,14 @@ fn filepath() -> PathBuf {
 ///
 /// 若存在对应认证记录则返回其信息，否则返回 `None`
 pub fn get(provider_id: &str) -> Option<Info> {
-    vw_shared::auth::store::get_from(&filepath(), provider_id)
+    auth_file_store::get_from(&filepath(), provider_id)
 }
 
 /// 读取全部 provider 的认证信息。
 ///
 /// 返回值中的 key 为 provider_id，value 为对应的认证信息。
 pub fn all() -> HashMap<String, Info> {
-    vw_shared::auth::store::all_from(&filepath())
+    auth_file_store::all_from(&filepath())
 }
 
 #[cfg(test)]

@@ -188,7 +188,7 @@ pub use vw_api_types::knowledge::{
 pub use vw_api_project::{
     ListProjectChangeRecordsRequest, ListProjectChangeRecordsResponse, ProjectChangeRecordDto,
 };
-pub use vw_api_workflow::{
+pub use vw_api_types::workflow::{
     WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowRecord, WorkflowRecordDeleteResponse,
     WorkflowRecordSummary, WorkflowRecordUpsertBody, WorkflowRunRequest, WorkflowRunResponse,
     WorkflowRunStatus,

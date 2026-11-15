@@ -20,7 +20,7 @@ use std::path::PathBuf;
 /// 路径由全局 home/data 目录派生，保持认证文件和运行时状态目录一致。
 fn filepath() -> PathBuf {
     let paths = global::paths();
-    vw_shared::auth::store::resolve_filepath(&paths.home, &paths.data)
+    auth_file_store::resolve_filepath(&paths.home, &paths.data)
 }
 
 #[cfg(test)]
@@ -38,7 +38,7 @@ mod mod_tests;
 /// 找到时返回认证信息；不存在或读取失败时返回 `None`，具体语义由共享
 /// 存储层保持兼容。
 pub fn get(provider_id: &str) -> Option<Info> {
-    vw_shared::auth::store::get_from(&filepath(), provider_id)
+    auth_file_store::get_from(&filepath(), provider_id)
 }
 
 /// 读取全部认证信息。
@@ -48,7 +48,7 @@ pub fn get(provider_id: &str) -> Option<Info> {
 /// 返回以 provider id 为 key 的认证信息映射。该函数不暴露额外权限，
 /// 只读取共享认证存储层已经保存的数据。
 pub fn all() -> HashMap<String, Info> {
-    vw_shared::auth::store::all_from(&filepath())
+    auth_file_store::all_from(&filepath())
 }
 
 /// 写入指定 provider 的认证信息。
@@ -62,7 +62,7 @@ pub fn all() -> HashMap<String, Info> {
 ///
 /// 文件创建、写入或序列化失败时返回底层 `std::io::Error`。
 pub fn set(key: &str, info: &Info) -> Result<(), std::io::Error> {
-    vw_shared::auth::store::set_to(&filepath(), key, info)
+    auth_file_store::set_to(&filepath(), key, info)
 }
 
 /// 删除指定 provider 的认证信息。
@@ -75,7 +75,7 @@ pub fn set(key: &str, info: &Info) -> Result<(), std::io::Error> {
 ///
 /// 删除或写回认证存储失败时返回底层 `std::io::Error`。
 pub fn remove(key: &str) -> Result<(), std::io::Error> {
-    vw_shared::auth::store::remove_from(&filepath(), key)
+    auth_file_store::remove_from(&filepath(), key)
 }
 
 /// 认证服务门面。

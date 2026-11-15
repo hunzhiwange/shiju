@@ -10,7 +10,7 @@ pub(super) fn validate(source: &str) -> Result<()> {
     let mut actual: Value = serde_yaml::from_str(source)?;
     let mut expected: Value = serde_yaml::from_str(DEFAULT_YAML)?;
     fn normalize(root: &mut Value) -> Result<()> {
-        let options: vw_api_workflow::VideoEditTemplateOptions =
+        let options: vw_api_types::workflow::VideoEditTemplateOptions =
             match root["workflow"].get("video_edit") {
                 Some(value) => serde_json::from_value(value.clone())?,
                 None => Default::default(),

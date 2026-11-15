@@ -20,7 +20,7 @@ use std::time::Duration;
 use std::time::Instant;
 use tokio::{sync::mpsc, task::JoinSet};
 use uuid::Uuid;
-use vw_api_workflow::{
+use vw_api_types::workflow::{
     WorkflowHumanActionDto, WorkflowNodeRunDto, WorkflowNodeRunStatus, WorkflowPauseDto,
     WorkflowResumeRequest, WorkflowRunRequest, WorkflowRunResponse, WorkflowRunStatus,
 };

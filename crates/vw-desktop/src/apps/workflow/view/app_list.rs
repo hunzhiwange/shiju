@@ -6,7 +6,7 @@ use crate::app::components::system_settings_common::{
 };
 use chrono::{Local, TimeZone};
 use iced::widget::{column, row};
-use vw_api_workflow::is_builtin_workflow_uuid;
+use vw_gateway_client::vw_api_types::workflow::is_builtin_workflow_uuid;
 
 const SAVED_APPS_HEADER_ITEM_HEIGHT: f32 = 44.0;
 const SAVED_APPS_SEARCH_INPUT_LINE_HEIGHT: f32 = 20.0;

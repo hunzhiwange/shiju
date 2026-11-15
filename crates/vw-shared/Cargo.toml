@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+auth-file-store = { path = "../libs/auth-file-store", version = "0.6.0" }
 auth-types = { path = "../libs/auth-types", version = "0.6.0" }
 model-state = { path = "../libs/model-state", version = "0.6.0" }
 model-types = { path = "../libs/model-types", version = "0.6.0" }

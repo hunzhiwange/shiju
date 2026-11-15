@@ -1,6 +1,6 @@
 use super::*;
 use crate::workflow::{WorkflowChildContext, WorkflowNodeFinishedEvent, WorkflowNodeStartedEvent};
-use vw_api_workflow::WorkflowNodeRunDto;
+use vw_api_types::workflow::WorkflowNodeRunDto;
 fn child(event: WorkflowRunEvent) -> WorkflowRunEvent {
     WorkflowRunEvent::Child {
         context: WorkflowChildContext {

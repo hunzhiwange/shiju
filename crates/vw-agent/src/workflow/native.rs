@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use vw_api_workflow::{WorkflowRunRequest, WorkflowRunStatus};
+use vw_api_types::workflow::{WorkflowRunRequest, WorkflowRunStatus};
 
 #[path = "native_agent.rs"]
 mod agent;
@@ -153,7 +153,7 @@ fn node_event(run_id: &str, event: WorkflowRunEvent) -> Option<StreamEvent> {
         ),
         WorkflowRunEvent::NodeFinished(event) => {
             let status =
-                if event.node.status == vw_api_workflow::WorkflowNodeRunStatus::Failed {
+                if event.node.status == vw_api_types::workflow::WorkflowNodeRunStatus::Failed {
                     ToolCallStatus::Failed
                 } else {
                     ToolCallStatus::Completed

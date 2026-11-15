@@ -33,7 +33,7 @@ fn test_home() -> &'static PathBuf {
 fn auth_file() -> PathBuf {
     let _ = test_home();
     let paths = crate::app::agent::global::paths();
-    vw_shared::auth::store::resolve_filepath(&paths.home, &paths.data)
+    auth_file_store::resolve_filepath(&paths.home, &paths.data)
 }
 
 fn reset_auth_store() {

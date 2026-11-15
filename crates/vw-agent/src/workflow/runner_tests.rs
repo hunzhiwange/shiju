@@ -3,7 +3,7 @@ use crate::providers::traits::TokenUsage;
 use serde_json::{Value, json};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
-use vw_api_workflow::WorkflowNodeRunStatus;
+use vw_api_types::workflow::WorkflowNodeRunStatus;
 
 fn node(id: &str, node_type: &str, data: Value) -> WorkflowNode {
     WorkflowNode {

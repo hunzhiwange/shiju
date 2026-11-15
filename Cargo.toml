@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "crates/libs/api-workflow",
+  "crates/libs/auth-file-store",
   "crates/libs/api-agent-scheduler",
   "crates/libs/config-channel-types",
   "crates/libs/auth-types",

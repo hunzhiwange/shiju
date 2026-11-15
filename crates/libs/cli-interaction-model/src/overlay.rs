@@ -4,7 +4,7 @@
 //! 当前先覆盖 confirm/search/question/todo/task/palette/error 七类稳定宿主。
 
 use serde_json::Value;
-use vw_api_workflow::WorkflowPauseDto;
+use vw_gateway_client::vw_api_types::workflow::WorkflowPauseDto;
 use question_types as question;
 use todo_types::Todo;
 use vw_tui::{

@@ -4,7 +4,7 @@
 //! UTF-8 截断：日志裁剪不能把多字节字符切到非法边界，否则后续渲染或
 //! 序列化可能出现 panic。
 
-use super::*;
+use super::truncate_with_ellipsis;
 
 #[test]
 fn channel_log_truncation_is_utf8_safe_for_multibyte_text() {
@@ -13,7 +13,7 @@ fn channel_log_truncation_is_utf8_safe_for_multibyte_text() {
     // 使用 catch_unwind 固定“不 panic”这个行为契约；这里关心的是字符边界，
     // 不是具体截断出的展示文本。
     let result =
-        std::panic::catch_unwind(|| crate::app::agent::util::truncate_with_ellipsis(msg, 80));
+        std::panic::catch_unwind(|| truncate_with_ellipsis(msg, 80));
     assert!(result.is_ok(), "truncate_with_ellipsis should never panic on UTF-8");
 
     let truncated = result.unwrap();

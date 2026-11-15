@@ -7,6 +7,8 @@ pub mod locale;
 pub mod rpc;
 
 #[cfg(test)]
+mod channel_log_tests;
+#[cfg(test)]
 mod archive_tests;
 #[cfg(test)]
 mod filesystem_tests;

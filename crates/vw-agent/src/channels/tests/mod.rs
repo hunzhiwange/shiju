@@ -21,9 +21,7 @@
 //! - `message_dispatch`: 消息分发测试
 //! - `routing`: 路由逻辑测试
 //! - `system_prompt`: 系统提示词测试
-//! - `timeout_budget`: 超时预算测试
 //! - `tool_execution`: 工具执行测试
-//! - `util`: 测试工具函数
 //! - `vision`: 视觉功能测试
 
 use super::*;
@@ -84,7 +82,5 @@ mod identity; // 身份验证和管理测试
 mod routing; // 路由算法和策略测试
 mod session_history; // 会话历史角色映射测试
 mod system_prompt; // 系统提示词构建测试
-mod timeout_budget; // 超时预算分配测试
 mod tool_execution; // 工具执行流程测试
-mod util; // 测试辅助工具函数
 mod vision; // 视觉功能集成测试

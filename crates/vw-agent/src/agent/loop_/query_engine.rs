@@ -78,7 +78,7 @@ pub(crate) struct QueryEngineSnapshot {
     usage: QueryEngineUsage,
 }
 
-pub(crate) struct QueryEngine {
+pub struct QueryEngine {
     workspace_dir: std::path::PathBuf,
     session_id: String,
     reliability: crate::config::ReliabilityConfig,

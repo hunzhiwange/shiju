@@ -436,6 +436,7 @@ members = [
   "crates/libs/tui-chat",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",
+  "crates/libs/gateway-types",
   "crates/libs/gateway-endpoint",
   "crates/libs/gateway-chat-stream",
   "crates/libs/gateway-http",

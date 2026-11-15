@@ -470,7 +470,7 @@ pub(crate) struct RuntimeAutonomyPolicy {
 /// 在消息处理循环中被克隆和传递。
 /// 使用 `Arc` 包装以实现高效的共享所有权。
 #[derive(Clone)]
-pub(crate) struct ChannelRuntimeContext {
+pub struct ChannelRuntimeContext {
     pub(crate) project_state: Arc<Mutex<ChannelProjectState>>,
     pub(crate) message_snapshot: Option<ChannelMessageSnapshot>,
     /// Webhook 保留网关的受监督工具权限；监听通道沿用既有会话权限。

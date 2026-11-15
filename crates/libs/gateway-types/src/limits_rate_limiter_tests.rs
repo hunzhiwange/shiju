@@ -19,6 +19,7 @@
 //! - [`SlidingWindowRateLimiter`]：基于滑动窗口的通用限流器实现
 
 use super::*;
+use std::sync::Arc;
 use std::time::Instant;
 
 /// 测试网关限流器在达到配对限制后阻止请求

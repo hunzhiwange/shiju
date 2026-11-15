@@ -3,37 +3,14 @@
 use super::AccountMessage;
 use crate::app::skill_hub::{
     NativeShijuSkillPrepared, ShijuInstallationsReport, ShijuTargetInstallation, SkillInstallScope,
-    SkillInstallSelection, SkillInstallTarget, download_native_shiju_skill,
-    prepare_native_shiju_skill, resolve_skill_destinations,
+    SkillInstallSelection, SkillInstallTarget, resolve_skill_destinations,
 };
 use crate::app::{App, Message};
 use directories::BaseDirs;
 use iced::Task;
 
 pub(super) fn start(app: &mut App) -> Task<Message> {
-    let state = app.account.native_shiju_skill.clone();
-    let Some((generation, revision)) = state.begin() else {
-        return Task::none();
-    };
-    Task::perform(
-        async move {
-            let home = BaseDirs::new().ok_or_else(|| "无法确定用户主目录".to_string())?;
-            prepare_native_shiju_skill(
-                state,
-                home.home_dir().to_path_buf(),
-                download_native_shiju_skill,
-            )
-            .await
-            .map_err(|_| "识矩原生技能准备失败".to_string())
-        },
-        move |result| {
-            Message::Account(AccountMessage::NativeShijuSkillPrepared {
-                generation,
-                revision,
-                result,
-            })
-        },
-    )
+    desktop_account_ui::native::start(app.account.native_shiju_skill.clone()).map(Message::Account)
 }
 
 pub(super) fn finished(
@@ -42,14 +19,16 @@ pub(super) fn finished(
     revision: u64,
     result: Result<NativeShijuSkillPrepared, String>,
 ) -> Task<Message> {
-    let state = &app.account.native_shiju_skill;
-    if !state.finish(generation) {
-        return Task::none();
-    }
-    let completed_revision = result.as_ref().map_or(revision, |prepared| prepared.revision);
-    if state.revision() != completed_revision {
-        return start(app);
-    }
+    let result = match desktop_account_ui::native::finished(
+        &app.account.native_shiju_skill,
+        generation,
+        revision,
+        result,
+    ) {
+        desktop_account_ui::native::Completion::Ignore => return Task::none(),
+        desktop_account_ui::native::Completion::Retry => return start(app),
+        desktop_account_ui::native::Completion::Ready(result) => result,
+    };
     match result {
         Ok(prepared) => {
             app.expert_hub.package_status.set_local_version(

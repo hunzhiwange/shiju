@@ -6,38 +6,38 @@ use super::*;
 #[test]
 fn account_menu_uses_masked_input_and_four_pixel_scrollbar() {
     assert_eq!(ACCOUNT_SCROLLBAR_WIDTH, 4);
-    let (mut app, _) = App::new();
-    app.account.manual_input = crate::app::account::ManualSkeyInput::new("never-render-plain");
-    let _ = view(&app);
-    assert_eq!(app.account.manual_input.expose(), "never-render-plain");
+    let mut account = AccountState::default();
+    let locale = DesktopLocale::default();
+    account.manual_input = desktop_account::ManualSkeyInput::new("never-render-plain");
+    let _ = view(&account, locale);
+    assert_eq!(account.manual_input.expose(), "never-render-plain");
 }
 
 #[test]
 fn account_menu_install_entry_opens_the_install_page() {
-    assert!(matches!(
-        install_guide_message(),
-        Message::SkillHub(SkillHubMessage::OpenInstallGuide)
-    ));
+    assert!(matches!(install_guide_message(), Message::OpenInstallGuide));
 }
 
 #[test]
 fn account_trigger_labels_cover_signed_out_active_and_busy_states() {
-    let (mut app, _) = App::new();
-    assert_eq!(trigger_label(&app), "登录账号");
-    app.account.operation = crate::app::state::AccountOperation::Validating;
-    assert_eq!(trigger_label(&app), "正在验证…");
-    app.account.operation = crate::app::state::AccountOperation::StartingBrowser;
-    assert_eq!(trigger_label(&app), "正在登录…");
+    let mut account = AccountState::default();
+    let locale = DesktopLocale::default();
+    assert_eq!(trigger_label(&account, locale), "登录账号");
+    account.operation = crate::state::AccountOperation::Validating;
+    assert_eq!(trigger_label(&account, locale), "正在验证…");
+    account.operation = crate::state::AccountOperation::StartingBrowser;
+    assert_eq!(trigger_label(&account, locale), "正在登录…");
 }
 
 #[test]
 fn account_trigger_label_follows_active_user_company_and_sign_out() {
-    use crate::app::account::{
+    use desktop_account::{
         AccountIdentity, AccountOrigin, AccountProfile, AccountRepository, SecretSkey,
         VerifiedAccount,
     };
 
-    let (mut app, _) = App::new();
+    let mut account = AccountState::default();
+    let locale = DesktopLocale::default();
     let mut repository = AccountRepository::default();
     let first = repository.upsert_verified(
         VerifiedAccount::from_parts_with_profile(
@@ -56,16 +56,16 @@ fn account_trigger_label_follows_active_user_company_and_sign_out() {
         AccountOrigin::ManualSkey,
     );
     repository.activate(&first).unwrap();
-    app.account.replace_repository(repository.clone());
-    assert_eq!(trigger_label(&app), "刘祥敏（成都示例公司）");
+    account.replace_repository(repository.clone());
+    assert_eq!(trigger_label(&account, locale), "刘祥敏（成都示例公司）");
 
     repository.activate(&legacy).unwrap();
-    app.account.replace_repository(repository.clone());
-    assert_eq!(trigger_label(&app), "另一公司");
+    account.replace_repository(repository.clone());
+    assert_eq!(trigger_label(&account, locale), "另一公司");
 
     repository.sign_out();
-    app.account.replace_repository(repository);
-    assert_eq!(trigger_label(&app), "登录账号");
+    account.replace_repository(repository);
+    assert_eq!(trigger_label(&account, locale), "登录账号");
 }
 
 #[test]

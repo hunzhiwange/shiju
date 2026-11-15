@@ -2,7 +2,7 @@
 //! 迟到的异步结果不得覆盖新操作，调试输出也必须始终隐藏密码等敏感输入。
 
 use super::*;
-use crate::app::account::{
+use desktop_account::{
     AccountIdentity, AccountOrigin, AccountPasswordDraft, AccountProfileDraft, SecretSkey,
     VerifiedAccount,
 };

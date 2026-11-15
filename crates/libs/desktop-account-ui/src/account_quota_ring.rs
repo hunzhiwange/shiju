@@ -12,7 +12,7 @@ use iced::{
 use renderer::Renderer as _;
 use svg::Renderer as _;
 
-use crate::app::Message;
+use super::Message;
 
 const SIZE: f32 = 26.0;
 const CRITICAL_BALANCE: f32 = 0.01;

@@ -240,6 +240,7 @@ members = [
   "crates/libs/todo-types",
   "crates/libs/project-types",
   "crates/libs/desktop-account",
+  "crates/libs/desktop-account-ui",
   "crates/libs/question-types",
   "crates/libs/api-session",
   "crates/libs/api-project",

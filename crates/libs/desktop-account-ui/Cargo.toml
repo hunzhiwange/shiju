@@ -1,0 +1,33 @@
+[package]
+name = "desktop-account-ui"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+[lib]
+doctest = false
+[dependencies]
+iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
+web-time = "1"
+chrono = "0.4"
+desktop-account = { path = "../desktop-account", version = "0.6.0" }
+desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.6.0" }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+config-ui = { path = "../config-ui", version = "0.6.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
+
+[dev-dependencies]
+desktop-account = { path = "../desktop-account", version = "0.6.0", features = ["test-support"] }
+
+[dependencies.vw-gateway-client]
+path = "../../vw-gateway-client"
+version = "0.6.0"
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+open = "5"
+directories = "5"
+tokio = { version = "1", features = ["time"] }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = "0.3"
+wasm-bindgen = "=0.2.126"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window"] }

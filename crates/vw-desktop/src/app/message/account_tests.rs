@@ -136,27 +136,16 @@ fn account_notice_covers_all_persisted_actions() {
 }
 
 #[test]
-fn browser_login_waits_for_thirty_minutes() {
-    assert_eq!(LOGIN_TIMEOUT, Duration::from_secs(30 * 60));
-}
-
-#[test]
 fn account_messages_use_gateway_login_and_validation_tasks() {
     let _ = crate::app::session_gateway::gateway_shiju_account_login_async;
     let _ = crate::app::session_gateway::gateway_shiju_account_login_poll_async;
     let _ = crate::app::session_gateway::gateway_shiju_account_profile_async;
-    let _ = start_browser_login_task;
-    let _ = poll_task;
-    let _ = validate_task;
 }
 
 #[test]
 fn account_profile_edit_messages_use_gateway_and_ignore_late_results() {
     let _ = crate::app::session_gateway::gateway_shiju_account_me_async;
     let _ = crate::app::session_gateway::gateway_shiju_account_update_async;
-    let _ = profile_load_task;
-    let _ = profile_update_task;
-    let _ = profile_persist_task;
 
     let (mut app, _) = App::new();
     app.account.replace_repository(repository_with_profile("profile-edit-secret"));
@@ -215,7 +204,6 @@ fn account_profile_edit_messages_use_gateway_and_ignore_late_results() {
 #[test]
 fn account_password_edit_validates_redacts_and_ignores_late_results() {
     let _ = crate::app::session_gateway::gateway_shiju_account_password_update_async;
-    let _ = password_update_task;
     let input_message = AccountMessage::PasswordFieldChanged {
         field: AccountPasswordField::Current,
         value: AccountPasswordInput::new("message-password-secret".to_string()),

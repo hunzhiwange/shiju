@@ -90,7 +90,7 @@ fn model_protocol_014_images_preserve_order_and_enforce_selected_model() {
             {"type":"image_url","image_url":{"url":"https://example.invalid/image.png"}}
         ])
     );
-    let mut capabilities = vw_shared::provider::state::default_model_capabilities();
+    let mut capabilities = model_state::default_model_capabilities();
     capabilities.input.image = true;
     let mut model: crate::provider::provider::Model = serde_json::from_value(json!({
         "id":"selected","providerID":"fixture","name":"Fixture","status":"active","release_date":"",

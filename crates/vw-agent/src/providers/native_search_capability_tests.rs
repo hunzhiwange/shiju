@@ -1,6 +1,6 @@
 use crate::provider::provider::resolve_native_search_capabilities;
 use serde_json::json;
-use vw_shared::provider::state::resolve_model_capabilities;
+use model_state::resolve_model_capabilities;
 
 #[test]
 fn native_tool_search_capability_ordinary_toolcall_does_not_enable_native_search() {

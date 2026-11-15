@@ -9,7 +9,7 @@ mod overrides;
 #[cfg(target_arch = "wasm32")]
 mod gateway;
 
-pub use vw_shared::provider::state::{
+pub use model_state::{
     State, as_string_map, builtin_model_limit, default_model_capabilities, from_models_dev_model,
     from_models_dev_provider, normalize_adapter, resolve_model_capabilities, resolve_model_limit,
 };

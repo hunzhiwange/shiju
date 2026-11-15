@@ -653,7 +653,7 @@ fn custom_provider_patch_writes_explicit_model_metadata_and_preserves_unedited_f
 #[test]
 fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../../../vw-shared/assets/provider/cross_layer_unknown_model.json"
+        "../../../../../../libs/model-state/assets/provider/cross_layer_unknown_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let draft = CustomProviderDraft {
@@ -674,14 +674,14 @@ fn cross_layer_fixture_patch_and_usage_window_share_the_default_limit() {
         [fixture["model_id"].as_str().unwrap()];
     assert!(model.get("limit").is_none());
 
-    let resolved = vw_shared::provider::state::resolve_model_limit(None, None, None);
-    assert_eq!(vw_shared::provider::state::effective_input_window(&resolved), 200_000);
+    let resolved = model_state::resolve_model_limit(None, None, None);
+    assert_eq!(model_state::effective_input_window(&resolved), 200_000);
 }
 
 #[test]
 fn cross_layer_explicit_fixture_round_trips_through_settings_patch() {
     let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../../../vw-shared/assets/provider/cross_layer_explicit_model.json"
+        "../../../../../../libs/model-state/assets/provider/cross_layer_explicit_model.json"
     ))
     .expect("cross-layer fixture should parse");
     let draft = CustomProviderDraft {

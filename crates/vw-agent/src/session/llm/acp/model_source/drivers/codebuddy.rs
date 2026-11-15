@@ -41,7 +41,7 @@ pub(super) fn configure(profile: &mut AcpLaunchProfile, endpoint: &str) -> anyho
         (
             "CODEBUDDY_CODE_MAX_OUTPUT_TOKENS".into(),
             if profile.model_output_limit == 0 {
-                vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
+                model_state::DEFAULT_MODEL_OUTPUT_LIMIT
             } else {
                 profile.model_output_limit
             }

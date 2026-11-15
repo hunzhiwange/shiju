@@ -39,7 +39,7 @@ pub async fn load_full_agent_config_async() -> Result<Config, String> { access()
 pub async fn load_project_agent_config_async(project_path: &str) -> Result<Config, String> { access().load_project_agent_config_async(project_path).await }
 pub async fn load_global_config_value_async() -> Result<serde_json::Value, String> { access().load_global_config_value_async().await }
 pub async fn load_mcp_inspect_async()
--> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> { access().load_mcp_inspect_async().await }
+-> Result<vw_api_mcp_inspect::McpInspectResponse, String> { access().load_mcp_inspect_async().await }
 pub async fn load_browser_config_async() -> Result<BrowserConfig, String> { access().load_browser_config_async().await }
 pub fn load_gateway_config_result() -> Result<GatewayConfig, String> { access().load_gateway_config_result() }
 pub fn load_global_acp_config_result() -> Result<HashMap<String, AcpAgentConfig>, String> { access().load_global_acp_config_result() }

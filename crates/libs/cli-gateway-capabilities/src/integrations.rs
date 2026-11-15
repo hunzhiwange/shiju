@@ -1,7 +1,7 @@
 //! Gateway 集成目录的并发加载与稳定 ID 管理边界。
 
 use serde_json::{Value, json};
-use vw_gateway_client::vw_api_types::mcp::McpConnectionStatusDto;
+use vw_api_mcp_inspect::McpConnectionStatusDto;
 
 use cli_gateway_transport::gateway::{GatewayUiRuntime, block_on_gateway};
 use cli_interaction_model::integration::{

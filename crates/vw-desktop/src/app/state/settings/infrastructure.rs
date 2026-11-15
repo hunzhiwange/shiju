@@ -183,7 +183,7 @@ pub(crate) struct McpSettingsState {
     pub(crate) inspect_loading: bool,
     pub(crate) saving: bool,
     pub(crate) server_count: usize,
-    pub(crate) inspect: Option<vw_gateway_client::vw_api_types::mcp::McpInspectResponse>,
+    pub(crate) inspect: Option<vw_api_mcp_inspect::McpInspectResponse>,
     pub(crate) inspect_error: Option<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,

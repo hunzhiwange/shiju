@@ -22,7 +22,7 @@ use iced_runtime::user_interface::{Cache, UserInterface};
 use config_agent_profile::{AgentDefault, AgentModelReference};
 use config_agent::DelegateCapabilityPolicy;
 use config_ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
-use vw_gateway_client::vw_api_types::mcp::McpInspectResponse;
+use vw_api_mcp_inspect::McpInspectResponse;
 
 const AGENT: &str = "fixture-agent";
 const MODEL: &str = "fixture/model-with-provider-specific-id";

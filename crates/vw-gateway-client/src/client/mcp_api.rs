@@ -3,7 +3,7 @@
 //! 该接口按可选项目目录查询网关当前解析出的 MCP 服务状态与配置视图。
 
 use super::GatewayClient;
-use vw_api_types::mcp::McpInspectResponse;
+use vw_api_mcp_inspect::McpInspectResponse;
 
 impl GatewayClient {
     /// Call only through the host-issued binding for this exact session and server.

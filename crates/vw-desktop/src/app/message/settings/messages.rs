@@ -465,7 +465,7 @@ pub enum McpMessage {
     Refresh,
     Loaded(Result<serde_json::Value, String>),
     InspectRefresh,
-    Inspected(Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String>),
+    Inspected(Result<vw_api_mcp_inspect::McpInspectResponse, String>),
     EditorAction(text_editor::Action),
     Format,
     InsertTemplate,

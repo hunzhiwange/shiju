@@ -18,7 +18,7 @@ use iced::widget::{Space, button, checkbox, column, container, row, text, text_e
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use serde_json::Value;
 use config_ui::DesktopLocale;
-use vw_gateway_client::vw_api_types::mcp::{
+use vw_api_mcp_inspect::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };
 

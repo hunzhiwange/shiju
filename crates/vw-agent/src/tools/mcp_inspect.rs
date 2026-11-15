@@ -8,7 +8,7 @@ use super::mcp_common::{
 };
 use anyhow::Context;
 use serde_json::Value;
-use vw_api_types::mcp::{McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto};
+use vw_api_mcp_inspect::{McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto};
 use vw_api_tools::ToolSpecDto;
 
 #[derive(Debug, Default)]

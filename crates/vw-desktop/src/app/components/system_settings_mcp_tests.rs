@@ -13,7 +13,7 @@ use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsTab};
 use iced::widget::text_editor;
 use serde_json::json;
-use vw_gateway_client::vw_api_types::mcp::{
+use vw_api_mcp_inspect::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };
 use vw_api_tools::{ToolExposure, ToolIdentity, ToolSource, ToolSpecDto};

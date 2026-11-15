@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+vw-api-mcp-inspect = { path = "../api-mcp-inspect", version = "0.6.0" }
 config-ui = { path = "../config-ui", version = "0.6.0" }
 config-gateway = { path = "../config-gateway", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }

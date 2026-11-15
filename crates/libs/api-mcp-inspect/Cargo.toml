@@ -1,0 +1,10 @@
+[package]
+name = "vw-api-mcp-inspect"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+vw-api-tools = { path = "../api-tools", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

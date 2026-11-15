@@ -263,7 +263,7 @@ pub async fn load_global_config_value_async(&self) -> Result<serde_json::Value, 
     self.fetch_global_config_value_via_gateway().await
 }
 pub async fn load_mcp_inspect_async(&self)
--> Result<vw_gateway_client::vw_api_types::mcp::McpInspectResponse, String> {
+-> Result<vw_api_mcp_inspect::McpInspectResponse, String> {
     let client = self.gateway_client()?;
     client.mcp_inspect().await
 }

@@ -8,6 +8,7 @@ description = "Gateway client types and helpers for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-mcp-inspect = { path = "../libs/api-mcp-inspect", version = "0.6.0" }
 vw-api-app-routing = { path = "../libs/api-app-routing", version = "0.6.0" }
 vw-api-app-aggregation = { path = "../libs/api-app-aggregation", version = "0.6.0" }
 vw-api-app-operations = { path = "../libs/api-app-operations", version = "0.6.0" }

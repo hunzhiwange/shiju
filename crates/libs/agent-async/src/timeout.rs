@@ -35,7 +35,7 @@ use std::time::Duration;
 ///
 /// ```rust
 /// use std::time::Duration;
-/// use vibewindow::app::agent::util::timeout::with_timeout;
+/// use agent_async::timeout::with_timeout;
 ///
 /// async fn example() {
 ///     let result = with_timeout(

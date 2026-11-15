@@ -29,32 +29,21 @@
 //! - `token` - 令牌与计数工具
 //! - `wildcard` - 通配符匹配工具
 
+pub use agent_async::{abort, eventloop, lock, queue, task_set, timeout};
 pub use agent_context::{context, defer, r#fn, iife, lazy, proxied, scrap};
 pub use agent_text::{color, keybind, token, wildcard};
 
-pub mod abort;
 pub mod archive;
-pub mod eventloop;
 pub mod filesystem;
 pub mod format;
 pub mod locale;
-pub mod lock;
 pub mod log;
-pub mod queue;
 pub mod rpc;
 pub mod signal;
-pub mod task_set;
-pub mod timeout;
 
-#[cfg(test)]
-#[path = "abort_tests.rs"]
-mod abort_tests;
 #[cfg(test)]
 #[path = "archive_tests.rs"]
 mod archive_tests;
-#[cfg(test)]
-#[path = "eventloop_tests.rs"]
-mod eventloop_tests;
 #[cfg(test)]
 #[path = "filesystem_tests.rs"]
 mod filesystem_tests;
@@ -62,25 +51,13 @@ mod filesystem_tests;
 #[path = "locale_tests.rs"]
 mod locale_tests;
 #[cfg(test)]
-#[path = "lock_tests.rs"]
-mod lock_tests;
-#[cfg(test)]
-#[path = "queue_tests.rs"]
-mod queue_tests;
-#[cfg(test)]
 #[path = "rpc_tests.rs"]
 mod rpc_tests;
 #[cfg(test)]
 #[path = "signal_tests.rs"]
 mod signal_tests;
 #[cfg(test)]
-#[path = "task_set_tests.rs"]
-mod task_set_tests;
-#[cfg(test)]
 mod tests;
-#[cfg(test)]
-#[path = "timeout_tests.rs"]
-mod timeout_tests;
 
 use std::future::Future;
 

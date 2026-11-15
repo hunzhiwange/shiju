@@ -28,7 +28,7 @@
 /// # 示例
 ///
 /// ```rust,no_run
-/// use app::agent::util::eventloop::wait;
+/// use agent_async::eventloop::wait;
 ///
 /// async fn long_running_task() {
 ///     loop {

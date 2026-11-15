@@ -13,7 +13,7 @@ async-trait = "0.1.89"
 thiserror = "2.0.18"
 futures-util = "0.3.32"
 url = "2"
-gateway-skill-market = { path = "../gateway-skill-market", version = "0.6.0" }
+skill-market-types = { path = "../skill-market-types", version = "0.6.0" }
 hex = "0.4"
 tracing = "0.1"
 shell-command = { path = "../shell-command", version = "0.6.0" }

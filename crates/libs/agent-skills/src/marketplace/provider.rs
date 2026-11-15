@@ -1,6 +1,6 @@
 //! 技能市场提供方的抽象边界与注册表。
 
-use gateway_skill_market::{
+use skill_market_types::{
     SkillMarketCategoryDto,
     SkillMarketCoordinateDto,
     SkillMarketSkillDetailDto,

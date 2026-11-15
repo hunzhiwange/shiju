@@ -1,6 +1,6 @@
 //! 公共 SkillHub 目录的技能市场适配器。
 
-use gateway_skill_market::{
+use skill_market_types::{
     SkillMarketCategoryDto,
     SkillMarketCoordinateDto,
     SkillMarketSecurityDto,

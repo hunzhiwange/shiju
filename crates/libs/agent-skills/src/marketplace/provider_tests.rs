@@ -1,7 +1,7 @@
 //! 验证技能市场提供方的配置、请求转换和错误处理。
 //! 注册表只接受稳定来源键，模拟提供方覆盖当前全部只读市场能力。
 
-use gateway_skill_market::{
+use skill_market_types::{
     SkillMarketCategoryDto,
     SkillMarketCoordinateDto,
     SkillMarketSkillDetailDto,
@@ -47,7 +47,7 @@ impl SkillMarketProvider for MockProvider {
 
     async fn recommended(
         &self,
-    ) -> Result<Vec<gateway_skill_market::SkillMarketSkillDto>, SkillMarketProviderError> {
+    ) -> Result<Vec<skill_market_types::SkillMarketSkillDto>, SkillMarketProviderError> {
         Ok(Vec::new())
     }
 
@@ -196,8 +196,8 @@ fn coordinate(locator: &SkillMarketSkillLocatorDto) -> SkillMarketCoordinateDto 
     SkillMarketCoordinateDto { locator: locator.clone(), version: "1.0.0".to_string() }
 }
 
-fn skill(coordinate: SkillMarketCoordinateDto) -> gateway_skill_market::SkillMarketSkillDto {
-    gateway_skill_market::SkillMarketSkillDto {
+fn skill(coordinate: SkillMarketCoordinateDto) -> skill_market_types::SkillMarketSkillDto {
+    skill_market_types::SkillMarketSkillDto {
         coordinate,
         name: "Mock skill".to_string(),
         description: "Mock skill".to_string(),

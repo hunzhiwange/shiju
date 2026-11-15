@@ -144,6 +144,7 @@ members = [
   "crates/libs/tool-services",
   "crates/libs/tool-shell",
   "crates/libs/gateway-skill-market",
+  "crates/libs/skill-market-types",
   "crates/libs/app-providers",
   "crates/libs/gateway-shiju-skill",
   "crates/libs/gateway-shiju-knowledge",

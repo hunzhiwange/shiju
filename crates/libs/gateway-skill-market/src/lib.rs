@@ -10,6 +10,9 @@ impl GatewaySkillMarketClient {
     }
 }
 
+#[cfg(all(feature = "server", not(target_arch = "wasm32")))]
+pub mod routes;
+
 mod types;
 pub use types::*;
 mod skill_market_api;

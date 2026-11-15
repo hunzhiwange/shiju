@@ -1,7 +1,7 @@
 //! 验证市场技能安装的缓存、版本选择与路径安全边界。
 //! 签名、内容哈希与解包路径共同构成安装边界；多目标失败时整体回滚且无暂存残留。
 
-use gateway_skill_market::{SkillMarketCoordinateDto, SkillMarketSkillLocatorDto};
+use skill_market_types::{SkillMarketCoordinateDto, SkillMarketSkillLocatorDto};
 use std::fs;
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};

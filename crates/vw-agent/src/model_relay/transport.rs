@@ -41,7 +41,7 @@ pub(super) fn credential(
         return Ok(key.trim().into());
     }
     for name in &info.env {
-        if let Some(key) = crate::env::get(name).filter(|v| real_key(v)) {
+        if let Some(key) = agent_env::get(name).filter(|v| real_key(v)) {
             return Ok(key.trim().into());
         }
     }

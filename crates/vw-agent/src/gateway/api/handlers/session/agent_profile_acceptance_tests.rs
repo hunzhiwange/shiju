@@ -60,7 +60,7 @@ fn assert_completed_turn(
 
 #[test]
 fn agent_profile_acceptance_runs_selected_profile_end_to_end() {
-    crate::env::provide_with(
+    agent_env::provide_with(
         std::collections::HashMap::from([(
             "VW_MODEL_RECOVERY_TEST_KEY".into(),
             "fixture-key".into(),

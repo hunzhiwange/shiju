@@ -181,7 +181,7 @@ async fn voice_task_06_authenticated_foreign_session_is_not_found() {
 }
 #[test]
 fn voice_task_06_transcription_round_trip_deduplicates_and_cancels() {
-    crate::env::provide_with(
+    agent_env::provide_with(
         std::collections::HashMap::from([(
             "VOICE06_SERVICE_KEY".into(),
             "fixture-service-key".into(),

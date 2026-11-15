@@ -3010,13 +3010,13 @@ async fn gateway_first_response_failure_preserves_history_until_same_session_ret
     impl Drop for RestoreTitleFixtureKey {
         fn drop(&mut self) {
             match self.0.take() {
-                Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
-                None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+                Some(key) => agent_env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+                None => agent_env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
             }
         }
     }
-    let _key = RestoreTitleFixtureKey(crate::env::get("VW_MODEL_RECOVERY_TEST_KEY"));
-    crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", "fixture-key");
+    let _key = RestoreTitleFixtureKey(agent_env::get("VW_MODEL_RECOVERY_TEST_KEY"));
+    agent_env::set("VW_MODEL_RECOVERY_TEST_KEY", "fixture-key");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let endpoint = format!("http://{}/v1", listener.local_addr().unwrap());
     let (title_tx, mut title_requests) = tokio::sync::mpsc::unbounded_channel();

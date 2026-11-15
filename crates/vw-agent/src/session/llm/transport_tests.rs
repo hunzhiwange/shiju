@@ -18,7 +18,7 @@ enum Interruption {
 
 #[test]
 fn compaction_output_budget_reaches_openai_compatible_request() {
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "fixture-key".into())]),
         || {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -176,7 +176,7 @@ async fn interrupted_response(interruption: Interruption) {
 
 #[test]
 fn model_transport_interruption_retries_only_before_output() {
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "fixture-key".into())]),
         || {
             tokio::runtime::Runtime::new().unwrap().block_on(async {

@@ -166,6 +166,7 @@ agent-async = { path = "../libs/agent-async", version = "0.6.0" }
 observer-prometheus = { path = "../libs/observer-prometheus", version = "0.6.0" }
 observer-backends = { path = "../libs/observer-backends", version = "0.6.0" }
 observer-types = { path = "../libs/observer-types", version = "0.6.0" }
+agent-env = { path = "../libs/agent-env", version = "0.6.0" }
 agent-context = { path = "../libs/agent-context", version = "0.6.0" }
 agent-text = { path = "../libs/agent-text", version = "0.6.0" }
 agent-identity = { path = "../libs/agent-identity", version = "0.6.0" }

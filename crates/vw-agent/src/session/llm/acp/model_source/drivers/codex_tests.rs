@@ -455,7 +455,7 @@ async fn codex_run(mode: &str, effort_check: bool) {
         assert!(config.env.is_empty(), "production profile owns managed overrides");
     }
     let _guard = crate::test_support::global_async_env_lock().lock().await;
-    crate::env::set("VW_ACP_OFFLINE_FIXTURE_KEY", input["key"].as_str().unwrap());
+    agent_env::set("VW_ACP_OFFLINE_FIXTURE_KEY", input["key"].as_str().unwrap());
     let tenant = crate::session::ui_store::current_tenant_scope();
     let (project, _) = crate::project::from_directory(&tenant, root).await.unwrap();
     let context = instance::Context {

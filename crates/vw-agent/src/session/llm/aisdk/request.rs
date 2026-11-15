@@ -22,7 +22,7 @@ use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use agent_auth as auth;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::app::agent::env;
+use agent_env as env;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::provider::provider;
 #[cfg(not(target_arch = "wasm32"))]

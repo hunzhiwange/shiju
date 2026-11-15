@@ -15,10 +15,10 @@ struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         unsafe {
-            crate::env::remove("SHIJU_RELAY_RESPONSES_TEST_KEY");
+            agent_env::remove("SHIJU_RELAY_RESPONSES_TEST_KEY");
             match self.1.take() {
                 Some(v) => {
-                    crate::env::set(
+                    agent_env::set(
                         "SHIJU_RELAY_RESPONSES_TEST_KEY",
                         v.to_string_lossy().to_string(),
                     );
@@ -65,7 +65,7 @@ async fn aggregation_t25_authorized_codex_chat_replays_compaction_over_http() {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
-        crate::env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+        agent_env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
     }
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -160,7 +160,7 @@ async fn model_protocol_017_responses_http_roundtrip_stream_errors_cancel_and_ow
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
-        crate::env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+        agent_env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
     }
     let captured = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let calls = captured.clone();
@@ -763,7 +763,7 @@ async fn model_protocol_017_responses_chat_preserves_reasoning_tools_json_and_ss
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
-        crate::env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
+        agent_env::set("SHIJU_RELAY_RESPONSES_TEST_KEY", "fixture-secret");
     }
     let (record, mut requests) = tokio::sync::mpsc::unbounded_channel();
     let router = Router::new().route("/v1/chat/completions", post(move |headers: HeaderMap, axum::Json(body): axum::Json<Value>| {

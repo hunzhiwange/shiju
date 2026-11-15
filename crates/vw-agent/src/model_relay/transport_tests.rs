@@ -199,9 +199,9 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
     struct RestoreKey(Option<std::ffi::OsString>, Option<String>);
     impl Drop for RestoreKey {
         fn drop(&mut self) {
-            crate::env::remove("SHIJU_PROTOCOL012_TEST_KEY");
+            agent_env::remove("SHIJU_PROTOCOL012_TEST_KEY");
             if let Some(value) = self.1.take() {
-                crate::env::set("SHIJU_PROTOCOL012_TEST_KEY", value);
+                agent_env::set("SHIJU_PROTOCOL012_TEST_KEY", value);
             }
             unsafe {
                 match self.0.take() {
@@ -213,9 +213,9 @@ async fn model_protocol_012_relay_native_conversion_and_credential_isolation() {
     }
     let _key = RestoreKey(
         std::env::var_os("SHIJU_PROTOCOL012_TEST_KEY"),
-        crate::env::get("SHIJU_PROTOCOL012_TEST_KEY"),
+        agent_env::get("SHIJU_PROTOCOL012_TEST_KEY"),
     );
-    crate::env::set("SHIJU_PROTOCOL012_TEST_KEY", "selected-account-secret");
+    agent_env::set("SHIJU_PROTOCOL012_TEST_KEY", "selected-account-secret");
     unsafe {
         std::env::set_var("SHIJU_PROTOCOL012_TEST_KEY", "selected-account-secret");
     }

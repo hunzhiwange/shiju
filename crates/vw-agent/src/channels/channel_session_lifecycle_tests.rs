@@ -136,9 +136,9 @@ async fn channel_first_response_requests_title_once_after_commit() {
     const KEY: &str = "VW_CHANNEL_FIRST_RESPONSE_FIXTURE_KEY";
     struct RemoveKey;
     impl Drop for RemoveKey {
-        fn drop(&mut self) { crate::env::remove(KEY); }
+        fn drop(&mut self) { agent_env::remove(KEY); }
     }
-    crate::env::set(KEY, "local-fixture");
+    agent_env::set(KEY, "local-fixture");
     let _key = RemoveKey;
     crate::config::update_project_for_tenant(
         &snapshot.scope.chat.tenant,

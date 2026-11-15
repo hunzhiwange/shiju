@@ -18,7 +18,7 @@ impl RecoveryConfig {
         .into_iter()
         .map(|key| (key, std::env::var_os(key)))
         .collect();
-        let previous_runtime_key = crate::env::get("VW_MODEL_RECOVERY_TEST_KEY");
+        let previous_runtime_key = agent_env::get("VW_MODEL_RECOVERY_TEST_KEY");
         unsafe {
             std::env::set_var("VW_MODEL_RECOVERY_TEST_ROOT", home.path());
             match key {
@@ -30,8 +30,8 @@ impl RecoveryConfig {
         }
         // Authentication reads the runtime snapshot, which may predate this fixture.
         match key {
-            Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
-            None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+            Some(key) => agent_env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+            None => agent_env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
         }
         let fixture = Self { _home: home, previous, previous_runtime_key };
         crate::config::update(serde_json::json!({"providers": {"model-recovery": {
@@ -52,8 +52,8 @@ impl Drop for RecoveryConfig {
             }
         }
         match &self.previous_runtime_key {
-            Some(key) => crate::env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
-            None => crate::env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
+            Some(key) => agent_env::set("VW_MODEL_RECOVERY_TEST_KEY", key),
+            None => agent_env::remove("VW_MODEL_RECOVERY_TEST_KEY"),
         }
     }
 }

@@ -207,7 +207,7 @@ async fn channel_command_flow_concurrent_instances_rooms_threads_and_tenant_reje
 
 struct FlowSummaryServer(tokio::task::JoinHandle<()>, Arc<Mutex<Vec<serde_json::Value>>>, String);
 impl Drop for FlowSummaryServer {
-    fn drop(&mut self) { self.0.abort(); crate::env::remove(&self.2); }
+    fn drop(&mut self) { self.0.abort(); agent_env::remove(&self.2); }
 }
 async fn command_flow_summary_server(ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage) -> FlowSummaryServer {
     let requests = Arc::new(Mutex::new(Vec::new()));
@@ -225,7 +225,7 @@ async fn command_flow_summary_server(ctx: &ChannelRuntimeContext, msg: &traits::
     let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap(); });
     let snapshot = resolve_channel_message_snapshot(ctx, msg).await.unwrap();
     let key = format!("VW_FLOW_FIXTURE_{}", snapshot.scope.project);
-    crate::env::set(&key, "fixture-only");
+    agent_env::set(&key, "fixture-only");
     crate::config::update_project_for_tenant(&snapshot.scope.chat.tenant, &snapshot.directory, serde_json::json!({
         "providers": {"catalog": {"api": format!("http://{address}/v1"), "env":[key.clone()]}}
     })).await.unwrap();

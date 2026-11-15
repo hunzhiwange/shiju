@@ -94,7 +94,7 @@ async fn voice_credentials(config: &VoiceConfig) -> Result<(String, String), Tra
             provider
                 .env
                 .iter()
-                .filter_map(|name| crate::env::get(name))
+                .filter_map(|name| agent_env::get(name))
                 .find(|key| provider_model_discovery::is_real_bearer(key))
         })
         .or_else(|| match auth {

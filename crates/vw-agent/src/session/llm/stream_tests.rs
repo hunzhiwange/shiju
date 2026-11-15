@@ -472,7 +472,7 @@ fn model_recovery_catalog_errors_keep_structured_classification() {
 fn model_recovery_network_requests_do_not_multiply() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // env::all 使用上下文快照，不能依赖其他测试何时初始化默认快照。
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "isolated-test-key".into())]),
         || {
             runtime.block_on(async {
@@ -586,7 +586,7 @@ fn model_recovery_network_requests_do_not_multiply() {
 fn codex_plugin_compat_t41_stream_retries_emit_per_request() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     // env::all 使用上下文快照，不能依赖其他测试何时初始化默认快照。
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "isolated-test-key".into())]),
         || {
             runtime.block_on(async {

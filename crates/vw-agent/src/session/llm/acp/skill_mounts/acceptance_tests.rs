@@ -247,7 +247,7 @@ async fn run(agent: &str) {
     let config: crate::config::schema::AcpAgentConfig =
         serde_json::from_value(input["config"].clone()).unwrap();
     assert!(std::path::Path::new(&config.command).is_absolute());
-    crate::env::set("VW_ACP_SKILL_FIXTURE_KEY", input["key"].as_str().unwrap());
+    agent_env::set("VW_ACP_SKILL_FIXTURE_KEY", input["key"].as_str().unwrap());
     let tenant = crate::session::ui_store::current_tenant_scope();
     let (project, _) = crate::project::from_directory(&tenant, root).await.unwrap();
     let context = instance::Context {

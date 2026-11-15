@@ -15,10 +15,10 @@ struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         unsafe {
-            crate::env::remove("SHIJU_RELAY_GEMINI_TEST_KEY");
+            agent_env::remove("SHIJU_RELAY_GEMINI_TEST_KEY");
             match self.1.take() {
                 Some(v) => {
-                    crate::env::set("SHIJU_RELAY_GEMINI_TEST_KEY", v.to_string_lossy().to_string());
+                    agent_env::set("SHIJU_RELAY_GEMINI_TEST_KEY", v.to_string_lossy().to_string());
                     std::env::set_var("SHIJU_RELAY_GEMINI_TEST_KEY", v);
                 }
                 None => std::env::remove_var("SHIJU_RELAY_GEMINI_TEST_KEY"),
@@ -70,7 +70,7 @@ async fn http(run_cli: bool) {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_RELAY_GEMINI_TEST_KEY", "fixture-secret");
-        crate::env::set("SHIJU_RELAY_GEMINI_TEST_KEY", "fixture-secret");
+        agent_env::set("SHIJU_RELAY_GEMINI_TEST_KEY", "fixture-secret");
     }
     let captured = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let calls = captured.clone();

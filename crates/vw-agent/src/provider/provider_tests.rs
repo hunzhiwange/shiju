@@ -118,7 +118,7 @@ async fn agent_provider_without_models_is_kept_for_settings_and_dropped_at_runti
 fn agent_provider_state_includes_remote_models() {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     // env::all 使用启动快照，测试必须显式注入，避免依赖其他用例的初始化顺序。
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([("AGENT_REMOTE_MODELS_KEY".into(), "agent-secret".into())]),
         || {
             runtime.block_on(async {

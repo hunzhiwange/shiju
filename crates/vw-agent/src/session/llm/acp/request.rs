@@ -950,7 +950,7 @@ pub(super) fn validate_session_model(
     let has_credentials =
         provider_info.key.as_deref().is_some_and(|value| is_usable_copilot_token(value.trim()))
             || provider_info.env.iter().any(|key| {
-                crate::app::agent::env::get(key)
+                agent_env::get(key)
                     .as_deref()
                     .is_some_and(|value| is_usable_copilot_token(value.trim()))
             })

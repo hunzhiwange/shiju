@@ -476,7 +476,7 @@ fn agent_model_inheritance_preserves_provider_and_auto_resolution() {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", home.path().join("config"));
         std::env::remove_var("VIBEWINDOW_WORKSPACE");
     }
-    crate::env::provide_with(
+    agent_env::provide_with(
         HashMap::from([
             ("ACP_ROUTING_ALPHA_TEST_KEY".into(), "routing-alpha-fixture".into()),
             ("ACP_ROUTING_BETA_TEST_KEY".into(), "routing-beta-fixture".into()),

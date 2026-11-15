@@ -13,8 +13,8 @@ struct HttpMode(Option<std::ffi::OsString>, Option<String>);
 impl Drop for HttpMode {
     fn drop(&mut self) {
         match self.1.take() {
-            Some(v) => crate::env::set("VW_AGCOLLAB_ENTRY_KEY", &v),
-            None => crate::env::remove("VW_AGCOLLAB_ENTRY_KEY"),
+            Some(v) => agent_env::set("VW_AGCOLLAB_ENTRY_KEY", &v),
+            None => agent_env::remove("VW_AGCOLLAB_ENTRY_KEY"),
         }
         unsafe {
             match &self.0 {
@@ -100,12 +100,12 @@ async fn agcollab_end_to_end_gateway_and_query_engine_entries() {
     let _lock = crate::test_support::global_async_env_lock().lock().await;
     let http = HttpMode(
         std::env::var_os("VW_RECOVERY_WINDOW_HTTP"),
-        crate::env::get("VW_AGCOLLAB_ENTRY_KEY"),
+        agent_env::get("VW_AGCOLLAB_ENTRY_KEY"),
     );
     unsafe {
         std::env::set_var("VW_RECOVERY_WINDOW_HTTP", "1");
     }
-    crate::env::set("VW_AGCOLLAB_ENTRY_KEY", "synthetic-key");
+    agent_env::set("VW_AGCOLLAB_ENTRY_KEY", "synthetic-key");
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(

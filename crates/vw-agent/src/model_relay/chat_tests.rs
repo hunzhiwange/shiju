@@ -13,10 +13,10 @@ struct EnvGuard(Option<std::ffi::OsString>, Option<std::ffi::OsString>);
 impl Drop for EnvGuard {
     fn drop(&mut self) {
         unsafe {
-            crate::env::remove("SHIJU_RELAY_CHAT_TEST_KEY");
+            agent_env::remove("SHIJU_RELAY_CHAT_TEST_KEY");
             match self.1.take() {
                 Some(v) => {
-                    crate::env::set("SHIJU_RELAY_CHAT_TEST_KEY", v.to_string_lossy().to_string());
+                    agent_env::set("SHIJU_RELAY_CHAT_TEST_KEY", v.to_string_lossy().to_string());
                     std::env::set_var("SHIJU_RELAY_CHAT_TEST_KEY", v);
                 }
                 None => std::env::remove_var("SHIJU_RELAY_CHAT_TEST_KEY"),
@@ -40,7 +40,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
-        crate::env::set("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
+        agent_env::set("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
     }
     let received = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let captured = received.clone();
@@ -192,7 +192,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     crate::config::update_project_for_tenant(&tenant, &root, json!({"providers":{"relay-chat":{"models":{"selected":{"status":"active","tool_call":true}}}}})).await.unwrap();
     unsafe {
         std::env::remove_var("SHIJU_RELAY_CHAT_TEST_KEY");
-        crate::env::remove("SHIJU_RELAY_CHAT_TEST_KEY");
+        agent_env::remove("SHIJU_RELAY_CHAT_TEST_KEY");
     }
     assert_eq!(
         client
@@ -208,7 +208,7 @@ async fn acp_model_source_relay_chat_roundtrip_stream_tools_and_account_isolatio
     assert_eq!(received.lock().len(), 2);
     unsafe {
         std::env::set_var("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
-        crate::env::set("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
+        agent_env::set("SHIJU_RELAY_CHAT_TEST_KEY", "bound-secret");
     }
     // A real subprocess crosses both HTTP boundaries; this is a transport probe, not a CLI support claim.
     use tokio::io::AsyncWriteExt;

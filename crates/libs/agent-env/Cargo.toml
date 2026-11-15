@@ -1,0 +1,11 @@
+[package]
+name = "agent-env"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+agent-context = { path = "../agent-context", version = "0.6.0" }

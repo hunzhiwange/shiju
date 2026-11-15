@@ -28,7 +28,7 @@
 use super::model_catalog;
 use agent_auth as auth;
 use crate::app::agent::config;
-use crate::app::agent::env;
+use agent_env as env;
 use crate::app::agent::project::instance;
 use crate::app::agent::util::log;
 use serde_json::{Map, Value};

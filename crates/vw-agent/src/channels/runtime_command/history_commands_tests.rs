@@ -175,7 +175,7 @@ impl ModelServer {
 impl Drop for ModelServer {
     fn drop(&mut self) {
         self.task.abort();
-        crate::env::remove(&self.key);
+        agent_env::remove(&self.key);
     }
 }
 
@@ -202,7 +202,7 @@ async fn model_server(
     });
     let snapshot = ctx.message_snapshot.as_ref().unwrap();
     let key = format!("VW_HISTORY_FIXTURE_{}", snapshot.scope.project);
-    crate::env::set(&key, "fixture-only");
+    agent_env::set(&key, "fixture-only");
     crate::config::update_project_for_tenant(&snapshot.scope.chat.tenant, &snapshot.directory, serde_json::json!({
         "reliability": {"provider_retries":0, "provider_backoff_ms":0},
         "providers": {"default-provider": {"api": format!("http://{address}/v1"), "adapter":"openai-compatible", "env":[key.clone()], "models": {"default-model": {"status":"active", "limit":{"context":1048576, "input":900000,"output":4096}}}}}

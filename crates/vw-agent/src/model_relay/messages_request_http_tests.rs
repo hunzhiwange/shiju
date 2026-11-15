@@ -14,10 +14,10 @@ pub(super) async fn request_reaches_bound_chat_and_finishes_tool_round() {
     impl Drop for ConfigGuard {
         fn drop(&mut self) {
             unsafe {
-                crate::env::remove("SHIJU_PROTOCOL014_KEY");
+                agent_env::remove("SHIJU_PROTOCOL014_KEY");
                 match self.1.take() {
                     Some(value) => {
-                        crate::env::set(
+                        agent_env::set(
                             "SHIJU_PROTOCOL014_KEY",
                             value.to_string_lossy().to_string(),
                         );
@@ -39,7 +39,7 @@ pub(super) async fn request_reaches_bound_chat_and_finishes_tool_round() {
     unsafe {
         std::env::set_var("VIBEWINDOW_CONFIG_DIR", dir.path().join("config"));
         std::env::set_var("SHIJU_PROTOCOL014_KEY", "fixture-only");
-        crate::env::set("SHIJU_PROTOCOL014_KEY", "fixture-only");
+        agent_env::set("SHIJU_PROTOCOL014_KEY", "fixture-only");
     }
     let received = Arc::new(parking_lot::Mutex::new(Vec::new()));
     let captured = received.clone();

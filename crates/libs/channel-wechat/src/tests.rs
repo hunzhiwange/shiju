@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+use channel_support::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use channel_types::{Channel, SendMessage};
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

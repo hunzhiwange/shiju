@@ -4,13 +4,13 @@ use uuid::Uuid;
 
 /// 与腾讯官方 iLink 客户端兼容的协议版本。
 pub(crate) const CHANNEL_VERSION: &str = "2.4.10";
-pub(crate) const APP_CLIENT_VERSION: &str = "132106";
+pub const APP_CLIENT_VERSION: &str = "132106";
 
-pub(crate) fn with_application_headers(request: RequestBuilder) -> RequestBuilder {
+pub fn with_application_headers(request: RequestBuilder) -> RequestBuilder {
     request.header("iLink-App-Id", "bot").header("iLink-App-ClientVersion", APP_CLIENT_VERSION)
 }
 
-pub(crate) fn with_json_headers(
+pub fn with_json_headers(
     request: RequestBuilder,
     bot_token: Option<&str>,
 ) -> RequestBuilder {

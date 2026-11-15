@@ -22,6 +22,7 @@ agent-paths = { path = "../agent-paths", version = "0.6.0" }
 agent-project = { path = "../agent-project", version = "0.6.0" }
 config-runtime-paths = { path = "../config-runtime-paths", version = "0.6.0" }
 task-lifecycle = { path = "../task-lifecycle", version = "0.6.0" }
+task-types = { path = "../task-types", version = "0.6.0" }
 project-types = { path = "../project-types", version = "0.6.0" }
 vw-api-task = { path = "../api-task", version = "0.6.0" }
 vw-api-task-lifecycle = { path = "../api-task-lifecycle", version = "0.6.0" }

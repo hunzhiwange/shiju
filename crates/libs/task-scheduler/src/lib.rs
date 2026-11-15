@@ -8,6 +8,9 @@ pub mod lifecycle_bridge;
 pub mod outbox_dispatcher;
 pub mod store;
 pub mod task_graph;
+pub mod task_board;
+#[cfg(test)]
+mod task_board_tests;
 #[cfg(test)]
 mod lifecycle_bridge_tests;
 #[cfg(test)]

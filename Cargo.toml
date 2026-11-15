@@ -41,6 +41,7 @@ members = [
   "crates/libs/gateway-app-settings",
   "crates/libs/gateway-app-failover",
   "crates/libs/gateway-app-diagnostics",
+  "crates/libs/config-aggregate",
   "crates/libs/config-ui",
   "crates/libs/config-voice",
   "crates/libs/runtime-time",

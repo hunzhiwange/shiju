@@ -359,7 +359,7 @@ fn model_status_patch_groups_all_changes_into_one_provider_patch() {
 
 #[test]
 fn provider_status_reset_patch_removes_only_explicit_status_fields() {
-    let mut config = vw_config_types::config::Config::default();
+    let mut config = config_aggregate::Config::default();
     config.providers.insert(
         "openai".to_string(),
         json!({

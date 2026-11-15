@@ -146,8 +146,8 @@ struct CatalogAgent {
     definition: config_agent::DelegateAgentConfig,
 }
 
-async fn load_catalog_config() -> Result<vw_config_types::config::Config, String> {
-    let mut config: vw_config_types::config::Config =
+async fn load_catalog_config() -> Result<config_aggregate::Config, String> {
+    let mut config: config_aggregate::Config =
         serde_json::from_value(crate::app::config::load_global_config_value_async().await?)
             .map_err(|error| error.to_string())?;
     let value = gateway_config::GatewayConfigClient::new(crate::app::config::gateway_client()?.transport().clone()).agent_profiles(None, true).await?;
@@ -156,7 +156,7 @@ async fn load_catalog_config() -> Result<vw_config_types::config::Config, String
 }
 
 pub(in crate::app) fn merge_catalog_profiles(
-    config: &mut vw_config_types::config::Config,
+    config: &mut config_aggregate::Config,
     value: serde_json::Value,
 ) -> Result<(), String> {
     let catalog: Vec<CatalogAgent> =
@@ -172,7 +172,7 @@ pub(in crate::app) fn merge_catalog_profiles(
     Ok(())
 }
 
-fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
+fn apply_config(app: &mut App, config: &config_aggregate::Config) {
     let mut entries = crate::app::state::agent_settings_entries_from_config(config);
     crate::app::state::apply_default_allowed_tools(
         &mut entries,

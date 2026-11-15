@@ -4,7 +4,7 @@
 
 use super::*;
 use serde_json::json;
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 
 fn recent_project_meta(path: &str, name: &str) -> RecentProjectMeta {
     RecentProjectMeta {

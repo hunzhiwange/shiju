@@ -9,7 +9,7 @@ fn settings_tests_module_is_wired() {
 
 #[test]
 fn build_multimodal_settings_loads_ocr_config() {
-    let mut config = vw_config_types::config::Config::default();
+    let mut config = config_aggregate::Config::default();
     config.multimodal.max_images = 8;
     config.multimodal.max_image_size_mb = 10;
     config.multimodal.allow_remote_fetch = true;

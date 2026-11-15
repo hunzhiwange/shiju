@@ -643,7 +643,7 @@ pub enum AgentsMessage {
     ToolsLoaded(Result<Vec<String>, String>),
     ConfigLoaded {
         project_path: Option<String>,
-        result: Result<Box<vw_config_types::config::Config>, String>,
+        result: Result<Box<config_aggregate::Config>, String>,
     },
     ProjectSelected(String),
     SkillDirectorySelected(Option<String>),
@@ -657,7 +657,7 @@ pub enum AgentsMessage {
     ProjectChanged(String),
     ProjectConfigLoaded {
         project_path: String,
-        result: Result<Box<vw_config_types::config::Config>, String>,
+        result: Result<Box<config_aggregate::Config>, String>,
     },
     SelectAgent(String),
     AddAgentOpened,

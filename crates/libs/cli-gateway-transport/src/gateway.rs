@@ -18,7 +18,7 @@ use super::stream_adapter::adapt_gateway_stream_event;
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectScope;
 use {

@@ -6,7 +6,7 @@ use crate::app::config::AcpSettingsSnapshot;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::state::AcpDiagnosticStatus;
 use std::collections::BTreeMap;
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 
 fn acp_config(command: &str) -> AcpAgentConfig {
     AcpAgentConfig { command: command.to_string(), ..AcpAgentConfig::default() }

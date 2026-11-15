@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 
 use crate::app::agent::config::schema::channels::is_valid_env_var_name;
 use crate::app::agent::config::schema::proxy::validate_proxy_config;

@@ -9,7 +9,7 @@ use crate::app::config::{
 use crate::app::state::AcpDiagnosticStatus;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 
 use super::messages::{AcpMessage, SettingsMessage};
 

@@ -6,7 +6,7 @@ use super::*;
 /// 模块内可见函数，执行 build_embedding_routes_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_embedding_routes_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
     gateway_cfg_result: &Result<config_gateway::GatewayConfig, String>,
 ) -> crate::app::state::EmbeddingRoutesSettingsState {
     crate::app::state::EmbeddingRoutesSettingsState {
@@ -32,7 +32,7 @@ pub(super) fn build_embedding_routes_settings(
 /// 模块内可见函数，执行 build_model_routes_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_model_routes_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::ModelRoutesSettingsState {
     let query_classification_cfg = &full_agent_cfg.query_classification;
     let model_routes_cfg = &full_agent_cfg.model_routes;
@@ -65,7 +65,7 @@ pub(super) fn build_model_routes_settings(
 }
 
 pub(super) fn build_query_classification_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::QueryClassificationSettingsState {
     let query_classification_cfg = &full_agent_cfg.query_classification;
 
@@ -93,7 +93,7 @@ pub(super) fn build_query_classification_settings(
 /// 模块内可见函数，执行 build_heartbeat_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_heartbeat_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::HeartbeatSettingsState {
     let heartbeat_cfg = &full_agent_cfg.heartbeat;
 
@@ -111,7 +111,7 @@ pub(super) fn build_heartbeat_settings(
 /// 模块内可见函数，执行 build_cron_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_cron_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::CronSettingsState {
     let cron_cfg = &full_agent_cfg.cron;
 
@@ -147,7 +147,7 @@ pub(super) fn build_cron_settings(
 /// 模块内可见函数，执行 build_scheduler_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_scheduler_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::SchedulerSettingsState {
     let scheduler_cfg = &full_agent_cfg.scheduler;
 
@@ -163,7 +163,7 @@ pub(super) fn build_scheduler_settings(
 /// 模块内可见函数，执行 build_hooks_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_hooks_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::HooksSettingsState {
     let hooks_cfg = &full_agent_cfg.hooks;
 
@@ -186,7 +186,7 @@ pub(super) fn build_hooks_settings(
 /// 模块内可见函数，执行 build_runtime_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_runtime_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::RuntimeSettingsState {
     let runtime_cfg = &full_agent_cfg.runtime;
 
@@ -229,7 +229,7 @@ pub(super) fn build_runtime_settings(
 /// 模块内可见函数，执行 build_skills_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_skills_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::SkillsSettingsState {
     let skills_cfg = &full_agent_cfg.skills;
 
@@ -272,7 +272,7 @@ pub(super) fn build_skills_settings(
 /// 模块内可见函数，执行 build_web_search_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_web_search_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::WebSearchSettingsState {
     let web_search_cfg = &full_agent_cfg.web_search;
 
@@ -304,7 +304,7 @@ pub(super) fn build_web_search_settings(
 /// 模块内可见函数，执行 build_browser_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_browser_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::BrowserSettingsState {
     let browser_cfg = &full_agent_cfg.browser;
     let allowed_domains = browser_cfg.allowed_domains.join("\n");
@@ -354,7 +354,7 @@ pub(super) fn build_browser_settings(
 /// 模块内可见函数，执行 build_http_request_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_http_request_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::HttpRequestSettingsState {
     let http_request_cfg = &full_agent_cfg.http_request;
 
@@ -417,7 +417,7 @@ pub(super) fn build_gateway_settings(
 /// 模块内可见函数，执行 build_memory_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_memory_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::MemorySettingsState {
     let memory_cfg = &full_agent_cfg.memory;
 
@@ -467,7 +467,7 @@ pub(super) fn build_memory_settings(
 /// 模块内可见函数，执行 build_reliability_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_reliability_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::ReliabilitySettingsState {
     let reliability_cfg = &full_agent_cfg.reliability;
 
@@ -486,7 +486,7 @@ pub(super) fn build_reliability_settings(
 /// 模块内可见函数，执行 build_multimodal_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_multimodal_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::MultimodalSettingsState {
     let multimodal_cfg = &full_agent_cfg.multimodal;
 
@@ -510,7 +510,7 @@ pub(super) fn build_multimodal_settings(
 /// 模块内可见函数，执行 build_security_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_security_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::SecuritySettingsState {
     let security_cfg = &full_agent_cfg.security;
 
@@ -604,7 +604,7 @@ pub(super) fn build_security_settings(
 /// 模块内可见函数，执行 build_autonomy_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_autonomy_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::AutonomySettingsState {
     crate::app::state::AutonomySettingsState::from_config(&full_agent_cfg.autonomy)
 }
@@ -612,7 +612,7 @@ pub(super) fn build_autonomy_settings(
 /// 模块内可见函数，执行 build_observability_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_observability_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::ObservabilitySettingsState {
     let observability_cfg = &full_agent_cfg.observability;
 
@@ -641,7 +641,7 @@ pub(super) fn build_observability_settings(
 /// 模块内可见函数，执行 build_storage_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_storage_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::StorageSettingsState {
     let storage_cfg = &full_agent_cfg.storage;
 
@@ -670,7 +670,7 @@ pub(super) fn build_storage_settings(
 /// 模块内可见函数，执行 build_proxy_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_proxy_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::ProxySettingsState {
     let proxy_cfg = &full_agent_cfg.proxy;
 
@@ -690,7 +690,7 @@ pub(super) fn build_proxy_settings(
 /// 模块内可见函数，执行 build_tunnel_settings 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn build_tunnel_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> crate::app::state::TunnelSettingsState {
     let tunnel_cfg = &full_agent_cfg.tunnel;
 
@@ -748,7 +748,7 @@ pub(super) fn build_tunnel_settings(
 
 pub(super) fn apply_bootstrap_agent_config(
     app: &mut App,
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
     gateway: &config_gateway::GatewayConfig,
 ) {
     // Control state is read through its authenticated API, never inferred from config.

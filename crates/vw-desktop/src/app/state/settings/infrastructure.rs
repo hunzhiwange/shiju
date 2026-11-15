@@ -59,9 +59,9 @@ pub(crate) struct AcpSettingsState {
     pub(crate) diagnostic_status: Option<AcpDiagnosticStatus>,
     pub(crate) diagnostic_agent: Option<String>,
     pub(crate) diagnostic_results: std::collections::BTreeMap<String, AcpDiagnosticStatus>,
-    pub(crate) catalog: std::collections::BTreeMap<String, vw_config_types::config::AcpAgentConfig>,
+    pub(crate) catalog: std::collections::BTreeMap<String, config_aggregate::AcpAgentConfig>,
     pub(crate) defaults:
-        std::collections::BTreeMap<String, vw_config_types::config::AcpAgentConfig>,
+        std::collections::BTreeMap<String, config_aggregate::AcpAgentConfig>,
     pub(crate) enabled: std::collections::BTreeSet<String>,
     pub(crate) editing_agent: Option<String>,
     pub(crate) editor_args: Vec<String>,

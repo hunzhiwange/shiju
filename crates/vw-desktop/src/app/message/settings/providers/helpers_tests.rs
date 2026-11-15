@@ -177,7 +177,7 @@ fn summarize_providers_marks_keyed_custom_provider_as_connected() {
 
 #[test]
 fn load_popular_providers_from_config_returns_unconfigured_empty_fallback() {
-    let config = vw_config_types::config::Config {
+    let config = config_aggregate::Config {
         popular_providers: vec!["openai".to_string()],
         ..Default::default()
     };

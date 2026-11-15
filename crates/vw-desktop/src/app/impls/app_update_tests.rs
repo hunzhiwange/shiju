@@ -171,13 +171,13 @@ fn startup_agent_config_reload_rehydrates_gateway_backed_settings() {
     let mut app = test_app();
     app.agents_settings.project_path = Some("/workspace/project".to_string());
 
-    let mut config = vw_config_types::config::Config::default();
+    let mut config = config_aggregate::Config::default();
     config.heartbeat.interval_minutes = 91;
     config.gateway.port = 19_321;
     config.memory.backend = "markdown".to_string();
     config.channels_config.cli = true;
     config.proxy.enabled = true;
-    config.acp.insert("claude".to_string(), vw_config_types::config::AcpAgentConfig::default());
+    config.acp.insert("claude".to_string(), config_aggregate::AcpAgentConfig::default());
 
     let _ = app.update(Message::StartupAgentConfigLoaded(Ok(Box::new(config))));
 

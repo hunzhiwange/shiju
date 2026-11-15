@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde_json::Value;
 use vw_api_transport::id::TenantScope;
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 
 use super::SystemConfigStore;
 use super::schema::{

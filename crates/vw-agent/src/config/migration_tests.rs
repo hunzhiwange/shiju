@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use vw_api_transport::id::TenantScope;
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 
 use super::SystemConfigStore;
 use super::migration::{MigrationOutcome, migrate_user_config, migrate_user_config_with_database};

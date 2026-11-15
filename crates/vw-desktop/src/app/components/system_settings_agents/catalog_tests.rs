@@ -32,9 +32,9 @@ fn agent_catalog_view_keeps_disabled_custom_entries_manageable() {
     assert!(catalog::entries(&settings, false, "missing").is_empty());
 }
 
-fn catalog_config() -> vw_config_types::config::Config {
+fn catalog_config() -> config_aggregate::Config {
     // Wire-shaped catalog fixture: official identities come from the gateway, not CLI detection.
-    let mut config: vw_config_types::config::Config =
+    let mut config: config_aggregate::Config =
         serde_json::from_value(serde_json::json!({})).unwrap();
     for backend in [
         "auggie",

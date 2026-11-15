@@ -15,7 +15,7 @@ use crate::app::message::settings::{AcpMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{Space, button, column, container, responsive, row, scrollable, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 
 #[path = "system_settings_acp_diagnostic.rs"]
 mod diagnostic;

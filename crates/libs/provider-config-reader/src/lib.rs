@@ -12,7 +12,7 @@ use once_cell::sync::Lazy;
 use std::path::PathBuf;
 #[cfg(target_arch = "wasm32")]
 use std::sync::Mutex;
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 #[cfg(target_arch = "wasm32")]
 use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
 

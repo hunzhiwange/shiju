@@ -55,7 +55,7 @@ pub fn is_valid_provider_id(s: &str) -> bool {
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 pub fn load_popular_providers_from_config(
-    _cfg: &vw_config_types::config::Config,
+    _cfg: &config_aggregate::Config,
 ) -> (Vec<String>, bool) {
     (Vec::new(), false)
 }

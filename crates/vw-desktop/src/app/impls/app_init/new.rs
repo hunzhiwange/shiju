@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 mod settings;
 
 fn build_multimodal_settings(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> super::state::MultimodalSettingsState {
     let multimodal_cfg = &full_agent_cfg.multimodal;
 
@@ -40,7 +40,7 @@ fn build_task_board_settings(_cfg: &serde_json::Value) -> crate::app::task::Task
 impl App {
     pub(crate) fn apply_bootstrap_agent_config(
         &mut self,
-        config: &vw_config_types::config::Config,
+        config: &config_aggregate::Config,
     ) {
         settings::apply_bootstrap_agent_config(self, config, &config.gateway);
         self.acp_agents = sort_acp_agents(&config.acp);
@@ -49,7 +49,7 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn apply_startup_agent_config(
         &mut self,
-        config: &vw_config_types::config::Config,
+        config: &config_aggregate::Config,
         gateway: &config_gateway::GatewayConfig,
     ) {
         settings::apply_bootstrap_agent_config(self, config, gateway);
@@ -216,7 +216,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         let full_agent_cfg = config::load_local_agent_config().unwrap_or_default();
         #[cfg(target_arch = "wasm32")]
-        let full_agent_cfg = vw_config_types::config::Config::default();
+        let full_agent_cfg = config_aggregate::Config::default();
         let global_acp_cfg = &full_agent_cfg.acp;
         let acp_agents = sort_acp_agents(global_acp_cfg);
         let cfg_acp_agent =

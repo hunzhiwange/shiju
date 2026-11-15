@@ -5,7 +5,7 @@ const SOURCE: &str = include_str!("system_settings_acp.rs");
 
 use super::{acp_description, acp_title, command_line, ordered_agents, setup_hint, view};
 use crate::app::state::AcpDiagnosticStatus;
-use vw_config_types::config::AcpAgentConfig;
+use config_aggregate::AcpAgentConfig;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_themes() {

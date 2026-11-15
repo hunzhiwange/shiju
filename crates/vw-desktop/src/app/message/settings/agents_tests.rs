@@ -46,8 +46,8 @@ fn entry_mut<'a>(app: &'a mut App, key: &str) -> &'a mut DelegateAgentSettingsEn
         .expect("missing agent settings entry")
 }
 
-fn config_with_main_skills(skills: &[&str]) -> Box<vw_config_types::config::Config> {
-    let mut config = vw_config_types::config::Config::default();
+fn config_with_main_skills(skills: &[&str]) -> Box<config_aggregate::Config> {
+    let mut config = config_aggregate::Config::default();
     let main = config.agents.entry("main".to_string()).or_insert_with(|| {
         config_agent::builtin_agent_config("main").unwrap_or_default()
     });
@@ -310,7 +310,7 @@ fn agents_settings_patch_omits_fields_the_ui_does_not_own() {
 
 #[test]
 fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
-    let config = vw_config_types::config::Config::default();
+    let config = config_aggregate::Config::default();
     let entries = crate::app::state::agent_settings_entries_from_config(&config);
 
     let patch = build_agents_settings_patch(&entries).expect("fresh settings should serialize");
@@ -337,7 +337,7 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
 
 #[test]
 fn agents_settings_patch_removes_legacy_general_entry() {
-    let mut config = vw_config_types::config::Config::default();
+    let mut config = config_aggregate::Config::default();
     config
         .agents
         .insert("general".to_string(), config_agent::DelegateAgentConfig::default());
@@ -1284,7 +1284,7 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_without_creating_us
     app.agents_settings.available_tools = vec!["read".to_string()];
     app.agents_settings.registered_tools = Some(app.agents_settings.available_tools.clone());
 
-    let mut config = vw_config_types::config::Config::default();
+    let mut config = config_aggregate::Config::default();
     let mut custom = config_agent::DelegateAgentConfig::default();
     custom.allowed_tools = vec!["removed_a".to_string(), "removed_b".to_string()];
     config.agents.insert("custom".to_string(), custom);
@@ -1671,7 +1671,7 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
                 )),
             );
             let patch = build_agents_settings_patch(&app.agents_settings.entries).unwrap();
-            let mut saved_config = vw_config_types::config::Config::default();
+            let mut saved_config = config_aggregate::Config::default();
             for (key, value) in patch["agents"].as_object().unwrap() {
                 if !value.is_null() {
                     saved_config

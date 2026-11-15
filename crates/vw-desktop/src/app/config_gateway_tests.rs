@@ -15,7 +15,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use config_agent::AgentDefinitionConfig;
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 use config_ui::{GatewayClientServerConfig, GatewayClientSystemSettingsConfig};
 use gateway_endpoint::GatewayEndpoint;
 

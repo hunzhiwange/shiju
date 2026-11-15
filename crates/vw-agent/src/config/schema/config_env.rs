@@ -23,7 +23,7 @@
 //! - 无效的环境变量值会被忽略并发出警告
 //! - 代理配置在应用前会进行验证
 
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 
 use crate::app::agent::config::schema::config::{
     apply_named_model_provider_profile, apply_workspace_override,

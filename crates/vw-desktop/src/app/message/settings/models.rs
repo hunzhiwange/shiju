@@ -127,7 +127,7 @@ fn model_status_patch(changes: &[ModelStatusChange]) -> Value {
 }
 
 fn provider_model_status_reset_patch(
-    config: &vw_config_types::config::Config,
+    config: &config_aggregate::Config,
     provider_id: &str,
 ) -> Option<Value> {
     let configured_models =

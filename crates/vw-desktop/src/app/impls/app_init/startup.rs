@@ -73,7 +73,8 @@ mod native {
     use super::*;
     use serde_json::Value;
     use std::collections::HashSet;
-    use vw_config_types::{config::Config, gateway::GatewayConfig, ui::AppSystemSettingsConfig};
+    use config_aggregate::Config;
+    use vw_config_types::{gateway::GatewayConfig, ui::AppSystemSettingsConfig};
     use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{ExternalAppsStateDto, GatewayClient}};
 
     #[derive(Default, Clone, Copy)]

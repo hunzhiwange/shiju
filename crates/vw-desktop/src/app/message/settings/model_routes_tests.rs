@@ -356,7 +356,7 @@ fn route_and_classification_edits_coalesce_without_blocking() {
         responses.send(Some(persisted.to_string())).unwrap();
         let loaded = runtime.block_on(reload).unwrap().unwrap();
         assert_eq!(loaded["query_classification"]["unmanaged"], "keep");
-        let loaded: vw_config_types::config::Config = serde_json::from_value(loaded).unwrap();
+        let loaded: config_aggregate::Config = serde_json::from_value(loaded).unwrap();
         assert!(!loaded.query_classification.enabled);
         assert_eq!(loaded.query_classification.rules[0].hint, "latest");
         assert_eq!(loaded.model_routes[0].hint, "code");

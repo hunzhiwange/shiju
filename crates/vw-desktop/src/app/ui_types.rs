@@ -81,7 +81,7 @@ pub enum Message {
     StartupSessionsLoaded(u64, Box<crate::app::message::ProjectMessage>),
     StartupAppConfigLoaded(Result<serde_json::Value, String>),
     StartupSystemSettingsLoaded(Result<config_ui::AppSystemSettingsConfig, String>),
-    StartupAgentConfigLoaded(Result<Box<vw_config_types::config::Config>, String>),
+    StartupAgentConfigLoaded(Result<Box<config_aggregate::Config>, String>),
     StartupBrowserConfigLoaded(Result<config_tools::BrowserConfig, String>),
     BootstrapAppConfig(Result<serde_json::Value, String>),
     BootstrapSystemSettings(Result<config_ui::AppSystemSettingsConfig, String>),

@@ -267,7 +267,7 @@ pub(crate) fn retain_available_allowed_tools(
 }
 
 pub(crate) fn agent_settings_entries_from_config(
-    full_agent_cfg: &vw_config_types::config::Config,
+    full_agent_cfg: &config_aggregate::Config,
 ) -> Vec<DelegateAgentSettingsEntry> {
     let delegate_agents_cfg = merged_agent_configs(&full_agent_cfg.agents);
     let default_provider_cfg = full_agent_cfg.default_provider.clone();

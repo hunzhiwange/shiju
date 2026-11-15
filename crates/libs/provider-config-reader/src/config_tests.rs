@@ -125,7 +125,7 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
     env.set_path("VIBEWINDOW_WORKSPACE", &missing);
     assert_eq!(
         super::get().await.default_model,
-        vw_config_types::config::Config::default().default_model
+        config_aggregate::Config::default().default_model
     );
 
     let empty = unique_dir("empty");
@@ -134,7 +134,7 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
     env.set_path("VIBEWINDOW_WORKSPACE", &empty);
     assert_eq!(
         super::get().await.default_model,
-        vw_config_types::config::Config::default().default_model
+        config_aggregate::Config::default().default_model
     );
 
     let invalid = unique_dir("invalid");
@@ -144,7 +144,7 @@ async fn get_returns_default_when_config_file_is_missing_empty_or_invalid() {
     env.set_path("VIBEWINDOW_WORKSPACE", &invalid);
     assert_eq!(
         super::get().await.default_model,
-        vw_config_types::config::Config::default().default_model
+        config_aggregate::Config::default().default_model
     );
 }
 

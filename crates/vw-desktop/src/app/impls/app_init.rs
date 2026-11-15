@@ -29,7 +29,7 @@ mod settings_builders;
 pub(in crate::app) mod startup;
 
 pub(super) fn sort_acp_agents(
-    acp_cfg: &HashMap<String, vw_config_types::config::AcpAgentConfig>,
+    acp_cfg: &HashMap<String, config_aggregate::AcpAgentConfig>,
 ) -> Vec<String> {
     let mut acp_agents = acp_cfg.keys().cloned().collect::<Vec<_>>();
     acp_agents.sort_by(|left, right| {

@@ -39,7 +39,7 @@ pub(super) fn load_new_app_init() -> NewAppInit {
     #[cfg(not(target_arch = "wasm32"))]
     let full_agent_cfg = config::load_full_agent_config();
     #[cfg(target_arch = "wasm32")]
-    let full_agent_cfg = vw_config_types::config::Config::default();
+    let full_agent_cfg = config_aggregate::Config::default();
 
     #[cfg(not(target_arch = "wasm32"))]
     let global_acp_cfg = config::load_enabled_acp_config_result().unwrap_or_else(|err| {

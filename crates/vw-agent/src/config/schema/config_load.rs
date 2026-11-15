@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 
 use vw_api_transport::id::TenantScope;
-use vw_config_types::config::Config;
+use config_aggregate::Config;
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::app::agent::config::SystemConfigStore;

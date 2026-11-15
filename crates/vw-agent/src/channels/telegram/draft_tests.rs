@@ -2,7 +2,7 @@
 
 use super::TelegramChannel;
 use super::message_utils::TELEGRAM_MAX_MESSAGE_LENGTH;
-use crate::app::agent::channels::traits::SendMessage;
+use channel_types::SendMessage;
 use crate::app::agent::config::StreamMode;
 use axum::{
     Router,

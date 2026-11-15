@@ -18,7 +18,7 @@
 //! 保持 trait 实现简洁，同时便于测试和维护。
 
 use super::TelegramChannel;
-use crate::app::agent::channels::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use crate::app::agent::config::StreamMode;
 use async_trait::async_trait;
 

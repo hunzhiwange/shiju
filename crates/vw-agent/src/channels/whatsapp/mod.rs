@@ -2,7 +2,7 @@
 //!
 //! 生产出站地址必须使用 HTTPS；入站解析仅接受准入号码发送的文本消息。
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;
 

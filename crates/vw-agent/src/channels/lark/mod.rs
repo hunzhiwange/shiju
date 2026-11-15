@@ -47,7 +47,7 @@ mod types;
 mod webhook;
 mod ws;
 
-use super::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use async_trait::async_trait;
 use platform::LarkPlatform;
 use std::collections::HashMap;
@@ -88,7 +88,7 @@ pub(crate) use tokio_tungstenite::tungstenite::Message as WsMsg;
 pub(crate) use ws::should_refresh_last_recv;
 
 /// 通道消息类型别名
-pub(crate) type ChannelMessage = super::traits::ChannelMessage;
+pub(crate) type ChannelMessage = channel_types::ChannelMessage;
 
 /// Lark/飞书通道实现
 ///

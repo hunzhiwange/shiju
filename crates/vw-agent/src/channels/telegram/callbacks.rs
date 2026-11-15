@@ -16,7 +16,7 @@
 //! - `zcapr:no:<request_id>` - 拒绝审批请求
 
 use super::TelegramChannel;
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 
 /// 审批回调"同意"前缀
 /// 用于标识用户点击了同意按钮的回调查询

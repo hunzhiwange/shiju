@@ -122,7 +122,7 @@ pub use signal::SignalChannel;
 pub use slack::SlackChannel;
 #[cfg(not(target_arch = "wasm32"))]
 pub use telegram::TelegramChannel;
-pub use traits::{Channel, SendMessage};
+pub use channel_types::{Channel, SendMessage};
 #[cfg(not(target_arch = "wasm32"))]
 pub use wati::WatiChannel;
 #[cfg(not(target_arch = "wasm32"))]

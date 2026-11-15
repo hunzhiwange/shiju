@@ -185,7 +185,7 @@ async fn send_message_with_client(
     token: &str,
     message_url: &str,
     files_url: &str,
-    message: &crate::app::agent::channels::traits::SendMessage,
+    message: &channel_types::SendMessage,
 ) -> anyhow::Result<()> {
     let passive_msg_id =
         message.thread_ts.as_deref().map(str::trim).filter(|value| !value.is_empty());
@@ -305,7 +305,7 @@ impl QQChannel {
     /// 发送消息到指定接收者。
     pub(super) async fn send_message(
         &self,
-        message: &crate::app::agent::channels::traits::SendMessage,
+        message: &channel_types::SendMessage,
     ) -> anyhow::Result<()> {
         #[cfg(test)]
         if let Some(recorder) = &self.outbound_recorder {

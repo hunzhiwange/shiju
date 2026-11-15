@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;

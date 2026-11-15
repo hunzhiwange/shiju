@@ -18,7 +18,7 @@
 //! - 类型指示器：支持"正在输入"状态的显示
 //! - 签名验证：HMAC-SHA256 签名验证以防止伪造请求
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;
 

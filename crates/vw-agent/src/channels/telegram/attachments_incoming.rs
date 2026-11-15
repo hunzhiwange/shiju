@@ -24,7 +24,7 @@ use super::attachments::{
     format_attachment_content, resolve_workspace_attachment_output_path,
     sanitize_attachment_filename, sanitize_generated_extension,
 };
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 
 impl TelegramChannel {
     /// 从 Telegram 消息中解析附件元数据

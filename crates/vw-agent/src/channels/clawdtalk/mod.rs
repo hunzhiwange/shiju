@@ -21,7 +21,7 @@ pub use config_channel_services::clawdtalk::ClawdTalkConfig;
 
 use crate::app::agent::config::traits::ChannelConfig;
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

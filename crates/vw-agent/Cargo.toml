@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+channel-types = { path = "../libs/channel-types", version = "0.6.0" }
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
 gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }

@@ -18,7 +18,7 @@ use super::*;
 #[allow(dead_code)]
 mod tests {
     use super::*;
-    use crate::channels::traits::SendMessage;
+    use channel_types::SendMessage;
     use axum::{
         Router,
         body::Bytes,

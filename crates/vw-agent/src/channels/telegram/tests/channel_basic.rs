@@ -10,7 +10,7 @@
 //! - 消息 ID 格式化和确定性验证
 
 use super::*;
-use crate::app::agent::channels::traits::Channel;
+use channel_types::Channel;
 use std::time::Duration;
 
 /// 测试 Telegram 频道名称是否正确返回 "telegram"

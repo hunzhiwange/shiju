@@ -87,7 +87,7 @@ use tokio_rustls::client::TlsStream;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 pub use crate::app::agent::config::EmailConfig;
 
 /// IMAP 会话类型别名

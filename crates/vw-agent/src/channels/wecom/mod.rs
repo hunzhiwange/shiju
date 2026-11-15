@@ -5,7 +5,7 @@ pub mod runtime;
 pub mod webhook;
 
 use super::outbound_delivery::DeliveryFailureKind;
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};

@@ -2,7 +2,7 @@
 
 // 渠道 fixture 覆盖成功回复与降级回复，并验证外部签名先于载荷处理。
 use super::*;
-use crate::app::agent::channels::traits::{ChannelMessage, SendMessage};
+use channel_types::{ChannelMessage, SendMessage};
 use crate::app::agent::channels::{
     LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel,
 };

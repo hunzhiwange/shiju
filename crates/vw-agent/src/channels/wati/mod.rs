@@ -2,7 +2,7 @@
 //!
 //! 入站消息由网关推送而非本模块轮询；解析器兼容 WATI 不同版本的字段命名。
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use uuid::Uuid;
 

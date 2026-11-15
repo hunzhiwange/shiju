@@ -5,7 +5,7 @@
 //! 409 冲突退避、bot 用户名缓存刷新、确认反应和健康检查等网络边界逻辑。
 
 use super::TelegramChannel;
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 use std::time::Duration;
 
 impl TelegramChannel {

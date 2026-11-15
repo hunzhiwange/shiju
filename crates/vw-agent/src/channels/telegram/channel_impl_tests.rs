@@ -1,7 +1,7 @@
 // 本文件验证 Telegram 渠道接口的发送、草稿支持与降级路径。
 
 use super::TelegramChannel;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use crate::app::agent::config::StreamMode;
 use axum::{
     Router,

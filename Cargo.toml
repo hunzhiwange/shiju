@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/channel-types",
   "crates/libs/runtime-types",
   "crates/libs/desktop-voice",
   "crates/libs/app-discovery",

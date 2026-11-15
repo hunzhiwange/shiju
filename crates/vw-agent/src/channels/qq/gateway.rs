@@ -72,7 +72,7 @@ impl QQChannel {
     #[allow(clippy::too_many_lines)]
     pub(super) async fn listen_gateway(
         &self,
-        tx: tokio::sync::mpsc::Sender<crate::app::agent::channels::traits::ChannelMessage>,
+        tx: tokio::sync::mpsc::Sender<channel_types::ChannelMessage>,
     ) -> anyhow::Result<()> {
         tracing::info!("QQ: authenticating...");
         let token = self.get_token().await?;
@@ -90,7 +90,7 @@ impl QQChannel {
     async fn run_gateway_session<W, R, RE>(
         &self,
         token: &str,
-        tx: tokio::sync::mpsc::Sender<crate::app::agent::channels::traits::ChannelMessage>,
+        tx: tokio::sync::mpsc::Sender<channel_types::ChannelMessage>,
         write: &mut W,
         read: &mut R,
     ) -> anyhow::Result<()>

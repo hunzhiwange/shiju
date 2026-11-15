@@ -8,8 +8,8 @@ use super::state::AppState;
 use super::util::{
     linq_memory_key, nextcloud_talk_memory_key, qq_memory_key, wati_memory_key, whatsapp_memory_key,
 };
-use crate::app::agent::channels::SendMessage;
-use crate::app::agent::channels::traits::{Channel, ChannelMessage};
+use channel_types::SendMessage;
+use channel_types::{Channel, ChannelMessage};
 #[cfg(test)]
 use crate::app::agent::memory::MemoryCategory;
 use crate::app::agent::security::pairing::constant_time_eq;

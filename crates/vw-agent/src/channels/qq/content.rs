@@ -1,4 +1,4 @@
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 use regex::Regex;
 use serde_json::{Map, Value, json};
 use std::sync::OnceLock;

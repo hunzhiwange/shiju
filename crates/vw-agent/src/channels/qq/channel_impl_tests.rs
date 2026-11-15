@@ -1,7 +1,7 @@
 // 本文件验证 QQ 渠道接口的令牌复用、监听错误与健康检查。
 
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use crate::app::agent::config::{
     ProxyConfig, ProxyScope, runtime_proxy_config, set_runtime_proxy_config,
 };
@@ -81,7 +81,7 @@ impl QQChannel {
     pub(crate) async fn command_flow_websocket_frame(
         &self,
         frame: &serde_json::Value,
-    ) -> Option<crate::channels::traits::ChannelMessage> {
+    ) -> Option<channel_types::ChannelMessage> {
         if frame.get("op").and_then(serde_json::Value::as_u64) != Some(0) {
             return None;
         }

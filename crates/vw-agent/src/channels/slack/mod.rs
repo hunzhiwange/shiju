@@ -2,7 +2,7 @@
 //!
 //! 空白名单默认拒绝所有用户；群聊可进一步要求提及机器人或限定触发者。
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};

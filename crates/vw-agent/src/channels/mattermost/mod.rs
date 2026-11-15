@@ -15,7 +15,7 @@
 //!
 //! ```ignore
 //! use crate::app::agent::channels::mattermost::MattermostChannel;
-//! use crate::app::agent::channels::traits::Channel;
+//! use channel_types::Channel;
 //!
 //! let channel = MattermostChannel::new(
 //!     "https://mm.example.com".to_string(),
@@ -34,7 +34,7 @@
 //!
 //! 本模块遵循 trait 驱动架构，实现了 [`Channel`] trait，可与其他通道实现互换使用。
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use parking_lot::Mutex;

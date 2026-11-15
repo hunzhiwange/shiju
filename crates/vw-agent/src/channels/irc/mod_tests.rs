@@ -1,7 +1,7 @@
 // 本文件验证 IRC 消息解析、SASL 编码、字节拆分与连接状态错误。
 
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 
 fn make_channel() -> IrcChannel {
     IrcChannel::new(IrcChannelConfig {

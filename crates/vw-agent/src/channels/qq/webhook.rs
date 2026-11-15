@@ -37,7 +37,7 @@ impl QQChannel {
         &self,
         event_type: &str,
         payload: &Value,
-    ) -> Option<crate::app::agent::channels::traits::ChannelMessage> {
+    ) -> Option<channel_types::ChannelMessage> {
         match event_type {
             "C2C_MESSAGE_CREATE" => {
                 let msg_id = payload.get("id").and_then(Value::as_str).unwrap_or("");
@@ -125,7 +125,7 @@ impl QQChannel {
     pub async fn parse_webhook_payload(
         &self,
         payload: &Value,
-    ) -> Vec<crate::app::agent::channels::traits::ChannelMessage> {
+    ) -> Vec<channel_types::ChannelMessage> {
         let op = payload.get("op").and_then(Value::as_u64).unwrap_or_default();
         if op != 0 {
             return Vec::new();

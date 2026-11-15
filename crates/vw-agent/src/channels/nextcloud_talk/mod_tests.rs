@@ -1,7 +1,7 @@
 // 本文件验证 Nextcloud Talk Webhook 解析、签名校验、收发与健康检查。
 
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 async fn one_shot_http_server(status_line: &'static str, body: &'static str) -> String {

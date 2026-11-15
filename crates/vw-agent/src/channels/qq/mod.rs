@@ -48,7 +48,7 @@ use self::content::{
     parse_outgoing_content,
 };
 #[cfg(test)]
-use super::traits::Channel;
+use channel_types::Channel;
 
 /// QQ 机器人 API 基础 URL
 const QQ_API_BASE: &str = "https://api.sgroup.qq.com";
@@ -90,7 +90,7 @@ pub struct QQChannel {
     #[cfg(test)]
     api_base_override: Option<String>,
     #[cfg(test)]
-    outbound_recorder: Option<Arc<tokio::sync::Mutex<Vec<super::traits::SendMessage>>>>,
+    outbound_recorder: Option<Arc<tokio::sync::Mutex<Vec<channel_types::SendMessage>>>>,
 }
 
 impl QQChannel {
@@ -172,7 +172,7 @@ impl QQChannel {
     #[cfg(test)]
     pub(crate) fn with_outbound_recorder(
         mut self,
-        recorder: Arc<tokio::sync::Mutex<Vec<super::traits::SendMessage>>>,
+        recorder: Arc<tokio::sync::Mutex<Vec<channel_types::SendMessage>>>,
     ) -> Self {
         self.outbound_recorder = Some(recorder);
         self

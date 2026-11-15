@@ -8,8 +8,8 @@
 //! - 草稿定稿与回退机制
 
 use super::*;
-use crate::app::agent::channels::SendMessage;
-use crate::app::agent::channels::traits::Channel;
+use channel_types::SendMessage;
+use channel_types::Channel;
 use crate::app::agent::config::StreamMode;
 
 /// 测试 `supports_draft_updates` 方法是否正确响应流式模式配置

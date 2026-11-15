@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 

@@ -2,7 +2,7 @@
 
 use super::*;
 
-use crate::app::agent::channels::traits::SendMessage;
+use channel_types::SendMessage;
 use rustls::ServerConfig;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer, pem::PemObject};
 use serde_json::{Value, json};

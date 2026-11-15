@@ -5,8 +5,8 @@ use super::*;
 use axum::http::{HeaderMap, HeaderValue};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
-fn channel_message() -> crate::app::agent::channels::traits::ChannelMessage {
-    crate::app::agent::channels::traits::ChannelMessage {
+fn channel_message() -> channel_types::ChannelMessage {
+    channel_types::ChannelMessage {
         instance_id: "default".to_string(),
         id: "msg-123".to_string(),
         sender: "user-456".to_string(),

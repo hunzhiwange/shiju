@@ -21,7 +21,7 @@
 //!
 //! ```ignore
 //! use crate::app::agent::channels::nostr::NostrChannel;
-//! use crate::app::agent::channels::traits::Channel;
+//! use channel_types::Channel;
 //!
 //! // 创建 Nostr 通道
 //! let channel = NostrChannel::new(
@@ -41,7 +41,7 @@
 //! channel.send(&msg).await?;
 //! ```
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use nostr_sdk::prelude::*;

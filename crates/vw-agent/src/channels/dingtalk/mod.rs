@@ -27,7 +27,7 @@
 //!
 //! ```ignore
 //! use crate::app::agent::channels::dingtalk::DingTalkChannel;
-//! use crate::app::agent::channels::traits::Channel;
+//! use channel_types::Channel;
 //!
 //! let channel = DingTalkChannel::new(
 //!     "your_client_id".to_string(),
@@ -46,7 +46,7 @@
 //! }).await?;
 //! ```
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;

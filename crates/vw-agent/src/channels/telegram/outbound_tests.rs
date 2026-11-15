@@ -2,7 +2,7 @@
 
 use super::TelegramChannel;
 use super::attachments::{TelegramAttachment, TelegramAttachmentKind};
-use crate::channels::traits::SendMessage;
+use channel_types::SendMessage;
 use axum::{
     Router,
     body::Bytes,

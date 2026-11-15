@@ -48,7 +48,7 @@
 //! - **原生平台**（非 WASM）：完整支持异步标准输入读取
 //! - **WebAssembly**：监听操作将无限等待，因为 WASM 环境不支持直接访问 stdin
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 #[cfg(target_arch = "wasm32")]
 use async_trait::async_trait;
 #[cfg(not(target_arch = "wasm32"))]

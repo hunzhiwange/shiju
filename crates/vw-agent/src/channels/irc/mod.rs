@@ -3,7 +3,7 @@
 //! 入站仅接收 `PRIVMSG`，出站会按 IRC 字节上限切分；连接写端由互斥锁共享，
 //! 健康检查和发送路径因此观察同一连接状态。
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

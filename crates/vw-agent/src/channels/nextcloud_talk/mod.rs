@@ -34,7 +34,7 @@
 //! }
 //! ```
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;

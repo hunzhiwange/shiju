@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 use crate::app::agent::config::schema::{NostrConfig, WebhookConfig};
 use std::future::pending;
 use std::sync::Arc;

@@ -62,7 +62,7 @@ pub fn webhook_memory_key() -> String {
 /// let key = whatsapp_memory_key(&channel_message);
 /// // key 格式: "whatsapp_user123_msg456"
 /// ```
-pub fn whatsapp_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage) -> String {
+pub fn whatsapp_memory_key(msg: &channel_types::ChannelMessage) -> String {
     format!("whatsapp_{}_{}", msg.sender, msg.id)
 }
 
@@ -77,7 +77,7 @@ pub fn whatsapp_memory_key(msg: &crate::app::agent::channels::traits::ChannelMes
 /// # 返回值
 ///
 /// 返回格式为 `"linq_{sender}_{id}"` 的字符串
-pub fn linq_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage) -> String {
+pub fn linq_memory_key(msg: &channel_types::ChannelMessage) -> String {
     format!("linq_{}_{}", msg.sender, msg.id)
 }
 
@@ -92,7 +92,7 @@ pub fn linq_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage
 /// # 返回值
 ///
 /// 返回格式为 `"wati_{sender}_{id}"` 的字符串
-pub fn wati_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage) -> String {
+pub fn wati_memory_key(msg: &channel_types::ChannelMessage) -> String {
     format!("wati_{}_{}", msg.sender, msg.id)
 }
 
@@ -108,7 +108,7 @@ pub fn wati_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage
 ///
 /// 返回格式为 `"nextcloud_talk_{sender}_{id}"` 的字符串
 pub fn nextcloud_talk_memory_key(
-    msg: &crate::app::agent::channels::traits::ChannelMessage,
+    msg: &channel_types::ChannelMessage,
 ) -> String {
     format!("nextcloud_talk_{}_{}", msg.sender, msg.id)
 }
@@ -124,7 +124,7 @@ pub fn nextcloud_talk_memory_key(
 /// # 返回值
 ///
 /// 返回格式为 `"qq_{sender}_{id}"` 的字符串
-pub fn qq_memory_key(msg: &crate::app::agent::channels::traits::ChannelMessage) -> String {
+pub fn qq_memory_key(msg: &channel_types::ChannelMessage) -> String {
     format!("qq_{}_{}", msg.sender, msg.id)
 }
 

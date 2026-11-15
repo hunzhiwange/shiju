@@ -2,7 +2,7 @@
 
 use super::markdown_chunk::split_markdown;
 use super::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};

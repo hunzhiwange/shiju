@@ -1,8 +1,8 @@
 // 本文件覆盖 Discord 渠道的收发主流程、网关交互与错误路径。
 
 use super::*;
-use crate::app::agent::channels::traits::Channel;
-use crate::app::agent::channels::traits::SendMessage;
+use channel_types::Channel;
+use channel_types::SendMessage;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use std::path::{Path, PathBuf};

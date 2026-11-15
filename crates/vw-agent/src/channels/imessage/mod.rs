@@ -36,7 +36,7 @@
 //! println!("Channel name: {}", channel.name());
 //! ```
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 #[cfg(not(target_arch = "wasm32"))]
 use directories::UserDirs;

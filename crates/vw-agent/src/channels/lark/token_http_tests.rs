@@ -2,7 +2,7 @@
 
 use super::super::*;
 use super::token_test_support::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 use std::time::{Duration, Instant};
 
 #[tokio::test]

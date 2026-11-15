@@ -22,7 +22,7 @@
 //! - 群组消息
 //! - 可选：忽略附件消息、忽略 Story 消息
 
-use super::traits::{Channel, ChannelMessage, SendMessage};
+use channel_types::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use futures_util::StreamExt;
 use reqwest::Client;

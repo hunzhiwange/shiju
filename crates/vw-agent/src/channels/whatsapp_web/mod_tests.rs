@@ -1,7 +1,7 @@
 // 本文件验证 WhatsApp Web 特性门控、附件标记、收件人转换与连接要求。
 
 use super::*;
-use crate::app::agent::channels::traits::{Channel, SendMessage};
+use channel_types::{Channel, SendMessage};
 
 #[test]
 #[cfg(not(feature = "whatsapp-web"))]

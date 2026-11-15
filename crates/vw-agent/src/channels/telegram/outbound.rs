@@ -20,7 +20,7 @@ use super::attachments::{
     TelegramAttachment, TelegramAttachmentKind, is_http_url, parse_attachment_markers,
     parse_path_only_attachment, resolve_workspace_attachment_path,
 };
-use crate::app::agent::channels::traits::SendMessage;
+use channel_types::SendMessage;
 
 impl TelegramChannel {
     ///

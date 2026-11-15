@@ -5,7 +5,7 @@
 //! 抽取，确保只有授权且可定位回复目标的消息进入代理运行时。
 
 use super::TelegramChannel;
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 
 impl TelegramChannel {
     /// 解析回复目标中的聊天 ID 和可选话题 ID。

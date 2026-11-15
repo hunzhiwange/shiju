@@ -34,7 +34,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::time::Duration;
 
-use crate::app::agent::channels::traits::ChannelMessage;
+use channel_types::ChannelMessage;
 use model_types::{ChatMessage, ChatResponse};
 use crate::app::agent::tools::traits::ToolResult;
 

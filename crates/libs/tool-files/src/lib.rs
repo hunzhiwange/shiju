@@ -2,8 +2,12 @@
 pub mod content_search;
 pub mod external_directory;
 pub mod file_edit;
+pub mod file_read;
+pub mod file_write;
+pub mod glob;
 
 /// 宿主技能目录状态；每次检查时读取当前真实状态。
 pub trait FileToolHost: tool_context::host::ContextHost {
+    fn session_skill_allows_read(path: &std::path::Path) -> bool;
     fn skill_directories() -> impl std::future::Future<Output = Vec<String>> + tool_context::host::HostFuture;
 }

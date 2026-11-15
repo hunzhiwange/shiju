@@ -485,7 +485,7 @@ default = [
   "channel-lark",
 ]
 "browser-native" = ["tool-browser/browser-native"]
-"rag-pdf" = ["agent-knowledge/rag-pdf"]
+"rag-pdf" = ["agent-knowledge/rag-pdf", "tool-files/rag-pdf"]
 firecrawl = ["tool-web/firecrawl"]
 "web-fetch-html2md" = ["tool-web/web-fetch-html2md"]
 "web-fetch-plaintext" = ["tool-web/web-fetch-plaintext"]

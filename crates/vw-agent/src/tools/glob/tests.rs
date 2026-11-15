@@ -11,6 +11,10 @@
 //! 所有测试均使用临时目录进行隔离，确保测试之间互不干扰。
 
 use super::*;
+use tool_types::Tool;
+use serde_json::json;
+use std::sync::Arc;
+use std::path::PathBuf;
 
 #[allow(dead_code)]
 mod tests {

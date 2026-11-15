@@ -271,6 +271,9 @@ impl tool_services::BatchHost for context::AgentContextHost {
 }
 
 impl tool_files::FileToolHost for context::AgentContextHost {
+    fn session_skill_allows_read(path: &std::path::Path) -> bool {
+        context::current_tool_use_context().is_some_and(|context| context.session_skills().allows_read(path))
+    }
     async fn skill_directories() -> Vec<String> {
         crate::skill::dirs().await
     }

@@ -355,7 +355,7 @@ fn load_workspace_identity_file_task(agent_key: String, file_name: String) -> Ta
     Task::perform(
         async move {
             let client = crate::app::config::gateway_client()?;
-            let response = client
+            let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
                 .file_read_in_directory(
                     request_workspace_root_path.as_deref(),
                     Some(&agent_key),
@@ -406,7 +406,7 @@ fn restore_workspace_identity_default_task(agent_key: String, file_name: String)
 
             let client = crate::app::config::gateway_client()?;
 
-            let response = client
+            let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
                 .file_write_in_directory(
                     request_workspace_root_path.as_deref(),
                     Some(&agent_key),
@@ -447,7 +447,7 @@ fn save_workspace_identity_file_task(
             let workspace_root: Option<String> = None;
 
             let client = crate::app::config::gateway_client()?;
-            client
+            gateway_files::GatewayFilesClient::new(client.transport().clone())
                 .file_write_in_directory(
                     workspace_root.as_deref(),
                     Some(&agent_key),

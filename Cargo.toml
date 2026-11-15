@@ -107,6 +107,7 @@ members = [
   "crates/libs/gateway-http",
   "crates/libs/gateway-config",
   "crates/libs/gateway-project",
+  "crates/libs/gateway-files",
   "crates/libs/git-discovery",
   "crates/libs/memory-algorithms",
   "crates/libs/memory-types",

@@ -13,7 +13,7 @@ use {
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, gateway_files::GatewayFilesClient};
 struct StaticProvider;
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -122,13 +122,13 @@ impl Fixture {
             .unwrap();
         Self { scope, root }
     }
-    fn client(&self, server: &Server) -> GatewayClient {
-        GatewayClient::new(
+    fn client(&self, server: &Server) -> GatewayFilesClient {
+        gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", server.addr.port())
                 .with_tenant_scope(self.scope.tenant_scope().clone())
                 .with_auth(GatewayAuth { skey: Some("drag-test-key".into()) }),
         )
-        .unwrap()
+        .map(GatewayFilesClient::new).unwrap()
     }
     fn import(&self, source_paths: Vec<String>) -> LocalImportRequest {
         LocalImportRequest {
@@ -241,12 +241,12 @@ async fn file_drag_integration_auth_tenant_origin_rejections_have_no_disk_effect
         assert_eq!(std::fs::read_dir(fixture.root.path()).unwrap().count(), 0);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "retained");
     }
-    let wrong_tenant = GatewayClient::new(
+    let wrong_tenant = gateway_http::GatewayTransport::new(
         GatewayEndpoint::new("127.0.0.1", server.addr.port())
             .with_tenant_scope(TenantScope::new("10002", "100020005").unwrap())
             .with_auth(GatewayAuth { skey: Some("drag-test-key".into()) }),
     )
-    .unwrap();
+    .map(GatewayFilesClient::new).unwrap();
     assert!(wrong_tenant.file_import_local(&request).await.is_err());
     assert_eq!(std::fs::read_dir(fixture.root.path()).unwrap().count(), 0);
 }
@@ -363,12 +363,12 @@ async fn file_drag_integration_default_tenant_cannot_be_changed_from_another_ten
         let source = tempfile::tempdir().unwrap();
         let path = source.path().join("import.txt");
         std::fs::write(&path, "retained").unwrap();
-        let other = GatewayClient::new(
+        let other = gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", server.addr.port())
                 .with_tenant_scope(TenantScope::new("10002", "100020005").unwrap())
                 .with_auth(GatewayAuth { skey: Some("drag-test-key".into()) }),
         )
-        .unwrap();
+        .map(GatewayFilesClient::new).unwrap();
         assert!(
             other
                 .file_import_local(&fixture.import(vec![path.to_str().unwrap().into()]))

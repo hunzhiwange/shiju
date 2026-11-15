@@ -90,8 +90,9 @@ async fn load_preview_text_content(
     let result = async {
         let client = crate::app::gateway_client()?;
         let (directory, relative_path) = gateway_preview_target(project_path.as_deref(), &path)?;
-        let response =
-            client.file_read_in_directory(Some(&directory), None, &relative_path).await?;
+        let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
+            .file_read_in_directory(Some(&directory), None, &relative_path)
+            .await?;
         Ok::<(String, bool), String>(crate::app::preview::format_text_preview_content(
             &response.content,
         ))
@@ -108,7 +109,7 @@ async fn persist_preview_file(
 ) -> Result<(), String> {
     let client = crate::app::gateway_client()?;
     let (directory, relative_path) = gateway_preview_target(project_path.as_deref(), &path)?;
-    client
+    gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_write_in_directory(Some(&directory), None, &relative_path, &content, true)
         .await
         .map(|_| ())

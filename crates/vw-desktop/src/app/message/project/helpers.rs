@@ -532,7 +532,7 @@ pub(crate) async fn resolve_gateway_file_context(
 async fn refresh_gateway_file_index(project_path: &str) -> Result<FileTreeIndexSnapshot, String> {
     let client = gateway_client()?;
     let context = resolve_gateway_file_context(project_path).await?;
-    let response = client
+    let response = gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_list(&ListFilesRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -883,7 +883,7 @@ pub(crate) async fn gateway_import_local_paths(
     let context = resolve_gateway_file_context(project_path).await?;
     let directory = relative_to_project(&context.base_directory, target_directory)
         .ok_or_else(|| "无法定位目标目录".to_string())?;
-    client
+    gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_import_local(&vw_gateway_client::vw_api_types::file::LocalImportRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -908,7 +908,7 @@ pub(crate) async fn gateway_move_path(
         .ok_or_else(|| "无法定位源路径".to_string())?;
     let to_relative = relative_to_project(&context.base_directory, to_path)
         .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = client
+    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_move(&MoveFileRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -939,7 +939,7 @@ pub(crate) async fn gateway_copy_path(
         .ok_or_else(|| "无法定位源路径".to_string())?;
     let to_relative = relative_to_project(&context.base_directory, to_path)
         .ok_or_else(|| "无法定位目标路径".to_string())?;
-    let result = client
+    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_copy(&CopyFileRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -960,7 +960,7 @@ pub(super) async fn gateway_duplicate_path(project_path: &str, path: &str) -> Re
     let context = resolve_gateway_file_context(project_path).await?;
     let path = relative_to_project(&context.base_directory, path)
         .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = client
+    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_duplicate(&DuplicateFileRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -987,7 +987,7 @@ pub(crate) async fn gateway_delete_path(
     let context = resolve_gateway_file_context(project_path).await?;
     let relative = relative_to_project(&context.base_directory, path)
         .ok_or_else(|| "无法定位路径".to_string())?;
-    let result = client
+    let result = gateway_files::GatewayFilesClient::new(client.transport().clone())
         .file_delete(&DeleteFileRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,

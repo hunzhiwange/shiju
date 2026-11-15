@@ -1,81 +1,15 @@
-//! 文件与目录 API。
-//!
-//! 该模块同时兼容两类网关文件接口：
-//! - 新版 `/v1/files/*` 结构化文件操作接口
-//! - 旧版 `/v1/file/*` 目录上下文接口
-//!
-//! 其中 `file_list` 还会把旧版目录列表结果转换为新版 `FileNodeDto` 树结构，供上层统一消费。
+//! 文件与目录 API 的兼容转发。
 
-use std::future::Future;
-use std::path::Path;
-use std::pin::Pin;
-
-use serde::{Deserialize, Serialize};
 use vw_api_transport::common::OperationAck;
 use vw_api_types::file::{
-    CopyFileRequest, DeleteFileRequest, DuplicateFileRequest, FileNodeDto, FileNodeKind,
+    CopyFileRequest, DeleteFileRequest, DuplicateFileRequest,
     ListFilesRequest, ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest,
     ReadFileRequest, ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest,
     StatFileResponse, WriteFileRequest, WriteFileResponse,
 };
 
 use super::GatewayClient;
-
-#[cfg(target_arch = "wasm32")]
-/// 文件树递归构建过程使用的异步返回类型（WASM 版本）。
-type FileNodeFuture<'a> = Pin<Box<dyn Future<Output = Result<FileNodeDto, String>> + 'a>>;
-
-#[cfg(not(target_arch = "wasm32"))]
-/// 文件树递归构建过程使用的异步返回类型（原生版本，要求 `Send`）。
-type FileNodeFuture<'a> = Pin<Box<dyn Future<Output = Result<FileNodeDto, String>> + Send + 'a>>;
-
-#[derive(Debug, Clone, Serialize)]
-struct DirectoryFileReadRequest {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    directory: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    agent_key: Option<String>,
-    path: String,
-}
-
-/// 目录内文件读取接口的响应体。
-///
-/// 对应旧版 `/v1/file/read` 接口，适用于需要目录上下文与可选 agent 标识的调用场景。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DirectoryFileReadResponse {
-    /// 实际解析后的根目录。
-    pub root_directory: String,
-    /// 相对根目录的文件路径。
-    pub path: String,
-    /// 文件文本内容。
-    pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct DirectoryFileWriteRequest {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    directory: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    agent_key: Option<String>,
-    path: String,
-    content: String,
-    create_if_missing: bool,
-}
-
-/// 目录内文件写入接口的响应体。
-///
-/// 对应旧版 `/v1/file/write` 接口。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct DirectoryFileWriteResponse {
-    /// 是否写入成功。
-    pub ok: bool,
-    /// 实际解析后的根目录。
-    pub root_directory: String,
-    /// 相对根目录的文件路径。
-    pub path: String,
-    /// 本次写入的字节数。
-    pub bytes_written: u64,
-}
+use gateway_files::{DirectoryFileReadResponse, DirectoryFileWriteResponse};
 
 impl GatewayClient {
     /// 在目录上下文中按文本模式搜索文件内容。
@@ -84,9 +18,8 @@ impl GatewayClient {
         directory: Option<&str>,
         pattern: &str,
     ) -> Result<serde_json::Value, String> {
-        let mut query = optional_directory_query(directory);
-        query.push(("pattern".to_string(), pattern.to_string()));
-        self.get_json("/v1/find", &query).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_find_text_in_directory(directory, pattern).await
     }
 
     /// 在目录上下文中按名称搜索文件或目录。
@@ -98,18 +31,8 @@ impl GatewayClient {
         entry_type: Option<&str>,
         limit: Option<usize>,
     ) -> Result<serde_json::Value, String> {
-        let mut query = optional_directory_query(directory);
-        query.push(("query".to_string(), query_text.to_string()));
-        if let Some(include_directories) = include_directories {
-            query.push(("dirs".to_string(), include_directories.to_string()));
-        }
-        if let Some(entry_type) = entry_type {
-            query.push(("type".to_string(), entry_type.to_string()));
-        }
-        if let Some(limit) = limit {
-            query.push(("limit".to_string(), limit.to_string()));
-        }
-        self.get_json("/v1/find/file", &query).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_find_in_directory(directory, query_text, include_directories, entry_type, limit).await
     }
 
     /// 列出目录上下文中的单层文件节点。
@@ -118,9 +41,8 @@ impl GatewayClient {
         directory: Option<&str>,
         path: &str,
     ) -> Result<serde_json::Value, String> {
-        let mut query = optional_directory_query(directory);
-        query.push(("path".to_string(), path.to_string()));
-        self.get_json("/v1/file", &query).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .directory_file_list(directory, path).await
     }
 
     /// 读取目录上下文中的完整文件内容。
@@ -129,33 +51,32 @@ impl GatewayClient {
         directory: Option<&str>,
         path: &str,
     ) -> Result<serde_json::Value, String> {
-        let mut query = optional_directory_query(directory);
-        query.push(("path".to_string(), path.to_string()));
-        self.get_json("/v1/file/content", &query).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_content_in_directory(directory, path).await
     }
 
     /// 查询目录上下文中的 Git 文件状态。
+    /// 查询文件或目录状态。
     pub async fn file_status_in_directory(
         &self,
         directory: Option<&str>,
     ) -> Result<serde_json::Value, String> {
-        self.get_json("/v1/file/status", &optional_directory_query(directory)).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_status_in_directory(directory).await
     }
 
     /// 列出项目或 worktree 下的文件树。
     ///
     /// 该方法会先解析出真实目录，再递归拼装文件树。返回结果统一为 `ListFilesResponse`，便于前端直接消费。
     pub async fn file_list(&self, request: &ListFilesRequest) -> Result<ListFilesResponse, String> {
-        let directory =
-            self.resolve_file_directory(&request.project_id, request.worktree_id.as_ref()).await?;
-        let path = normalize_requested_path(request.path.as_deref());
-        let root = self.file_list_directory(&directory, path, request.depth).await?;
-        Ok(ListFilesResponse { root })
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_list(request).await
     }
 
     /// 读取文件内容。
     pub async fn file_read(&self, request: &ReadFileRequest) -> Result<ReadFileResponse, String> {
-        self.post_json("/v1/files/read", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_read(request).await
     }
 
     /// 写入文件内容。
@@ -163,17 +84,20 @@ impl GatewayClient {
         &self,
         request: &WriteFileRequest,
     ) -> Result<WriteFileResponse, String> {
-        self.post_json("/v1/files/write", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_write(request).await
     }
 
     /// 移动文件或目录。
     pub async fn file_move(&self, request: &MoveFileRequest) -> Result<OperationAck, String> {
-        self.post_json("/v1/files/move", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_move(request).await
     }
 
     /// 复制文件或目录。
     pub async fn file_copy(&self, request: &CopyFileRequest) -> Result<OperationAck, String> {
-        self.post_json("/v1/files/copy", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_copy(request).await
     }
 
     /// 在同一目录创建文件或文件夹的副本。
@@ -181,7 +105,8 @@ impl GatewayClient {
         &self,
         request: &DuplicateFileRequest,
     ) -> Result<OperationAck, String> {
-        self.post_json("/v1/files/duplicate", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_duplicate(request).await
     }
 
     /// 将本机外部路径复制导入项目，仅允许连接本机网关。
@@ -189,15 +114,14 @@ impl GatewayClient {
         &self,
         request: &LocalImportRequest,
     ) -> Result<LocalImportResponse, String> {
-        if !self.endpoint().is_loopback() {
-            return Err("本机导入不支持远程网关".to_string());
-        }
-        self.post_json("/v1/files/import-local", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_import_local(request).await
     }
 
     /// 删除文件或目录。
     pub async fn file_delete(&self, request: &DeleteFileRequest) -> Result<OperationAck, String> {
-        self.post_json("/v1/files/delete", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_delete(request).await
     }
 
     /// 按条件搜索文件。
@@ -205,14 +129,17 @@ impl GatewayClient {
         &self,
         request: &SearchFilesRequest,
     ) -> Result<SearchFilesResponse, String> {
-        self.post_json("/v1/files/search", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_search(request).await
     }
 
     /// 查询文件或目录状态。
     pub async fn file_stat(&self, request: &StatFileRequest) -> Result<StatFileResponse, String> {
-        self.post_json("/v1/files/stat", &[], request).await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_stat(request).await
     }
 
+    /// 读取文件内容。
     /// 在指定目录上下文中读取相对路径文件。
     ///
     /// `agent_key` 允许调用方把请求绑定到特定 agent 上下文；不需要时可以传 `None`。
@@ -222,18 +149,11 @@ impl GatewayClient {
         agent_key: Option<&str>,
         path: &str,
     ) -> Result<DirectoryFileReadResponse, String> {
-        self.post_json(
-            "/v1/file/read",
-            &[],
-            &DirectoryFileReadRequest {
-                directory: directory.map(str::to_string),
-                agent_key: agent_key.map(str::to_string),
-                path: path.to_string(),
-            },
-        )
-        .await
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_read_in_directory(directory, agent_key, path).await
     }
 
+    /// 写入文件内容。
     /// 在指定目录上下文中写入相对路径文件。
     ///
     /// `create_if_missing` 为 `true` 时，后端可以在目标不存在时创建新文件。
@@ -245,168 +165,8 @@ impl GatewayClient {
         content: &str,
         create_if_missing: bool,
     ) -> Result<DirectoryFileWriteResponse, String> {
-        self.post_json(
-            "/v1/file/write",
-            &[],
-            &DirectoryFileWriteRequest {
-                directory: directory.map(str::to_string),
-                agent_key: agent_key.map(str::to_string),
-                path: path.to_string(),
-                content: content.to_string(),
-                create_if_missing,
-            },
-        )
-        .await
-    }
-}
-
-fn optional_directory_query(directory: Option<&str>) -> Vec<(String, String)> {
-    directory
-        .map(|directory| vec![("directory".to_string(), directory.to_string())])
-        .unwrap_or_default()
-}
-
-impl GatewayClient {
-    /// 根据项目 ID 或 worktree ID 解析实际文件根目录。
-    async fn resolve_file_directory<T: AsRef<str>, U: AsRef<str>>(
-        &self,
-        project_id: &T,
-        worktree_id: Option<&U>,
-    ) -> Result<String, String> {
-        let scope = vw_api_transport::ProjectScope::new(
-            self.endpoint().tenant_scope().clone(),
-            vw_api_transport::ProjectId::from(project_id.as_ref()),
-        )
-        .map_err(|error| error.to_string())?;
-        if let Some(worktree_id) = worktree_id {
-            return gateway_project::GatewayProjectClient::new(self.transport().clone()).worktree_get(&scope, worktree_id.as_ref())
-                .await
-                .map(|response| response.worktree.directory);
-        }
-
-        gateway_project::GatewayProjectClient::new(self.transport().clone()).project_get(&scope).await.map(|response| response.project.directory)
-    }
-
-    /// 递归列出目录，并构造统一的 `FileNodeDto` 树节点。
-    fn file_list_directory<'a>(
-        &'a self,
-        directory: &'a str,
-        path: String,
-        depth: Option<u32>,
-    ) -> FileNodeFuture<'a> {
-        Box::pin(async move {
-            let entries: Vec<LegacyFileNode> =
-                self.get_json("/v1/file", &legacy_file_list_query(directory, &path)).await?;
-
-            let children = match depth {
-                Some(0) => None,
-                _ => {
-                    let child_depth = depth.and_then(|value| value.checked_sub(1));
-                    let mut children = Vec::with_capacity(entries.len());
-                    for entry in entries {
-                        children
-                            .push(self.map_legacy_file_node(directory, entry, child_depth).await?);
-                    }
-                    Some(children)
-                }
-            };
-
-            Ok(FileNodeDto {
-                path: path.clone(),
-                name: directory_node_name(directory, &path),
-                kind: FileNodeKind::Directory,
-                size_bytes: None,
-                children,
-            })
-        })
-    }
-
-    /// 将旧版文件节点映射为统一文件树节点；目录会继续递归展开。
-    fn map_legacy_file_node<'a>(
-        &'a self,
-        directory: &'a str,
-        entry: LegacyFileNode,
-        depth: Option<u32>,
-    ) -> FileNodeFuture<'a> {
-        Box::pin(async move {
-            let kind = entry.kind.into();
-            if matches!(kind, FileNodeKind::Directory) {
-                return self
-                    .file_list_directory(directory, normalize_entry_path(&entry.path), depth)
-                    .await;
-            }
-
-            Ok(FileNodeDto {
-                path: normalize_entry_path(&entry.path),
-                name: entry.name,
-                kind,
-                size_bytes: None,
-                children: None,
-            })
-        })
-    }
-}
-
-/// 生成旧版文件列表接口所需的查询参数。
-fn legacy_file_list_query(directory: &str, path: &str) -> Vec<(String, String)> {
-    vec![
-        ("directory".to_string(), directory.to_string()),
-        ("path".to_string(), if path == "." { String::new() } else { path.to_string() }),
-    ]
-}
-
-/// 规范化调用方传入的路径，空值统一回退到当前目录 `.`。
-fn normalize_requested_path(path: Option<&str>) -> String {
-    let value = path.unwrap_or(".").trim();
-    if value.is_empty() { ".".to_string() } else { normalize_entry_path(value) }
-}
-
-/// 规范化网关返回的条目路径，统一分隔符并去掉外围斜杠。
-fn normalize_entry_path(path: &str) -> String {
-    let value = path.trim().replace('\\', "/").trim_matches('/').to_string();
-    if value.is_empty() { ".".to_string() } else { value }
-}
-
-/// 根据目录与相对路径推导目录节点名称。
-fn directory_node_name(directory: &str, path: &str) -> String {
-    if path == "." {
-        return Path::new(directory)
-            .file_name()
-            .and_then(|value| value.to_str())
-            .filter(|value| !value.is_empty())
-            .unwrap_or(directory)
-            .to_string();
-    }
-
-    Path::new(path)
-        .file_name()
-        .and_then(|value| value.to_str())
-        .filter(|value| !value.is_empty())
-        .unwrap_or(path)
-        .to_string()
-}
-
-#[derive(Debug, Deserialize)]
-struct LegacyFileNode {
-    path: String,
-    name: String,
-    #[serde(rename = "type")]
-    kind: LegacyFileNodeKind,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum LegacyFileNodeKind {
-    File,
-    Directory,
-}
-
-impl From<LegacyFileNodeKind> for FileNodeKind {
-    fn from(value: LegacyFileNodeKind) -> Self {
-        match value {
-            LegacyFileNodeKind::File => Self::File,
-            LegacyFileNodeKind::Directory => Self::Directory,
-        }
+        gateway_files::GatewayFilesClient::new(self.transport.clone())
+            .file_write_in_directory(directory, agent_key, path, content, create_if_missing).await
     }
 }
 

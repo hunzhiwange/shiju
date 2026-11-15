@@ -365,7 +365,7 @@ fn agent_unified_selection_lists_enabled_cli_without_promoting_delegate_roles() 
     let cli = DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(vw_config_types::agent::AgentDefinitionConfig {
-            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
             ..Default::default()
         }),
     );
@@ -403,7 +403,8 @@ async fn render_selector_icons(theme: Theme, click: bool) {
     use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, Shell, layout, mouse, renderer};
     use iced::{Event, Font, Pixels, Rectangle, Size};
-    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    use config_agent_profile::AgentRuntime;
+    use vw_config_types::agent::AgentDefinitionConfig;
 
     let mut app = App::new().0;
     app.agents_settings.entries = [

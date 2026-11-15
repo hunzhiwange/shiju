@@ -378,7 +378,8 @@ async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
 #[tokio::test]
 async fn agent_config_cleanup_full_access_retains_native_permission_denials() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    use config_agent_profile::AgentDefault;
+    use vw_config_types::agent::AgentDefinitionConfig;
     for (selected, ceiling, allowed) in [
         ("allow", "allow", true),
         ("deny", "allow", false),
@@ -412,7 +413,8 @@ async fn agent_config_cleanup_full_access_retains_native_permission_denials() {
 #[tokio::test]
 async fn agent_native_defaults_permission_honors_registered_tool_aliases() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    use config_agent_profile::AgentDefault;
+    use vw_config_types::agent::AgentDefinitionConfig;
     let mut agent = AgentDefinitionConfig::default();
     agent.defaults.permission = AgentDefault::Fixed(json!({"*":"allow"}));
     let effective = resolve(
@@ -437,7 +439,8 @@ async fn agent_native_defaults_permission_honors_registered_tool_aliases() {
 #[tokio::test]
 async fn agent_native_defaults_skill_permission_uses_registered_input() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    use config_agent_profile::AgentDefault;
+    use vw_config_types::agent::AgentDefinitionConfig;
     let mut agent = AgentDefinitionConfig::default();
     agent.defaults.permission =
         AgentDefault::Fixed(json!({"*":"allow", "skill":{"review":"deny"}}));

@@ -1122,7 +1122,7 @@ fn preference_messages_update_runtime_and_global_chat_defaults() {
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "fixture-agent",
         Some(vw_config_types::agent::AgentDefinitionConfig {
-            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "agent-a".into() },
+            runtime: config_agent_profile::AgentRuntime::Acp { backend: "agent-a".into() },
             ..Default::default()
         }),
     ));
@@ -1954,7 +1954,7 @@ fn agent_unified_selection_dispatches_selected_runtime() {
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(vw_config_types::agent::AgentDefinitionConfig {
-            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
             ..Default::default()
         }),
     ));
@@ -2436,7 +2436,7 @@ fn fork_selection_ui_switches_engines_preserving_history_and_input() {
             crate::app::state::DelegateAgentSettingsEntry::from_config(
                 &format!("acp-{backend}"),
                 Some(vw_config_types::agent::AgentDefinitionConfig {
-                    runtime: vw_config_types::agent::AgentRuntime::Acp { backend: backend.into() },
+                    runtime: config_agent_profile::AgentRuntime::Acp { backend: backend.into() },
                     ..Default::default()
                 }),
             ),

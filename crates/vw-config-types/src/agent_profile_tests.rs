@@ -54,27 +54,6 @@ fn agent_profile_defaults_native_and_inherits() {
 }
 
 #[test]
-fn agent_profile_fixed_values_and_invalid_shapes() {
-    use crate::agent_profile::AgentDefaults;
-    let defaults: AgentDefaults = serde_json::from_value(json!({
-        "skills": {"mode": "fixed", "value": ["skill-id"]},
-        "mcp": {"mode": "fixed", "value": []}
-    }))
-    .unwrap();
-    let value = serde_json::to_value(defaults).unwrap();
-    assert_eq!(value["skills"]["value"], json!(["skill-id"]));
-    assert_eq!(value["mcp"]["value"], json!([]));
-    for invalid in [
-        json!({"model": {"mode": "fixed", "value": {"provider": "p"}}}),
-        json!({"model": {"mode": "fixed", "value": {"provider": "", "model": "m"}}}),
-        json!({"skills": {"mode": "fixed"}}),
-        json!({"skills": {"mode": "inherit", "value": []}}),
-    ] {
-        assert!(serde_json::from_value::<AgentDefaults>(invalid).is_err());
-    }
-}
-
-#[test]
 fn agent_profile_debug_hides_sensitive_payloads() {
     let config: AgentDefinitionConfig = serde_json::from_value(json!({
         "provider": "", "model": "", "api_key": "secret-key-marker",
@@ -102,17 +81,4 @@ fn agent_profile_builtin_merge_preserves_defaults_and_runtime_binding() {
     assert_eq!(merged["main"].runtime, crate::agent_profile::AgentRuntime::Native);
     assert_eq!(merged["main"].defaults, config.defaults);
     assert_eq!(merged["main"].recommended_prompts, config.recommended_prompts);
-}
-
-#[test]
-fn agent_config_cleanup_full_access_default_roundtrips() {
-    use super::agent_profile::AgentDefaults;
-    let old: AgentDefaults = serde_json::from_value(serde_json::json!({})).unwrap();
-    assert!(!old.full_access);
-    for enabled in [false, true] {
-        let defaults = AgentDefaults { full_access: enabled, ..Default::default() };
-        let encoded = serde_json::to_value(&defaults).unwrap();
-        assert_eq!(encoded["full_access"], enabled);
-        assert_eq!(serde_json::from_value::<AgentDefaults>(encoded).unwrap(), defaults);
-    }
 }

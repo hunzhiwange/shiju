@@ -1,5 +1,6 @@
 use crate::app::state::DelegateAgentSettingsEntry;
-use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentDefinitionConfig, AgentRuntime};
+use config_agent_profile::{AgentDefault, AgentDefaults, AgentRuntime};
+use vw_config_types::agent::AgentDefinitionConfig;
 
 #[test]
 fn agent_defaults_form_roundtrips_explicit_empty_lists() {
@@ -88,7 +89,7 @@ fn agent_defaults_form_switch_preserves_invalid_draft_and_prevents_save() {
 
 #[test]
 fn agent_defaults_form_forced_binding_rejects_conflicting_default() {
-    use vw_config_types::agent::AgentModelReference;
+    use config_agent_profile::AgentModelReference;
     let app = crate::app::App::new().0;
     let mut draft = DelegateAgentSettingsEntry::from_config("custom", None);
     draft.force_model_selection = true;
@@ -107,7 +108,7 @@ fn agent_config_cleanup_single_model_group_prevents_conflict() {
         App,
         message::settings::{AgentsMessage, SettingsMessage},
     };
-    use vw_config_types::agent::AgentModelReference;
+    use config_agent_profile::AgentModelReference;
     let mut app = App::new().0;
     app.agents_settings.config_ready = true;
     let dispatch = |app: &mut App, message| {
@@ -249,7 +250,7 @@ async fn agent_model_inheritance_renders_chinese_in_both_themes() {
 #[test]
 fn agent_model_inheritance_verified_acp_models_survive_disconnect_and_reopen() {
     use crate::app::state::{ModelSummary, ProviderModelsSummary, ProviderSummary};
-    use vw_config_types::agent::AgentModelReference;
+    use config_agent_profile::AgentModelReference;
     use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability,
     };

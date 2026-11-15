@@ -167,7 +167,7 @@ fn skill(id: &str, enabled: bool, source: &str) -> SkillsCatalogItem {
 
 #[test]
 fn agent_config_cleanup_skills_inherit_and_fixed_are_distinct() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     let (mut app, _) = crate::app::App::new();
     app.agents_settings.skill_catalog =
         vec![skill("allowed", true, "global"), skill("other", true, "global")];
@@ -203,7 +203,7 @@ async fn agent_config_cleanup_skill_modes_render_chinese_in_both_themes() {
         draft.allowed_skills = vec!["中文技能".into()];
         if name == "dark" {
             draft.defaults.skills =
-                vw_config_types::agent::AgentDefault::Fixed(vec!["中文技能".into()]);
+                config_agent_profile::AgentDefault::Fixed(vec!["中文技能".into()]);
         }
         let mut element = super::profile_modal::overlay(
             &app,

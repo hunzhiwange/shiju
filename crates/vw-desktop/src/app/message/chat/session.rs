@@ -1303,15 +1303,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 );
             };
             let full_access = match &entry.runtime {
-                vw_config_types::agent::AgentRuntime::Native => {
+                config_agent_profile::AgentRuntime::Native => {
                     app.last_llm_full_access.unwrap_or(entry.defaults.full_access)
                 }
-                vw_config_types::agent::AgentRuntime::Acp { .. } => entry.defaults.full_access,
+                config_agent_profile::AgentRuntime::Acp { .. } => entry.defaults.full_access,
             };
             let agent_label = Some(entry.label.clone());
             let acp_agent = match &entry.runtime {
-                vw_config_types::agent::AgentRuntime::Native => None,
-                vw_config_types::agent::AgentRuntime::Acp { backend } => Some(backend.clone()),
+                config_agent_profile::AgentRuntime::Native => None,
+                config_agent_profile::AgentRuntime::Acp { backend } => Some(backend.clone()),
             };
             {
                 let runtime = app.current_session_runtime_mut();

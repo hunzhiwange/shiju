@@ -1087,7 +1087,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::DetailTabSelected(tab_key) => {
             let acp_draft = app.agents_settings.profile_modal.as_ref().is_some_and(|draft| {
-                matches!(draft.runtime, vw_config_types::agent::AgentRuntime::Acp { .. })
+                matches!(draft.runtime, config_agent_profile::AgentRuntime::Acp { .. })
             });
             app.agents_settings.active_detail_tab =
                 if acp_draft && tab_key == crate::app::state::AGENT_DETAIL_TOOLS_TAB {
@@ -1252,7 +1252,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::ForceModelSelectionToggled(agent_key, force_model_selection) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.force_model_selection = false;
-                if let vw_config_types::agent::AgentDefault::Fixed(model) = &entry.defaults.model {
+                if let config_agent_profile::AgentDefault::Fixed(model) = &entry.defaults.model {
                     entry.provider = model.provider.clone();
                     entry.model = model.model.clone();
                     entry.force_model_selection = force_model_selection;
@@ -1421,7 +1421,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .iter()
                 .any(|skill| skill.id == skill_id && skill.installed && skill.enabled);
             if let Some(entry) = find_entry_mut(app, &agent_key)
-                && let vw_config_types::agent::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
+                && let config_agent_profile::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
             {
                 if enabled
                     && (!available
@@ -1461,7 +1461,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .map(|skill| skill.id.clone())
                 .collect::<Vec<_>>();
             if let Some(entry) = find_entry_mut(app, &agent_key)
-                && let vw_config_types::agent::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
+                && let config_agent_profile::AgentDefault::Fixed(ids) = &mut entry.defaults.skills
             {
                 for id in available {
                     if entry.skill_policy

@@ -1,7 +1,8 @@
 use super::load_agent_configs;
 use serde_json::json;
 use std::collections::HashSet;
-use vw_config_types::agent::{AgentRuntime, BUILTIN_AGENT_SPECS};
+use config_agent_profile::AgentRuntime;
+use vw_config_types::agent::BUILTIN_AGENT_SPECS;
 
 #[test]
 fn agent_catalog_covers_thirty_unique_backends() {

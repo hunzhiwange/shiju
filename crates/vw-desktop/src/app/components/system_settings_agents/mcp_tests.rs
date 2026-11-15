@@ -3,12 +3,12 @@ use crate::app::{
     App, Message,
     message::settings::{AgentsMessage, SettingsMessage},
 };
-use vw_config_types::agent::AgentDefault;
+use config_agent_profile::AgentDefault;
 
 #[test]
 fn agent_config_cleanup_mcp_tab_uses_stable_server_ids() {
     assert_eq!(crate::app::state::AGENT_DETAIL_MCP_TAB, "mcp");
-    let mut defaults = vw_config_types::agent::AgentDefaults::default();
+    let mut defaults = config_agent_profile::AgentDefaults::default();
     defaults.mcp = AgentDefault::Fixed(vec![]);
     let message = mcp::toggle_message(&defaults, "server-id", true, true);
     let Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileDefaultsChanged(next))) =
@@ -22,15 +22,15 @@ fn agent_config_cleanup_mcp_tab_uses_stable_server_ids() {
 
 #[test]
 fn agent_config_cleanup_mcp_inherit_and_fixed_empty_roundtrip() {
-    let mut defaults = vw_config_types::agent::AgentDefaults::default();
+    let mut defaults = config_agent_profile::AgentDefaults::default();
     for selection in [AgentDefault::Inherit, AgentDefault::Fixed(vec![])] {
         defaults.mcp = selection.clone();
-        let restored: vw_config_types::agent::AgentDefaults =
+        let restored: config_agent_profile::AgentDefaults =
             serde_json::from_value(defaults::patch(&defaults)).unwrap();
         assert_eq!(restored.mcp, selection);
     }
     assert!(
-        defaults::patch(&vw_config_types::agent::AgentDefaults::default())["mcp"]["value"]
+        defaults::patch(&config_agent_profile::AgentDefaults::default())["mcp"]["value"]
             .is_null()
     );
 }

@@ -572,7 +572,7 @@ for line in sys.stdin:
         .await
         .unwrap();
     cfg.agents.get_mut("acp-codex").unwrap().defaults.mcp =
-        vw_config_types::agent::AgentDefault::Fixed(vec!["selected-mcp".into()]);
+        config_agent_profile::AgentDefault::Fixed(vec!["selected-mcp".into()]);
     super::super::config::apply_agent_defaults(
         &cfg,
         &options,
@@ -603,7 +603,7 @@ for line in sys.stdin:
     .unwrap_err();
     assert!(error.to_string().contains("MCP capability is disabled"));
     cfg.agents.get_mut("acp-codex").unwrap().defaults.mcp =
-        vw_config_types::agent::AgentDefault::Fixed(vec![]);
+        config_agent_profile::AgentDefault::Fixed(vec![]);
     std::fs::write(crate::skills::local_skill_disabled_marker_path(&skill_dir), "").unwrap();
     assert!(
         super::super::config::apply_agent_defaults(
@@ -618,8 +618,8 @@ for line in sys.stdin:
         .is_err()
     );
     let agent = cfg.agents.get_mut("acp-codex").unwrap();
-    agent.defaults.skills = vw_config_types::agent::AgentDefault::Fixed(vec![]);
-    agent.defaults.permission = vw_config_types::agent::AgentDefault::Fixed(json!({"*":"allow"}));
+    agent.defaults.skills = config_agent_profile::AgentDefault::Fixed(vec![]);
+    agent.defaults.permission = config_agent_profile::AgentDefault::Fixed(json!({"*":"allow"}));
     let error = super::super::config::apply_agent_defaults(
         &cfg,
         &options,
@@ -632,7 +632,7 @@ for line in sys.stdin:
     .unwrap_err();
     assert!(error.to_string().contains("ACP does not support this fixed permission policy"));
     cfg.agents.get_mut("acp-codex").unwrap().defaults.permission =
-        vw_config_types::agent::AgentDefault::Fixed(json!({"*":"deny"}));
+        config_agent_profile::AgentDefault::Fixed(json!({"*":"deny"}));
     super::super::config::apply_agent_defaults(
         &cfg,
         &options,

@@ -724,7 +724,7 @@ fn acp_onboarding_deepagents_builtin_profile_persists_and_runs() {
                     );
                     assert_eq!(
                         catalog["acp-deepagents"].runtime,
-                        vw_config_types::agent::AgentRuntime::Acp { backend: "deepagents".into() }
+                        config_agent_profile::AgentRuntime::Acp { backend: "deepagents".into() }
                     );
                     Ok(())
                 })

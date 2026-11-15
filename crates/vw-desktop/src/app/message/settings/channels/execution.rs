@@ -4,7 +4,7 @@ use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelExecutionChoices;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_config_types::agent::AgentModelReference;
+use config_agent_profile::AgentModelReference;
 
 fn configured(app: &App, instance: &str) -> Result<(), String> {
     let config = build_channels_config_from_settings(&app.channels_settings)?;

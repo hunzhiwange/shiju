@@ -150,7 +150,7 @@ pub(crate) async fn native_agent_defaults(
     workspace: &std::path::Path,
 ) -> anyhow::Result<Option<NativeAgentDefaults>> {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentModelReference, AgentRuntime};
+    use config_agent_profile::{AgentDefault, AgentModelReference, AgentRuntime};
     let agents = vw_config_types::agent::merged_agent_configs(&config.agents);
     let agent = agents.get(key).ok_or_else(|| anyhow::anyhow!("unknown agent: {key}"))?;
     if !matches!(agent.runtime, AgentRuntime::Native) {

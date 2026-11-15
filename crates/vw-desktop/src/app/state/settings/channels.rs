@@ -192,7 +192,7 @@ impl ChannelsSettingsTab {
 #[derive(Debug, Clone, Default)]
 pub struct ChannelExecutionChoices {
     pub(crate) agents: Vec<(String, String)>,
-    pub(crate) models: Vec<vw_config_types::agent::AgentModelReference>,
+    pub(crate) models: Vec<config_agent_profile::AgentModelReference>,
 }
 
 #[derive(Debug, Clone)]

@@ -327,13 +327,13 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
             anyhow::bail!("builtin agent {key} source cannot be changed");
         }
         if let Some(runtime) = value.get("runtime") {
-            let runtime: vw_config_types::agent::AgentRuntime =
+            let runtime: config_agent_profile::AgentRuntime =
                 serde_json::from_value(runtime.clone())?;
             let expected = match official_backend {
                 Some(backend) => {
-                    vw_config_types::agent::AgentRuntime::Acp { backend: backend.into() }
+                    config_agent_profile::AgentRuntime::Acp { backend: backend.into() }
                 }
-                None => vw_config_types::agent::AgentRuntime::Native,
+                None => config_agent_profile::AgentRuntime::Native,
             };
             if runtime != expected {
                 anyhow::bail!("builtin agent {key} runtime cannot be changed");
@@ -344,7 +344,8 @@ pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<
 }
 
 fn validate_agent_profiles(config: &Config) -> Result<()> {
-    use vw_config_types::agent::{AgentDefault, AgentRuntime, builtin_agent_spec};
+    use config_agent_profile::{AgentDefault, AgentRuntime};
+    use vw_config_types::agent::builtin_agent_spec;
     let backends = vw_acp::built_in_agent_specs();
     for (key, agent) in &config.agents {
         if key.is_empty()

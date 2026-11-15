@@ -1068,7 +1068,7 @@ fn enabled_delegate_agents_with_project_skills(
     for config in enabled.values_mut() {
         // Defaults must never expand an explicitly strict access boundary.
         if config.skill_policy == vw_config_types::agent::DelegateCapabilityPolicy::Strict
-            || matches!(config.defaults.skills, vw_config_types::agent::AgentDefault::Fixed(_))
+            || matches!(config.defaults.skills, config_agent_profile::AgentDefault::Fixed(_))
         {
             continue;
         }

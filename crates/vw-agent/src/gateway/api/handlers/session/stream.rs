@@ -925,10 +925,10 @@ async fn resolve_delegate_overrides_from_config(
         ));
     }
     let fixed_model = match &config.defaults.model {
-        vw_config_types::agent::AgentDefault::Fixed(model) => {
+        config_agent_profile::AgentDefault::Fixed(model) => {
             Some(format!("{}/{}", model.provider, model.model))
         }
-        vw_config_types::agent::AgentDefault::Inherit => None,
+        config_agent_profile::AgentDefault::Inherit => None,
     };
     let model = defaults
         .as_ref()
@@ -1160,7 +1160,7 @@ async fn prepare_gateway_agent_request(
     .await
     .map_err(|error| ApiError::bad_request(error.to_string()))?;
     match &binding.runtime {
-        vw_config_types::agent::AgentRuntime::Native => {
+        config_agent_profile::AgentRuntime::Native => {
             if options.and_then(|options| options.get("acp_test")).and_then(Value::as_bool)
                 == Some(true)
             {
@@ -1170,7 +1170,7 @@ async fn prepare_gateway_agent_request(
             }
             body.acp_agent = None;
         }
-        vw_config_types::agent::AgentRuntime::Acp { backend } => {
+        config_agent_profile::AgentRuntime::Acp { backend } => {
             body.acp_agent = Some(backend.clone())
         }
     }
@@ -1289,10 +1289,10 @@ async fn session_model(
             }
             None if acp => return Ok(body.model.clone()),
             None => match &binding.defaults.model {
-                vw_config_types::agent::AgentDefault::Fixed(model) => {
+                config_agent_profile::AgentDefault::Fixed(model) => {
                     Some(format!("{}/{}", model.provider, model.model))
                 }
-                vw_config_types::agent::AgentDefault::Inherit => None,
+                config_agent_profile::AgentDefault::Inherit => None,
             },
         }
     };

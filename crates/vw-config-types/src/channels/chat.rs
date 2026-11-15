@@ -103,7 +103,7 @@ impl std::error::Error for ChannelInstanceProfileError {}
 #[serde(default, deny_unknown_fields)]
 pub struct ChannelExecutionConfig {
     pub agent: Option<String>,
-    pub model: Option<crate::agent::AgentModelReference>,
+    pub model: Option<config_agent_profile::AgentModelReference>,
 }
 
 /// 通道配置总表。

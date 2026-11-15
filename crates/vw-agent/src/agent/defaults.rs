@@ -4,7 +4,8 @@ use crate::permission::next::{self, Action, Ruleset};
 use anyhow::{Result, bail};
 use serde_json::Value;
 use std::collections::HashMap;
-use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig, AgentModelReference};
+use config_agent_profile::{AgentDefault, AgentModelReference};
+use vw_config_types::agent::AgentDefinitionConfig;
 
 #[derive(Default)]
 pub struct DefaultSelection {

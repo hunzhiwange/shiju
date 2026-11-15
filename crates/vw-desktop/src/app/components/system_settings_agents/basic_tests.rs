@@ -153,7 +153,8 @@ fn basic_view_renders_runtime_boolean_and_text_variants() {
 
 #[test]
 fn agent_runtime_visibility_acp_preserves_profile_defaults_and_delegation_eligibility() {
-    use vw_config_types::agent::{AgentRuntime, DelegateAgentConfig};
+    use config_agent_profile::AgentRuntime;
+    use vw_config_types::agent::DelegateAgentConfig;
     let app = crate::app::App::new().0;
     for backend in ["codex", "claude"] {
         let entry = DelegateAgentSettingsEntry::from_config(

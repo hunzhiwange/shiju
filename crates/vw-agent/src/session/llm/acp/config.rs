@@ -345,7 +345,7 @@ pub(super) async fn apply_agent_defaults(
     messages: &Value,
 ) -> Result<Value, Error> {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentRuntime};
+    use config_agent_profile::{AgentDefault, AgentRuntime};
     let Some(key) = options.get("agent").and_then(Value::as_str) else {
         return Ok(messages.clone());
     };

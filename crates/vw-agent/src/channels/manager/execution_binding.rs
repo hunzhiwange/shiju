@@ -1,6 +1,7 @@
 //! 将实例执行配置解析为模型路由与服务端会话绑定。
 use super::*;
-use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig, AgentRuntime};
+use config_agent_profile::{AgentDefault, AgentRuntime};
+use vw_config_types::agent::AgentDefinitionConfig;
 use vw_config_types::channels::ChannelExecutionConfig;
 
 pub(super) fn execution_route(
@@ -12,7 +13,7 @@ pub(super) fn execution_route(
     let configured_model = execution.model.clone().or_else(|| match &agent.defaults.model {
         AgentDefault::Fixed(model) => Some(model.clone()),
         AgentDefault::Inherit if agent.has_complete_model_binding() => {
-            Some(vw_config_types::agent::AgentModelReference {
+            Some(config_agent_profile::AgentModelReference {
                 provider: agent.provider.clone(),
                 model: agent.model.clone(),
             })

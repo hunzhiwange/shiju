@@ -124,14 +124,14 @@ fn agent_catalog_view_copy_keeps_profile_with_new_custom_identity() {
     let copied = catalog::entries(&app.agents_settings, false, "custom-fixture")[0];
     assert!(!copied.builtin);
     assert!(
-        matches!(&copied.runtime, vw_config_types::agent::AgentRuntime::Acp { backend } if backend == "codex")
+        matches!(&copied.runtime, config_agent_profile::AgentRuntime::Acp { backend } if backend == "codex")
     );
     dispatch(&mut app, AgentsMessage::ProfileOpen("acp-codex".into()));
     dispatch(&mut app, AgentsMessage::ProfileRuntimeChanged("claude".into()));
     dispatch(&mut app, AgentsMessage::ProfileDelete);
     assert!(!app.agents_settings.profile_saving);
     assert!(matches!(&app.agents_settings.profile_modal.as_ref().unwrap().runtime,
-        vw_config_types::agent::AgentRuntime::Acp { backend } if backend == "codex"));
+        config_agent_profile::AgentRuntime::Acp { backend } if backend == "codex"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

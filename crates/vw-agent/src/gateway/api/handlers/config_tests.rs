@@ -1273,7 +1273,7 @@ async fn agent_profile_api_persists_changes_after_reload() {
         .unwrap();
         assert_eq!(
             partial.agents["acp-snow"].runtime,
-            vw_config_types::agent::AgentRuntime::Acp { backend: "snow".into() }
+            config_agent_profile::AgentRuntime::Acp { backend: "snow".into() }
         );
         let profile = serde_json::json!({
             "label":"Custom name", "description":"", "recommended_prompts":[],
@@ -1349,9 +1349,8 @@ async fn agent_profile_api_persists_changes_after_reload() {
 
 #[test]
 fn agent_profile_api_rejects_invalid_identity_and_model_conflicts() {
-    use vw_config_types::agent::{
-        AgentDefault, AgentDefinitionConfig, AgentModelReference, AgentRuntime,
-    };
+    use config_agent_profile::{AgentDefault, AgentModelReference, AgentRuntime};
+    use vw_config_types::agent::AgentDefinitionConfig;
     for key in ["", "../escape", "white space"] {
         let mut cfg = config::Config::default();
         cfg.agents.insert(key.into(), AgentDefinitionConfig::default());
@@ -1526,13 +1525,14 @@ async fn agent_runtime_lock_patch_is_scoped_to_each_tenant() {
     assert_ne!(local_store(home.path()).get(&second).unwrap(), before);
     assert_eq!(
         config::get_global_for_tenant(&first).await.unwrap().agents["custom"].runtime,
-        vw_config_types::agent::AgentRuntime::Native
+        config_agent_profile::AgentRuntime::Native
     );
 }
 
 #[tokio::test]
 async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
-    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    use config_agent_profile::AgentRuntime;
+    use vw_config_types::agent::AgentDefinitionConfig;
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());
@@ -1620,7 +1620,8 @@ async fn agent_runtime_lock_put_rejects_replacement_and_implicit_switches() {
 
 #[tokio::test]
 async fn agent_runtime_lock_put_accepts_first_save_and_locks_native() {
-    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    use config_agent_profile::AgentRuntime;
+    use vw_config_types::agent::AgentDefinitionConfig;
     let _env_lock = crate::test_support::global_async_env_lock().lock().await;
     let home = TempDir::new().unwrap();
     let _home = EnvGuard::set("HOME", home.path().as_os_str());

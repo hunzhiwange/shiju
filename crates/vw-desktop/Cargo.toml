@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+config-agent-profile = { path = "../libs/config-agent-profile", version = "0.6.0" }
 vw-api-project = { path = "../libs/api-project", version = "0.6.0" }
 config-tools = { path = "../libs/config-tools", version = "0.6.0" }
 vw-api-worktree = { path = "../libs/api-worktree", version = "0.6.0" }

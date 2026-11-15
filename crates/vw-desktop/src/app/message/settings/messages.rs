@@ -283,7 +283,7 @@ pub enum ChannelsMessage {
     },
     ExecutionModelSelected {
         instance: String,
-        model: Option<vw_config_types::agent::AgentModelReference>,
+        model: Option<config_agent_profile::AgentModelReference>,
     },
     ProjectChoicesRequested(String),
     ProjectChoicesLoaded {
@@ -623,9 +623,9 @@ pub enum AgentsMessage {
     ProfileOpen(String),
     ProfileCancel,
     ProfileNameChanged(String),
-    ProfileDefaultsChanged(vw_config_types::agent::AgentDefaults),
+    ProfileDefaultsChanged(config_agent_profile::AgentDefaults),
     ProfileModelChanged(
-        vw_config_types::agent::AgentDefault<vw_config_types::agent::AgentModelReference>,
+        config_agent_profile::AgentDefault<config_agent_profile::AgentModelReference>,
     ),
     ProfileDescriptionAction(text_editor::Action),
     ProfileRuntimeChanged(String),

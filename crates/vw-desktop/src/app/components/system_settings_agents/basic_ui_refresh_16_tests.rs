@@ -19,7 +19,8 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{button, container, text_editor};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::agent::{AgentDefault, AgentModelReference, DelegateCapabilityPolicy};
+use config_agent_profile::{AgentDefault, AgentModelReference};
+use vw_config_types::agent::DelegateCapabilityPolicy;
 use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 use vw_gateway_client::vw_api_types::mcp::McpInspectResponse;
 
@@ -1037,7 +1038,7 @@ async fn settings_help_gap_05_native_modal_moves_explanations_into_help() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn settings_help_gap_05_acp_model_capability_controls_choices() {
-    use vw_config_types::agent::AgentRuntime;
+    use config_agent_profile::AgentRuntime;
     use vw_api_acp_model::acp_model_source::{
         AcpModelSource, AcpModelSourceCapability,
     };

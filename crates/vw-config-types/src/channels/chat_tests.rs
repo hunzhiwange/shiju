@@ -80,7 +80,7 @@ fn channel_execution_bindings_round_trip_and_reject_unknown_instances() {
     let mut config = configured();
     let binding = ChannelExecutionConfig {
         agent: Some("acp-codex".into()),
-        model: Some(crate::agent::AgentModelReference {
+        model: Some(config_agent_profile::AgentModelReference {
             provider: "provider".into(),
             model: "model/name".into(),
         }),
@@ -105,6 +105,6 @@ fn channel_execution_bindings_reject_blank_references() {
     assert!(config.validate_instance_execution().is_err());
     config.instance_execution.get_mut("dingtalk:default").unwrap().agent = None;
     config.instance_execution.get_mut("dingtalk:default").unwrap().model =
-        Some(crate::agent::AgentModelReference { provider: "provider".into(), model: " ".into() });
+        Some(config_agent_profile::AgentModelReference { provider: "provider".into(), model: " ".into() });
     assert!(config.validate_instance_execution().is_err());
 }

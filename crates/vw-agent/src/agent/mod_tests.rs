@@ -455,7 +455,7 @@ fn prompt_and_truncate_glob_are_non_empty() {
 
 #[test]
 fn agent_native_defaults_skill_grants_preserve_user_denial_and_fixed_empty() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     for (ids, denied, expected) in [
         (vec!["review".into()], false, Action::Allow),
         (vec!["review".into()], true, Action::Deny),

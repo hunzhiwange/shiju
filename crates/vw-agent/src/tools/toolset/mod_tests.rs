@@ -1027,7 +1027,8 @@ async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
 
 #[test]
 fn agent_config_cleanup_delegate_fixed_selection_preserves_strict_boundary() {
-    use vw_config_types::agent::{AgentDefault, DelegateCapabilityPolicy};
+    use config_agent_profile::AgentDefault;
+    use vw_config_types::agent::DelegateCapabilityPolicy;
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path();
     std::fs::create_dir_all(workspace.join(".git")).unwrap();

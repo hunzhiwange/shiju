@@ -362,8 +362,8 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
                 let engine = match &entry.runtime {
-                    vw_config_types::agent::AgentRuntime::Native => "识矩原生".to_string(),
-                    vw_config_types::agent::AgentRuntime::Acp { backend } => format!(
+                    config_agent_profile::AgentRuntime::Native => "识矩原生".to_string(),
+                    config_agent_profile::AgentRuntime::Acp { backend } => format!(
                         "ACP · {backend} · {}",
                         match app.acp_settings.installed.get(backend) {
                             Some(true) => "已安装",
@@ -397,12 +397,12 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                     Space::new().width(Length::Fixed(14.0)).into()
                 };
                 let identity_icon: Element<'_, Message> = match &entry.runtime {
-                    vw_config_types::agent::AgentRuntime::Native => icon_svg(Icon::Hexagon)
+                    config_agent_profile::AgentRuntime::Native => icon_svg(Icon::Hexagon)
                         .width(Length::Fixed(16.0))
                         .height(Length::Fixed(16.0))
                         .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
                         .into(),
-                    vw_config_types::agent::AgentRuntime::Acp { backend } => {
+                    config_agent_profile::AgentRuntime::Acp { backend } => {
                         acp_agent_icon(backend, 16.0)
                     }
                 };

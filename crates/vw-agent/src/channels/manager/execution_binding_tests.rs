@@ -25,7 +25,7 @@ fn channel_execution_routes_independent_acp_backends_and_explicit_models() {
         assert_eq!(route.model, backend);
         let execution = ChannelExecutionConfig {
             agent: Some(format!("acp-{backend}")),
-            model: Some(vw_config_types::agent::AgentModelReference {
+            model: Some(config_agent_profile::AgentModelReference {
                 provider: "custom".into(),
                 model: "model/name".into(),
             }),
@@ -46,7 +46,7 @@ fn channel_execution_rejects_disabled_and_forced_model_conflicts() {
     agent.model = "fixed".into();
     let execution = ChannelExecutionConfig {
         agent: None,
-        model: Some(vw_config_types::agent::AgentModelReference {
+        model: Some(config_agent_profile::AgentModelReference {
             provider: "other".into(),
             model: "model".into(),
         }),
@@ -57,8 +57,8 @@ fn channel_execution_rejects_disabled_and_forced_model_conflicts() {
 #[test]
 fn channel_execution_uses_native_agent_default_model() {
     let agent = AgentDefinitionConfig {
-        defaults: vw_config_types::agent::AgentDefaults {
-            model: AgentDefault::Fixed(vw_config_types::agent::AgentModelReference {
+        defaults: config_agent_profile::AgentDefaults {
+            model: AgentDefault::Fixed(config_agent_profile::AgentModelReference {
                 provider: "agent-provider".into(),
                 model: "agent-model".into(),
             }),

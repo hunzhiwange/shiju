@@ -430,7 +430,7 @@ fn parse_acp_options_allows_non_object_root_values() {
 
 #[tokio::test]
 async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     let _env = crate::test_support::global_async_env_lock().lock().await;
     let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
         "https://example.test/v1",

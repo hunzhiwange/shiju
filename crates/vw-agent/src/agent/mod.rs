@@ -378,8 +378,8 @@ fn build_resolved_agent(
     }
 
     let default_skills = match &config.defaults.skills {
-        vw_config_types::agent::AgentDefault::Fixed(ids) => ids,
-        vw_config_types::agent::AgentDefault::Inherit => &config.allowed_skills,
+        config_agent_profile::AgentDefault::Fixed(ids) => ids,
+        config_agent_profile::AgentDefault::Inherit => &config.allowed_skills,
     };
     let selected_skills = default_skills
         .iter()

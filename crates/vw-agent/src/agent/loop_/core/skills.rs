@@ -123,8 +123,8 @@ impl CoreSkillSession {
 
     pub(crate) async fn configure(&mut self, context: ToolUseContext) -> Result<ToolUseContext> {
         let selected = match &self.definition.defaults.skills {
-            vw_config_types::agent::AgentDefault::Inherit => &self.definition.allowed_skills,
-            vw_config_types::agent::AgentDefault::Fixed(ids) => ids,
+            config_agent_profile::AgentDefault::Inherit => &self.definition.allowed_skills,
+            config_agent_profile::AgentDefault::Fixed(ids) => ids,
         };
         let defaults = selected
             .iter()

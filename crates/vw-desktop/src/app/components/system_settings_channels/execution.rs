@@ -7,7 +7,7 @@ use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{button, column, text};
 use iced::{Element, Length};
-use vw_config_types::agent::AgentModelReference;
+use config_agent_profile::AgentModelReference;
 
 #[derive(Clone, PartialEq, Eq)]
 struct NamedOption {

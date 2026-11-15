@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-pub use crate::agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
+pub use config_agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
 
 pub const DEFAULT_MAX_ITERATIONS: usize = 50_000;
 

@@ -17,7 +17,7 @@ use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{Space, text_editor};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_config_types::agent::AgentRuntime;
+use config_agent_profile::AgentRuntime;
 use vw_config_types::ui::{DesktopLocale, GatewayClientSystemSettingsConfig};
 
 const KEY: &str = "fixture-agent";

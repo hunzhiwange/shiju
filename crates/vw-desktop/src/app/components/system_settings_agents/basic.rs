@@ -44,8 +44,8 @@ pub(super) fn view<'a>(
     _provider_options: Vec<String>,
 ) -> Element<'a, Message> {
     let native = match entry.runtime {
-        vw_config_types::agent::AgentRuntime::Native => true,
-        vw_config_types::agent::AgentRuntime::Acp { .. } => false,
+        config_agent_profile::AgentRuntime::Native => true,
+        config_agent_profile::AgentRuntime::Acp { .. } => false,
     };
     let i18n = I18n::new(app.desktop_locale);
     let field_with_help = |label, description, control: Element<'a, Message>| {

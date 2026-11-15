@@ -1,5 +1,5 @@
 use super::*;
-use vw_config_types::agent::AgentDefault;
+use config_agent_profile::AgentDefault;
 
 #[tokio::test]
 async fn agent_session_identity_storage_round_trip_is_scoped_and_secret_free() {

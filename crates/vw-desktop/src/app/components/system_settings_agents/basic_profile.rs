@@ -8,7 +8,8 @@ use crate::app::{
 };
 use iced::widget::{button, column, container, responsive, row, text};
 use iced::{Alignment, Element, Length};
-use vw_config_types::agent::{AgentRuntime, builtin_agent_spec};
+use config_agent_profile::AgentRuntime;
+use vw_config_types::agent::builtin_agent_spec;
 
 #[cfg(test)]
 #[path = "basic_profile_ui_refresh_15_tests.rs"]

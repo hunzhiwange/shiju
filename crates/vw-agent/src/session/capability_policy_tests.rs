@@ -241,7 +241,8 @@ fn agent_native_defaults_mcp_respects_tenant_and_project_safety_scope() {
 #[test]
 fn agent_config_cleanup_strict_skill_boundary_survives_fixed_selection() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    use config_agent_profile::AgentDefault;
+    use vw_config_types::agent::AgentDefinitionConfig;
     let mut agent = AgentDefinitionConfig::default();
     agent.skill_policy = DelegateCapabilityPolicy::Strict;
     agent.allowed_skills = vec!["allowed".into()];
@@ -283,7 +284,7 @@ fn agent_config_cleanup_strict_skill_boundary_survives_fixed_selection() {
 
 #[test]
 fn agent_config_cleanup_native_skill_inheritance_uses_allowed_source() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
     let _fixture =

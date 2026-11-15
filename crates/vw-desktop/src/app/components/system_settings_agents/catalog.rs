@@ -8,7 +8,7 @@ use crate::app::state::{AgentsSettingsState, DelegateAgentSettingsEntry};
 use crate::app::{App, Message};
 use iced::widget::{Grid, button, column, container, row, text};
 use iced::{Alignment, Element, Length, Theme};
-use vw_config_types::agent::AgentRuntime;
+use config_agent_profile::AgentRuntime;
 
 pub(super) fn entries<'a>(
     settings: &'a AgentsSettingsState,

@@ -52,7 +52,7 @@ fn channel_execution_settings_preserve_agent_and_model() {
     });
     let binding = vw_config_types::channels::ChannelExecutionConfig {
         agent: Some("acp-codex".into()),
-        model: Some(vw_config_types::agent::AgentModelReference {
+        model: Some(config_agent_profile::AgentModelReference {
             provider: "provider".into(),
             model: "model".into(),
         }),

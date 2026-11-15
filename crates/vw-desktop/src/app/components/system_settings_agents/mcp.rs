@@ -10,7 +10,7 @@ use iced::{
     Alignment, Element,
     widget::{button, checkbox, column, row, text},
 };
-use vw_config_types::agent::{AgentDefault, AgentDefaults};
+use config_agent_profile::{AgentDefault, AgentDefaults};
 
 pub(super) fn toggle_message(
     defaults: &AgentDefaults,

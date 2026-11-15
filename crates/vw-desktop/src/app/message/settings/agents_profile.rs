@@ -115,7 +115,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
             // JSON Merge Patch must remove the ACP-only field when returning to native.
             // Custom runtime patches are validated after merge by the gateway.
             if !fixed
-                && matches!(draft.runtime, vw_config_types::agent::AgentRuntime::Native)
+                && matches!(draft.runtime, config_agent_profile::AgentRuntime::Native)
                 && !deleting
             {
                 value["runtime"]["backend"] = serde_json::Value::Null;
@@ -161,11 +161,11 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 AgentsMessage::ProfileDefaultsChanged(value) => draft.defaults = value,
                 AgentsMessage::ProfileModelChanged(value) => {
                     match &value {
-                        vw_config_types::agent::AgentDefault::Fixed(model) => {
+                        config_agent_profile::AgentDefault::Fixed(model) => {
                             draft.provider = model.provider.clone();
                             draft.model = model.model.clone();
                         }
-                        vw_config_types::agent::AgentDefault::Inherit => {
+                        config_agent_profile::AgentDefault::Inherit => {
                             draft.provider.clear();
                             draft.model.clear();
                             draft.force_model_selection = false;
@@ -184,13 +184,13 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                         && !app.agents_settings.entries.iter().any(|entry| entry.key == draft.key)
                     {
                         draft.runtime = if value == "native" {
-                            vw_config_types::agent::AgentRuntime::Native
+                            config_agent_profile::AgentRuntime::Native
                         } else if app.acp_agents.contains(&value) {
-                            vw_config_types::agent::AgentRuntime::Acp { backend: value }
+                            config_agent_profile::AgentRuntime::Acp { backend: value }
                         } else {
                             return Task::none();
                         };
-                        if matches!(draft.runtime, vw_config_types::agent::AgentRuntime::Acp { .. })
+                        if matches!(draft.runtime, config_agent_profile::AgentRuntime::Acp { .. })
                             && app.agents_settings.active_detail_tab
                                 == crate::app::state::AGENT_DETAIL_TOOLS_TAB
                         {

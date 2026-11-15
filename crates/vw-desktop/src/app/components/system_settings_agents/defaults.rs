@@ -8,7 +8,7 @@ use iced::{
     widget::{checkbox, column, responsive, text},
 };
 use std::fmt;
-use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
+use config_agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
 use vw_config_types::ui::DesktopLocale;
 use vw_api_acp_model::acp_model_source::{AcpModelSource, AcpModelSourceCapability};
 

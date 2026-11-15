@@ -264,8 +264,8 @@ fn force_model_selection_toggle_persists() {
     let _ = update(
         &mut app,
         SettingsMessage::Agents(AgentsMessage::ProfileModelChanged(
-            vw_config_types::agent::AgentDefault::Fixed(
-                vw_config_types::agent::AgentModelReference {
+            config_agent_profile::AgentDefault::Fixed(
+                config_agent_profile::AgentModelReference {
                     provider: "provider".into(),
                     model: "model".into(),
                 },
@@ -1543,7 +1543,7 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
         skill_item("bundled-a", "bundled", true),
     ];
     entry_mut(&mut app, "main").defaults.skills =
-        vw_config_types::agent::AgentDefault::Fixed(vec!["global-a".into()]);
+        config_agent_profile::AgentDefault::Fixed(vec!["global-a".into()]);
 
     let _ = update(
         &mut app,
@@ -1554,7 +1554,7 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
     );
     assert_eq!(
         entry(&app, "main").defaults.skills,
-        vw_config_types::agent::AgentDefault::Fixed(vec!["global-a".into(), "project-a".into()])
+        config_agent_profile::AgentDefault::Fixed(vec!["global-a".into(), "project-a".into()])
     );
 
     let _ = update(
@@ -1566,7 +1566,7 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
     );
     assert_eq!(
         entry(&app, "main").defaults.skills,
-        vw_config_types::agent::AgentDefault::Fixed(vec!["bundled-a".into()])
+        config_agent_profile::AgentDefault::Fixed(vec!["bundled-a".into()])
     );
 
     let _ = update(
@@ -1587,7 +1587,7 @@ fn allowed_skill_messages_filter_by_scope_and_toggle_membership() {
     );
     assert_eq!(
         entry(&app, "main").defaults.skills,
-        vw_config_types::agent::AgentDefault::Fixed(vec!["project-a".into()])
+        config_agent_profile::AgentDefault::Fixed(vec!["project-a".into()])
     );
 }
 
@@ -1724,7 +1724,7 @@ fn agent_unified_selection_catalog_launch_selects_profile_runtime() {
     app.agents_settings.entries.push(crate::app::state::DelegateAgentSettingsEntry::from_config(
         "acp-codex",
         Some(vw_config_types::agent::AgentDefinitionConfig {
-            runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+            runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
             ..Default::default()
         }),
     ));
@@ -2074,7 +2074,7 @@ async fn agent_config_cleanup_profile_http_roundtrips_multiline_and_runtime() {
 
 #[test]
 fn agent_config_cleanup_skill_selection_writes_only_one_default() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     let mut app = test_app();
     app.agents_settings.skill_catalog = vec![skill_item("allowed", "global", true)];
     let agent = entry_mut(&mut app, "main");
@@ -2097,7 +2097,7 @@ fn agent_config_cleanup_skill_selection_writes_only_one_default() {
 
 #[test]
 fn agent_config_cleanup_skill_selection_preserves_inherit_and_rejects_unavailable() {
-    use vw_config_types::agent::AgentDefault;
+    use config_agent_profile::AgentDefault;
     let mut app = test_app();
     app.agents_settings.skill_catalog = vec![
         skill_item("allowed", "global", true),
@@ -2132,7 +2132,8 @@ fn agent_config_cleanup_skill_selection_preserves_inherit_and_rejects_unavailabl
 
 #[test]
 fn session_entry_catalog_launch_preserves_profile_runtime() {
-    use vw_config_types::agent::{AgentDefinitionConfig, AgentRuntime};
+    use config_agent_profile::AgentRuntime;
+    use vw_config_types::agent::AgentDefinitionConfig;
     for runtime in [AgentRuntime::Native, AgentRuntime::Acp { backend: "codex".into() }] {
         let mut app = test_app();
         app.show_settings = true;

@@ -1699,7 +1699,7 @@ async fn acp_background_approval_plan_inherits_current_workspace_grant() {
     super::session_bind::ensure_plan_run_session_info(&parent, None, root).await.unwrap();
     let (project, _) = crate::project::from_directory(&tenant, root).await.unwrap();
     let definition = vw_config_types::agent::AgentDefinitionConfig {
-        runtime: vw_config_types::agent::AgentRuntime::Acp { backend: "codex".into() },
+        runtime: config_agent_profile::AgentRuntime::Acp { backend: "codex".into() },
         ..Default::default()
     };
     let binding = AgentBinding::from_definition("acp-codex".into(), &definition);

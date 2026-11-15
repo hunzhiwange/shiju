@@ -1,9 +1,8 @@
 //! Server-owned session identity. UI snapshots never supply this record.
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use vw_config_types::agent::{
-    AgentDefaults, AgentDefinitionConfig, AgentRuntime, DelegateCapabilityPolicy,
-};
+use config_agent_profile::{AgentDefaults, AgentRuntime};
+use vw_config_types::agent::{AgentDefinitionConfig, DelegateCapabilityPolicy};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -305,7 +304,7 @@ pub(crate) async fn prepare(
     workspace: &std::path::Path,
 ) -> Result<(AgentBinding, crate::config::Config)> {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
-    use vw_config_types::agent::{AgentDefault, AgentModelReference};
+    use config_agent_profile::{AgentDefault, AgentModelReference};
     let _guard = INITIALIZE.lock().await;
     let mut config = crate::config::get_current().await?;
     let fork_selectable = if !session.is_empty() {

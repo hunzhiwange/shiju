@@ -49,7 +49,7 @@ async fn channel_execution_loading_shows_unified_agent_and_provider_models_when_
                     generation,
                     Ok(ChannelExecutionChoices {
                         agents: vec![("acp-research".into(), "研究助手".into())],
-                        models: vec![vw_config_types::agent::AgentModelReference {
+                        models: vec![config_agent_profile::AgentModelReference {
                             provider: "provider".into(),
                             model: "model".into(),
                         }],

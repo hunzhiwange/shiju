@@ -67,8 +67,8 @@ fn profile_form<'a>(
     let label = |source| tr(app.desktop_locale, source);
     let fixed = builtin_agent_spec(&draft.key).is_some() || draft.key.starts_with("acp-");
     let native = match draft.runtime {
-        vw_config_types::agent::AgentRuntime::Native => true,
-        vw_config_types::agent::AgentRuntime::Acp { .. } => false,
+        config_agent_profile::AgentRuntime::Native => true,
+        config_agent_profile::AgentRuntime::Acp { .. } => false,
     };
     let detail_tab =
         |label, key| super::shared::detail_tab_button(label, key, &settings.active_detail_tab);

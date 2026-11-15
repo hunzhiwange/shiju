@@ -14,7 +14,7 @@ const MAX_LINE: usize = 4032;
 const MAX_OUTPUT: u64 = 100_000;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(super) enum EntryError {
+pub enum EntryError {
     Conflict,
     InvalidIdentity,
     InvalidPayload,
@@ -27,13 +27,13 @@ pub(super) enum EntryError {
 }
 
 /// A service and account chosen by the trusted host-side caller.
-pub(super) struct KeychainEntry<'a> {
+pub struct KeychainEntry<'a> {
     service: &'a str,
     account: &'a str,
 }
 
 impl<'a> KeychainEntry<'a> {
-    pub(super) fn new(service: &'a str, account: &'a str) -> Result<Self, EntryError> {
+    pub fn new(service: &'a str, account: &'a str) -> Result<Self, EntryError> {
         if [service, account].into_iter().any(|name| {
             name.is_empty()
                 || !name
@@ -46,7 +46,7 @@ impl<'a> KeychainEntry<'a> {
     }
 
     /// Returns the password as printed by `security -w`, which hex-encodes nonprintable data.
-    pub(super) fn read(&self) -> Result<Option<Vec<u8>>, EntryError> {
+    pub fn read(&self) -> Result<Option<Vec<u8>>, EntryError> {
         self.read_in(None)
     }
 
@@ -67,7 +67,7 @@ impl<'a> KeychainEntry<'a> {
         }
     }
 
-    pub(super) fn write(&self, payload: &str) -> Result<(), EntryError> {
+    pub fn write(&self, payload: &str) -> Result<(), EntryError> {
         // The interactive command has a fixed-size buffer. Keep the secret off argv.
         if payload.is_empty() || payload.len() > MAX_LINE / 2 {
             return Err(EntryError::InvalidPayload);
@@ -83,7 +83,7 @@ impl<'a> KeychainEntry<'a> {
 
     /// go-keyring's restricted ASCII representation fits without doubling it to hex.
     /// The old value is checked again in the located keychain just before the write.
-    pub(super) fn replace_base64(
+    pub fn replace_base64(
         &self,
         before: Option<&[u8]>,
         payload: &str,
@@ -164,7 +164,7 @@ impl<'a> KeychainEntry<'a> {
     }
 
     /// Remove the located entry only if it still holds the observed grant.
-    pub(super) fn delete_matching(&self, before: &[u8]) -> Result<(), EntryError> {
+    pub fn delete_matching(&self, before: &[u8]) -> Result<(), EntryError> {
         let (path, exists) = self.write_target()?;
         if !exists || self.read_in(Some(&path))?.as_deref() != Some(before) {
             return Err(EntryError::Conflict);
@@ -183,7 +183,7 @@ impl<'a> KeychainEntry<'a> {
         Ok(())
     }
 
-    pub(super) fn delete(&self) -> Result<(), EntryError> {
+    pub fn delete(&self) -> Result<(), EntryError> {
         let output =
             run(&["delete-generic-password", "-a", self.account, "-s", self.service], None, false)?;
         match output.code {

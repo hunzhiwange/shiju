@@ -1,6 +1,5 @@
 //! Bounded, single-use OAuth callback handling on the execution host.
 
-use super::copilot::valid_token;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::{StatusCode, Url};
 use sha2::{Digest, Sha256};
@@ -51,19 +50,19 @@ impl Drop for CallbackWorker {
     }
 }
 
-pub(super) struct CallbackCode {
+pub struct CallbackCode {
     pub code: String,
     pub verifier: String,
 }
 
 type TakenCallback = Result<CallbackCode, AuthErrorCode>;
 
-pub(super) struct LoopbackCallback {
+pub struct LoopbackCallback {
     grant: Arc<Mutex<Option<BrowserGrant>>>,
     worker: Arc<Mutex<CallbackWorker>>,
 }
 
-pub(super) struct CallbackChallenge {
+pub struct CallbackChallenge {
     pub port: u16,
     pub state: String,
     pub challenge: String,
@@ -71,14 +70,14 @@ pub(super) struct CallbackChallenge {
 
 /// Reserve the port before registering it with the issuer. The worker starts
 /// after the issuer supplies the final expiry.
-pub(super) struct PreparedCallback {
+pub struct PreparedCallback {
     listener: TcpListener,
     state: String,
     verifier: String,
 }
 
 impl PreparedCallback {
-    pub(super) fn bind(port: u16) -> Result<(Self, CallbackChallenge), AuthErrorCode> {
+    pub fn bind(port: u16) -> Result<(Self, CallbackChallenge), AuthErrorCode> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).map_err(|error| {
             if error.kind() == ErrorKind::AddrInUse {
                 AuthErrorCode::Conflict
@@ -97,11 +96,11 @@ impl PreparedCallback {
     }
 
     #[cfg(target_os = "macos")]
-    pub(super) fn verifier(&self) -> &str {
+    pub fn verifier(&self) -> &str {
         &self.verifier
     }
 
-    pub(super) fn start(
+    pub fn start(
         self,
         path: &'static str,
         worker_name: &'static str,
@@ -129,7 +128,7 @@ impl PreparedCallback {
 }
 
 impl LoopbackCallback {
-    pub(super) fn bind(
+    pub fn bind(
         port: u16,
         path: &'static str,
         worker_name: &'static str,
@@ -139,13 +138,13 @@ impl LoopbackCallback {
         Ok((prepared.start(path, worker_name, deadline)?, challenge))
     }
 
-    pub(super) fn cleanup(&self) -> impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static {
+    pub fn cleanup(&self) -> impl FnMut() -> Result<(), AuthErrorCode> + Send + 'static {
         let worker = Arc::clone(&self.worker);
         move || stop_worker(&worker)
     }
 
     /// Take the accepted grant once and close the listener before token exchange.
-    pub(super) fn take(&self) -> Result<Option<TakenCallback>, AuthErrorCode> {
+    pub fn take(&self) -> Result<Option<TakenCallback>, AuthErrorCode> {
         let callback = {
             let mut grant =
                 self.grant.lock().map_err(|_| AuthErrorCode::ExecutionHostUnavailable)?;
@@ -328,4 +327,11 @@ fn parse_callback(
         (None, Some(error)) if !error.is_empty() => Ok(Err(AuthErrorCode::AuthorizationDenied)),
         _ => Err(bad_request),
     }
+}
+
+// Same bounded ASCII grant validation used by the issuer adapters.
+fn valid_token(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 16 * 1024
+        && value.bytes().all(|byte| byte.is_ascii_graphic())
 }

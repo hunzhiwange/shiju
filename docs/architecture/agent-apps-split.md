@@ -2137,3 +2137,23 @@ workspace_paths → providers
 `app-openclaw-config-rules` 唯一拥有 catalog 全部实现与 defaults 纯规则（类型、form/with_form、get/prepare、私有 document），六个既有测试迁至两个独立文件。macOS cfg 保持；直接依赖 app-config-patch::patch_json5、app-config-write::write_guard::WriteError、serde 与 serde_json arbitrary_precision，无门面回依赖或资源引用。原 catalog 路径重导出同一模块，defaults 组合纯库重导出与 set_agents_defaults 发布函数，后者由任务 38 接收。
 
 vw-agent OpenClaw handler 的 catalog 与 defaults 读取直接使用规则库，集成测试的纯准备路径同步；发布仍走原事务锁。API 传输类型仍由 api-openclaw-settings 独立拥有，保持既有 convert 边界。workspace/路径及测试注册已静态核对，未修改 Cargo.lock。差异检查不能代替行为验收：扩展字段、注释保留、旧 timeout 优先级、非有限值拒绝、缺失与空目录区分及授权锁一致性，均待后续授权统一验证；未运行 Cargo、单元及实机测试。
+
+## 任务 13 静态迁移结果
+
+`app-auth-core` 接收 `auth/flow.rs`、`auth/browser_callback.rs`、
+`auth/keychain.rs` 与独立 `keychain_tests.rs`；门面原路径通过 re-export 保留。
+流程身份校验直接依赖 `app-provider-validation`。浏览器回调的 grant 校验局部保留
+原 16 KiB ASCII 限制，避免依赖 Copilot 适配器。macOS 钥匙串和非 wasm 回调
+的 cfg 保持；仅跨包实际使用的类型和方法扩大可见性。
+
+延后接收（任务 15 必须收完）：`credential_file.rs`、`credential_file/host.rs`、
+`credential_lease.rs` 及两个独立测试文件仍在门面。`discard_unpublished_claude`、
+`remove_claude`、`with_claude_profile_scope` 依赖 ClaudeKeychain、LoginMaterial、
+claude_login_files::Directory 和 lock_account，须随 Claude 登录材料闭环拆分，
+不得反向依赖门面。任务 15 将其基础部分归入 app-auth-core，Claude 编排归入
+app-auth-claude。`flow_tests.rs` 使用凭据存储及真实适配器，暂留门面注册，
+由任务 22 接收编排测试；禁止新包通过 dev-dependency 回依赖门面。
+
+静态审阅：四个文件单一所有者、原导出路径接线、cfg 对照、TOML 直接依赖和路径
+检查及 git diff --check。未运行 Cargo、单元及实机测试，统一验收待授权：
+新库与直接调用者编译、迁移单测、三平台行为与锁文件一致性。

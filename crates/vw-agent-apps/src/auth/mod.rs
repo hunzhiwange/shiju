@@ -4,7 +4,7 @@ pub mod accounts;
 #[cfg(all(test, target_os = "macos"))]
 mod accounts_tests;
 #[cfg(not(target_arch = "wasm32"))]
-mod browser_callback;
+pub(crate) use app_auth_core::browser_callback;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod codex_browser;
@@ -46,7 +46,7 @@ pub mod credential_lease;
 #[cfg(all(test, unix))]
 mod credential_lease_tests;
 
-pub mod flow;
+pub use app_auth_core::flow;
 
 #[cfg(all(test, unix))]
 mod flow_tests;
@@ -67,9 +67,7 @@ pub mod claude_rotation;
 mod claude_rotation_tests;
 
 #[cfg(target_os = "macos")]
-mod keychain;
-#[cfg(all(test, target_os = "macos"))]
-mod keychain_tests;
+pub(crate) use app_auth_core::keychain;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod xai;

@@ -1,6 +1,6 @@
 //! Execution-host registry for scoped authorization attempts.
 
-use crate::providers::validate_identity;
+use app_provider_validation::validate_identity;
 use std::{
     collections::{HashMap, hash_map::Entry},
     future::Future,
@@ -335,7 +335,7 @@ impl AuthFlows {
 
     /// Preserve providers' single pending attempt within the authorized scope.
     #[cfg(target_os = "macos")]
-    pub(super) fn replace_with_cleanup(
+    pub fn replace_with_cleanup(
         &self,
         scope: AuthAccountScope<'_>,
         request: AuthStartRequest,

@@ -1,0 +1,20 @@
+[package]
+name = "app-auth-core"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-provider-validation = { path = "../app-provider-validation" }
+vw-api-app-auth = { path = "../api-app-auth" }
+vw-api-transport = { path = "../api-transport" }
+uuid = { version = "1.11", features = ["v4", "js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+base64 = "0.23"
+sha2 = "0.11"
+httparse = "1"
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+tempfile = "3"

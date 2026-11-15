@@ -1,85 +1,41 @@
-//! 历史文件复用完整变更卡片，只允许浏览提交快照。
-use super::super::utils::FileStatus;
-use crate::app::{App, DiffTheme, Message, message::GitMessage};
+//! 桌面文件卡片与历史领域视图的消息适配。
+use crate::app::{App, Message, message::GitMessage};
 use iced::Element;
-use vw_api_git::{GitFileStatus, GitHistoryFileDto};
+use vw_api_git::GitHistoryFileDto;
+use desktop_git_ui::git_panel::diff_view::history::{self, HistoryAction, HistoryEvent};
 
-pub(crate) fn view_history_diff(
-    app: &App,
-    index: usize,
-    file: &GitHistoryFileDto,
-) -> Element<'static, Message> {
-    let theme = if super::super::is_dark_theme(&app.app_theme) {
-        DiffTheme::Monokai
-    } else {
-        DiffTheme::GitHub
-    };
-    let (background, _, add_line, add_word, del_line, del_word, _, _) =
-        super::super::get_diff_colors(theme);
-    let status = match file.status {
-        GitFileStatus::Added | GitFileStatus::Untracked => FileStatus::Added,
-        GitFileStatus::Deleted => FileStatus::Deleted,
-        GitFileStatus::Renamed => FileStatus::Renamed,
-        GitFileStatus::Modified | GitFileStatus::Copied | GitFileStatus::TypeChanged => {
-            FileStatus::Modified
-        }
-    };
-    let key = format!(
-        "history/{}/{}",
-        app.git_repository.selected.as_deref().unwrap_or_default(),
-        file.path
-    );
-    let mut context = super::DiffRenderCtx::history(index, key);
-    context.history_notice = file.notice.clone();
-    super::file_view::view_file(
-        app,
-        &context,
-        &file.path,
-        file.old_content.as_deref().zip(file.new_content.as_deref()),
-        false,
-        status,
-        file.insertions,
-        file.deletions,
-        theme,
-        background,
-        add_line,
-        add_word,
-        del_line,
-        del_word,
-        matches!(status, FileStatus::Modified | FileStatus::Renamed),
-    )
-    .map(move |message| match message {
-        Message::Git(GitMessage::ToggleExpandFile(_)) => {
-            Message::Git(GitMessage::SelectHistoryFile(index))
-        }
-        Message::Git(GitMessage::OpenDiffFileMenu(_)) => {
-            Message::Git(GitMessage::OpenHistoryFileMenu(index))
-        }
-        Message::Git(GitMessage::CloseDiffFileMenu) => {
-            Message::Git(GitMessage::CloseHistoryFileMenu)
-        }
-        Message::Git(GitMessage::PreviewDiffFile(_)) => {
-            Message::Git(GitMessage::PreviewHistoryFile(index))
-        }
-        Message::Git(GitMessage::CopyDiffFile { .. }) => {
-            Message::Git(GitMessage::CopyHistoryFile(index))
-        }
-        other => history_event(other),
+pub(crate) fn view_history_diff(app: &App, index: usize, file: &GitHistoryFileDto) -> Element<'static, Message> {
+    history::view_history_diff(&app.app_theme, app.git_repository.selected.as_deref(), index, file, |diff| {
+        let [background, add_line, add_word, del_line, del_word] = diff.colors;
+        super::file_view::view_file(
+            app, &diff.context, &file.path,
+            file.old_content.as_deref().zip(file.new_content.as_deref()), false,
+            diff.status, file.insertions, file.deletions, diff.theme,
+            background, add_line, add_word, del_line, del_word,
+            matches!(diff.status, super::super::utils::FileStatus::Modified | super::super::utils::FileStatus::Renamed),
+        ).map(project_event)
+    }).map(|action| match action {
+        HistoryAction::SelectFile(index) => Message::Git(GitMessage::SelectHistoryFile(index)),
+        HistoryAction::OpenMenu(index) => Message::Git(GitMessage::OpenHistoryFileMenu(index)),
+        HistoryAction::CloseMenu => Message::Git(GitMessage::CloseHistoryFileMenu),
+        HistoryAction::PreviewFile(index) => Message::Git(GitMessage::PreviewHistoryFile(index)),
+        HistoryAction::CopyFile(index) => Message::Git(GitMessage::CopyHistoryFile(index)),
+        HistoryAction::Browse(message) => message,
+        HistoryAction::None => Message::None,
     })
 }
-
-fn history_event(message: Message) -> Message {
+fn project_event(message: Message) -> HistoryEvent<Message> {
     match message {
-        event @ Message::Git(
-            GitMessage::ExpandContext(..)
-            | GitMessage::ToggleExpandHunk(..)
-            | GitMessage::DiffHoverEnter(..)
-            | GitMessage::DiffHoverExit(..),
-        ) => event,
-        _ => Message::None,
+        Message::Git(GitMessage::ToggleExpandFile(_)) => HistoryEvent::ToggleFile,
+        Message::Git(GitMessage::OpenDiffFileMenu(_)) => HistoryEvent::OpenMenu,
+        Message::Git(GitMessage::CloseDiffFileMenu) => HistoryEvent::CloseMenu,
+        Message::Git(GitMessage::PreviewDiffFile(_)) => HistoryEvent::PreviewFile,
+        Message::Git(GitMessage::CopyDiffFile { .. }) => HistoryEvent::CopyFile,
+        event @ Message::Git(GitMessage::ExpandContext(..) | GitMessage::ToggleExpandHunk(..)
+            | GitMessage::DiffHoverEnter(..) | GitMessage::DiffHoverExit(..)) => HistoryEvent::Browse(event),
+        _ => HistoryEvent::Blocked,
     }
 }
-
 #[cfg(test)]
 #[path = "history_tests.rs"]
 mod tests;

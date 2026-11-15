@@ -15,3 +15,4 @@ config-ui = { path = "../config-ui", version = "0.6.0" }
 desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 desktop-git = { path = "../desktop-git", version = "0.6.0" }
+vw-api-git = { path = "../api-git", version = "0.6.0" }

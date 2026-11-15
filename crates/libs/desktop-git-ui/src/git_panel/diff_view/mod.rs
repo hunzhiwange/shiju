@@ -140,3 +140,8 @@ mod styles_tests;
 
 #[cfg(test)]
 mod selection_tests;
+
+pub mod header;
+pub mod history;
+#[cfg(test)]
+mod header_tests;

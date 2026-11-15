@@ -9,3 +9,14 @@ pub mod details_styles;
 mod details_tests;
 
 pub mod update;
+
+pub mod ledger;
+pub mod projection;
+pub mod styles;
+
+#[cfg(test)]
+mod ledger_tests;
+#[cfg(test)]
+mod projection_tests;
+#[cfg(test)]
+mod json_tree_tests;

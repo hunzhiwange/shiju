@@ -14,7 +14,7 @@ use super::styles::{
     LEDGER_SCROLLBAR_WIDTH, ledger_record_row_style, ledger_scroll_direction, record_preview_font,
     role_badge_style,
 };
-use super::{
+use super::model::{
     MetricAvailability, TrajectoryControlsState, TrajectoryMetrics, TrajectoryProjection,
     TrajectoryRecord, TrajectoryRecordDetail, TrajectoryRecordKind,
 };
@@ -66,7 +66,7 @@ fn trajectory_ledger_groups_turns_and_steps() {
 
     let controls = TrajectoryControlsState::default();
     let groups = build_ledger_groups(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &projection,
         "",
         Some("tool:call-1"),
@@ -111,7 +111,7 @@ fn trajectory_ledger_groups_turns_and_steps() {
     assert_eq!(selected, ["tool:call-1"]);
 
     let element = trajectory_ledger(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &projection,
         "",
         Some("tool:call-1"),
@@ -136,7 +136,7 @@ fn trajectory_ledger_filter_matches_visible_fields() {
 
     assert_eq!(
         ids(filter_ledger_records(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &filtered_projection,
             "AsSiStAnT"
         )),
@@ -144,7 +144,7 @@ fn trajectory_ledger_filter_matches_visible_fields() {
     );
     assert_eq!(
         ids(filter_ledger_records(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &filtered_projection,
             "read_FILE"
         )),
@@ -152,7 +152,7 @@ fn trajectory_ledger_filter_matches_visible_fields() {
     );
     assert_eq!(
         ids(filter_ledger_records(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &filtered_projection,
             "上海"
         )),
@@ -160,7 +160,7 @@ fn trajectory_ledger_filter_matches_visible_fields() {
     );
     assert!(
         filter_ledger_records(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &filtered_projection,
             "hidden-only-argument"
         )
@@ -183,7 +183,7 @@ fn trajectory_ledger_filter_matches_visible_fields() {
     );
     assert_eq!(
         filter_ledger_records(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &many,
             "match"
         )
@@ -248,7 +248,7 @@ fn ledger_headers_emit_fold_messages() {
 
     let tool_actions = Rc::clone(&actions);
     let tool_button = ledger_tool_group_button(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         9,
         true,
         move |action| {
@@ -267,7 +267,7 @@ fn ledger_headers_emit_fold_messages() {
 
 mod trajectory_controls {
     use super::*;
-    use crate::app::components::chat_panel::trajectory::TrajectoryTurn;
+    use crate::trajectory::model::TrajectoryTurn;
 
     fn collapsible_projection() -> TrajectoryProjection {
         TrajectoryProjection {
@@ -306,7 +306,7 @@ mod trajectory_controls {
 
         controls.toggle_all_turns(&projection);
         let collapsed = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -318,7 +318,7 @@ mod trajectory_controls {
 
         controls.toggle_turn(1);
         let partly_expanded = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -329,7 +329,7 @@ mod trajectory_controls {
 
         controls.toggle_all_turns(&projection);
         let collapsed_again = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -339,7 +339,7 @@ mod trajectory_controls {
 
         controls.toggle_all_turns(&projection);
         let expanded = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -355,7 +355,7 @@ mod trajectory_controls {
 
         controls.toggle_all_calls(&projection);
         let groups = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -372,7 +372,7 @@ mod trajectory_controls {
 
         controls.toggle_tool_step(1);
         let expanded = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "",
             None,
@@ -395,7 +395,7 @@ mod trajectory_controls {
         controls.toggle_all_calls(&projection);
 
         let groups = build_ledger_groups(
-            crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+            desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
             &projection,
             "needle",
             None,
@@ -411,7 +411,7 @@ mod trajectory_controls {
 
 #[test]
 fn desktop_gettext_area_8_ledger_search_matches_locale_chinese_and_stable_id() {
-    use crate::app::i18n::I18n;
+    use desktop_i18n::I18n;
     use config_ui::DesktopLocale;
     let data = projection(vec![record(
         "message-unique",

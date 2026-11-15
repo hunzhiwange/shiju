@@ -72,7 +72,7 @@ fn json_tree_collapse_hides_only_selected_subtree() {
     assert_eq!(rows[1].copy_value, json!({"hidden": [1, 2]}));
 
     let element = json_tree(
-        crate::app::i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
+        desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese),
         &value,
         &collapsed,
         TestMessage::Toggle,

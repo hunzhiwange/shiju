@@ -17,24 +17,7 @@ pub(crate) const MIN_TIMELINE_BLOCK_UNITS: u64 = 120;
 const TIMELINE_FILL_PORTIONS: f32 = 1_000.0;
 const TIMELINE_TOOLTIP_PREVIEW_CHAR_LIMIT: usize = 100;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum TimelineLane {
-    Input,
-    Model,
-    Tools,
-}
-
-impl TimelineLane {
-    const ALL: [Self; 3] = [Self::Input, Self::Model, Self::Tools];
-
-    const fn label(self) -> &'static str {
-        match self {
-            Self::Input => "Input",
-            Self::Model => "Model",
-            Self::Tools => "Tools",
-        }
-    }
-}
+pub(crate) use desktop_chat_view::trajectory::styles::TimelineLane;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct TimelineSummary {

@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use serde_json::{Value, json};
 use session_ui_types::{ChatSessionStep, TokenUsage, ToolTiming};
 
-use super::{MetricAvailability, TrajectoryRecordKind, TrajectoryUsage, project_trajectory};
+use super::model::{MetricAvailability, TrajectoryRecordKind, TrajectoryUsage};
+use super::projection::project_trajectory;
 
 fn step(index: u32, started_ms: u64, finished_ms: Option<u64>, usage: [i64; 4]) -> ChatSessionStep {
     ChatSessionStep {

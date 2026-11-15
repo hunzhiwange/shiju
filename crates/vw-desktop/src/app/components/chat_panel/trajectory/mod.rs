@@ -183,17 +183,6 @@ fn raw_refresh_status<'a>(
     Space::new().height(Length::Fixed(0.0)).into()
 }
 
-#[cfg(test)]
-#[path = "projection_tests.rs"]
-mod projection_tests;
-
-#[cfg(test)]
-#[path = "ledger_tests.rs"]
-mod ledger_tests;
-
-#[cfg(test)]
-#[path = "json_tree_tests.rs"]
-mod json_tree_tests;
 
 #[cfg(test)]
 #[path = "timeline_tests.rs"]

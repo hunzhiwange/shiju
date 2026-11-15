@@ -194,8 +194,8 @@ fn source_protocol(
 pub(in crate::session::llm::acp) fn launch_route(
     agent: &str,
     profile: &AcpLaunchProfile,
-) -> anyhow::Result<vw_provider_resolver::protocol_routes::ProtocolRoute> {
-    use vw_provider_resolver::protocol_routes::RouteCapability as C;
+) -> anyhow::Result<provider_protocol_routes::ProtocolRoute> {
+    use provider_protocol_routes::RouteCapability as C;
     let api = profile
         .model_api
         .as_ref()

@@ -1,6 +1,7 @@
 [workspace]
 members = [
-  "crates/libs/agent-database",
+  "crates/libs/acp-metrics",
+  "crates/libs/provider-protocol-routes",
   "crates/libs/api-transport",
   "crates/libs/api-transport",
   "crates/libs/config-runtime-paths",
@@ -24,6 +25,7 @@ members = [
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-process",
   "crates/libs/cli-gateway-commands",
+  "crates/libs/cli-api-core",
   "crates/libs/app-catalog",
   "crates/libs/app-config-patch",
   "crates/libs/app-provider-validation",

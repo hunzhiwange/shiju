@@ -1,74 +1,28 @@
-//! Server-owned distinction between inherited fork history and its own execution.
+//! Host scope injection and session projection for fork execution state.
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-
-use super::agent_binding::{storage_key, store};
-
-const NAMESPACE: &str = "session.fork-execution";
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ForkExecution {
-    /// IDs belong to the copied target history, never supplied by clients.
-    pub(crate) inherited_message_ids: Vec<String>,
-    pub(crate) started: bool,
+pub(crate) use session_engine::fork_execution::ForkExecution;
+fn scope() -> (std::path::PathBuf, vw_api_transport::TenantScope) {
+    (crate::global::paths().home.clone(), super::ui_store::current_tenant_scope())
 }
-
 pub(crate) async fn load_scoped(project: &str, session: &str) -> Result<Option<ForkExecution>> {
-    let key = storage_key(project, session)?;
-    let tenant = super::ui_store::current_tenant_scope();
-    crate::global_database::run_isolated(move || {
-        store()?
-            .get(&tenant, NAMESPACE, &key)?
-            .as_deref()
-            .map(serde_json::from_str)
-            .transpose()
-            .map_err(Into::into)
-    })
-    .await?
+    let (home, tenant) = scope();
+    session_engine::fork_execution::load_scoped(home, tenant, project, session).await
 }
-
-async fn save(project: &str, session: &str, state: ForkExecution) -> Result<()> {
-    let key = storage_key(project, session)?;
-    let tenant = super::ui_store::current_tenant_scope();
-    let payload = serde_json::to_string(&state)?;
-    crate::global_database::run_isolated(move || {
-        store()?.upsert(&tenant, NAMESPACE, &key, &payload)
-    })
-    .await?
+pub(crate) async fn create(project: &str, session: &str, inherited_message_ids: Vec<String>) -> Result<()> {
+    let (home, tenant) = scope();
+    session_engine::fork_execution::create(home, tenant, project, session, inherited_message_ids).await
 }
-
-/// Stage one complete boundary record before publishing the new session row.
-pub(crate) async fn create(
-    project: &str,
-    session: &str,
-    inherited_message_ids: Vec<String>,
-) -> Result<()> {
-    save(project, session, ForkExecution { inherited_message_ids, started: false }).await
-}
-
 pub(crate) async fn remove(project: &str, session: &str) -> Result<()> {
-    let key = storage_key(project, session)?;
-    let tenant = super::ui_store::current_tenant_scope();
-    crate::global_database::run_isolated(move || {
-        store()?.delete(&tenant, NAMESPACE, &key).map(|_| ())
-    })
-    .await?
+    let (home, tenant) = scope();
+    session_engine::fork_execution::remove(home, tenant, project, session).await
 }
-
-/// Call under message::lock_stream_prompt after request validation, before spawning execution.
-/// Once set, cancellation and runtime failures must never undo this transition.
 pub(crate) async fn start(project: &str, session: &str) -> Result<()> {
-    if let Some(mut state) = load_scoped(project, session).await?
-        && !state.started
-    {
-        state.started = true;
-        save(project, session, state).await?;
-    }
-    Ok(())
+    let (home, tenant) = scope();
+    session_engine::fork_execution::start(home, tenant, project, session).await
 }
-
 pub(crate) async fn is_selectable(project: &str, session: &str) -> Result<bool> {
-    Ok(load_scoped(project, session).await?.is_some_and(|state| !state.started))
+    let (home, tenant) = scope();
+    session_engine::fork_execution::is_selectable(home, tenant, project, session).await
 }
 
 /// Ignore any serialized projection and reload the authoritative server setting.

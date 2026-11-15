@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+session-instructions = { path = "../session-instructions", version = "0.6.0" }
 anyhow = "1"
 config-agent = { path = "../config-agent", version = "0.6.0" }
 config-agent-profile = { path = "../config-agent-profile", version = "0.6.0" }

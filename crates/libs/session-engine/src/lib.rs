@@ -3,6 +3,8 @@ pub mod agent_binding;
 pub mod capability_policy;
 
 pub mod child_agent;
+pub mod context_injection;
+pub mod fork_execution;
 pub mod binding_store;
 pub mod admission;
 pub mod admission_host;

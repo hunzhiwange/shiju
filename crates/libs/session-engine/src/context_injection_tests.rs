@@ -3,7 +3,7 @@
 use serde_json::json;
 
 use super::{ContextRole, assemble_agents_context};
-use crate::session::instruction::{InstructionSource, Resolved};
+use session_instructions::{InstructionSource, Resolved};
 
 fn resolved(filepath: &str, content: &str) -> Resolved {
     Resolved {

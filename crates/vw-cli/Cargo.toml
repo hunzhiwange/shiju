@@ -18,6 +18,7 @@ name = "vibe-agent"
 path = "src/bin/vibe-agent.rs"
 
 [dependencies]
+cli-task-commands = { path = "../libs/cli-task-commands", version = "0.6.0" }
 gateway-endpoint = { path = "../libs/gateway-endpoint", version = "0.6.0" }
 cli-command-schema = { path = "../libs/cli-command-schema", version = "0.6.0" }
 cli-gateway-process = { path = "../libs/cli-gateway-process", version = "0.6.0" }

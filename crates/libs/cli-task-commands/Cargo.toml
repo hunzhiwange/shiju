@@ -1,0 +1,15 @@
+[package]
+name = "cli-task-commands"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = "1"
+cli-command-schema = { path = "../cli-command-schema", version = "0.6.0" }
+serde_json = "1"
+vw-agent = { path = "../../vw-agent", version = "0.6.0", default-features = false }
+vw-shared = { path = "../../vw-shared", version = "0.6.0" }

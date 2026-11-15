@@ -68,6 +68,7 @@ members = [
   "crates/libs/cli-stdio",
   "crates/libs/cli-gateway-process",
   "crates/libs/cli-gateway-commands",
+  "crates/libs/cli-task-commands",
   "crates/libs/cli-api-core",
   "crates/libs/cli-api-system",
   "crates/libs/cli-api-workspace",

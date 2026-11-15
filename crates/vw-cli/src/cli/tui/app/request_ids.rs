@@ -24,4 +24,3 @@ pub(super) fn next_plan_run_request_id() -> String {
 pub(super) fn next_workflow_run_request_id() -> String {
     format!("workflow-run-{}", next_stream_request_id())
 }
-

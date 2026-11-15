@@ -472,4 +472,3 @@ pub(super) fn spawn_workflow_resume(
         let _ = sender.send(HostMessage::WorkflowResumeFinished { pause_request_id, result });
     });
 }
-

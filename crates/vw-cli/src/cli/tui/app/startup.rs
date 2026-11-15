@@ -124,4 +124,3 @@ pub(super) fn new_draft_id() -> String {
     descending(Prefix::Session, None)
         .unwrap_or_else(|_| format!("ses_{}", next_stream_request_id()))
 }
-

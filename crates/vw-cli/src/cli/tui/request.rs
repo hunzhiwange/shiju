@@ -163,4 +163,3 @@ fn gateway_role(role: ChatRole) -> &'static str {
         ChatRole::Tool => "tool",
     }
 }
-

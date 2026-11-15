@@ -1,0 +1,17 @@
+[package]
+name = "desktop-settings-account"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+[lib]
+doctest = false
+[dependencies]
+iced = { version = "0.14", features = ["svg", "advanced", "tokio"] }
+tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.13", default-features = false }
+desktop-ui-controls = { path = "../desktop-ui-controls", version = "0.6.0" }
+desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
+gateway-endpoint = { path = "../gateway-endpoint", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+local-app-auth = { path = "../local-app-auth", version = "0.6.0" }

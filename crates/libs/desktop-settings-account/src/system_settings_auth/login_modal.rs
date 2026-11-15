@@ -1,19 +1,9 @@
 //! Device and browser authorization challenge presentation.
 
-use crate::app::{
-    Message,
-    components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-        settings_error_banner, settings_field_label, settings_modal_header, settings_modal_layout,
-        settings_modal_overlay_with_escape, settings_muted_text_style, settings_text_input,
-    },
-    message::agent_apps_auth::{
-        Event,
-        browser::{LinkAction, accepts_paste},
-        message,
-    },
-    state::agent_apps_auth::{Login, LoginChallenge, LoginPhase, now},
-};
+use desktop_ui_controls::system_settings_common::*;
+use crate::{types::*, Event, LinkAction};
+
+fn message<U>(event: Event<U>) -> Event<U> { event }
 use iced::{
     Alignment, Element, Length,
     widget::{button, column, container, row, text, text::Wrapping},
@@ -24,7 +14,7 @@ use {
 };
 
 impl LoginChallenge {
-    pub(super) fn detail(&self) -> (&'static str, &str) {
+    pub fn detail(&self) -> (&'static str, &str) {
         match self.region {
             Some(AuthRegion::MainlandCn) => ("授权地区", "中国大陆"),
             Some(AuthRegion::Global) => ("授权地区", "国际"),
@@ -32,18 +22,18 @@ impl LoginChallenge {
         }
     }
 
-    pub(super) fn remaining_seconds(&self, now: TimestampMs) -> i64 {
+    pub fn remaining_seconds(&self, now: TimestampMs) -> i64 {
         let remaining = self.expires_at.0.saturating_sub(now.0).max(0);
         remaining / 1_000 + i64::from(remaining % 1_000 != 0)
     }
 }
 
-pub(super) fn overlay<'a>(login: &'a Login, base: Element<'a, Message>) -> Element<'a, Message> {
+pub(super) fn overlay<'a, U: Clone + 'static>(login: &'a Login, base: Element<'a, Event<U>>) -> Element<'a, Event<U>> {
     let close = message(Event::CloseLogin);
     let generation = login.generation;
     let is_device = login.target.is_device();
     let submit = || message(Event::PasteSubmit(generation));
-    let body: Element<'_, Message> = match &login.phase {
+    let body: Element<'_, Event<U>> = match &login.phase {
         LoginPhase::Starting => text(if is_device {
             "正在向执行主机请求设备码…"
         } else {
@@ -164,4 +154,10 @@ pub(super) fn overlay<'a>(login: &'a Login, base: Element<'a, Message>) -> Eleme
     .width(Length::Fill)
     .height(Length::Fill);
     settings_modal_overlay_with_escape(base, close, card)
+}
+
+fn accepts_paste(login: &Login) -> bool {
+    matches!(login.target, LoginTarget::Claude) && !login.paste_submitting
+        && matches!(&login.phase, LoginPhase::Pending(challenge)
+            if challenge.can_paste && challenge.expires_at.0 > now().0)
 }

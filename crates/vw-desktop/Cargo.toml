@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+desktop-settings-account = { path = "../libs/desktop-settings-account", version = "0.6.0" }
 desktop-settings-sessions = { path = "../libs/desktop-settings-sessions", version = "0.6.0" }
 desktop-chat-input = { path = "../libs/desktop-chat-input", version = "0.6.0" }
 desktop-settings-apps = { path = "../libs/desktop-settings-apps", version = "0.6.0" }

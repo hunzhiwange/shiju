@@ -1,24 +1,18 @@
 //! Confirmation and retry for authorization account operations.
 
-use crate::app::{
-    Message,
-    components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-        settings_error_banner, settings_field_label, settings_modal_header, settings_modal_layout,
-        settings_modal_overlay_with_escape, settings_muted_text_style,
-    },
-    message::agent_apps_auth::{Event, actions::ActionEvent, message},
-    state::agent_apps_auth::{AccountAction, AccountOperation, ActionPhase},
-};
+use desktop_ui_controls::system_settings_common::*;
+use crate::{types::*, Event, ActionEvent};
+
+fn message<U>(event: Event<U>) -> Event<U> { event }
 use iced::{
     Element, Length,
     widget::{button, column, container, row, text, text::Wrapping},
 };
 
-pub(super) fn overlay<'a>(
+pub(super) fn overlay<'a, U: Clone + 'static>(
     action: &'a AccountAction,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, Event<U>>,
+) -> Element<'a, Event<U>> {
     use AccountOperation::*;
     let generation = action.generation;
     let close = message(Event::AccountAction(ActionEvent::Close(generation)));

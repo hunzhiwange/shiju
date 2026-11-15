@@ -1,25 +1,19 @@
 //! Scoped account picker opened from a saved supplier's editor.
 
-use crate::app::{
-    Message,
-    components::system_settings_common::{
-        primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-        settings_error_banner, settings_field_label, settings_modal_header, settings_modal_layout,
-        settings_modal_overlay_with_escape, settings_muted_text_style,
-    },
-    message::agent_apps_auth::{Event, message},
-    state::agent_apps_auth::Binding,
-};
+use desktop_ui_controls::system_settings_common::*;
+use crate::{types::*, Event};
+
+fn message<U>(event: Event<U>) -> Event<U> { event }
 use iced::{
     Alignment, Element, Length,
     widget::{button, column, container, row, text, text::Wrapping},
 };
 use vw_api_app_auth::AuthRegion;
 
-pub(in crate::app) fn overlay<'a>(
+pub(crate) fn overlay<'a, U: Clone + 'static>(
     binding: &'a Binding,
-    base: Element<'a, Message>,
-) -> Element<'a, Message> {
+    base: Element<'a, Event<U>>,
+) -> Element<'a, Event<U>> {
     let generation = binding.generation;
     let busy = binding.loading || binding.saving;
     let close = message(Event::CloseBinding(generation));

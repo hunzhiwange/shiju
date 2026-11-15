@@ -10,7 +10,7 @@ use crate::app::{
     state::agent_apps_auth::{AccountAction, AccountOperation, ActionPhase, Connection, Scope},
 };
 use iced::Task;
-use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthAccount, AuthErrorCode, AuthService}}};
 
 #[derive(Clone)]
 pub enum ActionEvent {
@@ -41,44 +41,6 @@ pub enum Outcome {
     RemoteUnconfirmed,
     Unconfirmed,
     Failed(&'static str),
-}
-
-impl AccountOperation {
-    pub(crate) fn label(self) -> &'static str {
-        match self {
-            Self::SetDefault => "切换默认账号",
-            Self::Delete => "删除账号",
-            Self::Logout => "本地登出",
-            Self::Revoke => "撤销授权",
-        }
-    }
-
-    fn success(self) -> &'static str {
-        match self {
-            Self::SetDefault => "已切换默认授权账号",
-            Self::Delete => "已删除授权账号",
-            Self::Logout => "账号已在执行主机登出",
-            Self::Revoke => "上游已确认撤销授权",
-        }
-    }
-
-    fn unavailable(self, account: &AuthAccount) -> Option<&'static str> {
-        match self {
-            Self::SetDefault if account.is_default => Some("此账号已经是默认账号"),
-            Self::SetDefault if account.credential_state != AuthCredentialState::Ready => {
-                Some("此账号需要重新授权后才能设为默认")
-            }
-            Self::Revoke if account.service != AuthService::DshAccount => {
-                Some("此服务不支持上游撤销，可单独执行本地登出")
-            }
-            Self::Logout | Self::Revoke
-                if account.credential_state == AuthCredentialState::SignedOut =>
-            {
-                Some("此账号已在执行主机登出")
-            }
-            _ => None,
-        }
-    }
 }
 
 pub(super) fn update(

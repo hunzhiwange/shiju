@@ -1,0 +1,19 @@
+[package]
+name = "gateway-permission"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+agent-approval = { path = "../agent-approval", version = "0.6.0" }
+agent-config = { path = "../agent-config", version = "0.6.0" }
+gateway-types = { path = "../gateway-types", version = "0.6.0" }
+permission-runtime = { path = "../permission-runtime", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+axum = { version = "0.8.8", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"

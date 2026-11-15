@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-project-profile = { path = "../libs/gateway-project-profile", version = "0.6.0" }
 config-gateway = { path = "../libs/config-gateway", version = "0.6.0" }
 desktop-i18n = { path = "../libs/desktop-i18n", version = "0.6.0" }
 gateway-files = { path = "../libs/gateway-files", version = "0.6.0" }

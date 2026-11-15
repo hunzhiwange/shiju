@@ -8,9 +8,9 @@ mod progress;
 pub use apply::Event as ApplyEvent;
 use crate::app::state::project_profiles::{Action, Management};
 use {
-    vw_gateway_client::project_profile_api::ProjectProfileApiScope,
+    gateway_project_profile::ProjectProfileApiScope,
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::project_profiles::*,
+    vw_api_types::project_profiles::*,
 };
 #[derive(Clone)]
 pub struct Identity {
@@ -45,6 +45,7 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
     }
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let client = gateway_project_profile::GatewayProjectProfileClient::new(client.transport().clone());
     let Some(project) = app.project_id.clone().filter(|id| !id.trim().is_empty()) else { return Task::none(); };
     if app.apps_catalog.context.as_ref() != Some(&context) || !app.apps_catalog.connection_open || app.apps_catalog.token.is_empty() {
         return Task::none();
@@ -88,8 +89,8 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
                     Action::Create => client.project_profile_create(&query, &name).await.map(|_| ()),
                     Action::Rename(id, version) => client.project_profile_rename(&query, &id, version, &name).await.map(|_| ()),
                     Action::Resnapshot(id, version) => client.project_profile_resnapshot(&query, &id, version).await.map(|_| ()),
-                    Action::Delete(id, version) => client.project_profile_delete(&query, &id, version).await.and_then(|r| if r.deleted { Ok(()) } else { Err(vw_gateway_client::project_profile_api::ProjectProfileApiError::InvalidRequest("delete unconfirmed".into())) }),
-                    Action::Clear => client.project_profile_clear(&query).await.and_then(|r| if r.profile_id.is_none() { Ok(()) } else { Err(vw_gateway_client::project_profile_api::ProjectProfileApiError::InvalidRequest("clear unconfirmed".into())) }),
+                    Action::Delete(id, version) => client.project_profile_delete(&query, &id, version).await.and_then(|r| if r.deleted { Ok(()) } else { Err(gateway_project_profile::ProjectProfileApiError::InvalidRequest("delete unconfirmed".into())) }),
+                    Action::Clear => client.project_profile_clear(&query).await.and_then(|r| if r.profile_id.is_none() { Ok(()) } else { Err(gateway_project_profile::ProjectProfileApiError::InvalidRequest("clear unconfirmed".into())) }),
                 }.map_err(|_| ());
                 message(Event::Saved(identity, scope, result))
             }, |message| message)

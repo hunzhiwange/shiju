@@ -2,7 +2,8 @@
 use super::{Identity, Event, message, apply::Event as ApplyEvent};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{GatewayClient, project_profile_api::ProjectProfileApiScope, vw_api_types::project_profiles::*};
+use gateway_project_profile::{GatewayProjectProfileClient, ProjectProfileApiScope};
+use vw_api_types::project_profiles::*;
 
 /// Required executor envelope. Until this is supplied, fail closed with an unknown outcome.
 #[derive(serde::Deserialize)]
@@ -41,7 +42,7 @@ pub(super) fn admitted(app: &mut App, scope: ProjectProfileScope, response: Iden
     app.show_error_toast("应用结果未知；原请求不会重发")
 }
 pub(super) fn update(app: &mut App, scope: ProjectProfileScope, event: ApplyEvent,
-    identity: Identity, client: GatewayClient, query: ProjectProfileApiScope) -> Task<Message> {
+    identity: Identity, client: GatewayProjectProfileClient, query: ProjectProfileApiScope) -> Task<Message> {
     let Some(form) = app.apps_catalog.project_profiles.application.as_mut()
         .filter(|f| f.scope == scope && f.submitted && f.result.is_none() && owner(&f.owner, &identity)) else { return Task::none(); };
     match event {

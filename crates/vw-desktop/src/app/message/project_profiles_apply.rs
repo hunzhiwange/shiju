@@ -3,9 +3,9 @@ use super::{Identity, message};
 use crate::app::{App, Message, state::{AgentAppsContext, project_profiles::{Application, Preview}}};
 use iced::Task;
 use {
-    vw_gateway_client::project_profile_api::ProjectProfileApiScope,
+    gateway_project_profile::ProjectProfileApiScope,
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::project_profiles::*,
+    vw_api_types::project_profiles::*,
 };
 
 #[derive(Clone)]
@@ -22,6 +22,7 @@ pub enum Event {
 pub(crate) fn update(app: &mut App, scope: ProjectProfileScope, event: Event) -> Task<Message> {
     let Ok(client) = crate::app::config::gateway_client() else { return Task::none(); };
     let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    let client = gateway_project_profile::GatewayProjectProfileClient::new(client.transport().clone());
     let Some(project) = app.project_id.clone().filter(|p| !p.trim().is_empty()) else { return Task::none(); };
     let response = matches!(&event, Event::Applied(..) | Event::Previewed(..) | Event::Progress(..));
     if app.apps_catalog.context.as_ref() != Some(&context)

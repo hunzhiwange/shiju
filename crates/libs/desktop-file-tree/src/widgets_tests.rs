@@ -195,7 +195,7 @@ fn update_area(
 
 #[test]
 fn file_tree_surface_preserves_nested_context_menu_overlay() {
-    use crate::app::components::overlays::PointBelowOverlay;
+    use desktop_ui_controls::overlays::PointBelowOverlay;
 
     let menu = PointBelowOverlay::new(Element::new(area()), TestContent::default())
         .show(true)

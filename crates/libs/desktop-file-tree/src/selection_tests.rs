@@ -48,22 +48,14 @@ fn selection_does_not_leak_between_projects_or_use_hidden_range_anchors() {
 
 #[test]
 fn visible_paths_follow_tree_order_and_exclude_collapsed_children() {
-    let mut app = App::new().0;
-    app.project_path = Some("/project".to_string());
-    app.set_file_index(
-        "/project",
-        vec![
-            "/project/src/nested/a.rs".to_string(),
-            "/project/src/b.rs".to_string(),
-            "/project/README.md".to_string(),
-        ],
-    );
-    app.file_tree_expanded.clear();
-    app.file_tree_expanded_set.clear();
-    assert_eq!(visible_paths(&app, "/project"), ["/project/src", "/project/README.md"]);
-    app.toggle_file_tree_dir_expanded("src".to_string());
+    let tree = crate::model::build_file_tree_model("/project", &[
+        "/project/src/nested/a.rs".into(), "/project/src/b.rs".into(), "/project/README.md".into()
+    ]);
+    let mut expanded = std::collections::HashSet::new();
+    assert_eq!(visible_paths(&tree, "/project", &expanded), ["/project/src", "/project/README.md"]);
+    expanded.insert("src".to_string());
     assert_eq!(
-        visible_paths(&app, "/project"),
+        visible_paths(&tree, "/project", &expanded),
         ["/project/src", "/project/src/nested", "/project/src/b.rs", "/project/README.md",]
     );
 }

@@ -37,6 +37,7 @@ use crate::app::{
 };
 use widgets::RightClickArea;
 
+mod adapter;
 mod find_results;
 mod icons;
 pub(crate) mod inline_rename;
@@ -61,26 +62,17 @@ pub(super) const FILE_MANAGER_MODE_BAR_HEIGHT: f32 = 30.0;
 #[path = "find_results_tests.rs"]
 mod find_results_tests;
 #[cfg(test)]
-#[path = "icons_tests.rs"]
-mod icons_tests;
-#[cfg(test)]
 #[path = "menu_tests.rs"]
 mod menu_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
 #[cfg(test)]
-#[path = "model_tests.rs"]
-mod model_tests;
-#[cfg(test)]
 #[path = "tree_gutter_tests.rs"]
 mod tree_gutter_tests;
 #[cfg(test)]
 #[path = "tree_list_tests.rs"]
 mod tree_list_tests;
-#[cfg(test)]
-#[path = "widgets_tests.rs"]
-mod widgets_tests;
 
 /// 渲染文件树视图
 ///

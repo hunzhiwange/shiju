@@ -2,7 +2,7 @@
 //! 记录型渲染器捕获 SVG 绘制颜色，避免只验证控件构造而遗漏实际主题着色路径。
 
 use super::icons::{file_icon_for, static_icon_svg, themed_icon_svg};
-use crate::app::assets::Icon;
+use desktop_assets::assets::Icon;
 use iced::advanced::{Layout, Widget, layout, mouse, renderer, svg, widget::Tree};
 use iced::{Background, Color, Element, Length, Rectangle, Size, Theme, Transformation};
 

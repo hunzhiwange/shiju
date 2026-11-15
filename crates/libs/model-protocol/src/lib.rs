@@ -61,6 +61,10 @@ pub mod responses_chat_result;
 pub mod responses_chat_stream;
 pub mod responses_compaction;
 pub mod responses_history;
+#[cfg(test)]
+mod responses_history_tests;
+#[cfg(test)]
+mod responses_tests;
 pub mod responses_stream;
 pub mod search_citations;
 pub mod signature_rectify;

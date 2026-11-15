@@ -1,5 +1,5 @@
 use super::responses_history::{Context, Store, preserve_invalid};
-use crate::{app_routing::reference_scope::ReferenceScope, model_relay::RelayIdentity};
+use model_relay_state::{reference_scope::ReferenceScope, RelayIdentity};
 use axum::http::StatusCode;
 use serde_json::json;
 use std::sync::Arc;

@@ -1,5 +1,5 @@
 use super::*;
-use crate::app_routing::reference_scope::{ReferenceScope, References};
+use model_relay_state::{reference_scope::{ReferenceScope, References}, RelayIdentity};
 use axum::http::StatusCode;
 use serde_json::json;
 
@@ -154,7 +154,7 @@ fn acp_model_source_relay_responses_references_bind_every_identity_dimension() {
     }
 }
 
-fn native_fixture() -> (crate::provider::provider::Model, RelayIdentity) {
+fn native_fixture() -> (model_types::Model, RelayIdentity) {
     let mut capabilities = model_state::default_model_capabilities();
     capabilities.reasoning = true;
     capabilities.input.image = true;

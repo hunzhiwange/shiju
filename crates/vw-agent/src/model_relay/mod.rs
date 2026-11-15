@@ -38,8 +38,7 @@ mod messages_thinking_http_tests;
 #[cfg(test)]
 mod messages_thinking_tests;
 
-#[cfg(test)]
-mod responses_tests;
+// Pure Responses tests live in model-protocol.
 
 mod responses;
 mod responses_chat_request;
@@ -110,8 +109,7 @@ mod responses_chat_result;
 mod responses_chat_stream;
 
 pub(crate) mod responses_history;
-#[cfg(test)]
-mod responses_history_tests;
+// Responses history tests live in model-protocol.
 
 mod tool_namespace;
 

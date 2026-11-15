@@ -1,5 +1,5 @@
-use model_relay_state::RelayIdentity;
 //! Request-local, size-bounded SSE conversion; cancellation drops the upstream stream.
+use model_relay_state::RelayIdentity;
 use super::{
     responses::{self, ChatTools},
 };

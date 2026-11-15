@@ -6,8 +6,8 @@ use super::tool_detail_dialog::{
     tool_detail_panel_style, tool_detail_scroll_state, tool_detail_scrollbar_style,
     wheel_interceptor,
 };
-use crate::app::App;
-use crate::app::state::ToolDetailDialog;
+use super::detail_fixture::TestApp as App;
+use super::detail_fixture::ToolDetailDialog;
 use iced::advanced::{Clipboard, Layout, Renderer, Shell, Widget, layout, renderer, widget};
 use iced::widget::{Id, text_editor};
 use iced::{
@@ -249,11 +249,11 @@ fn update_with(
 #[test]
 fn tool_detail_dialog_is_absent_without_state_and_present_with_state() {
     let mut app = app();
-    assert!(tool_detail_dialog_view(&app).is_none());
+    assert!(tool_detail_dialog_view(app.input()).is_none());
 
     app.tool_detail_dialog = Some(dialog("line 1\nline 2", 3.0));
 
-    assert!(tool_detail_dialog_view(&app).is_some());
+    assert!(tool_detail_dialog_view(app.input()).is_some());
 }
 
 #[test]
@@ -311,7 +311,7 @@ fn panel_style_preserves_settings_panel_with_dialog_radius() {
 #[test]
 fn editor_panel_builds_empty_placeholder_when_dialog_missing() {
     let app = app();
-    let element = build_editor_panel(&app, Size::new(240.0, 100.0));
+    let element = build_editor_panel(app.input(), Size::new(240.0, 100.0));
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Fill));
 }
@@ -322,12 +322,12 @@ fn editor_panel_builds_with_and_without_scrollbar() {
     app.current_line_height = 10.0;
     app.tool_detail_dialog = Some(dialog("short", 0.0));
     {
-        let short = build_editor_panel(&app, Size::new(240.0, 120.0));
+        let short = build_editor_panel(app.input(), Size::new(240.0, 120.0));
         assert_eq!(short.as_widget().size(), Size::new(Length::Fill, Length::Fill));
     }
 
     app.tool_detail_dialog = Some(dialog(&["line"; 20].join("\n"), 4.0));
-    let long = build_editor_panel(&app, Size::new(240.0, 120.0));
+    let long = build_editor_panel(app.input(), Size::new(240.0, 120.0));
     assert_eq!(long.as_widget().size(), Size::new(Length::Fill, Length::Fill));
 }
 
@@ -339,7 +339,7 @@ fn editor_panel_builds_when_context_menu_is_closed() {
     detail.context_menu_pos = None;
     app.tool_detail_dialog = Some(detail);
 
-    let element = build_editor_panel(&app, Size::new(240.0, 120.0));
+    let element = build_editor_panel(app.input(), Size::new(240.0, 120.0));
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Fill, Length::Fill));
 }
@@ -527,7 +527,7 @@ fn draw_mouse_interaction_and_overlay_delegate_to_content() {
 #[test]
 fn tool_detail_shortcuts_support_history_and_default_editing_only_when_focused() {
     use super::tool_detail_dialog::tool_detail_key_binding;
-    use crate::app::{Message, message::ChatMessage};
+    use super::detail_input::Message;
     use iced::keyboard::{Key, Modifiers, key};
 
     let key_press = |value: &str, modifiers| text_editor::KeyPress {
@@ -540,14 +540,14 @@ fn tool_detail_shortcuts_support_history_and_default_editing_only_when_focused()
     };
     assert!(matches!(
         tool_detail_key_binding(key_press("z", Modifiers::COMMAND)),
-        Some(text_editor::Binding::Custom(Message::Chat(ChatMessage::ToolDetailUndo)))
+        Some(text_editor::Binding::Custom(Message::ToolDetailUndo))
     ));
     for (value, modifiers) in
         [("z", Modifiers::COMMAND | Modifiers::SHIFT), ("y", Modifiers::COMMAND)]
     {
         assert!(matches!(
             tool_detail_key_binding(key_press(value, modifiers)),
-            Some(text_editor::Binding::Custom(Message::Chat(ChatMessage::ToolDetailRedo)))
+            Some(text_editor::Binding::Custom(Message::ToolDetailRedo))
         ));
     }
     assert!(matches!(

@@ -85,10 +85,6 @@ mod command_summary_view_tests;
 #[cfg(test)]
 mod text_view_tests;
 #[cfg(test)]
-mod todo_views_tests;
-#[cfg(test)]
-mod tool_detail_dialog_tests;
-#[cfg(test)]
 mod tool_renderer_tests;
 #[cfg(test)]
 mod web_view_tests;

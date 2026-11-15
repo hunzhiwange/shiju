@@ -71,3 +71,15 @@ mod skill_view_tests;
 mod text_view_tests;
 #[cfg(test)]
 mod config_card_tests;
+
+pub mod todo_views;
+pub mod detail_input;
+pub mod tool_detail_dialog;
+#[cfg(test)]
+mod todo_views_tests;
+#[cfg(test)]
+mod tool_detail_dialog_tests;
+#[cfg(test)]
+mod todo_fixture;
+#[cfg(test)]
+mod detail_fixture;

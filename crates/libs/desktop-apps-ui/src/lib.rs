@@ -28,3 +28,11 @@ pub mod agent_apps_high_availability;
 
 pub mod app_routing;
 pub mod agent_apps_auth;
+
+pub mod agent_apps_high_availability_policy;
+pub mod failover_queue;
+pub mod agent_apps_health;
+pub mod shiju_apps;
+pub mod bookmark_modals;
+pub mod apps_view;
+pub mod catalog_state;

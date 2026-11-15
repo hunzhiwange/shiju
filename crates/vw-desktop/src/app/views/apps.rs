@@ -16,12 +16,8 @@
 //! - `tiles`: 磁贴渲染，负责生成应用磁贴网格
 //! - `ui`: UI 组件，提供通用界面元素
 
-use crate::app::components::system_settings_common::{
-    settings_modal_overlay, settings_panel_style,
-};
 use crate::app::{App, Message};
-use iced::widget::{column, container, scrollable};
-use iced::{Element, Length};
+use iced::Element;
 
 mod modals;
 mod tiles;
@@ -72,40 +68,9 @@ mod ui;
 /// // 返回可直接用于 Iced 渲染的元素
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
-    // 检查当前是否有活动的模态框
-    // 如果有模态框显示，界面将被"锁定"（blocked=true）
     let active_modal = modals::active_modal(app);
     let blocked = active_modal.is_some();
-
-    // 渲染头部区域和磁贴网格
-    // blocked 参数用于控制这些区域在模态框激活时的视觉状态
-    let header = tiles::render_header(app, blocked);
-    let grid = tiles::render_tiles_grid(app, blocked);
-
-    // 构建基础内容容器
-    // 包含头部和磁贴网格的垂直布局
-    let header_panel: Element<'_, Message> =
-        container(header).padding([18, 20]).width(Length::Fill).style(settings_panel_style).into();
-
-    let grid_panel: Element<'_, Message> = grid;
-
-    let base_content: Element<'_, Message> =
-        container(column![header_panel, grid_panel].spacing(14).width(Length::Fill))
-            .width(Length::Fill)
-            .padding([18, 24])
-            .into();
-
-    // 将基础内容包装在可滚动容器中
-    // 确保内容超出视口时可以滚动查看
-    let base_content: Element<'_, Message> =
-        scrollable(base_content).width(Length::Fill).height(Length::Fill).into();
-
-    if let Some((modal, close_msg)) = active_modal {
-        settings_modal_overlay(Some(base_content), close_msg, modal)
-    } else {
-        // 没有模态框时，直接返回基础内容
-        base_content
-    }
+    desktop_apps_ui::apps_view::view(tiles::render_header(app, blocked), tiles::render_tiles_grid(app, blocked), active_modal)
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
-use crate::app::message::agent_apps_health::{Context, State};
-use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
+use crate::agent_apps_health::{Context, State};
+use desktop_provider_apps::{AgentAppsContext, Scope};
 use {
     vw_api_app_identity::AppId,
     vw_api_app_failover::*,

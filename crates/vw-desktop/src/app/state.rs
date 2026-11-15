@@ -82,7 +82,7 @@ pub use plugin_install::{PluginInstallForm, PluginInstallPhase};
 
 pub use desktop_provider_apps::AgentAppsContext;
 
-mod agent_apps;
+pub(crate) mod agent_apps;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod agent_apps_auth;
 pub(crate) use agent_apps::AppsCatalogState;

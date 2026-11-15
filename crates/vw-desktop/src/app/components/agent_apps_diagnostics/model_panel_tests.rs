@@ -176,7 +176,7 @@ use vw_api_app_provider_base::AppProviderSummary;
             }
             assert!(app.apps_catalog.model_diagnostics.open.is_none());
             app.system_settings_tab = crate::app::components::system_settings::SystemTab::Apps;
-            app.apps_catalog.begin(scope.context.clone());
+            crate::app::state::agent_apps::begin(&mut app.apps_catalog, scope.context.clone());
             let task = app.update(model::message(Event::Open("provider".into())));
             let cancelled = snapshot(&expected, DiagnosticJobState::Cancelled {});
             let (reply, request) = drive(task, serde_json::to_string(&cancelled).unwrap());

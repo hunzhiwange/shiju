@@ -181,7 +181,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 tenant: client.endpoint().tenant_scope().clone(),
                 project: app.project_path.clone(),
             };
-            let generation = app.apps_catalog.begin(context.clone());
+            let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
             app.app_providers.model_catalog = None;
             app.apps_catalog.token.clear();
             app.apps_catalog.host.clear();
@@ -314,7 +314,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                 tenant: client.endpoint().tenant_scope().clone(),
                 project: app.project_path.clone(),
             };
-            app.apps_catalog.reset_if_context_changed(&context);
+            crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &context);
             if use_cache && app.apps_catalog.cache_is_fresh() {
                 return Task::none();
             }
@@ -328,7 +328,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             if app.apps_catalog.loading {
                 return Task::none();
             }
-            let generation = app.apps_catalog.begin(context.clone());
+            let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
             let host = app.apps_catalog.host.clone();
             let token = app.apps_catalog.token.clone();
             app.apps_catalog.connection_open = false;
@@ -348,7 +348,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
             if current.as_ref() != Some(&context) || host != app.apps_catalog.host {
                 return Task::none();
             }
-            if app.apps_catalog.finish(&context, generation, result) {
+            if crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, result) {
                 if let Some(error) = app.apps_catalog.error.clone() {
                     return app.show_error_toast(error);
                 }

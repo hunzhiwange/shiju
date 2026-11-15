@@ -93,7 +93,7 @@ fn local_apps_credentials_only_apply_to_current_connection_and_generation() {
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.project_path.clone(),
     };
-    let generation = app.apps_catalog.begin(context.clone());
+    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
     let mut other = context.clone();
     other.gateway = "http://other-gateway".into();
     for (context, generation) in
@@ -170,8 +170,8 @@ fn catalog_reopening_reuses_cache_but_manual_refresh_and_credentials_invalidate_
     };
     app.apps_catalog.host = "remote".into();
     app.apps_catalog.token = "fixture".into();
-    let generation = app.apps_catalog.begin(context.clone());
-    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
+    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
     let _ = app.update(crate::app::Message::Settings(SettingsMessage::SystemTabSelected(
         crate::app::components::system_settings::SystemTab::Apps,
     )));
@@ -184,14 +184,14 @@ fn catalog_reopening_reuses_cache_but_manual_refresh_and_credentials_invalidate_
     assert!(app.apps_catalog.loading);
     assert!(!app.apps_catalog.cache_is_fresh());
     let generation = app.apps_catalog.generation;
-    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
     let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
         AppsCatalogMessage::TokenInput("replacement".into()),
     )));
     assert!(!app.apps_catalog.cache_is_fresh());
     assert!(app.apps_catalog.rows.is_empty());
-    let generation = app.apps_catalog.begin(context.clone());
-    assert!(app.apps_catalog.finish(&context, generation, Ok(vec![row()])));
+    let generation = crate::app::state::agent_apps::begin(&mut app.apps_catalog, context.clone());
+    assert!(crate::app::state::agent_apps::finish(&mut app.apps_catalog, &context, generation, Ok(vec![row()])));
     let _ = app.update(crate::app::Message::Settings(SettingsMessage::AppsCatalog(
         AppsCatalogMessage::HostInput("other".into()),
     )));

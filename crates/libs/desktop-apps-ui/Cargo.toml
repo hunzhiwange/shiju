@@ -53,6 +53,14 @@ toml_edit = "0.22"
 tempfile = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 gateway-mcp-probe = { path = "../gateway-mcp-probe", version = "0.6.0" }
+gateway-app-failover = { path = "../gateway-app-failover", version = "0.6.0" }
+desktop-app-launch = { path = "../desktop-app-launch", version = "0.6.0" }
+desktop-account = { path = "../desktop-account", version = "0.6.0" }
+desktop-skill-hub = { path = "../desktop-skill-hub", version = "0.6.0" }
+desktop-i18n = { path = "../desktop-i18n", version = "0.6.0" }
+gateway-shiju-app = { path = "../gateway-shiju-app", version = "0.6.0" }
+gateway-shiju-account = { path = "../gateway-shiju-account", version = "0.6.0" }
+web-time = "1"
 [dev-dependencies]
 desktop-assets = { path = "../desktop-assets", version = "0.6.0" }
 serde_json = "1"

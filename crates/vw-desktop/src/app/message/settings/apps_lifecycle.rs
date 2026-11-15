@@ -13,7 +13,7 @@ pub(super) fn update(app: &mut App, message: LifecycleMessage) -> Task<Message> 
         tenant: client.endpoint().tenant_scope().clone(),
         project: app.project_path.clone(),
     };
-    if app.apps_catalog.reset_if_context_changed(&current) { return Task::none(); }
+    if crate::app::state::agent_apps::reset_if_context_changed(&mut app.apps_catalog, &current) { return Task::none(); }
     let host = app.apps_catalog.host.clone();
     let token = app.apps_catalog.token.clone();
     if host.is_empty() || token.is_empty() { return Task::none(); }

@@ -2,11 +2,11 @@
 //! 主题应用与持久化留在本 crate 之外，确认操作只产生 `V3Action`。
 //! VibeWindow theme picker over bridge-provided theme rows.
 //! Theme application and persistence stay outside this crate; confirmation is a V3Action.
-use crate::bottom_pane::list_selection_view::{
+use tui_widgets::list_selection_view::{
     ListSelectionView, SelectionItem, SelectionViewParams,
 };
-use crate::render::renderable::Renderable;
-use crate::vibe::action::{V3Action, V3SelectionItem};
+use tui_render::renderable::Renderable;
+use tui_contracts::action::{V3Action, V3SelectionItem};
 use crossterm::event::KeyEvent;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -22,12 +22,12 @@ impl Renderable for ThemePreview {
         1
     }
 }
-pub(crate) struct ThemePicker {
+pub struct ThemePicker {
     /// 通用列表持有候选项及侧栏占位预览。
     view: ListSelectionView,
 }
 impl ThemePicker {
-    pub(crate) fn new(items: Vec<V3SelectionItem>) -> Self {
+    pub fn new(items: Vec<V3SelectionItem>) -> Self {
         Self {
             view: ListSelectionView::new(SelectionViewParams {
                 surface: "theme".into(),
@@ -39,7 +39,7 @@ impl ThemePicker {
             }),
         }
     }
-    pub(crate) fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
+    pub fn handle_key_event(&mut self, event: KeyEvent) -> V3Action {
         self.view.handle_key_event(event)
     }
 }
@@ -52,16 +52,5 @@ impl Renderable for ThemePicker {
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::KeyCode;
-    #[test]
-    // Enter 只返回稳定主题 ID，不在选择器内部写入配置。
-    fn theme_picker_confirms_without_persisting_configuration() {
-        let mut picker = ThemePicker::new(vec![V3SelectionItem::new("dark", "Dark")]);
-        assert_eq!(
-            picker.handle_key_event(KeyEvent::from(KeyCode::Enter)),
-            V3Action::Select { surface: "theme".into(), item_id: "dark".into() }
-        );
-    }
-}
+#[path = "theme_picker_tests.rs"]
+mod tests;

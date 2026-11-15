@@ -1,6 +1,6 @@
 //! TUI 上层交互装配。
 //!
-//! 保留兼容导出和 surface；聊天组件、底部面板与终端生命周期由独立库提供。
+//! 保留兼容导出；根展示面、聊天组件、底部面板与终端生命周期由独立库提供。
 //! 契约、文本、渲染、主题、流式处理、终端后端及剪贴板由 `tui-*` 库提供；
 //! 对外重导出保持既有消费者入口和底层类型所有权。
 
@@ -116,4 +116,4 @@ pub use vibe::event::{
     V3Attachment, V3AttachmentKind, V3DisplayEvent, V3Event, V3FileChange, V3FileDiff,
     V3FileDiffEntry, V3StepStatus,
 };
-pub use vibe::surface::V3Surface;
+pub use tui_surface::V3Surface;

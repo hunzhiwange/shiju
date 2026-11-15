@@ -175,6 +175,7 @@ members = [
   "crates/libs/tui-transcript",
   "crates/libs/tui-onboarding",
   "crates/libs/tui-pager",
+  "crates/libs/tui-surface",
   "crates/libs/tui-exec-state",
   "crates/libs/tui-chat",
   "crates/libs/tui-chat-state",

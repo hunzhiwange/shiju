@@ -16,6 +16,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+tui-surface = { path = "../libs/tui-surface", version = "0.6.0" }
 tui-chat = { path = "../libs/tui-chat", version = "0.6.0" }
 tui-terminal-lifecycle = { path = "../libs/tui-terminal-lifecycle", version = "0.6.0" }
 tui-pager = { path = "../libs/tui-pager", version = "0.6.0" }

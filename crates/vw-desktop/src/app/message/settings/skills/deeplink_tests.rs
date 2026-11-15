@@ -1,14 +1,8 @@
-use super::*;
 use super::super::repo_modal::{Event, update};
 use crate::app::App;
 
 #[test]
-fn cp12_deeplink_success() {
-    let request = parse("ccswitch://v1/import?resource=skill&repo=owner/name&branch=feature%2Fone&enabled=false",
-        "/project".into(), "host".into()).unwrap();
-    assert_eq!(request.repo.branch, "feature/one");
-    assert!(!request.repo.enabled);
-    assert_eq!(request.directory, "/project");
+fn cp12_deeplink_success_handoff() {
     let mut app = App::new().0;
     app.project_path = Some("/project".into());
     let _ = update(&mut app, Event::Open);
@@ -23,17 +17,7 @@ fn cp12_deeplink_success() {
 }
 
 #[test]
-fn cp12_deeplink_rejects_without_side_effects() {
-    for link in [
-        "https://example.org/?resource=skill&repo=a/b",
-        "ccswitch://v1/import?resource=provider&repo=a/b",
-        "ccswitch://v1/import?resource=skill&repo=a/b&branch=..%2Fevil",
-        "ccswitch://v1/import?resource=skill&repo=a/b&repo=c/d",
-        "ccswitch://v1/import?resource=skill&repo=a/b&directory=/tmp",
-        "ccswitch://v1/import?resource=skill&repo=a/..",
-    ] {
-        assert!(parse(link, "/project".into(), "host".into()).is_err(), "{link}");
-    }
+fn cp12_deeplink_rejects_without_side_effects_handoff() {
     let mut app = App::new().0;
     let _ = update(&mut app, Event::ConfirmSource);
     assert!(!app.skills_settings.repositories.busy);

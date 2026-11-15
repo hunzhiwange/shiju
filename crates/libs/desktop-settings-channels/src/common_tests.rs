@@ -10,7 +10,7 @@ use super::common::{
     multiline_placeholder, number_row, number_row_with_hint, number_row_with_key, panel, pick_row,
     pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
-use crate::app::{App, Message};
+use crate::{test_support::Fixture as App, messages::Message};
 use iced::widget::text;
 use config_channel_types::{
     DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
@@ -192,7 +192,7 @@ fn multiline_text_row_rejects_missing_editor_state() {
     let app = test_app();
 
     keep_element(text_row(
-        &app,
+        app.view(),
         "allowed_users",
         "逗号或换行分隔",
         "",
@@ -204,8 +204,8 @@ fn multiline_text_row_rejects_missing_editor_state() {
 #[test]
 fn panel_builds_collapsed_disabled_and_expanded_enabled_content() {
     let app = test_app();
-    keep_element(panel(&app, "x", "标题", "说明", false, text("body").into()));
-    keep_element(panel(&app, "x", "标题", "说明", true, text("body").into()));
+    keep_element(panel(app.view(), "x", "标题", "说明", false, text("body").into()));
+    keep_element(panel(app.view(), "x", "标题", "说明", true, text("body").into()));
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn enabled_channels_returns_empty_when_every_channel_is_disabled() {
     let mut app = test_app();
     app.channels_settings.cli = false;
 
-    assert!(enabled_channels(&app).is_empty());
+    assert!(enabled_channels(app.view()).is_empty());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -250,7 +250,7 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
     );
     app.channels_settings.execution_choices.insert(
         "qq:default".into(),
-        crate::app::state::ChannelExecutionChoices {
+        crate::state::ChannelExecutionChoices {
             agents: vec![("acp-research".into(), "研究助手（ACP）".into())],
             models: vec![],
         },
@@ -258,7 +258,7 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
     for (theme, width) in
         [(Theme::Dark, 960), (Theme::Light, 960), (Theme::Dark, 420), (Theme::Light, 420)]
     {
-        let mut element = super::common::default_project_selector(&app, "qq:default".into());
+        let mut element = super::common::default_project_selector(app.view(), "qq:default".into());
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await

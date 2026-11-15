@@ -1,0 +1,30 @@
+pub mod state;
+pub mod messages;
+pub mod common;
+pub mod basic_channels;
+pub mod overview;
+pub mod execution;
+#[derive(Clone, Copy)]
+pub struct ViewState<'a> {
+ pub channels_settings: &'a state::ChannelsSettingsState,
+ pub desktop_locale: config_ui::DesktopLocale,
+ pub app_theme: &'a iced::Theme,
+}
+#[cfg(test)]
+pub(crate) mod test_support {
+    pub struct Fixture {
+        pub channels_settings: crate::state::ChannelsSettingsState,
+        pub desktop_locale: config_ui::DesktopLocale,
+        pub app_theme: iced::Theme,
+    }
+    impl Fixture {
+        pub fn new() -> (Self, ()) { (Self { channels_settings: Default::default(), desktop_locale: config_ui::DesktopLocale::SimplifiedChinese, app_theme: iced::Theme::Light }, ()) }
+        pub fn view(&self) -> crate::ViewState<'_> { crate::ViewState { channels_settings: &self.channels_settings, desktop_locale: self.desktop_locale, app_theme: &self.app_theme } }
+    }
+}
+#[cfg(test)]
+mod basic_channels_tests;
+#[cfg(test)]
+mod common_tests;
+#[cfg(test)]
+mod execution_tests;

@@ -8,378 +8,48 @@ mod common;
 mod enterprise_channels;
 pub(crate) mod wecom_delivery_modal;
 pub(crate) use wecom_delivery_modal::view_overlays;
-mod execution;
-#[cfg(test)]
-mod execution_tests;
 mod extended_channels;
 #[cfg(test)]
 mod wecom_delivery_modal_tests;
 
 #[cfg(test)]
-mod basic_channels_tests;
-#[cfg(test)]
-mod common_tests;
-#[cfg(test)]
 mod enterprise_channels_tests;
 #[cfg(test)]
 mod extended_channels_tests;
 
-use crate::app::components::system_settings_common::{
-    SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style, settings_compact_tab_button,
-    settings_divider, settings_error_banner, settings_group_card, settings_hover_help_label,
-    settings_muted_text_style, settings_responsive_row, settings_section_content,
-    settings_text_input,
-};
-use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::{I18n, settings_extensions::text as tr};
-use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
-use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, svg, text};
-use iced::{Alignment, Background, Border, Color, Element, Length};
+use crate::app::state::ChannelsSettingsTab;
+use iced::Element;
+#[cfg(test)] use iced::widget::text;
+#[cfg(test)] use desktop_i18n::settings_extensions::text as tr;
+#[cfg(test)] use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
+#[cfg(test)] use self::common::enabled_channels;
 use config_ui::DesktopLocale;
-
-use self::common::{enabled_channels, number_row};
-
-const CHANNEL_TAB_COLUMNS: usize = 5;
-const CHINA_CHANNEL_CARD_COLUMNS: usize = 3;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ChannelTabGroup {
-    Global,
-    China,
-    International,
-}
-
-const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 2] =
-    [(ChannelTabGroup::Global, "全局"), (ChannelTabGroup::China, "中文互联网")];
-
-const fn channel_tab_group(tab: ChannelsSettingsTab) -> ChannelTabGroup {
-    match tab {
-        ChannelsSettingsTab::Global | ChannelsSettingsTab::Webhook | ChannelsSettingsTab::Email => {
-            ChannelTabGroup::Global
-        }
-        ChannelsSettingsTab::Feishu
-        | ChannelsSettingsTab::DingTalk
-        | ChannelsSettingsTab::Qq
-        | ChannelsSettingsTab::WeCom
-        | ChannelsSettingsTab::WeChat => ChannelTabGroup::China,
-        _ => ChannelTabGroup::International,
-    }
-}
-
-pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> {
-    let mut tabs = vec![
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::Global,
-            "全局",
-            &["CLI 通道", "项目目录", "workspace", "消息超时"],
-        ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Webhook, "Webhook", &["webhook", "secret"]),
-    ];
-    #[cfg(not(target_arch = "wasm32"))]
-    tabs.push(SettingsTabDescriptor::new(
-        ChannelsSettingsTab::Email,
-        "Email",
-        &["email", "imap", "smtp"],
-    ));
-    tabs.extend([
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Feishu, "飞书", &["feishu", "飞书"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::DingTalk, "钉钉", &["dingtalk", "钉钉"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::WeCom,
-            "企业微信",
-            &["wecom", "企业微信", "扫码"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::WeChat,
-            "微信",
-            &["wechat", "微信", "扫码"],
-        ),
-    ]);
-    tabs
-}
-
-fn global_settings_content(app: &App) -> Element<'_, Message> {
-    let s = &app.channels_settings;
-
-    let content = column![
-        settings_responsive_row(tr(app.desktop_locale, "CLI 通道"), "", || {
-            checkbox(s.cli)
-                .label(tr(app.desktop_locale, "启用 CLI 通道"))
-                .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-                .on_toggle(|next| {
-                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(next)))
-                })
-                .style(settings_checkbox_style)
-        }),
-        settings_divider(),
-        settings_responsive_row(tr(app.desktop_locale, "项目目录"), "", || {
-            settings_text_input(
-                tr(app.desktop_locale, "留空时按 workspace 推断"),
-                &s.project_dir_input,
-            )
-            .on_input(|next| {
-                Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectDirChanged(
-                    next,
-                )))
-            })
-            .width(Length::Fill)
-        }),
-        settings_divider(),
-        number_row(
-            app.desktop_locale,
-            tr(app.desktop_locale, "消息超时"),
-            s.message_timeout_secs.max(1),
-            1,
-            86_400,
-            tr(app.desktop_locale, "秒"),
-            "global.message_timeout_secs",
-        ),
-    ]
-    .spacing(14);
-
-    settings_group_card(container(content).padding([16, 0])).into()
-}
-
-fn tab_button(
-    locale: DesktopLocale,
-    tab: ChannelsSettingsTab,
-    active_tab: ChannelsSettingsTab,
-    label: &'static str,
-) -> Element<'static, Message> {
-    let active = tab == active_tab;
-    debug_assert_eq!(label, tab.label());
-
-    settings_compact_tab_button(
-        tr(locale, label),
-        active,
-        Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))),
-    )
-    .width(Length::Fill)
-    .into()
-}
-
-fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
-    let (bytes, light_color, dark_color): (&'static [u8], Color, Color) = match tab {
-        ChannelsSettingsTab::DingTalk => (
-            include_bytes!("../../../../../assets/icons/bootstrap/send-fill.svg"),
-            Color::from_rgb8(22, 119, 255),
-            Color::from_rgb8(72, 156, 255),
-        ),
-        ChannelsSettingsTab::Feishu => (
-            include_bytes!("../../../../../assets/icons/bootstrap/boxes.svg"),
-            Color::from_rgb8(51, 112, 255),
-            Color::from_rgb8(100, 147, 255),
-        ),
-        ChannelsSettingsTab::Qq => (
-            include_bytes!("../../../../../assets/icons/bootstrap/tencent-qq.svg"),
-            Color::from_rgb8(18, 24, 38),
-            Color::from_rgb8(241, 245, 249),
-        ),
-        ChannelsSettingsTab::WeCom => (
-            include_bytes!("../../../../../assets/icons/bootstrap/chat-square-dots-fill.svg"),
-            Color::from_rgb8(0, 132, 255),
-            Color::from_rgb8(65, 165, 255),
-        ),
-        ChannelsSettingsTab::WeChat => (
-            include_bytes!("../../../../../assets/icons/bootstrap/wechat.svg"),
-            Color::from_rgb8(7, 193, 96),
-            Color::from_rgb8(54, 211, 127),
-        ),
-        _ => unreachable!("only Chinese internet channel tabs have brand icons"),
-    };
-
-    svg::Svg::new(svg::Handle::from_memory(bytes))
-        .width(Length::Fixed(28.0))
-        .height(Length::Fixed(28.0))
-        .style(move |theme: &iced::Theme, _status| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            svg::Style { color: Some(if is_dark { dark_color } else { light_color }) }
-        })
-}
-
+use crate::app::components::system_settings_search::SettingsTabDescriptor;
+#[cfg(test)] use desktop_settings_channels::overview::{CHANNEL_TAB_COLUMNS, CHINA_CHANNEL_CARD_COLUMNS, CHANNEL_TAB_GROUPS, ChannelTabGroup, channel_tab_group, china_channel_icon};
+fn view_state(app: &App) -> desktop_settings_channels::ViewState<'_> { desktop_settings_channels::ViewState { channels_settings: &app.channels_settings, desktop_locale: app.desktop_locale, app_theme: &app.app_theme } }
+fn map_message(message: desktop_settings_channels::messages::Message) -> Message { use desktop_settings_channels::messages as domain; match message { domain::Message::None => Message::None, domain::Message::Settings(domain::SettingsMessage::Channels(message)) => Message::Settings(crate::app::message::settings::SettingsMessage::Channels(message)), } }
+pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> { desktop_settings_channels::overview::channel_tab_descriptors(super) }
+fn global_settings_content(app: &App) -> Element<'_, Message> { desktop_settings_channels::overview::global_settings_content(view_state(app)).map(map_message) }
+#[cfg(test)]
 fn china_channel_card(
     locale: DesktopLocale,
     descriptor: &SettingsTabDescriptor<ChannelsSettingsTab>,
     active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> {
-    let active = descriptor.tab == active_tab;
-    let icon = container(china_channel_icon(descriptor.tab)).padding(8).style(
-        move |theme: &iced::Theme| {
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            iced::widget::container::Style {
-                background: Some(Background::Color(
-                    theme.palette().primary.scale_alpha(if is_dark { 0.18 } else { 0.08 }),
-                )),
-                border: Border { radius: 12.0.into(), ..Default::default() },
-                ..Default::default()
-            }
-        },
-    );
-    let content = row![
-        icon,
-        column![
-            text(tr(locale, descriptor.label)).size(15),
-            text(tr(locale, "配置")).size(12).style(settings_muted_text_style),
-        ]
-        .spacing(4)
-        .width(Length::Fill),
-    ]
-    .spacing(12)
-    .height(Length::Fill)
-    .align_y(Alignment::Center);
-
-    button(content)
-        .padding([10, 12])
-        .height(Length::Fixed(78.0))
-        .width(Length::Fill)
-        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(
-            descriptor.tab,
-        ))))
-        .style(move |theme: &iced::Theme, status| {
-            let palette = theme.extended_palette();
-            let is_dark = theme.palette().background.r
-                + theme.palette().background.g
-                + theme.palette().background.b
-                < 1.5;
-            let background = if active {
-                theme.palette().primary.scale_alpha(if is_dark { 0.18 } else { 0.08 })
-            } else if matches!(status, iced::widget::button::Status::Hovered) {
-                palette.background.weak.color.scale_alpha(if is_dark { 0.72 } else { 0.9 })
-            } else if is_dark {
-                palette.background.base.color.scale_alpha(0.42)
-            } else {
-                Color::WHITE.scale_alpha(0.76)
-            };
-            iced::widget::button::Style {
-                background: Some(Background::Color(background)),
-                text_color: theme.palette().text,
-                border: Border {
-                    radius: 16.0.into(),
-                    width: if active { 1.5 } else { 1.0 },
-                    color: if active {
-                        theme.palette().primary.scale_alpha(0.62)
-                    } else if is_dark {
-                        palette.background.strong.color.scale_alpha(0.84)
-                    } else {
-                        Color::from_rgba8(15, 23, 42, 0.12)
-                    },
-                },
-                ..Default::default()
-            }
-        })
-        .into()
-}
-
+) -> Element<'static, Message> { desktop_settings_channels::overview::china_channel_card(locale, descriptor, active_tab).map(map_message) }
+#[cfg(test)]
 fn china_channel_cards(
     locale: DesktopLocale,
     descriptors: &[&SettingsTabDescriptor<ChannelsSettingsTab>],
     active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> {
-    let mut rows = column![].spacing(12).width(Length::Fill);
-    for cards_in_row in descriptors.chunks(CHINA_CHANNEL_CARD_COLUMNS) {
-        let mut card_row = row![].spacing(12).width(Length::Fill);
-        for descriptor in cards_in_row {
-            card_row = card_row.push(
-                container(china_channel_card(locale, descriptor, active_tab))
-                    .width(Length::FillPortion(1)),
-            );
-        }
-        for _ in cards_in_row.len()..CHINA_CHANNEL_CARD_COLUMNS {
-            card_row = card_row.push(container(text("")).width(Length::FillPortion(1)));
-        }
-        rows = rows.push(card_row);
-    }
-    rows.into()
-}
-
+) -> Element<'static, Message> { desktop_settings_channels::overview::china_channel_cards(locale, descriptors, active_tab).map(map_message) }
+#[cfg(test)]
 fn channel_tabs(
     locale: DesktopLocale,
     active_tab: ChannelsSettingsTab,
-) -> Element<'static, Message> {
-    let tabs = channel_tab_descriptors();
-
-    let mut sections = column![].spacing(14).width(Length::Fill);
-    for (group, title) in CHANNEL_TAB_GROUPS {
-        let group_tabs = tabs
-            .iter()
-            .filter(|descriptor| channel_tab_group(descriptor.tab) == group)
-            .collect::<Vec<_>>();
-        if group == ChannelTabGroup::China {
-            sections = sections.push(
-                column![
-                    text(tr(locale, title)).size(12).style(settings_muted_text_style),
-                    china_channel_cards(locale, &group_tabs, active_tab),
-                ]
-                .spacing(8),
-            );
-            continue;
-        }
-        let mut rows = column![].spacing(8).width(Length::Fill);
-        for tabs_in_row in group_tabs.chunks(CHANNEL_TAB_COLUMNS) {
-            let mut tab_row = row![].spacing(8).width(Length::Fill);
-            for descriptor in tabs_in_row {
-                tab_row = tab_row.push(
-                    container(tab_button(locale, descriptor.tab, active_tab, descriptor.label))
-                        .width(Length::FillPortion(1)),
-                );
-            }
-            for _ in tabs_in_row.len()..CHANNEL_TAB_COLUMNS {
-                tab_row = tab_row.push(container(text("")).width(Length::FillPortion(1)));
-            }
-            rows = rows.push(tab_row);
-        }
-        sections = sections.push(
-            column![text(tr(locale, title)).size(12).style(settings_muted_text_style), rows]
-                .spacing(8),
-        );
-    }
-
-    sections.into()
-}
-
-/// 构建或处理 `view` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回可交给 Iced 渲染树使用的 `Element`，其中已绑定必要的消息回调。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
+) -> Element<'static, Message> { desktop_settings_channels::overview::channel_tabs(locale, active_tab).map(map_message) }
 pub fn view(app: &App) -> Element<'_, Message> {
-    let locale = app.desktop_locale;
-    let i18n = I18n::new(locale);
-    let enabled = enabled_channels(app);
-    let enabled_text = if enabled.is_empty() {
-        tr(app.desktop_locale, "当前未启用任何通道").to_string()
-    } else {
-        crate::__!(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            "已启用：%s",
-            enabled
-                .iter()
-                .map(|label| tr(app.desktop_locale, label))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-        .expect("valid enabled channels template")
-    };
-
-    let active_tab = app.channels_settings.active_tab;
-    let selected_panel: Element<'_, Message> = match active_tab {
+    let selected_panel: Element<'_, Message> = match app.channels_settings.active_tab {
         ChannelsSettingsTab::Global => global_settings_content(app),
         ChannelsSettingsTab::Telegram => basic_channels::telegram_panel(app),
         ChannelsSettingsTab::Discord => basic_channels::discord_panel(app),
@@ -407,50 +77,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ChannelsSettingsTab::ClawdTalk => enterprise_channels::clawdtalk_panel(app),
     };
 
-    let page_title = tr(locale, "通道配置");
-    let section = |title, description| {
-        let heading = settings_hover_help_label(
-            i18n,
-            &app.app_theme,
-            title,
-            text(title).size(14),
-            description,
-        )
-        .wrap();
-        settings_group_card(container(heading).padding([14, 0]))
-    };
-    let mut content = column![
-        settings_hover_help_label(
-            i18n,
-            &app.app_theme,
-            page_title,
-            text(page_title).size(18),
-            tr(locale, "集中配置 CLI 与外部消息通道的接入参数。")
-        )
-        .wrap(),
-        section(
-            tr(locale, "已启用通道"),
-            tr(locale, "快速查看当前已打开的入口，便于核对多通道部署状态。")
-        ),
-        settings_section_content(column![
-            text(enabled_text).size(12).style(settings_muted_text_style)
-        ]),
-        section(tr(locale, "通道"), tr(locale, "选择一个通道进行配置。")),
-        channel_tabs(locale, active_tab),
-    ]
-    .spacing(16)
-    .width(Length::Fill);
-
-    if let Some(error) = &app.channels_settings.save_error {
-        content = content
-            .push(settings_error_banner(crate::app::i18n::I18n::new(app.desktop_locale).__(error)));
-    }
-    content = content.push(selected_panel);
-
-    container(content)
-        .padding(iced::Padding { left: 12.0, right: 12.0, ..Default::default() })
-        .width(Length::Fill)
-        .into()
+ desktop_settings_channels::overview::view(view_state(app), selected_panel, map_message)
 }
 #[cfg(test)]
 #[path = "system_settings_channels_tests.rs"]

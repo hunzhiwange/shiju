@@ -1,7 +1,7 @@
 //! 候选就绪前不创建选择控件，并验证加载、失败和完成状态的实际绘制路径。
 use super::execution::selectors;
-use crate::app::App;
-use crate::app::state::ChannelExecutionChoices;
+use crate::test_support::Fixture as App;
+use crate::state::ChannelExecutionChoices;
 use iced::advanced::renderer::Headless;
 use iced::advanced::widget::operation::focusable::Focusable;
 use iced::advanced::{
@@ -73,7 +73,7 @@ async fn channel_execution_loading_shows_unified_agent_and_provider_models_when_
         for (theme, width) in
             [(Theme::Dark, 960), (Theme::Light, 960), (Theme::Dark, 420), (Theme::Light, 420)]
         {
-            let mut element = selectors(&app, key.into());
+            let mut element = selectors(app.view(), key.into());
             let bounds = Size::new(width as f32, 500.0);
             let mut tree = Tree::new(element.as_widget());
             let node = element.as_widget_mut().layout(

@@ -2,7 +2,7 @@
 use super::ChannelsSettingsState;
 
 impl ChannelsSettingsState {
-    pub(crate) fn begin_project_choices(&mut self, tenant: &str, key: &str) -> u64 {
+    pub fn begin_project_choices(&mut self, tenant: &str, key: &str) -> u64 {
         self.project_choices_generation = self.project_choices_generation.wrapping_add(1);
         self.project_choices_request =
             Some((tenant.into(), key.into(), self.project_choices_generation));
@@ -12,7 +12,7 @@ impl ChannelsSettingsState {
         self.project_choices_generation
     }
 
-    pub(crate) fn finish_project_choices(
+    pub fn finish_project_choices(
         &mut self,
         tenant: &str,
         key: &str,
@@ -36,7 +36,7 @@ impl ChannelsSettingsState {
         true
     }
 
-    pub(crate) fn select_default_project(
+    pub fn select_default_project(
         &mut self,
         tenant: &str,
         key: &str,
@@ -63,7 +63,7 @@ impl ChannelsSettingsState {
         Ok(())
     }
 
-    pub(crate) fn begin_execution_choices(&mut self, tenant: &str, instance: &str) -> u64 {
+    pub fn begin_execution_choices(&mut self, tenant: &str, instance: &str) -> u64 {
         self.execution_generation = self.execution_generation.wrapping_add(1);
         self.execution_request.insert(instance.into(), (tenant.into(), self.execution_generation));
         self.execution_provider.remove(instance);
@@ -72,7 +72,7 @@ impl ChannelsSettingsState {
         self.execution_generation
     }
 
-    pub(crate) fn finish_execution_choices(
+    pub fn finish_execution_choices(
         &mut self,
         tenant: &str,
         instance: &str,
@@ -93,14 +93,14 @@ impl ChannelsSettingsState {
         true
     }
 
-    pub(crate) fn invalidate_execution_choices(&mut self) {
+    pub fn invalidate_execution_choices(&mut self) {
         self.execution_provider.clear();
         self.execution_request.clear();
         self.execution_choices.clear();
         self.execution_error.clear();
     }
 
-    pub(crate) fn invalidate_project_choices(&mut self) {
+    pub fn invalidate_project_choices(&mut self) {
         self.invalidate_execution_choices();
         self.project_choices_request = None;
         self.project_choices.clear();

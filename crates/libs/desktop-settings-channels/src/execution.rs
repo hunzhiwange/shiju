@@ -1,10 +1,10 @@
 //! 通道“工作项目”下的智能体与模型选择。
-use crate::app::components::system_settings_common::{
+use desktop_ui_controls::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_responsive_row, settings_select,
 };
-use crate::app::i18n::settings_extensions::text as tr;
-use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
-use crate::app::{App, Message};
+use desktop_i18n::settings_extensions::text as tr;
+use crate::messages::{ChannelsMessage, SettingsMessage};
+use crate::{ViewState, messages::Message};
 use iced::widget::{button, column, text};
 use iced::{Element, Length};
 use config_agent_profile::AgentModelReference;
@@ -30,7 +30,7 @@ impl std::fmt::Display for ModelOption {
     }
 }
 
-pub(super) fn selectors(app: &App, instance: String) -> Element<'_, Message> {
+pub fn selectors(app: ViewState<'_>, instance: String) -> Element<'_, Message> {
     let state = &app.channels_settings;
     let binding = state.instance_execution.get(&instance);
     let Some(choices) = state.execution_choices.get(&instance) else {

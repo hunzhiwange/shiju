@@ -3,7 +3,7 @@
 //! 验证基础消息渠道面板的启停、凭据缺省与配置状态。
 //! 每种渠道都覆盖关闭、展开和已配置状态，避免共享表单隐藏必需字段。
 
-use crate::app::{App, Message};
+use crate::{test_support::Fixture as App, messages::Message};
 use config_channel_types::{
     DiscordConfig, GroupReplyConfig, GroupReplyMode, IMessageConfig, MattermostConfig,
     SlackConfig, TelegramConfig, WebhookConfig,

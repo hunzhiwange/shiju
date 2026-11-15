@@ -6,6 +6,7 @@ members = [
   "crates/libs/acp-cli-render",
   "crates/libs/config-plugins",
   "crates/libs/gateway-app-read",
+  "crates/libs/gateway-app-lifecycle",
   "crates/libs/config-voice",
   "crates/libs/runtime-time",
   "crates/libs/api-file",

@@ -3,8 +3,9 @@ use vw_api_app_identity::{AppInstallationSource};
 use super::{AppsCatalogMessage, SettingsMessage};
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
+use gateway_app_lifecycle::{AgentAppsLifecycleError, GatewayAppLifecycleClient};
 use vw_gateway_client::{
-    AgentAppsLifecycleError, GatewayClient,
+    GatewayClient,
     vw_api_types::{agent_apps::*, task::TaskStatus},
 };
 
@@ -53,6 +54,7 @@ pub(crate) async fn execute(
     token: String,
     work: Work,
 ) -> Result<LifecycleResult, LifecycleFailure> {
+    let client = GatewayAppLifecycleClient::new(client.transport().clone());
     let submitting = matches!(work, Work::Submit(_));
     let result = match work {
         Work::Preview(request) => client

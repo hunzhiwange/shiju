@@ -10,7 +10,7 @@ use {
     vw_api_transport::id::TenantScope,
     vw_api_types::task::TaskStatus,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsLifecycleError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, gateway_app_lifecycle::{AgentAppsLifecycleError, GatewayAppLifecycleClient}};
 fn terminal(_: Option<&str>, _: &Path, material: &LaunchMaterial) -> Result<(), String> {
     let result = std::process::Command::new(&material.program)
         .args(&material.args)
@@ -92,12 +92,12 @@ impl Gateway {
         let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
         Self { fixture, port, server }
     }
-    fn client(&self, company: &str) -> GatewayClient {
-        GatewayClient::new(
+    fn client(&self, company: &str) -> GatewayAppLifecycleClient {
+        GatewayAppLifecycleClient::new(gateway_http::GatewayTransport::new(
             GatewayEndpoint::new("127.0.0.1", self.port)
                 .with_tenant_scope(TenantScope::new("p", company).unwrap()),
         )
-        .unwrap()
+        .unwrap())
     }
     async fn action(&self, action: AppLifecycleAction, target: AppActionTarget) -> TaskId {
         let c = self.client("a");

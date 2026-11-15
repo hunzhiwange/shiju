@@ -25,6 +25,7 @@ name = "shi-ju"
 path = "src/main.rs"
 
 [dependencies]
+gateway-app-lifecycle = { path = "../libs/gateway-app-lifecycle", version = "0.6.0" }
 build-identity = { path = "../libs/build-identity", version = "0.6.0" }
 vw-api-git = { path = "../libs/api-git", version = "0.6.0" }
 gateway-app-read = { path = "../libs/gateway-app-read", version = "0.6.0" }

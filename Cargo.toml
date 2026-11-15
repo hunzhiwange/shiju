@@ -161,7 +161,6 @@ members = [
   "crates/libs/tui-onboarding",
   "crates/libs/tui-exec-state",
   "crates/libs/tui-chat-state",
-  "crates/libs/tui-onboarding",
   "crates/libs/tui-exec-state",
   "crates/libs/domain-matcher",
   "crates/libs/gateway-pairing",

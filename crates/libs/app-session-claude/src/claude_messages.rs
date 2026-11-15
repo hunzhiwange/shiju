@@ -10,7 +10,7 @@ use serde::de::{self, Deserializer, IgnoredAny, MapAccess, SeqAccess, Visitor};
 use serde::Deserialize;
 use serde_json::Value;
 use vw_api_external_session::*;
-use crate::sessions::blocks::*;
+use app_session_core::blocks::*;
 use super::parse_timestamp_to_ms;
 include!("claude_jsonl.rs");
 include!("claude_blocks.rs");

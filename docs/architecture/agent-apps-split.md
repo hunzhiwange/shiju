@@ -1048,11 +1048,11 @@ toml_edit、vw-api-types，测试依赖 tempfile。原包这些依赖均仍有�
 | `sessions/migration/unify.rs` | 348 | 52 |
 | `sessions/mod.rs` | 43 | 54 |
 | `sessions/providers/agy.rs` | 301 | 50 |
-| `sessions/providers/claude.rs` | 320 | 46 |
-| `sessions/providers/claude_blocks.rs` | 407 | 46 |
-| `sessions/providers/claude_jsonl.rs` | 104 | 46 |
-| `sessions/providers/claude_messages.rs` | 677 | 46 |
-| `sessions/providers/claude_wire.rs` | 358 | 46 |
+| `sessions/providers/claude.rs` | 320 | 46 → `crates/libs/app-session-claude/src/claude.rs` |
+| `sessions/providers/claude_blocks.rs` | 407 | 46 → `crates/libs/app-session-claude/src/claude_blocks.rs` |
+| `sessions/providers/claude_jsonl.rs` | 104 | 46 → `crates/libs/app-session-claude/src/claude_jsonl.rs` |
+| `sessions/providers/claude_messages.rs` | 677 | 46 → `crates/libs/app-session-claude/src/claude_messages.rs` |
+| `sessions/providers/claude_wire.rs` | 358 | 46 → `crates/libs/app-session-claude/src/claude_wire.rs` |
 | `sessions/providers/codex.rs` | 429 | 45 |
 | `sessions/providers/codex_items.rs` | 1072 | 45 |
 | `sessions/providers/codex_messages.rs` | 444 | 45 |
@@ -2680,3 +2680,14 @@ app-session-codex/src 唯一拥有 codex.rs、codex_items.rs、codex_messages.rs
 静态证据：rollout 与四个 parser 文件逐字比较一致；pi_jsonl 仅清理末尾空行；其余三个文件仅调整所有者导入与必要可见性。无独立测试、cfg 或 include/资源引用需要搬迁。Python 使用现有 pip._vendor.tomli 只读解析五个生产依赖包，路径存在、无环、无旧门面回边；成员、直接依赖与原调用者接线检索及差异空白检查完成。Cargo.lock 未触碰。
 
 已有源码缺口：codex_messages::sniff_types 引用 SNIFF_BYTES，parser_2 引用 INJECTED_USER_PREFIXES，当前源树未定义二者，迁移前已存在；不臆测常量值或改变解析行为，统一验收需恢复经核实的原定义。RustCodeGraph 仍含旧路径，未更新索引。未运行 Cargo、单元及实机测试，统一验收待授权：新包、基础包及直接调用者编译、解析定向测试、压缩 rollout 与三平台行为、清单及锁文件一致性。静态迁移完成不表示编译或行为验收通过。
+
+
+## 任务 46：Claude 会话解析静态迁移结果
+
+app-session-claude/src 唯一拥有 claude.rs、claude_blocks.rs、claude_jsonl.rs、claude_messages.rs、claude_wire.rs。保留 claude 根模块、messages 子模块及三个同包 include 的原有内聚结构；无独立测试、平台 cfg 或外部资源需迁移。原 providers::claude 仅重导出，新包通过 app-session-core 使用 utils 与 blocks。scan_session_file 因 delete/claude 两处真实跨包调用最小公开，其余可见性和函数体不变。
+
+网关 external_sessions 的 scan/messages、原 usage 集成测试及删除流程继续使用原导出路径；sessions/providers/mod.rs 与 lib.rs 接线无需变更。跨适配器分发继续留给任务 54，不让叶子包依赖其它解析器；本任务无未闭合叶子符号。原门面其余模块仍使用 chrono、serde 与 serde_json，保留直接依赖。
+
+静态证据：五个迁移文件与 HEAD 对比，仅两处基础库导入及 scan_session_file 可见性变化；三个 include 和 messages 相对路径均在新包内存在。Python 只读 TOML 解析确认 workspace 成员与门面直接路径依赖，递归检查五个生产依赖包路径存在、无环、无旧门面回依赖；serde_json arbitrary_precision 与 chrono std 特性保留。原路径/真实调用者和反向依赖检索已完成，git diff --check 通过。RustCodeGraph 未覆盖当前实现，改用源码检索，未更新索引。Cargo.lock 未触碰。
+
+未运行 Cargo、单元及实机测试，统一验收待授权：新包与直接调用者编译、Claude 扫描与消息解析定向测试、三平台行为及清单/锁文件一致性。静态迁移完成不表示编译或行为验收通过。

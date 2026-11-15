@@ -11,7 +11,7 @@ pub use crate::session::ui_types::{
     ThinkTiming, TokenUsage,
 };
 
-use super::path;
+use session_paths as path;
 
 fn pinned_threads_path(data_dir: &Path, scope: &str) -> PathBuf {
     data_dir

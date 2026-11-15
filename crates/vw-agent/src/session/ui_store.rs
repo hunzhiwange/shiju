@@ -28,7 +28,7 @@ use {
     vw_api_transport::id::ProjectScope,
 };
 
-use vw_shared::session::path;
+use session_paths as path;
 use vw_shared::session::ui_store;
 
 #[cfg(not(target_arch = "wasm32"))]

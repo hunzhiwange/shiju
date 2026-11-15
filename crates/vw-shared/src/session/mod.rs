@@ -12,7 +12,7 @@
 //! - `ui_types`：桌面端会话列表和消息展示结构
 
 pub mod info;
-pub mod path;
+pub use session_paths as path;
 pub mod session_utils;
 pub mod ui_store;
 pub mod ui_types;

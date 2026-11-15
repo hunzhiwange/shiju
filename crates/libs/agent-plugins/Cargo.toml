@@ -24,5 +24,21 @@ tempfile = "3"
 flate2 = "1"
 tar = "0.4"
 
+plugin-mcp = { path = "../plugin-mcp", version = "0.6.0" }
+url = "2"
+base64 = "0.23"
+reqwest_012 = { package = "reqwest", version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots"] }
+tokio = { version = "1", features = ["rt", "net", "time", "macros", "process", "io-util"] }
+
+agent-config = { path = "../agent-config", version = "0.6.0" }
+agent-skills = { path = "../agent-skills", version = "0.6.0" }
+agent-cli-types = { path = "../agent-cli-types", version = "0.6.0" }
+
+agent-hooks = { path = "../agent-hooks", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tool-shell = { path = "../tool-shell", version = "0.6.0" }
+async-trait = "0.1"
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

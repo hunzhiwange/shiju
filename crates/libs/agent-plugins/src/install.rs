@@ -9,8 +9,6 @@ use std::path::{Path, PathBuf};
 use plugin_install::identity::{metadata_path, read_install_metadata};
 use super::{PluginIdentity, PluginManifest, load_plugin_manifest};
 
-pub type InstallNpm = dyn Fn(&str, Option<&str>, Option<&str>, &Path, Option<&str>) -> Result<PluginInstallResult>;
-
 fn install_git(url: &str, path: Option<&str>, reference: Option<&str>, sha: Option<&str>, destination: &Path, marketplace: Option<&str>) -> Result<PluginInstallResult> {
     plugin_install::git_source::install(url, path, reference, sha, destination, marketplace, load_plugin_manifest, super::transaction_install::install_package_with_source)
 }
@@ -34,8 +32,8 @@ pub use plugin_types::PluginInstallResult;
 /// 从本地目录安全复制并安装插件。
 ///
 /// 在同文件系统暂存并审计原包与包外来源记录，完成后禁止覆盖地发布。
-pub fn install_plugin_from_source(source: &str, plugins_dir: &Path, install_npm: &InstallNpm) -> Result<PluginInstallResult> {
-    install_plugin(source, plugins_dir, None, install_npm)
+pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<PluginInstallResult> {
+    install_plugin(source, plugins_dir, None)
 }
 
 /// 从已物化的市场包安装，市场归属与原包清单分开保存。
@@ -43,16 +41,14 @@ pub fn install_plugin_from_marketplace(
     source: &str,
     plugins_dir: &Path,
     marketplace: &str,
-    install_npm: &InstallNpm,
 ) -> Result<PluginInstallResult> {
-    install_plugin(source, plugins_dir, Some(marketplace), install_npm)
+    install_plugin(source, plugins_dir, Some(marketplace))
 }
 
 /// Install a normalized marketplace entry without changing its package.
 pub fn install_plugin_marketplace_entry(
     entry: &super::MarketplaceEntry,
     plugins_dir: &Path,
-    install_npm: &InstallNpm,
 ) -> Result<PluginInstallResult> {
     use super::{InstallationPolicy, MarketplaceSource};
     if entry.policy.installation == InstallationPolicy::NotAvailable {
@@ -72,10 +68,9 @@ pub fn install_plugin_marketplace_entry(
             path.to_str().context("non UTF-8 plugin path")?,
             plugins_dir,
             marketplace,
-            install_npm,
         ),
         MarketplaceSource::Npm { package, version, registry } => {
-            install_npm(
+            super::npm_archive::install(
                 package,
                 version.as_deref(),
                 registry.as_deref(),
@@ -90,7 +85,6 @@ fn install_plugin(
     source: &str,
     plugins_dir: &Path,
     marketplace: Option<&str>,
-    install_npm: &InstallNpm,
 ) -> Result<PluginInstallResult> {
     let source = source.trim();
     if source.is_empty() {
@@ -101,7 +95,7 @@ fn install_plugin(
             Some((package, version)) if !package.is_empty() => (package, Some(version)),
             _ => (spec, None),
         };
-        return install_npm(
+        return super::npm_archive::install(
             package,
             version,
             None,

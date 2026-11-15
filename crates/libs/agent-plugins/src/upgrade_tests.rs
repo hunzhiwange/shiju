@@ -1,5 +1,5 @@
-use crate::plugins::{
-    activate_plugin_upgrade, install_plugin_from_marketplace, load_plugin_manifest,
+use crate::{
+    install_plugin_from_marketplace, load_plugin_manifest,
     prepare_plugin_upgrade,
 };
 use std::{fs, path::Path};
@@ -58,9 +58,9 @@ fn codex_plugin_compat_t52_recovers_journaled_interruption() {
         install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, "alpha").unwrap();
     let transaction = plugins.join(".plugin-upgrade-interrupted");
     fs::create_dir_all(transaction.join("old")).unwrap();
-    super::installed_state::write_journal(
+    plugin_install::installed_state::write_journal(
         &plugins,
-        &super::installed_state::Journal {
+        &plugin_install::installed_state::Journal {
             key: "fixture@alpha".into(),
             transaction: ".plugin-upgrade-interrupted".into(),
             committed: false,
@@ -70,7 +70,7 @@ fn codex_plugin_compat_t52_recovers_journaled_interruption() {
     .unwrap();
     fs::rename(&installed.installed_dir, transaction.join("old/fixture@alpha")).unwrap();
     // Restart path: taking the store lock performs recovery before discovery can read.
-    let _guard = super::installed_state::lock(&plugins).unwrap();
+    let _guard = plugin_install::installed_state::lock(&plugins).unwrap();
     assert_eq!(
         load_plugin_manifest(&installed.installed_dir).unwrap().version.as_deref(),
         Some("1")
@@ -94,14 +94,14 @@ fn codex_plugin_compat_t52_preserves_isolation() {
     for market in ["alpha", "beta"] {
         install_plugin_from_marketplace(source.to_str().unwrap(), &plugins, market).unwrap();
     }
-    crate::plugins::install::set_plugin_enabled(&plugins, "fixture@alpha", false).unwrap();
+    crate::install::set_plugin_enabled(&plugins, "fixture@alpha", false, &|_| {}).unwrap();
     let data = temp.path().join("plugin-data");
     fs::create_dir(&data).unwrap();
     fs::write(data.join("retained"), b"state").unwrap();
-    let hooks: crate::plugins::CodexHooksManifest =
+    let hooks: crate::CodexHooksManifest =
         serde_json::from_value(serde_json::json!({"hooks":{}})).unwrap();
     let mut trust =
-        crate::plugins::PluginHookTrustStore::load_or_default(&temp.path().join("trust.json"))
+        crate::PluginHookTrustStore::load_or_default(&temp.path().join("trust.json"))
             .unwrap();
     trust.trust_codex_hooks("fixture@alpha", &plugins.join("fixture@alpha"), &hooks).unwrap();
     assert!(
@@ -128,7 +128,7 @@ fn codex_plugin_compat_t52_preserves_isolation() {
     );
     assert!(plugins.join("fixture@alpha.disabled").exists());
     assert_eq!(
-        super::identity::read_install_metadata(
+        plugin_install::identity::read_install_metadata(
             &plugins.join("fixture@alpha"),
             &load_plugin_manifest(&plugins.join("fixture@alpha")).unwrap()
         )
@@ -154,7 +154,7 @@ fn codex_plugin_compat_t52_concurrent_discovery_sees_complete_versions() {
     let reader = std::thread::spawn(move || {
         for _ in 0..25 {
             let discovered =
-                crate::plugins::discover_plugins(&crate::plugins::PluginDiscoveryOptions::new(
+                crate::discover_plugins(&crate::PluginDiscoveryOptions::new(
                     root.join("workspace"),
                     &root,
                     Default::default(),
@@ -169,3 +169,5 @@ fn codex_plugin_compat_t52_concurrent_discovery_sees_complete_versions() {
     activate_plugin_upgrade(preview).unwrap();
     reader.join().unwrap();
 }
+
+fn activate_plugin_upgrade(preview: crate::upgrade::PluginUpgradePreview) -> anyhow::Result<()> { crate::upgrade::activate_plugin_upgrade(preview, &|_| {}) }

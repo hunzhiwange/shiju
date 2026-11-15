@@ -16,13 +16,13 @@ pub(crate) fn install_dir_from_config(config: &crate::config::Config) -> PathBuf
 
 
 pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<PluginInstallResult> {
-    agent_plugins::install::install_plugin_from_source(source, plugins_dir, &super::compat::npm_archive::install)
+    agent_plugins::install::install_plugin_from_source(source, plugins_dir)
 }
 pub fn install_plugin_from_marketplace(source: &str, plugins_dir: &Path, marketplace: &str) -> Result<PluginInstallResult> {
-    agent_plugins::install::install_plugin_from_marketplace(source, plugins_dir, marketplace, &super::compat::npm_archive::install)
+    agent_plugins::install::install_plugin_from_marketplace(source, plugins_dir, marketplace)
 }
 pub fn install_plugin_marketplace_entry(entry: &super::MarketplaceEntry, plugins_dir: &Path) -> Result<PluginInstallResult> {
-    agent_plugins::install::install_plugin_marketplace_entry(entry, plugins_dir, &super::compat::npm_archive::install)
+    agent_plugins::install::install_plugin_marketplace_entry(entry, plugins_dir)
 }
 pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Result<()> {
     agent_plugins::install::set_plugin_enabled(plugins_dir, name, enabled, &super::compat::mcp_connection_sessions::close_plugin)

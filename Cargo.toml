@@ -92,6 +92,7 @@ members = [
   "crates/libs/app-versions",
   "crates/libs/tool-types",
   "crates/libs/tool-context",
+  "crates/libs/tool-shell",
   "crates/libs/gateway-skill-market",
   "crates/libs/app-providers",
   "crates/libs/gateway-shiju-skill",

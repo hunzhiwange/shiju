@@ -332,6 +332,5 @@ fn codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery() {
     assert_eq!(children(&plugins).len(), 2);
 }
 
-fn unexpected_npm(_: &str, _: Option<&str>, _: Option<&str>, _: &std::path::Path, _: Option<&str>) -> anyhow::Result<crate::PluginInstallResult> { panic!("unexpected npm source in filesystem fixture") }
-fn install_plugin_from_source(source: &str, root: &std::path::Path) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_source(source, root, &unexpected_npm) }
-fn install_plugin_from_marketplace(source: &str, root: &std::path::Path, marketplace: &str) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_marketplace(source, root, marketplace, &unexpected_npm) }
+fn install_plugin_from_source(source: &str, root: &std::path::Path) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_source(source, root) }
+fn install_plugin_from_marketplace(source: &str, root: &std::path::Path, marketplace: &str) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_marketplace(source, root, marketplace) }

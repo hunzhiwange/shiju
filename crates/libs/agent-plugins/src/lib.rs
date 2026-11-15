@@ -38,3 +38,21 @@ mod install_tests;
 mod transaction_install_tests;
 
 pub mod npm_archive;
+
+pub mod npm_source;
+#[cfg(test)]
+mod npm_source_tests;
+
+pub mod upgrade;
+pub use install::{install_plugin_from_source, install_plugin_from_marketplace, install_plugin_marketplace_entry};
+pub use upgrade::{prepare_plugin_upgrade, prepare_plugin_marketplace_upgrade};
+#[cfg(test)]
+mod upgrade_tests;
+
+pub mod cli;
+pub mod onboarding;
+pub use agent_cli_types::PluginCommands;
+pub use plugin_types::CodexHooksManifest;
+pub use plugin_install::marketplace::{add_plugin_marketplace, list_plugin_marketplaces, registered_plugin_entry, read_registered_marketplace};
+
+pub mod hook_handler;

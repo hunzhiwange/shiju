@@ -395,8 +395,7 @@ fn plugin_install_rejects_symlink_inside_source_and_cleans_destination() {
     );
 }
 
-fn unexpected_npm(_: &str, _: Option<&str>, _: Option<&str>, _: &std::path::Path, _: Option<&str>) -> anyhow::Result<crate::PluginInstallResult> { panic!("unexpected npm source in filesystem fixture") }
-fn install_plugin_from_source(source: &str, root: &std::path::Path) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_source(source, root, &unexpected_npm) }
+fn install_plugin_from_source(source: &str, root: &std::path::Path) -> anyhow::Result<crate::PluginInstallResult> { crate::install::install_plugin_from_source(source, root) }
 
 fn set_plugin_enabled(root: &Path, name: &str, enabled: bool) -> anyhow::Result<()> { crate::install::set_plugin_enabled(root, name, enabled, &|_| {}) }
 fn remove_installed_plugin(root: &Path, name: &str) -> anyhow::Result<()> { crate::install::remove_installed_plugin(root, name, &|_| {}) }

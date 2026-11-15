@@ -99,3 +99,24 @@ pub fn install_archive(
         Some(&provenance),
     )
 }
+
+pub fn install(
+    package: &str,
+    version: Option<&str>,
+    registry: Option<&str>,
+    destination: &Path,
+    marketplace: Option<&str>,
+) -> Result<PluginInstallResult> {
+    let package = package.to_owned();
+    let version = version.map(str::to_owned);
+    let registry = registry.map(str::to_owned);
+    // The existing installation API is synchronous and may be invoked inside a Tokio runtime.
+    let archive = std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread().enable_all().build()?.block_on(
+            super::npm_source::fetch_npm_plugin(&package, version.as_deref(), registry.as_deref()),
+        )
+    })
+    .join()
+    .map_err(|_| anyhow::anyhow!("npm download worker panicked"))??;
+    install_archive(archive, destination, marketplace)
+}

@@ -109,7 +109,7 @@ pub(super) async fn submit(
     headers: HeaderMap,
     database: Option<Extension<GlobalDatabase>>,
     request: Result<Json<ResyncRequest>, JsonRejection>,
-) -> Result<(StatusCode, Json<vw_api_types::agent_apps::AppActionExecutionResult>), McpHttpError> {
+) -> Result<(StatusCode, Json<vw_api_app_operations::AppActionExecutionResult>), McpHttpError> {
     let Json(request) = request.map_err(|_| access_error(StatusCode::BAD_REQUEST))?;
     let scope = match request.project_id.as_ref() {
         Some(id) => McpCatalogScope::Project {
@@ -173,7 +173,7 @@ pub(super) async fn submit(
         registry.insert(id.clone(), job);
         Ok((
             StatusCode::ACCEPTED,
-            Json(vw_api_types::agent_apps::AppActionExecutionResult {
+            Json(vw_api_app_operations::AppActionExecutionResult {
                 operation_id: id.into(),
                 status: vw_api_task::TaskStatus::Queued,
             }),
@@ -430,7 +430,7 @@ async fn run(
 /// every publication uses the same authorization/credential path as manual resync.
 #[cfg(target_os = "macos")]
 pub(super) async fn sync_saved_bindings(database: GlobalDatabase, policy: Option<std::path::PathBuf>,
-    headers: HeaderMap, target: &vw_api_types::agent_apps::DataManagementTarget, ids: &[String],
+    headers: HeaderMap, target: &vw_api_app_operations::DataManagementTarget, ids: &[String],
 ) -> Result<(), ()> {
     let scope = McpCatalogScope::Project { scope: target.scope.clone() };
     let policy = PolicyFile(policy);

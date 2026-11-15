@@ -1,8 +1,9 @@
 //! Launch payloads stay inert until handed to the scoped prompt import confirmation.
+use vw_api_app_operations::{PromptResource, PromptSharePayload};
 use base64::{Engine as _, prelude::*};
 use crate::app::{App, Message, deep_links, message::settings::{GeneralSettingsMessage, SettingsMessage, prompts}};
 use iced::{Element, Task, widget::{button, column, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps::{PromptResource, PromptSharePayload};
+
 
 pub(crate) fn pending() -> Option<deep_links::PendingLink> {
     deep_links::pending().ok()?.into_iter().find(|link| {

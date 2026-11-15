@@ -23,7 +23,7 @@ pub(crate) async fn run(policy: PathBuf) {
                 .map_err(|_| BackupFailure)?;
             let mut failed = false;
             for (root, scope, hours) in targets {
-                let target = vw_api_types::agent_apps::data_management::DataManagementTarget {
+                let target = vw_api_app_operations::DataManagementTarget {
                     scope: scope.project.clone(), target_host_id: scope.host_id.clone(), principal_id: scope.principal_id.clone(),
                 };
                 let settings = match super::data_aux_api::load_settings(&database, &target) {

@@ -3,7 +3,7 @@ use super::*;
 use anyhow::Context;
 use std::{collections::BTreeMap, path::Path};
 use vw_agent_apps::prompts::{import, live_file};
-use vw_api_types::agent_apps::PromptResource;
+use vw_api_app_operations::PromptResource;
 
 impl PromptsStore {
     /// Authorized listing entry point for the host dispatcher. Unlike `list`,

@@ -62,7 +62,7 @@ fn cc_data_23_backup_list_returns_visible_metadata() {
     assert_eq!(entry.id, receipt.id());
     assert_eq!(
         entry.kind,
-        vw_api_types::agent_apps::data_management::DataArtifactKind::LocalRollback
+        vw_api_app_operations::DataArtifactKind::LocalRollback
     );
     assert_eq!(entry.format_version, 1);
     assert_eq!(entry.size_bytes, original.len() as u64);

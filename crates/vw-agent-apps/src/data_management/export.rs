@@ -1,11 +1,12 @@
 //! Portable, filtered owner records. No database discovery or host backup bytes.
+use vw_api_app_operations::{DataArtifactKind, DataCategory};
 use super::{backup_create_files, portable_policy::{filter_portable_item, MigrationLocation},
     safety_snapshot::{SafetySnapshotError as Error, SafetySnapshotScope, MAX_SNAPSHOT_BYTES}};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{io::{Cursor, Read, Write}, path::Path};
-use vw_api_types::agent_apps::data_management::{DataArtifactKind, DataCategory};
+
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

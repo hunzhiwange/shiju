@@ -6,7 +6,7 @@ use super::{
 };
 use serde::{Deserialize, Serialize};
 use std::{io::Read, path::Path};
-use vw_api_types::agent_apps::data_management::DataArtifactKind;
+use vw_api_app_operations::DataArtifactKind;
 
 /// Structural eligibility only. Restore must separately authorize, verify its
 /// retained receipt digest and validate every owner's version/capability.

@@ -1,4 +1,5 @@
 //! Scope and request generation travel with every response, including failures.
+use vw_api_app_operations::{PromptTargetPreview};
 pub(crate) mod shared_import;
 pub(crate) mod pi_files;
 pub(crate) mod transfer;
@@ -7,7 +8,7 @@ pub(crate) mod sync;
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use crate::app::components::system_settings_prompts::activation::{Action, Undo, error_text, effect};
-use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId, PromptTargetPreview}};
+use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId}};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(AppId),

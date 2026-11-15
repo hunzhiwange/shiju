@@ -1,4 +1,5 @@
 //! Local lifecycle adapter restricted to an administrator-approved installation prefix.
+use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
 use super::{npm, process, update};
 use crate::apps::{
     discovery::{

@@ -2,7 +2,7 @@
 use super::GatewayClient;
 use serde::{Deserialize, Serialize};
 use {
-    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_app_operations::AppOperationStatus,
     vw_api_transport::id::ProjectId,
     vw_api_types::workspace_memory::*,
 };

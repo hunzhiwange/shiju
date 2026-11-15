@@ -242,7 +242,7 @@ async fn remote(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct LocalPreviewRequest {
-    target: vw_api_types::agent_apps::DataManagementTarget,
+    target: vw_api_app_operations::DataManagementTarget,
     selection: crate::agent_apps::shared_snapshot::SnapshotSelection,
 }
 async fn local_preview(

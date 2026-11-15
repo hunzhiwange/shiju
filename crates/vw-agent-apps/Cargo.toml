@@ -8,6 +8,7 @@ description = "Native application business logic for VibeWindow"
 license = "MIT"
 
 [dependencies]
+vw-api-app-operations = { path = "../libs/api-app-operations", version = "0.6.0" }
 vw-api-app-provider-environment = { path = "../libs/api-app-provider-environment", version = "0.6.0" }
 vw-api-app-provider-edit = { path = "../libs/api-app-provider-edit", version = "0.6.0" }
 vw-api-app-provider-extended = { path = "../libs/api-app-provider-extended", version = "0.6.0" }

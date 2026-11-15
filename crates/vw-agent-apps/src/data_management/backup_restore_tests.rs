@@ -3,7 +3,7 @@ use crate::usage::source_settings::{initialize_source_settings, load_source_sett
 use rusqlite::Connection;
 use std::{cell::RefCell, fs, os::unix::fs::PermissionsExt};
 use {
-    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_app_operations::DataManagementTarget,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

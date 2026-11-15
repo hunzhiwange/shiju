@@ -1,7 +1,7 @@
 use super::access::*;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use {
-    vw_api_types::agent_apps::AppLifecycleAction,
+    vw_api_app_operations::AppLifecycleAction,
     vw_api_transport::id::TenantScope,
 };
 

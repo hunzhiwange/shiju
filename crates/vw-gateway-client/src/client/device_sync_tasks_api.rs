@@ -4,7 +4,7 @@ use crate::http::apply_request_context;
 use reqwest::{Method, StatusCode, Url};
 use {
     vw_api_transport::TaskId,
-    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_app_operations::DataManagementTarget,
     vw_api_types::device_sync_task::SyncTaskCancelResponse,
     vw_api_types::device_sync_task::SyncTaskStatus,
 };

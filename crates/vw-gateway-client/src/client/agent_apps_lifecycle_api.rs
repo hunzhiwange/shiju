@@ -1,4 +1,5 @@
 //! 兼容门面：生命周期行为由 gateway-app-lifecycle 拥有。
+use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewRequest, AppActionSubmitRequest, AppOperationStatus};
 use super::GatewayClient;
 use serde::{Serialize, de::DeserializeOwned};
 use vw_api_types::agent_apps::*;

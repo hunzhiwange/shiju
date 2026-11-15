@@ -7,7 +7,7 @@ use {
     vw_api_transport::ProjectId,
     vw_api_transport::ProjectScope,
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_app_operations::DataManagementTarget,
     vw_api_types::device_sync_config::DeviceSyncTransport,
     vw_api_types::device_sync_config::SyncSecretUpdate,
     vw_api_types::device_sync_config::UpdateWebDavSyncConfigRequest,

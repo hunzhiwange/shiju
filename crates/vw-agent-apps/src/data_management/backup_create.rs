@@ -34,7 +34,7 @@ impl LocalBackupReceipt {
 #[serde(deny_unknown_fields)]
 pub struct LocalBackup {
     pub(super) format_version: u32,
-    pub(super) kind: vw_api_types::agent_apps::data_management::DataArtifactKind,
+    pub(super) kind: vw_api_app_operations::DataArtifactKind,
     name: String,
     created_at_ms: i64,
     scope: SafetySnapshotScope,
@@ -60,7 +60,7 @@ impl LocalBackup {
 }
 
 pub(super) fn validate(backup: &LocalBackup, scope: &SafetySnapshotScope) -> Result<(), Error> {
-    use vw_api_types::agent_apps::data_management::DataArtifactKind;
+    use vw_api_app_operations::DataArtifactKind;
     if backup.format_version != 1 {
         return Err(Error::VersionUnsupported);
     }
@@ -157,7 +157,7 @@ pub fn create_local_backup(
         .map_err(|_| Error::StorageUnavailable)?;
     let backup = LocalBackup {
         format_version: 1,
-        kind: vw_api_types::agent_apps::data_management::DataArtifactKind::LocalRollback,
+        kind: vw_api_app_operations::DataArtifactKind::LocalRollback,
         name: name.into(),
         created_at_ms,
         scope: scope.clone(),

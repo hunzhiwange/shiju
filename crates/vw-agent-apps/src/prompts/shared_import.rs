@@ -3,10 +3,8 @@
 use base64::{Engine as _, prelude::*};
 use serde::Deserialize;
 use std::time::{SystemTime, UNIX_EPOCH};
-use vw_api_types::agent_apps::{
-    ActivatePromptRequest, AppId, ImportPromptShareRequest, PromptActivationChoice, PromptEntry,
-    PromptEntryRequest, PromptResource, PromptSharePayload,
-};
+use vw_api_types::agent_apps::{AppId};
+use vw_api_app_operations::{ActivatePromptRequest, ImportPromptShareRequest, PromptActivationChoice, PromptEntry, PromptEntryRequest, PromptResource, PromptSharePayload};
 
 /// Already URL-decoded fields; protocol registration belongs to OS dispatch.
 #[derive(Debug, Deserialize)]

@@ -9,7 +9,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_app_operations::DataManagementTarget,
     vw_gateway_client::vw_api_types::device_sync_config::*,
 };
 use vw_gateway_client::{DeviceSyncOperationsError, DeviceSyncSelection};

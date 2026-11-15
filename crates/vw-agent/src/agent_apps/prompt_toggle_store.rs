@@ -70,7 +70,7 @@ impl PromptsStore {
             let entries = catalog
                 .entries
                 .iter()
-                .map(|e| vw_api_types::agent_apps::PromptEntry {
+                .map(|e| vw_api_app_operations::PromptEntry {
                     id: e.id.clone(),
                     app_id: AppId::Pi,
                     name: e.name.clone(),
@@ -79,7 +79,7 @@ impl PromptsStore {
                     enabled: false,
                     created_at: e.created_at,
                     updated_at: None,
-                    revision: vw_api_types::agent_apps::PromptRevision(revision.to_string()),
+                    revision: vw_api_app_operations::PromptRevision(revision.to_string()),
                 })
                 .collect::<Vec<_>>();
             let change = if enabled {

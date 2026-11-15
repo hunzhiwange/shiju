@@ -70,7 +70,7 @@ struct Grant {
     #[serde(default)]
     external_terminal_settings: bool,
     #[serde(default)]
-    actions: Vec<vw_api_types::agent_apps::AppLifecycleAction>,
+    actions: Vec<vw_api_app_operations::AppLifecycleAction>,
     #[serde(default)]
     preferences_write: bool,
     #[serde(default)]
@@ -677,7 +677,7 @@ pub(super) fn authorize_action(
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    action: Option<vw_api_app_operations::AppLifecycleAction>,
 ) -> Result<Host, StatusCode> {
     authorize_preferences(path, headers, tenant, target, action, false).map(|(host, _)| host)
 }
@@ -687,7 +687,7 @@ pub(super) fn authorize_preferences(
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    action: Option<vw_api_app_operations::AppLifecycleAction>,
     write_host: bool,
 ) -> Result<(Host, String), StatusCode> {
     authorize_scoped(
@@ -976,7 +976,7 @@ fn authorize_scoped(
     headers: &HeaderMap,
     tenant: &TenantScope,
     target: &str,
-    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    action: Option<vw_api_app_operations::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
     authorize_digest(path, &membership_digest(headers)?, tenant, target, action, capability)
@@ -1000,7 +1000,7 @@ fn authorize_digest(
     digest: &str,
     tenant: &TenantScope,
     target: &str,
-    action: Option<vw_api_types::agent_apps::AppLifecycleAction>,
+    action: Option<vw_api_app_operations::AppLifecycleAction>,
     capability: Capability<'_>,
 ) -> Result<Authorization, StatusCode> {
     let local_path;
@@ -2286,7 +2286,7 @@ pub(in super::super) fn authorize_external_history_maintenance(
 /// Backup authority is independent of inventory, export and lifecycle grants.
 pub(in super::super) fn authorize_data_backups(
     path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+    target: &vw_api_app_operations::DataManagementTarget,
 ) -> Result<PathBuf, StatusCode> {
     let authorized = authorize_scoped(path, headers, target.scope.tenant_scope(),
         &target.target_host_id, None, Capability::DataBackups(target.scope.project_id()))?;
@@ -2365,7 +2365,7 @@ pub(in super::super) fn authenticate_data_migration(
 
 pub(in super::super) fn authorize_data_migration(
     path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::data_management::DataManagementTarget,
+    target: &vw_api_app_operations::DataManagementTarget,
     source_id: Option<&str>,
 ) -> Result<Option<(PathBuf, PathBuf)>, StatusCode> {
     let a = authorize_scoped(path, headers, target.scope.tenant_scope(), &target.target_host_id,
@@ -2382,7 +2382,7 @@ pub(in super::super) fn authorize_data_migration(
 /// Explicit export grant, complete principal binding and local host ownership.
 pub(in super::super) fn authorize_device_sync_upload(
     path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::DataManagementTarget,
+    target: &vw_api_app_operations::DataManagementTarget,
 ) -> Result<(PathBuf, PathBuf), StatusCode> {
     let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
         &target.target_host_id, None, Capability::DeviceSyncUpload(target.scope.project_id()))?;
@@ -2415,7 +2415,7 @@ pub(in super::super) fn authorize_device_sync_probe(
 }
 
 #[cfg(target_os = "macos")]
-pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
+pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_app_operations::DataManagementTarget) -> Result<(PathBuf,PathBuf,PathBuf),StatusCode> {
     let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataBackups(target.scope.project_id()))?;
     if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
     let [app,device,environment]=a.host.data_location_roots.ok_or(StatusCode::NOT_IMPLEMENTED)?;
@@ -2423,7 +2423,7 @@ pub(in super::super) fn data_location_roots(path: Option<&Path>, headers: &Heade
     Ok((app,device,environment))
 }
 
-pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_types::agent_apps::data_management::DataManagementTarget) -> Result<(),StatusCode> {
+pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &HeaderMap, target: &vw_api_app_operations::DataManagementTarget) -> Result<(),StatusCode> {
     let a=authorize_scoped(path,headers,target.scope.tenant_scope(),&target.target_host_id,None,Capability::DataExport(target.scope.project_id()))?;
     if a.principal!=target.principal_id { return Err(StatusCode::FORBIDDEN); }
     Ok(())
@@ -2432,7 +2432,7 @@ pub(in super::super) fn authorize_data_export(path: Option<&Path>, headers: &Hea
 /// Download authority is independent from export authority. Recovery stays host-local.
 pub(in super::super) fn authorize_device_sync_download(
     path: Option<&Path>, headers: &HeaderMap,
-    target: &vw_api_types::agent_apps::DataManagementTarget,
+    target: &vw_api_app_operations::DataManagementTarget,
 ) -> Result<(PathBuf, PathBuf, PathBuf), StatusCode> {
     let a = authorize_scoped(path, headers, target.scope.tenant_scope(),
         &target.target_host_id, None, Capability::DeviceSyncDownload(target.scope.project_id()))?;

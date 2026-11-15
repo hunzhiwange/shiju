@@ -58,8 +58,8 @@ fn cc_apps_action_contract_roundtrip_submission_and_existing_task_result() {
     for status in ["queued", "running", "completed", "failed", "cancelled"] {
         let wire = json!({"operationId":"task-1", "status":status});
         let dto: AppActionExecutionResult = serde_json::from_value(wire.clone()).unwrap();
-        let _: crate::id::TaskId = dto.operation_id.clone();
-        let _: crate::task::TaskStatus = dto.status.clone();
+        let _: vw_api_transport::TaskId = dto.operation_id.clone();
+        let _: vw_api_task::TaskStatus = dto.status.clone();
         assert_eq!(serde_json::to_value(dto).unwrap(), wire);
     }
 }

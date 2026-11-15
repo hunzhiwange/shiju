@@ -1,3 +1,4 @@
+use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
 use vw_api_app_identity::{AppId, AppInstallationEnvironment, AppInstallationSource, AppRuntimeKind};
 //! Expanded installation details keep diagnostics and destructive actions out of the overview.
 use super::{catalog, launch, lifecycle, message, uninstall};

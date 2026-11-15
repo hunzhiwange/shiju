@@ -1,7 +1,7 @@
 //! An inert share preview; only Confirm creates an SDK write.
 use crate::app::{Message, components::system_settings_common::*, message::settings::prompts::{message, Event}};
 use iced::{Element, widget::{button, checkbox, column, row, text}};
-use vw_gateway_client::vw_api_types::agent_apps::PromptSharePayload;
+use vw_api_app_operations::PromptSharePayload;
 use crate::app::message::settings::prompts::shared_import::Event as ImportEvent;
 
 #[derive(Clone, Debug)]

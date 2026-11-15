@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}};
 use vw_agent_apps::{apps::lifecycle::operations::{Operation, OperationFailure, Phase}, workspace_paths::PathError};
 use {
-    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_app_operations::AppOperationStatus,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

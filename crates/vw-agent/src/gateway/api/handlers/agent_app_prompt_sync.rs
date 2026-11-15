@@ -87,7 +87,7 @@ async fn submit(Extension(jobs): Extension<Jobs>, Extension(policy): Extension<P
     let contexts = tokio::task::spawn_blocking(move || {
         let mut contexts = Vec::new();
         for app in apps {
-            vw_api_types::agent_apps::PromptResource::Application { app_id: app }.validate_application_access()
+            vw_api_app_operations::PromptResource::Application { app_id: app }.validate_application_access()
                 .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
             contexts.push(super::agent_apps::authorize_prompts_activation(path.as_deref(), &h, &p, &host, app)?);
         }

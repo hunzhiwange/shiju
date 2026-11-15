@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use std::{collections::HashMap, path::PathBuf, sync::{Arc, Mutex}, time::{Instant, Duration}};
 use crate::{global_database::GlobalDatabase, gateway::settings_store::GatewaySettingsStore};
 use {
-    vw_api_types::agent_apps::data_management::*,
+    vw_api_app_operations::data_management::*,
     vw_api_app_identity::AppUserPreferences,
     vw_api_transport::id::TenantScope,
 };

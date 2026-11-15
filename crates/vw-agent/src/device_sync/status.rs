@@ -3,11 +3,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
-use vw_api_types::{
-    agent_apps::DataManagementTarget,
-    device_sync_config::DeviceSyncTransport,
-    device_sync_task::{SyncErrorCode, SyncRemoteSnapshot, SyncTaskState, SyncTaskStatus},
-};
+use vw_api_types::{device_sync_config::DeviceSyncTransport, device_sync_task::{SyncErrorCode, SyncRemoteSnapshot, SyncTaskState, SyncTaskStatus}};
+use vw_api_app_operations::{DataManagementTarget};
 use crate::{gateway::settings_store::GatewaySettingsStore, global_database::GlobalDatabase};
 use super::tasks::Record;
 

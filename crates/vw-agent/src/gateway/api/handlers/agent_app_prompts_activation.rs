@@ -105,7 +105,7 @@ pub(super) fn execute(
     };
     use {
     vw_api_transport::ProjectScope,
-    vw_api_types::agent_apps::PromptResource,
+    vw_api_app_operations::PromptResource,
 };
     let unavailable = || (StatusCode::SERVICE_UNAVAILABLE, "target_unavailable");
     let conflict = || (StatusCode::CONFLICT, "revision_conflict");

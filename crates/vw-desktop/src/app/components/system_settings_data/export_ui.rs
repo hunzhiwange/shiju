@@ -3,7 +3,7 @@ use crate::app::message::settings::data_management::export_ui::{self, Event, mes
 use crate::app::components::system_settings_common::*;
 use iced::{Element};
 use iced::widget::{button, checkbox, column, row, text};
-use vw_gateway_client::vw_api_types::agent_apps::data_management::DataCategory;
+use vw_api_app_operations::DataCategory;
 
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     button(text("导出脱敏配置")).padding([8, 14]).style(rounded_action_btn_style)

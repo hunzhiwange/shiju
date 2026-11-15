@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::ProjectId,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_app_operations::AppOperationStatus,
     vw_api_transport::id::TaskId,
 };
 

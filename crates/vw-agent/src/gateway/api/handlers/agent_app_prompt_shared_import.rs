@@ -1,3 +1,4 @@
+use vw_api_app_operations::{ImportPromptShareApiRequest, ImportPromptShareResult, PromptActivationChoice, PromptEntry, PromptRevision, PromptShareActivationError};
 use vw_api_app_identity::{AppId};
 //! Confirmed shares use scoped create-only storage, then guarded native activation.
 use axum::{Extension, Json, Router, extract::{DefaultBodyLimit, rejection::JsonRejection}, http::{HeaderMap, StatusCode, header}, response::{IntoResponse, Response}, routing::post};
@@ -5,7 +6,7 @@ use std::path::PathBuf;
 use crate::global_database::GlobalDatabase;
 use {
     vw_api_transport::TenantScope,
-    vw_api_types::agent_apps::ImportPromptShareApiRequest,
+    vw_api_app_operations::ImportPromptShareApiRequest,
 };
 
 #[derive(Clone)]
@@ -43,12 +44,12 @@ async fn import(Extension(policy): Extension<Policy>, Extension(tenant): Extensi
 }
 #[cfg(not(target_os = "macos"))]
 fn execute(_: Option<PathBuf>, _: TenantScope, _: HeaderMap, _: GlobalDatabase,
-    _: ImportPromptShareApiRequest) -> Result<vw_api_types::agent_apps::ImportPromptShareResult, Failure> {
+    _: ImportPromptShareApiRequest) -> Result<vw_api_app_operations::ImportPromptShareResult, Failure> {
     Err((StatusCode::UNPROCESSABLE_ENTITY, "unsupported_target"))
 }
 #[cfg(target_os = "macos")]
 fn execute(policy: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, db: GlobalDatabase,
-    q: ImportPromptShareApiRequest) -> Result<vw_api_types::agent_apps::ImportPromptShareResult, Failure> {
+    q: ImportPromptShareApiRequest) -> Result<vw_api_app_operations::ImportPromptShareResult, Failure> {
     use crate::agent_apps::prompts_store::{PromptScope, PromptsStore, PromptEntry as StoredEntry, PromptCatalog};
     use {
     vw_api_transport::ProjectScope,

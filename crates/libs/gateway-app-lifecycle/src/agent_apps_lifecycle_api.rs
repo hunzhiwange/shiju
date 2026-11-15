@@ -1,4 +1,5 @@
 //! Typed lifecycle requests. Recovery reads the existing operation; writes are never replayed.
+use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewRequest, AppActionSubmitRequest, AppOperationStatus};
 use super::GatewayAppLifecycleClient;
 use serde::{Serialize, de::DeserializeOwned};
 use {

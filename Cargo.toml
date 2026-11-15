@@ -17,6 +17,7 @@ members = [
   "crates/libs/desktop-config",
   "crates/libs/session-text",
   "crates/libs/api-model-catalog",
+  "crates/libs/api-app-operations",
   "crates/libs/session-ui-types",
   "crates/libs/api-app-auth",
   "crates/libs/message-types",

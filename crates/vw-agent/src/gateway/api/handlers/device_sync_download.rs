@@ -19,7 +19,7 @@ pub(super) struct DownloadRouting;
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct DownloadRequest {
-    target: vw_api_types::agent_apps::DataManagementTarget,
+    target: vw_api_app_operations::DataManagementTarget,
     request_id: String,
     expected_remote_snapshot: SyncRemoteSnapshot,
     expected_local_snapshot: String,

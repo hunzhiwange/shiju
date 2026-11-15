@@ -8,7 +8,7 @@ use super::{
 };
 use sha2::{Digest, Sha256};
 use std::{fs::File, io::Read, os::fd::AsRawFd, path::Path};
-use vw_api_types::agent_apps::data_management::*;
+use vw_api_app_operations::data_management::*;
 
 /// Serializes API operations across processes without inventing another store.
 /// Keep alive through capture, publication and response metadata readback.

@@ -24,9 +24,9 @@ use vw_agent_apps::{
     usage::cache::UsageCacheResult,
 };
 use {
-    vw_api_types::agent_apps::AppActionExecutionResult,
+    vw_api_app_operations::AppActionExecutionResult,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::AppOperationStatus,
+    vw_api_app_operations::AppOperationStatus,
     vw_api_app_auth::AuthErrorCode,
     vw_api_types::apps_usage::UsageQueryKind,
     vw_api_types::apps_usage::UsageQueryOutcome,

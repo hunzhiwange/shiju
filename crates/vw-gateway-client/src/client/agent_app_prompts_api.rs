@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use {
     vw_api_transport::ProjectId,
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::PromptResource,
-    vw_api_types::agent_apps::PromptTargetPreview,
+    vw_api_app_operations::PromptResource,
+    vw_api_app_operations::PromptTargetPreview,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -131,13 +131,13 @@ impl GatewayClient {
         &self,
         scope: &AgentAppPromptsScope,
         revision: u64,
-        import: &vw_api_types::agent_apps::ImportPromptShareRequest,
+        import: &vw_api_app_operations::ImportPromptShareRequest,
         token: &str,
-    ) -> Result<vw_api_types::agent_apps::ImportPromptShareResult, AgentAppPromptsError> {
+    ) -> Result<vw_api_app_operations::ImportPromptShareResult, AgentAppPromptsError> {
         if scope.app_id != import.target_app || import.validate().is_err() {
             return Err(AgentAppPromptsError::InvalidInput);
         }
-        let body = serde_json::to_value(vw_api_types::agent_apps::ImportPromptShareApiRequest {
+        let body = serde_json::to_value(vw_api_app_operations::ImportPromptShareApiRequest {
             project_id: scope.project_id.clone(), target_host_id: scope.target_host_id.clone(),
             revision, import: import.clone(),
         }).map_err(|_| AgentAppPromptsError::InvalidInput)?;

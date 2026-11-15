@@ -1,6 +1,7 @@
 //! Fixed Hermes dashboard actions; no command, environment or filesystem inputs.
 use serde::{Deserialize, Serialize};
-use crate::{agent_apps::AppOperationStatus, id::ProjectId};
+use vw_api_app_operations::AppOperationStatus;
+use crate::id::ProjectId;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DashboardScope {

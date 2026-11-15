@@ -1,5 +1,5 @@
 //! Explicit imports create inert catalog data; they never project to native files.
-use vw_api_types::{agent_apps::PromptContentSnapshot, agent_apps::PromptResource};
+use vw_api_app_operations::{PromptContentSnapshot, PromptResource};
 use vw_api_app_identity::{AppId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

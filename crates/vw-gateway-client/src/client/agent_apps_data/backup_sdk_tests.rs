@@ -2,7 +2,7 @@ use super::super::test_support;
 use super::*;
 use serde_json::json;
 use {
-    vw_api_types::agent_apps::data_management::*,
+    vw_api_app_operations::data_management::*,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

@@ -2,7 +2,7 @@
 use super::super::GatewayClient;
 use super::DataMigrationError;
 use serde::{Deserialize, Serialize};
-use vw_api_types::agent_apps::data_management::*;
+use vw_api_app_operations::data_management::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

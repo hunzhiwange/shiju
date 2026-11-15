@@ -1,6 +1,6 @@
 //! Cancellation responses retain the real state, including a too-late commit.
 use {
-    vw_api_types::agent_apps::DataManagementTarget,
+    vw_api_app_operations::DataManagementTarget,
     vw_api_transport::id::TaskId,
     vw_api_types::device_sync_task::SyncErrorCode,
     vw_api_types::device_sync_task::SyncTaskStatus,

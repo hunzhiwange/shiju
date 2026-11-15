@@ -1,3 +1,4 @@
+use vw_api_app_operations::{AppActionPreview, AppActionPreviewRequest, AppActionSubmitRequest, AppActionTarget, AppLifecycleAction, AppOperationPhase, AppOperationStatus};
 use vw_api_app_identity::{AppInstallationSource};
 //! SDK-only lifecycle interaction. Recover reads; never replay an uncertain submission.
 use super::{AppsCatalogMessage, SettingsMessage};

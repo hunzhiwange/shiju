@@ -106,7 +106,7 @@ async fn terminal(client: &GatewayClient, id: &TaskId) -> AppsUsageOperation {
     tokio::time::timeout(std::time::Duration::from_secs(8), async {
         loop {
             let event = client.apps_usage_operation_events(HOST, id, TOKEN).await.unwrap();
-            if event.operation.phase == vw_api_types::agent_apps::AppOperationPhase::Terminal {
+            if event.operation.phase == vw_api_app_operations::AppOperationPhase::Terminal {
                 return event;
             }
         }

@@ -18,7 +18,7 @@ use vw_agent_apps::data_management::{
     safety_snapshot::SafetySnapshotReceipt,
 };
 use {
-    vw_api_types::agent_apps::data_management::*,
+    vw_api_app_operations::data_management::*,
     vw_api_transport::id::TenantScope,
     vw_api_task::TaskStatus,
 };

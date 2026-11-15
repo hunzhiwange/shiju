@@ -1,3 +1,4 @@
+use vw_api_app_operations::{AppOperationPhase};
 use super::toolbar_button;
 use crate::app::{
     App, Message,
@@ -10,11 +11,7 @@ use iced::{
     Element,
     widget::{checkbox, column, row, text},
 };
-use vw_gateway_client::vw_api_types::{
-    agent_apps::{AppId, AppOperationPhase},
-    mcp_management::{McpBatchOutcome, McpNativeStatus},
-
-};
+use vw_gateway_client::vw_api_types::{agent_apps::{AppId}, mcp_management::{McpBatchOutcome, McpNativeStatus}};
 use vw_api_task::TaskStatus;
 pub(crate) fn panel(app: &App) -> Element<'_, Message> {
     use crate::app::components::system_settings_common::*;

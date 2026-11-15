@@ -3,11 +3,8 @@ use std::{future::Future, time::Duration};
 
 use tokio::{sync::watch, time::Instant};
 use tokio_util::sync::CancellationToken;
-use vw_api_types::{
-    agent_apps::DataManagementTarget,
-    device_sync_config::DeviceSyncTransport,
-    device_sync_task::{SyncDirection, SyncErrorCode, SyncRemoteSnapshot, SyncStartRequest, SyncTaskOrigin},
-};
+use vw_api_types::{device_sync_config::DeviceSyncTransport, device_sync_task::{SyncDirection, SyncErrorCode, SyncRemoteSnapshot, SyncStartRequest, SyncTaskOrigin}};
+use vw_api_app_operations::{DataManagementTarget};
 
 use super::{operation_lock::{acquire_sync_lock, CurrentSyncConnection}, tasks};
 

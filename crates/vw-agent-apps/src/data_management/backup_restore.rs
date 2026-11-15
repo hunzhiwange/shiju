@@ -1,6 +1,7 @@
 //! Restore orchestration for authorized owner bundles, never whole databases.
+use vw_api_app_operations::{DataManagementTarget, DataOperationResult};
 use std::path::Path;
-use vw_api_types::agent_apps::{DataManagementTarget, DataOperationResult};
+
 use super::{
     backup_create::{LocalBackupReceipt, open_local_backup},
     backup_delete::BackupDeleteError,

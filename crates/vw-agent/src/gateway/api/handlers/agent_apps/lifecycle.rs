@@ -1,4 +1,5 @@
 //! Fixed lifecycle endpoints; opaque IDs never confer scope or host authority.
+use vw_api_app_operations::{AppActionExecutionResult, AppActionPreview, AppActionPreviewId, AppActionPreviewRequest, AppActionSubmitRequest, AppLifecycleAction, AppOperationPhase, AppOperationStatus};
 use super::access;
 use axum::{
     Extension, Json, Router,

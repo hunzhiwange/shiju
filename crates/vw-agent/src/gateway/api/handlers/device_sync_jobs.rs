@@ -12,7 +12,7 @@ pub(super) struct Policy(pub(super) Option<PathBuf>);
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct UploadRequest {
-    target: vw_api_types::agent_apps::DataManagementTarget,
+    target: vw_api_app_operations::DataManagementTarget,
     request_id: String,
     expected_remote_snapshot: SyncExpectedRemote,
     selection: crate::agent_apps::shared_snapshot::SnapshotSelection,
@@ -158,7 +158,7 @@ async fn run(database: GlobalDatabase, policy: Policy, headers: HeaderMap, reque
 
 #[cfg(target_os = "macos")]
 pub(super) fn configuration_revision(database: &GlobalDatabase, root: &std::path::Path,
-    target: &vw_api_types::agent_apps::DataManagementTarget,
+    target: &vw_api_app_operations::DataManagementTarget,
     transport: vw_api_types::device_sync_config::DeviceSyncTransport,
 ) -> Result<serde_json::Value, SyncErrorCode> {
     use crate::device_sync::{webdav_settings::WebDavSettingsStore, s3_settings::S3SettingsStore};

@@ -3,7 +3,7 @@
 use std::path::Path;
 use axum::http::HeaderMap;
 use crate::{global_database::GlobalDatabase, agent_apps::shared_snapshot::SnapshotSelection};
-use vw_api_types::agent_apps::DataManagementTarget;
+use vw_api_app_operations::DataManagementTarget;
 use vw_agent_apps::providers::live::commit::{ExecutionHostId, ProviderTransactions};
 
 pub(super) async fn refresh(database: &GlobalDatabase, policy: Option<&Path>, headers: &HeaderMap,

@@ -4,7 +4,7 @@ use crate::app::message::SettingsMessage;
 use iced::Task;
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::agent_apps::data_management::*,
+    vw_gateway_client::vw_api_app_operations::data_management::*,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

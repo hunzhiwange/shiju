@@ -1,6 +1,7 @@
+use vw_api_app_operations::{PromptTargetPreview};
 use crate::app::{Message, components::system_settings_common::*, message::settings::prompts::{Event, message}};
 use iced::{Element, widget::{button, column, text}};
-use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId, PromptTargetPreview}};
+use vw_gateway_client::{AgentAppPromptCatalog, AgentAppPromptsScope, vw_api_types::agent_apps::{AppId}};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct State {

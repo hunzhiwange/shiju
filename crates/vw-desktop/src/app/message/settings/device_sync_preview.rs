@@ -1,13 +1,7 @@
 //! Explicit preview/confirmation. Call invalidate whenever scope, selection or draft changes.
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
-    agent_apps::DataManagementTarget,
-    device_sync_config::{
-        DeviceSyncLocalPreview, DeviceSyncRemoteCompatibility, DeviceSyncRemoteResponse,
-        DeviceSyncTransport,
-    },
-    device_sync_task::{SyncDirection, SyncExpectedRemote, SyncTaskStatus},
-};
+use vw_gateway_client::vw_api_types::{device_sync_config::{DeviceSyncLocalPreview, DeviceSyncRemoteCompatibility, DeviceSyncRemoteResponse, DeviceSyncTransport}, device_sync_task::{SyncDirection, SyncExpectedRemote, SyncTaskStatus}};
+use vw_api_app_operations::{DataManagementTarget};
 use vw_gateway_client::{
     DeviceSyncDownloadRequest, DeviceSyncOperationsError, DeviceSyncSelection,
     DeviceSyncUploadRequest, GatewayClient,

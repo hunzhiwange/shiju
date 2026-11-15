@@ -573,7 +573,7 @@ mod login;
 
 #[cfg(target_os = "macos")]
 pub(super) async fn sync_saved(database: GlobalDatabase, policy: Option<PathBuf>, headers: HeaderMap,
-    target: &vw_api_types::agent_apps::DataManagementTarget, id: &str,
+    target: &vw_api_app_operations::DataManagementTarget, id: &str,
 ) -> Result<(), ()> {
     let body = serde_json::from_value(serde_json::json!({"targetHostId": target.target_host_id})).map_err(|_| ())?;
     let response = reapply(Extension(Policy::new(policy)), Extension(target.scope.tenant_scope().clone()),

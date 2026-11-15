@@ -1,8 +1,9 @@
 //! Domain dispatch supplies a decoded payload after opening the explicit target scope.
+use vw_api_app_operations::{ImportPromptShareRequest, ImportPromptShareResult, PromptActivationChoice, PromptSharePayload};
 use crate::app::{App, Message, state::AgentAppsContext};
 use super::{message, Event as PromptEvent};
 use iced::Task;
-use vw_gateway_client::{AgentAppPromptsScope, vw_api_types::agent_apps::{PromptSharePayload, ImportPromptShareRequest, ImportPromptShareResult, PromptActivationChoice}};
+use vw_gateway_client::{AgentAppPromptsScope};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(PromptSharePayload), Cancel, Enable(bool), Confirm,

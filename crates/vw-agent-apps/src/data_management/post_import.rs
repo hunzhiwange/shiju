@@ -1,6 +1,7 @@
 //! Host-side post-commit refresh. Callbacks must use the existing domain owner
 //! under the authorized target lock; unavailable owners must return an error.
 //! This module never imports data or rolls a committed transaction back.
+use vw_api_app_operations::{DataCategory, DataManagementError, DataManagementErrorCode, DataManagementTarget, DataOperationResult};
 use vw_api_types::agent_apps::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

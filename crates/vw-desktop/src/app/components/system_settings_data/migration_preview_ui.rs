@@ -5,7 +5,7 @@ use iced::{Element, Task};
 use iced::widget::{button, column, text};
 use {
     vw_api_transport::ProjectScope,
-    vw_gateway_client::vw_api_types::agent_apps::data_management::*,
+    vw_gateway_client::vw_api_app_operations::data_management::*,
 };
 
 #[derive(Clone, Default)]

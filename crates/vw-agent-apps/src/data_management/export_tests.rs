@@ -2,7 +2,7 @@ use super::{export::*, safety_snapshot::*};
 use std::{fs, os::unix::fs::PermissionsExt};
 use serde_json::json;
 use {
-    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_app_operations::DataCategory,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::TenantScope,

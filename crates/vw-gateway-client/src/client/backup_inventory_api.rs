@@ -2,7 +2,7 @@
 use super::{GatewayClient, agent_apps_read_api::AgentAppsReadError};
 use {
     vw_api_transport::ProjectScope,
-    vw_api_types::agent_apps::data_management::DataBackupSummary,
+    vw_api_app_operations::DataBackupSummary,
 };
 impl GatewayClient {
     pub async fn data_backup_inventory(&self, project: &ProjectScope, host: &str)

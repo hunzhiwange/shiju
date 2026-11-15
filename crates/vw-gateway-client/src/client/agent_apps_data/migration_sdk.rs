@@ -1,7 +1,7 @@
 //! Migration transport uses opaque authorized sources, never client filesystem paths.
 use super::super::GatewayClient;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
-use vw_api_types::agent_apps::data_management::*;
+use vw_api_app_operations::data_management::*;
 
 /// Safe transport errors: no raw HTTP payloads, URLs or credentials are retained.
 #[derive(Debug, Clone, PartialEq, Eq)]

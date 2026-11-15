@@ -80,7 +80,7 @@ fn execute(_: Option<PathBuf>, _: TenantScope, _: HeaderMap, _: GlobalDatabase, 
 }
 #[cfg(target_os = "macos")]
 fn execute(policy: Option<PathBuf>, tenant: TenantScope, headers: HeaderMap, db: GlobalDatabase, q: Request) -> Result<serde_json::Value, Failure> {
-    use vw_api_types::agent_apps::PromptResource;
+    use vw_api_app_operations::PromptResource;
     let project = ProjectScope::new(tenant, q.project_id).map_err(|_| (StatusCode::BAD_REQUEST, "invalid_request"))?;
     vw_agent_apps::providers::validate_identity(&q.target_host_id).map_err(|_| (StatusCode::BAD_REQUEST, "invalid_host"))?;
     let authorize = |app, write| {

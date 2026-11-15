@@ -1,6 +1,7 @@
 //! Scoped import progress on the shared host executor. The task owner must hold
 //! its target/restore exclusion lock until run returns and persist each update
 //! through `save`; a failed save stops further writes. No payloads are reported.
+use vw_api_app_operations::{DataManagementError, DataManagementErrorCode, DataManagementTarget, DataOperation, DataOperationPhase, DataOperationProgress, DataOperationResult, DataRollbackState};
 use std::{collections::BTreeSet, path::Path, sync::{Arc, Mutex}};
 use vw_api_types::{agent_apps::*, };
 use vw_api_task::TaskStatus;

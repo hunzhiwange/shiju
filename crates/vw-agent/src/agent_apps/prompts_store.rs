@@ -100,7 +100,7 @@ impl PromptsStore {
         mut authorize: impl FnMut(PromptScope<'_>) -> Result<()>,
     ) -> Result<Vec<PromptCopyResult>> {
         authorize(source)?;
-        vw_api_types::agent_apps::PromptResource::Application { app_id: source.app }
+        vw_api_app_operations::PromptResource::Application { app_id: source.app }
             .validate_application_access()
             .map_err(|_| anyhow::anyhow!("unsupported prompt copy source"))?;
         let original = self.get(source, id)?

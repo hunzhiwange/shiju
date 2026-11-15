@@ -3,8 +3,8 @@
 use std::{future::Future, sync::Arc};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
-use vw_api_types::{agent_apps::DataManagementTarget, device_sync_config::DeviceSyncTransport,
-    device_sync_task::{SyncErrorCode, SyncRemoteSnapshot}};
+use vw_api_types::{device_sync_config::DeviceSyncTransport, device_sync_task::{SyncErrorCode, SyncRemoteSnapshot}};
+use vw_api_app_operations::{DataManagementTarget};
 use super::{auto_sync, change_events, operation_lock::CurrentSyncConnection, tasks};
 
 struct Worker {

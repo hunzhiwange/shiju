@@ -22,7 +22,7 @@ use vw_agent_apps::data_management::{
     safety_snapshot::*,
 };
 use {
-    vw_api_types::agent_apps::data_management::*,
+    vw_api_app_operations::data_management::*,
     vw_api_transport::id::TenantScope,
 };
 const NAMESPACE: &str = "data_restore_operations";

@@ -50,7 +50,7 @@ fn cc_data_27_recovery_lists_backups_with_corrupt_target() {
 #[test]
 fn cc_data_27_recovery_failure_preserves_original_evidence() {
     use super::{backup_restore::restore_local_backup, retention::RetentionPolicy};
-    use vw_api_types::agent_apps::DataManagementTarget;
+    use vw_api_app_operations::DataManagementTarget;
     let root = tempfile::tempdir().unwrap();
     fs::set_permissions(root.path(), fs::Permissions::from_mode(0o700)).unwrap();
     let root = root.path().canonicalize().unwrap();

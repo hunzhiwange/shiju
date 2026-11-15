@@ -359,7 +359,7 @@ pub struct McpNativePreviewEntry {
 #[serde(rename_all = "camelCase")]
 pub struct McpResyncOperationStatus {
     #[serde(flatten)]
-    pub operation: crate::agent_apps::AppOperationStatus,
+    pub operation: vw_api_app_operations::AppOperationStatus,
     pub targets: Vec<McpResyncTargetResult>,
     pub outcome: Option<McpBatchOutcome>,
 }

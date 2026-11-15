@@ -1,5 +1,5 @@
 use super::*;
-use crate::id::{ProjectId, ProjectScope, TenantScope};
+use vw_api_transport::{ProjectId, ProjectScope, TenantScope};
 use serde_json::json;
 
 #[test]

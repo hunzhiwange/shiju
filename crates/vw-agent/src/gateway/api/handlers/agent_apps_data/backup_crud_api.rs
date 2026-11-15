@@ -8,7 +8,7 @@ use axum::{
 };
 use std::path::PathBuf;
 use {
-    vw_api_types::agent_apps::data_management::*,
+    vw_api_app_operations::data_management::*,
     vw_api_transport::id::TenantScope,
 };
 #[derive(Clone)]

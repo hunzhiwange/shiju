@@ -1,3 +1,4 @@
+use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget, AppLifecycleAction};
 use vw_api_app_identity::{
     AppId,
     AppInstallationEnvironment,

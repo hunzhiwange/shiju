@@ -3,7 +3,7 @@ use super::{export::export_portable_package, package_import::stage_portable_pack
 use serde_json::json;
 use std::{fs, os::unix::fs::PermissionsExt};
 use {
-    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_app_operations::DataCategory,
     vw_api_transport::id::ProjectId,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,

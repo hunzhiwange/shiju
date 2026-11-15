@@ -1,7 +1,7 @@
 //! Native portable packages enter the same scoped, read-only preview staging as
 //! other sources. This module neither extracts files nor writes domain storage.
 use std::collections::BTreeMap;
-use vw_api_types::agent_apps::data_management::DataCategory;
+use vw_api_app_operations::DataCategory;
 use super::{
     export::verify_portable_package,
     safety_snapshot::SafetySnapshotError,

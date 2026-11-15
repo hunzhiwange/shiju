@@ -11,7 +11,7 @@ use vw_agent_apps::data_management::{
 };
 use {
     vw_api_app_identity::AppId,
-    vw_api_types::agent_apps::data_management::DataCategory,
+    vw_api_app_operations::DataCategory,
     vw_api_transport::id::ProjectScope,
     vw_api_transport::id::TenantScope,
 };

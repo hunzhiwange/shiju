@@ -12,7 +12,7 @@ use vw_api_app_identity::AppId;
 use vw_api_app_provider_profiles::codex_catalog::CodexProfile;
 use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::*;
-pub const CATALOG_FILENAME: &str = "shiju-model-catalog.json";
+pub use app_aggregation::CATALOG_FILENAME;
 pub fn settings(profile: &CodexProfile) -> Value {
     json!({"config":profile.config,"auth":{"OPENAI_API_KEY":profile.api_key}})
 }

@@ -2484,3 +2484,11 @@ fill_opencode 的导入修正随文件移动保留，独立于本任务提交暂
 - 原 aggregation 模块逐项重导出；membership、preview、publish、resolve、providers/desktop_mapping 及 gateway 调用者保持既有路径。omo_slim 跨包实际使用的 take_object/read_candidate 最小公开，保持 macOS cfg；其它 cfg 与错误语义保留，无资源 include 路径变动。
 - 直接依赖按实际 import 声明；OMO 的配置补丁、路径、脱敏和身份验证依赖仅在 macOS；测试使用 app-config-patch/tempfile。不依赖 vw-agent-apps 或 app-auth，无反向依赖；旧门面依赖仍由其它模块使用。
 - 静态证据：Python tomllib 校验直接路径与包名；源码检索导出、调用者、测试注册；git diff --check 与 diff --stat。未运行 Cargo、单元及实机测试，统一验收待授权；届时覆盖新增库与调用者编译、迁移测试和平台行为。Cargo.lock 未修改。
+
+### 任务 28：聚合事务迁移（静态审阅完成）
+
+- app-aggregation 接收 member_keys、member_validation、membership、failover_guard、omo_scope、omo_write、omo_slim、codex_settings 八个实现及七个独立测试文件；default_provider_tests 保持 membership 内的 path 注册。任务 27 移交的三个状态适配均已接收。原 aggregation/mod.rs 逐项重导出，lib.rs 的原模块声明保持不变。
+- CATALOG_FILENAME 随设置投影成为新包常量，原 Codex 适配器重导出同一符号；无常量副本。写入与状态依赖直接指向 app-auth，OMO Slim 使用已下沉 app-provider-native，不回依赖门面。原依赖仍有调用者，保留。测试仅修改 import，保留 cfg、事务钩子及权限断言，无资源路径。
+- 任务 29 必须接收留存的 catalog_ack、catalog_generation、claude_publish、codex_publish、daemon_restart、exit_restore、lifecycle_restore、preview、resolve、stale_clients 及对应独立测试（含 claude_refresh、codex_resync 和 daemon_restart_desktop）。实际依赖为 providers::codex_catalog::{CodexFiles,CATALOG_FILENAME}、providers::mode_apply::{ClaudeMode,ModeApplyError,RouteRuntime}、providers::desktop_mapping::catalog 等尚未下沉适配器。模式应用触发与恢复编排随任务 29 的供应商服务落位；不把这些上层类型复制到下层，也不新增回调 trait 掩盖环。
+- codex_effort_tests 已由任务 27 在 app-aggregation-catalog 注册，本任务不重复搬迁。新包原始 member_keys/member_validation/codex_settings 注册条件保持原样；其所引用的 macOS 状态类型在非 macOS 目标的既有可编译性留待统一验收，不声称跨平台已通过。
+- 静态证据：15 个文件移动及 import 差异审阅、测试模块/path 完整性、公开符号与真实调用者检索、Python 3.9 标准库路径/依赖遍历（无 tomllib，TOML 区段人工审阅）、git diff --check。未运行 Cargo、rustc、单元及实机测试，Cargo.lock 未修改。统一验收待授权：新包与调用者编译、迁移定向测试、macOS 原生事务与恢复、Windows/Linux cfg 与锁文件一致性。

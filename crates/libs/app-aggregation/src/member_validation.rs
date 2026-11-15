@@ -1,4 +1,4 @@
-use crate::providers::live::commit::{AppState, Mode};
+use app_auth::providers::live::commit::{AppState, Mode};
 pub use app_aggregation_catalog::member_validation::{MemberValidationError, ProviderRole, validate_provider};
 use app_aggregation_catalog::member_validation::require_supported_app;
 use vw_api_app_identity::AppId;

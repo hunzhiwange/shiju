@@ -1,5 +1,5 @@
 use super::member_keys::allocate_key;
-use crate::providers::{
+use app_auth::providers::{
     live::{
         commit::{ExecutionHostId, PendingTarget, ProviderTransactions},
         write_guard::lock_app,

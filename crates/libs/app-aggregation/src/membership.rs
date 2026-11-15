@@ -10,7 +10,7 @@ use super::{
         MemberValidationError, ProviderRole, validate_member_removal, validate_provider,
     },
 };
-use crate::providers::{
+use app_auth::providers::{
     live::{
         commit::{AppState, Mode, ModeState, PendingTarget, ProviderTransactions},
         write_guard::{AppWriteGuard, WriteError},

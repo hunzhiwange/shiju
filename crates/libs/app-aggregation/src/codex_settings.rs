@@ -5,7 +5,7 @@ use super::{
     codex_subagent::plan_codex_subagent,
     model_ids::{Decoded, decode},
 };
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{AppState, Mode},
     patch_toml::TomlPatch,
 };
@@ -46,7 +46,7 @@ pub fn plan(
         && state.mode.as_ref().is_some_and(|m| m.mode == Mode::Proxy && m.attached);
     let managed = attached
         && doc.get("model_catalog_json").and_then(|i| i.as_str())
-            == Some(crate::providers::codex_catalog::CATALOG_FILENAME);
+            == Some(crate::CATALOG_FILENAME);
     let mut catalog: Option<Value> = if managed {
         Some(
             serde_json::from_slice(published.ok_or(InvalidConfiguration)?)

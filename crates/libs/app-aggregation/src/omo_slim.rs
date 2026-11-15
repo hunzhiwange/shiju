@@ -1,13 +1,13 @@
+use app_provider_native::providers::opencode::open_config_directory;
 //! Host-local configuration for the OpenCode OMO Slim variant.
 use super::omo_read::{OmoReadError, read_candidate, remove_credentials, take_object};
-use crate::providers::{
+use app_auth::providers::{
     live::{
         commit::ProviderTransactions,
         patch_json::{object_value, replace_object_preserving_trivia},
         stage::{FileChange, WholeFile},
         write_guard::{FilePrivacy, WriteError, lock_directory},
     },
-    opencode::open_config_directory,
     paths::{bounded, open_beneath},
     validate_identity,
 };

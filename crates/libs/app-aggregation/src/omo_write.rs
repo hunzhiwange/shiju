@@ -1,5 +1,5 @@
 //! Host-local edits of standard OMO's section in an existing unified document.
-use crate::providers::{
+use app_auth::providers::{
     live::{
         commit::ProviderTransactions,
         patch_json::{JsonPatch, object_value, replace_member_preserving_trivia},

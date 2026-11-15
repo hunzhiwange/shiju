@@ -1,4 +1,4 @@
-use crate::providers::mode_state::StackState;
+use app_auth::providers::mode_state::StackState;
 
 /// Reserve a routing key in the application state.
 pub fn allocate_key(stack: &mut StackState, id: &str, name: &str, icon: Option<&str>) -> String {

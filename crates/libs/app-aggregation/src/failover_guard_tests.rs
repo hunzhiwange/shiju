@@ -1,5 +1,5 @@
 use super::failover_guard::{FailoverError, admit};
-use crate::providers::{
+use app_auth::providers::{
     live::commit::{AppState, Mode, ModeState},
     mode_state::StackState,
 };

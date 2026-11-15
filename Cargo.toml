@@ -2,6 +2,7 @@
 members = [
   "crates/libs/gateway-shiju-knowledge",
   "crates/libs/app-aggregation-catalog",
+  "crates/libs/app-aggregation",
   "crates/libs/gateway-shiju-connector",
   "crates/libs/app-models",
   "crates/libs/gateway-shiju-app",

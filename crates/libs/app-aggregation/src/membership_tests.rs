@@ -1,9 +1,9 @@
+use app_models::edits;
 use super::{
     member_validation::MemberValidationError,
     membership::{MembershipChange, MembershipError, SavedMember, set_member},
 };
-use crate::{
-    models::edits,
+use app_auth::{
     providers::live::{
         commit::{AppState, ExecutionHostId, Mode, ModeState, PendingTarget, ProviderTransactions},
         write_guard::{AppWriteGuard, FilePrivacy, lock_app},

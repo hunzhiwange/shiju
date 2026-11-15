@@ -1,5 +1,5 @@
 use super::{MembershipChange, MembershipError, SavedMember, set_member};
-use crate::providers::{
+use app_auth::providers::{
     live::{
         commit::{AppState, ExecutionHostId, Mode, ModeState, PendingTarget, ProviderTransactions},
         write_guard::{AppWriteGuard, lock_app},

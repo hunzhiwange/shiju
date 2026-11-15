@@ -1,0 +1,27 @@
+[package]
+name = "app-aggregation"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+app-aggregation-catalog = { path = "../app-aggregation-catalog" }
+app-auth = { path = "../app-auth" }
+vw-api-app-aggregation = { path = "../api-app-aggregation", version = "0.6.0" }
+vw-api-app-identity = { path = "../api-app-identity", version = "0.6.0" }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+toml_edit = "0.22"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+app-provider-native = { path = "../app-provider-native" }
+app-routing-policy = { path = "../app-routing-policy" }
+vw-api-app-auth = { path = "../api-app-auth", version = "0.6.0" }
+vw-api-app-provider-environment = { path = "../api-app-provider-environment", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+app-auth = { path = "../app-auth", features = ["test-support"] }
+app-models = { path = "../app-models" }
+vw-api-model-catalog = { path = "../api-model-catalog", version = "0.6.0" }
+tempfile = "3"

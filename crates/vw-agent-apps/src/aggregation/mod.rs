@@ -4,10 +4,8 @@ pub use app_aggregation_catalog::model_ids;
 pub use app_aggregation_catalog::omo_read;
 
 
-pub mod member_keys;
+pub use app_aggregation::member_keys;
 
-#[cfg(all(test, target_os = "macos"))]
-mod member_keys_tests;
 
 pub use app_aggregation_catalog::codex_review;
 
@@ -15,30 +13,22 @@ pub use app_aggregation_catalog::codex_review;
 pub use app_aggregation_catalog::codex_classic;
 
 
-pub mod member_validation;
+pub use app_aggregation::member_validation;
 
-#[cfg(test)]
-mod member_validation_tests;
 
 #[cfg(target_os = "macos")]
-pub mod omo_scope;
+pub use app_aggregation::omo_scope;
 #[cfg(target_os = "macos")]
-pub mod omo_write;
+pub use app_aggregation::omo_write;
 
-#[cfg(all(test, target_os = "macos"))]
-mod omo_write_tests;
 
 #[cfg(target_os = "macos")]
-pub mod omo_slim;
+pub use app_aggregation::omo_slim;
 
-#[cfg(all(test, target_os = "macos"))]
-mod omo_slim_tests;
 
 #[cfg(target_os = "macos")]
-pub mod membership;
+pub use app_aggregation::membership;
 
-#[cfg(all(test, target_os = "macos"))]
-mod membership_tests;
 
 pub use app_aggregation_catalog::codex_catalog;
 
@@ -56,10 +46,8 @@ pub mod resolve;
 mod resolve_tests;
 
 #[cfg(target_os = "macos")]
-pub mod failover_guard;
+pub use app_aggregation::failover_guard;
 
-#[cfg(all(test, target_os = "macos"))]
-mod failover_guard_tests;
 
 #[cfg(target_os = "macos")]
 pub mod preview;
@@ -88,7 +76,7 @@ pub mod catalog_generation;
 #[cfg(all(test, target_os = "macos"))]
 mod catalog_generation_tests;
 
-pub mod codex_settings;
+pub use app_aggregation::codex_settings;
 
 #[cfg(all(test, target_os = "macos"))]
 mod codex_resync_tests;

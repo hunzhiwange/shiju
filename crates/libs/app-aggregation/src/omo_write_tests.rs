@@ -1,5 +1,6 @@
+use app_provider_native::providers::opencode::OpenCodeFiles;
 use super::omo_write::{OmoChange, OmoWriteError, snapshot, write};
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions},
     patch_json::object_value,
 };
@@ -258,12 +259,11 @@ fn aggregation_t33_omo_write_inserts_the_section_without_rewriting_codex() {
 
 #[test]
 fn aggregation_t33_omo_write_leaves_other_opencode_recovery_to_its_owner() {
-    use crate::providers::{
+    use app_auth::providers::{
         live::{
             stage::{FileChange, WholeFile},
             write_guard::{FilePrivacy, WriteError},
         },
-        opencode::OpenCodeFiles,
     };
     use std::ffi::OsStr;
 

@@ -1,5 +1,5 @@
 //! Project-scoped OMO selection settles in the native file transaction.
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{AppState, OmoSelection, PendingTarget, ProviderTransactions},
     stage::FileChange,
     write_guard::{AppWriteGuard, WriteError},
@@ -57,7 +57,7 @@ pub fn disable_absent(
     if !absent() || !unchanged() {
         return Err(WriteError::Conflict);
     }
-    let mut guard = crate::providers::live::write_guard::lock_app(
+    let mut guard = app_auth::providers::live::write_guard::lock_app(
         vw_api_app_identity::AppId::OpenCode,
         home,
     )?;

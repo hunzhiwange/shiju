@@ -3,7 +3,7 @@ use super::member_validation::{
     ProviderRole::{Default as DefaultRole, Member},
     validate_member_removal, validate_provider,
 };
-use crate::providers::{
+use app_auth::providers::{
     live::commit::{AppState, Mode, ModeState},
     mode_state::StackState,
 };

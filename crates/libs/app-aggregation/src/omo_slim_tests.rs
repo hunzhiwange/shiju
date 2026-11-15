@@ -1,5 +1,5 @@
 use super::omo_slim::{OmoSlimChange, OmoSlimError, snapshot, write};
-use crate::providers::live::{
+use app_auth::providers::live::{
     commit::{ExecutionHostId, HOOK, Phase, ProviderTransactions},
     patch_json::object_value,
     recovery::RecoveryOutcome,

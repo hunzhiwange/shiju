@@ -58,8 +58,8 @@ struct Cloud {
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.context.clone())
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
         Ok(vec![CloudVideoScope { brand_id: Some("neutral".into()), store_id: None }])
@@ -96,8 +96,8 @@ impl VideoPrepareCloud for Cloud {
 }
 #[async_trait::async_trait]
 impl VideoTranscriptCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.context.clone())
     }
     async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {
         Ok(

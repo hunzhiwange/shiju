@@ -47,7 +47,7 @@ fn video_edit_delivery_rejects_invalid_or_retimed_mapping() {
 
 use super::apply_test_cloud::*;
 use super::{VideoProjectJournal, assets::*, planning::*, preview::*};
-use crate::global_database::GlobalDatabase;
+use agent_database::GlobalDatabase;
 use anyhow::Result;
 use std::{collections::BTreeMap, sync::Arc};
 use tokio_util::sync::CancellationToken;

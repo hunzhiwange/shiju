@@ -1,7 +1,7 @@
 //! Native delivery boundary. Every call is scoped through the official caller's
 //! project rebinding and the original native permission/process lifecycle.
 use super::*;
-use crate::workflow::video_edit::{apply::*, assets::*, planning::*, preview::*, transcript::*};
+use crate::{apply::*, assets::*, planning::*, preview::*, transcript::*};
 use anyhow::{Context, Result, ensure};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;

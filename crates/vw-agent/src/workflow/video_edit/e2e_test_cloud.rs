@@ -132,8 +132,8 @@ pub(super) struct Cloud {
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.context.clone())
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
         self.scenario.record("scope.list", "authorized fixture scope");
@@ -177,8 +177,8 @@ impl VideoPrepareCloud for Cloud {
 }
 #[async_trait::async_trait]
 impl VideoTranscriptCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.context.clone())
     }
     async fn probe_transcript_media(&self, _: &str, _: &str) -> Result<Value> {
         self.scenario.record("transcript.probe", "source");

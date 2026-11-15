@@ -1,0 +1,50 @@
+[package]
+name = "workflow-video-edit"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+doctest = false
+
+[dependencies]
+url = "2"
+model-types = { path = "../model-types", version = "0.6.0" }
+workflow-core = { path = "../workflow-core", version = "0.6.0" }
+vw-api-workflow = { path = "../api-workflow", version = "0.6.0" }
+serde_yaml = "0.9"
+tool-context = { path = "../tool-context", version = "0.6.0" }
+tool-types = { path = "../tool-types", version = "0.6.0" }
+uuid = { version = "1.11", features = ["v4", "js"] }
+tempfile = "3"
+shell-words = "1"
+tracing = "0.1"
+agent-database = { path = "../agent-database", version = "0.6.0" }
+vw-api-transport = { path = "../api-transport", version = "0.6.0" }
+anyhow = "1"
+async-trait = "0.1.89"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+hex = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1", features = ["sync", "time", "rt", "macros", "net", "io-util"] }
+tokio-util = { version = "0.7.18", features = ["compat"] }
+reqwest = { version = "0.13", default-features = false }
+
+[target.'cfg(all(not(target_arch = "wasm32"), target_os = "windows"))'.dependencies]
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+
+[target.'cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))'.dependencies]
+rusqlite = "0.37.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+futures-util = "0.3.32"
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+agent-database = { path = "../agent-database", version = "0.6.0", features = ["test-support"] }
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+axum = "0.8"

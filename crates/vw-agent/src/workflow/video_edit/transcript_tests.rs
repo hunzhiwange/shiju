@@ -75,8 +75,8 @@ struct Cloud {
 }
 #[async_trait::async_trait]
 impl VideoTranscriptCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.context.clone())
     }
     async fn probe_transcript_media(&self, _: &str, _: &str) -> anyhow::Result<Value> {
         let mut p = probe();
@@ -200,7 +200,7 @@ fn video_edit_transcript_rejects_invalid_media_and_segment_order() {
 #[tokio::test]
 async fn video_edit_transcript_native_adapter_keeps_audio_ticket_private_and_queries_exact_task() {
     let (dir, context, skill) = super::cloud_tests::fixture("ok");
-    let provider = super::ShijuCloudVideoToolProvider::discover(
+    let provider = super::cloud::discover(
         context,
         std::slice::from_ref(&skill),
         Some(json!(["bash", "bash_wait", "bash_cancel"])),

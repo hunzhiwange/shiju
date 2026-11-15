@@ -1,7 +1,7 @@
 //! Normalize the verified media_probe projection, rather than assuming raw ffprobe JSON.
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-pub(crate) fn normalize_media_probe(value: Value) -> Result<Value> {
+pub fn normalize_media_probe(value: Value) -> Result<Value> {
     let duration = value["durationSec"].as_f64().context("missing probed duration")?;
     ensure!(duration.is_finite() && duration > 0.0, "invalid probed duration");
     let mut streams = Vec::new();

@@ -20,8 +20,7 @@ pub mod prepare;
 #[cfg(test)]
 mod prepare_tests;
 pub mod segments;
-#[cfg(test)]
-mod segments_tests;
+
 pub mod transcript;
 #[cfg(test)]
 mod transcript_tests;
@@ -34,23 +33,19 @@ mod assets_tests;
 #[cfg(test)]
 mod cloud_assets_tests;
 pub mod merge;
-#[cfg(test)]
-mod merge_tests;
+
 pub mod planning;
 #[cfg(test)]
 mod planning_tests;
 
 pub mod apply;
 mod apply_journal;
-#[cfg(test)]
-mod apply_tests;
+
 pub mod preview;
-#[cfg(test)]
-mod preview_tests;
+
 pub use apply_journal::VideoProjectJournal;
 
-#[cfg(test)]
-mod apply_test_cloud;
+
 pub use cloud::ShijuVideoProjectCloud;
 #[cfg(test)]
 mod cloud_delivery_tests;

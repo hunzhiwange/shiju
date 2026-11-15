@@ -58,7 +58,7 @@ async fn native_scenario(
     mode: &str,
 ) -> (anyhow::Result<super::preview::VideoEditDelivery>, String) {
     let (_root, ctx, skill) = super::cloud_tests::fixture("ok");
-    let provider = super::ShijuCloudVideoToolProvider::discover(
+    let provider = super::cloud::discover(
         ctx,
         std::slice::from_ref(&skill),
         Some(json!(["bash", "bash_wait", "bash_cancel"])),
@@ -196,7 +196,7 @@ async fn video_edit_delivery_native_adapter_records_verified_empty_cleanup_separ
 #[tokio::test]
 async fn video_edit_delivery_native_finalize_accepts_observed_complete_import_receipt() {
     let (_root, ctx, skill) = super::cloud_tests::fixture("ok");
-    let provider = super::ShijuCloudVideoToolProvider::discover(
+    let provider = super::cloud::discover(
         ctx,
         std::slice::from_ref(&skill),
         Some(json!(["bash", "bash_wait", "bash_cancel"])),

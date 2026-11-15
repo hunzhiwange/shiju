@@ -1,6 +1,6 @@
 //! Verified video_generate boundary. No media pool or timeline mutation is exposed.
 use super::*;
-use crate::workflow::video_edit::assets::*;
+use crate::assets::*;
 use anyhow::{Context, Result, ensure};
 
 impl ShijuCloudVideoToolProvider {

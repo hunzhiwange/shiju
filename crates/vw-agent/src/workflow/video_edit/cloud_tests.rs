@@ -106,7 +106,7 @@ async fn video_edit_cloud_transport_discovers_current_instance_and_full_private_
     let (dir, ctx, skill) = fixture("ok");
     std::fs::write(dir.path().join("json.py"), "raise RuntimeError('workspace module imported')")
         .unwrap();
-    let provider = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
+    let provider = super::cloud::discover(ctx, std::slice::from_ref(&skill), None)
         .await
         .unwrap();
     assert_eq!(provider.versions(), ("2.1", "2.1-dev"));
@@ -142,7 +142,7 @@ async fn video_edit_cloud_transport_version_source_and_authorization_fail_closed
         ("missing-provenance", "消费范围缺失"),
     ] {
         let (_dir, ctx, skill) = fixture(mode);
-        let error = ShijuCloudVideoToolProvider::discover(ctx, &[skill], None).await.err().unwrap();
+        let error = super::cloud::discover(ctx, &[skill], None).await.err().unwrap();
         assert!(error.contains(expected), "{mode}: {error}");
     }
 }
@@ -152,7 +152,7 @@ async fn video_edit_cloud_transport_missing_credentials_never_logs_in_or_falls_b
     let (_dir, ctx, skill) = fixture("ok");
     let hub = skill.location.as_ref().unwrap().parent().unwrap();
     std::fs::remove_file(hub.join(".env")).unwrap();
-    let error = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
+    let error = super::cloud::discover(ctx, std::slice::from_ref(&skill), None)
         .await
         .err()
         .unwrap();
@@ -164,7 +164,7 @@ async fn video_edit_cloud_transport_missing_credentials_never_logs_in_or_falls_b
 async fn video_edit_cloud_transport_native_tool_and_path_denials_prevent_process() {
     let (_dir, ctx, skill) = fixture("ok");
     assert!(
-        ShijuCloudVideoToolProvider::discover(
+        super::cloud::discover(
             ctx.clone(),
             std::slice::from_ref(&skill),
             Some(json!([]))
@@ -181,7 +181,7 @@ async fn video_edit_cloud_transport_native_tool_and_path_denials_prevent_process
         location: Some(outside.path().join("SKILL.md")),
         ..Default::default()
     };
-    assert!(ShijuCloudVideoToolProvider::discover(ctx, &[outside_skill], None).await.is_err());
+    assert!(super::cloud::discover(ctx, &[outside_skill], None).await.is_err());
     assert!(!skill.location.unwrap().parent().unwrap().join("capture.jsonl").exists());
 }
 
@@ -192,7 +192,7 @@ async fn video_edit_cloud_transport_cancel_before_discovery_starts_no_process() 
     token.cancel();
     let native = ctx.tool_use_context().as_ref().clone().with_abort_token(token);
     let ctx = ctx.with_tool_use_context(native);
-    let error = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
+    let error = super::cloud::discover(ctx, std::slice::from_ref(&skill), None)
         .await
         .err()
         .unwrap();
@@ -204,7 +204,7 @@ async fn video_edit_cloud_transport_cancel_before_discovery_starts_no_process() 
 async fn video_edit_cloud_transport_errors_and_unknown_states_are_not_success() {
     let (_dir, ctx, skill) = fixture("ok");
     let hub = skill.location.as_ref().unwrap().parent().unwrap();
-    let provider = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
+    let provider = super::cloud::discover(ctx, std::slice::from_ref(&skill), None)
         .await
         .unwrap();
     for mode in ["exit-1", "exit-2", "exit-3", "exit-4", "unknown-state"] {
@@ -240,7 +240,7 @@ async fn video_edit_cloud_transport_no_project_uses_native_workspace() {
     ctx.root = None;
     let native = ctx.tool_use_context().as_ref().clone();
     let ctx = ctx.with_tool_use_context(native);
-    assert!(ShijuCloudVideoToolProvider::discover(ctx, &[skill], None).await.is_ok());
+    assert!(super::cloud::discover(ctx, &[skill], None).await.is_ok());
 }
 
 #[tokio::test]
@@ -248,7 +248,7 @@ async fn video_edit_cloud_transport_inflight_cancel_stops_process_before_private
     let (dir, ctx, skill) = fixture("ok");
     let token = tokio_util::sync::CancellationToken::new();
     let native = ctx.tool_use_context().as_ref().clone().with_abort_token(token.clone());
-    let provider = ShijuCloudVideoToolProvider::discover(
+    let provider = super::cloud::discover(
         ctx.with_tool_use_context(native),
         std::slice::from_ref(&skill),
         None,
@@ -317,7 +317,7 @@ async fn video_edit_cloud_transport_native_approval_denial_prevents_process() {
         .clone()
         .with_approval(Arc::new(ApprovalManager::from_config(&config)))
         .with_hook_runner(Arc::new(runner));
-    let error = ShijuCloudVideoToolProvider::discover(
+    let error = super::cloud::discover(
         ctx.with_tool_use_context(native),
         std::slice::from_ref(&skill),
         None,
@@ -362,7 +362,7 @@ async fn video_edit_cloud_transport_native_hooks_never_receive_private_payloads(
     runner.register(Box::new(Audit(events.clone())));
     let native = ctx.tool_use_context().as_ref().clone().with_hook_runner(Arc::new(runner));
     let provider =
-        ShijuCloudVideoToolProvider::discover(ctx.with_tool_use_context(native), &[skill], None)
+        super::cloud::discover(ctx.with_tool_use_context(native), &[skill], None)
             .await
             .unwrap();
     provider

@@ -1,7 +1,7 @@
 //! Typed preparation operations; never exposed as arbitrary workflow tool names.
 use super::*;
-use crate::workflow::video_edit::cloud_failure::{CloudFailurePhase, CloudOperationFailure};
-use crate::workflow::video_edit::{manifest::*, prepare::*};
+use crate::cloud_failure::{CloudFailurePhase, CloudOperationFailure};
+use crate::{manifest::*, prepare::*};
 use anyhow::{Context, Result, bail, ensure};
 
 impl ShijuCloudVideoToolProvider {
@@ -77,19 +77,19 @@ fn id(value: &Value, key: &str) -> Result<String> {
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> crate::context::VideoContextHandle {
+        self.context.clone()
     }
     async fn choose_scope(&self, scopes: &[CloudVideoScope]) -> Result<CloudVideoScope> {
         if let Some(allowed) = &self.allowed_tools {
             ensure!(
                 allowed.as_array().is_some_and(|a| a
                     .iter()
-                    .any(|v| v.as_str() == Some(crate::tools::ASK_USER_QUESTION_TOOL_ID))),
+                    .any(|v| v.as_str() == Some(self.context.question_tool_id()))),
                 "cloud scope choice requires authorized native question capability"
             );
         }
-        select_scope(scopes, None, &self.context).await
+        select_scope(scopes, None, self.context.as_ref()).await
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
         // Native tenant IDs partition local storage; cloud identity belongs to the
@@ -214,11 +214,11 @@ impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
     }
     async fn upload(&self, ticket: &VideoUploadTicket, source: &VideoSourceIdentity) -> Result<()> {
         self.authorize_path(&source.path).map_err(anyhow::Error::msg)?;
-        cancelled(&self.context)?;
+        cancelled(self.context.as_ref())?;
         let path = source.path.clone();
         let context = self.context.clone();
         ensure!(
-            crate::global_database::run_isolated(move || identify_video_source(&path, &context))
+            agent_database::run_isolated(move || identify_video_source(&path, context.as_ref()))
                 .await??
                 == *source,
             "source replaced before native upload"

@@ -23,8 +23,8 @@ struct Cloud {
 }
 #[async_trait::async_trait]
 impl VideoPrepareCloud for Cloud {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.ctx
+    fn context(&self) -> workflow_video_edit::context::VideoContextHandle {
+        std::sync::Arc::new(self.ctx.clone())
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
         Ok(self.scopes.clone())

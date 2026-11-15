@@ -1,12 +1,12 @@
 //! Typed ASR transport; signed extraction URLs never leave the memory boundary.
 use super::*;
-use crate::workflow::video_edit::transcript::VideoTranscriptCloud;
+use crate::transcript::VideoTranscriptCloud;
 use anyhow::{Context, Result, ensure};
 
 #[async_trait::async_trait]
 impl VideoTranscriptCloud for ShijuCloudVideoToolProvider {
-    fn context(&self) -> &ToolRuntimeContext {
-        &self.context
+    fn context(&self) -> crate::context::VideoContextHandle {
+        self.context.clone()
     }
     async fn probe_transcript_media(&self, project: &str, asset: &str) -> Result<Value> {
         super::probe::normalize_media_probe(

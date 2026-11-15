@@ -1,6 +1,6 @@
 //! Native process transport with a private Unix socket, never a receipt file, for tickets.
 use super::*;
-use crate::workflow::video_edit::cloud_failure::{CloudFailurePhase, CloudOperationFailure};
+use crate::cloud_failure::{CloudFailurePhase, CloudOperationFailure};
 use anyhow::{Context, Result, ensure};
 
 const CALLER_PROCESS: &str = include_str!("cloud_caller.py");
@@ -82,7 +82,7 @@ impl ShijuCloudVideoToolProvider {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let setup = || -> Result<_> {
             ensure!(!self.cancelled(), "cancelled");
-            let workspace = self.context.path_security_policy().workspace_dir.clone();
+            let workspace = self.context.workspace_dir();
             self.authorize_path(&workspace).map_err(anyhow::Error::msg)?;
             let dir = tempfile::Builder::new().prefix(".video-memory-").tempdir_in(workspace)?;
             let socket = dir.path().join("io");
@@ -116,7 +116,7 @@ impl ShijuCloudVideoToolProvider {
             return Err(CloudOperationFailure::not_sent(CloudFailurePhase::NativeLaunch).into());
         }
         let handed_off = std::sync::atomic::AtomicBool::new(false);
-        let abort = self.context.tool_use_context().abort_token().cloned().unwrap_or_default();
+        let abort = self.context.abort_token().unwrap_or_default();
         let exchange = async {
             let (mut stream, _) = listener.accept().await?;
             let payload = serde_json::to_vec(&request)?;

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/gateway-knowledge",
   "crates/libs/app-auth-claude",
   "crates/libs/app-auth-claude",
   "crates/libs/gateway-workflow",

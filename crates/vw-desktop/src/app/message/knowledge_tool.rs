@@ -1,5 +1,6 @@
 //! 知识库工作台消息处理。
 
+use gateway_knowledge::GatewayKnowledgeClient;
 use crate::app::state::{
     KnowledgeCreateDatasetTab, KnowledgeDatasetEmbeddingSelection, KnowledgeDetailTab,
     KnowledgeDocumentInputTab, KnowledgeFileImportDraft, KnowledgeImportPollingJob,
@@ -1584,44 +1585,44 @@ fn batch_document_action_success_message(
 }
 
 async fn status_async() -> Result<KnowledgeRuntimeStatus, String> {
-    crate::app::gateway_client()?.knowledge_status().await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_status().await
 }
 
 async fn embedding_status_async() -> Result<KnowledgeEmbeddingStatusDto, String> {
-    crate::app::gateway_client()?.knowledge_embedding_status().await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_embedding_status().await
 }
 
 async fn embedding_presets_async() -> Result<Vec<KnowledgeEmbeddingPresetDto>, String> {
-    crate::app::gateway_client()?.knowledge_embedding_presets().await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_embedding_presets().await
 }
 
 async fn list_datasets_async() -> Result<Vec<KnowledgeDatasetDto>, String> {
-    crate::app::gateway_client()?.knowledge_datasets_list().await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_datasets_list().await
 }
 
 async fn list_documents_async(dataset_id: String) -> Result<Vec<KnowledgeDocumentDto>, String> {
-    crate::app::gateway_client()?.knowledge_documents_list(&dataset_id).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_documents_list(&dataset_id).await
 }
 
 async fn list_chunks_async(document_id: String) -> Result<Vec<KnowledgeChunkDto>, String> {
-    crate::app::gateway_client()?.knowledge_chunks_list(&document_id).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_chunks_list(&document_id).await
 }
 
 async fn create_dataset_async(
     body: KnowledgeDatasetCreateRequest,
 ) -> Result<KnowledgeDatasetDto, String> {
-    crate::app::gateway_client()?.knowledge_dataset_create(&body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_dataset_create(&body).await
 }
 
 async fn delete_dataset_async(dataset_id: String) -> Result<KnowledgeDatasetDto, String> {
-    crate::app::gateway_client()?.knowledge_dataset_delete(&dataset_id).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_dataset_delete(&dataset_id).await
 }
 
 async fn create_document_async(
     dataset_id: String,
     body: KnowledgeDocumentCreateRequest,
 ) -> Result<KnowledgeDocumentDto, String> {
-    crate::app::gateway_client()?.knowledge_document_create(&dataset_id, &body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_document_create(&dataset_id, &body).await
 }
 
 fn import_request_from_file(file: KnowledgeFileImportDraft) -> KnowledgeDocumentImportRequest {
@@ -1641,7 +1642,7 @@ async fn import_documents_async(
     dataset_id: String,
     files: Vec<KnowledgeFileImportDraft>,
 ) -> Result<Vec<KnowledgeDocumentImportQueuedResponse>, String> {
-    let client = crate::app::gateway_client()?;
+    let client = GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone());
     let mut responses = Vec::with_capacity(files.len());
     for file in files {
         let filename = file.filename.clone();
@@ -1656,28 +1657,28 @@ async fn import_documents_async(
 }
 
 async fn get_index_job_async(job_id: String) -> Result<KnowledgeIndexJobDto, String> {
-    crate::app::gateway_client()?.knowledge_index_job_get(&job_id).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_index_job_get(&job_id).await
 }
 
 async fn delete_document_async(document_id: String) -> Result<KnowledgeDocumentDto, String> {
-    crate::app::gateway_client()?.knowledge_document_delete(&document_id).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_document_delete(&document_id).await
 }
 
 async fn update_document_async(
     document_id: String,
     body: KnowledgeDocumentPatchRequest,
 ) -> Result<KnowledgeDocumentDto, String> {
-    crate::app::gateway_client()?.knowledge_document_update(&document_id, &body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_document_update(&document_id, &body).await
 }
 
 async fn batch_update_documents_async(
     body: KnowledgeDocumentsBatchActionRequest,
 ) -> Result<Vec<KnowledgeDocumentDto>, String> {
-    crate::app::gateway_client()?.knowledge_documents_batch_action(&body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_documents_batch_action(&body).await
 }
 
 async fn reindex_document_async(document_id: String) -> Result<KnowledgeDocumentDto, String> {
-    crate::app::gateway_client()?
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone())
         .knowledge_document_reindex(&document_id, &KnowledgeDocumentReindexRequest { force: false })
         .await
 }
@@ -1685,13 +1686,13 @@ async fn reindex_document_async(document_id: String) -> Result<KnowledgeDocument
 async fn retrieve_async(
     body: KnowledgeRetrieveRequest,
 ) -> Result<KnowledgeRetrieveResponse, String> {
-    crate::app::gateway_client()?.knowledge_retrieve(&body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_retrieve(&body).await
 }
 
 async fn embedding_test_async(
     body: KnowledgeEmbeddingTestRequest,
 ) -> Result<KnowledgeEmbeddingTestResponse, String> {
-    crate::app::gateway_client()?.knowledge_embedding_test(&body).await
+    GatewayKnowledgeClient::new(crate::app::gateway_client()?.transport().clone()).knowledge_embedding_test(&body).await
 }
 
 fn set_success(

@@ -1,5 +1,6 @@
 //! 知识库远程命令。
 
+use gateway_knowledge::GatewayKnowledgeClient;
 use std::io::{Read, Write};
 
 use anyhow::{Context, Result};
@@ -189,7 +190,7 @@ pub async fn run(
     stdin: &mut impl Read,
     writer: &mut impl Write,
 ) -> Result<()> {
-    let client = context.client();
+    let client = GatewayKnowledgeClient::new(context.client().transport().clone());
     let response = match command {
         KnowledgeCommands::Status => {
             json!(client.knowledge_status().await.map_err(anyhow::Error::msg)?)

@@ -16,7 +16,7 @@ use vw_api_knowledge::{
     KnowledgeMatchType, KnowledgeRetrievalMode, KnowledgeRetrieveRequest,
 };
 
-use crate::client::test_support;
+use crate::test_support;
 
 fn take_scoped_request(server: &test_support::TestServer) -> test_support::RecordedRequest {
     let request = server.take_request();

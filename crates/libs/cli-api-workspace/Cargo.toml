@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [dependencies]
+gateway-knowledge = { path = "../gateway-knowledge", version = "0.6.0" }
 vw-api-knowledge = { path = "../api-knowledge", version = "0.6.0" }
 vw-api-worktree = { path = "../api-worktree", version = "0.6.0" }
 vw-api-git = { path = "../api-git", version = "0.6.0" }

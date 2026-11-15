@@ -1,0 +1,214 @@
+//! 知识库网关客户端。
+//!
+//! 提供数据集、文档、导入任务、嵌入配置与检索接口，并保持查询参数与共享 API 类型一致。
+
+use vw_api_knowledge::{
+    KnowledgeChunkDto, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,
+    KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse,
+    KnowledgeDocumentImportRequest, KnowledgeDocumentImportResponse, KnowledgeDocumentListQuery,
+    KnowledgeDocumentPatchRequest, KnowledgeDocumentReindexRequest,
+    KnowledgeDocumentsBatchActionRequest, KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto,
+    KnowledgeEmbeddingTestRequest, KnowledgeEmbeddingTestResponse, KnowledgeIndexJobDto,
+    KnowledgeRetrieveRequest, KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
+};
+
+use super::GatewayKnowledgeClient;
+
+impl GatewayKnowledgeClient {
+    pub async fn knowledge_status(&self) -> Result<KnowledgeRuntimeStatus, String> {
+        self.transport.get_json("/v1/knowledge/status", &[]).await
+    }
+
+    pub async fn knowledge_datasets_list(&self) -> Result<Vec<KnowledgeDatasetDto>, String> {
+        self.transport.get_json("/v1/knowledge/datasets", &[]).await
+    }
+
+    pub async fn knowledge_dataset_get(
+        &self,
+        dataset_id: &str,
+    ) -> Result<KnowledgeDatasetDto, String> {
+        self.transport.get_json(&dataset_path(dataset_id)?, &[]).await
+    }
+
+    pub async fn knowledge_dataset_create(
+        &self,
+        body: &KnowledgeDatasetCreateRequest,
+    ) -> Result<KnowledgeDatasetDto, String> {
+        self.transport.post_json("/v1/knowledge/datasets", &[], body).await
+    }
+
+    pub async fn knowledge_dataset_delete(
+        &self,
+        dataset_id: &str,
+    ) -> Result<KnowledgeDatasetDto, String> {
+        self.transport.delete_json(&dataset_path(dataset_id)?, &[], &serde_json::json!({})).await
+    }
+
+    pub async fn knowledge_documents_list(
+        &self,
+        dataset_id: &str,
+    ) -> Result<Vec<KnowledgeDocumentDto>, String> {
+        self.knowledge_documents_query(dataset_id, &KnowledgeDocumentListQuery::default()).await
+    }
+
+    pub async fn knowledge_documents_query(
+        &self,
+        dataset_id: &str,
+        query: &KnowledgeDocumentListQuery,
+    ) -> Result<Vec<KnowledgeDocumentDto>, String> {
+        self.transport.get_json(
+            &format!("{}/documents", dataset_path(dataset_id)?),
+            &knowledge_document_list_query(query),
+        )
+        .await
+    }
+
+    pub async fn knowledge_document_create(
+        &self,
+        dataset_id: &str,
+        body: &KnowledgeDocumentCreateRequest,
+    ) -> Result<KnowledgeDocumentDto, String> {
+        self.transport.post_json(&format!("{}/documents", dataset_path(dataset_id)?), &[], body).await
+    }
+
+    pub async fn knowledge_document_import(
+        &self,
+        dataset_id: &str,
+        body: &KnowledgeDocumentImportRequest,
+    ) -> Result<KnowledgeDocumentImportResponse, String> {
+        self.transport.post_json(&format!("{}/documents/import", dataset_path(dataset_id)?), &[], body).await
+    }
+
+    pub async fn knowledge_document_import_async(
+        &self,
+        dataset_id: &str,
+        body: &KnowledgeDocumentImportRequest,
+    ) -> Result<KnowledgeDocumentImportQueuedResponse, String> {
+        self.transport.post_json(&format!("{}/documents/import-async", dataset_path(dataset_id)?), &[], body)
+            .await
+    }
+
+    pub async fn knowledge_index_job_get(
+        &self,
+        job_id: &str,
+    ) -> Result<KnowledgeIndexJobDto, String> {
+        self.transport.get_json(&format!("/v1/knowledge/index-jobs/{}", resource_id(job_id, "job")?), &[])
+            .await
+    }
+
+    pub async fn knowledge_document_delete(
+        &self,
+        document_id: &str,
+    ) -> Result<KnowledgeDocumentDto, String> {
+        self.transport.delete_json(&document_path(document_id)?, &[], &serde_json::json!({})).await
+    }
+
+    pub async fn knowledge_document_update(
+        &self,
+        document_id: &str,
+        body: &KnowledgeDocumentPatchRequest,
+    ) -> Result<KnowledgeDocumentDto, String> {
+        self.transport.patch_json(&document_path(document_id)?, &[], body).await
+    }
+
+    pub async fn knowledge_documents_batch_action(
+        &self,
+        body: &KnowledgeDocumentsBatchActionRequest,
+    ) -> Result<Vec<KnowledgeDocumentDto>, String> {
+        self.transport.post_json("/v1/knowledge/documents/batch", &[], body).await
+    }
+
+    pub async fn knowledge_chunks_list(
+        &self,
+        document_id: &str,
+    ) -> Result<Vec<KnowledgeChunkDto>, String> {
+        self.transport.get_json(&format!("{}/chunks", document_path(document_id)?), &[]).await
+    }
+
+    pub async fn knowledge_document_reindex(
+        &self,
+        document_id: &str,
+        body: &KnowledgeDocumentReindexRequest,
+    ) -> Result<KnowledgeDocumentDto, String> {
+        self.transport.post_json(&format!("{}/reindex", document_path(document_id)?), &[], body).await
+    }
+
+    pub async fn knowledge_retrieve(
+        &self,
+        body: &KnowledgeRetrieveRequest,
+    ) -> Result<KnowledgeRetrieveResponse, String> {
+        self.transport.post_json("/v1/knowledge/retrieve", &[], body).await
+    }
+
+    pub async fn knowledge_retrieval_test(
+        &self,
+        body: &KnowledgeRetrieveRequest,
+    ) -> Result<KnowledgeRetrieveResponse, String> {
+        self.transport.post_json("/v1/knowledge/retrieval-test", &[], body).await
+    }
+
+    pub async fn knowledge_embedding_status(&self) -> Result<KnowledgeEmbeddingStatusDto, String> {
+        self.transport.get_json("/v1/knowledge/embedding/status", &[]).await
+    }
+
+    pub async fn knowledge_embedding_presets(
+        &self,
+    ) -> Result<Vec<KnowledgeEmbeddingPresetDto>, String> {
+        self.transport.get_json("/v1/knowledge/embedding/presets", &[]).await
+    }
+
+    pub async fn knowledge_embedding_test(
+        &self,
+        body: &KnowledgeEmbeddingTestRequest,
+    ) -> Result<KnowledgeEmbeddingTestResponse, String> {
+        self.transport.post_json("/v1/knowledge/embedding/test", &[], body).await
+    }
+}
+
+fn dataset_path(dataset_id: &str) -> Result<String, String> {
+    Ok(format!("/v1/knowledge/datasets/{}", resource_id(dataset_id, "dataset")?))
+}
+
+fn document_path(document_id: &str) -> Result<String, String> {
+    Ok(format!("/v1/knowledge/documents/{}", resource_id(document_id, "document")?))
+}
+
+fn resource_id(value: &str, kind: &str) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(format!("knowledge {kind} id must not be empty"));
+    }
+    Ok(encode_path_segment(value))
+}
+
+fn encode_path_segment(value: &str) -> String {
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                encoded.push(char::from(byte))
+            }
+            _ => encoded.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    encoded
+}
+
+fn knowledge_document_list_query(query: &KnowledgeDocumentListQuery) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    if let Some(status) = query.status.as_ref() {
+        pairs.push((
+            "status".to_string(),
+            serde_json::to_value(status)
+                .expect("knowledge document status serializes")
+                .as_str()
+                .expect("knowledge document status is a string")
+                .to_string(),
+        ));
+    }
+    pairs
+}
+
+#[cfg(test)]
+#[path = "knowledge_api_tests.rs"]
+mod knowledge_api_tests;

@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
 use vw_api_acp_model::acp_model_source::AcpModelSource;
-use vw_shared::id;
+use ordered_id as id;
 use message_types as agent_message;
 use session_info as session;
 

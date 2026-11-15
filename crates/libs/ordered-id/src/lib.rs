@@ -21,7 +21,7 @@
 //! # 使用示例
 //!
 //! ```rust,ignore
-//! use vw_shared::id::{Prefix, ascending, descending, schema, timestamp};
+//! use ordered_id::{Prefix, ascending, descending, schema, timestamp};
 //!
 //! // 生成升序 ID
 //! let session_id = ascending(Prefix::Session, None)?;

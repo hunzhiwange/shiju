@@ -20,7 +20,7 @@
 
 pub mod auth;
 pub use build_identity;
-pub mod id;
+pub use ordered_id as id;
 pub mod json;
 pub mod local_apps;
 pub mod message;

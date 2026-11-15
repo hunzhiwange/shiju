@@ -346,14 +346,8 @@ impl App {
             self.open_tabs.remove(pos);
         }
         // 创建或切换到项目标签页
-        let tab_id = format!("project_{}", path); // 使用路径作为唯一标识符
+        let (tab_id, title) = desktop_workspace::projects::project_tab(&path);
         if !self.open_tabs.iter().any(|t| t.id == tab_id) {
-            let title = std::path::Path::new(&path)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(&path)
-                .to_string();
-
             self.open_tabs.push(AppTab {
                 id: tab_id.clone(),
                 title,
@@ -380,14 +374,7 @@ impl App {
         }
 
         // 加载项目特定的任务看板设置
-        let settings = self
-            .recent_projects_meta
-            .iter()
-            .find(|m| m.path == path)
-            .and_then(|m| m.task_board_settings.clone())
-            .unwrap_or_else(crate::app::task::models::TaskBoardSettings::new)
-            .sanitized();
-        self.task_board_settings = settings;
+        self.task_board_settings = desktop_workspace::projects::project_board_settings(&self.recent_projects_meta, &path);
 
         // 恢复当前项目的预览标签页与激活路径（若存在）
         let tabs = self.project_preview_tabs.remove(&path).unwrap_or_default();
@@ -439,22 +426,8 @@ impl App {
         self.refresh_branches();
 
         // 为最近项目列表生成显示名称（使用元数据或路径末段）
-        self.recent_projects_edits = {
-            self.recent_projects
-                .iter()
-                .map(|p| {
-                    if let Some(m) = self.recent_projects_meta.iter().find(|m| &m.path == p) {
-                        m.name.clone()
-                    } else {
-                        std::path::Path::new(p)
-                            .file_name()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or(p)
-                            .to_string()
-                    }
-                })
-                .collect()
-        };
+        self.recent_projects_edits = desktop_workspace::projects::recent_project_labels(
+            &self.recent_projects, &self.recent_projects_meta);
         let deferred_path = path.clone();
         let deferred_task =
             Task::done(Message::Project(message::ProjectMessage::StartDeferredTasks {
@@ -486,12 +459,8 @@ impl App {
     /// - `selected_branch`: 当前所在分支名称
     /// - `branches`: 分支列表（清空后由后续逻辑填充）
     pub fn refresh_branches(&mut self) {
-        if let Some(path) = &self.project_path {
-            let _ = path;
-            self.selected_branch = None;
-            self.branches.clear();
-            self.project_updated_at_ms = None;
-        }
+        desktop_workspace::projects::refresh_branches(self.project_path.as_deref(),
+            &mut self.selected_branch, &mut self.branches, &mut self.project_updated_at_ms);
     }
 }
 

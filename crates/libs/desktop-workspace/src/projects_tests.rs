@@ -218,3 +218,31 @@ fn push_recent_project_moves_existing_to_front_and_truncates_to_storage_limit() 
     assert_eq!(recent.iter().filter(|path| *path == "/repo/project-5").count(), 1);
     assert!(!recent.contains(&"/repo/project-10".to_string()));
 }
+
+#[test]
+fn refresh_branches_clears_project_branch_snapshot() {
+    let project_path = Some("/repo/alpha".to_string());
+    let mut selected_branch = Some("feature/static-tests".to_string());
+    let mut branches = vec!["main".to_string(), "feature/static-tests".to_string()];
+    let mut project_updated_at_ms = Some(123);
+
+    super::refresh_branches(project_path.as_deref(), &mut selected_branch, &mut branches, &mut project_updated_at_ms);
+
+    assert_eq!(selected_branch, None);
+    assert!(branches.is_empty());
+    assert_eq!(project_updated_at_ms, None);
+}
+
+#[test]
+fn refresh_branches_leaves_snapshot_unchanged_without_project() {
+    let project_path: Option<String> = None;
+    let mut selected_branch = Some("main".to_string());
+    let mut branches = vec!["main".to_string()];
+    let mut project_updated_at_ms = Some(456);
+
+    super::refresh_branches(project_path.as_deref(), &mut selected_branch, &mut branches, &mut project_updated_at_ms);
+
+    assert_eq!(selected_branch.as_deref(), Some("main"));
+    assert_eq!(branches, vec!["main".to_string()]);
+    assert_eq!(project_updated_at_ms, Some(456));
+}

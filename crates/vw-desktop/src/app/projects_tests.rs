@@ -277,36 +277,6 @@ fn reset_task_board_project_state_clears_project_scoped_board_runtime() {
 }
 
 #[test]
-fn refresh_branches_clears_project_branch_snapshot() {
-    let (mut app, _task) = crate::app::App::new();
-    app.project_path = Some("/repo/alpha".to_string());
-    app.selected_branch = Some("feature/static-tests".to_string());
-    app.branches = vec!["main".to_string(), "feature/static-tests".to_string()];
-    app.project_updated_at_ms = Some(123);
-
-    app.refresh_branches();
-
-    assert_eq!(app.selected_branch, None);
-    assert!(app.branches.is_empty());
-    assert_eq!(app.project_updated_at_ms, None);
-}
-
-#[test]
-fn refresh_branches_leaves_snapshot_unchanged_without_project() {
-    let (mut app, _task) = crate::app::App::new();
-    app.project_path = None;
-    app.selected_branch = Some("main".to_string());
-    app.branches = vec!["main".to_string()];
-    app.project_updated_at_ms = Some(456);
-
-    app.refresh_branches();
-
-    assert_eq!(app.selected_branch.as_deref(), Some("main"));
-    assert_eq!(app.branches, vec!["main".to_string()]);
-    assert_eq!(app.project_updated_at_ms, Some(456));
-}
-
-#[test]
 fn switch_project_terminal_keeps_hidden_project_without_pty() {
     let (mut app, _task) = crate::app::App::new();
     assert!(app.terminal.tabs.is_empty());

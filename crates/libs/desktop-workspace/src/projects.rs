@@ -368,3 +368,30 @@ pub fn save_recent_projects_meta(dirs: Option<directories::ProjectDirs>, v: &Vec
 #[cfg(test)]
 #[path = "projects_tests.rs"]
 mod projects_tests;
+
+/// Stable tab identity and display title for a project path.
+pub fn project_tab(path: &str) -> (String, String) {
+    let title = std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path).to_string();
+    (format!("project_{}", path), title)
+}
+pub fn recent_project_labels(recent: &[String], meta: &[RecentProjectMeta]) -> Vec<String> {
+    recent.iter().map(|path| {
+        if let Some(meta) = meta.iter().find(|meta| &meta.path == path) { meta.name.clone() }
+        else { std::path::Path::new(path).file_name().and_then(|s| s.to_str()).unwrap_or(path).to_string() }
+    }).collect()
+}
+pub fn project_board_settings(meta: &[RecentProjectMeta], path: &str) -> desktop_task_model::models::TaskBoardSettings {
+    meta.iter().find(|meta| meta.path == path).and_then(|meta| meta.task_board_settings.clone())
+        .unwrap_or_else(desktop_task_model::models::TaskBoardSettings::new).sanitized()
+}
+pub fn refresh_branches(project_path: Option<&str>, selected_branch: &mut Option<String>,
+    branches: &mut Vec<String>, updated_at: &mut Option<u64>) {
+    if project_path.is_some() { *selected_branch = None; branches.clear(); *updated_at = None; }
+}
+
+pub fn apply_branch_snapshot(current_project: Option<&str>, snapshot: ProjectBranchSnapshot,
+    selected_branch: &mut Option<String>, branches: &mut Vec<String>) {
+    if current_project != Some(snapshot.project_path.as_str()) { return; }
+    *selected_branch = snapshot.selected_branch;
+    *branches = snapshot.branches;
+}

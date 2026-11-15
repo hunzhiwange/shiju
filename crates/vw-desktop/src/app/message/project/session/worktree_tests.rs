@@ -15,60 +15,6 @@ fn app() -> crate::app::App {
 }
 
 #[test]
-fn picker_loaded_reorders_last_directory_after_primary_workspace() {
-    let mut app = app();
-    let project = "/tmp/project".to_string();
-    let worktree = "/tmp/project-wt".to_string();
-    app.new_session_picker_project = Some(project.clone());
-    app.new_session_last_directory = Some(worktree.clone());
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectCreateSessionPickerLoaded {
-            project_path: project,
-            options: Ok(vec![
-                ("/tmp/other".to_string(), "其它".to_string()),
-                (worktree.clone(), "最近".to_string()),
-                ("/tmp/project".to_string(), "主工作区".to_string()),
-            ]),
-        },
-    );
-
-    assert_eq!(
-        app.new_session_picker_options,
-        vec![
-            (worktree, "最近".to_string()),
-            ("/tmp/other".to_string(), "其它".to_string()),
-            ("/tmp/project".to_string(), "主工作区".to_string()),
-        ]
-    );
-}
-
-#[test]
-fn picker_loaded_reorders_last_directory_after_first_primary_workspace() {
-    let mut app = app();
-    let project = "/tmp/project".to_string();
-    let worktree = "/tmp/project-wt".to_string();
-    app.new_session_picker_project = Some(project.clone());
-    app.new_session_last_directory = Some(worktree.clone());
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectCreateSessionPickerLoaded {
-            project_path: project,
-            options: Ok(vec![
-                ("/tmp/project".to_string(), "主工作区".to_string()),
-                ("/tmp/other".to_string(), "其它".to_string()),
-                (worktree.clone(), "最近".to_string()),
-            ]),
-        },
-    );
-
-    assert_eq!(app.new_session_picker_options[0].1, "主工作区");
-    assert_eq!(app.new_session_picker_options[1].0, worktree);
-}
-
-#[test]
 fn picker_loaded_ignores_stale_project_and_falls_back_on_error() {
     let mut app = app();
     app.new_session_picker_project = Some("/tmp/current".to_string());

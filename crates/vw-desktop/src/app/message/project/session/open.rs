@@ -2,10 +2,10 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
-use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
+use super::common::reset_new_session_picker_state;
 use crate::app::message::project::ProjectMessage;
 use crate::app::message::project::helpers::{
-    gateway_session_project_path, list_gateway_project_sessions,
+    list_gateway_project_sessions,
     load_prepared_session_open_from_gateway_task, load_project_worktree_picker_options,
     prepare_session_ui_task,
 };
@@ -14,7 +14,7 @@ use crate::app::{App, Message, models};
 use session_info::Info;
 use web_time::Instant;
 
-use desktop_workspace::project_message::session_open::merge_project_sessions;
+use desktop_workspace::project_message::session_open::{self, Navigation, ListEvent, ListEffect, SessionLists};
 
 pub(crate) fn open_session_draft(
     app: &mut App,
@@ -190,74 +190,24 @@ pub(crate) fn open_project_session(
 fn request_session_navigation(app: &mut App, path: String, id: String) -> iced::Task<Message> {
     app.session_view_cache.navigation_generation += 1;
     let generation = app.session_view_cache.navigation_generation;
-    let id = id.trim().to_owned();
-    if id.is_empty() {
-        return iced::Task::none();
-    }
-
-    let cached = app
-        .sessions
-        .iter()
-        .chain(app.project_sessions.values().flatten())
-        .find(|info| info.id == id)
-        .cloned();
-    if let Some(info) = cached.as_ref() {
-        if !info.is_user_navigable() {
-            return iced::Task::none();
-        }
-        // A fork may have started in another client since the list was cached.
-        if !info.directory.trim().is_empty() && info.fork_execution_started.is_none() {
-            let project_path = app
-                .project_path
-                .as_ref()
-                .filter(|path| {
-                    *path == &info.directory
-                        || app.project_id.as_deref() == Some(info.project_id.as_str())
-                })
-                .or_else(|| {
-                    app.project_sessions.iter().find_map(|(path, sessions)| {
-                        (path != &info.directory && sessions.iter().any(|s| s.id == id))
-                            .then_some(path)
-                    })
-                });
-            if let Some(project_path) = project_path.cloned() {
-                return open_project_session(app, project_path, id, cached, None);
-            }
-        }
-    }
-
-    if let Some(runtime) = app.session_runtime_states.get(&id)
-        && runtime.request_lifecycle.is_requesting
-        && let Some(draft) = &runtime.draft
-        && draft.directory == path
-    {
-        if app.active_session_id.as_deref() == Some(id.as_str()) {
-            return iced::Task::none();
-        }
-        return open_project_session(app, draft.project_path.clone(), id, None, None);
-    }
-
+    let requesting_draft = app.session_runtime_states.get(id.trim())
+        .filter(|runtime| runtime.request_lifecycle.is_requesting)
+        .and_then(|runtime| runtime.draft.as_ref())
+        .map(|draft| (draft.project_path.as_str(), draft.directory.as_str()));
+    let (id, cached, path) = match session_open::navigation(path, id,
+        app.project_path.as_ref(), app.project_id.as_deref(), app.active_session_id.as_deref(),
+        &app.sessions, &app.project_sessions, requesting_draft) {
+        Navigation::Ignore => return iced::Task::none(),
+        Navigation::Cached { project_path, id, info } => return open_project_session(app, project_path, id, Some(info), None),
+        Navigation::Draft { project_path, id } => return open_project_session(app, project_path, id, None, None),
+        Navigation::Resolve { id, cached, path } => (id, cached, path),
+    };
     let from_project = app.project_path.clone();
     let from_session = app.active_session_id.clone();
     iced::Task::perform(
         async move {
             let client = crate::app::gateway_client().ok()?;
-            let directory = cached
-                .as_ref()
-                .map(|info| info.directory.clone())
-                .filter(|directory| !directory.trim().is_empty())
-                .or_else(|| (!path.trim().is_empty()).then_some(path));
-            let info = match cached.filter(|info| {
-                !info.directory.trim().is_empty() && info.fork_execution_started.is_none()
-            }) {
-                Some(info) => info,
-                None => gateway_session::GatewaySessionClient::new(client.transport().clone()).session_get::<Info>(&id, directory.as_deref()).await.ok()?,
-            };
-            if info.id != id || !info.is_user_navigable() || info.directory.trim().is_empty() {
-                return None;
-            }
-            let project_path = gateway_session_project_path(&client, &info).await.ok()?;
-            Some((project_path, Box::new(info)))
+            session_open::resolve_navigation(&client, id, cached, path).await
         },
         move |destination| {
             Message::Project(ProjectMessage::SessionNavigationResolved {
@@ -301,13 +251,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             from_session,
             destination,
         } => {
-            let task = if let Some((project_path, info)) = destination
-                && generation == app.session_view_cache.navigation_generation
-                && from_project == app.project_path
-                && from_session == app.active_session_id
-                && info.is_user_navigable()
-                && !info.directory.trim().is_empty()
-            {
+            let task = if let Some((project_path, info)) = session_open::accept_navigation(
+                generation, app.session_view_cache.navigation_generation,
+                &from_project, &app.project_path, &from_session, &app.active_session_id, destination) {
                 open_project_session(app, project_path, info.id.clone(), Some(*info), None)
             } else {
                 iced::Task::none()
@@ -321,21 +267,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::RecentHovered(id) => {
             app.hovered_recent_project = id.clone();
-            if let Some(path) = id
-                && !app.project_sessions.contains_key(&path)
-                && !app.project_sessions_loading.contains(&path)
-            {
-                app.project_sessions_loading.insert(path.clone());
-                let project_path_clone = path.clone();
-                return Some(iced::Task::perform(
-                    async move {
-                        let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                        list_gateway_project_sessions(&client, &project_path_clone).await
-                    },
-                    |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, res)),
-                ));
-            }
-            Some(iced::Task::none())
+            Some(id.map(|path| update_lists(app, ListEvent::Hover(path))).unwrap_or_else(iced::Task::none))
         }
         ProjectMessage::RecentOverlayClosed => {
             if app.new_session_picker_project.is_some() {
@@ -348,89 +280,21 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             reset_new_session_picker_state(app);
             Some(iced::Task::none())
         }
-        ProjectMessage::SessionsLoaded(res) => {
-            match res {
-                Ok(sessions) => {
-                    app.sessions = sessions;
-                }
-                Err(e) => {
-                    app.push_notification(format!("Failed to load sessions: {}", e));
-                }
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::SessionBootstrapLoaded {
-            project_path,
-            result,
-            previews,
-            archived_session_ids,
-        } => {
-            if let Some(path) = project_path.as_ref() {
-                app.project_sessions_loading.remove(path);
-            }
-            if project_path != app.project_path {
-                return Some(iced::Task::none());
-            }
-            app.session_previews = previews;
-            app.archived_session_ids = archived_session_ids;
-            match result {
-                Ok(sessions) => {
-                    if let Some(path) = project_path {
-                        let existing = app.project_sessions.get(&path).cloned();
-                        app.project_sessions
-                            .insert(path, merge_project_sessions(existing, sessions.clone()));
-                    }
-                    app.sessions = sessions;
-                }
-                Err(e) => {
-                    app.push_notification(format!("Failed to load sessions: {}", e));
-                }
-            }
-            Some(iced::Task::none())
+        ProjectMessage::SessionsLoaded(res) => Some(update_lists(app, ListEvent::Loaded(res))),
+        ProjectMessage::SessionBootstrapLoaded { project_path, result, previews, archived_session_ids } => {
+            Some(update_lists(app, ListEvent::Bootstrap { project_path, result, previews, archived: archived_session_ids }))
         }
         ProjectMessage::ProjectInfoLoaded(res) => {
             if let Ok(loaded) = res {
-                if app.project_path.as_deref() != Some(loaded.project_path.as_str()) {
-                    return Some(iced::Task::none());
-                }
-                let info = loaded.info;
-                let project_id = info.id;
-                let icon = info
-                    .icon
-                    .as_ref()
-                    .and_then(|x| x.override_icon.clone())
-                    .filter(|x| !x.trim().is_empty());
-                let icon_color = info
-                    .icon
-                    .as_ref()
-                    .and_then(|x| x.color.clone())
-                    .filter(|x| !x.trim().is_empty());
-                let start_command = info
-                    .commands
-                    .as_ref()
-                    .and_then(|x| x.start.clone())
-                    .filter(|x| !x.trim().is_empty());
-                if let Some(path) = app.project_path.clone()
-                    && let Some(meta) = app.recent_projects_meta.iter_mut().find(|m| m.path == path)
-                    && (icon.is_some() || icon_color.is_some() || start_command.is_some())
-                {
-                    if icon.is_some() {
-                        meta.icon = icon;
-                    }
-                    if icon_color.is_some() {
-                        meta.icon_color = icon_color;
-                    }
-                    if start_command.is_some() {
-                        meta.worktree_start_command = start_command;
-                    }
+                let Some(completed) = session_open::complete_project(app.project_path.as_deref(),
+                    &loaded.project_path, &mut app.recent_projects_meta, loaded.info, loaded.current_branch)
+                else { return Some(iced::Task::none()); };
+                if completed.metadata_changed {
                     save_recent_projects_meta_background(app.recent_projects_meta.clone());
                 }
-                app.project_updated_at_ms =
-                    if info.time.updated > 0 { Some(info.time.updated) } else { None };
-                if loaded.current_branch.is_some() {
-                    app.selected_branch = loaded.current_branch;
-                }
-                app.project_is_git_repo = matches!(info.vcs, Some(project_types::Vcs::Git));
+                app.project_updated_at_ms = completed.updated_at;
+                if completed.selected_branch.is_some() { app.selected_branch = completed.selected_branch; }
+                app.project_is_git_repo = completed.is_git_repo;
                 if !app.project_is_git_repo {
                     app.task_board_worktree_snapshot = None;
                     app.task_board_worktree_snapshot_loading = false;
@@ -442,62 +306,33 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         app.task_board_executor_running = false;
                     }
                 }
-                app.project_id = Some(project_id);
+                app.project_id = Some(completed.id);
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectSessionsLoaded(project_path, res) => {
-            app.project_sessions_loading.remove(&project_path);
-            match res {
-                Ok(sessions) => {
-                    let existing = app.project_sessions.get(&project_path).cloned();
-                    let updated = merge_project_sessions(existing, sessions);
-                    app.project_sessions.insert(project_path.clone(), updated);
-                    app.project_session_load_counts.insert(project_path.clone(), 10);
-                }
-                Err(e) => {
-                    app.error_message = Some(format!("Failed to load project sessions: {}", e));
-                }
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectSessionListScrollChanged {
-            project_path,
-            has_vertical_scrollbar,
-        } => {
-            app.project_session_has_vertical_scrollbar.insert(project_path, has_vertical_scrollbar);
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectLoadMoreSessions(project_path) => {
-            let current_count =
-                app.project_session_load_counts.get(&project_path).copied().unwrap_or(10);
-            app.project_session_load_counts.insert(project_path.clone(), current_count + 5);
-            Some(iced::Task::none())
-        }
+        ProjectMessage::ProjectSessionsLoaded(path, res) => Some(update_lists(app, ListEvent::ProjectLoaded(path, res))),
+        ProjectMessage::ProjectSessionListScrollChanged { project_path, has_vertical_scrollbar } => Some(update_lists(app, ListEvent::Scrollbar(project_path, has_vertical_scrollbar))),
+        ProjectMessage::ProjectLoadMoreSessions(path) => Some(update_lists(app, ListEvent::More(path))),
         ProjectMessage::ProjectCreateSession(project_path) => {
-            if app.new_session_creating {
-                return Some(iced::Task::none());
-            }
+            let worktree_enabled = app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
+            let creation = session_open::creation(app.new_session_creating, worktree_enabled);
+            if matches!(creation, session_open::Creation::Ignore) { return Some(iced::Task::none()); }
             let project_switch_task = if app.project_path.as_deref() == Some(project_path.as_str())
             {
                 iced::Task::none()
             } else {
                 app.open_project_and_index(project_path.clone())
             };
-            let project_worktree_enabled =
-                app.project_worktree_enabled.get(&project_path).copied().unwrap_or(false);
-            if !project_worktree_enabled {
+            if matches!(creation, session_open::Creation::Draft) {
                 reset_new_session_picker_state(app);
                 let draft = open_session_draft(app, project_path.clone(), project_path);
                 return Some(iced::Task::batch([project_switch_task, draft]));
             }
-            app.new_session_picker_project = Some(project_path.clone());
-            app.new_session_picker_options.clear();
-            app.new_session_worktree_name.clear();
-            clear_new_session_picker_messages(app);
+            let picker_task = super::worktree::begin_picker(app, project_path.clone());
             let project_path_clone = project_path.clone();
             Some(iced::Task::batch(vec![
                 project_switch_task,
+                picker_task,
                 iced::Task::perform(
                     async move { load_project_worktree_picker_options(&project_path_clone).await },
                     move |res| {
@@ -518,27 +353,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ))
         }
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {
-            if app.project_path.as_deref() != Some(project_path.as_str()) {
-                return Some(iced::Task::none());
-            }
-            app.selected_branch = selected_branch;
-            app.branches = branches;
+            desktop_workspace::projects::apply_branch_snapshot(app.project_path.as_deref(),
+                desktop_workspace::projects::ProjectBranchSnapshot { project_path, selected_branch, branches },
+                &mut app.selected_branch, &mut app.branches);
             Some(iced::Task::none())
         }
-        ProjectMessage::ProjectLoadSessions(project_path) => {
-            if app.project_sessions_loading.contains(&project_path) {
-                return Some(iced::Task::none());
-            }
-            app.project_sessions_loading.insert(project_path.clone());
-            let project_path_clone = project_path.clone();
-            Some(iced::Task::perform(
-                async move {
-                    let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
-                    list_gateway_project_sessions(&client, &project_path_clone).await
-                },
-                |res| Message::Project(ProjectMessage::ProjectSessionsLoaded(project_path, res)),
-            ))
-        }
+        ProjectMessage::ProjectLoadSessions(path) => Some(update_lists(app, ListEvent::Load(path))),
         _ => None,
     }
 }
@@ -572,4 +392,27 @@ pub(crate) fn open_existing_checkout(
     app.show_system_settings = false;
     let draft = open_session_draft(app, path, directory);
     iced::Task::batch([switch, completed, draft])
+}
+
+fn update_lists(app: &mut App, event: ListEvent) -> iced::Task<Message> {
+    let effects = session_open::update_lists(&mut SessionLists {
+        sessions: &mut app.sessions, previews: &mut app.session_previews, archived: &mut app.archived_session_ids,
+        projects: &mut app.project_sessions, counts: &mut app.project_session_load_counts,
+        loading: &mut app.project_sessions_loading, scrollbars: &mut app.project_session_has_vertical_scrollbar,
+    }, &app.project_path, event);
+    let mut tasks = Vec::new();
+    for effect in effects {
+        match effect {
+            ListEffect::Notification(text) => app.push_notification(text),
+            ListEffect::Error(text) => app.error_message = Some(text),
+            ListEffect::Load(path) => {
+                let project_path = path.clone();
+                tasks.push(iced::Task::perform(async move {
+                    let client = crate::app::gateway_client().map_err(|err| err.to_string())?;
+                    list_gateway_project_sessions(&client, &project_path).await
+                }, |result| Message::Project(ProjectMessage::ProjectSessionsLoaded(path, result))));
+            }
+        }
+    }
+    iced::Task::batch(tasks)
 }

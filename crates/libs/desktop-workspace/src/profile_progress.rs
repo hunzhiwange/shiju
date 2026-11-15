@@ -1,7 +1,8 @@
 //! Operation receipts are correlated with the original submission, never the latest group result.
-use super::{Identity, Event, message, apply::Event as ApplyEvent};
+use super::{Identity, Event, apply::Event as ApplyEvent};
 
 use iced::Task;
+use super::Update;
 use gateway_project_profile::{GatewayProjectProfileClient, ProjectProfileApiScope};
 use vw_api_project_profiles::*;
 
@@ -23,9 +24,9 @@ fn valid(result: &ProjectProfileApplyResult, id: &ProjectProfileId, scope: Proje
             (result.selected && result.items.iter().all(|i| i.status == ProjectProfileItemStatus::Succeeded)))
 }
 pub(super) fn admitted<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, response: Identity<C>,
-    value: Result<serde_json::Value, ()>, current: Identity<C>) -> Task<super::Event<C>> {
+    value: Result<serde_json::Value, ()>, current: Identity<C>) -> Update<C> {
     let Some(form) = state.application.as_mut()
-        .filter(|f| f.scope == scope && f.submitted && owner(&f.owner, &response) && owner(&response, &current)) else { return Task::none(); };
+        .filter(|f| f.scope == scope && f.submitted && owner(&f.owner, &response) && owner(&response, &current)) else { return Update::none(); };
     form.loading = false;
     if let Ok(value) = value {
         if let Ok(receipt) = serde_json::from_value::<Receipt>(value.clone()) {
@@ -39,63 +40,65 @@ pub(super) fn admitted<C: Clone + PartialEq + Send + 'static>(state: &mut crate:
         }
     }
     form.error = Some("应用结果未知，未取得操作 ID；禁止重发。请在执行主机核对。 ");
-    Task::done(super::Event::Toast(true, "应用结果未知；原请求不会重发"))
+    Update::toast(true, "应用结果未知；原请求不会重发")
 }
 pub(super) fn update<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, event: ApplyEvent<C>,
-    identity: Identity<C>, query: ProjectProfileApiScope) -> Task<super::Event<C>> {
+    identity: Identity<C>, query: ProjectProfileApiScope) -> Update<C> {
     let Some(form) = state.application.as_mut()
-        .filter(|f| f.scope == scope && f.submitted && f.result.is_none() && owner(&f.owner, &identity)) else { return Task::none(); };
+        .filter(|f| f.scope == scope && f.submitted && f.result.is_none() && owner(&f.owner, &identity)) else { return Update::none(); };
     match event {
         ApplyEvent::Recover | ApplyEvent::Cancel => {
-            if form.loading { return Task::none(); }
-            let Some(operation) = form.operation_id.clone() else { return Task::none(); };
+            if form.loading { return Update::none(); }
+            let Some(operation) = form.operation_id.clone() else { return Update::none(); };
             let cancel = matches!(event, ApplyEvent::Cancel);
-            if cancel && form.cancelling { return Task::none(); }
+            if cancel && form.cancelling { return Update::none(); }
             form.loading = true;
             form.cancelling |= cancel;
-            Task::perform(async move {
+            Update::task(Task::perform(async move {
                 let result = if cancel { client.project_profile_cancel(&query, &operation).await }
                     else { client.project_profile_progress(&query, &operation).await };
-                message(Event::Apply(scope, ApplyEvent::Progress(identity, operation, result.map_err(|_| ()))))
-            }, |m| m)
+                Event::Apply(scope, ApplyEvent::Progress(identity, operation, result.map_err(|_| ())))
+            }, |m| m))
         }
         ApplyEvent::Progress(response, operation, value) => {
-            if !owner(&response, &identity) || form.operation_id.as_ref() != Some(&operation) { return Task::none(); }
+            if !owner(&response, &identity) || form.operation_id.as_ref() != Some(&operation) { return Update::none(); }
             form.loading = false;
             let receipt = value.ok().and_then(|v| serde_json::from_value::<Receipt>(v).ok())
                 .filter(|r| r.operation_id == operation && r.profile_id == form.id && r.group == scope);
             if let Some(receipt) = receipt { return accept(state, catalog, client, scope, receipt); }
             form.error = Some("进度或取消未获执行主机确认；可查询原操作，不会重发应用。 ");
-            Task::done(super::Event::Toast(true, "进度或取消未确认，请查询原操作结果"))
+            Update::toast(true, "进度或取消未确认，请查询原操作结果")
         }
-        _ => Task::none(),
+        _ => Update::none(),
     }
 }
-fn accept<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, receipt: Receipt) -> Task<super::Event<C>> {
-    let Some(form) = state.application.as_mut() else { return Task::none(); };
+fn accept<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, receipt: Receipt) -> Update<C> {
+    let Some(form) = state.application.as_mut() else { return Update::none(); };
     if let Some(result) = receipt.result {
         if valid(&result, &form.id, scope) { return finish(state, catalog, client, scope, result); }
         form.error = Some("操作结果与目标不符，无法确认；请查询原操作。 ");
-        return Task::none();
+        return Update::none();
     }
     form.error = None;
-    Task::perform(async move {
+    Update::task(Task::perform(async move {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-        message(Event::Apply(scope, ApplyEvent::Recover))
-    }, |m| m)
+        Event::Apply(scope, ApplyEvent::Recover)
+    }, |m| m))
 }
-fn finish<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, result: ProjectProfileApplyResult) -> Task<super::Event<C>> {
+fn finish<C: Clone + PartialEq + Send + 'static>(state: &mut crate::project_profiles::State<Identity<C>>, catalog: &super::Catalog<'_, C>, client: GatewayProjectProfileClient, scope: ProjectProfileScope, result: ProjectProfileApplyResult) -> Update<C> {
     let status = result.status;
-    let Some(form) = state.application.as_mut() else { return Task::none(); };
+    let Some(form) = state.application.as_mut() else { return Update::none(); };
     form.loading = false;
     form.error = None;
     form.result = Some(result);
-    let toast = match status {
-        ProjectProfileApplyStatus::Cancelled => Task::done(super::Event::Toast(false, "执行主机确认已取消；已完成的局部写入请查看逐项结果")),
-        ProjectProfileApplyStatus::Partial => Task::done(super::Event::Toast(true, "组合部分应用失败，请查看逐项结果")),
-        ProjectProfileApplyStatus::Failed => Task::done(super::Event::Toast(true, "组合应用失败")),
-        ProjectProfileApplyStatus::Uncaptured => Task::done(super::Event::Toast(false, "此组未拍快照，仅更新选择")),
-        ProjectProfileApplyStatus::Applied => Task::done(super::Event::Toast(false, "执行主机确认组合已应用")),
+    let toast: Update<C> = match status {
+        ProjectProfileApplyStatus::Cancelled => Update::toast(false, "执行主机确认已取消；已完成的局部写入请查看逐项结果"),
+        ProjectProfileApplyStatus::Partial => Update::toast(true, "组合部分应用失败，请查看逐项结果"),
+        ProjectProfileApplyStatus::Failed => Update::toast(true, "组合应用失败"),
+        ProjectProfileApplyStatus::Uncaptured => Update::toast(false, "此组未拍快照，仅更新选择"),
+        ProjectProfileApplyStatus::Applied => Update::toast(false, "执行主机确认组合已应用"),
     };
-    Task::batch([super::update(state, catalog, client, Event::Refresh(scope)), toast])
+    let mut update = super::update(state, catalog, client, Event::Refresh(scope));
+    update.toast = toast.toast;
+    update
 }

@@ -1,317 +1,82 @@
-//! 处理项目会话工作区相关操作，包括分支、工作树和路径状态更新。
-//!
-//! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
-
-use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
+//! Map picker domain effects to desktop session, gateway and preference operations.
 use crate::app::message::project::ProjectMessage;
-use crate::app::message::project::helpers::{
-    create_gateway_session_worktree, delete_gateway_worktree, reset_gateway_worktree,
-};
+use crate::app::message::project::helpers::{create_gateway_session_worktree, delete_gateway_worktree, reset_gateway_worktree};
 use crate::app::{App, Message};
-use desktop_workspace::project_message::session_worktree;
+use desktop_workspace::project_message::session_worktree::{self, Effect, ErrorField, Event, Picker};
 
-/// handle 处理当前模块对应的消息或状态转换。
-///
-/// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
-/// 失败会被转换为界面可展示的状态或消息，避免在处理链路中静默丢失。
-pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
-    // 所有界面事件在一个入口显式匹配，方便审计状态变更和异步任务边界。
-    match message {
-        ProjectMessage::ProjectCreateSessionPickerLoaded { project_path, options } => {
-            if app.new_session_picker_project.as_ref() != Some(&project_path) {
-                return Some(iced::Task::none());
-            }
-            match options {
-                Ok(mut list) => {
-                    session_worktree::order_options(&mut list, app.new_session_last_directory.as_ref());
-                    app.new_session_picker_options = list;
-                }
-                Err(e) => {
-                    app.set_localized_input_error(
-                        crate::app::i18n::input::ErrorField::General,
-                        "加载工作区列表失败: %s",
-                        vec![format!("{}", e).into()],
-                    );
-                    app.new_session_picker_options =
-                        vec![("__create_worktree__".to_string(), "创建新的独立工作区".to_string())];
-                }
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionPickerClose => {
-            app.hovered_recent_project = None;
-            reset_new_session_picker_state(app);
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionWorktreeNameChanged(v) => {
-            app.new_session_worktree_name = v;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionPicked { project_path, directory } => {
-            if app.new_session_creating
-                || app.project_path.as_deref() != Some(project_path.as_str())
-            {
-                return Some(iced::Task::none());
-            }
-            reset_new_session_picker_state(app);
-            Some(super::open::open_session_draft(app, project_path, directory))
-        }
-        ProjectMessage::ProjectCreateSessionWorktree(project_path) => {
-            if app.new_session_creating {
-                return Some(iced::Task::none());
-            }
-            let requested_name = match session_worktree::requested_name(&app.new_session_worktree_name) {
-                Ok(name) => name,
-                Err(error) => {
-                    app.set_localized_input_error(crate::app::i18n::input::ErrorField::General, error, vec![]);
-                    return Some(iced::Task::none());
-                }
-            };
-            app.new_session_creating = true;
-            reset_new_session_picker_state(app);
-            let project_path_clone = project_path.clone();
-            let generation = app.agent_stream_id;
-            Some(iced::Task::perform(
-                async move { create_gateway_session_worktree(project_path_clone, requested_name).await },
-                move |result| {
-                    Message::Project(ProjectMessage::SessionWorktreeCreated {
-                        project_path,
-                        generation,
-                        result,
-                    })
-                },
-            ))
-        }
-        ProjectMessage::SessionWorktreeCreated { project_path, generation, result } => {
-            app.new_session_creating = false;
-            if app.project_path.as_deref() != Some(project_path.as_str())
-                || app.agent_stream_id != generation
-            {
-                return Some(iced::Task::none());
-            }
-            Some(match result {
-                Ok(directory) => super::open::open_session_draft(app, project_path, directory),
-                Err(error) => {
-                    iced::Task::done(Message::Project(ProjectMessage::SessionCreateFailed(error)))
-                }
-            })
-        }
-        ProjectMessage::ProjectCreateSessionDeleteWorktree(directory) => {
-            if session_worktree::is_primary(&app.new_session_picker_options,
-                app.new_session_picker_project.as_deref(), &directory) {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::WorktreeDelete,
-                    "主工作区禁止删除",
-                    vec![],
-                );
-                app.new_session_confirm_delete_directory = None;
-                app.new_session_force_delete_directory = None;
-                app.new_session_confirm_reset_directory = None;
-                return Some(iced::Task::none());
-            }
-            app.new_session_confirm_delete_directory = Some(directory);
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
-            app.new_session_delete_error = None;
-            app.new_session_force_delete_directory = None;
-            app.new_session_confirm_reset_directory = None;
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-            app.new_session_reset_error = None;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionDeleteWorktreeCancel => {
-            clear_new_session_picker_messages(app);
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed => {
-            let Some(project_path) = app.new_session_picker_project.clone() else {
-                return Some(iced::Task::none());
-            };
-            let Some(directory) = app.new_session_confirm_delete_directory.clone() else {
-                return Some(iced::Task::none());
-            };
-            if directory == project_path {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::WorktreeDelete,
-                    "主工作区禁止删除",
-                    vec![],
-                );
-                app.new_session_confirm_delete_directory = None;
-                app.new_session_force_delete_directory = None;
-                return Some(iced::Task::none());
-            }
-            clear_new_session_picker_messages(app);
-            let delete_directory = directory.clone();
-            let result_directory = directory.clone();
-            let project_path_clone = project_path.clone();
-            Some(iced::Task::perform(
-                async move {
-                    delete_gateway_worktree(&project_path_clone, &delete_directory, false).await
-                },
-                move |result| {
-                    Message::Project(ProjectMessage::ProjectCreateSessionDeleteWorktreeResult {
-                        project_path,
-                        directory: result_directory.clone(),
-                        result,
-                    })
-                },
-            ))
-        }
-        ProjectMessage::ProjectCreateSessionDeleteWorktreeForceConfirmed => {
-            let Some(project_path) = app.new_session_picker_project.clone() else {
-                return Some(iced::Task::none());
-            };
-            let Some(directory) = app.new_session_force_delete_directory.clone() else {
-                return Some(iced::Task::none());
-            };
-            app.new_session_force_delete_directory = None;
-            let delete_directory = directory.clone();
-            let result_directory = directory.clone();
-            let project_path_clone = project_path.clone();
-            Some(iced::Task::perform(
-                async move {
-                    delete_gateway_worktree(&project_path_clone, &delete_directory, true).await
-                },
-                move |result| {
-                    Message::Project(ProjectMessage::ProjectCreateSessionDeleteWorktreeResult {
-                        project_path,
-                        directory: result_directory.clone(),
-                        result,
-                    })
-                },
-            ))
-        }
-        ProjectMessage::ProjectCreateSessionDeleteWorktreeResult {
-            project_path,
-            directory,
-            result,
-        } => {
-            if app.new_session_picker_project.as_ref() != Some(&project_path) {
-                return Some(iced::Task::none());
-            }
-
-            match result {
-                Ok(()) => {
-                    app.localized_input_errors
-                        .remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
-                    app.new_session_delete_error = None;
-                    app.new_session_force_delete_directory = None;
-                    app.localized_input_errors
-                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-                    app.new_session_reset_error = None;
-                    if app.new_session_last_directory.as_ref() == Some(&directory) {
-                        app.new_session_last_directory = None;
-                        return Some(iced::Task::batch(vec![
-                            app.save_desktop_preference(
-                                "new_session_last_directory",
-                                serde_json::Value::Null,
-                            ),
-                            iced::Task::done(Message::Project(
-                                ProjectMessage::ProjectCreateSession(project_path),
-                            )),
-                        ]));
-                    }
-                    return Some(iced::Task::done(Message::Project(
-                        ProjectMessage::ProjectCreateSession(project_path),
-                    )));
-                }
-                Err(e) => {
-                    app.localized_input_errors
-                        .remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
-                    app.new_session_delete_error = Some(e);
-                    app.new_session_force_delete_directory = Some(directory);
-                }
-            }
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionResetWorktree(directory) => {
-            if session_worktree::is_primary(&app.new_session_picker_options,
-                app.new_session_picker_project.as_deref(), &directory) {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::WorktreeReset,
-                    "主工作区禁止重置",
-                    vec![],
-                );
-                app.new_session_confirm_reset_directory = None;
-                app.new_session_confirm_delete_directory = None;
-                app.new_session_force_delete_directory = None;
-                return Some(iced::Task::none());
-            }
-            app.new_session_confirm_reset_directory = Some(directory);
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-            app.new_session_reset_error = None;
-            app.new_session_confirm_delete_directory = None;
-            app.new_session_force_delete_directory = None;
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
-            app.new_session_delete_error = None;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionResetWorktreeCancel => {
-            app.new_session_confirm_reset_directory = None;
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-            app.new_session_reset_error = None;
-            Some(iced::Task::none())
-        }
-        ProjectMessage::ProjectCreateSessionResetWorktreeConfirmed => {
-            let Some(project_path) = app.new_session_picker_project.clone() else {
-                return Some(iced::Task::none());
-            };
-            let Some(directory) = app.new_session_confirm_reset_directory.clone() else {
-                return Some(iced::Task::none());
-            };
-            if directory == project_path {
-                app.set_localized_input_error(
-                    crate::app::i18n::input::ErrorField::WorktreeReset,
-                    "主工作区禁止重置",
-                    vec![],
-                );
-                app.new_session_confirm_reset_directory = None;
-                return Some(iced::Task::none());
-            }
-            app.new_session_confirm_reset_directory = None;
-            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-            app.new_session_reset_error = None;
-            let reset_directory = directory.clone();
-            let result_directory = directory.clone();
-            let project_path_clone = project_path.clone();
-            Some(iced::Task::perform(
-                async move { reset_gateway_worktree(&project_path_clone, &reset_directory).await },
-                move |result| {
-                    Message::Project(ProjectMessage::ProjectCreateSessionResetWorktreeResult {
-                        project_path,
-                        directory: result_directory.clone(),
-                        result,
-                    })
-                },
-            ))
-        }
-        ProjectMessage::ProjectCreateSessionResetWorktreeResult {
-            project_path,
-            directory: _,
-            result,
-        } => {
-            if app.new_session_picker_project.as_ref() != Some(&project_path) {
-                return Some(iced::Task::none());
-            }
-
-            match result {
-                Ok(()) => {
-                    app.localized_input_errors
-                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-                    app.new_session_reset_error = None;
-                    app.push_localized_notification("工作区已重置", vec![]);
-                }
-                Err(e) => {
-                    app.localized_input_errors
-                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
-                    app.new_session_reset_error = Some(e);
-                }
-            }
-            Some(iced::Task::none())
-        }
-        _ => None,
-    }
+fn error_field(field: ErrorField) -> crate::app::i18n::input::ErrorField {
+    use crate::app::i18n::input::ErrorField as Host;
+    match field { ErrorField::General => Host::General, ErrorField::Delete => Host::WorktreeDelete, ErrorField::Reset => Host::WorktreeReset }
 }
-
+pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Task<Message>> {
+    let event = match message {
+        ProjectMessage::ProjectCreateSessionPickerLoaded { project_path, options } => Event::Loaded { project_path, options },
+        ProjectMessage::ProjectCreateSessionPickerClose => Event::Close,
+        ProjectMessage::ProjectCreateSessionWorktreeNameChanged(name) => Event::Name(name),
+        ProjectMessage::ProjectCreateSessionPicked { project_path, directory } => Event::Picked { project_path, directory },
+        ProjectMessage::ProjectCreateSessionWorktree(path) => Event::Create(path),
+        ProjectMessage::SessionWorktreeCreated { project_path, generation, result } => Event::Created { project_path, generation, result },
+        ProjectMessage::ProjectCreateSessionDeleteWorktree(path) => Event::Delete(path),
+        ProjectMessage::ProjectCreateSessionDeleteWorktreeCancel => Event::DeleteCancel,
+        ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed => Event::DeleteConfirmed,
+        ProjectMessage::ProjectCreateSessionDeleteWorktreeForceConfirmed => Event::ForceDeleteConfirmed,
+        ProjectMessage::ProjectCreateSessionDeleteWorktreeResult { project_path, directory, result } => Event::Deleted { project_path, directory, result },
+        ProjectMessage::ProjectCreateSessionResetWorktree(path) => Event::Reset(path),
+        ProjectMessage::ProjectCreateSessionResetWorktreeCancel => Event::ResetCancel,
+        ProjectMessage::ProjectCreateSessionResetWorktreeConfirmed => Event::ResetConfirmed,
+        ProjectMessage::ProjectCreateSessionResetWorktreeResult { project_path, directory: _, result } => Event::ResetDone { project_path, result },
+        _ => return None,
+    };
+    Some(update_picker(app, event))
+}
+pub(super) fn begin_picker(app: &mut App, project_path: String) -> iced::Task<Message> {
+    update_picker(app, Event::Begin(project_path))
+}
+fn update_picker(app: &mut App, event: Event) -> iced::Task<Message> {
+    let effects = session_worktree::update(&mut Picker {
+        project: &mut app.new_session_picker_project, options: &mut app.new_session_picker_options,
+        last_directory: &mut app.new_session_last_directory, name: &mut app.new_session_worktree_name,
+        creating: &mut app.new_session_creating, confirm_delete: &mut app.new_session_confirm_delete_directory,
+        force_delete: &mut app.new_session_force_delete_directory, delete_error: &mut app.new_session_delete_error,
+        confirm_reset: &mut app.new_session_confirm_reset_directory, reset_error: &mut app.new_session_reset_error,
+    }, app.project_path.as_deref(), app.agent_stream_id, event);
+    let mut tasks = Vec::new();
+    for effect in effects {
+        match effect {
+            Effect::InputError(field, text, args) => app.set_localized_input_error(error_field(field), text, args.into_iter().map(Into::into).collect()),
+            Effect::ClearError(field) => { app.localized_input_errors.remove(&error_field(field)); }
+            Effect::ClearHover => app.hovered_recent_project = None,
+            Effect::OpenDraft { project_path, directory } => tasks.push(super::open::open_session_draft(app, project_path, directory)),
+            Effect::Create { project_path, name, generation } => {
+                let path = project_path.clone();
+                tasks.push(iced::Task::perform(async move { create_gateway_session_worktree(path, name).await }, move |result| {
+                    Message::Project(ProjectMessage::SessionWorktreeCreated { project_path, generation, result })
+                }));
+            }
+            Effect::CreateFailed(error) => tasks.push(iced::Task::done(Message::Project(ProjectMessage::SessionCreateFailed(error)))),
+            Effect::Delete { project_path, directory, force } => {
+                let path = project_path.clone();
+                let target = directory.clone();
+                tasks.push(iced::Task::perform(async move { delete_gateway_worktree(&path, &target, force).await }, move |result| {
+                    Message::Project(ProjectMessage::ProjectCreateSessionDeleteWorktreeResult { project_path, directory: directory.clone(), result })
+                }));
+            }
+            Effect::Reload { project_path, clear_last_directory } => {
+                if clear_last_directory { tasks.push(app.save_desktop_preference("new_session_last_directory", serde_json::Value::Null)); }
+                tasks.push(iced::Task::done(Message::Project(ProjectMessage::ProjectCreateSession(project_path))));
+            }
+            Effect::Reset { project_path, directory } => {
+                let path = project_path.clone();
+                let target = directory.clone();
+                tasks.push(iced::Task::perform(async move { reset_gateway_worktree(&path, &target).await }, move |result| {
+                    Message::Project(ProjectMessage::ProjectCreateSessionResetWorktreeResult { project_path, directory: directory.clone(), result })
+                }));
+            }
+            Effect::ResetNotification => app.push_localized_notification("工作区已重置", vec![]),
+        }
+    }
+    iced::Task::batch(tasks)
+}
 #[cfg(test)]
 #[path = "worktree_tests.rs"]
 mod worktree_tests;

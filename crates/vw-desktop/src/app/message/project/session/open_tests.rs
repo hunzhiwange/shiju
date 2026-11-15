@@ -168,55 +168,7 @@ fn sessions_loaded_updates_list_or_pushes_notification() {
     assert!(app.notifications.iter().any(|item| item.message.contains("boom")));
 }
 
-#[test]
-fn session_bootstrap_loaded_sets_previews_archived_and_sessions() {
-    let mut app = app();
-    let project_path = "/tmp/project".to_string();
-    app.project_path = Some(project_path.clone());
-    app.project_sessions_loading.insert(project_path.clone());
-    let sessions = vec![session_info("s1", 1, 1)];
-    let mut previews = std::collections::HashMap::new();
-    previews.insert("s1".to_string(), "preview text".to_string());
-    let archived = std::collections::HashSet::from(["old".to_string()]);
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
-            project_path: Some(project_path.clone()),
-            result: Ok(sessions),
-            previews: previews.clone(),
-            archived_session_ids: archived.clone(),
-        },
-    );
-
-    assert_eq!(app.session_previews, previews);
-    assert_eq!(app.archived_session_ids, archived);
-    assert_eq!(app.sessions[0].id, "s1");
-    assert_eq!(app.project_sessions[&project_path][0].id, "s1");
-    assert!(!app.project_sessions_loading.contains(&project_path));
-}
-
-#[test]
-fn stale_session_bootstrap_result_is_ignored() {
-    let mut app = app();
-    let stale_path = "/tmp/stale".to_string();
-    app.project_path = Some("/tmp/current".to_string());
-    app.project_sessions_loading.insert(stale_path.clone());
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::SessionBootstrapLoaded {
-            project_path: Some(stale_path.clone()),
-            result: Ok(vec![session_info("stale", 1, 1)]),
-            previews: std::collections::HashMap::new(),
-            archived_session_ids: std::collections::HashSet::new(),
-        },
-    );
-
-    assert!(app.sessions.is_empty());
-    assert!(!app.project_sessions.contains_key(&stale_path));
-    assert!(!app.project_sessions_loading.contains(&stale_path));
-}
 
 #[test]
 fn session_bootstrap_loaded_keeps_metadata_and_reports_session_error() {
@@ -983,26 +935,6 @@ fn recent_hover_marks_uncached_project_loading_once() {
     assert_eq!(app.project_sessions_loading.len(), 1);
 }
 
-#[test]
-fn project_sessions_loaded_merges_and_clears_loading_state() {
-    let mut app = app();
-    let path = "/tmp/project".to_string();
-    app.project_sessions_loading.insert(path.clone());
-    app.project_sessions.insert(path.clone(), vec![session_info("local", 0, 0)]);
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsLoaded(
-            path.clone(),
-            Ok(vec![session_info("remote", 3, 1)]),
-        ),
-    );
-
-    assert!(!app.project_sessions_loading.contains(&path));
-    let sessions = app.project_sessions.get(&path).expect("sessions should be stored");
-    assert_eq!(sessions.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), vec!["remote", "local"]);
-    assert_eq!(app.project_session_load_counts.get(&path), Some(&10));
-}
 
 #[test]
 fn project_sessions_loaded_records_error_message() {
@@ -1022,58 +954,7 @@ fn project_sessions_loaded_records_error_message() {
     assert_eq!(app.error_message.as_deref(), Some("Failed to load project sessions: offline"));
 }
 
-#[test]
-fn project_sessions_loaded_prefers_incoming_duplicate_and_keeps_unique_existing_sessions() {
-    let mut app = app();
-    let path = "/tmp/project".to_string();
-    app.project_sessions.insert(
-        path.clone(),
-        vec![session_info("duplicate", 1, 1), session_info("existing", 2, 2)],
-    );
 
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionsLoaded(
-            path.clone(),
-            Ok(vec![session_info("duplicate", 9, 8), session_info("incoming", 3, 4)]),
-        ),
-    );
-
-    let sessions = app.project_sessions.get(&path).expect("sessions should be stored");
-    assert_eq!(
-        sessions.iter().map(|session| session.id.as_str()).collect::<Vec<_>>(),
-        vec!["duplicate", "incoming", "existing"]
-    );
-    let summary = sessions[0].summary.as_ref().expect("duplicate should retain incoming data");
-    assert_eq!((summary.additions, summary.deletions), (9, 8));
-}
-
-#[test]
-fn project_session_scroll_and_load_more_update_per_project_state() {
-    let mut app = app();
-    let path = "/tmp/project".to_string();
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectSessionListScrollChanged {
-            project_path: path.clone(),
-            has_vertical_scrollbar: true,
-        },
-    );
-    assert_eq!(app.project_session_has_vertical_scrollbar.get(&path), Some(&true));
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectLoadMoreSessions(path.clone()),
-    );
-    assert_eq!(app.project_session_load_counts.get(&path), Some(&15));
-
-    let _ = super::handle(
-        &mut app,
-        crate::app::message::project::ProjectMessage::ProjectLoadMoreSessions(path.clone()),
-    );
-    assert_eq!(app.project_session_load_counts.get(&path), Some(&20));
-}
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。

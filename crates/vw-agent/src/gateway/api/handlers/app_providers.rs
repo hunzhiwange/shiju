@@ -110,7 +110,7 @@ mod delete_tests;
 #[path = "app_providers/duplicate.rs"]
 mod duplicate;
 #[cfg(test)]
-#[path = "app_providers/duplicate_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/duplicate_tests.rs"]
 mod duplicate_tests;
 
 #[path = "app_providers/presentation.rs"]
@@ -122,7 +122,7 @@ mod presentation_tests;
 #[path = "app_providers/endpoints.rs"]
 mod endpoints;
 #[cfg(test)]
-#[path = "app_providers/endpoints_tests.rs"]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/endpoints_tests.rs"]
 mod endpoints_tests;
 
 #[path = "app_providers/icons.rs"]
@@ -158,6 +158,7 @@ mod validation_tests;
 
 mod editor_merge;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/editor_merge_tests.rs"]
 mod editor_merge_tests;
 
 #[path = "app_providers/snippets.rs"]
@@ -179,11 +180,13 @@ mod codex_catalog_tests;
 
 mod gemini;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/gemini_tests.rs"]
 mod gemini_tests;
 
 mod claude_desktop;
 mod grok;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/grok_tests.rs"]
 mod grok_tests;
 
 #[cfg(all(test, target_os = "macos"))]
@@ -191,6 +194,7 @@ mod claude_desktop_tests;
 
 pub(super) mod desktop_mapping;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/desktop_mapping_tests.rs"]
 mod desktop_mapping_tests;
 
 mod hermes;
@@ -224,6 +228,7 @@ mod kimi_tests;
 
 mod dsh;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/dsh_tests.rs"]
 mod dsh_tests;
 
 pub(super) mod agy;
@@ -242,14 +247,17 @@ mod mode_apply_tests;
 
 mod env_diagnose;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_diagnose_tests.rs"]
 mod env_diagnose_tests;
 
 mod env_clean;
 #[cfg(all(test, target_os = "macos"))]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_clean_tests.rs"]
 mod env_clean_tests;
 
 mod env_restore;
 #[cfg(test)]
+#[path = "../../../../../libs/gateway-app-providers/src/host_tests/env_restore_tests.rs"]
 mod env_restore_tests;
 
 pub(super) mod operations;

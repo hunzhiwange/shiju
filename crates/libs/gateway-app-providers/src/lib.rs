@@ -17,6 +17,16 @@ pub mod claude_desktop;
 pub mod codex_catalog;
 pub mod create;
 pub mod delete;
+pub mod desktop_mapping;
+pub mod dsh;
+pub mod duplicate;
+pub mod editor_merge;
+pub mod endpoints;
+pub mod env_clean;
+pub mod env_diagnose;
+pub mod env_restore;
+pub mod gemini;
+pub mod grok;
 pub fn error(message: &str) -> Response {
     let (status, safe) = match message {
         "application provider is referenced" => {

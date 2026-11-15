@@ -1,11 +1,12 @@
 // 覆盖记忆列表、检索、写入和删除接口的认证与错误映射。
 
 use super::*;
-use crate::app::agent::config::Config;
-use crate::app::agent::gateway::{GatewayRateLimiter, IdempotencyStore};
-use crate::app::agent::memory::{Memory, MemoryCategory, MemoryEntry};
+use agent_config::runtime::Config;
+type AppState = gateway_types::AppState<(), (), ()>;
+use gateway_types::{GatewayRateLimiter, IdempotencyStore};
+use memory_types::memory::{Memory, MemoryCategory, MemoryEntry};
 use model_types::Provider;
-use crate::app::agent::security::pairing::PairingGuard;
+use gateway_pairing::pairing::PairingGuard;
 use async_trait::async_trait;
 use axum::body::to_bytes;
 use axum::extract::{Path, Query, State};
@@ -19,9 +20,9 @@ use tokio::sync::broadcast;
 // 记录型内存后端同时保存调用参数与结果，用于区分列表、召回和删除分支。
 #[test]
 fn exported_handlers_are_available() {
-    let _ = handle_api_memory_list;
-    let _ = handle_api_memory_store;
-    let _ = handle_api_memory_delete;
+    let _ = handle_api_memory_list::<TestAuth, (), (), ()>;
+    let _ = handle_api_memory_store::<TestAuth, (), (), ()>;
+    let _ = handle_api_memory_delete::<TestAuth, (), (), ()>;
 }
 
 #[derive(Default)]
@@ -144,10 +145,10 @@ fn state_with_memory(mem: Arc<RecordingMemory>, require_pairing: bool) -> AppSta
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        observer: Arc::new(crate::app::agent::observability::NoopObserver),
+        observer: Arc::new(observer_backends::noop::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
-        multimodal: crate::app::agent::config::MultimodalConfig::default(),
+        multimodal: agent_config::runtime::MultimodalConfig::default(),
         max_iterations: 10,
         event_tx,
         session_query_engines: Default::default(),
@@ -169,7 +170,7 @@ async fn memory_list_requires_auth_when_pairing_enabled() {
     let state = state_with_memory(mem.clone(), true);
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             Query(MemoryQuery { query: None, category: None }),
@@ -191,7 +192,7 @@ async fn memory_list_uses_recall_when_query_is_present() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             Query(MemoryQuery { query: Some("rust".to_string()), category: None }),
@@ -212,7 +213,7 @@ async fn memory_list_treats_empty_query_as_recall_and_ignores_category() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             Query(MemoryQuery { query: Some(String::new()), category: Some("daily".to_string()) }),
@@ -234,7 +235,7 @@ async fn memory_list_without_filters_lists_all_entries() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             Query(MemoryQuery { query: None, category: None }),
@@ -262,7 +263,7 @@ async fn memory_list_maps_builtin_and_custom_categories() {
         let state = state_with_memory(mem.clone(), false);
 
         let (status, _value) = response_json(
-            handle_api_memory_list(
+            handle_api_memory_list::<TestAuth, (), (), ()>(
                 State(state),
                 HeaderMap::new(),
                 Query(MemoryQuery { query: None, category: Some(raw.to_string()) }),
@@ -283,7 +284,7 @@ async fn memory_store_requires_auth_without_writing() {
     let state = state_with_memory(mem.clone(), true);
 
     let (status, value) = response_json(
-        handle_api_memory_store(
+        handle_api_memory_store::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             JsonResponse(MemoryStoreBody {
@@ -308,7 +309,7 @@ async fn memory_store_defaults_to_core_and_accepts_custom_category() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_store(
+        handle_api_memory_store::<TestAuth, (), (), ()>(
             State(state.clone()),
             HeaderMap::new(),
             JsonResponse(MemoryStoreBody {
@@ -326,7 +327,7 @@ async fn memory_store_defaults_to_core_and_accepts_custom_category() {
     assert_eq!(value["status"], "ok");
 
     let (status, _value) = response_json(
-        handle_api_memory_store(
+        handle_api_memory_store::<TestAuth, (), (), ()>(
             State(state),
             HeaderMap::new(),
             JsonResponse(MemoryStoreBody {
@@ -361,7 +362,7 @@ async fn memory_store_maps_all_explicit_builtin_categories() {
 
     for category in ["core", "daily", "conversation"] {
         let (status, value) = response_json(
-            handle_api_memory_store(
+            handle_api_memory_store::<TestAuth, (), (), ()>(
                 State(state.clone()),
                 HeaderMap::new(),
                 JsonResponse(MemoryStoreBody {
@@ -399,7 +400,7 @@ async fn memory_delete_requires_auth_without_forgetting() {
     let state = state_with_memory(mem.clone(), true);
 
     let (status, value) = response_json(
-        handle_api_memory_delete(State(state), HeaderMap::new(), Path("known".to_string()))
+        handle_api_memory_delete::<TestAuth, (), (), ()>(State(state), HeaderMap::new(), Path("known".to_string()))
             .await
             .into_response(),
     )
@@ -416,7 +417,7 @@ async fn memory_delete_returns_deleted_flag() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_delete(State(state), HeaderMap::new(), Path("known".to_string()))
+        handle_api_memory_delete::<TestAuth, (), (), ()>(State(state), HeaderMap::new(), Path("known".to_string()))
             .await
             .into_response(),
     )
@@ -434,7 +435,7 @@ async fn memory_delete_preserves_false_for_missing_key() {
     let state = state_with_memory(mem.clone(), false);
 
     let (status, value) = response_json(
-        handle_api_memory_delete(State(state), HeaderMap::new(), Path("missing".to_string()))
+        handle_api_memory_delete::<TestAuth, (), (), ()>(State(state), HeaderMap::new(), Path("missing".to_string()))
             .await
             .into_response(),
     )
@@ -457,7 +458,7 @@ async fn memory_handlers_map_backend_errors_to_500() {
     });
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state_with_memory(failing.clone(), false)),
             HeaderMap::new(),
             Query(MemoryQuery { query: Some("boom".to_string()), category: None }),
@@ -470,7 +471,7 @@ async fn memory_handlers_map_backend_errors_to_500() {
     assert!(value["error"].as_str().unwrap_or_default().contains("Memory recall failed"));
 
     let (status, value) = response_json(
-        handle_api_memory_list(
+        handle_api_memory_list::<TestAuth, (), (), ()>(
             State(state_with_memory(failing.clone(), false)),
             HeaderMap::new(),
             Query(MemoryQuery { query: None, category: None }),
@@ -483,7 +484,7 @@ async fn memory_handlers_map_backend_errors_to_500() {
     assert!(value["error"].as_str().unwrap_or_default().contains("Memory list failed"));
 
     let (status, value) = response_json(
-        handle_api_memory_store(
+        handle_api_memory_store::<TestAuth, (), (), ()>(
             State(state_with_memory(failing.clone(), false)),
             HeaderMap::new(),
             JsonResponse(MemoryStoreBody {
@@ -500,7 +501,7 @@ async fn memory_handlers_map_backend_errors_to_500() {
     assert!(value["error"].as_str().unwrap_or_default().contains("Memory store failed"));
 
     let (status, value) = response_json(
-        handle_api_memory_delete(
+        handle_api_memory_delete::<TestAuth, (), (), ()>(
             State(state_with_memory(failing, false)),
             HeaderMap::new(),
             Path("k".to_string()),
@@ -511,4 +512,28 @@ async fn memory_handlers_map_backend_errors_to_500() {
     .await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert!(value["error"].as_str().unwrap_or_default().contains("Memory forget failed"));
+}
+
+use gateway_types::auth::extract_auth_skey;
+
+struct TestAuth;
+impl MemoryAuth for TestAuth {
+ fn require_auth<S,C,H>(state: &gateway_types::AppState<S,C,H>, headers: &HeaderMap) -> Result<(), (StatusCode, JsonResponse<serde_json::Value>)> {
+    if !state.pairing.auth_enabled() {
+        return Ok(());
+    }
+
+    let skey = extract_auth_skey(headers).unwrap_or("");
+    if state.pairing.is_authenticated(skey) {
+        Ok(())
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            JsonResponse(serde_json::json!({
+                "error": "Unauthorized — send a valid skey as Authorization: Bearer <skey>"
+            })),
+        ))
+    }
+
+ }
 }

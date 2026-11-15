@@ -19,66 +19,7 @@
 use serde::{Deserialize, Serialize};
 // Integration credential request types are owned by gateway-integrations.
 
-/// 内存查询请求参数
-///
-/// 用于查询存储在内存系统中的数据，支持按关键词和类别进行过滤。
-///
-/// # 示例
-///
-/// ```json
-/// {
-///     "query": "用户偏好设置",
-///     "category": "preferences"
-/// }
-/// ```
-#[derive(Deserialize)]
-pub struct MemoryQuery {
-    /// 查询关键词或短语
-    ///
-    /// 可选参数，用于模糊匹配内存中的内容。
-    /// 如果不提供，则可能返回所有或默认数量的记录。
-    pub query: Option<String>,
-
-    /// 数据类别过滤器
-    ///
-    /// 可选参数，用于限定查询的数据类别。
-    /// 例如："preferences"、"history"、"cache" 等。
-    pub category: Option<String>,
-}
-
-/// 内存存储请求体
-///
-/// 用于向内存系统存储新的数据条目，包含键、内容和可选的类别标签。
-///
-/// # 示例
-///
-/// ```json
-/// {
-///     "key": "user_theme",
-///     "content": "dark",
-///     "category": "preferences"
-/// }
-/// ```
-#[derive(Deserialize)]
-pub struct MemoryStoreBody {
-    /// 数据的唯一标识键
-    ///
-    /// 必填参数，用于后续查询或更新此数据条目。
-    /// 建议使用有意义且唯一的命名，如 "user_settings.theme"。
-    pub key: String,
-
-    /// 要存储的实际内容
-    ///
-    /// 必填参数，支持任意文本格式的内容。
-    /// 对于结构化数据，建议使用 JSON 字符串格式。
-    pub content: String,
-
-    /// 数据类别标签
-    ///
-    /// 可选参数，用于对存储的数据进行分类管理。
-    /// 便于后续按类别批量查询或清理数据。
-    pub category: Option<String>,
-}
+pub use gateway_memory::{MemoryQuery, MemoryStoreBody};
 
 pub use gateway_cron::requests::{CronAddBody, CronUpdateBody};
 

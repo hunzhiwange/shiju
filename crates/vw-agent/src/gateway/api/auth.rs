@@ -4,7 +4,7 @@
 //!
 //! Gateway skey authentication for REST API handlers.
 
-use super::super::AppState;
+use gateway_types::AppState;
 use axum::{
     http::{HeaderMap, StatusCode},
     response::Json,
@@ -17,8 +17,8 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<&str> {
 }
 
 /// 按网关配对状态验证请求，失败时返回可直接转成响应的 401 错误。
-pub fn require_auth(
-    state: &AppState,
+pub fn require_auth<S, C, H>(
+    state: &AppState<S, C, H>,
     headers: &HeaderMap,
 ) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
     if !state.pairing.auth_enabled() {

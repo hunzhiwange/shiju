@@ -18,9 +18,9 @@ use super::*;
 mod tests {
     use super::*;
 
-    use crate::app::agent::config::HeartbeatConfig;
-    use crate::app::agent::heartbeat::engine::HeartbeatEngine;
-    use crate::app::agent::observability::NoopObserver;
+    use config_automation::HeartbeatConfig;
+    use crate::engine::HeartbeatEngine;
+    use agent_observability::NoopObserver;
     use std::sync::Arc;
 
     /// 测试心跳引擎是否可以通过模块导出正确构造

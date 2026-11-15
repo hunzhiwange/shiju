@@ -2,14 +2,14 @@
 
 // 临时心跳文件与暂停时间共同验证循环可停止，单次错误不会终止后续周期。
 use super::*;
-use crate::app::agent::observability::traits::ObserverMetric;
+use observer_types::ObserverMetric;
 use std::sync::Once;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static INFO_TRACING: Once = Once::new();
 
 fn engine_for(workspace_dir: std::path::PathBuf) -> HeartbeatEngine {
-    let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
+    let observer: Arc<dyn Observer> = Arc::new(agent_observability::NoopObserver);
     HeartbeatEngine::new(
         HeartbeatConfig { enabled: true, interval_minutes: 1, ..HeartbeatConfig::default() },
         workspace_dir,
@@ -172,7 +172,7 @@ async fn ensure_heartbeat_file_creates_default_and_does_not_overwrite_existing_c
 
 #[tokio::test]
 async fn run_returns_immediately_when_disabled() {
-    let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
+    let observer: Arc<dyn Observer> = Arc::new(agent_observability::NoopObserver);
     let engine = HeartbeatEngine::new(
         HeartbeatConfig { enabled: false, interval_minutes: 1, ..HeartbeatConfig::default() },
         std::path::PathBuf::from("/tmp"),

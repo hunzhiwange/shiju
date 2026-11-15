@@ -14,9 +14,9 @@
 //! ```rust,no_run
 //! use std::sync::Arc;
 //! use std::path::PathBuf;
-//! use crate::app::agent::heartbeat::engine::HeartbeatEngine;
-//! use crate::app::agent::config::HeartbeatConfig;
-//! use crate::app::agent::observability::Observer;
+//! use crate::engine::HeartbeatEngine;
+//! use config_automation::HeartbeatConfig;
+//! use observer_types::Observer;
 //!
 //! async fn run_heartbeat() {
 //!     let config = HeartbeatConfig::default();
@@ -28,8 +28,8 @@
 //! }
 //! ```
 
-use super::super::observability::{Observer, ObserverEvent};
-use crate::app::agent::config::HeartbeatConfig;
+use observer_types::{Observer, ObserverEvent};
+use config_automation::HeartbeatConfig;
 use anyhow::Result;
 use std::path::Path;
 use std::sync::Arc;
@@ -70,8 +70,8 @@ impl HeartbeatEngine {
     /// ```rust,no_run
     /// use std::sync::Arc;
     /// use std::path::PathBuf;
-    /// use crate::app::agent::heartbeat::engine::HeartbeatEngine;
-    /// use crate::app::agent::config::HeartbeatConfig;
+    /// use crate::engine::HeartbeatEngine;
+    /// use config_automation::HeartbeatConfig;
     ///
     /// let engine = HeartbeatEngine::new(
     ///     HeartbeatConfig::default(),

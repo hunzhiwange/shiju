@@ -143,7 +143,7 @@ mod tests {
         let _ = tokio::fs::remove_dir_all(&dir).await;
         tokio::fs::create_dir_all(&dir).await.unwrap();
 
-        let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
+        let observer: Arc<dyn Observer> = Arc::new(agent_observability::NoopObserver);
         let engine = HeartbeatEngine::new(
             HeartbeatConfig { enabled: true, interval_minutes: 30, ..HeartbeatConfig::default() },
             dir.clone(),
@@ -163,7 +163,7 @@ mod tests {
 
         tokio::fs::write(dir.join("HEARTBEAT.md"), "- A\n- B\n- C").await.unwrap();
 
-        let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
+        let observer: Arc<dyn Observer> = Arc::new(agent_observability::NoopObserver);
         let engine = HeartbeatEngine::new(
             HeartbeatConfig { enabled: true, interval_minutes: 30, ..HeartbeatConfig::default() },
             dir.clone(),
@@ -177,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_returns_immediately_when_disabled() {
-        let observer: Arc<dyn Observer> = Arc::new(crate::app::agent::observability::NoopObserver);
+        let observer: Arc<dyn Observer> = Arc::new(agent_observability::NoopObserver);
         let engine = HeartbeatEngine::new(
             HeartbeatConfig { enabled: false, interval_minutes: 30, ..HeartbeatConfig::default() },
             std::env::temp_dir(),

@@ -45,6 +45,7 @@ agent-doctor = { path = "../libs/agent-doctor", version = "0.6.0" }
 agent-integrations = { path = "../libs/agent-integrations", version = "0.6.0" }
 agent-installation = { path = "../libs/agent-installation", version = "0.6.0" }
 agent-health = { path = "../libs/agent-health", version = "0.6.0" }
+agent-heartbeat = { path = "../libs/agent-heartbeat", version = "0.6.0" }
 agent-daemon = { path = "../libs/agent-daemon", version = "0.6.0" }
 agent-cron = { path = "../libs/agent-cron", version = "0.6.0" }
 tool-cron = { path = "../libs/tool-cron", version = "0.6.0" }

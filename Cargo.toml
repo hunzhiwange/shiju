@@ -376,6 +376,7 @@ members = [
   "crates/libs/agent-files",
   "crates/libs/agent-format",
   "crates/libs/agent-health",
+  "crates/libs/agent-heartbeat",
   "crates/libs/agent-daemon",
   "crates/libs/agent-cron",
   "crates/libs/agent-context",

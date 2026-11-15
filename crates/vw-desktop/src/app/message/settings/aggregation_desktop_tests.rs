@@ -99,7 +99,7 @@ async fn aggregation_t63_aggregation_desktop_preserves_contract() {
     let result = execute(client, scoped_form(scope), Action::Save).await;
     assert!(matches!(
         result,
-        Err(vw_gateway_client::AgentAppsSettingsError::Http { status: 409, .. })
+        Err(gateway_app_settings::AgentAppsSettingsError::Http { status: 409, .. })
     ));
     let body = server.join().unwrap().unwrap();
     assert_eq!(
@@ -185,7 +185,7 @@ fn aggregation_t63_preview_blockers_and_failure_preserve_draft() {
     for status in [401, 403, 409, 422, 501, 502, 503, 504] {
         finish(
             &mut form,
-            Err(vw_gateway_client::AgentAppsSettingsError::Http {
+            Err(gateway_app_settings::AgentAppsSettingsError::Http {
                 status,
                 body: serde_json::json!({"secret":"never-display"}),
             }),

@@ -222,14 +222,14 @@ fn permission_target_tool_anchor_fraction_prefers_later_tool_card() {
         think_timing: Vec::new(),
         processing_timing: None,
     };
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "web_search".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-2".to_string(),
         }),
@@ -250,14 +250,14 @@ fn permission_target_tool_anchor_fraction_uses_tool_row_anchor() {
         think_timing: Vec::new(),
         processing_timing: None,
     };
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-1".to_string(),
         }),
@@ -278,14 +278,14 @@ fn permission_target_tool_anchor_fraction_rejects_non_matching_request() {
         think_timing: Vec::new(),
         processing_timing: None,
     };
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "other".to_string(),
             call_id: "call-1".to_string(),
         }),
@@ -313,7 +313,7 @@ fn permission_target_tool_anchor_fraction_handles_non_tool_roles_and_empty_tool_
         think_timing: Vec::new(),
         processing_timing: None,
     };
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
@@ -336,14 +336,14 @@ fn permission_target_tool_anchor_fraction_handles_non_tool_roles_and_empty_tool_
 #[test]
 fn permission_target_tool_anchor_fraction_centers_matching_message_without_tools() {
     let message = chat_message(ChatRole::Assistant, "没有工具调用");
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-1".to_string(),
         }),
@@ -361,14 +361,14 @@ fn permission_target_tool_anchor_fraction_returns_none_when_tool_call_is_absent(
         ChatRole::Assistant,
         "tool bash\n{\"status\":\"running\",\"toolCallId\":\"call-1\"}",
     );
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "missing-call".to_string(),
         }),
@@ -391,14 +391,14 @@ fn permission_target_tool_anchor_fraction_groups_trailing_explore_tools() {
             "{\"status\":\"running\",\"toolCallId\":\"call-2\"}"
         ),
     );
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "grep".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-2".to_string(),
         }),
@@ -421,14 +421,14 @@ fn permission_target_tool_anchor_fraction_uses_last_duplicate_tool_card() {
             "{\"input\":\"echo same\",\"toolCallId\":\"call-2\"}"
         ),
     );
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-2".to_string(),
         }),
@@ -455,14 +455,14 @@ fn permission_target_tool_anchor_fraction_clamps_first_and_last_tool_anchors() {
             "{\"input\":\"four\",\"toolCallId\":\"call-4\"}"
         ),
     );
-    let mut request = vw_gateway_client::PendingPermissionRequestDto {
+    let mut request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "bash".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-1".to_string(),
         }),
@@ -493,14 +493,14 @@ fn permission_target_tool_anchor_fraction_separates_explore_groups_with_text() {
             "{\"status\":\"running\",\"toolCallId\":\"call-2\"}"
         ),
     );
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "perm-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "grep".to_string(),
         patterns: Vec::new(),
         metadata: serde_json::Map::new(),
         always: Vec::new(),
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-2".to_string(),
         }),

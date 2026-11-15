@@ -4,7 +4,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use tower::ServiceExt;
-use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;
+use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 async fn response(request: Request<Body>) -> (StatusCode, Value) {
     let response = super::router_with_client::<()>(
@@ -239,7 +239,7 @@ async fn shiju_monthly_quota_uses_employee_key_and_converts_upstream_budget() {
         let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         assert!(!String::from_utf8_lossy(&body).contains("fixture-"));
         if status == StatusCode::OK {
-            let quota: vw_gateway_client::ShijuMonthlyQuotaDto =
+            let quota: gateway_shiju_account::ShijuMonthlyQuotaDto =
                 serde_json::from_slice(&body).unwrap();
             assert_eq!(quota.limit, limit);
             assert_eq!(quota.remaining, remaining);

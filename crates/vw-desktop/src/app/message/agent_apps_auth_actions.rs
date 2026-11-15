@@ -10,9 +10,7 @@ use crate::app::{
     state::agent_apps_auth::{AccountAction, AccountOperation, ActionPhase, Connection, Scope},
 };
 use iced::Task;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-       GatewayClient,
-    vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthAccount, AuthCredentialState, AuthErrorCode, AuthService}}};
 
 #[derive(Clone)]
 pub enum ActionEvent {
@@ -235,7 +233,7 @@ async fn review(
             .agent_apps_auth_bindings(host, service, Some(account_id), &credentials)
             .await
             .map_err(|error| match error {
-                vw_gateway_client::AgentAppsAuthReadError::Http { status: 403, .. } => {
+                gateway_app_auth::AgentAppsAuthReadError::Http { status: 403, .. } => {
                     "当前主体没有此服务的绑定读取权限"
                 }
                 _ => read_error_label(error),

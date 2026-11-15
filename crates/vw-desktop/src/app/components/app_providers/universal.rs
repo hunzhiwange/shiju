@@ -9,7 +9,7 @@ use iced::{
     Alignment, Element, Length,
     widget::{button, checkbox, column, container, row, scrollable, text},
 };
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
 use vw_api_app_provider_edit::universal_sync::UniversalLiveResult;
 use vw_api_app_provider_edit::universal_sync::UniversalSyncError;

@@ -1,4 +1,4 @@
-use vw_gateway_client::{AgentAppsReadError};
+use {gateway_http::AgentAppsReadError};
 use vw_api_app_provider_environment::mode_apply::ModeApplyResult;
 use vw_api_app_provider_environment::mode_state::ProviderMode;
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;

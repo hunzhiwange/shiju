@@ -7,7 +7,7 @@ use crate::app::state::SHIJU_OFFICIAL_PROVIDER_ID;
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
-use vw_gateway_client::ShijuModelTokenDto;
+use gateway_shiju_account::ShijuModelTokenDto;
 use auth_file_store as auth;
 
 fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), Feedback> {

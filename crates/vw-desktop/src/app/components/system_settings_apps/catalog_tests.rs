@@ -12,7 +12,7 @@ use vw_api_app_identity::{
     AppRuntimeKind,
 };
 use super::catalog::*;
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
+use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
 
 fn row() -> CatalogRow {
     CatalogRow {
@@ -115,7 +115,7 @@ fn cc_apps_desktop_catalog_state_damaged_runnable_unverified() {
 #[tokio::test]
 async fn cc_apps_desktop_catalog_state_sdk_fourteen_concurrent_ordered_and_partial_failure() {
     use std::io::{Read, Write};
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let ids = [

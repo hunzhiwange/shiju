@@ -8,7 +8,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use tower::ServiceExt;
-use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;
+use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 async fn response(request: Request<Body>) -> (StatusCode, Value) {
     let response = super::router_with_client::<()>(

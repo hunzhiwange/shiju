@@ -6,8 +6,7 @@ use std::{
 
 use iced::widget::text_editor::{Action, Edit};
 use serde_json::json;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AppsUsageTemplate, GatewayClient, vw_api_types::{agent_apps::AppId}}};
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_usage::AppsUsageTemplate, vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}}};
 
 use vw_api_apps_usage::apps_usage::UsageSnapshotQuery;
 
@@ -194,10 +193,7 @@ async fn usage_usage_script_cancellation_disconnects_the_sdk_request() {
 
 #[test]
 fn usage_usage_script_hides_gateway_error_details() {
-    use vw_gateway_client::{
-        AppsUsageWriteError,
-        vw_api_app_auth::{AuthError, AuthErrorCode},
-    };
+    use {gateway_app_usage::AppsUsageWriteError, vw_api_app_auth::{AuthError, AuthErrorCode}};
 
     let failure = Failure::from_gateway(AppsUsageWriteError::Http {
         status: 403,

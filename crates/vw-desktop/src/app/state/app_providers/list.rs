@@ -1,5 +1,5 @@
 use crate::app::state::AgentAppsContext;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::catalog::ProviderCatalog;
 use vw_api_app_provider_edit::presentation::AppProviderPresentation;
 use vw_api_app_provider_edit::presentation::AppProviderPresentationEntry;

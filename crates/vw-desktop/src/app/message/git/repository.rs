@@ -82,7 +82,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 async move {
                     let result = async {
                         let context = gateway_context(&path).await?;
-                        crate::app::gateway_client()?
+                        gateway_project::GatewayProjectClient::new(crate::app::gateway_client()?.transport().clone())
                             .git_repository(
                                 &vw_api_git::GitRepositoryRequest {
                                     project_id: context.project_id,
@@ -149,7 +149,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 async move {
                     let result = async {
                         let context = gateway_context(&path).await?;
-                        crate::app::gateway_client()?
+                        gateway_project::GatewayProjectClient::new(crate::app::gateway_client()?.transport().clone())
                             .git_history_detail(
                                 &vw_api_git::GitHistoryDetailRequest {
                                     project_id: context.project_id,
@@ -260,7 +260,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                     async move {
                         let result = async {
                             let context = gateway_context(&path).await?;
-                            let response = crate::app::gateway_client()?
+                            let response = gateway_project::GatewayProjectClient::new(crate::app::gateway_client()?.transport().clone())
                                 .git_remote(
                                     &vw_api_git::GitRemoteRequest {
                                         project_id: context.project_id,

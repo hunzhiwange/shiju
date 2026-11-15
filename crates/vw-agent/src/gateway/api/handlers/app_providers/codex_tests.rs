@@ -5,7 +5,7 @@ use vw_api_app_provider_edit::preview::*;
 use vw_api_transport::id::TenantScope;
 #[tokio::test]
 async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let directory = root.path().join(".codex");
     std::fs::create_dir(&directory).unwrap();
@@ -68,7 +68,7 @@ async fn cc04_codex_sdk_api_profile_refusal_is_redacted_and_readonly() {
     request.target_host_id = "metadata-only".into();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Codex, &request, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 403, .. }
     ));
     server.abort();
     let _ = server.await;

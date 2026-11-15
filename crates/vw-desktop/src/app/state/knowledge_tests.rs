@@ -1,9 +1,6 @@
 use super::*;
 use serde_json::Value;
-use vw_gateway_client::{
-    KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeDocumentDto,
-    KnowledgeDocumentStatus, KnowledgeMatchType,
-};
+use {vw_api_knowledge::KnowledgeCapabilitiesDto, vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeMatchType};
 
 fn dataset(id: &str, top_k: usize, threshold_enabled: bool, threshold: f64) -> KnowledgeDatasetDto {
     KnowledgeDatasetDto {

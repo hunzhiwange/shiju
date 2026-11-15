@@ -6,7 +6,7 @@ use crate::app::state::{
 use std::io::{BufRead, BufReader, Read, Write};
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::universal_sync::UniversalCatalogResult;
 use vw_api_app_provider_edit::universal_sync::UniversalLiveResult;
 use vw_api_app_provider_edit::universal_sync::UniversalSyncError;

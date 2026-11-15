@@ -10,7 +10,7 @@ use crate::app::{Message, message::ViewMessage, state::AppsCatalogState};
 use iced::advanced::renderer::Headless;
 use iced::{Event, Font, Pixels, Point, Size, Theme, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
+use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
 
 #[tokio::test]
 async fn cc_apps_desktop_manual_guide_click_opens_only_official_client_url() {

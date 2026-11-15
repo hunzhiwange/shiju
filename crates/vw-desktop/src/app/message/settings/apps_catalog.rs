@@ -42,7 +42,7 @@ pub enum AppsCatalogMessage {
         host: String,
         generation: u64,
         id: vw_api_app_identity::AppId,
-        result: Result<vw_api_app_identity::AppReadResponse, vw_gateway_client::AgentAppsReadError>,
+        result: Result<vw_api_app_identity::AppReadResponse, gateway_http::AgentAppsReadError>,
     },
     Refresh,
     EnsureLoaded,
@@ -342,7 +342,7 @@ pub(super) fn update(app: &mut App, message: AppsCatalogMessage) -> Task<Message
                         if local
                             && matches!(
                                 e,
-                                vw_gateway_client::AgentAppsReadError::Http { status: 503, .. }
+                                gateway_http::AgentAppsReadError::Http { status: 503, .. }
                             )
                         {
                             "本机应用服务尚未就绪，请重启新版网关后重试".into()

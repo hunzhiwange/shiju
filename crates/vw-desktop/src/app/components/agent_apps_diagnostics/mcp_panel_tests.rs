@@ -2,7 +2,7 @@ use gateway_app_diagnostics::GatewayAppDiagnosticsClient;
 use crate::app::message::agent_apps_diagnostics::{mcp_results, *};
 use serde_json::json;
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppId,
     vw_api_app_diagnostics::*,
     vw_api_mcp_management::*,
 };
@@ -240,7 +240,7 @@ async fn protocol_roundtrip(context: &Context) {
         net::TcpListener,
         time::Duration,
     };
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", listener.local_addr().unwrap().port())

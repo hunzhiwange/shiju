@@ -23,9 +23,7 @@ use vw_api_app_provider_base::ProviderProtocol;
 use vw_api_transport::id::ModelId;
 use vw_api_transport::id::TenantScope;
 use vw_api_model_catalog::*;
-use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
-    AgentAppsReadError, GatewayChatStreamEvent, GatewayChatStreamRequest,
-    GatewayClient}};
+use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {gateway_http::AgentAppsReadError, vw_api_chat::GatewayChatStreamEvent, vw_api_chat::GatewayChatStreamRequest, vw_gateway_client::GatewayClient}};
 
 use crate::{
     app_providers::AppProviderStore, config, gateway, global_database::GlobalDatabase, project,

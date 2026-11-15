@@ -9,7 +9,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use serde_json::Value;
 use tower::ServiceExt;
-use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;
+use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 const CREDENTIAL: &str = "fixture-handler-credential-secret";
 const INSTALLATION_ID: &str = "01K1APP0000000000000000001";

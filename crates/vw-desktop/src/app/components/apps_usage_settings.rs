@@ -3,10 +3,7 @@
 use std::fmt;
 
 use iced::Task;
-use vw_gateway_client::{
-    AppsUsageCredentialRefs, AppsUsageDisplay, AppsUsageReadError, AppsUsageSettings,
-    AppsUsageSigningCredentialRefs, AppsUsageWriteError, GatewayClient,
-    vw_api_types::{
+use {gateway_app_usage::AppsUsageCredentialRefs, gateway_app_usage::AppsUsageDisplay, gateway_app_usage::AppsUsageReadError, gateway_app_usage::AppsUsageSettings, gateway_app_usage::AppsUsageSigningCredentialRefs, gateway_app_usage::AppsUsageWriteError, vw_gateway_client::GatewayClient, vw_api_types::{
         agent_apps::AppId,
         apps_usage::{
             UsageSnapshotQuery,
@@ -15,8 +12,7 @@ use vw_gateway_client::{
                 valid_usage_team_id,
             },
         },
-    },
-};
+    }};
 
 use super::{
     apps_usage_cards::{Scope, current_scope, scope},

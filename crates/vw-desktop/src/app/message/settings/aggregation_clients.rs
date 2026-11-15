@@ -3,12 +3,12 @@ use super::{Selection, current};
 use crate::app::{App, Message};
 use iced::Task;
 use gateway_endpoint::GatewayAuth;
-use vw_gateway_client::AgentAppsSettingsError;
+use gateway_app_settings::AgentAppsSettingsError;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_aggregation::*;
 use vw_api_app_aggregation::operations::ProviderOperationProgress;
-use vw_gateway_client::vw_api_types::task::TaskStatus;
+use vw_api_types::task::TaskStatus;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Session {
@@ -214,7 +214,7 @@ pub(crate) async fn execute(
                 gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_aggregation_operation_cancel(id, &query).await
             };
             r.map(Reply::Operation).map_err(|e| match e {
-                vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+                gateway_http::AgentAppsReadError::Http { status, body } => {
                     AgentAppsSettingsError::Http { status, body }
                 }
                 _ => AgentAppsSettingsError::Transport("operation unavailable".into()),

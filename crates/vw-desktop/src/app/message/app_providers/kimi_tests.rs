@@ -15,9 +15,9 @@ use std::{
 };
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
-use vw_gateway_client::vw_api_app_provider_terminal::kimi::KimiLiveResult;
+use vw_api_app_provider_terminal::kimi::KimiLiveResult;
 
 const INVALID: &str = "models = \"中文模型\"";
 

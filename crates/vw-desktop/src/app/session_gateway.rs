@@ -14,8 +14,8 @@ use gateway_desktop_settings::HookAuditEntryDto;
 use gateway_desktop_settings::HookCatalogEntryDto;
 use gateway_desktop_settings::HookMutationResponseDto;
 use gateway_interaction::PendingPermissionReplyDto;
-use vw_gateway_client::PendingPermissionRequestDto;
-use vw_gateway_client::ProjectChangeRecordDto;
+use gateway_interaction::PendingPermissionRequestDto;
+use vw_api_project::ProjectChangeRecordDto;
 use gateway_skill_market::SkillMarketCategoryDto;
 use gateway_skill_market::SkillMarketCoordinateDto;
 use gateway_skill_market::SkillMarketInstallSelectionDto;
@@ -30,17 +30,8 @@ use gateway_skill_market::SkillMarketSkillSetPageDto;
 use gateway_skill_market::SkillMarketSourceDto;
 use vw_api_agent_scheduler::AgentSchedulerScopeDto;
 use vw_api_transport::id::ProjectId;
-use vw_gateway_client::vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
-use vw_gateway_client::{
-    ShijuAccountMeDto,
-    ShijuAccountPasswordUpdateRequest,
-    ShijuAccountProfileDto,
-    ShijuAccountUpdateRequest,
-    ShijuAccountUpdateResponseDto,
-    ShijuCredential,
-    ShijuLoginChallengeDto,
-    ShijuLoginPollDto,
-};
+use vw_api_types::project::{ProjectScopeDto, TenantScopeDto};
+use {gateway_shiju_account::ShijuAccountMeDto, gateway_shiju_account::ShijuAccountPasswordUpdateRequest, gateway_shiju_account::ShijuAccountProfileDto, gateway_shiju_account::ShijuAccountUpdateRequest, gateway_shiju_account::ShijuAccountUpdateResponseDto, gateway_shiju_account::ShijuCredential, gateway_shiju_account::ShijuLoginChallengeDto, gateway_shiju_account::ShijuLoginPollDto};
 use gateway_shiju_skill::{ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto};
 use gateway_shiju_app::{ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuIamApiKeyListDto};
 use session_ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
@@ -127,7 +118,7 @@ pub(crate) async fn gateway_shiju_account_profile_async(
 
 pub(crate) async fn gateway_shiju_account_monthly_quota_async(
     credential: &ShijuCredential,
-) -> Result<vw_gateway_client::ShijuMonthlyQuotaDto, String> {
+) -> Result<gateway_shiju_account::ShijuMonthlyQuotaDto, String> {
     gateway_shiju_account::GatewayShijuAccountClient::new(gateway_client()?.transport().clone()).shiju_account_monthly_quota(credential).await
 }
 
@@ -925,7 +916,7 @@ pub async fn gateway_project_change_records_async(
     let client = gateway_client()?;
     let project = gateway_project::GatewayProjectClient::new(client.transport().clone()).project_resolve(
             &active_tenant_scope(),
-            &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
+            &vw_api_types::project::ResolveProjectRequest {
                 directory: directory.to_string(),
                 create_if_missing: false,
             },
@@ -1170,7 +1161,7 @@ pub async fn gateway_plugin_discard_async(token: String) -> Result<(), String> {
 /// Resolve the selected project without creating it; repository authorization remains server-side.
 pub async fn gateway_skill_repos_scope(directory: &str, host: String) -> Result<vw_api_app_skills::repos_api::SkillReposQuery, String> {
     let project = gateway_project::GatewayProjectClient::new(gateway_client()?.transport().clone()).project_resolve(&active_tenant_scope(),
-        &vw_gateway_client::vw_api_types::project::ResolveProjectRequest {
+        &vw_api_types::project::ResolveProjectRequest {
             directory: directory.to_owned(), create_if_missing: false,
         }).await?.project;
     Ok(vw_api_app_skills::repos_api::SkillReposQuery {

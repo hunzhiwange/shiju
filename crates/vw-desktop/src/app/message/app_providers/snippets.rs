@@ -10,7 +10,7 @@ use iced::{
     Task,
     widget::text_editor::{Action, Content},
 };
-use vw_gateway_client::AgentAppsReadError;
+use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_edit::snippets::ConfigSnippet;
 use vw_api_app_provider_edit::snippets::SnippetExtract;

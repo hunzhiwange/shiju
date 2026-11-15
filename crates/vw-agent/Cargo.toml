@@ -12,6 +12,12 @@ autotests = false
 doctest = false
 
 [dependencies]
+runtime-types = { path = "../libs/runtime-types", version = "0.6.0" }
+gateway-shiju-skill = { path = "../libs/gateway-shiju-skill", version = "0.6.0" }
+gateway-shiju-app = { path = "../libs/gateway-shiju-app", version = "0.6.0" }
+gateway-shiju-account = { path = "../libs/gateway-shiju-account", version = "0.6.0" }
+gateway-desktop-settings = { path = "../libs/gateway-desktop-settings", version = "0.6.0" }
+gateway-app-auth = { path = "../libs/gateway-app-auth", version = "0.6.0" }
 tool-types = { path = "../libs/tool-types", version = "0.6.0" }
 gateway-skill-market = { path = "../libs/gateway-skill-market", version = "0.6.0" }
 gateway-shiju-knowledge = { path = "../libs/gateway-shiju-knowledge", version = "0.6.0" }

@@ -33,7 +33,7 @@ use vw_api_app_identity::{
     LaunchRequest,
     LaunchSessionPhase,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-agy-authorized-token-32-characters";
 fn terminal(
     _: Option<&str>,

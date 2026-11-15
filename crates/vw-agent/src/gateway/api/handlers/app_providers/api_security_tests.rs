@@ -14,7 +14,7 @@ use vw_api_app_aggregation::operations::*;
 use vw_api_app_provider_edit::preview::ProviderPreviewRequest;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-security-authorized-token-over-32-chars";
 const KEY: &str = "fixture-security-nested-key-753";
 const COOKIE: &str = "fixture-security-cookie-951";

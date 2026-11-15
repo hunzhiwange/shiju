@@ -213,10 +213,6 @@ impl GatewayClient {
         &self.transport
     }
 
-    fn native_transport(&self) -> Result<&reqwest::Client, String> {
-        self.transport.native_transport()
-    }
-
     pub fn endpoint(&self) -> &GatewayEndpoint {
         self.transport.endpoint()
     }

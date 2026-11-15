@@ -50,13 +50,7 @@ use super::{
     option_card_style, retrieval_label, score_threshold_label, section_header, segment_button,
     segment_style, support_label,
 };
-use vw_gateway_client::{
-    KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
-    KnowledgeDatasetDto, KnowledgeDocumentDto, KnowledgeDocumentStatus,
-    KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto, KnowledgeEmbeddingTestResponse,
-    KnowledgeIndexJobStatus, KnowledgeIndexingMode, KnowledgeMatchType, KnowledgeRetrievalMode,
-    KnowledgeRuntimeStatus,
-};
+use {vw_api_knowledge::KnowledgeCapabilitiesDto, vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeMatchType, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRuntimeStatus};
 
 fn test_app() -> App {
     App::new().0

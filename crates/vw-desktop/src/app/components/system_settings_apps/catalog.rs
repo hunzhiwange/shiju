@@ -7,7 +7,7 @@ use vw_api_app_identity::{
 };
 //! Presentation of observations returned by the SDK; no local discovery.
 use iced::futures::{StreamExt, stream};
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::agent_apps::*};
+use {gateway_http::AgentAppsReadError, vw_gateway_client::GatewayClient, vw_api_types::agent_apps::*};
 
 #[derive(Debug, Clone)]
 pub struct CatalogRow {

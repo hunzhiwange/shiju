@@ -541,7 +541,7 @@ async fn ui_refresh_31_login_menu_preserves_account_actions() {
     assert!(key_at(&mut ui, &mut renderer, Named::Enter).is_empty());
     drop(ui);
 
-    let challenge: vw_gateway_client::ShijuLoginChallengeDto =
+    let challenge: gateway_shiju_account::ShijuLoginChallengeDto =
         serde_json::from_value(serde_json::json!({
             "state": "fixture",
             "authorization_url": "https://auth.shiju.cloud/fixture",
@@ -704,7 +704,7 @@ async fn monthly_quota_renders_ring_and_shows_details_on_hover() {
 
     let mut app = fixture();
     app.account.replace_repository(repository());
-    app.account.monthly_quota = MonthlyQuotaState::Ready(vw_gateway_client::ShijuMonthlyQuotaDto {
+    app.account.monthly_quota = MonthlyQuotaState::Ready(gateway_shiju_account::ShijuMonthlyQuotaDto {
         limit: 1.0,
         used: 0.991,
         remaining: Some(0.009),

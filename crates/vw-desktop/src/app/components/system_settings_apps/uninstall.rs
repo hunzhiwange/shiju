@@ -1,7 +1,7 @@
 use vw_api_app_operations::{AppActionPreviewRequest, AppActionTarget};
 use vw_api_app_identity::{AppId, AppInstallation, AppInstallationSource};
 //! Uninstall selection stays bound to a discovered instance; execution belongs to the gateway.
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 pub(crate) fn selectable(
     request: &AppActionPreviewRequest,

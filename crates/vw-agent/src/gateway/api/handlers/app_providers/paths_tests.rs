@@ -26,7 +26,7 @@ fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("custom")).unwrap();
     let path = root.path().join("custom/models.yaml");
@@ -62,13 +62,13 @@ async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
     {
         request.target_host_id = host.into();
         assert!(
-            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)
+            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(), gateway_http::AgentAppsReadError::Http {status: actual, ..} if actual == status)
         );
     }
     request.target_host_id = "host".into();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, "invalid").await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }
+        gateway_http::AgentAppsReadError::Http { status: 401, .. }
     ));
     let foreign = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", port)
@@ -77,12 +77,12 @@ async fn cc04_paths_sdk_api_execution_home_and_permission_boundary() {
     .unwrap();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 403, .. }
     ));
     request.directory_override = Some("/outside-authorization".into());
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_paths(AppId::Omp, &request, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 400, .. }
+        gateway_http::AgentAppsReadError::Http { status: 400, .. }
     ));
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "fixture-secret");
     server.abort();

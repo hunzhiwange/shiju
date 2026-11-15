@@ -6,7 +6,7 @@ use iced::{
     Alignment, Element, Length, Theme,
     widget::{Space, button, checkbox, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 const ACTION_PADDING: [u16; 2] = [8, 12];
 

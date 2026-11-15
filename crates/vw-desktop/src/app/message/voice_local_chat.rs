@@ -7,7 +7,7 @@ use crate::app::{
 };
 use iced::Task;
 use std::time::Duration;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Stage {
     Ready,

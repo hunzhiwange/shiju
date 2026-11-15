@@ -221,14 +221,14 @@ async fn conversation_shell_renders_visual_regression_scenarios_without_panic() 
         }
         if matches!(scenario, Scenario::WaitingPermission) {
             app.chat_message_ids = vec![None, Some("msg-permission".to_string())];
-            let request = vw_gateway_client::PendingPermissionRequestDto {
+            let request = gateway_interaction::PendingPermissionRequestDto {
                 id: "req-permission".to_string(),
                 session_id: app.active_session_id.clone().unwrap_or_default(),
                 permission: "bash".to_string(),
                 patterns: vec![],
                 metadata: serde_json::Map::new(),
                 always: vec![],
-                tool: Some(vw_gateway_client::PendingPermissionToolDto {
+                tool: Some(gateway_interaction::PendingPermissionToolDto {
                     message_id: "msg-permission".to_string(),
                     call_id: "call-permission".to_string(),
                 }),

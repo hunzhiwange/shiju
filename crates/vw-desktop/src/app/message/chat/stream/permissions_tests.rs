@@ -8,8 +8,8 @@ fn permissions_tests_module_is_wired() {
     assert!(module_path!().ends_with("permissions_tests"));
 }
 
-fn request(id: &str, session_id: &str) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+fn request(id: &str, session_id: &str) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.to_string(),
         session_id: session_id.to_string(),
         permission: "shell".to_string(),

@@ -11,7 +11,7 @@ use vw_api_app_identity::{
 
 use super::components::system_settings_apps::{catalog::CatalogRow, preferences};
 use super::state::AppsCatalogState;
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 fn catalog_state() -> AppsCatalogState {
     AppsCatalogState {

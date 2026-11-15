@@ -2,7 +2,7 @@
 use super::*;
 pub(super) use crate::apps::workflow::state::video_edit::TEMPLATE_ID;
 use {
-    vw_gateway_client::WorkflowRecord,
+    vw_api_workflow::WorkflowRecord,
     vw_api_transport::TenantScope,
 };
 
@@ -38,7 +38,7 @@ fn persist(
                     gateway_workflow::GatewayWorkflowClient::new(client.transport().clone())
                         .workflow_template_update(
                             TEMPLATE_ID,
-                            &vw_gateway_client::WorkflowRecordUpsertBody {
+                            &vw_api_workflow::WorkflowRecordUpsertBody {
                                 uuid: Some(TEMPLATE_ID.into()),
                                 name: record.name,
                                 description: record.description,

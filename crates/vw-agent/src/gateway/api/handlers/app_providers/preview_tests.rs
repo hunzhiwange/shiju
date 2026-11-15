@@ -27,7 +27,7 @@ pub(super) fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join(".claude")).unwrap();
     let config = root.path().join(".claude/settings.json");
@@ -110,7 +110,7 @@ async fn cc04_preview_sdk_api_projects_without_writing_and_denies_permission() {
     {
         request.target_host_id = host.into();
         assert!(
-            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude,&request,TOKEN).await.unwrap_err(),vw_gateway_client::AgentAppsReadError::Http{status:actual,..} if actual==status)
+            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude,&request,TOKEN).await.unwrap_err(),gateway_http::AgentAppsReadError::Http{status:actual,..} if actual==status)
         );
     }
     assert_eq!(std::fs::read(&config).unwrap(), before);
@@ -125,7 +125,7 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
     use vw_agent_apps::providers::live::commit::{
         AppState, ExecutionHostId, ProviderTransactions, ScopedProvider,
     };
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let private = root.path().join("private");
     std::fs::create_dir(&private).unwrap();
@@ -186,11 +186,11 @@ async fn cc04_preview_existing_record_and_owner_are_read_only_and_tenant_scoped(
             .unwrap();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).app_provider_preview(AppId::Claude, &req, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 403, .. }
     ));
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &req, "invalid").await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }
+        gateway_http::AgentAppsReadError::Http { status: 401, .. }
     ));
     assert!(!root.path().join(".claude").exists());
     let pending = vw_agent_apps::providers::live::commit::Pending {

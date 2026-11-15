@@ -6,9 +6,7 @@ use std::net::TcpListener;
 use std::thread;
 
 use super::*;
-use vw_gateway_client::{
-    ShijuCredential, ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery,
-};
+use {gateway_shiju_account::ShijuCredential, gateway_shiju_skill::ShijuMaintainedSkillQuery, gateway_shiju_skill::ShijuSkillSearchQuery, gateway_shiju_skill::ShijuSystemSkillQuery};
 
 #[test]
 fn shiju_skills_production_gateway_uses_sj_prefix() {

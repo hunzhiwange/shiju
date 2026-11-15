@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{os::unix::fs::PermissionsExt, path::Path};
 use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
 use vw_api_app_provider_environment::mode_state::*;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {
     let file = home.join(name);
@@ -162,7 +162,7 @@ async fn cc04_mode_state_denial_unknown_fields_and_unavailable_proxy_do_not_writ
     ] {
         let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &q, token).await.unwrap_err();
         assert!(
-            matches!(error,vw_gateway_client::AgentAppsReadError::Http{status,..} if status==expected)
+            matches!(error,gateway_http::AgentAppsReadError::Http{status,..} if status==expected)
         );
     }
     assert_eq!(std::fs::read(path).unwrap(), before);
@@ -207,12 +207,12 @@ async fn cc04_mode_state_forged_contract_foreign_owner_and_pending_are_rejected(
     state.mode_tenant = Some(TenantScope::new("p", "other").unwrap());
     std::fs::write(&path, serde_json::to_vec(&state).unwrap()).unwrap();
     let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     std::fs::write(&path, &before).unwrap();
     let pending = path.with_file_name("claude.pending.json");
     std::fs::write(&pending,serde_json::to_vec(&json!({"version":4,"host":"host","app":"claude","tenant":tenant(),"directory_device":0,"directory_inode":0,"target":{},"files":[],"published":false})).unwrap()).unwrap();
     let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 409, .. }));
     assert_eq!(std::fs::read(&path).unwrap(), before);
     assert!(pending.exists());
 }
@@ -239,6 +239,6 @@ async fn aggregation_t39_legacy_mode_read_rejects_project_owned_state() {
     drop(guard);
     let before = std::fs::read(&path).unwrap();
     let error = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_mode_state(AppId::Claude, &query(), TOKEN).await.unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     assert_eq!(std::fs::read(path).unwrap(), before);
 }

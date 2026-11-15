@@ -5,10 +5,7 @@ use super::{AppsCatalogMessage, SettingsMessage};
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use gateway_app_lifecycle::{AgentAppsLifecycleError, GatewayAppLifecycleClient};
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::{agent_apps::*, },
-};
+use {vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::*, }};
 use vw_api_task::TaskStatus;
 
 #[derive(Clone, Debug)]

@@ -413,9 +413,9 @@ pub struct App {
     /// 权限对话框关联的请求 ID
     pub(crate) permission_modal_request_id: Option<String>,
     /// 当前权限对话框承载的请求数据
-    pub(crate) permission_modal_request: Option<vw_gateway_client::PendingPermissionRequestDto>,
+    pub(crate) permission_modal_request: Option<gateway_interaction::PendingPermissionRequestDto>,
     /// 当前轮询到的全部待审批权限请求
-    pub(crate) permission_modal_requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,
+    pub(crate) permission_modal_requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
     /// 当前激活的菜单类型
     pub(crate) active_menu: Option<message::view::MenuType>,
     /// 默认使用的外部打开应用

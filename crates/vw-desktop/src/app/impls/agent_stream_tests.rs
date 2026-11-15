@@ -2533,7 +2533,7 @@ fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test]
 async fn desktop_first_response_disconnect_replays_the_same_request_and_session() {
-    use vw_gateway_client::{GatewayClient};
+    use {vw_gateway_client::GatewayClient};
 use gateway_chat_stream::{GatewayChatStreamEvent, GatewayChatStreamRequest};
 
     let body = GatewayChatStreamRequest {

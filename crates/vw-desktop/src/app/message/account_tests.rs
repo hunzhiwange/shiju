@@ -104,12 +104,12 @@ fn account_me(name: &str, username: &str) -> ShijuAccountMeDto {
         external_user_id: String::new(),
         allow_console_login: true,
         status: "enabled".to_string(),
-        departments: vec![vw_gateway_client::ShijuAccountDepartmentDto {
+        departments: vec![gateway_shiju_account::ShijuAccountDepartmentDto {
             department_id: "101014".to_string(),
             department_name: "AI创新组".to_string(),
             parent_department_id: "101005".to_string(),
         }],
-        roles: vec![vw_gateway_client::ShijuAccountRoleDto {
+        roles: vec![gateway_shiju_account::ShijuAccountRoleDto {
             role_id: "102".to_string(),
             role_name: "默认角色".to_string(),
             role_code: "default".to_string(),
@@ -409,7 +409,7 @@ fn monthly_quota_ignores_old_account_results_and_allows_retry() {
     app.account.replace_repository(repository_with_account("second-key", "company-1"));
     let second = app.account.monthly_quota_generation;
     assert_eq!(update(&mut app, AccountMessage::RefreshMonthlyQuota).units(), 1);
-    let quota = vw_gateway_client::ShijuMonthlyQuotaDto {
+    let quota = gateway_shiju_account::ShijuMonthlyQuotaDto {
         limit: 100.0,
         used: 50.0,
         remaining: Some(50.0),

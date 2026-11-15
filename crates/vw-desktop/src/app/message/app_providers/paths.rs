@@ -5,7 +5,7 @@ use crate::app::{
     state::app_providers::{list::Scope, paths::Form},
 };
 use iced::Task;
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::{agent_apps::AppId}};
+use {gateway_http::AgentAppsReadError, vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}};
 use vw_api_app_provider_environment::paths::*;
 
 #[derive(Clone, Debug)]

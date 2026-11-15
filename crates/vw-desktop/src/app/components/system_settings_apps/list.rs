@@ -29,7 +29,7 @@ use iced::{
         button, column, container, mouse_area, row, svg, text, text::Wrapping, text_input, tooltip,
     },
 };
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 fn pill<'a>(label: impl Into<String>, tone: Tone) -> Element<'a, Message> {
     container(text(label.into()).size(12).wrapping(Wrapping::Glyph))

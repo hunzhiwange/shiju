@@ -171,7 +171,7 @@ async fn shiju_account_me_uses_x_api_key_and_maps_profile_update() {
     let client = ShijuAccountClient::with_base_urls(&base, &base).expect("client");
 
     let me = client.current_user(credential).await.expect("current user");
-    let update = vw_gateway_client::ShijuAccountUpdateRequest {
+    let update = gateway_shiju_account::ShijuAccountUpdateRequest {
         name: "刘祥敏3".to_string(),
         username: "liuxiangmin".to_string(),
     };
@@ -201,7 +201,7 @@ async fn shiju_account_password_uses_x_api_key_without_cookie() {
     let new_password = "new-password-456";
     let (base, requests) = fixture(vec![envelope(serde_json::Value::Null)]);
     let client = ShijuAccountClient::with_base_urls(&base, &base).expect("client");
-    let request = vw_gateway_client::ShijuAccountPasswordUpdateRequest {
+    let request = gateway_shiju_account::ShijuAccountPasswordUpdateRequest {
         old_password: old_password.to_string(),
         new_password: new_password.to_string(),
     };
@@ -233,7 +233,7 @@ async fn shiju_account_password_preserves_client_business_error() {
         .to_string(),
     )]);
     let client = ShijuAccountClient::with_base_urls(&base, &base).expect("client");
-    let request = vw_gateway_client::ShijuAccountPasswordUpdateRequest {
+    let request = gateway_shiju_account::ShijuAccountPasswordUpdateRequest {
         old_password: "wrong-password-123".to_string(),
         new_password: "new-password-456".to_string(),
     };

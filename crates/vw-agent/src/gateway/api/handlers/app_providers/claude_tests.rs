@@ -6,7 +6,7 @@ use std::{os::unix::fs::PermissionsExt, path::PathBuf};
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_base::claude::*;
 use vw_api_transport::id::TenantScope;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-claude-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
@@ -102,7 +102,7 @@ impl Fixture {
 #[tokio::test]
 async fn cc04_ui_paths_saved_directory_is_used_by_native_activation_and_import() {
 use vw_api_app_provider_environment::paths::*;
-    use vw_gateway_client::AgentAppsReadError;
+    use gateway_http::AgentAppsReadError;
 
     let f = Fixture::new().await;
     let original = std::fs::read(f.file()).unwrap();
@@ -577,7 +577,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
 async fn cc04_ui_claude_sdk_validation_and_permission_failures_do_not_write() {
 use vw_api_app_provider_base::basic::ProviderBasic;
     use vw_api_app_provider_base::create::ProviderSecretWrite;
-    use vw_gateway_client::AgentAppsReadError;
+    use gateway_http::AgentAppsReadError;
     let f = Fixture::new().await;
     let mut request = ClaudeFormWrite {
         target_host_id: "host".into(),

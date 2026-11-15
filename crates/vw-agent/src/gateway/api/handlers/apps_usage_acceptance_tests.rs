@@ -21,7 +21,7 @@ use vw_api_transport::id::ProjectScope;
 use vw_api_transport::id::TaskId;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppsUsageOperation, AppsUsageWriteError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_usage::AppsUsageOperation, gateway_app_usage::AppsUsageWriteError, vw_gateway_client::GatewayClient}};
 
 use super::{
     FIXTURE_CA, FIXTURE_CERT, FIXTURE_KEY, Fixture, NativeTransport, OTHER_TOKEN, TOKEN,

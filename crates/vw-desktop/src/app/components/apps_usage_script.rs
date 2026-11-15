@@ -7,9 +7,7 @@ use iced::{
     task::Handle,
     widget::text_editor::{Action, Content},
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AppsUsageCredentialRefs, AppsUsageScriptTrial, AppsUsageTemplate, AppsUsageWriteError,
-    GatewayClient, vw_api_types::{
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_usage::AppsUsageCredentialRefs, gateway_app_usage::AppsUsageScriptTrial, gateway_app_usage::AppsUsageTemplate, gateway_app_usage::AppsUsageWriteError, vw_gateway_client::GatewayClient, vw_api_types::{
         apps_usage::{
             UsageQueryErrorCode, UsageScriptPackage, UsageSnapshotQuery,
             settings::UsageCredentialId,

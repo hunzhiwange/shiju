@@ -196,7 +196,7 @@ async fn cc04_desktop_mapping_permissions_refuse_catalog_side_effects() {
     std::fs::write(&policy_path, policy.to_string()).unwrap();
     assert_eq!(f.client.claude_desktop_default_routes(&f.target(), TOKEN).await.unwrap().len(), 4);
     let err = f.client.claude_desktop_import_claude(&f.target(), TOKEN).await.unwrap_err();
-    assert!(matches!(err, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(err, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     let request = DesktopMappingWrite {
         target_host_id: "host".into(),
         mapping: DesktopMapping { mode: DesktopMappingMode::Direct, routes: Default::default() },
@@ -244,7 +244,7 @@ async fn cc04_ui_desktop_form_read_is_redacted_and_permission_checked() {
         .unwrap();
     assert!(matches!(
         f.client.claude_desktop_form_read("form", &f.target(), TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+        gateway_http::AgentAppsReadError::Http { status: 422, .. }
     ));
     assert!(!f.root.path().join("private/provider-live").exists());
 }

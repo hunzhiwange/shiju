@@ -29,7 +29,7 @@ use iced::advanced::{Layout, Shell, clipboard, layout, widget::Tree};
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 fn default_i18n() -> I18n {
     I18n::new(config_ui::DesktopLocale::SimplifiedChinese)

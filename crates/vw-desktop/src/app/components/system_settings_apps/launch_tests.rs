@@ -8,7 +8,7 @@ use vw_api_app_identity::{
     LaunchSessionPhase,
 };
 use super::launch::*;
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 fn draft() -> LaunchState {
     LaunchState {
         identities_ready: true,

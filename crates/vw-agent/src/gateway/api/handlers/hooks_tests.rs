@@ -107,7 +107,7 @@ async fn response_json(response: axum::response::Response) -> Value {
     serde_json::from_slice(&bytes).expect("response json")
 }
 
-async fn hook_catalog(app: &axum::Router) -> Vec<vw_gateway_client::HookCatalogEntryDto> {
+async fn hook_catalog(app: &axum::Router) -> Vec<gateway_desktop_settings::HookCatalogEntryDto> {
     let response =
         app.clone().oneshot(Request::get("/hooks").body(Body::empty()).unwrap()).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);

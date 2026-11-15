@@ -100,7 +100,7 @@ async fn cc_apps_provider_launch_isolation_sdk_http_sqlite_projection_process_ro
 use vw_api_types::agent_apps::*;
     use vw_api_app_provider_base::ProviderLaunchRequest;
     use vw_api_transport::id::TenantScope;
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let home = tempfile::tempdir().unwrap();
     let database = GlobalDatabase::for_home(home.path()).unwrap();
     let router = Router::new()

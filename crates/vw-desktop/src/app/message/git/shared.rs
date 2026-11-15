@@ -138,7 +138,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
     let context =
         crate::app::message::project::helpers::resolve_gateway_file_context(&project_path).await?;
     let client = crate::app::gateway_client()?;
-    let response = client
+    let response = gateway_project::GatewayProjectClient::new(client.transport().clone())
         .git_commit(&vw_api_git::GitCommitRequest {
             project_id: context.project_id,
             worktree_id: context.worktree_id,
@@ -181,7 +181,7 @@ pub(super) async fn execute_selected_commit_via_gateway(
 }
 
 pub(super) async fn execute_stage_all_via_gateway(directory: String) -> Result<(), String> {
-    let response = crate::app::gateway_client()?
+    let response = gateway_project::GatewayProjectClient::new(crate::app::gateway_client()?.transport().clone())
         .git_command(&vw_api_git::GitCommandRequest {
             directory,
             args: vec!["add".to_string(), "--all".to_string()],

@@ -92,7 +92,7 @@ fn aggregation_t60_removed_model_keeps_intent_and_effective_state_distinct() {
 }
 #[test]
 fn aggregation_t60_errors_preserve_draft_and_require_refresh() {
-    use vw_gateway_client::AgentAppsSettingsError;
+    use gateway_app_settings::AgentAppsSettingsError;
     for status in [401, 403, 409, 422, 501, 502, 503, 504] {
         let mut form = loaded();
         form.pending = Some(10);
@@ -120,7 +120,7 @@ fn aggregation_t60_errors_preserve_draft_and_require_refresh() {
 #[tokio::test]
 async fn aggregation_t60_form_calls_sdk_with_scope_revision_and_clear_values() {
     use std::io::{Read, Write};
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();

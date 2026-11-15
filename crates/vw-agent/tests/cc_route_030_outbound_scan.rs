@@ -20,7 +20,7 @@ use {
     vw_api_transport::id::TaskId,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AppRoutingError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_routing::AppRoutingError, vw_gateway_client::GatewayClient}};
 
 const HOST: &str = "routing-mac";
 const MANAGER: &str = "fixture-routing-scan-manager-token-00001";

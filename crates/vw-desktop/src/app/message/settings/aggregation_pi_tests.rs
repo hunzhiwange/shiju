@@ -55,7 +55,7 @@ async fn aggregation_t65_sdk_wire_and_conflict_preserve_draft_without_replay() {
         io::{BufRead, BufReader, Read, Write},
         net::TcpListener,
     };
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let server = std::thread::spawn(move || {
@@ -140,7 +140,7 @@ async fn aggregation_t65_sdk_wire_and_conflict_preserve_draft_without_replay() {
     let result = execute(client.clone(), query.clone(), Some(write)).await;
     assert!(matches!(
         &result,
-        Err(vw_gateway_client::AggregationApiError::Http { status: 409, .. })
+        Err(gateway_aggregation::AggregationApiError::Http { status: 409, .. })
     ));
     assert!(!form.finish(6, result.clone()));
     assert_eq!(form.pending, Some(7));
@@ -265,7 +265,7 @@ async fn aggregation_t65_renders_dynamic_chinese_in_light_and_dark() {
 
 #[test]
 fn aggregation_t65_permission_target_and_decode_errors_require_refresh() {
-    use vw_gateway_client::AggregationApiError;
+    use gateway_aggregation::AggregationApiError;
     for error in [
         AggregationApiError::Http { status: 403, body: serde_json::json!({"secret":"fixture"}) },
         AggregationApiError::Http { status: 422, body: serde_json::Value::Null },

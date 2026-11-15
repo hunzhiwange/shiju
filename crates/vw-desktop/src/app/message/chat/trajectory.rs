@@ -142,7 +142,7 @@ fn refresh_trajectory_task(app: &mut App, session_id: String) -> Task<Message> {
 fn apply_snapshot_result(
     app: &mut App,
     session_id: String,
-    result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,
+    result: Result<Option<gateway_session::SessionUiLoadResult>, String>,
 ) -> Task<Message> {
     if app.chat_panel_mode != ChatPanelMode::Trajectory
         || app.active_session_id.as_deref() != Some(&session_id)

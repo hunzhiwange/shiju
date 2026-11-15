@@ -26,7 +26,7 @@ fn policy(root: &Path) -> std::path::PathBuf {
 
 #[tokio::test]
 async fn cc04_env_diagnose_sdk_api_execution_home_and_permission_boundary() {
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join(".zshrc");
     std::fs::write(&path, "export ANTHROPIC_API_KEY=fixture-secret\n").unwrap();
@@ -54,13 +54,13 @@ async fn cc04_env_diagnose_sdk_api_execution_home_and_permission_boundary() {
     {
         request.target_host_id = host.into();
         assert!(
-            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(AppId::Claude, &request, TOKEN).await.unwrap_err(), vw_gateway_client::AgentAppsReadError::Http {status: actual, ..} if actual == status)
+            matches!(gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(AppId::Claude, &request, TOKEN).await.unwrap_err(), gateway_http::AgentAppsReadError::Http {status: actual, ..} if actual == status)
         );
     }
     request.target_host_id = "host".into();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(AppId::Claude, &request, "invalid").await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 401, .. }
+        gateway_http::AgentAppsReadError::Http { status: 401, .. }
     ));
     let foreign = GatewayClient::new(
         GatewayEndpoint::new("127.0.0.1", port)
@@ -69,7 +69,7 @@ async fn cc04_env_diagnose_sdk_api_execution_home_and_permission_boundary() {
     .unwrap();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(foreign.transport().clone()).provider_env_diagnose(AppId::Claude, &request, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 403, .. }
     ));
     assert_eq!(
         std::fs::read_to_string(&path).unwrap(),
@@ -77,7 +77,7 @@ async fn cc04_env_diagnose_sdk_api_execution_home_and_permission_boundary() {
     );
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).provider_env_diagnose(AppId::Omp, &request, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 422, .. }
+        gateway_http::AgentAppsReadError::Http { status: 422, .. }
     ));
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 2);
     server.abort();

@@ -3,7 +3,7 @@ use crate::app::state::app_providers::{
     list::{ListState, Scope},
 };
 use iced::widget::text_editor;
-use vw_gateway_client::AgentAppsReadError;
+use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_base::create::ProviderSecretWrite;
 use vw_api_app_provider_extended::grok::GrokFormView;

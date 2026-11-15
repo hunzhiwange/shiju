@@ -1,5 +1,5 @@
 use crate::app::state::app_providers::mode::{Form, Operation, Outcome};
-use vw_gateway_client::{AgentAppsReadError};
+use {gateway_http::AgentAppsReadError};
 use vw_api_app_provider_environment::mode_state::ProviderMode;
 use vw_api_app_provider_environment::mode_state::ProviderModeStatus;
 use vw_api_app_provider_environment::mode_state::RouteRuntimeStatus;

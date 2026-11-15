@@ -7,10 +7,7 @@ use reqwest::Url;
 use reqwest::header::{HeaderValue, SET_COOKIE};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use vw_gateway_client::{
-    ShijuAppApiKeyBindingDto, ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto,
-    ShijuIamApiKeyDto, ShijuIamApiKeyListDto,
-};
+use {gateway_shiju_app::ShijuAppApiKeyBindingDto, gateway_shiju_app::ShijuAppCatalogDto, gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto, gateway_shiju_app::ShijuIamApiKeyDto, gateway_shiju_app::ShijuIamApiKeyListDto};
 
 const PRODUCTION_APP_BASE_URL: &str = "https://gateway.shiju.cloud/sj/app-platform/api/";
 const PRODUCTION_IAM_BASE_URL: &str = "https://gateway.shiju.cloud/sj/iam/api/v1/";

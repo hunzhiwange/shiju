@@ -141,7 +141,7 @@ async fn protocol_roundtrip(kind: DiagnosticProbeKind) -> ModelRun {
         net::TcpListener,
         time::{Duration, Instant},
     };
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let port = listener.local_addr().unwrap().port();

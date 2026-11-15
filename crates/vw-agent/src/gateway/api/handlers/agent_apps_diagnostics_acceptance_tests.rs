@@ -40,7 +40,7 @@ use vw_api_transport::id::TenantScope;
 use vw_api_mcp_management::McpCatalogScope;
 use vw_api_mcp_management::McpConnectionDefinition;
 use vw_api_mcp_management::McpRecordId;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{AgentAppsSettingsError, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_settings::AgentAppsSettingsError, vw_gateway_client::GatewayClient}};
 
 const TOKEN: &str = "fixture-macos-diagnostic-member-00001";
 

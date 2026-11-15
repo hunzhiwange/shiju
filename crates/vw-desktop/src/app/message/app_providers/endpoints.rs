@@ -4,9 +4,9 @@ use crate::app::{
     state::app_providers::{endpoints::Form, list::Scope},
 };
 use iced::Task;
-use vw_gateway_client::AgentAppsReadError;
+use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::endpoints::*;
 use vw_api_app_provider_edit::request_options::*;
 use vw_api_app_provider_base::validation::ProviderRequestOptions;

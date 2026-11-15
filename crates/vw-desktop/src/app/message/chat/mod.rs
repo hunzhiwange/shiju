@@ -657,7 +657,7 @@ pub enum ChatMessage {
     /// 进入轨迹模式时主动刷新的会话 UI 快照。
     TrajectorySnapshotLoaded {
         session_id: String,
-        result: Result<Option<vw_gateway_client::SessionUiLoadResult>, String>,
+        result: Result<Option<gateway_session::SessionUiLoadResult>, String>,
     },
 
     /// Agent 步骤开始
@@ -746,7 +746,7 @@ pub enum ChatMessage {
     QuestionListLoaded(Result<Vec<question_types::Request>, String>),
 
     /// 权限列表加载完成
-    PermissionListLoaded(Result<Vec<vw_gateway_client::PendingPermissionRequestDto>, String>),
+    PermissionListLoaded(Result<Vec<gateway_interaction::PendingPermissionRequestDto>, String>),
 
     /// 输入面板 Todo 列表加载完成
     InputPanelTodosLoaded(String, Result<Vec<todo_types::Todo>, String>),

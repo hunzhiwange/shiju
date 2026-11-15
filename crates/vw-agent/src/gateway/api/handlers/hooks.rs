@@ -9,9 +9,7 @@ use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use std::path::{Path, PathBuf};
-use vw_gateway_client::{
-    HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
-};
+use {gateway_desktop_settings::HookAuditEntryDto, gateway_desktop_settings::HookCatalogEntryDto, gateway_desktop_settings::HookMutationRequestDto, gateway_desktop_settings::HookMutationResponseDto};
 
 use crate::app::agent::gateway::{ApiError, AppState};
 use crate::plugins::{

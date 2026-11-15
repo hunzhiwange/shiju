@@ -1,7 +1,7 @@
 use vw_api_app_operations::{AppOperationPhase, AppOperationStatus};
 use super::LifecycleState;
 use {
-    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
     vw_api_task::TaskStatus,
 };

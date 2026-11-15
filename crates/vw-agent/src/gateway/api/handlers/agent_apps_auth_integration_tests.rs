@@ -32,8 +32,7 @@ use {
     vw_api_app_auth::AuthStartResponse,
     vw_api_transport::id::TenantScope,
 };
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-    AgentAppsAuthCredentials, AgentAppsAuthError, AgentAppsAuthLogout, GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_auth::AgentAppsAuthCredentials, gateway_app_auth::AgentAppsAuthError, gateway_app_auth::AgentAppsAuthLogout, vw_gateway_client::GatewayClient}};
 
 const HOST: &str = "host";
 const SERVICE: AuthService = AuthService::CodexOauth;

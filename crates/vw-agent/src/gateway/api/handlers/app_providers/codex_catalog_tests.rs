@@ -404,7 +404,7 @@ use vw_api_app_provider_base::basic::ProviderBasic;
             f.client.codex_form_update(id, &payload, token).await
         };
         assert!(
-            matches!(result, Err(vw_gateway_client::AgentAppsReadError::Http {
+            matches!(result, Err(gateway_http::AgentAppsReadError::Http {
             status: actual, body: Value::Null
         }) if actual == status),
             "{result:?}"
@@ -507,7 +507,7 @@ async fn auth6_remove_codex_reference_is_private_and_global_switch_is_rejected()
     std::fs::write(&global_auth, b"{}").unwrap();
     assert!(matches!(
         f.client.codex_provider_switch("bound", &f.target(), TOKEN).await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 422, body: Value::Null })
+        Err(gateway_http::AgentAppsReadError::Http { status: 422, body: Value::Null })
     ));
     assert_eq!(store.remove_auth_account(scope, &root, id, None), Err(AuthErrorCode::AccountInUse));
     assert_eq!(std::fs::read(f.file()).unwrap(), config_before);

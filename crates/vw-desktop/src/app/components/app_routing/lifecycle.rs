@@ -11,7 +11,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 use vw_api_app_routing::{RoutingHealth, RoutingState, RoutingStatus};
-use vw_gateway_client::{GatewayClient};
+use {vw_gateway_client::GatewayClient};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Context {

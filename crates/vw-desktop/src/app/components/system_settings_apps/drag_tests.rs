@@ -40,7 +40,7 @@ async fn apps_drag_saves_only_after_drop_and_keeps_last_confirmed_order_on_rejec
         state::{AgentAppsContext, AppsCatalogState},
     };
     use iced::futures::StreamExt;
-    use vw_gateway_client::vw_api_types::agent_apps::*;
+    use vw_api_types::agent_apps::*;
     if let Ok(port) = std::env::var("SHIJU_APPS_DRAG_FIXTURE_PORT") {
         config::install_window_test_bootstrap(port.parse().unwrap());
         let mut app = App::new().0;

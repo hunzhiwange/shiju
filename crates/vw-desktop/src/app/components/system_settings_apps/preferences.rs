@@ -1,6 +1,6 @@
 use vw_api_app_identity::{AppId, AppPreferencesPatch, AppPreferencesResult, AppWslPreference};
 //! Saved values are replaced only by the gateway response.
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct PreferencesState {

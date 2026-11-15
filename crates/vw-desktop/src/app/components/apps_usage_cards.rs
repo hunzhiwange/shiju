@@ -5,8 +5,8 @@ use std::collections::{HashMap, HashSet};
 use iced::Task;
 use {
     gateway_endpoint::GatewayEndpoint,
-    vw_gateway_client::AgentAppsAuthCredentials,
-    vw_gateway_client::AgentAppsAuthReadError,
+    gateway_app_auth::AgentAppsAuthCredentials,
+    gateway_app_auth::AgentAppsAuthReadError,
     vw_gateway_client::GatewayClient,
     vw_api_app_identity::AppId,
     vw_api_app_auth::AuthCredentialState,

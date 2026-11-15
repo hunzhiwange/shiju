@@ -2,7 +2,7 @@ use crate::app::state::app_providers::{
     edit::{EditForm, Mode},
     list::{ListState, Scope},
 };
-use vw_gateway_client::AgentAppsReadError;
+use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
 use vw_api_app_provider_base::claude::ClaudeFormView;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;

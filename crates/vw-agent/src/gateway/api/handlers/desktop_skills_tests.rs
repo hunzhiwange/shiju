@@ -797,7 +797,7 @@ async fn handlers_reject_blank_required_fields_before_config_lookup() {
 fn cp12_plugin_merge_success() {
     let directory = tempfile::tempdir().expect("directory");
     let path = directory.path().to_string_lossy().into_owned();
-    let local = vw_gateway_client::DesktopSkillCatalogEntryDto {
+    let local = gateway_desktop_settings::DesktopSkillCatalogEntryDto {
         id: "local".into(), title: "Shared".into(), description: String::new(),
         kind: "personal".into(), resource_count: 0, installed: true, enabled: true,
         source: "workspace".into(), source_path: Some(path), origin: None,

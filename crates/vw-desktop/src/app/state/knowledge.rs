@@ -1,11 +1,6 @@
 use iced::widget::text_editor;
 use std::collections::HashSet;
-use vw_gateway_client::{
-    KnowledgeChunkDto, KnowledgeChunkingMode, KnowledgeDatasetDto, KnowledgeDocumentDto,
-    KnowledgeDocumentStatus, KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto,
-    KnowledgeEmbeddingTestResponse, KnowledgeIndexJobStatus, KnowledgeIndexingMode,
-    KnowledgeRetrievalMode, KnowledgeRuntimeStatus,
-};
+use {vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRuntimeStatus};
 
 /// 知识库详情页签。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -11,8 +11,8 @@ use iced::{
     widget::{checkbox, column, row, text},
 };
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
-    vw_gateway_client::vw_api_types::agent_apps::AppInstallationEnvironment,
+    vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppInstallationEnvironment,
     vw_api_mcp_management::*,
 };
 

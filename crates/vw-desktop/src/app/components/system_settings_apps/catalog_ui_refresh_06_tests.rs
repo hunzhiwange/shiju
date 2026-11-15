@@ -32,7 +32,7 @@ use iced::advanced::{
 use iced::keyboard::{self, Key, key::Named};
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
+use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
 
 fn view(state: &AppsCatalogState) -> Element<'_, Message> {
     localized_view(state, I18n::new(Default::default()))

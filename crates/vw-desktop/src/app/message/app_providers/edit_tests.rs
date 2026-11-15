@@ -59,7 +59,7 @@ fn cc04_ui_edit_copy_uses_new_identity_and_explicit_clear_is_preserved() {
 async fn cc04_ui_edit_save_dispatches_keep_and_delete_errors_through_sdk() {
     use crate::app::state::{AgentAppsContext, app_providers::list::Scope};
     use std::io::{Read, Write};
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {

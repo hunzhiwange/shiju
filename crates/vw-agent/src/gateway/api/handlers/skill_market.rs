@@ -27,7 +27,7 @@ use directories::BaseDirs;
 use serde::Deserialize;
 use serde_json::Value;
 use config_runtime_paths::HOME_CONFIG_DIR_NAME;
-use vw_gateway_client::{DesktopSkillPathDto};
+use {gateway_desktop_settings::DesktopSkillPathDto};
 
 use crate::app::agent::skills::marketplace::install::{
     install_verified_market_artifact, install_verified_market_artifact_for_roots,

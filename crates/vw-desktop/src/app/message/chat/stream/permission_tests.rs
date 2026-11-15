@@ -7,8 +7,8 @@ use super::permissions::{
     sync_permission_requests,
 };
 
-fn request(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+fn request(id: &str) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.to_string(),
         session_id: "session-1".to_string(),
         permission: "shell".to_string(),

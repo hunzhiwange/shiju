@@ -18,7 +18,7 @@ use vw_api_app_identity::{
 use crate::app::components::system_settings_apps::{self, catalog::CatalogRow};
 use crate::app::{Message as AppMessage, i18n::I18n, state::AppsCatalogState};
 use iced::{Element, Task, Theme, window};
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 #[derive(Clone, Debug)]
 enum Message {
     Ui(AppMessage),

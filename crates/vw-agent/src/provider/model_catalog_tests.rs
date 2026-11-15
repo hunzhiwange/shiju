@@ -381,8 +381,7 @@ async fn catalog_execution_gate_rejects_gateway_image_before_ocr() {
         Arc,
         atomic::{AtomicUsize, Ordering},
     };
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{
-        GatewayChatStreamEvent, GatewayChatStreamRequest, GatewayClient}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {vw_api_chat::GatewayChatStreamEvent, vw_api_chat::GatewayChatStreamRequest, vw_gateway_client::GatewayClient}};
 
     if run_isolated("catalog_execution_gate_rejects_gateway_image_before_ocr").await {
         return;

@@ -16,7 +16,7 @@ fn request(
     id: &str,
     message_id: &str,
     call_id: &str,
-) -> vw_gateway_client::PendingPermissionRequestDto {
+) -> gateway_interaction::PendingPermissionRequestDto {
     request_with_tool(id, message_id, Some(call_id))
 }
 
@@ -24,23 +24,23 @@ fn request_with_tool(
     id: &str,
     message_id: &str,
     call_id: Option<&str>,
-) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.to_string(),
         session_id: "session-1".to_string(),
         permission: "tool".to_string(),
         patterns: vec![],
         metadata: Map::new(),
         always: vec![],
-        tool: call_id.map(|call_id| vw_gateway_client::PendingPermissionToolDto {
+        tool: call_id.map(|call_id| gateway_interaction::PendingPermissionToolDto {
             message_id: message_id.to_string(),
             call_id: call_id.to_string(),
         }),
     }
 }
 
-fn request_without_tool(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+fn request_without_tool(id: &str) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.to_string(),
         session_id: "session-1".to_string(),
         permission: "tool".to_string(),

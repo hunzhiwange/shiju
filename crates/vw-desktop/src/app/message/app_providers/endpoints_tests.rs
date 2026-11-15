@@ -4,7 +4,7 @@ use crate::app::state::{
     app_providers::{endpoints::Form, list::Scope},
 };
 use std::io::{Read, Write};
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_app_identity::AppId}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_app_identity::AppId}};
 fn fixture(
     path: &'static str,
     status: u16,

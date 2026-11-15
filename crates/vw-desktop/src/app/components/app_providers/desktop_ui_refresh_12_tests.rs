@@ -28,7 +28,7 @@ use iced::widget::Space;
 use iced::{Element, Event, Font, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
 use config_ui::DesktopLocale;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::AppProviderSummary;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_edit::catalog::ProviderCatalog;

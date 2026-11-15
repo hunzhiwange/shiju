@@ -7,7 +7,7 @@ use vw_api_git::{
     GitCommandRequest, GitCommitRequest, GitHunkSelectionDto, GitLineSelectionDto, GitMergeRequest,
 };
 
-use crate::client::test_support;
+use crate::test_support;
 
 #[tokio::test]
 async fn git_commit_posts_all_selection_fields_and_decodes_not_created_response() {

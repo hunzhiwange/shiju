@@ -148,7 +148,7 @@ use vw_api_types::agent_apps::AppId;
     }
     #[tokio::test]
     async fn cc04_catalog_sdk_http_reads_native_files_without_writes() {
-        use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+        use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
         let root = tempfile::tempdir().unwrap();
         std::fs::create_dir(root.path().join(".kimi-code")).unwrap();
         let path = root.path().join(".kimi-code/config.toml");
@@ -186,7 +186,7 @@ use vw_api_types::agent_apps::AppId;
         );
         let error =
             gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(AppId::Kimi, "metadata-only", TOKEN).await.unwrap_err();
-        assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+        assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
         server.abort();
         let _ = server.await;
     }

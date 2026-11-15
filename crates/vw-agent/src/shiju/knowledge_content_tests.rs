@@ -1,6 +1,6 @@
 use super::*;
 use std::io::{Read, Write};
-use vw_gateway_client::ShijuKnowledgeReadRequest;
+use gateway_shiju_knowledge::ShijuKnowledgeReadRequest;
 
 fn request(offset: u64) -> ShijuKnowledgeReadRequest {
     ShijuKnowledgeReadRequest {

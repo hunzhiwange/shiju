@@ -13,7 +13,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use vw_gateway_client::{DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto};
+use {gateway_desktop_settings::DesktopSkillCatalogEntryDto, gateway_desktop_settings::DesktopSkillDetailDto, gateway_desktop_settings::DesktopSkillPathDto};
 
 use crate::app::agent::gateway::ApiError;
 use crate::app::agent::skills::{

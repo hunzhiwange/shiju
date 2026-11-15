@@ -5,7 +5,7 @@ use iced::{
     Alignment, Element, Length, Theme,
     widget::{Space, button, column, container, row, text},
 };
-use vw_gateway_client::vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};
+use vw_api_types::agent_apps::{LaunchIdentityKind, LaunchSessionPhase};
 
 pub(crate) fn overlay<'a>(
     catalog: &'a AppsCatalogState,

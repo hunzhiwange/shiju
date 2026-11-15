@@ -254,8 +254,8 @@ fn assert_centered_controls(
     close.bounds().center()
 }
 
-fn permission(id: &str, title: &str) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+fn permission(id: &str, title: &str) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.into(),
         session_id: "fixture-session".into(),
         permission: "shell".into(),

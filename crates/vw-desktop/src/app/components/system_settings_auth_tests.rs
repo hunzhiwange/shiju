@@ -10,7 +10,7 @@ use std::{
 };
 use {
     gateway_endpoint::GatewayEndpoint,
-    vw_gateway_client::AgentAppsAuthCredentials,
+    gateway_app_auth::AgentAppsAuthCredentials,
     vw_gateway_client::GatewayClient,
     vw_api_app_auth::AuthCredentialState,
     vw_api_app_auth::AuthService,

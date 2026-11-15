@@ -17,15 +17,7 @@ use vw_api_knowledge::{
     KnowledgeDocumentPatchRequest, KnowledgeDocumentsBatchAction,
     KnowledgeDocumentsBatchActionRequest,
 };
-use vw_gateway_client::{
-    KnowledgeChunkDto, KnowledgeChunkingMode, KnowledgeDatasetCreateRequest, KnowledgeDatasetDto,
-    KnowledgeDocumentCreateRequest, KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse,
-    KnowledgeDocumentImportRequest, KnowledgeDocumentReindexRequest, KnowledgeDocumentStatus,
-    KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto, KnowledgeEmbeddingTestRequest,
-    KnowledgeEmbeddingTestResponse, KnowledgeIndexJobDto, KnowledgeIndexJobStatus,
-    KnowledgeIndexingMode, KnowledgeRetrievalMode, KnowledgeRetrieveRequest,
-    KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
-};
+use {vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetCreateRequest, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentCreateRequest, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentImportQueuedResponse, vw_api_knowledge::KnowledgeDocumentImportRequest, vw_api_knowledge::KnowledgeDocumentReindexRequest, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestRequest, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobDto, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRetrieveRequest, vw_api_knowledge::KnowledgeRetrieveResponse, vw_api_knowledge::KnowledgeRuntimeStatus};
 
 const IMPORT_JOB_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const KNOWLEDGE_NOTIFICATION_DURATION: Duration = Duration::from_secs(3);

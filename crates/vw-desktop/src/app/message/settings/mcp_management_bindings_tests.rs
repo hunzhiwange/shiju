@@ -262,7 +262,7 @@ fn cc_mcp_t46_matrix_draws_chinese_results_and_preserves_runtime_and_acp_selecti
         mouse,
     };
     use iced_runtime::user_interface::{Cache, UserInterface};
-    use vw_gateway_client::vw_api_types::agent_apps::*;
+    use vw_api_types::agent_apps::*;
     crate::app::config::with_settings_gateway(|_, _| {
         let mut app = App::new().0;
         app.apps_catalog.host = "host".into();

@@ -251,7 +251,7 @@ pub async fn run<R: Read, W: Write>(
                         )
                     ),
                 )?;
-                json!(client.git_commit(&request).await.map_err(anyhow::Error::msg)?)
+                json!(gateway_project::GatewayProjectClient::new(client.transport().clone()).git_commit(&request).await.map_err(anyhow::Error::msg)?)
             }
             WorkspaceGitCommands::Command { input } => {
                 let request = parse_input::<GitCommandRequest>(&input, stdin, "git command")?;
@@ -263,7 +263,7 @@ pub async fn run<R: Read, W: Write>(
                         request.directory
                     ),
                 )?;
-                json!(client.git_command(&request).await.map_err(anyhow::Error::msg)?)
+                json!(gateway_project::GatewayProjectClient::new(client.transport().clone()).git_command(&request).await.map_err(anyhow::Error::msg)?)
             }
             WorkspaceGitCommands::Merge { input } => {
                 let request = parse_input::<GitMergeRequest>(&input, stdin, "git merge")?;
@@ -274,7 +274,7 @@ pub async fn run<R: Read, W: Write>(
                         request.source_branch, request.target_branch, request.project_id.0
                     ),
                 )?;
-                json!(client.git_merge(&request).await.map_err(anyhow::Error::msg)?)
+                json!(gateway_project::GatewayProjectClient::new(client.transport().clone()).git_merge(&request).await.map_err(anyhow::Error::msg)?)
             }
         },
     };

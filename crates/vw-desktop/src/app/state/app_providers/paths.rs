@@ -1,4 +1,4 @@
-use vw_gateway_client::{AgentAppsReadError};
+use {gateway_http::AgentAppsReadError};
 use vw_api_app_provider_environment::paths::ProviderDirectoryStatus;
 use vw_api_app_provider_environment::paths::ProviderPaths;
 

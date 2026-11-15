@@ -5,8 +5,8 @@
 use super::*;
 use serde_json::{Map, json};
 
-fn request(id: &str) -> vw_gateway_client::PendingPermissionRequestDto {
-    vw_gateway_client::PendingPermissionRequestDto {
+fn request(id: &str) -> gateway_interaction::PendingPermissionRequestDto {
+    gateway_interaction::PendingPermissionRequestDto {
         id: id.to_string(),
         session_id: "session-1".to_string(),
         permission: "shell".to_string(),
@@ -337,7 +337,7 @@ fn with_permission_modal_builds_single_and_multi_request_dialogs() {
     first.metadata.insert("requested_by".to_string(), json!("agent"));
     first.metadata.insert("requested_channel".to_string(), json!("chat"));
     first.metadata.insert("expires_at".to_string(), json!("2030-01-01T00:00:00Z"));
-    first.tool = Some(vw_gateway_client::PendingPermissionToolDto {
+    first.tool = Some(gateway_interaction::PendingPermissionToolDto {
         message_id: "msg-1".to_string(),
         call_id: "call-1".to_string(),
     });

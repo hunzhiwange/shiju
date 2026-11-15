@@ -17,7 +17,7 @@ use crate::apps::workflow::{
         video_edit::{TEMPLATE_ID, VideoEditUiState},
     },
 };
-use vw_gateway_client::WorkflowRecord;
+use vw_api_workflow::WorkflowRecord;
 fn record(yaml: &str) -> WorkflowRecord {
     WorkflowRecord {
         uuid: TEMPLATE_ID.into(),

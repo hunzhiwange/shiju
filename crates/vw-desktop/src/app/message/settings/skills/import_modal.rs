@@ -1,7 +1,7 @@
 //! Unmanaged imports use server selections and explicit application choices.
 use crate::app::{App, Message, message::SettingsMessage, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_skills::import_api::*;
 
 pub(crate) const APPS: &[AppId] = &[AppId::Claude, AppId::Codex, AppId::Gemini,

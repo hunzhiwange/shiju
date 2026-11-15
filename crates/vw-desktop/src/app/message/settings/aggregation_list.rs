@@ -242,7 +242,7 @@ pub(crate) async fn load(
     let catalog = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_catalog(selection.scope.app, &selection.scope.host, &token)
         .await
         .map_err(|e| match e {
-            vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+            gateway_http::AgentAppsReadError::Http { status, body } => {
                 AggregationApiError::Http { status, body }
             }
             _ => AggregationApiError::Decode("catalog unavailable".into()),

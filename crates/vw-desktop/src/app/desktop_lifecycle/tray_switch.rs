@@ -3,7 +3,7 @@ use crate::app::message::{GeneralSettingsMessage, SettingsMessage};
 use crate::app::state::app_providers::list::Scope;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::catalog::ProviderSelection;
 use vw_api_app_provider_base::claude::ClaudeLiveResult;
 use vw_api_app_provider_base::claude::ClaudeTarget;

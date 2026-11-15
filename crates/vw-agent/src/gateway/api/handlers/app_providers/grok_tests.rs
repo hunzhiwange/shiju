@@ -303,12 +303,12 @@ use vw_api_app_provider_base::create::ProviderSecretWrite;
     {
         assert!(matches!(
             f.client.grok_form_update("one", request, token).await,
-            Err(vw_gateway_client::AgentAppsReadError::Http { status: actual, .. }) if actual == status
+            Err(gateway_http::AgentAppsReadError::Http { status: actual, .. }) if actual == status
         ));
     }
     assert!(matches!(
         f.client.grok_form_read("one", &f.target(), "bad").await,
-        Err(vw_gateway_client::AgentAppsReadError::Http { status: 401, .. })
+        Err(gateway_http::AgentAppsReadError::Http { status: 401, .. })
     ));
     assert!(f.client.grok_form_create("one", &edit, TOKEN).await.is_err());
     assert!(f.client.grok_form_update("missing", &edit, TOKEN).await.is_err());

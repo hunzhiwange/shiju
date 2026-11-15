@@ -3,7 +3,7 @@ use crate::app::account::{
     AccountIdentity, AccountOrigin, AccountRepository, SecretSkey, VerifiedAccount,
 };
 use iced_runtime::futures::futures::StreamExt;
-use vw_gateway_client::ShijuCredential;
+use gateway_shiju_account::ShijuCredential;
 
 fn token() -> ShijuModelTokenDto {
     ShijuModelTokenDto {

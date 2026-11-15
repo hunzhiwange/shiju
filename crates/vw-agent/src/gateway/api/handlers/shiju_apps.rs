@@ -10,10 +10,7 @@ use axum::extract::{Extension, Path};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuAppApiKeyBindingDto, ShijuAppApiKeyBindingSaveRequest,
-    ShijuAppCatalogDto, ShijuAppLaunchDto, ShijuAppListDto, ShijuCredential, ShijuIamApiKeyListDto,
-};
+use {gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, gateway_shiju_app::ShijuAppApiKeyBindingDto, gateway_shiju_app::ShijuAppApiKeyBindingSaveRequest, gateway_shiju_app::ShijuAppCatalogDto, gateway_shiju_app::ShijuAppLaunchDto, gateway_shiju_app::ShijuAppListDto, gateway_shiju_account::ShijuCredential, gateway_shiju_app::ShijuIamApiKeyListDto};
 
 use crate::gateway::ApiError;
 use crate::shiju::apps::{ShijuAppClient, ShijuAppError, ShijuAppErrorKind};

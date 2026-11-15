@@ -7,7 +7,7 @@ use crate::app::state::{
     },
 };
 use std::io::{BufRead, BufReader, Read, Write};
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient, vw_api_types::{agent_apps::AppId}}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}}};
 use vw_api_app_provider_environment::env_clean::EnvCleanSelection;
 use vw_api_app_provider_environment::env_diagnose::EnvDiagnostic;
 use vw_api_app_provider_environment::env_diagnose::EnvSource;

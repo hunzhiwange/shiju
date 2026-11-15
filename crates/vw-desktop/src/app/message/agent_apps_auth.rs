@@ -23,10 +23,7 @@ use crate::app::{
 };
 use browser::LinkAction;
 use iced::Task;
-use vw_gateway_client::{
-      GatewayClient,
-    vw_api_app_auth::{AuthAccount, AuthErrorCode, AuthService},
-};
+use {vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthAccount, AuthErrorCode, AuthService}};
 
 pub(crate) const SERVICES: [AuthService; 7] = [
     AuthService::ClaudeOfficial,

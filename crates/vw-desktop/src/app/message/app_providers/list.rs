@@ -26,7 +26,7 @@ mod tests;
 use crate::app::state::app_providers::list::Editor;
 use crate::app::{App, Message, message::SettingsMessage};
 use iced::Task;
-use vw_gateway_client::vw_api_types::{
+use vw_api_types::{
     agent_apps::AppId,
     app_providers::{
         dsh::DshLiveResult, kimi::KimiLiveResult, mcode::McodeLiveResult,

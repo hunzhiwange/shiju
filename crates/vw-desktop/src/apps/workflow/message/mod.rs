@@ -15,7 +15,7 @@ use super::state::{
 use crate::app::{App, Message};
 use iced::widget::text_editor;
 use iced::{Point, Task, Vector};
-use vw_gateway_client::{WorkflowRecordSummary, WorkflowRecordUpsertBody};
+use {vw_api_workflow::WorkflowRecordSummary, vw_api_workflow::WorkflowRecordUpsertBody};
 
 #[cfg(test)]
 mod video_edit_tests;
@@ -75,7 +75,7 @@ pub enum WorkflowMessage {
     VideoTemplateLoaded {
         tenant: vw_api_transport::TenantScope,
         graph: bool,
-        result: Result<vw_gateway_client::WorkflowRecord, String>,
+        result: Result<vw_api_workflow::WorkflowRecord, String>,
     },
     CloseVideoTemplate,
     VideoTemplateYamlAction(text_editor::Action),
@@ -93,7 +93,7 @@ pub enum WorkflowMessage {
         tenant: vw_api_transport::TenantScope,
         graph: bool,
         restore: bool,
-        result: Result<vw_gateway_client::WorkflowRecord, String>,
+        result: Result<vw_api_workflow::WorkflowRecord, String>,
     },
     StartNativeVideoEdit,
 
@@ -119,7 +119,7 @@ pub enum WorkflowMessage {
     SubmitSavedAppRunPrompt,
     SavedAppRunEvent {
         uuid: String,
-        event: vw_gateway_client::GatewayWorkflowStreamEvent,
+        event: gateway_workflow::GatewayWorkflowStreamEvent,
     },
     SavedAppRunFinished {
         uuid: String,

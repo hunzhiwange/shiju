@@ -11,11 +11,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
-use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest,
-    ShijuAccountProfileDto, ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto,
-    ShijuCredential, ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuMonthlyQuotaDto,
-};
+use {gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, gateway_shiju_account::ShijuAccountMeDto, gateway_shiju_account::ShijuAccountPasswordUpdateRequest, gateway_shiju_account::ShijuAccountProfileDto, gateway_shiju_account::ShijuAccountUpdateRequest, gateway_shiju_account::ShijuAccountUpdateResponseDto, gateway_shiju_account::ShijuCredential, gateway_shiju_account::ShijuLoginChallengeDto, gateway_shiju_account::ShijuLoginPollDto, gateway_shiju_account::ShijuMonthlyQuotaDto};
 
 use crate::gateway::ApiError;
 use crate::shiju::account::{
@@ -53,7 +49,7 @@ where
 async fn model_token_put(
     Extension(client): Extension<Arc<ShijuAccountClient>>,
     headers: HeaderMap,
-) -> Result<Json<vw_gateway_client::ShijuModelTokenDto>, ApiError> {
+) -> Result<Json<gateway_shiju_account::ShijuModelTokenDto>, ApiError> {
     let credential = credential_from_headers(&headers)?;
     let token = client.model_token(credential.expose()).await.map_err(upstream_error)?;
     Ok(Json(token))

@@ -7,10 +7,7 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use config_plugins::PluginsConfig;
-use vw_gateway_client::{
-    DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
-    DesktopPluginPathDto,
-};
+use {gateway_desktop_settings::DesktopPluginCapabilitiesDto, gateway_desktop_settings::DesktopPluginCatalogEntryDto, gateway_desktop_settings::DesktopPluginDetailDto, gateway_desktop_settings::DesktopPluginPathDto};
 
 use crate::app::agent::gateway::ApiError;
 use crate::plugins::{
@@ -280,18 +277,18 @@ pub(crate) fn stateful_router() -> Router<crate::gateway::AppState> {
 
 fn dependency_checks(
     manifest: &PluginManifest,
-) -> Vec<vw_gateway_client::DesktopPluginDependencyDto> {
+) -> Vec<gateway_desktop_settings::DesktopPluginDependencyDto> {
     match crate::plugins::inspect_plugin_dependencies(&manifest.root) {
         Ok(checks) => checks
             .into_iter()
-            .map(|check| vw_gateway_client::DesktopPluginDependencyDto {
+            .map(|check| gateway_desktop_settings::DesktopPluginDependencyDto {
                 status: check.state.as_str().into(),
                 component: check.component,
                 dependency: check.dependency,
                 detail: check.detail,
             })
             .collect(),
-        Err(_) => vec![vw_gateway_client::DesktopPluginDependencyDto {
+        Err(_) => vec![gateway_desktop_settings::DesktopPluginDependencyDto {
             component: "package".into(),
             dependency: "声明与路径".into(),
             status: "invalid".into(),
@@ -299,7 +296,7 @@ fn dependency_checks(
         }],
     }
 }
-fn dependency_status(checks: &[vw_gateway_client::DesktopPluginDependencyDto]) -> String {
+fn dependency_status(checks: &[gateway_desktop_settings::DesktopPluginDependencyDto]) -> String {
     if checks.is_empty() {
         "no_declared_dependencies"
     } else if checks.iter().any(|c| matches!(c.status.as_str(), "missing_host" | "missing_package"))
@@ -316,11 +313,11 @@ fn dependency_status(checks: &[vw_gateway_client::DesktopPluginDependencyDto]) -
 fn source_origin(
     metadata: Option<&crate::plugins::PluginInstallMetadata>,
     version: Option<String>,
-) -> vw_gateway_client::DesktopPluginSourceDto {
+) -> gateway_desktop_settings::DesktopPluginSourceDto {
     let value: serde_json::Value =
         metadata.and_then(|m| serde_json::from_str(&m.source).ok()).unwrap_or_default();
     let field = |key| value.get(key).and_then(serde_json::Value::as_str).map(str::to_owned);
-    vw_gateway_client::DesktopPluginSourceDto {
+    gateway_desktop_settings::DesktopPluginSourceDto {
         kind: if metadata.is_none() {
             "directory"
         } else if value.get("npm").is_some() {

@@ -1,6 +1,7 @@
 //! 项目与工作树的网关领域客户端。
 
 mod project_api;
+mod git_api;
 mod worktree_management_api;
 
 // Project profile routes share this path encoding contract.

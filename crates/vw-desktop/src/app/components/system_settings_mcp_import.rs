@@ -12,7 +12,7 @@ use iced::{
     widget::{button, column, row, text},
 };
 use {
-    vw_gateway_client::vw_api_types::agent_apps::AppId,
+    vw_api_types::agent_apps::AppId,
     vw_api_mcp_management::McpConnectionDefinition,
 };
 

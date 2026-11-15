@@ -212,7 +212,7 @@ async fn shiju_knowledge_view_renders_login_empty_error_states() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_knowledge_view_browses_all_server_pages_and_opens_documents() {
-    use vw_gateway_client::ShijuKnowledgePageDto;
+    use gateway_shiju_knowledge::ShijuKnowledgePageDto;
     let mut app = app();
     for page in 1..=3 {
         let state = &mut app.expert_hub.knowledge;

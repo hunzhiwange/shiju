@@ -19,7 +19,7 @@ use iced::widget::Space;
 use iced::widget::text_editor;
 use iced::{Element, Event, Font, Length, Point, Rectangle, Renderer, Size, Theme, Vector, mouse};
 use iced_runtime::user_interface::{Cache, UserInterface};
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_base::basic::ProviderBasic;
 use vw_api_app_provider_base::claude::ClaudeFormKind;
 use vw_api_app_provider_profiles::codex_catalog::CodexFormConfig;

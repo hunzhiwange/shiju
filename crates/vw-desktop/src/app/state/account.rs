@@ -98,8 +98,8 @@ impl AccountPasswordEditorState {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum MonthlyQuotaState {
     Idle,
-    Loading(Option<vw_gateway_client::ShijuMonthlyQuotaDto>),
-    Ready(vw_gateway_client::ShijuMonthlyQuotaDto),
+    Loading(Option<gateway_shiju_account::ShijuMonthlyQuotaDto>),
+    Ready(gateway_shiju_account::ShijuMonthlyQuotaDto),
     Unavailable,
 }
 

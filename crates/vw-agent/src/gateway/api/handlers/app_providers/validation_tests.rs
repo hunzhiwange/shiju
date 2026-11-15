@@ -197,7 +197,7 @@ async fn cc04_validation_preview_checks_permission_before_options_and_never_writ
     for (token, status) in [("invalid", 401), (TOKEN, 400)] {
         let error = gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_preview(AppId::Claude, &request, token).await.unwrap_err();
         assert!(
-            matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:actual,body} if actual==status && body.is_null())
+            matches!(error,gateway_http::AgentAppsReadError::Http{status:actual,body} if actual==status && body.is_null())
         );
     }
     assert_eq!(std::fs::read_to_string(&policy).unwrap(), value.to_string());

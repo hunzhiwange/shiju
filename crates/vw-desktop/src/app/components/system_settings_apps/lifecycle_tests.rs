@@ -7,7 +7,7 @@ use vw_api_app_identity::{
 };
 use super::lifecycle::LifecycleState;
 use {
-    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_types::agent_apps::*,
     vw_api_transport::id::TaskId,
     vw_api_task::TaskStatus,
 };
@@ -51,7 +51,7 @@ async fn cc_apps_desktop_lifecycle_state_authorized_preview_submit_disconnect_re
     use crate::app::message::settings::apps_lifecycle::{LifecycleResult, Work, execute};
     use serde_json::json;
     use std::io::{Read, Write};
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let request = AppActionPreviewRequest {
         app_id: AppId::Codex,
         action: AppLifecycleAction::Update,

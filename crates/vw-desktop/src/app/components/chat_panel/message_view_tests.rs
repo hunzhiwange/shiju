@@ -139,14 +139,14 @@ async fn message_visual_contract_renders_complex_content_in_light_and_dark_theme
         app.chat_message_editors.push(iced::widget::text_editor::Content::with_text(USER_CONTENT));
         app.chat_message_ids = vec![None, None, Some("msg-visual".to_string())];
         app.chat_markdown_blocks.insert(1_u64 << 32, parse_markdown_blocks(MARKDOWN_CONTENT));
-        let request = vw_gateway_client::PendingPermissionRequestDto {
+        let request = gateway_interaction::PendingPermissionRequestDto {
             id: "req-visual".to_string(),
             session_id: "session-visual".to_string(),
             permission: "read".to_string(),
             patterns: vec![],
             metadata: Map::new(),
             always: vec![],
-            tool: Some(vw_gateway_client::PendingPermissionToolDto {
+            tool: Some(gateway_interaction::PendingPermissionToolDto {
                 message_id: "msg-visual".to_string(),
                 call_id: "call-visual".to_string(),
             }),

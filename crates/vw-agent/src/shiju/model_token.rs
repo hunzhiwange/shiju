@@ -4,7 +4,7 @@ use super::{ShijuAccountClient, ShijuAccountError, endpoint};
 use reqwest::{StatusCode, redirect::Policy};
 use serde::Deserialize;
 use std::time::Duration;
-use vw_gateway_client::{ShijuCredential, ShijuModelTokenDto};
+use {gateway_shiju_account::ShijuCredential, gateway_shiju_account::ShijuModelTokenDto};
 
 const MODEL_ENDPOINT: &str = "https://router.shiju.cloud/v1";
 

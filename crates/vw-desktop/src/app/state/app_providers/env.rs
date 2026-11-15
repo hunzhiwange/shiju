@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use vw_gateway_client::vw_api_types::{agent_apps::AppId};
+use vw_api_types::{agent_apps::AppId};
 use vw_api_app_provider_environment::env_clean::EnvCleanRequest;
 use vw_api_app_provider_environment::env_clean::EnvCleanSelection;
 use vw_api_app_provider_environment::env_diagnose::EnvDiagnostic;

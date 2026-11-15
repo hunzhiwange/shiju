@@ -6,7 +6,7 @@ use std::{os::unix::fs::PermissionsExt, path::Path};
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_edit::import::*;
 use vw_api_transport::id::TenantScope;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {
     let file = home.join(name);

@@ -12,7 +12,7 @@ use std::{
     thread,
 };
 use tower::ServiceExt;
-use vw_gateway_client::SHIJU_CREDENTIAL_HEADER;
+use gateway_shiju_account::SHIJU_CREDENTIAL_HEADER;
 
 fn app(base: &str) -> Router {
     super::shiju_account::router_with_client(

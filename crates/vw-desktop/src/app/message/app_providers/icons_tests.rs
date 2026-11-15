@@ -7,9 +7,9 @@ use std::{
 };
 use gateway_endpoint::GatewayEndpoint;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AddCustomIconRequest;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
-use vw_gateway_client::vw_api_types::agent_apps::CustomIconEntry;
+use vw_api_types::agent_apps::AddCustomIconRequest;
+use vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::CustomIconEntry;
 use vw_api_app_provider_edit::icons::AppProviderIcon;
 use vw_api_app_provider_edit::icons::AppProviderIconChange;
 

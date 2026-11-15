@@ -9,15 +9,15 @@ use crate::app::components::chat_panel::tools::{tool_inline_summary, tool_verb};
 use crate::app::components::chat_panel::utils::truncate_chars;
 
 pub(super) struct PermissionModalQueue {
-    requests: Vec<vw_gateway_client::PendingPermissionRequestDto>,
+    requests: Vec<gateway_interaction::PendingPermissionRequestDto>,
     current_index: usize,
     previous_request_id: Option<String>,
     next_request_id: Option<String>,
 }
 
 pub(super) fn permission_modal_queue(
-    current: &vw_gateway_client::PendingPermissionRequestDto,
-    queued: &[vw_gateway_client::PendingPermissionRequestDto],
+    current: &gateway_interaction::PendingPermissionRequestDto,
+    queued: &[gateway_interaction::PendingPermissionRequestDto],
 ) -> PermissionModalQueue {
     let mut requests = queued.to_vec();
     if requests.is_empty() {
@@ -40,7 +40,7 @@ pub(crate) fn with_permission_modal<'a>(
     app: &App,
     root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
-    let Some(req): Option<vw_gateway_client::PendingPermissionRequestDto> =
+    let Some(req): Option<gateway_interaction::PendingPermissionRequestDto> =
         app.permission_modal_request.clone()
     else {
         // Keep the base at the same widget-tree position as in settings_modal_overlay.
@@ -248,7 +248,7 @@ pub(crate) fn with_permission_modal<'a>(
 
 fn permission_modal_title_localized(
     i18n: crate::app::i18n::I18n,
-    req: &vw_gateway_client::PendingPermissionRequestDto,
+    req: &gateway_interaction::PendingPermissionRequestDto,
 ) -> String {
     req.metadata
         .get("title")
@@ -277,7 +277,7 @@ fn permission_modal_title_localized(
 
 fn permission_request_selector_label_localized(
     i18n: crate::app::i18n::I18n,
-    req: &vw_gateway_client::PendingPermissionRequestDto,
+    req: &gateway_interaction::PendingPermissionRequestDto,
 ) -> String {
     let prefix = i18n.__(tool_verb(&req.permission));
     let summary = permission_argument_summary(req).unwrap_or_else(|| req.permission.clone());
@@ -296,7 +296,7 @@ fn permission_meta_line<'a>(label: &'a str, value: &str) -> iced::widget::Row<'a
 }
 
 fn permission_metadata_text(
-    req: &vw_gateway_client::PendingPermissionRequestDto,
+    req: &gateway_interaction::PendingPermissionRequestDto,
     key: &str,
 ) -> Option<String> {
     req.metadata
@@ -308,7 +308,7 @@ fn permission_metadata_text(
 }
 
 fn permission_argument_summary(
-    req: &vw_gateway_client::PendingPermissionRequestDto,
+    req: &gateway_interaction::PendingPermissionRequestDto,
 ) -> Option<String> {
     let arguments = req.metadata.get("arguments")?;
     let raw_input = match arguments {
@@ -327,7 +327,7 @@ fn permission_argument_summary(
 }
 
 fn permission_arguments_preview(
-    req: &vw_gateway_client::PendingPermissionRequestDto,
+    req: &gateway_interaction::PendingPermissionRequestDto,
 ) -> Option<String> {
     let arguments = req.metadata.get("arguments")?;
     if matches!(arguments, Value::Null) {

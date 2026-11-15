@@ -6,7 +6,7 @@ use vw_api_app_identity::{
     AppRuntimeKind,
 };
 use super::{catalog::CatalogRow, presentation::*};
-use vw_gateway_client::{AgentAppsReadError, vw_api_types::agent_apps::*};
+use {gateway_http::AgentAppsReadError, vw_api_types::agent_apps::*};
 fn app() -> CatalogRow {
     CatalogRow {
         entry: AppCatalogEntry {

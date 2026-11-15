@@ -5,7 +5,7 @@ use super::ChatMessage;
 use crate::app::session_gateway;
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{PendingPermissionReplyDto, PendingPermissionRequestDto};
+use {gateway_interaction::PendingPermissionReplyDto, gateway_interaction::PendingPermissionRequestDto};
 
 fn permission_directory(app: &App) -> Option<String> {
     app.active_session_id

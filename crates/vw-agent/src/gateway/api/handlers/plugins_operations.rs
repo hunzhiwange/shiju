@@ -7,7 +7,7 @@ use std::{
     sync::{Mutex, OnceLock},
     time::{Duration, Instant},
 };
-use vw_gateway_client::DesktopPluginPreviewDto;
+use gateway_desktop_settings::DesktopPluginPreviewDto;
 
 pub(super) fn router() -> Router<AppState> {
     Router::new()
@@ -81,7 +81,7 @@ fn validate_source(source: &str) -> Result<()> {
     }
     Ok(())
 }
-fn origin(manifest: &PluginManifest) -> Result<vw_gateway_client::DesktopPluginSourceDto> {
+fn origin(manifest: &PluginManifest) -> Result<gateway_desktop_settings::DesktopPluginSourceDto> {
     let metadata = crate::plugins::plugin_install_metadata(&manifest.root, manifest)?
         .ok_or_else(|| anyhow::anyhow!("prepared plugin provenance is missing"))?;
     Ok(super::source_origin(Some(&metadata), manifest.version.clone()))

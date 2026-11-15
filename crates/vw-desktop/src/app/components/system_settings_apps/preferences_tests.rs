@@ -9,7 +9,7 @@ use vw_api_app_identity::{
     AppWslPreference,
 };
 use super::preferences::*;
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 fn value() -> AppPreferencesResult {
     AppPreferencesResult {
         user: AppUserPreferences {

@@ -88,7 +88,7 @@ pub(crate) struct WorktreeSettingsState {
     pub(crate) error: Option<String>,
 }
 
-use vw_gateway_client::vw_api_types::{
+use vw_api_types::{
     project::ProjectDto,
 };
 use vw_api_worktree::{ManagedWorktreeDto, WorktreeDeletionPreflight};

@@ -65,7 +65,7 @@ pub(super) fn preferred_chat_message_index_by_id(
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn permission_target_tool_anchor_fraction(
     message: &models::ChatMessage,
-    request: Option<&vw_gateway_client::PendingPermissionRequestDto>,
+    request: Option<&gateway_interaction::PendingPermissionRequestDto>,
     message_id: Option<&str>,
     show_reasoning_summary: bool,
 ) -> Option<f32> {

@@ -30,12 +30,7 @@ use iced::{
 };
 use std::fmt;
 use vw_api_knowledge::KnowledgeDocumentsBatchAction;
-use vw_gateway_client::{
-    KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode, KnowledgeDatasetDto,
-    KnowledgeDocumentDto, KnowledgeDocumentStatus, KnowledgeEmbeddingPresetDto,
-    KnowledgeEmbeddingStatusDto, KnowledgeEmbeddingTestResponse, KnowledgeIndexingMode,
-    KnowledgeMatchType, KnowledgeRetrievalMode,
-};
+use {vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentStatus, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeMatchType, vw_api_knowledge::KnowledgeRetrievalMode};
 
 const DOCUMENTS_PER_PAGE: usize = 10;
 const DOCUMENT_PAGE_SIZE_OPTIONS: [usize; 6] = [10, 20, 30, 40, 50, 100];
@@ -3474,13 +3469,13 @@ fn compact_decimal(value: u64, base: u64, suffix: &str) -> String {
 
 fn import_job_status_label(
     i18n: crate::app::i18n::I18n,
-    status: &vw_gateway_client::KnowledgeIndexJobStatus,
+    status: &vw_api_knowledge::KnowledgeIndexJobStatus,
 ) -> &'static str {
     match status {
-        vw_gateway_client::KnowledgeIndexJobStatus::Queued => i18n.__("入队"),
-        vw_gateway_client::KnowledgeIndexJobStatus::Processing => i18n.__("索引中"),
-        vw_gateway_client::KnowledgeIndexJobStatus::Completed => i18n.__("成功"),
-        vw_gateway_client::KnowledgeIndexJobStatus::Failed => i18n.__("失败"),
+        vw_api_knowledge::KnowledgeIndexJobStatus::Queued => i18n.__("入队"),
+        vw_api_knowledge::KnowledgeIndexJobStatus::Processing => i18n.__("索引中"),
+        vw_api_knowledge::KnowledgeIndexJobStatus::Completed => i18n.__("成功"),
+        vw_api_knowledge::KnowledgeIndexJobStatus::Failed => i18n.__("失败"),
     }
 }
 

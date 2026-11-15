@@ -67,7 +67,7 @@ fn cc_mcp_t47_settings_exposes_explicit_native_import_confirmation() {
 use super::*;
 use {
     vw_api_transport::TenantScope,
-    vw_gateway_client::vw_api_types::agent_apps::*,
+    vw_api_types::agent_apps::*,
 };
 fn target() -> McpAppTarget {
     McpAppTarget {

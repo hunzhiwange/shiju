@@ -19,7 +19,7 @@ use crate::app::state::{
 use crate::app::{App, Message};
 use iced::Task;
 use std::time::Duration;
-use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest};
+use {gateway_shiju_account::ShijuAccountMeDto, gateway_shiju_account::ShijuAccountPasswordUpdateRequest};
 
 fn open_authorization_url(url: &str) -> bool {
     #[cfg(not(target_arch = "wasm32"))]
@@ -59,7 +59,7 @@ pub(crate) enum AccountMessage {
     ModelTokenLoaded {
         generation: u64,
         account_id: String,
-        result: Result<vw_gateway_client::ShijuModelTokenDto, String>,
+        result: Result<gateway_shiju_account::ShijuModelTokenDto, String>,
     },
     #[cfg(not(target_arch = "wasm32"))]
     ModelsConfigured {
@@ -71,7 +71,7 @@ pub(crate) enum AccountMessage {
     RefreshMonthlyQuota,
     MonthlyQuotaLoaded {
         generation: u64,
-        quota: Option<vw_gateway_client::ShijuMonthlyQuotaDto>,
+        quota: Option<gateway_shiju_account::ShijuMonthlyQuotaDto>,
     },
     CloseMenu,
     OpenDetails,
@@ -236,7 +236,7 @@ fn profile_load_task(skey: SecretSkey, generation: u64) -> Task<Message> {
 
 fn profile_update_task(
     skey: SecretSkey,
-    request: vw_gateway_client::ShijuAccountUpdateRequest,
+    request: gateway_shiju_account::ShijuAccountUpdateRequest,
     generation: u64,
 ) -> Task<Message> {
     Task::perform(

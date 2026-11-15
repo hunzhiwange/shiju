@@ -9,7 +9,7 @@ use vw_agent_apps::providers::live::commit::{
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_edit::editor_merge::*;
 use vw_api_transport::id::TenantScope;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-editor-token-with-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
@@ -166,7 +166,7 @@ async fn cc04_editor_merge_inactive_is_catalog_only_and_permission_denial_has_no
     std::fs::write(&f.policy, policy.to_string()).unwrap();
     let error =
         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).app_provider_editor_save(AppId::Claude, "saved", &req, TOKEN).await.unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     assert_eq!(std::fs::read(f.file()).unwrap(), bytes);
 }
 #[tokio::test]
@@ -344,7 +344,7 @@ async fn cc04_ui_preview_editor_operation_keeps_file_when_cancelled_and_saves_af
     let denied = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&retry, "bad-token").await.unwrap_err();
     assert!(matches!(
         denied,
-        vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 401 | 403, .. }
     ));
     assert_eq!(std::fs::read(f.file()).unwrap(), file);
     let mut external: Value = serde_json::from_slice(&file).unwrap();
@@ -413,7 +413,7 @@ async fn cc04_ui_preview_saved_fallback_is_redacted_authorized_and_read_only() {
         .unwrap_err();
     assert!(matches!(
         denied,
-        vw_gateway_client::AgentAppsReadError::Http { status: 401 | 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 401 | 403, .. }
     ));
     assert_eq!(f.record("saved"), before);
     assert_eq!(std::fs::read(f.file()).unwrap(), corrupt);

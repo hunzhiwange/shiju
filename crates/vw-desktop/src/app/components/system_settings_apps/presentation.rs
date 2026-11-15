@@ -1,7 +1,7 @@
 use vw_api_app_identity::{AppId, AppInstallation, AppInstallationSource, AppRuntimeKind};
 //! Observation-based display: an unreadable host is never labeled uninstalled.
 use super::catalog::CatalogRow;
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Presence {

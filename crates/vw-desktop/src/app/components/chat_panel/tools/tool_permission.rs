@@ -25,7 +25,7 @@ use super::tool_parse::{tool_call_id_from_raw, tool_error_text, tool_status, too
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_targets_message(
-    request: Option<&vw_gateway_client::PendingPermissionRequestDto>,
+    request: Option<&gateway_interaction::PendingPermissionRequestDto>,
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
 ) -> bool {
@@ -56,7 +56,7 @@ pub(crate) fn pending_permission_targets_message(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_targets_tool_call(
-    request: Option<&vw_gateway_client::PendingPermissionRequestDto>,
+    request: Option<&gateway_interaction::PendingPermissionRequestDto>,
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
     // raw 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -97,12 +97,12 @@ pub(crate) fn pending_permission_targets_tool_call(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_request_for_tool_call<'a>(
-    requests: &'a [vw_gateway_client::PendingPermissionRequestDto],
+    requests: &'a [gateway_interaction::PendingPermissionRequestDto],
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
     // raw 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     raw: &str,
-) -> Option<&'a vw_gateway_client::PendingPermissionRequestDto> {
+) -> Option<&'a gateway_interaction::PendingPermissionRequestDto> {
     let Some(message_id) = message_id else {
         return None;
     };
@@ -139,10 +139,10 @@ pub(crate) fn pending_permission_request_for_tool_call<'a>(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_request_for_message<'a>(
-    requests: &'a [vw_gateway_client::PendingPermissionRequestDto],
+    requests: &'a [gateway_interaction::PendingPermissionRequestDto],
     // message_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     message_id: Option<&str>,
-) -> Option<&'a vw_gateway_client::PendingPermissionRequestDto> {
+) -> Option<&'a gateway_interaction::PendingPermissionRequestDto> {
     let Some(message_id) = message_id else {
         return None;
     };
@@ -169,7 +169,7 @@ pub(crate) fn pending_permission_request_for_message<'a>(
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_badge_label(
     i18n: crate::app::i18n::I18n,
-    requests: &[vw_gateway_client::PendingPermissionRequestDto],
+    requests: &[gateway_interaction::PendingPermissionRequestDto],
     // current_request_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     current_request_id: Option<&str>,
 ) -> String {
@@ -200,7 +200,7 @@ pub(crate) fn pending_permission_badge_label(
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_request_badge_label(
     i18n: crate::app::i18n::I18n,
-    requests: &[vw_gateway_client::PendingPermissionRequestDto],
+    requests: &[gateway_interaction::PendingPermissionRequestDto],
     // request_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     request_id: &str,
 ) -> String {

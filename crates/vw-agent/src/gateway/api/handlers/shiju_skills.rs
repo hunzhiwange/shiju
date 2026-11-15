@@ -11,12 +11,7 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
-use vw_gateway_client::{
-    SHIJU_CREDENTIAL_HEADER, ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery,
-    ShijuSkillCursorPageDto, ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto,
-    ShijuSkillSearchQuery, ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto,
-    ShijuSystemSkillQuery, ShijuTenantSkillDto,
-};
+use {gateway_shiju_account::SHIJU_CREDENTIAL_HEADER, gateway_shiju_account::ShijuCredential, gateway_shiju_skill::ShijuInstalledSkillDto, gateway_shiju_skill::ShijuMaintainedSkillQuery, gateway_shiju_skill::ShijuSkillCursorPageDto, gateway_shiju_skill::ShijuSkillDetailDto, gateway_shiju_skill::ShijuSkillPageDto, gateway_shiju_skill::ShijuSkillReadmeDto, gateway_shiju_skill::ShijuSkillSearchQuery, gateway_shiju_skill::ShijuSkillTagCatalogDto, gateway_shiju_skill::ShijuSkillVersionDto, gateway_shiju_skill::ShijuSystemSkillDto, gateway_shiju_skill::ShijuSystemSkillQuery, gateway_shiju_skill::ShijuTenantSkillDto};
 
 use crate::gateway::ApiError;
 use crate::skills::shiju::{ShijuSkillClient, ShijuSkillError, ShijuSkillInstallRequest};

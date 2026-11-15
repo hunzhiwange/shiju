@@ -21,13 +21,7 @@ use vw_api_knowledge::{
     KnowledgeDocumentPatchRequest, KnowledgeDocumentStatus, KnowledgeDocumentsBatchAction,
     KnowledgeDocumentsBatchActionRequest,
 };
-use vw_gateway_client::{
-    KnowledgeCapabilitiesDto, KnowledgeChunkDto, KnowledgeChunkType, KnowledgeChunkingMode,
-    KnowledgeDatasetDto, KnowledgeDocumentDto, KnowledgeDocumentImportQueuedResponse,
-    KnowledgeEmbeddingPresetDto, KnowledgeEmbeddingStatusDto, KnowledgeEmbeddingTestResponse,
-    KnowledgeIndexJobDto, KnowledgeIndexJobStatus, KnowledgeIndexingMode, KnowledgeMatchType,
-    KnowledgeRetrievalMode, KnowledgeRetrieveResponse, KnowledgeRuntimeStatus,
-};
+use {vw_api_knowledge::KnowledgeCapabilitiesDto, vw_api_knowledge::KnowledgeChunkDto, vw_api_knowledge::KnowledgeChunkType, vw_api_knowledge::KnowledgeChunkingMode, vw_api_knowledge::KnowledgeDatasetDto, vw_api_knowledge::KnowledgeDocumentDto, vw_api_knowledge::KnowledgeDocumentImportQueuedResponse, vw_api_knowledge::KnowledgeEmbeddingPresetDto, vw_api_knowledge::KnowledgeEmbeddingStatusDto, vw_api_knowledge::KnowledgeEmbeddingTestResponse, vw_api_knowledge::KnowledgeIndexJobDto, vw_api_knowledge::KnowledgeIndexJobStatus, vw_api_knowledge::KnowledgeIndexingMode, vw_api_knowledge::KnowledgeMatchType, vw_api_knowledge::KnowledgeRetrievalMode, vw_api_knowledge::KnowledgeRetrieveResponse, vw_api_knowledge::KnowledgeRuntimeStatus};
 
 fn test_app() -> App {
     App::new().0

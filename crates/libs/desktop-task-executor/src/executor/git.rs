@@ -189,7 +189,7 @@ fn run_git_gateway(gateway_client: fn() -> Result<vw_gateway_client::GatewayClie
         args: args.iter().map(|arg| (*arg).to_string()).collect(),
         timeout_secs,
     };
-    let response = super::block_on_gateway(client.git_command(&request))
+    let response = super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).git_command(&request))
         .map_err(|e| format!("网关 git 执行失败 cwd={} args={:?} err={}", cwd, args, e))?;
     Ok(response.into())
 }

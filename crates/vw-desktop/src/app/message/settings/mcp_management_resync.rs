@@ -6,7 +6,7 @@ use super::{
 use crate::app::{App, Message};
 use iced::Task;
 use {
-    vw_gateway_client::AgentAppsSettingsError,
+    gateway_app_settings::AgentAppsSettingsError,
     vw_gateway_client::GatewayClient,
     gateway_mcp_distribution::*,
     vw_api_transport::TaskId,

@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use serde::Deserialize;
-use vw_gateway_client::ShijuMonthlyQuotaDto;
+use gateway_shiju_account::ShijuMonthlyQuotaDto;
 
 use super::{ShijuAccountClient, ShijuAccountError, endpoint};
 

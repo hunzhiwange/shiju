@@ -7,7 +7,7 @@ use gateway_aggregation::{AggregationApiError, GatewayAggregationClient};
 use vw_gateway_client::GatewayClient;
 use vw_api_app_aggregation::*;
 use vw_api_app_aggregation::operations::ProviderOperationProgress;
-use vw_gateway_client::vw_api_types::task::TaskStatus;
+use vw_api_types::task::TaskStatus;
 
 #[derive(Clone, Default)]
 pub(crate) struct Session {
@@ -232,11 +232,11 @@ pub(crate) async fn execute(
                     .await
             };
             result.map(Reply::Operation).map_err(|e| match e {
-                vw_gateway_client::AgentAppsReadError::Http { status, body } => {
+                gateway_http::AgentAppsReadError::Http { status, body } => {
                     AggregationApiError::Http { status, body }
                 }
-                vw_gateway_client::AgentAppsReadError::Decode(s) => AggregationApiError::Decode(s),
-                vw_gateway_client::AgentAppsReadError::Transport(s) => {
+                gateway_http::AgentAppsReadError::Decode(s) => AggregationApiError::Decode(s),
+                gateway_http::AgentAppsReadError::Transport(s) => {
                     AggregationApiError::Transport(s)
                 }
             })

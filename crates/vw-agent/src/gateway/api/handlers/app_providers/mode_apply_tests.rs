@@ -12,7 +12,7 @@ use std::{
 use vw_agent_apps::providers::{live::commit::*, mode_apply::*};
 use {vw_api_app_identity::AppId, vw_api_transport::id::TenantScope};
 use vw_api_app_provider_environment::mode_apply::*;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-mode-authorized-token-32-characters";
 fn tenant() -> TenantScope {
     TenantScope::new("p", "a").unwrap()
@@ -349,7 +349,7 @@ async fn cc04_mode_apply_denial_unavailable_and_failed_readiness_do_not_write() 
                 .await
                 .unwrap_err();
             assert!(
-                matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:s,..} if s==status),
+                matches!(error,gateway_http::AgentAppsReadError::Http{status:s,..} if s==status),
                 "{error:?}"
             );
         }
@@ -374,7 +374,7 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
             .await
             .unwrap_err();
         assert!(
-            matches!(error,vw_gateway_client::AgentAppsReadError::Http{status:s,..} if s==status)
+            matches!(error,gateway_http::AgentAppsReadError::Http{status:s,..} if s==status)
         );
     }
     assert!(!f.root.path().join(".claude").exists());
@@ -396,7 +396,7 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
         )
         .await
         .unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     assert!(!f.root.path().join(".claude").exists());
     assert!(!f.root.path().join("private/provider-live").exists());
     std::fs::write(&policy, original).unwrap();
@@ -432,7 +432,7 @@ async fn cc04_mode_apply_write_grant_foreign_owner_and_unsupported_input_are_rej
         )
         .await
         .unwrap_err();
-    assert!(matches!(error, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(error, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     assert_eq!(std::fs::read(state_path).unwrap(), before);
     assert!(!f.path().exists());
     assert!(tx.pending(AppId::Claude).unwrap().is_none());

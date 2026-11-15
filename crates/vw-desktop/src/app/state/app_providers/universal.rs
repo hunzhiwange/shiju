@@ -1,4 +1,4 @@
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::universal::UniversalProviderSummary;
 use vw_api_app_provider_edit::universal_sync::UniversalSyncResult;
 

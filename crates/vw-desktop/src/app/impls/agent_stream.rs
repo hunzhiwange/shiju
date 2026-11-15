@@ -3,7 +3,7 @@
 
 use super::message;
 use super::{AgentRequest, Message};
-use vw_gateway_client::vw_api_types;
+use vw_api_types;
 
 const GATEWAY_STREAM_INITIAL_RETRY_DELAY: std::time::Duration =
     std::time::Duration::from_millis(500);

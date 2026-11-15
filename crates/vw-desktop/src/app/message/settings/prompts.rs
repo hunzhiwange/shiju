@@ -9,7 +9,7 @@ use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use crate::app::components::system_settings_prompts::activation::{Action, Undo, error_text, effect};
 use gateway_app_prompts::{AgentAppPromptCatalog, AgentAppPromptsScope};
-use vw_gateway_client::{vw_api_types::agent_apps::{AppId}};
+use {vw_api_types::agent_apps::{AppId}};
 #[derive(Clone, Debug)]
 pub enum Event {
     Open(AppId),

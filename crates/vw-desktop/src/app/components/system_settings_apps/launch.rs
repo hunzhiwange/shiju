@@ -11,7 +11,7 @@ use vw_api_app_identity::{
 //! Draft identities are projections only; all execution and credential lifetime stay on the host.
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
-use vw_gateway_client::vw_api_types::agent_apps::*;
+use vw_api_types::agent_apps::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LaunchChoice {
     ExistingConfiguration,

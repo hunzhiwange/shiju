@@ -53,7 +53,7 @@ fn workflow_messages_clone_and_debug_cover_signal_variants() {
         handle_id: "handle".to_string(),
         kind: WorkflowHandleKind::Source,
     };
-    let run_event = vw_gateway_client::GatewayWorkflowStreamEvent::TextChunk {
+    let run_event = gateway_workflow::GatewayWorkflowStreamEvent::TextChunk {
         task_id: "task".to_string(),
         workflow_run_id: "run".to_string(),
         text: "chunk".to_string(),
@@ -438,7 +438,7 @@ fn helper_functions_cover_save_export_and_record_mapping() {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let summary = saved_app_summary_from_record(vw_gateway_client::WorkflowRecordSummary {
+        let summary = saved_app_summary_from_record(vw_api_workflow::WorkflowRecordSummary {
             uuid: "u".to_string(),
             name: "n".to_string(),
             description: "d".to_string(),

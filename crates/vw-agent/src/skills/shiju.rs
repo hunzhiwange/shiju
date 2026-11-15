@@ -6,12 +6,7 @@ use std::time::Duration;
 use reqwest::{Method, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use vw_gateway_client::{
-    ShijuCredential, ShijuInstalledSkillDto, ShijuMaintainedSkillQuery, ShijuSkillCursorPageDto,
-    ShijuSkillDetailDto, ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery,
-    ShijuSkillTagCatalogDto, ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery,
-    ShijuTenantSkillDto,
-};
+use {gateway_shiju_account::ShijuCredential, gateway_shiju_skill::ShijuInstalledSkillDto, gateway_shiju_skill::ShijuMaintainedSkillQuery, gateway_shiju_skill::ShijuSkillCursorPageDto, gateway_shiju_skill::ShijuSkillDetailDto, gateway_shiju_skill::ShijuSkillPageDto, gateway_shiju_skill::ShijuSkillReadmeDto, gateway_shiju_skill::ShijuSkillSearchQuery, gateway_shiju_skill::ShijuSkillTagCatalogDto, gateway_shiju_skill::ShijuSkillVersionDto, gateway_shiju_skill::ShijuSystemSkillDto, gateway_shiju_skill::ShijuSystemSkillQuery, gateway_shiju_skill::ShijuTenantSkillDto};
 
 const SHIJU_SKILL_BASE_URL: &str = "https://gateway.shiju.cloud/sj/skill-hub/api/v1/";
 const MAX_PAGE_SIZE: u32 = 100;

@@ -60,7 +60,7 @@ pub(super) fn view<'a>(
         );
     }
     if let Ok(observation) = &app.observation {
-        use vw_gateway_client::vw_api_types::agent_apps::*;
+        use vw_api_types::agent_apps::*;
         if observation.installations.is_empty()
             && app.entry.runtime_kinds.contains(&AppRuntimeKind::NativeCli)
         {

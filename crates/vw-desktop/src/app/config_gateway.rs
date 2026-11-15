@@ -2,7 +2,7 @@
 
 use crate::app::{Message, message::SettingsMessage};
 use iced::Task;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
 use super::system_settings::load_gateway_client_bootstrap_config;
 

@@ -7,7 +7,7 @@ use crate::app::{
     },
 };
 use iced::Task;
-use vw_gateway_client::{AgentAppsReadError, GatewayClient, vw_api_types::{agent_apps::AppId}};
+use {gateway_http::AgentAppsReadError, vw_gateway_client::GatewayClient, vw_api_types::{agent_apps::AppId}};
 use vw_api_app_provider_environment::mode_apply::ModeApplyAction;
 use vw_api_app_provider_environment::mode_apply::ModeApplyRequest;
 use vw_api_app_provider_environment::mode_apply::TargetPublication;

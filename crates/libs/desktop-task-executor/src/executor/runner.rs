@@ -1296,7 +1296,7 @@ fn execute_gateway_git_merge_with_retry(
 ) -> Result<vw_api_git::GitMergeResponse, String> {
     let mut first_error: Option<String> = None;
     for attempt in 1..=GATEWAY_GIT_MERGE_MAX_ATTEMPTS {
-        match super::block_on_gateway(client.git_merge(request)) {
+        match super::block_on_gateway(gateway_project::GatewayProjectClient::new(client.transport().clone()).git_merge(request)) {
             Ok(response) => return Ok(response),
             Err(error)
                 if attempt < GATEWAY_GIT_MERGE_MAX_ATTEMPTS

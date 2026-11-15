@@ -424,14 +424,14 @@ fn render_assistant_body_flushes_command_groups_at_visible_boundaries() {
 fn render_assistant_body_keeps_pending_command_outside_summary_group() {
     let mut app = App::new().0;
     app.chat_message_ids = vec![Some("msg-1".to_string())];
-    let request = vw_gateway_client::PendingPermissionRequestDto {
+    let request = gateway_interaction::PendingPermissionRequestDto {
         id: "req-1".to_string(),
         session_id: "session-1".to_string(),
         permission: "tool".to_string(),
         patterns: vec![],
         metadata: Map::new(),
         always: vec![],
-        tool: Some(vw_gateway_client::PendingPermissionToolDto {
+        tool: Some(gateway_interaction::PendingPermissionToolDto {
             message_id: "msg-1".to_string(),
             call_id: "call-2".to_string(),
         }),

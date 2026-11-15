@@ -8,7 +8,7 @@ use vw_api_app_provider_edit::import::ImportTrigger;
 use vw_api_app_aggregation::operations::*;
 use vw_api_transport::id::TenantScope;
 use vw_api_task::TaskStatus;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-import-authorized-token-32-characters";
 fn write(home: &Path, name: &str, bytes: &[u8]) {
     let file = home.join(name);
@@ -95,7 +95,7 @@ async fn cc04_operations_sdk_api_import_progress_correlates_and_denies_foreign_s
         ProviderOperationAction::Import { app: AppId::Pi, trigger: ImportTrigger::Startup };
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&conflicting, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 409, .. }
+        gateway_http::AgentAppsReadError::Http { status: 409, .. }
     ));
     assert_eq!(last.request_id, "request-one");
     assert_eq!((last.completed, last.total), (2, 2));
@@ -106,7 +106,7 @@ async fn cc04_operations_sdk_api_import_progress_correlates_and_denies_foreign_s
     assert_eq!(std::fs::read(f.root.path().join(".pi/agent/models.json")).unwrap(), native);
     assert!(f.record(AppId::Pi, "two").to_string().contains("fake-two"));
     let bad = gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(&id, "other", TOKEN).await.unwrap_err();
-    assert!(matches!(bad, vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }));
+    assert!(matches!(bad, gateway_http::AgentAppsReadError::Http { status: 403, .. }));
     assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_get(&id, "host", "wrong-token").await.is_err());
 }
 
@@ -151,7 +151,7 @@ async fn cc04_operations_projection_persists_selected_apps_and_read_only_denial_
     req.request_id = "read-only".into();
     assert!(matches!(
         gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_start(&req, TOKEN).await.unwrap_err(),
-        vw_gateway_client::AgentAppsReadError::Http { status: 403, .. }
+        gateway_http::AgentAppsReadError::Http { status: 403, .. }
     ));
     assert!(gateway_app_provider::GatewayAppProviderClient::new(f.client.transport().clone()).provider_operation_cancel(&id, "host", TOKEN).await.is_err());
     assert_eq!(f.record(AppId::Claude, "universal-claude-shared"), before);

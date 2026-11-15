@@ -3,7 +3,7 @@ use iced::{
     Alignment, Element,
     widget::{button, column, row, text},
 };
-use vw_gateway_client::vw_api_types::{
+use vw_api_types::{
     agent_apps::AppId,
     apps_usage::{
         UsageCredentialState, UsageNumber, UsageQueryData, UsageQueryOutcome,

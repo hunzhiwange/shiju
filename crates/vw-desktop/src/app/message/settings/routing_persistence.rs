@@ -6,7 +6,7 @@ use crate::app::{App, Message};
 use iced::Task;
 use serde_json::Value;
 use std::collections::VecDeque;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 
 #[derive(Debug, Clone)]
 struct Pending {

@@ -7,9 +7,9 @@ use crate::app::{
     },
 };
 use iced::{Task, widget::text_editor::Action};
-use vw_gateway_client::AgentAppsReadError;
+use gateway_http::AgentAppsReadError;
 use vw_gateway_client::GatewayClient;
-use vw_gateway_client::vw_api_types::agent_apps::AppId;
+use vw_api_types::agent_apps::AppId;
 use vw_api_app_provider_edit::editor_merge::EditorChoice;
 use vw_api_app_provider_edit::editor_merge::EditorEdit;
 use vw_api_app_provider_edit::editor_merge::EditorOpen;

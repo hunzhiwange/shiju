@@ -89,8 +89,7 @@ async fn verify_local_auth(home: &std::path::Path, app_token: &str) {
     use axum::{body::Body, extract::ConnectInfo, http::Request};
     use std::net::SocketAddr;
     use tower::ServiceExt;
-    use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{
-        AgentAppsAuthCredentials, AgentAppsAuthError, GatewayClient, vw_api_app_auth::{AuthErrorCode, AuthFlowId, AuthService}}};
+    use {gateway_endpoint::{GatewayEndpoint}, {gateway_app_auth::AgentAppsAuthCredentials, gateway_app_auth::AgentAppsAuthError, vw_gateway_client::GatewayClient, vw_api_app_auth::{AuthErrorCode, AuthFlowId, AuthService}}};
 
     let router = crate::gateway::api::handlers::agent_apps_auth_read::router(None, "test", None);
     let credential = local_app_auth::initialize_auth(home, "p", "c").unwrap();

@@ -6,11 +6,7 @@ use std::time::Duration;
 use reqwest::{StatusCode, Url};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
-use vw_gateway_client::{
-    ShijuAccountDepartmentDto, ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest,
-    ShijuAccountProfileDto, ShijuAccountRoleDto, ShijuAccountUpdateRequest,
-    ShijuAccountUpdateResponseDto,
-};
+use {gateway_shiju_account::ShijuAccountDepartmentDto, gateway_shiju_account::ShijuAccountMeDto, gateway_shiju_account::ShijuAccountPasswordUpdateRequest, gateway_shiju_account::ShijuAccountProfileDto, gateway_shiju_account::ShijuAccountRoleDto, gateway_shiju_account::ShijuAccountUpdateRequest, gateway_shiju_account::ShijuAccountUpdateResponseDto};
 
 const PASSPORT_BASE_URL: &str = "https://passport.shiju.cloud";
 const GATEWAY_BASE_URL: &str = "https://gateway.shiju.cloud/sj/";

@@ -6,7 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use vw_api_app_identity::AppId;
 use vw_api_app_provider_edit::snippets::*;
 use vw_api_transport::id::TenantScope;
-use {gateway_endpoint::{GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+use {gateway_endpoint::{GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
 const TOKEN: &str = "fixture-snippet-token-at-least-32-chars";
 struct Fixture {
     root: tempfile::TempDir,
@@ -332,7 +332,7 @@ async fn cc04_ui_snippets_preview_uses_read_grant_and_leaves_storage_untouched()
     {
         assert!(matches!(
             gateway_app_provider::GatewayAppProviderClient::new(client.transport().clone()).app_provider_snippet_preview(AppId::Claude, payload, TOKEN).await,
-            Err(vw_gateway_client::AgentAppsReadError::Http {
+            Err(gateway_http::AgentAppsReadError::Http {
                 status: actual, body: Value::Null
             }) if actual == status
         ));

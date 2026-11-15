@@ -3,7 +3,7 @@ use super::{McpMessage, SettingsMessage};
 use crate::app::{App, Message, state::AgentAppsContext};
 use iced::Task;
 use {
-    vw_gateway_client::AgentAppsReadError,
+    gateway_http::AgentAppsReadError,
     vw_gateway_client::GatewayClient,
     vw_api_mcp_management::*,
 };

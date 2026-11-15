@@ -165,7 +165,7 @@ async fn codex_plugin_compat_t54_preserves_isolation() {
 
 #[tokio::test]
 async fn codex_plugin_compat_t54_gateway_client_activates_audited_package() {
-    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, vw_gateway_client::{GatewayClient}};
+    use {gateway_endpoint::{GatewayAuth, GatewayEndpoint}, {vw_gateway_client::GatewayClient}};
     let root = tempfile::tempdir().unwrap();
     let source = root.path().join("source");
     package(&source, "1");

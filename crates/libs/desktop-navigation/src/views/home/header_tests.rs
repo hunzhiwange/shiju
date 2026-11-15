@@ -4,7 +4,7 @@
 use iced::widget::button;
 use iced::{Background, Color, Element, Theme, Vector};
 
-use crate::app::{App, Message};
+use super::Message;
 
 fn keep_element(element: Element<'_, Message>) {
     std::hint::black_box(element);
@@ -26,15 +26,15 @@ fn test_module_is_wired() {
 
 #[test]
 fn render_builds_home_header_from_default_state() {
-    let app = App::new().0;
 
-    keep_element(super::render(&app));
+
+    keep_element(super::render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), iced::widget::Id::unique()));
 }
 
 #[test]
 fn render_keeps_three_header_sections_and_two_project_actions() {
-    let app = App::new().0;
-    let header = super::render(&app);
+
+    let header = super::render(desktop_i18n::I18n::new(config_ui::DesktopLocale::SimplifiedChinese), iced::widget::Id::unique());
 
     assert_eq!(header.as_widget().size().width, iced::Length::Fill);
 
@@ -46,10 +46,10 @@ fn render_keeps_three_header_sections_and_two_project_actions() {
 #[test]
 fn app_chip_builds_tooltip_with_supplied_action() {
     keep_element(super::app_chip(
-        crate::app::assets::Icon::Grid1x2,
+        desktop_assets::Icon::Grid1x2,
         "应用中心",
         Color::from_rgb8(0x35, 0x85, 0xD6),
-        Message::None,
+        Message::OpenApps,
     ));
 }
 
@@ -57,7 +57,7 @@ fn app_chip_builds_tooltip_with_supplied_action() {
 fn home_apps_bar_scroll_changed_preserves_relative_offset() {
     for relative_x in [0.0, 0.375, 1.0] {
         match super::home_apps_bar_scroll_changed(relative_x) {
-            Message::View(crate::app::message::ViewMessage::HomeAppsBarScrollChanged(actual)) => {
+            Message::HomeAppsBarScrollChanged(actual) => {
                 assert_eq!(actual, relative_x);
             }
             other => panic!("unexpected message: {other:?}"),
@@ -69,7 +69,7 @@ fn home_apps_bar_scroll_changed_preserves_relative_offset() {
 fn home_apps_bar_scroll_changed_forwards_out_of_range_offsets_without_clamping() {
     for relative_x in [-0.25, 1.25] {
         match super::home_apps_bar_scroll_changed(relative_x) {
-            Message::View(crate::app::message::ViewMessage::HomeAppsBarScrollChanged(actual)) => {
+            Message::HomeAppsBarScrollChanged(actual) => {
                 assert_eq!(actual, relative_x);
             }
             other => panic!("unexpected message: {other:?}"),

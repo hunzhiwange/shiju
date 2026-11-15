@@ -10,7 +10,7 @@ fn test_module_is_wired() {
 
 use super::{
     AppTab, ConventionalCommitType, ExternalOpenApp, ModelPopoverHover, RuntimePlatform,
-    TopBarGatewayTab, WorkResourceMode, WorkspaceMode,
+    TopBarGatewayTab, WorkspaceMode,
 };
 use crate::app::Screen;
 use crate::app::components::model_hover_tooltip::HoverAnchor;
@@ -32,10 +32,6 @@ fn workspace_mode_defaults_and_round_trips_config_values() {
     assert_eq!(WorkspaceMode::from_config(None), WorkspaceMode::Work);
 }
 
-#[test]
-fn work_workspace_resource_mode_defaults_to_overview() {
-    assert_eq!(WorkResourceMode::default(), WorkResourceMode::Overview);
-}
 
 #[test]
 fn runtime_platform_parses_gateway_aliases_and_rejects_unknown_values() {

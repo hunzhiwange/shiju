@@ -7,6 +7,7 @@ use iced::{Color, Element, Theme};
 use tempfile::tempdir;
 
 use super::*;
+type Message = ();
 
 fn assert_color_close(actual: Color, expected: Color) {
     const EPSILON: f32 = 0.000_001;
@@ -139,8 +140,8 @@ fn lighten_color_moves_rgb_toward_white_and_preserves_alpha() {
 fn icon_and_action_builders_accept_regular_and_boundary_sizes() {
     let _ = std::hint::black_box(icon_svg(Icon::Grid1x2, 14.0));
     let _ = std::hint::black_box(icon_svg(Icon::Grid1x2, 0.0));
-    keep_element(primary_button("选择文件夹", Message::None));
-    keep_element(secondary_button("", Message::None));
+    keep_element(primary_button("选择文件夹", ()));
+    keep_element(secondary_button("", ()));
 }
 
 #[test]

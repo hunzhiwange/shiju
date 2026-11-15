@@ -430,3 +430,20 @@ pub fn menu_item_btn<'a>(label: &'a str, shortcut: Option<&'a str>, msg: Option<
 pub fn menu_item_icon_btn<'a>(icon: Element<'a, Message>, label: &'a str, shortcut: Option<&'a str>, msg: Option<Message>) -> Element<'a, Message> {
  menu_item_icon_btn_with_action(icon, label, shortcut, msg, |msg| Message::MenuAction(Box::new(msg)))
 }
+
+/// Menu trigger shared by the desktop adapter and navigation menus.
+pub fn menu_btn_with_actions<'a, M: Clone + 'a>(
+    label: &'a str,
+    is_active: bool,
+    on_press: M,
+    on_enter: M,
+) -> Element<'a, M> {
+    let btn = button(
+        text(label).size(13).height(Length::Fill).align_y(iced::alignment::Vertical::Center),
+    )
+    .on_press(on_press)
+    .height(Length::Fill)
+    .style(move |theme: &Theme, status| menu_button_style(theme, status, is_active))
+    .padding([0, 10]);
+    iced::widget::mouse_area(btn).on_enter(on_enter).into()
+}

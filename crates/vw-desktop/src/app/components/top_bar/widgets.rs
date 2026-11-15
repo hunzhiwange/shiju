@@ -1,27 +1,17 @@
 //! 全局菜单消息与导航控件之间的窄适配。
 use crate::app::{Message, message};
 use crate::app::message::view::MenuType;
-use iced::widget::{button, text, mouse_area};
-use iced::{Element, Length, Theme};
-pub(super) use desktop_navigation::components::top_bar::widgets::{icon_svg, icon_tooltip_style, menu_button_style, workspace_mode_button_style, menu_container_style, menu_container, menu_separator};
-#[cfg(test)]
-pub(super) use desktop_navigation::components::top_bar::widgets::{color_with_alpha, icon_svg_style, icon_toggle_button_style, icon_button, icon_toggle_button, icon_toggle_button_opt, menu_item_button_style, menu_separator_style};
+use iced::Element;
 pub(super) fn menu_btn<'a>(
     label: &'a str,
     menu_type: MenuType,
     active_menu: Option<MenuType>,
 ) -> Element<'a, Message> {
-    let is_active = active_menu == Some(menu_type);
-
-    let btn = button(
-        text(label).size(13).height(Length::Fill).align_y(iced::alignment::Vertical::Center),
+    desktop_navigation::components::top_bar::widgets::menu_btn_with_actions(
+        label, active_menu == Some(menu_type),
+        Message::View(message::ViewMessage::ToggleMenu(Some(menu_type))),
+        Message::View(message::ViewMessage::MenuHovered(menu_type)),
     )
-    .on_press(Message::View(message::ViewMessage::ToggleMenu(Some(menu_type))))
-    .height(Length::Fill)
-    .style(move |theme: &Theme, status| menu_button_style(theme, status, is_active))
-    .padding([0, 10]);
-
-    mouse_area(btn).on_enter(Message::View(message::ViewMessage::MenuHovered(menu_type))).into()
 }
 
 

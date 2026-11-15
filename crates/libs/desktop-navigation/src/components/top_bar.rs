@@ -50,3 +50,12 @@ pub fn top_bar_style(theme: &Theme) -> container::Style {
 #[cfg(test)] mod external_tests;
 
 #[cfg(test)] mod controls_tests;
+
+pub mod menus;
+pub mod workspace_mode;
+
+#[cfg(test)] mod menus_tests;
+
+#[cfg(test)] mod workspace_mode_tests;
+
+#[cfg(test)] mod widgets_tests;

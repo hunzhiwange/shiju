@@ -6,6 +6,7 @@ license = "MIT"
 [lib]
 doctest = false
 [dependencies]
+desktop-platform = { path = "../desktop-platform", version = "0.6.0" }
 serde_json = "1"
 desktop-settings-network = { path = "../desktop-settings-network", version = "0.6.0" }
 desktop-settings-skills = { path = "../desktop-settings-skills", version = "0.6.0" }
@@ -24,4 +25,5 @@ update-types = { path = "../update-types", version = "0.6.0" }
 desktop-web-install = { path = "../desktop-web-install", version = "0.6.0" }
 
 [dev-dependencies]
+tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

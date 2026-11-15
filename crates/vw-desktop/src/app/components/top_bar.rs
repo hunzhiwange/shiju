@@ -7,6 +7,7 @@ mod external;
 mod gateway;
 pub(crate) mod menu_actions;
 pub(crate) mod menus;
+#[cfg(test)]
 mod widgets;
 mod workspace_mode;
 
@@ -43,8 +44,5 @@ mod external_tests;
 #[cfg(test)]
 mod menus_tests;
 #[cfg(test)]
-#[path = "widgets_tests.rs"]
+#[path = "top_bar/widgets_tests.rs"]
 mod widgets_tests;
-#[cfg(test)]
-#[path = "top_bar/workspace_mode_tests.rs"]
-mod workspace_mode_tests;

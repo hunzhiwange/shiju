@@ -34,6 +34,7 @@ members = [
   "crates/libs/app-usage-core",
   "crates/libs/app-usage-store",
   "crates/libs/app-settings-store",
+  "crates/libs/model-catalog",
   "crates/libs/app-session-core",
   "crates/libs/app-sessions",
   "crates/libs/app-session-content",

@@ -22,6 +22,7 @@ agent-cli-types = { path = "../libs/agent-cli-types", version = "0.6.0" }
 agent-auth = { path = "../libs/agent-auth", version = "0.6.0" }
 agent-approval = { path = "../libs/agent-approval", version = "0.6.0" }
 app-settings-store = { path = "../libs/app-settings-store", version = "0.6.0" }
+model-catalog = { path = "../libs/model-catalog", version = "0.6.0" }
 tool-context = { path = "../libs/tool-context", version = "0.6.0" }
 storage-types = { path = "../libs/storage-types", version = "0.6.0" }
 session-port = { path = "../libs/session-port", version = "0.6.0" }

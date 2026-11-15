@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/libs/update-types",
   "crates/libs/desktop-platform",
   "crates/libs/shell-command",
   "crates/libs/gateway-task-lifecycle",

@@ -8,6 +8,7 @@ description = "Shared utilities for VibeWindow crates"
 license = "MIT"
 
 [dependencies]
+update-types = { path = "../libs/update-types", version = "0.6.0" }
 shell-command = { path = "../libs/shell-command", version = "0.6.0" }
 local-app-auth = { path = "../libs/local-app-auth", version = "0.6.0" }
 runtime-log = { path = "../libs/runtime-log", version = "0.6.0" }

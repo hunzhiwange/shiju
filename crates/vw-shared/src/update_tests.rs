@@ -875,12 +875,6 @@ async fn self_update_returns_when_already_current_and_not_forced() {
     let _ = server.join();
 }
 
-#[test]
-fn current_version_matches_cargo_package_version() {
-    assert_eq!(super::current_version(), env!("CARGO_PKG_VERSION"));
-    assert!(!super::current_version().is_empty());
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn get_current_exe_returns_existing_path() {

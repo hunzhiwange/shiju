@@ -141,7 +141,7 @@ pub fn view_update_check_with_progress<'a>(
     is_checking: bool,
     show_install_action: bool,
     use_app_update_action: bool,
-    update_progress: Option<&'a vw_shared::update::UpdateProgress>,
+    update_progress: Option<&'a update_types::UpdateProgress>,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     view_inner(
@@ -197,7 +197,7 @@ fn view_inner<'a>(
     show_install_action: bool,
     use_app_update_action: bool,
     show_logo_above_content: bool,
-    update_progress: Option<&'a vw_shared::update::UpdateProgress>,
+    update_progress: Option<&'a update_types::UpdateProgress>,
     last_copied_code_hash: Option<u64>,
     desktop_update: Option<&crate::app::desktop_update::DesktopUpdate>,
     cli_commands: Option<Element<'a, Message>>,
@@ -491,7 +491,7 @@ fn update_value(label: String) -> iced::widget::Text<'static> {
 
 pub(super) fn update_progress_block_localized<'a>(
     i18n: crate::app::i18n::I18n,
-    progress: &'a vw_shared::update::UpdateProgress,
+    progress: &'a update_types::UpdateProgress,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     let progress_value = progress
@@ -646,7 +646,7 @@ pub(super) fn hash_copy_text(content: &str) -> u64 {
 
 #[cfg(test)]
 pub(super) fn update_progress_block<'a>(
-    progress: &'a vw_shared::update::UpdateProgress,
+    progress: &'a update_types::UpdateProgress,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     update_progress_block_localized(

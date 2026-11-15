@@ -398,10 +398,10 @@ pub struct App {
     /// 应用升级来源、检测快照与安装器交接状态
     pub(crate) desktop_update: crate::app::desktop_update::DesktopUpdate,
     /// 应用自更新下载进度
-    pub(crate) app_update_progress: Option<vw_shared::update::UpdateProgress>,
+    pub(crate) app_update_progress: Option<update_types::UpdateProgress>,
     /// 应用自更新下载进度接收器
     pub(crate) app_update_progress_rx:
-        Option<std::sync::mpsc::Receiver<vw_shared::update::UpdateProgress>>,
+        Option<std::sync::mpsc::Receiver<update_types::UpdateProgress>>,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据

@@ -5,7 +5,8 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
-use vw_shared::update::{DesktopInstaller, DesktopRelease, InstallerKind, UpdateProgress};
+use update_types::UpdateProgress;
+use vw_shared::update::{DesktopInstaller, DesktopRelease, InstallerKind};
 
 /// Only the verified download path can produce this result. Fields stay private so
 /// callers cannot substitute an arbitrary path or digest before opening it.

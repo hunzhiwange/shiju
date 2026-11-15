@@ -1,0 +1,5 @@
+[package]
+name = "update-types"
+version = "0.6.0"
+edition = "2024"
+license = "MIT"

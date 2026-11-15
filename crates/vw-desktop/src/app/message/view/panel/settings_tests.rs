@@ -509,7 +509,7 @@ fn app_update_progress_drains_available_values_and_drops_disconnected_receiver()
 
     let mut app = crate::app::App::new().0;
     let (sender, receiver) = std::sync::mpsc::channel();
-    let first = vw_shared::update::UpdateProgress {
+    let first = update_types::UpdateProgress {
         asset_name: "app".into(),
         download_url: "https://example.invalid/first".into(),
         downloaded_bytes: 10,

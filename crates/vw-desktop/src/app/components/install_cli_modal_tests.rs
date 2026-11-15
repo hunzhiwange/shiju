@@ -19,8 +19,8 @@ fn progress(
     total_bytes: Option<u64>,
     bytes_per_second: f64,
     average_bytes_per_second: f64,
-) -> vw_shared::update::UpdateProgress {
-    vw_shared::update::UpdateProgress {
+) -> update_types::UpdateProgress {
+    update_types::UpdateProgress {
         asset_name: "VibeWindow.dmg".to_string(),
         download_url: "https://example.com/releases/vibewindow.dmg".to_string(),
         downloaded_bytes,

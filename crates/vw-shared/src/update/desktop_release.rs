@@ -1,6 +1,6 @@
 //! Desktop installer snapshots. No binary replacement and no implicit source fallback.
 #[cfg(not(target_arch = "wasm32"))]
-use super::{DEFAULT_RELEASE_API, UpdateProgress, current_version};
+use update_types::{DEFAULT_RELEASE_API, UpdateProgress, current_version};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]

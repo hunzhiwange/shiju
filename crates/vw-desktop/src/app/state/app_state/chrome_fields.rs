@@ -40,10 +40,10 @@
     /// CLI 更新检测是否进行中
     pub(crate) cli_install_modal_is_checking_update: bool,
     /// 应用自更新下载进度
-    pub(crate) app_update_progress: Option<vw_shared::update::UpdateProgress>,
+    pub(crate) app_update_progress: Option<update_types::UpdateProgress>,
     /// 应用自更新下载进度接收器
     pub(crate) app_update_progress_rx:
-        Option<std::sync::mpsc::Receiver<vw_shared::update::UpdateProgress>>,
+        Option<std::sync::mpsc::Receiver<update_types::UpdateProgress>>,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据

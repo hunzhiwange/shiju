@@ -6,7 +6,7 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
-use vw_shared::update::UpdateProgress;
+use update_types::UpdateProgress;
 use vw_shared::update::{UpdateSource, desktop_release::SHIJU_MANIFEST};
 
 const RELEASE_API: &str = "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";

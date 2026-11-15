@@ -15,7 +15,8 @@ use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-const DEFAULT_RELEASE_API: &str = "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";
+use update_types::DEFAULT_RELEASE_API;
+pub use update_types::{UpdateProgress, current_version};
 const APP_UPDATE_API_ENV: &str = "VIBEWINDOW_APP_UPDATE_API";
 
 #[derive(Debug, Clone)]
@@ -32,16 +33,6 @@ struct ReleaseAsset {
     download_url: String,
     binary_name: Option<String>,
     target: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct UpdateProgress {
-    pub asset_name: String,
-    pub download_url: String,
-    pub downloaded_bytes: u64,
-    pub total_bytes: Option<u64>,
-    pub bytes_per_second: f64,
-    pub average_bytes_per_second: f64,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -72,10 +63,6 @@ struct CustomAsset {
     target: Option<String>,
     #[serde(default)]
     binary_name: Option<String>,
-}
-
-pub fn current_version() -> &'static str {
-    env!("CARGO_PKG_VERSION")
 }
 
 /// 获取远端发布源声明的最新版本号。

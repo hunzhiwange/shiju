@@ -6,7 +6,7 @@ use anyhow::{Context, Result, bail};
 use iced::Task;
 use std::path::PathBuf;
 use std::sync::{Arc, mpsc};
-use vw_shared::update::UpdateProgress;
+use update_types::UpdateProgress;
 
 #[derive(Debug, Default)]
 pub struct State {

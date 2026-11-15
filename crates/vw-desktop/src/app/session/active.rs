@@ -41,7 +41,7 @@ fn build_message_meta_labels(
                 message_meta_text(message.model.as_deref(), time_ms)
             }
             ChatRole::User => {
-                if vw_shared::session::session_utils::parse_task_session_source_marker(
+                if session_text::parse_task_session_source_marker(
                     &message.content,
                 )
                 .is_some()
@@ -73,7 +73,7 @@ fn build_message_meta_label(
             message_meta_text(message.model.as_deref(), time_ms)
         }
         ChatRole::User => {
-            if vw_shared::session::session_utils::parse_task_session_source_marker(&message.content)
+            if session_text::parse_task_session_source_marker(&message.content)
                 .is_some()
             {
                 Some(crate::app::i18n::chat::MessageMeta::TaskSource)
@@ -94,7 +94,7 @@ fn build_user_question_markers(chat: &[ChatMessage]) -> Vec<UserQuestionMarker> 
             (message.role == ChatRole::User).then(|| UserQuestionMarker {
                 message_idx,
                 preview: crate::app::components::chat_panel::user_question_preview(
-                    vw_shared::session::session_utils::strip_task_session_source_marker(
+                    session_text::strip_task_session_source_marker(
                         &message.content,
                     )
                     .as_ref(),
@@ -252,7 +252,7 @@ impl App {
                 (message.role == ChatRole::User).then(|| UserQuestionMarker {
                     message_idx: indexed_len + offset,
                     preview: crate::app::components::chat_panel::user_question_preview(
-                        vw_shared::session::session_utils::strip_task_session_source_marker(
+                        session_text::strip_task_session_source_marker(
                             &message.content,
                         )
                         .as_ref(),

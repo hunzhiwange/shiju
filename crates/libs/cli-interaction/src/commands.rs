@@ -322,7 +322,7 @@ pub(crate) fn session_resume_items(previews: &[ChatSessionMeta]) -> Vec<V3Select
             let label = if !title.is_empty() {
                 title.to_string()
             } else if let Some(line) =
-                vw_shared::session::session_utils::initial_title_from_content(last_content)
+                session_text::initial_title_from_content(last_content)
             {
                 line.to_owned()
             } else {

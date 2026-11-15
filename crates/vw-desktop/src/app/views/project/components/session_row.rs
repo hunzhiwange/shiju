@@ -94,7 +94,7 @@ pub(in crate::app::views::project) fn running_draft_sessions(
             .active_agent_request
             .as_ref()
             .and_then(|request| {
-                vw_shared::session::session_utils::initial_title_from_content(&request.query)
+                session_text::initial_title_from_content(&request.query)
             })
             .map(|line| crate::app::views::project::utils::truncate_display_width(line, 120))
             .unwrap_or_else(|| I18n::new(app.desktop_locale).__("新会话").to_owned());

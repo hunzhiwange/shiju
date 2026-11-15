@@ -12,6 +12,7 @@ autotests = false
 doctest = false
 
 [dependencies]
+session-text = { path = "../libs/session-text", version = "0.6.0" }
 vw-api-model-catalog = { path = "../libs/api-model-catalog", version = "0.6.0" }
 config-aggregate = { path = "../libs/config-aggregate", version = "0.6.0" }
 session-ui-types = { path = "../libs/session-ui-types", version = "0.6.0" }

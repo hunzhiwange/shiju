@@ -25,7 +25,7 @@ use {
     vw_api_transport::id::SessionId,
     vw_api_transport::id::TenantScope,
 };
-use vw_shared::session::session_utils::encode_task_session_source_marker;
+use session_text::encode_task_session_source_marker;
 
 pub(crate) const MAX_SESSION_READ_CHARS: usize = 64 * 1024;
 

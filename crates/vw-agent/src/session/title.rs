@@ -48,7 +48,7 @@ fn truncate_title_source(content: String) -> String {
 
 /// Extract display text from a successful user turn without exposing attachment payloads.
 pub(crate) fn first_response_source(content: &str) -> String {
-    use vw_shared::session::session_utils::strip_task_session_source_marker;
+    use session_text::strip_task_session_source_marker;
 
     let content = strip_task_session_source_marker(content);
     let text = match serde_json::from_str::<Vec<Value>>(&content) {

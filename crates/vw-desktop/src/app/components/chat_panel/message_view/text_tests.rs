@@ -108,7 +108,7 @@ fn split_session_control_selection_preserves_text_without_marker() {
 
 #[test]
 fn task_session_source_is_hidden_from_display_and_copy_text() {
-    let encoded = vw_shared::session::session_utils::encode_task_session_source_marker(
+    let encoded = session_text::encode_task_session_source_marker(
         "source-session",
         "正文保持不变",
     )

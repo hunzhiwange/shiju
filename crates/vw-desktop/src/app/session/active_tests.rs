@@ -126,7 +126,7 @@ fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
 
 #[test]
 fn task_session_source_display_uses_vibewindow_label() {
-    let content = vw_shared::session::session_utils::encode_task_session_source_marker(
+    let content = session_text::encode_task_session_source_marker(
         "source-session",
         "跨任务问题",
     )

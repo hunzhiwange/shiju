@@ -63,7 +63,7 @@ fn parse_chat_ui_artifacts(
 
     for (msg_idx, message) in chat.iter().enumerate() {
         let display_content = if message.role == ChatRole::User {
-            vw_shared::session::session_utils::strip_task_session_source_marker(&message.content)
+            session_text::strip_task_session_source_marker(&message.content)
         } else {
             std::borrow::Cow::Borrowed(message.content.as_str())
         };

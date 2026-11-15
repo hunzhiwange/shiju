@@ -17,7 +17,7 @@ use super::models::{
 };
 use super::store;
 #[cfg(not(target_arch = "wasm32"))]
-use vw_shared::session::session_utils::is_default_title;
+use session_text::is_default_title;
 use vw_shared::shell::{resolve_executable, shell_profile_env_var, std_command};
 
 mod backend_output;

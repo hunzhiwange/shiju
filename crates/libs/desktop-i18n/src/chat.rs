@@ -119,7 +119,7 @@ impl MessageMeta {
     pub fn render(&self, i18n: I18n) -> String {
         match self {
             Self::TaskSource => i18n
-                .__(vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL)
+                .__(session_text::TASK_SESSION_SOURCE_DISPLAY_LABEL)
                 .to_string(),
             Self::Model { model, time_ms: None } => model.clone(),
             Self::Model { model, time_ms: Some(timestamp) } => {

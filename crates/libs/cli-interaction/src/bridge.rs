@@ -58,11 +58,11 @@ impl GatewayV3Bridge {
                     .session
                     .first_response_preview
                     .as_deref()
-                    .and_then(vw_shared::session::session_utils::initial_title_from_content)
+                    .and_then(session_text::initial_title_from_content)
                     .or_else(|| {
                         state.messages.iter().find_map(|message| match message {
                             UiMessage::User(user) => {
-                                vw_shared::session::session_utils::initial_title_from_content(
+                                session_text::initial_title_from_content(
                                     &user.text,
                                 )
                             }

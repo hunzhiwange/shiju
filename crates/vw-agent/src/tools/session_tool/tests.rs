@@ -109,7 +109,7 @@ async fn session_tool_first_response_keeps_running_task_out_of_history() {
         move |_directory: String, request: vw_api_chat::chat::GatewayChatStreamRequest| {
             let content = request.messages[0]["content"].as_str().expect("user prompt content");
             let source =
-                vw_shared::session::session_utils::parse_task_session_source_marker(content)
+                session_text::parse_task_session_source_marker(content)
                     .expect("source marker");
             assert_eq!(source.content, "Work");
             started_tx.lock().expect("started lock").take().expect("one call").send(()).ok();
@@ -374,7 +374,7 @@ async fn session_tool_send_continues_existing_visible_task() {
     assert!(result.success);
     let request = request_rx.await.expect("background request");
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some(task.info.id.as_str()));
-    let source = vw_shared::session::session_utils::parse_task_session_source_marker(
+    let source = session_text::parse_task_session_source_marker(
         request.messages[0]["content"].as_str().expect("content"),
     )
     .expect("source marker");

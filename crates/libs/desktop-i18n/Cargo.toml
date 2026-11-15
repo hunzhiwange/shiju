@@ -8,6 +8,7 @@ license = "MIT"
 doctest = false
 
 [dependencies]
+session-text = { path = "../session-text", version = "0.6.0" }
 serde = "1"
 serde_json = "1"
 vw-config-types = { path = "../../vw-config-types", version = "0.6.0" }

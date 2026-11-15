@@ -2,31 +2,9 @@
 use super::{message, Scope};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, text}};
-use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone, Default)]
-pub(super) struct State {
-    identity: Option<ExternalSessionIdentity>,
-    terminal: Option<SessionTerminal>,
-    pub(super) busy: bool,
-    generation: u64,
-}
-impl State {
-    pub(super) fn reset(&mut self) {
-        *self = Self { generation: self.generation.wrapping_add(1), ..Self::default() };
-    }
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Open(ExternalSessionIdentity),
-    Close,
-    Terminal(SessionTerminal),
-    Launch,
-    Copy,
-    Command(Scope, ExternalSessionIdentity, u64, Result<SessionResumeCommandResponse, AgentAppsReadError>),
-    Finished(Scope, ExternalSessionIdentity, u64, Result<SessionResumeResponse, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::resume::{State, Event};
 fn msg(event: Event) -> Message { message(super::Event::Resume(event)) }
 
 pub(super) fn control(session: &SessionMeta, enabled: bool) -> Element<'_, Message> {

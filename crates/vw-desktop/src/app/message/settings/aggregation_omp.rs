@@ -3,42 +3,13 @@ mod core;
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
-    state::app_providers::list::Scope,
 };
 pub(crate) use core::*;
-use iced::{Task, widget::text_editor};
+use iced::Task;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::AggregationQuery;
 use vw_api_transport::id::ProjectId;
-#[derive(Clone)]
-pub enum Event {
-    Open,
-    Close,
-    Refresh,
-    Id(String),
-    Name(String),
-    Declaration(text_editor::Action),
-    Save,
-    ReviewRemove(String),
-    CancelRemove,
-    ConfirmRemove,
-    Completed {
-        scope: Scope,
-        project: ProjectId,
-        access: u64,
-        generation: u64,
-        writing: bool,
-        result: Result<
-            vw_api_app_aggregation::OmpDirectoryState,
-            String,
-        >,
-    },
-}
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("OmpDirectoryEvent([redacted])")
-    }
-}
+pub use desktop_apps_ui::aggregation::omp::{Event};
 pub(crate) fn message(event: Event) -> Message {
     list::message(ListMessage::OmpDirectory(event))
 }

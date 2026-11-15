@@ -486,10 +486,6 @@ mod hermes_memory_tests;
 #[path = "agent_apps/openclaw_model.rs"]
 pub(crate) mod openclaw_model;
 
-#[cfg(test)]
-#[path = "agent_apps/openclaw_model_tests.rs"]
-mod openclaw_model_tests;
-
 #[path = "agent_apps/openclaw_catalog.rs"]
 pub(crate) mod openclaw_catalog;
 
@@ -514,12 +510,7 @@ mod hermes_memory_limits_tests;
 
 #[path = "agent_apps/daily_memory.rs"]
 pub(crate) mod daily_memory;
-#[cfg(test)]
-#[path = "agent_apps/daily_memory_tests.rs"]
-mod daily_memory_tests;
 
-#[path = "agent_apps/daily_memory_search.rs"]
-pub(crate) mod daily_memory_search;
 
 #[path = "agent_apps/workspace_files.rs"]
 pub(crate) mod workspace_files;

@@ -3,18 +3,9 @@ use super::{Event as ParentEvent, Scope, State, message};
 use crate::app::{App, Message, components::system_settings_common::*, state::AgentAppsContext};
 use iced::{Element, Length, Task, widget::{button, column, container, row, scrollable, text}};
 use iced::widget::scrollable::{Direction, Scrollbar};
-use vw_api_external_session::{ExternalSessionIdentity, SessionMeta};
+use vw_api_external_session::SessionMeta;
 
-#[derive(Clone, Copy, Debug)]
-pub enum Location { Source, Project }
-
-#[derive(Clone, Debug)]
-pub enum Event {
-    Sources(bool),
-    Copy(ExternalSessionIdentity, u64, Location),
-    Reveal(ExternalSessionIdentity, u64, Location),
-    Finished(Scope, Result<(), String>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::paths::{Event, Location};
 fn msg(event: Event) -> Message { message(ParentEvent::Path(event)) }
 
 fn location(session: &SessionMeta, kind: Location) -> Option<&str> {

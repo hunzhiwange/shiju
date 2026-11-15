@@ -5,42 +5,9 @@ use iced::{
     Element, Task,
     widget::{button, column, text},
 };
-use std::collections::BTreeSet;
-use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone, Default)]
-pub(super) struct State {
-    expanded: BTreeSet<(usize, usize)>,
-    process_open: bool,
-    pages: Vec<Page>,
-}
-#[derive(Clone)]
-struct Page {
-    reference: ContentRef,
-    text: String,
-    next: Option<u32>,
-    started: bool,
-    pending: bool,
-    serial: u64,
-    abort: Option<iced::task::Handle>,
-}
-impl State {
-    pub(super) fn cancel(&self) {
-        for page in &self.pages {
-            if let Some(abort) = &page.abort {
-                abort.abort();
-            }
-        }
-    }
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Process,
-    Toggle(usize, usize),
-    More(ContentRef),
-    Loaded(reader::Scope, u64, ContentRef, u32, Result<SessionContentResponse, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::details::{State, Event, Page};
 fn event(value: Event) -> Message {
     message(ParentEvent::Details(value))
 }

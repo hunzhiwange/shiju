@@ -2,7 +2,6 @@
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
-    state::app_providers::list::Scope,
 };
 use iced::Task;
 use gateway_aggregation::{AggregationApiError, GatewayAggregationClient};
@@ -10,14 +9,8 @@ use vw_gateway_client::GatewayClient;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::*;
 use vw_api_app_provider_base::AppProviderSummary;
-use vw_api_transport::id::ProjectId;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Selection {
-    pub scope: Scope,
-    pub project: ProjectId,
-    pub catalog_generation: u64,
-}
+pub use desktop_apps_ui::aggregation::clients::Selection;
 #[derive(Clone, Debug)]
 pub struct Snapshot {
     pub state: AggregationState,

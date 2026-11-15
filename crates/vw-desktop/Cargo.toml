@@ -26,6 +26,7 @@ path = "src/main.rs"
 
 [dependencies]
 desktop-provider-apps = { path = "../libs/desktop-provider-apps", version = "0.6.0" }
+desktop-apps-ui = { path = "../libs/desktop-apps-ui", version = "0.6.0" }
 desktop-usage = { path = "../libs/desktop-usage", version = "0.6.0" }
 desktop-session = { path = "../libs/desktop-session", version = "0.6.0" }
 desktop-settings-account = { path = "../libs/desktop-settings-account", version = "0.6.0" }

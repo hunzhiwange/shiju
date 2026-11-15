@@ -23,70 +23,8 @@ mod export;
 mod maintenance;
 #[path = "external_sessions/compression.rs"]
 mod compression;
-use gateway_external_session::AgentAppsReadError;
-use vw_api_external_session::*;
 
-#[derive(Clone, Default)]
-pub(crate) struct State {
-    open: bool,
-    sources_open: bool,
-    deletion: delete::State,
-    maintenance: maintenance::State,
-    compression: compression::State,
-    resume: resume::State,
-    reader: Option<reader::State>,
-    list_offset: iced::widget::scrollable::AbsoluteOffset,
-    error: bool,
-    by_time: bool,
-    host: String,
-    busy: bool,
-    page: Option<SessionCatalogPage>,
-    generation: u64,
-}
-impl State {
-    pub(crate) fn cancel_reader(&mut self) {
-        self.resume.reset();
-        if let Some(reader) = self.reader.take() { reader.cancel(); }
-    }
-    pub fn invalidate(&mut self) {
-        self.cancel_reader();
-        *self = Self { open: self.open, by_time: self.by_time, generation: self.generation.wrapping_add(1), ..Self::default() };
-    }
-}
-#[derive(Clone, Debug)]
-pub struct Scope {
-    context: AgentAppsContext,
-    host: String,
-    project: String,
-    catalog: u64,
-    generation: u64,
-    append: bool,
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Open,
-    Maintenance(maintenance::Event),
-    Compression(compression::Event),
-    Delete(delete::Event),
-    Resume(resume::Event),
-    Path(paths::Event),
-    Export(export::Event),
-    Details(details::Event),
-    Image(images::Event),
-    Find(find::Event),
-    Read(ExternalSessionIdentity),
-    Back,
-    Adjacent(bool),
-    Turn(usize),
-    ListScrolled(iced::widget::scrollable::AbsoluteOffset),
-    ReaderScrolled(iced::widget::scrollable::AbsoluteOffset),
-    Chunk(reader::Scope, Result<TranscriptChunk, AgentAppsReadError>),
-    Close,
-    GroupByTime(bool),
-    Refresh,
-    Next,
-    Loaded(Scope, Result<SessionCatalogPage, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::{State, Scope, Event};
 pub(crate) fn message(event: Event) -> Message {
     Message::Settings(crate::app::message::settings::SettingsMessage::AppsCatalog(
         crate::app::message::settings::AppsCatalogMessage::ExternalSessions(event)))
@@ -117,82 +55,20 @@ pub(crate) fn update(app: &mut App, event: Event) -> Task<Message> {
             return navigation;
         }
         Event::Close => {
-            let state = &mut app.apps_catalog.external_sessions;
-            state.cancel_reader();
-            state.deletion = delete::State::default();
-            state.open = false;
-            state.sources_open = false;
-            state.busy = false;
-            state.generation = state.generation.wrapping_add(1);
+            desktop_apps_ui::agent_apps::external_sessions::close(&mut app.apps_catalog.external_sessions);
             return Task::none();
         }
         Event::GroupByTime(value) => { app.apps_catalog.external_sessions.by_time = value; return Task::none(); }
         _ => {}
     }
-    let Ok(client) = crate::app::config::gateway_client() else {
-        return app.show_error_toast("网关不可用，请重新连接");
-    };
-    let context = AgentAppsContext { gateway: client.endpoint().base_url(),
-        tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
-    if let Event::Loaded(scope, result) = event {
-        if scope.context != context || app.apps_catalog.context.as_ref() != Some(&context)
-            || scope.host != app.apps_catalog.host || app.project_id.as_ref() != Some(&scope.project)
-            || scope.catalog != app.apps_catalog.generation
-            || scope.generation != app.apps_catalog.external_sessions.generation
-            || !app.apps_catalog.external_sessions.open
-            || !app.apps_catalog.external_sessions.busy { return Task::none(); }
-        app.apps_catalog.external_sessions.busy = false;
-        match result {
-            Ok(mut page) => {
-                let state = &mut app.apps_catalog.external_sessions;
-                state.error = false;
-                if scope.append {
-                    if let Some(previous) = &mut state.page {
-                        for session in page.sessions.drain(..) {
-                            if !previous.sessions.iter().any(|old| old.identity == session.identity) {
-                                previous.sessions.push(session);
-                            }
-                        }
-                        previous.total = page.total;
-                        previous.next_cursor = page.next_cursor;
-                        previous.groups = page.groups;
-                        previous.truncated |= page.truncated;
-                    }
-                } else { state.page = Some(page); }
-            }
-            Err(_) => {
-                app.apps_catalog.external_sessions.error = true;
-                return app.show_error_toast("外部会话读取失败，请检查主机授权并重试");
-            }
-        }
-        return Task::none();
-    }
-    if app.apps_catalog.external_sessions.deletion.busy() { return Task::none(); }
-    if matches!(event, Event::Refresh) { app.apps_catalog.external_sessions.resume.reset(); }
-    if matches!(event, Event::Refresh) { app.apps_catalog.external_sessions.deletion = delete::State::default(); }
-    if app.apps_catalog.external_sessions.busy && matches!(event, Event::Next) { return Task::none(); }
-    let Some(project) = app.project_id.clone().filter(|id| !id.trim().is_empty()) else {
-        return app.show_error_toast("请先选择项目");
-    };
-    if app.apps_catalog.context.as_ref() != Some(&context) || app.apps_catalog.host.is_empty()
-        || app.apps_catalog.token.is_empty() { return app.show_error_toast("请先连接应用服务"); }
-    let cursor = if matches!(event, Event::Next) {
-        let Some(cursor) = app.apps_catalog.external_sessions.page.as_ref().and_then(|p| p.next_cursor.clone()) else { return Task::none(); };
-        Some(cursor)
-    } else { None };
-    let state = &mut app.apps_catalog.external_sessions;
-    state.busy = true;
-    state.error = false;
-    state.host = app.apps_catalog.host.clone();
-    let append = cursor.is_some();
-    if !append { state.page = None; }
-    state.generation = state.generation.wrapping_add(1);
-    let scope = Scope { context, host: app.apps_catalog.host.clone(), project: project.clone(),
-        catalog: app.apps_catalog.generation, generation: state.generation, append };
-    let query = SessionCatalogQuery { project_id: project.into(), target_host_id: scope.host.clone(),
-        provider: None, instance_id: None, project_dir: None, search: String::new(), page_size: 20, cursor };
-    let token = app.apps_catalog.token.clone();
-    Task::perform(async move {
-        message(Event::Loaded(scope, gateway_external_session::GatewayExternalSessionClient::new(client.transport().clone()).external_sessions_catalog(&query, &token).await))
-    }, |message| message)
+    let Ok(client) = crate::app::config::gateway_client() else { return app.show_error_toast("网关不可用，请重新连接"); };
+    let context = AgentAppsContext { gateway: client.endpoint().base_url(), tenant: client.endpoint().tenant_scope().clone(), project: app.project_path.clone() };
+    // A loaded response must still be checked when the current project is absent.
+    let project = app.project_id.clone().unwrap_or_default();
+    let connection = desktop_apps_ui::Connection { client, context, catalog_context: app.apps_catalog.context.clone(), project,
+        host: app.apps_catalog.host.clone(), generation: app.apps_catalog.generation, token: app.apps_catalog.token.clone() };
+    let mut notice = None;
+    let task = desktop_apps_ui::agent_apps::external_sessions::update(&mut app.apps_catalog.external_sessions, connection, event, &mut notice).map(message);
+    let feedback = match notice { Some(desktop_apps_ui::Notice::Error(text)) => app.show_error_toast(text), Some(desktop_apps_ui::Notice::Success(text)) => app.show_success_toast(text), None => Task::none() };
+    Task::batch([task, feedback])
 }

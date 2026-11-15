@@ -2,19 +2,9 @@
 use super::{Event as ParentEvent, message, reader};
 use crate::app::{App, Message, components::system_settings_common::*};
 use iced::{Element, Task, widget::{button, row, text}};
-use std::path::PathBuf;
-use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone, Copy, Debug)]
-pub enum Destination { Clipboard, File }
-#[derive(Clone, Debug)]
-pub enum Event {
-    Start(Destination, bool),
-    Loaded(reader::Scope, Destination, Result<SessionMarkdownResponse, AgentAppsReadError>),
-    Selected(reader::Scope, String, Option<PathBuf>),
-    Saved(reader::Scope, bool),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::export::{Event, Destination};
 fn msg(event: Event) -> Message { message(ParentEvent::Export(event)) }
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {

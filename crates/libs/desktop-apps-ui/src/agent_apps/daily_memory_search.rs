@@ -1,9 +1,10 @@
 //! Ephemeral daily search. Dropping the page signals cancellation to the SDK worker.
 use super::{
     daily_memory::{self, Scope},
-    system_settings_common::*,
+
 };
-use crate::app::Message;
+use desktop_ui_controls::system_settings_common::*;
+type Message = daily_memory::Event;
 use iced::{
     Element, Task,
     widget::{button, column, row, text},
@@ -30,11 +31,11 @@ pub enum Event {
     Finished(Scope, u64, Result<Vec<DailyMemorySearchResult>, String>),
 }
 impl State {
-    pub(super) fn close(&mut self) {
+    pub(crate) fn close(&mut self) {
         self.cancel.take();
         *self = Self { request: self.request.wrapping_add(1), ..Self::default() };
     }
-    pub(super) fn active(&self) -> bool {
+    pub(crate) fn active(&self) -> bool {
         self.open && !self.query.trim().is_empty()
     }
     fn accept(&mut self, request: u64, result: Result<Vec<DailyMemorySearchResult>, String>) {
@@ -55,7 +56,7 @@ impl State {
 fn message(event: Event) -> Message {
     daily_memory::message(daily_memory::Event::Search(event))
 }
-pub(super) fn controls(state: &State) -> Element<'_, Message> {
+pub(crate) fn controls(state: &State) -> Element<'_, Message> {
     if !state.open {
         return button(text("搜索每日记忆"))
             .padding([8, 12])
@@ -75,7 +76,7 @@ pub(super) fn controls(state: &State) -> Element<'_, Message> {
     .spacing(8)
     .into()
 }
-pub(super) fn results(state: &State, busy: bool) -> Element<'_, Message> {
+pub(crate) fn results(state: &State, busy: bool) -> Element<'_, Message> {
     let mut body = column![].spacing(8);
     if state.searching {
         body = body.push(text("正在搜索…"));
@@ -101,7 +102,7 @@ pub(super) fn results(state: &State, busy: bool) -> Element<'_, Message> {
     }
     body.into()
 }
-pub(super) fn update(
+pub(crate) fn update(
     state: &mut State,
     event: Event,
     client: GatewayWorkspaceMemoryClient,

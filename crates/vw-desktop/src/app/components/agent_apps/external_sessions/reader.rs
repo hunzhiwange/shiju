@@ -10,41 +10,7 @@ use iced::{
 use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone)]
-pub(super) struct State {
-    pub(super) identity: ExternalSessionIdentity,
-    title: String,
-    pub(super) turns: Vec<TurnIndex>,
-    pub(super) messages: Vec<SessionMessage>,
-    pub(super) active: usize,
-    loading: bool,
-    failed: bool,
-    total: usize,
-    offset: AbsoluteOffset,
-    abort: Option<iced::task::Handle>,
-    generation: u64,
-    pub(super) details: details::State,
-    pub(super) images: images::State,
-    pub(super) find: find::State,
-    pub(super) exporting: bool,
-}
-impl State {
-    pub(super) fn cancel(&self) {
-        self.details.cancel();
-        self.images.cancel();
-        if let Some(handle) = &self.abort {
-            handle.abort();
-        }
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Scope {
-    context: AgentAppsContext,
-    catalog: u64,
-    generation: u64,
-    identity: ExternalSessionIdentity,
-}
-
+pub use desktop_apps_ui::agent_apps::external_sessions::reader::{State, Scope};
 pub(super) fn handles(event: &Event) -> bool {
     matches!(
         event,

@@ -8,35 +8,7 @@ use iced::{
 use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone, Default)]
-pub(super) struct State {
-    entries: Vec<Entry>,
-    enlarged: Option<ImageRef>,
-}
-#[derive(Clone)]
-struct Entry {
-    reference: ImageRef,
-    handle: Option<image::Handle>,
-    serial: u64,
-    pending: bool,
-    abort: Option<iced::task::Handle>,
-}
-impl State {
-    pub(super) fn cancel(&self) {
-        for entry in &self.entries {
-            if let Some(abort) = &entry.abort {
-                abort.abort();
-            }
-        }
-    }
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Load(ImageRef),
-    Enlarge(ImageRef),
-    Close,
-    Loaded(reader::Scope, u64, ImageRef, Result<image::Handle, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::images::{State, Event, Entry};
 fn event(value: Event) -> Message {
     message(ParentEvent::Image(value))
 }

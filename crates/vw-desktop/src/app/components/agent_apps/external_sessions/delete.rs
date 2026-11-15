@@ -6,31 +6,7 @@ use iced::widget::scrollable::{Direction, Scrollbar};
 use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
 
-#[derive(Clone, Default)]
-pub(super) struct State {
-    pub(super) selecting: bool,
-    pub(super) selected: Vec<SessionMeta>,
-    pub(super) failures: Vec<(ExternalSessionIdentity, String)>,
-    pending: Vec<SessionMeta>,
-    loading: bool,
-    deleting: bool,
-}
-impl State {
-    pub(super) fn busy(&self) -> bool { self.loading || self.deleting }
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Enter,
-    Exit,
-    Clear,
-    Toggle(ExternalSessionIdentity),
-    SelectAll,
-    Selected(Scope, Result<Vec<SessionMeta>, AgentAppsReadError>),
-    Ask(Option<ExternalSessionIdentity>),
-    Cancel,
-    Confirm,
-    Finished(Scope, Vec<ExternalSessionIdentity>, Result<Vec<DeleteSessionOutcome>, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::delete::{State, Event};
 fn msg(event: Event) -> Message { message(super::Event::Delete(event)) }
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {

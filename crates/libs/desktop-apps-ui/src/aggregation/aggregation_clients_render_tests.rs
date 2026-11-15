@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::message::settings::aggregation_list::clients::{Action, Event, Session};
+use super::super::clients::{Action, Event, Session};
 use vw_api_app_aggregation::CodexClientsState;
 #[derive(Default)]
 struct Probe(Vec<(String, iced::Rectangle)>);
@@ -144,14 +144,7 @@ async fn aggregation_t62_real_draw_and_click_in_both_themes() {
                 &mut messages,
             );
             assert!(messages.iter().any(|m| {
-                let Message::Settings(crate::app::message::SettingsMessage::AppProviders(
-                    crate::app::message::app_providers::list::ListMessage::Aggregation(
-                        crate::app::message::settings::aggregation_list::Event::Clients(e),
-                    ),
-                )) = m
-                else {
-                    return false;
-                };
+                let e = m;
                 matches!(
                     (label, e),
                     ("确认重启", Event::Act(Action::Restart))

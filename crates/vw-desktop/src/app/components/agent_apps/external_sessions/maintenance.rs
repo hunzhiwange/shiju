@@ -2,37 +2,9 @@
 use super::{message, Scope};
 use crate::app::{App, Message, state::AgentAppsContext, components::system_settings_common::*};
 use iced::{Element, Length, Task, widget::{button, checkbox, column, container, row, text}};
-use gateway_external_session::AgentAppsReadError;
 use vw_api_external_session::*;
-use vw_api_task::TaskStatus;
 
-#[derive(Clone, Default)]
-pub(super) struct State {
-    target: Option<HistoryMaintenanceTarget>,
-    options: Option<HistoryOptions>,
-    saved_options: Option<HistoryOptions>,
-    backups: Vec<HistoryBackupSummary>,
-    progress: Option<HistoryMaintenanceProgress>,
-    confirmation: Option<String>,
-    pending: bool,
-    uncertain: bool,
-}
-impl State {
-    pub(super) fn is_open(&self) -> bool { self.target.is_some() }
-    pub(super) fn busy(&self) -> bool {
-        self.pending || self.uncertain || self.progress.as_ref().is_some_and(|p|
-            matches!(p.status, TaskStatus::Queued | TaskStatus::Running))
-    }
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Open(HistoryMaintenanceTarget), Close, Reload,
-    Unify(bool), Migrate(bool), Save, Start(HistoryMaintenanceAction),
-    AskRestore(String), ConfirmRestore, DismissRestore, Query, Cancel,
-    Loaded(Scope, HistoryMaintenanceTarget, Result<(HistoryOptions, HistoryBackups), AgentAppsReadError>),
-    Saved(Scope, HistoryMaintenanceTarget, Result<HistoryOptions, AgentAppsReadError>),
-    Progress(Scope, HistoryMaintenanceTarget, Result<HistoryMaintenanceProgress, AgentAppsReadError>),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::maintenance::{State, Event};
 fn msg(event: Event) -> Message { message(super::Event::Maintenance(event)) }
 
 pub(super) fn update(app: &mut App, event: Event) -> Task<Message> {

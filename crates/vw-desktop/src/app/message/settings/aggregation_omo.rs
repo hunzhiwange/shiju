@@ -1,10 +1,7 @@
 use crate::app::{
     App, Message,
     message::app_providers::list::{self, ListMessage},
-    state::{
-        aggregation_omo::{Form, Snapshot, Variant},
-        app_providers::list::Scope,
-    },
+    state::aggregation_omo::{Form, Snapshot, Variant},
 };
 use iced::Task;
 use gateway_aggregation_omo::AggregationOmoError;
@@ -13,29 +10,8 @@ use gateway_aggregation_omo::GatewayAggregationOmoClient;
 use vw_api_app_identity::AppId;
 use vw_api_app_aggregation::OmoApplyRequest;
 use vw_api_app_aggregation::OmoDisableRequest;
-use vw_api_transport::id::ProjectId;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Context {
-    pub scope: Scope,
-    pub project: ProjectId,
-    pub access: u64,
-}
-#[derive(Clone)]
-pub enum Event {
-    Open(Variant),
-    Close,
-    Refresh,
-    Provider(String),
-    Apply,
-    Disable,
-    Finished { context: Context, generation: u64, result: Result<Snapshot, AggregationOmoError> },
-}
-impl std::fmt::Debug for Event {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("OmoEvent")
-    }
-}
+pub use desktop_apps_ui::aggregation::omo::{Context, Event};
 pub(crate) fn message(event: Event) -> Message {
     list::message(ListMessage::Omo(event))
 }

@@ -6,25 +6,7 @@ use iced::{
     widget::{button, column, row, text, text_input},
 };
 use vw_api_external_session::*;
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
-pub enum Filter {
-    #[default]
-    All,
-    Conversation,
-    Changes,
-}
-#[derive(Clone, Default)]
-pub(super) struct State {
-    query: String,
-    selected: usize,
-    pub(super) filter: Filter,
-}
-#[derive(Clone, Debug)]
-pub enum Event {
-    Query(String),
-    Move(bool),
-    Filter(Filter),
-}
+pub use desktop_apps_ui::agent_apps::external_sessions::find::{State, Event, Filter};
 struct Hit {
     turn: usize,
     text: String,
